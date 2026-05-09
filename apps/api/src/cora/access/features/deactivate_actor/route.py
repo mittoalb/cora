@@ -17,34 +17,16 @@ action-endpoint pattern over `DELETE /actors/{actor_id}` because:
 from typing import Annotated
 from uuid import UUID
 
-from asgi_correlation_id import correlation_id
 from fastapi import APIRouter, Depends, Path, Request, status
-from pydantic import BaseModel
 
-from cora.access._bootstrap import SYSTEM_PRINCIPAL_ID
+from cora.access._routing import ErrorResponse, get_correlation_id, get_principal_id
 from cora.access.features.deactivate_actor.command import DeactivateActor
 from cora.access.features.deactivate_actor.handler import Handler
-
-
-class ErrorResponse(BaseModel):
-    """Shared error body for OpenAPI documentation."""
-
-    detail: str
 
 
 def _get_handler(request: Request) -> Handler:
     handler: Handler = request.app.state.access.deactivate_actor
     return handler
-
-
-def _get_correlation_id() -> UUID:
-    raw = correlation_id.get()
-    assert raw is not None, "CorrelationIdMiddleware did not set correlation_id"
-    return UUID(raw)
-
-
-def _get_principal_id() -> UUID:
-    return SYSTEM_PRINCIPAL_ID
 
 
 router = APIRouter(tags=["access"])
@@ -75,8 +57,8 @@ router = APIRouter(tags=["access"])
 async def post_actors_deactivate(
     actor_id: Annotated[UUID, Path(description="Target actor's id.")],
     handler: Annotated[Handler, Depends(_get_handler)],
-    cid: Annotated[UUID, Depends(_get_correlation_id)],
-    principal_id: Annotated[UUID, Depends(_get_principal_id)],
+    cid: Annotated[UUID, Depends(get_correlation_id)],
+    principal_id: Annotated[UUID, Depends(get_principal_id)],
 ) -> None:
     await handler(
         DeactivateActor(actor_id=actor_id),

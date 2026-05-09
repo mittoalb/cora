@@ -114,6 +114,15 @@ Why this shape: it pairs Modular Monolith (BCs are macro-modules) with Vertical 
 - **Domain errors** — PascalCase ending in `Error` (e.g. `InvalidActorNameError`, `ActorAlreadyExistsError`) per PEP 8 / ruff N818. Live in the aggregate's `state.py` if tied to the aggregate's invariants; in the slice's `handler.py` if application-layer (e.g. `UnauthorizedError`).
 - **Domain events** — PascalCase past-tense verbs in the aggregate's `events.py` (e.g. `ActorRegistered`); the same file holds the `<Aggregate>Event` discriminated union the evolver dispatches on.
 
+### HTTP error idiom — HTTPException in routes, JSONResponse in exception handlers
+
+Two distinct contexts, two distinct rules — easy to conflate:
+
+- **Inside route functions** — raise `HTTPException(status_code=..., detail=...)`. This is the FastAPI idiom; it's purpose-built and accepts JSON-serializable detail. Use for in-band errors a route detects directly (e.g. a query handler returns `None` and the route maps it to 404).
+- **Inside `app.add_exception_handler(...)` callbacks** — return `JSONResponse(...)` directly, never raise `HTTPException`. Per [FastAPI guidance](https://fastapi.tiangolo.com/tutorial/handling-errors/), raising HTTPException inside an exception handler creates nested-exception handling pitfalls.
+
+Routes raise; handlers return. Both end up as the same JSON shape over the wire.
+
 ### Cross-cutting / shared code
 
 Per Vertical Slice guidance, **don't extract until you have three real usages with identical, stable logic** (Rule of Three). Shared domain primitives (errors, value objects used across multiple aggregates) live at the BC root or in a `_shared/` sibling once they exist. Cross-BC concerns live under `cora/infrastructure/` (logging, config, ports, adapters).

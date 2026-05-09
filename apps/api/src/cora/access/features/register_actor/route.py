@@ -8,11 +8,10 @@ includes this router on the FastAPI app.
 from typing import Annotated
 from uuid import UUID
 
-from asgi_correlation_id import correlation_id
 from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel, Field
 
-from cora.access._bootstrap import SYSTEM_PRINCIPAL_ID
+from cora.access._routing import ErrorResponse, get_correlation_id, get_principal_id
 from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.handler import Handler
@@ -35,27 +34,9 @@ class RegisterActorResponse(BaseModel):
     actor_id: UUID
 
 
-class ErrorResponse(BaseModel):
-    """Shared error body for OpenAPI documentation."""
-
-    detail: str
-
-
 def _get_handler(request: Request) -> Handler:
     handler: Handler = request.app.state.access.register_actor
     return handler
-
-
-def _get_correlation_id() -> UUID:
-    """Pull the request correlation id from asgi-correlation-id contextvar."""
-    raw = correlation_id.get()
-    assert raw is not None, "CorrelationIdMiddleware did not set correlation_id"
-    return UUID(raw)
-
-
-def _get_principal_id() -> UUID:
-    """Resolve the calling principal's id. Phase 1: hardcoded system principal."""
-    return SYSTEM_PRINCIPAL_ID
 
 
 router = APIRouter(tags=["access"])
@@ -83,8 +64,8 @@ router = APIRouter(tags=["access"])
 async def post_actors(
     body: RegisterActorRequest,
     handler: Annotated[Handler, Depends(_get_handler)],
-    cid: Annotated[UUID, Depends(_get_correlation_id)],
-    principal_id: Annotated[UUID, Depends(_get_principal_id)],
+    cid: Annotated[UUID, Depends(get_correlation_id)],
+    principal_id: Annotated[UUID, Depends(get_principal_id)],
 ) -> RegisterActorResponse:
     actor_id = await handler(
         RegisterActor(name=body.name),

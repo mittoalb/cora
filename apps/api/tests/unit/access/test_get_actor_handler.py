@@ -5,15 +5,20 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.access import UnauthorizedError
 from cora.access.aggregates.actor import Actor, ActorName
-from cora.access.features import get_actor, register_actor
+from cora.access.features import deactivate_actor, get_actor, register_actor
+from cora.access.features.deactivate_actor import DeactivateActor
 from cora.access.features.get_actor import GetActor
 from cora.access.features.register_actor import RegisterActor
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.ports import (
+    Allow,
     AllowAllAuthorize,
+    AuthzResult,
+    Deny,
     FixedIdGenerator,
     FrozenClock,
 )
@@ -70,9 +75,6 @@ async def test_handler_returns_none_for_unknown_id() -> None:
 @pytest.mark.unit
 async def test_handler_returns_actor_with_is_active_false_after_deactivation() -> None:
     """Round-trip through the write side: register, deactivate, then GET."""
-    from cora.access.features import deactivate_actor
-    from cora.access.features.deactivate_actor import DeactivateActor
-
     deps = _build_deps()
     await register_actor.bind(deps)(
         RegisterActor(name="Doga"),
@@ -97,29 +99,45 @@ async def test_handler_returns_actor_with_is_active_false_after_deactivation() -
     assert actor.name == ActorName("Doga")
 
 
+class _RecordingAuthorize:
+    """Authorize stub that records every call so tests can assert shape."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[UUID, str, str]] = []
+
+    async def __call__(
+        self,
+        principal_id: UUID,
+        command_name: str,
+        conduit: str,
+    ) -> AuthzResult:
+        self.calls.append((principal_id, command_name, conduit))
+        return Allow()
+
+
+class _DenyAllAuthorize:
+    async def __call__(
+        self,
+        principal_id: UUID,
+        command_name: str,
+        conduit: str,
+    ) -> AuthzResult:
+        _ = (principal_id, command_name, conduit)
+        return Deny(reason="denied for test")
+
+
 @pytest.mark.unit
-async def test_handler_does_not_authorize_in_phase_2() -> None:
-    """Phase-2 query handlers don't call Authorize. Document the behaviour
-    so the day Phase 3 adds query authorization, this test breaks loudly
-    and the change is intentional."""
-
-    class TrackingAuthorize:
-        def __init__(self) -> None:
-            self.calls = 0
-
-        async def __call__(self, principal_id: UUID, command_name: str, conduit: str) -> object:
-            _ = (principal_id, command_name, conduit)
-            self.calls += 1
-            from cora.infrastructure.ports import Allow
-
-            return Allow()
-
-    tracking = TrackingAuthorize()
+async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
+    """Phase 2 query handlers DO call authorize (with AllowAllAuthorize the
+    decision is always Allow, but the call site is in place so Phase 3
+    Trust BC swap is mechanical per handler instead of a sweep that
+    risks missing handlers)."""
+    tracking = _RecordingAuthorize()
     deps = SharedDeps(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([_NEW_ID]),
-        authorize=tracking,  # type: ignore[arg-type]
+        authorize=tracking,
         event_store=InMemoryEventStore(),
     )
 
@@ -130,4 +148,24 @@ async def test_handler_does_not_authorize_in_phase_2() -> None:
         correlation_id=_CORRELATION_ID,
     )
 
-    assert tracking.calls == 0
+    assert tracking.calls == [(_PRINCIPAL_ID, "GetActor", "default")]
+
+
+@pytest.mark.unit
+async def test_handler_raises_unauthorized_on_deny() -> None:
+    deps = SharedDeps(
+        settings=Settings(app_env="test"),  # type: ignore[call-arg]
+        clock=FrozenClock(_NOW),
+        id_generator=FixedIdGenerator([_NEW_ID]),
+        authorize=_DenyAllAuthorize(),
+        event_store=InMemoryEventStore(),
+    )
+
+    handler = get_actor.bind(deps)
+    with pytest.raises(UnauthorizedError) as exc_info:
+        await handler(
+            GetActor(actor_id=uuid4()),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert exc_info.value.reason == "denied for test"
