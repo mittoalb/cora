@@ -1,14 +1,19 @@
 """Composition wrapper that traces a command or query handler call.
 
-`with_tracing(handler, *, command_name, kind)` returns a callable
+`with_tracing(handler, *, command_name, bc, kind)` returns a callable
 with the same signature as `handler`, wrapped in a span named
-`<bc>.<command|query>.<command_name>` (the bc is encoded via the
-caller-supplied `command_name`'s first segment, see usage). On
-exception the span records the exception and sets status ERROR.
+`<bc>.<kind>.<command_name>`. On exception the OTel SDK's span
+context-manager `__exit__` records the exception event and sets
+status ERROR with description `<ExcType>: <message>` automatically
+(both behaviors are SDK defaults: `record_exception=True` and
+`set_status_on_exception=True` on `start_as_current_span`). The
+wrapper deliberately does NOT call `record_exception` or `set_status`
+itself — doing so would either duplicate the exception event or
+fight the SDK over the description.
 
 Composition order in `wire.py` (innermost first): tracing wraps
-idempotency wraps the bare handler, so the cache hit / cache miss /
-domain failure all attribute to the tracing span correctly.
+idempotency wraps the bare handler, so cache hits, cache misses, and
+domain failures all attribute to the tracing span correctly.
 
 Span attributes use the `cora.*` namespace for project-specific
 metadata (`cora.bc`, `cora.command`, `cora.query`); HTTP / DB /
@@ -18,7 +23,7 @@ messaging attributes come from the underlying instrumentations.
 from typing import Literal, Protocol
 
 from opentelemetry import trace
-from opentelemetry.trace import SpanKind, Status, StatusCode
+from opentelemetry.trace import SpanKind
 
 Kind = Literal["command", "query"]
 
@@ -50,10 +55,10 @@ def with_tracing[**P, R](
 ) -> AsyncHandler[P, R]:
     """Wrap an async handler with an OTel span around the call.
 
-    `command_name` and `bc` are recorded as `cora.command` (or
-    `cora.query`) and `cora.bc` attributes for trace-side filtering.
-    The span name follows `<bc>.<kind>.<command_name>` so traces
-    group naturally by bounded context in the UI.
+    `bc` and `command_name` are recorded as `cora.bc` and `cora.command`
+    (or `cora.query` when `kind="query"`) attributes for trace-side
+    filtering. The span name follows `<bc>.<kind>.<command_name>` so
+    traces group naturally by bounded context in the UI.
     """
     span_name = f"{bc}.{kind}.{command_name}"
     name_attr = f"cora.{kind}"
@@ -66,17 +71,8 @@ def with_tracing[**P, R](
                 "cora.bc": bc,
                 name_attr: command_name,
             },
-        ) as span:
-            try:
-                return await handler(*args, **kwargs)
-            except Exception as exc:
-                # record_exception adds the exception as a span event;
-                # set_status marks the span itself as failed so it shows
-                # up red in the UI. Both are needed (record_exception
-                # alone leaves status=UNSET which most UIs render green).
-                span.record_exception(exc)
-                span.set_status(Status(StatusCode.ERROR, type(exc).__name__))
-                raise
+        ):
+            return await handler(*args, **kwargs)
 
     return wrapped
 

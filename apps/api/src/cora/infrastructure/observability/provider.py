@@ -1,19 +1,36 @@
-"""TracerProvider configuration.
+"""TracerProvider configuration and per-app FastAPI instrumentation.
 
-`configure_tracing(settings)` builds a `TracerProvider` with the
-exporter, sampler, and resource attributes derived from `Settings`,
-installs it as the global provider, and returns a `teardown` callable
-that flushes pending spans on shutdown.
+Two public entrypoints:
+
+- `build_tracing(settings)` is pure: builds a `TracerProvider` and a
+  `teardown` callable per `settings.otel_exporter`, mutates no global
+  state. Used by tests so unit-level coverage of exporter selection
+  doesn't flip the process-wide global (OTel's `set_tracer_provider`
+  is one-shot per process).
+- `configure_tracing(settings)` calls `build_tracing` and additionally
+  installs the provider as the global, plus instruments process-wide
+  libraries (asyncpg). Returns the same `teardown` callable.
+
+`instrument_app(app, settings)` attaches `FastAPIInstrumentor` to a
+specific FastAPI instance with `excluded_urls` matching CORA's
+operational endpoints (probes + scrape + docs) so they don't flood
+the trace exporter under normal traffic.
 
 Exporter selection (`settings.otel_exporter`):
-- `none`   — no provider installed; the global default no-op tracer
-  stays active. Used in `app_env=test` so spans don't accumulate
-  across many `create_app()` instances in the test process.
-- `console`— `ConsoleSpanExporter` with `SimpleSpanProcessor`. Spans
-  print to stdout immediately. Local-dev default.
-- `otlp`   — `OTLPSpanExporter` (HTTP/protobuf) with
-  `BatchSpanProcessor`. Production default; honours the standard
-  `OTEL_EXPORTER_OTLP_*` env vars on top of the explicit endpoint.
+
+- `none`    — no provider installed; the global default no-op tracer
+              stays active. Default for `app_env=test` so spans don't
+              accumulate across many `create_app()` instances in the
+              test process. Also the package-level default (Settings
+              field) so unconfigured deployments are observable-when-
+              chosen rather than observable-by-accident.
+- `console` — `ConsoleSpanExporter` with `SimpleSpanProcessor`. Spans
+              print to stdout immediately. Recommended for local dev.
+- `otlp`    — `OTLPSpanExporter` (HTTP/protobuf) with
+              `BatchSpanProcessor`. Recommended for production. The
+              endpoint is read from the standard `OTEL_EXPORTER_OTLP_*`
+              env vars (we do NOT shadow them with a custom setting,
+              so existing OTel deployment tooling Just Works).
 
 Sampler is `ParentBased(AlwaysOn)` for `console` (development is
 loud by design), and `ParentBased(TraceIdRatioBased(ratio))` for
@@ -27,6 +44,7 @@ inherits them.
 """
 
 from collections.abc import Callable
+from logging import getLogger
 
 from fastapi import FastAPI
 from opentelemetry import trace
@@ -46,6 +64,9 @@ from opentelemetry.sdk.trace.sampling import (
     Sampler,
     TraceIdRatioBased,
 )
+from opentelemetry.semconv._incubating.attributes.deployment_attributes import (
+    DEPLOYMENT_ENVIRONMENT,
+)
 from opentelemetry.semconv.attributes.service_attributes import (
     SERVICE_NAME,
     SERVICE_NAMESPACE,
@@ -55,13 +76,14 @@ from opentelemetry.semconv.attributes.service_attributes import (
 from cora import __version__
 from cora.infrastructure.config import Settings
 
-# OTel semconv 0.62b1 has the deployment.environment attribute under a
-# pre-stable namespace; pin the literal to avoid breaking when the
-# attribute is promoted to stable. The W3C semconv definition is the
-# source of truth: deployment.environment.name (1.x) was renamed from
-# deployment.environment in 1.27. We use the still-widely-supported
-# legacy spelling here — collectors map both.
-_DEPLOYMENT_ENVIRONMENT = "deployment.environment"
+# Endpoints that get hit by infrastructure (probes + scrape + docs)
+# rather than by user-facing traffic. Tracing them produces noise
+# proportional to the probe interval, not the request rate. Comma-
+# separated regex patterns per FastAPIInstrumentor's excluded_urls
+# contract; substring match is sufficient for these stable paths.
+_EXCLUDED_URLS = "health,metrics,docs,openapi.json,redoc"
+
+_log = getLogger(__name__)
 
 Teardown = Callable[[], None]
 
@@ -72,6 +94,11 @@ def build_tracing(settings: Settings) -> tuple[TracerProvider | None, Teardown]:
     Returns `(provider, teardown)`. `provider` is `None` for `none`
     (no work to do); `teardown` is always callable. Pure: no global
     state mutated, safe to call repeatedly in tests.
+
+    For `otlp`, `OTLPSpanExporter()` is constructed without an explicit
+    `endpoint` so it picks up `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` (or
+    falls back to `OTEL_EXPORTER_OTLP_ENDPOINT`, with `/v1/traces`
+    appended) from the environment per the OTel SDK convention.
     """
     if settings.otel_exporter == "none":
         return None, _noop_teardown
@@ -81,7 +108,7 @@ def build_tracing(settings: Settings) -> tuple[TracerProvider | None, Teardown]:
             SERVICE_NAME: settings.otel_service_name,
             SERVICE_VERSION: __version__,
             SERVICE_NAMESPACE: "cora",
-            _DEPLOYMENT_ENVIRONMENT: settings.app_env,
+            DEPLOYMENT_ENVIRONMENT: settings.app_env,
         }
     )
 
@@ -101,11 +128,9 @@ def build_tracing(settings: Settings) -> tuple[TracerProvider | None, Teardown]:
     else:  # "otlp"
         # BatchSpanProcessor batches spans and flushes asynchronously to
         # the OTLP collector. force_flush() on shutdown drains the queue.
-        provider.add_span_processor(
-            BatchSpanProcessor(
-                OTLPSpanExporter(endpoint=f"{settings.otel_exporter_otlp_endpoint}/v1/traces")
-            )
-        )
+        # Endpoint resolved by the exporter from OTEL_EXPORTER_OTLP_*
+        # env vars; our Settings doesn't shadow those.
+        provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
 
     def teardown() -> None:
         # force_flush gives in-flight spans a chance to ship; shutdown
@@ -128,11 +153,13 @@ def configure_tracing(settings: Settings) -> Teardown:
     Calling teardown is idempotent and safe even when `none` was selected
     (it returns immediately).
 
-    OTel's `set_tracer_provider` is one-shot per process. If a provider
-    is already installed (eg. by an earlier `create_app()` in the test
-    suite, or by tests that pre-install their own), the install step is
-    skipped — but the new provider still has its teardown wired so
-    pending spans flush on shutdown.
+    OTel's `set_tracer_provider` is one-shot per process. If a SDK
+    provider is already installed (eg. by an earlier `create_app()` in
+    the test suite, or by an external auto-instrumentation agent), the
+    install step is skipped and a warning is logged so an operator
+    debugging "why aren't my spans appearing" has a breadcrumb. The
+    new provider's teardown is still wired so pending spans flush on
+    shutdown.
     """
     provider, teardown = build_tracing(settings)
     if provider is None:
@@ -142,6 +169,12 @@ def configure_tracing(settings: Settings) -> Teardown:
         # Pre-existing SDK provider; respect it. The new provider's
         # processors will not see traffic, but its teardown is still
         # safe to call.
+        _log.warning(
+            "configure_tracing: a TracerProvider was already installed; "
+            "skipping our installation. Spans will be exported to that "
+            "provider's processors, not the one we built (exporter=%s).",
+            settings.otel_exporter,
+        )
         return teardown
 
     trace.set_tracer_provider(provider)
@@ -161,10 +194,15 @@ def instrument_app(app: FastAPI, settings: Settings) -> None:
     Per-app (not process-wide) so each `create_app()` in the test suite
     can be cleanly torn down with the app instance. Skipped when tracing
     is off so tests don't pay span-creation overhead.
+
+    `excluded_urls` keeps probe + scrape + docs traffic out of the trace
+    exporter; production proxies hit `/health` and Prometheus hits
+    `/metrics` on a fixed cadence, generating spans that vastly
+    outnumber user traffic if not filtered.
     """
     if settings.otel_exporter == "none":
         return
-    FastAPIInstrumentor.instrument_app(app)
+    FastAPIInstrumentor.instrument_app(app, excluded_urls=_EXCLUDED_URLS)
 
 
 def _noop_teardown() -> None:

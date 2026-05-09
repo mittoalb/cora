@@ -34,15 +34,19 @@ def test_console_exporter_returns_provider_and_callable_teardown() -> None:
 
 
 @pytest.mark.unit
-def test_otlp_exporter_returns_provider_and_callable_teardown() -> None:
+def test_otlp_exporter_returns_provider_and_callable_teardown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """No collector running on the test host — but force_flush + shutdown
-    must complete without raising on the call thread regardless."""
+    must complete without raising on the call thread regardless.
+
+    OTLP endpoint is read by the SDK exporter from OTEL_EXPORTER_OTLP_*
+    env vars; set one to a deliberately-unreachable port to be sure
+    nothing fires off the loopback during the test.
+    """
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://127.0.0.1:65535/v1/traces")
     provider, teardown = build_tracing(
-        _settings(
-            otel_exporter="otlp",
-            otel_exporter_otlp_endpoint="http://127.0.0.1:65535",
-            otel_sampler_ratio=1.0,
-        )
+        _settings(otel_exporter="otlp", otel_sampler_ratio=1.0),
     )
     assert isinstance(provider, TracerProvider)
     teardown()

@@ -44,15 +44,16 @@ class Settings(BaseSettings):
     # Observability — OpenTelemetry
     # `none` keeps the global no-op tracer (used by tests so spans don't
     # accumulate across many `create_app()` instances). `console` writes
-    # spans to stdout (handy for local dev). `otlp` exports to the
-    # collector at `otel_exporter_otlp_endpoint` (production).
+    # spans to stdout (handy for local dev). `otlp` exports to a
+    # collector via the standard `OTEL_EXPORTER_OTLP_*` env vars
+    # (we deliberately do NOT shadow them with our own setting so
+    # existing OTel deployment tooling Just Works).
     # Resource attribute `service.name` defaults to `cora-api`; override
     # if the same code is deployed under multiple service identities.
     # Sampler ratio is only consulted when otel_exporter == "otlp"; the
     # console exporter always exports every span (development is loud
     # by design). 1.0 = sample everything; lower in high-traffic prod.
     otel_exporter: OtelExporter = "none"
-    otel_exporter_otlp_endpoint: str = "http://localhost:4318"
     otel_service_name: str = "cora-api"
     otel_sampler_ratio: float = 1.0
 
