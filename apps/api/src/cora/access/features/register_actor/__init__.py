@@ -13,7 +13,11 @@ short names from the slice's namespace.
 from cora.access.features.register_actor import tool
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.decider import decide
-from cora.access.features.register_actor.handler import Handler, bind
+from cora.access.features.register_actor.handler import (
+    Handler,
+    IdempotentHandler,
+    bind,
+)
 from cora.access.features.register_actor.route import router
 
 # UnauthorizedError lives in cora.access.errors (BC-level, not
@@ -21,6 +25,7 @@ from cora.access.features.register_actor.route import router
 
 __all__ = [
     "Handler",
+    "IdempotentHandler",
     "RegisterActor",
     "bind",
     "decide",

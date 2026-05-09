@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 from cora.access._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.register_actor.command import RegisterActor
-from cora.access.features.register_actor.handler import Handler
+from cora.access.features.register_actor.handler import IdempotentHandler
 
 
 class RegisterActorOutput(BaseModel):
@@ -30,13 +30,17 @@ class RegisterActorOutput(BaseModel):
     actor_id: UUID
 
 
-def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
+def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> None:
     """Register the `register_actor` tool on the given MCP server.
 
     `get_handler` is invoked per-call (not at registration) so it sees
     the lifespan-wired bundle on `app.state.access.register_actor`.
     Domain / application errors raised by the handler propagate to
     FastMCP, which wraps them as structured `isError: true` responses.
+
+    MCP tool calls don't currently support idempotency keys (no MCP
+    standard for client-supplied retry tags); the wrapped handler is
+    invoked with idempotency_key=None.
     """
 
     @mcp.tool(

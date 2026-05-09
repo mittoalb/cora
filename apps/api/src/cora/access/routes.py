@@ -19,7 +19,7 @@ from cora.access.aggregates.actor import (
 )
 from cora.access.errors import UnauthorizedError
 from cora.access.features import deactivate_actor, get_actor, register_actor
-from cora.infrastructure.ports import ConcurrencyError
+from cora.infrastructure.ports import ConcurrencyError, IdempotencyConflictError
 
 
 async def _handle_invalid_actor_name(request: Request, exc: Exception) -> JSONResponse:
@@ -64,6 +64,15 @@ async def _handle_concurrency_conflict(request: Request, exc: Exception) -> JSON
     )
 
 
+async def _handle_idempotency_conflict(request: Request, exc: Exception) -> JSONResponse:
+    """Same Idempotency-Key reused with a different command body — client bug."""
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={"detail": str(exc)},
+    )
+
+
 def register_access_routes(app: FastAPI) -> None:
     """Attach Access slice routers and exception handlers to the FastAPI app."""
     app.include_router(register_actor.router)
@@ -74,3 +83,4 @@ def register_access_routes(app: FastAPI) -> None:
     app.add_exception_handler(ActorNotFoundError, _handle_actor_not_found)
     app.add_exception_handler(ActorAlreadyDeactivatedError, _handle_already_deactivated)
     app.add_exception_handler(ConcurrencyError, _handle_concurrency_conflict)
+    app.add_exception_handler(IdempotencyConflictError, _handle_idempotency_conflict)

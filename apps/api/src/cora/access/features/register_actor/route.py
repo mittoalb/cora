@@ -8,13 +8,13 @@ includes this router on the FastAPI app.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
 from cora.access._routing import ErrorResponse, get_correlation_id, get_principal_id
 from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.register_actor.command import RegisterActor
-from cora.access.features.register_actor.handler import Handler
+from cora.access.features.register_actor.handler import IdempotentHandler
 
 
 class RegisterActorRequest(BaseModel):
@@ -34,8 +34,8 @@ class RegisterActorResponse(BaseModel):
     actor_id: UUID
 
 
-def _get_handler(request: Request) -> Handler:
-    handler: Handler = request.app.state.access.register_actor
+def _get_handler(request: Request) -> IdempotentHandler:
+    handler: IdempotentHandler = request.app.state.access.register_actor
     return handler
 
 
@@ -56,20 +56,36 @@ router = APIRouter(tags=["access"])
             "description": "Authorize port denied the command.",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": "Request body failed schema validation.",
+            "description": (
+                "Request body failed schema validation OR Idempotency-Key "
+                "was reused with a different request body."
+            ),
         },
     },
     summary="Register a new actor",
 )
 async def post_actors(
     body: RegisterActorRequest,
-    handler: Annotated[Handler, Depends(_get_handler)],
+    handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    idempotency_key: Annotated[
+        str | None,
+        Header(
+            alias="Idempotency-Key",
+            description=(
+                "Optional client-supplied unique key per logical request. "
+                "Retries with the same key + same body return the cached "
+                "response instead of re-creating the actor. Reusing a key "
+                "with a different body returns 422."
+            ),
+        ),
+    ] = None,
 ) -> RegisterActorResponse:
     actor_id = await handler(
         RegisterActor(name=body.name),
         principal_id=principal_id,
         correlation_id=cid,
+        idempotency_key=idempotency_key,
     )
     return RegisterActorResponse(actor_id=actor_id)

@@ -45,11 +45,13 @@ _log = get_logger(__name__)
 
 
 class Handler(Protocol):
-    """Callable interface every register_actor handler implements.
+    """Bare register_actor handler — what `bind()` returns.
 
-    Defining the call signature as a Protocol (instead of
-    `Callable[..., Awaitable[UUID]]`) lets pyright check every call
-    site. Mirror this shape for every BC's command handlers.
+    Has no idempotency_key kwarg. The cross-BC `with_idempotency`
+    decorator (in `cora.access._idempotency`) wraps a bare Handler
+    into an `IdempotentHandler`; production wiring in `wire.py` always
+    wraps. Tests can use bare Handler directly when they don't need
+    idempotency semantics.
     """
 
     async def __call__(
@@ -58,6 +60,25 @@ class Handler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
+    ) -> UUID: ...
+
+
+class IdempotentHandler(Protocol):
+    """register_actor handler with Idempotency-Key support.
+
+    Same shape as `Handler` plus an optional `idempotency_key` kwarg
+    (default None means: behave like the bare handler). The wrapped
+    form lives on `app.state.access.register_actor` in production;
+    routes pass through the inbound `Idempotency-Key` header.
+    """
+
+    async def __call__(
+        self,
+        command: RegisterActor,
+        *,
+        principal_id: UUID,
+        correlation_id: UUID,
+        idempotency_key: str | None = None,
     ) -> UUID: ...
 
 
