@@ -28,9 +28,18 @@ class ActorRegistered:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class ActorDeactivated:
+    """An existing actor was deactivated. The actor remains in the
+    system but `Actor.is_active` flips to False."""
+
+    actor_id: UUID
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Actor aggregate emits. Add new
 # event classes above and extend this alias when new slices land.
-ActorEvent = ActorRegistered
+ActorEvent = ActorRegistered | ActorDeactivated
 
 
 def event_type_name(event: ActorEvent) -> str:
@@ -52,6 +61,11 @@ def to_payload(event: ActorEvent) -> dict[str, Any]:
                 "name": name,
                 "occurred_at": occurred_at.isoformat(),
             }
+        case ActorDeactivated(actor_id=actor_id, occurred_at=occurred_at):
+            return {
+                "actor_id": str(actor_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -71,12 +85,18 @@ def from_stored(stored: StoredEvent) -> ActorEvent:
                 name=payload["name"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "ActorDeactivated":
+            return ActorDeactivated(
+                actor_id=UUID(payload["actor_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown ActorEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
 
 
 __all__ = [
+    "ActorDeactivated",
     "ActorEvent",
     "ActorRegistered",
     "event_type_name",

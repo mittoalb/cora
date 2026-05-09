@@ -8,7 +8,7 @@ new field on `AccessHandlers` and a single line in this factory.
 
 from dataclasses import dataclass
 
-from cora.access.features import register_actor
+from cora.access.features import deactivate_actor, register_actor
 from cora.infrastructure.deps import SharedDeps
 
 
@@ -17,10 +17,12 @@ class AccessHandlers:
     """The Access BC's handler bundle, each closed over SharedDeps."""
 
     register_actor: register_actor.Handler
+    deactivate_actor: deactivate_actor.Handler
 
 
 def wire_access(deps: SharedDeps) -> AccessHandlers:
     """Build the Access BC handlers from shared dependencies."""
     return AccessHandlers(
         register_actor=register_actor.bind(deps),
+        deactivate_actor=deactivate_actor.bind(deps),
     )

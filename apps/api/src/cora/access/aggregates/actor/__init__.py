@@ -6,6 +6,7 @@ event types.
 """
 
 from cora.access.aggregates.actor.events import (
+    ActorDeactivated,
     ActorEvent,
     ActorRegistered,
     event_type_name,
@@ -16,17 +17,22 @@ from cora.access.aggregates.actor.evolver import evolve, fold
 from cora.access.aggregates.actor.state import (
     ACTOR_NAME_MAX_LENGTH,
     Actor,
+    ActorAlreadyDeactivatedError,
     ActorAlreadyExistsError,
     ActorName,
+    ActorNotFoundError,
     InvalidActorNameError,
 )
 
 __all__ = [
     "ACTOR_NAME_MAX_LENGTH",
     "Actor",
+    "ActorAlreadyDeactivatedError",
     "ActorAlreadyExistsError",
+    "ActorDeactivated",
     "ActorEvent",
     "ActorName",
+    "ActorNotFoundError",
     "ActorRegistered",
     "InvalidActorNameError",
     "event_type_name",
