@@ -20,6 +20,8 @@ import json
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from cora.infrastructure.logging import get_logger
+
 # ASGI types are loose; pyright won't see specific Send/Receive shapes
 # without the asgiref stubs. Suppress at module level — the surface is
 # small and the call signature is well-known.
@@ -28,6 +30,11 @@ from typing import Any
 Scope = dict[str, Any]
 Receive = Callable[[], Awaitable[dict[str, Any]]]
 Send = Callable[[dict[str, Any]], Awaitable[None]]
+
+# structlog loggers are lazy: get_logger() returns a proxy and config
+# is applied at first .info() call. Module-level binding is safe even
+# though configure_logging() runs later in build_shared_deps().
+_log = get_logger(__name__)
 
 
 class BodySizeLimitMiddleware:
@@ -60,6 +67,13 @@ class BodySizeLimitMiddleware:
                 # let downstream handle it (Starlette returns 400).
                 length = 0
             if length > self.max_bytes:
+                _log.info(
+                    "body_size_limit.rejected",
+                    path=scope.get("path"),
+                    method=scope.get("method"),
+                    content_length=length,
+                    limit=self.max_bytes,
+                )
                 detail = f"Request body of {length} bytes exceeds limit of {self.max_bytes} bytes"
                 body = json.dumps({"detail": detail}).encode()
                 await send(

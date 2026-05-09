@@ -117,12 +117,20 @@ def create_app() -> FastAPI:
         validator=_is_valid_uuid,
         generator=lambda: str(uuid4()),
     )
-    # Prometheus instrumentation: per-app CollectorRegistry so multiple
-    # create_app() calls in the test process don't double-register
-    # collectors against the global REGISTRY (which would crash the
-    # second TestClient).
+    # Prometheus instrumentation:
+    # - per-app CollectorRegistry so multiple create_app() calls in the
+    #   test process don't double-register collectors against the global
+    #   REGISTRY (which would crash the second TestClient).
+    # - excluded_handlers=["/metrics"] keeps the scrape endpoint out of
+    #   its own counters (otherwise each scrape pollutes its own metrics
+    #   with monitoring traffic).
+    # - include_in_schema=False hides /metrics from OpenAPI /docs (it's
+    #   an operational endpoint, not part of the user-facing API).
     metrics_registry = CollectorRegistry()
-    Instrumentator(registry=metrics_registry).instrument(fastapi_app).expose(fastapi_app)
+    Instrumentator(
+        registry=metrics_registry,
+        excluded_handlers=["/metrics"],
+    ).instrument(fastapi_app).expose(fastapi_app, include_in_schema=False)
     register_access_routes(fastapi_app)
     fastapi_app.mount("/mcp", mcp_app)
 
