@@ -18,7 +18,7 @@ from cora.access.aggregates.actor import (
     InvalidActorNameError,
 )
 from cora.access.errors import UnauthorizedError
-from cora.access.features import deactivate_actor, register_actor
+from cora.access.features import deactivate_actor, get_actor, register_actor
 from cora.infrastructure.ports import ConcurrencyError
 
 
@@ -68,6 +68,7 @@ def register_access_routes(app: FastAPI) -> None:
     """Attach Access slice routers and exception handlers to the FastAPI app."""
     app.include_router(register_actor.router)
     app.include_router(deactivate_actor.router)
+    app.include_router(get_actor.router)
     app.add_exception_handler(InvalidActorNameError, _handle_invalid_actor_name)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
     app.add_exception_handler(ActorNotFoundError, _handle_actor_not_found)

@@ -14,6 +14,7 @@ from cora.access.aggregates.actor.events import (
     to_payload,
 )
 from cora.access.aggregates.actor.evolver import evolve, fold
+from cora.access.aggregates.actor.read import load_actor
 from cora.access.aggregates.actor.state import (
     ACTOR_NAME_MAX_LENGTH,
     Actor,
@@ -39,5 +40,6 @@ __all__ = [
     "evolve",
     "fold",
     "from_stored",
+    "load_actor",
     "to_payload",
 ]
