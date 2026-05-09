@@ -22,6 +22,8 @@ from asgi_correlation_id import CorrelationIdMiddleware
 from fastapi import FastAPI
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+from prometheus_client import CollectorRegistry
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from cora import __version__
 from cora.access import (
@@ -30,6 +32,8 @@ from cora.access import (
     register_access_tools,
     wire_access,
 )
+from cora.api.middleware import BodySizeLimitMiddleware
+from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import build_shared_deps
 
 
@@ -40,6 +44,15 @@ def _is_valid_uuid(value: str) -> bool:
     except ValueError:
         return False
     return True
+
+
+def _settings_for_middleware() -> Settings:
+    """Load Settings at app construction for middleware that needs config.
+
+    The lifespan also constructs Settings; both calls hit env vars / .env
+    so they agree. Pulled into a helper purely for readability.
+    """
+    return Settings()  # type: ignore[call-arg]  # Pydantic loads from env
 
 
 def create_app() -> FastAPI:
@@ -91,11 +104,25 @@ def create_app() -> FastAPI:
         description="Research facility operations platform",
         lifespan=lifespan,
     )
+    # Middleware add order is reversed at request time: the LAST one
+    # added runs FIRST on incoming requests. We want correlation_id set
+    # outermost so the 413 from BodySizeLimit also carries it on the
+    # response, so add body-limit first then correlation last.
+    fastapi_app.add_middleware(
+        BodySizeLimitMiddleware,
+        max_bytes=_settings_for_middleware().max_request_body_size_bytes,
+    )
     fastapi_app.add_middleware(
         CorrelationIdMiddleware,
         validator=_is_valid_uuid,
         generator=lambda: str(uuid4()),
     )
+    # Prometheus instrumentation: per-app CollectorRegistry so multiple
+    # create_app() calls in the test process don't double-register
+    # collectors against the global REGISTRY (which would crash the
+    # second TestClient).
+    metrics_registry = CollectorRegistry()
+    Instrumentator(registry=metrics_registry).instrument(fastapi_app).expose(fastapi_app)
     register_access_routes(fastapi_app)
     fastapi_app.mount("/mcp", mcp_app)
 

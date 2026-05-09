@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     db_pool_min_size: int = 1
     db_pool_max_size: int = 10
 
+    # HTTP
+    # Default 1 MiB. JSON command bodies are tiny (a few hundred bytes
+    # at most). The application middleware is defense in depth — production
+    # deployments should also configure body limits at the reverse proxy
+    # (e.g. nginx `client_max_body_size`) for transport-layer rejection.
+    max_request_body_size_bytes: int = 1024 * 1024
+
     @field_validator("database_url")
     @classmethod
     def _validate_database_url(cls, value: str) -> str:

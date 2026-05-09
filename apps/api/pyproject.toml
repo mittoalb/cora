@@ -17,6 +17,8 @@ dependencies = [
     "structlog>=25.0.0",
     "asgi-correlation-id>=4.3.0",
     "uuid-utils>=0.10.0",
+    "prometheus-client>=0.21.0,<1",
+    "prometheus-fastapi-instrumentator>=7.0.0,<8",
 ]
 
 [dependency-groups]

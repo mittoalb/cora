@@ -10,6 +10,17 @@ The structlog wrapper chain ends with `ProcessorFormatter.wrap_for_formatter`
 `ProcessorFormatter`, which runs `JSONRenderer()` exactly once. Terminating
 the wrapper chain with `JSONRenderer()` would render twice and produce
 JSON-in-JSON output that log aggregators can't index.
+
+Caching nuance — `cache_logger_on_first_use=True` means structlog binds
+each named logger to its current configuration on first use and ignores
+subsequent `configure_logging()` calls for that name. In tests where
+`build_shared_deps()` (which calls `configure_logging()`) runs many
+times — once per `create_app()` — only the first call's level/handler
+take effect for the rest of the process. Acceptable for our test setup
+(everyone uses INFO and the JSONRenderer); breaks if a test tries to
+change log level or add a handler mid-process. If we need that flexibility
+later, set `cache_logger_on_first_use=False` and accept the per-call
+binding cost.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false
