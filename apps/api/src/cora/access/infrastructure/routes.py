@@ -15,9 +15,8 @@ Cross-BC pattern (`register_<bc>_routes(app)`):
       and one call per BC, regardless of how many endpoints land.
 """
 
-from collections.abc import Awaitable, Callable
 from typing import Annotated
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from asgi_correlation_id import correlation_id
 from fastapi import APIRouter, Depends, FastAPI, Request, status
@@ -28,7 +27,10 @@ from cora.access.application.register_actor import (
     RegisterActorHandler,
     UnauthorizedError,
 )
-from cora.access.domain.actor import InvalidActorNameError
+from cora.access.domain.actor import (
+    ACTOR_NAME_MAX_LENGTH,
+    InvalidActorNameError,
+)
 from cora.access.domain.commands import RegisterActor
 
 # Phase 1 bootstrap: every command runs as a "system" actor under
@@ -43,7 +45,7 @@ class RegisterActorRequest(BaseModel):
     name: str = Field(
         ...,
         min_length=1,
-        max_length=200,
+        max_length=ACTOR_NAME_MAX_LENGTH,
         description="Display name for the new actor.",
     )
 
@@ -54,26 +56,27 @@ class RegisterActorResponse(BaseModel):
     actor_id: UUID
 
 
+class ErrorResponse(BaseModel):
+    """Shared error body for OpenAPI documentation."""
+
+    detail: str
+
+
 def _get_register_actor_handler(request: Request) -> RegisterActorHandler:
     handler: RegisterActorHandler = request.app.state.access.register_actor
     return handler
 
 
 def _get_correlation_id() -> UUID:
-    """Pull the request correlation id from the asgi-correlation-id contextvar.
+    """Pull the request correlation id from asgi-correlation-id contextvar.
 
-    The middleware default generator emits `uuid4().hex` (32-char hex,
-    no dashes) which `UUID(...)` accepts. Inbound `X-Request-ID` values
-    that aren't valid UUIDs fall back to a fresh UUID4 so the handler
-    contract (correlation_id: UUID) is always satisfied.
+    The middleware is configured (in `cora.api.main`) with a UUID-only
+    validator, so the contextvar is always set to a valid UUID string
+    by the time this dependency runs.
     """
     raw = correlation_id.get()
-    if raw:
-        try:
-            return UUID(raw)
-        except ValueError:
-            pass
-    return uuid4()
+    assert raw is not None, "CorrelationIdMiddleware did not set correlation_id"
+    return UUID(raw)
 
 
 def _get_invoker_actor_id() -> UUID:
@@ -88,6 +91,19 @@ router = APIRouter(tags=["access"])
     "/actors",
     status_code=status.HTTP_201_CREATED,
     response_model=RegisterActorResponse,
+    responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorResponse,
+            "description": "Domain invariant violated (e.g. whitespace-only name).",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErrorResponse,
+            "description": "Authorize port denied the command.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "Request body failed schema validation.",
+        },
+    },
     summary="Register a new actor",
 )
 async def post_actors(
@@ -107,8 +123,6 @@ async def post_actors(
 # Exception handlers translate domain / application errors to HTTP
 # responses. JSONResponse is used (not HTTPException) per FastAPI
 # guidance to avoid nested-exception pitfalls.
-
-ExceptionHandler = Callable[[Request, Exception], Awaitable[JSONResponse]]
 
 
 async def _handle_invalid_actor_name(request: Request, exc: Exception) -> JSONResponse:

@@ -75,3 +75,50 @@ def test_post_actors_rejects_non_string_name_with_422() -> None:
     with TestClient(app) as client:
         response = client.post("/actors", json={"name": 123})
     assert response.status_code == 422
+
+
+@pytest.mark.contract
+def test_post_actors_propagates_valid_uuid_correlation_id() -> None:
+    """A valid UUID inbound X-Request-ID is echoed back unchanged."""
+    inbound = "01900000-0000-7000-8000-0000000000aa"
+    with TestClient(app) as client:
+        response = client.post(
+            "/actors",
+            json={"name": "Doga"},
+            headers={"X-Request-ID": inbound},
+        )
+    assert response.status_code == 201
+    assert response.headers["x-request-id"] == inbound
+
+
+@pytest.mark.contract
+def test_post_actors_replaces_invalid_correlation_id_with_uuid() -> None:
+    """A non-UUID inbound X-Request-ID is discarded; middleware generates a fresh UUID.
+
+    Without validation the response header would echo "not-a-uuid" while the
+    handler / event store would carry a different fresh UUID, breaking
+    cross-system tracing silently.
+    """
+    with TestClient(app) as client:
+        response = client.post(
+            "/actors",
+            json={"name": "Doga"},
+            headers={"X-Request-ID": "not-a-uuid"},
+        )
+    assert response.status_code == 201
+    echoed = response.headers["x-request-id"]
+    UUID(echoed)  # parses without raising
+    assert echoed != "not-a-uuid"
+
+
+@pytest.mark.contract
+def test_post_actors_uses_max_length_constant_from_domain() -> None:
+    """Pydantic max_length must track the domain ACTOR_NAME_MAX_LENGTH constant."""
+    from cora.access.domain.actor import ACTOR_NAME_MAX_LENGTH
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/actors",
+            json={"name": "a" * ACTOR_NAME_MAX_LENGTH},
+        )
+    assert response.status_code == 201

@@ -4,7 +4,15 @@ Uses `structlog` with `contextvars` so context bound at the ASGI boundary
 (correlation_id) and at command-handler entry (command_id, decision_id,
 aggregate_id, causation_id) propagates to every log line emitted inside the
 decider, repository, and projection.
+
+The structlog wrapper chain ends with `ProcessorFormatter.wrap_for_formatter`
+(not a renderer) so the wrapped event_dict reaches the stdlib
+`ProcessorFormatter`, which runs `JSONRenderer()` exactly once. Terminating
+the wrapper chain with `JSONRenderer()` would render twice and produce
+JSON-in-JSON output that log aggregators can't index.
 """
+
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false
 
 import logging
 import sys
@@ -33,7 +41,8 @@ def configure_logging(level: str = "INFO") -> None:
             *shared_processors,
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
-            structlog.processors.JSONRenderer(),
+            # Hand off to the stdlib ProcessorFormatter; do not render here.
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,

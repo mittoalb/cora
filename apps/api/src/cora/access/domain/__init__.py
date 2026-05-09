@@ -15,6 +15,7 @@ Public surface:
 """
 
 from cora.access.domain.actor import (
+    ACTOR_NAME_MAX_LENGTH,
     Actor,
     ActorAlreadyExistsError,
     ActorName,
@@ -26,6 +27,7 @@ from cora.access.domain.evolver import evolve, fold
 from cora.access.domain.register_actor import register_actor
 
 __all__ = [
+    "ACTOR_NAME_MAX_LENGTH",
     "Actor",
     "ActorAlreadyExistsError",
     "ActorEvent",

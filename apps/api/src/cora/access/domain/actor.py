@@ -9,7 +9,7 @@ length-bounded). All errors raised by the domain layer are
 from dataclasses import dataclass
 from uuid import UUID
 
-_NAME_MAX_LENGTH = 200
+ACTOR_NAME_MAX_LENGTH = 200
 
 
 class InvalidActorNameError(ValueError):
@@ -17,7 +17,7 @@ class InvalidActorNameError(ValueError):
 
     def __init__(self, value: str) -> None:
         super().__init__(
-            f"Actor name must be 1-{_NAME_MAX_LENGTH} chars after trimming (got: {value!r})"
+            f"Actor name must be 1-{ACTOR_NAME_MAX_LENGTH} chars after trimming (got: {value!r})"
         )
         self.value = value
 
@@ -38,7 +38,7 @@ class ActorName:
 
     def __post_init__(self) -> None:
         trimmed = self.value.strip()
-        if not trimmed or len(trimmed) > _NAME_MAX_LENGTH:
+        if not trimmed or len(trimmed) > ACTOR_NAME_MAX_LENGTH:
             raise InvalidActorNameError(self.value)
         # Frozen dataclasses block normal assignment in __post_init__;
         # use object.__setattr__ to install the trimmed value.
