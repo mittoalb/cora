@@ -2,7 +2,10 @@
 
 Mirrors the Postgres adapter's contract: same optimistic-concurrency
 semantics, same global ordering by an in-memory monotonic position counter,
-same per-stream version invariants. Not thread-safe; tests are single-task.
+same per-stream version invariants. A `threading.Lock` guards the dict and
+the position counter so the same instance can be safely shared across
+concurrent tasks (we hold the lock only across pure in-memory work, never
+across awaits).
 """
 
 from copy import deepcopy
@@ -46,8 +49,9 @@ class InMemoryEventStore:
         if not events:
             return expected_version
 
+        key = (stream_type, stream_id)
         with self._lock:
-            existing = self._streams.setdefault((stream_type, stream_id), [])
+            existing = self._streams.get(key)
             actual = existing[-1].version if existing else 0
             if actual != expected_version:
                 raise ConcurrencyError(
@@ -56,6 +60,9 @@ class InMemoryEventStore:
                     expected=expected_version,
                     actual=actual,
                 )
+            if existing is None:
+                existing = []
+                self._streams[key] = existing
             now = datetime.now(tz=UTC)
             next_version = expected_version
             for event in events:

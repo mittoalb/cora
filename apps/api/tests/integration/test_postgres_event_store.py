@@ -120,6 +120,25 @@ async def test_streams_are_isolated_by_type_and_id(
 
 
 @pytest.mark.integration
+async def test_causation_id_round_trips(db_pool: asyncpg.Pool) -> None:
+    store = PostgresEventStore(db_pool)
+    stream_id = uuid4()
+    cause = uuid4()
+    new_event = NewEvent(
+        event_type="Recorded",
+        schema_version=1,
+        payload={},
+        occurred_at=datetime.now(tz=UTC),
+        correlation_id=uuid4(),
+        causation_id=cause,
+        metadata={},
+    )
+    await store.append("Actor", stream_id, 0, [new_event])
+    loaded, _ = await store.load("Actor", stream_id)
+    assert loaded[0].causation_id == cause
+
+
+@pytest.mark.integration
 async def test_append_emits_pg_notify(db_pool: asyncpg.Pool) -> None:
     """The AFTER INSERT trigger should fire pg_notify on each event."""
     received: list[tuple[str, str]] = []

@@ -93,3 +93,41 @@ async def test_empty_event_list_is_a_noop() -> None:
     events, version = await store.load("Actor", stream_id)
     assert events == []
     assert version == 0
+
+
+@pytest.mark.unit
+async def test_failed_append_to_unknown_stream_can_be_retried_at_v0() -> None:
+    """A ConcurrencyError on a nonexistent stream must not poison the stream.
+
+    If the failed append left the stream in any partial state, a follow-up
+    append at expected_version=0 would see actual!=0 and fail again.
+    """
+    store = InMemoryEventStore()
+    stream_id = uuid4()
+
+    with pytest.raises(ConcurrencyError):
+        await store.append("Actor", stream_id, 5, [_event()])
+
+    # Stream is genuinely empty; a fresh append at v0 succeeds.
+    new_version = await store.append("Actor", stream_id, 0, [_event()])
+    assert new_version == 1
+
+
+@pytest.mark.unit
+async def test_causation_id_round_trips() -> None:
+    store = InMemoryEventStore()
+    stream_id = uuid4()
+    cause = uuid4()
+    new_event = NewEvent(
+        event_type="Recorded",
+        schema_version=1,
+        payload={},
+        occurred_at=datetime.now(tz=UTC),
+        correlation_id=uuid4(),
+        causation_id=cause,
+        metadata={},
+    )
+
+    await store.append("Actor", stream_id, 0, [new_event])
+    loaded, _ = await store.load("Actor", stream_id)
+    assert loaded[0].causation_id == cause

@@ -17,6 +17,12 @@ jobs:
     defaults:
       run:
         working-directory: apps/api
+    env:
+      # GitHub Actions cleans up containers when the job ends, so the
+      # testcontainers Ryuk reaper sidecar adds startup overhead and
+      # occasional flakes for no benefit. Disabled per upstream guidance
+      # for ephemeral CI environments.
+      TESTCONTAINERS_RYUK_DISABLED: "true"
 
     steps:
       - uses: actions/checkout@v4
