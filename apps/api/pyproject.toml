@@ -1,0 +1,83 @@
+[project]
+name = "cora"
+version = "0.1.0"
+description = "Continuously Overpromised, Rarely Automated — research facility operations platform"
+readme = "README.md"
+requires-python = ">=3.13"
+authors = [{ name = "Doga Gursoy" }]
+license = { text = "TBD" }
+
+dependencies = [
+    "fastapi>=0.136.1,<0.137",
+    "asyncpg>=0.31.0,<0.32",
+    "pydantic>=2.13.4,<3",
+    "pydantic-settings>=2.14.1,<3",
+    "mcp>=1.27.1,<2",
+    "uvicorn[standard]>=0.40.0",
+    "structlog>=25.0.0",
+    "asgi-correlation-id>=4.3.0",
+    "uuid-utils>=0.10.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3,<10",
+    "pytest-asyncio>=1.3.0,<2",
+    "ruff>=0.15.12,<0.16",
+    "pyright>=1.1.409,<2",
+    "httpx>=0.28.0",
+    "pre-commit>=4.0.0,<5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cora"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "RUF",  # ruff-specific
+    "SIM",  # flake8-simplify
+    "TC",   # flake8-type-checking
+    "N",    # pep8-naming
+    "ASYNC",
+]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.13"
+typeCheckingMode = "strict"
+useLibraryCodeForTypes = true
+reportMissingTypeStubs = false
+
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib", "--strict-markers", "-v"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "unit: pure tests with no I/O",
+    "integration: tests requiring Postgres or other external services",
+    "contract: REST/MCP schema verification tests",
+    "e2e: full end-to-end tests",
+]
