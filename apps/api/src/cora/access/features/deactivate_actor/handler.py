@@ -27,17 +27,16 @@ from uuid import UUID
 
 from cora.access.aggregates.actor import (
     ActorEvent,
-    event_type_name,
     fold,
     from_stored,
-    to_payload,
+    to_new_event,
 )
 from cora.access.errors import UnauthorizedError
 from cora.access.features.deactivate_actor.command import DeactivateActor
 from cora.access.features.deactivate_actor.decider import decide
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.logging import get_logger
-from cora.infrastructure.ports import Deny, NewEvent
+from cora.infrastructure.ports import Deny
 
 _STREAM_TYPE = "Actor"
 _COMMAND_NAME = "DeactivateActor"
@@ -106,7 +105,12 @@ def bind(deps: SharedDeps) -> Handler:
         domain_events = decide(state=state, command=command, now=now)
 
         new_events = [
-            _to_new_event(event, correlation_id=correlation_id) for event in domain_events
+            to_new_event(
+                event,
+                command_name=_COMMAND_NAME,
+                correlation_id=correlation_id,
+            )
+            for event in domain_events
         ]
         await deps.event_store.append(
             stream_type=_STREAM_TYPE,
@@ -126,16 +130,3 @@ def bind(deps: SharedDeps) -> Handler:
         )
 
     return handler
-
-
-def _to_new_event(event: ActorEvent, *, correlation_id: UUID) -> NewEvent:
-    """Wrap a domain event in the persistence envelope."""
-    return NewEvent(
-        event_type=event_type_name(event),
-        schema_version=1,
-        payload=to_payload(event),
-        occurred_at=event.occurred_at,
-        correlation_id=correlation_id,
-        causation_id=None,
-        metadata={"command": _COMMAND_NAME},
-    )

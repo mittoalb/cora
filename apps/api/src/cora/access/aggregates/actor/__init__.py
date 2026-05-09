@@ -11,6 +11,7 @@ from cora.access.aggregates.actor.events import (
     ActorRegistered,
     event_type_name,
     from_stored,
+    to_new_event,
     to_payload,
 )
 from cora.access.aggregates.actor.evolver import evolve, fold
@@ -41,5 +42,6 @@ __all__ = [
     "fold",
     "from_stored",
     "load_actor",
+    "to_new_event",
     "to_payload",
 ]

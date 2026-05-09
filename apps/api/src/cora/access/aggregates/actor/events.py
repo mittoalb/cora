@@ -9,6 +9,13 @@ Per the locked "primitives in events" convention, payloads serialize
 to plain dicts of primitives. `to_payload` and `from_stored` are the
 single home for the (de)serialization logic; per-slice handlers no
 longer carry their own serializers.
+
+`to_new_event` wraps a domain event in the persistence envelope
+(`NewEvent`). Lives here, alongside the (de)serialization helpers it
+composes, so every Actor-aggregate slice writes events the same way:
+discriminator from `event_type_name`, payload from `to_payload`,
+metadata from the per-slice command name. Future BCs follow the same
+pattern in their own `aggregates/<aggregate>/events.py`.
 """
 
 from dataclasses import dataclass
@@ -16,6 +23,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.ports import NewEvent
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -95,11 +103,38 @@ def from_stored(stored: StoredEvent) -> ActorEvent:
             raise ValueError(msg)
 
 
+def to_new_event(
+    event: ActorEvent,
+    *,
+    command_name: str,
+    correlation_id: UUID,
+    causation_id: UUID | None = None,
+) -> NewEvent:
+    """Wrap a domain event in the persistence envelope.
+
+    Discriminator + payload come from the centralized serialization
+    helpers above; the caller supplies the command name (recorded in
+    `metadata["command"]` for audit) and the correlation id (request
+    tracing). `causation_id` is optional for now; sagas / process
+    managers (Phase 3+) will set it to the upstream event's id.
+    """
+    return NewEvent(
+        event_type=event_type_name(event),
+        schema_version=1,
+        payload=to_payload(event),
+        occurred_at=event.occurred_at,
+        correlation_id=correlation_id,
+        causation_id=causation_id,
+        metadata={"command": command_name},
+    )
+
+
 __all__ = [
     "ActorDeactivated",
     "ActorEvent",
     "ActorRegistered",
     "event_type_name",
     "from_stored",
+    "to_new_event",
     "to_payload",
 ]
