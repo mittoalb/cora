@@ -1,4 +1,10 @@
-"""Authorize port: gate every command behind `authorize(actor, command, conduit)`.
+"""Authorize port: gate every command behind `authorize(principal, command, conduit)`.
+
+`principal_id` (not `actor_id`) names the invoker because the Access BC
+already owns an `Actor` aggregate; using `actor_id` for both the Actor
+aggregate's id and the calling-party's id was a real bug vector at
+handler call sites where commands target an Actor aggregate (e.g.
+DeactivateActor).
 
 Phase 1 ships an `AllowAllAuthorize` stub. The real implementation arrives
 in Phase 3 with the Trust BC, where Zone/Conduit/Policy aggregates resolve
@@ -30,7 +36,7 @@ class Authorize(Protocol):
 
     async def __call__(
         self,
-        actor_id: UUID,
+        principal_id: UUID,
         command_name: str,
         conduit: str,
     ) -> AuthzResult: ...
@@ -44,8 +50,9 @@ class AllowAllAuthorize:
 
     async def __call__(
         self,
-        actor_id: UUID,
+        principal_id: UUID,
         command_name: str,
         conduit: str,
     ) -> AuthzResult:
+        _ = (principal_id, command_name, conduit)
         return Allow()

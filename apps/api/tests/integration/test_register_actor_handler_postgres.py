@@ -27,7 +27,7 @@ from cora.infrastructure.postgres.event_store import PostgresEventStore
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000000beef")
-_INVOKER_ID = UUID("01900000-0000-7000-8000-000000000099")
+_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
@@ -46,7 +46,7 @@ async def test_handler_persists_actor_registered_to_postgres(
 
     actor_id = await handler(
         RegisterActor(name="Doga"),
-        actor_id=_INVOKER_ID,
+        principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     assert actor_id == _NEW_ID

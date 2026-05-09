@@ -12,7 +12,7 @@ from asgi_correlation_id import correlation_id
 from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel, Field
 
-from cora.access._bootstrap import SYSTEM_ACTOR_ID
+from cora.access._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.handler import Handler
@@ -53,9 +53,9 @@ def _get_correlation_id() -> UUID:
     return UUID(raw)
 
 
-def _get_invoker_actor_id() -> UUID:
-    """Resolve the invoker actor id. Phase 1: hardcoded system actor."""
-    return SYSTEM_ACTOR_ID
+def _get_principal_id() -> UUID:
+    """Resolve the calling principal's id. Phase 1: hardcoded system principal."""
+    return SYSTEM_PRINCIPAL_ID
 
 
 router = APIRouter(tags=["access"])
@@ -84,11 +84,11 @@ async def post_actors(
     body: RegisterActorRequest,
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(_get_correlation_id)],
-    invoker_id: Annotated[UUID, Depends(_get_invoker_actor_id)],
+    principal_id: Annotated[UUID, Depends(_get_principal_id)],
 ) -> RegisterActorResponse:
     actor_id = await handler(
         RegisterActor(name=body.name),
-        actor_id=invoker_id,
+        principal_id=principal_id,
         correlation_id=cid,
     )
     return RegisterActorResponse(actor_id=actor_id)

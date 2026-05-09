@@ -11,7 +11,7 @@ Module-as-namespace pattern: callers import this slice as
 
 Handler shape (cross-BC pattern for create-style commands):
 
-    1. authorize(actor_id, command_name, conduit) -> Allow | Deny
+    1. authorize(principal_id, command_name, conduit) -> Allow | Deny
     2. id_generator.new_id() -> new aggregate id
     3. clock.now() -> domain timestamp
     4. decide(state=None, command, *, now, new_id) -> domain events
@@ -63,7 +63,7 @@ class Handler(Protocol):
         self,
         command: RegisterActor,
         *,
-        actor_id: UUID,
+        principal_id: UUID,
         correlation_id: UUID,
     ) -> UUID: ...
 
@@ -74,18 +74,18 @@ def bind(deps: SharedDeps) -> Handler:
     async def handler(
         command: RegisterActor,
         *,
-        actor_id: UUID,
+        principal_id: UUID,
         correlation_id: UUID,
     ) -> UUID:
         _log.info(
             "register_actor.start",
             command_name=_COMMAND_NAME,
-            invoker_id=str(actor_id),
+            principal_id=str(principal_id),
             correlation_id=str(correlation_id),
         )
 
         decision = await deps.authorize(
-            actor_id=actor_id,
+            principal_id=principal_id,
             command_name=_COMMAND_NAME,
             conduit=_CONDUIT_DEFAULT,
         )
@@ -93,7 +93,7 @@ def bind(deps: SharedDeps) -> Handler:
             _log.info(
                 "register_actor.denied",
                 command_name=_COMMAND_NAME,
-                invoker_id=str(actor_id),
+                principal_id=str(principal_id),
                 correlation_id=str(correlation_id),
                 reason=decision.reason,
             )

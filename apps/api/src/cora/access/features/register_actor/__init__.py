@@ -7,7 +7,7 @@ short names from the slice's namespace.
 
     cmd = register_actor.RegisterActor(name="Doga")
     handler = register_actor.bind(deps)
-    actor_id = await handler(cmd, actor_id=..., correlation_id=...)
+    actor_id = await handler(cmd, principal_id=..., correlation_id=...)
 """
 
 from cora.access.features.register_actor import tool

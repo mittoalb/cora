@@ -48,7 +48,7 @@ def test_uuidv7_generator_yields_time_ordered_uuids() -> None:
 async def test_allow_all_authorize_returns_allow() -> None:
     authz = AllowAllAuthorize()
     result = await authz(
-        actor_id=UUID("00000000-0000-0000-0000-000000000000"),
+        principal_id=UUID("00000000-0000-0000-0000-000000000000"),
         command_name="RegisterActor",
         conduit="default",
     )

@@ -18,7 +18,7 @@ from uuid import UUID, uuid4
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
-from cora.access._bootstrap import SYSTEM_ACTOR_ID
+from cora.access._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.handler import Handler
@@ -56,7 +56,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         handler = get_handler()
         actor_id = await handler(
             RegisterActor(name=name),
-            actor_id=SYSTEM_ACTOR_ID,
+            principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=uuid4(),
         )
         return RegisterActorOutput(actor_id=actor_id)

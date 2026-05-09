@@ -27,7 +27,7 @@ from cora.infrastructure.ports import (
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000000001")
-_INVOKER_ID = UUID("01900000-0000-7000-8000-000000000099")
+_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
@@ -36,11 +36,11 @@ class DenyAllAuthorize:
 
     async def __call__(
         self,
-        actor_id: UUID,
+        principal_id: UUID,
         command_name: str,
         conduit: str,
     ) -> AuthzResult:
-        _ = (actor_id, command_name, conduit)
+        _ = (principal_id, command_name, conduit)
         return Deny(reason="denied for test")
 
 
@@ -66,7 +66,7 @@ async def test_handler_returns_generated_actor_id() -> None:
 
     result = await handler(
         RegisterActor(name="Doga"),
-        actor_id=_INVOKER_ID,
+        principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
@@ -81,7 +81,7 @@ async def test_handler_appends_actor_registered_event_to_store() -> None:
 
     await handler(
         RegisterActor(name="Doga"),
-        actor_id=_INVOKER_ID,
+        principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
@@ -110,7 +110,7 @@ async def test_handler_trims_actor_name_via_value_object() -> None:
 
     await handler(
         RegisterActor(name="  Doga  "),
-        actor_id=_INVOKER_ID,
+        principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
@@ -126,7 +126,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     with pytest.raises(UnauthorizedError) as exc_info:
         await handler(
             RegisterActor(name="Doga"),
-            actor_id=_INVOKER_ID,
+            principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
     assert exc_info.value.reason == "denied for test"
@@ -141,7 +141,7 @@ async def test_handler_does_not_append_when_denied() -> None:
     with pytest.raises(UnauthorizedError):
         await handler(
             RegisterActor(name="Doga"),
-            actor_id=_INVOKER_ID,
+            principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
 
@@ -159,7 +159,7 @@ async def test_handler_propagates_invalid_actor_name_error() -> None:
     with pytest.raises(InvalidActorNameError):
         await handler(
             RegisterActor(name="   "),
-            actor_id=_INVOKER_ID,
+            principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
 
@@ -173,7 +173,7 @@ async def test_handler_does_not_append_when_decider_rejects() -> None:
     with pytest.raises(InvalidActorNameError):
         await handler(
             RegisterActor(name=""),
-            actor_id=_INVOKER_ID,
+            principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
 
@@ -196,7 +196,7 @@ async def test_wired_handler_is_invokable() -> None:
     handlers = wire_access(deps)
     result = await handlers.register_actor(
         RegisterActor(name="Doga"),
-        actor_id=_INVOKER_ID,
+        principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     assert result == _NEW_ID
