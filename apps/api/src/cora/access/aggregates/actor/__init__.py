@@ -5,7 +5,13 @@ Vertical slices that operate on this aggregate live under
 event types.
 """
 
-from cora.access.aggregates.actor.events import ActorEvent
+from cora.access.aggregates.actor.events import (
+    ActorEvent,
+    ActorRegistered,
+    event_type_name,
+    from_stored,
+    to_payload,
+)
 from cora.access.aggregates.actor.evolver import evolve, fold
 from cora.access.aggregates.actor.state import (
     ACTOR_NAME_MAX_LENGTH,
@@ -21,7 +27,11 @@ __all__ = [
     "ActorAlreadyExistsError",
     "ActorEvent",
     "ActorName",
+    "ActorRegistered",
     "InvalidActorNameError",
+    "event_type_name",
     "evolve",
     "fold",
+    "from_stored",
+    "to_payload",
 ]

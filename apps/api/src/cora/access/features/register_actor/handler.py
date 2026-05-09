@@ -23,10 +23,14 @@ to step 4. The shape splits intentionally: a freshly generated id
 provably has no prior events, so the load is wasteful.
 """
 
-from typing import Any, Protocol
+from typing import Protocol
 from uuid import UUID
 
-from cora.access.aggregates.actor.events import ActorRegistered
+from cora.access.aggregates.actor.events import (
+    ActorEvent,
+    event_type_name,
+    to_payload,
+)
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.decider import decide
 from cora.infrastructure.deps import SharedDeps
@@ -131,33 +135,19 @@ def bind(deps: SharedDeps) -> Handler:
     return handler
 
 
-def _to_new_event(
-    event: ActorRegistered,
-    *,
-    correlation_id: UUID,
-) -> NewEvent:
-    """Wrap a domain event in the persistence envelope."""
+def _to_new_event(event: ActorEvent, *, correlation_id: UUID) -> NewEvent:
+    """Wrap a domain event in the persistence envelope.
+
+    Discriminator + payload come from the aggregate's centralized
+    serialization helpers; this function just adds the per-command
+    metadata (correlation_id, command name).
+    """
     return NewEvent(
-        event_type=type(event).__name__,
+        event_type=event_type_name(event),
         schema_version=1,
-        payload=_serialize_actor_registered(event),
+        payload=to_payload(event),
         occurred_at=event.occurred_at,
         correlation_id=correlation_id,
         causation_id=None,
         metadata={"command": _COMMAND_NAME},
     )
-
-
-def _serialize_actor_registered(event: ActorRegistered) -> dict[str, Any]:
-    """Convert ActorRegistered to a JSON-friendly dict for jsonb storage.
-
-    UUIDs and datetimes aren't natively JSON-serializable, so the
-    asyncpg JSON codec needs primitives. Per-event serializers will
-    multiply with event count; we'll generalize when ≥3 events in
-    this BC need it.
-    """
-    return {
-        "actor_id": str(event.actor_id),
-        "name": event.name,
-        "occurred_at": event.occurred_at.isoformat(),
-    }
