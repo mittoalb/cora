@@ -1,13 +1,14 @@
-"""Unit tests for the Access evolver."""
+"""Unit tests for the Actor aggregate's evolver."""
 
 from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 
-from cora.access.domain.actor import Actor, ActorName
-from cora.access.domain.events import ActorRegistered
-from cora.access.domain.evolver import evolve, fold
+from cora.access.aggregates.actor import Actor, ActorName, evolve, fold
+from cora.access.aggregates.actor.events import ActorRegistered
+from cora.access.features import register_actor
+from cora.access.features.register_actor import RegisterActor
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 
@@ -42,18 +43,15 @@ def test_fold_is_pure_same_input_same_output() -> None:
 def test_decider_and_evolver_round_trip() -> None:
     """The events the decider produces must rebuild the expected state.
 
-    This is the foundational invariant of the decider/evolver pattern:
-    decide and evolve must agree on every (state, command) pair. If they
-    drift, every command on a saved stream crashes on the next replay.
-    Mirror this test for every BC's first decider.
+    Foundational invariant of the decider/evolver pattern: decide and
+    evolve must agree on every (state, command) pair. If they drift,
+    every command on a saved stream crashes on the next replay.
+    Mirror this test for every BC's first slice.
     """
-    from cora.access.domain.commands import RegisterActor
-    from cora.access.domain.register_actor import register_actor
-
     new_id = uuid4()
     command = RegisterActor(name="  Doga  ")  # whitespace exercises the VO trim
 
-    events = register_actor(state=None, command=command, now=_NOW, new_id=new_id)
+    events = register_actor.decide(state=None, command=command, now=_NOW, new_id=new_id)
     rebuilt = fold(events)
 
     assert rebuilt == Actor(id=new_id, name=ActorName("Doga"))

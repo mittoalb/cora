@@ -14,8 +14,8 @@ from uuid import UUID
 import asyncpg
 import pytest
 
-from cora.access.application import make_register_actor_handler
-from cora.access.domain import RegisterActor
+from cora.access.features import register_actor
+from cora.access.features.register_actor import RegisterActor
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.ports import (
@@ -42,7 +42,7 @@ async def test_handler_persists_actor_registered_to_postgres(
         authorize=AllowAllAuthorize(),
         event_store=PostgresEventStore(db_pool),
     )
-    handler = make_register_actor_handler(deps)
+    handler = register_actor.bind(deps)
 
     actor_id = await handler(
         RegisterActor(name="Doga"),

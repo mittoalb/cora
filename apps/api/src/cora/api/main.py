@@ -15,8 +15,7 @@ from asgi_correlation_id import CorrelationIdMiddleware
 from fastapi import FastAPI
 
 from cora import __version__
-from cora.access.application import wire_access
-from cora.access.infrastructure import register_access_routes
+from cora.access import register_access_routes, wire_access
 from cora.infrastructure.deps import build_shared_deps
 
 

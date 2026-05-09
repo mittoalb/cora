@@ -2,7 +2,7 @@
 
 import pytest
 
-from cora.access.domain.actor import ActorName, InvalidActorNameError
+from cora.access.aggregates.actor import ActorName, InvalidActorNameError
 
 
 @pytest.mark.unit

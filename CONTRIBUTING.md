@@ -31,6 +31,7 @@ Scopes map to bounded contexts and infrastructure layers. Use the most specific 
 - `db` — migrations, schema, event store internals (atlas migrations live in `infra/atlas/`)
 - `obs` — observability (logging, tracing, metrics)
 - `auth` — authentication wiring (distinct from the `access` BC)
+- `arch` — cross-cutting architectural conventions (BC layout, file organization)
 
 **Bounded contexts** (one scope per BC; full map in memory `project_bc_map.md`):
 
@@ -77,13 +78,45 @@ The package `__init__.py` is the BC's curated public surface. Importing through 
 
 Ruff doesn't have a built-in rule for this; enforce via review.
 
+### BC layout — vertical slice with aggregate folders
+
+Each BC follows this two-axis layout: aggregates own the data shape; features (vertical slices) own the use cases.
+
+```
+cora/<bc>/
+├── __init__.py             # re-exports register_<bc>_routes + wire_<bc> + <Bc>Handlers
+├── aggregates/
+│   └── <aggregate>/        # one folder per aggregate root
+│       ├── __init__.py     # re-exports
+│       ├── state.py        # aggregate state + value objects + domain errors
+│       ├── events.py       # event classes + the discriminated union alias
+│       └── evolver.py      # evolve(state, event) + fold(events)
+├── features/
+│   └── <verb>_<aggregate>/ # one folder per command (vertical slice)
+│       ├── __init__.py     # re-exports for module-as-namespace
+│       ├── command.py      # the command dataclass
+│       ├── decider.py      # pure decide(state, command, *, now, new_id) -> events
+│       ├── handler.py      # bind(deps) -> Handler  + UnauthorizedError
+│       └── route.py        # APIRouter + Pydantic schemas for this slice
+├── routes.py               # register_<bc>_routes(app): include slice routers + register exception handlers
+└── wire.py                 # <Bc>Handlers bundle + wire_<bc>(deps)
+```
+
+Module-as-namespace: each slice's `__init__.py` re-exports its public surface so callers write `register_actor.bind(deps)` and `register_actor.Handler` rather than verbose factory names. Events live in the **aggregate folder** (not the slice) because they are intrinsic facts about the aggregate's history.
+
+Why this shape: it pairs Modular Monolith (BCs are macro-modules) with Vertical Slice Architecture (slices are micro-units). Aggregates remain explicit so the domain doesn't fragment into use cases. Validated by Jimmy Bogard (creator of MediatR), Milan Jovanović, and the broader 2025-2026 .NET DDD community; aligned with FastAPI vertical-slice patterns.
+
 ### File and symbol naming
 
-- **Commands** — PascalCase nouns in `domain/commands.py` (e.g. `RegisterActor`).
-- **Deciders** — snake_case verb functions in `domain/<verb>.py` matching the command's verb form (e.g. `register_actor` in `domain/register_actor.py`). Per Chassaing's decider convention.
-- **Handlers** — snake_case verb factory functions in `application/<verb>_handler.py` (e.g. `make_register_actor_handler` in `application/register_actor_handler.py`). The `_handler` filename suffix disambiguates the application file from the same-verb decider file in the domain.
-- **Domain errors** — PascalCase ending in `Error` (e.g. `InvalidActorNameError`, `ActorAlreadyExistsError`) per PEP 8 / ruff N818.
-- **Domain events** — PascalCase past-tense verbs in `domain/events.py` (e.g. `ActorRegistered`).
+- **Commands** — PascalCase nouns in `features/<slice>/command.py` (e.g. `RegisterActor`).
+- **Decider** — pure function `decide` in `features/<slice>/decider.py`. Called via `slice_module.decide(state, command, *, now, new_id)`.
+- **Handler** — `bind(deps) -> Handler` in `features/<slice>/handler.py`. The `Handler` is a `typing.Protocol` defining the call signature; consumers use `slice_module.Handler` for typing and `slice_module.bind(deps)` to construct.
+- **Domain errors** — PascalCase ending in `Error` (e.g. `InvalidActorNameError`, `ActorAlreadyExistsError`) per PEP 8 / ruff N818. Live in the aggregate's `state.py` if tied to the aggregate's invariants; in the slice's `handler.py` if application-layer (e.g. `UnauthorizedError`).
+- **Domain events** — PascalCase past-tense verbs in the aggregate's `events.py` (e.g. `ActorRegistered`); the same file holds the `<Aggregate>Event` discriminated union the evolver dispatches on.
+
+### Cross-cutting / shared code
+
+Per Vertical Slice guidance, **don't extract until you have three real usages with identical, stable logic** (Rule of Three). Shared domain primitives (errors, value objects used across multiple aggregates) live at the BC root or in a `_shared/` sibling once they exist. Cross-BC concerns live under `cora/infrastructure/` (logging, config, ports, adapters).
 
 ## Branch + PR flow
 

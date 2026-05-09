@@ -10,13 +10,10 @@ from uuid import UUID
 
 import pytest
 
-from cora.access.application import (
-    AccessHandlers,
-    UnauthorizedError,
-    make_register_actor_handler,
-    wire_access,
-)
-from cora.access.domain import InvalidActorNameError, RegisterActor
+from cora.access import AccessHandlers, wire_access
+from cora.access.aggregates.actor import InvalidActorNameError
+from cora.access.features import register_actor
+from cora.access.features.register_actor import RegisterActor, UnauthorizedError
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.memory.event_store import InMemoryEventStore
@@ -65,7 +62,7 @@ def _build_deps(
 @pytest.mark.unit
 async def test_handler_returns_generated_actor_id() -> None:
     deps = _build_deps()
-    handler = make_register_actor_handler(deps)
+    handler = register_actor.bind(deps)
 
     result = await handler(
         RegisterActor(name="Doga"),
@@ -80,7 +77,7 @@ async def test_handler_returns_generated_actor_id() -> None:
 async def test_handler_appends_actor_registered_event_to_store() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
-    handler = make_register_actor_handler(deps)
+    handler = register_actor.bind(deps)
 
     await handler(
         RegisterActor(name="Doga"),
@@ -109,7 +106,7 @@ async def test_handler_appends_actor_registered_event_to_store() -> None:
 async def test_handler_trims_actor_name_via_value_object() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
-    handler = make_register_actor_handler(deps)
+    handler = register_actor.bind(deps)
 
     await handler(
         RegisterActor(name="  Doga  "),
@@ -124,7 +121,7 @@ async def test_handler_trims_actor_name_via_value_object() -> None:
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_on_deny() -> None:
     deps = _build_deps(deny=True)
-    handler = make_register_actor_handler(deps)
+    handler = register_actor.bind(deps)
 
     with pytest.raises(UnauthorizedError) as exc_info:
         await handler(
@@ -139,7 +136,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 async def test_handler_does_not_append_when_denied() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store, deny=True)
-    handler = make_register_actor_handler(deps)
+    handler = register_actor.bind(deps)
 
     with pytest.raises(UnauthorizedError):
         await handler(
@@ -157,7 +154,7 @@ async def test_handler_does_not_append_when_denied() -> None:
 async def test_handler_propagates_invalid_actor_name_error() -> None:
     """Domain InvalidActorNameError bubbles unchanged through the handler."""
     deps = _build_deps()
-    handler = make_register_actor_handler(deps)
+    handler = register_actor.bind(deps)
 
     with pytest.raises(InvalidActorNameError):
         await handler(
@@ -171,7 +168,7 @@ async def test_handler_propagates_invalid_actor_name_error() -> None:
 async def test_handler_does_not_append_when_decider_rejects() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
-    handler = make_register_actor_handler(deps)
+    handler = register_actor.bind(deps)
 
     with pytest.raises(InvalidActorNameError):
         await handler(

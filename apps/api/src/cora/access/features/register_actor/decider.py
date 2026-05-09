@@ -1,4 +1,4 @@
-"""Decider for the `RegisterActor` command.
+"""Pure decider for the `RegisterActor` command.
 
 Pure function: given the current Actor state (None for a fresh stream)
 and a `RegisterActor` command, returns the events to append. No I/O,
@@ -7,17 +7,24 @@ no awaits, no side effects.
 `now` and `new_id` are injected by the application handler from the
 Clock and IdGenerator ports. Keeping them out of the decider's closure
 preserves referential transparency for tests.
+
+Named `decide` (not `register_actor`) because the module is already
+`register_actor`; callers read `register_actor.decide(...)`.
 """
 
 from datetime import datetime
 from uuid import UUID
 
-from cora.access.domain.actor import Actor, ActorAlreadyExistsError, ActorName
-from cora.access.domain.commands import RegisterActor
-from cora.access.domain.events import ActorRegistered
+from cora.access.aggregates.actor.events import ActorRegistered
+from cora.access.aggregates.actor.state import (
+    Actor,
+    ActorAlreadyExistsError,
+    ActorName,
+)
+from cora.access.features.register_actor.command import RegisterActor
 
 
-def register_actor(
+def decide(
     state: Actor | None,
     command: RegisterActor,
     *,

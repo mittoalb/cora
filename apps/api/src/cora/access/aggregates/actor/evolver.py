@@ -14,8 +14,8 @@ never silently return None for an unhandled event.
 
 from typing import assert_never
 
-from cora.access.domain.actor import Actor, ActorName
-from cora.access.domain.events import ActorEvent, ActorRegistered
+from cora.access.aggregates.actor.events import ActorEvent, ActorRegistered
+from cora.access.aggregates.actor.state import Actor, ActorName
 
 
 def evolve(state: Actor | None, event: ActorEvent) -> Actor:

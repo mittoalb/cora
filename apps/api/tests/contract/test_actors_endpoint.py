@@ -114,7 +114,7 @@ def test_post_actors_replaces_invalid_correlation_id_with_uuid() -> None:
 @pytest.mark.contract
 def test_post_actors_uses_max_length_constant_from_domain() -> None:
     """Pydantic max_length must track the domain ACTOR_NAME_MAX_LENGTH constant."""
-    from cora.access.domain.actor import ACTOR_NAME_MAX_LENGTH
+    from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 
     with TestClient(app) as client:
         response = client.post(

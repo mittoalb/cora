@@ -1,17 +1,20 @@
-"""Application handler for the `RegisterActor` command.
+"""Application handler for the `register_actor` slice.
 
-Glues the pure decider (`cora.access.domain.register_actor`) to the
-infrastructure ports (Authorize, Clock, IdGenerator, EventStore). A
-factory builds the handler as a closure over `SharedDeps`; the wire
-module bundles it alongside future Access handlers; the FastAPI lifespan
+Glues the pure decider in this slice to the infrastructure ports
+(Authorize, Clock, IdGenerator, EventStore). `bind(deps)` returns a
+handler closure; the BC's wire module bundles it; the FastAPI lifespan
 attaches the bundle to `app.state.access`.
 
-Handler shape (cross-BC pattern for *create-style* commands):
+Module-as-namespace pattern: callers import this slice as
+`from cora.access.features import register_actor` and use
+`register_actor.bind(deps)` returning a `register_actor.Handler`.
+
+Handler shape (cross-BC pattern for create-style commands):
 
     1. authorize(actor_id, command_name, conduit) -> Allow | Deny
     2. id_generator.new_id() -> new aggregate id
     3. clock.now() -> domain timestamp
-    4. decider(state=None, command, *, now, new_id) -> domain events
+    4. decide(state=None, command, *, now, new_id) -> domain events
     5. wrap each domain event as a NewEvent (payload serialized)
     6. event_store.append(stream_type, new_id, expected_version=0, ...)
 
@@ -23,9 +26,9 @@ provably has no prior events, so the load is wasteful.
 from typing import Any, Protocol
 from uuid import UUID
 
-from cora.access.domain.commands import RegisterActor
-from cora.access.domain.events import ActorRegistered
-from cora.access.domain.register_actor import register_actor
+from cora.access.aggregates.actor.events import ActorRegistered
+from cora.access.features.register_actor.command import RegisterActor
+from cora.access.features.register_actor.decider import decide
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny, NewEvent
@@ -45,13 +48,12 @@ class UnauthorizedError(Exception):
         self.reason = reason
 
 
-class RegisterActorHandler(Protocol):
-    """Callable interface every `register_actor` handler implements.
+class Handler(Protocol):
+    """Callable interface every register_actor handler implements.
 
     Defining the call signature as a Protocol (instead of
     `Callable[..., Awaitable[UUID]]`) lets pyright check every call
-    site for the right arg names and types. Mirror this shape for
-    every BC's command handlers.
+    site. Mirror this shape for every BC's command handlers.
     """
 
     async def __call__(
@@ -63,8 +65,8 @@ class RegisterActorHandler(Protocol):
     ) -> UUID: ...
 
 
-def make_register_actor_handler(deps: SharedDeps) -> RegisterActorHandler:
-    """Build a `register_actor` handler closed over the shared deps."""
+def bind(deps: SharedDeps) -> Handler:
+    """Build a register_actor handler closed over the shared deps."""
 
     async def handler(
         command: RegisterActor,
@@ -97,7 +99,7 @@ def make_register_actor_handler(deps: SharedDeps) -> RegisterActorHandler:
         new_id = deps.id_generator.new_id()
         now = deps.clock.now()
 
-        domain_events = register_actor(
+        domain_events = decide(
             state=None,
             command=command,
             now=now,
@@ -148,8 +150,8 @@ def _serialize_actor_registered(event: ActorRegistered) -> dict[str, Any]:
 
     UUIDs and datetimes aren't natively JSON-serializable, so the
     asyncpg JSON codec needs primitives. Per-event serializers will
-    multiply with the event count; we'll generalize when ≥3 events
-    in this BC need it.
+    multiply with event count; we'll generalize when ≥3 events in
+    this BC need it.
     """
     return {
         "actor_id": str(event.actor_id),
