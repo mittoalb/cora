@@ -12,6 +12,7 @@ The full MCP handshake is required:
 
 import json
 from typing import Any
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -123,10 +124,7 @@ def test_mcp_register_actor_tool_returns_structured_actor_id() -> None:
     result = body["result"]
     assert result["isError"] is False
     assert "actor_id" in result["structuredContent"]
-    # actor_id should parse as a UUID
-    from uuid import UUID
-
-    UUID(result["structuredContent"]["actor_id"])
+    UUID(result["structuredContent"]["actor_id"])  # parses without raising
 
 
 @pytest.mark.contract

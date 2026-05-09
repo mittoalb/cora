@@ -12,14 +12,10 @@ from asgi_correlation_id import correlation_id
 from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel, Field
 
+from cora.access._bootstrap import SYSTEM_ACTOR_ID
 from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.handler import Handler
-
-# Phase 1 bootstrap: every command runs as a "system" actor under
-# AllowAllAuthorize. Phase 3 replaces this with the authenticated
-# actor extracted from a header / token by the Trust BC.
-_SYSTEM_ACTOR_ID = UUID("00000000-0000-0000-0000-000000000000")
 
 
 class RegisterActorRequest(BaseModel):
@@ -59,7 +55,7 @@ def _get_correlation_id() -> UUID:
 
 def _get_invoker_actor_id() -> UUID:
     """Resolve the invoker actor id. Phase 1: hardcoded system actor."""
-    return _SYSTEM_ACTOR_ID
+    return SYSTEM_ACTOR_ID
 
 
 router = APIRouter(tags=["access"])

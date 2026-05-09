@@ -18,13 +18,10 @@ from uuid import UUID, uuid4
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
+from cora.access._bootstrap import SYSTEM_ACTOR_ID
 from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.handler import Handler
-
-# Phase 1 bootstrap: same as the REST route. Phase 3 swaps for the
-# authenticated MCP caller surfaced through the Trust BC.
-_SYSTEM_ACTOR_ID = UUID("00000000-0000-0000-0000-000000000000")
 
 
 class RegisterActorOutput(BaseModel):
@@ -59,7 +56,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         handler = get_handler()
         actor_id = await handler(
             RegisterActor(name=name),
-            actor_id=_SYSTEM_ACTOR_ID,
+            actor_id=SYSTEM_ACTOR_ID,
             correlation_id=uuid4(),
         )
         return RegisterActorOutput(actor_id=actor_id)

@@ -15,6 +15,7 @@ from uuid import UUID
 import pytest
 from fastapi.testclient import TestClient
 
+from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.api.main import create_app
 
 
@@ -114,8 +115,6 @@ def test_post_actors_replaces_invalid_correlation_id_with_uuid() -> None:
 @pytest.mark.contract
 def test_post_actors_uses_max_length_constant_from_domain() -> None:
     """Pydantic max_length must track the domain ACTOR_NAME_MAX_LENGTH constant."""
-    from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
-
     with TestClient(create_app()) as client:
         response = client.post(
             "/actors",
