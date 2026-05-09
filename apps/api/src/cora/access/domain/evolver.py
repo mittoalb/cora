@@ -6,9 +6,13 @@ event list from the empty initial state, used by the application handler
 after loading a stream from the EventStore.
 
 Both functions are pure and total: every (state, event) pair has a
-single deterministic result. New event types are added by extending the
-match statement.
+single deterministic result. The terminal `assert_never` case forces
+pyright (and the runtime) to error if a new event type is added to
+`ActorEvent` without a matching match arm here, so the evolver can
+never silently return None for an unhandled event.
 """
+
+from typing import assert_never
 
 from cora.access.domain.actor import Actor, ActorName
 from cora.access.domain.events import ActorEvent, ActorRegistered
@@ -19,6 +23,8 @@ def evolve(state: Actor | None, event: ActorEvent) -> Actor:
     match event:
         case ActorRegistered(actor_id=actor_id, name=name):
             return Actor(id=actor_id, name=ActorName(name))
+        case _:  # pragma: no cover  # exhaustiveness guard
+            assert_never(event)
 
 
 def fold(events: list[ActorEvent]) -> Actor | None:

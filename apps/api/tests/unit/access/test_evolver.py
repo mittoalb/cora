@@ -36,3 +36,24 @@ def test_fold_is_pure_same_input_same_output() -> None:
     actor_id = uuid4()
     events = [ActorRegistered(actor_id=actor_id, name="Doga", occurred_at=_NOW)]
     assert fold(events) == fold(events)
+
+
+@pytest.mark.unit
+def test_decider_and_evolver_round_trip() -> None:
+    """The events the decider produces must rebuild the expected state.
+
+    This is the foundational invariant of the decider/evolver pattern:
+    decide and evolve must agree on every (state, command) pair. If they
+    drift, every command on a saved stream crashes on the next replay.
+    Mirror this test for every BC's first decider.
+    """
+    from cora.access.domain.commands import RegisterActor
+    from cora.access.domain.register_actor import register_actor
+
+    new_id = uuid4()
+    command = RegisterActor(name="  Doga  ")  # whitespace exercises the VO trim
+
+    events = register_actor(state=None, command=command, now=_NOW, new_id=new_id)
+    rebuilt = fold(events)
+
+    assert rebuilt == Actor(id=new_id, name=ActorName("Doga"))
