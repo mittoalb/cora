@@ -10,13 +10,13 @@ from uuid import UUID
 
 import pytest
 
-from cora.access.application.register_actor import (
+from cora.access.application import (
+    AccessHandlers,
     UnauthorizedError,
     make_register_actor_handler,
+    wire_access,
 )
-from cora.access.application.wire import AccessHandlers, wire_access
-from cora.access.domain.actor import InvalidActorNameError
-from cora.access.domain.commands import RegisterActor
+from cora.access.domain import InvalidActorNameError, RegisterActor
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.memory.event_store import InMemoryEventStore

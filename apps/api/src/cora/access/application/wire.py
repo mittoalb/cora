@@ -9,7 +9,7 @@ new fields on `AccessHandlers` and a single line in this factory.
 
 from dataclasses import dataclass
 
-from cora.access.application.register_actor import (
+from cora.access.application.register_actor_handler import (
     RegisterActorHandler,
     make_register_actor_handler,
 )

@@ -14,8 +14,8 @@ from uuid import UUID
 import asyncpg
 import pytest
 
-from cora.access.application.register_actor import make_register_actor_handler
-from cora.access.domain.commands import RegisterActor
+from cora.access.application import make_register_actor_handler
+from cora.access.domain import RegisterActor
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.ports import (

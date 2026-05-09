@@ -23,15 +23,12 @@ from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from cora.access.application.register_actor import (
-    RegisterActorHandler,
-    UnauthorizedError,
-)
-from cora.access.domain.actor import (
+from cora.access.application import RegisterActorHandler, UnauthorizedError
+from cora.access.domain import (
     ACTOR_NAME_MAX_LENGTH,
     InvalidActorNameError,
+    RegisterActor,
 )
-from cora.access.domain.commands import RegisterActor
 
 # Phase 1 bootstrap: every command runs as a "system" actor under
 # AllowAllAuthorize. Phase 3 replaces this with the authenticated

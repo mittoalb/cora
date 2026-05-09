@@ -5,7 +5,7 @@ Public surface:
     - AccessHandlers + wire_access(deps)  -- composition for the lifespan
 """
 
-from cora.access.application.register_actor import (
+from cora.access.application.register_actor_handler import (
     RegisterActorHandler,
     UnauthorizedError,
     make_register_actor_handler,

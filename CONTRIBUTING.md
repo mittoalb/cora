@@ -58,6 +58,33 @@ build(deps): bump fastapi to 0.137.0
 
 One commit = one cohesive change that compiles and passes tests. A commit that touches a port + adapter + test for the same capability is one commit. A commit that mixes a refactor and a feature is two commits.
 
+## Code conventions
+
+### Imports
+
+Prefer **package imports** (the package's `__init__.py` re-exports the symbol) over **submodule imports**:
+
+```python
+# Preferred — uses the curated re-export surface
+from cora.access.application import RegisterActorHandler, UnauthorizedError
+from cora.access.domain import RegisterActor, InvalidActorNameError
+
+# Avoid when the symbol is re-exported from the package
+from cora.access.application.register_actor_handler import RegisterActorHandler
+```
+
+The package `__init__.py` is the BC's curated public surface. Importing through it lets the module layout be reorganized without ripple edits and keeps the `__all__` list honest about what's intended for external use. Reach for submodule paths only when the symbol is intentionally not re-exported (BC-internal helpers, test-only seams).
+
+Ruff doesn't have a built-in rule for this; enforce via review.
+
+### File and symbol naming
+
+- **Commands** — PascalCase nouns in `domain/commands.py` (e.g. `RegisterActor`).
+- **Deciders** — snake_case verb functions in `domain/<verb>.py` matching the command's verb form (e.g. `register_actor` in `domain/register_actor.py`). Per Chassaing's decider convention.
+- **Handlers** — snake_case verb factory functions in `application/<verb>_handler.py` (e.g. `make_register_actor_handler` in `application/register_actor_handler.py`). The `_handler` filename suffix disambiguates the application file from the same-verb decider file in the domain.
+- **Domain errors** — PascalCase ending in `Error` (e.g. `InvalidActorNameError`, `ActorAlreadyExistsError`) per PEP 8 / ruff N818.
+- **Domain events** — PascalCase past-tense verbs in `domain/events.py` (e.g. `ActorRegistered`).
+
 ## Branch + PR flow
 
 Solo dev for now: commit directly to `main`. CI must be green before pushing.
