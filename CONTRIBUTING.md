@@ -188,6 +188,20 @@ These middlewares are wired in `cora/api/main.py:create_app()` and apply to ever
 
 **structlog cache nuance:** `cache_logger_on_first_use=True` (in `cora/infrastructure/logging.py`) means subsequent `configure_logging()` calls don't re-bind already-cached loggers. In tests where `build_shared_deps()` runs many times, only the first call's level/handler take effect. Acceptable for our setup (everyone uses INFO + JSONRenderer); breaks if a test tries to change log level mid-process.
 
+### structlog log line naming
+
+Two patterns; each cross-cutting concern uses one or the other:
+
+- **Command / query handlers**: `<verb>.<event>` — `register_actor.start`, `register_actor.denied`, `register_actor.success`, `deactivate_actor.start`, `get_actor.start`, etc. Every handler emits at least `start` (entry, with the principal/correlation context) and either `denied` (Authorize port returned Deny) or `success` (handler completed). Failures from deciders propagate as exceptions and are logged by FastAPI's exception machinery.
+- **Cross-cutting middleware / decorators**: `<concern>.<event>` — `idempotency.cache_hit`, `idempotency.cache_miss`, `idempotency.conflict`, `body_size_limit.rejected`. The `<concern>` matches the file/feature name; the `<event>` describes what happened.
+
+**Field-name conventions** (so log search is uniform across the codebase):
+- `correlation_id` — always the request correlation id (str-cast UUID)
+- `principal_id` — the calling principal (str-cast UUID)
+- `command_name` / `query_name` — the dataclass name (e.g. "RegisterActor", "GetActor")
+- `actor_id` — the Actor aggregate's id whenever an Actor is in scope (the new actor for register, the target for deactivate/get). One key for one concept.
+- For other aggregates: `<aggregate>_id` (e.g. `zone_id`, `conduit_id`).
+
 ### Migrations — atlas workflow
 
 Schema changes live in `infra/atlas/migrations/<timestamp>_<short_name>.sql`. Workflow:

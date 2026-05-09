@@ -72,7 +72,7 @@ def bind(deps: SharedDeps) -> Handler:
         _log.info(
             "deactivate_actor.start",
             command_name=_COMMAND_NAME,
-            target_actor_id=str(command.actor_id),
+            actor_id=str(command.actor_id),
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
         )
@@ -86,7 +86,7 @@ def bind(deps: SharedDeps) -> Handler:
             _log.info(
                 "deactivate_actor.denied",
                 command_name=_COMMAND_NAME,
-                target_actor_id=str(command.actor_id),
+                actor_id=str(command.actor_id),
                 principal_id=str(principal_id),
                 correlation_id=str(correlation_id),
                 reason=decision.reason,
@@ -122,7 +122,7 @@ def bind(deps: SharedDeps) -> Handler:
         _log.info(
             "deactivate_actor.success",
             command_name=_COMMAND_NAME,
-            target_actor_id=str(command.actor_id),
+            actor_id=str(command.actor_id),
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             event_count=len(new_events),

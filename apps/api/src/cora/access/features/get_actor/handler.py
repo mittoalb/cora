@@ -58,7 +58,7 @@ def bind(deps: SharedDeps) -> Handler:
         _log.info(
             "get_actor.start",
             query_name=_QUERY_NAME,
-            target_actor_id=str(query.actor_id),
+            actor_id=str(query.actor_id),
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
         )
@@ -72,7 +72,7 @@ def bind(deps: SharedDeps) -> Handler:
             _log.info(
                 "get_actor.denied",
                 query_name=_QUERY_NAME,
-                target_actor_id=str(query.actor_id),
+                actor_id=str(query.actor_id),
                 principal_id=str(principal_id),
                 correlation_id=str(correlation_id),
                 reason=decision.reason,
@@ -84,7 +84,7 @@ def bind(deps: SharedDeps) -> Handler:
         _log.info(
             "get_actor.success",
             query_name=_QUERY_NAME,
-            target_actor_id=str(query.actor_id),
+            actor_id=str(query.actor_id),
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             found=actor is not None,
