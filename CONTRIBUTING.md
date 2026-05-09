@@ -28,7 +28,7 @@ Scopes map to bounded contexts and infrastructure layers. Use the most specific 
 
 - `infra` — shared infrastructure (config, logging, ports, deps wiring)
 - `api` — FastAPI HTTP surface, MCP entrypoints, middleware
-- `db` — migrations, schema, event store internals
+- `db` — migrations, schema, event store internals (atlas migrations live in `infra/atlas/`)
 - `obs` — observability (logging, tracing, metrics)
 - `auth` — authentication wiring (distinct from the `access` BC)
 

@@ -8,9 +8,12 @@
 
 ## Quick start
 
-Requires: Python 3.13.12 (managed via uv), Docker (for Postgres). Node 24 LTS comes later for the frontend.
+Requires: Python 3.13.12 (managed via uv), Docker (for Postgres), [Atlas](https://atlasgo.io/) (for schema migrations). Node 24 LTS comes later for the frontend.
 
 ```bash
+# Install Atlas (one-time per machine)
+curl -sSf https://atlasgo.sh | sh
+
 # Install Python deps via uv
 make install            # runs `uv sync` inside apps/api
 
@@ -19,6 +22,9 @@ make precommit
 
 # Start Postgres + pgvector
 make db-up
+
+# Apply schema migrations
+make migrate-apply
 
 # Run smoke tests
 make test

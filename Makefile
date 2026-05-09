@@ -1,25 +1,33 @@
-.PHONY: install dev db-up db-down db-reset lint typecheck test test-unit test-int test-contract fmt clean help
+.PHONY: install dev db-up db-down db-reset lint typecheck test test-unit test-int test-contract fmt clean help \
+        migrate-status migrate-apply migrate-new migrate-hash migrate-lint
 
 API_DIR := apps/api
 COMPOSE := docker compose -f infra/docker-compose.yml
+ATLAS_DIR := infra/atlas
+LOCAL_DB_URL ?= postgres://cora:cora@localhost:5432/cora?sslmode=disable
 
 help:
 	@echo "Common targets:"
-	@echo "  install        Install Python deps via uv (in apps/api)"
-	@echo "  dev            Run FastAPI dev server (reload, :8000)"
-	@echo "  db-up          Start Postgres + pgvector via Docker Compose"
-	@echo "  db-down        Stop Postgres"
-	@echo "  db-reset       Stop Postgres and wipe its volume"
-	@echo "  lint           Run ruff check + format check"
-	@echo "  fmt            Run ruff format and auto-fix"
-	@echo "  typecheck      Run pyright (strict)"
-	@echo "  test           Run all tests"
-	@echo "  test-unit      Run only unit tests"
-	@echo "  test-int       Run only integration tests"
-	@echo "  test-contract  Run only contract tests"
-	@echo "  precommit      Install pre-commit hooks (one-time per clone)"
-	@echo "  precommit-run  Run all pre-commit hooks against all files"
-	@echo "  clean          Remove caches and build artefacts"
+	@echo "  install         Install Python deps via uv (in apps/api)"
+	@echo "  dev             Run FastAPI dev server (reload, :8000)"
+	@echo "  db-up           Start Postgres + pgvector via Docker Compose"
+	@echo "  db-down         Stop Postgres"
+	@echo "  db-reset        Stop Postgres and wipe its volume"
+	@echo "  migrate-status  Show pending migrations against local DB"
+	@echo "  migrate-apply   Apply pending migrations to local DB"
+	@echo "  migrate-new     Generate a new migration skeleton (name=<short_name>)"
+	@echo "  migrate-hash    Recompute atlas.sum after editing migrations by hand"
+	@echo "  migrate-lint    Lint the migration directory (safety checks)"
+	@echo "  lint            Run ruff check + format check"
+	@echo "  fmt             Run ruff format and auto-fix"
+	@echo "  typecheck       Run pyright (strict)"
+	@echo "  test            Run all tests"
+	@echo "  test-unit       Run only unit tests"
+	@echo "  test-int        Run only integration tests"
+	@echo "  test-contract   Run only contract tests"
+	@echo "  precommit       Install pre-commit hooks (one-time per clone)"
+	@echo "  precommit-run   Run all pre-commit hooks against all files"
+	@echo "  clean           Remove caches and build artefacts"
 
 install:
 	cd $(API_DIR) && uv sync --all-extras
@@ -65,6 +73,22 @@ precommit:
 
 precommit-run:
 	cd $(API_DIR) && uv run pre-commit run --all-files
+
+migrate-status:
+	cd $(ATLAS_DIR) && DATABASE_URL=$(LOCAL_DB_URL) atlas migrate status --env local
+
+migrate-apply:
+	cd $(ATLAS_DIR) && DATABASE_URL=$(LOCAL_DB_URL) atlas migrate apply --env local
+
+migrate-new:
+	@if [ -z "$(name)" ]; then echo "Usage: make migrate-new name=add_foo"; exit 1; fi
+	cd $(ATLAS_DIR) && DATABASE_URL=$(LOCAL_DB_URL) atlas migrate new $(name)
+
+migrate-hash:
+	cd $(ATLAS_DIR) && atlas migrate hash
+
+migrate-lint:
+	cd $(ATLAS_DIR) && atlas migrate lint --env local --latest 1
 
 clean:
 	cd $(API_DIR) && rm -rf .pytest_cache .ruff_cache .pyright_cache build dist *.egg-info
