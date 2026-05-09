@@ -37,6 +37,9 @@ _STREAM_TYPE = "Actor"
 _COMMAND_NAME = "RegisterActor"
 _CONDUIT_DEFAULT = "default"
 
+# structlog loggers are lazy: get_logger() returns a proxy and config is
+# applied at first .info() call. Module-level binding is safe even though
+# configure_logging() runs later in build_shared_deps().
 _log = get_logger(__name__)
 
 

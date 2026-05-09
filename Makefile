@@ -1,5 +1,5 @@
 .PHONY: install dev db-up db-down db-reset lint typecheck test test-unit test-int test-contract fmt clean help \
-        migrate-status migrate-apply migrate-new migrate-hash migrate-lint
+        migrate-status migrate-apply migrate-new migrate-hash migrate-lint precommit precommit-run
 
 API_DIR := apps/api
 COMPOSE := docker compose -f infra/docker-compose.yml
@@ -32,7 +32,7 @@ help:
 install:
 	cd $(API_DIR) && uv sync --all-extras
 
-dev:
+dev: db-up
 	cd $(API_DIR) && uv run uvicorn cora.api.main:app --reload --host 0.0.0.0 --port 8000
 
 db-up:

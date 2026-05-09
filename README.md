@@ -33,11 +33,43 @@ make test
 make dev
 # API at http://localhost:8000
 # Health check at http://localhost:8000/health
+# REST API: POST /actors  (see /docs for OpenAPI)
+# MCP server mounted at /mcp (streamable HTTP transport)
 ```
 
 Run `make help` for the full list of dev commands.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for commit message conventions.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for commit message conventions and BC layout.
+
+## API surfaces
+
+CORA exposes every command on two equivalent surfaces backed by the same handler:
+
+**REST.** OpenAPI docs at `http://localhost:8000/docs` (Swagger UI) and `/redoc`. Example:
+
+```bash
+curl -X POST http://localhost:8000/actors \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "Doga"}'
+# -> 201 {"actor_id": "01900000-..."}
+```
+
+**MCP** (Model Context Protocol — for LLM agents). Streamable HTTP transport mounted at `/mcp`. The full handshake is `initialize` → `notifications/initialized` → `tools/call`. Example using a JSON-RPC client:
+
+```bash
+# 1. Initialize, capture mcp-session-id from response headers
+curl -i -X POST http://localhost:8000/mcp \
+  -H 'Accept: application/json, text/event-stream' \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize",
+       "params":{"protocolVersion":"2025-06-18","capabilities":{},
+                 "clientInfo":{"name":"cli","version":"0.1"}}}'
+
+# 2. Send notifications/initialized + 3. Call the tool  (use the captured session id)
+# Response is structured content with the new actor_id.
+```
+
+For Claude Code or other MCP-aware clients, point the client at `http://localhost:8000/mcp` and the `register_actor` tool appears alongside any future tools.
 
 ## Repo layout (monorepo)
 

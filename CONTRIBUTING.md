@@ -118,6 +118,25 @@ Why this shape: it pairs Modular Monolith (BCs are macro-modules) with Vertical 
 
 Per Vertical Slice guidance, **don't extract until you have three real usages with identical, stable logic** (Rule of Three). Shared domain primitives (errors, value objects used across multiple aggregates) live at the BC root or in a `_shared/` sibling once they exist. Cross-BC concerns live under `cora/infrastructure/` (logging, config, ports, adapters).
 
+### BC-level bootstrap constants — `_bootstrap.py`
+
+Constants that every slice surface (REST + MCP + future gRPC / A2A) needs but that aren't slice-specific live in `cora/<bc>/_bootstrap.py`:
+
+```python
+# cora/access/_bootstrap.py
+from uuid import UUID
+
+SYSTEM_ACTOR_ID = UUID("00000000-0000-0000-0000-000000000000")
+```
+
+Both `features/<slice>/route.py` and `features/<slice>/tool.py` import from there:
+
+```python
+from cora.access._bootstrap import SYSTEM_ACTOR_ID
+```
+
+The leading underscore signals "BC-internal" — shared across slices but not part of the BC's public surface. Phase 3 (Trust BC) replaces these constants with authenticated-actor lookup; the swap is one edit per BC.
+
 ### Value objects
 
 Value objects encapsulate domain invariants and live with the smallest scope that owns those invariants:
