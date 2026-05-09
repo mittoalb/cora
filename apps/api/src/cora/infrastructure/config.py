@@ -22,5 +22,7 @@ class Settings(BaseSettings):
     app_env: str = "local"
     log_level: str = "INFO"
 
-    # Database (Phase 1b will start using this)
+    # Database
     database_url: str = "postgresql://cora:cora@localhost:5432/cora"
+    db_pool_min_size: int = 1
+    db_pool_max_size: int = 10

@@ -12,17 +12,17 @@ from asgi_correlation_id import CorrelationIdMiddleware
 from fastapi import FastAPI
 
 from cora import __version__
-from cora.infrastructure.deps import build_shared_deps, teardown_shared_deps
+from cora.infrastructure.deps import build_shared_deps
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
-    deps = await build_shared_deps()
+    deps, teardown = await build_shared_deps()
     app.state.deps = deps
     try:
         yield
     finally:
-        await teardown_shared_deps(deps)
+        await teardown()
 
 
 app = FastAPI(
