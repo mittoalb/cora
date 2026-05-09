@@ -10,6 +10,7 @@ short names from the slice's namespace.
     actor_id = await handler(cmd, actor_id=..., correlation_id=...)
 """
 
+from cora.access.features.register_actor import tool
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.decider import decide
 from cora.access.features.register_actor.handler import (
@@ -26,4 +27,5 @@ __all__ = [
     "bind",
     "decide",
     "router",
+    "tool",
 ]

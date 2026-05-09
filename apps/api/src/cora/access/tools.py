@@ -1,0 +1,30 @@
+"""MCP tool registration for the Access BC.
+
+`register_access_tools(mcp, *, get_handlers)` registers each slice's MCP
+tool on the shared FastMCP server. `get_handlers` is a callable returning
+the `AccessHandlers` bundle wired during the FastAPI lifespan; it's
+invoked per tool call so the latest wiring is always used.
+
+Cross-BC pattern: each BC exports `register_<bc>_tools(mcp, *, get_handlers)`.
+The api entrypoint instantiates one FastMCP server, calls every BC's
+registrar, then mounts the server at `/mcp`.
+"""
+
+from collections.abc import Callable
+
+from mcp.server.fastmcp import FastMCP
+
+from cora.access.features.register_actor import tool as register_actor_tool
+from cora.access.wire import AccessHandlers
+
+
+def register_access_tools(
+    mcp: FastMCP,
+    *,
+    get_handlers: Callable[[], AccessHandlers],
+) -> None:
+    """Register every Access slice's MCP tool on the FastMCP server."""
+    register_actor_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().register_actor,
+    )
