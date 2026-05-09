@@ -1,5 +1,21 @@
 """Access application layer: command handlers, integration events, queries.
 
-Phase 1d will add the `register_actor` handler that loads state via the
-EventStore, runs the pure decider, and appends events. Empty for now.
+Public surface:
+    - register_actor handler factory + UnauthorizedError (the application error)
+    - AccessHandlers + wire_access(deps)  -- composition for the lifespan
 """
+
+from cora.access.application.register_actor import (
+    RegisterActorHandler,
+    UnauthorizedError,
+    make_register_actor_handler,
+)
+from cora.access.application.wire import AccessHandlers, wire_access
+
+__all__ = [
+    "AccessHandlers",
+    "RegisterActorHandler",
+    "UnauthorizedError",
+    "make_register_actor_handler",
+    "wire_access",
+]

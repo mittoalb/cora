@@ -20,7 +20,11 @@ from cora.infrastructure.ports.event_store import (
     NewEvent,
     StoredEvent,
 )
-from cora.infrastructure.ports.id_generator import IdGenerator, UUIDv7Generator
+from cora.infrastructure.ports.id_generator import (
+    FixedIdGenerator,
+    IdGenerator,
+    UUIDv7Generator,
+)
 
 __all__ = [
     "Allow",
@@ -32,6 +36,7 @@ __all__ = [
     "Deny",
     "EventPublisher",
     "EventStore",
+    "FixedIdGenerator",
     "FrozenClock",
     "IdGenerator",
     "NewEvent",

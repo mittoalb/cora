@@ -12,6 +12,7 @@ from asgi_correlation_id import CorrelationIdMiddleware
 from fastapi import FastAPI
 
 from cora import __version__
+from cora.access.application import wire_access
 from cora.infrastructure.deps import build_shared_deps
 
 
@@ -19,6 +20,7 @@ from cora.infrastructure.deps import build_shared_deps
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     deps, teardown = await build_shared_deps()
     app.state.deps = deps
+    app.state.access = wire_access(deps)
     try:
         yield
     finally:
