@@ -15,6 +15,7 @@ from fastapi import FastAPI
 
 from cora import __version__
 from cora.access.application import wire_access
+from cora.access.infrastructure import register_access_routes
 from cora.infrastructure.deps import build_shared_deps
 
 
@@ -36,6 +37,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.add_middleware(CorrelationIdMiddleware)
+register_access_routes(app)
 
 
 @app.get("/health")
