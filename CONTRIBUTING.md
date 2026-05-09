@@ -118,6 +118,28 @@ Why this shape: it pairs Modular Monolith (BCs are macro-modules) with Vertical 
 
 Per Vertical Slice guidance, **don't extract until you have three real usages with identical, stable logic** (Rule of Three). Shared domain primitives (errors, value objects used across multiple aggregates) live at the BC root or in a `_shared/` sibling once they exist. Cross-BC concerns live under `cora/infrastructure/` (logging, config, ports, adapters).
 
+### Value objects
+
+Value objects encapsulate domain invariants and live with the smallest scope that owns those invariants:
+
+| Scope | Home | Example |
+| --- | --- | --- |
+| Tied to one aggregate's invariants | `aggregates/<aggregate>/state.py` (split into `value_objects.py` when `state.py` exceeds ~200 lines) | `ActorName` for Actor |
+| Shared across aggregates **within one BC** | `<bc>/value_objects.py` (or `<bc>/_shared/`) | `ConduitName` shared by Trust's Zone + Conduit |
+| Shared across **multiple BCs** | `cora/shared/value_objects.py` (Shared Kernel) | `Money`, `EmailAddress`, `PIDINST` |
+| Slice-local only | almost never the right answer — promote to aggregate-VO | (none today) |
+
+Promote a VO up the hierarchy only when it has ≥3 real usages with identical, stable invariants (Rule of Three). Premature promotion couples consumers; premature inlining duplicates invariant logic.
+
+**Primitives in event payloads, VOs at state and decider boundaries.** Events MUST carry primitive types (str, int, UUID, datetime, dict) — never Pydantic models or dataclass VOs. Reasons:
+
+- Events are immutable and persist forever; VOs evolve. Adding an invariant to `ActorName` after `ActorRegistered` events with old-shape names exist would make those events un-deserializable on replay.
+- Events get serialized to jsonb; primitive-only payloads survive any storage format change.
+- Decider takes VO-typed state but unwraps when constructing events: `ActorRegistered(name=actor_name.value)` not `ActorRegistered(name=actor_name)`.
+- The evolver re-validates by re-constructing the VO when folding the event back into state: `Actor(name=ActorName(event.name))`. This is the round-trip safety net.
+
+This pattern is canonical in event-sourcing literature ([Nick Chamberlain — "Why we Avoid Putting Value Objects in Events"](https://buildplease.com/pages/vos-in-events/), [event-driven.io — "Explicit events serialisation"](https://event-driven.io/en/explicit_events_serialisation_in_event_sourcing/)). The decider+evolver round-trip test under `tests/unit/<bc>/test_evolver.py` verifies it for each aggregate.
+
 ## Branch + PR flow
 
 Solo dev for now: commit directly to `main`. CI must be green before pushing.
