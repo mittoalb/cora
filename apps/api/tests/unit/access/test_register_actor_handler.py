@@ -15,6 +15,7 @@ from cora.access.application.register_actor import (
     make_register_actor_handler,
 )
 from cora.access.application.wire import AccessHandlers, wire_access
+from cora.access.domain.actor import InvalidActorNameError
 from cora.access.domain.commands import RegisterActor
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import SharedDeps
@@ -155,8 +156,6 @@ async def test_handler_does_not_append_when_denied() -> None:
 @pytest.mark.unit
 async def test_handler_propagates_invalid_actor_name_error() -> None:
     """Domain InvalidActorNameError bubbles unchanged through the handler."""
-    from cora.access.domain.actor import InvalidActorNameError
-
     deps = _build_deps()
     handler = make_register_actor_handler(deps)
 
@@ -173,8 +172,6 @@ async def test_handler_does_not_append_when_decider_rejects() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     handler = make_register_actor_handler(deps)
-
-    from cora.access.domain.actor import InvalidActorNameError
 
     with pytest.raises(InvalidActorNameError):
         await handler(

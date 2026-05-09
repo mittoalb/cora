@@ -20,19 +20,21 @@ to step 4. The shape splits intentionally: a freshly generated id
 provably has no prior events, so the load is wasteful.
 """
 
-from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, Protocol
 from uuid import UUID
 
 from cora.access.domain.commands import RegisterActor
 from cora.access.domain.events import ActorRegistered
 from cora.access.domain.register_actor import register_actor
 from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny, NewEvent
 
 _STREAM_TYPE = "Actor"
 _COMMAND_NAME = "RegisterActor"
 _CONDUIT_DEFAULT = "default"
+
+_log = get_logger(__name__)
 
 
 class UnauthorizedError(Exception):
@@ -43,7 +45,22 @@ class UnauthorizedError(Exception):
         self.reason = reason
 
 
-RegisterActorHandler = Callable[..., Awaitable[UUID]]
+class RegisterActorHandler(Protocol):
+    """Callable interface every `register_actor` handler implements.
+
+    Defining the call signature as a Protocol (instead of
+    `Callable[..., Awaitable[UUID]]`) lets pyright check every call
+    site for the right arg names and types. Mirror this shape for
+    every BC's command handlers.
+    """
+
+    async def __call__(
+        self,
+        command: RegisterActor,
+        *,
+        actor_id: UUID,
+        correlation_id: UUID,
+    ) -> UUID: ...
 
 
 def make_register_actor_handler(deps: SharedDeps) -> RegisterActorHandler:
@@ -55,12 +72,26 @@ def make_register_actor_handler(deps: SharedDeps) -> RegisterActorHandler:
         actor_id: UUID,
         correlation_id: UUID,
     ) -> UUID:
+        _log.info(
+            "register_actor.start",
+            command_name=_COMMAND_NAME,
+            invoker_id=str(actor_id),
+            correlation_id=str(correlation_id),
+        )
+
         decision = await deps.authorize(
             actor_id=actor_id,
             command_name=_COMMAND_NAME,
             conduit=_CONDUIT_DEFAULT,
         )
         if isinstance(decision, Deny):
+            _log.info(
+                "register_actor.denied",
+                command_name=_COMMAND_NAME,
+                invoker_id=str(actor_id),
+                correlation_id=str(correlation_id),
+                reason=decision.reason,
+            )
             raise UnauthorizedError(decision.reason)
 
         new_id = deps.id_generator.new_id()
@@ -81,6 +112,14 @@ def make_register_actor_handler(deps: SharedDeps) -> RegisterActorHandler:
             stream_id=new_id,
             expected_version=0,
             events=new_events,
+        )
+
+        _log.info(
+            "register_actor.success",
+            command_name=_COMMAND_NAME,
+            actor_id=str(new_id),
+            correlation_id=str(correlation_id),
+            event_count=len(new_events),
         )
         return new_id
 

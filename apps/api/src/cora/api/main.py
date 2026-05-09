@@ -1,8 +1,10 @@
 """CORA FastAPI entrypoint.
 
 Lifespan builds shared dependencies once at startup and exposes them on
-`app.state.deps`. Each BC's `wire_*(deps)` function (added Phase 1c onward)
-contributes its router and MCP tools.
+`app.state.deps`. Each BC's `wire_*(deps)` function returns a handler
+bundle stored on `app.state.<bc>`. Phase 1d wires Access handlers;
+Phase 1e adds REST routers that pull handlers off `app.state.<bc>`;
+Phase 1f adds MCP tools that do the same.
 """
 
 from collections.abc import AsyncGenerator
