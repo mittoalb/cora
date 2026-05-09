@@ -15,10 +15,20 @@ dependencies = [
     "mcp>=1.27.1,<2",
     "uvicorn[standard]>=0.40.0",
     "structlog>=25.0.0",
-    "asgi-correlation-id>=4.3.0",
     "uuid-utils>=0.10.0",
     "prometheus-client>=0.21.0,<1",
     "prometheus-fastapi-instrumentator>=7.0.0,<8",
+    # OpenTelemetry: api/sdk are 1.x stable; instrumentations and semconv
+    # ship as 0.x companions on the same release cadence (0.62b1 ↔ 1.41.1
+    # at time of pin). Pin api/sdk to <2 (next major would be breaking);
+    # pin instrumentations to <0.63 (next minor may be breaking on 0.x).
+    # Bump them in lockstep.
+    "opentelemetry-api>=1.41,<2",
+    "opentelemetry-sdk>=1.41,<2",
+    "opentelemetry-semantic-conventions>=0.62b1,<0.63",
+    "opentelemetry-instrumentation-fastapi>=0.62b1,<0.63",
+    "opentelemetry-instrumentation-asyncpg>=0.62b1,<0.63",
+    "opentelemetry-exporter-otlp-proto-http>=1.41,<2",
 ]
 
 [dependency-groups]

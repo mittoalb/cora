@@ -9,7 +9,7 @@ message rather than null structuredContent they have to interpret).
 
 from collections.abc import Callable
 from typing import Annotated
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
@@ -18,6 +18,7 @@ from cora.access._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.get_actor.handler import Handler
 from cora.access.features.get_actor.query import GetActor
+from cora.infrastructure.observability import current_correlation_id
 
 
 class ActorOutput(BaseModel):
@@ -45,7 +46,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         actor = await handler(
             GetActor(actor_id=actor_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
-            correlation_id=uuid4(),
+            correlation_id=current_correlation_id(),
         )
         if actor is None:
             msg = f"Actor {actor_id} not found"

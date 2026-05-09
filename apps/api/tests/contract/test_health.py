@@ -15,4 +15,3 @@ def test_health_returns_ok() -> None:
         body = response.json()
         assert body["status"] == "ok"
         assert "version" in body
-        assert response.headers.get("x-request-id") is not None

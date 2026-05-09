@@ -12,13 +12,25 @@ Lifespan composition: the MCP session manager's lifespan must wrap our
 shared-deps build so the manager initializes before any MCP request.
 Without the wrap, mounted MCP requests silently fail
 (modelcontextprotocol/python-sdk#1367).
+
+Observability stack:
+- OpenTelemetry tracing is configured at app construction; the global
+  TracerProvider is installed iff `settings.otel_exporter != "none"`.
+  Per-app FastAPI instrumentation is attached after app creation.
+  The W3C `traceparent` header is the source of truth for "this
+  request" identity; the prior `asgi-correlation-id` middleware was
+  removed because OTel's TraceContextTextMapPropagator handles inbound
+  / outbound trace propagation per the W3C spec.
+- Prometheus metrics are exposed on `/metrics` (operational endpoint,
+  excluded from OpenAPI schema).
+- structlog is configured in `build_shared_deps()`; an OTel processor
+  injects `trace_id` and `span_id` into every log line emitted inside
+  an active span.
 """
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from uuid import UUID, uuid4
 
-from asgi_correlation_id import CorrelationIdMiddleware
 from fastapi import FastAPI
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
@@ -35,19 +47,11 @@ from cora.access import (
 from cora.api.middleware import BodySizeLimitMiddleware
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import build_shared_deps
+from cora.infrastructure.observability import configure_tracing, instrument_app
 
 
-def _is_valid_uuid(value: str) -> bool:
-    """Validator for inbound X-Request-ID headers. UUID-only."""
-    try:
-        UUID(value)
-    except ValueError:
-        return False
-    return True
-
-
-def _settings_for_middleware() -> Settings:
-    """Load Settings at app construction for middleware that needs config.
+def _settings_for_app() -> Settings:
+    """Load Settings at app construction for one-shot wiring decisions.
 
     The lifespan also constructs Settings; both calls hit env vars / .env
     so they agree. Pulled into a helper purely for readability.
@@ -61,6 +65,12 @@ def create_app() -> FastAPI:
     Production calls this once at module import; tests call it per
     `TestClient` context to get isolation.
     """
+    settings = _settings_for_app()
+    # configure_tracing is a no-op when otel_exporter == "none" (the
+    # default in tests), so calling it per create_app() is safe. In
+    # production it runs once and installs the global TracerProvider.
+    tracing_teardown = configure_tracing(settings)
+
     # streamable_http_path="/" makes the inner MCP route the mount root,
     # so the full path under app.mount("/mcp", ...) is just "/mcp"
     # (otherwise the default "/mcp" inner path produces "/mcp/mcp").
@@ -97,6 +107,10 @@ def create_app() -> FastAPI:
                 yield
             finally:
                 await teardown()
+                # Flush pending OTel spans before the process exits so
+                # short-lived runs (CLI invocations, smoke tests) don't
+                # drop traces. No-op when tracing is off.
+                tracing_teardown()
 
     fastapi_app = FastAPI(
         title="CORA",
@@ -104,18 +118,9 @@ def create_app() -> FastAPI:
         description="Research facility operations platform",
         lifespan=lifespan,
     )
-    # Middleware add order is reversed at request time: the LAST one
-    # added runs FIRST on incoming requests. We want correlation_id set
-    # outermost so the 413 from BodySizeLimit also carries it on the
-    # response, so add body-limit first then correlation last.
     fastapi_app.add_middleware(
         BodySizeLimitMiddleware,
-        max_bytes=_settings_for_middleware().max_request_body_size_bytes,
-    )
-    fastapi_app.add_middleware(
-        CorrelationIdMiddleware,
-        validator=_is_valid_uuid,
-        generator=lambda: str(uuid4()),
+        max_bytes=settings.max_request_body_size_bytes,
     )
     # Prometheus instrumentation:
     # - per-app CollectorRegistry so multiple create_app() calls in the
@@ -131,6 +136,10 @@ def create_app() -> FastAPI:
         registry=metrics_registry,
         excluded_handlers=["/metrics"],
     ).instrument(fastapi_app).expose(fastapi_app, include_in_schema=False)
+    # OTel FastAPI instrumentation runs after app construction so the
+    # FastAPIInstrumentor sees every route registered above plus the
+    # ones registered below. No-op when tracing is off.
+    instrument_app(fastapi_app, settings)
     register_access_routes(fastapi_app)
     fastapi_app.mount("/mcp", mcp_app)
 

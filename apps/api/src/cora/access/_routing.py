@@ -1,8 +1,8 @@
 """Shared route helpers for the Access BC.
 
 Three pieces are byte-identical across `features/<slice>/route.py`:
-  - the `_get_correlation_id` FastAPI dependency
-  - the `_get_principal_id` FastAPI dependency
+  - the `get_correlation_id` FastAPI dependency
+  - the `get_principal_id` FastAPI dependency
   - the `ErrorResponse` Pydantic body for OpenAPI documentation
 
 Extracted here once the Access BC reached three command/query slices,
@@ -15,10 +15,10 @@ it pulls a per-slice field off `app.state.access` — different per slice.
 
 from uuid import UUID
 
-from asgi_correlation_id import correlation_id
 from pydantic import BaseModel
 
 from cora.access._bootstrap import SYSTEM_PRINCIPAL_ID
+from cora.infrastructure.observability import current_correlation_id
 
 
 class ErrorResponse(BaseModel):
@@ -28,15 +28,16 @@ class ErrorResponse(BaseModel):
 
 
 def get_correlation_id() -> UUID:
-    """Pull the request correlation id from asgi-correlation-id contextvar.
+    """Derive the request's correlation UUID from the active OTel span.
 
-    The middleware is configured (in `cora.api.main`) with a UUID-only
-    validator, so the contextvar is always set to a valid UUID string
-    by the time this dependency runs.
+    OpenTelemetry is the source of truth for "this request" identity:
+    `FastAPIInstrumentor` extracts the inbound W3C `traceparent` header
+    (or starts a fresh trace when absent) and exposes the trace_id
+    through the active span. `current_correlation_id` formats the
+    128-bit trace_id as a UUID; if no span is active (test environments
+    using the no-op tracer), it generates a fresh UUID.
     """
-    raw = correlation_id.get()
-    assert raw is not None, "CorrelationIdMiddleware did not set correlation_id"
-    return UUID(raw)
+    return current_correlation_id()
 
 
 def get_principal_id() -> UUID:

@@ -58,17 +58,3 @@ def test_413_response_is_json_with_detail(monkeypatch: pytest.MonkeyPatch) -> No
     assert response.headers["content-type"].startswith("application/json")
     body = response.json()
     assert set(body.keys()) == {"detail"}
-
-
-@pytest.mark.contract
-def test_413_response_carries_correlation_id(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The CorrelationIdMiddleware wraps BodySizeLimit (added later =
-    runs first on inbound), so even rejected requests get an x-request-id
-    header. Verifies the documented middleware-ordering claim."""
-    monkeypatch.setenv("MAX_REQUEST_BODY_SIZE_BYTES", "10")
-    with TestClient(create_app()) as client:
-        response = client.post("/actors", json={"name": "Doga"})
-    assert response.status_code == 413
-    assert response.headers.get("x-request-id") is not None

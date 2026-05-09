@@ -1,9 +1,15 @@
 """Structured logging configuration.
 
 Uses `structlog` with `contextvars` so context bound at the ASGI boundary
-(correlation_id) and at command-handler entry (command_id, decision_id,
-aggregate_id, causation_id) propagates to every log line emitted inside the
-decider, repository, and projection.
+and at command-handler entry propagates to every log line emitted inside
+the decider, repository, and projection.
+
+OpenTelemetry trace context (`trace_id`, `span_id`, `trace_flags`) is
+injected by the `add_trace_context` processor when an active span is
+present, letting log-aggregator queries pivot from a log line to the
+corresponding distributed trace. The processor is a no-op when no
+span is active (default test environment uses the no-op tracer), so
+unit tests don't need to set up a TracerProvider.
 
 The structlog wrapper chain ends with `ProcessorFormatter.wrap_for_formatter`
 (not a renderer) so the wrapped event_dict reaches the stdlib
@@ -32,6 +38,8 @@ from typing import TYPE_CHECKING
 import structlog
 from structlog.contextvars import merge_contextvars
 
+from cora.infrastructure.observability import add_trace_context
+
 if TYPE_CHECKING:
     from structlog.types import Processor
 
@@ -42,6 +50,7 @@ def configure_logging(level: str = "INFO") -> None:
     timestamper = structlog.processors.TimeStamper(fmt="iso", utc=True)
     shared_processors: list[Processor] = [
         merge_contextvars,
+        add_trace_context,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         timestamper,

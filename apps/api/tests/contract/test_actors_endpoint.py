@@ -28,7 +28,6 @@ def test_post_actors_returns_201_with_actor_id() -> None:
     body = response.json()
     assert "actor_id" in body
     UUID(body["actor_id"])  # parses without raising
-    assert response.headers.get("x-request-id") is not None
 
 
 @pytest.mark.contract
@@ -76,40 +75,6 @@ def test_post_actors_rejects_non_string_name_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post("/actors", json={"name": 123})
     assert response.status_code == 422
-
-
-@pytest.mark.contract
-def test_post_actors_propagates_valid_uuid_correlation_id() -> None:
-    """A valid UUID inbound X-Request-ID is echoed back unchanged."""
-    inbound = "01900000-0000-7000-8000-0000000000aa"
-    with TestClient(create_app()) as client:
-        response = client.post(
-            "/actors",
-            json={"name": "Doga"},
-            headers={"X-Request-ID": inbound},
-        )
-    assert response.status_code == 201
-    assert response.headers["x-request-id"] == inbound
-
-
-@pytest.mark.contract
-def test_post_actors_replaces_invalid_correlation_id_with_uuid() -> None:
-    """A non-UUID inbound X-Request-ID is discarded; middleware generates a fresh UUID.
-
-    Without validation the response header would echo "not-a-uuid" while the
-    handler / event store would carry a different fresh UUID, breaking
-    cross-system tracing silently.
-    """
-    with TestClient(create_app()) as client:
-        response = client.post(
-            "/actors",
-            json={"name": "Doga"},
-            headers={"X-Request-ID": "not-a-uuid"},
-        )
-    assert response.status_code == 201
-    echoed = response.headers["x-request-id"]
-    UUID(echoed)  # parses without raising
-    assert echoed != "not-a-uuid"
 
 
 @pytest.mark.contract

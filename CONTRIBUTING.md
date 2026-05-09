@@ -184,7 +184,6 @@ These middlewares are wired in `cora/api/main.py:create_app()` and apply to ever
 
 - **Body size limit** — `BodySizeLimitMiddleware` checks inbound `Content-Length`, returns 413 with `{"detail": str}`. Limit configured via `Settings.max_request_body_size_bytes` (default 1 MiB). Production deployments should ALSO enforce at the reverse proxy (nginx `client_max_body_size`); the application middleware is defense in depth.
 - **Prometheus `/metrics`** — `prometheus-fastapi-instrumentator` with a per-app `CollectorRegistry` (the global REGISTRY would crash on second `TestClient(create_app())` due to duplicate-collector detection). `excluded_handlers=["/metrics"]` keeps the scrape endpoint out of its own counters; `include_in_schema=False` hides it from OpenAPI `/docs`.
-- **CorrelationId middleware** — `CorrelationIdMiddleware` validates inbound `X-Request-ID` as UUID; invalid headers are replaced. Added LAST so it runs OUTERMOST (other middlewares' responses also carry x-request-id).
 
 **structlog cache nuance:** `cache_logger_on_first_use=True` (in `cora/infrastructure/logging.py`) means subsequent `configure_logging()` calls don't re-bind already-cached loggers. In tests where `build_shared_deps()` runs many times, only the first call's level/handler take effect. Acceptable for our setup (everyone uses INFO + JSONRenderer); breaks if a test tries to change log level mid-process.
 

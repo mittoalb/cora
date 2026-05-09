@@ -13,7 +13,7 @@ per the MCP 2025-06 spec update.
 
 from collections.abc import Callable
 from typing import Annotated
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
@@ -22,6 +22,7 @@ from cora.access._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.handler import IdempotentHandler
+from cora.infrastructure.observability import current_correlation_id
 
 
 class RegisterActorOutput(BaseModel):
@@ -61,6 +62,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         actor_id = await handler(
             RegisterActor(name=name),
             principal_id=SYSTEM_PRINCIPAL_ID,
-            correlation_id=uuid4(),
+            # MCP tools run inside the FastAPI-instrumented `/mcp`
+            # request, so the OTel context is already in scope here.
+            correlation_id=current_correlation_id(),
         )
         return RegisterActorOutput(actor_id=actor_id)

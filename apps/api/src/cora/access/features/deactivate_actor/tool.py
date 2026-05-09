@@ -7,7 +7,7 @@ at app construction; the handler is fetched at tool-call time via
 
 from collections.abc import Callable
 from typing import Annotated
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
@@ -15,6 +15,7 @@ from pydantic import Field
 from cora.access._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.access.features.deactivate_actor.command import DeactivateActor
 from cora.access.features.deactivate_actor.handler import Handler
+from cora.infrastructure.observability import current_correlation_id
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -38,5 +39,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         await handler(
             DeactivateActor(actor_id=actor_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
-            correlation_id=uuid4(),
+            correlation_id=current_correlation_id(),
         )
