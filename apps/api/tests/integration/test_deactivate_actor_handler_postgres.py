@@ -24,6 +24,7 @@ from cora.infrastructure.ports import (
     FrozenClock,
 )
 from cora.infrastructure.postgres.event_store import PostgresEventStore
+from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _ACTOR_ID = UUID("01900000-0000-7000-8000-00000000cafe")
@@ -41,6 +42,7 @@ async def test_handler_deactivates_actor_against_real_postgres(
         id_generator=FixedIdGenerator([_ACTOR_ID]),
         authorize=AllowAllAuthorize(),
         event_store=PostgresEventStore(db_pool),
+        idempotency_store=PostgresIdempotencyStore(db_pool),
     )
 
     # First register, then deactivate.

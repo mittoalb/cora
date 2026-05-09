@@ -20,6 +20,7 @@ from cora.infrastructure.ports import (
     FrozenClock,
 )
 from cora.infrastructure.postgres.event_store import PostgresEventStore
+from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _ACTOR_ID = UUID("01900000-0000-7000-8000-00000000c0de")
@@ -37,6 +38,7 @@ async def test_get_actor_loads_state_from_real_postgres(
         id_generator=FixedIdGenerator([_ACTOR_ID]),
         authorize=AllowAllAuthorize(),
         event_store=PostgresEventStore(db_pool),
+        idempotency_store=PostgresIdempotencyStore(db_pool),
     )
 
     await register_actor.bind(deps)(

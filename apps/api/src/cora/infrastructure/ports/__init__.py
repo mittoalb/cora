@@ -25,12 +25,18 @@ from cora.infrastructure.ports.id_generator import (
     IdGenerator,
     UUIDv7Generator,
 )
+from cora.infrastructure.ports.idempotency import (
+    CachedResult,
+    IdempotencyConflictError,
+    IdempotencyStore,
+)
 
 __all__ = [
     "Allow",
     "AllowAllAuthorize",
     "Authorize",
     "AuthzResult",
+    "CachedResult",
     "Clock",
     "ConcurrencyError",
     "Deny",
@@ -39,6 +45,8 @@ __all__ = [
     "FixedIdGenerator",
     "FrozenClock",
     "IdGenerator",
+    "IdempotencyConflictError",
+    "IdempotencyStore",
     "NewEvent",
     "StoredEvent",
     "SystemClock",

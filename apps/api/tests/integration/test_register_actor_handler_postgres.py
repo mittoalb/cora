@@ -24,6 +24,7 @@ from cora.infrastructure.ports import (
     FrozenClock,
 )
 from cora.infrastructure.postgres.event_store import PostgresEventStore
+from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000000beef")
@@ -41,6 +42,7 @@ async def test_handler_persists_actor_registered_to_postgres(
         id_generator=FixedIdGenerator([_NEW_ID]),
         authorize=AllowAllAuthorize(),
         event_store=PostgresEventStore(db_pool),
+        idempotency_store=PostgresIdempotencyStore(db_pool),
     )
     handler = register_actor.bind(deps)
 

@@ -17,6 +17,7 @@ from cora.access.features.register_actor import RegisterActor
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.memory.event_store import InMemoryEventStore
+from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     AuthzResult,
@@ -56,6 +57,7 @@ def _build_deps(
         id_generator=FixedIdGenerator([_NEW_ID]),
         authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
         event_store=event_store or InMemoryEventStore(),
+        idempotency_store=InMemoryIdempotencyStore(),
     )
 
 

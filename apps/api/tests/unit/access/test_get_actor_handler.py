@@ -14,6 +14,7 @@ from cora.access.features.register_actor import RegisterActor
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.memory.event_store import InMemoryEventStore
+from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
     Allow,
     AllowAllAuthorize,
@@ -37,6 +38,7 @@ def _build_deps(event_store: InMemoryEventStore | None = None) -> SharedDeps:
         id_generator=FixedIdGenerator([_NEW_ID]),
         authorize=AllowAllAuthorize(),
         event_store=event_store or InMemoryEventStore(),
+        idempotency_store=InMemoryIdempotencyStore(),
     )
 
 
@@ -139,6 +141,7 @@ async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
         id_generator=FixedIdGenerator([_NEW_ID]),
         authorize=tracking,
         event_store=InMemoryEventStore(),
+        idempotency_store=InMemoryIdempotencyStore(),
     )
 
     handler = get_actor.bind(deps)
@@ -159,6 +162,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
         id_generator=FixedIdGenerator([_NEW_ID]),
         authorize=_DenyAllAuthorize(),
         event_store=InMemoryEventStore(),
+        idempotency_store=InMemoryIdempotencyStore(),
     )
 
     handler = get_actor.bind(deps)

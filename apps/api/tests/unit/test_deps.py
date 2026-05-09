@@ -9,10 +9,11 @@ import pytest
 
 from cora.infrastructure.deps import build_shared_deps
 from cora.infrastructure.memory.event_store import InMemoryEventStore
+from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 
 
 @pytest.mark.unit
-async def test_build_shared_deps_uses_in_memory_store_in_test_env(
+async def test_build_shared_deps_uses_in_memory_stores_in_test_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("APP_ENV", "test")
@@ -21,6 +22,7 @@ async def test_build_shared_deps_uses_in_memory_store_in_test_env(
 
     assert deps.settings.app_env == "test"
     assert isinstance(deps.event_store, InMemoryEventStore)
+    assert isinstance(deps.idempotency_store, InMemoryIdempotencyStore)
     # Teardown is a no-op in test mode but must still be awaitable.
     await teardown()
 
@@ -38,4 +40,5 @@ async def test_build_shared_deps_populates_all_ports(
     assert deps.id_generator is not None
     assert deps.authorize is not None
     assert deps.event_store is not None
+    assert deps.idempotency_store is not None
     await teardown()
