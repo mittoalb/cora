@@ -12,7 +12,6 @@ dicts and primitives transparently.
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
-from typing import Any
 from uuid import UUID
 
 import asyncpg
@@ -43,10 +42,12 @@ class PostgresIdempotencyStore:
             row = await conn.fetchrow(_GET_SQL, principal_id, key)
         if row is None:
             return None
+        # asyncpg JSON codec (registered on the pool) deserializes jsonb
+        # to Python objects; row["result"] is already dict / str / etc.
         return CachedResult(
             command_hash=str(row["command_hash"]),
             command_name=str(row["command_name"]),
-            result=_jsonb_to_python(row["result"]),
+            result=row["result"],
         )
 
     async def put(
@@ -64,9 +65,3 @@ class PostgresIdempotencyStore:
                 record.command_name,
                 record.result,
             )
-
-
-def _jsonb_to_python(value: Any) -> Any:
-    """asyncpg returns jsonb as the deserialized form via the registered
-    JSON codec; pass through with type-narrowing for clarity."""
-    return value

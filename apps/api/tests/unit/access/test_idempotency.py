@@ -171,6 +171,40 @@ async def test_retry_with_same_key_but_different_body_raises_conflict() -> None:
 
 
 @pytest.mark.unit
+def test_hash_command_rejects_non_dataclass() -> None:
+    """hash_command requires dataclass instances; misuse fails loud."""
+    with pytest.raises(TypeError, match="dataclass instance"):
+        hash_command({"name": "Doga"})  # type: ignore[arg-type]
+
+
+@pytest.mark.unit
+async def test_decorator_rejects_idempotency_key_over_255_chars() -> None:
+    """Stripe-style 255-char cap protects against abusive clients."""
+    store = InMemoryIdempotencyStore()
+    calls: list[int] = []
+    wrapped = with_idempotency(
+        _make_handler(calls),  # type: ignore[arg-type]
+        store,
+        command_name="DummyCommand",
+        serialize_result=str,
+        deserialize_result=UUID,
+    )
+    too_long = "x" * 256
+
+    with pytest.raises(ValueError, match="exceeds maximum 255"):
+        await wrapped(
+            _DummyCommand(name="A"),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+            idempotency_key=too_long,
+        )
+
+    # No store lookup happened, no handler execution.
+    assert len(calls) == 0
+    assert await store.get(_PRINCIPAL_ID, too_long) is None
+
+
+@pytest.mark.unit
 async def test_keys_namespaced_by_principal() -> None:
     """Same key used by different principals doesn't collide."""
     store = InMemoryIdempotencyStore()
