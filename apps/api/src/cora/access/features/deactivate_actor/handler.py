@@ -25,16 +25,16 @@ Differs from create-style:
 from typing import Protocol
 from uuid import UUID
 
-from cora.access.aggregates.actor.events import (
+from cora.access.aggregates.actor import (
     ActorEvent,
     event_type_name,
+    fold,
     from_stored,
     to_payload,
 )
-from cora.access.aggregates.actor.evolver import fold
+from cora.access.errors import UnauthorizedError
 from cora.access.features.deactivate_actor.command import DeactivateActor
 from cora.access.features.deactivate_actor.decider import decide
-from cora.access.features.register_actor.handler import UnauthorizedError
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny, NewEvent

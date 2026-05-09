@@ -15,11 +15,11 @@ Named `decide` (not `register_actor`) because the module is already
 from datetime import datetime
 from uuid import UUID
 
-from cora.access.aggregates.actor.events import ActorRegistered
-from cora.access.aggregates.actor.state import (
+from cora.access.aggregates.actor import (
     Actor,
     ActorAlreadyExistsError,
     ActorName,
+    ActorRegistered,
 )
 from cora.access.features.register_actor.command import RegisterActor
 

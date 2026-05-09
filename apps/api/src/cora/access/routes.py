@@ -17,8 +17,8 @@ from cora.access.aggregates.actor import (
     ActorNotFoundError,
     InvalidActorNameError,
 )
+from cora.access.errors import UnauthorizedError
 from cora.access.features import deactivate_actor, register_actor
-from cora.access.features.register_actor import UnauthorizedError
 from cora.infrastructure.ports import ConcurrencyError
 
 

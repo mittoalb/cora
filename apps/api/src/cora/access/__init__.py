@@ -11,12 +11,14 @@ Layout:
     routes.py                 -- register_access_routes(app)
 """
 
+from cora.access.errors import UnauthorizedError
 from cora.access.routes import register_access_routes
 from cora.access.tools import register_access_tools
 from cora.access.wire import AccessHandlers, wire_access
 
 __all__ = [
     "AccessHandlers",
+    "UnauthorizedError",
     "register_access_routes",
     "register_access_tools",
     "wire_access",

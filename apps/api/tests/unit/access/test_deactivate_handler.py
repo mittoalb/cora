@@ -10,13 +10,14 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.access import UnauthorizedError
 from cora.access.aggregates.actor import (
     ActorAlreadyDeactivatedError,
     ActorNotFoundError,
 )
 from cora.access.features import deactivate_actor, register_actor
 from cora.access.features.deactivate_actor import DeactivateActor
-from cora.access.features.register_actor import RegisterActor, UnauthorizedError
+from cora.access.features.register_actor import RegisterActor
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.memory.event_store import InMemoryEventStore

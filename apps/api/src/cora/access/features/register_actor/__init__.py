@@ -13,17 +13,15 @@ short names from the slice's namespace.
 from cora.access.features.register_actor import tool
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.decider import decide
-from cora.access.features.register_actor.handler import (
-    Handler,
-    UnauthorizedError,
-    bind,
-)
+from cora.access.features.register_actor.handler import Handler, bind
 from cora.access.features.register_actor.route import router
+
+# UnauthorizedError lives in cora.access.errors (BC-level, not
+# slice-specific). Import from cora.access if you need to catch it.
 
 __all__ = [
     "Handler",
     "RegisterActor",
-    "UnauthorizedError",
     "bind",
     "decide",
     "router",

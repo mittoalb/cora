@@ -26,11 +26,8 @@ provably has no prior events, so the load is wasteful.
 from typing import Protocol
 from uuid import UUID
 
-from cora.access.aggregates.actor.events import (
-    ActorEvent,
-    event_type_name,
-    to_payload,
-)
+from cora.access.aggregates.actor import ActorEvent, event_type_name, to_payload
+from cora.access.errors import UnauthorizedError
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.decider import decide
 from cora.infrastructure.deps import SharedDeps
@@ -45,14 +42,6 @@ _CONDUIT_DEFAULT = "default"
 # applied at first .info() call. Module-level binding is safe even though
 # configure_logging() runs later in build_shared_deps().
 _log = get_logger(__name__)
-
-
-class UnauthorizedError(Exception):
-    """The Authorize port denied the command."""
-
-    def __init__(self, reason: str) -> None:
-        super().__init__(reason)
-        self.reason = reason
 
 
 class Handler(Protocol):

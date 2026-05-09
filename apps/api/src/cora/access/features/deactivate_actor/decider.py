@@ -15,10 +15,10 @@ carries). `now` is still injected from the Clock port at handler time.
 
 from datetime import datetime
 
-from cora.access.aggregates.actor.events import ActorDeactivated
-from cora.access.aggregates.actor.state import (
+from cora.access.aggregates.actor import (
     Actor,
     ActorAlreadyDeactivatedError,
+    ActorDeactivated,
     ActorNotFoundError,
 )
 from cora.access.features.deactivate_actor.command import DeactivateActor
