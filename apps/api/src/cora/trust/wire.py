@@ -23,7 +23,7 @@ from uuid import UUID
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.observability import with_tracing
-from cora.trust.features import define_conduit, define_zone
+from cora.trust.features import define_conduit, define_policy, define_zone
 
 _BC = "trust"
 
@@ -32,13 +32,14 @@ _BC = "trust"
 class TrustHandlers:
     """The Trust BC's handler bundle, each closed over SharedDeps.
 
-    Phase 3b ships `define_zone` + `define_conduit`. Future fields
-    (activate_zone, define_policy, evaluate_policy, get_zone, etc.)
-    land per slice.
+    Phase 3c ships `define_zone` + `define_conduit` + `define_policy`.
+    Future fields (evaluate_policy in 3d, activate/modify slices,
+    etc.) land per slice.
     """
 
     define_zone: define_zone.IdempotentHandler
     define_conduit: define_conduit.IdempotentHandler
+    define_policy: define_policy.IdempotentHandler
 
 
 def wire_trust(deps: SharedDeps) -> TrustHandlers:
@@ -66,6 +67,17 @@ def wire_trust(deps: SharedDeps) -> TrustHandlers:
                 deserialize_result=UUID,
             ),
             command_name="DefineConduit",
+            bc=_BC,
+        ),
+        define_policy=with_tracing(
+            with_idempotency(
+                define_policy.bind(deps),
+                deps.idempotency_store,
+                command_name="DefinePolicy",
+                serialize_result=str,
+                deserialize_result=UUID,
+            ),
+            command_name="DefinePolicy",
             bc=_BC,
         ),
     )

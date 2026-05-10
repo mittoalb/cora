@@ -28,6 +28,15 @@ dataclass fields). `hash_command(cmd)` serializes via `asdict` +
 defangs UUIDs and datetimes that may appear in command fields.
 Non-dataclass commands raise `TypeError` at hash time.
 
+`set` and `frozenset` fields on the command get normalized to sorted
+lists before hashing — Python's set iteration order varies across
+processes (PYTHONHASHSEED randomizes string hashing) so the same
+logical set would produce different `repr` and different hashes
+under multiple workers, manifesting as spurious 422 "Idempotency-Key
+conflict" responses on legitimate retries. Routes that convert JSON
+arrays to `frozenset` for command construction (e.g. permission
+sets in `DefinePolicy`) rely on this normalization.
+
 Key length: capped at `_MAX_KEY_LENGTH` (255 chars, matching Stripe's
 limit). Longer keys raise `ValueError` from the decorator before any
 store lookup or handler invocation.
@@ -37,7 +46,7 @@ import hashlib
 import json
 from collections.abc import Callable
 from dataclasses import asdict, is_dataclass
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from uuid import UUID
 
 from cora.infrastructure.logging import get_logger
@@ -55,10 +64,39 @@ _MAX_KEY_LENGTH = 255
 _log = get_logger(__name__)
 
 
+def _normalize_for_hash(obj: Any) -> Any:
+    """Recursively normalize containers so the JSON form is hash-stable.
+
+    `set` and `frozenset` are sorted by string form (UUIDs / strings
+    both compare lexicographically that way) — without this,
+    PYTHONHASHSEED randomizes set iteration across workers and
+    breaks idempotency. `dict` and `list`/`tuple` recurse into their
+    elements; `tuple` flattens to `list` for JSON. Other primitives
+    pass through; non-JSON values still hit `default=str` in the
+    `json.dumps` call below.
+    """
+    # `cast` here because pyright (strict) narrows isinstance(obj, frozenset)
+    # to `frozenset[Unknown]` rather than `frozenset[Any]`, even though `obj`
+    # is annotated `Any`. The casts assert what asdict() guarantees: nested
+    # values are themselves Any-typed.
+    if isinstance(obj, (set, frozenset)):
+        items_set = cast("set[Any] | frozenset[Any]", obj)
+        return sorted((_normalize_for_hash(item) for item in items_set), key=str)
+    if isinstance(obj, dict):
+        items_dict = cast("dict[Any, Any]", obj)
+        return {k: _normalize_for_hash(v) for k, v in items_dict.items()}
+    if isinstance(obj, (list, tuple)):
+        items_seq = cast("list[Any] | tuple[Any, ...]", obj)
+        return [_normalize_for_hash(item) for item in items_seq]
+    return obj
+
+
 def hash_command(command: Any) -> str:
     """SHA256 hex digest of canonical JSON of the command's dict form.
 
-    Raises TypeError if `command` is not a dataclass instance.
+    Raises TypeError if `command` is not a dataclass instance. See the
+    module docstring for why set-typed fields are normalized before
+    hashing.
     """
     if not is_dataclass(command) or isinstance(command, type):
         msg = (
@@ -66,7 +104,8 @@ def hash_command(command: Any) -> str:
             "Commands across the codebase are frozen dataclasses by convention."
         )
         raise TypeError(msg)
-    canonical = json.dumps(asdict(command), sort_keys=True, default=str)
+    normalized = _normalize_for_hash(asdict(command))
+    canonical = json.dumps(normalized, sort_keys=True, default=str)
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 

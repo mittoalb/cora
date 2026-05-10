@@ -190,6 +190,64 @@ def test_hash_command_rejects_non_dataclass() -> None:
 
 
 @pytest.mark.unit
+def test_hash_command_normalizes_frozenset_fields_deterministically() -> None:
+    """Pin the cross-process determinism for set-typed command fields.
+
+    `frozenset[str]` iterates in PYTHONHASHSEED-dependent order; without
+    normalization, the same logical command produces different hashes
+    across worker processes and triggers spurious 422 "Idempotency-Key
+    conflict" responses on legitimate retries (real bug surfaced by
+    `DefinePolicy`'s `permitted_principals` / `permitted_commands`
+    fields in Phase 3c).
+
+    We pin the EXPECTED canonical bytes so a future change to the
+    normalization (or a regression that drops it) trips this test
+    instead of silently re-introducing the bug under load.
+    """
+    import hashlib
+    import json
+
+    @dataclass(frozen=True)
+    class _CmdWithSets:
+        cmds: frozenset[str]
+        principals: frozenset[UUID]
+
+    p1 = UUID("01900000-0000-7000-8000-000000000a01")
+    p2 = UUID("01900000-0000-7000-8000-000000000a02")
+    cmd = _CmdWithSets(cmds=frozenset({"Z", "A", "M"}), principals=frozenset({p2, p1}))
+
+    # Normalized form: sets become sorted lists by string form.
+    expected_canonical = json.dumps(
+        {
+            "cmds": ["A", "M", "Z"],
+            "principals": [str(p1), str(p2)],
+        },
+        sort_keys=True,
+        default=str,
+    )
+    expected_hash = hashlib.sha256(expected_canonical.encode()).hexdigest()
+    assert hash_command(cmd) == expected_hash
+
+
+@pytest.mark.unit
+def test_hash_command_set_normalization_is_order_independent() -> None:
+    """Two frozensets with identical contents but different insertion
+    orders must hash the same. Within one Python process, frozenset
+    iteration is content-determined and this would pass even without
+    normalization; we keep the assertion as a regression guard for
+    the normalization path (the cross-process bug is the harder one,
+    pinned by the canonical-form test above)."""
+
+    @dataclass(frozen=True)
+    class _CmdWithSets:
+        cmds: frozenset[str]
+
+    a = _CmdWithSets(cmds=frozenset(["A", "B", "C"]))
+    b = _CmdWithSets(cmds=frozenset(["C", "A", "B"]))
+    assert hash_command(a) == hash_command(b)
+
+
+@pytest.mark.unit
 async def test_decorator_rejects_idempotency_key_over_255_chars() -> None:
     """Stripe-style 255-char cap protects against abusive clients."""
     store = InMemoryIdempotencyStore()

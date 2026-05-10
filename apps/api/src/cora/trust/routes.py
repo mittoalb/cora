@@ -19,9 +19,10 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from cora.trust.aggregates.conduit import InvalidConduitNameError
+from cora.trust.aggregates.policy import InvalidPolicyNameError
 from cora.trust.aggregates.zone import InvalidZoneNameError
 from cora.trust.errors import UnauthorizedError
-from cora.trust.features import define_conduit, define_zone
+from cora.trust.features import define_conduit, define_policy, define_zone
 
 
 async def _handle_invalid_zone_name(request: Request, exc: Exception) -> JSONResponse:
@@ -33,6 +34,14 @@ async def _handle_invalid_zone_name(request: Request, exc: Exception) -> JSONRes
 
 
 async def _handle_invalid_conduit_name(request: Request, exc: Exception) -> JSONResponse:
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_invalid_policy_name(request: Request, exc: Exception) -> JSONResponse:
     _ = request
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
@@ -53,6 +62,8 @@ def register_trust_routes(app: FastAPI) -> None:
     """Attach Trust slice routers and exception handlers to the FastAPI app."""
     app.include_router(define_zone.router)
     app.include_router(define_conduit.router)
+    app.include_router(define_policy.router)
     app.add_exception_handler(InvalidZoneNameError, _handle_invalid_zone_name)
     app.add_exception_handler(InvalidConduitNameError, _handle_invalid_conduit_name)
+    app.add_exception_handler(InvalidPolicyNameError, _handle_invalid_policy_name)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
