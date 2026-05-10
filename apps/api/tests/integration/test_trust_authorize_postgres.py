@@ -1,0 +1,92 @@
+"""Integration test: TrustAuthorize against real Postgres.
+
+End-to-end through PostgresEventStore: define a Policy via the real
+define_policy handler, then call TrustAuthorize directly. Proves the
+fold-on-read load + pure evaluate works against the real adapter.
+"""
+
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
+
+from datetime import UTC, datetime
+from uuid import UUID
+
+import asyncpg
+import pytest
+
+from cora.infrastructure.config import Settings
+from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.ports import (
+    Allow,
+    AllowAllAuthorize,
+    Deny,
+    FixedIdGenerator,
+    FrozenClock,
+)
+from cora.infrastructure.postgres.event_store import PostgresEventStore
+from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
+from cora.trust.authorize import TrustAuthorize
+from cora.trust.features import define_policy
+from cora.trust.features.define_policy import DefinePolicy
+
+_NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
+_POLICY_ID = UUID("01900000-0000-7000-8000-00000abcd001")
+_DEFINE_EVENT_ID = UUID("01900000-0000-7000-8000-00000abcd0e1")
+_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
+_CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+_CONDUIT_ID = UUID("01900000-0000-7000-8000-00000000aaaa")
+_ALLOWED_PRINCIPAL = UUID("01900000-0000-7000-8000-000000000a01")
+_OTHER_PRINCIPAL = UUID("01900000-0000-7000-8000-000000000a02")
+
+
+@pytest.mark.integration
+async def test_trust_authorize_gates_via_real_postgres_policy(
+    db_pool: asyncpg.Pool,
+) -> None:
+    event_store = PostgresEventStore(db_pool)
+    deps = SharedDeps(
+        settings=Settings(app_env="test"),  # type: ignore[call-arg]
+        clock=FrozenClock(_NOW),
+        id_generator=FixedIdGenerator([_POLICY_ID, _DEFINE_EVENT_ID]),
+        # Use AllowAll for define_policy itself (would otherwise need a
+        # bootstrap policy already in place — the chicken-and-egg
+        # documented in TrustAuthorize's docstring).
+        authorize=AllowAllAuthorize(),
+        event_store=event_store,
+        idempotency_store=PostgresIdempotencyStore(db_pool),
+    )
+
+    # Create a real Policy in Postgres.
+    await define_policy.bind(deps)(
+        DefinePolicy(
+            name="Test-policy",
+            conduit_id=_CONDUIT_ID,
+            permitted_principals=frozenset({_ALLOWED_PRINCIPAL}),
+            permitted_commands=frozenset({"RegisterActor"}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # Now wire TrustAuthorize against that policy and verify it gates.
+    authorize = TrustAuthorize(event_store, policy_id=_POLICY_ID)
+
+    allowed = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", "default")
+    assert isinstance(allowed, Allow)
+
+    denied = await authorize(_OTHER_PRINCIPAL, "RegisterActor", "default")
+    assert isinstance(denied, Deny)
+
+
+@pytest.mark.integration
+async def test_trust_authorize_denies_when_policy_missing_in_postgres(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Fail-closed against the real adapter: PostgresEventStore.load
+    returns ([], 0) for an empty stream → handler returns None → Deny."""
+    event_store = PostgresEventStore(db_pool)
+    missing_policy_id = UUID("01900000-0000-7000-8000-deadbeef0001")
+    authorize = TrustAuthorize(event_store, policy_id=missing_policy_id)
+
+    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", "default")
+    assert isinstance(result, Deny)
+    assert "not found" in result.reason.lower()

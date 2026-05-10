@@ -6,6 +6,7 @@ environment variables directly.
 """
 
 from typing import Literal
+from uuid import UUID
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -56,6 +57,20 @@ class Settings(BaseSettings):
     otel_exporter: OtelExporter = "none"
     otel_service_name: str = "cora-api"
     otel_sampler_ratio: float = 1.0
+
+    # Authorization — Trust BC wiring
+    # When None, `build_shared_deps` wires `AllowAllAuthorize` and every
+    # command is permitted (Phase 1 default; matches dev/test). When
+    # set to a UUID, `TrustAuthorize` is wired and gates every command
+    # through that single Policy aggregate. Multi-policy resolution
+    # via projections lands in a later phase; until then this is one
+    # policy per deployment. Bootstrap workflow (chicken-and-egg with
+    # the policy being able to permit DefinePolicy):
+    #   1. Start with this unset.
+    #   2. POST a permissive policy via /policies; record its id.
+    #   3. Restart with this set to that id.
+    # See `cora/trust/authorize.py` docstring for the full rationale.
+    trust_authz_policy_id: UUID | None = None
 
     @field_validator("database_url")
     @classmethod

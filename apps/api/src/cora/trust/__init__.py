@@ -18,12 +18,14 @@ Layout:
     routes.py                 -- register_trust_routes(app)
 """
 
+from cora.trust.authorize import TrustAuthorize
 from cora.trust.errors import UnauthorizedError
 from cora.trust.routes import register_trust_routes
 from cora.trust.tools import register_trust_tools
 from cora.trust.wire import TrustHandlers, wire_trust
 
 __all__ = [
+    "TrustAuthorize",
     "TrustHandlers",
     "UnauthorizedError",
     "register_trust_routes",
