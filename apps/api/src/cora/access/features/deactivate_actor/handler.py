@@ -49,7 +49,13 @@ _log = get_logger(__name__)
 
 
 class Handler(Protocol):
-    """Callable interface every deactivate_actor handler implements."""
+    """Callable interface every deactivate_actor handler implements.
+
+    See `register_actor.handler.Handler` for the rationale on the
+    optional `causation_id` kwarg (the standard correlation/causation
+    pattern from event-sourced systems; root entrypoints pass `None`,
+    sagas/process managers pass the upstream event's id).
+    """
 
     async def __call__(
         self,
@@ -57,6 +63,7 @@ class Handler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        causation_id: UUID | None = None,
     ) -> None: ...
 
 
@@ -68,6 +75,7 @@ def bind(deps: SharedDeps) -> Handler:
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        causation_id: UUID | None = None,
     ) -> None:
         _log.info(
             "deactivate_actor.start",
@@ -109,6 +117,7 @@ def bind(deps: SharedDeps) -> Handler:
                 event,
                 command_name=_COMMAND_NAME,
                 correlation_id=correlation_id,
+                causation_id=causation_id,
             )
             for event in domain_events
         ]

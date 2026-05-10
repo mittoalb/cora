@@ -27,17 +27,29 @@ class _DummyCommand:
 _FIXED_RESULT = UUID("01900000-0000-7000-8000-000000001111")
 
 
-def _make_handler(track_calls: list[int]) -> object:
-    """Build a bare handler that records call count and returns _FIXED_RESULT."""
+def _make_handler(
+    track_calls: list[int],
+    *,
+    capture_causation: list[UUID | None] | None = None,
+) -> object:
+    """Build a bare handler that records call count and returns _FIXED_RESULT.
+
+    Optionally records each invocation's `causation_id` into
+    `capture_causation` so tests can verify the kwarg flows through
+    the wrapper without having to inspect a downstream event store.
+    """
 
     async def handler(
         command: _DummyCommand,
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        causation_id: UUID | None = None,
     ) -> UUID:
         _ = (command, principal_id, correlation_id)
         track_calls.append(1)
+        if capture_causation is not None:
+            capture_causation.append(causation_id)
         return _FIXED_RESULT
 
     return handler
@@ -202,6 +214,43 @@ async def test_decorator_rejects_idempotency_key_over_255_chars() -> None:
     # No store lookup happened, no handler execution.
     assert len(calls) == 0
     assert await store.get(_PRINCIPAL_ID, too_long) is None
+
+
+@pytest.mark.unit
+async def test_decorator_forwards_causation_id_through_to_inner_handler() -> None:
+    """`with_idempotency` must pass `causation_id` through to the wrapped
+    handler on both code paths (no-key short-circuit AND cached miss).
+    Without this, the kwarg added to the bare-handler Protocol would be
+    silently dropped at the composition boundary."""
+    store = InMemoryIdempotencyStore()
+    calls: list[int] = []
+    seen_causations: list[UUID | None] = []
+    wrapped = with_idempotency(
+        _make_handler(calls, capture_causation=seen_causations),  # type: ignore[arg-type]
+        store,
+        command_name="DummyCommand",
+        serialize_result=str,
+        deserialize_result=UUID,
+    )
+    causation = UUID("01900000-0000-7000-8000-0000000000bb")
+
+    # No-key path
+    await wrapped(
+        _DummyCommand(name="A"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+        causation_id=causation,
+    )
+    # With-key, cache-miss path (different command body so it's a fresh entry)
+    await wrapped(
+        _DummyCommand(name="B"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+        causation_id=causation,
+        idempotency_key="key-causation",
+    )
+
+    assert seen_causations == [causation, causation]
 
 
 @pytest.mark.unit

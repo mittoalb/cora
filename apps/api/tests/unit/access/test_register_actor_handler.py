@@ -185,6 +185,31 @@ async def test_handler_does_not_append_when_decider_rejects() -> None:
 
 
 @pytest.mark.unit
+async def test_handler_propagates_causation_id_to_appended_event() -> None:
+    """When the caller passes causation_id, it lands on NewEvent.causation_id.
+
+    Sagas / process managers (future phase) will pass the upstream
+    event's id; HTTP/MCP entrypoints leave it None. This test covers
+    the explicit-pass path; `test_handler_appends_actor_registered_event_to_store`
+    above covers the default-None path.
+    """
+    causation = UUID("01900000-0000-7000-8000-0000000000bb")
+    store = InMemoryEventStore()
+    deps = _build_deps(event_store=store)
+    handler = register_actor.bind(deps)
+
+    await handler(
+        RegisterActor(name="Doga"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+        causation_id=causation,
+    )
+
+    events, _ = await store.load("Actor", _NEW_ID)
+    assert events[0].causation_id == causation
+
+
+@pytest.mark.unit
 def test_wire_access_returns_handlers_bundle() -> None:
     deps = _build_deps()
     handlers = wire_access(deps)

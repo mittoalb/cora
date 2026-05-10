@@ -69,6 +69,7 @@ class _BareHandler[TCommand, TResult](Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        causation_id: UUID | None = None,
     ) -> TResult: ...
 
 
@@ -79,6 +80,7 @@ class _IdempotentHandler[TCommand, TResult](Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        causation_id: UUID | None = None,
         idempotency_key: str | None = None,
     ) -> TResult: ...
 
@@ -98,6 +100,7 @@ def with_idempotency[TCommand, TResult](
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        causation_id: UUID | None = None,
         idempotency_key: str | None = None,
     ) -> TResult:
         if idempotency_key is None:
@@ -105,6 +108,7 @@ def with_idempotency[TCommand, TResult](
                 command,
                 principal_id=principal_id,
                 correlation_id=correlation_id,
+                causation_id=causation_id,
             )
 
         if len(idempotency_key) > _MAX_KEY_LENGTH:
@@ -149,6 +153,7 @@ def with_idempotency[TCommand, TResult](
             command,
             principal_id=principal_id,
             correlation_id=correlation_id,
+            causation_id=causation_id,
         )
         await store.put(
             principal_id,

@@ -52,6 +52,14 @@ class Handler(Protocol):
     into an `IdempotentHandler`; production wiring in `wire.py` always
     wraps. Tests can use bare Handler directly when they don't need
     idempotency semantics.
+
+    `causation_id` is the id of the event/message that triggered this
+    command, when there is one (the standard correlation/causation
+    pattern from event-sourced systems). HTTP and MCP entrypoints are
+    always the root of an in-process chain and pass `None`; sagas /
+    process managers (future phase) pass the upstream event's id.
+    The kwarg is wired now so its addition doesn't ripple through
+    every handler when those callers arrive.
     """
 
     async def __call__(
@@ -60,6 +68,7 @@ class Handler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        causation_id: UUID | None = None,
     ) -> UUID: ...
 
 
@@ -78,6 +87,7 @@ class IdempotentHandler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        causation_id: UUID | None = None,
         idempotency_key: str | None = None,
     ) -> UUID: ...
 
@@ -90,6 +100,7 @@ def bind(deps: SharedDeps) -> Handler:
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        causation_id: UUID | None = None,
     ) -> UUID:
         _log.info(
             "register_actor.start",
@@ -128,6 +139,7 @@ def bind(deps: SharedDeps) -> Handler:
                 event,
                 command_name=_COMMAND_NAME,
                 correlation_id=correlation_id,
+                causation_id=causation_id,
             )
             for event in domain_events
         ]

@@ -96,6 +96,31 @@ async def test_handler_appends_actor_deactivated_event() -> None:
     }
     assert events[1].metadata == {"command": "DeactivateActor"}
     assert events[1].correlation_id == _CORRELATION_ID
+    assert events[1].causation_id is None
+
+
+@pytest.mark.unit
+async def test_handler_propagates_causation_id_to_appended_event() -> None:
+    """Explicit causation_id lands on NewEvent.causation_id of the
+    ActorDeactivated event. Mirrors the same test on register_actor;
+    the kwarg is wired through the update-style path too so future
+    sagas can express "this deactivation was triggered by upstream
+    event X" without retrofitting the handler signature."""
+    causation = UUID("01900000-0000-7000-8000-0000000000bb")
+    store = InMemoryEventStore()
+    deps = _build_deps(event_store=store)
+    actor_id = await _register_actor(deps)
+
+    handler = deactivate_actor.bind(deps)
+    await handler(
+        DeactivateActor(actor_id=actor_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+        causation_id=causation,
+    )
+
+    events, _ = await store.load("Actor", actor_id)
+    assert events[1].causation_id == causation
 
 
 @pytest.mark.unit
