@@ -1,0 +1,232 @@
+"""Integration test: TrustAuthorize gates real handler calls end-to-end.
+
+Phase A of the post-Phase-4 Trust integration verification. Existing
+`test_trust_authorize_postgres.py` proves the adapter loads and
+evaluates against real Postgres when called *directly*. This file
+proves the missing piece: that the adapter, wired via `wire_trust`
+into a `TrustHandlers` bundle (with the full `with_tracing` /
+`with_idempotency` composition), correctly gates handler calls —
+permitted principals succeed, non-permitted principals raise
+`UnauthorizedError`, and a misconfigured policy_id fails closed.
+
+Test setup uses TWO `SharedDeps` against a shared Postgres pool:
+
+  1. Bootstrap deps (`AllowAllAuthorize`) defines the policy that
+     gates everything. The chicken-and-egg from TrustAuthorize's
+     docstring — Phase B will pin the documented bootstrap workflow
+     more thoroughly.
+  2. Production deps (`TrustAuthorize` against the bootstrap policy)
+     wire the BC handlers under real authz. Tests call those handlers
+     and assert on the gating outcome.
+
+Why `define_zone` as the gated handler: it's a create-style command
+with idempotency wrap, so success exercises the full
+`with_tracing(with_idempotency(bind))` chain — the same composition
+every BC's create-style handlers use. Cross-BC scenarios (Subject
+handlers gated by Trust policy) land in Phase B.
+"""
+
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
+
+from datetime import UTC, datetime
+from uuid import UUID
+
+import asyncpg
+import pytest
+
+from cora.infrastructure.config import Settings
+from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.ports import (
+    AllowAllAuthorize,
+    FixedIdGenerator,
+    FrozenClock,
+)
+from cora.infrastructure.postgres.event_store import PostgresEventStore
+from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
+from cora.trust import UnauthorizedError, wire_trust
+from cora.trust.authorize import TrustAuthorize
+from cora.trust.features import define_policy
+from cora.trust.features.define_policy import DefinePolicy
+from cora.trust.features.define_zone import DefineZone
+
+_NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
+_CONDUIT_ID = UUID("01900000-0000-7000-8000-00000000a001")
+_PERMITTED_PRINCIPAL = UUID("01900000-0000-7000-8000-000000000a01")
+_OTHER_PRINCIPAL = UUID("01900000-0000-7000-8000-000000000a02")
+_BOOTSTRAP_PRINCIPAL = UUID("01900000-0000-7000-8000-000000000099")
+_CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+
+
+def _bootstrap_deps(
+    db_pool: asyncpg.Pool,
+    *,
+    ids: list[UUID],
+) -> SharedDeps:
+    """Build SharedDeps with AllowAllAuthorize for the policy-define step."""
+    return SharedDeps(
+        settings=Settings(app_env="test"),  # type: ignore[call-arg]
+        clock=FrozenClock(_NOW),
+        id_generator=FixedIdGenerator(ids),
+        authorize=AllowAllAuthorize(),
+        event_store=PostgresEventStore(db_pool),
+        idempotency_store=PostgresIdempotencyStore(db_pool),
+    )
+
+
+def _gated_deps(
+    db_pool: asyncpg.Pool,
+    *,
+    policy_id: UUID,
+    ids: list[UUID],
+) -> SharedDeps:
+    """Build SharedDeps with TrustAuthorize gating against `policy_id`."""
+    event_store = PostgresEventStore(db_pool)
+    return SharedDeps(
+        settings=Settings(app_env="test"),  # type: ignore[call-arg]
+        clock=FrozenClock(_NOW),
+        id_generator=FixedIdGenerator(ids),
+        authorize=TrustAuthorize(event_store, policy_id=policy_id),
+        event_store=event_store,
+        idempotency_store=PostgresIdempotencyStore(db_pool),
+    )
+
+
+@pytest.mark.integration
+async def test_trust_authorize_allows_handler_call_for_permitted_principal(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """End-to-end: TrustAuthorize-wired wire_trust handler call succeeds
+    when the principal is in the policy's permitted set. Pinned because
+    every prior integration test wires AllowAllAuthorize, leaving the
+    "TrustAuthorize gates real handlers" path untested at the BC-level
+    composition (with_tracing + with_idempotency + bind)."""
+    policy_id = UUID("01900000-0000-7000-8000-0000000b1001")
+    policy_event_id = UUID("01900000-0000-7000-8000-0000000b10e1")
+    zone_id = UUID("01900000-0000-7000-8000-0000000b1002")
+    zone_event_id = UUID("01900000-0000-7000-8000-0000000b10e2")
+
+    # 1) Define a policy permitting only `_PERMITTED_PRINCIPAL` to DefineZone.
+    bootstrap = _bootstrap_deps(db_pool, ids=[policy_id, policy_event_id])
+    await define_policy.bind(bootstrap)(
+        DefinePolicy(
+            name="GateA-PermitDefineZone",
+            conduit_id=_CONDUIT_ID,
+            permitted_principals=frozenset({_PERMITTED_PRINCIPAL}),
+            permitted_commands=frozenset({"DefineZone"}),
+        ),
+        principal_id=_BOOTSTRAP_PRINCIPAL,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # 2) Build production deps gated by that policy and wire BC handlers.
+    gated = _gated_deps(db_pool, policy_id=policy_id, ids=[zone_id, zone_event_id])
+    handlers = wire_trust(gated)
+
+    # 3) Permitted principal calls define_zone via the production chain.
+    result = await handlers.define_zone(
+        DefineZone(name="GateA-AllowedZone"),
+        principal_id=_PERMITTED_PRINCIPAL,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert result == zone_id
+
+
+@pytest.mark.integration
+async def test_trust_authorize_denies_handler_call_for_other_principal(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """End-to-end: TrustAuthorize-wired wire_trust handler call raises
+    `UnauthorizedError` when the principal is not in the policy's
+    permitted set. The error reason carries the diagnostic from
+    `evaluate()`."""
+    policy_id = UUID("01900000-0000-7000-8000-0000000b2001")
+    policy_event_id = UUID("01900000-0000-7000-8000-0000000b20e1")
+    # Reserve zone ids even though the call should fail before any are consumed.
+    spare_id_1 = UUID("01900000-0000-7000-8000-0000000b2002")
+    spare_id_2 = UUID("01900000-0000-7000-8000-0000000b20e2")
+
+    bootstrap = _bootstrap_deps(db_pool, ids=[policy_id, policy_event_id])
+    await define_policy.bind(bootstrap)(
+        DefinePolicy(
+            name="GateA-DenyOthers",
+            conduit_id=_CONDUIT_ID,
+            permitted_principals=frozenset({_PERMITTED_PRINCIPAL}),
+            permitted_commands=frozenset({"DefineZone"}),
+        ),
+        principal_id=_BOOTSTRAP_PRINCIPAL,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    gated = _gated_deps(db_pool, policy_id=policy_id, ids=[spare_id_1, spare_id_2])
+    handlers = wire_trust(gated)
+
+    with pytest.raises(UnauthorizedError) as exc_info:
+        await handlers.define_zone(
+            DefineZone(name="GateA-DeniedZone"),
+            principal_id=_OTHER_PRINCIPAL,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert str(_OTHER_PRINCIPAL) in exc_info.value.reason
+
+
+@pytest.mark.integration
+async def test_trust_authorize_denies_handler_call_when_command_not_permitted(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """The principal IS in the permitted set, but the policy does not
+    permit DefineZone (only RegisterActor). Pinned so a future
+    relaxation that ignores `permitted_commands` is caught — both
+    dimensions of the policy must gate."""
+    policy_id = UUID("01900000-0000-7000-8000-0000000b3001")
+    policy_event_id = UUID("01900000-0000-7000-8000-0000000b30e1")
+    spare_id_1 = UUID("01900000-0000-7000-8000-0000000b3002")
+    spare_id_2 = UUID("01900000-0000-7000-8000-0000000b30e2")
+
+    bootstrap = _bootstrap_deps(db_pool, ids=[policy_id, policy_event_id])
+    await define_policy.bind(bootstrap)(
+        DefinePolicy(
+            name="GateA-WrongCommand",
+            conduit_id=_CONDUIT_ID,
+            permitted_principals=frozenset({_PERMITTED_PRINCIPAL}),
+            # Note: DefineZone is NOT in this set.
+            permitted_commands=frozenset({"RegisterActor"}),
+        ),
+        principal_id=_BOOTSTRAP_PRINCIPAL,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    gated = _gated_deps(db_pool, policy_id=policy_id, ids=[spare_id_1, spare_id_2])
+    handlers = wire_trust(gated)
+
+    with pytest.raises(UnauthorizedError) as exc_info:
+        await handlers.define_zone(
+            DefineZone(name="GateA-WrongCommandZone"),
+            principal_id=_PERMITTED_PRINCIPAL,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert "DefineZone" in exc_info.value.reason
+
+
+@pytest.mark.integration
+async def test_trust_authorize_fails_closed_when_configured_policy_missing(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Misconfigured deployment: `trust_authz_policy_id` points at a
+    policy that doesn't exist in the event store. TrustAuthorize
+    returns Deny (fail-closed; documented in its docstring), and the
+    handler chain surfaces it as `UnauthorizedError`. Pinned because
+    silently allowing the call would be a security incident."""
+    missing_policy_id = UUID("01900000-0000-7000-8000-deadbeef0a01")
+    spare_id_1 = UUID("01900000-0000-7000-8000-deadbeef0a02")
+    spare_id_2 = UUID("01900000-0000-7000-8000-deadbeef0a03")
+
+    gated = _gated_deps(db_pool, policy_id=missing_policy_id, ids=[spare_id_1, spare_id_2])
+    handlers = wire_trust(gated)
+
+    with pytest.raises(UnauthorizedError) as exc_info:
+        await handlers.define_zone(
+            DefineZone(name="GateA-MissingPolicyZone"),
+            principal_id=_PERMITTED_PRINCIPAL,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert "not found" in exc_info.value.reason.lower()
