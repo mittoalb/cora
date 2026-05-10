@@ -1,11 +1,43 @@
-"""EventPublisher port: notify downstream subscribers of newly appended events.
+"""EventPublisher port: deliver newly appended events to downstream subscribers.
 
-Default Phase 1b adapter uses Postgres `LISTEN/NOTIFY` driven by an
-`AFTER INSERT` trigger on the events table. Future trigger (per
-project_deferred.md): swap to NATS JetStream when cross-process workers,
-durable replay outside main DB retention, or multi-region federation arise.
-The swap is local to one infrastructure file; domain and application code
-unaffected.
+Durability model — read this before building a subscriber
+---------------------------------------------------------
+
+The events table itself is the durable record. Subscribers MUST poll
+from a persisted watermark (`last_processed_position` per projection
+or saga) by querying `events WHERE position > last_processed_position
+ORDER BY position`. This is the only delivery channel that survives a
+subscriber restart, a missed notification, or a publisher process
+failure.
+
+`pg_notify` (fired by the AFTER INSERT trigger on `events` —
+see migration `20260509120000_init_events.sql`) is a best-effort,
+NON-DURABLE wake-up signal layered on top: it lets the subscriber
+react with low latency without polling on a tight interval. If the
+notification is dropped (subscriber not connected at commit time,
+notify-payload deduplication on the server, transaction rollback
+between commit and notify), the next poll cycle still picks the event
+up via the watermark. NEVER use the notify payload as the actual
+event delivery path — its content can be lost.
+
+This port is the seam where richer publication mechanisms can land
+later (per project_deferred.md): NATS JetStream when cross-process
+workers, durable replay outside main DB retention, or multi-region
+federation arise. Whatever the adapter, the contract is the same: it
+must guarantee at-least-once delivery to subscribers, and subscribers
+must remain idempotent under that guarantee. The `event_id` UNIQUE
+constraint on `events` (added in migration
+`20260510010000_add_event_id.sql`) is the canonical dedup key.
+
+Routing-key convention
+----------------------
+
+When a subscriber filters events to specific kinds, route on
+`(stream_type, event_type)` — never on `event_type` alone. Today no
+two BCs emit the same `event_type` discriminator, but `event_type` is
+the unqualified class name (`"ActorRegistered"`, etc.) and a future
+collision between BCs is plausible without this rule. Keying on the
+pair pre-empts that whole class of silent-misroute bug.
 """
 
 from typing import Protocol
@@ -14,11 +46,13 @@ from cora.infrastructure.ports.event_store import StoredEvent
 
 
 class EventPublisher(Protocol):
-    """Notify downstream subscribers of newly persisted events.
+    """Deliver newly persisted events to downstream subscribers.
 
-    Append-and-publish atomicity is the responsibility of the EventStore
-    adapter (typically via a transactional outbox row or a database trigger).
-    The publisher's job is to deliver the notification to subscribers.
+    Implementations vary in delivery semantics (in-process pg_notify
+    wake-up + watermark polling today; NATS JetStream or similar
+    later) but share the same at-least-once contract: subscribers may
+    see the same `StoredEvent.event_id` more than once and must
+    deduplicate idempotently.
     """
 
     async def publish(self, events: list[StoredEvent]) -> None: ...
