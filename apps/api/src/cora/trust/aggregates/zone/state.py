@@ -40,14 +40,6 @@ class ZoneAlreadyExistsError(Exception):
         self.zone_id = zone_id
 
 
-class ZoneNotFoundError(Exception):
-    """Attempted an operation on a zone whose stream has no events."""
-
-    def __init__(self, zone_id: UUID) -> None:
-        super().__init__(f"Zone {zone_id} not found")
-        self.zone_id = zone_id
-
-
 @dataclass(frozen=True)
 class ZoneName:
     """Display name for a zone. Trimmed; 1-200 chars."""

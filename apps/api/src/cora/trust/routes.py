@@ -10,9 +10,9 @@ nested-exception pitfalls.
 `IdempotencyConflictError` and `ConcurrencyError` are infra-layer
 errors registered by Access (the first BC that boots). They produce
 the same JSON shape regardless of which BC raised them, so Trust does
-not re-register them. `ZoneNotFoundError` lands here once the first
-slice that loads-and-folds the Zone stream ships (3b+); registering
-it now would be dead code.
+not re-register them. A `ZoneNotFoundError` (or analogous "missing
+target" handler) lands here once the first slice that loads-and-folds
+the Zone stream ships (3b+); per YAGNI it doesn't exist yet.
 """
 
 from fastapi import FastAPI, Request, status

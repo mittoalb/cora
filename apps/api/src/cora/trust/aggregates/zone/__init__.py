@@ -21,7 +21,6 @@ from cora.trust.aggregates.zone.state import (
     Zone,
     ZoneAlreadyExistsError,
     ZoneName,
-    ZoneNotFoundError,
 )
 
 __all__ = [
@@ -32,7 +31,6 @@ __all__ = [
     "ZoneDefined",
     "ZoneEvent",
     "ZoneName",
-    "ZoneNotFoundError",
     "event_type_name",
     "evolve",
     "fold",
