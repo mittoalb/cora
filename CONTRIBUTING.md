@@ -218,19 +218,19 @@ CI verifies `atlas.sum` is in sync (`atlas migrate hash` produces no diff) and r
 
 ### Event-sourcing conventions
 
-Two cross-cutting rules that all event-emitting BCs follow.
+Three cross-cutting rules that all event-emitting BCs follow.
 
 **Routing key for subscribers: `(stream_type, event_type)` — never `event_type` alone.** The `event_type` discriminator stored in `events.event_type` is the unqualified class name (`"ActorRegistered"`, etc.). Today no two BCs emit the same name, but a future collision (e.g. `Trust` emits its own `"Registered"` for some Zone lifecycle event) is plausible. Consumers (projection workers, sagas) MUST filter on the pair, not on `event_type` alone — that pre-empts the silent-misroute bug class without requiring us to namespace event types globally.
 
 **Schema evolution policy — weak schema first, new event type for breaking changes.** Five tactics exist in the literature (Erb/Overeem et al., 2021): versioned events, weak schema, upcasting, in-place transformation, copy-and-transform. Our policy:
 
-1. **Default: weak schema, additive only.** Add new optional fields to the event payload. The evolver supplies a default when folding old events that lack the field. Example: `Actor.is_active` was added after `ActorRegistered` events existed; the evolver sets `is_active=True` when folding old `ActorRegistered` payloads that don't carry the field. No migration needed.
+1. **Default: weak schema, additive only.** Add new optional fields to the event payload. The evolver / `from_stored` supplies a default when reading old events that lack the field. We don't have a worked example yet because no event has been evolved; the closest pattern in the codebase is `Actor.is_active` — but note that lives in *derived state* (the `Actor` aggregate), NOT in the `ActorRegistered` event payload. State-level fields with defaults are free; event-payload-level additions require this convention.
 2. **For breaking changes (rename, type change, semantic change): introduce a new event type.** Stop emitting the old type going forward; the evolver / `from_stored` continues to handle both forever. Example: a future `ActorRenamed` would be a new event class added to the `ActorEvent` union, NOT a `name` field added to `ActorRegistered`.
 3. **Upcasters only when warranted.** Once you have ≥2 breaking changes on the same logical event, a `from_stored` dispatch table that maps old shapes to new is fine; a real upcaster pipeline is overkill until you have many. The `schema_version` field on `NewEvent` / `StoredEvent` is the trigger to consult when one is built; today it's always `1` and the dispatch is by `event_type` alone.
 
 Why this policy: events are immutable and persist forever, but value objects evolve. The evolver re-validates payloads on read by reconstructing VOs (`Actor(name=ActorName(event.name))`); that round-trip is the safety net for additive change. Breaking changes through new event types are explicit at the `ActorEvent` union level — pyright's exhaustiveness check forces you to handle the new type everywhere.
 
-**`event_id` is the dedup key for downstream consumers.** Producers generate one fresh UUIDv7 per emitted event via the IdGenerator port; the events table has a UNIQUE constraint on `event_id`. Subscribers receive at-least-once delivery and dedupe by checking `event_id` against their local checkpoint.
+**`event_id` is the dedup key for downstream consumers.** Producers generate one fresh UUIDv7 per emitted event via the IdGenerator port; the events table has a UNIQUE constraint on `event_id`. Subscribers receive at-least-once delivery and dedupe by checking `event_id` against their local checkpoint. When polling the events table by `position`, also handle the bigserial sequence-rollback hazard documented at the top of `cora/infrastructure/ports/event_store.py` (a slow transaction can commit after a faster one with a higher position; naive `WHERE position > watermark` polling skips it).
 
 ### HTTP error idiom — HTTPException in routes, JSONResponse in exception handlers
 

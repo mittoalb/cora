@@ -10,6 +10,14 @@ ORDER BY position`. This is the only delivery channel that survives a
 subscriber restart, a missed notification, or a publisher process
 failure.
 
+When you implement that polling loop, also handle the bigserial
+sequence-rollback hazard documented at the top of
+`cora/infrastructure/ports/event_store.py`: a slow transaction can
+commit AFTER a faster one with a higher position, and naive
+`WHERE position > watermark` polling will silently skip it. Mitigations
+listed there: track in-flight xmin via `pg_snapshot_xmin`, or re-scan
+a small overlap window each tick.
+
 `pg_notify` (fired by the AFTER INSERT trigger on `events` —
 see migration `20260509120000_init_events.sql`) is a best-effort,
 NON-DURABLE wake-up signal layered on top: it lets the subscriber
