@@ -12,6 +12,7 @@ from collections.abc import Callable
 from mcp.server.fastmcp import FastMCP
 
 from cora.subject.features.discard_subject import tool as discard_subject_tool
+from cora.subject.features.get_subject import tool as get_subject_tool
 from cora.subject.features.measure_subject import tool as measure_subject_tool
 from cora.subject.features.mount_subject import tool as mount_subject_tool
 from cora.subject.features.register_subject import tool as register_subject_tool
@@ -54,4 +55,8 @@ def register_subject_tools(
     discard_subject_tool.register(
         mcp,
         get_handler=lambda: get_handlers().discard_subject,
+    )
+    get_subject_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().get_subject,
     )

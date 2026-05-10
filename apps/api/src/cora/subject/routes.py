@@ -37,6 +37,7 @@ from cora.subject.aggregates.subject import (
 from cora.subject.errors import UnauthorizedError
 from cora.subject.features import (
     discard_subject,
+    get_subject,
     measure_subject,
     mount_subject,
     register_subject,
@@ -96,6 +97,7 @@ def register_subject_routes(app: FastAPI) -> None:
     app.include_router(return_subject.router)
     app.include_router(store_subject.router)
     app.include_router(discard_subject.router)
+    app.include_router(get_subject.router)
     app.add_exception_handler(InvalidSubjectNameError, _handle_invalid_subject_name)
     app.add_exception_handler(SubjectNotFoundError, _handle_subject_not_found)
     for cannot_transition_cls in (

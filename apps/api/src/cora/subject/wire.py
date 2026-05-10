@@ -18,12 +18,14 @@ Cross-cutting decorators applied here mirror Access and Trust
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
 Phase 4a shipped `register_subject`. Phase 4b added `mount_subject`.
-Phase 4c added `measure_subject` and `remove_subject`. Phase 4d adds
+Phase 4c added `measure_subject` and `remove_subject`. Phase 4d added
 the three terminal disposition handlers (`return_subject` /
-`store_subject` / `discard_subject`). All transition handlers are
-bare (no idempotency wrap) — update-style commands are inherently
-domain-idempotent via the corresponding `SubjectCannot<X>Error` on
-retry (see CONTRIBUTING.md). The get_subject query lands in 4e.
+`store_subject` / `discard_subject`). Phase 4e adds the read side
+(`get_subject`). All transition handlers are bare (no idempotency
+wrap) — update-style commands are inherently domain-idempotent via
+the corresponding `SubjectCannot<X>Error` on retry (see
+CONTRIBUTING.md). Queries skip idempotency: a re-read returning
+the same state is the desired behavior, no Idempotency-Key needed.
 """
 
 from dataclasses import dataclass
@@ -34,6 +36,7 @@ from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.observability import with_tracing
 from cora.subject.features import (
     discard_subject,
+    get_subject,
     measure_subject,
     mount_subject,
     register_subject,
@@ -55,7 +58,8 @@ class SubjectHandlers:
     update-style with bare Handler protocols. Phase 4d added the
     three terminal disposition handlers (`return_subject`,
     `store_subject`, `discard_subject`) — all also update-style
-    with bare Handler protocols.
+    with bare Handler protocols. Phase 4e added the read side
+    (`get_subject`).
     """
 
     register_subject: register_subject.IdempotentHandler
@@ -65,6 +69,7 @@ class SubjectHandlers:
     return_subject: return_subject.Handler
     store_subject: store_subject.Handler
     discard_subject: discard_subject.Handler
+    get_subject: get_subject.Handler
 
 
 def wire_subject(deps: SharedDeps) -> SubjectHandlers:
@@ -111,6 +116,11 @@ def wire_subject(deps: SharedDeps) -> SubjectHandlers:
         discard_subject=with_tracing(
             discard_subject.bind(deps),
             command_name="DiscardSubject",
+            bc=_BC,
+        ),
+        get_subject=with_tracing(
+            get_subject.bind(deps),
+            command_name="GetSubject",
             bc=_BC,
         ),
     )
