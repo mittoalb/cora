@@ -13,6 +13,7 @@ from mcp.server.fastmcp import FastMCP
 from cora.trust.features.define_conduit import tool as define_conduit_tool
 from cora.trust.features.define_policy import tool as define_policy_tool
 from cora.trust.features.define_zone import tool as define_zone_tool
+from cora.trust.features.evaluate_policy import tool as evaluate_policy_tool
 from cora.trust.wire import TrustHandlers
 
 
@@ -33,4 +34,8 @@ def register_trust_tools(
     define_policy_tool.register(
         mcp,
         get_handler=lambda: get_handlers().define_policy,
+    )
+    evaluate_policy_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().evaluate_policy,
     )

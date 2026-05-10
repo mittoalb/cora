@@ -23,7 +23,12 @@ from uuid import UUID
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.observability import with_tracing
-from cora.trust.features import define_conduit, define_policy, define_zone
+from cora.trust.features import (
+    define_conduit,
+    define_policy,
+    define_zone,
+    evaluate_policy,
+)
 
 _BC = "trust"
 
@@ -32,14 +37,18 @@ _BC = "trust"
 class TrustHandlers:
     """The Trust BC's handler bundle, each closed over SharedDeps.
 
-    Phase 3c ships `define_zone` + `define_conduit` + `define_policy`.
-    Future fields (evaluate_policy in 3d, activate/modify slices,
-    etc.) land per slice.
+    Phase 3d ships `define_zone` + `define_conduit` + `define_policy` +
+    `evaluate_policy` (first Trust query slice). Future fields
+    (activate/modify slices, etc.) land per slice.
+
+    `evaluate_policy` is bare (`Handler` not `IdempotentHandler`):
+    queries don't mutate state and aren't idempotency-wrapped.
     """
 
     define_zone: define_zone.IdempotentHandler
     define_conduit: define_conduit.IdempotentHandler
     define_policy: define_policy.IdempotentHandler
+    evaluate_policy: evaluate_policy.Handler
 
 
 def wire_trust(deps: SharedDeps) -> TrustHandlers:
@@ -79,5 +88,11 @@ def wire_trust(deps: SharedDeps) -> TrustHandlers:
             ),
             command_name="DefinePolicy",
             bc=_BC,
+        ),
+        evaluate_policy=with_tracing(
+            evaluate_policy.bind(deps),
+            command_name="EvaluatePolicy",
+            bc=_BC,
+            kind="query",
         ),
     )

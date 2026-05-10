@@ -22,7 +22,12 @@ from cora.trust.aggregates.conduit import InvalidConduitNameError
 from cora.trust.aggregates.policy import InvalidPolicyNameError
 from cora.trust.aggregates.zone import InvalidZoneNameError
 from cora.trust.errors import UnauthorizedError
-from cora.trust.features import define_conduit, define_policy, define_zone
+from cora.trust.features import (
+    define_conduit,
+    define_policy,
+    define_zone,
+    evaluate_policy,
+)
 
 
 async def _handle_invalid_zone_name(request: Request, exc: Exception) -> JSONResponse:
@@ -63,6 +68,7 @@ def register_trust_routes(app: FastAPI) -> None:
     app.include_router(define_zone.router)
     app.include_router(define_conduit.router)
     app.include_router(define_policy.router)
+    app.include_router(evaluate_policy.router)
     app.add_exception_handler(InvalidZoneNameError, _handle_invalid_zone_name)
     app.add_exception_handler(InvalidConduitNameError, _handle_invalid_conduit_name)
     app.add_exception_handler(InvalidPolicyNameError, _handle_invalid_policy_name)
