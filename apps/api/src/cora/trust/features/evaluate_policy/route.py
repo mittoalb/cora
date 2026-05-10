@@ -1,8 +1,11 @@
 """HTTP route for the `evaluate_policy` query slice.
 
 `GET /policies/{policy_id}/evaluate` with three required query
-parameters (the subject of evaluation): `subject_principal_id`,
-`subject_command_name`, `subject_conduit_id`.
+parameters describing what's being evaluated against the policy:
+`evaluated_principal_id`, `evaluated_command_name`,
+`evaluated_conduit_id`. (The `evaluated_` prefix disambiguates
+from the Subject BC; in 2026-05 these were renamed from
+`subject_*` to remove the BC-name overload.)
 
 Returns 200 with `{"decision": "Allow"|"Deny", "reason": str|null}`.
 Both Allow and Deny are normal results — only a missing Policy
@@ -67,11 +70,11 @@ router = APIRouter(tags=["trust"])
 )
 async def get_policies_evaluate(
     policy_id: Annotated[UUID, Path(description="Target policy's id.")],
-    subject_principal_id: Annotated[
+    evaluated_principal_id: Annotated[
         UUID,
         Query(description="Principal whose authorization is being checked."),
     ],
-    subject_command_name: Annotated[
+    evaluated_command_name: Annotated[
         str,
         Query(
             min_length=1,
@@ -79,7 +82,7 @@ async def get_policies_evaluate(
             description="Command name being evaluated (e.g. 'RegisterActor').",
         ),
     ],
-    subject_conduit_id: Annotated[
+    evaluated_conduit_id: Annotated[
         UUID,
         Query(description="Conduit through which the command would be issued."),
     ],
@@ -90,9 +93,9 @@ async def get_policies_evaluate(
     result = await handler(
         EvaluatePolicy(
             policy_id=policy_id,
-            subject_principal_id=subject_principal_id,
-            subject_command_name=subject_command_name,
-            subject_conduit_id=subject_conduit_id,
+            evaluated_principal_id=evaluated_principal_id,
+            evaluated_command_name=evaluated_command_name,
+            evaluated_conduit_id=evaluated_conduit_id,
         ),
         principal_id=principal_id,
         correlation_id=cid,

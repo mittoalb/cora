@@ -97,9 +97,9 @@ def bind(deps: SharedDeps) -> Handler:
 
         result = evaluate(
             policy,
-            principal_id=query.subject_principal_id,
-            command_name=query.subject_command_name,
-            conduit_id=query.subject_conduit_id,
+            principal_id=query.evaluated_principal_id,
+            command_name=query.evaluated_command_name,
+            conduit_id=query.evaluated_conduit_id,
         )
 
         _log.info(

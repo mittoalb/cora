@@ -40,9 +40,9 @@ def _call_evaluate_tool(
     headers: dict[str, str],
     *,
     policy_id: str,
-    subject_principal_id: str = _ALLOWED_PRINCIPAL,
-    subject_command_name: str = "RegisterActor",
-    subject_conduit_id: str = _CONDUIT,
+    evaluated_principal_id: str = _ALLOWED_PRINCIPAL,
+    evaluated_command_name: str = "RegisterActor",
+    evaluated_conduit_id: str = _CONDUIT,
 ) -> dict[str, Any]:
     response = client.post(
         "/mcp",
@@ -54,9 +54,9 @@ def _call_evaluate_tool(
                 "name": "evaluate_policy",
                 "arguments": {
                     "policy_id": policy_id,
-                    "subject_principal_id": subject_principal_id,
-                    "subject_command_name": subject_command_name,
-                    "subject_conduit_id": subject_conduit_id,
+                    "evaluated_principal_id": evaluated_principal_id,
+                    "evaluated_command_name": evaluated_command_name,
+                    "evaluated_conduit_id": evaluated_conduit_id,
                 },
             },
         },
@@ -102,7 +102,7 @@ def test_mcp_evaluate_policy_returns_deny_with_reason() -> None:
             client,
             session_headers,
             policy_id=policy_id,
-            subject_principal_id=_OTHER_PRINCIPAL,
+            evaluated_principal_id=_OTHER_PRINCIPAL,
         )
     result = body["result"]
     assert result["isError"] is False

@@ -72,9 +72,9 @@ async def test_evaluate_policy_loads_and_evaluates_through_real_postgres(
     allowed = await handler(
         EvaluatePolicy(
             policy_id=_POLICY_ID,
-            subject_principal_id=_ALLOWED_PRINCIPAL,
-            subject_command_name="RegisterActor",
-            subject_conduit_id=_CONDUIT_ID,
+            evaluated_principal_id=_ALLOWED_PRINCIPAL,
+            evaluated_command_name="RegisterActor",
+            evaluated_conduit_id=_CONDUIT_ID,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -85,9 +85,9 @@ async def test_evaluate_policy_loads_and_evaluates_through_real_postgres(
     denied = await handler(
         EvaluatePolicy(
             policy_id=_POLICY_ID,
-            subject_principal_id=_OTHER_PRINCIPAL,
-            subject_command_name="RegisterActor",
-            subject_conduit_id=_CONDUIT_ID,
+            evaluated_principal_id=_OTHER_PRINCIPAL,
+            evaluated_command_name="RegisterActor",
+            evaluated_conduit_id=_CONDUIT_ID,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -115,9 +115,9 @@ async def test_evaluate_policy_returns_none_when_policy_does_not_exist(
     result = await evaluate_policy.bind(deps)(
         EvaluatePolicy(
             policy_id=UUID("01900000-0000-7000-8000-deadbeefdead"),
-            subject_principal_id=_ALLOWED_PRINCIPAL,
-            subject_command_name="RegisterActor",
-            subject_conduit_id=_CONDUIT_ID,
+            evaluated_principal_id=_ALLOWED_PRINCIPAL,
+            evaluated_command_name="RegisterActor",
+            evaluated_conduit_id=_CONDUIT_ID,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

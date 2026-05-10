@@ -103,15 +103,15 @@ async def _seed_policy(
 def _query(
     *,
     policy_id: UUID = _POLICY_ID,
-    subject_principal_id: UUID = _ALLOWED_PRINCIPAL,
-    subject_command_name: str = "RegisterActor",
-    subject_conduit_id: UUID = _CONDUIT_ID,
+    evaluated_principal_id: UUID = _ALLOWED_PRINCIPAL,
+    evaluated_command_name: str = "RegisterActor",
+    evaluated_conduit_id: UUID = _CONDUIT_ID,
 ) -> EvaluatePolicy:
     return EvaluatePolicy(
         policy_id=policy_id,
-        subject_principal_id=subject_principal_id,
-        subject_command_name=subject_command_name,
-        subject_conduit_id=subject_conduit_id,
+        evaluated_principal_id=evaluated_principal_id,
+        evaluated_command_name=evaluated_command_name,
+        evaluated_conduit_id=evaluated_conduit_id,
     )
 
 
@@ -152,7 +152,7 @@ async def test_handler_returns_deny_when_principal_not_permitted() -> None:
     handler = evaluate_policy.bind(deps)
 
     result = await handler(
-        _query(subject_principal_id=_OTHER_PRINCIPAL),
+        _query(evaluated_principal_id=_OTHER_PRINCIPAL),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -168,7 +168,7 @@ async def test_handler_returns_deny_when_command_not_permitted() -> None:
     handler = evaluate_policy.bind(deps)
 
     result = await handler(
-        _query(subject_command_name="DropDatabase"),
+        _query(evaluated_command_name="DropDatabase"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -184,7 +184,7 @@ async def test_handler_returns_deny_when_conduit_does_not_match() -> None:
     handler = evaluate_policy.bind(deps)
 
     result = await handler(
-        _query(subject_conduit_id=_OTHER_CONDUIT),
+        _query(evaluated_conduit_id=_OTHER_CONDUIT),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -240,10 +240,10 @@ async def test_handler_passes_subject_fields_through_to_evaluate() -> None:
 
     # Caller is _PRINCIPAL_ID (NOT in permitted set);
     # subject is _ALLOWED_PRINCIPAL (IS in permitted set).
-    # Result must be Allow, proving the handler used subject_principal_id
+    # Result must be Allow, proving the handler used evaluated_principal_id
     # not principal_id.
     result = await handler(
-        _query(subject_principal_id=_ALLOWED_PRINCIPAL),
+        _query(evaluated_principal_id=_ALLOWED_PRINCIPAL),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

@@ -46,11 +46,11 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             UUID,
             Field(description="Target policy's id."),
         ],
-        subject_principal_id: Annotated[
+        evaluated_principal_id: Annotated[
             UUID,
             Field(description="Principal whose authorization is being checked."),
         ],
-        subject_command_name: Annotated[
+        evaluated_command_name: Annotated[
             str,
             Field(
                 min_length=1,
@@ -58,7 +58,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 description="Command name being evaluated (e.g. 'RegisterActor').",
             ),
         ],
-        subject_conduit_id: Annotated[
+        evaluated_conduit_id: Annotated[
             UUID,
             Field(description="Conduit through which the command would be issued."),
         ],
@@ -67,9 +67,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         result = await handler(
             EvaluatePolicy(
                 policy_id=policy_id,
-                subject_principal_id=subject_principal_id,
-                subject_command_name=subject_command_name,
-                subject_conduit_id=subject_conduit_id,
+                evaluated_principal_id=evaluated_principal_id,
+                evaluated_command_name=evaluated_command_name,
+                evaluated_conduit_id=evaluated_conduit_id,
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),

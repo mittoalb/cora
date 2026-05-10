@@ -43,15 +43,15 @@ def _define_policy(client: TestClient) -> str:
 def _evaluate_url(
     policy_id: str,
     *,
-    subject_principal_id: str = _ALLOWED_PRINCIPAL,
-    subject_command_name: str = "RegisterActor",
-    subject_conduit_id: str = _CONDUIT,
+    evaluated_principal_id: str = _ALLOWED_PRINCIPAL,
+    evaluated_command_name: str = "RegisterActor",
+    evaluated_conduit_id: str = _CONDUIT,
 ) -> str:
     return (
         f"/policies/{policy_id}/evaluate"
-        f"?subject_principal_id={subject_principal_id}"
-        f"&subject_command_name={subject_command_name}"
-        f"&subject_conduit_id={subject_conduit_id}"
+        f"?evaluated_principal_id={evaluated_principal_id}"
+        f"&evaluated_command_name={evaluated_command_name}"
+        f"&evaluated_conduit_id={evaluated_conduit_id}"
     )
 
 
@@ -71,7 +71,7 @@ def test_get_evaluate_returns_200_allow_when_subject_matches() -> None:
 def test_get_evaluate_returns_200_deny_when_principal_not_permitted() -> None:
     with TestClient(create_app()) as client:
         policy_id = _define_policy(client)
-        response = client.get(_evaluate_url(policy_id, subject_principal_id=_OTHER_PRINCIPAL))
+        response = client.get(_evaluate_url(policy_id, evaluated_principal_id=_OTHER_PRINCIPAL))
 
     assert response.status_code == 200
     body = response.json()
@@ -84,7 +84,7 @@ def test_get_evaluate_returns_200_deny_when_principal_not_permitted() -> None:
 def test_get_evaluate_returns_200_deny_when_command_not_permitted() -> None:
     with TestClient(create_app()) as client:
         policy_id = _define_policy(client)
-        response = client.get(_evaluate_url(policy_id, subject_command_name="DropDatabase"))
+        response = client.get(_evaluate_url(policy_id, evaluated_command_name="DropDatabase"))
 
     assert response.status_code == 200
     body = response.json()
@@ -96,7 +96,7 @@ def test_get_evaluate_returns_200_deny_when_command_not_permitted() -> None:
 def test_get_evaluate_returns_200_deny_when_conduit_does_not_match() -> None:
     with TestClient(create_app()) as client:
         policy_id = _define_policy(client)
-        response = client.get(_evaluate_url(policy_id, subject_conduit_id=_OTHER_CONDUIT))
+        response = client.get(_evaluate_url(policy_id, evaluated_conduit_id=_OTHER_CONDUIT))
 
     assert response.status_code == 200
     body = response.json()
@@ -126,12 +126,12 @@ def test_get_evaluate_rejects_invalid_policy_id_with_422() -> None:
 
 
 @pytest.mark.contract
-def test_get_evaluate_rejects_missing_subject_principal_id_with_422() -> None:
+def test_get_evaluate_rejects_missing_evaluated_principal_id_with_422() -> None:
     with TestClient(create_app()) as client:
         policy_id = _define_policy(client)
         response = client.get(
             f"/policies/{policy_id}/evaluate"
-            f"?subject_command_name=RegisterActor&subject_conduit_id={_CONDUIT}"
+            f"?evaluated_command_name=RegisterActor&evaluated_conduit_id={_CONDUIT}"
         )
     assert response.status_code == 422
 
@@ -140,16 +140,16 @@ def test_get_evaluate_rejects_missing_subject_principal_id_with_422() -> None:
 def test_get_evaluate_rejects_invalid_uuid_in_subject_principal_with_422() -> None:
     with TestClient(create_app()) as client:
         policy_id = _define_policy(client)
-        response = client.get(_evaluate_url(policy_id, subject_principal_id="not-a-uuid"))
+        response = client.get(_evaluate_url(policy_id, evaluated_principal_id="not-a-uuid"))
     assert response.status_code == 422
 
 
 @pytest.mark.contract
-def test_get_evaluate_rejects_empty_subject_command_name_with_422() -> None:
+def test_get_evaluate_rejects_empty_evaluated_command_name_with_422() -> None:
     """Pydantic min_length=1 catches empty command strings."""
     with TestClient(create_app()) as client:
         policy_id = _define_policy(client)
-        response = client.get(_evaluate_url(policy_id, subject_command_name=""))
+        response = client.get(_evaluate_url(policy_id, evaluated_command_name=""))
     assert response.status_code == 422
 
 

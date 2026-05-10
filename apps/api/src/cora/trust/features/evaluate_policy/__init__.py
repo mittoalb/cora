@@ -7,9 +7,9 @@ with `get_actor`:
 
     q = evaluate_policy.EvaluatePolicy(
         policy_id=...,
-        subject_principal_id=...,
-        subject_command_name="RegisterActor",
-        subject_conduit_id=...,
+        evaluated_principal_id=...,
+        evaluated_command_name="RegisterActor",
+        evaluated_conduit_id=...,
     )
     handler = evaluate_policy.bind(deps)
     result = await handler(q, principal_id=..., correlation_id=...)
