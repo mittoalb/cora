@@ -10,7 +10,6 @@ from cora.trust.aggregates.zone.events import (
     ZoneEvent,
     event_type_name,
     from_stored,
-    to_new_event,
     to_payload,
 )
 from cora.trust.aggregates.zone.evolver import evolve, fold
@@ -36,6 +35,5 @@ __all__ = [
     "fold",
     "from_stored",
     "load_zone",
-    "to_new_event",
     "to_payload",
 ]

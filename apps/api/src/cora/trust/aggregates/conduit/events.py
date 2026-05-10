@@ -1,16 +1,9 @@
 """Domain events emitted by the Conduit aggregate, plus the discriminated union.
 
-Mirrors `cora/trust/aggregates/zone/events.py` exactly in shape (event
+Mirrors `cora/trust/aggregates/zone/events.py` in shape: event
 classes, discriminated union, `event_type_name`, `to_payload`,
-`from_stored`, `to_new_event`).
-
-`to_new_event` is now byte-identical across THREE aggregates (Actor,
-Zone, Conduit). Triggers the Rule of Three for cross-BC extraction —
-a follow-up refactor (post-3b) will hoist the envelope construction
-to `cora/infrastructure/event_envelope.py` so each aggregate's
-events.py only owns the per-event (de)serialization (which is
-genuinely aggregate-specific). 3b ships the duplication intentionally
-to keep this commit "feature only."
+`from_stored`. The persistence-envelope construction (`NewEvent`)
+lives at `cora.infrastructure.event_envelope.to_new_event`.
 """
 
 from dataclasses import dataclass
@@ -18,7 +11,6 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
-from cora.infrastructure.ports import NewEvent
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -83,36 +75,10 @@ def from_stored(stored: StoredEvent) -> ConduitEvent:
             raise ValueError(msg)
 
 
-def to_new_event(
-    event: ConduitEvent,
-    *,
-    event_id: UUID,
-    command_name: str,
-    correlation_id: UUID,
-    causation_id: UUID | None = None,
-) -> NewEvent:
-    """Wrap a domain event in the persistence envelope.
-
-    Body identical to the Actor and Zone equivalents; will be hoisted
-    to a cross-BC helper in the post-3b extraction.
-    """
-    return NewEvent(
-        event_id=event_id,
-        event_type=event_type_name(event),
-        schema_version=1,
-        payload=to_payload(event),
-        occurred_at=event.occurred_at,
-        correlation_id=correlation_id,
-        causation_id=causation_id,
-        metadata={"command": command_name},
-    )
-
-
 __all__ = [
     "ConduitDefined",
     "ConduitEvent",
     "event_type_name",
     "from_stored",
-    "to_new_event",
     "to_payload",
 ]

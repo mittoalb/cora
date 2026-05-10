@@ -95,7 +95,7 @@ cora/<bc>/
 │   └── <aggregate>/        # one folder per aggregate root
 │       ├── __init__.py     # re-exports
 │       ├── state.py        # aggregate state + value objects + domain errors
-│       ├── events.py       # event classes + ActorEvent union + to_payload + from_stored + to_new_event
+│       ├── events.py       # event classes + <Aggregate>Event union + event_type_name + to_payload + from_stored
 │       ├── evolver.py      # evolve(state, event) + fold(events)
 │       └── read.py         # load_<aggregate>(event_store, id) -> Aggregate | None  (fold-on-read)
 └── features/

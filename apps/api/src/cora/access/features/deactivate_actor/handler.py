@@ -27,14 +27,16 @@ from uuid import UUID
 
 from cora.access.aggregates.actor import (
     ActorEvent,
+    event_type_name,
     fold,
     from_stored,
-    to_new_event,
+    to_payload,
 )
 from cora.access.errors import UnauthorizedError
 from cora.access.features.deactivate_actor.command import DeactivateActor
 from cora.access.features.deactivate_actor.decider import decide
 from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 
@@ -120,7 +122,9 @@ def bind(deps: SharedDeps) -> Handler:
         # factory (decider stays pure; factory stays a dict-shuffle).
         new_events = [
             to_new_event(
-                event,
+                event_type=event_type_name(event),
+                payload=to_payload(event),
+                occurred_at=event.occurred_at,
                 event_id=deps.id_generator.new_id(),
                 command_name=_COMMAND_NAME,
                 correlation_id=correlation_id,

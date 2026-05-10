@@ -10,7 +10,6 @@ from cora.trust.aggregates.zone.events import (
     ZoneDefined,
     event_type_name,
     from_stored,
-    to_new_event,
     to_payload,
 )
 
@@ -97,42 +96,8 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
         from_stored(stored)
 
 
-@pytest.mark.unit
-def test_to_new_event_wraps_domain_event_in_persistence_envelope() -> None:
-    zone_id = uuid4()
-    event_id = uuid4()
-    correlation_id = uuid4()
-    event = ZoneDefined(zone_id=zone_id, name="Detector", occurred_at=_NOW)
-
-    new_event = to_new_event(
-        event,
-        event_id=event_id,
-        command_name="DefineZone",
-        correlation_id=correlation_id,
-    )
-
-    assert new_event.event_id == event_id
-    assert new_event.event_type == "ZoneDefined"
-    assert new_event.schema_version == 1
-    assert new_event.payload == to_payload(event)
-    assert new_event.occurred_at == _NOW
-    assert new_event.correlation_id == correlation_id
-    assert new_event.causation_id is None
-    assert new_event.metadata == {"command": "DefineZone"}
-
-
-@pytest.mark.unit
-def test_to_new_event_propagates_causation_id_when_supplied() -> None:
-    zone_id = uuid4()
-    correlation = uuid4()
-    causation = uuid4()
-    event = ZoneDefined(zone_id=zone_id, name="Detector", occurred_at=_NOW)
-
-    new_event = to_new_event(
-        event,
-        event_id=uuid4(),
-        command_name="DefineZone",
-        correlation_id=correlation,
-        causation_id=causation,
-    )
-    assert new_event.causation_id == causation
+# `to_new_event` envelope construction lives at
+# `cora.infrastructure.event_envelope` and is covered by
+# `tests/unit/test_event_envelope.py`. Handler-level tests
+# (`test_define_zone_handler`, integration / contract tests) verify
+# the envelope shape end-to-end against a real event store.

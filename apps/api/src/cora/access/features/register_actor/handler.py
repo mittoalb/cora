@@ -26,11 +26,12 @@ provably has no prior events, so the load is wasteful.
 from typing import Protocol
 from uuid import UUID
 
-from cora.access.aggregates.actor import to_new_event
+from cora.access.aggregates.actor import event_type_name, to_payload
 from cora.access.errors import UnauthorizedError
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.decider import decide
 from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 
@@ -144,7 +145,9 @@ def bind(deps: SharedDeps) -> Handler:
         # generalizes to update-style commands that emit multiple events.
         new_events = [
             to_new_event(
-                event,
+                event_type=event_type_name(event),
+                payload=to_payload(event),
+                occurred_at=event.occurred_at,
                 event_id=deps.id_generator.new_id(),
                 command_name=_COMMAND_NAME,
                 correlation_id=correlation_id,

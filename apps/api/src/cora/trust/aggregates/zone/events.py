@@ -1,12 +1,11 @@
 """Domain events emitted by the Zone aggregate, plus the discriminated union.
 
-Mirrors `cora/access/aggregates/actor/events.py` exactly in shape (the
-per-aggregate events module is the locked cross-BC pattern: event
+Mirrors `cora/access/aggregates/actor/events.py` in shape: event
 classes, discriminated union, `event_type_name`, `to_payload`,
-`from_stored`, `to_new_event`). The `to_new_event` body is byte-
-identical across BCs today; cross-BC extraction is gated on a third
-consumer per Rule of Three (with idempotency + observability already
-extracted, this is the next candidate when Phase 3b lands).
+`from_stored`. The persistence-envelope construction (`NewEvent`)
+lives at `cora.infrastructure.event_envelope.to_new_event`; handlers
+call it with `event_type=event_type_name(event)` and
+`payload=to_payload(event)`.
 
 Per the locked "primitives in events" convention, payloads serialize
 to plain dicts of primitives; the evolver re-validates on read by
@@ -18,7 +17,6 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
-from cora.infrastructure.ports import NewEvent
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -79,38 +77,10 @@ def from_stored(stored: StoredEvent) -> ZoneEvent:
             raise ValueError(msg)
 
 
-def to_new_event(
-    event: ZoneEvent,
-    *,
-    event_id: UUID,
-    command_name: str,
-    correlation_id: UUID,
-    causation_id: UUID | None = None,
-) -> NewEvent:
-    """Wrap a domain event in the persistence envelope.
-
-    Identical body to `cora.access.aggregates.actor.events.to_new_event`
-    today; both will get hoisted to a cross-BC helper once a third
-    aggregate lands (Rule of Three). For now the per-aggregate copy
-    keeps each aggregate's events module self-contained.
-    """
-    return NewEvent(
-        event_id=event_id,
-        event_type=event_type_name(event),
-        schema_version=1,
-        payload=to_payload(event),
-        occurred_at=event.occurred_at,
-        correlation_id=correlation_id,
-        causation_id=causation_id,
-        metadata={"command": command_name},
-    )
-
-
 __all__ = [
     "ZoneDefined",
     "ZoneEvent",
     "event_type_name",
     "from_stored",
-    "to_new_event",
     "to_payload",
 ]

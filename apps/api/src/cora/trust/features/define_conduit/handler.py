@@ -10,9 +10,10 @@ from typing import Protocol
 from uuid import UUID
 
 from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
-from cora.trust.aggregates.conduit import to_new_event
+from cora.trust.aggregates.conduit import event_type_name, to_payload
 from cora.trust.errors import UnauthorizedError
 from cora.trust.features.define_conduit.command import DefineConduit
 from cora.trust.features.define_conduit.decider import decide
@@ -103,7 +104,9 @@ def bind(deps: SharedDeps) -> Handler:
 
         new_events = [
             to_new_event(
-                event,
+                event_type=event_type_name(event),
+                payload=to_payload(event),
+                occurred_at=event.occurred_at,
                 event_id=deps.id_generator.new_id(),
                 command_name=_COMMAND_NAME,
                 correlation_id=correlation_id,
