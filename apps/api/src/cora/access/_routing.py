@@ -13,8 +13,10 @@ Slice routes still own their handler-fetcher (`_get_handler`) because
 it pulls a per-slice field off `app.state.access` — different per slice.
 """
 
+from typing import Annotated
 from uuid import UUID
 
+from fastapi import Header
 from pydantic import BaseModel
 
 from cora.access._bootstrap import SYSTEM_PRINCIPAL_ID
@@ -40,10 +42,31 @@ def get_correlation_id() -> UUID:
     return current_correlation_id()
 
 
-def get_principal_id() -> UUID:
-    """Resolve the calling principal's id. Phase 1: hardcoded system principal.
+def get_principal_id(
+    x_principal_id: Annotated[
+        UUID | None,
+        Header(
+            alias="X-Principal-Id",
+            description=(
+                "UUID of the calling principal. Production deployments MUST "
+                "front the API with an auth proxy that verifies the caller's "
+                "credentials, strips any client-supplied X-Principal-Id, and "
+                "sets it to the verified principal UUID. The application "
+                "TRUSTS this header — there is no cryptographic verification "
+                "here. When absent, falls back to SYSTEM_PRINCIPAL_ID for "
+                "dev / test convenience."
+            ),
+        ),
+    ] = None,
+) -> UUID:
+    """Resolve the calling principal's id from the X-Principal-Id header.
 
-    Phase 3 (Trust BC) replaces this with header / token-extracted
-    authenticated principals.
+    Phase 3f extraction shape: trust-the-proxy. See header docstring
+    above for the production deployment requirement. Pydantic validates
+    UUID format; malformed values surface as 422 before this function
+    is even called. Header absent → `SYSTEM_PRINCIPAL_ID` (the Phase 1
+    fallback used by tests + dev).
     """
-    return SYSTEM_PRINCIPAL_ID
+    if x_principal_id is None:
+        return SYSTEM_PRINCIPAL_ID
+    return x_principal_id

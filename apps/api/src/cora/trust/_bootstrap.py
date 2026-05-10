@@ -1,14 +1,22 @@
 """BC-level bootstrap constants used by both REST and MCP surfaces.
 
-Phase 3a runs every Trust command as a hardcoded "system" principal
-under `AllowAllAuthorize` (same posture as Access today). When the
-real `TrustAuthorize` adapter lands, this constant is retired in
-favour of the authenticated principal surfaced through the request /
-MCP context — same one-edit swap as Access's bootstrap.
+`SYSTEM_PRINCIPAL_ID` is the **fallback** principal used by:
+  - REST routes when the `X-Principal-Id` header is absent (3f)
+  - MCP tools (which don't yet extract a principal from the request;
+    deferred until MCP auth flow integration lands)
+
+Phase 3a used this as the only principal under `AllowAllAuthorize`;
+Phase 3e wired `TrustAuthorize` (gates via Policy aggregate); Phase 3f
+introduced header-based extraction in `_routing.py`. Production
+deployments that don't run behind an auth proxy effectively still
+operate as the system principal — that's a deployment
+misconfiguration, not an application bug.
 
 Distinct module from `cora.access._bootstrap` so each BC owns its
-own placeholder; cross-BC sharing happens at the infrastructure
-layer (the eventual Authorize adapter), not by importing across BCs.
+own fallback constant — keeps logs distinguishable when a request
+falls back to a BC's "system" principal vs another's. Cross-BC
+sharing happens at the infrastructure layer, not by importing
+across BCs.
 """
 
 from uuid import UUID
