@@ -14,9 +14,12 @@ measurements, etc.). Sample-environment rigs and sample changers are
 ## Phase 4a scope
 
 Minimal Subject: `id` + `name` + `status` (defaults `Received`).
-Status lifecycle (the full transitions) lands in 4b-4d as each
-state-transition slice ships. `hazard`, `custody`, `owner`, and the
-in-situ-during-Run substream defer to Phase 4f+.
+Status lifecycle (the full transitions) shipped 4b-4d:
+  - 4b: Received -> Mounted
+  - 4c: Mounted -> Measured; Mounted | Measured -> Removed
+  - 4d: Removed -> Returned | Stored | Discarded   (terminal disposition)
+`hazard`, `custody`, `owner`, and the in-situ-during-Run substream
+defer to Phase 4f+.
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
 
@@ -68,16 +71,19 @@ SUBJECT_NAME_MAX_LENGTH = 200
 class SubjectStatus(StrEnum):
     """The Subject's current lifecycle state.
 
-    Transitions land per-slice in Phase 4b+:
-      - Received → Mounted        (mount_subject, 4b)
-      - Mounted → Measured        (measure_subject, 4c)
-      - Mounted | Measured → Removed   (remove_subject, 4c)
-      - Removed → Returned | Stored | Discarded   (4d, three slices)
+    Transitions per-slice:
+      - Received -> Mounted        (mount_subject, 4b)
+      - Mounted -> Measured        (measure_subject, 4c)
+      - Mounted | Measured -> Removed   (remove_subject, 4c)
+      - Removed -> Returned        (return_subject, 4d)
+      - Removed -> Stored          (store_subject, 4d)
+      - Removed -> Discarded       (discard_subject, 4d)
 
-    `Received` is the genesis state set by `register_subject`. The
-    enum values are PascalCase strings (matching the BC-map status
-    vocabulary) so log lines and DTOs read naturally without
-    additional mapping.
+    Returned / Stored / Discarded are terminal states (no further
+    transitions). `Received` is the genesis state set by
+    `register_subject`. The enum values are PascalCase strings
+    (matching the BC-map status vocabulary) so log lines and DTOs
+    read naturally without additional mapping.
     """
 
     RECEIVED = "Received"
@@ -178,6 +184,67 @@ class SubjectCannotRemoveError(Exception):
             f"Subject {subject_id} cannot be removed: currently in state "
             f"{current_status.value}, remove requires "
             f"{SubjectStatus.MOUNTED.value} or {SubjectStatus.MEASURED.value}"
+        )
+        self.subject_id = subject_id
+        self.current_status = current_status
+
+
+class SubjectCannotReturnError(Exception):
+    """Attempted to return a subject not in the `Removed` state.
+
+    Terminal disposition: `Returned` means the sample went back to
+    its owner / submitter. Single-source guard (only `Removed` ->
+    `Returned`); strict semantics means re-returning an already-
+    `Returned` (or any non-`Removed`) subject raises.
+
+    See `SubjectCannotMountError` docstring for the per-transition-
+    error rationale.
+    """
+
+    def __init__(self, subject_id: UUID, current_status: "SubjectStatus") -> None:
+        super().__init__(
+            f"Subject {subject_id} cannot be returned: currently in state "
+            f"{current_status.value}, return requires {SubjectStatus.REMOVED.value}"
+        )
+        self.subject_id = subject_id
+        self.current_status = current_status
+
+
+class SubjectCannotStoreError(Exception):
+    """Attempted to store a subject not in the `Removed` state.
+
+    Terminal disposition: `Stored` means the sample was archived
+    on-site (cold storage, sample library, etc.). Single-source
+    guard; strict semantics.
+
+    See `SubjectCannotMountError` docstring for the per-transition-
+    error rationale.
+    """
+
+    def __init__(self, subject_id: UUID, current_status: "SubjectStatus") -> None:
+        super().__init__(
+            f"Subject {subject_id} cannot be stored: currently in state "
+            f"{current_status.value}, store requires {SubjectStatus.REMOVED.value}"
+        )
+        self.subject_id = subject_id
+        self.current_status = current_status
+
+
+class SubjectCannotDiscardError(Exception):
+    """Attempted to discard a subject not in the `Removed` state.
+
+    Terminal disposition: `Discarded` means the sample was destroyed
+    (incinerated, washed away, otherwise irrecoverable). Single-source
+    guard; strict semantics.
+
+    See `SubjectCannotMountError` docstring for the per-transition-
+    error rationale.
+    """
+
+    def __init__(self, subject_id: UUID, current_status: "SubjectStatus") -> None:
+        super().__init__(
+            f"Subject {subject_id} cannot be discarded: currently in state "
+            f"{current_status.value}, discard requires {SubjectStatus.REMOVED.value}"
         )
         self.subject_id = subject_id
         self.current_status = current_status

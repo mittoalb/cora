@@ -1,6 +1,9 @@
 """Vertical slices owned by the Subject BC.
 
-Phase 4a: only `register_subject`. Future slices land per state
-transition (mount in 4b; record_measurement + remove in 4c;
-return / store / discard in 4d) and the get_subject query in 4e.
+Slices ship per state transition:
+  - 4a: register_subject
+  - 4b: mount_subject
+  - 4c: measure_subject, remove_subject
+  - 4d: return_subject, store_subject, discard_subject (terminal)
+  - 4e: get_subject (read side)
 """

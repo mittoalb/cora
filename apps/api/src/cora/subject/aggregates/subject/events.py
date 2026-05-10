@@ -6,9 +6,10 @@ classes, discriminated union, `event_type_name`, `to_payload`,
 lives at `cora.infrastructure.event_envelope.to_new_event`.
 
 Phase 4a shipped `SubjectRegistered`. Phase 4b added `SubjectMounted`.
-Phase 4c adds `SubjectMeasured` and `SubjectRemoved`. Remaining
-transition events (`SubjectReturned` / `SubjectStored` /
-`SubjectDiscarded`) land per slice in 4d.
+Phase 4c added `SubjectMeasured` and `SubjectRemoved`. Phase 4d adds
+the three terminal disposition events (`SubjectReturned` /
+`SubjectStored` / `SubjectDiscarded`), all transitioning from
+`Removed`. The Subject lifecycle is complete after 4d.
 
 Status is NOT carried in event payloads — the event type itself
 encodes the state change (e.g., `SubjectMounted -> status=MOUNTED`).
@@ -77,9 +78,56 @@ class SubjectRemoved:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class SubjectReturned:
+    """A subject was returned to its owner / submitter.
+
+    Terminal disposition: `Removed -> Returned`. No further
+    transitions expected. The evolver sets the new status; no
+    status field in the payload.
+    """
+
+    subject_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class SubjectStored:
+    """A subject was archived on-site.
+
+    Terminal disposition: `Removed -> Stored`. No further transitions
+    expected. The evolver sets the new status; no status field in
+    the payload.
+    """
+
+    subject_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class SubjectDiscarded:
+    """A subject was destroyed / discarded.
+
+    Terminal disposition: `Removed -> Discarded`. No further
+    transitions expected. The evolver sets the new status; no
+    status field in the payload.
+    """
+
+    subject_id: UUID
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Subject aggregate emits. Add
 # new event classes above and extend this alias when new slices land.
-SubjectEvent = SubjectRegistered | SubjectMounted | SubjectMeasured | SubjectRemoved
+SubjectEvent = (
+    SubjectRegistered
+    | SubjectMounted
+    | SubjectMeasured
+    | SubjectRemoved
+    | SubjectReturned
+    | SubjectStored
+    | SubjectDiscarded
+)
 
 
 def event_type_name(event: SubjectEvent) -> str:
@@ -110,6 +158,21 @@ def to_payload(event: SubjectEvent) -> dict[str, Any]:
                 "occurred_at": occurred_at.isoformat(),
             }
         case SubjectRemoved(subject_id=subject_id, occurred_at=occurred_at):
+            return {
+                "subject_id": str(subject_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case SubjectReturned(subject_id=subject_id, occurred_at=occurred_at):
+            return {
+                "subject_id": str(subject_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case SubjectStored(subject_id=subject_id, occurred_at=occurred_at):
+            return {
+                "subject_id": str(subject_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case SubjectDiscarded(subject_id=subject_id, occurred_at=occurred_at):
             return {
                 "subject_id": str(subject_id),
                 "occurred_at": occurred_at.isoformat(),
@@ -148,17 +211,35 @@ def from_stored(stored: StoredEvent) -> SubjectEvent:
                 subject_id=UUID(payload["subject_id"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "SubjectReturned":
+            return SubjectReturned(
+                subject_id=UUID(payload["subject_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "SubjectStored":
+            return SubjectStored(
+                subject_id=UUID(payload["subject_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "SubjectDiscarded":
+            return SubjectDiscarded(
+                subject_id=UUID(payload["subject_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown SubjectEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
 
 
 __all__ = [
+    "SubjectDiscarded",
     "SubjectEvent",
     "SubjectMeasured",
     "SubjectMounted",
     "SubjectRegistered",
     "SubjectRemoved",
+    "SubjectReturned",
+    "SubjectStored",
     "event_type_name",
     "from_stored",
     "to_payload",

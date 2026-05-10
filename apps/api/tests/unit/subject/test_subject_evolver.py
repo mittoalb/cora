@@ -13,10 +13,13 @@ from cora.subject.aggregates.subject import (
     fold,
 )
 from cora.subject.aggregates.subject.events import (
+    SubjectDiscarded,
     SubjectMeasured,
     SubjectMounted,
     SubjectRegistered,
     SubjectRemoved,
+    SubjectReturned,
+    SubjectStored,
 )
 from cora.subject.features import register_subject
 from cora.subject.features.register_subject import RegisterSubject
@@ -255,4 +258,131 @@ def test_fold_register_mount_measure_remove_yields_removed_subject() -> None:
     )
     assert state == Subject(
         id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.REMOVED
+    )
+
+
+# ---------- Terminal disposition events (Phase 4d) ----------
+
+
+@pytest.mark.unit
+def test_evolve_subject_returned_flips_status_to_returned() -> None:
+    """SubjectReturned folded onto a Removed subject sets status=RETURNED.
+    Terminal disposition: same evolver pattern (event TYPE encodes
+    state change), no payload field."""
+    subject_id = uuid4()
+    removed = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.REMOVED)
+    returned = evolve(removed, SubjectReturned(subject_id=subject_id, occurred_at=_NOW))
+    assert returned == Subject(
+        id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.RETURNED
+    )
+
+
+@pytest.mark.unit
+def test_evolve_subject_stored_flips_status_to_stored() -> None:
+    subject_id = uuid4()
+    removed = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.REMOVED)
+    stored = evolve(removed, SubjectStored(subject_id=subject_id, occurred_at=_NOW))
+    assert stored == Subject(
+        id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.STORED
+    )
+
+
+@pytest.mark.unit
+def test_evolve_subject_discarded_flips_status_to_discarded() -> None:
+    subject_id = uuid4()
+    removed = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.REMOVED)
+    discarded = evolve(removed, SubjectDiscarded(subject_id=subject_id, occurred_at=_NOW))
+    assert discarded == Subject(
+        id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.DISCARDED
+    )
+
+
+@pytest.mark.unit
+def test_evolve_terminal_events_preserve_id_and_name() -> None:
+    """All three terminal events only update `status`; id and name
+    carry over from prior state. Pinned so a future change that
+    accidentally drops the name (e.g., refactor that builds Subject
+    from event fields only) is caught for all three."""
+    subject_id = uuid4()
+    removed = Subject(id=subject_id, name=SubjectName("Original"), status=SubjectStatus.REMOVED)
+    for event in (
+        SubjectReturned(subject_id=subject_id, occurred_at=_NOW),
+        SubjectStored(subject_id=subject_id, occurred_at=_NOW),
+        SubjectDiscarded(subject_id=subject_id, occurred_at=_NOW),
+    ):
+        result = evolve(removed, event)
+        assert result.id == subject_id
+        assert result.name == SubjectName("Original")
+
+
+@pytest.mark.unit
+def test_evolve_subject_returned_on_empty_state_raises() -> None:
+    """Terminal events before SubjectRegistered = corrupted stream."""
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(None, SubjectReturned(subject_id=uuid4(), occurred_at=_NOW))
+
+
+@pytest.mark.unit
+def test_evolve_subject_stored_on_empty_state_raises() -> None:
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(None, SubjectStored(subject_id=uuid4(), occurred_at=_NOW))
+
+
+@pytest.mark.unit
+def test_evolve_subject_discarded_on_empty_state_raises() -> None:
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(None, SubjectDiscarded(subject_id=uuid4(), occurred_at=_NOW))
+
+
+@pytest.mark.unit
+def test_fold_full_lifecycle_to_returned() -> None:
+    """End-to-end fold: register + mount + measure + remove + return
+    produces a Returned subject. Pinned because the full lifecycle is
+    the canonical happy path for one of the three terminal slices."""
+    subject_id = uuid4()
+    state = fold(
+        [
+            SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, occurred_at=_NOW),
+            SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
+            SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
+            SubjectReturned(subject_id=subject_id, occurred_at=_NOW),
+        ]
+    )
+    assert state == Subject(
+        id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.RETURNED
+    )
+
+
+@pytest.mark.unit
+def test_fold_full_lifecycle_to_stored() -> None:
+    subject_id = uuid4()
+    state = fold(
+        [
+            SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, occurred_at=_NOW),
+            SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
+            SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
+            SubjectStored(subject_id=subject_id, occurred_at=_NOW),
+        ]
+    )
+    assert state == Subject(
+        id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.STORED
+    )
+
+
+@pytest.mark.unit
+def test_fold_full_lifecycle_to_discarded() -> None:
+    subject_id = uuid4()
+    state = fold(
+        [
+            SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, occurred_at=_NOW),
+            SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
+            SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
+            SubjectDiscarded(subject_id=subject_id, occurred_at=_NOW),
+        ]
+    )
+    assert state == Subject(
+        id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.DISCARDED
     )

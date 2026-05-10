@@ -18,12 +18,12 @@ Cross-cutting decorators applied here mirror Access and Trust
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
 Phase 4a shipped `register_subject`. Phase 4b added `mount_subject`.
-Phase 4c adds `measure_subject` and `remove_subject`. All three
-transition handlers are bare (no idempotency wrap) — update-style
-commands are inherently domain-idempotent via the corresponding
-`SubjectCannot<X>Error` on retry (see CONTRIBUTING.md). Remaining
-transitions (return / store / discard) land in 4d; the get_subject
-query in 4e.
+Phase 4c added `measure_subject` and `remove_subject`. Phase 4d adds
+the three terminal disposition handlers (`return_subject` /
+`store_subject` / `discard_subject`). All transition handlers are
+bare (no idempotency wrap) — update-style commands are inherently
+domain-idempotent via the corresponding `SubjectCannot<X>Error` on
+retry (see CONTRIBUTING.md). The get_subject query lands in 4e.
 """
 
 from dataclasses import dataclass
@@ -33,10 +33,13 @@ from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.observability import with_tracing
 from cora.subject.features import (
+    discard_subject,
     measure_subject,
     mount_subject,
     register_subject,
     remove_subject,
+    return_subject,
+    store_subject,
 )
 
 _BC = "subject"
@@ -47,15 +50,21 @@ class SubjectHandlers:
     """The Subject BC's handler bundle, each closed over SharedDeps.
 
     Phase 4a shipped `register_subject` (create-style; idempotency-
-    wrapped). Phases 4b-c add the active-phase transitions
+    wrapped). Phases 4b-c added the active-phase transitions
     (`mount_subject`, `measure_subject`, `remove_subject`) — all
-    update-style with bare Handler protocols.
+    update-style with bare Handler protocols. Phase 4d added the
+    three terminal disposition handlers (`return_subject`,
+    `store_subject`, `discard_subject`) — all also update-style
+    with bare Handler protocols.
     """
 
     register_subject: register_subject.IdempotentHandler
     mount_subject: mount_subject.Handler
     measure_subject: measure_subject.Handler
     remove_subject: remove_subject.Handler
+    return_subject: return_subject.Handler
+    store_subject: store_subject.Handler
+    discard_subject: discard_subject.Handler
 
 
 def wire_subject(deps: SharedDeps) -> SubjectHandlers:
@@ -87,6 +96,21 @@ def wire_subject(deps: SharedDeps) -> SubjectHandlers:
         remove_subject=with_tracing(
             remove_subject.bind(deps),
             command_name="RemoveSubject",
+            bc=_BC,
+        ),
+        return_subject=with_tracing(
+            return_subject.bind(deps),
+            command_name="ReturnSubject",
+            bc=_BC,
+        ),
+        store_subject=with_tracing(
+            store_subject.bind(deps),
+            command_name="StoreSubject",
+            bc=_BC,
+        ),
+        discard_subject=with_tracing(
+            discard_subject.bind(deps),
+            command_name="DiscardSubject",
             bc=_BC,
         ),
     )

@@ -9,6 +9,9 @@ Status mapping per event type:
   - `SubjectMounted`    -> MOUNTED
   - `SubjectMeasured`   -> MEASURED
   - `SubjectRemoved`    -> REMOVED   (multi-source: Mounted | Measured)
+  - `SubjectReturned`   -> RETURNED  (terminal disposition)
+  - `SubjectStored`     -> STORED    (terminal disposition)
+  - `SubjectDiscarded`  -> DISCARDED (terminal disposition)
 
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
@@ -23,11 +26,14 @@ from collections.abc import Sequence
 from typing import assert_never
 
 from cora.subject.aggregates.subject.events import (
+    SubjectDiscarded,
     SubjectEvent,
     SubjectMeasured,
     SubjectMounted,
     SubjectRegistered,
     SubjectRemoved,
+    SubjectReturned,
+    SubjectStored,
 )
 from cora.subject.aggregates.subject.state import Subject, SubjectName, SubjectStatus
 
@@ -59,6 +65,15 @@ def evolve(state: Subject | None, event: SubjectEvent) -> Subject:
         case SubjectRemoved():
             prior = _require_state(state, "SubjectRemoved")
             return Subject(id=prior.id, name=prior.name, status=SubjectStatus.REMOVED)
+        case SubjectReturned():
+            prior = _require_state(state, "SubjectReturned")
+            return Subject(id=prior.id, name=prior.name, status=SubjectStatus.RETURNED)
+        case SubjectStored():
+            prior = _require_state(state, "SubjectStored")
+            return Subject(id=prior.id, name=prior.name, status=SubjectStatus.STORED)
+        case SubjectDiscarded():
+            prior = _require_state(state, "SubjectDiscarded")
+            return Subject(id=prior.id, name=prior.name, status=SubjectStatus.DISCARDED)
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
