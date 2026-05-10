@@ -17,11 +17,12 @@ Cross-cutting decorators applied here mirror Access and Trust
 3. `with_tracing` — OTel span around every handler call. Records
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
-Phase 4a shipped `register_subject`. Phase 4b adds `mount_subject`
-(first state-transition slice; update-style; not idempotency-wrapped
-because update-style commands are inherently domain-idempotent via
-`SubjectCannotMountError` on retry — see CONTRIBUTING.md). Remaining
-transitions (measure, remove, dispose) land in 4c-4d; the get_subject
+Phase 4a shipped `register_subject`. Phase 4b added `mount_subject`.
+Phase 4c adds `measure_subject` and `remove_subject`. All three
+transition handlers are bare (no idempotency wrap) — update-style
+commands are inherently domain-idempotent via the corresponding
+`SubjectCannot<X>Error` on retry (see CONTRIBUTING.md). Remaining
+transitions (return / store / discard) land in 4d; the get_subject
 query in 4e.
 """
 
@@ -31,7 +32,12 @@ from uuid import UUID
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.observability import with_tracing
-from cora.subject.features import mount_subject, register_subject
+from cora.subject.features import (
+    measure_subject,
+    mount_subject,
+    register_subject,
+    remove_subject,
+)
 
 _BC = "subject"
 
@@ -41,12 +47,15 @@ class SubjectHandlers:
     """The Subject BC's handler bundle, each closed over SharedDeps.
 
     Phase 4a shipped `register_subject` (create-style; idempotency-
-    wrapped). Phase 4b adds `mount_subject` (update-style; bare
-    Handler, no idempotency wrap).
+    wrapped). Phases 4b-c add the active-phase transitions
+    (`mount_subject`, `measure_subject`, `remove_subject`) — all
+    update-style with bare Handler protocols.
     """
 
     register_subject: register_subject.IdempotentHandler
     mount_subject: mount_subject.Handler
+    measure_subject: measure_subject.Handler
+    remove_subject: remove_subject.Handler
 
 
 def wire_subject(deps: SharedDeps) -> SubjectHandlers:
@@ -68,6 +77,16 @@ def wire_subject(deps: SharedDeps) -> SubjectHandlers:
         mount_subject=with_tracing(
             mount_subject.bind(deps),
             command_name="MountSubject",
+            bc=_BC,
+        ),
+        measure_subject=with_tracing(
+            measure_subject.bind(deps),
+            command_name="MeasureSubject",
+            bc=_BC,
+        ),
+        remove_subject=with_tracing(
+            remove_subject.bind(deps),
+            command_name="RemoveSubject",
             bc=_BC,
         ),
     )

@@ -12,7 +12,12 @@ from cora.subject.aggregates.subject import (
     evolve,
     fold,
 )
-from cora.subject.aggregates.subject.events import SubjectMounted, SubjectRegistered
+from cora.subject.aggregates.subject.events import (
+    SubjectMeasured,
+    SubjectMounted,
+    SubjectRegistered,
+    SubjectRemoved,
+)
 from cora.subject.features import register_subject
 from cora.subject.features.register_subject import RegisterSubject
 
@@ -119,4 +124,135 @@ def test_fold_register_then_mount_yields_mounted_subject() -> None:
     )
     assert state == Subject(
         id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.MOUNTED
+    )
+
+
+# ---------- SubjectMeasured (Phase 4c) ----------
+
+
+@pytest.mark.unit
+def test_evolve_subject_measured_flips_status_to_measured() -> None:
+    """SubjectMeasured folded onto a Mounted subject sets status=MEASURED.
+    Status field is NOT in the event payload; the evolver derives it
+    from the event TYPE (same precedent as SubjectMounted)."""
+    subject_id = uuid4()
+    mounted = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.MOUNTED)
+    measured = evolve(mounted, SubjectMeasured(subject_id=subject_id, occurred_at=_NOW))
+    assert measured == Subject(
+        id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.MEASURED
+    )
+
+
+@pytest.mark.unit
+def test_evolve_subject_measured_preserves_id_and_name() -> None:
+    subject_id = uuid4()
+    mounted = Subject(id=subject_id, name=SubjectName("Original"), status=SubjectStatus.MOUNTED)
+    measured = evolve(mounted, SubjectMeasured(subject_id=subject_id, occurred_at=_NOW))
+    assert measured.id == subject_id
+    assert measured.name == SubjectName("Original")
+
+
+@pytest.mark.unit
+def test_evolve_subject_measured_on_empty_state_raises() -> None:
+    """SubjectMeasured before SubjectRegistered = corrupted stream.
+    Fail loud rather than silently producing an empty subject."""
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(None, SubjectMeasured(subject_id=uuid4(), occurred_at=_NOW))
+
+
+@pytest.mark.unit
+def test_fold_register_mount_measure_yields_measured_subject() -> None:
+    """End-to-end fold: registration + mount + measure produces a Measured subject."""
+    subject_id = uuid4()
+    state = fold(
+        [
+            SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, occurred_at=_NOW),
+            SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
+        ]
+    )
+    assert state == Subject(
+        id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.MEASURED
+    )
+
+
+# ---------- SubjectRemoved (Phase 4c) ----------
+
+
+@pytest.mark.unit
+def test_evolve_subject_removed_from_mounted_flips_status_to_removed() -> None:
+    """SubjectRemoved folded onto a Mounted subject sets status=REMOVED.
+    Multi-source-to-single-target: the evolver sets the same target
+    status regardless of which source state preceded the event."""
+    subject_id = uuid4()
+    mounted = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.MOUNTED)
+    removed = evolve(mounted, SubjectRemoved(subject_id=subject_id, occurred_at=_NOW))
+    assert removed == Subject(
+        id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.REMOVED
+    )
+
+
+@pytest.mark.unit
+def test_evolve_subject_removed_from_measured_flips_status_to_removed() -> None:
+    """The other source state for Removed: Measured -> Removed. Pinned
+    so a future change that only handles one source state in the
+    evolver is caught."""
+    subject_id = uuid4()
+    measured = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.MEASURED)
+    removed = evolve(measured, SubjectRemoved(subject_id=subject_id, occurred_at=_NOW))
+    assert removed == Subject(
+        id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.REMOVED
+    )
+
+
+@pytest.mark.unit
+def test_evolve_subject_removed_preserves_id_and_name() -> None:
+    subject_id = uuid4()
+    measured = Subject(id=subject_id, name=SubjectName("Original"), status=SubjectStatus.MEASURED)
+    removed = evolve(measured, SubjectRemoved(subject_id=subject_id, occurred_at=_NOW))
+    assert removed.id == subject_id
+    assert removed.name == SubjectName("Original")
+
+
+@pytest.mark.unit
+def test_evolve_subject_removed_on_empty_state_raises() -> None:
+    """SubjectRemoved before SubjectRegistered = corrupted stream."""
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(None, SubjectRemoved(subject_id=uuid4(), occurred_at=_NOW))
+
+
+@pytest.mark.unit
+def test_fold_register_mount_remove_yields_removed_subject() -> None:
+    """End-to-end fold: registration + mount + remove (skipping measure)
+    produces a Removed subject. Pinned because the multi-source-state
+    contract has to be honored at the fold level too, not just the
+    decider."""
+    subject_id = uuid4()
+    state = fold(
+        [
+            SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, occurred_at=_NOW),
+            SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
+        ]
+    )
+    assert state == Subject(
+        id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.REMOVED
+    )
+
+
+@pytest.mark.unit
+def test_fold_register_mount_measure_remove_yields_removed_subject() -> None:
+    """End-to-end fold: full happy path (register + mount + measure +
+    remove) produces a Removed subject."""
+    subject_id = uuid4()
+    state = fold(
+        [
+            SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, occurred_at=_NOW),
+            SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
+            SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
+        ]
+    )
+    assert state == Subject(
+        id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.REMOVED
     )

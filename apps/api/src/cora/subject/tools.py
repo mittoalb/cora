@@ -11,8 +11,10 @@ from collections.abc import Callable
 
 from mcp.server.fastmcp import FastMCP
 
+from cora.subject.features.measure_subject import tool as measure_subject_tool
 from cora.subject.features.mount_subject import tool as mount_subject_tool
 from cora.subject.features.register_subject import tool as register_subject_tool
+from cora.subject.features.remove_subject import tool as remove_subject_tool
 from cora.subject.wire import SubjectHandlers
 
 
@@ -29,4 +31,12 @@ def register_subject_tools(
     mount_subject_tool.register(
         mcp,
         get_handler=lambda: get_handlers().mount_subject,
+    )
+    measure_subject_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().measure_subject,
+    )
+    remove_subject_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().remove_subject,
     )

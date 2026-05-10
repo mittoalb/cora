@@ -4,14 +4,19 @@ Mirror of the other aggregate evolvers. The terminal `assert_never`
 case forces pyright (and the runtime) to error if a new event type
 is added to `SubjectEvent` without a matching match arm here.
 
-`SubjectRegistered` sets status to `Received` (the genesis state).
-`SubjectMounted` sets status to `Mounted`. The status mapping is
-hardcoded per match arm — the event type IS the state-change
-indicator (no status field in event payloads). Same precedent as
-`ActorDeactivated -> is_active=False`.
+Status mapping per event type:
+  - `SubjectRegistered` -> RECEIVED  (genesis)
+  - `SubjectMounted`    -> MOUNTED
+  - `SubjectMeasured`   -> MEASURED
+  - `SubjectRemoved`    -> REMOVED   (multi-source: Mounted | Measured)
 
-`SubjectMounted` applied to empty state raises ValueError: it can
+The mapping is hardcoded per match arm — the event type IS the
+state-change indicator (no status field in event payloads). Same
+precedent as `ActorDeactivated -> is_active=False`.
+
+Transition events applied to empty state raise ValueError: they can
 never appear before `SubjectRegistered` in a well-formed stream.
+The shared guard helper keeps the per-arm bodies short.
 """
 
 from collections.abc import Sequence
@@ -19,10 +24,20 @@ from typing import assert_never
 
 from cora.subject.aggregates.subject.events import (
     SubjectEvent,
+    SubjectMeasured,
     SubjectMounted,
     SubjectRegistered,
+    SubjectRemoved,
 )
 from cora.subject.aggregates.subject.state import Subject, SubjectName, SubjectStatus
+
+
+def _require_state(state: Subject | None, event_type: str) -> Subject:
+    """Transition events require prior state; empty stream is corruption."""
+    if state is None:
+        msg = f"{event_type} cannot be applied to empty state"
+        raise ValueError(msg)
+    return state
 
 
 def evolve(state: Subject | None, event: SubjectEvent) -> Subject:
@@ -36,16 +51,14 @@ def evolve(state: Subject | None, event: SubjectEvent) -> Subject:
                 status=SubjectStatus.RECEIVED,
             )
         case SubjectMounted():
-            if state is None:
-                # SubjectMounted never appears before SubjectRegistered in a
-                # well-formed stream; if it does, the stream is corrupted.
-                msg = "SubjectMounted cannot be applied to empty state"
-                raise ValueError(msg)
-            return Subject(
-                id=state.id,
-                name=state.name,
-                status=SubjectStatus.MOUNTED,
-            )
+            prior = _require_state(state, "SubjectMounted")
+            return Subject(id=prior.id, name=prior.name, status=SubjectStatus.MOUNTED)
+        case SubjectMeasured():
+            prior = _require_state(state, "SubjectMeasured")
+            return Subject(id=prior.id, name=prior.name, status=SubjectStatus.MEASURED)
+        case SubjectRemoved():
+            prior = _require_state(state, "SubjectRemoved")
+            return Subject(id=prior.id, name=prior.name, status=SubjectStatus.REMOVED)
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 

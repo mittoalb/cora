@@ -7,8 +7,10 @@ import pytest
 
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.subject.aggregates.subject.events import (
+    SubjectMeasured,
     SubjectMounted,
     SubjectRegistered,
+    SubjectRemoved,
     event_type_name,
     from_stored,
     to_payload,
@@ -130,6 +132,96 @@ def test_from_stored_rebuilds_subject_mounted() -> None:
 def test_to_payload_then_from_stored_round_trips_for_subject_mounted() -> None:
     original = SubjectMounted(subject_id=uuid4(), occurred_at=_NOW)
     stored = _stored("SubjectMounted", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- SubjectMeasured ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_subject_measured_class_name() -> None:
+    event = SubjectMeasured(subject_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "SubjectMeasured"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_subject_measured_to_primitives() -> None:
+    """Status NOT in payload (event type encodes the state change). Same
+    convention as SubjectMounted; pinned per-event-class so an additive
+    payload field on Measured is a deliberate change."""
+    subject_id = uuid4()
+    event = SubjectMeasured(subject_id=subject_id, occurred_at=_NOW)
+    assert to_payload(event) == {
+        "subject_id": str(subject_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+    assert "status" not in to_payload(event)
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_subject_measured() -> None:
+    subject_id = uuid4()
+    stored = _stored(
+        "SubjectMeasured",
+        {
+            "subject_id": str(subject_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == SubjectMeasured(subject_id=subject_id, occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_subject_measured() -> None:
+    original = SubjectMeasured(subject_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("SubjectMeasured", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- SubjectRemoved ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_subject_removed_class_name() -> None:
+    event = SubjectRemoved(subject_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "SubjectRemoved"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_subject_removed_to_primitives() -> None:
+    """Status NOT in payload — multi-source-to-single-target transitions
+    are still encoded by event TYPE alone. The decider's source-state
+    guard is what enforces Mounted | Measured at command time; the
+    event itself doesn't need to record where it came from."""
+    subject_id = uuid4()
+    event = SubjectRemoved(subject_id=subject_id, occurred_at=_NOW)
+    assert to_payload(event) == {
+        "subject_id": str(subject_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+    assert "status" not in to_payload(event)
+    assert "from_status" not in to_payload(event)
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_subject_removed() -> None:
+    subject_id = uuid4()
+    stored = _stored(
+        "SubjectRemoved",
+        {
+            "subject_id": str(subject_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == SubjectRemoved(subject_id=subject_id, occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_subject_removed() -> None:
+    original = SubjectRemoved(subject_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("SubjectRemoved", to_payload(original))
     assert from_stored(stored) == original
 
 

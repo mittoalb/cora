@@ -70,7 +70,7 @@ class SubjectStatus(StrEnum):
 
     Transitions land per-slice in Phase 4b+:
       - Received → Mounted        (mount_subject, 4b)
-      - Mounted → Measured        (record_measurement, 4c)
+      - Mounted → Measured        (measure_subject, 4c)
       - Mounted | Measured → Removed   (remove_subject, 4c)
       - Removed → Returned | Stored | Discarded   (4d, three slices)
 
@@ -132,6 +132,52 @@ class SubjectCannotMountError(Exception):
         super().__init__(
             f"Subject {subject_id} cannot be mounted: currently in state "
             f"{current_status.value}, mount requires {SubjectStatus.RECEIVED.value}"
+        )
+        self.subject_id = subject_id
+        self.current_status = current_status
+
+
+class SubjectCannotMeasureError(Exception):
+    """Attempted to measure a subject not in the `Mounted` state.
+
+    Strict semantics: re-measuring an already-`Measured` subject also
+    raises (rather than no-op or always-emit). Per-measurement detail
+    (which scan, params, results) is out of scope at the aggregate
+    level; that lives in `Run` + substreams later. The aggregate-level
+    `Measured` status just means "has been measured at least once".
+
+    See `SubjectCannotMountError` docstring for the per-transition-
+    error rationale.
+    """
+
+    def __init__(self, subject_id: UUID, current_status: "SubjectStatus") -> None:
+        super().__init__(
+            f"Subject {subject_id} cannot be measured: currently in state "
+            f"{current_status.value}, measure requires {SubjectStatus.MOUNTED.value}"
+        )
+        self.subject_id = subject_id
+        self.current_status = current_status
+
+
+class SubjectCannotRemoveError(Exception):
+    """Attempted to remove a subject from a state other than Mounted or Measured.
+
+    First multi-source-state guard in the codebase: `remove_subject`
+    accepts BOTH `Mounted` (sample present but not yet measured —
+    operator changed mind, removing without measuring) and `Measured`
+    (data collected, ready to remove). The decider checks via
+    tuple-membership (`status not in (MOUNTED, MEASURED)`); the error
+    message lists both allowed source states for diagnostic clarity.
+
+    See `SubjectCannotMountError` docstring for the per-transition-
+    error rationale.
+    """
+
+    def __init__(self, subject_id: UUID, current_status: "SubjectStatus") -> None:
+        super().__init__(
+            f"Subject {subject_id} cannot be removed: currently in state "
+            f"{current_status.value}, remove requires "
+            f"{SubjectStatus.MOUNTED.value} or {SubjectStatus.MEASURED.value}"
         )
         self.subject_id = subject_id
         self.current_status = current_status

@@ -5,10 +5,10 @@ classes, discriminated union, `event_type_name`, `to_payload`,
 `from_stored`. The persistence-envelope construction (`NewEvent`)
 lives at `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 4a shipped `SubjectRegistered`. Phase 4b adds `SubjectMounted`.
-Remaining transition events (`MeasurementRecorded`, `SubjectRemoved`,
-`SubjectReturned` / `SubjectStored` / `SubjectDiscarded`) land per
-slice in 4c-4d.
+Phase 4a shipped `SubjectRegistered`. Phase 4b added `SubjectMounted`.
+Phase 4c adds `SubjectMeasured` and `SubjectRemoved`. Remaining
+transition events (`SubjectReturned` / `SubjectStored` /
+`SubjectDiscarded`) land per slice in 4d.
 
 Status is NOT carried in event payloads — the event type itself
 encodes the state change (e.g., `SubjectMounted -> status=MOUNTED`).
@@ -49,9 +49,37 @@ class SubjectMounted:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class SubjectMeasured:
+    """A subject had data collected on it.
+
+    Status transition: `Mounted -> Measured`. Aggregate-level "has
+    been measured at least once" — per-measurement detail (which
+    scan, params, results) lives in `Run` + substreams later. The
+    evolver sets the new status; no status field in the payload.
+    """
+
+    subject_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class SubjectRemoved:
+    """A subject was removed from the apparatus.
+
+    Status transition: `Mounted | Measured -> Removed` (multi-source).
+    The evolver sets the new status regardless of which source state
+    the subject came from; the decider's source-state guard is what
+    enforces the multi-source restriction at command time.
+    """
+
+    subject_id: UUID
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Subject aggregate emits. Add
 # new event classes above and extend this alias when new slices land.
-SubjectEvent = SubjectRegistered | SubjectMounted
+SubjectEvent = SubjectRegistered | SubjectMounted | SubjectMeasured | SubjectRemoved
 
 
 def event_type_name(event: SubjectEvent) -> str:
@@ -72,6 +100,16 @@ def to_payload(event: SubjectEvent) -> dict[str, Any]:
                 "occurred_at": occurred_at.isoformat(),
             }
         case SubjectMounted(subject_id=subject_id, occurred_at=occurred_at):
+            return {
+                "subject_id": str(subject_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case SubjectMeasured(subject_id=subject_id, occurred_at=occurred_at):
+            return {
+                "subject_id": str(subject_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case SubjectRemoved(subject_id=subject_id, occurred_at=occurred_at):
             return {
                 "subject_id": str(subject_id),
                 "occurred_at": occurred_at.isoformat(),
@@ -100,6 +138,16 @@ def from_stored(stored: StoredEvent) -> SubjectEvent:
                 subject_id=UUID(payload["subject_id"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "SubjectMeasured":
+            return SubjectMeasured(
+                subject_id=UUID(payload["subject_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "SubjectRemoved":
+            return SubjectRemoved(
+                subject_id=UUID(payload["subject_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown SubjectEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -107,8 +155,10 @@ def from_stored(stored: StoredEvent) -> SubjectEvent:
 
 __all__ = [
     "SubjectEvent",
+    "SubjectMeasured",
     "SubjectMounted",
     "SubjectRegistered",
+    "SubjectRemoved",
     "event_type_name",
     "from_stored",
     "to_payload",

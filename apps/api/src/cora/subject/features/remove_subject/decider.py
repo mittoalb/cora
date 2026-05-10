@@ -1,0 +1,51 @@
+"""Pure decider for the `RemoveSubject` command.
+
+First multi-source-state transition in the codebase:
+`Mounted | Measured -> Removed`. Either source state is valid:
+
+  - Mounted: sample physically present but no data collected yet
+    (operator changed mind, removing without measuring).
+  - Measured: data collected, ready to remove.
+
+Source-state guard uses tuple-membership rather than a
+match-statement: the check is "is in {Mounted, Measured}", which is
+naturally a set-membership test. Match-statement would add ceremony
+without expressiveness gain. The error message lists both allowed
+source states for diagnostic clarity (carried by
+`SubjectCannotRemoveError`).
+
+Invariants:
+  - State must not be None -> SubjectNotFoundError
+  - State.status must be in {Mounted, Measured}
+    -> SubjectCannotRemoveError(current_status=...)
+"""
+
+from datetime import datetime
+
+from cora.subject.aggregates.subject import (
+    Subject,
+    SubjectCannotRemoveError,
+    SubjectNotFoundError,
+    SubjectRemoved,
+    SubjectStatus,
+)
+from cora.subject.features.remove_subject.command import RemoveSubject
+
+_REMOVABLE_STATES: tuple[SubjectStatus, ...] = (
+    SubjectStatus.MOUNTED,
+    SubjectStatus.MEASURED,
+)
+
+
+def decide(
+    state: Subject | None,
+    command: RemoveSubject,
+    *,
+    now: datetime,
+) -> list[SubjectRemoved]:
+    """Decide the events produced by removing an existing subject."""
+    if state is None:
+        raise SubjectNotFoundError(command.subject_id)
+    if state.status not in _REMOVABLE_STATES:
+        raise SubjectCannotRemoveError(state.id, current_status=state.status)
+    return [SubjectRemoved(subject_id=state.id, occurred_at=now)]
