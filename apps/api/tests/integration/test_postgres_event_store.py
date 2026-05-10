@@ -4,7 +4,7 @@
 
 import asyncio
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import asyncpg
 import pytest
@@ -18,10 +18,12 @@ from cora.infrastructure.postgres.event_store import PostgresEventStore
 
 def _make_event(
     *,
+    event_id: UUID | None = None,
     event_type: str = "Recorded",
     payload: dict[str, object] | None = None,
 ) -> NewEvent:
     return NewEvent(
+        event_id=event_id or uuid4(),
         event_type=event_type,
         schema_version=1,
         payload=payload or {"k": "v"},
@@ -125,6 +127,7 @@ async def test_causation_id_round_trips(db_pool: asyncpg.Pool) -> None:
     stream_id = uuid4()
     cause = uuid4()
     new_event = NewEvent(
+        event_id=uuid4(),
         event_type="Recorded",
         schema_version=1,
         payload={},
@@ -136,6 +139,31 @@ async def test_causation_id_round_trips(db_pool: asyncpg.Pool) -> None:
     await store.append("Actor", stream_id, 0, [new_event])
     loaded, _ = await store.load("Actor", stream_id)
     assert loaded[0].causation_id == cause
+
+
+@pytest.mark.integration
+async def test_event_id_round_trips(db_pool: asyncpg.Pool) -> None:
+    """Producer-assigned event_id surfaces unchanged on read from real Postgres."""
+    store = PostgresEventStore(db_pool)
+    stream_id = uuid4()
+    event_id = uuid4()
+    await store.append("Actor", stream_id, 0, [_make_event(event_id=event_id)])
+    loaded, _ = await store.load("Actor", stream_id)
+    assert loaded[0].event_id == event_id
+
+
+@pytest.mark.integration
+async def test_postgres_rejects_duplicate_event_id_via_unique_constraint(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """The UNIQUE INDEX on events.event_id must reject a re-used id even
+    across different streams (event_id is global, not per-stream)."""
+    store = PostgresEventStore(db_pool)
+    duplicate = uuid4()
+    await store.append("Actor", uuid4(), 0, [_make_event(event_id=duplicate)])
+
+    with pytest.raises(asyncpg.UniqueViolationError):
+        await store.append("Actor", uuid4(), 0, [_make_event(event_id=duplicate)])
 
 
 @pytest.mark.integration

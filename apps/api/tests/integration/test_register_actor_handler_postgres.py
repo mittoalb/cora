@@ -28,6 +28,7 @@ from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000000beef")
+_EVENT_ID = UUID("01900000-0000-7000-8000-00000000eeef")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
@@ -39,7 +40,7 @@ async def test_handler_persists_actor_registered_to_postgres(
     deps = SharedDeps(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID]),
+        id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID]),
         authorize=AllowAllAuthorize(),
         event_store=PostgresEventStore(db_pool),
         idempotency_store=PostgresIdempotencyStore(db_pool),
@@ -67,6 +68,7 @@ async def test_handler_persists_actor_registered_to_postgres(
     }
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None
+    assert stored.event_id == _EVENT_ID
     assert stored.metadata == {"command": "RegisterActor"}
     assert stored.occurred_at == _NOW
     assert stored.position > 0

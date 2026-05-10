@@ -33,6 +33,8 @@ from cora.infrastructure.ports import (
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000000001")
+_REGISTER_EVENT_ID = UUID("01900000-0000-7000-8000-0000000000e1")
+_DEACTIVATE_EVENT_ID = UUID("01900000-0000-7000-8000-0000000000e2")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
@@ -54,10 +56,17 @@ def _build_deps(
     deny: bool = False,
 ) -> SharedDeps:
     settings = Settings(app_env="test")  # type: ignore[call-arg]
+    # Tests that exercise deactivate typically register first via the
+    # `_register_actor` helper. That flow consumes [_NEW_ID,
+    # _REGISTER_EVENT_ID] (aggregate id + event_id), then deactivate
+    # consumes [_DEACTIVATE_EVENT_ID] for its event_id. Three ids
+    # cover both consumed and partially-consumed paths uniformly.
     return SharedDeps(
         settings=settings,
         clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID]),
+        id_generator=FixedIdGenerator(
+            [_NEW_ID, _REGISTER_EVENT_ID, _DEACTIVATE_EVENT_ID],
+        ),
         authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
         event_store=event_store or InMemoryEventStore(),
         idempotency_store=InMemoryIdempotencyStore(),
@@ -97,6 +106,7 @@ async def test_handler_appends_actor_deactivated_event() -> None:
     assert events[1].metadata == {"command": "DeactivateActor"}
     assert events[1].correlation_id == _CORRELATION_ID
     assert events[1].causation_id is None
+    assert events[1].event_id == _DEACTIVATE_EVENT_ID
 
 
 @pytest.mark.unit
@@ -180,7 +190,11 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     deny_deps = SharedDeps(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([uuid4()]),
+        # Even though the auth-deny path never reaches event_id
+        # generation, supply enough ids so a regression that bypasses
+        # the deny check doesn't fail with a misleading "exhausted"
+        # error instead of an UnauthorizedError.
+        id_generator=FixedIdGenerator([uuid4(), uuid4()]),
         authorize=DenyAllAuthorize(),
         event_store=seed_deps.event_store,
         idempotency_store=InMemoryIdempotencyStore(),

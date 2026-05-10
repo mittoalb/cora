@@ -26,6 +26,7 @@ def _stored(
     """Build a StoredEvent shell — only event_type + payload are read by from_stored."""
     return StoredEvent(
         position=1,
+        event_id=uuid4(),
         stream_type="Actor",
         stream_id=stream_id or uuid4(),  # type: ignore[arg-type]
         version=1,
@@ -92,17 +93,20 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
 @pytest.mark.unit
 def test_to_new_event_wraps_domain_event_in_persistence_envelope() -> None:
     """Cross-BC envelope: discriminator + payload from the centralized
-    helpers, plus per-call command_name + correlation_id."""
+    helpers, plus per-call event_id + command_name + correlation_id."""
     actor_id = uuid4()
+    event_id = uuid4()
     correlation_id = uuid4()
     event = ActorRegistered(actor_id=actor_id, name="Doga", occurred_at=_NOW)
 
     new_event = to_new_event(
         event,
+        event_id=event_id,
         command_name="RegisterActor",
         correlation_id=correlation_id,
     )
 
+    assert new_event.event_id == event_id
     assert new_event.event_type == "ActorRegistered"
     assert new_event.schema_version == 1
     assert new_event.payload == to_payload(event)
@@ -121,6 +125,7 @@ def test_to_new_event_propagates_causation_id_when_supplied() -> None:
 
     new_event = to_new_event(
         event,
+        event_id=uuid4(),
         command_name="RegisterActor",
         correlation_id=correlation,
         causation_id=causation,

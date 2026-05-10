@@ -28,6 +28,7 @@ from cora.infrastructure.ports import (
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000000001")
+_EVENT_ID = UUID("01900000-0000-7000-8000-0000000000e1")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
@@ -51,10 +52,16 @@ def _build_deps(
     deny: bool = False,
 ) -> SharedDeps:
     settings = Settings(app_env="test")  # type: ignore[call-arg]
+    # FixedIdGenerator yields IDs in order. register_actor consumes
+    # exactly two per successful call: one for the new aggregate id
+    # (returned to the caller, used as the Actor's id), then one per
+    # emitted event for event_id. Tests that exercise the auth-deny
+    # path don't reach the second consumption but the extra id is
+    # cheap and keeps the deps factory uniform across tests.
     return SharedDeps(
         settings=settings,
         clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID]),
+        id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID]),
         authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
         event_store=event_store or InMemoryEventStore(),
         idempotency_store=InMemoryIdempotencyStore(),
@@ -100,6 +107,7 @@ async def test_handler_appends_actor_registered_event_to_store() -> None:
     }
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None
+    assert stored.event_id == _EVENT_ID
     assert stored.metadata == {"command": "RegisterActor"}
     assert stored.occurred_at == _NOW
 
@@ -182,6 +190,37 @@ async def test_handler_does_not_append_when_decider_rejects() -> None:
     events, version = await store.load("Actor", _NEW_ID)
     assert events == []
     assert version == 0
+
+
+@pytest.mark.unit
+async def test_handler_generates_event_id_via_id_generator() -> None:
+    """The handler must pull event_ids from the IdGenerator port (one per
+    emitted event) so the value persisted on NewEvent.event_id is the
+    UUIDv7 the production IdGenerator yields, not a fixed sentinel.
+
+    Verified by injecting a FixedIdGenerator with two known ids — the
+    second one (consumed AFTER the aggregate id) must land as the
+    appended event's event_id."""
+    sentinel_event_id = UUID("01900000-0000-7000-8000-0000000000ee")
+    store = InMemoryEventStore()
+    deps = SharedDeps(
+        settings=Settings(app_env="test"),  # type: ignore[call-arg]
+        clock=FrozenClock(_NOW),
+        id_generator=FixedIdGenerator([_NEW_ID, sentinel_event_id]),
+        authorize=AllowAllAuthorize(),
+        event_store=store,
+        idempotency_store=InMemoryIdempotencyStore(),
+    )
+    handler = register_actor.bind(deps)
+
+    await handler(
+        RegisterActor(name="Doga"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    events, _ = await store.load("Actor", _NEW_ID)
+    assert events[0].event_id == sentinel_event_id
 
 
 @pytest.mark.unit

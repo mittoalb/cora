@@ -26,6 +26,7 @@ _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 def _new_event(event: ActorRegistered | ActorDeactivated) -> NewEvent:
     """Wrap a domain event for direct event-store insertion (bypasses handlers)."""
     return NewEvent(
+        event_id=uuid4(),
         event_type=type(event).__name__,
         schema_version=1,
         payload=to_payload(event),

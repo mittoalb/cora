@@ -35,10 +35,18 @@ from uuid import UUID
 class NewEvent:
     """A domain event being written to the store. Wrapped at the app-layer boundary.
 
+    `event_id` is the per-event stable identity (UUIDv7 in production via
+    the IdGenerator port). It's the unit of downstream deduplication for
+    at-least-once delivery to projections, and the natural value to use as
+    the next command's `causation_id` in saga / process-manager chains.
+    Generated in the handler (one per emitted event) so the decider stays
+    pure and the to_new_event factory stays a dict-shuffle.
+
     `occurred_at` is domain time, set by the handler via the Clock port. The
     store also records its own `recorded_at` (DB write time) on persistence.
     """
 
+    event_id: UUID
     event_type: str
     schema_version: int
     payload: dict[str, Any]
@@ -55,9 +63,14 @@ class StoredEvent:
     `position` is the global commit-order watermark (`bigserial` from the DB).
     See module docstring for the sequence-rollback hazard projections must
     handle when consuming events by position.
+
+    `event_id` is the producer-assigned identity (the same UUID supplied
+    at append time in NewEvent.event_id). It is UNIQUE across the events
+    table and serves as the dedup key for downstream consumers.
     """
 
     position: int
+    event_id: UUID
     stream_type: str
     stream_id: UUID
     version: int

@@ -136,9 +136,16 @@ def bind(deps: SharedDeps) -> Handler:
             new_id=new_id,
         )
 
+        # One event_id per emitted event, generated via the IdGenerator
+        # port (UUIDv7 in production). Per-event identity is metadata at
+        # the persistence boundary; the decider stays pure (no event_ids
+        # injected into it). For register_actor the decider returns at
+        # most one event today, but the per-event generation pattern
+        # generalizes to update-style commands that emit multiple events.
         new_events = [
             to_new_event(
                 event,
+                event_id=deps.id_generator.new_id(),
                 command_name=_COMMAND_NAME,
                 correlation_id=correlation_id,
                 causation_id=causation_id,

@@ -26,6 +26,11 @@ from cora.infrastructure.ports import (
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000000001")
+# Some get_actor tests register (and one also deactivates) an actor first
+# so a target stream exists; the IdGenerator therefore needs both event
+# ids ready alongside the aggregate id.
+_EVENT_ID = UUID("01900000-0000-7000-8000-0000000000e1")
+_DEACTIVATE_EVENT_ID = UUID("01900000-0000-7000-8000-0000000000e2")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
@@ -35,7 +40,7 @@ def _build_deps(event_store: InMemoryEventStore | None = None) -> SharedDeps:
     return SharedDeps(
         settings=settings,
         clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID]),
+        id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID, _DEACTIVATE_EVENT_ID]),
         authorize=AllowAllAuthorize(),
         event_store=event_store or InMemoryEventStore(),
         idempotency_store=InMemoryIdempotencyStore(),
@@ -138,7 +143,7 @@ async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
     deps = SharedDeps(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID]),
+        id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID, _DEACTIVATE_EVENT_ID]),
         authorize=tracking,
         event_store=InMemoryEventStore(),
         idempotency_store=InMemoryIdempotencyStore(),
@@ -159,7 +164,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     deps = SharedDeps(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID]),
+        id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID, _DEACTIVATE_EVENT_ID]),
         authorize=_DenyAllAuthorize(),
         event_store=InMemoryEventStore(),
         idempotency_store=InMemoryIdempotencyStore(),

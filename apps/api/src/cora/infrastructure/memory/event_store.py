@@ -2,10 +2,13 @@
 
 Mirrors the Postgres adapter's contract: same optimistic-concurrency
 semantics, same global ordering by an in-memory monotonic position counter,
-same per-stream version invariants. A `threading.Lock` guards the dict and
-the position counter so the same instance can be safely shared across
-concurrent tasks (we hold the lock only across pure in-memory work, never
-across awaits).
+same per-stream version invariants, AND the same `event_id` UNIQUE
+constraint (a duplicate `event_id` in any append raises ValueError so
+test failures match what production would surface as a Postgres
+UniqueViolationError). A `threading.Lock` guards the dict and the position
+counter so the same instance can be safely shared across concurrent
+tasks (we hold the lock only across pure in-memory work, never across
+awaits).
 """
 
 from copy import deepcopy
@@ -26,6 +29,7 @@ class InMemoryEventStore:
 
     def __init__(self) -> None:
         self._streams: dict[tuple[str, UUID], list[StoredEvent]] = {}
+        self._event_ids: set[UUID] = set()
         self._position = count(start=1)
         self._lock = Lock()
 
@@ -60,6 +64,17 @@ class InMemoryEventStore:
                     expected=expected_version,
                     actual=actual,
                 )
+            # Mirror Postgres's UNIQUE(event_id) constraint. Detect both
+            # in-batch duplicates and collisions with already-stored ids
+            # before mutating, so a partial batch never lands.
+            new_ids = [e.event_id for e in events]
+            if len(set(new_ids)) != len(new_ids):
+                msg = "Duplicate event_id within a single append batch"
+                raise ValueError(msg)
+            collisions = self._event_ids.intersection(new_ids)
+            if collisions:
+                msg = f"event_id already exists: {sorted(str(i) for i in collisions)}"
+                raise ValueError(msg)
             if existing is None:
                 existing = []
                 self._streams[key] = existing
@@ -69,6 +84,7 @@ class InMemoryEventStore:
                 next_version += 1
                 stored = StoredEvent(
                     position=next(self._position),
+                    event_id=event.event_id,
                     stream_type=stream_type,
                     stream_id=stream_id,
                     version=next_version,
@@ -82,4 +98,5 @@ class InMemoryEventStore:
                     recorded_at=now,
                 )
                 existing.append(stored)
+                self._event_ids.add(event.event_id)
             return next_version

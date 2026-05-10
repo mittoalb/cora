@@ -5,6 +5,14 @@ UNIQUE constraint on `(stream_type, stream_id, version)`. On conflict the
 adapter reads the current version and raises `ConcurrencyError` so the
 caller can retry with a fresh load.
 
+The `events_event_id_unique` UNIQUE INDEX on `event_id` is a separate
+constraint that producers should never violate (UUIDv7 collisions are
+astronomically unlikely; a violation indicates a wrapper that's reusing
+an id from a cached generator). The adapter inspects the violated
+constraint name and re-raises the original `UniqueViolationError`
+unchanged for that case so the bug surfaces loudly rather than being
+mis-mapped to ConcurrencyError.
+
 Append is wrapped in a single transaction so partial writes never appear
 to readers. The AFTER INSERT trigger fires `pg_notify` per row (see
 migration `20260509120000_init_events.sql`); listeners use that as a
@@ -29,7 +37,7 @@ from cora.infrastructure.ports.event_store import (
 )
 
 _LOAD_SQL = """
-SELECT position, stream_type, stream_id, version, event_type,
+SELECT position, event_id, stream_type, stream_id, version, event_type,
        schema_version, payload, metadata, correlation_id, causation_id,
        occurred_at, recorded_at
 FROM events
@@ -39,15 +47,17 @@ ORDER BY version
 
 _APPEND_SQL = """
 INSERT INTO events (
-    stream_type, stream_id, version, event_type, schema_version,
+    event_id, stream_type, stream_id, version, event_type, schema_version,
     payload, metadata, correlation_id, causation_id, occurred_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 """
 
 _CURRENT_VERSION_SQL = """
 SELECT COALESCE(MAX(version), 0) FROM events
 WHERE stream_type = $1 AND stream_id = $2
 """
+
+_STREAM_VERSION_CONSTRAINT = "events_stream_version_unique"
 
 
 class PostgresEventStore:
@@ -84,6 +94,7 @@ class PostgresEventStore:
                     next_version += 1
                     await conn.execute(
                         _APPEND_SQL,
+                        event.event_id,
                         stream_type,
                         stream_id,
                         next_version,
@@ -97,6 +108,12 @@ class PostgresEventStore:
                     )
                 return next_version
         except asyncpg.UniqueViolationError as exc:
+            # The events table has two unique constraints. Map the
+            # stream-version one to ConcurrencyError (expected, retry-able);
+            # any other one (today: events_event_id_unique) is a producer
+            # bug — re-raise unchanged so it surfaces loudly.
+            if getattr(exc, "constraint_name", None) != _STREAM_VERSION_CONSTRAINT:
+                raise
             # Transaction is rolled back; read the actual version on a fresh
             # connection so the caller can decide whether to retry.
             async with self._pool.acquire() as fresh:
@@ -114,6 +131,7 @@ def _row_to_event(row: Any) -> StoredEvent:
     metadata: dict[str, Any] = row["metadata"]
     return StoredEvent(
         position=int(row["position"]),
+        event_id=row["event_id"],
         stream_type=str(row["stream_type"]),
         stream_id=row["stream_id"],
         version=int(row["version"]),

@@ -114,9 +114,14 @@ def bind(deps: SharedDeps) -> Handler:
 
         domain_events = decide(state=state, command=command, now=now)
 
+        # One event_id per emitted event, generated via the IdGenerator
+        # port (UUIDv7 in production). See register_actor.handler for
+        # the rationale on generating in the handler vs the decider /
+        # factory (decider stays pure; factory stays a dict-shuffle).
         new_events = [
             to_new_event(
                 event,
+                event_id=deps.id_generator.new_id(),
                 command_name=_COMMAND_NAME,
                 correlation_id=correlation_id,
                 causation_id=causation_id,

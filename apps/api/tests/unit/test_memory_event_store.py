@@ -11,6 +11,7 @@ from cora.infrastructure.ports.event_store import ConcurrencyError, NewEvent
 
 def _event(payload: dict[str, object] | None = None) -> NewEvent:
     return NewEvent(
+        event_id=uuid4(),
         event_type="Recorded",
         schema_version=1,
         payload=payload or {"k": "v"},
@@ -114,11 +115,101 @@ async def test_failed_append_to_unknown_stream_can_be_retried_at_v0() -> None:
 
 
 @pytest.mark.unit
+async def test_event_id_round_trips() -> None:
+    """The producer-assigned event_id surfaces unchanged on read."""
+    store = InMemoryEventStore()
+    stream_id = uuid4()
+    event_id = uuid4()
+    event = NewEvent(
+        event_id=event_id,
+        event_type="Recorded",
+        schema_version=1,
+        payload={},
+        occurred_at=datetime.now(tz=UTC),
+        correlation_id=uuid4(),
+        causation_id=None,
+        metadata={},
+    )
+
+    await store.append("Actor", stream_id, 0, [event])
+    loaded, _ = await store.load("Actor", stream_id)
+    assert loaded[0].event_id == event_id
+
+
+@pytest.mark.unit
+async def test_append_rejects_duplicate_event_id_in_batch() -> None:
+    """In-batch event_id collision is caught before any partial write —
+    matches Postgres UNIQUE(event_id) semantics from the test side."""
+    store = InMemoryEventStore()
+    stream_id = uuid4()
+    duplicate = uuid4()
+    e1 = NewEvent(
+        event_id=duplicate,
+        event_type="Recorded",
+        schema_version=1,
+        payload={},
+        occurred_at=datetime.now(tz=UTC),
+        correlation_id=uuid4(),
+        causation_id=None,
+        metadata={},
+    )
+    e2 = NewEvent(
+        event_id=duplicate,  # same id — illegal
+        event_type="Recorded",
+        schema_version=1,
+        payload={},
+        occurred_at=datetime.now(tz=UTC),
+        correlation_id=uuid4(),
+        causation_id=None,
+        metadata={},
+    )
+
+    with pytest.raises(ValueError, match="Duplicate event_id within"):
+        await store.append("Actor", stream_id, 0, [e1, e2])
+
+    loaded, version = await store.load("Actor", stream_id)
+    assert loaded == []
+    assert version == 0
+
+
+@pytest.mark.unit
+async def test_append_rejects_event_id_already_in_store() -> None:
+    """Cross-batch event_id collision is also caught (mirrors UNIQUE in Postgres)."""
+    store = InMemoryEventStore()
+    duplicate = uuid4()
+    event = NewEvent(
+        event_id=duplicate,
+        event_type="Recorded",
+        schema_version=1,
+        payload={},
+        occurred_at=datetime.now(tz=UTC),
+        correlation_id=uuid4(),
+        causation_id=None,
+        metadata={},
+    )
+    await store.append("Actor", uuid4(), 0, [event])
+
+    second = NewEvent(
+        event_id=duplicate,  # same id, different stream
+        event_type="Recorded",
+        schema_version=1,
+        payload={},
+        occurred_at=datetime.now(tz=UTC),
+        correlation_id=uuid4(),
+        causation_id=None,
+        metadata={},
+    )
+    with pytest.raises(ValueError, match="event_id already exists"):
+        await store.append("Actor", uuid4(), 0, [second])
+
+
+@pytest.mark.unit
 async def test_causation_id_round_trips() -> None:
     store = InMemoryEventStore()
     stream_id = uuid4()
     cause = uuid4()
     new_event = NewEvent(
+        event_id=uuid4(),
         event_type="Recorded",
         schema_version=1,
         payload={},

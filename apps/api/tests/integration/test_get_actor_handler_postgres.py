@@ -24,6 +24,7 @@ from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _ACTOR_ID = UUID("01900000-0000-7000-8000-00000000c0de")
+_REGISTER_EVENT_ID = UUID("01900000-0000-7000-8000-00000000ee0d")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
@@ -35,7 +36,7 @@ async def test_get_actor_loads_state_from_real_postgres(
     deps = SharedDeps(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_ACTOR_ID]),
+        id_generator=FixedIdGenerator([_ACTOR_ID, _REGISTER_EVENT_ID]),
         authorize=AllowAllAuthorize(),
         event_store=PostgresEventStore(db_pool),
         idempotency_store=PostgresIdempotencyStore(db_pool),
