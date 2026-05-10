@@ -10,6 +10,7 @@ from collections.abc import Callable
 
 from mcp.server.fastmcp import FastMCP
 
+from cora.trust.features.define_conduit import tool as define_conduit_tool
 from cora.trust.features.define_zone import tool as define_zone_tool
 from cora.trust.wire import TrustHandlers
 
@@ -23,4 +24,8 @@ def register_trust_tools(
     define_zone_tool.register(
         mcp,
         get_handler=lambda: get_handlers().define_zone,
+    )
+    define_conduit_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().define_conduit,
     )

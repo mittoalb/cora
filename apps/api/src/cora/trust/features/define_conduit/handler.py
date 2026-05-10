@@ -1,0 +1,131 @@
+"""Application handler for the `define_conduit` slice.
+
+Same shape as `define_zone.handler` — the locked cross-BC create-
+style command pattern. Module-as-namespace: callers use
+`from cora.trust.features import define_conduit` then
+`define_conduit.bind(deps)` returning a `define_conduit.Handler`.
+"""
+
+from typing import Protocol
+from uuid import UUID
+
+from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.logging import get_logger
+from cora.infrastructure.ports import Deny
+from cora.trust.aggregates.conduit import to_new_event
+from cora.trust.errors import UnauthorizedError
+from cora.trust.features.define_conduit.command import DefineConduit
+from cora.trust.features.define_conduit.decider import decide
+
+_STREAM_TYPE = "Conduit"
+_COMMAND_NAME = "DefineConduit"
+_CONDUIT_DEFAULT = "default"
+
+_log = get_logger(__name__)
+
+
+class Handler(Protocol):
+    """Bare define_conduit handler — what `bind()` returns.
+
+    Has no idempotency_key kwarg. The cross-BC `with_idempotency`
+    decorator wraps a bare Handler into an `IdempotentHandler`;
+    production wiring in `wire.py` always wraps. Tests can use bare
+    Handler directly when they don't need idempotency semantics.
+    """
+
+    async def __call__(
+        self,
+        command: DefineConduit,
+        *,
+        principal_id: UUID,
+        correlation_id: UUID,
+        causation_id: UUID | None = None,
+    ) -> UUID: ...
+
+
+class IdempotentHandler(Protocol):
+    """define_conduit handler with Idempotency-Key support."""
+
+    async def __call__(
+        self,
+        command: DefineConduit,
+        *,
+        principal_id: UUID,
+        correlation_id: UUID,
+        causation_id: UUID | None = None,
+        idempotency_key: str | None = None,
+    ) -> UUID: ...
+
+
+def bind(deps: SharedDeps) -> Handler:
+    """Build a define_conduit handler closed over the shared deps."""
+
+    async def handler(
+        command: DefineConduit,
+        *,
+        principal_id: UUID,
+        correlation_id: UUID,
+        causation_id: UUID | None = None,
+    ) -> UUID:
+        _log.info(
+            "define_conduit.start",
+            command_name=_COMMAND_NAME,
+            principal_id=str(principal_id),
+            correlation_id=str(correlation_id),
+            causation_id=str(causation_id) if causation_id is not None else None,
+        )
+
+        decision = await deps.authorize(
+            principal_id=principal_id,
+            command_name=_COMMAND_NAME,
+            conduit=_CONDUIT_DEFAULT,
+        )
+        if isinstance(decision, Deny):
+            _log.info(
+                "define_conduit.denied",
+                command_name=_COMMAND_NAME,
+                principal_id=str(principal_id),
+                correlation_id=str(correlation_id),
+                causation_id=str(causation_id) if causation_id is not None else None,
+                reason=decision.reason,
+            )
+            raise UnauthorizedError(decision.reason)
+
+        new_id = deps.id_generator.new_id()
+        now = deps.clock.now()
+
+        domain_events = decide(
+            state=None,
+            command=command,
+            now=now,
+            new_id=new_id,
+        )
+
+        new_events = [
+            to_new_event(
+                event,
+                event_id=deps.id_generator.new_id(),
+                command_name=_COMMAND_NAME,
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+            )
+            for event in domain_events
+        ]
+        await deps.event_store.append(
+            stream_type=_STREAM_TYPE,
+            stream_id=new_id,
+            expected_version=0,
+            events=new_events,
+        )
+
+        _log.info(
+            "define_conduit.success",
+            command_name=_COMMAND_NAME,
+            conduit_id=str(new_id),
+            correlation_id=str(correlation_id),
+            causation_id=str(causation_id) if causation_id is not None else None,
+            event_count=len(new_events),
+        )
+        return new_id
+
+    return handler
