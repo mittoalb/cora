@@ -197,7 +197,7 @@ Two patterns; each cross-cutting concern uses one or the other:
 
 **Field-name conventions** (so log search is uniform across the codebase):
 - `correlation_id` — always the request correlation id (str-cast UUID)
-- `causation_id` — the id of the upstream event that triggered this command, when there is one. Always emitted (as `null` for HTTP / MCP root calls; as a str-cast UUID when sagas / process managers pass it). Always-emit so log queries for "commands triggered by event X" are uniform across the codebase.
+- `causation_id` — for command handlers only: the id of the upstream event that triggered this command, when there is one. Always emitted in command-handler logs (as `null` for HTTP / MCP root calls; as a str-cast UUID when sagas / process managers pass it). Query handlers do NOT emit this field — queries don't have a causation chain. Always-emit-in-commands so log queries for "commands triggered by event X" are uniform across the codebase.
 - `principal_id` — the calling principal (str-cast UUID)
 - `command_name` / `query_name` — the dataclass name (e.g. "RegisterActor", "GetActor")
 - `actor_id` — the Actor aggregate's id whenever an Actor is in scope (the new actor for register, the target for deactivate/get). One key for one concept.
