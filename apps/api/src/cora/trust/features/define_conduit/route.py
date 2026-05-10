@@ -16,7 +16,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
-from cora.trust._routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
 from cora.trust.aggregates.conduit import CONDUIT_NAME_MAX_LENGTH
 from cora.trust.features.define_conduit.command import DefineConduit
 from cora.trust.features.define_conduit.handler import IdempotentHandler

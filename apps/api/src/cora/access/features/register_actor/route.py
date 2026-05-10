@@ -11,10 +11,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
-from cora.access._routing import ErrorResponse, get_correlation_id, get_principal_id
 from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.handler import IdempotentHandler
+from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
 
 
 class RegisterActorRequest(BaseModel):

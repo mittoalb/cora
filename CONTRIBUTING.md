@@ -85,8 +85,7 @@ Each BC follows this two-axis layout: aggregates own the data shape; features (v
 ```
 cora/<bc>/
 ├── __init__.py             # re-exports public BC surface
-├── _bootstrap.py           # BC-internal constants (e.g. SYSTEM_PRINCIPAL_ID)
-├── _routing.py             # shared route DI helpers (correlation_id, principal_id, ErrorResponse)
+├── _bootstrap.py           # BC-internal constants (re-exports SYSTEM_PRINCIPAL_ID from infra)
 ├── errors.py               # BC-application-layer errors (e.g. UnauthorizedError)
 ├── routes.py               # register_<bc>_routes(app): include slice routers + exception handlers
 ├── tools.py                # register_<bc>_tools(mcp, *, get_handlers)
@@ -184,7 +183,7 @@ These middlewares are wired in `cora/api/main.py:create_app()` and apply to ever
 - **Body size limit** — `BodySizeLimitMiddleware` checks inbound `Content-Length`, returns 413 with `{"detail": str}`. Limit configured via `Settings.max_request_body_size_bytes` (default 1 MiB). Production deployments should ALSO enforce at the reverse proxy (nginx `client_max_body_size`); the application middleware is defense in depth.
 - **Prometheus `/metrics`** — `prometheus-fastapi-instrumentator` with a per-app `CollectorRegistry` (the global REGISTRY would crash on second `TestClient(create_app())` due to duplicate-collector detection). `excluded_handlers=["/metrics"]` keeps the scrape endpoint out of its own counters; `include_in_schema=False` hides it from OpenAPI `/docs`.
 - **OpenTelemetry tracing** — `cora/infrastructure/observability/` wires the SDK. `Settings.otel_exporter` selects the exporter (`none` | `console` | `otlp`); the OTLP path honours the standard `OTEL_EXPORTER_OTLP_*` env vars (we deliberately don't shadow them). `FastAPIInstrumentor` is attached per-app with `excluded_urls="health,metrics,docs,openapi.json,redoc"` so probes + scrape + docs traffic don't flood the exporter. `AsyncPGInstrumentor` runs process-wide. Trace context is the source of truth for "this request" identity: `current_correlation_id()` (in `observability.correlation`) returns `UUID(int=trace_id)` of the active span; routes and MCP tools both use it, so `event.metadata.correlation_id` always matches the distributed trace_id. Handler spans are created via `with_tracing` (composition wrapper applied in `wire.py`) — span name `<bc>.<command|query>.<command_name>`, attributes `cora.bc` + `cora.command` (or `cora.query`). The structlog `add_trace_context` processor injects `trace_id`/`span_id`/`trace_flags` into every log line emitted inside an active span.
-- **Authentication: trust-the-proxy via `X-Principal-Id`** — `cora/<bc>/_routing.py:get_principal_id` extracts the calling principal's UUID from the `X-Principal-Id` header (Pydantic validates the UUID format → 422 on malformed). Header absent → falls back to `SYSTEM_PRINCIPAL_ID` (Phase 1 dev/test fallback). The application TRUSTS the header value — there is no cryptographic verification in the app. **Production deployments MUST front the API with an auth proxy** (Envoy / nginx / Istio / cloud API gateway) that (1) verifies the caller's actual credentials (mTLS / JWT / OAuth / whatever your auth scheme is), (2) strips any client-supplied `X-Principal-Id` headers, and (3) sets `X-Principal-Id` to the verified principal UUID. A deployment without such a proxy effectively runs every request as the verified-or-fallback principal — that's a deployment misconfiguration, not an application bug, but the consequence is real. Pair this with `Settings.trust_authz_policy_id` (3e) so the configured Policy gates which principals can do what. MCP tools currently bypass header extraction (FastMCP doesn't surface request headers to tools cleanly) and use `SYSTEM_PRINCIPAL_ID` directly; a real MCP-side auth flow lands when the MCP spec's auth integration is wired.
+- **Authentication: trust-the-proxy via `X-Principal-Id`** — `cora/infrastructure/routing.py:get_principal_id` extracts the calling principal's UUID from the `X-Principal-Id` header (Pydantic validates the UUID format → 422 on malformed). Header absent → falls back to `SYSTEM_PRINCIPAL_ID` (Phase 1 dev/test fallback). The application TRUSTS the header value — there is no cryptographic verification in the app. **Production deployments MUST front the API with an auth proxy** (Envoy / nginx / Istio / cloud API gateway) that (1) verifies the caller's actual credentials (mTLS / JWT / OAuth / whatever your auth scheme is), (2) strips any client-supplied `X-Principal-Id` headers, and (3) sets `X-Principal-Id` to the verified principal UUID. A deployment without such a proxy effectively runs every request as the verified-or-fallback principal — that's a deployment misconfiguration, not an application bug, but the consequence is real. Pair this with `Settings.trust_authz_policy_id` (3e) so the configured Policy gates which principals can do what. MCP tools currently bypass header extraction (FastMCP doesn't surface request headers to tools cleanly) and use `SYSTEM_PRINCIPAL_ID` directly; a real MCP-side auth flow lands when the MCP spec's auth integration is wired.
 
 **structlog cache nuance:** `cache_logger_on_first_use=True` (in `cora/infrastructure/logging.py`) means subsequent `configure_logging()` calls don't re-bind already-cached loggers. In tests where `build_shared_deps()` runs many times, only the first call's level/handler take effect. Acceptable for our setup (everyone uses INFO + JSONRenderer); breaks if a test tries to change log level mid-process.
 
@@ -247,22 +246,22 @@ Per Vertical Slice guidance, **don't extract until you have three real usages wi
 
 ### BC-level bootstrap constants — `_bootstrap.py`
 
-Constants that every slice surface (REST + MCP + future gRPC / A2A) needs but that aren't slice-specific live in `cora/<bc>/_bootstrap.py`:
+Constants that every slice surface (REST + MCP + future gRPC / A2A) needs but that aren't slice-specific live in `cora/<bc>/_bootstrap.py`. Today the only such constant is `SYSTEM_PRINCIPAL_ID`, and its canonical home is `cora/infrastructure/routing.py`. Each BC's `_bootstrap.py` is a thin re-export:
 
 ```python
 # cora/access/_bootstrap.py
-from uuid import UUID
+from cora.infrastructure.routing import SYSTEM_PRINCIPAL_ID
 
-SYSTEM_PRINCIPAL_ID = UUID("00000000-0000-0000-0000-000000000000")
+__all__ = ["SYSTEM_PRINCIPAL_ID"]
 ```
 
-Both `features/<slice>/route.py` and `features/<slice>/tool.py` import from there:
+MCP tools import from the BC's `_bootstrap.py` (preserves the per-BC naming for distinguishability if a future BC ever wants its own variant):
 
 ```python
 from cora.access._bootstrap import SYSTEM_PRINCIPAL_ID
 ```
 
-The leading underscore signals "BC-internal" — shared across slices but not part of the BC's public surface. Phase 3 (Trust BC) replaces these constants with authenticated-actor lookup; the swap is one edit per BC.
+REST routes pull `SYSTEM_PRINCIPAL_ID` indirectly through `get_principal_id` in `cora.infrastructure.routing`. The leading underscore on `_bootstrap.py` signals "BC-internal" — shared across slices but not part of the BC's public surface.
 
 ### Value objects
 

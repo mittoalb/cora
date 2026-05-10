@@ -30,23 +30,15 @@ from cora.trust.features import (
 )
 
 
-async def _handle_invalid_zone_name(request: Request, exc: Exception) -> JSONResponse:
-    _ = request
-    return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        content={"detail": str(exc)},
-    )
+async def _handle_invalid_name(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 400 handler for every aggregate's `Invalid<Aggregate>NameError`.
 
-
-async def _handle_invalid_conduit_name(request: Request, exc: Exception) -> JSONResponse:
-    _ = request
-    return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        content={"detail": str(exc)},
-    )
-
-
-async def _handle_invalid_policy_name(request: Request, exc: Exception) -> JSONResponse:
+    All three Trust aggregate name VOs raise the same shape of error
+    (whitespace-only / empty / too-long), and all three map to the
+    same HTTP 400 + `{"detail": str}` body. One handler registered
+    against three exception classes — adding a fourth aggregate
+    just appends to the loop in `register_trust_routes`.
+    """
     _ = request
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
@@ -69,7 +61,10 @@ def register_trust_routes(app: FastAPI) -> None:
     app.include_router(define_conduit.router)
     app.include_router(define_policy.router)
     app.include_router(evaluate_policy.router)
-    app.add_exception_handler(InvalidZoneNameError, _handle_invalid_zone_name)
-    app.add_exception_handler(InvalidConduitNameError, _handle_invalid_conduit_name)
-    app.add_exception_handler(InvalidPolicyNameError, _handle_invalid_policy_name)
+    for invalid_name_cls in (
+        InvalidZoneNameError,
+        InvalidConduitNameError,
+        InvalidPolicyNameError,
+    ):
+        app.add_exception_handler(invalid_name_cls, _handle_invalid_name)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

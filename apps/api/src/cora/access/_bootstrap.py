@@ -1,23 +1,16 @@
-"""BC-level bootstrap constants used by both REST and MCP surfaces.
+"""BC-level bootstrap re-exports.
 
-`SYSTEM_PRINCIPAL_ID` is the **fallback** principal used by:
-  - REST routes when the `X-Principal-Id` header is absent (3f)
-  - MCP tools (which don't yet extract a principal from the request;
-    deferred until MCP auth flow integration lands)
+Today this module exists solely to preserve the import path
+`cora.access._bootstrap.SYSTEM_PRINCIPAL_ID` used by Access's MCP
+tools. The constant itself lives at
+`cora.infrastructure.routing.SYSTEM_PRINCIPAL_ID` since the
+post-Phase-3 cleanup hoisted both BCs' identical fallback constants
+to one canonical home.
 
-Phase 1 used this as the only principal under `AllowAllAuthorize`;
-Phase 3f introduced header-based extraction (trust-the-proxy pattern,
-documented in `_routing.py:get_principal_id`). Production deployments
-that don't run behind an auth proxy effectively still operate as the
-system principal — that's a deployment misconfiguration, not an
-application bug.
-
-`SYSTEM_PRINCIPAL_ID` (not `SYSTEM_ACTOR_ID`) because the constant
-identifies the invoker, not an Actor-aggregate id. A principal might
-be a service account, MCP-client cert, etc., and not necessarily map
-to an Actor aggregate.
+Future Access-specific BC-level constants (none today) would land
+here and join the re-exports below.
 """
 
-from uuid import UUID
+from cora.infrastructure.routing import SYSTEM_PRINCIPAL_ID
 
-SYSTEM_PRINCIPAL_ID = UUID("00000000-0000-0000-0000-000000000000")
+__all__ = ["SYSTEM_PRINCIPAL_ID"]

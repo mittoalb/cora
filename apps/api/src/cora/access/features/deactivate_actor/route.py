@@ -19,9 +19,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Request, status
 
-from cora.access._routing import ErrorResponse, get_correlation_id, get_principal_id
 from cora.access.features.deactivate_actor.command import DeactivateActor
 from cora.access.features.deactivate_actor.handler import Handler
+from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
 
 
 def _get_handler(request: Request) -> Handler:

@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, sta
 from pydantic import BaseModel
 
 from cora.infrastructure.ports import Allow, Deny
-from cora.trust._routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
 from cora.trust.features.evaluate_policy.handler import Handler
 from cora.trust.features.evaluate_policy.query import EvaluatePolicy
 

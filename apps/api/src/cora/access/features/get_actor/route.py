@@ -13,10 +13,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from pydantic import BaseModel, Field
 
-from cora.access._routing import ErrorResponse, get_correlation_id, get_principal_id
 from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.get_actor.handler import Handler
 from cora.access.features.get_actor.query import GetActor
+from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
 
 
 class ActorResponse(BaseModel):

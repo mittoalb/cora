@@ -1,22 +1,26 @@
-"""Unit tests for `cora.access._routing.get_principal_id`.
+"""Unit tests for `cora.infrastructure.routing`.
 
 Direct invocation of the FastAPI dependency function; the
 `x_principal_id` parameter is what FastAPI's `Header(...)` machinery
 passes at request time. We test that:
   - Header value (UUID) is returned as-is.
-  - Header absent (None) falls back to SYSTEM_PRINCIPAL_ID.
+  - Header absent (None) falls back to `SYSTEM_PRINCIPAL_ID`.
+  - The function trusts the header value (no actor-existence check).
 
 Pydantic UUID-format validation happens BEFORE this function runs
 (FastAPI's request layer); contract tests cover the malformed-header
 422 path end-to-end.
+
+Replaces the per-BC `tests/unit/<bc>/test_routing.py` files that
+existed pre-cleanup, when each BC owned its own `_routing.py`. Both
+BCs now import the same canonical implementation from infrastructure.
 """
 
 from uuid import UUID, uuid4
 
 import pytest
 
-from cora.access._bootstrap import SYSTEM_PRINCIPAL_ID
-from cora.access._routing import get_principal_id
+from cora.infrastructure.routing import SYSTEM_PRINCIPAL_ID, get_principal_id
 
 
 @pytest.mark.unit
@@ -33,7 +37,7 @@ def test_get_principal_id_falls_back_to_system_when_header_absent() -> None:
 
 
 @pytest.mark.unit
-def test_get_principal_id_does_not_validate_actor_existence() -> None:
+def test_get_principal_id_does_not_validate_principal_existence() -> None:
     """The function trusts the header value as-is (trust-the-proxy
     pattern). It does NOT verify that the UUID corresponds to a
     registered Actor — that's a Trust-BC concern at the Authorize
@@ -41,3 +45,11 @@ def test_get_principal_id_does_not_validate_actor_existence() -> None:
     to do so deliberately at the right layer."""
     arbitrary = UUID("01900000-0000-7000-8000-000000007777")
     assert get_principal_id(x_principal_id=arbitrary) == arbitrary
+
+
+@pytest.mark.unit
+def test_system_principal_id_is_the_well_known_zero_uuid() -> None:
+    """Pin the canonical fallback value. Changing it would silently
+    invalidate every running deployment's Policy entries that
+    reference SYSTEM_PRINCIPAL_ID, so the change must be deliberate."""
+    assert UUID("00000000-0000-0000-0000-000000000000") == SYSTEM_PRINCIPAL_ID

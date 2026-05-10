@@ -11,7 +11,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
-from cora.trust._routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
 from cora.trust.aggregates.zone import ZONE_NAME_MAX_LENGTH
 from cora.trust.features.define_zone.command import DefineZone
 from cora.trust.features.define_zone.handler import IdempotentHandler

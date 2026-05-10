@@ -17,7 +17,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
-from cora.trust._routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
 from cora.trust.aggregates.policy import POLICY_NAME_MAX_LENGTH
 from cora.trust.features.define_policy.command import DefinePolicy
 from cora.trust.features.define_policy.handler import IdempotentHandler

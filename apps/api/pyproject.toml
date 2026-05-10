@@ -74,6 +74,12 @@ ignore = []
 quote-style = "double"
 indent-style = "space"
 
+[tool.ruff.lint.isort]
+# `tests` is a first-party namespace too — without this, ruff groups
+# `from tests.contract._mcp_helpers import ...` with third-party libs
+# rather than with `from cora.* import ...`.
+known-first-party = ["cora", "tests"]
+
 [tool.pyright]
 include = ["src", "tests"]
 pythonVersion = "3.13"

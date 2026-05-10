@@ -8,60 +8,18 @@ The full MCP handshake is required:
     1. POST initialize    -> server returns mcp-session-id header
     2. POST notifications/initialized
     3. POST tools/call    -> the tool invocation
+
+Shared helpers (HEADERS, parse_sse_data, open_session) live in
+`tests/contract/_mcp_helpers.py`.
 """
 
-import json
-from typing import Any
 from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
-
-_HEADERS = {
-    "Accept": "application/json, text/event-stream",
-    "Content-Type": "application/json",
-}
-
-
-def _parse_sse_data(text: str) -> dict[str, Any]:
-    """Pull the JSON object out of an SSE response (the `data:` line)."""
-    for line in text.splitlines():
-        if line.startswith("data:"):
-            payload = line[len("data:") :].strip()
-            return json.loads(payload)
-    msg = f"No SSE data: line in response body: {text!r}"
-    raise AssertionError(msg)
-
-
-def _open_session(client: TestClient) -> dict[str, str]:
-    """Run initialize + notifications/initialized; return headers with session id."""
-    init = client.post(
-        "/mcp",
-        json={
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-06-18",
-                "capabilities": {},
-                "clientInfo": {"name": "contract-test", "version": "0.1"},
-            },
-        },
-        headers=_HEADERS,
-    )
-    assert init.status_code == 200
-    session_id = init.headers["mcp-session-id"]
-
-    headers_with_session = {**_HEADERS, "mcp-session-id": session_id}
-    notif = client.post(
-        "/mcp",
-        json={"jsonrpc": "2.0", "method": "notifications/initialized"},
-        headers=headers_with_session,
-    )
-    assert notif.status_code == 202
-    return headers_with_session
+from tests.contract._mcp_helpers import HEADERS, open_session, parse_sse_data
 
 
 @pytest.mark.contract
@@ -79,25 +37,25 @@ def test_mcp_initialize_returns_server_info() -> None:
                     "clientInfo": {"name": "contract-test", "version": "0.1"},
                 },
             },
-            headers=_HEADERS,
+            headers=HEADERS,
         )
     assert response.status_code == 200
     assert "mcp-session-id" in response.headers
-    body = _parse_sse_data(response.text)
+    body = parse_sse_data(response.text)
     assert body["result"]["serverInfo"]["name"] == "cora"
 
 
 @pytest.mark.contract
 def test_mcp_lists_register_actor_tool() -> None:
     with TestClient(create_app()) as client:
-        session_headers = _open_session(client)
+        session_headers = open_session(client)
         response = client.post(
             "/mcp",
             json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
             headers=session_headers,
         )
     assert response.status_code == 200
-    body = _parse_sse_data(response.text)
+    body = parse_sse_data(response.text)
     tool_names = [t["name"] for t in body["result"]["tools"]]
     assert "register_actor" in tool_names
 
@@ -105,7 +63,7 @@ def test_mcp_lists_register_actor_tool() -> None:
 @pytest.mark.contract
 def test_mcp_register_actor_tool_returns_structured_actor_id() -> None:
     with TestClient(create_app()) as client:
-        session_headers = _open_session(client)
+        session_headers = open_session(client)
         response = client.post(
             "/mcp",
             json={
@@ -120,7 +78,7 @@ def test_mcp_register_actor_tool_returns_structured_actor_id() -> None:
             headers=session_headers,
         )
     assert response.status_code == 200
-    body = _parse_sse_data(response.text)
+    body = parse_sse_data(response.text)
     result = body["result"]
     assert result["isError"] is False
     assert "actor_id" in result["structuredContent"]
@@ -133,7 +91,7 @@ def test_mcp_register_actor_tool_returns_iserror_on_invalid_input() -> None:
     domain VO; FastMCP wraps the raised InvalidActorNameError as
     isError: true with a text diagnostic."""
     with TestClient(create_app()) as client:
-        session_headers = _open_session(client)
+        session_headers = open_session(client)
         response = client.post(
             "/mcp",
             json={
@@ -148,7 +106,7 @@ def test_mcp_register_actor_tool_returns_iserror_on_invalid_input() -> None:
             headers=session_headers,
         )
     assert response.status_code == 200
-    body = _parse_sse_data(response.text)
+    body = parse_sse_data(response.text)
     result = body["result"]
     assert result["isError"] is True
     assert "Actor name" in result["content"][0]["text"]
@@ -158,7 +116,7 @@ def test_mcp_register_actor_tool_returns_iserror_on_invalid_input() -> None:
 def test_mcp_register_actor_tool_rejects_missing_argument() -> None:
     """Missing required `name` argument returns isError from FastMCP's schema validation."""
     with TestClient(create_app()) as client:
-        session_headers = _open_session(client)
+        session_headers = open_session(client)
         response = client.post(
             "/mcp",
             json={
@@ -173,5 +131,5 @@ def test_mcp_register_actor_tool_rejects_missing_argument() -> None:
             headers=session_headers,
         )
     assert response.status_code == 200
-    body = _parse_sse_data(response.text)
+    body = parse_sse_data(response.text)
     assert body["result"]["isError"] is True
