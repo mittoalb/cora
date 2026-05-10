@@ -11,6 +11,7 @@ from collections.abc import Callable
 
 from mcp.server.fastmcp import FastMCP
 
+from cora.subject.features.mount_subject import tool as mount_subject_tool
 from cora.subject.features.register_subject import tool as register_subject_tool
 from cora.subject.wire import SubjectHandlers
 
@@ -24,4 +25,8 @@ def register_subject_tools(
     register_subject_tool.register(
         mcp,
         get_handler=lambda: get_handlers().register_subject,
+    )
+    mount_subject_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().mount_subject,
     )

@@ -7,6 +7,7 @@ state and event types.
 
 from cora.subject.aggregates.subject.events import (
     SubjectEvent,
+    SubjectMounted,
     SubjectRegistered,
     event_type_name,
     from_stored,
@@ -19,7 +20,9 @@ from cora.subject.aggregates.subject.state import (
     InvalidSubjectNameError,
     Subject,
     SubjectAlreadyExistsError,
+    SubjectCannotMountError,
     SubjectName,
+    SubjectNotFoundError,
     SubjectStatus,
 )
 
@@ -28,8 +31,11 @@ __all__ = [
     "InvalidSubjectNameError",
     "Subject",
     "SubjectAlreadyExistsError",
+    "SubjectCannotMountError",
     "SubjectEvent",
+    "SubjectMounted",
     "SubjectName",
+    "SubjectNotFoundError",
     "SubjectRegistered",
     "SubjectStatus",
     "event_type_name",

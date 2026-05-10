@@ -18,19 +18,27 @@ Status lifecycle (the full transitions) lands in 4b-4d as each
 state-transition slice ships. `hazard`, `custody`, `owner`, and the
 in-situ-during-Run substream defer to Phase 4f+.
 
-## Status as enum-in-state, str-in-event
+## Status as enum-in-state, derived-from-event-type-in-evolver
 
-`SubjectStatus` is a `StrEnum` so the values serialize naturally as
-JSON-friendly strings. State holds the enum (typed); event payloads
-hold the string (primitive, per the locked "primitives in events"
-convention). The evolver bridges — when transition events land in
-4b+, they'll write `status: str` in their payload and the evolver
-will fold that into `SubjectStatus(payload["status"])`.
+`SubjectStatus` is a `StrEnum` so the values would serialize naturally
+as JSON-friendly strings IF carried in an event payload. Today they
+aren't: state holds the enum (typed) and the evolver derives the new
+status from the event TYPE (e.g., folding `SubjectMounted` always
+produces `status=MOUNTED`), exactly mirroring the
+`ActorDeactivated -> is_active=False` precedent. The status field
+never appears in an event payload — the event type IS the
+state-change indicator.
 
-In Phase 4a there are no transition events yet — `SubjectRegistered`
-implies `Received` rather than carrying it explicitly. Same additive-
-state pattern as `Actor.is_active`: the field exists in state with
-a default, and future events that change it land additively.
+The StrEnum-in-state, str-in-payload bridge will only fire if a future
+event type genuinely needs to carry an arbitrary status as data (e.g.,
+an admin "set-status" command for backfill). When that lands, the
+evolver folds via `SubjectStatus(payload["status"])` and the bridge
+becomes load-bearing. Until then the bridge is theoretical.
+
+`SubjectRegistered` implies `Received` (genesis state set by the
+evolver). Same additive-state pattern as `Actor.is_active`: the
+field exists in state with a default, and future events that change
+it land additively.
 
 ## In-situ subjects
 
@@ -98,6 +106,35 @@ class SubjectAlreadyExistsError(Exception):
     def __init__(self, subject_id: UUID) -> None:
         super().__init__(f"Subject {subject_id} already exists")
         self.subject_id = subject_id
+
+
+class SubjectNotFoundError(Exception):
+    """Attempted an operation on a subject whose stream has no events."""
+
+    def __init__(self, subject_id: UUID) -> None:
+        super().__init__(f"Subject {subject_id} not found")
+        self.subject_id = subject_id
+
+
+class SubjectCannotMountError(Exception):
+    """Attempted to mount a subject not in the `Received` state.
+
+    The current state is carried as `current_status` for diagnostics.
+    Per-transition error class (matches `ActorAlreadyDeactivatedError`
+    naming) — each Subject transition gets its own
+    `SubjectCannot<X>Error` rather than one generic
+    `SubjectStateTransitionError`. With 7 states and ~6 transitions,
+    per-transition is the right granularity for HTTP error mapping
+    (each maps to 409) and for log-search clarity.
+    """
+
+    def __init__(self, subject_id: UUID, current_status: "SubjectStatus") -> None:
+        super().__init__(
+            f"Subject {subject_id} cannot be mounted: currently in state "
+            f"{current_status.value}, mount requires {SubjectStatus.RECEIVED.value}"
+        )
+        self.subject_id = subject_id
+        self.current_status = current_status
 
 
 @dataclass(frozen=True)

@@ -17,8 +17,12 @@ Cross-cutting decorators applied here mirror Access and Trust
 3. `with_tracing` — OTel span around every handler call. Records
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
-Phase 4a ships only `register_subject`. Future fields (mount, measure,
-remove, dispose, get) land per slice in 4b-4e.
+Phase 4a shipped `register_subject`. Phase 4b adds `mount_subject`
+(first state-transition slice; update-style; not idempotency-wrapped
+because update-style commands are inherently domain-idempotent via
+`SubjectCannotMountError` on retry — see CONTRIBUTING.md). Remaining
+transitions (measure, remove, dispose) land in 4c-4d; the get_subject
+query in 4e.
 """
 
 from dataclasses import dataclass
@@ -27,16 +31,22 @@ from uuid import UUID
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.observability import with_tracing
-from cora.subject.features import register_subject
+from cora.subject.features import mount_subject, register_subject
 
 _BC = "subject"
 
 
 @dataclass(frozen=True)
 class SubjectHandlers:
-    """The Subject BC's handler bundle, each closed over SharedDeps."""
+    """The Subject BC's handler bundle, each closed over SharedDeps.
+
+    Phase 4a shipped `register_subject` (create-style; idempotency-
+    wrapped). Phase 4b adds `mount_subject` (update-style; bare
+    Handler, no idempotency wrap).
+    """
 
     register_subject: register_subject.IdempotentHandler
+    mount_subject: mount_subject.Handler
 
 
 def wire_subject(deps: SharedDeps) -> SubjectHandlers:
@@ -53,6 +63,11 @@ def wire_subject(deps: SharedDeps) -> SubjectHandlers:
                 deserialize_result=UUID,
             ),
             command_name="RegisterSubject",
+            bc=_BC,
+        ),
+        mount_subject=with_tracing(
+            mount_subject.bind(deps),
+            command_name="MountSubject",
             bc=_BC,
         ),
     )
