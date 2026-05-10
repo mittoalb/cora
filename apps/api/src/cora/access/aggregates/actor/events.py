@@ -14,7 +14,8 @@ longer carry their own serializers.
 (`NewEvent`). Lives here, alongside the (de)serialization helpers it
 composes, so every Actor-aggregate slice writes events the same way:
 discriminator from `event_type_name`, payload from `to_payload`,
-metadata from the per-slice command name. Future BCs follow the same
+metadata from the per-slice command name, plus a per-event `event_id`
+(UUIDv7) supplied by the calling handler. Future BCs follow the same
 pattern in their own `aggregates/<aggregate>/events.py`.
 """
 

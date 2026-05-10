@@ -23,7 +23,7 @@ def _make_event(
     payload: dict[str, object] | None = None,
 ) -> NewEvent:
     return NewEvent(
-        event_id=event_id or uuid4(),
+        event_id=event_id if event_id is not None else uuid4(),
         event_type=event_type,
         schema_version=1,
         payload=payload or {"k": "v"},
