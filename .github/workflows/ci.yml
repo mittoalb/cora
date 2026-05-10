@@ -49,7 +49,7 @@ jobs:
         run: uv run pytest
 
   migrations:
-    name: Migrations (atlas hash + lint)
+    name: Migrations (atlas hash + safety scan)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -57,6 +57,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Need full history so we can diff the migration directory
+          # against the merge base in the safety scan.
+          fetch-depth: 0
 
       - name: Install Atlas
         uses: ariga/setup-atlas@v0
@@ -70,5 +74,37 @@ jobs:
             exit 1
           fi
 
-      - name: Lint migrations against dev database
-        run: atlas migrate lint --dev-url "docker://pgvector/pg17/dev" --latest 1
+      # Atlas v0.38+ moved `atlas migrate lint` behind atlas-cloud login.
+      # We deliberately skip that path (no signup, no payment) and run a
+      # narrow grep-based safety scan on net-new migration files instead:
+      # block irreversible / locking-prone DDL on the table-level (DROP
+      # TABLE / DROP COLUMN / TRUNCATE / ALTER COLUMN ... TYPE without
+      # USING). Catches the common foot-guns; doesn't replace a real
+      # planner-aware lint, but does keep the merge gate honest.
+      - name: Safety scan changed migration files
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "No base sha (initial push or detached HEAD); skipping safety scan."
+            exit 0
+          fi
+          changed=$(git diff --name-only --diff-filter=A "$base"...HEAD -- migrations/ | grep '\.sql$' || true)
+          if [ -z "$changed" ]; then
+            echo "No new migration files in this change."
+            exit 0
+          fi
+          echo "Scanning new migrations: $changed"
+          # Patterns we refuse without an explicit `-- atlas:safety:allow=<reason>` opt-out.
+          forbidden='(\bDROP\s+TABLE\b|\bDROP\s+COLUMN\b|\bTRUNCATE\b|\bALTER\s+COLUMN\b.*\bTYPE\b)'
+          violations=0
+          for f in $changed; do
+            grep -i -E "$forbidden" "$f" | grep -v -i 'atlas:safety:allow=' || true
+            if grep -i -E "$forbidden" "$f" | grep -v -q -i 'atlas:safety:allow='; then
+              echo "::error file=$f::Destructive DDL detected in new migration. Add a comment '-- atlas:safety:allow=<reason>' on the same line if intentional." >&2
+              violations=$((violations + 1))
+            fi
+          done
+          if [ "$violations" -gt 0 ]; then
+            exit 1
+          fi
+          echo "Safety scan passed."

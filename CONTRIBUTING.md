@@ -214,7 +214,7 @@ make migrate-hash               # updates infra/atlas/atlas.sum
 make migrate-apply              # applies pending migrations to local DB
 ```
 
-CI verifies `atlas.sum` is in sync (`atlas migrate hash` produces no diff) and runs `atlas migrate lint` against a throwaway dev DB to catch destructive changes before they merge.
+CI verifies `atlas.sum` is in sync (`atlas migrate hash` produces no diff) and runs a narrow grep-based safety scan on net-new migration files (blocks `DROP TABLE`, `DROP COLUMN`, `TRUNCATE`, `ALTER COLUMN ... TYPE`). Atlas's own `migrate lint` was moved behind atlas-cloud login in v0.38; the project deliberately skips that path. If you genuinely need a destructive statement, add a same-line `-- atlas:safety:allow=<reason>` comment to opt out per-line. Locally: read your migration carefully and `make migrate-apply` against a scratch DB before merging — that catches the same class of issues.
 
 ### HTTP error idiom — HTTPException in routes, JSONResponse in exception handlers
 

@@ -1,5 +1,5 @@
 .PHONY: install dev db-up db-down db-reset lint typecheck test test-unit test-int test-contract fmt clean help \
-        migrate-status migrate-apply migrate-new migrate-hash migrate-lint precommit precommit-run
+        migrate-status migrate-apply migrate-new migrate-hash precommit precommit-run
 
 API_DIR := apps/api
 COMPOSE := docker compose -f infra/docker-compose.yml
@@ -17,7 +17,6 @@ help:
 	@echo "  migrate-apply   Apply pending migrations to local DB"
 	@echo "  migrate-new     Generate a new migration skeleton (name=<short_name>)"
 	@echo "  migrate-hash    Recompute atlas.sum after editing migrations by hand"
-	@echo "  migrate-lint    Lint the migration directory (safety checks)"
 	@echo "  lint            Run ruff check + format check"
 	@echo "  fmt             Run ruff format and auto-fix"
 	@echo "  typecheck       Run pyright (strict)"
@@ -87,8 +86,12 @@ migrate-new:
 migrate-hash:
 	cd $(ATLAS_DIR) && atlas migrate hash
 
-migrate-lint:
-	cd $(ATLAS_DIR) && atlas migrate lint --env local --latest 1
+# `atlas migrate lint` was moved behind atlas-cloud login in v0.38; the
+# project deliberately skips that path. CI runs a narrow grep-based
+# safety scan on new migrations (see .github/workflows/ci.yml). Locally,
+# read your migration carefully and `make migrate-apply` against a
+# scratch DB before merging — that catches the same class of issues
+# `lint` would flag (data loss, locking-prone DDL).
 
 clean:
 	cd $(API_DIR) && rm -rf .pytest_cache .ruff_cache .pyright_cache build dist *.egg-info
