@@ -46,9 +46,9 @@ class DenyAllAuthorize:
         self,
         principal_id: UUID,
         command_name: str,
-        conduit: str,
+        conduit_id: UUID,
     ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit)
+        _ = (principal_id, command_name, conduit_id)
         return Deny(reason="denied for test")
 
 

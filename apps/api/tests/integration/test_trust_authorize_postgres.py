@@ -70,10 +70,10 @@ async def test_trust_authorize_gates_via_real_postgres_policy(
     # Now wire TrustAuthorize against that policy and verify it gates.
     authorize = TrustAuthorize(event_store, policy_id=_POLICY_ID)
 
-    allowed = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", "default")
+    allowed = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(allowed, Allow)
 
-    denied = await authorize(_OTHER_PRINCIPAL, "RegisterActor", "default")
+    denied = await authorize(_OTHER_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(denied, Deny)
 
 
@@ -87,6 +87,6 @@ async def test_trust_authorize_denies_when_policy_missing_in_postgres(
     missing_policy_id = UUID("01900000-0000-7000-8000-deadbeef0001")
     authorize = TrustAuthorize(event_store, policy_id=missing_policy_id)
 
-    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", "default")
+    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(result, Deny)
     assert "not found" in result.reason.lower()

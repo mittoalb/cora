@@ -11,10 +11,7 @@ across every BC.
 
 The constructor takes one `policy_id`. Every `__call__(...)` loads
 that policy via `load_policy` (fold-on-read; O(events-per-stream)
-per request) and evaluates against it. The caller's `conduit` string
-parameter is currently a sentinel ("default") from handlers and is
-ignored — the configured policy's own `conduit_id` is what
-`evaluate` checks against.
+per request) and evaluates against it.
 
 This deliberately ships the smallest useful gating wire-up:
 - One policy per deployment (set via `Settings.trust_authz_policy_id`)
@@ -22,9 +19,17 @@ This deliberately ships the smallest useful gating wire-up:
 - No caching (each request hits the event store)
 
 Multi-policy resolution + caching + LISTEN/NOTIFY invalidation land
-in later phases when projection-worker infrastructure exists. The
-port shape (`conduit: str`) also evolves to `conduit_id: UUID` later
-— for now this adapter accepts the string and ignores it.
+in later phases when projection-worker infrastructure exists.
+
+## Conduit semantics (post-3g)
+
+The port shape now passes `conduit_id: UUID` (was `conduit: str` in
+Phase 3e — a sentinel "default" that this adapter ignored). 3g
+typed the parameter; 3g still ignores it at evaluation time — the
+configured policy's `conduit_id` is what evaluate checks against.
+3h will flip this so evaluate receives the caller's `conduit_id`,
+making policies bound to one conduit naturally deny calls on
+another.
 
 ## Bootstrap problem
 
@@ -72,15 +77,14 @@ class TrustAuthorize:
         self,
         principal_id: UUID,
         command_name: str,
-        conduit: str,
+        conduit_id: UUID,
     ) -> AuthzResult:
-        # `conduit` parameter is currently a sentinel from handlers;
-        # the configured policy's `conduit_id` is what `evaluate`
-        # checks against. Keeping the parameter satisfies the port
-        # signature; the unused-import suppression makes that
-        # explicit so a future port-shape change has to deal with
-        # this comment.
-        _ = conduit
+        # 3g typed the port (`conduit: str` -> `conduit_id: UUID`);
+        # 3g still passes `policy.conduit_id` to evaluate so behavior
+        # is unchanged. 3h flips to `conduit_id=conduit_id` (caller's
+        # value) so policies bound to one conduit deny calls on
+        # another via evaluate's existing conduit-mismatch check.
+        _ = conduit_id
 
         policy = await load_policy(self._event_store, self._policy_id)
         if policy is None:

@@ -31,7 +31,7 @@ from cora.subject.errors import UnauthorizedError
 from cora.subject.features.get_subject.query import GetSubject
 
 _QUERY_NAME = "GetSubject"
-_CONDUIT_DEFAULT = "default"
+_CONDUIT_DEFAULT_ID = UUID(int=0)
 
 _log = get_logger(__name__)
 
@@ -68,7 +68,7 @@ def bind(deps: SharedDeps) -> Handler:
         decision = await deps.authorize(
             principal_id=principal_id,
             command_name=_QUERY_NAME,
-            conduit=_CONDUIT_DEFAULT,
+            conduit_id=_CONDUIT_DEFAULT_ID,
         )
         if isinstance(decision, Deny):
             _log.info(

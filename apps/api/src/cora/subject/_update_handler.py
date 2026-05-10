@@ -14,8 +14,11 @@ the decider).
 
   - `_STREAM_TYPE = "Subject"` — the event-store stream type for
     every Subject update.
-  - `_CONDUIT_DEFAULT = "default"` — the conduit kwarg passed to
-    `deps.authorize`. Subject does not yet route by conduit.
+  - `_CONDUIT_DEFAULT_ID = UUID(int=0)` — the conduit_id kwarg
+    passed to `deps.authorize` (nil-UUID sentinel; Subject doesn't
+    yet know its real conduit_id at handler-call time, so all
+    handlers pass the nil sentinel; a future surface-level change
+    will plumb HTTP/MCP-specific conduit_ids in).
   - The aggregate event codec (`from_stored`, `to_payload`,
     `event_type_name`, `fold`) imported from
     `cora.subject.aggregates.subject`.
@@ -95,7 +98,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
 _STREAM_TYPE = "Subject"
-_CONDUIT_DEFAULT = "default"
+_CONDUIT_DEFAULT_ID = UUID(int=0)
 
 
 class _SubjectTargetingCommand(Protocol):
@@ -162,7 +165,7 @@ def make_subject_update_handler(
         decision = await deps.authorize(
             principal_id=principal_id,
             command_name=command_name,
-            conduit=_CONDUIT_DEFAULT,
+            conduit_id=_CONDUIT_DEFAULT_ID,
         )
         if isinstance(decision, Deny):
             log.info(

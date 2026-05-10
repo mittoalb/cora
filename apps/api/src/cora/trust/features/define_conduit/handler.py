@@ -20,7 +20,7 @@ from cora.trust.features.define_conduit.decider import decide
 
 _STREAM_TYPE = "Conduit"
 _COMMAND_NAME = "DefineConduit"
-_CONDUIT_DEFAULT = "default"
+_CONDUIT_DEFAULT_ID = UUID(int=0)
 
 _log = get_logger(__name__)
 
@@ -79,7 +79,7 @@ def bind(deps: SharedDeps) -> Handler:
         decision = await deps.authorize(
             principal_id=principal_id,
             command_name=_COMMAND_NAME,
-            conduit=_CONDUIT_DEFAULT,
+            conduit_id=_CONDUIT_DEFAULT_ID,
         )
         if isinstance(decision, Deny):
             _log.info(

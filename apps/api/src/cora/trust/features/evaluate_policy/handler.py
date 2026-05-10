@@ -33,7 +33,7 @@ from cora.trust.errors import UnauthorizedError
 from cora.trust.features.evaluate_policy.query import EvaluatePolicy
 
 _QUERY_NAME = "EvaluatePolicy"
-_CONDUIT_DEFAULT = "default"
+_CONDUIT_DEFAULT_ID = UUID(int=0)
 
 _log = get_logger(__name__)
 
@@ -70,7 +70,7 @@ def bind(deps: SharedDeps) -> Handler:
         decision = await deps.authorize(
             principal_id=principal_id,
             command_name=_QUERY_NAME,
-            conduit=_CONDUIT_DEFAULT,
+            conduit_id=_CONDUIT_DEFAULT_ID,
         )
         if isinstance(decision, Deny):
             _log.info(

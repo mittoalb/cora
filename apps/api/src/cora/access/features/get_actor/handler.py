@@ -26,7 +26,7 @@ from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 
 _QUERY_NAME = "GetActor"
-_CONDUIT_DEFAULT = "default"
+_CONDUIT_DEFAULT_ID = UUID(int=0)
 
 # structlog loggers are lazy: get_logger() returns a proxy and config is
 # applied at first .info() call. Module-level binding is safe even though
@@ -66,7 +66,7 @@ def bind(deps: SharedDeps) -> Handler:
         decision = await deps.authorize(
             principal_id=principal_id,
             command_name=_QUERY_NAME,
-            conduit=_CONDUIT_DEFAULT,
+            conduit_id=_CONDUIT_DEFAULT_ID,
         )
         if isinstance(decision, Deny):
             _log.info(

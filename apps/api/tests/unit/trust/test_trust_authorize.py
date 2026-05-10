@@ -60,7 +60,7 @@ async def test_returns_allow_when_subject_matches_configured_policy() -> None:
     await _seed_policy(store)
     authorize = TrustAuthorize(store, policy_id=_POLICY_ID)
 
-    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", "default")
+    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(result, Allow)
 
 
@@ -70,7 +70,7 @@ async def test_returns_deny_when_principal_not_permitted() -> None:
     await _seed_policy(store)
     authorize = TrustAuthorize(store, policy_id=_POLICY_ID)
 
-    result = await authorize(_OTHER_PRINCIPAL, "RegisterActor", "default")
+    result = await authorize(_OTHER_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(result, Deny)
     assert "principal" in result.reason.lower()
 
@@ -81,7 +81,7 @@ async def test_returns_deny_when_command_not_permitted() -> None:
     await _seed_policy(store)
     authorize = TrustAuthorize(store, policy_id=_POLICY_ID)
 
-    result = await authorize(_ALLOWED_PRINCIPAL, "DropDatabase", "default")
+    result = await authorize(_ALLOWED_PRINCIPAL, "DropDatabase", UUID(int=0))
     assert isinstance(result, Deny)
     assert "command" in result.reason.lower()
 
@@ -94,26 +94,28 @@ async def test_returns_deny_when_configured_policy_does_not_exist() -> None:
     store = InMemoryEventStore()  # nothing seeded
     authorize = TrustAuthorize(store, policy_id=_POLICY_ID)
 
-    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", "default")
+    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(result, Deny)
     assert "not found" in result.reason.lower()
     assert str(_POLICY_ID) in result.reason
 
 
 @pytest.mark.unit
-async def test_ignores_caller_supplied_conduit_string() -> None:
-    """Phase 3e behavior: the caller's `conduit` string parameter is
-    ignored; the configured policy's own `conduit_id` is what
-    `evaluate` checks. Pin so a future port-shape change to
-    `conduit_id: UUID` has to flip this."""
+async def test_ignores_caller_supplied_conduit_id_in_3g() -> None:
+    """Phase 3g behavior: the caller's `conduit_id` parameter is
+    accepted by the typed port but TrustAuthorize still passes
+    `policy.conduit_id` to evaluate (no behavioral change yet). 3h
+    will flip TrustAuthorize to forward the caller's value, at which
+    point this test must be replaced with a "policy/conduit mismatch
+    denies" test."""
     store = InMemoryEventStore()
     await _seed_policy(store)
     authorize = TrustAuthorize(store, policy_id=_POLICY_ID)
 
     # Caller passes a wildly different conduit string — should not affect outcome.
-    result_default = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", "default")
-    result_other = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", "any-other-conduit-string")
-    result_empty = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", "")
+    result_default = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
+    result_other = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=999))
+    result_empty = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=1))
 
     assert isinstance(result_default, Allow)
     assert isinstance(result_other, Allow)
@@ -136,12 +138,12 @@ async def test_loads_policy_on_each_call_no_caching() -> None:
     await _seed_policy(store)
     authorize = TrustAuthorize(store, policy_id=_POLICY_ID)
 
-    first = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", "default")
+    first = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(first, Allow)
 
     # Drop the policy (white-box: InMemoryEventStore exposes its dict).
     store._streams.pop(("Policy", _POLICY_ID))  # type: ignore[attr-defined]  # pyright: ignore[reportUnknownMemberType]
 
-    second = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", "default")
+    second = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(second, Deny)
     assert "not found" in second.reason.lower()

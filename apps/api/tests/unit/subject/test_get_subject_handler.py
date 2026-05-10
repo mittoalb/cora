@@ -174,15 +174,15 @@ class _RecordingAuthorize:
     """Authorize stub that records every call so tests can assert shape."""
 
     def __init__(self) -> None:
-        self.calls: list[tuple[UUID, str, str]] = []
+        self.calls: list[tuple[UUID, str, UUID]] = []
 
     async def __call__(
         self,
         principal_id: UUID,
         command_name: str,
-        conduit: str,
+        conduit_id: UUID,
     ) -> AuthzResult:
-        self.calls.append((principal_id, command_name, conduit))
+        self.calls.append((principal_id, command_name, conduit_id))
         return Allow()
 
 
@@ -191,9 +191,9 @@ class _DenyAllAuthorize:
         self,
         principal_id: UUID,
         command_name: str,
-        conduit: str,
+        conduit_id: UUID,
     ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit)
+        _ = (principal_id, command_name, conduit_id)
         return Deny(reason="denied for test")
 
 
@@ -219,7 +219,7 @@ async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
         correlation_id=_CORRELATION_ID,
     )
 
-    assert tracking.calls == [(_PRINCIPAL_ID, "GetSubject", "default")]
+    assert tracking.calls == [(_PRINCIPAL_ID, "GetSubject", UUID(int=0))]
 
 
 @pytest.mark.unit
