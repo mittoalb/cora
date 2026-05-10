@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     #   2. POST a permissive policy via /policies; record its id.
     #   3. Restart with this set to that id.
     # See `cora/trust/authorize.py` docstring for the full rationale.
-    trust_authz_policy_id: UUID | None = None
+    trust_policy_id: UUID | None = None
 
     @field_validator("database_url")
     @classmethod

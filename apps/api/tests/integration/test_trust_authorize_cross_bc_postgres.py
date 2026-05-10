@@ -305,9 +305,9 @@ async def test_documented_bootstrap_workflow_produces_working_authz(
     """Pin the bootstrap workflow documented in
     `cora/trust/authorize.py`'s docstring:
 
-        1. Start with `trust_authz_policy_id` unset (AllowAllAuthorize).
+        1. Start with `trust_policy_id` unset (AllowAllAuthorize).
         2. Define a permissive policy via the API; record the id.
-        3. Restart with `trust_authz_policy_id` = that id.
+        3. Restart with `trust_policy_id` = that id.
 
     This test walks through every step against real Postgres to prove
     the documented escape hatch from the chicken-and-egg actually

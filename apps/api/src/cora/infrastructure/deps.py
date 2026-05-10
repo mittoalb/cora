@@ -71,7 +71,7 @@ async def build_shared_deps() -> tuple[SharedDeps, Teardown]:
 def _build_authorize(settings: Settings, event_store: EventStore) -> Authorize:
     """Choose the Authorize adapter based on Settings.
 
-    `trust_authz_policy_id` unset (None) → `AllowAllAuthorize` (Phase 1
+    `trust_policy_id` unset (None) → `AllowAllAuthorize` (Phase 1
     permissive default; matches dev/test). Set → `TrustAuthorize` gates
     every command through that single Policy aggregate. See
     `cora/trust/authorize.py` for the bootstrap workflow when first
@@ -84,11 +84,11 @@ def _build_authorize(settings: Settings, event_store: EventStore) -> Authorize:
     `SharedDeps` into a separate module would also fix it but is a
     bigger refactor; the lazy import is local to one function.
     """
-    if settings.trust_authz_policy_id is None:
+    if settings.trust_policy_id is None:
         return AllowAllAuthorize()
     from cora.trust.authorize import TrustAuthorize
 
-    return TrustAuthorize(event_store, policy_id=settings.trust_authz_policy_id)
+    return TrustAuthorize(event_store, policy_id=settings.trust_policy_id)
 
 
 async def _build_stores(

@@ -212,7 +212,7 @@ async def test_trust_authorize_denies_handler_call_when_command_not_permitted(
 async def test_trust_authorize_fails_closed_when_configured_policy_missing(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Misconfigured deployment: `trust_authz_policy_id` points at a
+    """Misconfigured deployment: `trust_policy_id` points at a
     policy that doesn't exist in the event store. TrustAuthorize
     returns Deny (fail-closed; documented in its docstring), and the
     handler chain surfaces it as `UnauthorizedError`. Pinned because

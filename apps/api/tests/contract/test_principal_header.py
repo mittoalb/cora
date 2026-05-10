@@ -144,7 +144,7 @@ def trust_authorize_app(
     conduit_id = UUID(int=0)
 
     monkeypatch.setenv("APP_ENV", "test")
-    monkeypatch.setenv("TRUST_AUTHZ_POLICY_ID", str(policy_id))
+    monkeypatch.setenv("TRUST_POLICY_ID", str(policy_id))
 
     client = TestClient(create_app())
     client.__enter__()  # start lifespan; app.state.deps now populated

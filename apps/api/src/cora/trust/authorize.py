@@ -14,7 +14,7 @@ that policy via `load_policy` (fold-on-read; O(events-per-stream)
 per request) and evaluates against it.
 
 This deliberately ships the smallest useful gating wire-up:
-- One policy per deployment (set via `Settings.trust_authz_policy_id`)
+- One policy per deployment (set via `Settings.trust_policy_id`)
 - No projection / cross-stream resolution
 - No caching (each request hits the event store)
 
@@ -29,7 +29,7 @@ the caller's `conduit_id` to `evaluate`, which means a policy bound
 to one conduit naturally denies calls on another via evaluate's
 existing conduit-mismatch check.
 
-Operational consequence: deployments wire `Settings.trust_authz_policy_id`
+Operational consequence: deployments wire `Settings.trust_policy_id`
 to a Policy whose `conduit_id` matches what handlers pass. Today
 every handler passes `UUID(int=0)` (nil sentinel; surface-level
 conduit injection is the next step), so the gating policy must use
@@ -43,9 +43,9 @@ picks which conduit to gate first, others fall through to deny).
 If the configured policy doesn't permit `DefinePolicy`, you can't
 define new policies through the API. Deployment workflow:
 
-    1. Start with `trust_authz_policy_id` unset (AllowAllAuthorize).
+    1. Start with `trust_policy_id` unset (AllowAllAuthorize).
     2. `POST /policies` with a permissive policy; record the id.
-    3. Restart with `trust_authz_policy_id` = that id.
+    3. Restart with `trust_policy_id` = that id.
 
 A "system bootstrap policy" auto-defined via migration would close
 this gap; deferred until modify_policy + status lifecycle land.
