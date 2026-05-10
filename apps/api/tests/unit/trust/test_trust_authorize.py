@@ -22,7 +22,10 @@ from cora.trust.authorize import TrustAuthorize
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _POLICY_ID = UUID("01900000-0000-7000-8000-000000000601")
-_CONDUIT_ID = UUID("01900000-0000-7000-8000-00000000aaaa")
+# Post-3h: handlers pass `UUID(int=0)` (nil sentinel) as conduit_id by
+# default; the gating policy must use the same conduit_id to match.
+_CONDUIT_ID = UUID(int=0)
+_OTHER_CONDUIT_ID = UUID("01900000-0000-7000-8000-00000000aaaa")
 _ALLOWED_PRINCIPAL = UUID("01900000-0000-7000-8000-000000000a01")
 _OTHER_PRINCIPAL = UUID("01900000-0000-7000-8000-000000000a02")
 
@@ -101,25 +104,36 @@ async def test_returns_deny_when_configured_policy_does_not_exist() -> None:
 
 
 @pytest.mark.unit
-async def test_ignores_caller_supplied_conduit_id_in_3g() -> None:
-    """Phase 3g behavior: the caller's `conduit_id` parameter is
-    accepted by the typed port but TrustAuthorize still passes
-    `policy.conduit_id` to evaluate (no behavioral change yet). 3h
-    will flip TrustAuthorize to forward the caller's value, at which
-    point this test must be replaced with a "policy/conduit mismatch
-    denies" test."""
+async def test_denies_when_caller_conduit_id_does_not_match_policy() -> None:
+    """Phase 3h behavior: TrustAuthorize forwards the caller's
+    `conduit_id` to `evaluate`, so a policy bound to one conduit
+    denies calls on another. Pinned because this is the whole point
+    of 3h — without it the conduit_id parameter on the port shape
+    would be cosmetic. (3g had it ignored; 3g's no-op test was
+    replaced by this one.)
+    """
     store = InMemoryEventStore()
-    await _seed_policy(store)
+    # Policy governs `_OTHER_CONDUIT_ID`, NOT the nil conduit handlers
+    # currently pass.
+    await _seed_policy(store, conduit_id=_OTHER_CONDUIT_ID)
     authorize = TrustAuthorize(store, policy_id=_POLICY_ID)
 
-    # Caller passes a wildly different conduit string — should not affect outcome.
-    result_default = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
-    result_other = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=999))
-    result_empty = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=1))
+    # Caller passes the nil conduit_id → mismatch → Deny even though
+    # principal + command are permitted.
+    denied_nil = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
+    assert isinstance(denied_nil, Deny)
+    assert "conduit" in denied_nil.reason.lower()
 
-    assert isinstance(result_default, Allow)
-    assert isinstance(result_other, Allow)
-    assert isinstance(result_empty, Allow)
+    # Caller passes a third, unrelated conduit_id → also Deny.
+    third_conduit = UUID("01900000-0000-7000-8000-00000000bbbb")
+    denied_other = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", third_conduit)
+    assert isinstance(denied_other, Deny)
+    assert "conduit" in denied_other.reason.lower()
+
+    # Caller passes the policy's own conduit_id → Allow (sanity check
+    # that conduit-matching is what gates, not some other invariant).
+    allowed = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", _OTHER_CONDUIT_ID)
+    assert isinstance(allowed, Allow)
 
 
 @pytest.mark.unit

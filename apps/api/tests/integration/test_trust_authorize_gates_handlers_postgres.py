@@ -50,7 +50,8 @@ from cora.trust.features.define_policy import DefinePolicy
 from cora.trust.features.define_zone import DefineZone
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
-_CONDUIT_ID = UUID("01900000-0000-7000-8000-00000000a001")
+# Post-3h: handlers pass nil conduit_id; gating policy matches.
+_CONDUIT_ID = UUID(int=0)
 _PERMITTED_PRINCIPAL = UUID("01900000-0000-7000-8000-000000000a01")
 _OTHER_PRINCIPAL = UUID("01900000-0000-7000-8000-000000000a02")
 _BOOTSTRAP_PRINCIPAL = UUID("01900000-0000-7000-8000-000000000099")
@@ -230,3 +231,52 @@ async def test_trust_authorize_fails_closed_when_configured_policy_missing(
             correlation_id=_CORRELATION_ID,
         )
     assert "not found" in exc_info.value.reason.lower()
+
+
+@pytest.mark.integration
+async def test_trust_authorize_denies_when_policy_conduit_does_not_match_handler_conduit(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """3h behavior: a Policy bound to one `conduit_id` denies calls
+    that arrive with a different `conduit_id`. End-to-end pin (Phase
+    A is wire_trust composition; the unit-level mismatch test in
+    `test_trust_authorize.py` covers the adapter directly). Pinned
+    because conduit-routing is the WHOLE point of 3h — without this,
+    the typed conduit_id parameter would be cosmetic.
+
+    Setup: seed a policy bound to a NON-nil conduit_id, then call
+    define_zone via the wire chain. The handler passes nil
+    (`UUID(int=0)`, today's default), which evaluate rejects on
+    conduit-mismatch.
+    """
+    policy_id = UUID("01900000-0000-7000-8000-0000000b4001")
+    policy_event_id = UUID("01900000-0000-7000-8000-0000000b40e1")
+    spare_id_1 = UUID("01900000-0000-7000-8000-0000000b4002")
+    spare_id_2 = UUID("01900000-0000-7000-8000-0000000b40e2")
+    other_conduit_id = UUID("01900000-0000-7000-8000-0000000b40c0")
+
+    # Note: this test SEEDs with a non-nil conduit_id (overriding the
+    # module-level _CONDUIT_ID = nil) to exercise the mismatch path.
+    bootstrap = _bootstrap_deps(db_pool, ids=[policy_id, policy_event_id])
+    await define_policy.bind(bootstrap)(
+        DefinePolicy(
+            name="GateA-OtherConduit",
+            conduit_id=other_conduit_id,
+            permitted_principals=frozenset({_PERMITTED_PRINCIPAL}),
+            permitted_commands=frozenset({"DefineZone"}),
+        ),
+        principal_id=_BOOTSTRAP_PRINCIPAL,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    gated = _gated_deps(db_pool, policy_id=policy_id, ids=[spare_id_1, spare_id_2])
+    handlers = wire_trust(gated)
+
+    with pytest.raises(UnauthorizedError) as exc_info:
+        await handlers.define_zone(
+            DefineZone(name="GateA-MismatchZone"),
+            # Permitted principal AND command — only conduit mismatches.
+            principal_id=_PERMITTED_PRINCIPAL,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert "conduit" in exc_info.value.reason.lower()

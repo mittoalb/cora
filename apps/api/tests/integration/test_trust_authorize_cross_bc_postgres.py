@@ -44,7 +44,8 @@ from cora.trust.features import define_policy
 from cora.trust.features.define_policy import DefinePolicy
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
-_CONDUIT_ID = UUID("01900000-0000-7000-8000-00000000c001")
+# Post-3h: handlers pass nil conduit_id; gating policy matches.
+_CONDUIT_ID = UUID(int=0)
 _PERMITTED_PRINCIPAL = UUID("01900000-0000-7000-8000-00000000c0a1")
 _OTHER_PRINCIPAL = UUID("01900000-0000-7000-8000-00000000c0a2")
 _BOOTSTRAP_PRINCIPAL = UUID("01900000-0000-7000-8000-00000000c099")

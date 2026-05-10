@@ -21,15 +21,22 @@ This deliberately ships the smallest useful gating wire-up:
 Multi-policy resolution + caching + LISTEN/NOTIFY invalidation land
 in later phases when projection-worker infrastructure exists.
 
-## Conduit semantics (post-3g)
+## Conduit semantics (post-3h)
 
-The port shape now passes `conduit_id: UUID` (was `conduit: str` in
-Phase 3e — a sentinel "default" that this adapter ignored). 3g
-typed the parameter; 3g still ignores it at evaluation time — the
-configured policy's `conduit_id` is what evaluate checks against.
-3h will flip this so evaluate receives the caller's `conduit_id`,
-making policies bound to one conduit naturally deny calls on
-another.
+The port passes `conduit_id: UUID` (was `conduit: str` in Phase 3e —
+3g typed the parameter, 3h activates it). TrustAuthorize forwards
+the caller's `conduit_id` to `evaluate`, which means a policy bound
+to one conduit naturally denies calls on another via evaluate's
+existing conduit-mismatch check.
+
+Operational consequence: deployments wire `Settings.trust_authz_policy_id`
+to a Policy whose `conduit_id` matches what handlers pass. Today
+every handler passes `UUID(int=0)` (nil sentinel; surface-level
+conduit injection is the next step), so the gating policy must use
+`conduit_id=UUID(int=0)`. Once HTTP / MCP / A2A surfaces start
+injecting their own conduit_ids, deployments will define one Policy
+per conduit (single-policy-per-deployment shape stays; the operator
+picks which conduit to gate first, others fall through to deny).
 
 ## Bootstrap problem
 
@@ -79,13 +86,6 @@ class TrustAuthorize:
         command_name: str,
         conduit_id: UUID,
     ) -> AuthzResult:
-        # 3g typed the port (`conduit: str` -> `conduit_id: UUID`);
-        # 3g still passes `policy.conduit_id` to evaluate so behavior
-        # is unchanged. 3h flips to `conduit_id=conduit_id` (caller's
-        # value) so policies bound to one conduit deny calls on
-        # another via evaluate's existing conduit-mismatch check.
-        _ = conduit_id
-
         policy = await load_policy(self._event_store, self._policy_id)
         if policy is None:
             _log.warning(
@@ -93,6 +93,7 @@ class TrustAuthorize:
                 policy_id=str(self._policy_id),
                 principal_id=str(principal_id),
                 command_name=command_name,
+                conduit_id=str(conduit_id),
             )
             return Deny(
                 reason=(
@@ -100,11 +101,15 @@ class TrustAuthorize:
                 )
             )
 
+        # 3h: forward caller's conduit_id (was policy.conduit_id in
+        # Phase 3e). evaluate's conduit-mismatch check now meaningfully
+        # gates calls — a policy bound to one conduit denies calls on
+        # another instead of being evaluated as if it were governing.
         result = evaluate(
             policy,
             principal_id=principal_id,
             command_name=command_name,
-            conduit_id=policy.conduit_id,
+            conduit_id=conduit_id,
         )
         if isinstance(result, Allow):
             _log.info(

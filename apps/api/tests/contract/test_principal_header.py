@@ -139,7 +139,9 @@ def trust_authorize_app(
     """
     policy_id = UUID("01900000-0000-7000-8000-00000000700f")
     allowed_principal = UUID("01900000-0000-7000-8000-000000000a01")
-    conduit_id = UUID("01900000-0000-7000-8000-00000000aaaa")
+    # Post-3h: handlers pass nil conduit_id by default; the gating
+    # policy must use the same conduit_id to match.
+    conduit_id = UUID(int=0)
 
     monkeypatch.setenv("APP_ENV", "test")
     monkeypatch.setenv("TRUST_AUTHZ_POLICY_ID", str(policy_id))
