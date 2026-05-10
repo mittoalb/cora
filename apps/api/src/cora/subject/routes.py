@@ -26,6 +26,7 @@ from fastapi.responses import JSONResponse
 
 from cora.subject.aggregates.subject import (
     InvalidSubjectNameError,
+    SubjectAlreadyExistsError,
     SubjectCannotDiscardError,
     SubjectCannotMeasureError,
     SubjectCannotMountError,
@@ -72,6 +73,20 @@ async def _handle_subject_not_found(request: Request, exc: Exception) -> JSONRes
     )
 
 
+async def _handle_subject_already_exists(request: Request, exc: Exception) -> JSONResponse:
+    """Defensive guard: register_subject's decider raises this if the
+    target stream already has events. In production with UUIDv7 ids
+    this is essentially impossible, but the unmapped raise would
+    surface as 500 instead of a clean 409 — this handler closes that
+    gap.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+
 async def _handle_subject_cannot_transition(request: Request, exc: Exception) -> JSONResponse:
     """Shared 409 handler for every `SubjectCannot<X>Error`.
 
@@ -100,6 +115,7 @@ def register_subject_routes(app: FastAPI) -> None:
     app.include_router(get_subject.router)
     app.add_exception_handler(InvalidSubjectNameError, _handle_invalid_subject_name)
     app.add_exception_handler(SubjectNotFoundError, _handle_subject_not_found)
+    app.add_exception_handler(SubjectAlreadyExistsError, _handle_subject_already_exists)
     for cannot_transition_cls in (
         SubjectCannotMountError,
         SubjectCannotMeasureError,

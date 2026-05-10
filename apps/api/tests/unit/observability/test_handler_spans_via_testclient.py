@@ -55,3 +55,31 @@ def test_get_actor_emits_query_span(spans: InMemorySpanExporter) -> None:
     assert span.attributes is not None
     assert span.attributes.get("cora.bc") == "access"
     assert span.attributes.get("cora.query") == "GetActor"
+
+
+@pytest.mark.unit
+def test_get_subject_emits_query_span(spans: InMemorySpanExporter) -> None:
+    """GET /subjects/{id} → one `subject.query.GetSubject` span finishes.
+
+    Pinned because earlier wiring omitted `kind="query"`, leaving the
+    Subject query misclassified as a command in OTel telemetry.
+    Mirrors the equivalent `get_actor` assertion above; both queries
+    must use `cora.query` (not `cora.command`) for trace-side filtering
+    to work uniformly across BCs.
+    """
+    with TestClient(create_app()) as client:
+        created = client.post("/subjects", json={"name": "Sample-A1"}).json()
+        subject_id = created["subject_id"]
+        spans.clear()
+
+        response = client.get(f"/subjects/{subject_id}")
+
+    assert response.status_code == 200
+    finished = spans.get_finished_spans()
+    query_spans = [s for s in finished if s.name == "subject.query.GetSubject"]
+    assert len(query_spans) == 1
+    span = query_spans[0]
+    assert span.attributes is not None
+    assert span.attributes.get("cora.bc") == "subject"
+    assert span.attributes.get("cora.query") == "GetSubject"
+    assert "cora.command" not in span.attributes

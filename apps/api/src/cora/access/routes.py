@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 
 from cora.access.aggregates.actor import (
     ActorAlreadyDeactivatedError,
+    ActorAlreadyExistsError,
     ActorNotFoundError,
     InvalidActorNameError,
 )
@@ -55,6 +56,19 @@ async def _handle_already_deactivated(request: Request, exc: Exception) -> JSONR
     )
 
 
+async def _handle_actor_already_exists(request: Request, exc: Exception) -> JSONResponse:
+    """Defensive guard: register_actor's decider raises this if the target
+    stream already has events. In production with UUIDv7 ids this is
+    essentially impossible, but the unmapped raise would surface as 500
+    instead of a clean 409 — this handler closes that gap.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+
 async def _handle_concurrency_conflict(request: Request, exc: Exception) -> JSONResponse:
     """Optimistic-concurrency loser. The caller can retry with a fresh load."""
     _ = request
@@ -82,5 +96,6 @@ def register_access_routes(app: FastAPI) -> None:
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
     app.add_exception_handler(ActorNotFoundError, _handle_actor_not_found)
     app.add_exception_handler(ActorAlreadyDeactivatedError, _handle_already_deactivated)
+    app.add_exception_handler(ActorAlreadyExistsError, _handle_actor_already_exists)
     app.add_exception_handler(ConcurrencyError, _handle_concurrency_conflict)
     app.add_exception_handler(IdempotencyConflictError, _handle_idempotency_conflict)

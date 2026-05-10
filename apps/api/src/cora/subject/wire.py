@@ -122,5 +122,6 @@ def wire_subject(deps: SharedDeps) -> SubjectHandlers:
             get_subject.bind(deps),
             command_name="GetSubject",
             bc=_BC,
+            kind="query",
         ),
     )

@@ -137,6 +137,7 @@ def bind(deps: SharedDeps) -> Handler:
             "define_zone.success",
             command_name=_COMMAND_NAME,
             zone_id=str(new_id),
+            principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             causation_id=str(causation_id) if causation_id is not None else None,
             event_count=len(new_events),

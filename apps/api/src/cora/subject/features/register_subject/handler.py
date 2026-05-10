@@ -6,10 +6,11 @@ Module-as-namespace: callers use `from cora.subject.features import
 register_subject` then `register_subject.bind(deps)` returning a
 `register_subject.Handler`.
 
-Phase 4a is the fifth instance of this template body. The post-3
-review deferred extracting it because all four prior instances were
-create-style; with `mount_subject` (4b) we'll get our second update-
-style command and finally have variety to evaluate the extraction.
+The update-style template was extracted in 4d-cleanup (see
+`cora.subject._update_handler`); the create-style template across
+the 5 byte-identical `register_*` / `define_*` handlers is the
+next cross-BC extraction candidate, parked pending a separate
+focused refactor.
 """
 
 from typing import Protocol
@@ -135,6 +136,7 @@ def bind(deps: SharedDeps) -> Handler:
             "register_subject.success",
             command_name=_COMMAND_NAME,
             subject_id=str(new_id),
+            principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             causation_id=str(causation_id) if causation_id is not None else None,
             event_count=len(new_events),
