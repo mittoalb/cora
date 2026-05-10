@@ -106,11 +106,18 @@ def create_app() -> FastAPI:
             try:
                 yield
             finally:
-                await teardown()
-                # Flush pending OTel spans before the process exits so
-                # short-lived runs (CLI invocations, smoke tests) don't
-                # drop traces. No-op when tracing is off.
-                tracing_teardown()
+                # Independent try/finally for each teardown so an
+                # exception in the asyncpg pool close (rare but
+                # observed under DB-side connection drops at shutdown)
+                # doesn't skip the tracing flush. Without this, any
+                # spans buffered by BatchSpanProcessor would be lost.
+                try:
+                    await teardown()
+                finally:
+                    # Flush pending OTel spans before the process exits
+                    # so short-lived runs (CLI invocations, smoke tests)
+                    # don't drop traces. No-op when tracing is off.
+                    tracing_teardown()
 
     fastapi_app = FastAPI(
         title="CORA",
