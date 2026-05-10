@@ -1,10 +1,18 @@
-"""Cross-cutting idempotency decorator for Access command handlers.
+"""Cross-cutting idempotency decorator for command handlers.
 
 `with_idempotency(handler, store, *, command_name, serialize_result,
 deserialize_result)` returns a wrapped handler with Idempotency-Key
-support. The wrap is applied in `wire.py` so every command handler
-gets idempotency through one composition point — slices stay focused
-on domain logic.
+support. The wrap is applied in each BC's `wire.py` so every create-
+style command handler gets idempotency through one composition point;
+slices stay focused on domain logic.
+
+Lives at `cora/infrastructure/` (not in any single BC) because it
+applies uniformly to every BC's command handlers and depends only on
+the IdempotencyStore port + the cross-BC handler-call convention
+(`(command, *, principal_id, correlation_id, causation_id) -> TResult`).
+The Access BC was the first consumer; Trust is the second; the file
+moved out of `cora/access/` when the second consumer landed, per the
+BC-2-trigger note in CONTRIBUTING.md.
 
 Single-phase semantics (Phase 2d MVP): on each call with a key, look
 up the cache; if hit and the command hash matches, return the cached

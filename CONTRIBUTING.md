@@ -86,7 +86,6 @@ Each BC follows this two-axis layout: aggregates own the data shape; features (v
 cora/<bc>/
 ├── __init__.py             # re-exports public BC surface
 ├── _bootstrap.py           # BC-internal constants (e.g. SYSTEM_PRINCIPAL_ID)
-├── _idempotency.py         # cross-cutting decorator for command handlers (BC-internal)
 ├── _routing.py             # shared route DI helpers (correlation_id, principal_id, ErrorResponse)
 ├── errors.py               # BC-application-layer errors (e.g. UnauthorizedError)
 ├── routes.py               # register_<bc>_routes(app): include slice routers + exception handlers
@@ -154,7 +153,7 @@ Query handlers DO call `authorize` (with AllowAllAuthorize the call is a no-op t
 
 ### Idempotency-Key — cross-cutting decorator
 
-CORA implements the [IETF `Idempotency-Key`](https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-idempotency-key-header-07) header pattern (Stripe / Adyen / PayPal style). The wrap is applied at `wire.py` so slices stay focused on domain logic.
+CORA implements the [IETF `Idempotency-Key`](https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-idempotency-key-header-07) header pattern (Stripe / Adyen / PayPal style). The decorator lives at `cora/infrastructure/idempotency.py` (cross-BC; extracted from `cora/access/` when Trust became the second consumer); the wrap is applied at each BC's `wire.py` so slices stay focused on domain logic.
 
 **Apply to:** create-style commands (server generates the aggregate id; retries would otherwise create duplicates). Update-style commands are inherently idempotent at the domain level (second call hits an already-X-Error); apply only when cached-success-on-retry semantics are needed.
 

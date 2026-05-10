@@ -2,7 +2,7 @@
 
 Implements the IETF `Idempotency-Key` header pattern (Stripe / Adyen /
 PayPal style). The application-layer decorator
-`cora.access._idempotency.with_idempotency` wraps a command handler:
+`cora.infrastructure.idempotency.with_idempotency` wraps a command handler:
 on retry with the same key, the cached result is returned without
 re-executing the command.
 

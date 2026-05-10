@@ -48,6 +48,12 @@ from cora.api.middleware import BodySizeLimitMiddleware
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import build_shared_deps
 from cora.infrastructure.observability import configure_tracing, instrument_app
+from cora.trust import (
+    TrustHandlers,
+    register_trust_routes,
+    register_trust_tools,
+    wire_trust,
+)
 
 
 def _settings_for_app() -> Settings:
@@ -92,7 +98,12 @@ def create_app() -> FastAPI:
         handlers: AccessHandlers = fastapi_app.state.access
         return handlers
 
+    def _get_trust_handlers() -> TrustHandlers:
+        handlers: TrustHandlers = fastapi_app.state.trust
+        return handlers
+
     register_access_tools(mcp, get_handlers=_get_access_handlers)
+    register_trust_tools(mcp, get_handlers=_get_trust_handlers)
     mcp_app = mcp.streamable_http_app()
 
     @asynccontextmanager
@@ -103,6 +114,7 @@ def create_app() -> FastAPI:
             deps, teardown = await build_shared_deps()
             app.state.deps = deps
             app.state.access = wire_access(deps)
+            app.state.trust = wire_trust(deps)
             try:
                 yield
             finally:
@@ -148,6 +160,7 @@ def create_app() -> FastAPI:
     # ones registered below. No-op when tracing is off.
     instrument_app(fastapi_app, settings)
     register_access_routes(fastapi_app)
+    register_trust_routes(fastapi_app)
     fastapi_app.mount("/mcp", mcp_app)
 
     @fastapi_app.get("/health")

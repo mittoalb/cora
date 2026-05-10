@@ -1,4 +1,4 @@
-"""Unit tests for `cora.access._idempotency` (the decorator + hash helper)."""
+"""Unit tests for `cora.infrastructure.idempotency` (the decorator + hash helper)."""
 
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
 # The bare handler factory is typed via a `# type: ignore` cast at the
@@ -11,7 +11,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.access._idempotency import hash_command, with_idempotency
+from cora.infrastructure.idempotency import hash_command, with_idempotency
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import IdempotencyConflictError
 

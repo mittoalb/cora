@@ -48,10 +48,10 @@ class Handler(Protocol):
     """Bare register_actor handler — what `bind()` returns.
 
     Has no idempotency_key kwarg. The cross-BC `with_idempotency`
-    decorator (in `cora.access._idempotency`) wraps a bare Handler
-    into an `IdempotentHandler`; production wiring in `wire.py` always
-    wraps. Tests can use bare Handler directly when they don't need
-    idempotency semantics.
+    decorator (in `cora.infrastructure.idempotency`) wraps a bare
+    Handler into an `IdempotentHandler`; production wiring in
+    `wire.py` always wraps. Tests can use bare Handler directly when
+    they don't need idempotency semantics.
 
     `causation_id` is the id of the event/message that triggered this
     command, when there is one (the standard correlation/causation

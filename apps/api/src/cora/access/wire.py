@@ -11,8 +11,8 @@ innermost first):
 
 1. `bind(deps)` — bare handler.
 2. `with_idempotency` (create-style commands only) — Idempotency-Key
-   support (`cora.access._idempotency`). Wrapped before tracing so
-   cache-hits and cache-misses both attribute to the tracing span.
+   support (`cora.infrastructure.idempotency`). Wrapped before tracing
+   so cache-hits and cache-misses both attribute to the tracing span.
 3. `with_tracing` — OTel span around every handler call. Records
    `cora.bc`, `cora.command` / `cora.query` attributes; on exception
    sets span status ERROR and records the exception.
@@ -26,9 +26,9 @@ no state mutation.
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.access._idempotency import with_idempotency
 from cora.access.features import deactivate_actor, get_actor, register_actor
 from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.observability import with_tracing
 
 _BC = "access"
