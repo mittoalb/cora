@@ -83,6 +83,7 @@ def bind(deps: SharedDeps) -> Handler:
             actor_id=str(command.actor_id),
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
+            causation_id=str(causation_id) if causation_id else None,
         )
 
         decision = await deps.authorize(
@@ -97,6 +98,7 @@ def bind(deps: SharedDeps) -> Handler:
                 actor_id=str(command.actor_id),
                 principal_id=str(principal_id),
                 correlation_id=str(correlation_id),
+                causation_id=str(causation_id) if causation_id else None,
                 reason=decision.reason,
             )
             raise UnauthorizedError(decision.reason)
@@ -134,6 +136,7 @@ def bind(deps: SharedDeps) -> Handler:
             actor_id=str(command.actor_id),
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
+            causation_id=str(causation_id) if causation_id else None,
             event_count=len(new_events),
             new_version=current_version + len(new_events),
         )

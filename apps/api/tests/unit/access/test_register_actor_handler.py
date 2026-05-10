@@ -227,3 +227,28 @@ async def test_wired_handler_is_invokable() -> None:
         correlation_id=_CORRELATION_ID,
     )
     assert result == _NEW_ID
+
+
+@pytest.mark.unit
+async def test_wired_handler_propagates_causation_id_through_full_composition() -> None:
+    """End-to-end check that causation_id survives the
+    `with_tracing(with_idempotency(bare))` composition chain in wire.py.
+
+    The bare-handler test above (`test_handler_propagates_causation_id_to_appended_event`)
+    doesn't exercise the wrappers; this one does, so a regression in
+    either decorator's kwarg forwarding would land here.
+    """
+    causation = UUID("01900000-0000-7000-8000-0000000000bb")
+    store = InMemoryEventStore()
+    deps = _build_deps(event_store=store)
+    handlers = wire_access(deps)
+
+    await handlers.register_actor(
+        RegisterActor(name="Doga"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+        causation_id=causation,
+    )
+
+    events, _ = await store.load("Actor", _NEW_ID)
+    assert events[0].causation_id == causation
