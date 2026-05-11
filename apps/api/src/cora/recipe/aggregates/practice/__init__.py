@@ -7,7 +7,9 @@ state and event types.
 
 from cora.recipe.aggregates.practice.events import (
     PracticeDefined,
+    PracticeDeprecated,
     PracticeEvent,
+    PracticeVersioned,
     event_type_name,
     from_stored,
     to_payload,
@@ -16,9 +18,13 @@ from cora.recipe.aggregates.practice.evolver import evolve, fold
 from cora.recipe.aggregates.practice.read import load_practice
 from cora.recipe.aggregates.practice.state import (
     PRACTICE_NAME_MAX_LENGTH,
+    PRACTICE_VERSION_TAG_MAX_LENGTH,
     InvalidPracticeNameError,
+    InvalidPracticeVersionTagError,
     Practice,
     PracticeAlreadyExistsError,
+    PracticeCannotDeprecateError,
+    PracticeCannotVersionError,
     PracticeName,
     PracticeNotFoundError,
     PracticeStatus,
@@ -26,14 +32,20 @@ from cora.recipe.aggregates.practice.state import (
 
 __all__ = [
     "PRACTICE_NAME_MAX_LENGTH",
+    "PRACTICE_VERSION_TAG_MAX_LENGTH",
     "InvalidPracticeNameError",
+    "InvalidPracticeVersionTagError",
     "Practice",
     "PracticeAlreadyExistsError",
+    "PracticeCannotDeprecateError",
+    "PracticeCannotVersionError",
     "PracticeDefined",
+    "PracticeDeprecated",
     "PracticeEvent",
     "PracticeName",
     "PracticeNotFoundError",
     "PracticeStatus",
+    "PracticeVersioned",
     "event_type_name",
     "evolve",
     "fold",

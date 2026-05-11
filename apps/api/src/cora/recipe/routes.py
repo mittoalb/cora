@@ -39,7 +39,10 @@ from cora.recipe.aggregates.method import (
 )
 from cora.recipe.aggregates.practice import (
     InvalidPracticeNameError,
+    InvalidPracticeVersionTagError,
     PracticeAlreadyExistsError,
+    PracticeCannotDeprecateError,
+    PracticeCannotVersionError,
     PracticeNotFoundError,
 )
 from cora.recipe.errors import UnauthorizedError
@@ -47,9 +50,11 @@ from cora.recipe.features import (
     define_method,
     define_practice,
     deprecate_method,
+    deprecate_practice,
     get_method,
     get_practice,
     version_method,
+    version_practice,
 )
 
 
@@ -117,10 +122,13 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(deprecate_method.router)
     app.include_router(define_practice.router)
     app.include_router(get_practice.router)
+    app.include_router(version_practice.router)
+    app.include_router(deprecate_practice.router)
     for validation_cls in (
         InvalidMethodNameError,
         InvalidMethodVersionTagError,
         InvalidPracticeNameError,
+        InvalidPracticeVersionTagError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (MethodNotFoundError, PracticeNotFoundError):
@@ -130,6 +138,8 @@ def register_recipe_routes(app: FastAPI) -> None:
     for cannot_transition_cls in (
         MethodCannotVersionError,
         MethodCannotDeprecateError,
+        PracticeCannotVersionError,
+        PracticeCannotDeprecateError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

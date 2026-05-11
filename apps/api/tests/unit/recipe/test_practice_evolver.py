@@ -12,7 +12,11 @@ from cora.recipe.aggregates.practice import (
     evolve,
     fold,
 )
-from cora.recipe.aggregates.practice.events import PracticeDefined
+from cora.recipe.aggregates.practice.events import (
+    PracticeDefined,
+    PracticeDeprecated,
+    PracticeVersioned,
+)
 from cora.recipe.features import define_practice
 from cora.recipe.features.define_practice import DefinePractice
 
@@ -111,3 +115,174 @@ def test_decider_and_evolver_round_trip() -> None:
         site_id=site_id,
         status=PracticeStatus.DEFINED,
     )
+
+
+# ---------- PracticeVersioned (Phase 6d-2) ----------
+
+
+@pytest.mark.unit
+def test_evolve_practice_versioned_flips_status_and_sets_version() -> None:
+    practice_id = uuid4()
+    method_id = uuid4()
+    site_id = uuid4()
+    defined = Practice(
+        id=practice_id,
+        name=PracticeName("APS Standard Tomography"),
+        method_id=method_id,
+        site_id=site_id,
+        status=PracticeStatus.DEFINED,
+    )
+    versioned = evolve(
+        defined,
+        PracticeVersioned(practice_id=practice_id, version_tag="v2", occurred_at=_NOW),
+    )
+    assert versioned.status is PracticeStatus.VERSIONED
+    assert versioned.current_version == "v2"
+    # Cross-aggregate refs preserved.
+    assert versioned.method_id == method_id
+    assert versioned.site_id == site_id
+    assert versioned.id == practice_id
+
+
+@pytest.mark.unit
+def test_evolve_practice_versioned_replaces_prior_version_tag() -> None:
+    practice_id = uuid4()
+    versioned_v1 = Practice(
+        id=practice_id,
+        name=PracticeName("X"),
+        method_id=uuid4(),
+        site_id=uuid4(),
+        status=PracticeStatus.VERSIONED,
+        current_version="v1",
+    )
+    versioned_v2 = evolve(
+        versioned_v1,
+        PracticeVersioned(practice_id=practice_id, version_tag="v2", occurred_at=_NOW),
+    )
+    assert versioned_v2.current_version == "v2"
+
+
+@pytest.mark.unit
+def test_evolve_practice_versioned_on_empty_state_raises() -> None:
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(
+            None,
+            PracticeVersioned(practice_id=uuid4(), version_tag="v1", occurred_at=_NOW),
+        )
+
+
+# ---------- PracticeDeprecated (Phase 6d-2) ----------
+
+
+@pytest.mark.unit
+def test_evolve_practice_deprecated_flips_status_and_preserves_version() -> None:
+    """current_version preserved across deprecation. Mirrors Method
+    and Capability shape."""
+    practice_id = uuid4()
+    method_id = uuid4()
+    site_id = uuid4()
+    versioned = Practice(
+        id=practice_id,
+        name=PracticeName("X"),
+        method_id=method_id,
+        site_id=site_id,
+        status=PracticeStatus.VERSIONED,
+        current_version="v3",
+    )
+    deprecated = evolve(
+        versioned,
+        PracticeDeprecated(practice_id=practice_id, occurred_at=_NOW),
+    )
+    assert deprecated.status is PracticeStatus.DEPRECATED
+    assert deprecated.current_version == "v3"
+    # Cross-aggregate refs preserved across deprecation.
+    assert deprecated.method_id == method_id
+    assert deprecated.site_id == site_id
+
+
+@pytest.mark.unit
+def test_evolve_practice_deprecated_from_defined_preserves_null_current_version() -> None:
+    defined = Practice(
+        id=uuid4(),
+        name=PracticeName("X"),
+        method_id=uuid4(),
+        site_id=uuid4(),
+        status=PracticeStatus.DEFINED,
+    )
+    deprecated = evolve(
+        defined,
+        PracticeDeprecated(practice_id=defined.id, occurred_at=_NOW),
+    )
+    assert deprecated.status is PracticeStatus.DEPRECATED
+    assert deprecated.current_version is None
+
+
+@pytest.mark.unit
+def test_evolve_practice_deprecated_on_empty_state_raises() -> None:
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(None, PracticeDeprecated(practice_id=uuid4(), occurred_at=_NOW))
+
+
+@pytest.mark.unit
+def test_fold_define_version_yields_versioned_practice() -> None:
+    practice_id = uuid4()
+    state = fold(
+        [
+            PracticeDefined(
+                practice_id=practice_id,
+                name="X",
+                method_id=uuid4(),
+                site_id=uuid4(),
+                occurred_at=_NOW,
+            ),
+            PracticeVersioned(practice_id=practice_id, version_tag="v2", occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.status is PracticeStatus.VERSIONED
+    assert state.current_version == "v2"
+
+
+@pytest.mark.unit
+def test_fold_define_version_deprecate_preserves_version() -> None:
+    """Full lifecycle audit: define → version → deprecate keeps the
+    last version_tag as a historical record on the deprecated state."""
+    practice_id = uuid4()
+    state = fold(
+        [
+            PracticeDefined(
+                practice_id=practice_id,
+                name="X",
+                method_id=uuid4(),
+                site_id=uuid4(),
+                occurred_at=_NOW,
+            ),
+            PracticeVersioned(practice_id=practice_id, version_tag="v2", occurred_at=_NOW),
+            PracticeDeprecated(practice_id=practice_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.status is PracticeStatus.DEPRECATED
+    assert state.current_version == "v2"
+
+
+@pytest.mark.unit
+def test_evolve_practice_versioned_preserves_method_and_site_refs() -> None:
+    """Critical pin: method_id and site_id MUST carry through the
+    version transition. Same safety-net pattern as Method's evolver
+    preserve tests."""
+    method_id = uuid4()
+    site_id = uuid4()
+    defined = Practice(
+        id=uuid4(),
+        name=PracticeName("X"),
+        method_id=method_id,
+        site_id=site_id,
+        status=PracticeStatus.DEFINED,
+    )
+    versioned = evolve(
+        defined,
+        PracticeVersioned(practice_id=defined.id, version_tag="v2", occurred_at=_NOW),
+    )
+    assert versioned.method_id == method_id
+    assert versioned.site_id == site_id

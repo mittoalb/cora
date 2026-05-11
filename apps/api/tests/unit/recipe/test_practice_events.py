@@ -8,6 +8,8 @@ import pytest
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.recipe.aggregates.practice.events import (
     PracticeDefined,
+    PracticeDeprecated,
+    PracticeVersioned,
     event_type_name,
     from_stored,
     to_payload,
@@ -116,3 +118,88 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
     stored = _stored("MethodDefined", {})
     with pytest.raises(ValueError, match="Unknown PracticeEvent event_type"):
         from_stored(stored)
+
+
+# ---------- PracticeVersioned (Phase 6d-2) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_practice_versioned_class_name() -> None:
+    event = PracticeVersioned(practice_id=uuid4(), version_tag="v2", occurred_at=_NOW)
+    assert event_type_name(event) == "PracticeVersioned"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_practice_versioned_with_version_tag() -> None:
+    practice_id = uuid4()
+    event = PracticeVersioned(practice_id=practice_id, version_tag="2026-Q3", occurred_at=_NOW)
+    assert to_payload(event) == {
+        "practice_id": str(practice_id),
+        "version_tag": "2026-Q3",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_practice_versioned() -> None:
+    practice_id = uuid4()
+    stored = _stored(
+        "PracticeVersioned",
+        {
+            "practice_id": str(practice_id),
+            "version_tag": "v2",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == PracticeVersioned(practice_id=practice_id, version_tag="v2", occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_practice_versioned() -> None:
+    original = PracticeVersioned(practice_id=uuid4(), version_tag="v3", occurred_at=_NOW)
+    stored = _stored("PracticeVersioned", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- PracticeDeprecated (Phase 6d-2) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_practice_deprecated_class_name() -> None:
+    event = PracticeDeprecated(practice_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "PracticeDeprecated"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_practice_deprecated_to_primitives() -> None:
+    """Status NOT in payload — event TYPE encodes the state change."""
+    practice_id = uuid4()
+    event = PracticeDeprecated(practice_id=practice_id, occurred_at=_NOW)
+    payload = to_payload(event)
+    assert payload == {
+        "practice_id": str(practice_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+    assert "status" not in payload
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_practice_deprecated() -> None:
+    practice_id = uuid4()
+    stored = _stored(
+        "PracticeDeprecated",
+        {
+            "practice_id": str(practice_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == PracticeDeprecated(practice_id=practice_id, occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_practice_deprecated() -> None:
+    original = PracticeDeprecated(practice_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("PracticeDeprecated", to_payload(original))
+    assert from_stored(stored) == original

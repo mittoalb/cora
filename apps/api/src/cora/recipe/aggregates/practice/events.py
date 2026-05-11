@@ -5,10 +5,12 @@ union, `event_type_name`, `to_payload`, `from_stored`. The
 persistence-envelope construction (`NewEvent`) lives at
 `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 6d-1 ships `PracticeDefined`. Phase 6d-2 adds
+Phase 6d-1 shipped `PracticeDefined`. Phase 6d-2 adds
 `PracticeVersioned` and `PracticeDeprecated` per the
-`Defined → Versioned → Deprecated` lifecycle. Mirrors Method's
-transition shape (Recipe 6b) and Capability's (Equipment 5f-2).
+`Defined → Versioned → Deprecated` lifecycle. PracticeVersioned
+carries an operator-supplied `version_tag`. PracticeDeprecated
+carries no extra fields. Mirrors Method's transition shape (Recipe
+6b) and Capability's (Equipment 5f-2).
 
 ## Payload conventions
 
@@ -47,10 +49,46 @@ class PracticeDefined:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class PracticeVersioned:
+    """A practice's facility adaptation was revised; a new version label was issued.
+
+    Multi-source transition: `Defined | Versioned -> Versioned`. The
+    evolver sets status=VERSIONED and updates state.current_version
+    to the new tag. The decider's source-state guard enforces that
+    Deprecated practices can't be re-versioned.
+
+    `version_tag` is operator-supplied free text (1-50 chars,
+    validated at API boundary AND in the decider). Same precedent
+    as MethodVersioned / CapabilityVersioned.
+    """
+
+    practice_id: UUID
+    version_tag: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class PracticeDeprecated:
+    """A practice was marked as no longer recommended for new Plans.
+
+    Multi-source transition: `Defined | Versioned -> Deprecated`. The
+    evolver sets status=DEPRECATED; current_version is preserved
+    (the historical label of when the practice was last revised
+    before deprecation remains visible).
+
+    Existing Plans that reference this Practice are NOT automatically
+    invalidated. Deprecation is advisory; future Plan-side enrichment
+    may surface a warning at bind-time when referencing a deprecated
+    Practice.
+    """
+
+    practice_id: UUID
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Practice aggregate emits.
-# Add new event classes above and extend this alias when new slices
-# land (6d-2: PracticeVersioned, PracticeDeprecated).
-PracticeEvent = PracticeDefined
+PracticeEvent = PracticeDefined | PracticeVersioned | PracticeDeprecated
 
 
 def event_type_name(event: PracticeEvent) -> str:
@@ -78,6 +116,21 @@ def to_payload(event: PracticeEvent) -> dict[str, Any]:
                 "site_id": str(site_id),
                 "occurred_at": occurred_at.isoformat(),
             }
+        case PracticeVersioned(
+            practice_id=practice_id,
+            version_tag=version_tag,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "practice_id": str(practice_id),
+                "version_tag": version_tag,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case PracticeDeprecated(practice_id=practice_id, occurred_at=occurred_at):
+            return {
+                "practice_id": str(practice_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -99,6 +152,17 @@ def from_stored(stored: StoredEvent) -> PracticeEvent:
                 site_id=UUID(payload["site_id"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "PracticeVersioned":
+            return PracticeVersioned(
+                practice_id=UUID(payload["practice_id"]),
+                version_tag=payload["version_tag"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "PracticeDeprecated":
+            return PracticeDeprecated(
+                practice_id=UUID(payload["practice_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown PracticeEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -106,7 +170,9 @@ def from_stored(stored: StoredEvent) -> PracticeEvent:
 
 __all__ = [
     "PracticeDefined",
+    "PracticeDeprecated",
     "PracticeEvent",
+    "PracticeVersioned",
     "event_type_name",
     "from_stored",
     "to_payload",

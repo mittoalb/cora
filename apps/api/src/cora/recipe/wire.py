@@ -34,9 +34,11 @@ from cora.recipe.features import (
     define_method,
     define_practice,
     deprecate_method,
+    deprecate_practice,
     get_method,
     get_practice,
     version_method,
+    version_practice,
 )
 
 _BC = "recipe"
@@ -57,6 +59,8 @@ class RecipeHandlers:
     deprecate_method: deprecate_method.Handler
     define_practice: define_practice.IdempotentHandler
     get_practice: get_practice.Handler
+    version_practice: version_practice.Handler
+    deprecate_practice: deprecate_practice.Handler
 
 
 def wire_recipe(deps: SharedDeps) -> RecipeHandlers:
@@ -107,5 +111,15 @@ def wire_recipe(deps: SharedDeps) -> RecipeHandlers:
             command_name="GetPractice",
             bc=_BC,
             kind="query",
+        ),
+        version_practice=with_tracing(
+            version_practice.bind(deps),
+            command_name="VersionPractice",
+            bc=_BC,
+        ),
+        deprecate_practice=with_tracing(
+            deprecate_practice.bind(deps),
+            command_name="DeprecatePractice",
+            bc=_BC,
         ),
     )

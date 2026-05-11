@@ -74,6 +74,7 @@ from enum import StrEnum
 from uuid import UUID
 
 PRACTICE_NAME_MAX_LENGTH = 200
+PRACTICE_VERSION_TAG_MAX_LENGTH = 50
 
 
 class PracticeStatus(StrEnum):
@@ -120,6 +121,67 @@ class PracticeNotFoundError(Exception):
     def __init__(self, practice_id: UUID) -> None:
         super().__init__(f"Practice {practice_id} not found")
         self.practice_id = practice_id
+
+
+class PracticeCannotVersionError(Exception):
+    """Attempted to version a practice not in `Defined` or `Versioned`.
+
+    Multi-source guard: `version_practice` accepts both `Defined`
+    (first revision) and `Versioned` (subsequent revisions). Only
+    `Deprecated` is rejected. Same divergence from strict-not-
+    idempotent as version_method / version_capability:
+    re-versioning with the same tag succeeds (re-attestation is a
+    legitimate audit moment).
+
+    Per-transition error class — same naming convention as
+    `MethodCannotVersionError` (Recipe 6b) and
+    `CapabilityCannotVersionError` (Equipment 5f-2).
+    """
+
+    def __init__(self, practice_id: UUID, current_status: "PracticeStatus") -> None:
+        super().__init__(
+            f"Practice {practice_id} cannot be versioned: currently in status "
+            f"{current_status.value}, version requires "
+            f"{PracticeStatus.DEFINED.value} or {PracticeStatus.VERSIONED.value}"
+        )
+        self.practice_id = practice_id
+        self.current_status = current_status
+
+
+class PracticeCannotDeprecateError(Exception):
+    """Attempted to deprecate a practice not in `Defined` or `Versioned`.
+
+    Multi-source guard. Re-deprecating an already-`Deprecated`
+    practice raises (strict-not-idempotent). Mirrors
+    MethodCannotDeprecateError shape.
+    """
+
+    def __init__(self, practice_id: UUID, current_status: "PracticeStatus") -> None:
+        super().__init__(
+            f"Practice {practice_id} cannot be deprecated: currently in status "
+            f"{current_status.value}, deprecate requires "
+            f"{PracticeStatus.DEFINED.value} or {PracticeStatus.VERSIONED.value}"
+        )
+        self.practice_id = practice_id
+        self.current_status = current_status
+
+
+class InvalidPracticeVersionTagError(ValueError):
+    """The supplied version tag is empty, whitespace-only, or too long.
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the decider via this error so direct in-process
+    callers (sagas, tests) get the same protection. Same precedent as
+    InvalidMethodVersionTagError (Recipe 6b) and
+    InvalidCapabilityVersionTagError (Equipment 5f-2).
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Practice version tag must be 1-{PRACTICE_VERSION_TAG_MAX_LENGTH} "
+            f"chars after trimming (got: {value!r})"
+        )
+        self.value = value
 
 
 @dataclass(frozen=True)

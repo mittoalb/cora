@@ -4,13 +4,28 @@ Mirror of the other aggregate evolvers. The terminal `assert_never`
 case forces pyright (and the runtime) to error if a new event type
 is added to `PracticeEvent` without a matching match arm here.
 
-Status mapping per event type (6d-1 only ships the genesis event;
-6d-2 adds the transitions):
-  - `PracticeDefined` -> DEFINED  (genesis; current_version=None)
+Status mapping per event type:
+  - `PracticeDefined`    -> DEFINED   (genesis; current_version=None)
+  - `PracticeVersioned`  -> VERSIONED (current_version=event.version_tag;
+                                        multi-source: Defined | Versioned)
+  - `PracticeDeprecated` -> DEPRECATED (current_version preserved;
+                                        multi-source: Defined | Versioned)
 
-The mapping is hardcoded per match arm — the event type IS the
-state-change indicator (no status field in event payloads). Same
-precedent as MethodDefined / CapabilityDefined / SubjectMounted.
+Mirrors Method's transition evolver shape (Recipe 6b) and
+Capability's (Equipment 5f-2). `current_version` is mutated by
+PracticeVersioned and PRESERVED by PracticeDeprecated as the audit
+signal of the last revision before deprecation.
+
+**Critical invariant**: every transition arm MUST carry
+`method_id`, `site_id`, AND `current_version` through from prior
+state. Constructing `Practice(id=..., name=..., status=...)`
+without explicitly passing the carry-through fields would silently
+change them. The transition arms explicitly pass each.
+
+Transition events applied to empty state raise ValueError: they can
+never appear before `PracticeDefined` in a well-formed stream. The
+`_require_state` helper keeps per-arm bodies short (precedent
+locked by Subject's evolver in 4c).
 """
 
 from collections.abc import Sequence
@@ -18,13 +33,23 @@ from typing import assert_never
 
 from cora.recipe.aggregates.practice.events import (
     PracticeDefined,
+    PracticeDeprecated,
     PracticeEvent,
+    PracticeVersioned,
 )
 from cora.recipe.aggregates.practice.state import (
     Practice,
     PracticeName,
     PracticeStatus,
 )
+
+
+def _require_state(state: Practice | None, event_type: str) -> Practice:
+    """Transition events require prior state; empty stream is corruption."""
+    if state is None:
+        msg = f"{event_type} cannot be applied to empty state"
+        raise ValueError(msg)
+    return state
 
 
 def evolve(state: Practice | None, event: PracticeEvent) -> Practice:
@@ -44,6 +69,27 @@ def evolve(state: Practice | None, event: PracticeEvent) -> Practice:
                 site_id=site_id,
                 status=PracticeStatus.DEFINED,
                 # current_version defaults to None.
+            )
+        case PracticeVersioned(version_tag=version_tag):
+            prior = _require_state(state, "PracticeVersioned")
+            return Practice(
+                id=prior.id,
+                name=prior.name,
+                method_id=prior.method_id,
+                site_id=prior.site_id,
+                status=PracticeStatus.VERSIONED,
+                current_version=version_tag,
+            )
+        case PracticeDeprecated():
+            prior = _require_state(state, "PracticeDeprecated")
+            return Practice(
+                id=prior.id,
+                name=prior.name,
+                method_id=prior.method_id,
+                site_id=prior.site_id,
+                status=PracticeStatus.DEPRECATED,
+                # current_version preserved across deprecation.
+                current_version=prior.current_version,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
