@@ -157,3 +157,28 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
     first = version_capability.decide(state=state, command=command, now=_NOW)
     second = version_capability.decide(state=state, command=command, now=_NOW)
     assert first == second
+
+
+@pytest.mark.unit
+def test_decide_allows_versioning_with_same_tag_for_re_attestation() -> None:
+    """Deliberate divergence from strict-not-idempotent: calling
+    version_capability with a tag that already matches
+    state.current_version succeeds rather than raising. Re-attestation
+    is a legitimate audit moment ("the operator confirmed v2 again on
+    date X"); the multi-source Versioned → Versioned transition
+    already permits the operation structurally, and tightening would
+    couple the decider to history-walking (which the eventual-
+    consistency stance avoids). See decider docstring for the design
+    rationale."""
+    state = _capability(
+        status=CapabilityStatus.VERSIONED,
+        current_version="v2",
+    )
+    events = version_capability.decide(
+        state=state,
+        command=VersionCapability(capability_id=state.id, version_tag="v2"),
+        now=_NOW,
+    )
+    assert events == [
+        CapabilityVersioned(capability_id=state.id, version_tag="v2", occurred_at=_NOW)
+    ]

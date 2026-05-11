@@ -9,6 +9,20 @@ decommission_asset). The decider validates `version_tag` defensively
 via `InvalidCapabilityVersionTagError` so direct in-process callers
 get the same protection as API-boundary callers.
 
+## Deliberate divergence from strict-not-idempotent
+
+Most update-style transitions in the codebase are strict-not-
+idempotent: re-mounting / re-activating / re-decommissioning raises.
+Version_capability is the EXCEPTION — calling
+`version_capability("v2")` twice in a row both succeed, producing
+two `CapabilityVersioned` events with the same tag. This is
+intentional: re-attestation is a legitimate audit moment ("the
+operator confirmed v2 again on date X"), and the multi-source
+Versioned → Versioned transition already permits the operation
+structurally. Tightening to "must use a different tag" would couple
+the decider to history-walking, which the eventual-consistency
+stance avoids. Pinned by `test_decide_allows_versioning_with_same_tag_for_re_attestation`.
+
 Invariants:
   - State must not be None -> CapabilityNotFoundError
   - command.version_tag must be 1-50 chars after trimming
