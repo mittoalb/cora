@@ -13,12 +13,18 @@ errors registered by Access (the first BC that boots). They produce
 the same JSON shape regardless of which BC raised them, so Subject
 does not re-register them.
 
-Phase 4b-d ship a growing family of `SubjectCannot<X>Error` classes
-(one per transition: Mount, Measure, Remove, Return, Store, Discard).
-All six map to the same HTTP 409 + `{"detail": str}` body, so we
-collapse them via the Trust-style loop pattern
-(`_handle_subject_cannot_transition` registered against the full
-tuple). Adding a future transition is one extra entry in the tuple.
+## Loop-collapse pattern (cross-BC normalization)
+
+Each error family that maps to one HTTP status code with the same
+`{"detail": str(exc)}` body shares one generic handler, registered
+against a tuple of error classes via a loop. Adding a new error in
+a family is one tuple entry — no new handler function. Mirrors
+Equipment / Access; all 4 BCs follow the same shape post-5b cleanup.
+
+The `Cannot<Verb>Error` family for Subject's transition-state
+guards (Mount/Measure/Remove/Return/Store/Discard) is the largest
+loop in the codebase (6 classes); adding a future transition is one
+extra tuple entry.
 """
 
 from fastapi import FastAPI, Request, status
@@ -48,7 +54,8 @@ from cora.subject.features import (
 )
 
 
-async def _handle_invalid_subject_name(request: Request, exc: Exception) -> JSONResponse:
+async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 400 handler for every domain validation error (Invalid<X>...)."""
     _ = request
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
@@ -65,7 +72,8 @@ async def _handle_unauthorized(request: Request, exc: Exception) -> JSONResponse
     )
 
 
-async def _handle_subject_not_found(request: Request, exc: Exception) -> JSONResponse:
+async def _handle_not_found(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 404 handler for every aggregate's NotFoundError."""
     _ = request
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
@@ -73,12 +81,13 @@ async def _handle_subject_not_found(request: Request, exc: Exception) -> JSONRes
     )
 
 
-async def _handle_subject_already_exists(request: Request, exc: Exception) -> JSONResponse:
-    """Defensive guard: register_subject's decider raises this if the
-    target stream already has events. In production with UUIDv7 ids
-    this is essentially impossible, but the unmapped raise would
-    surface as 500 instead of a clean 409 — this handler closes that
-    gap.
+async def _handle_already_exists(request: Request, exc: Exception) -> JSONResponse:
+    """Defensive 409 handler for every aggregate's AlreadyExistsError.
+
+    The decider raises these if the target stream already has events.
+    In production with UUIDv7 ids this is essentially impossible, but
+    the unmapped raise would surface as 500 instead of a clean 409 —
+    this handler closes that gap.
     """
     _ = request
     return JSONResponse(
@@ -87,14 +96,13 @@ async def _handle_subject_already_exists(request: Request, exc: Exception) -> JS
     )
 
 
-async def _handle_subject_cannot_transition(request: Request, exc: Exception) -> JSONResponse:
-    """Shared 409 handler for every `SubjectCannot<X>Error`.
+async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 409 handler for every state-transition guard.
 
-    All transition-state-mismatch errors map to the same HTTP 409 +
-    `{"detail": str(exc)}` body. One handler registered against
-    multiple exception classes via a loop in `register_subject_routes`
-    — adding a new transition is one extra entry in the tuple.
-    Mirrors Trust BC's `_handle_invalid_name` collapse pattern.
+    Covers Subject's full `SubjectCannot<Verb>Error` family (Mount,
+    Measure, Remove, Return, Store, Discard). All transition-state-
+    mismatch errors map to the same HTTP 409 + `{"detail": str(exc)}`
+    body. Adding a new transition is one extra entry in the tuple.
     """
     _ = request
     return JSONResponse(
@@ -113,9 +121,12 @@ def register_subject_routes(app: FastAPI) -> None:
     app.include_router(store_subject.router)
     app.include_router(discard_subject.router)
     app.include_router(get_subject.router)
-    app.add_exception_handler(InvalidSubjectNameError, _handle_invalid_subject_name)
-    app.add_exception_handler(SubjectNotFoundError, _handle_subject_not_found)
-    app.add_exception_handler(SubjectAlreadyExistsError, _handle_subject_already_exists)
+    for validation_cls in (InvalidSubjectNameError,):
+        app.add_exception_handler(validation_cls, _handle_validation_error)
+    for not_found_cls in (SubjectNotFoundError,):
+        app.add_exception_handler(not_found_cls, _handle_not_found)
+    for already_exists_cls in (SubjectAlreadyExistsError,):
+        app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
         SubjectCannotMountError,
         SubjectCannotMeasureError,
@@ -124,5 +135,5 @@ def register_subject_routes(app: FastAPI) -> None:
         SubjectCannotStoreError,
         SubjectCannotDiscardError,
     ):
-        app.add_exception_handler(cannot_transition_cls, _handle_subject_cannot_transition)
+        app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
