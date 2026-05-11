@@ -13,6 +13,7 @@ from mcp.server.fastmcp import FastMCP
 
 from cora.equipment.features.define_capability import tool as define_capability_tool
 from cora.equipment.features.get_capability import tool as get_capability_tool
+from cora.equipment.features.register_asset import tool as register_asset_tool
 from cora.equipment.wire import EquipmentHandlers
 
 
@@ -29,4 +30,8 @@ def register_equipment_tools(
     get_capability_tool.register(
         mcp,
         get_handler=lambda: get_handlers().get_capability,
+    )
+    register_asset_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().register_asset,
     )

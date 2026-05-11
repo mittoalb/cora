@@ -16,17 +16,17 @@ Subject (composition order matters — innermost first):
 3. `with_tracing` — OTel span around every handler call. Records
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
-Phase 5a ships `define_capability` (create-style; idempotency-
-wrapped) + `get_capability` (read; bare). Subsequent phases add
-Asset slices (5b+) and Capability lifecycle transitions (5f+).
-Queries skip idempotency: a re-read returning the same state is
-the desired behavior, no Idempotency-Key needed.
+Phase 5a shipped `define_capability` + `get_capability`. Phase 5b
+adds `register_asset` (create-style; idempotency-wrapped). Asset
+lifecycle transitions land in 5c+. Queries skip idempotency: a
+re-read returning the same state is the desired behavior, no
+Idempotency-Key needed.
 """
 
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.equipment.features import define_capability, get_capability
+from cora.equipment.features import define_capability, get_capability, register_asset
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.observability import with_tracing
@@ -38,14 +38,16 @@ _BC = "equipment"
 class EquipmentHandlers:
     """The Equipment BC's handler bundle, each closed over SharedDeps.
 
-    Phase 5a ships `define_capability` (create-style; idempotency-
-    wrapped) and `get_capability` (read side). Future fields
-    (Asset slices in 5b+, Capability transitions in 5f+) land per
-    phase.
+    Phase 5a shipped `define_capability` (create-style; idempotency-
+    wrapped) and `get_capability` (read side). Phase 5b adds
+    `register_asset` (create-style; idempotency-wrapped). Asset
+    lifecycle / hierarchy slices land in 5c-5e; Capability
+    transitions in 5f+.
     """
 
     define_capability: define_capability.IdempotentHandler
     get_capability: get_capability.Handler
+    register_asset: register_asset.IdempotentHandler
 
 
 def wire_equipment(deps: SharedDeps) -> EquipmentHandlers:
@@ -69,5 +71,16 @@ def wire_equipment(deps: SharedDeps) -> EquipmentHandlers:
             command_name="GetCapability",
             bc=_BC,
             kind="query",
+        ),
+        register_asset=with_tracing(
+            with_idempotency(
+                register_asset.bind(deps),
+                deps.idempotency_store,
+                command_name="RegisterAsset",
+                serialize_result=str,
+                deserialize_result=UUID,
+            ),
+            command_name="RegisterAsset",
+            bc=_BC,
         ),
     )

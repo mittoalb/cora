@@ -12,21 +12,52 @@ avoid nested-exception pitfalls.
 errors registered by Access (the first BC that boots). They produce
 the same JSON shape regardless of which BC raised them, so Equipment
 does not re-register them.
+
+## Loop-collapse pattern
+
+Equipment owns multiple aggregates (Capability + Asset, with more
+slices to come). Three error families share the same response
+shape and get collapsed via Trust's `_handle_invalid_name`-style
+loop pattern:
+
+  - 400 (validation): InvalidCapabilityName, InvalidAssetName,
+    InvalidAssetParent
+  - 404 (load miss): CapabilityNotFound, AssetNotFound
+  - 409 (defensive guard for AlreadyExists): CapabilityAlreadyExists,
+    AssetAlreadyExists
+
+Adding a new aggregate (or a new transition error) becomes one tuple
+entry per family. When the SubjectCannot<X>Error family lands for
+Asset lifecycle (5c+), it gets its own loop following Subject's
+precedent.
 """
 
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
+from cora.equipment.aggregates.asset import (
+    AssetAlreadyExistsError,
+    AssetNotFoundError,
+    InvalidAssetNameError,
+    InvalidAssetParentError,
+)
 from cora.equipment.aggregates.capability import (
     CapabilityAlreadyExistsError,
     CapabilityNotFoundError,
     InvalidCapabilityNameError,
 )
 from cora.equipment.errors import UnauthorizedError
-from cora.equipment.features import define_capability, get_capability
+from cora.equipment.features import define_capability, get_capability, register_asset
 
 
-async def _handle_invalid_capability_name(request: Request, exc: Exception) -> JSONResponse:
+async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 400 handler for every domain validation error.
+
+    Covers Invalid<X>NameError VOs and InvalidAssetParentError. All
+    map to the same HTTP 400 + `{"detail": str(exc)}` body. Adding
+    a new validation-style error is one extra entry in the tuple in
+    `register_equipment_routes`.
+    """
     _ = request
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
@@ -43,7 +74,8 @@ async def _handle_unauthorized(request: Request, exc: Exception) -> JSONResponse
     )
 
 
-async def _handle_capability_not_found(request: Request, exc: Exception) -> JSONResponse:
+async def _handle_not_found(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 404 handler for every aggregate's NotFoundError."""
     _ = request
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
@@ -51,12 +83,13 @@ async def _handle_capability_not_found(request: Request, exc: Exception) -> JSON
     )
 
 
-async def _handle_capability_already_exists(request: Request, exc: Exception) -> JSONResponse:
-    """Defensive guard: define_capability's decider raises this if the
-    target stream already has events. In production with UUIDv7 ids
-    this is essentially impossible, but the unmapped raise would
-    surface as 500 instead of a clean 409 — this handler closes that
-    gap.
+async def _handle_already_exists(request: Request, exc: Exception) -> JSONResponse:
+    """Defensive 409 handler for every aggregate's AlreadyExistsError.
+
+    The decider raises these if the target stream already has
+    events. In production with UUIDv7 ids this is essentially
+    impossible, but the unmapped raise would surface as 500 instead
+    of a clean 409 — this handler closes that gap.
     """
     _ = request
     return JSONResponse(
@@ -69,7 +102,15 @@ def register_equipment_routes(app: FastAPI) -> None:
     """Attach Equipment slice routers and exception handlers to the FastAPI app."""
     app.include_router(define_capability.router)
     app.include_router(get_capability.router)
-    app.add_exception_handler(InvalidCapabilityNameError, _handle_invalid_capability_name)
-    app.add_exception_handler(CapabilityNotFoundError, _handle_capability_not_found)
-    app.add_exception_handler(CapabilityAlreadyExistsError, _handle_capability_already_exists)
+    app.include_router(register_asset.router)
+    for validation_cls in (
+        InvalidCapabilityNameError,
+        InvalidAssetNameError,
+        InvalidAssetParentError,
+    ):
+        app.add_exception_handler(validation_cls, _handle_validation_error)
+    for not_found_cls in (CapabilityNotFoundError, AssetNotFoundError):
+        app.add_exception_handler(not_found_cls, _handle_not_found)
+    for already_exists_cls in (CapabilityAlreadyExistsError, AssetAlreadyExistsError):
+        app.add_exception_handler(already_exists_cls, _handle_already_exists)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
