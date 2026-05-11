@@ -330,6 +330,55 @@ Promote a VO up the hierarchy only when it has ≥3 real usages with identical, 
 
 This pattern is canonical in event-sourcing literature ([Nick Chamberlain — "Why we Avoid Putting Value Objects in Events"](https://buildplease.com/pages/vos-in-events/), [event-driven.io — "Explicit events serialisation"](https://event-driven.io/en/explicit_events_serialisation_in_event_sourcing/)). The decider+evolver round-trip test under `tests/unit/<bc>/test_evolver.py` verifies it for each aggregate.
 
+### Field grouping — flat-then-hoist
+
+When an aggregate has fields that conceptually belong to a group (Method's "things this Method needs", Asset's "things this Asset has", Plan's "things this Plan binds"), default to **flat fields** until ≥3 members of the group exist. Then hoist into a value-object holder.
+
+**The rule:** flat field names with a `<group>_<member>` prefix, no nesting:
+
+```python
+# 1 member: flat (today)
+@dataclass(frozen=True)
+class Method:
+    needs_capabilities: frozenset[UUID]
+
+# 2 members: still flat — premature hoist costs ceremony for no gain
+@dataclass(frozen=True)
+class Method:
+    needs_capabilities: frozenset[UUID]
+    needs_safety_quals: frozenset[UUID]
+
+# 3+ members: hoist into a Needs VO
+@dataclass(frozen=True)
+class Needs:
+    capabilities: frozenset[UUID]
+    safety_quals: frozenset[UUID]
+    operator_role: UUID | None
+
+@dataclass(frozen=True)
+class Method:
+    needs: Needs
+```
+
+**Why flat-first:**
+
+- Pydantic / FastAPI schemas read more naturally with flat fields (`{"needs_capabilities": [...]}` vs `{"needs": {"capabilities": [...]}}`); MCP tool argument lists stay flat.
+- Event payloads stay flat (event schemas are append-only, harder to refactor than state).
+- A wrapper class with one field is pure ceremony.
+- Python attribute access can't dot-nest anyway (`needs.capabilities` requires either a wrapper class or descriptor magic).
+
+**Why hoist at 3:** the field-list noise crosses the threshold where reading `Method` state takes a second pass to understand which fields cohere. The wrapper class becomes a documentation device, not just structural ceremony. (Same Rule-of-Three trigger we use for VO promotion above and `to_new_event` extraction in 3b-cleanup.)
+
+**When hoisting, the migration path:**
+
+1. Define the holder VO in `aggregates/<aggregate>/state.py`.
+2. Add an additive `<group>` field on the aggregate state with the new VO type, default-constructed; KEEP the old flat fields temporarily.
+3. Update the evolver to populate both flat and grouped from the same payload primitives.
+4. Migrate readers (handler / route / tool) to use the grouped form.
+5. In a separate cleanup commit, remove the flat fields after no readers remain.
+
+Event payloads STAY flat throughout (`{"needs_capabilities": [...], "needs_safety_quals": [...]}`) — the holder is a state-side ergonomic, not a payload-shape change. This keeps existing event streams forward-compatible without an upcaster.
+
 ## Branch + PR flow
 
 Solo dev for now: commit directly to `main`. CI must be green before pushing.
