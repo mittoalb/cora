@@ -1,0 +1,69 @@
+"""Pure decider for the `VersionMethod` command.
+
+Multi-source-state transition: `Defined | Versioned -> Versioned`.
+Both Defined (first revision) and Versioned (subsequent revisions)
+are valid sources; only Deprecated is rejected.
+
+Source-state guard uses tuple-membership (same precedent as
+decommission_asset / version_capability). The decider validates
+`version_tag` defensively via `InvalidMethodVersionTagError` so
+direct in-process callers get the same protection as API-boundary
+callers.
+
+## Deliberate divergence from strict-not-idempotent
+
+Same as `version_capability` (Equipment 5f-2): re-versioning with
+the same tag succeeds and emits a fresh event. Re-attestation is a
+legitimate audit moment ("the operator confirmed v2 again on date
+X"). Tightening would couple the decider to history-walking, which
+the eventual-consistency stance avoids. Pinned by
+`test_decide_allows_versioning_with_same_tag_for_re_attestation`.
+
+Invariants:
+  - State must not be None -> MethodNotFoundError
+  - command.version_tag must be 1-50 chars after trimming
+    -> InvalidMethodVersionTagError
+  - State.status must be in {Defined, Versioned}
+    -> MethodCannotVersionError(current_status=...)
+"""
+
+from datetime import datetime
+
+from cora.recipe.aggregates.method import (
+    METHOD_VERSION_TAG_MAX_LENGTH,
+    InvalidMethodVersionTagError,
+    Method,
+    MethodCannotVersionError,
+    MethodNotFoundError,
+    MethodStatus,
+    MethodVersioned,
+)
+from cora.recipe.features.version_method.command import VersionMethod
+
+_VERSIONABLE_STATUSES: tuple[MethodStatus, ...] = (
+    MethodStatus.DEFINED,
+    MethodStatus.VERSIONED,
+)
+
+
+def decide(
+    state: Method | None,
+    command: VersionMethod,
+    *,
+    now: datetime,
+) -> list[MethodVersioned]:
+    """Decide the events produced by versioning an existing method."""
+    if state is None:
+        raise MethodNotFoundError(command.method_id)
+    trimmed = command.version_tag.strip()
+    if not trimmed or len(trimmed) > METHOD_VERSION_TAG_MAX_LENGTH:
+        raise InvalidMethodVersionTagError(command.version_tag)
+    if state.status not in _VERSIONABLE_STATUSES:
+        raise MethodCannotVersionError(state.id, current_status=state.status)
+    return [
+        MethodVersioned(
+            method_id=state.id,
+            version_tag=trimmed,
+            occurred_at=now,
+        )
+    ]

@@ -32,7 +32,9 @@ from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.observability import with_tracing
 from cora.recipe.features import (
     define_method,
+    deprecate_method,
     get_method,
+    version_method,
 )
 
 _BC = "recipe"
@@ -49,6 +51,8 @@ class RecipeHandlers:
 
     define_method: define_method.IdempotentHandler
     get_method: get_method.Handler
+    version_method: version_method.Handler
+    deprecate_method: deprecate_method.Handler
 
 
 def wire_recipe(deps: SharedDeps) -> RecipeHandlers:
@@ -72,5 +76,15 @@ def wire_recipe(deps: SharedDeps) -> RecipeHandlers:
             command_name="GetMethod",
             bc=_BC,
             kind="query",
+        ),
+        version_method=with_tracing(
+            version_method.bind(deps),
+            command_name="VersionMethod",
+            bc=_BC,
+        ),
+        deprecate_method=with_tracing(
+            deprecate_method.bind(deps),
+            command_name="DeprecateMethod",
+            bc=_BC,
         ),
     )

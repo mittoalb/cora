@@ -31,13 +31,18 @@ from fastapi.responses import JSONResponse
 
 from cora.recipe.aggregates.method import (
     InvalidMethodNameError,
+    InvalidMethodVersionTagError,
     MethodAlreadyExistsError,
+    MethodCannotDeprecateError,
+    MethodCannotVersionError,
     MethodNotFoundError,
 )
 from cora.recipe.errors import UnauthorizedError
 from cora.recipe.features import (
     define_method,
+    deprecate_method,
     get_method,
+    version_method,
 )
 
 
@@ -83,14 +88,35 @@ async def _handle_already_exists(request: Request, exc: Exception) -> JSONRespon
     )
 
 
+async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 409 handler for state-transition guards.
+
+    Covers the `<X>Cannot<Verb>Error` family (Method's Version /
+    Deprecate in 6b; future Practice / Plan transitions). Same
+    pattern as Subject / Equipment.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+
 def register_recipe_routes(app: FastAPI) -> None:
     """Attach Recipe slice routers and exception handlers to the FastAPI app."""
     app.include_router(define_method.router)
     app.include_router(get_method.router)
-    for validation_cls in (InvalidMethodNameError,):
+    app.include_router(version_method.router)
+    app.include_router(deprecate_method.router)
+    for validation_cls in (InvalidMethodNameError, InvalidMethodVersionTagError):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (MethodNotFoundError,):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (MethodAlreadyExistsError,):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
+    for cannot_transition_cls in (
+        MethodCannotVersionError,
+        MethodCannotDeprecateError,
+    ):
+        app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

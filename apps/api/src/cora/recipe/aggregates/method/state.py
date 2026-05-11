@@ -70,6 +70,7 @@ from enum import StrEnum
 from uuid import UUID
 
 METHOD_NAME_MAX_LENGTH = 200
+METHOD_VERSION_TAG_MAX_LENGTH = 50
 
 
 class MethodStatus(StrEnum):
@@ -116,6 +117,77 @@ class MethodNotFoundError(Exception):
         self.method_id = method_id
 
 
+class MethodCannotVersionError(Exception):
+    """Attempted to version a method not in `Defined` or `Versioned`.
+
+    Multi-source guard: `version_method` accepts both `Defined`
+    (first revision) and `Versioned` (subsequent revisions —
+    operators bump v1 → v2 → v3 over time as the recipe's
+    parameters or step list are refined). Only `Deprecated` is
+    rejected (you can't revise a deprecated method — un-deprecate
+    first if you want to bring it back, though that slice doesn't
+    exist today).
+
+    Mirrors `CapabilityCannotVersionError` shape and semantics
+    (Equipment 5f-2). Same deliberate divergence from strict-not-
+    idempotent: re-versioning with the same tag succeeds and emits a
+    fresh event (re-attestation is a legitimate audit moment).
+    Pinned by tests/unit/recipe/test_version_method_decider.py.
+    """
+
+    def __init__(self, method_id: UUID, current_status: "MethodStatus") -> None:
+        super().__init__(
+            f"Method {method_id} cannot be versioned: currently in status "
+            f"{current_status.value}, version requires "
+            f"{MethodStatus.DEFINED.value} or {MethodStatus.VERSIONED.value}"
+        )
+        self.method_id = method_id
+        self.current_status = current_status
+
+
+class MethodCannotDeprecateError(Exception):
+    """Attempted to deprecate a method not in `Defined` or `Versioned`.
+
+    Multi-source guard: `deprecate_method` accepts both `Defined`
+    (deprecating before any revisions) and `Versioned` (deprecating
+    a revised recipe). Re-deprecating an already-`Deprecated` method
+    raises (strict-not-idempotent). Mirrors
+    `CapabilityCannotDeprecateError` shape.
+
+    Existing Plans / Practices that reference this Method are NOT
+    automatically invalidated. Deprecation is advisory at the BC
+    layer; future Plan-side enrichment may surface a warning at
+    bind-time when referencing a deprecated Method.
+    """
+
+    def __init__(self, method_id: UUID, current_status: "MethodStatus") -> None:
+        super().__init__(
+            f"Method {method_id} cannot be deprecated: currently in status "
+            f"{current_status.value}, deprecate requires "
+            f"{MethodStatus.DEFINED.value} or {MethodStatus.VERSIONED.value}"
+        )
+        self.method_id = method_id
+        self.current_status = current_status
+
+
+class InvalidMethodVersionTagError(ValueError):
+    """The supplied version tag is empty, whitespace-only, or too long.
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the decider via this error so direct in-process
+    callers (sagas, tests) get the same protection. Same precedent as
+    `InvalidCapabilityVersionTagError` (Equipment 5f-2) and
+    `InvalidMethodNameError`.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Method version tag must be 1-{METHOD_VERSION_TAG_MAX_LENGTH} "
+            f"chars after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
 @dataclass(frozen=True)
 class MethodName:
     """Display name for a method. Trimmed; 1-200 chars.
@@ -144,9 +216,19 @@ class Method:
     `needs_capabilities` is a frozenset of Capability ids the Method
     requires. Eventual-consistency stance: existence is not verified
     at decide time; mismatch surfaces at Plan binding (6e).
+
+    `current_version` is the operator-supplied label of the most
+    recent `version_method` call (None until first version). Free-
+    text validated at API boundary + defensively in the decider; no
+    VO. Default None keeps pre-6b MethodDefined-only streams folding
+    cleanly (additive-state pattern). Mirrors Capability's
+    current_version semantics (Equipment 5f-2): preserved across
+    deprecation as an audit signal of the last revision before
+    deprecation.
     """
 
     id: UUID
     name: MethodName
     needs_capabilities: frozenset[UUID] = field(default_factory=frozenset[UUID])
     status: MethodStatus = MethodStatus.DEFINED
+    current_version: str | None = None

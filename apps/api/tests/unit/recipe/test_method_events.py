@@ -14,6 +14,8 @@ import pytest
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.recipe.aggregates.method.events import (
     MethodDefined,
+    MethodDeprecated,
+    MethodVersioned,
     event_type_name,
     from_stored,
     to_payload,
@@ -180,3 +182,88 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
     stored = _stored("CapabilityDefined", {})
     with pytest.raises(ValueError, match="Unknown MethodEvent event_type"):
         from_stored(stored)
+
+
+# ---------- MethodVersioned (Phase 6b) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_method_versioned_class_name() -> None:
+    event = MethodVersioned(method_id=uuid4(), version_tag="v2", occurred_at=_NOW)
+    assert event_type_name(event) == "MethodVersioned"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_method_versioned_with_version_tag() -> None:
+    method_id = uuid4()
+    event = MethodVersioned(method_id=method_id, version_tag="2026-Q3", occurred_at=_NOW)
+    assert to_payload(event) == {
+        "method_id": str(method_id),
+        "version_tag": "2026-Q3",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_method_versioned() -> None:
+    method_id = uuid4()
+    stored = _stored(
+        "MethodVersioned",
+        {
+            "method_id": str(method_id),
+            "version_tag": "v2",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_method_versioned() -> None:
+    original = MethodVersioned(method_id=uuid4(), version_tag="v3", occurred_at=_NOW)
+    stored = _stored("MethodVersioned", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- MethodDeprecated (Phase 6b) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_method_deprecated_class_name() -> None:
+    event = MethodDeprecated(method_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "MethodDeprecated"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_method_deprecated_to_primitives() -> None:
+    """Status NOT in payload — event TYPE encodes the state change."""
+    method_id = uuid4()
+    event = MethodDeprecated(method_id=method_id, occurred_at=_NOW)
+    payload = to_payload(event)
+    assert payload == {
+        "method_id": str(method_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+    assert "status" not in payload
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_method_deprecated() -> None:
+    method_id = uuid4()
+    stored = _stored(
+        "MethodDeprecated",
+        {
+            "method_id": str(method_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == MethodDeprecated(method_id=method_id, occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_method_deprecated() -> None:
+    original = MethodDeprecated(method_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("MethodDeprecated", to_payload(original))
+    assert from_stored(stored) == original

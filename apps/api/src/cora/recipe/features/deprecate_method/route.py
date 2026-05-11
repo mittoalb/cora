@@ -1,0 +1,59 @@
+"""HTTP route for the `deprecate_method` slice.
+
+Action endpoint at `POST /methods/{method_id}/deprecate`. No body.
+204 No Content on success.
+"""
+
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Path, Request, status
+
+from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.recipe.features.deprecate_method.command import DeprecateMethod
+from cora.recipe.features.deprecate_method.handler import Handler
+
+
+def _get_handler(request: Request) -> Handler:
+    handler: Handler = request.app.state.recipe.deprecate_method
+    return handler
+
+
+router = APIRouter(tags=["recipe"])
+
+
+@router.post(
+    "/methods/{method_id}/deprecate",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErrorResponse,
+            "description": "Authorize port denied the command.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "No method exists with the given id.",
+        },
+        status.HTTP_409_CONFLICT: {
+            "model": ErrorResponse,
+            "description": (
+                "Method is not in `Defined` or `Versioned` status "
+                "(deprecate requires one of those — re-deprecating a "
+                "Deprecated method raises), OR a concurrent write to the "
+                "same method stream conflicted (optimistic concurrency)."
+            ),
+        },
+    },
+    summary="Mark an existing method as deprecated",
+)
+async def post_methods_deprecate(
+    method_id: Annotated[UUID, Path(description="Target method's id.")],
+    handler: Annotated[Handler, Depends(_get_handler)],
+    cid: Annotated[UUID, Depends(get_correlation_id)],
+    principal_id: Annotated[UUID, Depends(get_principal_id)],
+) -> None:
+    await handler(
+        DeprecateMethod(method_id=method_id),
+        principal_id=principal_id,
+        correlation_id=cid,
+    )

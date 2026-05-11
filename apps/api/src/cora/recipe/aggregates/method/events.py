@@ -5,9 +5,13 @@ union, `event_type_name`, `to_payload`, `from_stored`. The
 persistence-envelope construction (`NewEvent`) lives at
 `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 6a ships `MethodDefined`. Subsequent slices add
-`MethodVersioned` / `MethodDeprecated` per the
-`Defined → Versioned → Deprecated` lifecycle (deferred to 6b).
+Phase 6a shipped `MethodDefined`. Phase 6b adds `MethodVersioned`
+and `MethodDeprecated` per the `Defined → Versioned → Deprecated`
+lifecycle. MethodVersioned carries an operator-supplied
+`version_tag` (free-text label like "v2" or "2026-Q3"; precedent:
+AssetRelocated.reason and CapabilityVersioned). MethodDeprecated
+carries no extra fields. Mirrors Capability's transition shape from
+Equipment 5f-2.
 
 ## Payload conventions
 
@@ -50,10 +54,48 @@ class MethodDefined:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class MethodVersioned:
+    """A method's definition was revised; a new version label was issued.
+
+    Multi-source transition: `Defined | Versioned -> Versioned`. The
+    evolver sets status=VERSIONED and updates state.current_version
+    to the new tag. The decider's source-state guard enforces that
+    Deprecated methods can't be re-versioned.
+
+    `version_tag` is operator-supplied free text (1-50 chars,
+    validated at API boundary AND in the decider). Could be semver
+    ("v2.1.0"), date-stamped ("2026-Q3"), or anything else
+    institution-specific. Not a VO; same precedent as
+    AssetRelocated.reason and CapabilityVersioned.
+    """
+
+    method_id: UUID
+    version_tag: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class MethodDeprecated:
+    """A method was marked as no longer recommended for new Plans.
+
+    Multi-source transition: `Defined | Versioned -> Deprecated`. The
+    evolver sets status=DEPRECATED; current_version is preserved
+    (the historical label of when the method was last revised before
+    being deprecated remains visible).
+
+    Existing Plans / Practices that reference this Method are NOT
+    automatically invalidated. Deprecation is advisory at the BC
+    layer; future Plan-side enrichment may surface a warning at
+    bind-time when referencing a deprecated Method.
+    """
+
+    method_id: UUID
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Method aggregate emits.
-# Add new event classes above and extend this alias when new slices
-# land (6b: MethodVersioned, MethodDeprecated).
-MethodEvent = MethodDefined
+MethodEvent = MethodDefined | MethodVersioned | MethodDeprecated
 
 
 def event_type_name(event: MethodEvent) -> str:
@@ -82,6 +124,21 @@ def to_payload(event: MethodEvent) -> dict[str, Any]:
                 "needs_capabilities": sorted(str(c) for c in needs_capabilities),
                 "occurred_at": occurred_at.isoformat(),
             }
+        case MethodVersioned(
+            method_id=method_id,
+            version_tag=version_tag,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "method_id": str(method_id),
+                "version_tag": version_tag,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case MethodDeprecated(method_id=method_id, occurred_at=occurred_at):
+            return {
+                "method_id": str(method_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -102,6 +159,17 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
                 needs_capabilities=[UUID(c) for c in payload["needs_capabilities"]],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "MethodVersioned":
+            return MethodVersioned(
+                method_id=UUID(payload["method_id"]),
+                version_tag=payload["version_tag"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "MethodDeprecated":
+            return MethodDeprecated(
+                method_id=UUID(payload["method_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown MethodEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -109,7 +177,9 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
 
 __all__ = [
     "MethodDefined",
+    "MethodDeprecated",
     "MethodEvent",
+    "MethodVersioned",
     "event_type_name",
     "from_stored",
     "to_payload",

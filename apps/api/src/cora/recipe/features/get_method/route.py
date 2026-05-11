@@ -32,13 +32,16 @@ class MethodResponse(BaseModel):
     from the domain model so the two can evolve independently.
     `needs_capabilities` is sorted by UUID string form.
     `status` is the StrEnum's string value (Defined / Versioned /
-    Deprecated).
+    Deprecated). `current_version` is the operator-supplied label
+    of the most recent version_method call (null until first
+    version).
     """
 
     id: UUID
     name: str = Field(..., max_length=METHOD_NAME_MAX_LENGTH)
     needs_capabilities: list[UUID]
     status: str
+    current_version: str | None
 
 
 def _get_handler(request: Request) -> Handler:
@@ -85,4 +88,5 @@ async def get_methods(
         name=method.name.value,
         needs_capabilities=sorted(method.needs_capabilities, key=str),
         status=method.status.value,
+        current_version=method.current_version,
     )

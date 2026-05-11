@@ -1,8 +1,4 @@
-"""Contract tests for the `get_method` MCP tool.
-
-Mirrors `test_get_capability_mcp_tool.py`. Pinned structured output
-shape: `{id, name, needs_capabilities, status}`.
-"""
+"""Contract tests for the `deprecate_method` MCP tool."""
 
 from uuid import UUID, uuid4
 
@@ -14,11 +10,7 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 
 def _define_method_via_tool(
-    client: TestClient,
-    headers: dict[str, str],
-    *,
-    name: str = "XRF Mapping",
-    needs_capabilities: list[str] | None = None,
+    client: TestClient, headers: dict[str, str], name: str = "XRF Mapping"
 ) -> UUID:
     response = client.post(
         "/mcp",
@@ -28,12 +20,7 @@ def _define_method_via_tool(
             "method": "tools/call",
             "params": {
                 "name": "define_method",
-                "arguments": {
-                    "name": name,
-                    "needs_capabilities": (
-                        needs_capabilities if needs_capabilities is not None else []
-                    ),
-                },
+                "arguments": {"name": name, "needs_capabilities": []},
             },
         },
         headers=headers,
@@ -43,7 +30,7 @@ def _define_method_via_tool(
 
 
 @pytest.mark.contract
-def test_mcp_lists_get_method_tool() -> None:
+def test_mcp_lists_deprecate_method_tool() -> None:
     with TestClient(create_app()) as client:
         headers = open_session(client)
         response = client.post(
@@ -53,47 +40,14 @@ def test_mcp_lists_get_method_tool() -> None:
         )
     body = parse_sse_data(response.text)
     tool_names = [t["name"] for t in body["result"]["tools"]]
-    assert "get_method" in tool_names
+    assert "deprecate_method" in tool_names
 
 
 @pytest.mark.contract
-def test_mcp_get_method_tool_returns_structured_method_for_known_id() -> None:
-    cap1 = str(uuid4())
+def test_mcp_deprecate_method_tool_succeeds_on_happy_path() -> None:
     with TestClient(create_app()) as client:
         headers = open_session(client)
-        method_id = _define_method_via_tool(
-            client, headers, name="XRF Mapping", needs_capabilities=[cap1]
-        )
-        response = client.post(
-            "/mcp",
-            json={
-                "jsonrpc": "2.0",
-                "id": 3,
-                "method": "tools/call",
-                "params": {
-                    "name": "get_method",
-                    "arguments": {"method_id": str(method_id)},
-                },
-            },
-            headers=headers,
-        )
-
-    body = parse_sse_data(response.text)
-    result = body["result"]
-    assert result["isError"] is False
-    structured = result["structuredContent"]
-    assert structured["id"] == str(method_id)
-    assert structured["name"] == "XRF Mapping"
-    assert structured["status"] == "Defined"
-    assert structured["needs_capabilities"] == [cap1]
-    # Null until version_method runs (6b).
-    assert structured["current_version"] is None
-
-
-@pytest.mark.contract
-def test_mcp_get_method_tool_returns_iserror_for_unknown_id() -> None:
-    with TestClient(create_app()) as client:
-        headers = open_session(client)
+        method_id = _define_method_via_tool(client, headers)
         response = client.post(
             "/mcp",
             json={
@@ -101,13 +55,72 @@ def test_mcp_get_method_tool_returns_iserror_for_unknown_id() -> None:
                 "id": 4,
                 "method": "tools/call",
                 "params": {
-                    "name": "get_method",
+                    "name": "deprecate_method",
+                    "arguments": {"method_id": str(method_id)},
+                },
+            },
+            headers=headers,
+        )
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is False
+
+
+@pytest.mark.contract
+def test_mcp_deprecate_method_tool_returns_iserror_for_unknown_method() -> None:
+    with TestClient(create_app()) as client:
+        headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 5,
+                "method": "tools/call",
+                "params": {
+                    "name": "deprecate_method",
                     "arguments": {"method_id": str(uuid4())},
                 },
             },
             headers=headers,
         )
-
     body = parse_sse_data(response.text)
     assert body["result"]["isError"] is True
     assert "not found" in body["result"]["content"][0]["text"].lower()
+
+
+@pytest.mark.contract
+def test_mcp_deprecate_method_tool_returns_iserror_when_already_deprecated() -> None:
+    with TestClient(create_app()) as client:
+        headers = open_session(client)
+        method_id = _define_method_via_tool(client, headers)
+        first = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 6,
+                "method": "tools/call",
+                "params": {
+                    "name": "deprecate_method",
+                    "arguments": {"method_id": str(method_id)},
+                },
+            },
+            headers=headers,
+        )
+        assert parse_sse_data(first.text)["result"]["isError"] is False
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 7,
+                "method": "tools/call",
+                "params": {
+                    "name": "deprecate_method",
+                    "arguments": {"method_id": str(method_id)},
+                },
+            },
+            headers=headers,
+        )
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is True
+    text = body["result"]["content"][0]["text"]
+    assert "Defined" in text
+    assert "Versioned" in text

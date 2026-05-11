@@ -12,7 +12,9 @@ from collections.abc import Callable
 from mcp.server.fastmcp import FastMCP
 
 from cora.recipe.features.define_method import tool as define_method_tool
+from cora.recipe.features.deprecate_method import tool as deprecate_method_tool
 from cora.recipe.features.get_method import tool as get_method_tool
+from cora.recipe.features.version_method import tool as version_method_tool
 from cora.recipe.wire import RecipeHandlers
 
 
@@ -29,4 +31,12 @@ def register_recipe_tools(
     get_method_tool.register(
         mcp,
         get_handler=lambda: get_handlers().get_method,
+    )
+    version_method_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().version_method,
+    )
+    deprecate_method_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().deprecate_method,
     )
