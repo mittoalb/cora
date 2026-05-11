@@ -60,6 +60,12 @@ from cora.recipe import (
     register_recipe_tools,
     wire_recipe,
 )
+from cora.run import (
+    RunHandlers,
+    register_run_routes,
+    register_run_tools,
+    wire_run,
+)
 from cora.subject import (
     SubjectHandlers,
     register_subject_routes,
@@ -132,11 +138,16 @@ def create_app() -> FastAPI:
         handlers: RecipeHandlers = fastapi_app.state.recipe
         return handlers
 
+    def _get_run_handlers() -> RunHandlers:
+        handlers: RunHandlers = fastapi_app.state.run
+        return handlers
+
     register_access_tools(mcp, get_handlers=_get_access_handlers)
     register_trust_tools(mcp, get_handlers=_get_trust_handlers)
     register_subject_tools(mcp, get_handlers=_get_subject_handlers)
     register_equipment_tools(mcp, get_handlers=_get_equipment_handlers)
     register_recipe_tools(mcp, get_handlers=_get_recipe_handlers)
+    register_run_tools(mcp, get_handlers=_get_run_handlers)
     mcp_app = mcp.streamable_http_app()
 
     @asynccontextmanager
@@ -151,6 +162,7 @@ def create_app() -> FastAPI:
             app.state.subject = wire_subject(deps)
             app.state.equipment = wire_equipment(deps)
             app.state.recipe = wire_recipe(deps)
+            app.state.run = wire_run(deps)
             try:
                 yield
             finally:
@@ -200,6 +212,7 @@ def create_app() -> FastAPI:
     register_subject_routes(fastapi_app)
     register_equipment_routes(fastapi_app)
     register_recipe_routes(fastapi_app)
+    register_run_routes(fastapi_app)
     fastapi_app.mount("/mcp", mcp_app)
 
     @fastapi_app.get("/health")

@@ -1,0 +1,119 @@
+"""Contract tests for the `start_run` MCP tool."""
+
+from uuid import UUID, uuid4
+
+import pytest
+from fastapi.testclient import TestClient
+
+from cora.api.main import create_app
+from tests.contract._mcp_helpers import open_session, parse_sse_data
+
+
+def _setup_full_chain(client: TestClient) -> tuple[str, str]:
+    cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
+    method_id = client.post("/methods", json={"name": "M", "needs_capabilities": [cap_id]}).json()[
+        "method_id"
+    ]
+    practice_id = client.post(
+        "/practices",
+        json={"name": "P", "method_id": method_id, "site_id": str(uuid4())},
+    ).json()["practice_id"]
+    asset_id = client.post(
+        "/assets", json={"name": "A", "level": "Enterprise", "parent_id": None}
+    ).json()["asset_id"]
+    client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+    plan_id = client.post(
+        "/plans",
+        json={"name": "Plan", "practice_id": practice_id, "asset_ids": [asset_id]},
+    ).json()["plan_id"]
+    subject_id = client.post("/subjects", json={"name": "Sample"}).json()["subject_id"]
+    client.post(f"/subjects/{subject_id}/mount")
+    return plan_id, subject_id
+
+
+@pytest.mark.contract
+def test_mcp_lists_start_run_tool() -> None:
+    with TestClient(create_app()) as client:
+        headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={"jsonrpc": "2.0", "id": 99, "method": "tools/list"},
+            headers=headers,
+        )
+    body = parse_sse_data(response.text)
+    tool_names = [t["name"] for t in body["result"]["tools"]]
+    assert "start_run" in tool_names
+
+
+@pytest.mark.contract
+def test_mcp_start_run_tool_returns_structured_run_id_for_sample_run() -> None:
+    with TestClient(create_app()) as client:
+        plan_id, subject_id = _setup_full_chain(client)
+        headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "tools/call",
+                "params": {
+                    "name": "start_run",
+                    "arguments": {
+                        "name": "32-ID FlyScan",
+                        "plan_id": plan_id,
+                        "subject_id": subject_id,
+                    },
+                },
+            },
+            headers=headers,
+        )
+    body = parse_sse_data(response.text)
+    result = body["result"]
+    assert result["isError"] is False
+    assert "run_id" in result["structuredContent"]
+    UUID(result["structuredContent"]["run_id"])
+
+
+@pytest.mark.contract
+def test_mcp_start_run_tool_succeeds_for_dark_field_run_without_subject() -> None:
+    """Calibration run: omit subject_id."""
+    with TestClient(create_app()) as client:
+        plan_id, _ = _setup_full_chain(client)
+        headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 5,
+                "method": "tools/call",
+                "params": {
+                    "name": "start_run",
+                    "arguments": {"name": "Dark field", "plan_id": plan_id},
+                },
+            },
+            headers=headers,
+        )
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is False
+
+
+@pytest.mark.contract
+def test_mcp_start_run_tool_returns_iserror_for_missing_plan() -> None:
+    with TestClient(create_app()) as client:
+        headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 6,
+                "method": "tools/call",
+                "params": {
+                    "name": "start_run",
+                    "arguments": {"name": "X", "plan_id": str(uuid4())},
+                },
+            },
+            headers=headers,
+        )
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is True
+    assert "not found" in body["result"]["content"][0]["text"].lower()

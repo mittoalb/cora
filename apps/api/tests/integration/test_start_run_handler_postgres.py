@@ -1,0 +1,191 @@
+"""End-to-end integration test: start_run handler against real Postgres.
+
+The keystone integration test — exercises the full upstream chain
+(Capability + Asset + Method + Practice + Plan + Subject) plus
+Run-start, all against real Postgres. This is the first
+integration test that touches FIVE BCs in one transaction (Equipment,
+Recipe, Subject, Run, plus the cross-cutting Access via principal_id).
+
+Demonstrates the cross-aggregate-validation pattern (gate-review
+Q2 / Q5) at the integration layer: handler pre-loads Plan +
+Practice + Method + each Asset + Subject from real event-store
+streams, builds RunStartContext, decider validates.
+"""
+
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
+
+from datetime import UTC, datetime
+from uuid import UUID
+
+import asyncpg
+import pytest
+
+from cora.equipment.aggregates.asset import AssetLevel
+from cora.equipment.features import (
+    add_asset_capability,
+    define_capability,
+    register_asset,
+)
+from cora.equipment.features.add_asset_capability import AddAssetCapability
+from cora.equipment.features.define_capability import DefineCapability
+from cora.equipment.features.register_asset import RegisterAsset
+from cora.infrastructure.config import Settings
+from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.ports import (
+    AllowAllAuthorize,
+    FixedIdGenerator,
+    FrozenClock,
+)
+from cora.infrastructure.postgres.event_store import PostgresEventStore
+from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
+from cora.recipe.features import (
+    define_method,
+    define_plan,
+    define_practice,
+)
+from cora.recipe.features.define_method import DefineMethod
+from cora.recipe.features.define_plan import DefinePlan
+from cora.recipe.features.define_practice import DefinePractice
+from cora.run.aggregates.run import RunStatus, load_run
+from cora.run.features import start_run
+from cora.run.features.start_run import StartRun
+from cora.subject.features import mount_subject, register_subject
+from cora.subject.features.mount_subject import MountSubject
+from cora.subject.features.register_subject import RegisterSubject
+
+_NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
+_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
+_CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+
+
+@pytest.mark.integration
+async def test_start_run_persists_event_with_full_upstream_chain_against_postgres(
+    db_pool: asyncpg.Pool,
+) -> None:
+    cap_id = UUID("01900000-0000-7000-8000-00000063aa01")
+    cap_event_id = UUID("01900000-0000-7000-8000-00000063aa02")
+    asset_id = UUID("01900000-0000-7000-8000-00000063ab01")
+    asset_register_event_id = UUID("01900000-0000-7000-8000-00000063ab02")
+    asset_addcap_event_id = UUID("01900000-0000-7000-8000-00000063ab03")
+    method_id = UUID("01900000-0000-7000-8000-00000063ac01")
+    method_event_id = UUID("01900000-0000-7000-8000-00000063ac02")
+    practice_id = UUID("01900000-0000-7000-8000-00000063ad01")
+    practice_event_id = UUID("01900000-0000-7000-8000-00000063ad02")
+    site_id = UUID("01900000-0000-7000-8000-00000063ae01")
+    plan_id = UUID("01900000-0000-7000-8000-00000063af01")
+    plan_event_id = UUID("01900000-0000-7000-8000-00000063af02")
+    subject_id = UUID("01900000-0000-7000-8000-00000063b001")
+    subject_register_event_id = UUID("01900000-0000-7000-8000-00000063b002")
+    subject_mount_event_id = UUID("01900000-0000-7000-8000-00000063b003")
+    run_id = UUID("01900000-0000-7000-8000-00000063b101")
+    run_event_id = UUID("01900000-0000-7000-8000-00000063b102")
+
+    deps = SharedDeps(
+        settings=Settings(app_env="test"),  # type: ignore[call-arg]
+        clock=FrozenClock(_NOW),
+        id_generator=FixedIdGenerator(
+            [
+                cap_id,
+                cap_event_id,
+                asset_id,
+                asset_register_event_id,
+                asset_addcap_event_id,
+                method_id,
+                method_event_id,
+                practice_id,
+                practice_event_id,
+                plan_id,
+                plan_event_id,
+                subject_id,
+                subject_register_event_id,
+                subject_mount_event_id,
+                run_id,
+                run_event_id,
+            ]
+        ),
+        authorize=AllowAllAuthorize(),
+        event_store=PostgresEventStore(db_pool),
+        idempotency_store=PostgresIdempotencyStore(db_pool),
+    )
+
+    # Seed full upstream chain.
+    await define_capability.bind(deps)(
+        DefineCapability(name="FlyMotion"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await register_asset.bind(deps)(
+        RegisterAsset(name="EigerDetector", level=AssetLevel.ENTERPRISE, parent_id=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await add_asset_capability.bind(deps)(
+        AddAssetCapability(asset_id=asset_id, capability_id=cap_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await define_method.bind(deps)(
+        DefineMethod(name="XRF Fly Scan", needs_capabilities=frozenset({cap_id})),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await define_practice.bind(deps)(
+        DefinePractice(name="APS XRF", method_id=method_id, site_id=site_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await define_plan.bind(deps)(
+        DefinePlan(
+            name="32-ID FlyScan",
+            practice_id=practice_id,
+            asset_ids=frozenset({asset_id}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await register_subject.bind(deps)(
+        RegisterSubject(name="PorousCeramicSample-A"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await mount_subject.bind(deps)(
+        MountSubject(subject_id=subject_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # Now start the Run — pre-loads Plan + Practice + Method + Asset + Subject.
+    returned_id = await start_run.bind(deps)(
+        StartRun(
+            name="32-ID FlyScan morning session",
+            plan_id=plan_id,
+            subject_id=subject_id,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert returned_id == run_id
+
+    # Verify the persisted event.
+    events, stream_version = await deps.event_store.load("Run", run_id)
+    assert stream_version == 1
+    assert len(events) == 1
+    stored = events[0]
+    assert stored.event_type == "RunStarted"
+    assert stored.payload == {
+        "run_id": str(run_id),
+        "name": "32-ID FlyScan morning session",
+        "plan_id": str(plan_id),
+        "subject_id": str(subject_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+    assert stored.event_id == run_event_id
+    assert stored.metadata == {"command": "StartRun"}
+
+    # Round-trip via load_run.
+    state = await load_run(deps.event_store, run_id)
+    assert state is not None
+    assert state.id == run_id
+    assert state.plan_id == plan_id
+    assert state.subject_id == subject_id
+    assert state.status is RunStatus.STARTED
