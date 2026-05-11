@@ -17,6 +17,7 @@ from cora.equipment.aggregates.asset.events import (
     AssetActivated,
     AssetDecommissioned,
     AssetRegistered,
+    AssetRelocated,
 )
 from cora.equipment.features import register_asset
 from cora.equipment.features.register_asset import RegisterAsset
@@ -340,3 +341,162 @@ def test_fold_register_decommission_yields_decommissioned_asset() -> None:
     )
     assert state is not None
     assert state.lifecycle is AssetLifecycle.DECOMMISSIONED
+
+
+# ---------- AssetRelocated (Phase 5d) ----------
+
+
+@pytest.mark.unit
+def test_evolve_asset_relocated_mutates_parent_id_to_target() -> None:
+    """The evolver reads `to_parent_id` (target) and writes it to
+    state.parent_id. `from_parent_id` is audit metadata only — not
+    read by the evolver. Pinned to lock the source-of-truth contract."""
+    asset_id = uuid4()
+    old_parent = uuid4()
+    new_parent = uuid4()
+    commissioned = Asset(
+        id=asset_id,
+        name=AssetName("APS-2BM"),
+        level=AssetLevel.UNIT,
+        parent_id=old_parent,
+        lifecycle=AssetLifecycle.COMMISSIONED,
+    )
+    relocated = evolve(
+        commissioned,
+        AssetRelocated(
+            asset_id=asset_id,
+            from_parent_id=old_parent,
+            to_parent_id=new_parent,
+            reason="moved",
+            occurred_at=_NOW,
+        ),
+    )
+    assert relocated.parent_id == new_parent
+
+
+@pytest.mark.unit
+def test_evolve_asset_relocated_preserves_lifecycle() -> None:
+    """Hierarchy mutation is NOT a state transition — lifecycle is
+    carried over from prior state. Pinned because adding a "lifecycle"
+    side-effect to relocate would silently change Asset behavior."""
+    asset_id = uuid4()
+    active = Asset(
+        id=asset_id,
+        name=AssetName("APS-2BM"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        lifecycle=AssetLifecycle.ACTIVE,
+    )
+    relocated = evolve(
+        active,
+        AssetRelocated(
+            asset_id=asset_id,
+            from_parent_id=active.parent_id or uuid4(),
+            to_parent_id=uuid4(),
+            reason="moved",
+            occurred_at=_NOW,
+        ),
+    )
+    assert relocated.lifecycle is AssetLifecycle.ACTIVE
+
+
+@pytest.mark.unit
+def test_evolve_asset_relocated_preserves_id_name_level() -> None:
+    """Only parent_id changes. Pinned: the relocate arm has more
+    fields to carry than the simple lifecycle transitions."""
+    asset_id = uuid4()
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("Original"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        lifecycle=AssetLifecycle.COMMISSIONED,
+    )
+    relocated = evolve(
+        prior,
+        AssetRelocated(
+            asset_id=asset_id,
+            from_parent_id=prior.parent_id or uuid4(),
+            to_parent_id=uuid4(),
+            reason="moved",
+            occurred_at=_NOW,
+        ),
+    )
+    assert relocated.id == asset_id
+    assert relocated.name == AssetName("Original")
+    assert relocated.level is AssetLevel.DEVICE
+
+
+@pytest.mark.unit
+def test_evolve_asset_relocated_on_empty_state_raises() -> None:
+    """Relocate before Register = corrupted stream."""
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(
+            None,
+            AssetRelocated(
+                asset_id=uuid4(),
+                from_parent_id=uuid4(),
+                to_parent_id=uuid4(),
+                reason="moved",
+                occurred_at=_NOW,
+            ),
+        )
+
+
+@pytest.mark.unit
+def test_fold_register_then_relocate_yields_asset_with_new_parent() -> None:
+    asset_id = uuid4()
+    old_parent = uuid4()
+    new_parent = uuid4()
+    state = fold(
+        [
+            AssetRegistered(
+                asset_id=asset_id,
+                name="APS-2BM",
+                level="Unit",
+                parent_id=old_parent,
+                occurred_at=_NOW,
+            ),
+            AssetRelocated(
+                asset_id=asset_id,
+                from_parent_id=old_parent,
+                to_parent_id=new_parent,
+                reason="site reorganization",
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.parent_id == new_parent
+    assert state.lifecycle is AssetLifecycle.COMMISSIONED
+
+
+@pytest.mark.unit
+def test_fold_register_activate_relocate_preserves_active_lifecycle() -> None:
+    """Relocate after activate keeps lifecycle=ACTIVE — the typical
+    in-service hierarchy move case."""
+    asset_id = uuid4()
+    old_parent = uuid4()
+    new_parent = uuid4()
+    state = fold(
+        [
+            AssetRegistered(
+                asset_id=asset_id,
+                name="APS-2BM",
+                level="Unit",
+                parent_id=old_parent,
+                occurred_at=_NOW,
+            ),
+            AssetActivated(asset_id=asset_id, occurred_at=_NOW),
+            AssetRelocated(
+                asset_id=asset_id,
+                from_parent_id=old_parent,
+                to_parent_id=new_parent,
+                reason="moved while in service",
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.parent_id == new_parent
+    assert state.lifecycle is AssetLifecycle.ACTIVE

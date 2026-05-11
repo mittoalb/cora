@@ -17,16 +17,17 @@ Subject (composition order matters — innermost first):
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
 Phase 5a shipped `define_capability` + `get_capability`. Phase 5b
-added `register_asset`. Phase 5c adds two Asset lifecycle
-transitions: `activate_asset` (single-source `Commissioned -> Active`)
-and `decommission_asset` (multi-source `Commissioned | Active ->
-Decommissioned`). All update-style; not idempotency-wrapped (domain-
-idempotent via `AssetCannot<X>Error` on retry; same precedent as
-Subject's transitions). Queries skip idempotency.
+added `register_asset`. Phase 5c added `activate_asset` +
+`decommission_asset`. Phase 5d adds `relocate_asset` (hierarchy
+mutation; first event in the codebase whose payload carries source
+AND target state). All transitions are update-style; not
+idempotency-wrapped (domain-idempotent via `AssetCannot<X>Error`
+on retry; same precedent as Subject's transitions). Queries skip
+idempotency.
 
 The per-BC `make_equipment_update_handler` factory extraction is
 deferred to 5e — Subject extracted at 6 instances; Equipment is at
-2 update-style handlers in 5c with ~4-5 expected by 5e. Same
+3 update-style handlers in 5d with ~4-5 expected by 5e. Same
 threshold logic.
 """
 
@@ -39,6 +40,7 @@ from cora.equipment.features import (
     define_capability,
     get_capability,
     register_asset,
+    relocate_asset,
 )
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
@@ -54,9 +56,10 @@ class EquipmentHandlers:
     Phase 5a shipped `define_capability` (create-style; idempotency-
     wrapped) and `get_capability` (read side). Phase 5b added
     `register_asset` (create-style; idempotency-wrapped). Phase 5c
-    adds the first two Asset lifecycle transitions: `activate_asset`
-    and `decommission_asset` — both update-style with bare Handler
-    protocols. Hierarchy mutation (5d), get_asset query (5e), and
+    added the first two Asset lifecycle transitions: `activate_asset`
+    and `decommission_asset`. Phase 5d adds `relocate_asset`
+    (hierarchy mutation). All transition handlers are update-style
+    with bare Handler protocols. The get_asset query (5e) and
     Capability transitions (5f+) land subsequently.
     """
 
@@ -65,6 +68,7 @@ class EquipmentHandlers:
     register_asset: register_asset.IdempotentHandler
     activate_asset: activate_asset.Handler
     decommission_asset: decommission_asset.Handler
+    relocate_asset: relocate_asset.Handler
 
 
 def wire_equipment(deps: SharedDeps) -> EquipmentHandlers:
@@ -108,6 +112,11 @@ def wire_equipment(deps: SharedDeps) -> EquipmentHandlers:
         decommission_asset=with_tracing(
             decommission_asset.bind(deps),
             command_name="DecommissionAsset",
+            bc=_BC,
+        ),
+        relocate_asset=with_tracing(
+            relocate_asset.bind(deps),
+            command_name="RelocateAsset",
             bc=_BC,
         ),
     )

@@ -9,6 +9,7 @@ from cora.equipment.aggregates.asset.events import (
     AssetActivated,
     AssetDecommissioned,
     AssetRegistered,
+    AssetRelocated,
     event_type_name,
     from_stored,
     to_payload,
@@ -261,4 +262,82 @@ def test_from_stored_rebuilds_asset_decommissioned() -> None:
 def test_to_payload_then_from_stored_round_trips_for_asset_decommissioned() -> None:
     original = AssetDecommissioned(asset_id=uuid4(), occurred_at=_NOW)
     stored = _stored("AssetDecommissioned", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- AssetRelocated (Phase 5d) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_asset_relocated_class_name() -> None:
+    event = AssetRelocated(
+        asset_id=uuid4(),
+        from_parent_id=uuid4(),
+        to_parent_id=uuid4(),
+        reason="site reorganization",
+        occurred_at=_NOW,
+    )
+    assert event_type_name(event) == "AssetRelocated"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_asset_relocated_with_both_parents_and_reason() -> None:
+    """First event in the codebase whose payload carries source AND
+    target state. Pinned because adding a `lifecycle` or other field
+    is an additive change that must be deliberate, AND because both
+    parent UUIDs must serialize as strings (not raw UUID instances)."""
+    asset_id = uuid4()
+    from_parent_id = uuid4()
+    to_parent_id = uuid4()
+    event = AssetRelocated(
+        asset_id=asset_id,
+        from_parent_id=from_parent_id,
+        to_parent_id=to_parent_id,
+        reason="moved from storage to BL2-IBP",
+        occurred_at=_NOW,
+    )
+    assert to_payload(event) == {
+        "asset_id": str(asset_id),
+        "from_parent_id": str(from_parent_id),
+        "to_parent_id": str(to_parent_id),
+        "reason": "moved from storage to BL2-IBP",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_asset_relocated() -> None:
+    asset_id = uuid4()
+    from_parent_id = uuid4()
+    to_parent_id = uuid4()
+    stored = _stored(
+        "AssetRelocated",
+        {
+            "asset_id": str(asset_id),
+            "from_parent_id": str(from_parent_id),
+            "to_parent_id": str(to_parent_id),
+            "reason": "site reorganization 2026-Q3",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == AssetRelocated(
+        asset_id=asset_id,
+        from_parent_id=from_parent_id,
+        to_parent_id=to_parent_id,
+        reason="site reorganization 2026-Q3",
+        occurred_at=_NOW,
+    )
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_asset_relocated() -> None:
+    original = AssetRelocated(
+        asset_id=uuid4(),
+        from_parent_id=uuid4(),
+        to_parent_id=uuid4(),
+        reason="commissioning move",
+        occurred_at=_NOW,
+    )
+    stored = _stored("AssetRelocated", to_payload(original))
     assert from_stored(stored) == original

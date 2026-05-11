@@ -202,6 +202,33 @@ class AssetCannotDecommissionError(Exception):
         self.current_lifecycle = current_lifecycle
 
 
+class AssetCannotRelocateError(Exception):
+    """Attempted to relocate an asset under disqualifying conditions.
+
+    Hierarchy mutation (5d): unlike the lifecycle-transition errors
+    (Activate/Decommission), relocation has multiple disqualifying
+    conditions that don't share a single state-mismatch shape. They
+    all collapse into one error class with a diagnostic `reason`
+    string that surfaces in the route's 409 body:
+
+      - asset is `Enterprise` level (root; cannot have a parent at all)
+      - asset is `Decommissioned` (retired; no further hierarchy changes)
+      - target_parent_id == asset_id (single-parent-tree self-loop)
+      - target_parent_id == current parent_id (no-op)
+
+    Cycle detection beyond the trivial self-loop case (target's
+    ancestor chain contains the asset) is **deferred** — requires
+    walking the parent chain via additional event-store queries;
+    revisit when projection-worker exists. Documented as a known
+    gap.
+    """
+
+    def __init__(self, asset_id: UUID, reason: str) -> None:
+        super().__init__(f"Asset {asset_id} cannot be relocated: {reason}")
+        self.asset_id = asset_id
+        self.reason = reason
+
+
 @dataclass(frozen=True)
 class AssetName:
     """Display name for an asset. Trimmed; 1-200 chars.
