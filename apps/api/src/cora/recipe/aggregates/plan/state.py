@@ -64,8 +64,9 @@ module.
 
 This is the first decider in the codebase that takes cross-
 aggregate state as input. The pattern is documented in
-CONTRIBUTING.md as the canonical approach for future cross-
-validating deciders (Run will follow the same shape).
+CONTRIBUTING.md as the canonical approach for cross-validating
+deciders. Second instance shipped in `start_run` (Phase 6f-1) with
+`RunStartContext` of the same shape.
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
 

@@ -278,7 +278,7 @@ Why this policy: events are immutable and persist forever, but value objects evo
 
 ### Cross-aggregate validation — handler pre-loads, decider stays pure
 
-Some commands need to validate against another aggregate's state — e.g. `define_plan` must check that the bound Practice + Method + Assets exist and are in compatible states (capability-superset, not deprecated, not decommissioned). The canonical pattern (introduced for `define_plan` in Phase 6e-1, applies to every future cross-validating decider including Run):
+Some commands need to validate against another aggregate's state — e.g. `define_plan` must check that the bound Practice + Method + Assets exist and are in compatible states (capability-superset, not deprecated, not decommissioned). Two instances live in the codebase today: `define_plan` (Phase 6e-1, with `PlanBindingContext`) and `start_run` (Phase 6f-1, with `RunStartContext`). The canonical pattern is the same shape both times:
 
 **The handler (impure shell) loads the upstream aggregates and bundles them into a slice-local context dataclass; the pure decider takes that context as an opaque parameter and validates without I/O.**
 
@@ -329,7 +329,7 @@ def decide(
 - **Capture, don't recompute.** Bind-time data captured in the event payload as audit snapshots so replay never needs to re-load (and so the audit trail is reproducible even after upstream aggregates evolve). See [Plan's `PlanDefined` event](apps/api/src/cora/recipe/aggregates/plan/events.py) for the snapshot shape pattern.
 - **Eventual-consistency stance preserved.** Concurrent upstream changes between handler-load and event-append are accepted — no cross-aggregate stream-version checks. Same precedent as everywhere else in CORA.
 - **Existence vs state-of-existence cleanly split.** Handler raises `<X>NotFoundError` for missing referenced aggregates; decider raises domain errors (`PracticeDeprecatedError`, `AssetDecommissionedError`, etc.) for "exists but state forbids the operation". Maps cleanly to HTTP: 404 for not-found, 409 for state-conflict.
-- **Slice-local context.** `PlanBindingContext` lives at `<slice>/context.py`, not at the aggregate level — only `define_plan` uses it today. Future cross-validating slices produce their own context shapes (`RunStartContext`, etc.); promote to a shared form only after the Rule of Three.
+- **Slice-local context.** Each cross-validating slice gets its own `<slice>/context.py` module: `define_plan` ships `PlanBindingContext` (Practice + Method + assets), `start_run` ships `RunStartContext` (Plan + optional Subject + assets). Two distinct shapes today; promote to a shared form only after the Rule of Three (and only if the third instance shares structure with one of the existing two — convergence isn't guaranteed).
 
 This pattern matches the modern functional-DDD consensus (Functional Core / Imperative Shell): *"Any data that isn't in the stream — credit limits, holiday calendars, FX rates — is fetched in the imperative shell before the pure core runs and is passed in as plain values"* ([Beyond Aggregates: Lean, Functional Event Sourcing](https://ricofritzsche.me/functional-event-sourcing/)).
 

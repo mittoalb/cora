@@ -9,9 +9,9 @@ opaque domain data and validates without any I/O. `now` and
 ports.
 
 This pattern is the canonical approach for cross-aggregate
-validation in CORA going forward (Run will follow the same shape).
-Documented in CONTRIBUTING.md alongside the eventual-consistency
-rule.
+validation in CORA. Second instance shipped in `start_run` (Phase
+6f-1) with `RunStartContext` of the same shape. Documented in
+CONTRIBUTING.md alongside the eventual-consistency rule.
 
 ## Validation order
 

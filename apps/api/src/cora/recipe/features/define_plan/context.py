@@ -13,10 +13,11 @@ plain values. Keeps the decider referentially transparent — same
 inputs, same outputs, no need to mock loaders in unit tests.
 
 Slice-local module by design: only `define_plan` uses it today.
-Future cross-validating slices (Run starting a Plan, Plan version
-revalidation, etc.) will produce their own context shapes
-(`RunStartContext`, etc.) following the same pattern but holding
-the entities relevant to that slice.
+Sibling pattern: `cora.run.features.start_run.context.RunStartContext`
+(6f-1) holds Plan + Subject (optional) + assets — same shape, slice-
+specific entities. Each cross-validating slice produces its own
+context dataclass; promote to a shared form only after the Rule of
+Three.
 """
 
 from dataclasses import dataclass

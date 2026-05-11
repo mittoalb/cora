@@ -10,13 +10,31 @@ Module-as-namespace: callers use
 Eighth instance of the create-style template body. The cross-BC
 extraction question reopens periodically (parked since the
 post-Phase-4 review at 5 instances; reviewed and re-deferred at 7
-instances after 5b, at 8 instances after 6a, and most recently at
-10 instances after 6e-1 with no per-instance divergence pressure
-that would make a factory more useful than the current copies).
-The locked stance: the create-style template is structural
-ceremony around per-handler closure-over-deps shapes; until
-divergence pressure emerges, the duplication is cheaper to read
-than a generic factory would be.
+instances after 5b, 8 instances after 6a, 10 instances after 6e-1,
+and 11 instances after 6f-1).
+
+After 6f-1, two distinct create-style shapes coexist:
+  - **Simple create** (no cross-aggregate loads) — 9 instances:
+    register_actor, register_subject, define_zone, define_conduit,
+    define_policy, define_capability, register_asset, define_method,
+    define_practice.
+  - **Cross-aggregate-validating create** (handler pre-loads + slice-
+    local context dataclass) — 2 instances: define_plan
+    (PlanBindingContext, 6e-1) and start_run (RunStartContext, 6f-1).
+
+The two shapes have meaningfully different handler bodies; a
+unifying factory across them would lose more than it saves.
+
+Stance: keep the extraction question OPEN, not killed. The create-
+style landscape is still evolving — future modes may surface (async-
+bound creates, scheduled creates, multi-step transactional creates,
+saga-driven creates, etc.) that change the calculus. Re-evaluate
+when (a) two of the existing modes converge in shape over time,
+(b) a third mode emerges that shares structure with one of the
+existing two, or (c) cross-cutting decorators (logging, authz,
+idempotency wrapping) consolidate enough to obviate handler-body
+extraction. Until then, the duplication is cheaper to read than a
+premature abstraction would be.
 """
 
 from typing import Protocol

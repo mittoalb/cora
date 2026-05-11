@@ -74,7 +74,7 @@ Subject / Asset. RunStatus is a `StrEnum`; the evolver derives
 the new status from the event TYPE per match arm. Status is NOT
 carried in event payloads.
 
-## Tenth bounded-name VO (technically 11th — RunName)
+## Eleventh bounded-name VO
 
 `RunName` calls the shared `validate_name` helper hoisted in
 6e-1 (`cora.infrastructure.name`). Same pattern as the prior 10.
