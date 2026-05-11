@@ -26,7 +26,7 @@ _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 def _practice(
     *,
     status: PracticeStatus = PracticeStatus.DEFINED,
-    current_version: str | None = None,
+    version: str | None = None,
 ) -> Practice:
     return Practice(
         id=uuid4(),
@@ -34,7 +34,7 @@ def _practice(
         method_id=uuid4(),
         site_id=uuid4(),
         status=status,
-        current_version=current_version,
+        version=version,
     )
 
 

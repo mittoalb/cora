@@ -28,14 +28,14 @@ _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 def _method(
     *,
     status: MethodStatus = MethodStatus.DEFINED,
-    current_version: str | None = None,
+    version: str | None = None,
 ) -> Method:
     return Method(
         id=uuid4(),
         name=MethodName("XRF Mapping"),
         needs_capabilities=frozenset(),
         status=status,
-        current_version=current_version,
+        version=version,
     )
 
 

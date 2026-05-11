@@ -80,15 +80,15 @@ def test_decider_and_evolver_round_trip() -> None:
 
 
 @pytest.mark.unit
-def test_evolve_capability_defined_starts_with_null_current_version() -> None:
-    """Genesis-only stream folds with current_version=None
+def test_evolve_capability_defined_starts_with_null_version() -> None:
+    """Genesis-only stream folds with version=None
     (additive-state pattern: pre-5f-2 streams fold cleanly without
     an upcaster)."""
     state = evolve(
         None,
         CapabilityDefined(capability_id=uuid4(), name="X", occurred_at=_NOW),
     )
-    assert state.current_version is None
+    assert state.version is None
 
 
 @pytest.mark.unit
@@ -104,7 +104,7 @@ def test_evolve_capability_versioned_flips_status_and_sets_version() -> None:
         CapabilityVersioned(capability_id=capability_id, version_tag="v2", occurred_at=_NOW),
     )
     assert versioned.status is CapabilityStatus.VERSIONED
-    assert versioned.current_version == "v2"
+    assert versioned.version == "v2"
     # Other state preserved.
     assert versioned.id == capability_id
     assert versioned.name == CapabilityName("Tomography")
@@ -112,20 +112,20 @@ def test_evolve_capability_versioned_flips_status_and_sets_version() -> None:
 
 @pytest.mark.unit
 def test_evolve_capability_versioned_replaces_prior_version_tag() -> None:
-    """Subsequent revisions overwrite current_version with the new
-    label. Pinned: the latest version is what current_version reflects."""
+    """Subsequent revisions overwrite version with the new
+    label. Pinned: the latest version is what version reflects."""
     capability_id = uuid4()
     versioned_v1 = Capability(
         id=capability_id,
         name=CapabilityName("X"),
         status=CapabilityStatus.VERSIONED,
-        current_version="v1",
+        version="v1",
     )
     versioned_v2 = evolve(
         versioned_v1,
         CapabilityVersioned(capability_id=capability_id, version_tag="v2", occurred_at=_NOW),
     )
-    assert versioned_v2.current_version == "v2"
+    assert versioned_v2.version == "v2"
 
 
 @pytest.mark.unit
@@ -142,29 +142,29 @@ def test_evolve_capability_versioned_on_empty_state_raises() -> None:
 
 @pytest.mark.unit
 def test_evolve_capability_deprecated_flips_status_and_preserves_version() -> None:
-    """current_version is preserved across deprecation — the
+    """version is preserved across deprecation — the
     historical label of when the capability was last revised remains
-    visible. Pinned: a future change that wiped current_version on
+    visible. Pinned: a future change that wiped version on
     deprecation would lose the audit signal."""
     capability_id = uuid4()
     versioned = Capability(
         id=capability_id,
         name=CapabilityName("X"),
         status=CapabilityStatus.VERSIONED,
-        current_version="v3",
+        version="v3",
     )
     deprecated = evolve(
         versioned,
         CapabilityDeprecated(capability_id=capability_id, occurred_at=_NOW),
     )
     assert deprecated.status is CapabilityStatus.DEPRECATED
-    assert deprecated.current_version == "v3"
+    assert deprecated.version == "v3"
 
 
 @pytest.mark.unit
-def test_evolve_capability_deprecated_from_defined_preserves_null_current_version() -> None:
+def test_evolve_capability_deprecated_from_defined_preserves_null_version() -> None:
     """Deprecating a Defined-only capability (never versioned) keeps
-    current_version=None."""
+    version=None."""
     defined = Capability(
         id=uuid4(),
         name=CapabilityName("X"),
@@ -175,7 +175,7 @@ def test_evolve_capability_deprecated_from_defined_preserves_null_current_versio
         CapabilityDeprecated(capability_id=defined.id, occurred_at=_NOW),
     )
     assert deprecated.status is CapabilityStatus.DEPRECATED
-    assert deprecated.current_version is None
+    assert deprecated.version is None
 
 
 @pytest.mark.unit
@@ -195,7 +195,7 @@ def test_fold_define_version_yields_versioned_capability() -> None:
     )
     assert state is not None
     assert state.status is CapabilityStatus.VERSIONED
-    assert state.current_version == "v2"
+    assert state.version == "v2"
 
 
 @pytest.mark.unit
@@ -211,7 +211,7 @@ def test_fold_define_version_version_yields_latest_version_tag() -> None:
         ]
     )
     assert state is not None
-    assert state.current_version == "v3"
+    assert state.version == "v3"
 
 
 @pytest.mark.unit
@@ -241,4 +241,4 @@ def test_fold_define_version_deprecate_preserves_version_through_deprecation() -
     )
     assert state is not None
     assert state.status is CapabilityStatus.DEPRECATED
-    assert state.current_version == "v2"
+    assert state.version == "v2"

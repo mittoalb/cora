@@ -40,7 +40,7 @@ def test_post_deprecate_method_returns_204_from_versioned_state() -> None:
 
 @pytest.mark.contract
 def test_post_deprecate_method_round_trips_into_get_method_response() -> None:
-    """End-to-end: deprecate + get → status=Deprecated, current_version preserved."""
+    """End-to-end: deprecate + get → status=Deprecated, version preserved."""
     with TestClient(create_app()) as client:
         method_id = _define_method(client)
         client.post(f"/methods/{method_id}/version", json={"version_tag": "2026-Q2"})
@@ -50,7 +50,7 @@ def test_post_deprecate_method_round_trips_into_get_method_response() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "Deprecated"
-    assert body["current_version"] == "2026-Q2"
+    assert body["version"] == "2026-Q2"
 
 
 @pytest.mark.contract

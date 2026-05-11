@@ -25,15 +25,14 @@ class CapabilityResponse(BaseModel):
     Carries primitives, not domain VOs. Decouples the wire format
     from the domain model so the two can evolve independently.
     `status` is the StrEnum's string value (Defined / Versioned /
-    Deprecated). `current_version` is the operator-supplied label
-    of the most recent version_capability call (null until first
-    version).
+    Deprecated). `version` is the operator-supplied label of the most
+    recent version_capability call (null until first version).
     """
 
     id: UUID
     name: str = Field(..., max_length=CAPABILITY_NAME_MAX_LENGTH)
     status: str
-    current_version: str | None
+    version: str | None
 
 
 def _get_handler(request: Request) -> Handler:
@@ -79,5 +78,5 @@ async def get_capabilities(
         id=capability.id,
         name=capability.name.value,
         status=capability.status.value,
-        current_version=capability.current_version,
+        version=capability.version,
     )

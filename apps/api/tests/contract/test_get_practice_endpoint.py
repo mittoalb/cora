@@ -1,6 +1,6 @@
 """Contract tests for `GET /practices/{practice_id}`.
 
-Pinned response shape: `{id, name, method_id, site_id, status, current_version}`.
+Pinned response shape: `{id, name, method_id, site_id, status, version}`.
 """
 
 from uuid import UUID, uuid4
@@ -43,7 +43,7 @@ def test_get_practice_returns_200_with_defined_status_for_new_practice() -> None
         "site_id": site_id,
         "status": "Defined",
         # Null until version_practice runs (6d-2).
-        "current_version": None,
+        "version": None,
     }
 
 

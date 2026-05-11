@@ -44,7 +44,7 @@ def test_post_version_capability_returns_204_from_versioned_state() -> None:
 
 @pytest.mark.contract
 def test_post_version_capability_round_trips_into_get_capability_response() -> None:
-    """End-to-end: version + get → status=Versioned, current_version=label."""
+    """End-to-end: version + get → status=Versioned, version=label."""
     with TestClient(create_app()) as client:
         capability_id = _define_capability(client)
         client.post(
@@ -56,7 +56,7 @@ def test_post_version_capability_round_trips_into_get_capability_response() -> N
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "Versioned"
-    assert body["current_version"] == "2026-Q3"
+    assert body["version"] == "2026-Q3"
 
 
 @pytest.mark.contract

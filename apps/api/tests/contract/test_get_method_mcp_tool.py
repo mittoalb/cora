@@ -87,7 +87,7 @@ def test_mcp_get_method_tool_returns_structured_method_for_known_id() -> None:
     assert structured["status"] == "Defined"
     assert structured["needs_capabilities"] == [cap1]
     # Null until version_method runs (6b).
-    assert structured["current_version"] is None
+    assert structured["version"] is None
 
 
 @pytest.mark.contract

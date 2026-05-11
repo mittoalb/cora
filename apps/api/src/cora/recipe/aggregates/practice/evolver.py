@@ -5,22 +5,22 @@ case forces pyright (and the runtime) to error if a new event type
 is added to `PracticeEvent` without a matching match arm here.
 
 Status mapping per event type:
-  - `PracticeDefined`    -> DEFINED   (genesis; current_version=None)
-  - `PracticeVersioned`  -> VERSIONED (current_version=event.version_tag;
+  - `PracticeDefined`    -> DEFINED   (genesis; version=None)
+  - `PracticeVersioned`  -> VERSIONED (version=event.version_tag;
                                         multi-source: Defined | Versioned)
-  - `PracticeDeprecated` -> DEPRECATED (current_version preserved;
+  - `PracticeDeprecated` -> DEPRECATED (version preserved;
                                         multi-source: Defined | Versioned)
 
 Mirrors Method's transition evolver shape (Recipe 6b) and
-Capability's (Equipment 5f-2). `current_version` is mutated by
+Capability's (Equipment 5f-2). `version` is mutated by
 PracticeVersioned and PRESERVED by PracticeDeprecated as the audit
 signal of the last revision before deprecation.
 
 **Critical invariant**: every transition arm MUST carry
-`method_id`, `site_id`, AND `current_version` through from prior
-state. Constructing `Practice(id=..., name=..., status=...)`
-without explicitly passing the carry-through fields would silently
-change them. The transition arms explicitly pass each.
+`method_id`, `site_id`, AND `version` through from prior state.
+Constructing `Practice(id=..., name=..., status=...)` without
+explicitly passing the carry-through fields would silently change
+them. The transition arms explicitly pass each.
 
 Transition events applied to empty state raise ValueError: they can
 never appear before `PracticeDefined` in a well-formed stream. The
@@ -68,7 +68,7 @@ def evolve(state: Practice | None, event: PracticeEvent) -> Practice:
                 method_id=method_id,
                 site_id=site_id,
                 status=PracticeStatus.DEFINED,
-                # current_version defaults to None.
+                # version defaults to None.
             )
         case PracticeVersioned(version_tag=version_tag):
             prior = _require_state(state, "PracticeVersioned")
@@ -78,7 +78,7 @@ def evolve(state: Practice | None, event: PracticeEvent) -> Practice:
                 method_id=prior.method_id,
                 site_id=prior.site_id,
                 status=PracticeStatus.VERSIONED,
-                current_version=version_tag,
+                version=version_tag,
             )
         case PracticeDeprecated():
             prior = _require_state(state, "PracticeDeprecated")
@@ -88,8 +88,8 @@ def evolve(state: Practice | None, event: PracticeEvent) -> Practice:
                 method_id=prior.method_id,
                 site_id=prior.site_id,
                 status=PracticeStatus.DEPRECATED,
-                # current_version preserved across deprecation.
-                current_version=prior.current_version,
+                # version preserved across deprecation.
+                version=prior.version,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

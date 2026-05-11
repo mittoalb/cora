@@ -217,13 +217,16 @@ class Method:
     requires. Eventual-consistency stance: existence is not verified
     at decide time; mismatch surfaces at Plan binding (6e).
 
-    `current_version` is the operator-supplied label of the most
-    recent `version_method` call (None until first version). Free-
-    text validated at API boundary + defensively in the decider; no
-    VO. Default None keeps pre-6b MethodDefined-only streams folding
-    cleanly (additive-state pattern). Mirrors Capability's
-    current_version semantics (Equipment 5f-2): preserved across
-    deprecation as an audit signal of the last revision before
+    `version` is the operator-supplied label of the most recent
+    `version_method` call (None until first version). State always
+    holds the latest tag — past tags live in the event stream as
+    `MethodVersioned` events. No `current_` prefix because state by
+    definition holds current values (same convention as `status`,
+    `name`). Free-text validated at API boundary + defensively in the
+    decider; no VO. Default None keeps pre-6b MethodDefined-only
+    streams folding cleanly (additive-state pattern). Mirrors
+    Capability's `version` semantics (Equipment 5f-2): preserved
+    across deprecation as an audit signal of the last revision before
     deprecation.
     """
 
@@ -231,4 +234,4 @@ class Method:
     name: MethodName
     needs_capabilities: frozenset[UUID] = field(default_factory=frozenset[UUID])
     status: MethodStatus = MethodStatus.DEFINED
-    current_version: str | None = None
+    version: str | None = None

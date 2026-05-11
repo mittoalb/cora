@@ -26,7 +26,7 @@ _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 @pytest.mark.unit
 def test_evolve_practice_defined_sets_status_to_defined() -> None:
     """PracticeDefined is the genesis event; status defaults to
-    Defined via the evolver. current_version starts None."""
+    Defined via the evolver. version starts None."""
     practice_id = uuid4()
     method_id = uuid4()
     site_id = uuid4()
@@ -47,7 +47,7 @@ def test_evolve_practice_defined_sets_status_to_defined() -> None:
         site_id=site_id,
         status=PracticeStatus.DEFINED,
     )
-    assert state.current_version is None
+    assert state.version is None
 
 
 @pytest.mark.unit
@@ -137,7 +137,7 @@ def test_evolve_practice_versioned_flips_status_and_sets_version() -> None:
         PracticeVersioned(practice_id=practice_id, version_tag="v2", occurred_at=_NOW),
     )
     assert versioned.status is PracticeStatus.VERSIONED
-    assert versioned.current_version == "v2"
+    assert versioned.version == "v2"
     # Cross-aggregate refs preserved.
     assert versioned.method_id == method_id
     assert versioned.site_id == site_id
@@ -153,13 +153,13 @@ def test_evolve_practice_versioned_replaces_prior_version_tag() -> None:
         method_id=uuid4(),
         site_id=uuid4(),
         status=PracticeStatus.VERSIONED,
-        current_version="v1",
+        version="v1",
     )
     versioned_v2 = evolve(
         versioned_v1,
         PracticeVersioned(practice_id=practice_id, version_tag="v2", occurred_at=_NOW),
     )
-    assert versioned_v2.current_version == "v2"
+    assert versioned_v2.version == "v2"
 
 
 @pytest.mark.unit
@@ -176,7 +176,7 @@ def test_evolve_practice_versioned_on_empty_state_raises() -> None:
 
 @pytest.mark.unit
 def test_evolve_practice_deprecated_flips_status_and_preserves_version() -> None:
-    """current_version preserved across deprecation. Mirrors Method
+    """version preserved across deprecation. Mirrors Method
     and Capability shape."""
     practice_id = uuid4()
     method_id = uuid4()
@@ -187,21 +187,21 @@ def test_evolve_practice_deprecated_flips_status_and_preserves_version() -> None
         method_id=method_id,
         site_id=site_id,
         status=PracticeStatus.VERSIONED,
-        current_version="v3",
+        version="v3",
     )
     deprecated = evolve(
         versioned,
         PracticeDeprecated(practice_id=practice_id, occurred_at=_NOW),
     )
     assert deprecated.status is PracticeStatus.DEPRECATED
-    assert deprecated.current_version == "v3"
+    assert deprecated.version == "v3"
     # Cross-aggregate refs preserved across deprecation.
     assert deprecated.method_id == method_id
     assert deprecated.site_id == site_id
 
 
 @pytest.mark.unit
-def test_evolve_practice_deprecated_from_defined_preserves_null_current_version() -> None:
+def test_evolve_practice_deprecated_from_defined_preserves_null_version() -> None:
     defined = Practice(
         id=uuid4(),
         name=PracticeName("X"),
@@ -214,7 +214,7 @@ def test_evolve_practice_deprecated_from_defined_preserves_null_current_version(
         PracticeDeprecated(practice_id=defined.id, occurred_at=_NOW),
     )
     assert deprecated.status is PracticeStatus.DEPRECATED
-    assert deprecated.current_version is None
+    assert deprecated.version is None
 
 
 @pytest.mark.unit
@@ -240,7 +240,7 @@ def test_fold_define_version_yields_versioned_practice() -> None:
     )
     assert state is not None
     assert state.status is PracticeStatus.VERSIONED
-    assert state.current_version == "v2"
+    assert state.version == "v2"
 
 
 @pytest.mark.unit
@@ -263,7 +263,7 @@ def test_fold_define_version_deprecate_preserves_version() -> None:
     )
     assert state is not None
     assert state.status is PracticeStatus.DEPRECATED
-    assert state.current_version == "v2"
+    assert state.version == "v2"
 
 
 @pytest.mark.unit

@@ -27,13 +27,13 @@ _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 def _capability(
     *,
     status: CapabilityStatus = CapabilityStatus.DEFINED,
-    current_version: str | None = None,
+    version: str | None = None,
 ) -> Capability:
     return Capability(
         id=uuid4(),
         name=CapabilityName("Tomography"),
         status=status,
-        current_version=current_version,
+        version=version,
     )
 
 

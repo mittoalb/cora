@@ -44,7 +44,7 @@ def test_post_deprecate_practice_returns_204_from_versioned_state() -> None:
 
 @pytest.mark.contract
 def test_post_deprecate_practice_round_trips_into_get_practice_response() -> None:
-    """Audit signal: current_version preserved through deprecation."""
+    """Audit signal: version preserved through deprecation."""
     with TestClient(create_app()) as client:
         practice_id = _define_practice(client)
         client.post(f"/practices/{practice_id}/version", json={"version_tag": "2026-Q2"})
@@ -54,7 +54,7 @@ def test_post_deprecate_practice_round_trips_into_get_practice_response() -> Non
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "Deprecated"
-    assert body["current_version"] == "2026-Q2"
+    assert body["version"] == "2026-Q2"
 
 
 @pytest.mark.contract

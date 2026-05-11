@@ -27,7 +27,7 @@ class PracticeOutput(BaseModel):
     method_id: UUID
     site_id: UUID
     status: str
-    current_version: str | None
+    version: str | None
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -58,5 +58,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             method_id=practice.method_id,
             site_id=practice.site_id,
             status=practice.status.value,
-            current_version=practice.current_version,
+            version=practice.version,
         )

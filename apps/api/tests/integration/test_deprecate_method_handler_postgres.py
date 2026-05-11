@@ -1,7 +1,7 @@
 """End-to-end integration test: deprecate_method against real Postgres.
 
 Round-trip: define + version + deprecate + load_method returns the
-deprecated state with current_version preserved.
+deprecated state with version preserved.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -82,4 +82,4 @@ async def test_deprecate_method_persists_and_preserves_version_through_fold(
     assert state is not None
     assert state.status is MethodStatus.DEPRECATED
     # Audit signal: latest version_tag preserved through deprecation.
-    assert state.current_version == "2026-Q2"
+    assert state.version == "2026-Q2"

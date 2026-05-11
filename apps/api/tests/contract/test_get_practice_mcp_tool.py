@@ -86,7 +86,7 @@ def test_mcp_get_practice_tool_returns_structured_practice_for_known_id() -> Non
     assert structured["method_id"] == method_id
     assert structured["site_id"] == site_id
     assert structured["status"] == "Defined"
-    assert structured["current_version"] is None
+    assert structured["version"] is None
 
 
 @pytest.mark.contract

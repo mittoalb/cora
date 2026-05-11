@@ -72,7 +72,7 @@ def test_mcp_get_capability_tool_returns_structured_capability_for_known_id() ->
     assert structured["name"] == "Tomography"
     assert structured["status"] == "Defined"
     # Null until version_capability runs (5f-2).
-    assert structured["current_version"] is None
+    assert structured["version"] is None
 
 
 @pytest.mark.contract

@@ -43,7 +43,7 @@ def test_post_version_method_returns_204_from_versioned_state() -> None:
 
 @pytest.mark.contract
 def test_post_version_method_round_trips_into_get_method_response() -> None:
-    """End-to-end: version + get → status=Versioned, current_version=label."""
+    """End-to-end: version + get → status=Versioned, version=label."""
     with TestClient(create_app()) as client:
         method_id = _define_method(client)
         client.post(f"/methods/{method_id}/version", json={"version_tag": "2026-Q3"})
@@ -52,7 +52,7 @@ def test_post_version_method_round_trips_into_get_method_response() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "Versioned"
-    assert body["current_version"] == "2026-Q3"
+    assert body["version"] == "2026-Q3"
 
 
 @pytest.mark.contract

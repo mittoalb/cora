@@ -1,7 +1,7 @@
 """End-to-end integration test: version_capability against real Postgres.
 
 Round-trip: define + version + load_capability returns the
-versioned state with current_version set.
+versioned state with version set.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -78,4 +78,4 @@ async def test_version_capability_persists_event_and_round_trips_through_fold(
     assert state is not None
     assert state.name == CapabilityName("X-ray Fluorescence Mapping")
     assert state.status is CapabilityStatus.VERSIONED
-    assert state.current_version == "2026-Q3"
+    assert state.version == "2026-Q3"

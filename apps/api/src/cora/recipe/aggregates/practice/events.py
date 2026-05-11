@@ -54,8 +54,8 @@ class PracticeVersioned:
     """A practice's facility adaptation was revised; a new version label was issued.
 
     Multi-source transition: `Defined | Versioned -> Versioned`. The
-    evolver sets status=VERSIONED and updates state.current_version
-    to the new tag. The decider's source-state guard enforces that
+    evolver sets status=VERSIONED and updates state.version to the
+    new tag. The decider's source-state guard enforces that
     Deprecated practices can't be re-versioned.
 
     `version_tag` is operator-supplied free text (1-50 chars,
@@ -73,9 +73,9 @@ class PracticeDeprecated:
     """A practice was marked as no longer recommended for new Plans.
 
     Multi-source transition: `Defined | Versioned -> Deprecated`. The
-    evolver sets status=DEPRECATED; current_version is preserved
-    (the historical label of when the practice was last revised
-    before deprecation remains visible).
+    evolver sets status=DEPRECATED; `version` is preserved (the
+    historical label of when the practice was last revised before
+    deprecation remains visible).
 
     Existing Plans that reference this Practice are NOT automatically
     invalidated. Deprecation is advisory; future Plan-side enrichment

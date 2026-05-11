@@ -50,7 +50,7 @@ def test_get_method_returns_200_with_defined_status_for_new_method() -> None:
     # Sorted by UUID string form (deterministic).
     assert body["needs_capabilities"] == sorted([cap1, cap2])
     # Null until version_method runs (6b).
-    assert body["current_version"] is None
+    assert body["version"] is None
 
 
 @pytest.mark.contract

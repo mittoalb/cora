@@ -40,7 +40,7 @@ def test_post_deprecate_capability_returns_204_from_versioned_state() -> None:
 
 @pytest.mark.contract
 def test_post_deprecate_capability_round_trips_into_get_capability_response() -> None:
-    """End-to-end: deprecate + get → status=Deprecated, current_version preserved."""
+    """End-to-end: deprecate + get → status=Deprecated, version preserved."""
     with TestClient(create_app()) as client:
         capability_id = _define_capability(client)
         client.post(
@@ -54,7 +54,7 @@ def test_post_deprecate_capability_round_trips_into_get_capability_response() ->
     body = response.json()
     assert body["status"] == "Deprecated"
     # Audit signal: latest version_tag preserved through deprecation.
-    assert body["current_version"] == "2026-Q2"
+    assert body["version"] == "2026-Q2"
 
 
 @pytest.mark.contract

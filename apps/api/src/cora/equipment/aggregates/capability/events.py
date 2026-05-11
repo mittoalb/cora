@@ -45,8 +45,8 @@ class CapabilityVersioned:
     """A capability's definition was revised; a new version label was issued.
 
     Multi-source transition: `Defined | Versioned -> Versioned`. The
-    evolver sets status=VERSIONED and updates state.current_version
-    to the new tag. The decider's source-state guard enforces that
+    evolver sets status=VERSIONED and updates state.version to the
+    new tag. The decider's source-state guard enforces that
     Deprecated capabilities can't be re-versioned.
 
     `version_tag` is operator-supplied free text (1-50 chars,
@@ -66,9 +66,9 @@ class CapabilityDeprecated:
     """A capability was marked as no longer recommended for new Methods.
 
     Multi-source transition: `Defined | Versioned -> Deprecated`. The
-    evolver sets status=DEPRECATED; current_version is preserved
-    (the historical label of when the capability was last revised
-    before being deprecated remains visible).
+    evolver sets status=DEPRECATED; `version` is preserved (the
+    historical label of when the capability was last revised before
+    being deprecated remains visible).
 
     Existing Methods that reference this Capability are NOT
     automatically invalidated. Deprecation is advisory at the BC

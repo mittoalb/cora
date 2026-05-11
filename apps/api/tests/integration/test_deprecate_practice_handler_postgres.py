@@ -82,4 +82,4 @@ async def test_deprecate_practice_persists_and_preserves_version_through_fold(
     assert state is not None
     assert state.status is PracticeStatus.DEPRECATED
     # Audit signal preserved.
-    assert state.current_version == "2026-Q2"
+    assert state.version == "2026-Q2"

@@ -182,15 +182,18 @@ class CapabilityName:
 class Capability:
     """Aggregate root: a technique-class capability definition.
 
-    `current_version` is the operator-supplied label of the most
-    recent `version_capability` call (None until first version).
-    Free-text validated at API boundary + defensively in the decider;
-    no VO (same precedent as AssetRelocated.reason). Default None
-    keeps pre-5f-2 CapabilityDefined-only streams folding cleanly
+    `version` is the operator-supplied label of the most recent
+    `version_capability` call (None until first version). State always
+    holds the latest tag — past tags live in the event stream as
+    `CapabilityVersioned` events. No `current_` prefix because state
+    by definition holds current values (same convention as `status`,
+    `name`). Free-text validated at API boundary + defensively in the
+    decider; no VO (same precedent as AssetRelocated.reason). Default
+    None keeps pre-5f-2 CapabilityDefined-only streams folding cleanly
     (additive-state pattern).
     """
 
     id: UUID
     name: CapabilityName
     status: CapabilityStatus = CapabilityStatus.DEFINED
-    current_version: str | None = None
+    version: str | None = None

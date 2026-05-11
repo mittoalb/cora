@@ -28,14 +28,14 @@ _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 def _method(
     *,
     status: MethodStatus = MethodStatus.DEFINED,
-    current_version: str | None = None,
+    version: str | None = None,
 ) -> Method:
     return Method(
         id=uuid4(),
         name=MethodName("XRF Mapping"),
         needs_capabilities=frozenset(),
         status=status,
-        current_version=current_version,
+        version=version,
     )
 
 
@@ -114,7 +114,7 @@ def test_decide_raises_invalid_version_tag_for_too_long() -> None:
 
 @pytest.mark.unit
 def test_decide_raises_cannot_version_for_deprecated_status() -> None:
-    state = _method(status=MethodStatus.DEPRECATED, current_version="v1")
+    state = _method(status=MethodStatus.DEPRECATED, version="v1")
     with pytest.raises(MethodCannotVersionError) as exc_info:
         version_method.decide(
             state=state,
@@ -156,7 +156,7 @@ def test_decide_allows_versioning_with_same_tag_for_re_attestation() -> None:
     succeeds. See decider docstring for rationale."""
     state = _method(
         status=MethodStatus.VERSIONED,
-        current_version="v2",
+        version="v2",
     )
     events = version_method.decide(
         state=state,

@@ -67,6 +67,6 @@ async def test_version_practice_persists_event_and_round_trips_through_fold(
     state = await load_practice(deps.event_store, practice_id)
     assert state is not None
     assert state.status is PracticeStatus.VERSIONED
-    assert state.current_version == "2026-Q3"
+    assert state.version == "2026-Q3"
     assert state.method_id == method_id
     assert state.site_id == site_id

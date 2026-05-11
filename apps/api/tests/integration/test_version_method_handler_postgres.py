@@ -1,7 +1,7 @@
 """End-to-end integration test: version_method against real Postgres.
 
 Round-trip: define + version + load_method returns the versioned
-state with current_version set.
+state with version set.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -71,4 +71,4 @@ async def test_version_method_persists_event_and_round_trips_through_fold(
     assert state is not None
     assert state.name == MethodName("XRF Fly Mapping")
     assert state.status is MethodStatus.VERSIONED
-    assert state.current_version == "2026-Q3"
+    assert state.version == "2026-Q3"

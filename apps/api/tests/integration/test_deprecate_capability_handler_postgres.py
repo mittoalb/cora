@@ -1,7 +1,7 @@
 """End-to-end integration test: deprecate_capability against real Postgres.
 
 Round-trip: define + version + deprecate + load_capability returns
-the deprecated state with current_version preserved (the audit
+the deprecated state with version preserved (the audit
 signal of the last revision before deprecation).
 """
 
@@ -92,4 +92,4 @@ async def test_deprecate_capability_persists_and_preserves_version_through_fold(
     assert state is not None
     assert state.status is CapabilityStatus.DEPRECATED
     # Audit signal: latest version_tag preserved through deprecation.
-    assert state.current_version == "2026-Q2"
+    assert state.version == "2026-Q2"

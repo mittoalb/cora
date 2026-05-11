@@ -158,15 +158,15 @@ def test_decider_and_evolver_round_trip() -> None:
 
 
 @pytest.mark.unit
-def test_evolve_method_defined_starts_with_null_current_version() -> None:
-    """Genesis-only stream folds with current_version=None
+def test_evolve_method_defined_starts_with_null_version() -> None:
+    """Genesis-only stream folds with version=None
     (additive-state pattern; pre-6b streams fold cleanly without
     an upcaster)."""
     state = evolve(
         None,
         MethodDefined(method_id=uuid4(), name="X", needs_capabilities=[], occurred_at=_NOW),
     )
-    assert state.current_version is None
+    assert state.version is None
 
 
 @pytest.mark.unit
@@ -184,7 +184,7 @@ def test_evolve_method_versioned_flips_status_and_sets_version() -> None:
         MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW),
     )
     assert versioned.status is MethodStatus.VERSIONED
-    assert versioned.current_version == "v2"
+    assert versioned.version == "v2"
     # needs_capabilities preserved.
     assert versioned.needs_capabilities == frozenset({cap1})
     assert versioned.id == method_id
@@ -192,20 +192,20 @@ def test_evolve_method_versioned_flips_status_and_sets_version() -> None:
 
 @pytest.mark.unit
 def test_evolve_method_versioned_replaces_prior_version_tag() -> None:
-    """Subsequent revisions overwrite current_version with the new label."""
+    """Subsequent revisions overwrite version with the new label."""
     method_id = uuid4()
     versioned_v1 = Method(
         id=method_id,
         name=MethodName("X"),
         needs_capabilities=frozenset(),
         status=MethodStatus.VERSIONED,
-        current_version="v1",
+        version="v1",
     )
     versioned_v2 = evolve(
         versioned_v1,
         MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW),
     )
-    assert versioned_v2.current_version == "v2"
+    assert versioned_v2.version == "v2"
 
 
 @pytest.mark.unit
@@ -222,7 +222,7 @@ def test_evolve_method_versioned_on_empty_state_raises() -> None:
 
 @pytest.mark.unit
 def test_evolve_method_deprecated_flips_status_and_preserves_version() -> None:
-    """current_version is preserved across deprecation. Mirrors
+    """version is preserved across deprecation. Mirrors
     Capability's preserve-on-deprecate semantics from Equipment 5f-2."""
     method_id = uuid4()
     cap1 = uuid4()
@@ -231,20 +231,20 @@ def test_evolve_method_deprecated_flips_status_and_preserves_version() -> None:
         name=MethodName("X"),
         needs_capabilities=frozenset({cap1}),
         status=MethodStatus.VERSIONED,
-        current_version="v3",
+        version="v3",
     )
     deprecated = evolve(
         versioned,
         MethodDeprecated(method_id=method_id, occurred_at=_NOW),
     )
     assert deprecated.status is MethodStatus.DEPRECATED
-    assert deprecated.current_version == "v3"
+    assert deprecated.version == "v3"
     # needs_capabilities preserved across deprecation too.
     assert deprecated.needs_capabilities == frozenset({cap1})
 
 
 @pytest.mark.unit
-def test_evolve_method_deprecated_from_defined_preserves_null_current_version() -> None:
+def test_evolve_method_deprecated_from_defined_preserves_null_version() -> None:
     defined = Method(
         id=uuid4(),
         name=MethodName("X"),
@@ -256,7 +256,7 @@ def test_evolve_method_deprecated_from_defined_preserves_null_current_version() 
         MethodDeprecated(method_id=defined.id, occurred_at=_NOW),
     )
     assert deprecated.status is MethodStatus.DEPRECATED
-    assert deprecated.current_version is None
+    assert deprecated.version is None
 
 
 @pytest.mark.unit
@@ -276,7 +276,7 @@ def test_fold_define_version_yields_versioned_method() -> None:
     )
     assert state is not None
     assert state.status is MethodStatus.VERSIONED
-    assert state.current_version == "v2"
+    assert state.version == "v2"
 
 
 @pytest.mark.unit
@@ -292,7 +292,7 @@ def test_fold_define_version_version_yields_latest_version_tag() -> None:
         ]
     )
     assert state is not None
-    assert state.current_version == "v3"
+    assert state.version == "v3"
 
 
 @pytest.mark.unit
@@ -322,7 +322,7 @@ def test_fold_define_version_deprecate_preserves_version_through_deprecation() -
     )
     assert state is not None
     assert state.status is MethodStatus.DEPRECATED
-    assert state.current_version == "v2"
+    assert state.version == "v2"
 
 
 @pytest.mark.unit

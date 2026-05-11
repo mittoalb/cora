@@ -67,4 +67,4 @@ async def test_get_practice_loads_state_from_real_postgres(
     assert practice.method_id == method_id
     assert practice.site_id == site_id
     assert practice.status is PracticeStatus.DEFINED
-    assert practice.current_version is None
+    assert practice.version is None

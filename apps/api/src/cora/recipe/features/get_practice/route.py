@@ -21,10 +21,9 @@ class PracticeResponse(BaseModel):
     """Read-side DTO at the API boundary.
 
     Carries primitives, not domain VOs. `status` is the StrEnum's
-    string value (Defined / Versioned / Deprecated).
-    `current_version` is the operator-supplied label of the most
-    recent version_practice call (null until first version, ships
-    in 6d-2).
+    string value (Defined / Versioned / Deprecated). `version` is the
+    operator-supplied label of the most recent version_practice call
+    (null until first version).
     """
 
     id: UUID
@@ -32,7 +31,7 @@ class PracticeResponse(BaseModel):
     method_id: UUID
     site_id: UUID
     status: str
-    current_version: str | None
+    version: str | None
 
 
 def _get_handler(request: Request) -> Handler:
@@ -80,5 +79,5 @@ async def get_practices(
         method_id=practice.method_id,
         site_id=practice.site_id,
         status=practice.status.value,
-        current_version=practice.current_version,
+        version=practice.version,
     )

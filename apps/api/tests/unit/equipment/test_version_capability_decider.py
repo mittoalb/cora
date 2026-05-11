@@ -28,13 +28,13 @@ _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 def _capability(
     *,
     status: CapabilityStatus = CapabilityStatus.DEFINED,
-    current_version: str | None = None,
+    version: str | None = None,
 ) -> Capability:
     return Capability(
         id=uuid4(),
         name=CapabilityName("Tomography"),
         status=status,
-        current_version=current_version,
+        version=version,
     )
 
 
@@ -124,7 +124,7 @@ def test_decide_raises_cannot_version_for_deprecated_status() -> None:
     a deprecated capability raises (would otherwise un-deprecate via
     side-effect, which is undesirable; un-deprecate would need its
     own slice if ever needed)."""
-    state = _capability(status=CapabilityStatus.DEPRECATED, current_version="v1")
+    state = _capability(status=CapabilityStatus.DEPRECATED, version="v1")
     with pytest.raises(CapabilityCannotVersionError) as exc_info:
         version_capability.decide(
             state=state,
@@ -163,7 +163,7 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
 def test_decide_allows_versioning_with_same_tag_for_re_attestation() -> None:
     """Deliberate divergence from strict-not-idempotent: calling
     version_capability with a tag that already matches
-    state.current_version succeeds rather than raising. Re-attestation
+    state.version succeeds rather than raising. Re-attestation
     is a legitimate audit moment ("the operator confirmed v2 again on
     date X"); the multi-source Versioned → Versioned transition
     already permits the operation structurally, and tightening would
@@ -172,7 +172,7 @@ def test_decide_allows_versioning_with_same_tag_for_re_attestation() -> None:
     rationale."""
     state = _capability(
         status=CapabilityStatus.VERSIONED,
-        current_version="v2",
+        version="v2",
     )
     events = version_capability.decide(
         state=state,

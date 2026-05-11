@@ -52,7 +52,7 @@ def test_post_version_practice_round_trips_into_get_practice_response() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "Versioned"
-    assert body["current_version"] == "2026-Q3"
+    assert body["version"] == "2026-Q3"
 
 
 @pytest.mark.contract

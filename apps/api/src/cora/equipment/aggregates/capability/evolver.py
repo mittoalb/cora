@@ -5,10 +5,10 @@ case forces pyright (and the runtime) to error if a new event type
 is added to `CapabilityEvent` without a matching match arm here.
 
 Status mapping per event type:
-  - `CapabilityDefined`    -> DEFINED   (genesis; current_version=None)
-  - `CapabilityVersioned`  -> VERSIONED (current_version=event.version_tag;
+  - `CapabilityDefined`    -> DEFINED   (genesis; version=None)
+  - `CapabilityVersioned`  -> VERSIONED (version=event.version_tag;
                                           multi-source: Defined | Versioned)
-  - `CapabilityDeprecated` -> DEPRECATED (current_version preserved;
+  - `CapabilityDeprecated` -> DEPRECATED (version preserved;
                                           multi-source: Defined | Versioned)
 
 The mapping is hardcoded per match arm — the event type IS the
@@ -16,11 +16,11 @@ state-change indicator (no status field in event payloads). Same
 precedent as `SubjectMounted -> MOUNTED` /
 `ActorDeactivated -> is_active=False`.
 
-`current_version` is mutated by CapabilityVersioned (set to the new
-tag) and PRESERVED by CapabilityDeprecated. Future events (un-deprecate
-slice, if it ever ships) would have the same preserve-the-history
-contract. Pre-5f-2 CapabilityDefined-only streams fold cleanly with
-current_version=None (the additive-state pattern).
+`version` is mutated by CapabilityVersioned (set to the new tag) and
+PRESERVED by CapabilityDeprecated. Future events (un-deprecate slice,
+if it ever ships) would have the same preserve-the-history contract.
+Pre-5f-2 CapabilityDefined-only streams fold cleanly with version=None
+(the additive-state pattern).
 
 Transition events applied to empty state raise ValueError: they can
 never appear before `CapabilityDefined` in a well-formed stream.
@@ -61,7 +61,7 @@ def evolve(state: Capability | None, event: CapabilityEvent) -> Capability:
                 id=capability_id,
                 name=CapabilityName(name),
                 status=CapabilityStatus.DEFINED,
-                # current_version defaults to None.
+                # version defaults to None.
             )
         case CapabilityVersioned(version_tag=version_tag):
             prior = _require_state(state, "CapabilityVersioned")
@@ -69,7 +69,7 @@ def evolve(state: Capability | None, event: CapabilityEvent) -> Capability:
                 id=prior.id,
                 name=prior.name,
                 status=CapabilityStatus.VERSIONED,
-                current_version=version_tag,
+                version=version_tag,
             )
         case CapabilityDeprecated():
             prior = _require_state(state, "CapabilityDeprecated")
@@ -77,8 +77,8 @@ def evolve(state: Capability | None, event: CapabilityEvent) -> Capability:
                 id=prior.id,
                 name=prior.name,
                 status=CapabilityStatus.DEPRECATED,
-                # current_version preserved across deprecation.
-                current_version=prior.current_version,
+                # version preserved across deprecation.
+                version=prior.version,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

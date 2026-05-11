@@ -24,7 +24,7 @@ Minimal Practice:
     (institutional ownership; eventual-consistency: not verified)
   - `status: PracticeStatus` (Defined initially; Versioned /
     Deprecated land in 6d-2)
-  - `current_version: str | None` (None until first version_practice)
+  - `version: str | None` (None until first version_practice)
 
 Additional facets defer to a 6d-3 equivalent if pilot demand
 emerges:
@@ -215,9 +215,13 @@ class Practice:
     NOT verify they refer to real aggregates. Mismatch surfaces at
     Plan binding (6e).
 
-    `current_version` mirrors Method's pattern: None until the first
+    `version` mirrors Method's pattern: None until the first
     version_practice call; preserved across deprecation as the audit
-    signal of the last revision before deprecation.
+    signal of the last revision before deprecation. State always holds
+    the latest tag — past tags live in the event stream as
+    `PracticeVersioned` events. No `current_` prefix because state by
+    definition holds current values (same convention as `status`,
+    `name`).
     """
 
     id: UUID
@@ -225,4 +229,4 @@ class Practice:
     method_id: UUID
     site_id: UUID
     status: PracticeStatus = PracticeStatus.DEFINED
-    current_version: str | None = None
+    version: str | None = None

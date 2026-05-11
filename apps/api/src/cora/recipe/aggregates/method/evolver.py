@@ -5,10 +5,10 @@ case forces pyright (and the runtime) to error if a new event type
 is added to `MethodEvent` without a matching match arm here.
 
 Status mapping per event type:
-  - `MethodDefined`    -> DEFINED   (genesis; current_version=None)
-  - `MethodVersioned`  -> VERSIONED (current_version=event.version_tag;
+  - `MethodDefined`    -> DEFINED   (genesis; version=None)
+  - `MethodVersioned`  -> VERSIONED (version=event.version_tag;
                                       multi-source: Defined | Versioned)
-  - `MethodDeprecated` -> DEPRECATED (current_version preserved;
+  - `MethodDeprecated` -> DEPRECATED (version preserved;
                                       multi-source: Defined | Versioned)
 
 The mapping is hardcoded per match arm — the event type IS the
@@ -22,17 +22,17 @@ to `frozenset[UUID]` (state) here. Order doesn't matter at the state
 layer (set semantics for Plan-binding superset checks); the payload
 already sorted in `to_payload` for persistence determinism.
 
-`current_version` is mutated by MethodVersioned (set to the new tag)
-and PRESERVED by MethodDeprecated. Pre-6b MethodDefined-only streams
-fold cleanly with current_version=None (the additive-state pattern).
+`version` is mutated by MethodVersioned (set to the new tag) and
+PRESERVED by MethodDeprecated. Pre-6b MethodDefined-only streams fold
+cleanly with version=None (the additive-state pattern).
 
 **Critical invariant**: every transition arm MUST carry
-`needs_capabilities` AND `current_version` through from prior state.
-Constructing `Method(id=..., name=..., status=...)` without
-explicitly passing the additive frozenset/optional fields would
-silently WIPE them to defaults. Pinned by
+`needs_capabilities` AND `version` through from prior state.
+Constructing `Method(id=..., name=..., status=...)` without explicitly
+passing the additive frozenset/optional fields would silently WIPE
+them to defaults. Pinned by
 `test_evolve_<transition>_preserves_needs_capabilities` and the
-existing `current_version` preservation tests.
+existing `version` preservation tests.
 
 Transition events applied to empty state raise ValueError: they can
 never appear before `MethodDefined` in a well-formed stream. The
@@ -78,7 +78,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 name=MethodName(name),
                 needs_capabilities=frozenset(needs_capabilities),
                 status=MethodStatus.DEFINED,
-                # current_version defaults to None.
+                # version defaults to None.
             )
         case MethodVersioned(version_tag=version_tag):
             prior = _require_state(state, "MethodVersioned")
@@ -87,7 +87,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 name=prior.name,
                 needs_capabilities=prior.needs_capabilities,
                 status=MethodStatus.VERSIONED,
-                current_version=version_tag,
+                version=version_tag,
             )
         case MethodDeprecated():
             prior = _require_state(state, "MethodDeprecated")
@@ -96,8 +96,8 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 name=prior.name,
                 needs_capabilities=prior.needs_capabilities,
                 status=MethodStatus.DEPRECATED,
-                # current_version preserved across deprecation.
-                current_version=prior.current_version,
+                # version preserved across deprecation.
+                version=prior.version,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
