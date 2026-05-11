@@ -16,14 +16,14 @@ its private state.
 
 `SharedDeps` carries the cross-BC primitives (settings, clock,
 id_generator, authorize, event_store, idempotency_store) plus the
-asyncpg `pool` (None for `app_env=test`). BC-specific observation
+asyncpg `pool` (None for `app_env=test`). BC-specific entry
 stores (e.g., the Trust BC's `TraversalStore`) are constructed by
 each BC's wire function using the pool, and live BC-internal —
 they are NOT promoted to SharedDeps fields. This keeps the
-cross-BC dependency container clean as more BCs adopt the channel
-+ observation pattern.
+cross-BC dependency container clean as more BCs adopt the logbook
++ entry pattern.
 
-## Phase 6f-5a: TrustAuthorize observation wiring
+## Phase 6f-5a: TrustAuthorize entry wiring
 
 TrustAuthorize is the production Authorize-port adapter. When
 constructed (only when `Settings.trust_policy_id` is set), it
@@ -63,7 +63,7 @@ class SharedDeps:
     """Process-wide dependencies. Immutable after `build_shared_deps` returns.
 
     `pool` is the asyncpg connection pool (None when `app_env=test`).
-    BCs that need additional Postgres-backed adapters (observation
+    BCs that need additional Postgres-backed adapters (entry
     stores, projections, etc.) construct them in their own
     `wire_<bc>(deps)` from this pool, keeping BC-specific stores out
     of SharedDeps.
@@ -133,13 +133,13 @@ def _build_authorize(
     Phase 6f-5a: when `TrustAuthorize` is wired, the TraversalStore is
     constructed inline (Postgres if pool is set, in-memory otherwise)
     and passed in alongside clock + id_generator so the adapter emits
-    per-decision ConduitTraversal observations. AllowAllAuthorize stays
-    bare (no observations from the permissive default).
+    per-decision ConduitTraversal entries. AllowAllAuthorize stays
+    bare (no entries from the permissive default).
     """
     if settings.trust_policy_id is None:
         return AllowAllAuthorize()
 
-    from cora.trust.aggregates.conduit.observations import (
+    from cora.trust.aggregates.conduit.entries import (
         InMemoryTraversalStore,
         PostgresTraversalStore,
         TraversalStore,

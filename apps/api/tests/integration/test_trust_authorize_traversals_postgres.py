@@ -1,19 +1,19 @@
-"""End-to-end integration test: ConduitTraversal observations against real Postgres.
+"""End-to-end integration test: ConduitTraversal entries against real Postgres.
 
-Phase 6f-5a's first concrete observation type, exercised end-to-end:
-  1. Define a Conduit (writes ConduitDefined + ConduitChannelOpened to
+Phase 6f-5a's first concrete entry type, exercised end-to-end:
+  1. Define a Conduit (writes ConduitDefined + ConduitLogbookOpened to
      the events table on the Conduit's stream)
   2. Wire TrustAuthorize with a real PostgresTraversalStore
   3. Issue an Allow + a Deny against the Conduit
-  4. Read back from observations_conduit_traversals and verify the
+  4. Read back from entries_conduit_traversals and verify the
      two rows landed with the right shape (typed columns survive
-     jsonb-free round-trip; channel_id matches the channel opened
+     jsonb-free round-trip; logbook_id matches the logbook opened
      in step 1)
 
 Also exercises:
   - Idempotency: a retry with the same event_id is a no-op
-  - The full upstream chain (ConduitDefined → ChannelOpened →
-    TrustAuthorize lookup → observation write) lands transactionally
+  - The full upstream chain (ConduitDefined → ConduitLogbookOpened →
+    TrustAuthorize lookup → entry write) lands transactionally
     correct against Postgres
 """
 
@@ -37,7 +37,7 @@ from cora.infrastructure.ports import (
 )
 from cora.infrastructure.postgres.event_store import PostgresEventStore
 from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
-from cora.trust.aggregates.conduit.observations import (
+from cora.trust.aggregates.conduit.entries import (
     ConduitTraversal,
     PostgresTraversalStore,
 )
@@ -66,9 +66,9 @@ async def _read_traversals(db_pool: asyncpg.Pool, conduit_id: UUID) -> list[asyn
     async with db_pool.acquire() as conn:
         return await conn.fetch(
             """
-            SELECT event_id, conduit_id, channel_id, actor_id, command_name,
+            SELECT event_id, conduit_id, logbook_id, actor_id, command_name,
                    decision, reason, correlation_id, causation_id, occurred_at
-            FROM observations_conduit_traversals
+            FROM entries_conduit_traversals
             WHERE conduit_id = $1
             ORDER BY occurred_at, event_id
             """,
@@ -85,13 +85,13 @@ async def test_trust_authorize_persists_traversals_against_postgres(
     # Fresh ids for this test run (avoids collisions across reruns
     # against a shared template DB).
     conduit_id = UUID("01900000-0000-7000-8000-000000067a01")
-    traversals_channel_id = UUID("01900000-0000-7000-8000-000000067a02")
+    traversals_logbook_id = UUID("01900000-0000-7000-8000-000000067a02")
     define_conduit_event_id = UUID("01900000-0000-7000-8000-000000067a03")
-    channel_opened_event_id = UUID("01900000-0000-7000-8000-000000067a04")
+    logbook_opened_event_id = UUID("01900000-0000-7000-8000-000000067a04")
     policy_id = UUID("01900000-0000-7000-8000-000000067a05")
     policy_event_id = UUID("01900000-0000-7000-8000-000000067a06")
-    allow_observation_id = UUID("01900000-0000-7000-8000-000000067a07")
-    deny_observation_id = UUID("01900000-0000-7000-8000-000000067a08")
+    allow_entry_id = UUID("01900000-0000-7000-8000-000000067a07")
+    deny_entry_id = UUID("01900000-0000-7000-8000-000000067a08")
 
     event_store = PostgresEventStore(db_pool)
     traversals_store = PostgresTraversalStore(db_pool)
@@ -101,9 +101,9 @@ async def test_trust_authorize_persists_traversals_against_postgres(
         id_generator=FixedIdGenerator(
             [
                 conduit_id,
-                traversals_channel_id,
+                traversals_logbook_id,
                 define_conduit_event_id,
-                channel_opened_event_id,
+                logbook_opened_event_id,
             ]
         ),
         authorize=AllowAllAuthorize(),
@@ -112,7 +112,7 @@ async def test_trust_authorize_persists_traversals_against_postgres(
         pool=db_pool,
     )
 
-    # 1. Define the Conduit (writes ConduitDefined + ConduitChannelOpened).
+    # 1. Define the Conduit (writes ConduitDefined + ConduitLogbookOpened).
     returned_id = await define_conduit.bind(define_conduit_deps)(
         DefineConduit(
             name="Detector-to-Storage",
@@ -156,13 +156,13 @@ async def test_trust_authorize_persists_traversals_against_postgres(
 
     # 3. Wire TrustAuthorize with the traversals store + a fresh
     #    id-generator (separate from the one used for define_conduit
-    #    so we get deterministic observation ids).
+    #    so we get deterministic entry ids).
     authorize = TrustAuthorize(
         event_store,
         policy_id=policy_id,
         traversals_store=traversals_store,
         clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([allow_observation_id, deny_observation_id]),
+        id_generator=FixedIdGenerator([allow_entry_id, deny_entry_id]),
     )
 
     # 4. One Allow, one Deny against the Conduit.
@@ -171,15 +171,15 @@ async def test_trust_authorize_persists_traversals_against_postgres(
     deny_result = await authorize(_DENIED_PRINCIPAL, "RegisterActor", conduit_id)
     assert isinstance(deny_result, Deny)
 
-    # 5. Read back from the observation table.
+    # 5. Read back from the entries table.
     rows = await _read_traversals(db_pool, conduit_id)
     assert len(rows) == 2
 
-    allow_row = next(r for r in rows if r["event_id"] == allow_observation_id)
-    deny_row = next(r for r in rows if r["event_id"] == deny_observation_id)
+    allow_row = next(r for r in rows if r["event_id"] == allow_entry_id)
+    deny_row = next(r for r in rows if r["event_id"] == deny_entry_id)
 
     assert allow_row["conduit_id"] == conduit_id
-    assert allow_row["channel_id"] == traversals_channel_id
+    assert allow_row["logbook_id"] == traversals_logbook_id
     assert allow_row["actor_id"] == _PRINCIPAL_ID
     assert allow_row["command_name"] == "RegisterActor"
     assert allow_row["decision"] == "Allow"
@@ -187,7 +187,7 @@ async def test_trust_authorize_persists_traversals_against_postgres(
     assert allow_row["occurred_at"] == _NOW
 
     assert deny_row["conduit_id"] == conduit_id
-    assert deny_row["channel_id"] == traversals_channel_id
+    assert deny_row["logbook_id"] == traversals_logbook_id
     assert deny_row["actor_id"] == _DENIED_PRINCIPAL
     assert deny_row["decision"] == "Deny"
     assert deny_row["reason"] is not None
@@ -202,12 +202,12 @@ async def test_postgres_traversal_store_dedups_on_event_id(
     store = PostgresTraversalStore(db_pool)
     event_id = UUID("01900000-0000-7000-8000-000000068a01")
     conduit_id = UUID("01900000-0000-7000-8000-000000068a02")
-    channel_id = UUID("01900000-0000-7000-8000-000000068a03")
+    logbook_id = UUID("01900000-0000-7000-8000-000000068a03")
 
     first = ConduitTraversal(
         event_id=event_id,
         conduit_id=conduit_id,
-        channel_id=channel_id,
+        logbook_id=logbook_id,
         actor_id=uuid_for("01900000-0000-7000-8000-000000068a04"),
         command_name="StartRun",
         decision="Allow",
@@ -220,7 +220,7 @@ async def test_postgres_traversal_store_dedups_on_event_id(
     second = ConduitTraversal(
         event_id=event_id,
         conduit_id=conduit_id,
-        channel_id=channel_id,
+        logbook_id=logbook_id,
         actor_id=uuid_for("01900000-0000-7000-8000-000000068a06"),
         command_name="DefinePolicy",
         decision="Deny",

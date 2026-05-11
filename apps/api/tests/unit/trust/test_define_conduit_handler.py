@@ -23,9 +23,9 @@ from cora.trust.features.define_conduit import DefineConduit
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000000301")
-_TRAVERSALS_CHANNEL_ID = UUID("01900000-0000-7000-8000-000000000311")
+_TRAVERSALS_LOGBOOK_ID = UUID("01900000-0000-7000-8000-000000000311")
 _DEFINED_EVENT_ID = UUID("01900000-0000-7000-8000-0000000003e1")
-_CHANNEL_OPENED_EVENT_ID = UUID("01900000-0000-7000-8000-0000000003e2")
+_LOGBOOK_OPENED_EVENT_ID = UUID("01900000-0000-7000-8000-0000000003e2")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 _SOURCE_ZONE = UUID("01900000-0000-7000-8000-00000000aaaa")
@@ -57,9 +57,9 @@ def _build_deps(
         id_generator=FixedIdGenerator(
             [
                 _NEW_ID,
-                _TRAVERSALS_CHANNEL_ID,
+                _TRAVERSALS_LOGBOOK_ID,
                 _DEFINED_EVENT_ID,
-                _CHANNEL_OPENED_EVENT_ID,
+                _LOGBOOK_OPENED_EVENT_ID,
             ]
         ),
         authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
@@ -104,9 +104,9 @@ async def test_handler_appends_conduit_defined_event_to_store() -> None:
 
     events, version = await store.load("Conduit", _NEW_ID)
     # Phase 6f-5a: define_conduit emits two events — ConduitDefined
-    # (genesis) + ConduitChannelOpened (auto-opens traversals channel).
+    # (genesis) + ConduitLogbookOpened (auto-opens traversals channel).
     assert version == 2
-    assert [e.event_type for e in events] == ["ConduitDefined", "ConduitChannelOpened"]
+    assert [e.event_type for e in events] == ["ConduitDefined", "ConduitLogbookOpened"]
     defined = events[0]
     assert defined.schema_version == 1
     assert defined.payload == {
@@ -122,18 +122,18 @@ async def test_handler_appends_conduit_defined_event_to_store() -> None:
     assert defined.metadata == {"command": "DefineConduit"}
     assert defined.occurred_at == _NOW
 
-    channel_opened = events[1]
-    assert channel_opened.event_id == _CHANNEL_OPENED_EVENT_ID
-    assert channel_opened.payload["conduit_id"] == str(_NEW_ID)
-    assert channel_opened.payload["channel_id"] == str(_TRAVERSALS_CHANNEL_ID)
-    assert channel_opened.payload["kind"] == "traversals"
-    assert channel_opened.metadata == {"command": "DefineConduit"}
-    assert channel_opened.correlation_id == _CORRELATION_ID
-    assert channel_opened.causation_id is None
+    logbook_opened = events[1]
+    assert logbook_opened.event_id == _LOGBOOK_OPENED_EVENT_ID
+    assert logbook_opened.payload["conduit_id"] == str(_NEW_ID)
+    assert logbook_opened.payload["logbook_id"] == str(_TRAVERSALS_LOGBOOK_ID)
+    assert logbook_opened.payload["kind"] == "traversals"
+    assert logbook_opened.metadata == {"command": "DefineConduit"}
+    assert logbook_opened.correlation_id == _CORRELATION_ID
+    assert logbook_opened.causation_id is None
     # Schema is captured verbatim in the payload so the audit trail
     # records the column shape at the moment of opening.
-    assert "fields" in channel_opened.payload["schema"]
-    assert set(channel_opened.payload["schema"]["fields"]) == {
+    assert "fields" in logbook_opened.payload["schema"]
+    assert set(logbook_opened.payload["schema"]["fields"]) == {
         "actor_id",
         "command_name",
         "decision",
@@ -237,7 +237,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     events, _ = await store.load("Conduit", _NEW_ID)
     assert events[0].causation_id == causation
     # Phase 6f-5a: causation propagates to BOTH events in the batch
-    # (ConduitDefined + ConduitChannelOpened share the command's
+    # (ConduitDefined + ConduitLogbookOpened share the command's
     # causation chain).
     assert events[1].causation_id == causation
 

@@ -63,36 +63,36 @@ If the configured policy is missing from the event store, this
 adapter returns Deny — fail-closed. A Settings-time check that the
 policy exists at startup would surface this earlier; deferred.
 
-## Phase 6f-5a: optional traversal observation emission
+## Phase 6f-5a: optional traversal entry emission
 
 When constructed with a `TraversalStore`, every Allow / Deny
-decision additionally writes one `ConduitTraversal` observation row
-to the per-Conduit traversals channel. This is the per-Conduit
+decision additionally writes one `ConduitTraversal` entry row
+to the per-Conduit traversals logbook. This is the per-Conduit
 authz audit log — every command that traverses a Conduit is
 captured with actor, command, decision, reason, and timestamps.
 
 Wiring is opt-in (constructor param defaults to None) so existing
 test paths and the AllowAllAuthorize fallback don't accumulate
-observations. When `traversals_store` is provided, `clock` and
+entries. When `traversals_store` is provided, `clock` and
 `id_generator` are required (for `occurred_at` and `event_id`); the
 constructor enforces this so missed wiring fails loud at app
 startup, not at the first authz call.
 
-Channel id resolution: TrustAuthorize loads the target Conduit
-aggregate via `load_conduit` and reads `conduit.channels[
-CHANNEL_KIND_TRAVERSALS]`. The Conduit stream is short (genesis +
-channel-open, ~handful of events) so per-call fold cost is small;
+Logbook id resolution: TrustAuthorize loads the target Conduit
+aggregate via `load_conduit` and reads `conduit.logbooks[
+LOGBOOK_KIND_TRAVERSALS]`. The Conduit stream is short (genesis +
+logbook-open, ~handful of events) so per-call fold cost is small;
 per-process caching keyed on `conduit_id` is the natural future
 optimization. If the Conduit doesn't exist (typical for
 `UUID(int=0)` sentinel until conduit-routing lands) or has no
-traversals channel open, the traversal write is silently skipped
-with a warn log — the authz decision itself is unaffected.
+traversals logbook open, the entry write is silently skipped with
+a warn log — the authz decision itself is unaffected.
 
-`correlation_id` for the observation row comes from
+`correlation_id` for the entry row comes from
 `current_correlation_id()` (the active OTel span's trace_id encoded
 as a UUID); same source the calling handler uses for its event
-envelope, so observation rows correlate naturally with the events
-that triggered them.
+envelope, so entry rows correlate naturally with the events that
+triggered them.
 """
 
 from uuid import UUID
@@ -107,8 +107,8 @@ from cora.infrastructure.ports import (
     EventStore,
     IdGenerator,
 )
-from cora.trust.aggregates.conduit import CHANNEL_KIND_TRAVERSALS, load_conduit
-from cora.trust.aggregates.conduit.observations import (
+from cora.trust.aggregates.conduit import LOGBOOK_KIND_TRAVERSALS, load_conduit
+from cora.trust.aggregates.conduit.entries import (
     ConduitTraversal,
     TraversalDecision,
     TraversalStore,
@@ -206,10 +206,10 @@ class TrustAuthorize:
         conduit_id: UUID,
         result: AuthzResult,
     ) -> None:
-        """Best-effort write of one ConduitTraversal observation per call.
+        """Best-effort write of one ConduitTraversal entry per call.
 
         Skipped silently with a warn log if the Conduit doesn't exist
-        or has no currently-open traversals channel. The authz
+        or has no currently-open traversals logbook. The authz
         decision itself is unaffected.
         """
         # Type-narrowed: __init__ enforces that these are non-None
@@ -226,12 +226,12 @@ class TrustAuthorize:
                 reason="conduit_not_found",
             )
             return
-        channel_id = conduit.channels.get(CHANNEL_KIND_TRAVERSALS)
-        if channel_id is None:
+        logbook_id = conduit.logbooks.get(LOGBOOK_KIND_TRAVERSALS)
+        if logbook_id is None:
             _log.warning(
                 "trust_authorize.skip_traversal",
                 conduit_id=str(conduit_id),
-                reason="no_open_traversals_channel",
+                reason="no_open_traversals_logbook",
             )
             return
 
@@ -243,7 +243,7 @@ class TrustAuthorize:
                 ConduitTraversal(
                     event_id=self._id_generator.new_id(),
                     conduit_id=conduit_id,
-                    channel_id=channel_id,
+                    logbook_id=logbook_id,
                     actor_id=principal_id,
                     command_name=command_name,
                     decision=decision_str,

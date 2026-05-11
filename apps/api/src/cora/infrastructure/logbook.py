@@ -1,37 +1,37 @@
-"""Shared types for observation-channel declaration.
+"""Shared types for observation-logbook declaration.
 
-A **channel** is a header on an aggregate's main event stream that
-declares an attached observation stream — a parallel, append-only
-sequence of fine-grained records (per-frame triggers, motor positions,
+A **logbook** is a header on an aggregate's main event stream that
+declares an attached observation logbook — a parallel, append-only
+sequence of fine-grained entries (per-frame triggers, motor positions,
 authz traversals, etc.) that does NOT fold into the parent aggregate's
 state.
 
 The pattern is borrowed from Bluesky's `EventDescriptor` document:
-the descriptor (here: `<Aggregate>ChannelOpened` event) declares the
-schema and lifecycle of a stream; the per-row records (here: rows in
-an `observations_<kind>` table) live elsewhere keyed by `channel_id`.
+the descriptor (here: `<Aggregate>LogbookOpened` event) declares the
+schema and lifecycle of a logbook; the per-row entries (here: rows in
+an `entries_<kind>` table) live elsewhere keyed by `logbook_id`.
 
 Phase 6f-5a ships this module + the Conduit aggregate's first use
-(traversals channel). Run / Decision / Asset adopt the same pattern
+(traversals logbook). Run / Decision / Asset adopt the same pattern
 when their first observation kind ships.
 
 ## Why these types live in shared infrastructure
 
-Channel declarations are a cross-aggregate pattern. Run, Conduit,
-Decision, Asset will all declare channels with the same shape (kind +
-schema + lifecycle). The `ChannelSchema` representation needs to be
+Logbook declarations are a cross-aggregate pattern. Run, Conduit,
+Decision, Asset will all declare logbooks with the same shape (kind +
+schema + lifecycle). The `LogbookSchema` representation needs to be
 identical so observation projections can read schemas uniformly
 across aggregates without per-BC adapters.
 
 ## Why the schema representation is documentation-grade today
 
 The locked 6f-5 design (gate-review G8) keeps the schema
-representation deliberately simple: a `dict[str, ChannelFieldSpec]`
+representation deliberately simple: a `dict[str, LogbookFieldSpec]`
 with type/units/description per column. This satisfies the audit /
 regulatory requirement (instrument config at time of measurement; 21
 CFR Part 11, ISO 17025) without committing to a specific validator
 stack. When schema validation actually matters (multi-version
-channels, contract testing, schema-driven UI), this representation
+logbooks, contract testing, schema-driven UI), this representation
 can grow into a fuller model. Don't reach for JSON Schema or Pydantic
 yet.
 """
@@ -39,20 +39,19 @@ yet.
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-ChannelFieldType = Literal["string", "uuid", "datetime", "int", "float", "bool"]
+LogbookFieldType = Literal["string", "uuid", "datetime", "int", "float", "bool"]
 
 
 @dataclass(frozen=True)
-class ChannelFieldSpec:
-    """Declaration of one column in a channel's observation rows.
+class LogbookFieldSpec:
+    """Declaration of one column in a logbook's entries.
 
-    `type` names the on-the-wire primitive type (the observation
-    payload's column type); `units` is for numeric measurements
-    (temperature_C, position_deg, etc.); `description` is free-text
-    audit context.
+    `type` names the on-the-wire primitive type (the entry payload's
+    column type); `units` is for numeric measurements (temperature_C,
+    position_deg, etc.); `description` is free-text audit context.
     """
 
-    type: ChannelFieldType
+    type: LogbookFieldType
     units: str | None = None
     description: str | None = None
 
@@ -66,7 +65,7 @@ class ChannelFieldSpec:
         return out
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> "ChannelFieldSpec":
+    def from_dict(cls, raw: dict[str, Any]) -> "LogbookFieldSpec":
         """Rebuild from a stored dict. Defensive on missing optionals."""
         return cls(
             type=raw["type"],
@@ -76,19 +75,19 @@ class ChannelFieldSpec:
 
 
 @dataclass(frozen=True)
-class ChannelSchema:
-    """Declaration of the observation-row shape a channel produces.
+class LogbookSchema:
+    """Declaration of the entry-row shape a logbook produces.
 
     `fields` maps column name to spec. Field-name uniqueness is
-    enforced by the dict; ordering is irrelevant (observations are
-    keyed by their own `event_id`, not by column position).
+    enforced by the dict; ordering is irrelevant (entries are keyed
+    by their own `event_id`, not by column position).
 
-    `description` is free-text audit context for the channel as a
+    `description` is free-text audit context for the logbook as a
     whole (for example: "Eiger-9M frame trigger metadata, 21 keV,
     fly-scan tomography").
     """
 
-    fields: dict[str, ChannelFieldSpec] = field(default_factory=dict[str, ChannelFieldSpec])
+    fields: dict[str, LogbookFieldSpec] = field(default_factory=dict[str, LogbookFieldSpec])
     description: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -101,17 +100,17 @@ class ChannelSchema:
         return out
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> "ChannelSchema":
+    def from_dict(cls, raw: dict[str, Any]) -> "LogbookSchema":
         """Rebuild from a stored dict."""
         raw_fields = raw.get("fields", {})
         return cls(
-            fields={name: ChannelFieldSpec.from_dict(spec) for name, spec in raw_fields.items()},
+            fields={name: LogbookFieldSpec.from_dict(spec) for name, spec in raw_fields.items()},
             description=raw.get("description"),
         )
 
 
 __all__ = [
-    "ChannelFieldSpec",
-    "ChannelFieldType",
-    "ChannelSchema",
+    "LogbookFieldSpec",
+    "LogbookFieldType",
+    "LogbookSchema",
 ]

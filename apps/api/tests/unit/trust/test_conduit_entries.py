@@ -15,7 +15,7 @@ from uuid import uuid4
 
 import pytest
 
-from cora.trust.aggregates.conduit.observations import (
+from cora.trust.aggregates.conduit.entries import (
     ConduitTraversal,
     InMemoryTraversalStore,
 )
@@ -27,7 +27,7 @@ def _traversal(*, event_id: object | None = None) -> ConduitTraversal:
     return ConduitTraversal(
         event_id=event_id or uuid4(),  # type: ignore[arg-type]
         conduit_id=uuid4(),
-        channel_id=uuid4(),
+        logbook_id=uuid4(),
         actor_id=uuid4(),
         command_name="StartRun",
         decision="Allow",
@@ -69,7 +69,7 @@ async def test_in_memory_append_with_duplicate_event_id_is_noop() -> None:
     first = ConduitTraversal(
         event_id=event_id,
         conduit_id=uuid4(),
-        channel_id=uuid4(),
+        logbook_id=uuid4(),
         actor_id=uuid4(),
         command_name="StartRun",
         decision="Allow",
@@ -82,7 +82,7 @@ async def test_in_memory_append_with_duplicate_event_id_is_noop() -> None:
     second = ConduitTraversal(
         event_id=event_id,
         conduit_id=uuid4(),
-        channel_id=uuid4(),
+        logbook_id=uuid4(),
         actor_id=uuid4(),
         command_name="DefinePolicy",
         decision="Deny",

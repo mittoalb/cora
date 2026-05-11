@@ -5,20 +5,20 @@ Mirror of `cora/trust/aggregates/zone/evolver.py`. The terminal
 new event type is added to `ConduitEvent` without a matching match
 arm.
 
-Phase 6f-5a adds two channel-lifecycle event arms over the
-`channels: dict[str, UUID]` state shape:
-  - `ConduitChannelOpened` adds `(kind, channel_id)` to `channels`,
+Phase 6f-5a adds two logbook-lifecycle event arms over the
+`logbooks: dict[str, UUID]` state shape:
+  - `ConduitLogbookOpened` adds `(kind, logbook_id)` to `logbooks`,
     enforcing the at-most-one-open-per-kind invariant — opening a
-    second channel of an existing kind raises
-    `ConduitChannelAlreadyOpenError` carrying the existing channel id.
-  - `ConduitChannelClosed` finds the kind that owns the closed
-    channel id and removes that entry; raises
-    `ConduitChannelNotOpenError` if no kind owns the id.
+    second logbook of an existing kind raises
+    `ConduitLogbookAlreadyOpenError` carrying the existing logbook id.
+  - `ConduitLogbookClosed` finds the kind that owns the closed
+    logbook id and removes that entry; raises
+    `ConduitLogbookNotOpenError` if no kind owns the id.
 
 Defensive guards: both arms raise on `state is None` (the parent
-Conduit must exist before any channel can attach to it). The
-evolver returns a fresh `Conduit` with a new `channels` dict on
-every channel-open / channel-close — the dict is never mutated in
+Conduit must exist before any logbook can attach to it). The
+evolver returns a fresh `Conduit` with a new `logbooks` dict on
+every logbook-open / logbook-close — the dict is never mutated in
 place. Frozen dataclass blocks field reassignment but not dict
 mutation; the codebase relies on the same evolver-purity discipline
 used by every other aggregate.
@@ -29,15 +29,15 @@ from dataclasses import replace
 from typing import assert_never
 
 from cora.trust.aggregates.conduit.events import (
-    ConduitChannelClosed,
-    ConduitChannelOpened,
     ConduitDefined,
     ConduitEvent,
+    ConduitLogbookClosed,
+    ConduitLogbookOpened,
 )
 from cora.trust.aggregates.conduit.state import (
     Conduit,
-    ConduitChannelAlreadyOpenError,
-    ConduitChannelNotOpenError,
+    ConduitLogbookAlreadyOpenError,
+    ConduitLogbookNotOpenError,
     ConduitName,
 )
 
@@ -58,27 +58,27 @@ def evolve(state: Conduit | None, event: ConduitEvent) -> Conduit:
                 source_zone_id=source_zone_id,
                 target_zone_id=target_zone_id,
             )
-        case ConduitChannelOpened(channel_id=channel_id, kind=kind):
+        case ConduitLogbookOpened(logbook_id=logbook_id, kind=kind):
             if state is None:
-                msg = "ConduitChannelOpened before ConduitDefined: stream is corrupted"
+                msg = "ConduitLogbookOpened before ConduitDefined: stream is corrupted"
                 raise ValueError(msg)
-            existing = state.channels.get(kind)
+            existing = state.logbooks.get(kind)
             if existing is not None:
-                raise ConduitChannelAlreadyOpenError(state.id, kind, existing)
-            return replace(state, channels={**state.channels, kind: channel_id})
-        case ConduitChannelClosed(channel_id=channel_id):
+                raise ConduitLogbookAlreadyOpenError(state.id, kind, existing)
+            return replace(state, logbooks={**state.logbooks, kind: logbook_id})
+        case ConduitLogbookClosed(logbook_id=logbook_id):
             if state is None:
-                msg = "ConduitChannelClosed before ConduitDefined: stream is corrupted"
+                msg = "ConduitLogbookClosed before ConduitDefined: stream is corrupted"
                 raise ValueError(msg)
             matching_kind = next(
-                (k for k, v in state.channels.items() if v == channel_id),
+                (k for k, v in state.logbooks.items() if v == logbook_id),
                 None,
             )
             if matching_kind is None:
-                raise ConduitChannelNotOpenError(state.id, channel_id)
+                raise ConduitLogbookNotOpenError(state.id, logbook_id)
             return replace(
                 state,
-                channels={k: v for k, v in state.channels.items() if k != matching_kind},
+                logbooks={k: v for k, v in state.logbooks.items() if k != matching_kind},
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

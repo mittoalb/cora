@@ -1,13 +1,13 @@
-"""ConduitName value-object validation + channel-state error classes."""
+"""ConduitName value-object validation + logbook-state error classes."""
 
 from uuid import uuid4
 
 import pytest
 
 from cora.trust.aggregates.conduit import (
-    CHANNEL_KIND_TRAVERSALS,
-    ConduitChannelAlreadyOpenError,
-    ConduitChannelNotOpenError,
+    LOGBOOK_KIND_TRAVERSALS,
+    ConduitLogbookAlreadyOpenError,
+    ConduitLogbookNotOpenError,
     ConduitName,
     InvalidConduitNameError,
 )
@@ -60,23 +60,23 @@ def test_conduit_name_is_frozen() -> None:
 
 
 @pytest.mark.unit
-def test_channel_kind_traversals_is_a_stable_string_constant() -> None:
+def test_logbook_kind_traversals_is_a_stable_string_constant() -> None:
     """Stored on disk in event payloads — value must not change without
     an explicit migration story for old events."""
-    assert CHANNEL_KIND_TRAVERSALS == "traversals"
+    assert LOGBOOK_KIND_TRAVERSALS == "traversals"
 
 
 @pytest.mark.unit
-def test_conduit_channel_already_open_error_carries_kind_and_existing_id() -> None:
+def test_conduit_logbook_already_open_error_carries_kind_and_existing_id() -> None:
     """Phase 6f-5a: state encodes at-most-one-open-per-kind invariant;
-    the error names the kind that's already busy and which channel id
+    the error names the kind that's already busy and which logbook id
     is occupying it."""
     conduit_id = uuid4()
     existing = uuid4()
-    err = ConduitChannelAlreadyOpenError(conduit_id, "traversals", existing)
+    err = ConduitLogbookAlreadyOpenError(conduit_id, "traversals", existing)
     assert err.conduit_id == conduit_id
     assert err.kind == "traversals"
-    assert err.existing_channel_id == existing
+    assert err.existing_logbook_id == existing
     msg = str(err)
     assert "traversals" in msg
     assert str(existing) in msg
@@ -84,12 +84,12 @@ def test_conduit_channel_already_open_error_carries_kind_and_existing_id() -> No
 
 
 @pytest.mark.unit
-def test_conduit_channel_not_open_error_carries_ids() -> None:
+def test_conduit_logbook_not_open_error_carries_ids() -> None:
     conduit_id = uuid4()
-    channel_id = uuid4()
-    err = ConduitChannelNotOpenError(conduit_id, channel_id)
+    logbook_id = uuid4()
+    err = ConduitLogbookNotOpenError(conduit_id, logbook_id)
     assert err.conduit_id == conduit_id
-    assert err.channel_id == channel_id
+    assert err.logbook_id == logbook_id
     msg = str(err)
-    assert str(channel_id) in msg
+    assert str(logbook_id) in msg
     assert "no open" in msg.lower()

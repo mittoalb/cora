@@ -7,7 +7,7 @@ every cross-BC command through a single configured Policy.
 Phase 6f-5a additions: traversal observation emission. When the
 adapter is constructed with a `TraversalStore`, every Allow / Deny
 decision writes one ConduitTraversal observation row scoped to the
-target Conduit's traversals channel.
+target Conduit's traversals logbook.
 """
 
 from datetime import UTC, datetime
@@ -15,8 +15,8 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.infrastructure.channel import ChannelFieldSpec, ChannelSchema
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.logbook import LogbookFieldSpec, LogbookSchema
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.ports import (
     Allow,
@@ -25,10 +25,10 @@ from cora.infrastructure.ports import (
     FrozenClock,
 )
 from cora.trust.aggregates.conduit import (
-    CHANNEL_KIND_TRAVERSALS,
-    ConduitChannelClosed,
-    ConduitChannelOpened,
+    LOGBOOK_KIND_TRAVERSALS,
     ConduitDefined,
+    ConduitLogbookClosed,
+    ConduitLogbookOpened,
 )
 from cora.trust.aggregates.conduit import (
     event_type_name as conduit_event_type_name,
@@ -36,7 +36,7 @@ from cora.trust.aggregates.conduit import (
 from cora.trust.aggregates.conduit import (
     to_payload as conduit_to_payload,
 )
-from cora.trust.aggregates.conduit.observations import InMemoryTraversalStore
+from cora.trust.aggregates.conduit.entries import InMemoryTraversalStore
 from cora.trust.aggregates.policy.events import (
     PolicyDefined,
     event_type_name,
@@ -193,16 +193,16 @@ async def test_loads_policy_on_each_call_no_caching() -> None:
 _OBS_EVENT_ID = UUID("01900000-0000-7000-8000-000000000711")
 _OBS_NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 _TARGET_CONDUIT_ID = UUID("01900000-0000-7000-8000-000000000c01")
-_TRAVERSALS_CHANNEL_ID = UUID("01900000-0000-7000-8000-000000000c02")
+_TRAVERSALS_LOGBOOK_ID = UUID("01900000-0000-7000-8000-000000000c02")
 
 
-async def _seed_conduit_with_open_traversals_channel(
+async def _seed_conduit_with_open_traversals_logbook(
     store: InMemoryEventStore,
     *,
     conduit_id: UUID = _TARGET_CONDUIT_ID,
-    channel_id: UUID = _TRAVERSALS_CHANNEL_ID,
+    logbook_id: UUID = _TRAVERSALS_LOGBOOK_ID,
 ) -> None:
-    """Seed a Conduit + an open traversals channel directly into the store."""
+    """Seed a Conduit + an open traversals logbook directly into the store."""
     defined = ConduitDefined(
         conduit_id=conduit_id,
         name="Test conduit",
@@ -210,11 +210,11 @@ async def _seed_conduit_with_open_traversals_channel(
         target_zone_id=uuid4(),
         occurred_at=_OBS_NOW,
     )
-    opened = ConduitChannelOpened(
+    opened = ConduitLogbookOpened(
         conduit_id=conduit_id,
-        channel_id=channel_id,
-        kind=CHANNEL_KIND_TRAVERSALS,
-        schema=ChannelSchema(fields={"x": ChannelFieldSpec(type="string")}),
+        logbook_id=logbook_id,
+        kind=LOGBOOK_KIND_TRAVERSALS,
+        schema=LogbookSchema(fields={"x": LogbookFieldSpec(type="string")}),
         occurred_at=_OBS_NOW,
     )
     new_events = [
@@ -256,10 +256,10 @@ async def test_skips_traversal_emission_when_traversals_store_is_unset() -> None
 
 
 @pytest.mark.unit
-async def test_emits_traversal_on_allow_when_conduit_has_open_channel() -> None:
+async def test_emits_traversal_on_allow_when_conduit_has_open_logbook() -> None:
     store = InMemoryEventStore()
     await _seed_policy(store, conduit_id=_TARGET_CONDUIT_ID)
-    await _seed_conduit_with_open_traversals_channel(store)
+    await _seed_conduit_with_open_traversals_logbook(store)
 
     traversals = InMemoryTraversalStore()
     authorize = TrustAuthorize(
@@ -278,7 +278,7 @@ async def test_emits_traversal_on_allow_when_conduit_has_open_channel() -> None:
     row = rows[0]
     assert row.event_id == _OBS_EVENT_ID
     assert row.conduit_id == _TARGET_CONDUIT_ID
-    assert row.channel_id == _TRAVERSALS_CHANNEL_ID
+    assert row.logbook_id == _TRAVERSALS_LOGBOOK_ID
     assert row.actor_id == _ALLOWED_PRINCIPAL
     assert row.command_name == "RegisterActor"
     assert row.decision == "Allow"
@@ -290,7 +290,7 @@ async def test_emits_traversal_on_allow_when_conduit_has_open_channel() -> None:
 async def test_emits_traversal_on_deny_with_reason_attached() -> None:
     store = InMemoryEventStore()
     await _seed_policy(store, conduit_id=_TARGET_CONDUIT_ID)
-    await _seed_conduit_with_open_traversals_channel(store)
+    await _seed_conduit_with_open_traversals_logbook(store)
 
     traversals = InMemoryTraversalStore()
     authorize = TrustAuthorize(
@@ -338,17 +338,17 @@ async def test_skips_traversal_emission_when_conduit_does_not_exist() -> None:
 
 
 @pytest.mark.unit
-async def test_skips_traversal_when_traversals_channel_was_closed() -> None:
-    """If the traversals channel has been closed, the channel-id
+async def test_skips_traversal_when_traversals_logbook_was_closed() -> None:
+    """If the traversals logbook has been closed, the logbook-id
     resolver returns None and emission is skipped."""
     store = InMemoryEventStore()
     await _seed_policy(store, conduit_id=_TARGET_CONDUIT_ID)
-    await _seed_conduit_with_open_traversals_channel(store)
+    await _seed_conduit_with_open_traversals_logbook(store)
 
-    # Append a ConduitChannelClosed for the same channel.
-    closed = ConduitChannelClosed(
+    # Append a ConduitLogbookClosed for the same logbook.
+    closed = ConduitLogbookClosed(
         conduit_id=_TARGET_CONDUIT_ID,
-        channel_id=_TRAVERSALS_CHANNEL_ID,
+        logbook_id=_TRAVERSALS_LOGBOOK_ID,
         occurred_at=_OBS_NOW,
     )
     closed_envelope = to_new_event(

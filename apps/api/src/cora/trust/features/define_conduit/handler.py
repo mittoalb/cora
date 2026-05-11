@@ -93,7 +93,7 @@ def bind(deps: SharedDeps) -> Handler:
             raise UnauthorizedError(decision.reason)
 
         new_id = deps.id_generator.new_id()
-        traversals_channel_id = deps.id_generator.new_id()
+        traversals_logbook_id = deps.id_generator.new_id()
         now = deps.clock.now()
 
         domain_events = decide(
@@ -101,7 +101,7 @@ def bind(deps: SharedDeps) -> Handler:
             command=command,
             now=now,
             new_id=new_id,
-            traversals_channel_id=traversals_channel_id,
+            traversals_logbook_id=traversals_logbook_id,
         )
 
         new_events = [

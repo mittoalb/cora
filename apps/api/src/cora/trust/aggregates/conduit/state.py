@@ -4,27 +4,27 @@ Per ISA-99, a Conduit is a governed communications path between two
 Zones. Each Conduit has its own SL-T (Security Level Target) and an
 agreed contract describing what may flow through it; runtime
 traversal events accumulate against the Conduit's traversals
-observation channel (see Phase 6f-5a).
+observation logbook (see Phase 6f-5a).
 
 Phase 3b kept Conduit minimal: `id` + `name` + the two endpoint zone
 IDs. SL-T, contract, and remaining lifecycle (`Defined → Active →
 Modified → Archived`, per BC-map) follow the same additive-state
 pattern as Zone — fields default in the evolver when added.
 
-Phase 6f-5a adds **channel state**: `channels: dict[str, UUID]`
-mapping channel kind → currently-open channel id for each
-observation channel attached to this Conduit. The traversals
-channel is opened automatically at conduit-creation (gate-review
-locked: per-Conduit channel scoping). The state encodes the
-**at-most-one-open-per-kind invariant** directly — opening a
-second channel of an existing kind raises rather than orphaning
-the first. The slim-aggregate principle keeps state to invariant-
-relevant fields only; channel schemas live on the channel-open
-event payloads, not on the aggregate state.
+Phase 6f-5a adds **logbook state**: `logbooks: dict[str, UUID]`
+mapping logbook kind → currently-open logbook id for each observation
+logbook attached to this Conduit. The traversals logbook is opened
+automatically at conduit-creation (gate-review locked: per-Conduit
+logbook scoping). The state encodes the
+**at-most-one-open-per-kind invariant** directly — opening a second
+logbook of an existing kind raises rather than orphaning the first.
+The slim-aggregate principle keeps state to invariant-relevant
+fields only; logbook schemas live on the logbook-open event payloads,
+not on the aggregate state.
 
 The `dict` value is immutable by convention: the evolver returns a
-fresh `Conduit` with a new dict on every channel-open / channel-close;
-no code mutates `state.channels` in place. Frozen dataclass blocks
+fresh `Conduit` with a new dict on every logbook-open / logbook-close;
+no code mutates `state.logbooks` in place. Frozen dataclass blocks
 field reassignment but not mutation of the contained dict — the
 codebase relies on the same evolver-purity discipline used by every
 other aggregate.
@@ -55,12 +55,12 @@ from cora.infrastructure.name import validate_name
 
 CONDUIT_NAME_MAX_LENGTH = 200
 
-# Channel-kind discriminators. Each kind names a category of
+# Logbook-kind discriminators. Each kind names a category of
 # observation a Conduit can attach. Today: just traversals (per-
 # decision authorization audit log). Future kinds (e.g.,
 # rate-limit-events, schema-violations) follow the same naming
 # convention: snake_case, plural noun, domain-meaningful.
-CHANNEL_KIND_TRAVERSALS: Final = "traversals"
+LOGBOOK_KIND_TRAVERSALS: Final = "traversals"
 
 
 class InvalidConduitNameError(ValueError):
@@ -82,38 +82,38 @@ class ConduitAlreadyExistsError(Exception):
         self.conduit_id = conduit_id
 
 
-class ConduitChannelAlreadyOpenError(Exception):
-    """Attempted to open a second channel of a kind that already has one open.
+class ConduitLogbookAlreadyOpenError(Exception):
+    """Attempted to open a second logbook of a kind that already has one open.
 
     The state encodes the at-most-one-open-per-kind invariant; this
-    error fires when an evolver replay tries to open a channel of a
-    kind that's already present in `state.channels`. Carries the
-    existing channel id so the caller can identify which channel is
+    error fires when an evolver replay tries to open a logbook of a
+    kind that's already present in `state.logbooks`. Carries the
+    existing logbook id so the caller can identify which logbook is
     already in the way.
     """
 
-    def __init__(self, conduit_id: UUID, kind: str, existing_channel_id: UUID) -> None:
+    def __init__(self, conduit_id: UUID, kind: str, existing_logbook_id: UUID) -> None:
         super().__init__(
-            f"Conduit {conduit_id} already has a {kind!r} channel open "
-            f"(channel_id={existing_channel_id})"
+            f"Conduit {conduit_id} already has a {kind!r} logbook open "
+            f"(logbook_id={existing_logbook_id})"
         )
         self.conduit_id = conduit_id
         self.kind = kind
-        self.existing_channel_id = existing_channel_id
+        self.existing_logbook_id = existing_logbook_id
 
 
-class ConduitChannelNotOpenError(Exception):
-    """Attempted to close a channel id that's not currently open on any kind.
+class ConduitLogbookNotOpenError(Exception):
+    """Attempted to close a logbook id that's not currently open on any kind.
 
     Defensive guard; close commands originate from Conduit lifecycle
     transitions (eventually conduit-archive) and should never target
-    an unopened channel.
+    an unopened logbook.
     """
 
-    def __init__(self, conduit_id: UUID, channel_id: UUID) -> None:
-        super().__init__(f"Conduit {conduit_id} has no open channel {channel_id} to close")
+    def __init__(self, conduit_id: UUID, logbook_id: UUID) -> None:
+        super().__init__(f"Conduit {conduit_id} has no open logbook {logbook_id} to close")
         self.conduit_id = conduit_id
-        self.channel_id = channel_id
+        self.logbook_id = logbook_id
 
 
 @dataclass(frozen=True)
@@ -144,16 +144,16 @@ class ConduitName:
 class Conduit:
     """Aggregate root: a governed comms path between two Trust zones.
 
-    `channels` maps channel kind → currently-open channel id for each
-    observation channel attached to this Conduit (Phase 6f-5a). The
+    `logbooks` maps logbook kind → currently-open logbook id for each
+    observation logbook attached to this Conduit (Phase 6f-5a). The
     dict shape encodes the at-most-one-open-per-kind invariant: the
-    evolver raises `ConduitChannelAlreadyOpenError` on any attempt to
-    open a second channel of an existing kind. Empty for newly-defined
-    Conduits before any channel-open event has been folded.
+    evolver raises `ConduitLogbookAlreadyOpenError` on any attempt to
+    open a second logbook of an existing kind. Empty for newly-defined
+    Conduits before any logbook-open event has been folded.
     """
 
     id: UUID
     name: ConduitName
     source_zone_id: UUID
     target_zone_id: UUID
-    channels: dict[str, UUID] = field(default_factory=dict[str, UUID])
+    logbooks: dict[str, UUID] = field(default_factory=dict[str, UUID])

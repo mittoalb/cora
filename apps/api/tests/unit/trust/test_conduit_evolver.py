@@ -5,26 +5,26 @@ from uuid import uuid4
 
 import pytest
 
-from cora.infrastructure.channel import ChannelFieldSpec, ChannelSchema
+from cora.infrastructure.logbook import LogbookFieldSpec, LogbookSchema
 from cora.trust.aggregates.conduit import (
     Conduit,
-    ConduitChannelAlreadyOpenError,
-    ConduitChannelNotOpenError,
+    ConduitLogbookAlreadyOpenError,
+    ConduitLogbookNotOpenError,
     ConduitName,
     evolve,
     fold,
 )
 from cora.trust.aggregates.conduit.events import (
-    ConduitChannelClosed,
-    ConduitChannelOpened,
     ConduitDefined,
+    ConduitLogbookClosed,
+    ConduitLogbookOpened,
 )
 from cora.trust.features import define_conduit
 from cora.trust.features.define_conduit import DefineConduit
 
 
-def _sample_schema() -> ChannelSchema:
-    return ChannelSchema(fields={"x": ChannelFieldSpec(type="string")})
+def _sample_schema() -> LogbookSchema:
+    return LogbookSchema(fields={"x": LogbookFieldSpec(type="string")})
 
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
@@ -101,12 +101,12 @@ def test_fold_is_pure_same_input_same_output() -> None:
 def test_decider_and_evolver_round_trip() -> None:
     """The events the decider produces must rebuild the expected state.
 
-    Phase 6f-5a: the decider emits ConduitDefined + ConduitChannelOpened,
+    Phase 6f-5a: the decider emits ConduitDefined + ConduitLogbookOpened,
     and the evolver folds both into a Conduit with the traversals
-    channel id present in `channels`.
+    logbook id present in `logbooks`.
     """
     new_id = uuid4()
-    channel_id = uuid4()
+    logbook_id = uuid4()
     source = uuid4()
     target = uuid4()
     command = DefineConduit(
@@ -120,7 +120,7 @@ def test_decider_and_evolver_round_trip() -> None:
         command=command,
         now=_NOW,
         new_id=new_id,
-        traversals_channel_id=channel_id,
+        traversals_logbook_id=logbook_id,
     )
     rebuilt = fold(events)
 
@@ -129,7 +129,7 @@ def test_decider_and_evolver_round_trip() -> None:
         name=ConduitName("Detector-to-Storage"),
         source_zone_id=source,
         target_zone_id=target,
-        channels={"traversals": channel_id},
+        logbooks={"traversals": logbook_id},
     )
 
 
@@ -150,30 +150,30 @@ def _genesis(conduit_id: object | None = None) -> ConduitDefined:
 def test_evolve_channel_opened_adds_kind_id_pair_to_channels() -> None:
     genesis = _genesis()
     state = evolve(None, genesis)
-    channel_id = uuid4()
+    logbook_id = uuid4()
     after_open = evolve(
         state,
-        ConduitChannelOpened(
+        ConduitLogbookOpened(
             conduit_id=genesis.conduit_id,
-            channel_id=channel_id,
+            logbook_id=logbook_id,
             kind="traversals",
             schema=_sample_schema(),
             occurred_at=_NOW,
         ),
     )
-    assert after_open.channels == {"traversals": channel_id}
+    assert after_open.logbooks == {"traversals": logbook_id}
 
 
 @pytest.mark.unit
 def test_evolve_channel_closed_removes_kind_entry() -> None:
     genesis = _genesis()
     state = evolve(None, genesis)
-    channel_id = uuid4()
+    logbook_id = uuid4()
     state = evolve(
         state,
-        ConduitChannelOpened(
+        ConduitLogbookOpened(
             conduit_id=genesis.conduit_id,
-            channel_id=channel_id,
+            logbook_id=logbook_id,
             kind="traversals",
             schema=_sample_schema(),
             occurred_at=_NOW,
@@ -181,25 +181,25 @@ def test_evolve_channel_closed_removes_kind_entry() -> None:
     )
     state = evolve(
         state,
-        ConduitChannelClosed(
+        ConduitLogbookClosed(
             conduit_id=genesis.conduit_id,
-            channel_id=channel_id,
+            logbook_id=logbook_id,
             occurred_at=_NOW,
         ),
     )
-    assert state.channels == {}
+    assert state.logbooks == {}
 
 
 @pytest.mark.unit
 def test_evolve_channel_opened_on_none_state_raises() -> None:
     """Defensive guard: a channel-open before genesis is stream
     contamination — fail loud."""
-    with pytest.raises(ValueError, match="ConduitChannelOpened before ConduitDefined"):
+    with pytest.raises(ValueError, match="ConduitLogbookOpened before ConduitDefined"):
         evolve(
             None,
-            ConduitChannelOpened(
+            ConduitLogbookOpened(
                 conduit_id=uuid4(),
-                channel_id=uuid4(),
+                logbook_id=uuid4(),
                 kind="traversals",
                 schema=_sample_schema(),
                 occurred_at=_NOW,
@@ -209,10 +209,10 @@ def test_evolve_channel_opened_on_none_state_raises() -> None:
 
 @pytest.mark.unit
 def test_evolve_channel_closed_on_none_state_raises() -> None:
-    with pytest.raises(ValueError, match="ConduitChannelClosed before ConduitDefined"):
+    with pytest.raises(ValueError, match="ConduitLogbookClosed before ConduitDefined"):
         evolve(
             None,
-            ConduitChannelClosed(conduit_id=uuid4(), channel_id=uuid4(), occurred_at=_NOW),
+            ConduitLogbookClosed(conduit_id=uuid4(), logbook_id=uuid4(), occurred_at=_NOW),
         )
 
 
@@ -226,27 +226,27 @@ def test_evolve_channel_opened_raises_when_kind_already_open() -> None:
     state = evolve(None, genesis)
     state = evolve(
         state,
-        ConduitChannelOpened(
+        ConduitLogbookOpened(
             conduit_id=genesis.conduit_id,
-            channel_id=first_id,
+            logbook_id=first_id,
             kind="traversals",
             schema=_sample_schema(),
             occurred_at=_NOW,
         ),
     )
-    with pytest.raises(ConduitChannelAlreadyOpenError) as exc_info:
+    with pytest.raises(ConduitLogbookAlreadyOpenError) as exc_info:
         evolve(
             state,
-            ConduitChannelOpened(
+            ConduitLogbookOpened(
                 conduit_id=genesis.conduit_id,
-                channel_id=second_id,  # different id, same kind
+                logbook_id=second_id,  # different id, same kind
                 kind="traversals",
                 schema=_sample_schema(),
                 occurred_at=_NOW,
             ),
         )
     assert exc_info.value.kind == "traversals"
-    assert exc_info.value.existing_channel_id == first_id
+    assert exc_info.value.existing_logbook_id == first_id
 
 
 @pytest.mark.unit
@@ -255,43 +255,43 @@ def test_evolve_channel_closed_raises_when_id_not_open() -> None:
     contamination."""
     genesis = _genesis()
     state = evolve(None, genesis)
-    unknown_channel_id = uuid4()
-    with pytest.raises(ConduitChannelNotOpenError) as exc_info:
+    unknown_logbook_id = uuid4()
+    with pytest.raises(ConduitLogbookNotOpenError) as exc_info:
         evolve(
             state,
-            ConduitChannelClosed(
+            ConduitLogbookClosed(
                 conduit_id=genesis.conduit_id,
-                channel_id=unknown_channel_id,
+                logbook_id=unknown_logbook_id,
                 occurred_at=_NOW,
             ),
         )
-    assert exc_info.value.channel_id == unknown_channel_id
+    assert exc_info.value.logbook_id == unknown_logbook_id
 
 
 @pytest.mark.unit
 def test_fold_full_open_close_cycle_yields_empty_channels() -> None:
-    """Channel lifecycle: open then close brings channels back to empty."""
+    """Channel lifecycle: open then close brings logbooks back to empty."""
     genesis = _genesis()
-    channel_id = uuid4()
+    logbook_id = uuid4()
     state = fold(
         [
             genesis,
-            ConduitChannelOpened(
+            ConduitLogbookOpened(
                 conduit_id=genesis.conduit_id,
-                channel_id=channel_id,
+                logbook_id=logbook_id,
                 kind="traversals",
                 schema=_sample_schema(),
                 occurred_at=_NOW,
             ),
-            ConduitChannelClosed(
+            ConduitLogbookClosed(
                 conduit_id=genesis.conduit_id,
-                channel_id=channel_id,
+                logbook_id=logbook_id,
                 occurred_at=_NOW,
             ),
         ]
     )
     assert state is not None
-    assert state.channels == {}
+    assert state.logbooks == {}
 
 
 @pytest.mark.unit
@@ -305,16 +305,16 @@ def test_fold_supports_multiple_kinds_open_simultaneously() -> None:
     state = fold(
         [
             genesis,
-            ConduitChannelOpened(
+            ConduitLogbookOpened(
                 conduit_id=genesis.conduit_id,
-                channel_id=ch_a,
+                logbook_id=ch_a,
                 kind="traversals",
                 schema=_sample_schema(),
                 occurred_at=_NOW,
             ),
-            ConduitChannelOpened(
+            ConduitLogbookOpened(
                 conduit_id=genesis.conduit_id,
-                channel_id=ch_b,
+                logbook_id=ch_b,
                 kind="other_kind",
                 schema=_sample_schema(),
                 occurred_at=_NOW,
@@ -322,7 +322,7 @@ def test_fold_supports_multiple_kinds_open_simultaneously() -> None:
         ]
     )
     assert state is not None
-    assert state.channels == {"traversals": ch_a, "other_kind": ch_b}
+    assert state.logbooks == {"traversals": ch_a, "other_kind": ch_b}
 
 
 @pytest.mark.unit
@@ -335,21 +335,21 @@ def test_fold_supports_reopening_a_kind_after_close() -> None:
     state = fold(
         [
             genesis,
-            ConduitChannelOpened(
+            ConduitLogbookOpened(
                 conduit_id=genesis.conduit_id,
-                channel_id=first_id,
+                logbook_id=first_id,
                 kind="traversals",
                 schema=_sample_schema(),
                 occurred_at=_NOW,
             ),
-            ConduitChannelClosed(
+            ConduitLogbookClosed(
                 conduit_id=genesis.conduit_id,
-                channel_id=first_id,
+                logbook_id=first_id,
                 occurred_at=_NOW,
             ),
-            ConduitChannelOpened(
+            ConduitLogbookOpened(
                 conduit_id=genesis.conduit_id,
-                channel_id=second_id,
+                logbook_id=second_id,
                 kind="traversals",
                 schema=_sample_schema(),
                 occurred_at=_NOW,
@@ -357,4 +357,4 @@ def test_fold_supports_reopening_a_kind_after_close() -> None:
         ]
     )
     assert state is not None
-    assert state.channels == {"traversals": second_id}
+    assert state.logbooks == {"traversals": second_id}

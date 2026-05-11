@@ -1,17 +1,16 @@
-"""ConduitTraversal observation: per-decision authz audit row.
+"""ConduitTraversal entry: per-decision authz audit row.
 
-Phase 6f-5a's first concrete observation type. Every call to the
+Phase 6f-5a's first concrete entry type. Every call to the
 `Authorize` port that this Conduit governs produces one
-`ConduitTraversal` observation row, persisted to the
-`observations_conduit_traversals` table (defined in Atlas migration
-`20260511130000`).
+`ConduitTraversal` entry row, persisted to the
+`entries_conduit_traversals` table.
 
 This is the first instance of the **per-category writer pattern**
-locked at gate-review L8: each observation kind has its own typed
-`Observation` dataclass + per-category Postgres adapter living
-alongside the owning aggregate, with a category-local `TraversalStore`
-Protocol (NOT a shared cross-BC `ObservationStore` port). Future kinds
-follow the same shape (`<owning_bc>/aggregates/<agg>/observations.py`).
+locked at gate-review L8: each entry kind has its own typed
+dataclass + per-category Postgres adapter living alongside the
+owning aggregate, with a category-local `TraversalStore` Protocol
+(NOT a shared cross-BC port). Future kinds follow the same shape
+(`<owning_bc>/aggregates/<agg>/entries.py`).
 
 ## Why this lives here, not in `cora.infrastructure.postgres`
 
@@ -25,11 +24,11 @@ aggregate modules made (each owns its `to_payload` / `from_stored`).
 
 ## Why writes batch from day one
 
-`append(rows: list[ConduitTraversal])` always takes a
-list, even for the realistic "one decision at a time" case (single-
-element list). When higher-cardinality observation categories ship
-(FrameTrigger, MotorPosition), the shape is unchanged. Locked at
-gate-review G4. Empty lists are a no-op.
+`append(rows: list[ConduitTraversal])` always takes a list, even for
+the realistic "one decision at a time" case (single-element list).
+When higher-cardinality entry categories ship (FrameTrigger,
+MotorPosition), the shape is unchanged. Locked at gate-review G4.
+Empty lists are a no-op.
 
 ## Why no read shape today
 
@@ -55,7 +54,7 @@ TraversalDecision = Literal["Allow", "Deny"]
 
 @dataclass(frozen=True)
 class ConduitTraversal:
-    """One row in the per-Conduit authz traversal audit log.
+    """One row in the per-Conduit authz traversal audit logbook.
 
     `event_id` is the producer-assigned UUIDv7 identity (matches the
     existing event-sourcing convention). Used as the dedup key under
@@ -67,7 +66,7 @@ class ConduitTraversal:
 
     event_id: UUID
     conduit_id: UUID
-    channel_id: UUID
+    logbook_id: UUID
     actor_id: UUID
     command_name: str
     decision: TraversalDecision
@@ -78,12 +77,11 @@ class ConduitTraversal:
 
 
 class TraversalStore(Protocol):
-    """Per-category port for ConduitTraversal observation writes.
+    """Per-category port for ConduitTraversal entry writes.
 
-    Every Authorize port adapter that wants to emit traversal
-    observations (TrustAuthorize today; future authz adapters
-    similarly) takes a `TraversalStore` and calls
-    `append(...)` per decision.
+    Every Authorize port adapter that wants to emit traversal entries
+    (TrustAuthorize today; future authz adapters similarly) takes a
+    `TraversalStore` and calls `append(...)` per decision.
 
     Two implementations: `PostgresTraversalStore` (production) and
     `InMemoryTraversalStore` (tests / `app_env=test`). Both honor
@@ -96,8 +94,8 @@ class TraversalStore(Protocol):
 
 
 _APPEND_SQL = """
-INSERT INTO observations_conduit_traversals (
-    event_id, conduit_id, channel_id, actor_id, command_name,
+INSERT INTO entries_conduit_traversals (
+    event_id, conduit_id, logbook_id, actor_id, command_name,
     decision, reason, correlation_id, causation_id, occurred_at
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 ON CONFLICT (event_id) DO NOTHING
@@ -127,7 +125,7 @@ class PostgresTraversalStore:
                     (
                         row.event_id,
                         row.conduit_id,
-                        row.channel_id,
+                        row.logbook_id,
                         row.actor_id,
                         row.command_name,
                         row.decision,
@@ -144,9 +142,9 @@ class PostgresTraversalStore:
 class InMemoryTraversalStore:
     """Test / `app_env=test` adapter for `TraversalStore`.
 
-    Dict keyed by `event_id` for trivial dedup. Exposes
-    `all()` so contract / unit tests can assert what
-    was emitted without going through Postgres.
+    Dict keyed by `event_id` for trivial dedup. Exposes `all()` so
+    contract / unit tests can assert what was emitted without going
+    through Postgres.
     """
 
     def __init__(self) -> None:
