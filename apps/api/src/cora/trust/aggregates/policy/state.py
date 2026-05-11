@@ -40,6 +40,7 @@ temporarily revoking access without deleting the policy.
 from dataclasses import dataclass
 from uuid import UUID
 
+from cora.infrastructure.name import validate_name
 from cora.infrastructure.ports import Allow, AuthzResult, Deny
 
 POLICY_NAME_MAX_LENGTH = 200
@@ -76,9 +77,11 @@ class PolicyName:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = self.value.strip()
-        if not trimmed or len(trimmed) > POLICY_NAME_MAX_LENGTH:
-            raise InvalidPolicyNameError(self.value)
+        trimmed = validate_name(
+            self.value,
+            max_length=POLICY_NAME_MAX_LENGTH,
+            error_class=InvalidPolicyNameError,
+        )
         # Frozen dataclasses block normal assignment in __post_init__;
         # use object.__setattr__ to install the trimmed value.
         object.__setattr__(self, "value", trimmed)

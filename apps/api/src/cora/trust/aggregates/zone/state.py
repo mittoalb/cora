@@ -19,6 +19,8 @@ event-payload-level changes need new event types).
 from dataclasses import dataclass
 from uuid import UUID
 
+from cora.infrastructure.name import validate_name
+
 ZONE_NAME_MAX_LENGTH = 200
 
 
@@ -47,9 +49,11 @@ class ZoneName:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = self.value.strip()
-        if not trimmed or len(trimmed) > ZONE_NAME_MAX_LENGTH:
-            raise InvalidZoneNameError(self.value)
+        trimmed = validate_name(
+            self.value,
+            max_length=ZONE_NAME_MAX_LENGTH,
+            error_class=InvalidZoneNameError,
+        )
         # Frozen dataclasses block normal assignment in __post_init__;
         # use object.__setattr__ to install the trimmed value.
         object.__setattr__(self, "value", trimmed)

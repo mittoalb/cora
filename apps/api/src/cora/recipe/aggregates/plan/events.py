@@ -1,0 +1,183 @@
+"""Domain events emitted by the Plan aggregate, plus the discriminated union.
+
+Mirrors the locked event-module shape: event classes, discriminated
+union, `event_type_name`, `to_payload`, `from_stored`. The
+persistence-envelope construction (`NewEvent`) lives at
+`cora.infrastructure.event_envelope.to_new_event`.
+
+Phase 6e-1 ships `PlanDefined`. Phase 6e-2 will add `PlanVersioned`
+and `PlanDeprecated` per the `Defined → Versioned → Deprecated`
+lifecycle, mirroring Method 6b and Practice 6d-2.
+
+## Payload conventions
+
+`practice_id` and entries in `asset_ids` carry as primitive UUIDs
+(strings in jsonb). Eventual-consistency stance: existence is NOT
+verified at the persistence layer — the handler pre-loads them
+before reaching the decider (gate-review Q5).
+
+`asset_ids` serializes as a sorted list of UUID-as-strings (the
+state holds a `frozenset[UUID]`; sorting by string form keeps the
+persisted bytes deterministic — same logical Asset set, same
+payload, same idempotency hash). Same precedent as
+`Method.needs_capabilities`.
+
+## Audit snapshots in payload (gate-review Q4)
+
+`PlanDefined` carries three audit-only fields that are NOT folded
+into Plan state:
+
+  - `method_id`: the Method ultimately implemented by this Plan
+    (resolved from `practice.method_id` at handler-load time).
+    Captured in the event so audit replay doesn't need to traverse
+    Practice → Method (capture-don't-recompute principle).
+  - `method_needs_capabilities_snapshot`: the Method's
+    `needs_capabilities` AT BIND TIME. Pinned so the audit trail
+    reproduces what was checked even if Method later evolves.
+  - `asset_capabilities_snapshot`: each bound Asset's `capabilities`
+    AT BIND TIME. Same audit pinning rationale.
+
+Both snapshots serialize as primitive forms (sorted UUID lists /
+sorted-key dicts of sorted UUID lists) for deterministic hashing.
+The evolver does NOT read these snapshots — they're audit-only
+data living in the payload, not state.
+
+Status is NOT carried in event payloads — the event type itself
+encodes the state change. The evolver hardcodes the mapping per
+match arm. Same precedent as PracticeDefined / MethodDefined /
+CapabilityDefined / SubjectMounted / ActorDeactivated.
+"""
+
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, assert_never
+from uuid import UUID
+
+from cora.infrastructure.ports.event_store import StoredEvent
+
+
+@dataclass(frozen=True)
+class PlanDefined:
+    """A new Plan was defined: Practice + Asset binding established.
+
+    Status is implicit (`Defined`) — the evolver sets it.
+
+    `practice_id` and `asset_ids` are eventual-consistency refs.
+    `method_id` and the two snapshots are audit-only data captured
+    at bind time (see module docstring).
+    """
+
+    plan_id: UUID
+    name: str
+    practice_id: UUID
+    asset_ids: list[UUID]
+    method_id: UUID
+    method_needs_capabilities_snapshot: list[UUID]
+    asset_capabilities_snapshot: dict[UUID, list[UUID]]
+    occurred_at: datetime
+
+
+# Discriminated union of every event the Plan aggregate emits.
+# Single-element today; PlanVersioned + PlanDeprecated land in 6e-2.
+PlanEvent = PlanDefined
+
+
+def event_type_name(event: PlanEvent) -> str:
+    """Discriminator string written into StoredEvent.event_type."""
+    return type(event).__name__
+
+
+def _serialize_asset_capabilities_snapshot(
+    snapshot: dict[UUID, list[UUID]],
+) -> dict[str, list[str]]:
+    """Serialize the bind-time asset-capabilities snapshot deterministically.
+
+    jsonb stores object keys as strings; the dict key sort order
+    matters for idempotency-key hashing (same logical snapshot
+    must produce identical bytes). Outer keys sorted by UUID string
+    form; inner lists sorted by UUID string form.
+    """
+    return {
+        str(asset_id): sorted(str(c) for c in capabilities)
+        for asset_id, capabilities in sorted(snapshot.items(), key=lambda kv: str(kv[0]))
+    }
+
+
+def _deserialize_asset_capabilities_snapshot(
+    payload: dict[str, list[str]],
+) -> dict[UUID, list[UUID]]:
+    """Inverse of `_serialize_asset_capabilities_snapshot`."""
+    return {UUID(asset_id): [UUID(c) for c in caps] for asset_id, caps in payload.items()}
+
+
+def to_payload(event: PlanEvent) -> dict[str, Any]:
+    """Serialize a Plan event to a JSON-friendly dict for jsonb storage.
+
+    Primitives only: UUIDs become strings, datetimes become ISO-8601
+    strings, frozensets/dicts become deterministically-ordered lists
+    and string-keyed dicts.
+    """
+    match event:
+        case PlanDefined(
+            plan_id=plan_id,
+            name=name,
+            practice_id=practice_id,
+            asset_ids=asset_ids,
+            method_id=method_id,
+            method_needs_capabilities_snapshot=needs_snapshot,
+            asset_capabilities_snapshot=asset_caps_snapshot,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "plan_id": str(plan_id),
+                "name": name,
+                "practice_id": str(practice_id),
+                # asset_ids deterministic for idempotency hashing.
+                "asset_ids": sorted(str(a) for a in asset_ids),
+                "method_id": str(method_id),
+                "method_needs_capabilities_snapshot": sorted(str(c) for c in needs_snapshot),
+                "asset_capabilities_snapshot": _serialize_asset_capabilities_snapshot(
+                    asset_caps_snapshot
+                ),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case _:  # pragma: no cover  # exhaustiveness guard
+            assert_never(event)
+
+
+def from_stored(stored: StoredEvent) -> PlanEvent:
+    """Rebuild a Plan event from a StoredEvent loaded from the event store.
+
+    Dispatches on `stored.event_type`; raises ValueError on unknown
+    discriminators so a stream contaminated with foreign event types
+    fails loud rather than silently being dropped by the evolver.
+    """
+    payload = stored.payload
+    match stored.event_type:
+        case "PlanDefined":
+            return PlanDefined(
+                plan_id=UUID(payload["plan_id"]),
+                name=payload["name"],
+                practice_id=UUID(payload["practice_id"]),
+                asset_ids=[UUID(a) for a in payload["asset_ids"]],
+                method_id=UUID(payload["method_id"]),
+                method_needs_capabilities_snapshot=[
+                    UUID(c) for c in payload["method_needs_capabilities_snapshot"]
+                ],
+                asset_capabilities_snapshot=_deserialize_asset_capabilities_snapshot(
+                    payload["asset_capabilities_snapshot"]
+                ),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case _:
+            msg = f"Unknown PlanEvent event_type: {stored.event_type!r}"
+            raise ValueError(msg)
+
+
+__all__ = [
+    "PlanDefined",
+    "PlanEvent",
+    "event_type_name",
+    "from_stored",
+    "to_payload",
+]

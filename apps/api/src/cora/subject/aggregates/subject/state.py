@@ -65,6 +65,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
 
+from cora.infrastructure.name import validate_name
+
 SUBJECT_NAME_MAX_LENGTH = 200
 
 
@@ -265,9 +267,11 @@ class SubjectName:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = self.value.strip()
-        if not trimmed or len(trimmed) > SUBJECT_NAME_MAX_LENGTH:
-            raise InvalidSubjectNameError(self.value)
+        trimmed = validate_name(
+            self.value,
+            max_length=SUBJECT_NAME_MAX_LENGTH,
+            error_class=InvalidSubjectNameError,
+        )
         # Frozen dataclasses block normal assignment in __post_init__;
         # use object.__setattr__ to install the trimmed value.
         object.__setattr__(self, "value", trimmed)

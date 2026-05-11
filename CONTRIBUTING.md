@@ -276,6 +276,63 @@ Why this policy: events are immutable and persist forever, but value objects evo
 
 **`event_id` is the dedup key for downstream consumers.** Producers generate one fresh UUIDv7 per emitted event via the IdGenerator port; the events table has a UNIQUE constraint on `event_id`. Subscribers receive at-least-once delivery and dedupe by checking `event_id` against their local checkpoint. When polling the events table by `position`, also handle the bigserial sequence-rollback hazard documented at the top of `cora/infrastructure/ports/event_store.py` (a slow transaction can commit after a faster one with a higher position; naive `WHERE position > watermark` polling skips it).
 
+### Cross-aggregate validation — handler pre-loads, decider stays pure
+
+Some commands need to validate against another aggregate's state — e.g. `define_plan` must check that the bound Practice + Method + Assets exist and are in compatible states (capability-superset, not deprecated, not decommissioned). The canonical pattern (introduced for `define_plan` in Phase 6e-1, applies to every future cross-validating decider including Run):
+
+**The handler (impure shell) loads the upstream aggregates and bundles them into a slice-local context dataclass; the pure decider takes that context as an opaque parameter and validates without I/O.**
+
+```python
+# slice/context.py — slice-local cross-aggregate snapshot
+@dataclass(frozen=True)
+class PlanBindingContext:
+    practice: Practice
+    method: Method
+    assets: dict[UUID, Asset]
+
+
+# slice/handler.py — handler does the loads
+practice = await load_practice(deps.event_store, command.practice_id)
+if practice is None:
+    raise PracticeNotFoundError(command.practice_id)
+method = await load_method(deps.event_store, practice.method_id)
+if method is None:
+    raise MethodNotFoundError(practice.method_id)
+assets: dict[UUID, Asset] = {}
+for asset_id in sorted(command.asset_ids, key=str):
+    asset = await load_asset(deps.event_store, asset_id)
+    if asset is None:
+        raise AssetNotFoundError(asset_id)
+    assets[asset_id] = asset
+
+context = PlanBindingContext(practice=practice, method=method, assets=assets)
+events = decide(state=None, command=command, context=context, now=now, new_id=new_id)
+
+
+# slice/decider.py — decider stays pure; validates context as plain data
+def decide(
+    state: Plan | None,
+    command: DefinePlan,
+    *,
+    context: PlanBindingContext,
+    now: datetime,
+    new_id: UUID,
+) -> list[PlanDefined]:
+    if context.practice.status is PracticeStatus.DEPRECATED:
+        raise PracticeDeprecatedError(context.practice.id)
+    # ... (rest of validation)
+```
+
+**Why:**
+
+- **Decider stays pure.** No `await`, no `event_store`, no port injection. `decide(state, command, *, context, now, new_id)` is referentially transparent — same inputs always produce same outputs. Unit tests construct contexts directly with hand-built domain objects; no I/O mocking required.
+- **Capture, don't recompute.** Bind-time data captured in the event payload as audit snapshots so replay never needs to re-load (and so the audit trail is reproducible even after upstream aggregates evolve). See [Plan's `PlanDefined` event](apps/api/src/cora/recipe/aggregates/plan/events.py) for the snapshot shape pattern.
+- **Eventual-consistency stance preserved.** Concurrent upstream changes between handler-load and event-append are accepted — no cross-aggregate stream-version checks. Same precedent as everywhere else in CORA.
+- **Existence vs state-of-existence cleanly split.** Handler raises `<X>NotFoundError` for missing referenced aggregates; decider raises domain errors (`PracticeDeprecatedError`, `AssetDecommissionedError`, etc.) for "exists but state forbids the operation". Maps cleanly to HTTP: 404 for not-found, 409 for state-conflict.
+- **Slice-local context.** `PlanBindingContext` lives at `<slice>/context.py`, not at the aggregate level — only `define_plan` uses it today. Future cross-validating slices produce their own context shapes (`RunStartContext`, etc.); promote to a shared form only after the Rule of Three.
+
+This pattern matches the modern functional-DDD consensus (Functional Core / Imperative Shell): *"Any data that isn't in the stream — credit limits, holiday calendars, FX rates — is fetched in the imperative shell before the pure core runs and is passed in as plain values"* ([Beyond Aggregates: Lean, Functional Event Sourcing](https://ricofritzsche.me/functional-event-sourcing/)).
+
 ### HTTP error idiom — HTTPException in routes, JSONResponse in exception handlers
 
 Two distinct contexts, two distinct rules — easy to conflate:
@@ -320,6 +377,24 @@ Value objects encapsulate domain invariants and live with the smallest scope tha
 | Slice-local only | almost never the right answer — promote to aggregate-VO | (none today) |
 
 Promote a VO up the hierarchy only when it has ≥3 real usages with identical, stable invariants (Rule of Three). Premature promotion couples consumers; premature inlining duplicates invariant logic.
+
+**Bounded-name VOs share a validation helper, not a base class.** `ActorName`, `MethodName`, `PlanName`, etc. — the 10 bounded-name VOs in CORA — share the same trim+length-check+raise body. The shared logic is hoisted to `cora.infrastructure.name.validate_name`, called from each VO's `__post_init__`:
+
+```python
+@dataclass(frozen=True)
+class ActorName:
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_name(
+            self.value,
+            max_length=ACTOR_NAME_MAX_LENGTH,
+            error_class=InvalidActorNameError,
+        )
+        object.__setattr__(self, "value", trimmed)
+```
+
+Each VO keeps its own frozen dataclass type (so `isinstance` and pyright distinguish `ActorName` from `MethodName`), its own per-aggregate error class with aggregate-specific message text, and its own `MAX_LENGTH` constant in the aggregate's state module (read by both the VO and the API-boundary Pydantic schema). A shared base class would couple the 10 aggregates to one type; a class factory would weaken `isinstance` semantics. A free function avoids both. Hoisted in Phase 6e-1 after the 10th VO landed (the "first per-VO divergence OR ~10 instances" trigger from the 5a gate-review).
 
 **Primitives in event payloads, VOs at state and decider boundaries.** Events MUST carry primitive types (str, int, UUID, datetime, dict) — never Pydantic models or dataclass VOs. Reasons:
 

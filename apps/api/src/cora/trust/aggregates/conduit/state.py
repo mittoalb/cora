@@ -34,6 +34,8 @@ ordering is just convention, not enforced semantics.
 from dataclasses import dataclass
 from uuid import UUID
 
+from cora.infrastructure.name import validate_name
+
 CONDUIT_NAME_MAX_LENGTH = 200
 
 
@@ -70,9 +72,11 @@ class ConduitName:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = self.value.strip()
-        if not trimmed or len(trimmed) > CONDUIT_NAME_MAX_LENGTH:
-            raise InvalidConduitNameError(self.value)
+        trimmed = validate_name(
+            self.value,
+            max_length=CONDUIT_NAME_MAX_LENGTH,
+            error_class=InvalidConduitNameError,
+        )
         # Frozen dataclasses block normal assignment in __post_init__;
         # use object.__setattr__ to install the trimmed value.
         object.__setattr__(self, "value", trimmed)

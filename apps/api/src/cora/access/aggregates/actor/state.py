@@ -9,6 +9,8 @@ length-bounded). All errors raised by the domain layer are
 from dataclasses import dataclass
 from uuid import UUID
 
+from cora.infrastructure.name import validate_name
+
 ACTOR_NAME_MAX_LENGTH = 200
 
 
@@ -53,9 +55,11 @@ class ActorName:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = self.value.strip()
-        if not trimmed or len(trimmed) > ACTOR_NAME_MAX_LENGTH:
-            raise InvalidActorNameError(self.value)
+        trimmed = validate_name(
+            self.value,
+            max_length=ACTOR_NAME_MAX_LENGTH,
+            error_class=InvalidActorNameError,
+        )
         # Frozen dataclasses block normal assignment in __post_init__;
         # use object.__setattr__ to install the trimmed value.
         object.__setattr__(self, "value", trimmed)

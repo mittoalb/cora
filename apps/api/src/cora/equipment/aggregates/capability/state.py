@@ -47,6 +47,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
 
+from cora.infrastructure.name import validate_name
+
 CAPABILITY_NAME_MAX_LENGTH = 200
 CAPABILITY_VERSION_TAG_MAX_LENGTH = 50
 
@@ -170,9 +172,11 @@ class CapabilityName:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = self.value.strip()
-        if not trimmed or len(trimmed) > CAPABILITY_NAME_MAX_LENGTH:
-            raise InvalidCapabilityNameError(self.value)
+        trimmed = validate_name(
+            self.value,
+            max_length=CAPABILITY_NAME_MAX_LENGTH,
+            error_class=InvalidCapabilityNameError,
+        )
         # Frozen dataclasses block normal assignment in __post_init__;
         # use object.__setattr__ to install the trimmed value.
         object.__setattr__(self, "value", trimmed)

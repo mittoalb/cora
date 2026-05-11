@@ -32,10 +32,12 @@ from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.observability import with_tracing
 from cora.recipe.features import (
     define_method,
+    define_plan,
     define_practice,
     deprecate_method,
     deprecate_practice,
     get_method,
+    get_plan,
     get_practice,
     version_method,
     version_practice,
@@ -61,6 +63,8 @@ class RecipeHandlers:
     get_practice: get_practice.Handler
     version_practice: version_practice.Handler
     deprecate_practice: deprecate_practice.Handler
+    define_plan: define_plan.IdempotentHandler
+    get_plan: get_plan.Handler
 
 
 def wire_recipe(deps: SharedDeps) -> RecipeHandlers:
@@ -121,5 +125,22 @@ def wire_recipe(deps: SharedDeps) -> RecipeHandlers:
             deprecate_practice.bind(deps),
             command_name="DeprecatePractice",
             bc=_BC,
+        ),
+        define_plan=with_tracing(
+            with_idempotency(
+                define_plan.bind(deps),
+                deps.idempotency_store,
+                command_name="DefinePlan",
+                serialize_result=str,
+                deserialize_result=UUID,
+            ),
+            command_name="DefinePlan",
+            bc=_BC,
+        ),
+        get_plan=with_tracing(
+            get_plan.bind(deps),
+            command_name="GetPlan",
+            bc=_BC,
+            kind="query",
         ),
     )

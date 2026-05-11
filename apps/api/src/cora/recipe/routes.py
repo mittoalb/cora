@@ -37,6 +37,16 @@ from cora.recipe.aggregates.method import (
     MethodCannotVersionError,
     MethodNotFoundError,
 )
+from cora.recipe.aggregates.plan import (
+    AssetDecommissionedError,
+    InvalidPlanError,
+    InvalidPlanNameError,
+    MethodDeprecatedError,
+    PlanAlreadyExistsError,
+    PlanCapabilitiesNotSatisfiedError,
+    PlanNotFoundError,
+    PracticeDeprecatedError,
+)
 from cora.recipe.aggregates.practice import (
     InvalidPracticeNameError,
     InvalidPracticeVersionTagError,
@@ -48,10 +58,12 @@ from cora.recipe.aggregates.practice import (
 from cora.recipe.errors import UnauthorizedError
 from cora.recipe.features import (
     define_method,
+    define_plan,
     define_practice,
     deprecate_method,
     deprecate_practice,
     get_method,
+    get_plan,
     get_practice,
     version_method,
     version_practice,
@@ -124,22 +136,37 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(get_practice.router)
     app.include_router(version_practice.router)
     app.include_router(deprecate_practice.router)
+    app.include_router(define_plan.router)
+    app.include_router(get_plan.router)
     for validation_cls in (
         InvalidMethodNameError,
         InvalidMethodVersionTagError,
         InvalidPracticeNameError,
         InvalidPracticeVersionTagError,
+        InvalidPlanNameError,
+        InvalidPlanError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
-    for not_found_cls in (MethodNotFoundError, PracticeNotFoundError):
+    for not_found_cls in (MethodNotFoundError, PracticeNotFoundError, PlanNotFoundError):
         app.add_exception_handler(not_found_cls, _handle_not_found)
-    for already_exists_cls in (MethodAlreadyExistsError, PracticeAlreadyExistsError):
+    for already_exists_cls in (
+        MethodAlreadyExistsError,
+        PracticeAlreadyExistsError,
+        PlanAlreadyExistsError,
+    ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
         MethodCannotVersionError,
         MethodCannotDeprecateError,
         PracticeCannotVersionError,
         PracticeCannotDeprecateError,
+        # Plan binding-state guards (gate-review Q5): "you cannot bind
+        # to this thing because of its current state". Same 409 shape
+        # as transition guards, registered together.
+        PracticeDeprecatedError,
+        MethodDeprecatedError,
+        AssetDecommissionedError,
+        PlanCapabilitiesNotSatisfiedError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
