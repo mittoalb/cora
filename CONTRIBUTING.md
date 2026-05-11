@@ -119,7 +119,8 @@ Why this shape: it pairs Modular Monolith (BCs are macro-modules) with Vertical 
 
 ### File and symbol naming
 
-- **Commands** — PascalCase nouns in `features/<slice>/command.py` (e.g. `RegisterActor`).
+- **Commands** — PascalCase verb+noun in `features/<slice>/command.py` (e.g. `RegisterActor`). The verb signals intent; pick by the convention below.
+- **Define vs Register convention** — `Define<X>` for **type / template / configuration aggregates** (Zone, Conduit, Policy, Capability — things that are *defined* once, possibly versioned later, and referenced by other aggregates as a contract); `Register<X>` for **instance aggregates** (Actor, Subject, Asset — things that exist in the world and are *recorded* into the system). The genesis event mirrors the verb (`<X>Defined` vs `<X>Registered`). When adding a new aggregate, ask: am I describing a kind/type/policy that other things will conform to (Define), or am I recording a concrete instance with its own identity (Register)? Surfaced naturally across 7 aggregates by Phase 5b; locked here so future BCs don't drift.
 - **Queries** — PascalCase nouns in `features/<slice>/query.py` (e.g. `GetActor`).
 - **Decider** — pure function `decide` in `features/<slice>/decider.py`. Create-style: `decide(state, command, *, now, new_id)`. Update-style: `decide(state, command, *, now)`. Queries have no decider.
 - **Handler** — `bind(deps) -> Handler` in `features/<slice>/handler.py`. The bare `Handler` is a `typing.Protocol`; for create/update slices that opt into idempotency, also define `IdempotentHandler` (same shape + optional `idempotency_key` kwarg). Tests use bare Handler; production wiring in `wire.py` uses the wrapped IdempotentHandler.
