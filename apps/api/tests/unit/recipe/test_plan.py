@@ -1,9 +1,14 @@
-"""PlanName VO + PlanStatus enum tests."""
+"""PlanName VO + PlanStatus enum + transition error class tests."""
+
+from uuid import uuid4
 
 import pytest
 
 from cora.recipe.aggregates.plan import (
     InvalidPlanNameError,
+    InvalidPlanVersionTagError,
+    PlanCannotDeprecateError,
+    PlanCannotVersionError,
     PlanName,
     PlanStatus,
 )
@@ -100,3 +105,39 @@ def test_plan_status_is_str_enum_for_natural_serialization() -> None:
 def test_plan_status_can_be_constructed_from_string_value() -> None:
     for status in PlanStatus:
         assert PlanStatus(status.value) == status
+
+
+# ---------- Transition error classes (Phase 6e-2) ----------
+
+
+@pytest.mark.unit
+def test_plan_cannot_version_error_carries_plan_id_and_current_status() -> None:
+    plan_id = uuid4()
+    err = PlanCannotVersionError(plan_id, current_status=PlanStatus.DEPRECATED)
+    assert err.plan_id == plan_id
+    assert err.current_status is PlanStatus.DEPRECATED
+    msg = str(err)
+    assert "Deprecated" in msg
+    assert "Defined" in msg
+    assert "Versioned" in msg
+
+
+@pytest.mark.unit
+def test_plan_cannot_deprecate_error_carries_plan_id_and_current_status() -> None:
+    plan_id = uuid4()
+    err = PlanCannotDeprecateError(plan_id, current_status=PlanStatus.DEPRECATED)
+    assert err.plan_id == plan_id
+    assert err.current_status is PlanStatus.DEPRECATED
+    msg = str(err)
+    assert "Deprecated" in msg
+    assert "Defined" in msg
+    assert "Versioned" in msg
+
+
+@pytest.mark.unit
+def test_invalid_plan_version_tag_error_carries_value() -> None:
+    err = InvalidPlanVersionTagError("   ")
+    assert err.value == "   "
+    msg = str(err)
+    assert "Plan version tag" in msg
+    assert "1-50" in msg

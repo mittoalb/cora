@@ -15,6 +15,8 @@ import pytest
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.recipe.aggregates.plan.events import (
     PlanDefined,
+    PlanDeprecated,
+    PlanVersioned,
     event_type_name,
     from_stored,
     to_payload,
@@ -239,3 +241,88 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
     stored = _stored("PracticeDefined", {})
     with pytest.raises(ValueError, match="Unknown PlanEvent event_type"):
         from_stored(stored)
+
+
+# ---------- PlanVersioned (Phase 6e-2) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_plan_versioned_class_name() -> None:
+    event = PlanVersioned(plan_id=uuid4(), version_tag="v2", occurred_at=_NOW)
+    assert event_type_name(event) == "PlanVersioned"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_plan_versioned_with_version_tag() -> None:
+    plan_id = uuid4()
+    event = PlanVersioned(plan_id=plan_id, version_tag="2026-Q3", occurred_at=_NOW)
+    assert to_payload(event) == {
+        "plan_id": str(plan_id),
+        "version_tag": "2026-Q3",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_plan_versioned() -> None:
+    plan_id = uuid4()
+    stored = _stored(
+        "PlanVersioned",
+        {
+            "plan_id": str(plan_id),
+            "version_tag": "v2",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == PlanVersioned(plan_id=plan_id, version_tag="v2", occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_plan_versioned() -> None:
+    original = PlanVersioned(plan_id=uuid4(), version_tag="v3", occurred_at=_NOW)
+    stored = _stored("PlanVersioned", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- PlanDeprecated (Phase 6e-2) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_plan_deprecated_class_name() -> None:
+    event = PlanDeprecated(plan_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "PlanDeprecated"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_plan_deprecated_to_primitives() -> None:
+    """Status NOT in payload — event TYPE encodes the state change."""
+    plan_id = uuid4()
+    event = PlanDeprecated(plan_id=plan_id, occurred_at=_NOW)
+    payload = to_payload(event)
+    assert payload == {
+        "plan_id": str(plan_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+    assert "status" not in payload
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_plan_deprecated() -> None:
+    plan_id = uuid4()
+    stored = _stored(
+        "PlanDeprecated",
+        {
+            "plan_id": str(plan_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == PlanDeprecated(plan_id=plan_id, occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_plan_deprecated() -> None:
+    original = PlanDeprecated(plan_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("PlanDeprecated", to_payload(original))
+    assert from_stored(stored) == original

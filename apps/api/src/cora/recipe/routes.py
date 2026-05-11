@@ -41,8 +41,11 @@ from cora.recipe.aggregates.plan import (
     AssetDecommissionedError,
     InvalidPlanError,
     InvalidPlanNameError,
+    InvalidPlanVersionTagError,
     MethodDeprecatedError,
     PlanAlreadyExistsError,
+    PlanCannotDeprecateError,
+    PlanCannotVersionError,
     PlanCapabilitiesNotSatisfiedError,
     PlanNotFoundError,
     PracticeDeprecatedError,
@@ -61,11 +64,13 @@ from cora.recipe.features import (
     define_plan,
     define_practice,
     deprecate_method,
+    deprecate_plan,
     deprecate_practice,
     get_method,
     get_plan,
     get_practice,
     version_method,
+    version_plan,
     version_practice,
 )
 
@@ -138,6 +143,8 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(deprecate_practice.router)
     app.include_router(define_plan.router)
     app.include_router(get_plan.router)
+    app.include_router(version_plan.router)
+    app.include_router(deprecate_plan.router)
     for validation_cls in (
         InvalidMethodNameError,
         InvalidMethodVersionTagError,
@@ -145,6 +152,7 @@ def register_recipe_routes(app: FastAPI) -> None:
         InvalidPracticeVersionTagError,
         InvalidPlanNameError,
         InvalidPlanError,
+        InvalidPlanVersionTagError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (MethodNotFoundError, PracticeNotFoundError, PlanNotFoundError):
@@ -160,6 +168,8 @@ def register_recipe_routes(app: FastAPI) -> None:
         MethodCannotDeprecateError,
         PracticeCannotVersionError,
         PracticeCannotDeprecateError,
+        PlanCannotVersionError,
+        PlanCannotDeprecateError,
         # Plan binding-state guards (gate-review Q5): "you cannot bind
         # to this thing because of its current state". Same 409 shape
         # as transition guards, registered together.

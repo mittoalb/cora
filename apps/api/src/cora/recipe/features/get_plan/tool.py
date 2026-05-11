@@ -28,6 +28,7 @@ class PlanOutput(BaseModel):
     practice_id: UUID
     asset_ids: list[UUID]
     status: str
+    version: str | None
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -58,4 +59,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             practice_id=plan.practice_id,
             asset_ids=sorted(plan.asset_ids, key=str),
             status=plan.status.value,
+            version=plan.version,
         )

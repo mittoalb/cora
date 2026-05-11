@@ -54,6 +54,8 @@ def test_get_plan_returns_200_with_defined_status_for_new_plan() -> None:
         "practice_id": practice_id,
         "asset_ids": [asset_id],
         "status": "Defined",
+        # Null until version_plan runs (6e-2).
+        "version": None,
     }
 
 

@@ -5,9 +5,11 @@ union, `event_type_name`, `to_payload`, `from_stored`. The
 persistence-envelope construction (`NewEvent`) lives at
 `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 6e-1 ships `PlanDefined`. Phase 6e-2 will add `PlanVersioned`
+Phase 6e-1 shipped `PlanDefined`. Phase 6e-2 adds `PlanVersioned`
 and `PlanDeprecated` per the `Defined → Versioned → Deprecated`
-lifecycle, mirroring Method 6b and Practice 6d-2.
+lifecycle, mirroring Method 6b and Practice 6d-2. PlanVersioned
+carries an operator-supplied `version_tag`; PlanDeprecated carries
+no extra fields.
 
 ## Payload conventions
 
@@ -77,9 +79,47 @@ class PlanDefined:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class PlanVersioned:
+    """A plan's binding was revised; a new version label was issued.
+
+    Multi-source transition: `Defined | Versioned -> Versioned`. The
+    evolver sets status=VERSIONED and updates state.version to the
+    new tag. The decider's source-state guard enforces that
+    Deprecated plans can't be re-versioned.
+
+    `version_tag` is operator-supplied free text (1-50 chars,
+    validated at API boundary AND in the decider). Same precedent
+    as PracticeVersioned / MethodVersioned / CapabilityVersioned.
+    """
+
+    plan_id: UUID
+    version_tag: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class PlanDeprecated:
+    """A plan was marked as no longer recommended for new Runs.
+
+    Multi-source transition: `Defined | Versioned -> Deprecated`. The
+    evolver sets status=DEPRECATED; `version` is preserved (the
+    historical label of when the plan was last revised before
+    deprecation remains visible).
+
+    Existing Runs that reference this Plan are NOT automatically
+    invalidated. Deprecation is advisory at the BC layer; future
+    Run-side enrichment may surface a warning at start-time when
+    referencing a deprecated Plan (or Run-start may reject — that's
+    a 6f-side decision).
+    """
+
+    plan_id: UUID
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Plan aggregate emits.
-# Single-element today; PlanVersioned + PlanDeprecated land in 6e-2.
-PlanEvent = PlanDefined
+PlanEvent = PlanDefined | PlanVersioned | PlanDeprecated
 
 
 def event_type_name(event: PlanEvent) -> str:
@@ -141,6 +181,21 @@ def to_payload(event: PlanEvent) -> dict[str, Any]:
                 ),
                 "occurred_at": occurred_at.isoformat(),
             }
+        case PlanVersioned(
+            plan_id=plan_id,
+            version_tag=version_tag,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "plan_id": str(plan_id),
+                "version_tag": version_tag,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case PlanDeprecated(plan_id=plan_id, occurred_at=occurred_at):
+            return {
+                "plan_id": str(plan_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -169,6 +224,17 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
                 ),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "PlanVersioned":
+            return PlanVersioned(
+                plan_id=UUID(payload["plan_id"]),
+                version_tag=payload["version_tag"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "PlanDeprecated":
+            return PlanDeprecated(
+                plan_id=UUID(payload["plan_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown PlanEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -176,7 +242,9 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
 
 __all__ = [
     "PlanDefined",
+    "PlanDeprecated",
     "PlanEvent",
+    "PlanVersioned",
     "event_type_name",
     "from_stored",
     "to_payload",

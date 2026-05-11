@@ -1,4 +1,4 @@
-"""Contract tests for the `get_plan` MCP tool."""
+"""Contract tests for the `version_plan` MCP tool."""
 
 from uuid import uuid4
 
@@ -9,7 +9,7 @@ from cora.api.main import create_app
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 
-def _setup_full_plan(client: TestClient) -> tuple[str, str, str]:
+def _setup_plan(client: TestClient) -> str:
     cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
     method_id = client.post(
         "/methods", json={"name": "Test Method", "needs_capabilities": [cap_id]}
@@ -27,60 +27,28 @@ def _setup_full_plan(client: TestClient) -> tuple[str, str, str]:
         "/plans",
         json={"name": "32-ID FlyScan", "practice_id": practice_id, "asset_ids": [asset_id]},
     ).json()["plan_id"]
-    return plan_id, practice_id, asset_id
+    return plan_id
 
 
 @pytest.mark.contract
-def test_mcp_lists_get_plan_tool() -> None:
+def test_mcp_lists_version_plan_tool() -> None:
     with TestClient(create_app()) as client:
-        session_headers = open_session(client)
+        headers = open_session(client)
         response = client.post(
             "/mcp",
-            json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
-            headers=session_headers,
+            json={"jsonrpc": "2.0", "id": 99, "method": "tools/list"},
+            headers=headers,
         )
-    assert response.status_code == 200
     body = parse_sse_data(response.text)
     tool_names = [t["name"] for t in body["result"]["tools"]]
-    assert "get_plan" in tool_names
+    assert "version_plan" in tool_names
 
 
 @pytest.mark.contract
-def test_mcp_get_plan_tool_returns_structured_plan_for_known_id() -> None:
+def test_mcp_version_plan_tool_succeeds_on_happy_path() -> None:
     with TestClient(create_app()) as client:
-        plan_id, practice_id, asset_id = _setup_full_plan(client)
-        session_headers = open_session(client)
-        response = client.post(
-            "/mcp",
-            json={
-                "jsonrpc": "2.0",
-                "id": 3,
-                "method": "tools/call",
-                "params": {
-                    "name": "get_plan",
-                    "arguments": {"plan_id": plan_id},
-                },
-            },
-            headers=session_headers,
-        )
-
-    body = parse_sse_data(response.text)
-    result = body["result"]
-    assert result["isError"] is False
-    structured = result["structuredContent"]
-    assert structured["id"] == plan_id
-    assert structured["name"] == "32-ID FlyScan"
-    assert structured["practice_id"] == practice_id
-    assert structured["asset_ids"] == [asset_id]
-    assert structured["status"] == "Defined"
-    # Null until version_plan runs (6e-2).
-    assert structured["version"] is None
-
-
-@pytest.mark.contract
-def test_mcp_get_plan_tool_returns_iserror_for_unknown_id() -> None:
-    with TestClient(create_app()) as client:
-        session_headers = open_session(client)
+        plan_id = _setup_plan(client)
+        headers = open_session(client)
         response = client.post(
             "/mcp",
             json={
@@ -88,13 +56,56 @@ def test_mcp_get_plan_tool_returns_iserror_for_unknown_id() -> None:
                 "id": 4,
                 "method": "tools/call",
                 "params": {
-                    "name": "get_plan",
-                    "arguments": {"plan_id": str(uuid4())},
+                    "name": "version_plan",
+                    "arguments": {"plan_id": plan_id, "version_tag": "v2"},
                 },
             },
-            headers=session_headers,
+            headers=headers,
         )
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is False
 
+
+@pytest.mark.contract
+def test_mcp_version_plan_tool_returns_iserror_for_unknown_plan() -> None:
+    with TestClient(create_app()) as client:
+        headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 5,
+                "method": "tools/call",
+                "params": {
+                    "name": "version_plan",
+                    "arguments": {"plan_id": str(uuid4()), "version_tag": "v1"},
+                },
+            },
+            headers=headers,
+        )
     body = parse_sse_data(response.text)
     assert body["result"]["isError"] is True
     assert "not found" in body["result"]["content"][0]["text"].lower()
+
+
+@pytest.mark.contract
+def test_mcp_version_plan_tool_returns_iserror_when_deprecated() -> None:
+    with TestClient(create_app()) as client:
+        plan_id = _setup_plan(client)
+        client.post(f"/plans/{plan_id}/deprecate")
+        headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 6,
+                "method": "tools/call",
+                "params": {
+                    "name": "version_plan",
+                    "arguments": {"plan_id": plan_id, "version_tag": "v2"},
+                },
+            },
+            headers=headers,
+        )
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is True

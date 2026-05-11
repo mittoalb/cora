@@ -35,11 +35,13 @@ from cora.recipe.features import (
     define_plan,
     define_practice,
     deprecate_method,
+    deprecate_plan,
     deprecate_practice,
     get_method,
     get_plan,
     get_practice,
     version_method,
+    version_plan,
     version_practice,
 )
 
@@ -65,6 +67,8 @@ class RecipeHandlers:
     deprecate_practice: deprecate_practice.Handler
     define_plan: define_plan.IdempotentHandler
     get_plan: get_plan.Handler
+    version_plan: version_plan.Handler
+    deprecate_plan: deprecate_plan.Handler
 
 
 def wire_recipe(deps: SharedDeps) -> RecipeHandlers:
@@ -142,5 +146,15 @@ def wire_recipe(deps: SharedDeps) -> RecipeHandlers:
             command_name="GetPlan",
             bc=_BC,
             kind="query",
+        ),
+        version_plan=with_tracing(
+            version_plan.bind(deps),
+            command_name="VersionPlan",
+            bc=_BC,
+        ),
+        deprecate_plan=with_tracing(
+            deprecate_plan.bind(deps),
+            command_name="DeprecatePlan",
+            bc=_BC,
         ),
     )

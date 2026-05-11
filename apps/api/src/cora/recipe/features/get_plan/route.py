@@ -30,7 +30,9 @@ class PlanResponse(BaseModel):
 
     Carries primitives, not domain VOs. `status` is the StrEnum's
     string value (Defined / Versioned / Deprecated). `asset_ids`
-    is sorted by UUID string form (deterministic).
+    is sorted by UUID string form (deterministic). `version` is the
+    operator-supplied label of the most recent version_plan call
+    (null until first version).
     """
 
     id: UUID
@@ -38,6 +40,7 @@ class PlanResponse(BaseModel):
     practice_id: UUID
     asset_ids: list[UUID]
     status: str
+    version: str | None
 
 
 def _get_handler(request: Request) -> Handler:
@@ -85,4 +88,5 @@ async def get_plans(
         practice_id=plan.practice_id,
         asset_ids=sorted(plan.asset_ids, key=str),
         status=plan.status.value,
+        version=plan.version,
     )

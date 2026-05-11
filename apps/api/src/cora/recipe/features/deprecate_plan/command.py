@@ -1,0 +1,16 @@
+"""The `DeprecatePlan` command — intent dataclass for this slice.
+
+Multi-source transition: Defined | Versioned -> Deprecated. Single-
+field command (just plan_id); no body at the API layer. Mirrors
+`DeprecatePractice` / `DeprecateMethod` / `DeprecateCapability`.
+"""
+
+from dataclasses import dataclass
+from uuid import UUID
+
+
+@dataclass(frozen=True)
+class DeprecatePlan:
+    """Mark an existing plan as deprecated."""
+
+    plan_id: UUID

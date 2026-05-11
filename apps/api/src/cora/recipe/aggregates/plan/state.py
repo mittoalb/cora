@@ -90,6 +90,7 @@ from uuid import UUID
 from cora.infrastructure.name import validate_name
 
 PLAN_NAME_MAX_LENGTH = 200
+PLAN_VERSION_TAG_MAX_LENGTH = 50
 
 
 class PlanStatus(StrEnum):
@@ -192,6 +193,67 @@ class AssetDecommissionedError(Exception):
         self.asset_ids = asset_ids
 
 
+class PlanCannotVersionError(Exception):
+    """Attempted to version a plan not in `Defined` or `Versioned`.
+
+    Multi-source guard: `version_plan` accepts both `Defined` (first
+    revision) and `Versioned` (subsequent revisions — operators bump
+    v1 → v2 → v3 over time). Only `Deprecated` is rejected (you
+    can't revise a deprecated plan).
+
+    Per-transition error class — same naming convention as
+    `MethodCannotVersionError` (Recipe 6b), `PracticeCannotVersionError`
+    (Recipe 6d-2), `CapabilityCannotVersionError` (Equipment 5f-2).
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, plan_id: UUID, current_status: "PlanStatus") -> None:
+        super().__init__(
+            f"Plan {plan_id} cannot be versioned: currently in status "
+            f"{current_status.value}, version requires "
+            f"{PlanStatus.DEFINED.value} or {PlanStatus.VERSIONED.value}"
+        )
+        self.plan_id = plan_id
+        self.current_status = current_status
+
+
+class PlanCannotDeprecateError(Exception):
+    """Attempted to deprecate a plan not in `Defined` or `Versioned`.
+
+    Multi-source guard. Re-deprecating an already-`Deprecated` plan
+    raises (strict-not-idempotent). Mirrors
+    `PracticeCannotDeprecateError` / `MethodCannotDeprecateError`
+    shape. Mapped to HTTP 409.
+    """
+
+    def __init__(self, plan_id: UUID, current_status: "PlanStatus") -> None:
+        super().__init__(
+            f"Plan {plan_id} cannot be deprecated: currently in status "
+            f"{current_status.value}, deprecate requires "
+            f"{PlanStatus.DEFINED.value} or {PlanStatus.VERSIONED.value}"
+        )
+        self.plan_id = plan_id
+        self.current_status = current_status
+
+
+class InvalidPlanVersionTagError(ValueError):
+    """The supplied version tag is empty, whitespace-only, or too long.
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the decider via this error so direct in-process
+    callers (sagas, tests) get the same protection. Same precedent as
+    InvalidPracticeVersionTagError / InvalidMethodVersionTagError /
+    InvalidCapabilityVersionTagError. Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Plan version tag must be 1-{PLAN_VERSION_TAG_MAX_LENGTH} "
+            f"chars after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
 class PlanCapabilitiesNotSatisfiedError(Exception):
     """The bound Assets' capabilities don't cover the Method's needs.
 
@@ -247,9 +309,19 @@ class Plan:
     `practice_id` is the Practice this Plan binds (eventual-
     consistency ref). `asset_ids` is the set of Assets this Plan
     binds (multi-asset; at least one required, validated at decide
-    time). `status` defaults to `Defined`. `version` lands in 6e-2
-    alongside the version_plan slice (matches Method/Practice
-    precedent of adding fields when the mutating event arrives).
+    time). `status` defaults to `Defined`.
+
+    `version` is the operator-supplied label of the most recent
+    `version_plan` call (None until first version). State always
+    holds the latest tag — past tags live in the event stream as
+    `PlanVersioned` events. No `current_` prefix because state by
+    definition holds current values (same convention as `status`,
+    `name`). Free-text validated at API boundary + defensively in
+    the decider; no VO. Default None keeps pre-6e-2 PlanDefined-
+    only streams folding cleanly (additive-state pattern). Mirrors
+    Method/Practice/Capability `version` semantics: preserved across
+    deprecation as an audit signal of the last revision before
+    deprecation.
     """
 
     id: UUID
@@ -257,3 +329,4 @@ class Plan:
     practice_id: UUID
     asset_ids: frozenset[UUID]
     status: PlanStatus = PlanStatus.DEFINED
+    version: str | None = None
