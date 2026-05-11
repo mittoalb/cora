@@ -1,9 +1,9 @@
 """Application handler for the `activate_asset` slice.
 
 Update-style handler. The full canonical body lives in
-`cora.equipment._update_handler.make_equipment_update_handler` (load
-+ authorize + fold + decide + append, with structured logging at
-each boundary). This module is a thin slice-specific bind: it
+`cora.equipment._asset_update_handler.make_asset_update_handler`
+(load + authorize + fold + decide + append, with structured logging
+at each boundary). This module is a thin slice-specific bind: it
 supplies the command name, log prefix, and decider.
 
 Not idempotency-wrapped: update-style commands are inherently
@@ -15,7 +15,7 @@ semantics are needed.
 from typing import Protocol
 from uuid import UUID
 
-from cora.equipment._update_handler import make_equipment_update_handler
+from cora.equipment._asset_update_handler import make_asset_update_handler
 from cora.equipment.features.activate_asset.command import ActivateAsset
 from cora.equipment.features.activate_asset.decider import decide
 from cora.infrastructure.deps import SharedDeps
@@ -36,7 +36,7 @@ class Handler(Protocol):
 
 def bind(deps: SharedDeps) -> Handler:
     """Build an activate_asset handler closed over the shared deps."""
-    return make_equipment_update_handler(
+    return make_asset_update_handler(
         deps,
         command_name="ActivateAsset",
         log_prefix="activate_asset",

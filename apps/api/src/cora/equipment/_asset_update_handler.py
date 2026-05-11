@@ -1,37 +1,43 @@
-"""Shared scaffolding for the Equipment BC's update-style handlers.
+"""Shared scaffolding for the Asset aggregate's update-style handlers.
 
-Five update-style handlers shipped across Phases 5c-5e (activate /
-decommission / relocate / enter_maintenance / restore_from_maintenance).
-Four are byte-identical scaffolding around per-slice decide bodies;
-the fifth (`relocate_asset`) carries an extra `to_parent_id`
-diagnostic log field (its command has more than one operationally
-relevant id) and stays longhand. Each of the four matches the same
-load + authorize + fold + decide + append template, differing only
-in two strings (command_name, log_prefix) and the imported `decide`
-function. This module factors the template into one
-`make_equipment_update_handler(...)` factory so each compatible
+Five update-style Asset transition handlers shipped across Phases
+5c-5e (activate / decommission / relocate / enter_maintenance /
+restore_from_maintenance). Four are byte-identical scaffolding
+around per-slice decide bodies; the fifth (`relocate_asset`) carries
+an extra `to_parent_id` diagnostic log field (its command has more
+than one operationally relevant id) and stays longhand. Each of the
+four matches the same load + authorize + fold + decide + append
+template, differing only in two strings (command_name, log_prefix)
+and the imported `decide` function. This module factors the template
+into one `make_asset_update_handler(...)` factory so each compatible
 slice's handler.py shrinks from ~120 lines to ~50 (a per-slice
 `Handler` Protocol plus a 7-line `bind` that supplies the two
 strings and the decider).
 
-## What this factory closes over (BC-wide constants)
+**Per-aggregate, not per-BC.** Equipment owns two aggregates
+(Capability + Asset). This factory only handles Asset transitions —
+it hardcodes `_STREAM_TYPE = "Asset"` and uses the Asset event
+codec. When Capability lifecycle transitions land in 5f+, they get
+their own `make_capability_update_handler` factory in a sibling
+module rather than parameterizing this one (per-aggregate scoping
+keeps each factory honest about what it knows). Subject's
+`make_subject_update_handler` looks BC-named only because Subject is
+a single-aggregate BC; same per-aggregate scoping applies there.
 
-  - `_STREAM_TYPE = "Asset"` — the event-store stream type for every
-    Asset update-style command in scope. (Capability transitions land
-    in 5f+ and would either reuse this factory with a parameterized
-    stream_type or get their own; defer the decision until the third
-    Capability transition lands.)
-  - `_CONDUIT_DEFAULT_ID = UUID(int=0)` — the conduit_id kwarg passed
-    to `deps.authorize` (nil-UUID sentinel; Equipment doesn't yet
-    know its real conduit_id at handler-call time, so all handlers
-    pass the nil sentinel; a future surface-level change will plumb
-    HTTP/MCP-specific conduit_ids in).
+## What this factory closes over
+
+  - `_STREAM_TYPE = "Asset"` — the event-store stream type.
+  - `_CONDUIT_DEFAULT_ID = UUID(int=0)` — the conduit_id kwarg
+    passed to `deps.authorize` (nil-UUID sentinel; Equipment doesn't
+    yet know its real conduit_id at handler-call time, so all
+    handlers pass the nil sentinel; a future surface-level change
+    will plumb HTTP/MCP-specific conduit_ids in).
   - The aggregate event codec (`from_stored`, `to_payload`,
     `event_type_name`, `fold`) imported from
     `cora.equipment.aggregates.asset`.
-  - `UnauthorizedError` — Equipment BC's local error class. Per-BC by
-    design (so log search distinguishes which BC denied a command);
-    that's why the cross-BC abstraction lives in
+  - `UnauthorizedError` — Equipment BC's local error class. Per-BC
+    by design (so log search distinguishes which BC denied a
+    command); that's why the cross-BC abstraction lives in
     `cora/infrastructure/` only when the BC-specific items can be
     cleanly threaded through.
 
@@ -62,13 +68,13 @@ log; it stays longhand for that reason.
 ## Why Equipment-only (not cross-BC)
 
 Subject already has its own `_update_handler.py` factory (4d-cleanup,
-6 instances). Each per-BC factory threads its own `UnauthorizedError`,
-log field key (`"asset_id"` vs `"subject_id"`), and aggregate codec.
-Hoisting cross-BC requires generic-ifying those three knobs, and the
-LOC saving is small relative to the type-system ceremony. Defer to a
-3rd cross-BC instance (when Recipe lands its own update-style
-handlers); at that point the 3b-cleanup precedent for `to_new_event`
-applies.
+6 instances). Each per-aggregate factory threads its own
+`UnauthorizedError`, log field key (`"asset_id"` vs `"subject_id"`),
+and aggregate codec. Hoisting cross-BC requires generic-ifying those
+three knobs, and the LOC saving is small relative to the type-system
+ceremony. Defer to a 3rd cross-BC instance (when Recipe lands its
+own update-style handlers); at that point the 3b-cleanup precedent
+for `to_new_event` applies.
 """
 
 from collections.abc import Callable, Sequence
@@ -126,7 +132,7 @@ class _AssetUpdateHandler(Protocol):
     ) -> None: ...
 
 
-def make_equipment_update_handler(
+def make_asset_update_handler(
     deps: SharedDeps,
     *,
     command_name: str,

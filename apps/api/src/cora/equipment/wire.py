@@ -25,10 +25,13 @@ idempotency-wrapped (domain-idempotent via `AssetCannot<X>Error`
 on retry; same precedent as Subject's transitions). Queries skip
 idempotency.
 
-The per-BC `make_equipment_update_handler` factory extraction is
-deferred to 5e — Subject extracted at 6 instances; Equipment is at
-3 update-style handlers in 5d with ~4-5 expected by 5e. Same
-threshold logic.
+The per-aggregate `make_asset_update_handler` factory was extracted
+in 5e (4 byte-identical Asset transitions; relocate stays longhand
+because its log shape carries an extra to_parent_id field). Per-BC
+naming was rejected because Equipment owns two aggregates: a
+future Capability lifecycle factory will be a sibling
+`make_capability_update_handler` rather than a parameterization of
+this one.
 """
 
 from dataclasses import dataclass

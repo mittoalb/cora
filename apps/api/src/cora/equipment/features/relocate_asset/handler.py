@@ -4,7 +4,7 @@ Update-style handler shape — load + fold + decide + append. Not
 idempotency-wrapped.
 
 **Stays longhand after the 5e-cleanup factory extraction.** The
-factory `make_equipment_update_handler` (5e) covers the four
+factory `make_asset_update_handler` (5e) covers the four
 single-field Asset transitions (activate / decommission /
 enter_maintenance / restore_from_maintenance) whose log shape is
 just `asset_id`. Relocate is the outlier: its command carries
