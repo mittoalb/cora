@@ -31,7 +31,10 @@ class AssetResponse(BaseModel):
     from the domain model so the two can evolve independently.
     `level` and `lifecycle` are the StrEnum string values
     (PascalCase per the BC map). `parent_id` is null only for
-    Enterprise-level roots.
+    Enterprise-level roots. `capabilities` serializes as a sorted
+    list of UUIDs (frozenset semantics in domain state, list at the
+    JSON boundary; sorted by UUID string form for response
+    determinism).
     """
 
     id: UUID
@@ -39,6 +42,7 @@ class AssetResponse(BaseModel):
     level: str
     parent_id: UUID | None
     lifecycle: str
+    capabilities: list[UUID]
 
 
 def _get_handler(request: Request) -> Handler:
@@ -86,4 +90,5 @@ async def get_assets(
         level=asset.level.value,
         parent_id=asset.parent_id,
         lifecycle=asset.lifecycle.value,
+        capabilities=sorted(asset.capabilities, key=str),
     )

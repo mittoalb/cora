@@ -12,6 +12,9 @@ from collections.abc import Callable
 from mcp.server.fastmcp import FastMCP
 
 from cora.equipment.features.activate_asset import tool as activate_asset_tool
+from cora.equipment.features.add_asset_capability import (
+    tool as add_asset_capability_tool,
+)
 from cora.equipment.features.decommission_asset import tool as decommission_asset_tool
 from cora.equipment.features.define_capability import tool as define_capability_tool
 from cora.equipment.features.enter_maintenance import tool as enter_maintenance_tool
@@ -19,6 +22,9 @@ from cora.equipment.features.get_asset import tool as get_asset_tool
 from cora.equipment.features.get_capability import tool as get_capability_tool
 from cora.equipment.features.register_asset import tool as register_asset_tool
 from cora.equipment.features.relocate_asset import tool as relocate_asset_tool
+from cora.equipment.features.remove_asset_capability import (
+    tool as remove_asset_capability_tool,
+)
 from cora.equipment.features.restore_from_maintenance import (
     tool as restore_from_maintenance_tool,
 )
@@ -62,6 +68,14 @@ def register_equipment_tools(
     restore_from_maintenance_tool.register(
         mcp,
         get_handler=lambda: get_handlers().restore_from_maintenance,
+    )
+    add_asset_capability_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().add_asset_capability,
+    )
+    remove_asset_capability_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().remove_asset_capability,
     )
     get_asset_tool.register(
         mcp,

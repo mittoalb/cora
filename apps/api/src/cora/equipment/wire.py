@@ -39,6 +39,7 @@ from uuid import UUID
 
 from cora.equipment.features import (
     activate_asset,
+    add_asset_capability,
     decommission_asset,
     define_capability,
     enter_maintenance,
@@ -46,6 +47,7 @@ from cora.equipment.features import (
     get_capability,
     register_asset,
     relocate_asset,
+    remove_asset_capability,
     restore_from_maintenance,
 )
 from cora.infrastructure.deps import SharedDeps
@@ -77,6 +79,8 @@ class EquipmentHandlers:
     relocate_asset: relocate_asset.Handler
     enter_maintenance: enter_maintenance.Handler
     restore_from_maintenance: restore_from_maintenance.Handler
+    add_asset_capability: add_asset_capability.Handler
+    remove_asset_capability: remove_asset_capability.Handler
     get_asset: get_asset.Handler
 
 
@@ -136,6 +140,16 @@ def wire_equipment(deps: SharedDeps) -> EquipmentHandlers:
         restore_from_maintenance=with_tracing(
             restore_from_maintenance.bind(deps),
             command_name="RestoreFromMaintenance",
+            bc=_BC,
+        ),
+        add_asset_capability=with_tracing(
+            add_asset_capability.bind(deps),
+            command_name="AddAssetCapability",
+            bc=_BC,
+        ),
+        remove_asset_capability=with_tracing(
+            remove_asset_capability.bind(deps),
+            command_name="RemoveAssetCapability",
             bc=_BC,
         ),
         get_asset=with_tracing(

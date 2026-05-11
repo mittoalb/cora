@@ -7,6 +7,8 @@ import pytest
 
 from cora.equipment.aggregates.asset.events import (
     AssetActivated,
+    AssetCapabilityAdded,
+    AssetCapabilityRemoved,
     AssetDecommissioned,
     AssetMaintenanceEntered,
     AssetRegistered,
@@ -428,4 +430,96 @@ def test_from_stored_rebuilds_asset_restored_from_maintenance() -> None:
 def test_to_payload_then_from_stored_round_trips_for_asset_restored_from_maintenance() -> None:
     original = AssetRestoredFromMaintenance(asset_id=uuid4(), occurred_at=_NOW)
     stored = _stored("AssetRestoredFromMaintenance", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- AssetCapabilityAdded (Phase 5f-1) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_asset_capability_added_class_name() -> None:
+    event = AssetCapabilityAdded(asset_id=uuid4(), capability_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "AssetCapabilityAdded"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_asset_capability_added_to_primitives() -> None:
+    asset_id = uuid4()
+    capability_id = uuid4()
+    event = AssetCapabilityAdded(asset_id=asset_id, capability_id=capability_id, occurred_at=_NOW)
+    assert to_payload(event) == {
+        "asset_id": str(asset_id),
+        "capability_id": str(capability_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_asset_capability_added() -> None:
+    asset_id = uuid4()
+    capability_id = uuid4()
+    stored = _stored(
+        "AssetCapabilityAdded",
+        {
+            "asset_id": str(asset_id),
+            "capability_id": str(capability_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == AssetCapabilityAdded(
+        asset_id=asset_id, capability_id=capability_id, occurred_at=_NOW
+    )
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_asset_capability_added() -> None:
+    original = AssetCapabilityAdded(asset_id=uuid4(), capability_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("AssetCapabilityAdded", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- AssetCapabilityRemoved (Phase 5f-1) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_asset_capability_removed_class_name() -> None:
+    event = AssetCapabilityRemoved(asset_id=uuid4(), capability_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "AssetCapabilityRemoved"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_asset_capability_removed_to_primitives() -> None:
+    asset_id = uuid4()
+    capability_id = uuid4()
+    event = AssetCapabilityRemoved(asset_id=asset_id, capability_id=capability_id, occurred_at=_NOW)
+    assert to_payload(event) == {
+        "asset_id": str(asset_id),
+        "capability_id": str(capability_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_asset_capability_removed() -> None:
+    asset_id = uuid4()
+    capability_id = uuid4()
+    stored = _stored(
+        "AssetCapabilityRemoved",
+        {
+            "asset_id": str(asset_id),
+            "capability_id": str(capability_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == AssetCapabilityRemoved(
+        asset_id=asset_id, capability_id=capability_id, occurred_at=_NOW
+    )
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_asset_capability_removed() -> None:
+    original = AssetCapabilityRemoved(asset_id=uuid4(), capability_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("AssetCapabilityRemoved", to_payload(original))
     assert from_stored(stored) == original

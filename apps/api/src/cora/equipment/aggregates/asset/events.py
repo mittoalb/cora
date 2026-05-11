@@ -11,10 +11,15 @@ and `AssetDecommissioned` (lifecycle transitions). Phase 5d added
 AND target state** (`from_parent_id` + `to_parent_id`), needed
 because parent_id is mutable and the audit log should record both
 sides of the change without requiring readers to walk the prior
-event. Phase 5e adds `AssetMaintenanceEntered` and
+event. Phase 5e added `AssetMaintenanceEntered` and
 `AssetRestoredFromMaintenance` (single-source paired transitions:
-ACTIVE -> MAINTENANCE and MAINTENANCE -> ACTIVE) and widens the
+ACTIVE -> MAINTENANCE and MAINTENANCE -> ACTIVE) and widened the
 `AssetDecommissioned` source-state set to also accept MAINTENANCE.
+Phase 5f-1 adds `AssetCapabilityAdded` and `AssetCapabilityRemoved`
+— first incremental-mutation event pair on Asset state
+(capabilities accumulate over the asset's lifetime as new techniques
+are commissioned / retired). Each carries a single `capability_id`;
+the evolver folds each into the `capabilities` frozenset.
 
 ## Payload conventions for Asset
 
@@ -125,6 +130,44 @@ class AssetRestoredFromMaintenance:
 
 
 @dataclass(frozen=True)
+class AssetCapabilityAdded:
+    """A Capability was added to an asset's capability set.
+
+    Single-capability event (not bulk-update). Capabilities accumulate
+    as operators commission new techniques on the asset; each event
+    captures a single addition for clean audit trails ("when did this
+    asset gain XRF Mapping?"). The evolver inserts the capability_id
+    into `state.capabilities` (frozenset semantics → no-op on
+    duplicate at the evolver layer; the decider's strict-not-idempotent
+    guard is what enforces "must not already be present" at command
+    time).
+
+    Eventual-consistency: `capability_id` is NOT verified against the
+    Capability stream. Same precedent as Conduit zone refs (3b),
+    Asset parent refs (5b), Method.needs_capabilities (6a).
+    """
+
+    asset_id: UUID
+    capability_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class AssetCapabilityRemoved:
+    """A Capability was removed from an asset's capability set.
+
+    Mirror of `AssetCapabilityAdded`. Single-capability event; the
+    evolver removes the capability_id from `state.capabilities`. The
+    decider's strict-not-idempotent guard enforces "must currently be
+    present" at command time.
+    """
+
+    asset_id: UUID
+    capability_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
 class AssetRelocated:
     """An asset's parent in the hierarchy tree changed.
 
@@ -157,6 +200,8 @@ AssetEvent = (
     | AssetRelocated
     | AssetMaintenanceEntered
     | AssetRestoredFromMaintenance
+    | AssetCapabilityAdded
+    | AssetCapabilityRemoved
 )
 
 
@@ -220,6 +265,26 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
                 "asset_id": str(asset_id),
                 "occurred_at": occurred_at.isoformat(),
             }
+        case AssetCapabilityAdded(
+            asset_id=asset_id,
+            capability_id=capability_id,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "asset_id": str(asset_id),
+                "capability_id": str(capability_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case AssetCapabilityRemoved(
+            asset_id=asset_id,
+            capability_id=capability_id,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "asset_id": str(asset_id),
+                "capability_id": str(capability_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -270,6 +335,18 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                 asset_id=UUID(payload["asset_id"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "AssetCapabilityAdded":
+            return AssetCapabilityAdded(
+                asset_id=UUID(payload["asset_id"]),
+                capability_id=UUID(payload["capability_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "AssetCapabilityRemoved":
+            return AssetCapabilityRemoved(
+                asset_id=UUID(payload["asset_id"]),
+                capability_id=UUID(payload["capability_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown AssetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -277,6 +354,8 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
 
 __all__ = [
     "AssetActivated",
+    "AssetCapabilityAdded",
+    "AssetCapabilityRemoved",
     "AssetDecommissioned",
     "AssetEvent",
     "AssetMaintenanceEntered",

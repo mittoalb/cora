@@ -47,6 +47,8 @@ def test_get_asset_returns_200_with_commissioned_lifecycle_for_new_asset() -> No
         "level": "Unit",
         "parent_id": parent_id,
         "lifecycle": "Commissioned",
+        # Empty until add_asset_capability runs (5f-1).
+        "capabilities": [],
     }
 
 

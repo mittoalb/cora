@@ -1,7 +1,6 @@
-"""Contract tests for the `get_asset` MCP tool.
+"""Contract tests for the `add_asset_capability` MCP tool.
 
-Mirrors `test_get_capability_mcp_tool.py` / `test_get_subject_mcp_tool.py`.
-Pinned structured output shape: `{id, name, level, parent_id, lifecycle}`.
+Mirrors `test_relocate_asset_mcp_tool.py` (also two-id-arg).
 """
 
 from uuid import UUID, uuid4
@@ -16,16 +15,7 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 def _register_asset_via_tool(
     client: TestClient,
     headers: dict[str, str],
-    *,
-    name: str = "APS-2BM",
-    level: str = "Unit",
-    parent_id: str | None = None,
 ) -> UUID:
-    arguments: dict[str, str | None] = {"name": name, "level": level}
-    if level == "Enterprise":
-        arguments["parent_id"] = None
-    else:
-        arguments["parent_id"] = parent_id if parent_id is not None else str(uuid4())
     response = client.post(
         "/mcp",
         json={
@@ -34,7 +24,11 @@ def _register_asset_via_tool(
             "method": "tools/call",
             "params": {
                 "name": "register_asset",
-                "arguments": arguments,
+                "arguments": {
+                    "name": "APS-2BM",
+                    "level": "Unit",
+                    "parent_id": str(uuid4()),
+                },
             },
         },
         headers=headers,
@@ -44,7 +38,7 @@ def _register_asset_via_tool(
 
 
 @pytest.mark.contract
-def test_mcp_lists_get_asset_tool() -> None:
+def test_mcp_lists_add_asset_capability_tool() -> None:
     with TestClient(create_app()) as client:
         headers = open_session(client)
         response = client.post(
@@ -54,47 +48,14 @@ def test_mcp_lists_get_asset_tool() -> None:
         )
     body = parse_sse_data(response.text)
     tool_names = [t["name"] for t in body["result"]["tools"]]
-    assert "get_asset" in tool_names
+    assert "add_asset_capability" in tool_names
 
 
 @pytest.mark.contract
-def test_mcp_get_asset_tool_returns_structured_asset_for_known_id() -> None:
-    parent_id = str(uuid4())
+def test_mcp_add_asset_capability_tool_succeeds_on_happy_path() -> None:
     with TestClient(create_app()) as client:
         headers = open_session(client)
-        asset_id = _register_asset_via_tool(client, headers, parent_id=parent_id)
-        response = client.post(
-            "/mcp",
-            json={
-                "jsonrpc": "2.0",
-                "id": 3,
-                "method": "tools/call",
-                "params": {
-                    "name": "get_asset",
-                    "arguments": {"asset_id": str(asset_id)},
-                },
-            },
-            headers=headers,
-        )
-
-    body = parse_sse_data(response.text)
-    result = body["result"]
-    assert result["isError"] is False
-    structured = result["structuredContent"]
-    assert structured["id"] == str(asset_id)
-    assert structured["name"] == "APS-2BM"
-    assert structured["level"] == "Unit"
-    assert structured["parent_id"] == parent_id
-    assert structured["lifecycle"] == "Commissioned"
-    # Empty until add_asset_capability runs (5f-1).
-    assert structured["capabilities"] == []
-
-
-@pytest.mark.contract
-def test_mcp_get_asset_tool_returns_null_parent_for_enterprise_root() -> None:
-    with TestClient(create_app()) as client:
-        headers = open_session(client)
-        asset_id = _register_asset_via_tool(client, headers, name="ANL", level="Enterprise")
+        asset_id = _register_asset_via_tool(client, headers)
         response = client.post(
             "/mcp",
             json={
@@ -102,21 +63,21 @@ def test_mcp_get_asset_tool_returns_null_parent_for_enterprise_root() -> None:
                 "id": 4,
                 "method": "tools/call",
                 "params": {
-                    "name": "get_asset",
-                    "arguments": {"asset_id": str(asset_id)},
+                    "name": "add_asset_capability",
+                    "arguments": {
+                        "asset_id": str(asset_id),
+                        "capability_id": str(uuid4()),
+                    },
                 },
             },
             headers=headers,
         )
-
     body = parse_sse_data(response.text)
-    structured = body["result"]["structuredContent"]
-    assert structured["parent_id"] is None
-    assert structured["level"] == "Enterprise"
+    assert body["result"]["isError"] is False
 
 
 @pytest.mark.contract
-def test_mcp_get_asset_tool_returns_iserror_for_unknown_id() -> None:
+def test_mcp_add_asset_capability_tool_returns_iserror_for_unknown_asset() -> None:
     with TestClient(create_app()) as client:
         headers = open_session(client)
         response = client.post(
@@ -126,13 +87,53 @@ def test_mcp_get_asset_tool_returns_iserror_for_unknown_id() -> None:
                 "id": 5,
                 "method": "tools/call",
                 "params": {
-                    "name": "get_asset",
-                    "arguments": {"asset_id": str(uuid4())},
+                    "name": "add_asset_capability",
+                    "arguments": {
+                        "asset_id": str(uuid4()),
+                        "capability_id": str(uuid4()),
+                    },
                 },
             },
             headers=headers,
         )
-
     body = parse_sse_data(response.text)
     assert body["result"]["isError"] is True
     assert "not found" in body["result"]["content"][0]["text"].lower()
+
+
+@pytest.mark.contract
+def test_mcp_add_asset_capability_tool_returns_iserror_when_already_present() -> None:
+    cap = str(uuid4())
+    with TestClient(create_app()) as client:
+        headers = open_session(client)
+        asset_id = _register_asset_via_tool(client, headers)
+        first = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 6,
+                "method": "tools/call",
+                "params": {
+                    "name": "add_asset_capability",
+                    "arguments": {"asset_id": str(asset_id), "capability_id": cap},
+                },
+            },
+            headers=headers,
+        )
+        assert parse_sse_data(first.text)["result"]["isError"] is False
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 7,
+                "method": "tools/call",
+                "params": {
+                    "name": "add_asset_capability",
+                    "arguments": {"asset_id": str(asset_id), "capability_id": cap},
+                },
+            },
+            headers=headers,
+        )
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is True
+    assert "already" in body["result"]["content"][0]["text"]

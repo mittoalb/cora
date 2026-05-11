@@ -15,6 +15,8 @@ from cora.equipment.aggregates.asset import (
 )
 from cora.equipment.aggregates.asset.events import (
     AssetActivated,
+    AssetCapabilityAdded,
+    AssetCapabilityRemoved,
     AssetDecommissioned,
     AssetMaintenanceEntered,
     AssetRegistered,
@@ -653,3 +655,226 @@ def test_fold_register_activate_enter_decommission_yields_decommissioned_asset()
     )
     assert state is not None
     assert state.lifecycle is AssetLifecycle.DECOMMISSIONED
+
+
+# ---------- AssetCapabilityAdded / Removed (Phase 5f-1) ----------
+
+
+@pytest.mark.unit
+def test_evolve_asset_registered_starts_with_empty_capabilities() -> None:
+    """Genesis-only stream folds to empty frozenset (additive-state
+    pattern: pre-5f-1 streams fold cleanly without an upcaster)."""
+    state = evolve(
+        None,
+        AssetRegistered(
+            asset_id=uuid4(),
+            name="APS-2BM",
+            level="Unit",
+            parent_id=uuid4(),
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.capabilities == frozenset()
+
+
+@pytest.mark.unit
+def test_evolve_asset_capability_added_inserts_into_capabilities() -> None:
+    asset_id = uuid4()
+    parent_id = uuid4()
+    cap1 = uuid4()
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("APS-2BM"),
+        level=AssetLevel.UNIT,
+        parent_id=parent_id,
+        lifecycle=AssetLifecycle.ACTIVE,
+        capabilities=frozenset(),
+    )
+    state = evolve(
+        prior,
+        AssetCapabilityAdded(asset_id=asset_id, capability_id=cap1, occurred_at=_NOW),
+    )
+    assert state.capabilities == frozenset({cap1})
+    # Other state preserved.
+    assert state.lifecycle is AssetLifecycle.ACTIVE
+    assert state.parent_id == parent_id
+    assert state.id == asset_id
+
+
+@pytest.mark.unit
+def test_evolve_asset_capability_added_is_idempotent_at_evolver_layer() -> None:
+    """Evolver does NOT enforce strict-not-idempotent; that's the
+    decider's job. Frozenset semantics: adding an already-present id
+    is a no-op at this layer. Pinned because a future evolver that
+    raised on duplicate would couple the evolver to command-time
+    semantics, which it shouldn't."""
+    cap1 = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        capabilities=frozenset({cap1}),
+    )
+    state = evolve(
+        prior,
+        AssetCapabilityAdded(asset_id=prior.id, capability_id=cap1, occurred_at=_NOW),
+    )
+    assert state.capabilities == frozenset({cap1})
+
+
+@pytest.mark.unit
+def test_evolve_asset_capability_removed_drops_from_capabilities() -> None:
+    cap1 = uuid4()
+    cap2 = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        capabilities=frozenset({cap1, cap2}),
+    )
+    state = evolve(
+        prior,
+        AssetCapabilityRemoved(asset_id=prior.id, capability_id=cap1, occurred_at=_NOW),
+    )
+    assert state.capabilities == frozenset({cap2})
+
+
+@pytest.mark.unit
+def test_evolve_asset_capability_removed_is_idempotent_at_evolver_layer() -> None:
+    """Same rationale as Added's idempotent-at-evolver pin."""
+    cap1 = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        capabilities=frozenset(),
+    )
+    state = evolve(
+        prior,
+        AssetCapabilityRemoved(asset_id=prior.id, capability_id=cap1, occurred_at=_NOW),
+    )
+    assert state.capabilities == frozenset()
+
+
+@pytest.mark.unit
+def test_evolve_asset_capability_added_on_empty_state_raises() -> None:
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(
+            None,
+            AssetCapabilityAdded(asset_id=uuid4(), capability_id=uuid4(), occurred_at=_NOW),
+        )
+
+
+@pytest.mark.unit
+def test_evolve_asset_capability_removed_on_empty_state_raises() -> None:
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(
+            None,
+            AssetCapabilityRemoved(asset_id=uuid4(), capability_id=uuid4(), occurred_at=_NOW),
+        )
+
+
+# ---------- Capability preservation across transition arms ----------
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("name", "transition"),
+    [
+        ("activate", AssetActivated),
+        ("decommission", AssetDecommissioned),
+        ("enter_maintenance", AssetMaintenanceEntered),
+        ("restore_from_maintenance", AssetRestoredFromMaintenance),
+    ],
+)
+def test_evolve_lifecycle_transition_preserves_capabilities(
+    name: str,
+    transition: type,
+) -> None:
+    """Critical pin: every transition arm MUST carry capabilities
+    through from prior state. Constructing Asset(...) without
+    explicitly passing capabilities would silently WIPE the field to
+    its default (empty frozenset). 5f-1 added the field with a
+    default solely for forward-compat on AssetRegistered events; all
+    transition arms must explicitly carry it. This parametrize is the
+    safety net."""
+    _ = name  # parametrize id only
+    cap1 = uuid4()
+    cap2 = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        # Set lifecycle so each transition has a valid source state at
+        # the FOLD layer (decider-time guards live elsewhere).
+        lifecycle=(
+            AssetLifecycle.COMMISSIONED
+            if transition is AssetActivated
+            else AssetLifecycle.ACTIVE
+            if transition is AssetMaintenanceEntered
+            else AssetLifecycle.MAINTENANCE
+            if transition is AssetRestoredFromMaintenance
+            else AssetLifecycle.ACTIVE  # decommission accepts any of 3
+        ),
+        capabilities=frozenset({cap1, cap2}),
+    )
+    state = evolve(
+        prior,
+        transition(asset_id=prior.id, occurred_at=_NOW),
+    )
+    assert state.capabilities == frozenset({cap1, cap2})
+
+
+@pytest.mark.unit
+def test_evolve_relocate_preserves_capabilities() -> None:
+    """Hierarchy mutation also must preserve capabilities."""
+    cap1 = uuid4()
+    old_parent = uuid4()
+    new_parent = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=old_parent,
+        capabilities=frozenset({cap1}),
+    )
+    state = evolve(
+        prior,
+        AssetRelocated(
+            asset_id=prior.id,
+            from_parent_id=old_parent,
+            to_parent_id=new_parent,
+            reason="moved",
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.capabilities == frozenset({cap1})
+    assert state.parent_id == new_parent
+
+
+@pytest.mark.unit
+def test_fold_register_add_remove_yields_empty_capabilities() -> None:
+    """End-to-end audit: capability added then removed leaves the
+    asset back at empty. Pin so the round-trip pair holds at the fold
+    level too."""
+    asset_id = uuid4()
+    cap1 = uuid4()
+    state = fold(
+        [
+            AssetRegistered(
+                asset_id=asset_id,
+                name="APS-2BM",
+                level="Unit",
+                parent_id=uuid4(),
+                occurred_at=_NOW,
+            ),
+            AssetCapabilityAdded(asset_id=asset_id, capability_id=cap1, occurred_at=_NOW),
+            AssetCapabilityRemoved(asset_id=asset_id, capability_id=cap1, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.capabilities == frozenset()

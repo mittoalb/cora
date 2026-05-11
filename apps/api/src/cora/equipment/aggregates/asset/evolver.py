@@ -11,6 +11,8 @@ Lifecycle mapping per event type:
   - `AssetRelocated`               -> (lifecycle UNCHANGED; mutates parent_id only)
   - `AssetMaintenanceEntered`      -> MAINTENANCE
   - `AssetRestoredFromMaintenance` -> ACTIVE
+  - `AssetCapabilityAdded`         -> (lifecycle UNCHANGED; inserts into capabilities frozenset)
+  - `AssetCapabilityRemoved`       -> (lifecycle UNCHANGED; removes from capabilities frozenset)
 
 The lifecycle mapping is hardcoded per match arm — the event type
 IS the lifecycle-change indicator (no lifecycle field in event
@@ -20,8 +22,20 @@ payloads). Same precedent as Subject / Capability.
 at registration, never changes; payload-carried by design — see
 events.py docstring). `parent_id` IS reconstructed from
 AssetRegistered's payload AND mutated by AssetRelocated's
-`to_parent_id` field. The relocate evolver arm carries lifecycle
-through unchanged: it's a hierarchy mutation, not a state
+`to_parent_id` field. `capabilities` defaults to empty frozenset on
+AssetRegistered (additive-state pattern; existing AssetRegistered
+events from before 5f-1 fold cleanly without an upcaster) and is
+mutated incrementally by `AssetCapabilityAdded` /
+`AssetCapabilityRemoved`.
+
+**Critical invariant**: every transition arm MUST carry
+`capabilities` through from prior state. Constructing
+`Asset(id=..., name=..., level=..., parent_id=..., lifecycle=...)`
+without explicitly passing `capabilities` would silently WIPE the
+field to its default (empty frozenset). 5f-1 added this field with
+a default solely for additive-state forward compatibility on
+genesis events; transition arms must explicitly carry it. Pinned by
+`test_evolve_<transition>_preserves_capabilities` for each
 transition.
 
 Transition events applied to empty state raise ValueError: they
@@ -35,6 +49,8 @@ from typing import assert_never
 
 from cora.equipment.aggregates.asset.events import (
     AssetActivated,
+    AssetCapabilityAdded,
+    AssetCapabilityRemoved,
     AssetDecommissioned,
     AssetEvent,
     AssetMaintenanceEntered,
@@ -69,6 +85,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 level=AssetLevel(level),
                 parent_id=parent_id,
                 lifecycle=AssetLifecycle.COMMISSIONED,
+                # capabilities defaults to empty frozenset; additive-state
+                # pattern ensures pre-5f-1 streams fold cleanly.
             )
         case AssetActivated():
             prior = _require_state(state, "AssetActivated")
@@ -78,6 +96,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 level=prior.level,
                 parent_id=prior.parent_id,
                 lifecycle=AssetLifecycle.ACTIVE,
+                capabilities=prior.capabilities,
             )
         case AssetDecommissioned():
             prior = _require_state(state, "AssetDecommissioned")
@@ -87,13 +106,14 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 level=prior.level,
                 parent_id=prior.parent_id,
                 lifecycle=AssetLifecycle.DECOMMISSIONED,
+                capabilities=prior.capabilities,
             )
         case AssetRelocated(to_parent_id=to_parent_id):
             # Hierarchy mutation: only parent_id changes; lifecycle / level
-            # / name carry over from prior state. The from_parent_id and
-            # reason fields in the event aren't read here (they're audit
-            # metadata; the prior state's parent_id is the source of truth
-            # for the read path).
+            # / name / capabilities carry over from prior state. The
+            # from_parent_id and reason fields in the event aren't read
+            # here (they're audit metadata; the prior state's parent_id is
+            # the source of truth for the read path).
             prior = _require_state(state, "AssetRelocated")
             return Asset(
                 id=prior.id,
@@ -101,6 +121,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 level=prior.level,
                 parent_id=to_parent_id,
                 lifecycle=prior.lifecycle,
+                capabilities=prior.capabilities,
             )
         case AssetMaintenanceEntered():
             prior = _require_state(state, "AssetMaintenanceEntered")
@@ -110,6 +131,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 level=prior.level,
                 parent_id=prior.parent_id,
                 lifecycle=AssetLifecycle.MAINTENANCE,
+                capabilities=prior.capabilities,
             )
         case AssetRestoredFromMaintenance():
             prior = _require_state(state, "AssetRestoredFromMaintenance")
@@ -119,6 +141,35 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 level=prior.level,
                 parent_id=prior.parent_id,
                 lifecycle=AssetLifecycle.ACTIVE,
+                capabilities=prior.capabilities,
+            )
+        case AssetCapabilityAdded(capability_id=capability_id):
+            # Capability mutation: only `capabilities` changes; lifecycle /
+            # level / name / parent_id carry over. Frozenset semantics:
+            # adding an already-present id is a no-op AT THE EVOLVER LAYER
+            # (the decider's strict-not-idempotent guard is what enforces
+            # "must not already be present" at command time).
+            prior = _require_state(state, "AssetCapabilityAdded")
+            return Asset(
+                id=prior.id,
+                name=prior.name,
+                level=prior.level,
+                parent_id=prior.parent_id,
+                lifecycle=prior.lifecycle,
+                capabilities=prior.capabilities | {capability_id},
+            )
+        case AssetCapabilityRemoved(capability_id=capability_id):
+            # Mirror of AssetCapabilityAdded. Frozenset difference is a
+            # no-op when the id isn't present (decider enforces
+            # presence at command time).
+            prior = _require_state(state, "AssetCapabilityRemoved")
+            return Asset(
+                id=prior.id,
+                name=prior.name,
+                level=prior.level,
+                parent_id=prior.parent_id,
+                lifecycle=prior.lifecycle,
+                capabilities=prior.capabilities - {capability_id},
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

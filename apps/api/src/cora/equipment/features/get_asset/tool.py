@@ -30,6 +30,7 @@ class AssetOutput(BaseModel):
     level: str
     parent_id: UUID | None
     lifecycle: str
+    capabilities: list[UUID]
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -60,4 +61,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             level=asset.level.value,
             parent_id=asset.parent_id,
             lifecycle=asset.lifecycle.value,
+            capabilities=sorted(asset.capabilities, key=str),
         )

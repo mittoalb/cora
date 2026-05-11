@@ -58,7 +58,7 @@ the 6-instance mark; the trigger was "first per-VO divergence OR
 byte-identical with the prior 6.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from uuid import UUID
 
@@ -239,6 +239,47 @@ class AssetCannotRestoreFromMaintenanceError(Exception):
         self.current_lifecycle = current_lifecycle
 
 
+class AssetCannotAddCapabilityError(Exception):
+    """Attempted to add a Capability to an asset under disqualifying conditions.
+
+    Capability mutation (5f-1): like relocate, has multiple
+    disqualifying conditions that don't share a single state-mismatch
+    shape. They collapse into one error class with a diagnostic
+    `reason` string that surfaces in the route's 409 body:
+
+      - asset is `Decommissioned` (retired; no further capability changes)
+      - capability already in `asset.capabilities` (strict-not-idempotent;
+        same precedent as activate / mount-second-call-raises)
+
+    Eventual-consistency: the decider does NOT verify the referenced
+    Capability id refers to a real Capability stream. Same precedent
+    as Trust Conduit zone refs (3b) and Method.needs_capabilities
+    (6a).
+    """
+
+    def __init__(self, asset_id: UUID, capability_id: UUID, reason: str) -> None:
+        super().__init__(f"Asset {asset_id} cannot add capability {capability_id}: {reason}")
+        self.asset_id = asset_id
+        self.capability_id = capability_id
+        self.reason = reason
+
+
+class AssetCannotRemoveCapabilityError(Exception):
+    """Attempted to remove a Capability from an asset under disqualifying conditions.
+
+    Mirrors `AssetCannotAddCapabilityError`. Disqualifying conditions:
+
+      - asset is `Decommissioned` (retired)
+      - capability not in `asset.capabilities` (strict-not-idempotent)
+    """
+
+    def __init__(self, asset_id: UUID, capability_id: UUID, reason: str) -> None:
+        super().__init__(f"Asset {asset_id} cannot remove capability {capability_id}: {reason}")
+        self.asset_id = asset_id
+        self.capability_id = capability_id
+        self.reason = reason
+
+
 class AssetCannotRelocateError(Exception):
     """Attempted to relocate an asset under disqualifying conditions.
 
@@ -295,10 +336,21 @@ class Asset:
     `None` only when `level == Enterprise` (root). Mutable across
     `AssetRelocated` events (5d).
 
-    Additive facets (5f+): `condition`, `settings`, `ports`,
-    `owner`, `persistent_id`. The state-level fields will land
-    with defaults so prior events fold cleanly without an upcaster
-    (the additive-state pattern documented in CONTRIBUTING.md).
+    `capabilities` is the set of Capability ids this asset can
+    perform. Operationally curated: operators add via
+    `add_asset_capability` when commissioning a new technique on the
+    asset, remove via `remove_asset_capability` when retiring one.
+    Used at Plan binding time (6e) for the structural check
+    `asset.capabilities ⊇ method.needs_capabilities`. Eventual-
+    consistency: each Capability id is NOT verified against the
+    Capability stream at decide time. Defaults to empty so prior
+    `AssetRegistered`-only streams fold cleanly without an upcaster
+    (the additive-state pattern; see CONTRIBUTING.md).
+
+    Future additive facets (5f+ continuation): `condition`,
+    `settings`, `ports`, `owner`, `persistent_id`. The state-level
+    fields land with defaults for the same forward-compatibility
+    reason.
     """
 
     id: UUID
@@ -306,3 +358,9 @@ class Asset:
     level: AssetLevel
     parent_id: UUID | None
     lifecycle: AssetLifecycle = AssetLifecycle.COMMISSIONED
+    # frozenset[UUID] generic-callable trick (PEP 585): plain
+    # `frozenset` as default_factory triggers reportUnknownVariableType
+    # under pyright strict because the empty frozenset has no element
+    # type to infer. The parametrized form gives pyright the type
+    # without runtime cost. Same trick used in Method.needs_capabilities.
+    capabilities: frozenset[UUID] = field(default_factory=frozenset[UUID])
