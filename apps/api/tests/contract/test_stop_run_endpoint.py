@@ -1,8 +1,8 @@
-"""Contract tests for `POST /runs/{run_id}/abort`.
+"""Contract tests for `POST /runs/{run_id}/stop`.
 
-Multi-source emergency-exit terminal: `Running | Held -> Aborted`
-(source set widened in 6f-3). Body carries `reason` (1-500 chars).
-Re-aborting or aborting from Completed / Stopped raises 409.
+Multi-source controlled-exit terminal: `Running | Held -> Stopped`.
+Body carries `reason` (1-500 chars). Re-stopping or stopping from
+any terminal raises 409.
 """
 
 from uuid import uuid4
@@ -41,95 +41,104 @@ def _setup_full_run(client: TestClient) -> str:
 
 
 @pytest.mark.contract
-def test_post_abort_run_returns_204_from_running_state() -> None:
+def test_post_stop_run_returns_204_from_running_state() -> None:
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
-        response = client.post(f"/runs/{run_id}/abort", json={"reason": "detector overheating"})
+        response = client.post(f"/runs/{run_id}/stop", json={"reason": "hit time budget cleanly"})
     assert response.status_code == 204
 
 
 @pytest.mark.contract
-def test_post_abort_run_round_trips_into_get_run_response() -> None:
-    """End-to-end: abort + get → status=Aborted."""
-    with TestClient(create_app()) as client:
-        run_id = _setup_full_run(client)
-        client.post(f"/runs/{run_id}/abort", json={"reason": "beam dump unscheduled"})
-        response = client.get(f"/runs/{run_id}")
-
-    assert response.status_code == 200
-    assert response.json()["status"] == "Aborted"
-
-
-@pytest.mark.contract
-def test_post_abort_run_returns_204_from_held_state() -> None:
-    """6f-3 widens the source set to include Held."""
+def test_post_stop_run_returns_204_from_held_state() -> None:
+    """Multi-source: stop accepts Held."""
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
         client.post(f"/runs/{run_id}/hold")
-        response = client.post(f"/runs/{run_id}/abort", json={"reason": "emergency during hold"})
+        response = client.post(f"/runs/{run_id}/stop", json={"reason": "ending early during hold"})
     assert response.status_code == 204
 
 
 @pytest.mark.contract
-def test_post_abort_run_returns_404_when_run_does_not_exist() -> None:
+def test_post_stop_run_round_trips_into_get_run_response() -> None:
+    """End-to-end: stop + get → status=Stopped."""
+    with TestClient(create_app()) as client:
+        run_id = _setup_full_run(client)
+        client.post(f"/runs/{run_id}/stop", json={"reason": "operator stop"})
+        response = client.get(f"/runs/{run_id}")
+    assert response.status_code == 200
+    assert response.json()["status"] == "Stopped"
+
+
+@pytest.mark.contract
+def test_post_stop_run_returns_404_when_run_does_not_exist() -> None:
     missing_id = str(uuid4())
     with TestClient(create_app()) as client:
-        response = client.post(f"/runs/{missing_id}/abort", json={"reason": "X"})
+        response = client.post(f"/runs/{missing_id}/stop", json={"reason": "X"})
     assert response.status_code == 404
 
 
 @pytest.mark.contract
-def test_post_abort_run_returns_409_when_already_aborted() -> None:
-    """Strict-not-idempotent: re-aborting raises 409."""
+def test_post_stop_run_returns_409_when_already_stopped() -> None:
+    """Strict-not-idempotent: re-stopping raises 409."""
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
-        first = client.post(f"/runs/{run_id}/abort", json={"reason": "first abort"})
+        first = client.post(f"/runs/{run_id}/stop", json={"reason": "first stop"})
         assert first.status_code == 204
-        second = client.post(f"/runs/{run_id}/abort", json={"reason": "second abort"})
+        second = client.post(f"/runs/{run_id}/stop", json={"reason": "second stop"})
     assert second.status_code == 409
-    assert "Running" in second.json()["detail"]
 
 
 @pytest.mark.contract
-def test_post_abort_run_returns_409_when_completed() -> None:
-    """Cannot abort a Completed Run."""
+def test_post_stop_run_returns_409_when_completed() -> None:
+    """Cannot stop a Completed Run."""
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
         complete = client.post(f"/runs/{run_id}/complete")
         assert complete.status_code == 204
-        response = client.post(f"/runs/{run_id}/abort", json={"reason": "X"})
+        response = client.post(f"/runs/{run_id}/stop", json={"reason": "X"})
     assert response.status_code == 409
     assert "Completed" in response.json()["detail"]
 
 
 @pytest.mark.contract
-def test_post_abort_run_rejects_empty_reason_with_422() -> None:
+def test_post_stop_run_returns_409_when_aborted() -> None:
+    """Cannot stop an Aborted Run."""
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
-        response = client.post(f"/runs/{run_id}/abort", json={"reason": ""})
+        client.post(f"/runs/{run_id}/abort", json={"reason": "emergency"})
+        response = client.post(f"/runs/{run_id}/stop", json={"reason": "X"})
+    assert response.status_code == 409
+    assert "Aborted" in response.json()["detail"]
+
+
+@pytest.mark.contract
+def test_post_stop_run_rejects_empty_reason_with_422() -> None:
+    with TestClient(create_app()) as client:
+        run_id = _setup_full_run(client)
+        response = client.post(f"/runs/{run_id}/stop", json={"reason": ""})
     assert response.status_code == 422
 
 
 @pytest.mark.contract
-def test_post_abort_run_rejects_whitespace_only_reason_with_400() -> None:
+def test_post_stop_run_rejects_whitespace_only_reason_with_400() -> None:
     """Whitespace passes Pydantic but the decider trims and rejects."""
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
-        response = client.post(f"/runs/{run_id}/abort", json={"reason": "   "})
+        response = client.post(f"/runs/{run_id}/stop", json={"reason": "   "})
     assert response.status_code == 400
-    assert "abort reason" in response.json()["detail"].lower()
+    assert "stop reason" in response.json()["detail"].lower()
 
 
 @pytest.mark.contract
-def test_post_abort_run_rejects_too_long_reason_with_422() -> None:
+def test_post_stop_run_rejects_too_long_reason_with_422() -> None:
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
-        response = client.post(f"/runs/{run_id}/abort", json={"reason": "x" * 501})
+        response = client.post(f"/runs/{run_id}/stop", json={"reason": "x" * 501})
     assert response.status_code == 422
 
 
 @pytest.mark.contract
-def test_post_abort_run_rejects_invalid_path_uuid_with_422() -> None:
+def test_post_stop_run_rejects_invalid_path_uuid_with_422() -> None:
     with TestClient(create_app()) as client:
-        response = client.post("/runs/not-a-uuid/abort", json={"reason": "X"})
+        response = client.post("/runs/not-a-uuid/stop", json={"reason": "X"})
     assert response.status_code == 422

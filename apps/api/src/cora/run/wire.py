@@ -10,17 +10,19 @@ first):
 
 1. `bind(deps)` — bare handler.
 2. `with_idempotency` (create-style commands only) — Idempotency-Key
-   support. Transition handlers (`complete_run`, `abort_run`) do
-   NOT idempotency-wrap: they're update-style, the strict-not-
-   idempotent guard already rejects double-application, and the
+   support. Transition handlers (complete / abort / hold / resume /
+   stop) do NOT idempotency-wrap: they're update-style, the strict-
+   not-idempotent guard already rejects double-application, and the
    ConcurrencyError on stale expected_version handles the
    double-submit case at the persistence layer.
 3. `with_tracing` — OTel span around every handler call.
 
 Phase 6f-1 shipped `start_run` (idempotency-wrapped) + `get_run`
-(read side). Phase 6f-2 adds `complete_run` + `abort_run`
-(transition handlers). Subsequent slices land per-phase:
-  - 6f-3: Hold/Resume/Stop transitions
+(read side). Phase 6f-2 added `complete_run` + `abort_run` (terminal
+transitions). Phase 6f-3 adds `hold_run` + `resume_run` + `stop_run`
+(the bidirectional pause cycle plus the controlled-exit terminal).
+
+Subsequent slices land per-phase:
   - 6f-4: Truncated terminal
   - 6f-5: First substream (separate infra; not a slice in this bundle)
 """
@@ -31,7 +33,15 @@ from uuid import UUID
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.observability import with_tracing
-from cora.run.features import abort_run, complete_run, get_run, start_run
+from cora.run.features import (
+    abort_run,
+    complete_run,
+    get_run,
+    hold_run,
+    resume_run,
+    start_run,
+    stop_run,
+)
 
 _BC = "run"
 
@@ -43,6 +53,9 @@ class RunHandlers:
     start_run: start_run.IdempotentHandler
     complete_run: complete_run.Handler
     abort_run: abort_run.Handler
+    hold_run: hold_run.Handler
+    resume_run: resume_run.Handler
+    stop_run: stop_run.Handler
     get_run: get_run.Handler
 
 
@@ -70,6 +83,21 @@ def wire_run(deps: SharedDeps) -> RunHandlers:
         abort_run=with_tracing(
             abort_run.bind(deps),
             command_name="AbortRun",
+            bc=_BC,
+        ),
+        hold_run=with_tracing(
+            hold_run.bind(deps),
+            command_name="HoldRun",
+            bc=_BC,
+        ),
+        resume_run=with_tracing(
+            resume_run.bind(deps),
+            command_name="ResumeRun",
+            bc=_BC,
+        ),
+        stop_run=with_tracing(
+            stop_run.bind(deps),
+            command_name="StopRun",
             bc=_BC,
         ),
         get_run=with_tracing(

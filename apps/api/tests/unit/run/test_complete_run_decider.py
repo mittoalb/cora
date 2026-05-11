@@ -85,6 +85,34 @@ def test_decide_raises_cannot_complete_from_aborted() -> None:
 
 
 @pytest.mark.unit
+def test_decide_raises_cannot_complete_from_held() -> None:
+    """6f-3 Q1 lock: complete_run stays single-source (Running only).
+    Completion claims active achievement; an operator wanting to
+    complete a held run must Resume → Complete."""
+    state = _run(status=RunStatus.HELD)
+    with pytest.raises(RunCannotCompleteError) as exc_info:
+        complete_run.decide(
+            state=state,
+            command=CompleteRun(run_id=state.id),
+            now=_NOW,
+        )
+    assert exc_info.value.current_status is RunStatus.HELD
+
+
+@pytest.mark.unit
+def test_decide_raises_cannot_complete_from_stopped() -> None:
+    """Stopped is terminal — completing from Stopped raises."""
+    state = _run(status=RunStatus.STOPPED)
+    with pytest.raises(RunCannotCompleteError) as exc_info:
+        complete_run.decide(
+            state=state,
+            command=CompleteRun(run_id=state.id),
+            now=_NOW,
+        )
+    assert exc_info.value.current_status is RunStatus.STOPPED
+
+
+@pytest.mark.unit
 def test_decide_error_message_names_required_running_status() -> None:
     state = _run(status=RunStatus.COMPLETED)
     with pytest.raises(RunCannotCompleteError) as exc_info:

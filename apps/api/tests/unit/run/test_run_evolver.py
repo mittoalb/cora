@@ -13,7 +13,14 @@ from cora.run.aggregates.run import (
     evolve,
     fold,
 )
-from cora.run.aggregates.run.events import RunAborted, RunCompleted, RunStarted
+from cora.run.aggregates.run.events import (
+    RunAborted,
+    RunCompleted,
+    RunHeld,
+    RunResumed,
+    RunStarted,
+    RunStopped,
+)
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 
@@ -145,3 +152,109 @@ def test_fold_started_then_aborted_yields_aborted_and_preserves_run_fields() -> 
     assert state.plan_id == plan_id
     assert state.subject_id == subject_id
     assert state.status is RunStatus.ABORTED
+
+
+# ---------- 6f-3: Held / Resumed / Stopped ----------
+
+
+@pytest.mark.unit
+def test_evolve_run_held_transitions_to_held_preserving_other_fields() -> None:
+    started = _run_started()
+    state = evolve(None, started)
+    held = evolve(state, RunHeld(run_id=started.run_id, occurred_at=_NOW))
+    assert held == replace(state, status=RunStatus.HELD)
+    assert held.status is RunStatus.HELD
+
+
+@pytest.mark.unit
+def test_evolve_run_resumed_transitions_held_back_to_running() -> None:
+    started = _run_started()
+    running = evolve(None, started)
+    held = evolve(running, RunHeld(run_id=started.run_id, occurred_at=_NOW))
+    resumed = evolve(held, RunResumed(run_id=started.run_id, occurred_at=_NOW))
+    assert resumed.status is RunStatus.RUNNING
+    # The Run identity / plan / subject survive the round trip.
+    assert resumed == replace(held, status=RunStatus.RUNNING)
+
+
+@pytest.mark.unit
+def test_evolve_run_stopped_transitions_to_stopped_preserving_other_fields() -> None:
+    started = _run_started()
+    state = evolve(None, started)
+    stopped = evolve(
+        state,
+        RunStopped(run_id=started.run_id, reason="hit time budget", occurred_at=_NOW),
+    )
+    assert stopped == replace(state, status=RunStatus.STOPPED)
+    assert stopped.status is RunStatus.STOPPED
+
+
+@pytest.mark.unit
+def test_evolve_run_held_on_none_state_raises() -> None:
+    with pytest.raises(ValueError, match="RunHeld before RunStarted"):
+        evolve(None, RunHeld(run_id=uuid4(), occurred_at=_NOW))
+
+
+@pytest.mark.unit
+def test_evolve_run_resumed_on_none_state_raises() -> None:
+    with pytest.raises(ValueError, match="RunResumed before RunStarted"):
+        evolve(None, RunResumed(run_id=uuid4(), occurred_at=_NOW))
+
+
+@pytest.mark.unit
+def test_evolve_run_stopped_on_none_state_raises() -> None:
+    with pytest.raises(ValueError, match="RunStopped before RunStarted"):
+        evolve(None, RunStopped(run_id=uuid4(), reason="X", occurred_at=_NOW))
+
+
+@pytest.mark.unit
+def test_fold_multi_cycle_hold_resume_then_complete_yields_completed() -> None:
+    """Hold ⇄ Resume is unlimited-cycle. After [held, resumed, held,
+    resumed, completed] the fold lands in Completed. Per-cycle audit
+    lives in the event stream itself."""
+    run_id = uuid4()
+    started = _run_started(run_id=run_id)
+    state = fold(
+        [
+            started,
+            RunHeld(run_id=run_id, occurred_at=_NOW),
+            RunResumed(run_id=run_id, occurred_at=_NOW),
+            RunHeld(run_id=run_id, occurred_at=_NOW),
+            RunResumed(run_id=run_id, occurred_at=_NOW),
+            RunCompleted(run_id=run_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.status is RunStatus.COMPLETED
+
+
+@pytest.mark.unit
+def test_fold_started_then_held_then_aborted_yields_aborted() -> None:
+    """6f-3 widens abort source set to Running | Held: Held → Aborted folds correctly."""
+    run_id = uuid4()
+    started = _run_started(run_id=run_id)
+    state = fold(
+        [
+            started,
+            RunHeld(run_id=run_id, occurred_at=_NOW),
+            RunAborted(run_id=run_id, reason="emergency during hold", occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.status is RunStatus.ABORTED
+
+
+@pytest.mark.unit
+def test_fold_started_then_held_then_stopped_yields_stopped() -> None:
+    """stop_run accepts Held source: Held → Stopped folds correctly."""
+    run_id = uuid4()
+    started = _run_started(run_id=run_id)
+    state = fold(
+        [
+            started,
+            RunHeld(run_id=run_id, occurred_at=_NOW),
+            RunStopped(run_id=run_id, reason="ending early during hold", occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.status is RunStatus.STOPPED

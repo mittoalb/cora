@@ -21,16 +21,16 @@ Track A BC. Depends on:
   - `Subject.Subject` (referenced by `Run.subject_id` if non-null;
     must be in Mounted or Measured state)
 
-## Phase 6f-2 scope
+## Phase 6f-3 scope
 
-Run + the two terminals reached from Running:
+Full active-phase FSM:
   - `id` + `name` (RunName: 11th bounded-name VO)
   - `plan_id: UUID` — eventual-consistency ref; existence verified
     at handler-load time
   - `subject_id: UUID | None` — null for calibration / dark-field
     runs; if non-null, Subject must be in Mounted | Measured
-  - `status: RunStatus` (`Running | Completed | Aborted` at 6f-2;
-    further transitions land in 6f-3+)
+  - `status: RunStatus` (`Running | Held | Completed | Aborted |
+    Stopped` at 6f-3; Truncated lands in 6f-4)
 
 Cross-aggregate validation at Run-start (gate-review Q2 / Q5
 locked answers): handler pre-loads Plan + Subject (if subject_id)
@@ -41,22 +41,40 @@ gate-review Q5: Run-start re-validates capability superset
 against CURRENT Asset state (Plan-bind validated against then-
 current; drift is real, Run is the last gate).
 
-`complete_run` (Running → Completed) and `abort_run` (Running →
-Aborted) are single-source today; tuple-membership guards leave
-room for 6f-3+ to add `Held` if hold-then-X proves to be a real
-beamline workflow. `RunCompleted` payload is slim by design
-(`run_id` + `occurred_at`); substantive run summary lands in
-6f-5+ once DAQ-substream integration is in place to source it.
-`RunAborted` payload carries free-form `reason: str` (1-500
-chars after trim); structured taxonomy is future-additive with
-the three re-evaluation triggers documented at
-`InvalidRunAbortReasonError`.
+Active-phase transitions (6f-2 + 6f-3):
+  - `complete_run` (Running → Completed): single-source. Completion
+    claims active achievement, so requires the Run to be actively
+    running; an operator wanting to complete a held Run must
+    Resume → Complete. Slim payload by design.
+  - `abort_run` (Running | Held → Aborted): multi-source. Carries
+    free-form `reason: str` (1-500 chars). Emergencies during a
+    hold are real and should not require an intervening Resume.
+  - `hold_run` (Running → Held): single-source pause. No reason
+    field — matches PackML / Bluesky precedent that pause is a
+    routine operation.
+  - `resume_run` (Held → Running): single-source un-pause. Hold ⇄
+    Resume is bidirectional and unlimited-cycle (PackML + Bluesky
+    precedent).
+  - `stop_run` (Running | Held → Stopped): multi-source controlled
+    exit. Carries free-form `reason: str` (1-500 chars). Distinct
+    from abort: stop = data valid up to the stop point; abort =
+    data flagged as potentially invalid (PackML + Bluesky lifecycle-
+    layer distinction; substream cleanup semantics materialize in
+    6f-5+).
+
+Why complete_run is single-source while abort/stop are multi-
+source (gate-review 6f-3 Q1 lock): completion claims achievement,
+which requires active work. Exits don't require active work, only
+any non-terminal state. The asymmetry isn't arbitrary — it
+reflects the semantic difference between positive achievement and
+controlled / emergency termination.
 
 Phase history:
   - 6f-1: Run + start_run + get_run (the keystone slice) ✅
   - 6f-2: complete_run + abort_run (terminal happy + emergency
     exit) ✅
-  - 6f-3 (deferred): Hold/Resume/Stop transitions
+  - 6f-3: hold_run + resume_run + stop_run (pause cycle +
+    controlled-exit terminal) ✅
   - 6f-4 (deferred): Truncated terminal + truncation-reason design
   - 6f-5 (deferred): First substream infrastructure + per-frame
     trigger substream (high-cardinality telemetry)

@@ -7,8 +7,11 @@ is added to `RunEvent` without a matching match arm here.
 Status mapping per event type:
   - `RunStarted`   -> RUNNING   (genesis; the start-event puts the
                                  Run into the active steady-state)
+  - `RunHeld`      -> HELD      (pause)
+  - `RunResumed`   -> RUNNING   (un-pause; back to the active steady-state)
   - `RunCompleted` -> COMPLETED (happy-path terminal)
   - `RunAborted`   -> ABORTED   (emergency-exit terminal)
+  - `RunStopped`   -> STOPPED   (controlled-exit terminal)
 
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
@@ -19,12 +22,18 @@ Transition events preserve `id`, `name`, `plan_id`, `subject_id`
 from the prior state (they're absent from the slim transition
 payloads — the event type alone updates `status`).
 
-Defensive guards: `RunCompleted` / `RunAborted` raise on `state is
-None` because no fold path produces a transition event before a
-genesis. The deciders enforce this at command time, but the
-evolver also asserts it so a contaminated stream (foreign or
-out-of-order events) fails loud rather than silently producing a
-defaulted aggregate.
+Hold ⇄ Resume is the first bidirectional cycle in any Run aggregate
+event stream. The fold is order-sensitive (replay is sequential) so
+[RunHeld, RunResumed, RunHeld, RunResumed, RunCompleted] correctly
+yields COMPLETED. Per-cycle audit lives in the event stream itself;
+the aggregate state only carries the latest status (slim-aggregate
+principle, gate-review 6f-3 L9 lock).
+
+Defensive guards: every transition event raises on `state is None`
+because no fold path produces a transition event before a genesis.
+The deciders enforce this at command time, but the evolver also
+asserts it so a contaminated stream (foreign or out-of-order events)
+fails loud rather than silently producing a defaulted aggregate.
 """
 
 from collections.abc import Sequence
@@ -35,7 +44,10 @@ from cora.run.aggregates.run.events import (
     RunAborted,
     RunCompleted,
     RunEvent,
+    RunHeld,
+    RunResumed,
     RunStarted,
+    RunStopped,
 )
 from cora.run.aggregates.run.state import Run, RunName, RunStatus
 
@@ -57,6 +69,16 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 subject_id=subject_id,
                 status=RunStatus.RUNNING,
             )
+        case RunHeld():
+            if state is None:
+                msg = "RunHeld before RunStarted: stream is corrupted"
+                raise ValueError(msg)
+            return replace(state, status=RunStatus.HELD)
+        case RunResumed():
+            if state is None:
+                msg = "RunResumed before RunStarted: stream is corrupted"
+                raise ValueError(msg)
+            return replace(state, status=RunStatus.RUNNING)
         case RunCompleted():
             if state is None:
                 msg = "RunCompleted before RunStarted: stream is corrupted"
@@ -67,6 +89,11 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 msg = "RunAborted before RunStarted: stream is corrupted"
                 raise ValueError(msg)
             return replace(state, status=RunStatus.ABORTED)
+        case RunStopped():
+            if state is None:
+                msg = "RunStopped before RunStarted: stream is corrupted"
+                raise ValueError(msg)
+            return replace(state, status=RunStatus.STOPPED)
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 

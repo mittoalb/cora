@@ -105,40 +105,53 @@ from cora.infrastructure.name import validate_name
 
 RUN_NAME_MAX_LENGTH = 200
 RUN_ABORT_REASON_MAX_LENGTH = 500
+RUN_STOP_REASON_MAX_LENGTH = 500
 
 
 class RunStatus(StrEnum):
     """The Run's lifecycle state.
 
-    6f-2 ships `Running` + the two terminals reached from Running:
-    `Completed` (happy-path exit) and `Aborted` (emergency exit).
-    Remaining transitions land per-slice per the BC map's full FSM:
+    6f-3 ships the full active-phase FSM (Running plus the Held
+    pause-state plus the three reachable terminals). Truncated
+    lands in 6f-4.
 
       Running (6f-1)
-        → Completed | Aborted (6f-2 happy + emergency exit)   ← here
-        → Held (6f-3 hold/resume)
-        → Stopped (6f-3 controlled stop)
+        ⇄ Held (6f-3 hold/resume; bidirectional cycle, unlimited)
+        → Completed (6f-2 happy-path; single-source from Running)
+        → Aborted (6f-2 emergency; multi-source from Running | Held)
+        → Stopped (6f-3 controlled exit; multi-source from Running | Held)
         → Truncated (6f-4 partial-data terminal)
 
+    Why complete_run is single-source while stop/abort_run are
+    multi-source (gate-review 6f-3 Q1 lock): completion claims
+    achievement, which requires active work happening at the
+    moment of completion. Stop and abort are exits — they don't
+    require active work, only any non-terminal state. Operators
+    wanting to mark a held run as complete must Resume → Complete,
+    which preserves clearer audit semantics than a bare Held →
+    Complete transition.
+
     Plus transient states (Starting, Stopping, Aborting,
-    Completing) get evaluated when DAQ-substream integration
-    arrives (6f-5+) — only added if there's a real async period
-    between command-arrival and event-emit at the application
-    layer (today there isn't).
+    Holding, Unholding, Completing) get evaluated when DAQ-
+    substream integration arrives (6f-5+) — only added if there's
+    a real async period between command-arrival and event-emit at
+    the application layer (today there isn't).
 
     Naming convention (per 6f-2 gate review): gerund / adjective
     for the active steady-state (matches ISA-88 / PackML's
     `Execute` and Bluesky's `running`); past-participle for
-    terminals (`Completed`, `Aborted`) consistent with our own
-    Subject precedent.
+    pause-state and terminals (`Held`, `Completed`, `Aborted`,
+    `Stopped`) consistent with our own Subject precedent.
 
     Enum values are PascalCase strings (matches BC-map status
     vocabulary; log lines and DTOs read naturally without mapping).
     """
 
     RUNNING = "Running"
+    HELD = "Held"
     COMPLETED = "Completed"
     ABORTED = "Aborted"
+    STOPPED = "Stopped"
 
 
 class InvalidRunNameError(ValueError):
@@ -250,9 +263,11 @@ class RunCannotCompleteError(Exception):
 
     Single-source guard: `complete_run` accepts only `Running`.
     Re-completing an already-`Completed` Run raises (strict-not-
-    idempotent); completing an `Aborted` Run raises. 6f-3+ may
-    add `Held` as an additional source if hold-then-complete
-    proves to be a real beamline workflow.
+    idempotent); completing an `Aborted` / `Stopped` Run raises;
+    completing a `Held` Run raises (gate-review 6f-3 Q1 lock —
+    completion claims active achievement, so it requires the Run
+    to be actively running; an operator wanting to complete a held
+    run must Resume → Complete).
 
     Per-transition error class — same naming convention as
     `PlanCannotDeprecateError` / `MethodCannotVersionError`.
@@ -270,12 +285,13 @@ class RunCannotCompleteError(Exception):
 
 
 class RunCannotAbortError(Exception):
-    """Attempted to abort a Run not in `Running`.
+    """Attempted to abort a Run not in `Running` or `Held`.
 
-    Single-source guard: `abort_run` accepts only `Running` today.
-    Aborting an already-terminal Run (Completed | Aborted) raises;
+    Multi-source guard: `abort_run` accepts `Running | Held`.
+    Emergencies during a hold are real — operators can't be
+    forced to first resume just to abort. Aborting an already-
+    terminal Run (Completed | Aborted | Stopped) raises;
     re-aborting an `Aborted` Run raises (strict-not-idempotent).
-    6f-3+ may add `Held` as an additional source.
 
     Mapped to HTTP 409.
     """
@@ -284,7 +300,74 @@ class RunCannotAbortError(Exception):
         super().__init__(
             f"Run {run_id} cannot be aborted: currently in status "
             f"{current_status.value}, abort requires "
+            f"{RunStatus.RUNNING.value} or {RunStatus.HELD.value}"
+        )
+        self.run_id = run_id
+        self.current_status = current_status
+
+
+class RunCannotHoldError(Exception):
+    """Attempted to hold a Run not in `Running`.
+
+    Single-source guard: `hold_run` accepts only `Running`.
+    Re-holding an already-`Held` Run raises (strict-not-
+    idempotent); holding a terminal Run raises.
+
+    Hold/Resume is bidirectional and unlimited-cycle (PackML +
+    Bluesky precedent), so an operator can hold → resume → hold
+    repeatedly during a single Run; each hold requires an
+    intervening resume.
+
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, run_id: UUID, current_status: "RunStatus") -> None:
+        super().__init__(
+            f"Run {run_id} cannot be held: currently in status "
+            f"{current_status.value}, hold requires "
             f"{RunStatus.RUNNING.value}"
+        )
+        self.run_id = run_id
+        self.current_status = current_status
+
+
+class RunCannotResumeError(Exception):
+    """Attempted to resume a Run not in `Held`.
+
+    Single-source guard: `resume_run` accepts only `Held`. The
+    inverse of hold (which requires `Running`). Resuming an
+    already-`Running` Run raises (strict-not-idempotent);
+    resuming a terminal Run raises.
+
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, run_id: UUID, current_status: "RunStatus") -> None:
+        super().__init__(
+            f"Run {run_id} cannot be resumed: currently in status "
+            f"{current_status.value}, resume requires "
+            f"{RunStatus.HELD.value}"
+        )
+        self.run_id = run_id
+        self.current_status = current_status
+
+
+class RunCannotStopError(Exception):
+    """Attempted to stop a Run not in `Running` or `Held`.
+
+    Multi-source guard: `stop_run` accepts `Running | Held`.
+    Symmetric with abort_run's source set — operator-initiated
+    controlled exits don't require an active state, only any
+    non-terminal state. Stopping a terminal Run raises.
+
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, run_id: UUID, current_status: "RunStatus") -> None:
+        super().__init__(
+            f"Run {run_id} cannot be stopped: currently in status "
+            f"{current_status.value}, stop requires "
+            f"{RunStatus.RUNNING.value} or {RunStatus.HELD.value}"
         )
         self.run_id = run_id
         self.current_status = current_status
@@ -334,6 +417,56 @@ class RunAbortReason:
             self.value,
             max_length=RUN_ABORT_REASON_MAX_LENGTH,
             error_class=InvalidRunAbortReasonError,
+        )
+        object.__setattr__(self, "value", trimmed)
+
+
+class InvalidRunStopReasonError(ValueError):
+    """The supplied stop reason is empty, whitespace-only, or too long.
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the decider via this error. Sibling of
+    `InvalidRunAbortReasonError`; kept as a separate class so API
+    error responses unambiguously identify which transition the
+    invalid reason was for.
+
+    Free-form `str` (1-500 chars) is the locked 6f-3 design (gate-
+    review Q2). Same future-additive structured-taxonomy posture
+    as `RunAborted.reason` — the three documented re-evaluation
+    triggers for abort apply equally to stop:
+      - vocabulary convergence across ≥10 real stops;
+      - Decision BC adopts RunStop with structured-context queries;
+      - compliance/audit demand for categorical reason tracking.
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Run stop reason must be 1-{RUN_STOP_REASON_MAX_LENGTH} chars after "
+            f"trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+@dataclass(frozen=True)
+class RunStopReason:
+    """Free-form stop reason. Trimmed; 1-500 chars.
+
+    Sibling of `RunAbortReason` — identical pattern, distinct
+    error class for clearer API error responses. The on-the-wire
+    representation in `RunStopped.reason` is `str` (post-trim)
+    for payload simplicity; the VO exists at decider-input time
+    only.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_name(
+            self.value,
+            max_length=RUN_STOP_REASON_MAX_LENGTH,
+            error_class=InvalidRunStopReasonError,
         )
         object.__setattr__(self, "value", trimmed)
 

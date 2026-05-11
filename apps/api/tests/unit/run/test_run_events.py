@@ -9,7 +9,10 @@ from cora.infrastructure.ports.event_store import StoredEvent
 from cora.run.aggregates.run.events import (
     RunAborted,
     RunCompleted,
+    RunHeld,
+    RunResumed,
     RunStarted,
+    RunStopped,
     event_type_name,
     from_stored,
     to_payload,
@@ -243,4 +246,134 @@ def test_run_aborted_round_trips() -> None:
         occurred_at=_NOW,
     )
     stored = _stored("RunAborted", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- RunHeld (6f-3) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_for_run_held() -> None:
+    event = RunHeld(run_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "RunHeld"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_run_held_to_primitives() -> None:
+    run_id = uuid4()
+    event = RunHeld(run_id=run_id, occurred_at=_NOW)
+    assert to_payload(event) == {
+        "run_id": str(run_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_held() -> None:
+    run_id = uuid4()
+    stored = _stored(
+        "RunHeld",
+        {
+            "run_id": str(run_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == RunHeld(run_id=run_id, occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_run_held_round_trips() -> None:
+    original = RunHeld(run_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("RunHeld", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- RunResumed (6f-3) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_for_run_resumed() -> None:
+    event = RunResumed(run_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "RunResumed"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_run_resumed_to_primitives() -> None:
+    run_id = uuid4()
+    event = RunResumed(run_id=run_id, occurred_at=_NOW)
+    assert to_payload(event) == {
+        "run_id": str(run_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_resumed() -> None:
+    run_id = uuid4()
+    stored = _stored(
+        "RunResumed",
+        {
+            "run_id": str(run_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == RunResumed(run_id=run_id, occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_run_resumed_round_trips() -> None:
+    original = RunResumed(run_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("RunResumed", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- RunStopped (6f-3) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_for_run_stopped() -> None:
+    event = RunStopped(run_id=uuid4(), reason="X", occurred_at=_NOW)
+    assert event_type_name(event) == "RunStopped"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_run_stopped_to_primitives() -> None:
+    run_id = uuid4()
+    event = RunStopped(run_id=run_id, reason="hit time budget cleanly", occurred_at=_NOW)
+    assert to_payload(event) == {
+        "run_id": str(run_id),
+        "reason": "hit time budget cleanly",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_stopped() -> None:
+    run_id = uuid4()
+    stored = _stored(
+        "RunStopped",
+        {
+            "run_id": str(run_id),
+            "reason": "operator stop",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == RunStopped(
+        run_id=run_id,
+        reason="operator stop",
+        occurred_at=_NOW,
+    )
+
+
+@pytest.mark.unit
+def test_run_stopped_round_trips() -> None:
+    original = RunStopped(
+        run_id=uuid4(),
+        reason="hit time budget cleanly",
+        occurred_at=_NOW,
+    )
+    stored = _stored("RunStopped", to_payload(original))
     assert from_stored(stored) == original

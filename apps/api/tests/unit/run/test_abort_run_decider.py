@@ -125,7 +125,21 @@ def test_decide_raises_cannot_abort_when_already_aborted() -> None:
 
 
 @pytest.mark.unit
-def test_decide_error_message_names_required_running_status() -> None:
+def test_decide_raises_cannot_abort_when_already_stopped() -> None:
+    """Stopped is terminal — cannot abort from Stopped."""
+    state = _run(status=RunStatus.STOPPED)
+    with pytest.raises(RunCannotAbortError) as exc_info:
+        abort_run.decide(
+            state=state,
+            command=AbortRun(run_id=state.id, reason="X"),
+            now=_NOW,
+        )
+    assert exc_info.value.current_status is RunStatus.STOPPED
+
+
+@pytest.mark.unit
+def test_decide_error_message_names_required_running_or_held_status() -> None:
+    """6f-3 widened the source set to Running | Held."""
     state = _run(status=RunStatus.COMPLETED)
     with pytest.raises(RunCannotAbortError) as exc_info:
         abort_run.decide(
@@ -135,6 +149,23 @@ def test_decide_error_message_names_required_running_status() -> None:
         )
     msg = str(exc_info.value)
     assert "Running" in msg
+    assert "Held" in msg
+
+
+# ---------- 6f-3: Held source acceptance ----------
+
+
+@pytest.mark.unit
+def test_decide_accepts_held_source_state_in_6f3() -> None:
+    """Emergencies during a hold are real — abort_run accepts Held."""
+    state = _run(status=RunStatus.HELD)
+    events = abort_run.decide(
+        state=state,
+        command=AbortRun(run_id=state.id, reason="emergency during hold"),
+        now=_NOW,
+    )
+    assert len(events) == 1
+    assert events[0].reason == "emergency during hold"
 
 
 @pytest.mark.unit

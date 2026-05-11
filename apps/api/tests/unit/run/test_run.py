@@ -1,4 +1,4 @@
-"""RunName VO + RunAbortReason VO + RunStatus enum + Run-side error class tests."""
+"""RunName + RunAbortReason + RunStopReason VOs + RunStatus enum + Run-side error class tests."""
 
 from uuid import uuid4
 
@@ -7,16 +7,21 @@ import pytest
 from cora.run.aggregates.run import (
     InvalidRunAbortReasonError,
     InvalidRunNameError,
+    InvalidRunStopReasonError,
     PlanDeprecatedError,
     RunAbortReason,
     RunAlreadyExistsError,
     RunAssetDecommissionedError,
     RunCannotAbortError,
     RunCannotCompleteError,
+    RunCannotHoldError,
+    RunCannotResumeError,
+    RunCannotStopError,
     RunCapabilitiesNotSatisfiedError,
     RunName,
     RunNotFoundError,
     RunStatus,
+    RunStopReason,
     SubjectNotMountableError,
 )
 
@@ -70,12 +75,19 @@ def test_run_name_is_frozen() -> None:
 
 
 @pytest.mark.unit
-def test_run_status_has_running_completed_aborted_in_6f2() -> None:
-    """Phase 6f-2 ships Running (active steady-state) plus the two
-    terminals reachable from Running: Completed (happy path) and
-    Aborted (emergency exit). Later sub-phases add Held, Stopped,
-    Truncated."""
-    assert {s.value for s in RunStatus} == {"Running", "Completed", "Aborted"}
+def test_run_status_has_full_active_phase_fsm_in_6f3() -> None:
+    """Phase 6f-3 ships the full active-phase FSM: Running (active
+    steady-state) + Held (pause-state) + the three terminals reachable
+    from Running | Held: Completed (happy path; single-source from
+    Running), Aborted (emergency; multi-source), Stopped (controlled
+    exit; multi-source). Truncated lands in 6f-4."""
+    assert {s.value for s in RunStatus} == {
+        "Running",
+        "Held",
+        "Completed",
+        "Aborted",
+        "Stopped",
+    }
 
 
 @pytest.mark.unit
@@ -83,8 +95,10 @@ def test_run_status_is_str_enum_for_natural_serialization() -> None:
     assert isinstance(RunStatus.RUNNING, str)
     assert RunStatus.RUNNING == "Running"
     assert f"{RunStatus.RUNNING}" == "Running"
+    assert RunStatus.HELD == "Held"
     assert RunStatus.COMPLETED == "Completed"
     assert RunStatus.ABORTED == "Aborted"
+    assert RunStatus.STOPPED == "Stopped"
 
 
 # ---------- Error classes ----------
@@ -205,5 +219,98 @@ def test_run_abort_reason_accepts_max_length() -> None:
 @pytest.mark.unit
 def test_run_abort_reason_is_frozen() -> None:
     reason = RunAbortReason("operator stop")
+    with pytest.raises(AttributeError):
+        reason.value = "Other"  # type: ignore[misc]
+
+
+# ---------- 6f-3 transition error classes ----------
+
+
+@pytest.mark.unit
+def test_run_cannot_hold_error_carries_run_id_and_status() -> None:
+    run_id = uuid4()
+    err = RunCannotHoldError(run_id, current_status=RunStatus.HELD)
+    assert err.run_id == run_id
+    assert err.current_status is RunStatus.HELD
+    msg = str(err)
+    assert "Held" in msg
+    assert "Running" in msg
+
+
+@pytest.mark.unit
+def test_run_cannot_resume_error_carries_run_id_and_status() -> None:
+    run_id = uuid4()
+    err = RunCannotResumeError(run_id, current_status=RunStatus.RUNNING)
+    assert err.run_id == run_id
+    assert err.current_status is RunStatus.RUNNING
+    msg = str(err)
+    assert "Running" in msg
+    assert "Held" in msg
+
+
+@pytest.mark.unit
+def test_run_cannot_stop_error_carries_run_id_and_status() -> None:
+    run_id = uuid4()
+    err = RunCannotStopError(run_id, current_status=RunStatus.COMPLETED)
+    assert err.run_id == run_id
+    assert err.current_status is RunStatus.COMPLETED
+    msg = str(err)
+    assert "Completed" in msg
+    assert "Running" in msg
+    assert "Held" in msg
+
+
+@pytest.mark.unit
+def test_run_cannot_abort_error_now_lists_held_in_message() -> None:
+    """6f-3 widened the abort source set to include Held."""
+    run_id = uuid4()
+    err = RunCannotAbortError(run_id, current_status=RunStatus.STOPPED)
+    msg = str(err)
+    assert "Running" in msg
+    assert "Held" in msg
+
+
+# ---------- RunStopReason VO ----------
+
+
+@pytest.mark.unit
+def test_run_stop_reason_accepts_normal_string() -> None:
+    reason = RunStopReason("hit time budget cleanly")
+    assert reason.value == "hit time budget cleanly"
+
+
+@pytest.mark.unit
+def test_run_stop_reason_trims_whitespace() -> None:
+    reason = RunStopReason("  scan complete; ending early  ")
+    assert reason.value == "scan complete; ending early"
+
+
+@pytest.mark.unit
+def test_run_stop_reason_rejects_empty_string() -> None:
+    with pytest.raises(InvalidRunStopReasonError):
+        RunStopReason("")
+
+
+@pytest.mark.unit
+def test_run_stop_reason_rejects_whitespace_only() -> None:
+    with pytest.raises(InvalidRunStopReasonError):
+        RunStopReason("   \t\n   ")
+
+
+@pytest.mark.unit
+def test_run_stop_reason_rejects_too_long() -> None:
+    with pytest.raises(InvalidRunStopReasonError):
+        RunStopReason("a" * 501)
+
+
+@pytest.mark.unit
+def test_run_stop_reason_accepts_max_length() -> None:
+    reason = RunStopReason("a" * 500)
+    assert len(reason.value) == 500
+
+
+@pytest.mark.unit
+def test_run_stop_reason_is_frozen() -> None:
+    reason = RunStopReason("operator stop")
     with pytest.raises(AttributeError):
         reason.value = "Other"  # type: ignore[misc]
