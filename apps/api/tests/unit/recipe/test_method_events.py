@@ -1,0 +1,182 @@
+"""Unit tests for the Method aggregate's event (de)serialization helpers.
+
+`needs_capabilities` is the first event-payload field in Recipe
+that uses the list-in-payload-frozenset-in-state pattern (precedent
+from Trust's Policy). Pinned: payload sorted by UUID string form
+for determinism (idempotency-key hashing relies on it).
+"""
+
+from datetime import UTC, datetime
+from uuid import UUID, uuid4
+
+import pytest
+
+from cora.infrastructure.ports.event_store import StoredEvent
+from cora.recipe.aggregates.method.events import (
+    MethodDefined,
+    event_type_name,
+    from_stored,
+    to_payload,
+)
+
+_NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
+
+
+def _stored(
+    event_type: str,
+    payload: dict[str, object],
+    *,
+    stream_id: object | None = None,
+) -> StoredEvent:
+    """Build a StoredEvent shell — only event_type + payload are read by from_stored."""
+    return StoredEvent(
+        position=1,
+        event_id=uuid4(),
+        stream_type="Method",
+        stream_id=stream_id or uuid4(),  # type: ignore[arg-type]
+        version=1,
+        event_type=event_type,
+        schema_version=1,
+        payload=payload,
+        correlation_id=uuid4(),
+        causation_id=None,
+        occurred_at=_NOW,
+        recorded_at=_NOW,
+    )
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_class_name() -> None:
+    event = MethodDefined(
+        method_id=uuid4(),
+        name="XRF Mapping",
+        needs_capabilities=[],
+        occurred_at=_NOW,
+    )
+    assert event_type_name(event) == "MethodDefined"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_method_defined_to_primitives() -> None:
+    method_id = uuid4()
+    cap1 = UUID("01900000-0000-7000-8000-000000000111")
+    event = MethodDefined(
+        method_id=method_id,
+        name="XRF Fly Mapping",
+        needs_capabilities=[cap1],
+        occurred_at=_NOW,
+    )
+    assert to_payload(event) == {
+        "method_id": str(method_id),
+        "name": "XRF Fly Mapping",
+        "needs_capabilities": [str(cap1)],
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_to_payload_handles_empty_needs_capabilities() -> None:
+    """Procedural Methods (e.g., 'Sample Cleaning') need no specific
+    Capability; payload's needs_capabilities is `[]`. Pinned because
+    a future change that omits the field on empty would break the
+    fold-on-read contract."""
+    method_id = uuid4()
+    event = MethodDefined(
+        method_id=method_id,
+        name="Sample Cleaning",
+        needs_capabilities=[],
+        occurred_at=_NOW,
+    )
+    payload = to_payload(event)
+    assert payload["needs_capabilities"] == []
+
+
+@pytest.mark.unit
+def test_to_payload_sorts_needs_capabilities_deterministically() -> None:
+    """Same logical capability set must produce same payload bytes
+    regardless of input ordering. Critical for idempotency-key hashing
+    (Stripe-style replay returns cached result only when bodies match
+    byte-for-byte after canonical normalization). Locks the same
+    convention as Trust's PolicyDefined.permitted_principals sorting."""
+    c1 = UUID("01900000-0000-7000-8000-000000000111")
+    c2 = UUID("01900000-0000-7000-8000-000000000222")
+    c3 = UUID("01900000-0000-7000-8000-000000000333")
+
+    event_in_one_order = MethodDefined(
+        method_id=uuid4(),
+        name="X",
+        needs_capabilities=[c3, c1, c2],
+        occurred_at=_NOW,
+    )
+    payload = to_payload(event_in_one_order)
+
+    assert payload["needs_capabilities"] == sorted([str(c1), str(c2), str(c3)])
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_method_defined() -> None:
+    method_id = uuid4()
+    cap1 = uuid4()
+    cap2 = uuid4()
+    stored = _stored(
+        "MethodDefined",
+        {
+            "method_id": str(method_id),
+            "name": "XRF Fly Mapping",
+            "needs_capabilities": sorted([str(cap1), str(cap2)]),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, MethodDefined)
+    assert rebuilt.method_id == method_id
+    assert rebuilt.name == "XRF Fly Mapping"
+    assert set(rebuilt.needs_capabilities) == {cap1, cap2}
+
+
+@pytest.mark.unit
+def test_from_stored_handles_empty_needs_capabilities() -> None:
+    method_id = uuid4()
+    stored = _stored(
+        "MethodDefined",
+        {
+            "method_id": str(method_id),
+            "name": "Sample Cleaning",
+            "needs_capabilities": [],
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, MethodDefined)
+    assert rebuilt.needs_capabilities == []
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips() -> None:
+    """Round-trip safety net: the (de)serialization pair must be each
+    other's inverse for the typical (with capabilities) case."""
+    cap1 = uuid4()
+    cap2 = uuid4()
+    original = MethodDefined(
+        method_id=uuid4(),
+        name="XRF Fly Mapping",
+        needs_capabilities=[cap1, cap2],
+        occurred_at=_NOW,
+    )
+    stored = _stored("MethodDefined", to_payload(original))
+    rebuilt = from_stored(stored)
+    # Order may differ (payload sorted; original input order preserved
+    # in event), so compare as sets.
+    assert isinstance(rebuilt, MethodDefined)
+    assert rebuilt.method_id == original.method_id
+    assert rebuilt.name == original.name
+    assert set(rebuilt.needs_capabilities) == set(original.needs_capabilities)
+    assert rebuilt.occurred_at == original.occurred_at
+
+
+@pytest.mark.unit
+def test_from_stored_raises_on_unknown_event_type() -> None:
+    """Foreign event_types in a stream must fail loud, not be silently dropped."""
+    stored = _stored("CapabilityDefined", {})
+    with pytest.raises(ValueError, match="Unknown MethodEvent event_type"):
+        from_stored(stored)

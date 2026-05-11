@@ -1,0 +1,88 @@
+"""HTTP route for the `get_method` query slice.
+
+`GET /methods/{method_id}` returns 200 + MethodResponse on hit, 404
+on miss. The handler returns `Method | None`; the route maps None
+to 404 via HTTPException (idiomatic in routes; the BC's
+exception-handler infrastructure stays focused on domain /
+application errors raised deeper in the stack).
+
+`needs_capabilities` serializes as a list of UUIDs in the response
+(JSON arrays don't have set semantics). The list is sorted by
+string form for determinism — same logical capability set, same
+response bytes (helps test reproducibility and any future ETag-
+style caching).
+"""
+
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
+from pydantic import BaseModel, Field
+
+from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.recipe.aggregates.method import METHOD_NAME_MAX_LENGTH
+from cora.recipe.features.get_method.handler import Handler
+from cora.recipe.features.get_method.query import GetMethod
+
+
+class MethodResponse(BaseModel):
+    """Read-side DTO at the API boundary.
+
+    Carries primitives, not domain VOs. Decouples the wire format
+    from the domain model so the two can evolve independently.
+    `needs_capabilities` is sorted by UUID string form.
+    `status` is the StrEnum's string value (Defined / Versioned /
+    Deprecated).
+    """
+
+    id: UUID
+    name: str = Field(..., max_length=METHOD_NAME_MAX_LENGTH)
+    needs_capabilities: list[UUID]
+    status: str
+
+
+def _get_handler(request: Request) -> Handler:
+    handler: Handler = request.app.state.recipe.get_method
+    return handler
+
+
+router = APIRouter(tags=["recipe"])
+
+
+@router.get(
+    "/methods/{method_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=MethodResponse,
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "No method exists with the given id.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "Path parameter failed schema validation.",
+        },
+    },
+    summary="Get a method by id",
+)
+async def get_methods(
+    method_id: Annotated[UUID, Path(description="Target method's id.")],
+    handler: Annotated[Handler, Depends(_get_handler)],
+    cid: Annotated[UUID, Depends(get_correlation_id)],
+    principal_id: Annotated[UUID, Depends(get_principal_id)],
+) -> MethodResponse:
+    method = await handler(
+        GetMethod(method_id=method_id),
+        principal_id=principal_id,
+        correlation_id=cid,
+    )
+    if method is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Method {method_id} not found",
+        )
+    return MethodResponse(
+        id=method.id,
+        name=method.name.value,
+        needs_capabilities=sorted(method.needs_capabilities, key=str),
+        status=method.status.value,
+    )
