@@ -203,6 +203,50 @@ Two patterns; each cross-cutting concern uses one or the other:
 - `actor_id` — the Actor aggregate's id whenever an Actor is in scope (the new actor for register, the target for deactivate/get). One key for one concept.
 - For other aggregates: `<aggregate>_id` (e.g. `zone_id`, `conduit_id`).
 
+### Test naming
+
+CORA's de facto test-name convention is the descriptive-sentence pytest style — a snake_case sentence prefixed with `test_`. Closest named precedent is Roy Osherove's `MethodName_Scenario_ExpectedBehavior` (from *The Art of Unit Testing*), adapted to Python conventions. It is NOT strict BDD (`should_<X>_when_<Y>`), Given/When/Then, or Gherkin — those add ceremony without payoff for our scope.
+
+**The rule:**
+
+```
+test_<subject>_<expected_outcome>[_<scenario>]
+```
+
+- **subject** — the unit under test: an endpoint (`post_methods`), a function (`decide`, `evolve`), a wired layer (`handler`, `wired_handler`), or a behavior (`mcp_define_method_tool`).
+- **expected_outcome** — what the test pins. The assertion in property form, not the inputs.
+- **scenario** (optional) — when the property only holds under specific conditions; introduce with `when_` or `for_` for readability.
+
+**Optimize for what property is being pinned, not for describing the inputs.** Reading the test name aloud should describe the test's purpose; reading the test body should describe the mechanics. If your name is mostly inputs, ask "what's the actual property I'm asserting?" and lead with that.
+
+**Examples (good — these match what's already in the codebase):**
+
+```
+test_decide_emits_method_defined_when_stream_is_empty
+test_handler_returns_capability_for_known_id
+test_evolve_asset_relocated_mutates_parent_id_to_target
+test_post_methods_returns_201_with_method_id
+test_post_methods_same_key_and_body_returns_same_method_id
+test_to_payload_sorts_needs_capabilities_deterministically
+```
+
+**Examples (avoid — input-led naming):**
+
+```
+test_post_methods_with_three_capabilities_in_order_b_a_c     # describes inputs, not property
+test_handler_3                                                # opaque
+test_register_subject_works                                   # outcome too vague
+```
+
+**Pytest markers** (already enforced by `pyproject.toml` config):
+- `@pytest.mark.unit` — pure / in-process tests with no Postgres or HTTP
+- `@pytest.mark.integration` — uses real Postgres via the `db_pool` fixture
+- `@pytest.mark.contract` — uses `TestClient(create_app())` to exercise the HTTP / MCP surface end-to-end
+
+The marker disambiguates the test's category; the name describes the property. Don't repeat the category in the name (a contract test in `tests/contract/` doesn't need `_contract_` in its name).
+
+**Long names are acceptable.** A descriptive 10-word name is better than a cryptic 3-word name. If a name exceeds ~80 chars, see whether you're describing too many inputs (lead with the property instead) or whether the test is doing two things (split it).
+
 ### Migrations — atlas workflow
 
 Schema changes live in `infra/atlas/migrations/<timestamp>_<short_name>.sql`. Workflow:
