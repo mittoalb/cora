@@ -104,16 +104,18 @@ from uuid import UUID
 from cora.infrastructure.name import validate_name
 
 RUN_NAME_MAX_LENGTH = 200
+RUN_ABORT_REASON_MAX_LENGTH = 500
 
 
 class RunStatus(StrEnum):
     """The Run's lifecycle state.
 
-    6f-1 ships only `Running` (the active steady-state).
-    Transitions land per-slice in 6f-2+ per the BC map's full FSM:
+    6f-2 ships `Running` + the two terminals reached from Running:
+    `Completed` (happy-path exit) and `Aborted` (emergency exit).
+    Remaining transitions land per-slice per the BC map's full FSM:
 
       Running (6f-1)
-        → Completed | Aborted (6f-2 happy + emergency exit)
+        → Completed | Aborted (6f-2 happy + emergency exit)   ← here
         → Held (6f-3 hold/resume)
         → Stopped (6f-3 controlled stop)
         → Truncated (6f-4 partial-data terminal)
@@ -135,6 +137,8 @@ class RunStatus(StrEnum):
     """
 
     RUNNING = "Running"
+    COMPLETED = "Completed"
+    ABORTED = "Aborted"
 
 
 class InvalidRunNameError(ValueError):
@@ -239,6 +243,99 @@ class RunCapabilitiesNotSatisfiedError(Exception):
             f"{sorted(str(c) for c in missing_capability_ids)}"
         )
         self.missing_capability_ids = missing_capability_ids
+
+
+class RunCannotCompleteError(Exception):
+    """Attempted to complete a Run not in `Running`.
+
+    Single-source guard: `complete_run` accepts only `Running`.
+    Re-completing an already-`Completed` Run raises (strict-not-
+    idempotent); completing an `Aborted` Run raises. 6f-3+ may
+    add `Held` as an additional source if hold-then-complete
+    proves to be a real beamline workflow.
+
+    Per-transition error class — same naming convention as
+    `PlanCannotDeprecateError` / `MethodCannotVersionError`.
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, run_id: UUID, current_status: "RunStatus") -> None:
+        super().__init__(
+            f"Run {run_id} cannot be completed: currently in status "
+            f"{current_status.value}, complete requires "
+            f"{RunStatus.RUNNING.value}"
+        )
+        self.run_id = run_id
+        self.current_status = current_status
+
+
+class RunCannotAbortError(Exception):
+    """Attempted to abort a Run not in `Running`.
+
+    Single-source guard: `abort_run` accepts only `Running` today.
+    Aborting an already-terminal Run (Completed | Aborted) raises;
+    re-aborting an `Aborted` Run raises (strict-not-idempotent).
+    6f-3+ may add `Held` as an additional source.
+
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, run_id: UUID, current_status: "RunStatus") -> None:
+        super().__init__(
+            f"Run {run_id} cannot be aborted: currently in status "
+            f"{current_status.value}, abort requires "
+            f"{RunStatus.RUNNING.value}"
+        )
+        self.run_id = run_id
+        self.current_status = current_status
+
+
+class InvalidRunAbortReasonError(ValueError):
+    """The supplied abort reason is empty, whitespace-only, or too long.
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the decider via this error so direct in-process
+    callers (sagas, tests) get the same protection. Same precedent as
+    `InvalidPlanVersionTagError` / `InvalidPracticeVersionTagError`.
+
+    Free-form `str` (1-500 chars) is the locked 6f-2 design (gate-
+    review Q2). Structured taxonomy is future-additive when the
+    documented re-evaluation triggers fire:
+      - vocabulary convergence across ≥10 real aborts;
+      - Decision BC adopts RunAbort with structured-context queries;
+      - compliance/audit demand for categorical reason tracking.
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Run abort reason must be 1-{RUN_ABORT_REASON_MAX_LENGTH} chars after "
+            f"trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+@dataclass(frozen=True)
+class RunAbortReason:
+    """Free-form abort reason. Trimmed; 1-500 chars.
+
+    Domain VO (not just `str`) so the decider validates uniformly
+    via the shared `validate_name` helper (same trimming + bounded-
+    length contract as the 11 BoundedName VOs). The on-the-wire
+    representation in `RunAborted.reason` is `str` (post-trim) for
+    payload simplicity; the VO exists at decider-input time only.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_name(
+            self.value,
+            max_length=RUN_ABORT_REASON_MAX_LENGTH,
+            error_class=InvalidRunAbortReasonError,
+        )
+        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

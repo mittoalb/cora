@@ -5,8 +5,24 @@ union, `event_type_name`, `to_payload`, `from_stored`. The
 persistence-envelope construction (`NewEvent`) lives at
 `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 6f-1 ships `RunStarted` only. Subsequent phases:
-  - 6f-2: RunCompleted, RunAborted (terminal happy + emergency exit)
+Phase 6f-1 shipped `RunStarted`. Phase 6f-2 adds:
+  - `RunCompleted` — happy-path terminal (Running → Completed).
+    Payload is `run_id` + `occurred_at` only; substantive run
+    summary (frame_count, duration_ms, final detector positions,
+    etc.) is deferred to 6f-5+ when DAQ-substream integration
+    arrives. Per the fold-cost principles, the completion event
+    SHOULD eventually carry summary state so consumers don't have
+    to re-fold per-step history just to ask "what happened in
+    Run X?" — but the substantive shape only crystallizes once
+    the substream layer exists to source it.
+  - `RunAborted` — emergency-exit terminal (Running → Aborted).
+    Payload carries `run_id` + free-form `reason: str` (1-500 chars)
+    + `occurred_at`. Reason is stored as primitive string today;
+    future-additive structured taxonomy is documented at
+    `InvalidRunAbortReasonError` along with its three re-evaluation
+    triggers.
+
+Subsequent phases:
   - 6f-3: RunHeld, RunResumed, RunStopped (defensive transitions)
   - 6f-4: RunTruncated (partial-data terminal; reason design TBD)
   - 6f-5: substream events (per-frame triggers, motor positions —
@@ -52,9 +68,39 @@ class RunStarted:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class RunCompleted:
+    """A Run reached its happy-path terminal (Running → Completed).
+
+    Slim payload by design (gate-review Q3): substantive run
+    summary lands in 6f-5+ once DAQ-substream integration is in
+    place to source it. Today, downstream consumers needing
+    aggregate read state should fold the Run stream — the stream
+    is short for terminal-by-design Lifecycle Aggregates (a
+    handful of lifecycle events, not per-frame data).
+    """
+
+    run_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class RunAborted:
+    """A Run reached its emergency-exit terminal (Running → Aborted).
+
+    `reason` is a free-form string (1-500 chars after trimming),
+    captured verbatim from the operator. Future-additive structured
+    taxonomy is parked at `InvalidRunAbortReasonError`'s docstring
+    along with three concrete triggers for re-evaluation.
+    """
+
+    run_id: UUID
+    reason: str
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Run aggregate emits.
-# Single-element today; transitions land in 6f-2+.
-RunEvent = RunStarted
+RunEvent = RunStarted | RunCompleted | RunAborted
 
 
 def event_type_name(event: RunEvent) -> str:
@@ -84,6 +130,17 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "subject_id": str(subject_id) if subject_id is not None else None,
                 "occurred_at": occurred_at.isoformat(),
             }
+        case RunCompleted(run_id=run_id, occurred_at=occurred_at):
+            return {
+                "run_id": str(run_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case RunAborted(run_id=run_id, reason=reason, occurred_at=occurred_at):
+            return {
+                "run_id": str(run_id),
+                "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -106,12 +163,25 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 subject_id=UUID(raw_subject) if raw_subject is not None else None,
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "RunCompleted":
+            return RunCompleted(
+                run_id=UUID(payload["run_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "RunAborted":
+            return RunAborted(
+                run_id=UUID(payload["run_id"]),
+                reason=payload["reason"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown RunEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
 
 
 __all__ = [
+    "RunAborted",
+    "RunCompleted",
     "RunEvent",
     "RunStarted",
     "event_type_name",

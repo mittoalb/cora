@@ -1,14 +1,18 @@
-"""RunName VO + RunStatus enum + Run-side error class tests."""
+"""RunName VO + RunAbortReason VO + RunStatus enum + Run-side error class tests."""
 
 from uuid import uuid4
 
 import pytest
 
 from cora.run.aggregates.run import (
+    InvalidRunAbortReasonError,
     InvalidRunNameError,
     PlanDeprecatedError,
+    RunAbortReason,
     RunAlreadyExistsError,
     RunAssetDecommissionedError,
+    RunCannotAbortError,
+    RunCannotCompleteError,
     RunCapabilitiesNotSatisfiedError,
     RunName,
     RunNotFoundError,
@@ -66,11 +70,12 @@ def test_run_name_is_frozen() -> None:
 
 
 @pytest.mark.unit
-def test_run_status_has_only_running_in_6f1() -> None:
-    """Phase 6f-1 ships Running (the active steady-state) only. 6f-2+
-    adds Completed + Aborted terminals; later sub-phases add Held,
-    Stopped, Truncated."""
-    assert {s.value for s in RunStatus} == {"Running"}
+def test_run_status_has_running_completed_aborted_in_6f2() -> None:
+    """Phase 6f-2 ships Running (active steady-state) plus the two
+    terminals reachable from Running: Completed (happy path) and
+    Aborted (emergency exit). Later sub-phases add Held, Stopped,
+    Truncated."""
+    assert {s.value for s in RunStatus} == {"Running", "Completed", "Aborted"}
 
 
 @pytest.mark.unit
@@ -78,6 +83,8 @@ def test_run_status_is_str_enum_for_natural_serialization() -> None:
     assert isinstance(RunStatus.RUNNING, str)
     assert RunStatus.RUNNING == "Running"
     assert f"{RunStatus.RUNNING}" == "Running"
+    assert RunStatus.COMPLETED == "Completed"
+    assert RunStatus.ABORTED == "Aborted"
 
 
 # ---------- Error classes ----------
@@ -132,3 +139,71 @@ def test_run_capabilities_not_satisfied_error_carries_missing_ids() -> None:
     err = RunCapabilitiesNotSatisfiedError(missing)
     assert err.missing_capability_ids == missing
     assert "missing capabilities" in str(err)
+
+
+@pytest.mark.unit
+def test_run_cannot_complete_error_carries_run_id_and_status() -> None:
+    run_id = uuid4()
+    err = RunCannotCompleteError(run_id, current_status=RunStatus.ABORTED)
+    assert err.run_id == run_id
+    assert err.current_status is RunStatus.ABORTED
+    msg = str(err)
+    assert "Aborted" in msg
+    assert "Running" in msg
+
+
+@pytest.mark.unit
+def test_run_cannot_abort_error_carries_run_id_and_status() -> None:
+    run_id = uuid4()
+    err = RunCannotAbortError(run_id, current_status=RunStatus.COMPLETED)
+    assert err.run_id == run_id
+    assert err.current_status is RunStatus.COMPLETED
+    msg = str(err)
+    assert "Completed" in msg
+    assert "Running" in msg
+
+
+# ---------- RunAbortReason VO ----------
+
+
+@pytest.mark.unit
+def test_run_abort_reason_accepts_normal_string() -> None:
+    reason = RunAbortReason("detector overheating")
+    assert reason.value == "detector overheating"
+
+
+@pytest.mark.unit
+def test_run_abort_reason_trims_whitespace() -> None:
+    reason = RunAbortReason("  beam dump unscheduled  ")
+    assert reason.value == "beam dump unscheduled"
+
+
+@pytest.mark.unit
+def test_run_abort_reason_rejects_empty_string() -> None:
+    with pytest.raises(InvalidRunAbortReasonError):
+        RunAbortReason("")
+
+
+@pytest.mark.unit
+def test_run_abort_reason_rejects_whitespace_only() -> None:
+    with pytest.raises(InvalidRunAbortReasonError):
+        RunAbortReason("   \t\n   ")
+
+
+@pytest.mark.unit
+def test_run_abort_reason_rejects_too_long() -> None:
+    with pytest.raises(InvalidRunAbortReasonError):
+        RunAbortReason("a" * 501)
+
+
+@pytest.mark.unit
+def test_run_abort_reason_accepts_max_length() -> None:
+    reason = RunAbortReason("a" * 500)
+    assert len(reason.value) == 500
+
+
+@pytest.mark.unit
+def test_run_abort_reason_is_frozen() -> None:
+    reason = RunAbortReason("operator stop")
+    with pytest.raises(AttributeError):
+        reason.value = "Other"  # type: ignore[misc]

@@ -7,6 +7,8 @@ import pytest
 
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.run.aggregates.run.events import (
+    RunAborted,
+    RunCompleted,
     RunStarted,
     event_type_name,
     from_stored,
@@ -129,6 +131,7 @@ def test_from_stored_rebuilds_run_started_without_subject() -> None:
         },
     )
     rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, RunStarted)
     assert rebuilt.subject_id is None
 
 
@@ -151,3 +154,93 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
     stored = _stored("PlanDefined", {})
     with pytest.raises(ValueError, match="Unknown RunEvent event_type"):
         from_stored(stored)
+
+
+# ---------- RunCompleted (6f-2) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_for_run_completed() -> None:
+    event = RunCompleted(run_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "RunCompleted"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_run_completed_to_primitives() -> None:
+    run_id = uuid4()
+    event = RunCompleted(run_id=run_id, occurred_at=_NOW)
+    assert to_payload(event) == {
+        "run_id": str(run_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_completed() -> None:
+    run_id = uuid4()
+    stored = _stored(
+        "RunCompleted",
+        {
+            "run_id": str(run_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == RunCompleted(run_id=run_id, occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_run_completed_round_trips() -> None:
+    original = RunCompleted(run_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("RunCompleted", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- RunAborted (6f-2) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_for_run_aborted() -> None:
+    event = RunAborted(run_id=uuid4(), reason="X", occurred_at=_NOW)
+    assert event_type_name(event) == "RunAborted"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_run_aborted_to_primitives() -> None:
+    run_id = uuid4()
+    event = RunAborted(run_id=run_id, reason="detector overheating", occurred_at=_NOW)
+    assert to_payload(event) == {
+        "run_id": str(run_id),
+        "reason": "detector overheating",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_aborted() -> None:
+    run_id = uuid4()
+    stored = _stored(
+        "RunAborted",
+        {
+            "run_id": str(run_id),
+            "reason": "operator stop",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == RunAborted(
+        run_id=run_id,
+        reason="operator stop",
+        occurred_at=_NOW,
+    )
+
+
+@pytest.mark.unit
+def test_run_aborted_round_trips() -> None:
+    original = RunAborted(
+        run_id=uuid4(),
+        reason="beam dump unscheduled",
+        occurred_at=_NOW,
+    )
+    stored = _stored("RunAborted", to_payload(original))
+    assert from_stored(stored) == original

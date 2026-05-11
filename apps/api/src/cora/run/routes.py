@@ -16,31 +16,36 @@ does not re-register them.
 ## Loop-collapse pattern
 
 Mirrors Recipe / Equipment / Subject. Generic error handlers per
-family, tuple loops to register them. Phase 6f-1 ships start_run
-+ get_run only; transition errors append in 6f-2+.
+family, tuple loops to register them. Phase 6f-2 adds the two
+transition handlers + their guard errors.
 
-  - 400 (validation): InvalidRunNameError
+  - 400 (validation): InvalidRunNameError, InvalidRunAbortReasonError
   - 404 (load miss): RunNotFoundError
   - 409 (defensive guard for AlreadyExists): RunAlreadyExistsError
   - 409 (Run-start binding-state guards): PlanDeprecatedError,
     SubjectNotMountableError, RunAssetDecommissionedError,
     RunCapabilitiesNotSatisfiedError
+  - 409 (Run transition guards, 6f-2): RunCannotCompleteError,
+    RunCannotAbortError
 """
 
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from cora.run.aggregates.run import (
+    InvalidRunAbortReasonError,
     InvalidRunNameError,
     PlanDeprecatedError,
     RunAlreadyExistsError,
     RunAssetDecommissionedError,
+    RunCannotAbortError,
+    RunCannotCompleteError,
     RunCapabilitiesNotSatisfiedError,
     RunNotFoundError,
     SubjectNotMountableError,
 )
 from cora.run.errors import UnauthorizedError
-from cora.run.features import get_run, start_run
+from cora.run.features import abort_run, complete_run, get_run, start_run
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -89,7 +94,7 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
 
     Covers Run-start binding-state guards (Plan deprecated, Subject
     not mountable, Asset decommissioned, capabilities not satisfied)
-    plus future transition errors in 6f-2+.
+    plus Run transition guards (cannot complete / cannot abort).
     """
     _ = request
     return JSONResponse(
@@ -101,8 +106,10 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
 def register_run_routes(app: FastAPI) -> None:
     """Attach Run slice routers and exception handlers to the FastAPI app."""
     app.include_router(start_run.router)
+    app.include_router(complete_run.router)
+    app.include_router(abort_run.router)
     app.include_router(get_run.router)
-    for validation_cls in (InvalidRunNameError,):
+    for validation_cls in (InvalidRunNameError, InvalidRunAbortReasonError):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (RunNotFoundError,):
         app.add_exception_handler(not_found_cls, _handle_not_found)
@@ -114,6 +121,9 @@ def register_run_routes(app: FastAPI) -> None:
         SubjectNotMountableError,
         RunAssetDecommissionedError,
         RunCapabilitiesNotSatisfiedError,
+        # Run transition guards (6f-2).
+        RunCannotCompleteError,
+        RunCannotAbortError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

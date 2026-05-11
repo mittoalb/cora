@@ -21,15 +21,16 @@ Track A BC. Depends on:
   - `Subject.Subject` (referenced by `Run.subject_id` if non-null;
     must be in Mounted or Measured state)
 
-## Phase 6f-1 scope
+## Phase 6f-2 scope
 
-Minimal Run:
+Run + the two terminals reached from Running:
   - `id` + `name` (RunName: 11th bounded-name VO)
   - `plan_id: UUID` — eventual-consistency ref; existence verified
     at handler-load time
   - `subject_id: UUID | None` — null for calibration / dark-field
     runs; if non-null, Subject must be in Mounted | Measured
-  - `status: RunStatus` (`Running` only at 6f-1; the active steady-state — 6f-2+ adds terminals)
+  - `status: RunStatus` (`Running | Completed | Aborted` at 6f-2;
+    further transitions land in 6f-3+)
 
 Cross-aggregate validation at Run-start (gate-review Q2 / Q5
 locked answers): handler pre-loads Plan + Subject (if subject_id)
@@ -40,10 +41,21 @@ gate-review Q5: Run-start re-validates capability superset
 against CURRENT Asset state (Plan-bind validated against then-
 current; drift is real, Run is the last gate).
 
-Phase history (✅ all shipped except 6f-2+ and Supply/Decision
-integration):
-  - 6f-1: Run + start_run + get_run (the keystone slice)
-  - 6f-2 (deferred): Active-phase transitions (Completed, Aborted)
+`complete_run` (Running → Completed) and `abort_run` (Running →
+Aborted) are single-source today; tuple-membership guards leave
+room for 6f-3+ to add `Held` if hold-then-X proves to be a real
+beamline workflow. `RunCompleted` payload is slim by design
+(`run_id` + `occurred_at`); substantive run summary lands in
+6f-5+ once DAQ-substream integration is in place to source it.
+`RunAborted` payload carries free-form `reason: str` (1-500
+chars after trim); structured taxonomy is future-additive with
+the three re-evaluation triggers documented at
+`InvalidRunAbortReasonError`.
+
+Phase history:
+  - 6f-1: Run + start_run + get_run (the keystone slice) ✅
+  - 6f-2: complete_run + abort_run (terminal happy + emergency
+    exit) ✅
   - 6f-3 (deferred): Hold/Resume/Stop transitions
   - 6f-4 (deferred): Truncated terminal + truncation-reason design
   - 6f-5 (deferred): First substream infrastructure + per-frame

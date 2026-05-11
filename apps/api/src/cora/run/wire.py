@@ -10,12 +10,16 @@ first):
 
 1. `bind(deps)` — bare handler.
 2. `with_idempotency` (create-style commands only) — Idempotency-Key
-   support.
+   support. Transition handlers (`complete_run`, `abort_run`) do
+   NOT idempotency-wrap: they're update-style, the strict-not-
+   idempotent guard already rejects double-application, and the
+   ConcurrencyError on stale expected_version handles the
+   double-submit case at the persistence layer.
 3. `with_tracing` — OTel span around every handler call.
 
-Phase 6f-1 ships `start_run` (idempotency-wrapped) and `get_run`
-(read side). Subsequent slices land per-phase:
-  - 6f-2: Run transitions (complete, abort)
+Phase 6f-1 shipped `start_run` (idempotency-wrapped) + `get_run`
+(read side). Phase 6f-2 adds `complete_run` + `abort_run`
+(transition handlers). Subsequent slices land per-phase:
   - 6f-3: Hold/Resume/Stop transitions
   - 6f-4: Truncated terminal
   - 6f-5: First substream (separate infra; not a slice in this bundle)
@@ -27,7 +31,7 @@ from uuid import UUID
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.observability import with_tracing
-from cora.run.features import get_run, start_run
+from cora.run.features import abort_run, complete_run, get_run, start_run
 
 _BC = "run"
 
@@ -37,6 +41,8 @@ class RunHandlers:
     """The Run BC's handler bundle, each closed over SharedDeps."""
 
     start_run: start_run.IdempotentHandler
+    complete_run: complete_run.Handler
+    abort_run: abort_run.Handler
     get_run: get_run.Handler
 
 
@@ -54,6 +60,16 @@ def wire_run(deps: SharedDeps) -> RunHandlers:
                 deserialize_result=UUID,
             ),
             command_name="StartRun",
+            bc=_BC,
+        ),
+        complete_run=with_tracing(
+            complete_run.bind(deps),
+            command_name="CompleteRun",
+            bc=_BC,
+        ),
+        abort_run=with_tracing(
+            abort_run.bind(deps),
+            command_name="AbortRun",
             bc=_BC,
         ),
         get_run=with_tracing(
