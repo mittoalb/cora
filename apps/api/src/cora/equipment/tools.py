@@ -17,6 +17,9 @@ from cora.equipment.features.add_asset_capability import (
 )
 from cora.equipment.features.decommission_asset import tool as decommission_asset_tool
 from cora.equipment.features.define_capability import tool as define_capability_tool
+from cora.equipment.features.deprecate_capability import (
+    tool as deprecate_capability_tool,
+)
 from cora.equipment.features.enter_maintenance import tool as enter_maintenance_tool
 from cora.equipment.features.get_asset import tool as get_asset_tool
 from cora.equipment.features.get_capability import tool as get_capability_tool
@@ -28,6 +31,7 @@ from cora.equipment.features.remove_asset_capability import (
 from cora.equipment.features.restore_from_maintenance import (
     tool as restore_from_maintenance_tool,
 )
+from cora.equipment.features.version_capability import tool as version_capability_tool
 from cora.equipment.wire import EquipmentHandlers
 
 
@@ -44,6 +48,14 @@ def register_equipment_tools(
     get_capability_tool.register(
         mcp,
         get_handler=lambda: get_handlers().get_capability,
+    )
+    version_capability_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().version_capability,
+    )
+    deprecate_capability_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().deprecate_capability,
     )
     register_asset_tool.register(
         mcp,

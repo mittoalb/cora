@@ -48,6 +48,7 @@ from enum import StrEnum
 from uuid import UUID
 
 CAPABILITY_NAME_MAX_LENGTH = 200
+CAPABILITY_VERSION_TAG_MAX_LENGTH = 50
 
 
 class CapabilityStatus(StrEnum):
@@ -95,6 +96,67 @@ class CapabilityNotFoundError(Exception):
         self.capability_id = capability_id
 
 
+class CapabilityCannotVersionError(Exception):
+    """Attempted to version a capability not in `Defined` or `Versioned`.
+
+    Multi-source guard: `version_capability` accepts both `Defined`
+    (first revision) and `Versioned` (subsequent revisions — operators
+    bump v1 → v2 → v3 over time). Only `Deprecated` is rejected
+    (you can't revise a deprecated capability — un-deprecate first if
+    you want to bring it back, though that slice doesn't exist today).
+
+    Per-transition error class — same naming convention as
+    `AssetCannot<X>Error`. The current status is carried as
+    `current_status` for diagnostics.
+    """
+
+    def __init__(self, capability_id: UUID, current_status: "CapabilityStatus") -> None:
+        super().__init__(
+            f"Capability {capability_id} cannot be versioned: currently in status "
+            f"{current_status.value}, version requires "
+            f"{CapabilityStatus.DEFINED.value} or {CapabilityStatus.VERSIONED.value}"
+        )
+        self.capability_id = capability_id
+        self.current_status = current_status
+
+
+class CapabilityCannotDeprecateError(Exception):
+    """Attempted to deprecate a capability not in `Defined` or `Versioned`.
+
+    Multi-source guard: `deprecate_capability` accepts both `Defined`
+    (deprecating before any revisions) and `Versioned` (deprecating a
+    revised technique). Re-deprecating an already-`Deprecated`
+    capability raises (strict-not-idempotent). Mirrors
+    `CapabilityCannotVersionError` shape.
+    """
+
+    def __init__(self, capability_id: UUID, current_status: "CapabilityStatus") -> None:
+        super().__init__(
+            f"Capability {capability_id} cannot be deprecated: currently in status "
+            f"{current_status.value}, deprecate requires "
+            f"{CapabilityStatus.DEFINED.value} or {CapabilityStatus.VERSIONED.value}"
+        )
+        self.capability_id = capability_id
+        self.current_status = current_status
+
+
+class InvalidCapabilityVersionTagError(ValueError):
+    """The supplied version tag is empty, whitespace-only, or too long.
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the decider via this error so direct in-process
+    callers (sagas, tests) get the same protection. Same precedent as
+    InvalidCapabilityNameError.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Capability version tag must be 1-{CAPABILITY_VERSION_TAG_MAX_LENGTH} "
+            f"chars after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
 @dataclass(frozen=True)
 class CapabilityName:
     """Display name for a capability. Trimmed; 1-200 chars.
@@ -118,8 +180,17 @@ class CapabilityName:
 
 @dataclass(frozen=True)
 class Capability:
-    """Aggregate root: a technique-class capability definition."""
+    """Aggregate root: a technique-class capability definition.
+
+    `current_version` is the operator-supplied label of the most
+    recent `version_capability` call (None until first version).
+    Free-text validated at API boundary + defensively in the decider;
+    no VO (same precedent as AssetRelocated.reason). Default None
+    keeps pre-5f-2 CapabilityDefined-only streams folding cleanly
+    (additive-state pattern).
+    """
 
     id: UUID
     name: CapabilityName
     status: CapabilityStatus = CapabilityStatus.DEFINED
+    current_version: str | None = None

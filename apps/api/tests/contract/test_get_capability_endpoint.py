@@ -31,6 +31,8 @@ def test_get_capability_returns_200_with_defined_status_for_new_capability() -> 
         "id": str(capability_id),
         "name": "Tomography",
         "status": "Defined",
+        # Null until version_capability runs (5f-2).
+        "current_version": None,
     }
 
 

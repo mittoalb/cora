@@ -50,8 +50,11 @@ from cora.equipment.aggregates.asset import (
 )
 from cora.equipment.aggregates.capability import (
     CapabilityAlreadyExistsError,
+    CapabilityCannotDeprecateError,
+    CapabilityCannotVersionError,
     CapabilityNotFoundError,
     InvalidCapabilityNameError,
+    InvalidCapabilityVersionTagError,
 )
 from cora.equipment.errors import UnauthorizedError
 from cora.equipment.features import (
@@ -59,6 +62,7 @@ from cora.equipment.features import (
     add_asset_capability,
     decommission_asset,
     define_capability,
+    deprecate_capability,
     enter_maintenance,
     get_asset,
     get_capability,
@@ -66,6 +70,7 @@ from cora.equipment.features import (
     relocate_asset,
     remove_asset_capability,
     restore_from_maintenance,
+    version_capability,
 )
 
 
@@ -135,6 +140,8 @@ def register_equipment_routes(app: FastAPI) -> None:
     """Attach Equipment slice routers and exception handlers to the FastAPI app."""
     app.include_router(define_capability.router)
     app.include_router(get_capability.router)
+    app.include_router(version_capability.router)
+    app.include_router(deprecate_capability.router)
     app.include_router(register_asset.router)
     app.include_router(activate_asset.router)
     app.include_router(decommission_asset.router)
@@ -146,6 +153,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(get_asset.router)
     for validation_cls in (
         InvalidCapabilityNameError,
+        InvalidCapabilityVersionTagError,
         InvalidAssetNameError,
         InvalidAssetParentError,
     ):
@@ -162,6 +170,8 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssetCannotRestoreFromMaintenanceError,
         AssetCannotAddCapabilityError,
         AssetCannotRemoveCapabilityError,
+        CapabilityCannotVersionError,
+        CapabilityCannotDeprecateError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

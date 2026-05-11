@@ -7,6 +7,8 @@ import pytest
 
 from cora.equipment.aggregates.capability.events import (
     CapabilityDefined,
+    CapabilityDeprecated,
+    CapabilityVersioned,
     event_type_name,
     from_stored,
     to_payload,
@@ -87,3 +89,94 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
     stored = _stored("ActorRegistered", {})
     with pytest.raises(ValueError, match="Unknown CapabilityEvent event_type"):
         from_stored(stored)
+
+
+# ---------- CapabilityVersioned (Phase 5f-2) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_capability_versioned_class_name() -> None:
+    event = CapabilityVersioned(capability_id=uuid4(), version_tag="v2", occurred_at=_NOW)
+    assert event_type_name(event) == "CapabilityVersioned"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_capability_versioned_with_version_tag() -> None:
+    capability_id = uuid4()
+    event = CapabilityVersioned(
+        capability_id=capability_id, version_tag="2026-Q3", occurred_at=_NOW
+    )
+    assert to_payload(event) == {
+        "capability_id": str(capability_id),
+        "version_tag": "2026-Q3",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_capability_versioned() -> None:
+    capability_id = uuid4()
+    stored = _stored(
+        "CapabilityVersioned",
+        {
+            "capability_id": str(capability_id),
+            "version_tag": "v2",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == CapabilityVersioned(
+        capability_id=capability_id, version_tag="v2", occurred_at=_NOW
+    )
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_capability_versioned() -> None:
+    original = CapabilityVersioned(capability_id=uuid4(), version_tag="v3", occurred_at=_NOW)
+    stored = _stored("CapabilityVersioned", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- CapabilityDeprecated (Phase 5f-2) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_capability_deprecated_class_name() -> None:
+    event = CapabilityDeprecated(capability_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "CapabilityDeprecated"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_capability_deprecated_to_primitives() -> None:
+    """Status NOT in payload — event TYPE encodes the state change.
+    Pinned because adding a `status` field would be an additive change
+    that must be deliberate."""
+    capability_id = uuid4()
+    event = CapabilityDeprecated(capability_id=capability_id, occurred_at=_NOW)
+    payload = to_payload(event)
+    assert payload == {
+        "capability_id": str(capability_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+    assert "status" not in payload
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_capability_deprecated() -> None:
+    capability_id = uuid4()
+    stored = _stored(
+        "CapabilityDeprecated",
+        {
+            "capability_id": str(capability_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == CapabilityDeprecated(capability_id=capability_id, occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_capability_deprecated() -> None:
+    original = CapabilityDeprecated(capability_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("CapabilityDeprecated", to_payload(original))
+    assert from_stored(stored) == original

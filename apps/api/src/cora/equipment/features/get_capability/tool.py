@@ -28,6 +28,7 @@ class CapabilityOutput(BaseModel):
     id: UUID
     name: str = Field(..., max_length=CAPABILITY_NAME_MAX_LENGTH)
     status: str
+    current_version: str | None
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -56,4 +57,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             id=capability.id,
             name=capability.name.value,
             status=capability.status.value,
+            current_version=capability.current_version,
         )

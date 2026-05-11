@@ -42,6 +42,7 @@ from cora.equipment.features import (
     add_asset_capability,
     decommission_asset,
     define_capability,
+    deprecate_capability,
     enter_maintenance,
     get_asset,
     get_capability,
@@ -49,6 +50,7 @@ from cora.equipment.features import (
     relocate_asset,
     remove_asset_capability,
     restore_from_maintenance,
+    version_capability,
 )
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
@@ -73,6 +75,8 @@ class EquipmentHandlers:
 
     define_capability: define_capability.IdempotentHandler
     get_capability: get_capability.Handler
+    version_capability: version_capability.Handler
+    deprecate_capability: deprecate_capability.Handler
     register_asset: register_asset.IdempotentHandler
     activate_asset: activate_asset.Handler
     decommission_asset: decommission_asset.Handler
@@ -105,6 +109,16 @@ def wire_equipment(deps: SharedDeps) -> EquipmentHandlers:
             command_name="GetCapability",
             bc=_BC,
             kind="query",
+        ),
+        version_capability=with_tracing(
+            version_capability.bind(deps),
+            command_name="VersionCapability",
+            bc=_BC,
+        ),
+        deprecate_capability=with_tracing(
+            deprecate_capability.bind(deps),
+            command_name="DeprecateCapability",
+            bc=_BC,
         ),
         register_asset=with_tracing(
             with_idempotency(

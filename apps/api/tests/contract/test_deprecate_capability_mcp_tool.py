@@ -1,8 +1,4 @@
-"""Contract tests for the `get_capability` MCP tool.
-
-Mirrors `test_get_subject_mcp_tool.py` / `test_get_actor_mcp_tool.py`.
-Shared MCP helpers live in `tests/contract/_mcp_helpers.py`.
-"""
+"""Contract tests for the `deprecate_capability` MCP tool."""
 
 from uuid import UUID, uuid4
 
@@ -13,7 +9,9 @@ from cora.api.main import create_app
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 
-def _define_capability_via_tool(client: TestClient, headers: dict[str, str]) -> UUID:
+def _define_capability_via_tool(
+    client: TestClient, headers: dict[str, str], name: str = "Tomography"
+) -> UUID:
     response = client.post(
         "/mcp",
         json={
@@ -22,7 +20,7 @@ def _define_capability_via_tool(client: TestClient, headers: dict[str, str]) -> 
             "method": "tools/call",
             "params": {
                 "name": "define_capability",
-                "arguments": {"name": "Tomography"},
+                "arguments": {"name": name},
             },
         },
         headers=headers,
@@ -32,7 +30,7 @@ def _define_capability_via_tool(client: TestClient, headers: dict[str, str]) -> 
 
 
 @pytest.mark.contract
-def test_mcp_lists_get_capability_tool() -> None:
+def test_mcp_lists_deprecate_capability_tool() -> None:
     with TestClient(create_app()) as client:
         headers = open_session(client)
         response = client.post(
@@ -42,11 +40,11 @@ def test_mcp_lists_get_capability_tool() -> None:
         )
     body = parse_sse_data(response.text)
     tool_names = [t["name"] for t in body["result"]["tools"]]
-    assert "get_capability" in tool_names
+    assert "deprecate_capability" in tool_names
 
 
 @pytest.mark.contract
-def test_mcp_get_capability_tool_returns_structured_capability_for_known_id() -> None:
+def test_mcp_deprecate_capability_tool_succeeds_on_happy_path() -> None:
     with TestClient(create_app()) as client:
         headers = open_session(client)
         capability_id = _define_capability_via_tool(client, headers)
@@ -54,45 +52,75 @@ def test_mcp_get_capability_tool_returns_structured_capability_for_known_id() ->
             "/mcp",
             json={
                 "jsonrpc": "2.0",
-                "id": 3,
+                "id": 4,
                 "method": "tools/call",
                 "params": {
-                    "name": "get_capability",
+                    "name": "deprecate_capability",
                     "arguments": {"capability_id": str(capability_id)},
                 },
             },
             headers=headers,
         )
-
     body = parse_sse_data(response.text)
-    result = body["result"]
-    assert result["isError"] is False
-    structured = result["structuredContent"]
-    assert structured["id"] == str(capability_id)
-    assert structured["name"] == "Tomography"
-    assert structured["status"] == "Defined"
-    # Null until version_capability runs (5f-2).
-    assert structured["current_version"] is None
+    assert body["result"]["isError"] is False
 
 
 @pytest.mark.contract
-def test_mcp_get_capability_tool_returns_iserror_for_unknown_id() -> None:
+def test_mcp_deprecate_capability_tool_returns_iserror_for_unknown_capability() -> None:
     with TestClient(create_app()) as client:
         headers = open_session(client)
         response = client.post(
             "/mcp",
             json={
                 "jsonrpc": "2.0",
-                "id": 4,
+                "id": 5,
                 "method": "tools/call",
                 "params": {
-                    "name": "get_capability",
+                    "name": "deprecate_capability",
                     "arguments": {"capability_id": str(uuid4())},
                 },
             },
             headers=headers,
         )
-
     body = parse_sse_data(response.text)
     assert body["result"]["isError"] is True
     assert "not found" in body["result"]["content"][0]["text"].lower()
+
+
+@pytest.mark.contract
+def test_mcp_deprecate_capability_tool_returns_iserror_when_already_deprecated() -> None:
+    with TestClient(create_app()) as client:
+        headers = open_session(client)
+        capability_id = _define_capability_via_tool(client, headers)
+        first = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 6,
+                "method": "tools/call",
+                "params": {
+                    "name": "deprecate_capability",
+                    "arguments": {"capability_id": str(capability_id)},
+                },
+            },
+            headers=headers,
+        )
+        assert parse_sse_data(first.text)["result"]["isError"] is False
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 7,
+                "method": "tools/call",
+                "params": {
+                    "name": "deprecate_capability",
+                    "arguments": {"capability_id": str(capability_id)},
+                },
+            },
+            headers=headers,
+        )
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is True
+    text = body["result"]["content"][0]["text"]
+    assert "Defined" in text
+    assert "Versioned" in text
