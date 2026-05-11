@@ -23,7 +23,9 @@ from cora.trust.features.define_conduit import DefineConduit
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000000301")
-_EVENT_ID = UUID("01900000-0000-7000-8000-0000000003e1")
+_TRAVERSALS_CHANNEL_ID = UUID("01900000-0000-7000-8000-000000000311")
+_DEFINED_EVENT_ID = UUID("01900000-0000-7000-8000-0000000003e1")
+_CHANNEL_OPENED_EVENT_ID = UUID("01900000-0000-7000-8000-0000000003e2")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 _SOURCE_ZONE = UUID("01900000-0000-7000-8000-00000000aaaa")
@@ -52,7 +54,14 @@ def _build_deps(
     return SharedDeps(
         settings=settings,
         clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID]),
+        id_generator=FixedIdGenerator(
+            [
+                _NEW_ID,
+                _TRAVERSALS_CHANNEL_ID,
+                _DEFINED_EVENT_ID,
+                _CHANNEL_OPENED_EVENT_ID,
+            ]
+        ),
         authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
         event_store=event_store or InMemoryEventStore(),
         idempotency_store=InMemoryIdempotencyStore(),
@@ -94,23 +103,42 @@ async def test_handler_appends_conduit_defined_event_to_store() -> None:
     )
 
     events, version = await store.load("Conduit", _NEW_ID)
-    assert version == 1
-    assert len(events) == 1
-    stored = events[0]
-    assert stored.event_type == "ConduitDefined"
-    assert stored.schema_version == 1
-    assert stored.payload == {
+    # Phase 6f-5a: define_conduit emits two events — ConduitDefined
+    # (genesis) + ConduitChannelOpened (auto-opens traversals channel).
+    assert version == 2
+    assert [e.event_type for e in events] == ["ConduitDefined", "ConduitChannelOpened"]
+    defined = events[0]
+    assert defined.schema_version == 1
+    assert defined.payload == {
         "conduit_id": str(_NEW_ID),
         "name": "Detector-to-Storage",
         "source_zone_id": str(_SOURCE_ZONE),
         "target_zone_id": str(_TARGET_ZONE),
         "occurred_at": _NOW.isoformat(),
     }
-    assert stored.correlation_id == _CORRELATION_ID
-    assert stored.causation_id is None
-    assert stored.event_id == _EVENT_ID
-    assert stored.metadata == {"command": "DefineConduit"}
-    assert stored.occurred_at == _NOW
+    assert defined.correlation_id == _CORRELATION_ID
+    assert defined.causation_id is None
+    assert defined.event_id == _DEFINED_EVENT_ID
+    assert defined.metadata == {"command": "DefineConduit"}
+    assert defined.occurred_at == _NOW
+
+    channel_opened = events[1]
+    assert channel_opened.event_id == _CHANNEL_OPENED_EVENT_ID
+    assert channel_opened.payload["conduit_id"] == str(_NEW_ID)
+    assert channel_opened.payload["channel_id"] == str(_TRAVERSALS_CHANNEL_ID)
+    assert channel_opened.payload["kind"] == "traversals"
+    assert channel_opened.metadata == {"command": "DefineConduit"}
+    assert channel_opened.correlation_id == _CORRELATION_ID
+    assert channel_opened.causation_id is None
+    # Schema is captured verbatim in the payload so the audit trail
+    # records the column shape at the moment of opening.
+    assert "fields" in channel_opened.payload["schema"]
+    assert set(channel_opened.payload["schema"]["fields"]) == {
+        "actor_id",
+        "command_name",
+        "decision",
+        "reason",
+    }
 
 
 @pytest.mark.unit
@@ -208,6 +236,10 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
 
     events, _ = await store.load("Conduit", _NEW_ID)
     assert events[0].causation_id == causation
+    # Phase 6f-5a: causation propagates to BOTH events in the batch
+    # (ConduitDefined + ConduitChannelOpened share the command's
+    # causation chain).
+    assert events[1].causation_id == causation
 
 
 @pytest.mark.unit

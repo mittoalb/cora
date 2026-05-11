@@ -34,7 +34,9 @@ from cora.trust.features.define_conduit import DefineConduit
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000c0c0de1")
-_EVENT_ID = UUID("01900000-0000-7000-8000-00000c0c0ee1")
+_TRAVERSALS_CHANNEL_ID = UUID("01900000-0000-7000-8000-00000c0c0de2")
+_DEFINED_EVENT_ID = UUID("01900000-0000-7000-8000-00000c0c0ee1")
+_CHANNEL_OPENED_EVENT_ID = UUID("01900000-0000-7000-8000-00000c0c0ee2")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 _SOURCE_ZONE = UUID("01900000-0000-7000-8000-00000000aaaa")
@@ -48,7 +50,14 @@ async def test_handler_persists_conduit_defined_to_postgres(
     deps = SharedDeps(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID]),
+        id_generator=FixedIdGenerator(
+            [
+                _NEW_ID,
+                _TRAVERSALS_CHANNEL_ID,
+                _DEFINED_EVENT_ID,
+                _CHANNEL_OPENED_EVENT_ID,
+            ]
+        ),
         authorize=AllowAllAuthorize(),
         event_store=PostgresEventStore(db_pool),
         idempotency_store=PostgresIdempotencyStore(db_pool),
@@ -67,22 +76,37 @@ async def test_handler_persists_conduit_defined_to_postgres(
     assert conduit_id == _NEW_ID
 
     events, version = await deps.event_store.load("Conduit", _NEW_ID)
-    assert version == 1
-    assert len(events) == 1
+    # Phase 6f-5a: define_conduit emits ConduitDefined + ConduitChannelOpened
+    # in one transactional append.
+    assert version == 2
+    assert [e.event_type for e in events] == ["ConduitDefined", "ConduitChannelOpened"]
 
-    stored = events[0]
-    assert stored.event_type == "ConduitDefined"
-    assert stored.schema_version == 1
-    assert stored.payload == {
+    defined = events[0]
+    assert defined.schema_version == 1
+    assert defined.payload == {
         "conduit_id": str(_NEW_ID),
         "name": "Detector-to-Storage",
         "source_zone_id": str(_SOURCE_ZONE),
         "target_zone_id": str(_TARGET_ZONE),
         "occurred_at": _NOW.isoformat(),
     }
-    assert stored.correlation_id == _CORRELATION_ID
-    assert stored.causation_id is None
-    assert stored.event_id == _EVENT_ID
-    assert stored.metadata == {"command": "DefineConduit"}
-    assert stored.occurred_at == _NOW
-    assert stored.position > 0
+    assert defined.correlation_id == _CORRELATION_ID
+    assert defined.causation_id is None
+    assert defined.event_id == _DEFINED_EVENT_ID
+    assert defined.metadata == {"command": "DefineConduit"}
+    assert defined.occurred_at == _NOW
+    assert defined.position > 0
+
+    channel_opened = events[1]
+    assert channel_opened.event_id == _CHANNEL_OPENED_EVENT_ID
+    assert channel_opened.payload["conduit_id"] == str(_NEW_ID)
+    assert channel_opened.payload["channel_id"] == str(_TRAVERSALS_CHANNEL_ID)
+    assert channel_opened.payload["kind"] == "traversals"
+    # Schema is captured in the payload (audit trail of column shape
+    # at the moment of channel-open). Round-trips through jsonb.
+    assert set(channel_opened.payload["schema"]["fields"]) == {
+        "actor_id",
+        "command_name",
+        "decision",
+        "reason",
+    }

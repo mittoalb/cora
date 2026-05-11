@@ -3,6 +3,11 @@
 Exercises the adapter against `InMemoryEventStore` with a seeded
 PolicyDefined event. The adapter is the production path that gates
 every cross-BC command through a single configured Policy.
+
+Phase 6f-5a additions: traversal observation emission. When the
+adapter is constructed with a `TraversalStore`, every Allow / Deny
+decision writes one ConduitTraversal observation row scoped to the
+target Conduit's traversals channel.
 """
 
 from datetime import UTC, datetime
@@ -10,9 +15,28 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.channel import ChannelFieldSpec, ChannelSchema
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.ports import Allow, Deny
+from cora.infrastructure.ports import (
+    Allow,
+    Deny,
+    FixedIdGenerator,
+    FrozenClock,
+)
+from cora.trust.aggregates.conduit import (
+    CHANNEL_KIND_TRAVERSALS,
+    ConduitChannelClosed,
+    ConduitChannelOpened,
+    ConduitDefined,
+)
+from cora.trust.aggregates.conduit import (
+    event_type_name as conduit_event_type_name,
+)
+from cora.trust.aggregates.conduit import (
+    to_payload as conduit_to_payload,
+)
+from cora.trust.aggregates.conduit.observations import InMemoryTraversalStore
 from cora.trust.aggregates.policy.events import (
     PolicyDefined,
     event_type_name,
@@ -161,3 +185,196 @@ async def test_loads_policy_on_each_call_no_caching() -> None:
     second = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(second, Deny)
     assert "not found" in second.reason.lower()
+
+
+# ---------- Traversal observation emission (Phase 6f-5a) ----------
+
+
+_OBS_EVENT_ID = UUID("01900000-0000-7000-8000-000000000711")
+_OBS_NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
+_TARGET_CONDUIT_ID = UUID("01900000-0000-7000-8000-000000000c01")
+_TRAVERSALS_CHANNEL_ID = UUID("01900000-0000-7000-8000-000000000c02")
+
+
+async def _seed_conduit_with_open_traversals_channel(
+    store: InMemoryEventStore,
+    *,
+    conduit_id: UUID = _TARGET_CONDUIT_ID,
+    channel_id: UUID = _TRAVERSALS_CHANNEL_ID,
+) -> None:
+    """Seed a Conduit + an open traversals channel directly into the store."""
+    defined = ConduitDefined(
+        conduit_id=conduit_id,
+        name="Test conduit",
+        source_zone_id=uuid4(),
+        target_zone_id=uuid4(),
+        occurred_at=_OBS_NOW,
+    )
+    opened = ConduitChannelOpened(
+        conduit_id=conduit_id,
+        channel_id=channel_id,
+        kind=CHANNEL_KIND_TRAVERSALS,
+        schema=ChannelSchema(fields={"x": ChannelFieldSpec(type="string")}),
+        occurred_at=_OBS_NOW,
+    )
+    new_events = [
+        to_new_event(
+            event_type=conduit_event_type_name(e),
+            payload=conduit_to_payload(e),
+            occurred_at=e.occurred_at,
+            event_id=uuid4(),
+            command_name="DefineConduit",
+            correlation_id=uuid4(),
+        )
+        for e in (defined, opened)
+    ]
+    await store.append("Conduit", conduit_id, expected_version=0, events=new_events)
+
+
+@pytest.mark.unit
+async def test_init_rejects_traversals_store_without_clock_and_id_generator() -> None:
+    """Wiring guard: missing clock or id_generator surfaces at startup."""
+    store = InMemoryEventStore()
+    with pytest.raises(ValueError, match="requires both clock and id_generator"):
+        TrustAuthorize(
+            store,
+            policy_id=_POLICY_ID,
+            traversals_store=InMemoryTraversalStore(),
+            # clock + id_generator deliberately omitted
+        )
+
+
+@pytest.mark.unit
+async def test_skips_traversal_emission_when_traversals_store_is_unset() -> None:
+    """Backward-compat: TrustAuthorize with no traversals_store works
+    exactly like before 6f-5a — pure authz, no side effects."""
+    store = InMemoryEventStore()
+    await _seed_policy(store)
+    authorize = TrustAuthorize(store, policy_id=_POLICY_ID)
+    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
+    assert isinstance(result, Allow)
+
+
+@pytest.mark.unit
+async def test_emits_traversal_on_allow_when_conduit_has_open_channel() -> None:
+    store = InMemoryEventStore()
+    await _seed_policy(store, conduit_id=_TARGET_CONDUIT_ID)
+    await _seed_conduit_with_open_traversals_channel(store)
+
+    traversals = InMemoryTraversalStore()
+    authorize = TrustAuthorize(
+        store,
+        policy_id=_POLICY_ID,
+        traversals_store=traversals,
+        clock=FrozenClock(_OBS_NOW),
+        id_generator=FixedIdGenerator([_OBS_EVENT_ID]),
+    )
+
+    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", _TARGET_CONDUIT_ID)
+    assert isinstance(result, Allow)
+
+    rows = traversals.all_traversals()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.event_id == _OBS_EVENT_ID
+    assert row.conduit_id == _TARGET_CONDUIT_ID
+    assert row.channel_id == _TRAVERSALS_CHANNEL_ID
+    assert row.actor_id == _ALLOWED_PRINCIPAL
+    assert row.command_name == "RegisterActor"
+    assert row.decision == "Allow"
+    assert row.reason is None
+    assert row.occurred_at == _OBS_NOW
+
+
+@pytest.mark.unit
+async def test_emits_traversal_on_deny_with_reason_attached() -> None:
+    store = InMemoryEventStore()
+    await _seed_policy(store, conduit_id=_TARGET_CONDUIT_ID)
+    await _seed_conduit_with_open_traversals_channel(store)
+
+    traversals = InMemoryTraversalStore()
+    authorize = TrustAuthorize(
+        store,
+        policy_id=_POLICY_ID,
+        traversals_store=traversals,
+        clock=FrozenClock(_OBS_NOW),
+        id_generator=FixedIdGenerator([_OBS_EVENT_ID]),
+    )
+
+    result = await authorize(_OTHER_PRINCIPAL, "RegisterActor", _TARGET_CONDUIT_ID)
+    assert isinstance(result, Deny)
+
+    rows = traversals.all_traversals()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.decision == "Deny"
+    assert row.reason is not None
+    assert "principal" in row.reason.lower()
+
+
+@pytest.mark.unit
+async def test_skips_traversal_emission_when_conduit_does_not_exist() -> None:
+    """Best-effort: missing Conduit logs a warning but doesn't fail
+    the authz call. Today's handlers pass UUID(int=0) sentinel which
+    has no Conduit aggregate behind it, so until conduit-routing
+    lands, most commands won't have traversals emitted."""
+    store = InMemoryEventStore()
+    await _seed_policy(store)
+    # No Conduit seeded.
+
+    traversals = InMemoryTraversalStore()
+    authorize = TrustAuthorize(
+        store,
+        policy_id=_POLICY_ID,
+        traversals_store=traversals,
+        clock=FrozenClock(_OBS_NOW),
+        id_generator=FixedIdGenerator([_OBS_EVENT_ID]),
+    )
+
+    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
+    assert isinstance(result, Allow)
+    # No traversal recorded because the target Conduit doesn't exist.
+    assert traversals.all_traversals() == []
+
+
+@pytest.mark.unit
+async def test_skips_traversal_when_traversals_channel_was_closed() -> None:
+    """If the traversals channel has been closed, the channel-id
+    resolver returns None and emission is skipped."""
+    store = InMemoryEventStore()
+    await _seed_policy(store, conduit_id=_TARGET_CONDUIT_ID)
+    await _seed_conduit_with_open_traversals_channel(store)
+
+    # Append a ConduitChannelClosed for the same channel.
+    closed = ConduitChannelClosed(
+        conduit_id=_TARGET_CONDUIT_ID,
+        channel_id=_TRAVERSALS_CHANNEL_ID,
+        occurred_at=_OBS_NOW,
+    )
+    closed_envelope = to_new_event(
+        event_type=conduit_event_type_name(closed),
+        payload=conduit_to_payload(closed),
+        occurred_at=closed.occurred_at,
+        event_id=uuid4(),
+        command_name="CloseConduitChannel",
+        correlation_id=uuid4(),
+    )
+    await store.append(
+        "Conduit",
+        _TARGET_CONDUIT_ID,
+        expected_version=2,
+        events=[closed_envelope],
+    )
+
+    traversals = InMemoryTraversalStore()
+    authorize = TrustAuthorize(
+        store,
+        policy_id=_POLICY_ID,
+        traversals_store=traversals,
+        clock=FrozenClock(_OBS_NOW),
+        id_generator=FixedIdGenerator([_OBS_EVENT_ID]),
+    )
+
+    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", _TARGET_CONDUIT_ID)
+    assert isinstance(result, Allow)
+    assert traversals.all_traversals() == []

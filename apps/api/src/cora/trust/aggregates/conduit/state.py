@@ -3,15 +3,21 @@
 Per ISA-99, a Conduit is a governed communications path between two
 Zones. Each Conduit has its own SL-T (Security Level Target) and an
 agreed contract describing what may flow through it; runtime
-traversal events accumulate against the Conduit's substream.
+traversal events accumulate against the Conduit's traversals
+observation channel (see Phase 6f-5a).
 
-Phase 3b keeps Conduit minimal: `id` + `name` + the two endpoint zone
-IDs. SL-T, contract, and traversal substream land alongside the
-slices that exercise them (Policy evaluation needs SL-T; runtime gate
-checks emit traversal events). Status lifecycle
-(`Defined → Active → Modified → Archived`, per BC-map) follows the
-same additive-state pattern as Zone — fields default in the evolver
-when added.
+Phase 3b kept Conduit minimal: `id` + `name` + the two endpoint zone
+IDs. SL-T, contract, and remaining lifecycle (`Defined → Active →
+Modified → Archived`, per BC-map) follow the same additive-state
+pattern as Zone — fields default in the evolver when added.
+
+Phase 6f-5a adds **channel state**: `open_channels: frozenset[UUID]`
+tracking the IDs of currently-open observation channels attached to
+this Conduit. The traversals channel is opened automatically at
+conduit-creation (gate-review locked: per-Conduit channel scoping).
+The slim-aggregate principle keeps state to invariant-relevant
+fields only; channel schemas live on the channel-open event payloads,
+not on the aggregate state.
 
 **No referential integrity at command time.** `source_zone_id` and
 `target_zone_id` are stored as primitives without verifying the
@@ -31,12 +37,20 @@ explicit directionality, add a `direction` enum field; today the
 ordering is just convention, not enforced semantics.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Final
 from uuid import UUID
 
 from cora.infrastructure.name import validate_name
 
 CONDUIT_NAME_MAX_LENGTH = 200
+
+# Channel-kind discriminators. Each kind names a category of
+# observation a Conduit can attach. Today: just traversals (per-
+# decision authorization audit log). Future kinds (e.g.,
+# rate-limit-events, schema-violations) follow the same naming
+# convention: snake_case, plural noun, domain-meaningful.
+CHANNEL_KIND_TRAVERSALS: Final = "traversals"
 
 
 class InvalidConduitNameError(ValueError):
@@ -56,6 +70,34 @@ class ConduitAlreadyExistsError(Exception):
     def __init__(self, conduit_id: UUID) -> None:
         super().__init__(f"Conduit {conduit_id} already exists")
         self.conduit_id = conduit_id
+
+
+class ConduitChannelAlreadyOpenError(Exception):
+    """Attempted to open a channel id that's already in `open_channels`.
+
+    Defensive guard for the channel lifecycle. Should never trigger
+    in practice (channel ids are UUIDv7-fresh per opening), but
+    catches stream contamination loud.
+    """
+
+    def __init__(self, conduit_id: UUID, channel_id: UUID) -> None:
+        super().__init__(f"Conduit {conduit_id} already has channel {channel_id} open")
+        self.conduit_id = conduit_id
+        self.channel_id = channel_id
+
+
+class ConduitChannelNotOpenError(Exception):
+    """Attempted to close a channel id that's not in `open_channels`.
+
+    Defensive guard; close commands originate from Conduit lifecycle
+    transitions (eventually conduit-archive) and should never target
+    an unopened channel.
+    """
+
+    def __init__(self, conduit_id: UUID, channel_id: UUID) -> None:
+        super().__init__(f"Conduit {conduit_id} has no open channel {channel_id} to close")
+        self.conduit_id = conduit_id
+        self.channel_id = channel_id
 
 
 @dataclass(frozen=True)
@@ -84,9 +126,17 @@ class ConduitName:
 
 @dataclass(frozen=True)
 class Conduit:
-    """Aggregate root: a governed comms path between two Trust zones."""
+    """Aggregate root: a governed comms path between two Trust zones.
+
+    `open_channels` tracks the IDs of currently-open observation
+    channels attached to this Conduit (Phase 6f-5a). Each kind has
+    at most one currently-open channel per Conduit by convention,
+    though the state representation doesn't enforce that — the
+    deciders that open channels do.
+    """
 
     id: UUID
     name: ConduitName
     source_zone_id: UUID
     target_zone_id: UUID
+    open_channels: frozenset[UUID] = field(default_factory=frozenset[UUID])

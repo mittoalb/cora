@@ -1,0 +1,243 @@
+"""End-to-end integration test: ConduitTraversal observations against real Postgres.
+
+Phase 6f-5a's first concrete observation type, exercised end-to-end:
+  1. Define a Conduit (writes ConduitDefined + ConduitChannelOpened to
+     the events table on the Conduit's stream)
+  2. Wire TrustAuthorize with a real PostgresTraversalStore
+  3. Issue an Allow + a Deny against the Conduit
+  4. Read back from observations_conduit_traversals and verify the
+     two rows landed with the right shape (typed columns survive
+     jsonb-free round-trip; channel_id matches the channel opened
+     in step 1)
+
+Also exercises:
+  - Idempotency: a retry with the same event_id is a no-op
+  - The full upstream chain (ConduitDefined → ChannelOpened →
+    TrustAuthorize lookup → observation write) lands transactionally
+    correct against Postgres
+"""
+
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
+
+from datetime import UTC, datetime
+from uuid import UUID
+
+import asyncpg
+import pytest
+
+from cora.infrastructure.config import Settings
+from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.ports import (
+    Allow,
+    AllowAllAuthorize,
+    Deny,
+    FixedIdGenerator,
+    FrozenClock,
+)
+from cora.infrastructure.postgres.event_store import PostgresEventStore
+from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
+from cora.trust.aggregates.conduit.observations import (
+    ConduitTraversal,
+    PostgresTraversalStore,
+)
+from cora.trust.aggregates.policy.events import (
+    PolicyDefined,
+)
+from cora.trust.aggregates.policy.events import (
+    event_type_name as policy_event_type_name,
+)
+from cora.trust.aggregates.policy.events import (
+    to_payload as policy_to_payload,
+)
+from cora.trust.authorize import TrustAuthorize
+from cora.trust.features import define_conduit
+from cora.trust.features.define_conduit import DefineConduit
+
+_NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
+_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-00000000c001")
+_DENIED_PRINCIPAL = UUID("01900000-0000-7000-8000-00000000c002")
+_CORRELATION_ID = UUID("01900000-0000-7000-8000-00000000c003")
+_SOURCE_ZONE = UUID("01900000-0000-7000-8000-00000000c0aa")
+_TARGET_ZONE = UUID("01900000-0000-7000-8000-00000000c0bb")
+
+
+async def _read_traversals(db_pool: asyncpg.Pool, conduit_id: UUID) -> list[asyncpg.Record]:
+    async with db_pool.acquire() as conn:
+        return await conn.fetch(
+            """
+            SELECT event_id, conduit_id, channel_id, actor_id, command_name,
+                   decision, reason, correlation_id, causation_id, occurred_at
+            FROM observations_conduit_traversals
+            WHERE conduit_id = $1
+            ORDER BY occurred_at, event_id
+            """,
+            conduit_id,
+        )
+
+
+@pytest.mark.integration
+async def test_trust_authorize_persists_traversals_against_postgres(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """End-to-end: define a Conduit + Policy, wire TrustAuthorize with
+    a real PostgresTraversalStore, exercise Allow + Deny, verify rows."""
+    # Fresh ids for this test run (avoids collisions across reruns
+    # against a shared template DB).
+    conduit_id = UUID("01900000-0000-7000-8000-000000067a01")
+    traversals_channel_id = UUID("01900000-0000-7000-8000-000000067a02")
+    define_conduit_event_id = UUID("01900000-0000-7000-8000-000000067a03")
+    channel_opened_event_id = UUID("01900000-0000-7000-8000-000000067a04")
+    policy_id = UUID("01900000-0000-7000-8000-000000067a05")
+    policy_event_id = UUID("01900000-0000-7000-8000-000000067a06")
+    allow_observation_id = UUID("01900000-0000-7000-8000-000000067a07")
+    deny_observation_id = UUID("01900000-0000-7000-8000-000000067a08")
+
+    event_store = PostgresEventStore(db_pool)
+    traversals_store = PostgresTraversalStore(db_pool)
+    define_conduit_deps = SharedDeps(
+        settings=Settings(app_env="test"),  # type: ignore[call-arg]
+        clock=FrozenClock(_NOW),
+        id_generator=FixedIdGenerator(
+            [
+                conduit_id,
+                traversals_channel_id,
+                define_conduit_event_id,
+                channel_opened_event_id,
+            ]
+        ),
+        authorize=AllowAllAuthorize(),
+        event_store=event_store,
+        idempotency_store=PostgresIdempotencyStore(db_pool),
+        traversals_store=traversals_store,
+    )
+
+    # 1. Define the Conduit (writes ConduitDefined + ConduitChannelOpened).
+    returned_id = await define_conduit.bind(define_conduit_deps)(
+        DefineConduit(
+            name="Detector-to-Storage",
+            source_zone_id=_SOURCE_ZONE,
+            target_zone_id=_TARGET_ZONE,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert returned_id == conduit_id
+
+    # 2. Seed a Policy that gates `RegisterActor` for `_PRINCIPAL_ID`
+    #    on this Conduit (so TrustAuthorize Allow/Deny is meaningful).
+    policy_envelope = to_new_event(
+        event_type=policy_event_type_name(
+            PolicyDefined(
+                policy_id=policy_id,
+                name="Test-policy",
+                conduit_id=conduit_id,
+                permitted_principals=[_PRINCIPAL_ID],
+                permitted_commands=["RegisterActor"],
+                occurred_at=_NOW,
+            )
+        ),
+        payload=policy_to_payload(
+            PolicyDefined(
+                policy_id=policy_id,
+                name="Test-policy",
+                conduit_id=conduit_id,
+                permitted_principals=[_PRINCIPAL_ID],
+                permitted_commands=["RegisterActor"],
+                occurred_at=_NOW,
+            )
+        ),
+        occurred_at=_NOW,
+        event_id=policy_event_id,
+        command_name="DefinePolicy",
+        correlation_id=_CORRELATION_ID,
+    )
+    await event_store.append("Policy", policy_id, expected_version=0, events=[policy_envelope])
+
+    # 3. Wire TrustAuthorize with the traversals store + a fresh
+    #    id-generator (separate from the one used for define_conduit
+    #    so we get deterministic observation ids).
+    authorize = TrustAuthorize(
+        event_store,
+        policy_id=policy_id,
+        traversals_store=traversals_store,
+        clock=FrozenClock(_NOW),
+        id_generator=FixedIdGenerator([allow_observation_id, deny_observation_id]),
+    )
+
+    # 4. One Allow, one Deny against the Conduit.
+    allow_result = await authorize(_PRINCIPAL_ID, "RegisterActor", conduit_id)
+    assert isinstance(allow_result, Allow)
+    deny_result = await authorize(_DENIED_PRINCIPAL, "RegisterActor", conduit_id)
+    assert isinstance(deny_result, Deny)
+
+    # 5. Read back from the observation table.
+    rows = await _read_traversals(db_pool, conduit_id)
+    assert len(rows) == 2
+
+    allow_row = next(r for r in rows if r["event_id"] == allow_observation_id)
+    deny_row = next(r for r in rows if r["event_id"] == deny_observation_id)
+
+    assert allow_row["conduit_id"] == conduit_id
+    assert allow_row["channel_id"] == traversals_channel_id
+    assert allow_row["actor_id"] == _PRINCIPAL_ID
+    assert allow_row["command_name"] == "RegisterActor"
+    assert allow_row["decision"] == "Allow"
+    assert allow_row["reason"] is None
+    assert allow_row["occurred_at"] == _NOW
+
+    assert deny_row["conduit_id"] == conduit_id
+    assert deny_row["channel_id"] == traversals_channel_id
+    assert deny_row["actor_id"] == _DENIED_PRINCIPAL
+    assert deny_row["decision"] == "Deny"
+    assert deny_row["reason"] is not None
+    assert "principal" in deny_row["reason"].lower()
+
+
+@pytest.mark.integration
+async def test_postgres_traversal_store_dedups_on_event_id(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """ON CONFLICT (event_id) DO NOTHING — producer retry is a no-op."""
+    store = PostgresTraversalStore(db_pool)
+    event_id = UUID("01900000-0000-7000-8000-000000068a01")
+    conduit_id = UUID("01900000-0000-7000-8000-000000068a02")
+    channel_id = UUID("01900000-0000-7000-8000-000000068a03")
+
+    first = ConduitTraversal(
+        event_id=event_id,
+        conduit_id=conduit_id,
+        channel_id=channel_id,
+        actor_id=uuid_for("01900000-0000-7000-8000-000000068a04"),
+        command_name="StartRun",
+        decision="Allow",
+        reason=None,
+        correlation_id=uuid_for("01900000-0000-7000-8000-000000068a05"),
+        causation_id=None,
+        occurred_at=_NOW,
+    )
+    # Different content, same event_id — must be dropped.
+    second = ConduitTraversal(
+        event_id=event_id,
+        conduit_id=conduit_id,
+        channel_id=channel_id,
+        actor_id=uuid_for("01900000-0000-7000-8000-000000068a06"),
+        command_name="DefinePolicy",
+        decision="Deny",
+        reason="other",
+        correlation_id=uuid_for("01900000-0000-7000-8000-000000068a07"),
+        causation_id=None,
+        occurred_at=_NOW,
+    )
+
+    await store.append_traversals([first])
+    await store.append_traversals([second])
+
+    rows = await _read_traversals(db_pool, conduit_id)
+    assert len(rows) == 1
+    assert rows[0]["command_name"] == "StartRun"
+    assert rows[0]["decision"] == "Allow"
+
+
+def uuid_for(s: str) -> UUID:
+    return UUID(s)

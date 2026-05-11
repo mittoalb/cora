@@ -5,8 +5,11 @@ from uuid import uuid4
 
 import pytest
 
+from cora.infrastructure.channel import ChannelFieldSpec, ChannelSchema
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.trust.aggregates.conduit.events import (
+    ConduitChannelClosed,
+    ConduitChannelOpened,
     ConduitDefined,
     event_type_name,
     from_stored,
@@ -117,6 +120,137 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
     stored = _stored("ZoneDefined", {})
     with pytest.raises(ValueError, match="Unknown ConduitEvent event_type"):
         from_stored(stored)
+
+
+# ---------- ConduitChannelOpened (Phase 6f-5a) ----------
+
+
+def _sample_schema() -> ChannelSchema:
+    return ChannelSchema(
+        fields={
+            "actor_id": ChannelFieldSpec(type="uuid"),
+            "command_name": ChannelFieldSpec(type="string"),
+        },
+        description="auth audit log",
+    )
+
+
+@pytest.mark.unit
+def test_event_type_name_for_conduit_channel_opened() -> None:
+    event = ConduitChannelOpened(
+        conduit_id=uuid4(),
+        channel_id=uuid4(),
+        kind="traversals",
+        schema=_sample_schema(),
+        occurred_at=_NOW,
+    )
+    assert event_type_name(event) == "ConduitChannelOpened"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_channel_opened_with_schema_dict() -> None:
+    conduit_id = uuid4()
+    channel_id = uuid4()
+    schema = _sample_schema()
+    event = ConduitChannelOpened(
+        conduit_id=conduit_id,
+        channel_id=channel_id,
+        kind="traversals",
+        schema=schema,
+        occurred_at=_NOW,
+    )
+    payload = to_payload(event)
+    assert payload == {
+        "conduit_id": str(conduit_id),
+        "channel_id": str(channel_id),
+        "kind": "traversals",
+        "schema": schema.to_dict(),
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_conduit_channel_opened() -> None:
+    conduit_id = uuid4()
+    channel_id = uuid4()
+    schema = _sample_schema()
+    stored = _stored(
+        "ConduitChannelOpened",
+        {
+            "conduit_id": str(conduit_id),
+            "channel_id": str(channel_id),
+            "kind": "traversals",
+            "schema": schema.to_dict(),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == ConduitChannelOpened(
+        conduit_id=conduit_id,
+        channel_id=channel_id,
+        kind="traversals",
+        schema=schema,
+        occurred_at=_NOW,
+    )
+
+
+@pytest.mark.unit
+def test_conduit_channel_opened_round_trips() -> None:
+    original = ConduitChannelOpened(
+        conduit_id=uuid4(),
+        channel_id=uuid4(),
+        kind="traversals",
+        schema=_sample_schema(),
+        occurred_at=_NOW,
+    )
+    stored = _stored("ConduitChannelOpened", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- ConduitChannelClosed (Phase 6f-5a) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_for_conduit_channel_closed() -> None:
+    event = ConduitChannelClosed(conduit_id=uuid4(), channel_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "ConduitChannelClosed"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_channel_closed_to_primitives() -> None:
+    conduit_id = uuid4()
+    channel_id = uuid4()
+    event = ConduitChannelClosed(conduit_id=conduit_id, channel_id=channel_id, occurred_at=_NOW)
+    assert to_payload(event) == {
+        "conduit_id": str(conduit_id),
+        "channel_id": str(channel_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_conduit_channel_closed() -> None:
+    conduit_id = uuid4()
+    channel_id = uuid4()
+    stored = _stored(
+        "ConduitChannelClosed",
+        {
+            "conduit_id": str(conduit_id),
+            "channel_id": str(channel_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == ConduitChannelClosed(
+        conduit_id=conduit_id, channel_id=channel_id, occurred_at=_NOW
+    )
+
+
+@pytest.mark.unit
+def test_conduit_channel_closed_round_trips() -> None:
+    original = ConduitChannelClosed(conduit_id=uuid4(), channel_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("ConduitChannelClosed", to_payload(original))
+    assert from_stored(stored) == original
 
 
 # `to_new_event` envelope construction lives at

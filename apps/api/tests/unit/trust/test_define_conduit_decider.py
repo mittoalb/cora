@@ -1,4 +1,11 @@
-"""Unit tests for the `define_conduit` slice's pure decider."""
+"""Unit tests for the `define_conduit` slice's pure decider.
+
+Phase 6f-5a expanded the decider to emit two events per call:
+`ConduitDefined` followed by `ConduitChannelOpened` (kind="traversals").
+Tests assert both events as a unit; the channel-open carries the
+declared schema verbatim, validated separately in events / evolver
+unit tests.
+"""
 
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -6,8 +13,10 @@ from uuid import uuid4
 import pytest
 
 from cora.trust.aggregates.conduit import (
+    CHANNEL_KIND_TRAVERSALS,
     Conduit,
     ConduitAlreadyExistsError,
+    ConduitChannelOpened,
     ConduitDefined,
     ConduitName,
     InvalidConduitNameError,
@@ -19,8 +28,9 @@ _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 
 
 @pytest.mark.unit
-def test_decide_emits_conduit_defined_when_stream_is_empty() -> None:
+def test_decide_emits_conduit_defined_and_traversals_channel_opened() -> None:
     new_id = uuid4()
+    channel_id = uuid4()
     source = uuid4()
     target = uuid4()
     events = define_conduit.decide(
@@ -32,16 +42,24 @@ def test_decide_emits_conduit_defined_when_stream_is_empty() -> None:
         ),
         now=_NOW,
         new_id=new_id,
+        traversals_channel_id=channel_id,
     )
-    assert events == [
-        ConduitDefined(
-            conduit_id=new_id,
-            name="Detector-to-Storage",
-            source_zone_id=source,
-            target_zone_id=target,
-            occurred_at=_NOW,
-        )
-    ]
+    assert len(events) == 2
+    assert events[0] == ConduitDefined(
+        conduit_id=new_id,
+        name="Detector-to-Storage",
+        source_zone_id=source,
+        target_zone_id=target,
+        occurred_at=_NOW,
+    )
+    second = events[1]
+    assert isinstance(second, ConduitChannelOpened)
+    assert second.conduit_id == new_id
+    assert second.channel_id == channel_id
+    assert second.kind == CHANNEL_KIND_TRAVERSALS
+    assert second.occurred_at == _NOW
+    # Schema is declared with the four columns of the traversals table.
+    assert set(second.schema.fields) == {"actor_id", "command_name", "decision", "reason"}
 
 
 @pytest.mark.unit
@@ -55,8 +73,11 @@ def test_decide_trims_name_via_value_object() -> None:
         ),
         now=_NOW,
         new_id=uuid4(),
+        traversals_channel_id=uuid4(),
     )
-    assert events[0].name == "Detector-to-Storage"
+    first = events[0]
+    assert isinstance(first, ConduitDefined)
+    assert first.name == "Detector-to-Storage"
 
 
 @pytest.mark.unit
@@ -71,6 +92,7 @@ def test_decide_rejects_invalid_name() -> None:
             ),
             now=_NOW,
             new_id=uuid4(),
+            traversals_channel_id=uuid4(),
         )
 
 
@@ -92,6 +114,7 @@ def test_decide_rejects_existing_state() -> None:
             ),
             now=_NOW,
             new_id=uuid4(),
+            traversals_channel_id=uuid4(),
         )
     assert exc_info.value.conduit_id == existing.id
 
@@ -114,8 +137,11 @@ def test_decide_does_not_validate_zone_existence() -> None:
         ),
         now=_NOW,
         new_id=uuid4(),
+        traversals_channel_id=uuid4(),
     )
-    assert len(events) == 1
+    # Two events: ConduitDefined + ConduitChannelOpened. The decider
+    # does not look at Zone state in either case.
+    assert len(events) == 2
 
 
 @pytest.mark.unit
@@ -133,14 +159,18 @@ def test_decide_allows_same_source_and_target() -> None:
         ),
         now=_NOW,
         new_id=uuid4(),
+        traversals_channel_id=uuid4(),
     )
-    assert events[0].source_zone_id == same
-    assert events[0].target_zone_id == same
+    first = events[0]
+    assert isinstance(first, ConduitDefined)
+    assert first.source_zone_id == same
+    assert first.target_zone_id == same
 
 
 @pytest.mark.unit
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     new_id = uuid4()
+    channel_id = uuid4()
     source = uuid4()
     target = uuid4()
     command = DefineConduit(
@@ -148,6 +178,18 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
         source_zone_id=source,
         target_zone_id=target,
     )
-    first = define_conduit.decide(state=None, command=command, now=_NOW, new_id=new_id)
-    second = define_conduit.decide(state=None, command=command, now=_NOW, new_id=new_id)
+    first = define_conduit.decide(
+        state=None,
+        command=command,
+        now=_NOW,
+        new_id=new_id,
+        traversals_channel_id=channel_id,
+    )
+    second = define_conduit.decide(
+        state=None,
+        command=command,
+        now=_NOW,
+        new_id=new_id,
+        traversals_channel_id=channel_id,
+    )
     assert first == second

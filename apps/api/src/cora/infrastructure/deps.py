@@ -11,10 +11,29 @@ Adapters selected by `Settings.app_env`:
 `build_shared_deps` returns the deps and a `teardown` callable so the
 lifespan can release pool resources without `SharedDeps` having to expose
 its private state.
+
+## Phase 6f-5a: TraversalStore wiring
+
+The Trust BC's per-Conduit authz traversal observation log is wired
+here too. Mirrors the EventStore selection: in-memory for `app_env=test`,
+Postgres for production. When `trust_policy_id` is set, the
+TrustAuthorize adapter receives the TraversalStore + Clock +
+IdGenerator and emits one observation row per Allow / Deny decision.
+The AllowAllAuthorize fallback skips emission entirely.
 """
 
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+# `TraversalStore` adapters are imported lazily at call sites below
+# to avoid a circular import: `cora.trust.aggregates.conduit.observations`
+# itself is leaf-clean, but Python loads `cora.trust.__init__` whenever
+# any submodule under `cora.trust` is referenced — and that __init__
+# transitively pulls `cora.trust.wire` → handlers → `cora.infrastructure.deps`.
+# Same lazy-import pattern used for `TrustAuthorize` in `_build_authorize`.
+#
+# Protocol is referenced via TYPE_CHECKING for the SharedDeps annotation.
+from typing import TYPE_CHECKING
 
 import asyncpg
 
@@ -36,10 +55,31 @@ from cora.infrastructure.postgres.event_store import PostgresEventStore
 from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.infrastructure.postgres.pool import create_pool
 
+if TYPE_CHECKING:  # pragma: no cover
+    from cora.trust.aggregates.conduit.observations import TraversalStore
+
+
+def _default_traversals_store() -> "TraversalStore":
+    """Default-factory shim for SharedDeps.traversals_store.
+
+    Lazy-imports the InMemory adapter to avoid the deps.py ↔ trust
+    circular import described at the top of this module.
+    """
+    from cora.trust.aggregates.conduit.observations import InMemoryTraversalStore
+
+    return InMemoryTraversalStore()
+
 
 @dataclass(frozen=True)
 class SharedDeps:
-    """Process-wide dependencies. Immutable after `build_shared_deps` returns."""
+    """Process-wide dependencies. Immutable after `build_shared_deps` returns.
+
+    `traversals_store` defaults to an InMemory adapter so test
+    constructions of `SharedDeps` (which predate Phase 6f-5a) don't
+    need explicit wiring. Production builds via `build_shared_deps`
+    always overwrite with the env-appropriate adapter (Postgres for
+    non-test, InMemory for `app_env=test`).
+    """
 
     settings: Settings
     clock: Clock
@@ -47,6 +87,7 @@ class SharedDeps:
     authorize: Authorize
     event_store: EventStore
     idempotency_store: IdempotencyStore
+    traversals_store: "TraversalStore" = field(default_factory=_default_traversals_store)
 
 
 Teardown = Callable[[], Awaitable[None]]
@@ -56,19 +97,35 @@ async def build_shared_deps() -> tuple[SharedDeps, Teardown]:
     """Construct shared dependencies. Called once from the FastAPI lifespan."""
     settings = Settings()  # type: ignore[call-arg]  # Pydantic loads from env
     configure_logging(settings.log_level)
-    event_store, idempotency_store, teardown = await _build_stores(settings)
+    event_store, idempotency_store, traversals_store, teardown = await _build_stores(settings)
+    clock = SystemClock()
+    id_generator = UUIDv7Generator()
     deps = SharedDeps(
         settings=settings,
-        clock=SystemClock(),
-        id_generator=UUIDv7Generator(),
-        authorize=_build_authorize(settings, event_store),
+        clock=clock,
+        id_generator=id_generator,
+        authorize=_build_authorize(
+            settings,
+            event_store,
+            traversals_store=traversals_store,
+            clock=clock,
+            id_generator=id_generator,
+        ),
         event_store=event_store,
         idempotency_store=idempotency_store,
+        traversals_store=traversals_store,
     )
     return deps, teardown
 
 
-def _build_authorize(settings: Settings, event_store: EventStore) -> Authorize:
+def _build_authorize(
+    settings: Settings,
+    event_store: EventStore,
+    *,
+    traversals_store: "TraversalStore",
+    clock: Clock,
+    id_generator: IdGenerator,
+) -> Authorize:
     """Choose the Authorize adapter based on Settings.
 
     `trust_policy_id` unset (None) → `AllowAllAuthorize` (Phase 1
@@ -83,19 +140,42 @@ def _build_authorize(settings: Settings, event_store: EventStore) -> Authorize:
     trigger a partially-initialized-module circular import. Splitting
     `SharedDeps` into a separate module would also fix it but is a
     bigger refactor; the lazy import is local to one function.
+
+    Phase 6f-5a: when `TrustAuthorize` is wired, also pass the
+    traversals_store + clock + id_generator so it can emit per-decision
+    ConduitTraversal observations. AllowAllAuthorize stays bare (no
+    observations from the permissive default).
     """
     if settings.trust_policy_id is None:
         return AllowAllAuthorize()
     from cora.trust.authorize import TrustAuthorize
 
-    return TrustAuthorize(event_store, policy_id=settings.trust_policy_id)
+    return TrustAuthorize(
+        event_store,
+        policy_id=settings.trust_policy_id,
+        traversals_store=traversals_store,
+        clock=clock,
+        id_generator=id_generator,
+    )
 
 
 async def _build_stores(
     settings: Settings,
-) -> tuple[EventStore, IdempotencyStore, Teardown]:
+) -> tuple[EventStore, IdempotencyStore, "TraversalStore", Teardown]:
+    # Lazy import to break the deps.py ↔ trust circular import
+    # (see module-level note).
+    from cora.trust.aggregates.conduit.observations import (
+        InMemoryTraversalStore,
+        PostgresTraversalStore,
+    )
+
     if settings.app_env == "test":
-        return InMemoryEventStore(), InMemoryIdempotencyStore(), _noop_teardown
+        return (
+            InMemoryEventStore(),
+            InMemoryIdempotencyStore(),
+            InMemoryTraversalStore(),
+            _noop_teardown,
+        )
 
     pool = await create_pool(
         settings.database_url,
@@ -105,6 +185,7 @@ async def _build_stores(
     return (
         PostgresEventStore(pool),
         PostgresIdempotencyStore(pool),
+        PostgresTraversalStore(pool),
         _make_pool_teardown(pool),
     )
 

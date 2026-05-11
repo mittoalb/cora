@@ -62,12 +62,61 @@ TrustAuthorize policy Y not found in event store").
 If the configured policy is missing from the event store, this
 adapter returns Deny — fail-closed. A Settings-time check that the
 policy exists at startup would surface this earlier; deferred.
+
+## Phase 6f-5a: optional traversal observation emission
+
+When constructed with a `TraversalStore`, every Allow / Deny
+decision additionally writes one `ConduitTraversal` observation row
+to the per-Conduit traversals channel. This is the per-Conduit
+authz audit log — every command that traverses a Conduit is
+captured with actor, command, decision, reason, and timestamps.
+
+Wiring is opt-in (constructor param defaults to None) so existing
+test paths and the AllowAllAuthorize fallback don't accumulate
+observations. When `traversals_store` is provided, `clock` and
+`id_generator` are required (for `occurred_at` and `event_id`); the
+constructor enforces this so missed wiring fails loud at app
+startup, not at the first authz call.
+
+Channel id resolution: TrustAuthorize loads the target Conduit on
+each call to find its currently-open traversals channel id. The
+Conduit stream is short (genesis + channel-open, ~handful of events)
+so the fold cost is small; per-call caching can land later if it
+matters. If the Conduit doesn't exist (typical for `UUID(int=0)`
+sentinel until conduit-routing lands) or has no traversals channel
+open, the traversal write is silently skipped with a warn log —
+the authz decision itself is unaffected.
+
+`correlation_id` for the observation row comes from
+`current_correlation_id()` (the active OTel span's trace_id encoded
+as a UUID); same source the calling handler uses for its event
+envelope, so observation rows correlate naturally with the events
+that triggered them.
 """
 
 from uuid import UUID
 
 from cora.infrastructure.logging import get_logger
-from cora.infrastructure.ports import Allow, AuthzResult, Deny, EventStore
+from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.ports import (
+    Allow,
+    AuthzResult,
+    Clock,
+    Deny,
+    EventStore,
+    IdGenerator,
+)
+from cora.trust.aggregates.conduit import (
+    CHANNEL_KIND_TRAVERSALS,
+    ConduitChannelClosed,
+    ConduitChannelOpened,
+    from_stored,
+)
+from cora.trust.aggregates.conduit.observations import (
+    ConduitTraversal,
+    TraversalDecision,
+    TraversalStore,
+)
 from cora.trust.aggregates.policy import evaluate, load_policy
 
 _log = get_logger(__name__)
@@ -76,9 +125,25 @@ _log = get_logger(__name__)
 class TrustAuthorize:
     """Authorize port adapter that gates via a single configured Policy."""
 
-    def __init__(self, event_store: EventStore, *, policy_id: UUID) -> None:
+    def __init__(
+        self,
+        event_store: EventStore,
+        *,
+        policy_id: UUID,
+        traversals_store: TraversalStore | None = None,
+        clock: Clock | None = None,
+        id_generator: IdGenerator | None = None,
+    ) -> None:
+        if traversals_store is not None and (clock is None or id_generator is None):
+            msg = (
+                "TrustAuthorize: traversals_store requires both clock and id_generator to be wired"
+            )
+            raise ValueError(msg)
         self._event_store = event_store
         self._policy_id = policy_id
+        self._traversals_store = traversals_store
+        self._clock = clock
+        self._id_generator = id_generator
 
     async def __call__(
         self,
@@ -95,35 +160,120 @@ class TrustAuthorize:
                 command_name=command_name,
                 conduit_id=str(conduit_id),
             )
-            return Deny(
+            result: AuthzResult = Deny(
                 reason=(
                     f"Configured TrustAuthorize policy {self._policy_id} not found in event store"
                 )
             )
-
-        # 3h: forward caller's conduit_id (was policy.conduit_id in
-        # Phase 3e). evaluate's conduit-mismatch check now meaningfully
-        # gates calls — a policy bound to one conduit denies calls on
-        # another instead of being evaluated as if it were governing.
-        result = evaluate(
-            policy,
-            principal_id=principal_id,
-            command_name=command_name,
-            conduit_id=conduit_id,
-        )
-        if isinstance(result, Allow):
-            _log.info(
-                "trust_authorize.allow",
-                policy_id=str(self._policy_id),
-                principal_id=str(principal_id),
-                command_name=command_name,
-            )
         else:
-            _log.info(
-                "trust_authorize.deny",
-                policy_id=str(self._policy_id),
-                principal_id=str(principal_id),
+            # 3h: forward caller's conduit_id (was policy.conduit_id in
+            # Phase 3e). evaluate's conduit-mismatch check now meaningfully
+            # gates calls — a policy bound to one conduit denies calls on
+            # another instead of being evaluated as if it were governing.
+            result = evaluate(
+                policy,
+                principal_id=principal_id,
                 command_name=command_name,
-                reason=result.reason,
+                conduit_id=conduit_id,
             )
+            if isinstance(result, Allow):
+                _log.info(
+                    "trust_authorize.allow",
+                    policy_id=str(self._policy_id),
+                    principal_id=str(principal_id),
+                    command_name=command_name,
+                )
+            else:
+                _log.info(
+                    "trust_authorize.deny",
+                    policy_id=str(self._policy_id),
+                    principal_id=str(principal_id),
+                    command_name=command_name,
+                    reason=result.reason,
+                )
+
+        if self._traversals_store is not None:
+            await self._emit_traversal(
+                principal_id=principal_id,
+                command_name=command_name,
+                conduit_id=conduit_id,
+                result=result,
+            )
+
         return result
+
+    async def _emit_traversal(
+        self,
+        *,
+        principal_id: UUID,
+        command_name: str,
+        conduit_id: UUID,
+        result: AuthzResult,
+    ) -> None:
+        """Best-effort write of one ConduitTraversal observation per call.
+
+        Skipped silently with a warn log if the Conduit doesn't exist
+        or has no currently-open traversals channel. The authz
+        decision itself is unaffected.
+        """
+        # Type-narrowed: __init__ enforces that these are non-None
+        # whenever traversals_store is set.
+        assert self._traversals_store is not None
+        assert self._clock is not None
+        assert self._id_generator is not None
+
+        channel_id = await _resolve_traversals_channel_id(self._event_store, conduit_id)
+        if channel_id is None:
+            _log.warning(
+                "trust_authorize.skip_traversal",
+                conduit_id=str(conduit_id),
+                reason="no_open_traversals_channel",
+            )
+            return
+
+        decision_str: TraversalDecision = "Allow" if isinstance(result, Allow) else "Deny"
+        reason = result.reason if isinstance(result, Deny) else None
+
+        await self._traversals_store.append_traversals(
+            [
+                ConduitTraversal(
+                    event_id=self._id_generator.new_id(),
+                    conduit_id=conduit_id,
+                    channel_id=channel_id,
+                    actor_id=principal_id,
+                    command_name=command_name,
+                    decision=decision_str,
+                    reason=reason,
+                    correlation_id=current_correlation_id(),
+                    causation_id=None,
+                    occurred_at=self._clock.now(),
+                )
+            ]
+        )
+
+
+async def _resolve_traversals_channel_id(event_store: EventStore, conduit_id: UUID) -> UUID | None:
+    """Find the currently-open traversals channel id for a Conduit.
+
+    Folds the channel-open / channel-close events on the Conduit's
+    stream to track the latest open traversals channel id. Returns
+    None if the Conduit doesn't exist OR no traversals channel has
+    been opened OR the most recently opened traversals channel has
+    been closed.
+
+    O(events-per-Conduit-stream) per call. The stream is short by
+    design (genesis + channel-open, ~handful of events) so this is
+    acceptable for 6f-5a; per-process caching keyed on `conduit_id`
+    is the natural optimization when this becomes a measurable cost.
+    """
+    stored, _ = await event_store.load("Conduit", conduit_id)
+    if not stored:
+        return None
+    channel_id: UUID | None = None
+    for raw in stored:
+        event = from_stored(raw)
+        if isinstance(event, ConduitChannelOpened) and event.kind == CHANNEL_KIND_TRAVERSALS:
+            channel_id = event.channel_id
+        elif isinstance(event, ConduitChannelClosed) and event.channel_id == channel_id:
+            channel_id = None
+    return channel_id
