@@ -37,11 +37,18 @@ from cora.recipe.aggregates.method import (
     MethodCannotVersionError,
     MethodNotFoundError,
 )
+from cora.recipe.aggregates.practice import (
+    InvalidPracticeNameError,
+    PracticeAlreadyExistsError,
+    PracticeNotFoundError,
+)
 from cora.recipe.errors import UnauthorizedError
 from cora.recipe.features import (
     define_method,
+    define_practice,
     deprecate_method,
     get_method,
+    get_practice,
     version_method,
 )
 
@@ -108,11 +115,17 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(get_method.router)
     app.include_router(version_method.router)
     app.include_router(deprecate_method.router)
-    for validation_cls in (InvalidMethodNameError, InvalidMethodVersionTagError):
+    app.include_router(define_practice.router)
+    app.include_router(get_practice.router)
+    for validation_cls in (
+        InvalidMethodNameError,
+        InvalidMethodVersionTagError,
+        InvalidPracticeNameError,
+    ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
-    for not_found_cls in (MethodNotFoundError,):
+    for not_found_cls in (MethodNotFoundError, PracticeNotFoundError):
         app.add_exception_handler(not_found_cls, _handle_not_found)
-    for already_exists_cls in (MethodAlreadyExistsError,):
+    for already_exists_cls in (MethodAlreadyExistsError, PracticeAlreadyExistsError):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
         MethodCannotVersionError,
