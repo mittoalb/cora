@@ -8,8 +8,10 @@ import pytest
 from cora.equipment.aggregates.asset.events import (
     AssetActivated,
     AssetDecommissioned,
+    AssetMaintenanceEntered,
     AssetRegistered,
     AssetRelocated,
+    AssetRestoredFromMaintenance,
     event_type_name,
     from_stored,
     to_payload,
@@ -340,4 +342,90 @@ def test_to_payload_then_from_stored_round_trips_for_asset_relocated() -> None:
         occurred_at=_NOW,
     )
     stored = _stored("AssetRelocated", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- AssetMaintenanceEntered (Phase 5e) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_asset_maintenance_entered_class_name() -> None:
+    event = AssetMaintenanceEntered(asset_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "AssetMaintenanceEntered"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_asset_maintenance_entered_to_primitives() -> None:
+    """Lifecycle NOT in payload — event TYPE encodes the state change.
+    Same convention as AssetActivated / AssetDecommissioned."""
+    asset_id = uuid4()
+    event = AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW)
+    payload = to_payload(event)
+    assert payload == {
+        "asset_id": str(asset_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+    assert "lifecycle" not in payload
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_asset_maintenance_entered() -> None:
+    asset_id = uuid4()
+    stored = _stored(
+        "AssetMaintenanceEntered",
+        {
+            "asset_id": str(asset_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_asset_maintenance_entered() -> None:
+    original = AssetMaintenanceEntered(asset_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("AssetMaintenanceEntered", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- AssetRestoredFromMaintenance (Phase 5e) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_asset_restored_from_maintenance_class_name() -> None:
+    event = AssetRestoredFromMaintenance(asset_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "AssetRestoredFromMaintenance"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_asset_restored_from_maintenance_to_primitives() -> None:
+    asset_id = uuid4()
+    event = AssetRestoredFromMaintenance(asset_id=asset_id, occurred_at=_NOW)
+    payload = to_payload(event)
+    assert payload == {
+        "asset_id": str(asset_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+    assert "lifecycle" not in payload
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_asset_restored_from_maintenance() -> None:
+    asset_id = uuid4()
+    stored = _stored(
+        "AssetRestoredFromMaintenance",
+        {
+            "asset_id": str(asset_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == AssetRestoredFromMaintenance(asset_id=asset_id, occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_asset_restored_from_maintenance() -> None:
+    original = AssetRestoredFromMaintenance(asset_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("AssetRestoredFromMaintenance", to_payload(original))
     assert from_stored(stored) == original

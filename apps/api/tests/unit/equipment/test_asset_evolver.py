@@ -16,8 +16,10 @@ from cora.equipment.aggregates.asset import (
 from cora.equipment.aggregates.asset.events import (
     AssetActivated,
     AssetDecommissioned,
+    AssetMaintenanceEntered,
     AssetRegistered,
     AssetRelocated,
+    AssetRestoredFromMaintenance,
 )
 from cora.equipment.features import register_asset
 from cora.equipment.features.register_asset import RegisterAsset
@@ -500,3 +502,154 @@ def test_fold_register_activate_relocate_preserves_active_lifecycle() -> None:
     assert state is not None
     assert state.parent_id == new_parent
     assert state.lifecycle is AssetLifecycle.ACTIVE
+
+
+# ---------- AssetMaintenanceEntered (Phase 5e) ----------
+
+
+@pytest.mark.unit
+def test_evolve_asset_maintenance_entered_flips_lifecycle_to_maintenance() -> None:
+    """AssetMaintenanceEntered folded onto an Active asset sets
+    lifecycle=MAINTENANCE. Lifecycle field is NOT in the event
+    payload; the evolver derives it from the event TYPE (same
+    convention as AssetActivated)."""
+    asset_id = uuid4()
+    parent_id = uuid4()
+    active = Asset(
+        id=asset_id,
+        name=AssetName("APS-2BM"),
+        level=AssetLevel.UNIT,
+        parent_id=parent_id,
+        lifecycle=AssetLifecycle.ACTIVE,
+    )
+    in_maintenance = evolve(active, AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW))
+    assert in_maintenance == Asset(
+        id=asset_id,
+        name=AssetName("APS-2BM"),
+        level=AssetLevel.UNIT,
+        parent_id=parent_id,
+        lifecycle=AssetLifecycle.MAINTENANCE,
+    )
+
+
+@pytest.mark.unit
+def test_evolve_asset_maintenance_entered_preserves_id_name_level_parent() -> None:
+    asset_id = uuid4()
+    parent_id = uuid4()
+    active = Asset(
+        id=asset_id,
+        name=AssetName("Original"),
+        level=AssetLevel.DEVICE,
+        parent_id=parent_id,
+        lifecycle=AssetLifecycle.ACTIVE,
+    )
+    in_maintenance = evolve(active, AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW))
+    assert in_maintenance.id == asset_id
+    assert in_maintenance.name == AssetName("Original")
+    assert in_maintenance.level is AssetLevel.DEVICE
+    assert in_maintenance.parent_id == parent_id
+
+
+@pytest.mark.unit
+def test_evolve_asset_maintenance_entered_on_empty_state_raises() -> None:
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(None, AssetMaintenanceEntered(asset_id=uuid4(), occurred_at=_NOW))
+
+
+# ---------- AssetRestoredFromMaintenance (Phase 5e) ----------
+
+
+@pytest.mark.unit
+def test_evolve_asset_restored_from_maintenance_flips_lifecycle_to_active() -> None:
+    asset_id = uuid4()
+    parent_id = uuid4()
+    in_maintenance = Asset(
+        id=asset_id,
+        name=AssetName("APS-2BM"),
+        level=AssetLevel.UNIT,
+        parent_id=parent_id,
+        lifecycle=AssetLifecycle.MAINTENANCE,
+    )
+    restored = evolve(
+        in_maintenance,
+        AssetRestoredFromMaintenance(asset_id=asset_id, occurred_at=_NOW),
+    )
+    assert restored.lifecycle is AssetLifecycle.ACTIVE
+    assert restored.id == asset_id
+    assert restored.name == AssetName("APS-2BM")
+    assert restored.parent_id == parent_id
+
+
+@pytest.mark.unit
+def test_evolve_asset_restored_from_maintenance_on_empty_state_raises() -> None:
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(None, AssetRestoredFromMaintenance(asset_id=uuid4(), occurred_at=_NOW))
+
+
+@pytest.mark.unit
+def test_fold_register_activate_enter_maintenance_yields_maintenance_asset() -> None:
+    asset_id = uuid4()
+    parent_id = uuid4()
+    state = fold(
+        [
+            AssetRegistered(
+                asset_id=asset_id,
+                name="APS-2BM",
+                level="Unit",
+                parent_id=parent_id,
+                occurred_at=_NOW,
+            ),
+            AssetActivated(asset_id=asset_id, occurred_at=_NOW),
+            AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.lifecycle is AssetLifecycle.MAINTENANCE
+
+
+@pytest.mark.unit
+def test_fold_register_activate_enter_restore_yields_active_asset() -> None:
+    """Full maintenance round-trip: enter then restore returns to Active."""
+    asset_id = uuid4()
+    parent_id = uuid4()
+    state = fold(
+        [
+            AssetRegistered(
+                asset_id=asset_id,
+                name="APS-2BM",
+                level="Unit",
+                parent_id=parent_id,
+                occurred_at=_NOW,
+            ),
+            AssetActivated(asset_id=asset_id, occurred_at=_NOW),
+            AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW),
+            AssetRestoredFromMaintenance(asset_id=asset_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.lifecycle is AssetLifecycle.ACTIVE
+
+
+@pytest.mark.unit
+def test_fold_register_activate_enter_decommission_yields_decommissioned_asset() -> None:
+    """Maintenance is the third allowed source for decommission (5e
+    widening). Pinned at fold level so the multi-source contract
+    holds end-to-end."""
+    asset_id = uuid4()
+    parent_id = uuid4()
+    state = fold(
+        [
+            AssetRegistered(
+                asset_id=asset_id,
+                name="APS-2BM",
+                level="Unit",
+                parent_id=parent_id,
+                occurred_at=_NOW,
+            ),
+            AssetActivated(asset_id=asset_id, occurred_at=_NOW),
+            AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW),
+            AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.lifecycle is AssetLifecycle.DECOMMISSIONED

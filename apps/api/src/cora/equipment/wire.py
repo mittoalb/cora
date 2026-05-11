@@ -38,9 +38,12 @@ from cora.equipment.features import (
     activate_asset,
     decommission_asset,
     define_capability,
+    enter_maintenance,
+    get_asset,
     get_capability,
     register_asset,
     relocate_asset,
+    restore_from_maintenance,
 )
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
@@ -69,6 +72,9 @@ class EquipmentHandlers:
     activate_asset: activate_asset.Handler
     decommission_asset: decommission_asset.Handler
     relocate_asset: relocate_asset.Handler
+    enter_maintenance: enter_maintenance.Handler
+    restore_from_maintenance: restore_from_maintenance.Handler
+    get_asset: get_asset.Handler
 
 
 def wire_equipment(deps: SharedDeps) -> EquipmentHandlers:
@@ -118,5 +124,21 @@ def wire_equipment(deps: SharedDeps) -> EquipmentHandlers:
             relocate_asset.bind(deps),
             command_name="RelocateAsset",
             bc=_BC,
+        ),
+        enter_maintenance=with_tracing(
+            enter_maintenance.bind(deps),
+            command_name="EnterMaintenance",
+            bc=_BC,
+        ),
+        restore_from_maintenance=with_tracing(
+            restore_from_maintenance.bind(deps),
+            command_name="RestoreFromMaintenance",
+            bc=_BC,
+        ),
+        get_asset=with_tracing(
+            get_asset.bind(deps),
+            command_name="GetAsset",
+            bc=_BC,
+            kind="query",
         ),
     )

@@ -39,7 +39,9 @@ from cora.equipment.aggregates.asset import (
     AssetAlreadyExistsError,
     AssetCannotActivateError,
     AssetCannotDecommissionError,
+    AssetCannotEnterMaintenanceError,
     AssetCannotRelocateError,
+    AssetCannotRestoreFromMaintenanceError,
     AssetNotFoundError,
     InvalidAssetNameError,
     InvalidAssetParentError,
@@ -54,9 +56,12 @@ from cora.equipment.features import (
     activate_asset,
     decommission_asset,
     define_capability,
+    enter_maintenance,
+    get_asset,
     get_capability,
     register_asset,
     relocate_asset,
+    restore_from_maintenance,
 )
 
 
@@ -130,6 +135,9 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(activate_asset.router)
     app.include_router(decommission_asset.router)
     app.include_router(relocate_asset.router)
+    app.include_router(enter_maintenance.router)
+    app.include_router(restore_from_maintenance.router)
+    app.include_router(get_asset.router)
     for validation_cls in (
         InvalidCapabilityNameError,
         InvalidAssetNameError,
@@ -144,6 +152,8 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssetCannotActivateError,
         AssetCannotDecommissionError,
         AssetCannotRelocateError,
+        AssetCannotEnterMaintenanceError,
+        AssetCannotRestoreFromMaintenanceError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

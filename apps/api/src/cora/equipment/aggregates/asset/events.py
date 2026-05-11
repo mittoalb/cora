@@ -6,14 +6,15 @@ discriminated union, `event_type_name`, `to_payload`,
 lives at `cora.infrastructure.event_envelope.to_new_event`.
 
 Phase 5b shipped `AssetRegistered`. Phase 5c added `AssetActivated`
-and `AssetDecommissioned` (lifecycle transitions). Phase 5d adds
+and `AssetDecommissioned` (lifecycle transitions). Phase 5d added
 `AssetRelocated` — the **first event whose payload carries source
 AND target state** (`from_parent_id` + `to_parent_id`), needed
 because parent_id is mutable and the audit log should record both
 sides of the change without requiring readers to walk the prior
-event. 5e adds `AssetMaintenanceEntered` /
-`AssetMaintenanceRestored` (plus widens decommission to accept
-Maintenance as a third source state).
+event. Phase 5e adds `AssetMaintenanceEntered` and
+`AssetRestoredFromMaintenance` (single-source paired transitions:
+ACTIVE -> MAINTENANCE and MAINTENANCE -> ACTIVE) and widens the
+`AssetDecommissioned` source-state set to also accept MAINTENANCE.
 
 ## Payload conventions for Asset
 
@@ -93,6 +94,37 @@ class AssetDecommissioned:
 
 
 @dataclass(frozen=True)
+class AssetMaintenanceEntered:
+    """An asset was taken out of service for maintenance.
+
+    Lifecycle transition: `Active -> Maintenance` (single-source).
+    The evolver sets the new lifecycle; no lifecycle field in the
+    payload (event TYPE encodes the change). Same convention as
+    AssetActivated.
+    """
+
+    asset_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class AssetRestoredFromMaintenance:
+    """An asset was returned to active service after maintenance.
+
+    Lifecycle transition: `Maintenance -> Active` (single-source).
+    The evolver sets the new lifecycle; no lifecycle field in the
+    payload (event TYPE encodes the change). The verbose verb-prep-
+    noun naming is deliberate: the symmetric `AssetMaintenanceRestored`
+    reads ambiguously (sounds like maintenance was restored), so the
+    longer form unambiguously captures the asset's direction of
+    change.
+    """
+
+    asset_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
 class AssetRelocated:
     """An asset's parent in the hierarchy tree changed.
 
@@ -117,8 +149,15 @@ class AssetRelocated:
 
 # Discriminated union of every event the Asset aggregate emits.
 # Add new event classes above and extend this alias when new
-# slices land (5e: AssetMaintenance*).
-AssetEvent = AssetRegistered | AssetActivated | AssetDecommissioned | AssetRelocated
+# slices land.
+AssetEvent = (
+    AssetRegistered
+    | AssetActivated
+    | AssetDecommissioned
+    | AssetRelocated
+    | AssetMaintenanceEntered
+    | AssetRestoredFromMaintenance
+)
 
 
 def event_type_name(event: AssetEvent) -> str:
@@ -171,6 +210,16 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
                 "reason": reason,
                 "occurred_at": occurred_at.isoformat(),
             }
+        case AssetMaintenanceEntered(asset_id=asset_id, occurred_at=occurred_at):
+            return {
+                "asset_id": str(asset_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case AssetRestoredFromMaintenance(asset_id=asset_id, occurred_at=occurred_at):
+            return {
+                "asset_id": str(asset_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -211,6 +260,16 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                 reason=payload["reason"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "AssetMaintenanceEntered":
+            return AssetMaintenanceEntered(
+                asset_id=UUID(payload["asset_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "AssetRestoredFromMaintenance":
+            return AssetRestoredFromMaintenance(
+                asset_id=UUID(payload["asset_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown AssetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -220,8 +279,10 @@ __all__ = [
     "AssetActivated",
     "AssetDecommissioned",
     "AssetEvent",
+    "AssetMaintenanceEntered",
     "AssetRegistered",
     "AssetRelocated",
+    "AssetRestoredFromMaintenance",
     "event_type_name",
     "from_stored",
     "to_payload",

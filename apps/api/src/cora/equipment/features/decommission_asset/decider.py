@@ -1,24 +1,22 @@
 """Pure decider for the `DecommissionAsset` command.
 
-Multi-source-state transition: `Commissioned | Active ->
-Decommissioned`. Either source state is valid:
+Multi-source-state transition: `Commissioned | Active | Maintenance
+-> Decommissioned`. Each source state is valid:
 
   - Commissioned: asset never went into service (operator changed
     mind, decommissioning before activation).
   - Active: asset retired from service (typical case).
-
-5e will widen the accepted source states to also include
-`Maintenance` (asset decommissioned during maintenance window) by
-appending to the `_DECOMMISSIONABLE_LIFECYCLES` tuple.
+  - Maintenance: asset retired during a maintenance window
+    (operator decided not to bring it back into service).
 
 Source-state guard uses tuple-membership rather than a
-match-statement: the check is "is in {Commissioned, Active}",
-which is naturally a set-membership test. Matches the precedent
-locked by Subject's `remove_subject` decider in 4c.
+match-statement: the check is "is in {Commissioned, Active,
+Maintenance}", which is naturally a set-membership test. Matches
+the precedent locked by Subject's `remove_subject` decider in 4c.
 
 Invariants:
   - State must not be None -> AssetNotFoundError
-  - State.lifecycle must be in {Commissioned, Active}
+  - State.lifecycle must be in {Commissioned, Active, Maintenance}
     -> AssetCannotDecommissionError(current_lifecycle=...)
 """
 
@@ -36,6 +34,7 @@ from cora.equipment.features.decommission_asset.command import DecommissionAsset
 _DECOMMISSIONABLE_LIFECYCLES: tuple[AssetLifecycle, ...] = (
     AssetLifecycle.COMMISSIONED,
     AssetLifecycle.ACTIVE,
+    AssetLifecycle.MAINTENANCE,
 )
 
 

@@ -5,10 +5,12 @@ case forces pyright (and the runtime) to error if a new event type
 is added to `AssetEvent` without a matching match arm here.
 
 Lifecycle mapping per event type:
-  - `AssetRegistered`     -> COMMISSIONED  (genesis)
-  - `AssetActivated`      -> ACTIVE
-  - `AssetDecommissioned` -> DECOMMISSIONED   (multi-source: Commissioned | Active)
-  - `AssetRelocated`      -> (lifecycle UNCHANGED; mutates parent_id only)
+  - `AssetRegistered`              -> COMMISSIONED  (genesis)
+  - `AssetActivated`               -> ACTIVE
+  - `AssetDecommissioned`          -> DECOMMISSIONED  (3-source guard at decider)
+  - `AssetRelocated`               -> (lifecycle UNCHANGED; mutates parent_id only)
+  - `AssetMaintenanceEntered`      -> MAINTENANCE
+  - `AssetRestoredFromMaintenance` -> ACTIVE
 
 The lifecycle mapping is hardcoded per match arm — the event type
 IS the lifecycle-change indicator (no lifecycle field in event
@@ -35,8 +37,10 @@ from cora.equipment.aggregates.asset.events import (
     AssetActivated,
     AssetDecommissioned,
     AssetEvent,
+    AssetMaintenanceEntered,
     AssetRegistered,
     AssetRelocated,
+    AssetRestoredFromMaintenance,
 )
 from cora.equipment.aggregates.asset.state import (
     Asset,
@@ -86,9 +90,10 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
             )
         case AssetRelocated(to_parent_id=to_parent_id):
             # Hierarchy mutation: only parent_id changes; lifecycle / level
-            # / name carry over from prior state. The from_parent_id field
-            # in the event isn't read here (it's audit metadata; the prior
-            # state's parent_id is the source of truth for the read path).
+            # / name carry over from prior state. The from_parent_id and
+            # reason fields in the event aren't read here (they're audit
+            # metadata; the prior state's parent_id is the source of truth
+            # for the read path).
             prior = _require_state(state, "AssetRelocated")
             return Asset(
                 id=prior.id,
@@ -96,6 +101,24 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 level=prior.level,
                 parent_id=to_parent_id,
                 lifecycle=prior.lifecycle,
+            )
+        case AssetMaintenanceEntered():
+            prior = _require_state(state, "AssetMaintenanceEntered")
+            return Asset(
+                id=prior.id,
+                name=prior.name,
+                level=prior.level,
+                parent_id=prior.parent_id,
+                lifecycle=AssetLifecycle.MAINTENANCE,
+            )
+        case AssetRestoredFromMaintenance():
+            prior = _require_state(state, "AssetRestoredFromMaintenance")
+            return Asset(
+                id=prior.id,
+                name=prior.name,
+                level=prior.level,
+                parent_id=prior.parent_id,
+                lifecycle=AssetLifecycle.ACTIVE,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

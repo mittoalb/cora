@@ -72,9 +72,12 @@ def test_post_decommission_returns_409_when_already_decommissioned() -> None:
     assert second.status_code == 409
     body = second.json()
     assert "Decommissioned" in body["detail"]
-    # Multi-source guard: error message lists BOTH allowed source states.
+    # Multi-source guard: error message lists ALL THREE allowed source
+    # states (5e widened from {Commissioned, Active} to also include
+    # Maintenance).
     assert "Commissioned" in body["detail"]
     assert "Active" in body["detail"]
+    assert "Maintenance" in body["detail"]
 
 
 @pytest.mark.contract

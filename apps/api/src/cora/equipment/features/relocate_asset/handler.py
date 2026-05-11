@@ -1,13 +1,18 @@
 """Application handler for the `relocate_asset` slice.
 
-Update-style handler shape — same template as `activate_asset` /
-`decommission_asset`. Load + fold + decide + append. Not
+Update-style handler shape — load + fold + decide + append. Not
 idempotency-wrapped.
 
-Per the 5c decision, Equipment defers per-BC update-handler
-factory extraction to 5e (when 4-5 update-style handlers will
-exist). 5d adds the third instance; 5e adds the fourth+. Each
-handler body stays inlined for now.
+**Stays longhand after the 5e-cleanup factory extraction.** The
+factory `make_equipment_update_handler` (5e) covers the four
+single-field Asset transitions (activate / decommission /
+enter_maintenance / restore_from_maintenance) whose log shape is
+just `asset_id`. Relocate is the outlier: its command carries
+`to_parent_id` and `reason` in addition to `asset_id`, and the
+handler logs `to_parent_id` at start + success for diagnostic
+visibility. Threading a generic "extra log fields" hook through the
+factory for one slice would cost more LOC than the inlined ~120
+lines saves, so relocate keeps the longhand body.
 """
 
 from typing import Protocol

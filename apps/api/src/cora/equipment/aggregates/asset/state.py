@@ -177,26 +177,63 @@ class AssetCannotActivateError(Exception):
 
 
 class AssetCannotDecommissionError(Exception):
-    """Attempted to decommission an asset not in `Commissioned` or `Active`.
+    """Attempted to decommission an asset not in `Commissioned`, `Active`, or `Maintenance`.
 
-    Multi-source guard: `decommission` accepts both `Commissioned`
-    (asset never went into service — operator changed mind) and
-    `Active` (asset retired from service). 5e will widen the
-    accepted source states to also include `Maintenance` (asset
-    decommissioned during maintenance window); the tuple in the
-    decider's `_DECOMMISSIONABLE_LIFECYCLES` is the single edit
-    point.
-
-    The decider checks via tuple-membership; the error message
-    lists currently-allowed source states for diagnostic clarity.
-    Mirrors Subject's `SubjectCannotRemoveError` pattern.
+    Multi-source guard: `decommission` accepts `Commissioned` (asset
+    never went into service — operator changed mind), `Active` (asset
+    retired from service), and `Maintenance` (asset retired during a
+    maintenance window). The decider's `_DECOMMISSIONABLE_LIFECYCLES`
+    tuple is the single edit point that controls the allowed source
+    set; the error message lists currently-allowed source states for
+    diagnostic clarity. Mirrors Subject's `SubjectCannotRemoveError`
+    pattern.
     """
 
     def __init__(self, asset_id: UUID, current_lifecycle: "AssetLifecycle") -> None:
         super().__init__(
             f"Asset {asset_id} cannot be decommissioned: currently in lifecycle "
             f"{current_lifecycle.value}, decommission requires "
-            f"{AssetLifecycle.COMMISSIONED.value} or {AssetLifecycle.ACTIVE.value}"
+            f"{AssetLifecycle.COMMISSIONED.value}, {AssetLifecycle.ACTIVE.value}, "
+            f"or {AssetLifecycle.MAINTENANCE.value}"
+        )
+        self.asset_id = asset_id
+        self.current_lifecycle = current_lifecycle
+
+
+class AssetCannotEnterMaintenanceError(Exception):
+    """Attempted to enter maintenance on an asset not in `Active`.
+
+    Strict semantics: re-entering maintenance on an already-`Maintenance`
+    asset also raises (rather than no-op). Industrial convention: only
+    in-service (Active) assets enter maintenance; Commissioned assets
+    are still pre-service, Decommissioned ones are retired. Per-transition
+    error class — same naming convention as `SubjectCannot<X>Error` and
+    `AssetCannotActivateError`.
+    """
+
+    def __init__(self, asset_id: UUID, current_lifecycle: "AssetLifecycle") -> None:
+        super().__init__(
+            f"Asset {asset_id} cannot enter maintenance: currently in lifecycle "
+            f"{current_lifecycle.value}, enter_maintenance requires "
+            f"{AssetLifecycle.ACTIVE.value}"
+        )
+        self.asset_id = asset_id
+        self.current_lifecycle = current_lifecycle
+
+
+class AssetCannotRestoreFromMaintenanceError(Exception):
+    """Attempted to restore-from-maintenance on an asset not in `Maintenance`.
+
+    Strict semantics: restoring an already-`Active` asset also raises
+    (the maintenance window has already ended). Mirrors
+    AssetCannotEnterMaintenanceError. Single-source guard like activate.
+    """
+
+    def __init__(self, asset_id: UUID, current_lifecycle: "AssetLifecycle") -> None:
+        super().__init__(
+            f"Asset {asset_id} cannot be restored from maintenance: currently in lifecycle "
+            f"{current_lifecycle.value}, restore_from_maintenance requires "
+            f"{AssetLifecycle.MAINTENANCE.value}"
         )
         self.asset_id = asset_id
         self.current_lifecycle = current_lifecycle
