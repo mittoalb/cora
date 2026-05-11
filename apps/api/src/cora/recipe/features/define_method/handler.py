@@ -8,13 +8,15 @@ Module-as-namespace: callers use
 `define_method.bind(deps)` returning a `define_method.Handler`.
 
 Eighth instance of the create-style template body. The cross-BC
-extraction question reopens here (parked since the post-Phase-4
-review at 5 instances; locked deferred at 7 instances after 5b).
-At 8 byte-identical instances spread across 5 BCs, threading them
-through one factory is finally cheaper than continuing to maintain
-8 copies. Defer the actual extraction to a separate refactor commit
-after 6a ships so the gate-review can sign off on the cross-BC
-shape; the 6a commit itself stays focused on Method.
+extraction question reopens periodically (parked since the
+post-Phase-4 review at 5 instances; reviewed and re-deferred at 7
+instances after 5b, at 8 instances after 6a, and most recently at
+10 instances after 6e-1 with no per-instance divergence pressure
+that would make a factory more useful than the current copies).
+The locked stance: the create-style template is structural
+ceremony around per-handler closure-over-deps shapes; until
+divergence pressure emerges, the duplication is cheaper to read
+than a generic factory would be.
 """
 
 from typing import Protocol

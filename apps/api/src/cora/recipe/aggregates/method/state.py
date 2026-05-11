@@ -49,9 +49,11 @@ derives the new status from the event TYPE — same precedent as
 
 `MethodName` is the **eighth** trimmed-bounded-name VO after
 `ActorName`, `ZoneName`, `ConduitName`, `PolicyName`, `SubjectName`,
-`CapabilityName`, `AssetName`. The 5a gate-review locked the
-`BoundedName` factory extraction as deferred until first per-VO
-divergence OR ~10 instances; this commit doesn't change that.
+`CapabilityName`, `AssetName`. Phase 6e-1 hoisted the shared
+trim+length-check logic to `cora.infrastructure.name.validate_name`
+once the 10th VO (PlanName) landed; MethodName now calls that helper
+while keeping its own frozen dataclass type and per-aggregate error
+class. See the helper module's docstring for the design rationale.
 
 ## Frozensets in state, lists in payloads
 
@@ -194,10 +196,9 @@ class InvalidMethodVersionTagError(ValueError):
 class MethodName:
     """Display name for a method. Trimmed; 1-200 chars.
 
-    Eighth occurrence of the trimmed-bounded-name VO pattern. The
-    BoundedName factory extraction stays deferred per the 5a
-    gate-review decision (revisit at first per-VO divergence or
-    ~10 instances).
+    Eighth occurrence of the trimmed-bounded-name VO pattern. Uses
+    the shared `validate_name` helper hoisted in 6e-1 (see
+    `cora.infrastructure.name`).
     """
 
     value: str

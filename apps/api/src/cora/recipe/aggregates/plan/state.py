@@ -9,21 +9,23 @@ Per the BC map's recipe ladder: Method (≈ General Recipe, equipment-
 agnostic) → Practice (≈ Site Recipe, facility-localized) → Plan
 (≈ Master/Control Recipe, equipment-bound) → Run (≈ batch execution).
 
-## Phase 6e-1 scope
+## Aggregate scope
 
-Minimal Plan:
+Plan state:
   - `id` + `name`
   - `practice_id: UUID` — the Practice this Plan binds (eventual-
     consistency ref; existence verified at handler-load time, not
     in the decider)
   - `asset_ids: frozenset[UUID]` — the Assets this Plan is bound
     to (multi-asset binding; gate-review Q3)
-  - `status: PlanStatus` (Defined initially; Versioned / Deprecated
-    land in 6e-2)
+  - `status: PlanStatus` (Defined → Versioned → Deprecated FSM)
+  - `version: str | None` — operator-supplied label of the most
+    recent `version_plan` call (None until first version)
 
-The `version` field will be added in 6e-2 alongside the
-`version_plan` slice (matches Method 6a→6b and Practice 6d-1→6d-2
-precedent: add fields when the first mutating event arrives, not
+Phase history: 6e-1 shipped scaffold + `define_plan` + `get_plan`;
+6e-2 added the `version` field with `version_plan` + `deprecate_plan`
+transitions (matches Method 6a→6b and Practice 6d-1→6d-2 precedent
+of adding fields when the first mutating event arrives, not
 speculatively).
 
 Audit data captured at bind time (`method_id`, snapshots of the

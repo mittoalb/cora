@@ -38,9 +38,10 @@ Asset (hierarchy + lifecycle).
 
 `CapabilityName` is the **sixth** trimmed-bounded-name VO after
 `ActorName`, `ZoneName`, `ConduitName`, `PolicyName`, `SubjectName`.
-The post-Phase-3 review explicitly deferred the `BoundedName`
-factory extraction to "see what the 6th instance does"; gate-
-review at the end of 5a is the moment to make that call.
+Phase 6e-1 hoisted the shared trim+length-check logic to
+`cora.infrastructure.name.validate_name` once the 10th VO (PlanName)
+landed; CapabilityName now calls that helper while keeping its own
+frozen dataclass type and per-aggregate error class.
 """
 
 from dataclasses import dataclass
@@ -163,10 +164,9 @@ class InvalidCapabilityVersionTagError(ValueError):
 class CapabilityName:
     """Display name for a capability. Trimmed; 1-200 chars.
 
-    Sixth occurrence of the trimmed-bounded-name VO pattern. Kept
-    distinct so invariants can diverge per aggregate; the
-    `BoundedName` factory extraction question reopens at this point
-    per the post-Phase-3 review's deferred-to-#6 plan.
+    Sixth occurrence of the trimmed-bounded-name VO pattern. Uses
+    the shared `validate_name` helper hoisted in 6e-1 (see
+    `cora.infrastructure.name`).
     """
 
     value: str

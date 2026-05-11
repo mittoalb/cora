@@ -51,14 +51,14 @@ physical interpretation. If this overloading gets confused later,
 split into a separate `Forming` state additively (state-level field
 with a default; no event upcaster needed).
 
-## Why no fourth bounded-name VO yet (or fifth)
+## Fifth bounded-name VO
 
 `SubjectName` is the **fifth** trimmed-bounded-name VO after
-`ActorName`, `ZoneName`, `ConduitName`, `PolicyName`. The bodies
-remain byte-identical at this commit; the BoundedName factory
-extraction was deferred from the post-Phase-3 review specifically to
-see whether the fifth instance still fits. Reviewing that decision
-is a Phase 4a gate-review concern, not part of this slice's domain.
+`ActorName`, `ZoneName`, `ConduitName`, `PolicyName`. Phase 6e-1
+hoisted the shared trim+length-check logic to
+`cora.infrastructure.name.validate_name` once the 10th VO (PlanName)
+landed; SubjectName now calls that helper while keeping its own
+frozen dataclass type and per-aggregate error class.
 """
 
 from dataclasses import dataclass
@@ -256,12 +256,9 @@ class SubjectCannotDiscardError(Exception):
 class SubjectName:
     """Display name for a subject. Trimmed; 1-200 chars.
 
-    Fifth occurrence of the trimmed-bounded-name VO pattern. Kept
-    distinct so invariants can diverge per aggregate; if all five
-    stay byte-identical, the post-Phase-4a gate review is the
-    moment to revisit `BoundedName` factory extraction (deferred
-    in the post-Phase-3 cleanup specifically to see if Subject
-    would fit).
+    Fifth occurrence of the trimmed-bounded-name VO pattern. Uses
+    the shared `validate_name` helper hoisted in 6e-1 (see
+    `cora.infrastructure.name`).
     """
 
     value: str

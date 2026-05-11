@@ -23,15 +23,17 @@ Track-A BC: depends on `Equipment.Capability` (referenced by
 eventual-consistency stance (decider does NOT verify referenced
 Capability / Asset exists; precedent locked at Trust 3b).
 
-Phase 6a ships `Method` + `define_method` + `get_method`. Subsequent
-phases:
+Phase history (✅ all shipped except 6c, 6f):
+  - 6a: `Method` + `define_method` + `get_method`
   - 6b: Method transitions (version, deprecate)
-  - 6c: Method enrichment (description, owner) — defer-candidate
-  - 5f: Asset.capabilities (just-in-time before Plan)
-  - 6d: Practice aggregate
-  - 6e: Plan aggregate (depends on Asset.capabilities for structural
-    binding validation)
-  - 6f: Run aggregate
+  - 6d: Practice aggregate (define + get + version + deprecate)
+  - 5f: Asset.capabilities (just-in-time before Plan; Equipment side)
+  - 6e: Plan aggregate (define + get + version + deprecate; binds
+    Practice + multi-asset set with capability-superset check via
+    PlanBindingContext pattern)
+  - 6c (deferred): Method/Practice/Plan enrichment (description,
+    owner, default parameters) — defer-candidate
+  - 6f: Run aggregate (the keystone; binds Plan + Subject)
 
 Layout (mirrors Equipment / Trust / Subject):
     aggregates/<aggregate>/   -- aggregate state, events union, evolver, read

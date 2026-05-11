@@ -51,11 +51,11 @@ the evolver reconstructs via `AssetLevel(payload["level"])`.
 
 ## Seventh bounded-name VO
 
-`AssetName` is the **seventh** trimmed-bounded-name VO. Phase 5a's
-gate-review decided to defer `BoundedName` factory extraction at
-the 6-instance mark; the trigger was "first per-VO divergence OR
-~10 instances". This commit doesn't change that — AssetName stays
-byte-identical with the prior 6.
+`AssetName` is the **seventh** trimmed-bounded-name VO. Phase 6e-1
+hoisted the shared trim+length-check logic to
+`cora.infrastructure.name.validate_name` once the 10th VO (PlanName)
+landed; AssetName now calls that helper while keeping its own frozen
+dataclass type and per-aggregate error class.
 """
 
 from dataclasses import dataclass, field
@@ -313,10 +313,9 @@ class AssetCannotRelocateError(Exception):
 class AssetName:
     """Display name for an asset. Trimmed; 1-200 chars.
 
-    Seventh occurrence of the trimmed-bounded-name VO pattern.
-    BoundedName factory extraction stays deferred per the Phase 5a
-    gate-review decision (revisit at first per-VO divergence or
-    ~10 instances).
+    Seventh occurrence of the trimmed-bounded-name VO pattern. Uses
+    the shared `validate_name` helper hoisted in 6e-1 (see
+    `cora.infrastructure.name`).
     """
 
     value: str

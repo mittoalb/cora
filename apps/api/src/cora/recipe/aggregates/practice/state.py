@@ -63,10 +63,10 @@ mirrors Method's: Defined → Versioned → Deprecated.
 
 `PracticeName` is the **ninth** trimmed-bounded-name VO after
 Actor / Zone / Conduit / Policy / Subject / Capability / Asset /
-Method. The 5a gate-review locked the `BoundedName` factory
-extraction as deferred until first per-VO divergence OR ~10
-instances. The 10th instance is one bounded-name VO away —
-extraction question reopens at that point.
+Method. Phase 6e-1 hoisted the shared trim+length-check logic to
+`cora.infrastructure.name.validate_name` once the 10th VO (PlanName)
+landed; PracticeName now calls that helper while keeping its own
+frozen dataclass type and per-aggregate error class.
 """
 
 from dataclasses import dataclass
@@ -190,10 +190,9 @@ class InvalidPracticeVersionTagError(ValueError):
 class PracticeName:
     """Display name for a practice. Trimmed; 1-200 chars.
 
-    Ninth occurrence of the trimmed-bounded-name VO pattern. The
-    BoundedName factory extraction stays deferred per the 5a
-    gate-review decision (revisit at first per-VO divergence or
-    ~10 instances; 10th is one VO away).
+    Ninth occurrence of the trimmed-bounded-name VO pattern. Uses
+    the shared `validate_name` helper hoisted in 6e-1 (see
+    `cora.infrastructure.name`).
     """
 
     value: str
