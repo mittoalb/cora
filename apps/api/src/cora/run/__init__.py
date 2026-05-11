@@ -59,7 +59,7 @@ Active-phase transitions (6f-2 + 6f-3):
     exit. Carries free-form `reason: str` (1-500 chars). Distinct
     from abort: stop = data valid up to the stop point; abort =
     data flagged as potentially invalid (PackML + Bluesky lifecycle-
-    layer distinction; substream cleanup semantics materialize in
+    layer distinction; observation-channel cleanup semantics materialize in
     6f-5+).
 
 Why complete_run is single-source while abort/stop are multi-
@@ -76,8 +76,8 @@ Phase history:
   - 6f-3: hold_run + resume_run + stop_run (pause cycle +
     controlled-exit terminal) ✅
   - 6f-4 (deferred): Truncated terminal + truncation-reason design
-  - 6f-5 (deferred): First substream infrastructure + per-frame
-    trigger substream (high-cardinality telemetry)
+  - 6f-5 (deferred): Additional observation channels + per-frame
+    trigger channel (high-cardinality telemetry)
 
 Known gaps (pre-6f-1 sequencing decisions, gate-review Q3 locked):
   - **Supply availability check** (Track B Supply BC not shipped):

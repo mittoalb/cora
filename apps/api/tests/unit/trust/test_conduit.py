@@ -67,14 +67,19 @@ def test_channel_kind_traversals_is_a_stable_string_constant() -> None:
 
 
 @pytest.mark.unit
-def test_conduit_channel_already_open_error_carries_ids() -> None:
+def test_conduit_channel_already_open_error_carries_kind_and_existing_id() -> None:
+    """Phase 6f-5a: state encodes at-most-one-open-per-kind invariant;
+    the error names the kind that's already busy and which channel id
+    is occupying it."""
     conduit_id = uuid4()
-    channel_id = uuid4()
-    err = ConduitChannelAlreadyOpenError(conduit_id, channel_id)
+    existing = uuid4()
+    err = ConduitChannelAlreadyOpenError(conduit_id, "traversals", existing)
     assert err.conduit_id == conduit_id
-    assert err.channel_id == channel_id
+    assert err.kind == "traversals"
+    assert err.existing_channel_id == existing
     msg = str(err)
-    assert str(channel_id) in msg
+    assert "traversals" in msg
+    assert str(existing) in msg
     assert "open" in msg.lower()
 
 

@@ -13,7 +13,7 @@ plus `get_subject` (read side). Full lifecycle: `Received -> Mounted
 -> Measured -> Removed -> Returned | Stored | Discarded`. Update-style
 handlers share `_update_handler.make_subject_update_handler` (see its
 docstring for the factory's contract). `hazard`, `custody`, `owner`,
-and the in-situ-during-Run substream defer to Phase 4f+.
+and the in-situ-during-Run observation channel defers to Phase 4f+.
 
 Layout:
     aggregates/<aggregate>/   -- aggregate state, events union, evolver

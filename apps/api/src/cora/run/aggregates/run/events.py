@@ -9,12 +9,12 @@ Phase 6f-1 shipped `RunStarted`. Phase 6f-2 added:
   - `RunCompleted` — happy-path terminal (Running → Completed).
     Payload is `run_id` + `occurred_at` only; substantive run
     summary (frame_count, duration_ms, final detector positions,
-    etc.) is deferred to 6f-5+ when DAQ-substream integration
+    etc.) is deferred to 6f-5+ when DAQ-channel integration
     arrives. Per the fold-cost principles, the completion event
     SHOULD eventually carry summary state so consumers don't have
     to re-fold per-step history just to ask "what happened in
     Run X?" — but the substantive shape only crystallizes once
-    the substream layer exists to source it.
+    the observation-channel infrastructure exists to source it.
   - `RunAborted` — emergency-exit terminal (Running | Held → Aborted).
     Payload carries `run_id` + free-form `reason: str` (1-500 chars)
     + `occurred_at`. Reason is stored as primitive string today;
@@ -41,7 +41,7 @@ exit terminal:
     terminal exit deserves audit explanation. Distinct from Aborted:
     Stopped data is valid up to the stop point; Aborted data is
     flagged as potentially invalid (PackML + Bluesky semantic
-    distinction at the lifecycle layer; substream cleanup semantics
+    distinction at the lifecycle layer; observation-channel cleanup semantics
     materialize in 6f-5+).
 
 Hold ⇄ Resume is a bidirectional cycle with unlimited repeats; the
@@ -52,8 +52,8 @@ event stream itself.
 
 Subsequent phases:
   - 6f-4: RunTruncated (partial-data terminal; reason design TBD)
-  - 6f-5: substream events (per-frame triggers, motor positions —
-    NOT on the main Run stream; substream territory)
+  - 6f-5: observation events (per-frame triggers, motor positions —
+    NOT on the main Run stream; observation-channel territory)
 
 ## Payload conventions
 
@@ -126,7 +126,7 @@ class RunCompleted:
     """A Run reached its happy-path terminal (Running → Completed).
 
     Slim payload by design (gate-review Q3): substantive run
-    summary lands in 6f-5+ once DAQ-substream integration is in
+    summary lands in 6f-5+ once DAQ-channel integration is in
     place to source it. Today, downstream consumers needing
     aggregate read state should fold the Run stream — the stream
     is short for terminal-by-design Lifecycle Aggregates (a

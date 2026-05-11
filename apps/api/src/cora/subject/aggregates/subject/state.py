@@ -18,7 +18,7 @@ Status lifecycle (the full transitions) shipped 4b-4d:
   - 4b: Received -> Mounted
   - 4c: Mounted -> Measured; Mounted | Measured -> Removed
   - 4d: Removed -> Returned | Stored | Discarded   (terminal disposition)
-`hazard`, `custody`, `owner`, and the in-situ-during-Run substream
+`hazard`, `custody`, `owner`, and the in-situ-during-Run observation channel
 defer to Phase 4f+.
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
@@ -151,7 +151,7 @@ class SubjectCannotMeasureError(Exception):
     Strict semantics: re-measuring an already-`Measured` subject also
     raises (rather than no-op or always-emit). Per-measurement detail
     (which scan, params, results) is out of scope at the aggregate
-    level; that lives in `Run` + substreams later. The aggregate-level
+    level; that lives in `Run` observation channels later. The aggregate-level
     `Measured` status just means "has been measured at least once".
 
     See `SubjectCannotMountError` docstring for the per-transition-

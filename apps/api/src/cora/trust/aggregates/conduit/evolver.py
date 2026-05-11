@@ -5,16 +5,23 @@ Mirror of `cora/trust/aggregates/zone/evolver.py`. The terminal
 new event type is added to `ConduitEvent` without a matching match
 arm.
 
-Phase 6f-5a adds two channel-lifecycle event arms:
-  - `ConduitChannelOpened` adds the channel id to `open_channels`
-  - `ConduitChannelClosed` removes it
+Phase 6f-5a adds two channel-lifecycle event arms over the
+`channels: dict[str, UUID]` state shape:
+  - `ConduitChannelOpened` adds `(kind, channel_id)` to `channels`,
+    enforcing the at-most-one-open-per-kind invariant — opening a
+    second channel of an existing kind raises
+    `ConduitChannelAlreadyOpenError` carrying the existing channel id.
+  - `ConduitChannelClosed` finds the kind that owns the closed
+    channel id and removes that entry; raises
+    `ConduitChannelNotOpenError` if no kind owns the id.
 
 Defensive guards: both arms raise on `state is None` (the parent
 Conduit must exist before any channel can attach to it). The
-open-arm raises if the channel id is already in `open_channels`
-(should be impossible in a clean stream; signals contamination);
-the close-arm raises if the id is not in `open_channels`
-(symmetric).
+evolver returns a fresh `Conduit` with a new `channels` dict on
+every channel-open / channel-close — the dict is never mutated in
+place. Frozen dataclass blocks field reassignment but not dict
+mutation; the codebase relies on the same evolver-purity discipline
+used by every other aggregate.
 """
 
 from collections.abc import Sequence
@@ -51,20 +58,28 @@ def evolve(state: Conduit | None, event: ConduitEvent) -> Conduit:
                 source_zone_id=source_zone_id,
                 target_zone_id=target_zone_id,
             )
-        case ConduitChannelOpened(channel_id=channel_id):
+        case ConduitChannelOpened(channel_id=channel_id, kind=kind):
             if state is None:
                 msg = "ConduitChannelOpened before ConduitDefined: stream is corrupted"
                 raise ValueError(msg)
-            if channel_id in state.open_channels:
-                raise ConduitChannelAlreadyOpenError(state.id, channel_id)
-            return replace(state, open_channels=state.open_channels | {channel_id})
+            existing = state.channels.get(kind)
+            if existing is not None:
+                raise ConduitChannelAlreadyOpenError(state.id, kind, existing)
+            return replace(state, channels={**state.channels, kind: channel_id})
         case ConduitChannelClosed(channel_id=channel_id):
             if state is None:
                 msg = "ConduitChannelClosed before ConduitDefined: stream is corrupted"
                 raise ValueError(msg)
-            if channel_id not in state.open_channels:
+            matching_kind = next(
+                (k for k, v in state.channels.items() if v == channel_id),
+                None,
+            )
+            if matching_kind is None:
                 raise ConduitChannelNotOpenError(state.id, channel_id)
-            return replace(state, open_channels=state.open_channels - {channel_id})
+            return replace(
+                state,
+                channels={k: v for k, v in state.channels.items() if k != matching_kind},
+            )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 

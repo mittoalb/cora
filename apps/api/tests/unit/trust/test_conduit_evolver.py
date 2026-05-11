@@ -103,7 +103,7 @@ def test_decider_and_evolver_round_trip() -> None:
 
     Phase 6f-5a: the decider emits ConduitDefined + ConduitChannelOpened,
     and the evolver folds both into a Conduit with the traversals
-    channel id present in `open_channels`.
+    channel id present in `channels`.
     """
     new_id = uuid4()
     channel_id = uuid4()
@@ -129,7 +129,7 @@ def test_decider_and_evolver_round_trip() -> None:
         name=ConduitName("Detector-to-Storage"),
         source_zone_id=source,
         target_zone_id=target,
-        open_channels=frozenset({channel_id}),
+        channels={"traversals": channel_id},
     )
 
 
@@ -147,7 +147,7 @@ def _genesis(conduit_id: object | None = None) -> ConduitDefined:
 
 
 @pytest.mark.unit
-def test_evolve_channel_opened_adds_id_to_open_channels() -> None:
+def test_evolve_channel_opened_adds_kind_id_pair_to_channels() -> None:
     genesis = _genesis()
     state = evolve(None, genesis)
     channel_id = uuid4()
@@ -161,11 +161,11 @@ def test_evolve_channel_opened_adds_id_to_open_channels() -> None:
             occurred_at=_NOW,
         ),
     )
-    assert after_open.open_channels == frozenset({channel_id})
+    assert after_open.channels == {"traversals": channel_id}
 
 
 @pytest.mark.unit
-def test_evolve_channel_closed_removes_id_from_open_channels() -> None:
+def test_evolve_channel_closed_removes_kind_entry() -> None:
     genesis = _genesis()
     state = evolve(None, genesis)
     channel_id = uuid4()
@@ -187,7 +187,7 @@ def test_evolve_channel_closed_removes_id_from_open_channels() -> None:
             occurred_at=_NOW,
         ),
     )
-    assert state.open_channels == frozenset()
+    assert state.channels == {}
 
 
 @pytest.mark.unit
@@ -217,23 +217,36 @@ def test_evolve_channel_closed_on_none_state_raises() -> None:
 
 
 @pytest.mark.unit
-def test_evolve_channel_opened_raises_when_id_already_open() -> None:
-    """Defensive guard: same channel id reopened means stream
-    contamination (channel ids are UUIDv7-fresh per opening)."""
+def test_evolve_channel_opened_raises_when_kind_already_open() -> None:
+    """At-most-one-open-per-kind invariant: opening a second channel
+    of an existing kind raises with the existing channel id."""
     genesis = _genesis()
-    channel_id = uuid4()
-    open_event = ConduitChannelOpened(
-        conduit_id=genesis.conduit_id,
-        channel_id=channel_id,
-        kind="traversals",
-        schema=_sample_schema(),
-        occurred_at=_NOW,
-    )
+    first_id = uuid4()
+    second_id = uuid4()
     state = evolve(None, genesis)
-    state = evolve(state, open_event)
+    state = evolve(
+        state,
+        ConduitChannelOpened(
+            conduit_id=genesis.conduit_id,
+            channel_id=first_id,
+            kind="traversals",
+            schema=_sample_schema(),
+            occurred_at=_NOW,
+        ),
+    )
     with pytest.raises(ConduitChannelAlreadyOpenError) as exc_info:
-        evolve(state, open_event)
-    assert exc_info.value.channel_id == channel_id
+        evolve(
+            state,
+            ConduitChannelOpened(
+                conduit_id=genesis.conduit_id,
+                channel_id=second_id,  # different id, same kind
+                kind="traversals",
+                schema=_sample_schema(),
+                occurred_at=_NOW,
+            ),
+        )
+    assert exc_info.value.kind == "traversals"
+    assert exc_info.value.existing_channel_id == first_id
 
 
 @pytest.mark.unit
@@ -256,9 +269,8 @@ def test_evolve_channel_closed_raises_when_id_not_open() -> None:
 
 
 @pytest.mark.unit
-def test_fold_full_open_close_cycle_yields_empty_open_channels() -> None:
-    """Channel lifecycle: open then close brings open_channels back
-    to empty, like a stack."""
+def test_fold_full_open_close_cycle_yields_empty_channels() -> None:
+    """Channel lifecycle: open then close brings channels back to empty."""
     genesis = _genesis()
     channel_id = uuid4()
     state = fold(
@@ -279,14 +291,14 @@ def test_fold_full_open_close_cycle_yields_empty_open_channels() -> None:
         ]
     )
     assert state is not None
-    assert state.open_channels == frozenset()
+    assert state.channels == {}
 
 
 @pytest.mark.unit
-def test_fold_supports_multiple_open_channels_simultaneously() -> None:
-    """The aggregate state allows multiple channels open at once;
-    today only `traversals` ships, but the slot-set design supports
-    future per-kind channels (frame_triggers, motor_positions, ...)."""
+def test_fold_supports_multiple_kinds_open_simultaneously() -> None:
+    """One channel per kind open at a time, but multiple kinds can
+    coexist. Future Run/Decision aggregates will use the same shape
+    (frame_triggers, motor_positions, reasoning_tokens, ...)."""
     genesis = _genesis()
     ch_a = uuid4()
     ch_b = uuid4()
@@ -310,4 +322,39 @@ def test_fold_supports_multiple_open_channels_simultaneously() -> None:
         ]
     )
     assert state is not None
-    assert state.open_channels == frozenset({ch_a, ch_b})
+    assert state.channels == {"traversals": ch_a, "other_kind": ch_b}
+
+
+@pytest.mark.unit
+def test_fold_supports_reopening_a_kind_after_close() -> None:
+    """Close-then-reopen on the same kind works (the kind slot is
+    free after close, so a fresh channel can take it)."""
+    genesis = _genesis()
+    first_id = uuid4()
+    second_id = uuid4()
+    state = fold(
+        [
+            genesis,
+            ConduitChannelOpened(
+                conduit_id=genesis.conduit_id,
+                channel_id=first_id,
+                kind="traversals",
+                schema=_sample_schema(),
+                occurred_at=_NOW,
+            ),
+            ConduitChannelClosed(
+                conduit_id=genesis.conduit_id,
+                channel_id=first_id,
+                occurred_at=_NOW,
+            ),
+            ConduitChannelOpened(
+                conduit_id=genesis.conduit_id,
+                channel_id=second_id,
+                kind="traversals",
+                schema=_sample_schema(),
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.channels == {"traversals": second_id}

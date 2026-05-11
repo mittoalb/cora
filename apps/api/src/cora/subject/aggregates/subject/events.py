@@ -56,7 +56,7 @@ class SubjectMeasured:
 
     Status transition: `Mounted -> Measured`. Aggregate-level "has
     been measured at least once" — per-measurement detail (which
-    scan, params, results) lives in `Run` + substreams later. The
+    scan, params, results) lives in `Run` observation channels later. The
     evolver sets the new status; no status field in the payload.
     """
 

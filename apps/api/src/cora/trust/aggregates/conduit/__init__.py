@@ -4,12 +4,13 @@ Vertical slices that operate on this aggregate live under
 `cora.trust.features.<verb>_conduit/` and import from here for state
 and event types.
 
-Phase 6f-5a adds channel-lifecycle infrastructure: `open_channels`
-on the aggregate state, `ConduitChannelOpened` / `ConduitChannelClosed`
-events on the main stream, and the `traversals` channel kind
-constant. Per-decision authz audit observations live in the
-sibling `observations.py` module (separate from the aggregate
-event-store path).
+Phase 6f-5a adds channel-lifecycle infrastructure: `channels`
+(dict mapping kind → currently-open channel id) on the aggregate
+state, `ConduitChannelOpened` / `ConduitChannelClosed` events on
+the main stream, and the `traversals` channel kind constant.
+Per-decision authz audit observations live in the sibling
+`observations.py` module (separate from the aggregate event-store
+path).
 """
 
 from cora.trust.aggregates.conduit.events import (

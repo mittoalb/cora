@@ -15,7 +15,7 @@ type hierarchy (General → Site → Master → Control):
     Method (or Practice) to a specific Asset instance, ready to
     schedule or execute. Phase 6e.
   - `Run` — the actual execution. High-cardinality streams; first
-    BC where substreams territory becomes relevant. Phase 6f.
+    BC where observation channels become relevant. Phase 6f.
 
 Track-A BC: depends on `Equipment.Capability` (referenced by
 `Method.needs_capabilities`) and (later) `Equipment.Asset`

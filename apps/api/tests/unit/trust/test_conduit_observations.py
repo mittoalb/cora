@@ -7,7 +7,7 @@ the InMemory adapter's contract behaviors:
   - append stores rows by event_id
   - retry with the same event_id is a no-op (mirrors Postgres's
     ON CONFLICT (event_id) DO NOTHING)
-  - all_traversals returns rows in insertion order (test convenience)
+  - all returns rows in insertion order (test convenience)
 """
 
 from datetime import UTC, datetime
@@ -41,8 +41,8 @@ def _traversal(*, event_id: object | None = None) -> ConduitTraversal:
 @pytest.mark.unit
 async def test_in_memory_append_empty_list_is_noop() -> None:
     store = InMemoryTraversalStore()
-    await store.append_traversals([])
-    assert store.all_traversals() == []
+    await store.append([])
+    assert store.all() == []
 
 
 @pytest.mark.unit
@@ -50,8 +50,8 @@ async def test_in_memory_append_persists_rows_by_event_id() -> None:
     store = InMemoryTraversalStore()
     row_a = _traversal()
     row_b = _traversal()
-    await store.append_traversals([row_a, row_b])
-    persisted = store.all_traversals()
+    await store.append([row_a, row_b])
+    persisted = store.all()
     assert len(persisted) == 2
     assert {r.event_id for r in persisted} == {row_a.event_id, row_b.event_id}
 
@@ -91,10 +91,10 @@ async def test_in_memory_append_with_duplicate_event_id_is_noop() -> None:
         causation_id=None,
         occurred_at=_NOW,
     )
-    await store.append_traversals([first])
-    await store.append_traversals([second])
+    await store.append([first])
+    await store.append([second])
 
-    persisted = store.all_traversals()
+    persisted = store.all()
     assert len(persisted) == 1
     # First write wins.
     assert persisted[0].command_name == "StartRun"
@@ -106,5 +106,5 @@ async def test_in_memory_append_supports_batched_writes() -> None:
     """G4 lock: the API takes a list, batched writes work in one call."""
     store = InMemoryTraversalStore()
     rows = [_traversal() for _ in range(5)]
-    await store.append_traversals(rows)
-    assert len(store.all_traversals()) == 5
+    await store.append(rows)
+    assert len(store.all()) == 5

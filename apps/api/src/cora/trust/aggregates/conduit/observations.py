@@ -25,7 +25,7 @@ aggregate modules made (each owns its `to_payload` / `from_stored`).
 
 ## Why writes batch from day one
 
-`append_traversals(rows: list[ConduitTraversal])` always takes a
+`append(rows: list[ConduitTraversal])` always takes a
 list, even for the realistic "one decision at a time" case (single-
 element list). When higher-cardinality observation categories ship
 (FrameTrigger, MotorPosition), the shape is unchanged. Locked at
@@ -83,7 +83,7 @@ class TraversalStore(Protocol):
     Every Authorize port adapter that wants to emit traversal
     observations (TrustAuthorize today; future authz adapters
     similarly) takes a `TraversalStore` and calls
-    `append_traversals(...)` per decision.
+    `append(...)` per decision.
 
     Two implementations: `PostgresTraversalStore` (production) and
     `InMemoryTraversalStore` (tests / `app_env=test`). Both honor
@@ -92,7 +92,7 @@ class TraversalStore(Protocol):
     (Postgres) or the in-memory dict (InMemory).
     """
 
-    async def append_traversals(self, rows: list[ConduitTraversal]) -> None: ...
+    async def append(self, rows: list[ConduitTraversal]) -> None: ...
 
 
 _APPEND_SQL = """
@@ -117,7 +117,7 @@ class PostgresTraversalStore:
     def __init__(self, pool: asyncpg.Pool) -> None:
         self._pool = pool
 
-    async def append_traversals(self, rows: list[ConduitTraversal]) -> None:
+    async def append(self, rows: list[ConduitTraversal]) -> None:
         if not rows:
             return
         async with self._pool.acquire() as conn:
@@ -145,20 +145,20 @@ class InMemoryTraversalStore:
     """Test / `app_env=test` adapter for `TraversalStore`.
 
     Dict keyed by `event_id` for trivial dedup. Exposes
-    `all_traversals()` so contract / unit tests can assert what
+    `all()` so contract / unit tests can assert what
     was emitted without going through Postgres.
     """
 
     def __init__(self) -> None:
         self._rows: dict[UUID, ConduitTraversal] = {}
 
-    async def append_traversals(self, rows: list[ConduitTraversal]) -> None:
+    async def append(self, rows: list[ConduitTraversal]) -> None:
         for row in rows:
             # ON CONFLICT DO NOTHING semantics: existing wins (matches
             # the Postgres adapter's behavior under retry).
             self._rows.setdefault(row.event_id, row)
 
-    def all_traversals(self) -> list[ConduitTraversal]:
+    def all(self) -> list[ConduitTraversal]:
         return list(self._rows.values())
 
 

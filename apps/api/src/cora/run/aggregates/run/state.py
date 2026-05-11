@@ -132,10 +132,10 @@ class RunStatus(StrEnum):
     Complete transition.
 
     Plus transient states (Starting, Stopping, Aborting,
-    Holding, Unholding, Completing) get evaluated when DAQ-
-    substream integration arrives (6f-5+) — only added if there's
-    a real async period between command-arrival and event-emit at
-    the application layer (today there isn't).
+    Holding, Unholding, Completing) get evaluated when DAQ-channel
+    integration arrives (6f-5+) — only added if there's a real
+    async period between command-arrival and event-emit at the
+    application layer (today there isn't).
 
     Naming convention (per 6f-2 gate review): gerund / adjective
     for the active steady-state (matches ISA-88 / PackML's

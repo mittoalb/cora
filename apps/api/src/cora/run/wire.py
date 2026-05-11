@@ -24,7 +24,7 @@ transitions). Phase 6f-3 adds `hold_run` + `resume_run` + `stop_run`
 
 Subsequent slices land per-phase:
   - 6f-4: Truncated terminal
-  - 6f-5: First substream (separate infra; not a slice in this bundle)
+  - 6f-5: First observation channels for Run (separate infra; not a slice in this bundle)
 """
 
 from dataclasses import dataclass

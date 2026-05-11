@@ -109,7 +109,7 @@ async def test_trust_authorize_persists_traversals_against_postgres(
         authorize=AllowAllAuthorize(),
         event_store=event_store,
         idempotency_store=PostgresIdempotencyStore(db_pool),
-        traversals_store=traversals_store,
+        pool=db_pool,
     )
 
     # 1. Define the Conduit (writes ConduitDefined + ConduitChannelOpened).
@@ -230,8 +230,8 @@ async def test_postgres_traversal_store_dedups_on_event_id(
         occurred_at=_NOW,
     )
 
-    await store.append_traversals([first])
-    await store.append_traversals([second])
+    await store.append([first])
+    await store.append([second])
 
     rows = await _read_traversals(db_pool, conduit_id)
     assert len(rows) == 1

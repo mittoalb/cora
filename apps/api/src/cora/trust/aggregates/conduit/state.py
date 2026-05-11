@@ -11,13 +11,23 @@ IDs. SL-T, contract, and remaining lifecycle (`Defined → Active →
 Modified → Archived`, per BC-map) follow the same additive-state
 pattern as Zone — fields default in the evolver when added.
 
-Phase 6f-5a adds **channel state**: `open_channels: frozenset[UUID]`
-tracking the IDs of currently-open observation channels attached to
-this Conduit. The traversals channel is opened automatically at
-conduit-creation (gate-review locked: per-Conduit channel scoping).
-The slim-aggregate principle keeps state to invariant-relevant
-fields only; channel schemas live on the channel-open event payloads,
-not on the aggregate state.
+Phase 6f-5a adds **channel state**: `channels: dict[str, UUID]`
+mapping channel kind → currently-open channel id for each
+observation channel attached to this Conduit. The traversals
+channel is opened automatically at conduit-creation (gate-review
+locked: per-Conduit channel scoping). The state encodes the
+**at-most-one-open-per-kind invariant** directly — opening a
+second channel of an existing kind raises rather than orphaning
+the first. The slim-aggregate principle keeps state to invariant-
+relevant fields only; channel schemas live on the channel-open
+event payloads, not on the aggregate state.
+
+The `dict` value is immutable by convention: the evolver returns a
+fresh `Conduit` with a new dict on every channel-open / channel-close;
+no code mutates `state.channels` in place. Frozen dataclass blocks
+field reassignment but not mutation of the contained dict — the
+codebase relies on the same evolver-purity discipline used by every
+other aggregate.
 
 **No referential integrity at command time.** `source_zone_id` and
 `target_zone_id` are stored as primitives without verifying the
@@ -73,21 +83,27 @@ class ConduitAlreadyExistsError(Exception):
 
 
 class ConduitChannelAlreadyOpenError(Exception):
-    """Attempted to open a channel id that's already in `open_channels`.
+    """Attempted to open a second channel of a kind that already has one open.
 
-    Defensive guard for the channel lifecycle. Should never trigger
-    in practice (channel ids are UUIDv7-fresh per opening), but
-    catches stream contamination loud.
+    The state encodes the at-most-one-open-per-kind invariant; this
+    error fires when an evolver replay tries to open a channel of a
+    kind that's already present in `state.channels`. Carries the
+    existing channel id so the caller can identify which channel is
+    already in the way.
     """
 
-    def __init__(self, conduit_id: UUID, channel_id: UUID) -> None:
-        super().__init__(f"Conduit {conduit_id} already has channel {channel_id} open")
+    def __init__(self, conduit_id: UUID, kind: str, existing_channel_id: UUID) -> None:
+        super().__init__(
+            f"Conduit {conduit_id} already has a {kind!r} channel open "
+            f"(channel_id={existing_channel_id})"
+        )
         self.conduit_id = conduit_id
-        self.channel_id = channel_id
+        self.kind = kind
+        self.existing_channel_id = existing_channel_id
 
 
 class ConduitChannelNotOpenError(Exception):
-    """Attempted to close a channel id that's not in `open_channels`.
+    """Attempted to close a channel id that's not currently open on any kind.
 
     Defensive guard; close commands originate from Conduit lifecycle
     transitions (eventually conduit-archive) and should never target
@@ -128,15 +144,16 @@ class ConduitName:
 class Conduit:
     """Aggregate root: a governed comms path between two Trust zones.
 
-    `open_channels` tracks the IDs of currently-open observation
-    channels attached to this Conduit (Phase 6f-5a). Each kind has
-    at most one currently-open channel per Conduit by convention,
-    though the state representation doesn't enforce that — the
-    deciders that open channels do.
+    `channels` maps channel kind → currently-open channel id for each
+    observation channel attached to this Conduit (Phase 6f-5a). The
+    dict shape encodes the at-most-one-open-per-kind invariant: the
+    evolver raises `ConduitChannelAlreadyOpenError` on any attempt to
+    open a second channel of an existing kind. Empty for newly-defined
+    Conduits before any channel-open event has been folded.
     """
 
     id: UUID
     name: ConduitName
     source_zone_id: UUID
     target_zone_id: UUID
-    open_channels: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    channels: dict[str, UUID] = field(default_factory=dict[str, UUID])

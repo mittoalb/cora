@@ -12,7 +12,7 @@ Invariants:
 Strict semantics, not idempotent: re-measuring an already-`Measured`
 subject raises rather than no-op or always-emit. Per-measurement
 detail (which scan, params, results) is out of scope at the
-aggregate level — that lives in `Run` + substreams later. The
+aggregate level — that lives in `Run` observation channels later. The
 aggregate-level `Measured` status just means "has been measured at
 least once". Same precedent as `mount_subject` and
 `deactivate_actor`.

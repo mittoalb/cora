@@ -78,14 +78,15 @@ observations. When `traversals_store` is provided, `clock` and
 constructor enforces this so missed wiring fails loud at app
 startup, not at the first authz call.
 
-Channel id resolution: TrustAuthorize loads the target Conduit on
-each call to find its currently-open traversals channel id. The
-Conduit stream is short (genesis + channel-open, ~handful of events)
-so the fold cost is small; per-call caching can land later if it
-matters. If the Conduit doesn't exist (typical for `UUID(int=0)`
-sentinel until conduit-routing lands) or has no traversals channel
-open, the traversal write is silently skipped with a warn log —
-the authz decision itself is unaffected.
+Channel id resolution: TrustAuthorize loads the target Conduit
+aggregate via `load_conduit` and reads `conduit.channels[
+CHANNEL_KIND_TRAVERSALS]`. The Conduit stream is short (genesis +
+channel-open, ~handful of events) so per-call fold cost is small;
+per-process caching keyed on `conduit_id` is the natural future
+optimization. If the Conduit doesn't exist (typical for
+`UUID(int=0)` sentinel until conduit-routing lands) or has no
+traversals channel open, the traversal write is silently skipped
+with a warn log — the authz decision itself is unaffected.
 
 `correlation_id` for the observation row comes from
 `current_correlation_id()` (the active OTel span's trace_id encoded
@@ -106,12 +107,7 @@ from cora.infrastructure.ports import (
     EventStore,
     IdGenerator,
 )
-from cora.trust.aggregates.conduit import (
-    CHANNEL_KIND_TRAVERSALS,
-    ConduitChannelClosed,
-    ConduitChannelOpened,
-    from_stored,
-)
+from cora.trust.aggregates.conduit import CHANNEL_KIND_TRAVERSALS, load_conduit
 from cora.trust.aggregates.conduit.observations import (
     ConduitTraversal,
     TraversalDecision,
@@ -222,7 +218,15 @@ class TrustAuthorize:
         assert self._clock is not None
         assert self._id_generator is not None
 
-        channel_id = await _resolve_traversals_channel_id(self._event_store, conduit_id)
+        conduit = await load_conduit(self._event_store, conduit_id)
+        if conduit is None:
+            _log.warning(
+                "trust_authorize.skip_traversal",
+                conduit_id=str(conduit_id),
+                reason="conduit_not_found",
+            )
+            return
+        channel_id = conduit.channels.get(CHANNEL_KIND_TRAVERSALS)
         if channel_id is None:
             _log.warning(
                 "trust_authorize.skip_traversal",
@@ -234,7 +238,7 @@ class TrustAuthorize:
         decision_str: TraversalDecision = "Allow" if isinstance(result, Allow) else "Deny"
         reason = result.reason if isinstance(result, Deny) else None
 
-        await self._traversals_store.append_traversals(
+        await self._traversals_store.append(
             [
                 ConduitTraversal(
                     event_id=self._id_generator.new_id(),
@@ -250,30 +254,3 @@ class TrustAuthorize:
                 )
             ]
         )
-
-
-async def _resolve_traversals_channel_id(event_store: EventStore, conduit_id: UUID) -> UUID | None:
-    """Find the currently-open traversals channel id for a Conduit.
-
-    Folds the channel-open / channel-close events on the Conduit's
-    stream to track the latest open traversals channel id. Returns
-    None if the Conduit doesn't exist OR no traversals channel has
-    been opened OR the most recently opened traversals channel has
-    been closed.
-
-    O(events-per-Conduit-stream) per call. The stream is short by
-    design (genesis + channel-open, ~handful of events) so this is
-    acceptable for 6f-5a; per-process caching keyed on `conduit_id`
-    is the natural optimization when this becomes a measurable cost.
-    """
-    stored, _ = await event_store.load("Conduit", conduit_id)
-    if not stored:
-        return None
-    channel_id: UUID | None = None
-    for raw in stored:
-        event = from_stored(raw)
-        if isinstance(event, ConduitChannelOpened) and event.kind == CHANNEL_KIND_TRAVERSALS:
-            channel_id = event.channel_id
-        elif isinstance(event, ConduitChannelClosed) and event.channel_id == channel_id:
-            channel_id = None
-    return channel_id

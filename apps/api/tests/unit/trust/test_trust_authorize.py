@@ -273,7 +273,7 @@ async def test_emits_traversal_on_allow_when_conduit_has_open_channel() -> None:
     result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", _TARGET_CONDUIT_ID)
     assert isinstance(result, Allow)
 
-    rows = traversals.all_traversals()
+    rows = traversals.all()
     assert len(rows) == 1
     row = rows[0]
     assert row.event_id == _OBS_EVENT_ID
@@ -304,7 +304,7 @@ async def test_emits_traversal_on_deny_with_reason_attached() -> None:
     result = await authorize(_OTHER_PRINCIPAL, "RegisterActor", _TARGET_CONDUIT_ID)
     assert isinstance(result, Deny)
 
-    rows = traversals.all_traversals()
+    rows = traversals.all()
     assert len(rows) == 1
     row = rows[0]
     assert row.decision == "Deny"
@@ -334,7 +334,7 @@ async def test_skips_traversal_emission_when_conduit_does_not_exist() -> None:
     result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(result, Allow)
     # No traversal recorded because the target Conduit doesn't exist.
-    assert traversals.all_traversals() == []
+    assert traversals.all() == []
 
 
 @pytest.mark.unit
@@ -377,4 +377,4 @@ async def test_skips_traversal_when_traversals_channel_was_closed() -> None:
 
     result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", _TARGET_CONDUIT_ID)
     assert isinstance(result, Allow)
-    assert traversals.all_traversals() == []
+    assert traversals.all() == []
