@@ -13,7 +13,11 @@ from cora.equipment.aggregates.asset import (
     evolve,
     fold,
 )
-from cora.equipment.aggregates.asset.events import AssetRegistered
+from cora.equipment.aggregates.asset.events import (
+    AssetActivated,
+    AssetDecommissioned,
+    AssetRegistered,
+)
 from cora.equipment.features import register_asset
 from cora.equipment.features.register_asset import RegisterAsset
 
@@ -170,3 +174,169 @@ def test_decider_and_evolver_round_trip_for_device_with_parent() -> None:
         parent_id=parent_id,
         lifecycle=AssetLifecycle.COMMISSIONED,
     )
+
+
+# ---------- AssetActivated (Phase 5c) ----------
+
+
+@pytest.mark.unit
+def test_evolve_asset_activated_flips_lifecycle_to_active() -> None:
+    """AssetActivated folded onto a Commissioned asset sets
+    lifecycle=ACTIVE. Lifecycle field is NOT in the event payload;
+    the evolver derives it from the event TYPE (same precedent as
+    SubjectMounted)."""
+    asset_id = uuid4()
+    parent_id = uuid4()
+    commissioned = Asset(
+        id=asset_id,
+        name=AssetName("APS-2BM"),
+        level=AssetLevel.UNIT,
+        parent_id=parent_id,
+        lifecycle=AssetLifecycle.COMMISSIONED,
+    )
+    activated = evolve(commissioned, AssetActivated(asset_id=asset_id, occurred_at=_NOW))
+    assert activated == Asset(
+        id=asset_id,
+        name=AssetName("APS-2BM"),
+        level=AssetLevel.UNIT,
+        parent_id=parent_id,
+        lifecycle=AssetLifecycle.ACTIVE,
+    )
+
+
+@pytest.mark.unit
+def test_evolve_asset_activated_preserves_id_name_level_parent() -> None:
+    """The evolver only updates `lifecycle`; id/name/level/parent_id
+    are carried over from prior state. Pinned because Asset has more
+    state fields than the simpler aggregates — a refactor that built
+    Asset from event fields only would silently drop them."""
+    asset_id = uuid4()
+    parent_id = uuid4()
+    commissioned = Asset(
+        id=asset_id,
+        name=AssetName("Original"),
+        level=AssetLevel.DEVICE,
+        parent_id=parent_id,
+        lifecycle=AssetLifecycle.COMMISSIONED,
+    )
+    activated = evolve(commissioned, AssetActivated(asset_id=asset_id, occurred_at=_NOW))
+    assert activated.id == asset_id
+    assert activated.name == AssetName("Original")
+    assert activated.level is AssetLevel.DEVICE
+    assert activated.parent_id == parent_id
+
+
+@pytest.mark.unit
+def test_evolve_asset_activated_on_empty_state_raises() -> None:
+    """AssetActivated before AssetRegistered = corrupted stream."""
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(None, AssetActivated(asset_id=uuid4(), occurred_at=_NOW))
+
+
+@pytest.mark.unit
+def test_fold_register_then_activate_yields_active_asset() -> None:
+    asset_id = uuid4()
+    parent_id = uuid4()
+    state = fold(
+        [
+            AssetRegistered(
+                asset_id=asset_id,
+                name="APS-2BM",
+                level="Unit",
+                parent_id=parent_id,
+                occurred_at=_NOW,
+            ),
+            AssetActivated(asset_id=asset_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.lifecycle is AssetLifecycle.ACTIVE
+
+
+# ---------- AssetDecommissioned (Phase 5c) ----------
+
+
+@pytest.mark.unit
+def test_evolve_asset_decommissioned_from_commissioned_flips_to_decommissioned() -> None:
+    """Multi-source: Commissioned -> Decommissioned (operator changed
+    mind, decommissioning before activation)."""
+    asset_id = uuid4()
+    commissioned = Asset(
+        id=asset_id,
+        name=AssetName("APS-2BM"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        lifecycle=AssetLifecycle.COMMISSIONED,
+    )
+    decommed = evolve(commissioned, AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW))
+    assert decommed.lifecycle is AssetLifecycle.DECOMMISSIONED
+
+
+@pytest.mark.unit
+def test_evolve_asset_decommissioned_from_active_flips_to_decommissioned() -> None:
+    """Multi-source: Active -> Decommissioned (typical retirement
+    path). Pinned so a future change that only handles one source
+    state in the evolver is caught."""
+    asset_id = uuid4()
+    active = Asset(
+        id=asset_id,
+        name=AssetName("APS-2BM"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        lifecycle=AssetLifecycle.ACTIVE,
+    )
+    decommed = evolve(active, AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW))
+    assert decommed.lifecycle is AssetLifecycle.DECOMMISSIONED
+
+
+@pytest.mark.unit
+def test_evolve_asset_decommissioned_on_empty_state_raises() -> None:
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(None, AssetDecommissioned(asset_id=uuid4(), occurred_at=_NOW))
+
+
+@pytest.mark.unit
+def test_fold_register_activate_decommission_yields_decommissioned_asset() -> None:
+    """End-to-end fold: register + activate + decommission produces
+    a Decommissioned asset (the typical lifecycle path)."""
+    asset_id = uuid4()
+    parent_id = uuid4()
+    state = fold(
+        [
+            AssetRegistered(
+                asset_id=asset_id,
+                name="APS-2BM",
+                level="Unit",
+                parent_id=parent_id,
+                occurred_at=_NOW,
+            ),
+            AssetActivated(asset_id=asset_id, occurred_at=_NOW),
+            AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.lifecycle is AssetLifecycle.DECOMMISSIONED
+
+
+@pytest.mark.unit
+def test_fold_register_decommission_yields_decommissioned_asset() -> None:
+    """End-to-end fold: register + decommission (skipping activate)
+    produces a Decommissioned asset. Pinned because the multi-source
+    contract has to be honored at the fold level too, not just the
+    decider."""
+    asset_id = uuid4()
+    parent_id = uuid4()
+    state = fold(
+        [
+            AssetRegistered(
+                asset_id=asset_id,
+                name="APS-2BM",
+                level="Unit",
+                parent_id=parent_id,
+                occurred_at=_NOW,
+            ),
+            AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.lifecycle is AssetLifecycle.DECOMMISSIONED

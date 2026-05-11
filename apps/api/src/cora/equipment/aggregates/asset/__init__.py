@@ -6,6 +6,8 @@ state and event types.
 """
 
 from cora.equipment.aggregates.asset.events import (
+    AssetActivated,
+    AssetDecommissioned,
     AssetEvent,
     AssetRegistered,
     event_type_name,
@@ -18,6 +20,8 @@ from cora.equipment.aggregates.asset.state import (
     ASSET_NAME_MAX_LENGTH,
     Asset,
     AssetAlreadyExistsError,
+    AssetCannotActivateError,
+    AssetCannotDecommissionError,
     AssetLevel,
     AssetLifecycle,
     AssetName,
@@ -29,7 +33,11 @@ from cora.equipment.aggregates.asset.state import (
 __all__ = [
     "ASSET_NAME_MAX_LENGTH",
     "Asset",
+    "AssetActivated",
     "AssetAlreadyExistsError",
+    "AssetCannotActivateError",
+    "AssetCannotDecommissionError",
+    "AssetDecommissioned",
     "AssetEvent",
     "AssetLevel",
     "AssetLifecycle",

@@ -155,6 +155,53 @@ class AssetNotFoundError(Exception):
         self.asset_id = asset_id
 
 
+class AssetCannotActivateError(Exception):
+    """Attempted to activate an asset not in the `Commissioned` lifecycle.
+
+    Strict semantics: re-activating an already-`Active` asset also
+    raises (rather than no-op or always-emit). Per-transition error
+    class — same naming convention as `SubjectCannot<X>Error`. The
+    current lifecycle is carried as `current_lifecycle` for
+    diagnostics; the error message lists both the current and the
+    expected source state.
+    """
+
+    def __init__(self, asset_id: UUID, current_lifecycle: "AssetLifecycle") -> None:
+        super().__init__(
+            f"Asset {asset_id} cannot be activated: currently in lifecycle "
+            f"{current_lifecycle.value}, activate requires "
+            f"{AssetLifecycle.COMMISSIONED.value}"
+        )
+        self.asset_id = asset_id
+        self.current_lifecycle = current_lifecycle
+
+
+class AssetCannotDecommissionError(Exception):
+    """Attempted to decommission an asset not in `Commissioned` or `Active`.
+
+    Multi-source guard: `decommission` accepts both `Commissioned`
+    (asset never went into service — operator changed mind) and
+    `Active` (asset retired from service). 5e will widen the
+    accepted source states to also include `Maintenance` (asset
+    decommissioned during maintenance window); the tuple in the
+    decider's `_DECOMMISSIONABLE_LIFECYCLES` is the single edit
+    point.
+
+    The decider checks via tuple-membership; the error message
+    lists currently-allowed source states for diagnostic clarity.
+    Mirrors Subject's `SubjectCannotRemoveError` pattern.
+    """
+
+    def __init__(self, asset_id: UUID, current_lifecycle: "AssetLifecycle") -> None:
+        super().__init__(
+            f"Asset {asset_id} cannot be decommissioned: currently in lifecycle "
+            f"{current_lifecycle.value}, decommission requires "
+            f"{AssetLifecycle.COMMISSIONED.value} or {AssetLifecycle.ACTIVE.value}"
+        )
+        self.asset_id = asset_id
+        self.current_lifecycle = current_lifecycle
+
+
 @dataclass(frozen=True)
 class AssetName:
     """Display name for an asset. Trimmed; 1-200 chars.

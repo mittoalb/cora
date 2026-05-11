@@ -6,6 +6,8 @@ from uuid import uuid4
 import pytest
 
 from cora.equipment.aggregates.asset.events import (
+    AssetActivated,
+    AssetDecommissioned,
     AssetRegistered,
     event_type_name,
     from_stored,
@@ -167,3 +169,96 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
     stored = _stored("CapabilityDefined", {})
     with pytest.raises(ValueError, match="Unknown AssetEvent event_type"):
         from_stored(stored)
+
+
+# ---------- AssetActivated (Phase 5c) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_asset_activated_class_name() -> None:
+    event = AssetActivated(asset_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "AssetActivated"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_asset_activated_to_primitives() -> None:
+    """Lifecycle NOT in payload — event TYPE encodes the state change.
+    Pinned because adding a `lifecycle` field to the payload (e.g., to
+    support a generic 'set lifecycle' command later) is an additive
+    change that must be deliberate."""
+    asset_id = uuid4()
+    event = AssetActivated(asset_id=asset_id, occurred_at=_NOW)
+    payload = to_payload(event)
+    assert payload == {
+        "asset_id": str(asset_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+    assert "lifecycle" not in payload
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_asset_activated() -> None:
+    asset_id = uuid4()
+    stored = _stored(
+        "AssetActivated",
+        {
+            "asset_id": str(asset_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == AssetActivated(asset_id=asset_id, occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_asset_activated() -> None:
+    original = AssetActivated(asset_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("AssetActivated", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- AssetDecommissioned (Phase 5c) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_asset_decommissioned_class_name() -> None:
+    event = AssetDecommissioned(asset_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "AssetDecommissioned"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_asset_decommissioned_to_primitives() -> None:
+    """Lifecycle NOT in payload — multi-source-to-single-target
+    transitions still encode source state via the decider's guard, not
+    the event payload (no `from_lifecycle` field). Same convention as
+    Subject's SubjectRemoved (also multi-source-to-single-target)."""
+    asset_id = uuid4()
+    event = AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW)
+    payload = to_payload(event)
+    assert payload == {
+        "asset_id": str(asset_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+    assert "lifecycle" not in payload
+    assert "from_lifecycle" not in payload
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_asset_decommissioned() -> None:
+    asset_id = uuid4()
+    stored = _stored(
+        "AssetDecommissioned",
+        {
+            "asset_id": str(asset_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_asset_decommissioned() -> None:
+    original = AssetDecommissioned(asset_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("AssetDecommissioned", to_payload(original))
+    assert from_stored(stored) == original

@@ -37,6 +37,8 @@ from fastapi.responses import JSONResponse
 
 from cora.equipment.aggregates.asset import (
     AssetAlreadyExistsError,
+    AssetCannotActivateError,
+    AssetCannotDecommissionError,
     AssetNotFoundError,
     InvalidAssetNameError,
     InvalidAssetParentError,
@@ -47,7 +49,13 @@ from cora.equipment.aggregates.capability import (
     InvalidCapabilityNameError,
 )
 from cora.equipment.errors import UnauthorizedError
-from cora.equipment.features import define_capability, get_capability, register_asset
+from cora.equipment.features import (
+    activate_asset,
+    decommission_asset,
+    define_capability,
+    get_capability,
+    register_asset,
+)
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -98,11 +106,27 @@ async def _handle_already_exists(request: Request, exc: Exception) -> JSONRespon
     )
 
 
+async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 409 handler for state-transition guards.
+
+    Covers the `<X>Cannot<Verb>Error` family (Asset's Activate /
+    Decommission in 5c; future Maintenance / Restore in 5e). Same
+    pattern as Subject's `_handle_cannot_transition`.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+
 def register_equipment_routes(app: FastAPI) -> None:
     """Attach Equipment slice routers and exception handlers to the FastAPI app."""
     app.include_router(define_capability.router)
     app.include_router(get_capability.router)
     app.include_router(register_asset.router)
+    app.include_router(activate_asset.router)
+    app.include_router(decommission_asset.router)
     for validation_cls in (
         InvalidCapabilityNameError,
         InvalidAssetNameError,
@@ -113,4 +137,9 @@ def register_equipment_routes(app: FastAPI) -> None:
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (CapabilityAlreadyExistsError, AssetAlreadyExistsError):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
+    for cannot_transition_cls in (
+        AssetCannotActivateError,
+        AssetCannotDecommissionError,
+    ):
+        app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

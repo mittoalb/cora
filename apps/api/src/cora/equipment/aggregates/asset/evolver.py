@@ -4,9 +4,10 @@ Mirror of the other aggregate evolvers. The terminal `assert_never`
 case forces pyright (and the runtime) to error if a new event type
 is added to `AssetEvent` without a matching match arm here.
 
-Lifecycle mapping per event type (5b only ships the genesis event;
-5c-5e add the transitions):
-  - `AssetRegistered`   -> COMMISSIONED  (genesis)
+Lifecycle mapping per event type:
+  - `AssetRegistered`     -> COMMISSIONED  (genesis)
+  - `AssetActivated`      -> ACTIVE
+  - `AssetDecommissioned` -> DECOMMISSIONED   (multi-source: Commissioned | Active)
 
 The lifecycle mapping is hardcoded per match arm — the event type
 IS the lifecycle-change indicator (no lifecycle field in event
@@ -15,19 +16,37 @@ payloads). Same precedent as Subject / Capability.
 `level` IS reconstructed from the payload (set at registration,
 never changes; payload-carried by design — see events.py
 docstring). `parent_id` IS reconstructed from the payload too;
-mutable across `AssetRelocated` later.
+mutable across `AssetRelocated` later (5d).
+
+Transition events applied to empty state raise ValueError: they
+can never appear before `AssetRegistered` in a well-formed stream.
+The `_require_state` helper keeps the per-arm bodies short
+(precedent locked by Subject's evolver in 4c).
 """
 
 from collections.abc import Sequence
 from typing import assert_never
 
-from cora.equipment.aggregates.asset.events import AssetEvent, AssetRegistered
+from cora.equipment.aggregates.asset.events import (
+    AssetActivated,
+    AssetDecommissioned,
+    AssetEvent,
+    AssetRegistered,
+)
 from cora.equipment.aggregates.asset.state import (
     Asset,
     AssetLevel,
     AssetLifecycle,
     AssetName,
 )
+
+
+def _require_state(state: Asset | None, event_type: str) -> Asset:
+    """Transition events require prior state; empty stream is corruption."""
+    if state is None:
+        msg = f"{event_type} cannot be applied to empty state"
+        raise ValueError(msg)
+    return state
 
 
 def evolve(state: Asset | None, event: AssetEvent) -> Asset:
@@ -41,6 +60,24 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 level=AssetLevel(level),
                 parent_id=parent_id,
                 lifecycle=AssetLifecycle.COMMISSIONED,
+            )
+        case AssetActivated():
+            prior = _require_state(state, "AssetActivated")
+            return Asset(
+                id=prior.id,
+                name=prior.name,
+                level=prior.level,
+                parent_id=prior.parent_id,
+                lifecycle=AssetLifecycle.ACTIVE,
+            )
+        case AssetDecommissioned():
+            prior = _require_state(state, "AssetDecommissioned")
+            return Asset(
+                id=prior.id,
+                name=prior.name,
+                level=prior.level,
+                parent_id=prior.parent_id,
+                lifecycle=AssetLifecycle.DECOMMISSIONED,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

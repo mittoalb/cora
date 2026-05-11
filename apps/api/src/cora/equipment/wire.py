@@ -17,16 +17,29 @@ Subject (composition order matters — innermost first):
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
 Phase 5a shipped `define_capability` + `get_capability`. Phase 5b
-adds `register_asset` (create-style; idempotency-wrapped). Asset
-lifecycle transitions land in 5c+. Queries skip idempotency: a
-re-read returning the same state is the desired behavior, no
-Idempotency-Key needed.
+added `register_asset`. Phase 5c adds two Asset lifecycle
+transitions: `activate_asset` (single-source `Commissioned -> Active`)
+and `decommission_asset` (multi-source `Commissioned | Active ->
+Decommissioned`). All update-style; not idempotency-wrapped (domain-
+idempotent via `AssetCannot<X>Error` on retry; same precedent as
+Subject's transitions). Queries skip idempotency.
+
+The per-BC `make_equipment_update_handler` factory extraction is
+deferred to 5e — Subject extracted at 6 instances; Equipment is at
+2 update-style handlers in 5c with ~4-5 expected by 5e. Same
+threshold logic.
 """
 
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.equipment.features import define_capability, get_capability, register_asset
+from cora.equipment.features import (
+    activate_asset,
+    decommission_asset,
+    define_capability,
+    get_capability,
+    register_asset,
+)
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.observability import with_tracing
@@ -39,15 +52,19 @@ class EquipmentHandlers:
     """The Equipment BC's handler bundle, each closed over SharedDeps.
 
     Phase 5a shipped `define_capability` (create-style; idempotency-
-    wrapped) and `get_capability` (read side). Phase 5b adds
-    `register_asset` (create-style; idempotency-wrapped). Asset
-    lifecycle / hierarchy slices land in 5c-5e; Capability
-    transitions in 5f+.
+    wrapped) and `get_capability` (read side). Phase 5b added
+    `register_asset` (create-style; idempotency-wrapped). Phase 5c
+    adds the first two Asset lifecycle transitions: `activate_asset`
+    and `decommission_asset` — both update-style with bare Handler
+    protocols. Hierarchy mutation (5d), get_asset query (5e), and
+    Capability transitions (5f+) land subsequently.
     """
 
     define_capability: define_capability.IdempotentHandler
     get_capability: get_capability.Handler
     register_asset: register_asset.IdempotentHandler
+    activate_asset: activate_asset.Handler
+    decommission_asset: decommission_asset.Handler
 
 
 def wire_equipment(deps: SharedDeps) -> EquipmentHandlers:
@@ -81,6 +98,16 @@ def wire_equipment(deps: SharedDeps) -> EquipmentHandlers:
                 deserialize_result=UUID,
             ),
             command_name="RegisterAsset",
+            bc=_BC,
+        ),
+        activate_asset=with_tracing(
+            activate_asset.bind(deps),
+            command_name="ActivateAsset",
+            bc=_BC,
+        ),
+        decommission_asset=with_tracing(
+            decommission_asset.bind(deps),
+            command_name="DecommissionAsset",
             bc=_BC,
         ),
     )

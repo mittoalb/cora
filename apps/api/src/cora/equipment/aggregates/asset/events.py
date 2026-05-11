@@ -5,11 +5,12 @@ discriminated union, `event_type_name`, `to_payload`,
 `from_stored`. The persistence-envelope construction (`NewEvent`)
 lives at `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 5b ships `AssetRegistered`. Subsequent slices add
-`AssetActivated` / `AssetMaintenanceEntered` /
-`AssetMaintenanceRestored` / `AssetDecommissioned` (5c, 5e), and
-`AssetRelocated` (5d, the first event whose payload carries source
-AND target state).
+Phase 5b shipped `AssetRegistered`. Phase 5c adds `AssetActivated`
+and `AssetDecommissioned` (lifecycle transitions). Subsequent
+slices add `AssetRelocated` (5d, the first event whose payload
+carries source AND target state) and `AssetMaintenanceEntered` /
+`AssetMaintenanceRestored` (5e, plus 5e widens decommission to
+accept Maintenance as a third source state).
 
 ## Payload conventions for Asset
 
@@ -52,11 +53,37 @@ class AssetRegistered:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class AssetActivated:
+    """An asset transitioned into service.
+
+    Lifecycle transition: `Commissioned -> Active`. The evolver
+    sets the new lifecycle; no lifecycle field in the payload.
+    """
+
+    asset_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class AssetDecommissioned:
+    """An asset was retired from service.
+
+    Lifecycle transition: `Commissioned | Active -> Decommissioned`
+    (multi-source; widens to include Maintenance in 5e). The
+    evolver sets the new lifecycle regardless of which source state
+    the asset came from; the decider's source-state guard is what
+    enforces the multi-source restriction at command time.
+    """
+
+    asset_id: UUID
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Asset aggregate emits.
 # Add new event classes above and extend this alias when new
-# slices land (5c: AssetActivated/Decommissioned; 5d:
-# AssetRelocated; 5e: AssetMaintenance*).
-AssetEvent = AssetRegistered
+# slices land (5d: AssetRelocated; 5e: AssetMaintenance*).
+AssetEvent = AssetRegistered | AssetActivated | AssetDecommissioned
 
 
 def event_type_name(event: AssetEvent) -> str:
@@ -85,6 +112,16 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
                 "parent_id": str(parent_id) if parent_id is not None else None,
                 "occurred_at": occurred_at.isoformat(),
             }
+        case AssetActivated(asset_id=asset_id, occurred_at=occurred_at):
+            return {
+                "asset_id": str(asset_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case AssetDecommissioned(asset_id=asset_id, occurred_at=occurred_at):
+            return {
+                "asset_id": str(asset_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -107,12 +144,24 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                 parent_id=UUID(raw_parent) if raw_parent is not None else None,
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "AssetActivated":
+            return AssetActivated(
+                asset_id=UUID(payload["asset_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "AssetDecommissioned":
+            return AssetDecommissioned(
+                asset_id=UUID(payload["asset_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown AssetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
 
 
 __all__ = [
+    "AssetActivated",
+    "AssetDecommissioned",
     "AssetEvent",
     "AssetRegistered",
     "event_type_name",
