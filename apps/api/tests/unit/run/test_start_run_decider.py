@@ -203,7 +203,7 @@ def test_decide_raises_run_already_exists_when_state_is_not_none() -> None:
         name=RunName("Existing"),
         plan_id=uuid4(),
         subject_id=None,
-        status=RunStatus.STARTED,
+        status=RunStatus.RUNNING,
     )
     plan = _plan()
     asset_id = next(iter(plan.asset_ids))

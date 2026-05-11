@@ -104,7 +104,7 @@ async def test_handler_returns_run_for_known_id_with_subject() -> None:
         name=RunName("32-ID FlyScan"),
         plan_id=_PLAN_ID,
         subject_id=_SUBJECT_ID,
-        status=RunStatus.STARTED,
+        status=RunStatus.RUNNING,
     )
 
 

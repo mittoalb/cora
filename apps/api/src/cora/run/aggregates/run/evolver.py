@@ -6,7 +6,8 @@ is added to `RunEvent` without a matching match arm here. (Single
 event type today; 6f-2+ adds transition events.)
 
 Status mapping per event type:
-  - `RunStarted` -> STARTED  (genesis)
+  - `RunStarted` -> RUNNING  (genesis; the start-event puts the Run
+                              into the active steady-state)
 
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
@@ -40,7 +41,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 name=RunName(name),
                 plan_id=plan_id,
                 subject_id=subject_id,
-                status=RunStatus.STARTED,
+                status=RunStatus.RUNNING,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

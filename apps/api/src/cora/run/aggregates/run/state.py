@@ -22,8 +22,16 @@ Run state:
     None for dark-field / flat-field calibration runs (per
     beamline-domain convention; calibration data is consumed
     alongside sample data within the same analysis pipeline)
-  - `status: RunStatus` (`Started` only at 6f-1; transitions in
+  - `status: RunStatus` (`Running` only at 6f-1; transitions in
     6f-2+)
+
+The active steady-state is named `Running` (not `Started`) per
+the gerund/adjective convention used by ISA-88 / PackML
+(`Execute`) and Bluesky beamline software (`running`). Past-
+participle names like `Started` linguistically suggest a point-
+in-time event, not an ongoing state — those belong on event
+classes (`RunStarted` is correctly named) but not on the status
+enum. See the 6f-2 gate review for the rename rationale.
 
 Run does NOT directly reference Asset(s) — those are reachable via
 `plan.asset_ids`. State stays slim per Q4-style reasoning: only
@@ -101,24 +109,32 @@ RUN_NAME_MAX_LENGTH = 200
 class RunStatus(StrEnum):
     """The Run's lifecycle state.
 
-    6f-1 ships only `Started`. Transitions land per-slice in
-    6f-2+ per the BC map's full FSM:
+    6f-1 ships only `Running` (the active steady-state).
+    Transitions land per-slice in 6f-2+ per the BC map's full FSM:
 
-      Started (6f-1)
+      Running (6f-1)
         → Completed | Aborted (6f-2 happy + emergency exit)
         → Held (6f-3 hold/resume)
         → Stopped (6f-3 controlled stop)
         → Truncated (6f-4 partial-data terminal)
 
-    Plus transient states (Starting, Running, Stopping, Aborting,
-    Completing) get evaluated in 6f-2 — only added if Run handlers
-    actually do async work between command-arrival and event-emit.
+    Plus transient states (Starting, Stopping, Aborting,
+    Completing) get evaluated when DAQ-substream integration
+    arrives (6f-5+) — only added if there's a real async period
+    between command-arrival and event-emit at the application
+    layer (today there isn't).
+
+    Naming convention (per 6f-2 gate review): gerund / adjective
+    for the active steady-state (matches ISA-88 / PackML's
+    `Execute` and Bluesky's `running`); past-participle for
+    terminals (`Completed`, `Aborted`) consistent with our own
+    Subject precedent.
 
     Enum values are PascalCase strings (matches BC-map status
     vocabulary; log lines and DTOs read naturally without mapping).
     """
 
-    STARTED = "Started"
+    RUNNING = "Running"
 
 
 class InvalidRunNameError(ValueError):
@@ -255,11 +271,12 @@ class Run:
     loaded at handler-load time for re-validation, NOT verified by
     the decider as opaque). `subject_id` is the Subject being
     measured, or None for calibration / dark-field runs. `status`
-    defaults to `Started` (6f-1 ships only this state).
+    defaults to `Running` — the active steady-state (6f-1 ships
+    only this state; terminals land in 6f-2+).
     """
 
     id: UUID
     name: RunName
     plan_id: UUID
     subject_id: UUID | None
-    status: RunStatus = RunStatus.STARTED
+    status: RunStatus = RunStatus.RUNNING

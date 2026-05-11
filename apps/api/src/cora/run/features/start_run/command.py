@@ -12,7 +12,7 @@ Server-side concerns (new aggregate id, wall-clock timestamp,
 correlation id, per-event ids) are injected by the handler from
 infrastructure ports.
 
-Status is implicit at start (`Started`) and not part of the
+Status is implicit at start (`Running`) and not part of the
 command — see Run aggregate's `state.py` docstring for the
 enum-in-state, derived-from-event-type-in-evolver convention.
 

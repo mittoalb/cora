@@ -22,7 +22,7 @@ class RunResponse(BaseModel):
     """Read-side DTO at the API boundary.
 
     Carries primitives, not domain VOs. `status` is the StrEnum's
-    string value (Started at 6f-1; transitions add more in 6f-2+).
+    string value (Running at 6f-1; transitions add more in 6f-2+).
     `subject_id` is null for calibration / dark-field runs.
     """
 

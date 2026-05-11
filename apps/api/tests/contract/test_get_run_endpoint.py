@@ -44,7 +44,7 @@ def _setup_full_run(
 
 
 @pytest.mark.contract
-def test_get_run_returns_200_with_started_status_for_sample_run() -> None:
+def test_get_run_returns_200_with_running_status_for_sample_run() -> None:
     with TestClient(create_app()) as client:
         run_id, plan_id, subject_id = _setup_full_run(client, with_subject=True)
         response = client.get(f"/runs/{run_id}")
@@ -56,7 +56,7 @@ def test_get_run_returns_200_with_started_status_for_sample_run() -> None:
         "name": "32-ID FlyScan",
         "plan_id": plan_id,
         "subject_id": subject_id,
-        "status": "Started",
+        "status": "Running",
     }
 
 

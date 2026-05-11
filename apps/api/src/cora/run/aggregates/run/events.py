@@ -37,7 +37,7 @@ from cora.infrastructure.ports.event_store import StoredEvent
 class RunStarted:
     """A new Run was started: Plan + (optional) Subject binding established.
 
-    Status is implicit (`Started`) — the evolver sets it.
+    Status is implicit (`Running`) — the evolver sets it.
 
     `plan_id` and `subject_id` are eventual-consistency refs (loaded
     at handler-load time; not re-verified at fold time). `subject_id`

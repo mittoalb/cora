@@ -34,8 +34,8 @@ def _run_started(
 
 
 @pytest.mark.unit
-def test_evolve_run_started_sets_status_to_started_with_subject() -> None:
-    """RunStarted is the genesis event; status=Started, all fields preserved."""
+def test_evolve_run_started_sets_status_to_running_with_subject() -> None:
+    """RunStarted is the genesis event; status=Running, all fields preserved."""
     run_id = uuid4()
     plan_id = uuid4()
     subject_id = uuid4()
@@ -54,7 +54,7 @@ def test_evolve_run_started_sets_status_to_started_with_subject() -> None:
         name=RunName("32-ID FlyScan"),
         plan_id=plan_id,
         subject_id=subject_id,
-        status=RunStatus.STARTED,
+        status=RunStatus.RUNNING,
     )
 
 
@@ -63,7 +63,7 @@ def test_evolve_run_started_without_subject_sets_subject_id_to_none() -> None:
     """Calibration / dark-field runs fold with subject_id=None."""
     state = evolve(None, _run_started(subject_id=None))
     assert state.subject_id is None
-    assert state.status is RunStatus.STARTED
+    assert state.status is RunStatus.RUNNING
 
 
 @pytest.mark.unit
@@ -77,7 +77,7 @@ def test_fold_single_run_started_returns_run() -> None:
     state = fold([_run_started(run_id=run_id)])
     assert state is not None
     assert state.id == run_id
-    assert state.status is RunStatus.STARTED
+    assert state.status is RunStatus.RUNNING
 
 
 @pytest.mark.unit

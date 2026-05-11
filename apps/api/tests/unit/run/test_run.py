@@ -66,16 +66,18 @@ def test_run_name_is_frozen() -> None:
 
 
 @pytest.mark.unit
-def test_run_status_has_only_started_in_6f1() -> None:
-    """Phase 6f-1 ships Started only. 6f-2+ adds the rest of the FSM."""
-    assert {s.value for s in RunStatus} == {"Started"}
+def test_run_status_has_only_running_in_6f1() -> None:
+    """Phase 6f-1 ships Running (the active steady-state) only. 6f-2+
+    adds Completed + Aborted terminals; later sub-phases add Held,
+    Stopped, Truncated."""
+    assert {s.value for s in RunStatus} == {"Running"}
 
 
 @pytest.mark.unit
 def test_run_status_is_str_enum_for_natural_serialization() -> None:
-    assert isinstance(RunStatus.STARTED, str)
-    assert RunStatus.STARTED == "Started"
-    assert f"{RunStatus.STARTED}" == "Started"
+    assert isinstance(RunStatus.RUNNING, str)
+    assert RunStatus.RUNNING == "Running"
+    assert f"{RunStatus.RUNNING}" == "Running"
 
 
 # ---------- Error classes ----------

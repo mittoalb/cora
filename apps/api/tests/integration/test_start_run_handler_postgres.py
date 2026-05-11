@@ -188,4 +188,4 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
     assert state.id == run_id
     assert state.plan_id == plan_id
     assert state.subject_id == subject_id
-    assert state.status is RunStatus.STARTED
+    assert state.status is RunStatus.RUNNING

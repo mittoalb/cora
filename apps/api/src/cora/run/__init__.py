@@ -29,7 +29,7 @@ Minimal Run:
     at handler-load time
   - `subject_id: UUID | None` — null for calibration / dark-field
     runs; if non-null, Subject must be in Mounted | Measured
-  - `status: RunStatus` (`Started` only at 6f-1)
+  - `status: RunStatus` (`Running` only at 6f-1; the active steady-state — 6f-2+ adds terminals)
 
 Cross-aggregate validation at Run-start (gate-review Q2 / Q5
 locked answers): handler pre-loads Plan + Subject (if subject_id)

@@ -75,7 +75,7 @@ def test_mcp_get_run_tool_returns_structured_run_for_known_id() -> None:
     assert structured["name"] == "32-ID FlyScan"
     assert structured["plan_id"] == plan_id
     assert structured["subject_id"] == subject_id
-    assert structured["status"] == "Started"
+    assert structured["status"] == "Running"
 
 
 @pytest.mark.contract
