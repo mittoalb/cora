@@ -1,5 +1,17 @@
 # Contributing to CORA
 
+## Reading order for newcomers
+
+If you've never touched this repo, read in this order. Stop at any point and you'll have a working mental model of the layer above.
+
+1. **One vertical slice end-to-end:** [apps/api/src/cora/access/features/register_actor/](apps/api/src/cora/access/features/register_actor/). Five files, ~430 lines total. `command.py` defines the input. `decider.py` is the pure business rule. `handler.py` is the imperative shell. `route.py` and `tool.py` mount the same handler on REST and MCP. Every BC slice in the repo follows this shape.
+2. **The aggregate it acts on:** [apps/api/src/cora/access/aggregates/actor/](apps/api/src/cora/access/aggregates/actor/). State, events, evolver. Pure.
+3. **The ports the handler depends on:** [apps/api/src/cora/infrastructure/ports/](apps/api/src/cora/infrastructure/ports/). Six `Protocol`s (clock, id_generator, event_store, idempotency, authorize, event_publisher). All side effects enter the core through these.
+4. **One architecture-fitness test:** [apps/api/tests/architecture/test_slice_contract.py](apps/api/tests/architecture/test_slice_contract.py). Shows what's enforced about every slice mechanically rather than by review.
+5. **The vocabulary, if anything was unfamiliar:** [docs/glossary.md](docs/glossary.md).
+
+The rest of this file is conventions: commit messages, BC layout, naming, idempotency, logging, migrations.
+
 ## Commit messages — Conventional Commits with scope
 
 Format: `type(scope): subject`

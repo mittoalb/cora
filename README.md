@@ -1,6 +1,8 @@
 # CORA
 
-**Continuously Overpromised, Rarely Automated** — a unified operations platform for large-scale research facilities. Pilot: APS beamline 2-BM at Argonne National Laboratory. Long-horizon goal: facility-neutral across photon sources, neutron sources, free-electron lasers, and HPC centres.
+A unified operations platform for large-scale research facilities. Pilot: APS beamline 2-BM at Argonne National Laboratory. Long-horizon goal: facility-neutral across photon sources, neutron sources, free-electron lasers, and HPC centres.
+
+The name is also the diagnosis: **Continuously Overpromised, Rarely Automated**. Most facility software lives forever as a slide-deck capability. CORA is the version that ships.
 
 ## Status
 
@@ -87,13 +89,9 @@ cora/
 │   │   │   ├── unit/          # pure, no I/O
 │   │   │   ├── integration/   # require Postgres or other external services
 │   │   │   ├── contract/      # REST/MCP schema verification
-│   │   │   └── e2e/           # full end-to-end
+│   │   │   └── architecture/  # arch-fitness checks (BC layout, DB grants, import boundaries)
 │   │   └── pyproject.toml
-│   ├── web/                   # Next.js frontend (planned)
-│   └── workers/               # background processors and agents (planned)
-├── packages/                  # shared libraries (planned)
-│   ├── contracts/             # OpenAPI/MCP schemas + generated TS types
-│   └── ui/                    # shared frontend components
+│   └── (planned: apps/web Next.js frontend, apps/workers background processors, packages/ shared libs)
 ├── infra/                     # local dev infra + IaC
 │   ├── atlas/                 # schema migrations
 │   └── docker-compose.yml
@@ -110,6 +108,8 @@ Test layout is **separate `tests/` mirroring `src/`** with pytest's `--import-mo
 Modern functional DDD with bounded contexts. Hexagonal (Functional Core / Imperative Shell). Postgres event sourcing (asyncpg, hand-rolled). REST + MCP API surface. Recipe ladder (Method → Practice → Plan → Run) is the facility-neutrality mechanism.
 
 Modeling lenses adopted: ISA-95 (structural), ISA-88 (Track A: episodic procedures), ISA-106 (Track B: continuous operations), ISA-99 (Track C: trust topology), ISO/IEC 42001 + NIST AI RMF (AI governance), W3C PROV-O (provenance vocabulary at API boundaries).
+
+For BC, aggregate, decider, evolver, port, kernel, ISA-X, ReBAC, and other vocabulary, see [docs/glossary.md](docs/glossary.md).
 
 ## Tooling
 
