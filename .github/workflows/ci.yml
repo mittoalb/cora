@@ -71,9 +71,9 @@ jobs:
       - name: Verify atlas.sum is up to date
         run: |
           atlas migrate hash
-          if ! git diff --quiet atlas.sum; then
+          if ! git diff --quiet migrations/atlas.sum; then
             echo "::error::atlas.sum is stale. Run 'make migrate-hash' and commit." >&2
-            git diff atlas.sum
+            git diff migrations/atlas.sum
             exit 1
           fi
 
