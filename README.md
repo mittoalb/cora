@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/xmap/cora/actions/workflows/ci.yml/badge.svg)](https://github.com/xmap/cora/actions/workflows/ci.yml)
 [![Docs](https://github.com/xmap/cora/actions/workflows/docs.yml/badge.svg)](https://xmap.github.io/cora/)
-[![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/release/python-3130/)
 
 A unified operations platform for large-scale research facilities. Pilot: APS beamline 2-BM at Argonne National Laboratory. Long-horizon goal: facility-neutral across photon sources, neutron sources, free-electron lasers, and HPC centres.
