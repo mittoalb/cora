@@ -94,15 +94,11 @@ cora/
 │   └── api/                # backend
 │       ├── src/cora/
 │       │   ├── api/        # entrypoints
-│       │   ├── infrastructure/
-│       │   └── <bc>/
-│       │       ├── aggregates/
-│       │       └── features/
-│       ├── tests/
-│       │   ├── unit/
-│       │   ├── integration/
-│       │   ├── contract/
-│       │   └── architecture/
+│       │   ├── infrastructure/  # ports, kernel, adapters
+│       │   └── <bc>/       # one folder per bounded context
+│       │       ├── aggregates/  # state, events, evolver
+│       │       └── features/    # vertical slices
+│       ├── tests/          # unit, integration, contract, architecture
 │       └── pyproject.toml
 ├── infra/
 │   ├── atlas/              # migrations
