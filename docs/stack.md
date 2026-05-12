@@ -13,6 +13,8 @@ These picks are **starting points, not strict commitments**. Each was chosen by 
 | Async DB driver | asyncpg | Lowest-overhead Postgres driver; required for projection-worker throughput | A future workload that asyncpg's API can't accommodate |
 | Agent-protocol SDK | `mcp` (official Python SDK) | First-party reference implementation, tracks the spec | Major MCP-spec break |
 | Validation | Pydantic v2 | The de facto standard for FastAPI schemas; fast, mature | Coupled to the HTTP framework choice |
+| Settings / config | pydantic-settings | Env-var-driven `Settings` with Pydantic validation; `Settings.require_authenticated_principal` and the `APP_ENV` gate are wired this way | Coupled to the Validation choice |
+| ID generation | uuid-utils (UUIDv7) | Backs the `IdGenerator` port adapter; UUIDv7 gives time-ordered keys without exposing wall-clock | A future stdlib UUIDv7 (PG18's native `uuidv7()` is rejected per non-determinism principle: handler-side injection preserves replay determinism) |
 | HTTP server | Uvicorn | Standard async ASGI server; integrates with FastAPI | Hypercorn or another ASGI server if HTTP/2 or H/3 becomes a hard requirement |
 
 ## Datastore
@@ -39,6 +41,27 @@ These picks are **starting points, not strict commitments**. Each was chosen by 
 | Structured logging | structlog | JSON-rendered logs, processor pipeline for trace-context injection | Stays |
 | Metrics | prometheus-client + prometheus-fastapi-instrumentator | Industry-standard scrape format, per-app `CollectorRegistry` works under repeated `TestClient` construction | A future preference for push metrics (OTLP-only) |
 | Tracing | OpenTelemetry (api/sdk + asyncpg + fastapi instrumentations) | Vendor-neutral; OTel `gen_ai.*` semconv lands in Decision-BC reasoning logbooks | Stays |
+| Tracing transport | OTLP over HTTP (`opentelemetry-exporter-otlp-proto-http`) | Vendor-neutral wire format; `OTEL_EXPORTER_OTLP_*` env vars are passed straight through (CORA deliberately does not shadow them) | gRPC variant if a backend requires it |
+
+### Receivers (where the data lands in production)
+
+CORA emits structured logs, Prometheus metrics, and OTel traces; all three production receivers are deferred today (no production deployment is live). Named so the gap is visible.
+
+| Role | Status | Trigger |
+| --- | --- | --- |
+| Log aggregator | Deferred (Loki, ELK, Datadog, cloud-native) | First non-local deployment |
+| Metrics scraper / store | Deferred (Prometheus server, Mimir, managed) | First non-local deployment |
+| Tracing backend | Deferred (Jaeger, Tempo, Honeycomb, vendor) | First non-local deployment |
+| OTel Collector | Deferred (in-process exporter vs sidecar collector) | First non-local deployment, or when more than one signal type needs preprocessing |
+
+## Deployment and packaging
+
+| Role | Current pick | Why this | Swap trigger |
+| --- | --- | --- | --- |
+| Build backend | hatchling | Standard PEP 517 backend, uv-friendly, pinned in `[build-system]` | A workspace tool requiring a different backend |
+| Container image | Deferred | Not yet built; first non-local deployment will define the base image and layering | First non-local deployment |
+| Runtime target | Deferred (Kubernetes, Cloud Run, ECS, bare VMs) | Not yet deployed beyond local dev | First non-local deployment |
+| Image registry | Deferred (ghcr, Docker Hub, cloud-native) | Tied to the runtime-target pick | Locked alongside runtime target |
 
 ## Frontend (planned)
 
@@ -57,9 +80,11 @@ Not yet on disk. Picks below are the *current intent*, not a commitment.
 | Lint + format (Python) | Ruff | One tool, fast, growing rule coverage |
 | Type checker | Pyright (strict mode) | Strictest checker available; structural typing aligns with `Protocol`-based ports |
 | Test runner | pytest + pytest-asyncio | De facto Python standard; `--import-mode=importlib` aligns with `src/` layout |
+| HTTP test client | httpx | FastAPI's `TestClient` rides on it; used by every contract test |
 | Integration test isolation | testcontainers (Postgres) | Each integration run gets a fresh Postgres instance; mirrors prod schema via Atlas |
 | Import-boundary linter | tach | Enforces BC isolation at import time |
 | Pre-commit framework | pre-commit | Standard Python tooling |
+| Local container runtime | Docker + docker-compose | Runs Postgres + pgvector locally per Quick start; only used for local dev infra |
 | CI | GitHub Actions | Repo lives on GitHub; standard workflow |
 
 ## Deferred picks
@@ -73,3 +98,9 @@ Roles where CORA has deferred the implementation choice until a real consumer de
 - **Authz engine** (SpiceDB vs OpenFGA). Locked when the first non-Cedar authz rule lands.
 - **Snapshot store** (in-events vs sidecar table). Locked when fold-on-read becomes a measurable bottleneck.
 - **Outbox pattern** (table-based vs NOTIFY-only). Locked when the first cross-process event consumer needs at-least-once delivery beyond the projection-worker bookmark.
+- **LLM provider and embedding model** for Decision-BC reasoning generation. CORA today *stores* reasoning entries shaped by OTel `gen_ai.*` semconv but does not generate them. Locked when generation lands.
+- **Backup and PITR strategy** for the relational store. Locked before any non-local deployment.
+- **Secrets management** (Vault, cloud secrets manager, sealed-secrets). Today `.env.example` plus environment variables only. Locked before any non-local deployment.
+- **TLS termination and load balancer** layer. Today implicit; the verifying proxy named in the auth row carries this responsibility in most deployments. Locked when a deployment chooses its proxy.
+- **Documentation site generator** (mkdocs, Docusaurus, etc.). Locked if `docs/*.md` outgrows GitHub's renderer.
+- **Versioning and release scheme**. `version = "0.1.0"` is in pyproject.toml; no docs on what bumps it or how releases get cut. Locked when the first external consumer of the API or library exists.

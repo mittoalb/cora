@@ -64,6 +64,8 @@ Layer-2 role names paired with the current layer-3 pick. Reasoning and swap trig
 - **Async DB driver.** Talks to the relational store from async Python. Currently asyncpg.
 - **Agent-protocol SDK.** Mounts the agent surface, registers tools, handles the protocol handshake. Currently the official MCP Python SDK.
 - **Validation layer.** Defines request and response schemas, enforces invariants at the API boundary. Currently Pydantic v2.
+- **Settings and config.** Loads runtime configuration from environment variables, validates it, gates production behaviours. Currently pydantic-settings.
+- **ID generation.** Backs the `IdGenerator` port; UUIDv7 keys are time-ordered without exposing wall-clock. Currently uuid-utils.
 - **Relational store.** Holds events, projections, idempotency records, vector indices. Currently Postgres 18.
 - **Event store.** Append-only event log; the source of truth. Currently a hand-rolled `events` table on the relational store, INSERT-only at the database role level.
 - **Vector index.** Stores and queries embeddings (Decision-BC reasoning). Currently pgvector inside the relational store.
@@ -74,6 +76,9 @@ Layer-2 role names paired with the current layer-3 pick. Reasoning and swap trig
 - **Structured logging.** JSON log lines with trace-context injection. Currently structlog.
 - **Metrics.** Prometheus-format counters and histograms on every handler. Currently prometheus-client + prometheus-fastapi-instrumentator.
 - **Tracing.** Distributed traces, span-based correlation ids, OTel `gen_ai.*` semconv for reasoning logbooks. Currently OpenTelemetry.
+- **Tracing transport.** The wire format the tracer uses to ship spans. Currently OTLP over HTTP.
+- **Build backend.** The PEP 517 backend that turns the source tree into a wheel. Currently hatchling.
+- **Local container runtime.** Runs Postgres + pgvector locally for the Quick start. Currently Docker + docker-compose.
 
 ## Tooling
 
