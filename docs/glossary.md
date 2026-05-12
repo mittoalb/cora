@@ -1,23 +1,23 @@
 # Glossary
 
-Terse definitions for the vocabulary that shows up in CORA code, commits, and design notes. The dictionary; for prose, see [architecture.md](architecture.md) (layer 2) and [stack.md](stack.md) (layer 3). Linked from the [README](index.md) and [CONTRIBUTING.md](contributing.md).
+Terse definitions for the vocabulary that shows up in CORA code, commits, and design notes. The dictionary; for prose, see [architecture.md](architecture.md) (layer 2) and [stack.md](stack.md) (layer 3). Linked from the [README](../README.md) and [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## DDD and architecture
 
-- **Bounded context (BC).** A self-contained slice of the domain with its own model, language, and API surface. CORA has 8 scaffolded so far: `access`, `equipment`, `recipe`, `run`, `data`, `decision`, `subject`, `trust`. One folder per BC under [apps/api/src/cora/](https://github.com/xmap/cora/blob/main/apps/api/src/cora/).
+- **Bounded context (BC).** A self-contained slice of the domain with its own model, language, and API surface. CORA has 8 scaffolded so far: `access`, `equipment`, `recipe`, `run`, `data`, `decision`, `subject`, `trust`. One folder per BC under [apps/api/src/cora/](../apps/api/src/cora/).
 - **Aggregate.** The consistency boundary inside a BC. Holds state, decides whether a command is valid, emits events. Located under `<bc>/aggregates/<name>/`.
 - **Decider.** A pure function `(state, command) -> events`. Contains the business rules. No I/O.
 - **Evolver.** A pure function `(state, event) -> state`. Folds events into the current aggregate state.
-- **Fold-on-read.** Rebuild aggregate state by replaying events from the store on every command. No persisted snapshots yet (see project_deferred.md for the trigger).
+- **Fold-on-read.** Rebuild aggregate state by replaying events from the store on every command. No persisted snapshots yet (see [project_deferred.md](../../.claude/projects/-Users-dgursoy-Documents-Github-cora/memory/project_deferred.md) for the trigger).
 - **Vertical slice.** One folder per command or query containing `command.py`, `decider.py`, `handler.py`, `route.py`, `tool.py`. Found under `<bc>/features/<slice>/`.
 - **Functional core, imperative shell (FCIS).** Pure functions in the core (decider, evolver), all side effects (DB, clock, IDs, HTTP) at the shell. Side effects enter via injected ports.
-- **Port.** A `Protocol` defining a side-effect seam (clock, ID generator, event store, authorize, idempotency). Adapters implement them. See [infrastructure/ports/](https://github.com/xmap/cora/blob/main/apps/api/src/cora/infrastructure/ports/).
-- **Kernel.** CORA's Shared Kernel: the small set of cross-BC primitives (event envelope, deps wiring, authorize factory). See [infrastructure/kernel.py](https://github.com/xmap/cora/blob/main/apps/api/src/cora/infrastructure/kernel.py).
+- **Port.** A `Protocol` defining a side-effect seam (clock, ID generator, event store, authorize, idempotency). Adapters implement them. See [infrastructure/ports/](../apps/api/src/cora/infrastructure/ports/).
+- **Kernel.** CORA's Shared Kernel: the small set of cross-BC primitives (event envelope, deps wiring, authorize factory). See [infrastructure/kernel.py](../apps/api/src/cora/infrastructure/kernel.py).
 - **Slim vs Lifecycle aggregate.** Two patterns for keeping replay cheap. Slim aggregates close out and start fresh; lifecycle aggregates carry state across phases. See `project_fold_cost_principles.md` in memory.
 
 ## Event sourcing
 
-- **Event store.** Append-only Postgres table of immutable events. INSERT-only at the DB role level (REVOKE UPDATE/DELETE on the app role). See [infrastructure/postgres/event_store.py](https://github.com/xmap/cora/blob/main/apps/api/src/cora/infrastructure/postgres/event_store.py).
+- **Event store.** Append-only Postgres table of immutable events. INSERT-only at the DB role level (REVOKE UPDATE/DELETE on the app role). See [infrastructure/postgres/event_store.py](../apps/api/src/cora/infrastructure/postgres/event_store.py).
 - **Stream.** All events for one aggregate instance, ordered by version.
 - **Position.** Global monotonic ordinal of an event in the store.
 - **transaction_id (xid8).** PG18 transaction identifier on every event. Lets projection workers advance a cursor without missing in-flight inserts (Khyst + Dudycz pattern).
@@ -85,11 +85,11 @@ Layer-2 role names paired with the current layer-3 pick. Reasoning and swap trig
 Layer-3 details for the developer-facing toolchain. See [stack.md](stack.md) for the full table including reasoning and swap triggers.
 
 - **uv.** Python package and venv manager. Replaces pip + virtualenv + pip-tools.
-- **Atlas.** Schema migration tool. Migrations live in [infra/atlas/migrations/](https://github.com/xmap/cora/blob/main/infra/atlas/migrations/), forward-only.
+- **Atlas.** Schema migration tool. Migrations live in [infra/atlas/migrations/](../infra/atlas/migrations/), forward-only.
 - **tach.** Python import-boundary linter. Enforces BC isolation.
 - **Ruff.** Python linter and formatter.
 - **Pyright.** Python type checker, run in strict mode.
 - **pytest + pytest-asyncio.** Test runner. `--import-mode=importlib` per `src/` layout convention.
 - **testcontainers.** Spins up a fresh Postgres per integration test run.
-- **pre-commit.** Hook framework wired in [.pre-commit-config.yaml](https://github.com/xmap/cora/blob/main/.pre-commit-config.yaml).
+- **pre-commit.** Hook framework wired in [.pre-commit-config.yaml](../.pre-commit-config.yaml).
 - **Biome.** JS/TS linter and formatter (frontend, planned).

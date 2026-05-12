@@ -2,15 +2,15 @@
 
 This document is the **layer-2** view of CORA: the patterns and roles the runtime is built from, with no product names. It answers "what does each piece do" rather than "which product implements it."
 
-For the current concrete picks (which HTTP framework, which database, which migration tool) and the reasoning behind each, see [stack.md](stack.md). For working vocabulary, see [glossary.md](glossary.md). For onboarding and code conventions, see [CONTRIBUTING.md](contributing.md).
+For the current concrete picks (which HTTP framework, which database, which migration tool) and the reasoning behind each, see [stack.md](stack.md). For working vocabulary, see [glossary.md](glossary.md). For onboarding and code conventions, see [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Layered docs
 
 | Layer | Vocabulary | Where it lives |
 | --- | --- | --- |
-| 1. Capability | What CORA does for users | [README.md](index.md) intro, project_overview |
+| 1. Capability | What CORA does for users | [README.md](../README.md) intro, [project_overview](../../.claude/projects/-Users-dgursoy-Documents-Github-cora/memory/project_overview.md) |
 | 2. Architecture | Roles and patterns, no products | this file |
-| 3. Implementation | Current product picks and reasoning | [stack.md](stack.md), [CONTRIBUTING.md](contributing.md) |
+| 3. Implementation | Current product picks and reasoning | [stack.md](stack.md), [CONTRIBUTING.md](../CONTRIBUTING.md) |
 | 4. Pinned versions | Exact strings | `apps/api/pyproject.toml`, `Makefile`, `infra/atlas/migrations/` |
 
 A reader can stop at the layer they care about. A tech swap (HTTP framework, database, agent-protocol SDK) only ripples through layers 3 and 4.
