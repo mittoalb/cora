@@ -8,6 +8,14 @@ errors to HTTP status codes.
   - 404: DecisionNotFoundError
   - 409 (defensive AlreadyExists): DecisionAlreadyExistsError
   - 409 (cross-aggregate refs): DeciderActorNotFoundError, ParentDecisionNotFoundError
+
+## Cross-BC infra errors NOT registered here
+
+`ConcurrencyError`, `IdempotencyConflictError`, and
+`InvalidCursorError` are infrastructure-layer errors that any BC
+can raise. They're registered globally in `cora/access/routes.py`
+(the first BC that boots); other BCs do NOT re-register them. The
+JSON shape is the same regardless of which BC issued the error.
 """
 
 from fastapi import FastAPI, Request, status
