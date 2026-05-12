@@ -90,31 +90,32 @@ For Claude Code or other MCP-aware clients, point the client at `http://localhos
 
 ```
 cora/
-├── apps/                      # deployable units
-│   ├── api/                   # FastAPI + MCP backend (Python)
-│   │   ├── src/cora/
-│   │   │   ├── api/           # HTTP + MCP entrypoints
-│   │   │   ├── infrastructure/ # cross-cutting kernel: ports, deps, event envelope, observability
-│   │   │   └── <bc>/          # bounded contexts (8 scaffolded so far: access, equipment, recipe, run, data, decision, subject, trust)
-│   │   │       ├── aggregates/      # state, events, evolver, fold-on-read per aggregate
-│   │   │       └── features/        # vertical slices: one folder per command or query
-│   │   ├── tests/
-│   │   │   ├── unit/          # pure, no I/O
-│   │   │   ├── integration/   # require Postgres or other external services
-│   │   │   ├── contract/      # REST/MCP schema verification
-│   │   │   └── architecture/  # arch-fitness checks (BC layout, DB grants, import boundaries)
-│   │   └── pyproject.toml
-│   └── (planned: apps/web Next.js frontend, apps/workers background processors, packages/ shared libs)
-├── infra/                     # local dev infra + IaC
-│   ├── atlas/                 # schema migrations
+├── apps/
+│   └── api/                # backend
+│       ├── src/cora/
+│       │   ├── api/        # entrypoints
+│       │   ├── infrastructure/
+│       │   └── <bc>/
+│       │       ├── aggregates/
+│       │       └── features/
+│       ├── tests/
+│       │   ├── unit/
+│       │   ├── integration/
+│       │   ├── contract/
+│       │   └── architecture/
+│       └── pyproject.toml
+├── infra/
+│   ├── atlas/              # migrations
 │   └── docker-compose.yml
-├── docs/                      # architecture, stack, glossary
-├── Makefile                   # top-level orchestration
-├── .python-version            # repo-wide Python pin
+├── docs/                   # architecture, stack, glossary
+├── CONTRIBUTING.md
+├── Makefile
 └── README.md
 ```
 
-Test layout is **separate `tests/` mirroring `src/`** with pytest's `--import-mode=importlib`, per current Python community best practice for `src/` layouts.
+- **`<bc>/`** is one of 8 bounded contexts scaffolded today: `access`, `equipment`, `recipe`, `run`, `data`, `decision`, `subject`, `trust`. Each follows the same `aggregates/` + `features/` shape (see [CONTRIBUTING.md](CONTRIBUTING.md)).
+- **`tests/`** mirrors `src/` and splits by category: `unit/` (pure), `integration/` (real Postgres), `contract/` (REST and MCP schema), `architecture/` (fitness checks).
+- **Planned but not yet on disk:** `apps/web` (frontend), `apps/workers` (background processors and agents), `packages/` (shared libs).
 
 ## Architecture (high level)
 
