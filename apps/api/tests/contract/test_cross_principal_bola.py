@@ -113,6 +113,8 @@ def bola_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, UUID
                 "GetActor",
                 "GetSubject",
                 "GetAsset",
+                # List-side (8e-1c)
+                "ListActors",
             }
         ),
     )
@@ -217,4 +219,46 @@ def test_p1_can_still_read_their_own_aggregate(
         f"P1 was unexpectedly denied reading their own aggregate "
         f"({response.status_code}, {response.text}). Policy/permitted-"
         f"commands setup is wrong."
+    )
+
+
+# ---------- List endpoint BOLA (weaker, command-level only today) ----------
+
+
+@pytest.mark.contract
+def test_p2_cannot_call_list_actors_when_command_not_permitted(
+    bola_app: tuple[TestClient, UUID, UUID],
+) -> None:
+    """List-endpoint BOLA defense at TODAY's granularity: the
+    `ListActors` command is gated by Trust policy. P2 isn't in
+    `permitted_principals` so the command itself is denied with 403
+    before the projection table is queried.
+
+    This is the WEAKER assertion than per-row BOLA (P2 sees zero of
+    P1's items in the response body) — see `project_deferred.md`
+    entry "BOLA per-row scoping for list endpoints (ReBAC dependency)".
+    Today the projection has no per-principal scoping, so once
+    ListActors IS permitted to a principal, that principal sees
+    every actor regardless of who created them. The honest test
+    pins the defense that DOES exist.
+    """
+    client, _, p2 = bola_app
+
+    response = client.get("/actors", headers={"X-Principal-Id": str(p2)})
+    assert response.status_code == 403, (
+        f"P2 should be denied ListActors at the command level "
+        f"(status={response.status_code}, body={response.text})."
+    )
+
+
+@pytest.mark.contract
+def test_p1_can_call_list_actors_when_command_permitted(
+    bola_app: tuple[TestClient, UUID, UUID],
+) -> None:
+    """Inverse: the gate is per-principal, not blanket-deny."""
+    client, p1, _ = bola_app
+
+    response = client.get("/actors", headers={"X-Principal-Id": str(p1)})
+    assert response.status_code == 200, (
+        f"P1 should be permitted ListActors (status={response.status_code}, body={response.text})."
     )

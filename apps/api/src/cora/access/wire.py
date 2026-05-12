@@ -26,7 +26,12 @@ no state mutation.
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.access.features import deactivate_actor, get_actor, register_actor
+from cora.access.features import (
+    deactivate_actor,
+    get_actor,
+    list_actors,
+    register_actor,
+)
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
@@ -49,6 +54,7 @@ class AccessHandlers:
     register_actor: register_actor.IdempotentHandler
     deactivate_actor: deactivate_actor.Handler
     get_actor: get_actor.Handler
+    list_actors: list_actors.Handler
 
 
 def wire_access(deps: Kernel) -> AccessHandlers:
@@ -75,6 +81,12 @@ def wire_access(deps: Kernel) -> AccessHandlers:
         get_actor=with_tracing(
             get_actor.bind(deps),
             command_name="GetActor",
+            bc=_BC,
+            kind="query",
+        ),
+        list_actors=with_tracing(
+            list_actors.bind(deps),
+            command_name="ListActors",
             bc=_BC,
             kind="query",
         ),

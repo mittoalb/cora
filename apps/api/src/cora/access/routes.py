@@ -36,8 +36,14 @@ from cora.access.aggregates.actor import (
     InvalidActorNameError,
 )
 from cora.access.errors import UnauthorizedError
-from cora.access.features import deactivate_actor, get_actor, register_actor
+from cora.access.features import (
+    deactivate_actor,
+    get_actor,
+    list_actors,
+    register_actor,
+)
 from cora.infrastructure.ports import ConcurrencyError, IdempotencyConflictError
+from cora.infrastructure.projection import InvalidCursorError
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -116,11 +122,23 @@ async def _handle_idempotency_conflict(request: Request, exc: Exception) -> JSON
     )
 
 
+async def _handle_invalid_cursor(request: Request, exc: Exception) -> JSONResponse:
+    """Malformed pagination cursor — client passed a corrupt /
+    truncated / hand-crafted cursor instead of one from a previous
+    response's `next_cursor` field."""
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={"detail": str(exc)},
+    )
+
+
 def register_access_routes(app: FastAPI) -> None:
     """Attach Access slice routers and exception handlers to the FastAPI app."""
     app.include_router(register_actor.router)
     app.include_router(deactivate_actor.router)
     app.include_router(get_actor.router)
+    app.include_router(list_actors.router)
     for validation_cls in (InvalidActorNameError,):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (ActorNotFoundError,):
@@ -133,3 +151,4 @@ def register_access_routes(app: FastAPI) -> None:
     # Infrastructure errors (cross-BC; Access registers them globally — see module docstring).
     app.add_exception_handler(ConcurrencyError, _handle_concurrency_conflict)
     app.add_exception_handler(IdempotencyConflictError, _handle_idempotency_conflict)
+    app.add_exception_handler(InvalidCursorError, _handle_invalid_cursor)
