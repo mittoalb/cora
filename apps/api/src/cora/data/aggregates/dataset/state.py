@@ -1,0 +1,450 @@
+"""Dataset aggregate state, value objects, status enum, and domain errors.
+
+`Dataset` is the logical research data product, not the bytes
+themselves. Bytes live wherever the URI points (S3 / Globus /
+POSIX / etc.); the Data BC stores only the metadata: identity,
+URI, checksum, byte_size, format, lineage, and the cross-aggregate
+references back to whatever produced or describes the data.
+
+## What a Dataset is NOT
+
+  - Not the bytes (those live at the URI)
+  - Not a substream entry (per-projection rows live in a future
+    Run samples logbook with the dataset URI as a column; one
+    Dataset = one logical product, not one Dataset per projection)
+  - Not a Transfer record (Transfer is a separate aggregate,
+    deferred to its own phase)
+
+## Phase 7a scope
+
+Minimal Dataset: id + name + uri + checksum + byte_size + format +
+optional cross-refs (producing_run_id, subject_id, derived_from)
++ status (defaults `Registered`). The `Discarded` terminal lands
+in 7b. Archive / Verify / Move transitions defer until storage
+tiers / re-checksum workflows ship.
+
+## Format as structured VO (gate-review L3 refinement, 2026-05-11)
+
+`format` is a small VO: `media_type: str` (loose MIME-type-ish
+string) plus `conforms_to: frozenset[str]` (zero or more profile
+URIs the Dataset claims to conform to, for example
+`https://manual.nexusformat.org/...` or `https://ngff.openmicroscopy.org/0.4/`).
+This matches RO-Crate 1.2's pattern. The free-form-string-only
+alternative was the original draft, but the standards survey
+showed real Datasets can claim multiple profiles (NeXus + OME-
+Zarr is a documented case), and retrofitting `conforms_to` later
+would be a breaking change on the genesis event payload.
+
+## Cross-aggregate references
+
+Three optional refs:
+
+  - `producing_run_id: UUID | None`: the Run that produced this
+    Dataset. None for externally-sourced data, uploaded reference
+    sets, or pre-existing data being newly registered.
+  - `subject_id: UUID | None`: the Subject the Dataset is "about."
+    None for calibration / dark-field / synthetic data with no
+    sample.
+  - `derived_from: frozenset[UUID]`: lineage edges to other
+    Datasets this one was derived from (raw → reconstructed →
+    segmented → ...). Empty for raw/captured data; multi-source
+    for derivations that combine several inputs (multi-modal
+    fusion, comparative analyses).
+
+Eventual-consistency stance: existence-only validation at the
+handler load step, no status check (so Datasets can be registered
+mid-Run, and derived from any non-Discarded Dataset). Re-validation
+at fold time is NOT performed; same posture as Run-start's
+Plan/Subject loading.
+
+The inverse query "what Datasets did Run X produce?" requires a
+projection (deferred); it's never carried on the Run aggregate.
+
+## Lineage in domain vs PROV-O at API boundary
+
+In-domain lineage stays as the simple `derived_from` edge set on
+each Dataset; query-time graph walks reconstruct the full
+provenance chain. PROV-O export (using `prov:wasDerivedFrom`,
+`prov:wasGeneratedBy`, `prov:Entity`/`Activity`/`Agent`) lives at
+the API export adapter when a real consumer asks; we don't import
+PROV-O vocabulary into the domain core.
+
+## Identifier scheme
+
+Dataset id is UUIDv7 (matches the cross-BC convention). Persistent
+identifiers (DOIs via DataCite, including the IGSN-via-DataCite
+flow for samples) land at the export layer when first needed; they
+are not part of the in-domain Dataset identity.
+
+## Eleventh-onwards bounded-name VO
+
+`DatasetName` calls the shared `validate_name` helper hoisted in
+6e-1 (`cora.infrastructure.name`). Same pattern as the prior 11.
+"""
+
+from dataclasses import dataclass, field
+from enum import StrEnum
+from urllib.parse import urlparse
+from uuid import UUID
+
+from cora.infrastructure.name import validate_name
+
+DATASET_NAME_MAX_LENGTH = 200
+DATASET_URI_MAX_LENGTH = 2048
+DATASET_MEDIA_TYPE_MAX_LENGTH = 200
+DATASET_CONFORMS_TO_ENTRY_MAX_LENGTH = 2048
+DATASET_CONFORMS_TO_MAX_ENTRIES = 16
+DATASET_DERIVED_FROM_MAX_ENTRIES = 64
+DATASET_CHECKSUM_ALGORITHM_SHA256 = "sha256"
+DATASET_CHECKSUM_SHA256_HEX_LENGTH = 64
+
+
+class DatasetStatus(StrEnum):
+    """The Dataset's lifecycle state.
+
+    7a ships only `Registered`. The Discarded terminal lands in 7b.
+    Archive / Verify / Move transitions defer until storage tiers
+    actually exist in a deployment (gate-review Q1 lock B).
+
+    Enum values are PascalCase strings (matches BC-map status
+    vocabulary; log lines and DTOs read naturally without mapping).
+    """
+
+    REGISTERED = "Registered"
+
+
+class InvalidDatasetNameError(ValueError):
+    """The supplied name is empty, whitespace-only, or too long."""
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Dataset name must be 1-{DATASET_NAME_MAX_LENGTH} chars after trimming "
+            f"(got: {value!r})"
+        )
+        self.value = value
+
+
+class InvalidDatasetUriError(ValueError):
+    """The supplied URI is empty, whitespace-only, has no scheme, or too long.
+
+    URI format validation at the BC is intentionally loose: we accept
+    anything that `urllib.parse.urlparse` returns with a non-empty
+    scheme, after trim, within the length cap. Backend resolution
+    (does the URI actually exist? does the checksum match?) is out of
+    scope per gate-review Q4 lock A; that lives in a separate
+    DatasetVerified workflow when bit-rot detection ships.
+    """
+
+    def __init__(self, value: str, reason: str) -> None:
+        super().__init__(f"Dataset URI invalid ({reason}): {value!r}")
+        self.value = value
+        self.reason = reason
+
+
+class InvalidDatasetChecksumError(ValueError):
+    """The supplied checksum has an unsupported algorithm or malformed value.
+
+    Only `sha256` is accepted today; the `(algorithm, value)` shape
+    is forward-compatible for adding BLAKE3 / SHA3 / etc. when a real
+    consumer asks. sha256 values must be 64 lowercase hex chars
+    (canonical form).
+    """
+
+    def __init__(self, algorithm: str, value: str, reason: str) -> None:
+        super().__init__(
+            f"Dataset checksum invalid ({reason}): algorithm={algorithm!r}, value={value!r}"
+        )
+        self.algorithm = algorithm
+        self.value = value
+        self.reason = reason
+
+
+class InvalidDatasetByteSizeError(ValueError):
+    """The supplied byte_size is negative.
+
+    Zero is allowed (an empty file is a valid Dataset; the operator
+    knows what they're recording). Upper bound is not enforced at
+    the BC; storage backends impose their own.
+    """
+
+    def __init__(self, value: int) -> None:
+        super().__init__(f"Dataset byte_size must be >= 0 (got: {value})")
+        self.value = value
+
+
+class InvalidDatasetFormatError(ValueError):
+    """The supplied format VO has an invalid media_type or conforms_to entry.
+
+    Media_type must trim to 1-200 chars (loose MIME-type validation;
+    the exact taxonomy is free-form per gate-review Q5 lock A,
+    pending the same three re-evaluation triggers as RunAborted's
+    reason field). conforms_to entries must each be non-empty trimmed
+    strings within the per-entry length cap; the set may be empty
+    (no profile claimed).
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Dataset format invalid: {reason}")
+        self.reason = reason
+
+
+class InvalidDerivedFromError(ValueError):
+    """The supplied derived_from set has too many entries.
+
+    Per-entry validation (each is a UUID) is type-enforced; the
+    set-cardinality cap protects against accidentally massive
+    lineage payloads on a single registration.
+    """
+
+    def __init__(self, count: int) -> None:
+        super().__init__(
+            f"Dataset derived_from must have at most "
+            f"{DATASET_DERIVED_FROM_MAX_ENTRIES} entries (got: {count})"
+        )
+        self.count = count
+
+
+class DatasetAlreadyExistsError(Exception):
+    """Attempted to register a Dataset whose stream already has events."""
+
+    def __init__(self, dataset_id: UUID) -> None:
+        super().__init__(f"Dataset {dataset_id} already exists")
+        self.dataset_id = dataset_id
+
+
+class DatasetNotFoundError(Exception):
+    """Attempted an operation on a Dataset whose stream has no events."""
+
+    def __init__(self, dataset_id: UUID) -> None:
+        super().__init__(f"Dataset {dataset_id} not found")
+        self.dataset_id = dataset_id
+
+
+class ProducingRunNotFoundError(Exception):
+    """Attempted to register a Dataset against a Run that doesn't exist.
+
+    Cross-aggregate validation at registration: when `producing_run_id`
+    is set, the handler pre-loads the Run and confirms its stream is
+    non-empty. No status check (gate-review Q2 lock B): Datasets can
+    be registered against Running, Held, or any terminal Run, because
+    in-situ measurements register Datasets while the Run is still
+    actively running. Mapped to HTTP 409.
+    """
+
+    def __init__(self, run_id: UUID) -> None:
+        super().__init__(f"Cannot register Dataset: producing_run_id {run_id} does not exist")
+        self.run_id = run_id
+
+
+class LinkedSubjectNotFoundError(Exception):
+    """Attempted to register a Dataset against a Subject that doesn't exist.
+
+    Cross-aggregate validation at registration: when `subject_id` is
+    set, the handler pre-loads the Subject and confirms its stream
+    is non-empty. No status check (gate-review Q2 lock B): the link
+    is "this Dataset is about that Subject", which is meaningful
+    regardless of the Subject's current lifecycle state. Mapped to
+    HTTP 409.
+    """
+
+    def __init__(self, subject_id: UUID) -> None:
+        super().__init__(f"Cannot register Dataset: subject_id {subject_id} does not exist")
+        self.subject_id = subject_id
+
+
+class DerivedFromDatasetsNotFoundError(Exception):
+    """One or more derived_from references don't exist as Datasets.
+
+    Cross-aggregate validation at registration: when `derived_from`
+    is non-empty, the handler pre-loads each referenced Dataset and
+    confirms each stream is non-empty. The error carries the full
+    list of missing ids so the operator can fix the input. Mapped
+    to HTTP 409.
+    """
+
+    def __init__(self, missing_ids: list[UUID]) -> None:
+        super().__init__(
+            f"Cannot register Dataset: derived_from references the following "
+            f"non-existent Datasets: {[str(d) for d in missing_ids]}"
+        )
+        self.missing_ids = missing_ids
+
+
+@dataclass(frozen=True)
+class DatasetName:
+    """Display name for a Dataset. Trimmed; 1-200 chars.
+
+    Twelfth occurrence of the trimmed-bounded-name VO pattern. Uses
+    the shared `validate_name` helper hoisted in 6e-1 (see
+    `cora.infrastructure.name`).
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_name(
+            self.value,
+            max_length=DATASET_NAME_MAX_LENGTH,
+            error_class=InvalidDatasetNameError,
+        )
+        # Frozen dataclasses block normal assignment in __post_init__;
+        # use object.__setattr__ to install the trimmed value.
+        object.__setattr__(self, "value", trimmed)
+
+
+@dataclass(frozen=True)
+class DatasetUri:
+    """Opaque URI string pointing at the bulk content. Trimmed; 1-2048 chars.
+
+    Loose validation: `urllib.parse.urlparse` must return a non-empty
+    scheme. Bytes resolution / existence check is out of scope at the
+    BC layer (gate-review Q4 lock A: trust at registration; periodic
+    re-checksum / verification is its own future workflow).
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = self.value.strip()
+        if not trimmed:
+            raise InvalidDatasetUriError(self.value, "empty or whitespace-only")
+        if len(trimmed) > DATASET_URI_MAX_LENGTH:
+            raise InvalidDatasetUriError(self.value, f"exceeds {DATASET_URI_MAX_LENGTH} chars")
+        parsed = urlparse(trimmed)
+        if not parsed.scheme:
+            raise InvalidDatasetUriError(self.value, "missing URI scheme")
+        object.__setattr__(self, "value", trimmed)
+
+
+@dataclass(frozen=True)
+class DatasetChecksum:
+    """Bulk-content integrity hash. Algorithm + canonical value.
+
+    Only `sha256` accepted for now; the `(algorithm, value)` shape
+    is forward-compatible for adding BLAKE3 / SHA3 / etc. when a
+    real consumer asks. sha256 values must be 64 lowercase hex
+    chars (canonical form).
+    """
+
+    algorithm: str
+    value: str
+
+    def __post_init__(self) -> None:
+        if self.algorithm != DATASET_CHECKSUM_ALGORITHM_SHA256:
+            raise InvalidDatasetChecksumError(
+                self.algorithm,
+                self.value,
+                f"only {DATASET_CHECKSUM_ALGORITHM_SHA256!r} algorithm is supported today",
+            )
+        if len(self.value) != DATASET_CHECKSUM_SHA256_HEX_LENGTH:
+            raise InvalidDatasetChecksumError(
+                self.algorithm,
+                self.value,
+                f"sha256 value must be {DATASET_CHECKSUM_SHA256_HEX_LENGTH} hex chars",
+            )
+        if not all(c in "0123456789abcdef" for c in self.value):
+            raise InvalidDatasetChecksumError(
+                self.algorithm,
+                self.value,
+                "sha256 value must be lowercase hex (0-9, a-f)",
+            )
+
+
+@dataclass(frozen=True)
+class DatasetFormat:
+    """Structured format descriptor: media_type + conforms_to profile URIs.
+
+    Per the gate-review L3 refinement (post-standards-survey), this
+    is a small VO rather than a free-form string. `media_type` is
+    a loose MIME-type-ish string ("application/x-hdf5",
+    "application/x-zarr", "application/x-tiff", etc.); `conforms_to`
+    is a possibly-empty set of profile URIs the Dataset claims
+    (NeXus, OME-Zarr, CIF, etc.). Forward-compatible with RO-Crate
+    1.2's pattern.
+
+    The on-the-wire payload representation sorts `conforms_to`
+    deterministically (matches the Policy/permitted_principals
+    precedent) so two registrations of the same logical format
+    produce byte-identical jsonb.
+    """
+
+    media_type: str
+    conforms_to: frozenset[str] = field(default_factory=frozenset[str])
+
+    def __post_init__(self) -> None:
+        trimmed_media_type = self.media_type.strip()
+        if not trimmed_media_type:
+            raise InvalidDatasetFormatError("media_type empty or whitespace-only")
+        if len(trimmed_media_type) > DATASET_MEDIA_TYPE_MAX_LENGTH:
+            raise InvalidDatasetFormatError(
+                f"media_type exceeds {DATASET_MEDIA_TYPE_MAX_LENGTH} chars"
+            )
+        if len(self.conforms_to) > DATASET_CONFORMS_TO_MAX_ENTRIES:
+            raise InvalidDatasetFormatError(
+                f"conforms_to has too many entries "
+                f"(max {DATASET_CONFORMS_TO_MAX_ENTRIES}, got {len(self.conforms_to)})"
+            )
+        trimmed_conforms_to: set[str] = set()
+        for entry in self.conforms_to:
+            entry_trimmed = entry.strip()
+            if not entry_trimmed:
+                raise InvalidDatasetFormatError("conforms_to entry is empty or whitespace-only")
+            if len(entry_trimmed) > DATASET_CONFORMS_TO_ENTRY_MAX_LENGTH:
+                raise InvalidDatasetFormatError(
+                    f"conforms_to entry exceeds "
+                    f"{DATASET_CONFORMS_TO_ENTRY_MAX_LENGTH} chars: {entry!r}"
+                )
+            trimmed_conforms_to.add(entry_trimmed)
+        object.__setattr__(self, "media_type", trimmed_media_type)
+        object.__setattr__(self, "conforms_to", frozenset(trimmed_conforms_to))
+
+
+def validate_byte_size(value: int) -> int:
+    """Normalize / validate byte_size for the Dataset state and decider.
+
+    Zero is valid (empty files are valid Datasets); negative is not.
+    Free function rather than a VO because byte_size has no other
+    invariants beyond non-negative-int, and wrapping it in a frozen
+    dataclass would just add boilerplate.
+    """
+    if value < 0:
+        raise InvalidDatasetByteSizeError(value)
+    return value
+
+
+def validate_derived_from(value: frozenset[UUID]) -> frozenset[UUID]:
+    """Normalize / validate derived_from for the Dataset state and decider.
+
+    Cardinality-only check at this layer; per-element existence is
+    cross-aggregate validation in the handler's
+    `DatasetRegistrationContext`.
+    """
+    if len(value) > DATASET_DERIVED_FROM_MAX_ENTRIES:
+        raise InvalidDerivedFromError(len(value))
+    return value
+
+
+@dataclass(frozen=True)
+class Dataset:
+    """Aggregate root: one logical research data product.
+
+    `producing_run_id`, `subject_id`, `derived_from` are eventual-
+    consistency refs (loaded at handler-load time; not re-verified
+    at fold time). All three are optional (None / empty for the
+    standalone-upload case). `derived_from` is the lineage edge set
+    pointing at upstream Datasets this one was derived from.
+
+    `status` defaults to `Registered`; the lifecycle FSM expands in
+    7b (Discarded terminal) and later phases.
+    """
+
+    id: UUID
+    name: DatasetName
+    uri: DatasetUri
+    checksum: DatasetChecksum
+    byte_size: int
+    format: DatasetFormat
+    producing_run_id: UUID | None = None
+    subject_id: UUID | None = None
+    derived_from: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    status: DatasetStatus = DatasetStatus.REGISTERED

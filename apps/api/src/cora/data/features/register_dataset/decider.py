@@ -1,0 +1,123 @@
+"""Pure decider for the `RegisterDataset` command.
+
+Pure function: given the (always None) Dataset state, a
+`RegisterDataset` command, and a pre-loaded
+`DatasetRegistrationContext`, returns the events to append. No
+I/O, no awaits, no side effects.
+
+`now` and `new_id` are injected by the application handler from
+the Clock and IdGenerator ports.
+
+## Cross-aggregate validation (gate-review Q2 lock B)
+
+Existence-only checks; the decider trusts the handler's loads.
+Specifically:
+
+  - If `command.producing_run_id` is set, `context.producing_run`
+    must be non-None (handler raises `ProducingRunNotFoundError`
+    upstream if the Run doesn't exist; this branch validates the
+    handler's contract was honoured).
+  - If `command.subject_id` is set, `context.subject` must be
+    non-None (same shape).
+  - For each id in `command.derived_from`, `context.derived_from`
+    must contain it (handler raises
+    `DerivedFromDatasetsNotFoundError` upstream listing every
+    missing id).
+
+No status checks: Datasets register against any Run state,
+against any Subject state, against any non-Discarded Dataset.
+(Today, with no Discarded transition shipped, every existing
+Dataset is acceptable as a derived_from source. 7b's discard slice
+will tighten this to "must not be Discarded".)
+
+Per the precedent set by `start_run`'s decider, defensive guards
+on context.* alignment are assertions of the handler's contract,
+not user-facing validations. If the handler is correct, they
+never fire.
+
+## VO trim semantics
+
+Field VOs (`DatasetName`, `DatasetUri`, `DatasetChecksum`,
+`DatasetFormat`) handle their own trimming + validation in
+`__post_init__`; the on-the-wire payload carries the trimmed
+values (so the persisted event payload is canonical).
+"""
+
+from datetime import datetime
+from uuid import UUID
+
+from cora.data.aggregates.dataset import (
+    DatasetAlreadyExistsError,
+    DatasetChecksum,
+    DatasetFormat,
+    DatasetName,
+    DatasetRegistered,
+    DatasetUri,
+    DerivedFromDatasetsNotFoundError,
+    LinkedSubjectNotFoundError,
+    ProducingRunNotFoundError,
+    validate_byte_size,
+    validate_derived_from,
+)
+from cora.data.aggregates.dataset.state import Dataset
+from cora.data.features.register_dataset.command import RegisterDataset
+from cora.data.features.register_dataset.context import DatasetRegistrationContext
+
+
+def decide(
+    state: Dataset | None,
+    command: RegisterDataset,
+    context: DatasetRegistrationContext,
+    *,
+    now: datetime,
+    new_id: UUID,
+) -> list[DatasetRegistered]:
+    """Decide the events produced by registering a new Dataset."""
+    if state is not None:
+        raise DatasetAlreadyExistsError(state.id)
+
+    # Field-level validation via VOs (trims + bounded-length checks
+    # + format-specific invariants). Each VO raises its specific
+    # error class on failure, mapped to HTTP 400.
+    name = DatasetName(command.name)
+    uri = DatasetUri(command.uri)
+    checksum = DatasetChecksum(
+        algorithm=command.checksum_algorithm,
+        value=command.checksum_value,
+    )
+    byte_size = validate_byte_size(command.byte_size)
+    format_ = DatasetFormat(
+        media_type=command.media_type,
+        conforms_to=command.conforms_to,
+    )
+    derived_from = validate_derived_from(command.derived_from)
+
+    # Cross-aggregate checks (existence-only per Q2 lock B).
+    # The handler's pre-loads either populate context.* or raise
+    # the not-found error before we get here; these branches are
+    # the decider-level statement of the contract.
+    if command.producing_run_id is not None and context.producing_run is None:
+        raise ProducingRunNotFoundError(command.producing_run_id)
+    if command.subject_id is not None and context.subject is None:
+        raise LinkedSubjectNotFoundError(command.subject_id)
+    missing_derived = sorted(
+        (d for d in derived_from if d not in context.derived_from),
+        key=str,
+    )
+    if missing_derived:
+        raise DerivedFromDatasetsNotFoundError(missing_derived)
+
+    return [
+        DatasetRegistered(
+            dataset_id=new_id,
+            name=name.value,
+            uri=uri.value,
+            checksum=checksum,
+            byte_size=byte_size,
+            format=format_,
+            producing_run_id=command.producing_run_id,
+            subject_id=command.subject_id,
+            derived_from=derived_from,
+            occurred_at=now,
+        )
+    ]

@@ -46,6 +46,10 @@ path = "cora.access.aggregates"
 depends_on = ["cora.infrastructure"]
 
 [[modules]]
+path = "cora.data.aggregates"
+depends_on = ["cora.infrastructure"]
+
+[[modules]]
 path = "cora.equipment.aggregates"
 depends_on = ["cora.infrastructure"]
 
@@ -71,6 +75,19 @@ depends_on = ["cora.infrastructure"]
 [[modules]]
 path = "cora.access"
 depends_on = ["cora.infrastructure", "cora.access.aggregates"]
+
+# Data BC depends on its own aggregates plus Run + Subject aggregate
+# kernels for cross-aggregate validation at register_dataset time
+# (DatasetRegistrationContext pre-loads producing_run + linked
+# subject + each derived_from Dataset).
+[[modules]]
+path = "cora.data"
+depends_on = [
+    "cora.infrastructure",
+    "cora.data.aggregates",
+    "cora.run.aggregates",
+    "cora.subject.aggregates",
+]
 
 [[modules]]
 path = "cora.equipment"
@@ -108,6 +125,7 @@ path = "cora.api"
 depends_on = [
     "cora.infrastructure",
     "cora.access",
+    "cora.data",
     "cora.equipment",
     "cora.recipe",
     "cora.run",

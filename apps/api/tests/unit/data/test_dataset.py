@@ -1,0 +1,351 @@
+"""Unit tests for Dataset aggregate state, value objects, and domain errors.
+
+Mirrors `test_subject.py` shape: VO trim/length/format checks,
+status-enum exhaustiveness, error-class shape (carries the right
+fields, str(exc) names the right things).
+"""
+
+from uuid import uuid4
+
+import pytest
+
+from cora.data.aggregates.dataset import (
+    DATASET_CHECKSUM_SHA256_HEX_LENGTH,
+    DATASET_DERIVED_FROM_MAX_ENTRIES,
+    DATASET_NAME_MAX_LENGTH,
+    DATASET_URI_MAX_LENGTH,
+    Dataset,
+    DatasetAlreadyExistsError,
+    DatasetChecksum,
+    DatasetFormat,
+    DatasetName,
+    DatasetNotFoundError,
+    DatasetStatus,
+    DatasetUri,
+    DerivedFromDatasetsNotFoundError,
+    InvalidDatasetByteSizeError,
+    InvalidDatasetChecksumError,
+    InvalidDatasetFormatError,
+    InvalidDatasetNameError,
+    InvalidDatasetUriError,
+    InvalidDerivedFromError,
+    LinkedSubjectNotFoundError,
+    ProducingRunNotFoundError,
+    validate_byte_size,
+    validate_derived_from,
+)
+
+_GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
+
+
+# ---------- DatasetName VO ----------
+
+
+@pytest.mark.unit
+def test_dataset_name_accepts_normal_string() -> None:
+    name = DatasetName("32-ID FlyScan reconstruction")
+    assert name.value == "32-ID FlyScan reconstruction"
+
+
+@pytest.mark.unit
+def test_dataset_name_trims_whitespace() -> None:
+    name = DatasetName("  32-ID FlyScan  ")
+    assert name.value == "32-ID FlyScan"
+
+
+@pytest.mark.unit
+def test_dataset_name_rejects_empty_string() -> None:
+    with pytest.raises(InvalidDatasetNameError):
+        DatasetName("")
+
+
+@pytest.mark.unit
+def test_dataset_name_rejects_whitespace_only() -> None:
+    with pytest.raises(InvalidDatasetNameError):
+        DatasetName("   \t\n   ")
+
+
+@pytest.mark.unit
+def test_dataset_name_rejects_too_long() -> None:
+    with pytest.raises(InvalidDatasetNameError):
+        DatasetName("a" * (DATASET_NAME_MAX_LENGTH + 1))
+
+
+@pytest.mark.unit
+def test_dataset_name_accepts_max_length() -> None:
+    name = DatasetName("a" * DATASET_NAME_MAX_LENGTH)
+    assert len(name.value) == DATASET_NAME_MAX_LENGTH
+
+
+# ---------- DatasetUri VO ----------
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "s3://bucket/key",
+        "https://example.com/dataset/123",
+        "file:///path/to/file.h5",
+        "globus://endpoint-uuid/path",
+        "posix:///mnt/data/file.h5",
+    ],
+)
+def test_dataset_uri_accepts_common_schemes(uri: str) -> None:
+    parsed = DatasetUri(uri)
+    assert parsed.value == uri
+
+
+@pytest.mark.unit
+def test_dataset_uri_trims_whitespace() -> None:
+    uri = DatasetUri("  s3://bucket/key  ")
+    assert uri.value == "s3://bucket/key"
+
+
+@pytest.mark.unit
+def test_dataset_uri_rejects_empty() -> None:
+    with pytest.raises(InvalidDatasetUriError) as exc_info:
+        DatasetUri("")
+    assert "empty" in str(exc_info.value).lower()
+
+
+@pytest.mark.unit
+def test_dataset_uri_rejects_whitespace_only() -> None:
+    with pytest.raises(InvalidDatasetUriError):
+        DatasetUri("   ")
+
+
+@pytest.mark.unit
+def test_dataset_uri_rejects_missing_scheme() -> None:
+    with pytest.raises(InvalidDatasetUriError) as exc_info:
+        DatasetUri("just-a-path")
+    assert "scheme" in str(exc_info.value).lower()
+
+
+@pytest.mark.unit
+def test_dataset_uri_rejects_too_long() -> None:
+    with pytest.raises(InvalidDatasetUriError):
+        DatasetUri("s3://" + "a" * DATASET_URI_MAX_LENGTH)
+
+
+# ---------- DatasetChecksum VO ----------
+
+
+@pytest.mark.unit
+def test_dataset_checksum_accepts_canonical_sha256() -> None:
+    checksum = DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256)
+    assert checksum.algorithm == "sha256"
+    assert checksum.value == _GOOD_SHA256
+
+
+@pytest.mark.unit
+def test_dataset_checksum_rejects_unsupported_algorithm() -> None:
+    with pytest.raises(InvalidDatasetChecksumError) as exc_info:
+        DatasetChecksum(algorithm="md5", value="d41d8cd98f00b204e9800998ecf8427e")
+    assert "sha256" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_dataset_checksum_rejects_wrong_hex_length() -> None:
+    with pytest.raises(InvalidDatasetChecksumError):
+        DatasetChecksum(algorithm="sha256", value="a" * 63)
+
+
+@pytest.mark.unit
+def test_dataset_checksum_rejects_uppercase_hex() -> None:
+    with pytest.raises(InvalidDatasetChecksumError):
+        DatasetChecksum(algorithm="sha256", value="A" * 64)
+
+
+@pytest.mark.unit
+def test_dataset_checksum_rejects_non_hex_chars() -> None:
+    with pytest.raises(InvalidDatasetChecksumError):
+        DatasetChecksum(algorithm="sha256", value="g" * 64)
+
+
+# ---------- DatasetFormat VO ----------
+
+
+@pytest.mark.unit
+def test_dataset_format_accepts_media_type_only() -> None:
+    fmt = DatasetFormat(media_type="application/x-hdf5")
+    assert fmt.media_type == "application/x-hdf5"
+    assert fmt.conforms_to == frozenset()
+
+
+@pytest.mark.unit
+def test_dataset_format_accepts_conforms_to() -> None:
+    fmt = DatasetFormat(
+        media_type="application/x-hdf5",
+        conforms_to=frozenset({"https://manual.nexusformat.org/"}),
+    )
+    assert fmt.conforms_to == frozenset({"https://manual.nexusformat.org/"})
+
+
+@pytest.mark.unit
+def test_dataset_format_trims_media_type_and_conforms_to_entries() -> None:
+    fmt = DatasetFormat(
+        media_type="  application/x-hdf5  ",
+        conforms_to=frozenset({"  https://manual.nexusformat.org/  "}),
+    )
+    assert fmt.media_type == "application/x-hdf5"
+    assert fmt.conforms_to == frozenset({"https://manual.nexusformat.org/"})
+
+
+@pytest.mark.unit
+def test_dataset_format_rejects_empty_media_type() -> None:
+    with pytest.raises(InvalidDatasetFormatError):
+        DatasetFormat(media_type="")
+
+
+@pytest.mark.unit
+def test_dataset_format_rejects_whitespace_only_media_type() -> None:
+    with pytest.raises(InvalidDatasetFormatError):
+        DatasetFormat(media_type="   ")
+
+
+@pytest.mark.unit
+def test_dataset_format_rejects_empty_conforms_to_entry() -> None:
+    with pytest.raises(InvalidDatasetFormatError):
+        DatasetFormat(media_type="application/x-hdf5", conforms_to=frozenset({""}))
+
+
+@pytest.mark.unit
+def test_dataset_format_rejects_too_many_conforms_to_entries() -> None:
+    with pytest.raises(InvalidDatasetFormatError):
+        DatasetFormat(
+            media_type="application/x-hdf5",
+            conforms_to=frozenset(f"https://example.com/p/{i}" for i in range(64)),
+        )
+
+
+# ---------- byte_size validation ----------
+
+
+@pytest.mark.unit
+def test_validate_byte_size_accepts_zero() -> None:
+    assert validate_byte_size(0) == 0
+
+
+@pytest.mark.unit
+def test_validate_byte_size_accepts_positive() -> None:
+    assert validate_byte_size(1_073_741_824) == 1_073_741_824
+
+
+@pytest.mark.unit
+def test_validate_byte_size_rejects_negative() -> None:
+    with pytest.raises(InvalidDatasetByteSizeError):
+        validate_byte_size(-1)
+
+
+# ---------- derived_from validation ----------
+
+
+@pytest.mark.unit
+def test_validate_derived_from_accepts_empty() -> None:
+    assert validate_derived_from(frozenset()) == frozenset()
+
+
+@pytest.mark.unit
+def test_validate_derived_from_accepts_within_cap() -> None:
+    s = frozenset(uuid4() for _ in range(10))
+    assert validate_derived_from(s) == s
+
+
+@pytest.mark.unit
+def test_validate_derived_from_rejects_over_cap() -> None:
+    s = frozenset(uuid4() for _ in range(DATASET_DERIVED_FROM_MAX_ENTRIES + 1))
+    with pytest.raises(InvalidDerivedFromError):
+        validate_derived_from(s)
+
+
+# ---------- DatasetStatus enum ----------
+
+
+@pytest.mark.unit
+def test_dataset_status_only_registered_in_7a() -> None:
+    """7a ships only Registered. Discarded lands in 7b."""
+    assert {s.value for s in DatasetStatus} == {"Registered"}
+
+
+@pytest.mark.unit
+def test_dataset_status_is_str_enum_for_natural_serialization() -> None:
+    assert isinstance(DatasetStatus.REGISTERED, str)
+    assert DatasetStatus.REGISTERED == "Registered"
+    assert f"{DatasetStatus.REGISTERED}" == "Registered"
+
+
+# ---------- Dataset aggregate root ----------
+
+
+@pytest.mark.unit
+def test_dataset_default_status_is_registered() -> None:
+    ds = Dataset(
+        id=uuid4(),
+        name=DatasetName("D"),
+        uri=DatasetUri("s3://b/k"),
+        checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
+        byte_size=0,
+        format=DatasetFormat(media_type="application/x-hdf5"),
+    )
+    assert ds.status is DatasetStatus.REGISTERED
+
+
+@pytest.mark.unit
+def test_dataset_default_optional_refs_are_none_or_empty() -> None:
+    ds = Dataset(
+        id=uuid4(),
+        name=DatasetName("D"),
+        uri=DatasetUri("s3://b/k"),
+        checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
+        byte_size=0,
+        format=DatasetFormat(media_type="application/x-hdf5"),
+    )
+    assert ds.producing_run_id is None
+    assert ds.subject_id is None
+    assert ds.derived_from == frozenset()
+
+
+# ---------- Error classes ----------
+
+
+@pytest.mark.unit
+def test_dataset_already_exists_error_carries_dataset_id() -> None:
+    dataset_id = uuid4()
+    err = DatasetAlreadyExistsError(dataset_id)
+    assert err.dataset_id == dataset_id
+    assert str(dataset_id) in str(err)
+
+
+@pytest.mark.unit
+def test_dataset_not_found_error_carries_dataset_id() -> None:
+    dataset_id = uuid4()
+    err = DatasetNotFoundError(dataset_id)
+    assert err.dataset_id == dataset_id
+    assert str(dataset_id) in str(err)
+
+
+@pytest.mark.unit
+def test_producing_run_not_found_error_carries_run_id() -> None:
+    run_id = uuid4()
+    err = ProducingRunNotFoundError(run_id)
+    assert err.run_id == run_id
+    assert str(run_id) in str(err)
+
+
+@pytest.mark.unit
+def test_linked_subject_not_found_error_carries_subject_id() -> None:
+    subject_id = uuid4()
+    err = LinkedSubjectNotFoundError(subject_id)
+    assert err.subject_id == subject_id
+    assert str(subject_id) in str(err)
+
+
+@pytest.mark.unit
+def test_derived_from_datasets_not_found_error_carries_missing_ids() -> None:
+    missing = [uuid4(), uuid4()]
+    err = DerivedFromDatasetsNotFoundError(missing)
+    assert err.missing_ids == missing
+    msg = str(err)
+    for m in missing:
+        assert str(m) in msg
