@@ -118,3 +118,44 @@ def test_settings_require_authenticated_principal_reads_env(
     monkeypatch.setenv("REQUIRE_AUTHENTICATED_PRINCIPAL", "true")
     settings = Settings()
     assert settings.require_authenticated_principal is True
+
+
+@pytest.mark.unit
+def test_settings_projection_use_listen_notify_default_true(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PROJECTION_USE_LISTEN_NOTIFY", raising=False)
+    settings = Settings()
+    assert settings.projection_use_listen_notify is True
+
+
+@pytest.mark.unit
+def test_settings_projection_use_listen_notify_can_disable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Per `project_deferred.md` NATS trigger: flip to False as an
+    interim mitigation before the full NATS bridge ships."""
+    monkeypatch.setenv("PROJECTION_USE_LISTEN_NOTIFY", "false")
+    settings = Settings()
+    assert settings.projection_use_listen_notify is False
+
+
+@pytest.mark.unit
+def test_settings_projection_poll_interval_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PROJECTION_POLL_INTERVAL_SECONDS", raising=False)
+    settings = Settings()
+    assert settings.projection_poll_interval_seconds == 5.0
+
+
+@pytest.mark.unit
+def test_settings_projection_poll_interval_rejects_tight_loop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Floor of 0.1s prevents accidental tight-loop misconfiguration."""
+    import pydantic
+
+    monkeypatch.setenv("PROJECTION_POLL_INTERVAL_SECONDS", "0.05")
+    with pytest.raises(pydantic.ValidationError):
+        Settings()

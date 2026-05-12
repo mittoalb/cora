@@ -83,6 +83,24 @@ class Settings(BaseSettings):
     # permissive default.
     require_authenticated_principal: bool = False
 
+    # Projection worker
+    # `projection_use_listen_notify=True` (default) wires the worker's
+    # wake-up signal to LISTEN on the `events` channel emitted by the
+    # AFTER INSERT trigger from migration 20260509120000. Latency from
+    # event commit to projection write is ~tens of ms under normal load.
+    # Flip to False to fall back to polling-only when LISTEN/NOTIFY's
+    # global commit lock causes contention (per Recall.ai July 2025
+    # incident; trigger documented in `memory/project_deferred.md` under
+    # the NATS deferred entry). Polling fallback latency is bounded by
+    # `projection_poll_interval_seconds`.
+    projection_use_listen_notify: bool = True
+    # Safety-net poll interval when NOTIFY mode is on (catches missed
+    # signals from listener disconnect). Becomes the primary signal
+    # when NOTIFY is off — recommended values are very different
+    # between the two modes (5s with NOTIFY, 1-2s without). Floor of
+    # 0.1s prevents accidental tight-loop misconfiguration.
+    projection_poll_interval_seconds: float = 5.0
+
     @field_validator("database_url")
     @classmethod
     def _validate_database_url(cls, value: str) -> str:
@@ -103,5 +121,17 @@ class Settings(BaseSettings):
         """Sampler ratio must be in [0.0, 1.0]; outside that range is meaningless."""
         if not 0.0 <= value <= 1.0:
             msg = f"otel_sampler_ratio must be in [0.0, 1.0], got {value}"
+            raise ValueError(msg)
+        return value
+
+    @field_validator("projection_poll_interval_seconds")
+    @classmethod
+    def _validate_projection_poll_interval(cls, value: float) -> float:
+        """Floor of 0.1s prevents accidental tight-loop misconfiguration."""
+        if value < 0.1:
+            msg = (
+                f"projection_poll_interval_seconds must be >= 0.1, got {value}; "
+                "values below 100ms would tight-loop the projection worker"
+            )
             raise ValueError(msg)
         return value

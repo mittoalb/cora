@@ -66,6 +66,10 @@ from cora.equipment import (
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import build_kernel
 from cora.infrastructure.observability import configure_tracing, instrument_app
+from cora.infrastructure.projection import (
+    ProjectionRegistry,
+    projection_worker_lifespan,
+)
 from cora.recipe import (
     RecipeHandlers,
     register_recipe_routes,
@@ -214,21 +218,34 @@ def create_app() -> FastAPI:
             app.state.run = wire_run(deps)
             app.state.data = wire_data(deps)
             app.state.decision = wire_decision(deps)
-            try:
-                yield
-            finally:
-                # Independent try/finally for each teardown so an
-                # exception in the asyncpg pool close (rare but
-                # observed under DB-side connection drops at shutdown)
-                # doesn't skip the tracing flush. Without this, any
-                # spans buffered by BatchSpanProcessor would be lost.
+
+            # Phase-8e-1a: projection worker. Each BC that owns
+            # projections will export a `register_<bc>_projections`
+            # function and we'll call it here to populate the
+            # registry. None today (8e-1a ships the framework only;
+            # 8e-1b adds the first projection to Access). The worker
+            # context manager handles spawn / cancel / drain.
+            registry = ProjectionRegistry()
+            app.state.projections = registry
+
+            async with projection_worker_lifespan(deps, registry, settings):
                 try:
-                    await teardown()
+                    yield
                 finally:
-                    # Flush pending OTel spans before the process exits
-                    # so short-lived runs (CLI invocations, smoke tests)
-                    # don't drop traces. No-op when tracing is off.
-                    tracing_teardown()
+                    # Independent try/finally for each teardown so an
+                    # exception in the asyncpg pool close (rare but
+                    # observed under DB-side connection drops at
+                    # shutdown) doesn't skip the tracing flush.
+                    # Without this, any spans buffered by
+                    # BatchSpanProcessor would be lost.
+                    try:
+                        await teardown()
+                    finally:
+                        # Flush pending OTel spans before the process
+                        # exits so short-lived runs (CLI invocations,
+                        # smoke tests) don't drop traces. No-op when
+                        # tracing is off.
+                        tracing_teardown()
 
     fastapi_app = FastAPI(
         title="CORA",
