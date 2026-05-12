@@ -147,14 +147,15 @@ Why this shape: it pairs Modular Monolith (BCs are macro-modules) with Vertical 
 Two patterns coexist; pick the right one per query:
 
 - **Fold-on-read** (`aggregates/<aggregate>/read.py:load_<aggregate>`) for **single-aggregate GETs**. Loads the stream from the event store, deserializes via `from_stored`, folds with the evolver. O(events-per-stream) per read. Works for `GET /<resources>/{id}` style endpoints.
-- **Projection worker** for **list / filter / search** endpoints (and high-traffic queries). A background task LISTENs on the events channel, maintains a denormalized projection table, GET reads from there. Not yet implemented; lands when the first list endpoint demands it. See `cora/access/aggregates/actor/read.py` module docstring for the trade-off.
+- **Projection worker** for **list / filter / search** endpoints (and high-traffic queries). A background task LISTENs on the `events` channel, maintains a denormalized projection table, GET reads from there. **Shipped in Phase 8e.** See "Projection-worker pattern" section below for the full contract; `cora/access/aggregates/actor/read.py` module docstring covers the fold-on-read vs projection trade-off for the per-aggregate get-by-id case.
 
 Read repos live with the aggregate (not the slice) because they operate on the aggregate's stream regardless of which command produced the events.
 
 ### Query slices
 
-Symmetric with command slices but with no decider (queries don't emit events) and no event production:
+Symmetric with command slices but with no decider (queries don't emit events) and no event production. Two shapes today:
 
+**`get_<aggregate>` — single-resource read by id:**
 ```
 features/get_<aggregate>/
 ├── query.py        # GetActor(actor_id: UUID)
@@ -163,7 +164,39 @@ features/get_<aggregate>/
 └── tool.py         # MCP tool: returns DTO on hit; raises ValueError on miss (FastMCP wraps as isError)
 ```
 
-Query handlers DO call `authorize` (with AllowAllAuthorize the call is a no-op today, but the call site is in place so Phase 3 Trust BC swap is mechanical per handler instead of a sweep that risks missing handlers). Handlers return domain types (`Aggregate | None`); route + tool layers do their own DTO mapping (Pydantic primitives only — decoupled from domain VO evolution).
+Reads via fold-on-read (`load_<aggregate>(event_store, id)`). Returns domain types; route + tool do their own Pydantic DTO mapping (decoupled from domain VO evolution).
+
+**`list_<aggregates>` — keyset-paginated list backed by a projection (Phase 8e+):**
+```
+features/list_<aggregates>/
+├── query.py        # ListActors(cursor, limit, status)
+├── handler.py      # bind(deps) -> Handler returning ActorListPage(items, next_cursor)
+├── route.py        # GET /<resource>?cursor=...&limit=50&status=active -> 200 + page DTO
+└── tool.py         # MCP tool with structured output
+```
+
+Reads from `proj_<bc>_<name>` directly via `deps.pool` (not from the event store; the projection worker keeps the read model fresh). Cursor format is opaque base64 of `(created_at, UUID)` per the locked Phase-8e D9 convention; encode/decode via `cora.infrastructure.projection.encode_cursor` / `decode_cursor`. Default page size 50, max 100. Status filters use `Literal[...]`; omitting the param returns all (no magic 'all' value). Empty result is 200 with `{"items": [], "next_cursor": null}` — never 404. Malformed cursor maps to 422 via `InvalidCursorError` registered in Access's exception handlers (the cross-BC infra-error registration BC).
+
+Query handlers DO call `authorize` with the query name as `command_name` (`"GetActor"`, `"ListActors"`, etc.). Today's Trust BC gates at the command-name granularity; per-row scoping for list endpoints requires ReBAC and is deferred (`memory/project_deferred.md` "BOLA per-row scoping for list endpoints").
+
+### Projection-worker pattern (Phase 8e)
+
+Shipped infrastructure: `cora.infrastructure.projection`. The composition root spawns one in-process projection worker via the FastAPI lifespan; the worker advances every registered `Projection` along the event stream and maintains its `proj_<bc>_<name>` read-model table.
+
+**Public concepts:**
+
+- **`Projection` Protocol** — what BC authors implement. Lives in `cora/<bc>/projections/<name>.py`. Three pieces: `name` (str class attribute, must match the `proj_*` table name AND the bookmark row), `subscribed_event_types` (frozenset of event-type strings the projection cares about; pushed down to the worker's SQL filter), and `apply(event, conn)` (the read-model mutation). The advance query orders by `(transaction_id, position)` and uses `pg_snapshot_xmin(...)` exclusion to skip in-flight transactions (Khyst + Dudycz canonical pattern).
+- **`apply()` MUST be idempotent** — the framework delivers at-least-once. Standard pattern: `INSERT ... ON CONFLICT (key) DO NOTHING/UPDATE`, OR an explicit `# idempotent: <reason>` comment when the operation is naturally idempotent (UPDATE-to-same-value, etc.). The arch-fitness test `tests/architecture/test_projection_idempotency.py` enforces a marker is present.
+- **Per-BC registration** — each BC exports `register_<bc>_projections(registry, deps)` from its top-level `__init__.py`. The composition root (`cora/api/main.py` lifespan) calls it after `wire_<bc>(deps)` to populate the worker's `ProjectionRegistry`. New projection = three files in one BC's directory + one line in `register_<bc>_projections`.
+- **Migration shape** — every `proj_*` table migration includes a `GRANT SELECT, INSERT, UPDATE, DELETE TO cora_app` plus an `INSERT INTO projection_bookmarks (name) VALUES ('proj_<bc>_<name>') ON CONFLICT DO NOTHING` for first-run sentinel registration. The arch-fitness test `tests/architecture/test_projection_grants.py` enforces the GRANT.
+
+**Internal primitive:** `Subscriber` Protocol (`cora.infrastructure.projection.handler`). Today every Subscriber is a Projection; future sagas / external adapters will be additional kinds without duplicating the worker's advance machinery. Not exported publicly.
+
+**Tests:** integration tests use `await drain_projections(pool, registry, deadline=2.0)` to advance synchronously after appending events — avoids `asyncio.sleep` flakiness. Unit tests for the projection's `apply()` mock `asyncpg.Connection` and assert the SQL shape.
+
+**Settings:**
+- `projection_use_listen_notify: bool = True` — `ListenNotifyWakeup` (LISTEN on the `events` NOTIFY channel from migration `20260509120000`) for ~tens-of-ms wake-up latency. Flip to False for `PollOnlyWakeup` when NOTIFY's global commit `AccessExclusiveLock` causes contention (Recall.ai July 2025 trigger; `project_deferred.md` NATS entry covers the full out-of-process migration path).
+- `projection_poll_interval_seconds: float = 5.0` — safety-net poll interval when NOTIFY is on; primary signal when off. Floor 0.1s.
 
 ### Idempotency-Key — cross-cutting decorator
 
@@ -198,7 +231,11 @@ These middlewares are wired in `cora/api/main.py:create_app()` and apply to ever
 - **Body size limit** — `BodySizeLimitMiddleware` checks inbound `Content-Length`, returns 413 with `{"detail": str}`. Limit configured via `Settings.max_request_body_size_bytes` (default 1 MiB). Production deployments should ALSO enforce at the reverse proxy (nginx `client_max_body_size`); the application middleware is defense in depth.
 - **Prometheus `/metrics`** — `prometheus-fastapi-instrumentator` with a per-app `CollectorRegistry` (the global REGISTRY would crash on second `TestClient(create_app())` due to duplicate-collector detection). `excluded_handlers=["/metrics"]` keeps the scrape endpoint out of its own counters; `include_in_schema=False` hides it from OpenAPI `/docs`.
 - **OpenTelemetry tracing** — `cora/infrastructure/observability/` wires the SDK. `Settings.otel_exporter` selects the exporter (`none` | `console` | `otlp`); the OTLP path honours the standard `OTEL_EXPORTER_OTLP_*` env vars (we deliberately don't shadow them). `FastAPIInstrumentor` is attached per-app with `excluded_urls="health,metrics,docs,openapi.json,redoc"` so probes + scrape + docs traffic don't flood the exporter. `AsyncPGInstrumentor` runs process-wide. Trace context is the source of truth for "this request" identity: `current_correlation_id()` (in `observability.correlation`) returns `UUID(int=trace_id)` of the active span; routes and MCP tools both use it, so `event.metadata.correlation_id` always matches the distributed trace_id. Handler spans are created via `with_tracing` (composition wrapper applied in `wire.py`) — span name `<bc>.<command|query>.<command_name>`, attributes `cora.bc` + `cora.command` (or `cora.query`). The structlog `add_trace_context` processor injects `trace_id`/`span_id`/`trace_flags` into every log line emitted inside an active span.
-- **Authentication: trust-the-proxy via `X-Principal-Id`** — `cora/infrastructure/routing.py:get_principal_id` extracts the calling principal's UUID from the `X-Principal-Id` header (Pydantic validates the UUID format → 422 on malformed). Header absent → falls back to `SYSTEM_PRINCIPAL_ID` (Phase 1 dev/test fallback). The application TRUSTS the header value — there is no cryptographic verification in the app. **Production deployments MUST front the API with an auth proxy** (Envoy / nginx / Istio / cloud API gateway) that (1) verifies the caller's actual credentials (mTLS / JWT / OAuth / whatever your auth scheme is), (2) strips any client-supplied `X-Principal-Id` headers, and (3) sets `X-Principal-Id` to the verified principal UUID. A deployment without such a proxy effectively runs every request as the verified-or-fallback principal — that's a deployment misconfiguration, not an application bug, but the consequence is real. Pair this with `Settings.trust_authz_policy_id` (3e) so the configured Policy gates which principals can do what. MCP tools currently bypass header extraction (FastMCP doesn't surface request headers to tools cleanly) and use `SYSTEM_PRINCIPAL_ID` directly; a real MCP-side auth flow lands when the MCP spec's auth integration is wired.
+- **Authentication: trust-the-proxy via `X-Principal-Id`** — `cora/infrastructure/routing.py:get_principal_id` extracts the calling principal's UUID from the `X-Principal-Id` header (Pydantic validates the UUID format → 422 on malformed). Header absent → behavior depends on `Settings.require_authenticated_principal`: False (Phase 1 dev/test default) falls back to `SYSTEM_PRINCIPAL_ID`; True (production posture, 8d) returns 401. The application TRUSTS the header value — there is no cryptographic verification in the app. **Production deployments MUST front the API with an auth proxy** (Envoy / nginx / Istio / cloud API gateway) that (1) verifies the caller's actual credentials (mTLS / JWT / OAuth / whatever your auth scheme is), (2) strips any client-supplied `X-Principal-Id` headers, and (3) sets `X-Principal-Id` to the verified principal UUID. Pair this with `Settings.trust_policy_id` so the configured Policy gates which principals can do what. MCP tools currently bypass header extraction (FastMCP doesn't surface request headers to tools cleanly) and use `SYSTEM_PRINCIPAL_ID` directly; a real MCP-side auth flow lands when the MCP spec's auth integration is wired.
+
+- **Production startup gate (8d)** — `cora/api/main.py:_enforce_production_principal_policy` runs at `create_app()` construction. `Settings.app_env in {"prod", "production"}` AND `require_authenticated_principal=False` raises `RuntimeError` with a remediation message. Refusing to boot in production with the permissive default is cheaper than discovering the SYSTEM-fallback in production logs. Production deployments opt in via three env vars: `APP_ENV=prod` + `REQUIRE_AUTHENTICATED_PRINCIPAL=true` + `DATABASE_URL=postgresql://cora_app:...@.../cora` (cora_app credentials per "DB role separation" below).
+
+- **DB role separation: cora_app + REVOKE on append-only tables (8d)** — Migration `20260512230000_init_role_cora_app.sql` creates the `cora_app` Postgres role with `SELECT + INSERT` only on `events` + every `entries_*` table, plus a belt-and-suspenders `REVOKE UPDATE, DELETE, TRUNCATE`. Production deployments connect the app pool as `cora_app`; migrations and admin scripts run as the database owner (`cora`). Turns event-store immutability from a code-review convention into a database-enforced guarantee. Two arch-fitness tests pin the contract: `tests/architecture/test_migration_revokes.py` checks every `events`/`entries_*` table has a matching REVOKE; `tests/integration/test_cora_app_role_revoke_postgres.py` opens a cora_app pool and asserts UPDATE/DELETE/TRUNCATE raise `asyncpg.InsufficientPrivilegeError`. Projection tables (`proj_*`) are mutable read models and get full DML for cora_app — `tests/architecture/test_projection_grants.py` enforces the GRANT.
 
 **structlog cache nuance:** `cache_logger_on_first_use=True` (in `cora/infrastructure/logging.py`) means subsequent `configure_logging()` calls don't re-bind already-cached loggers. In tests where `build_kernel()` runs many times, only the first call's level/handler take effect. Acceptable for our setup (everyone uses INFO + JSONRenderer); breaks if a test tries to change log level mid-process.
 
