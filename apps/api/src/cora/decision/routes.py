@@ -29,7 +29,11 @@ from cora.decision.aggregates.decision import (
     ParentDecisionNotFoundError,
 )
 from cora.decision.errors import UnauthorizedError
-from cora.decision.features import get_decision, register_decision
+from cora.decision.features import (
+    append_reasoning_entry,
+    get_decision,
+    register_decision,
+)
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -78,6 +82,7 @@ def register_decision_routes(app: FastAPI) -> None:
     """Attach Decision slice routers and exception handlers."""
     app.include_router(register_decision.router)
     app.include_router(get_decision.router)
+    app.include_router(append_reasoning_entry.router)
     for validation_cls in (
         InvalidDecisionChoiceError,
         InvalidDecisionContextError,

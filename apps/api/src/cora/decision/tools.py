@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 from mcp.server.fastmcp import FastMCP
 
+from cora.decision.features.append_reasoning_entry import tool as append_reasoning_entry_tool
 from cora.decision.features.get_decision import tool as get_decision_tool
 from cora.decision.features.register_decision import tool as register_decision_tool
 from cora.decision.wire import DecisionHandlers
@@ -22,4 +23,8 @@ def register_decision_tools(
     get_decision_tool.register(
         mcp,
         get_handler=lambda: get_handlers().get_decision,
+    )
+    append_reasoning_entry_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().append_reasoning_entry,
     )

@@ -57,10 +57,14 @@ operator queries.
     **deprecated**; message bodies go in `messages_jsonb`.
 """
 
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal, Protocol
 from uuid import UUID
+
+import asyncpg
 
 from cora.infrastructure.logbook import LogbookFieldSpec, LogbookSchema
 
@@ -208,6 +212,113 @@ class ReasoningStore(Protocol):
         ...
 
 
+_APPEND_SQL = """
+INSERT INTO entries_decision_reasonings (
+    event_id, decision_id, logbook_id, correlation_id, causation_id,
+    occurred_at, duration_ms,
+    operation_name, provider_name, request_model,
+    response_id, response_model,
+    request_temperature, request_top_p, request_max_tokens,
+    output_type, finish_reasons,
+    input_tokens, output_tokens,
+    agent_id, agent_name, agent_description, conversation_id,
+    tool_name, tool_call_id, tool_type,
+    messages_jsonb
+) VALUES (
+    $1, $2, $3, $4, $5,
+    $6, $7,
+    $8, $9, $10,
+    $11, $12,
+    $13, $14, $15,
+    $16, $17,
+    $18, $19,
+    $20, $21, $22, $23,
+    $24, $25, $26,
+    $27
+)
+ON CONFLICT (event_id) DO NOTHING
+"""
+
+
+class PostgresReasoningStore:
+    """asyncpg-backed `ReasoningStore` implementation.
+
+    Uses `ON CONFLICT (event_id) DO NOTHING` for idempotent retries:
+    a producer that re-issues the same `event_id` (after a transient
+    network failure) is a silent no-op rather than a constraint
+    violation. Mirrors `PostgresTraversalStore` exactly.
+
+    Uses `executemany` for batch insert (one statement per entry,
+    client-side loop). For MVP-scale batches (up to 100 entries
+    per the route's cap) this is fine; if p95 ingest latency
+    degrades on large batches, refactor to a single multi-row
+    `INSERT ... VALUES (...), (...)` statement.
+    Deferred-with-trigger.
+
+    `messages_jsonb` is pre-encoded to a JSON string via
+    `json.dumps(...)` rather than relying on asyncpg's auto
+    dict -> jsonb codec. Defensive: asyncpg's codec registration
+    varies across versions; explicit pre-encoding is version-
+    independent and matches the rest of the codebase's "explicit
+    serialization" posture.
+
+    Per-entry status (newly inserted vs deduped) is NOT returned
+    today; the slice ships 200 OK with a summary count. Per-entry
+    status is deferred-with-trigger (first consumer demanding the
+    distinction).
+    """
+
+    def __init__(self, pool: asyncpg.Pool) -> None:
+        self._pool = pool
+
+    async def append(self, rows: list[DecisionReasoning]) -> None:
+        if not rows:
+            return
+        # asyncpg encodes Python list -> Postgres array natively;
+        # finish_reasons is text[] (matches the column type).
+        # messages_jsonb gets json.dumps()-encoded by the connection
+        # via a registered codec or by passing as JSON-encoded string.
+        # We pre-encode to be explicit and avoid asyncpg-version drift.
+        import json
+
+        async with self._pool.acquire() as conn:
+            await conn.executemany(
+                _APPEND_SQL,
+                [
+                    (
+                        row.event_id,
+                        row.decision_id,
+                        row.logbook_id,
+                        row.correlation_id,
+                        row.causation_id,
+                        row.occurred_at,
+                        row.duration_ms,
+                        row.operation_name,
+                        row.provider_name,
+                        row.request_model,
+                        row.response_id,
+                        row.response_model,
+                        row.request_temperature,
+                        row.request_top_p,
+                        row.request_max_tokens,
+                        row.output_type,
+                        list(row.finish_reasons),
+                        row.input_tokens,
+                        row.output_tokens,
+                        row.agent_id,
+                        row.agent_name,
+                        row.agent_description,
+                        row.conversation_id,
+                        row.tool_name,
+                        row.tool_call_id,
+                        row.tool_type,
+                        json.dumps(row.messages_jsonb) if row.messages_jsonb is not None else None,
+                    )
+                    for row in rows
+                ],
+            )
+
+
 class InMemoryReasoningStore:
     """Test / `app_env=test` adapter for ReasoningStore.
 
@@ -241,5 +352,6 @@ __all__ = [
     "DecisionReasoning",
     "DecisionReasoningToolType",
     "InMemoryReasoningStore",
+    "PostgresReasoningStore",
     "ReasoningStore",
 ]

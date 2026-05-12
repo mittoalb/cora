@@ -11,6 +11,7 @@ from cora.decision.aggregates.decision.entries import (
     DecisionReasoning,
     DecisionReasoningToolType,
     InMemoryReasoningStore,
+    PostgresReasoningStore,
     ReasoningStore,
 )
 from cora.decision.aggregates.decision.events import (
@@ -135,6 +136,7 @@ __all__ = [
     "InvalidReasoningSignatureError",
     "OverrideKindRequiresParentError",
     "ParentDecisionNotFoundError",
+    "PostgresReasoningStore",
     "ReasoningStore",
     "confidence_band",
     "event_type_name",
