@@ -24,6 +24,18 @@ case): an asset-only test would otherwise leave the Capability
 projection's bookmark stuck at 0 forever because no event of its
 subscribed types exists yet, and the drain helper would time out
 even though the projection is correctly idle.
+
+## Caller obligation: appends must be committed before draining
+
+The subscribed-head sample uses `MAX(position)` against the
+events table without `pg_current_snapshot()` / xmin in-flight
+exclusion that `advance_subscriber_once` applies (the canonical
+`(transaction_id, position)` cursor pattern). For test callers
+that `await` their command handler before invoking drain, this
+is a no-op (the append's transaction has committed and is
+visible). But callers that hold a separate connection with an
+uncommitted append while calling drain may see a false-positive
+"caught up" verdict before the in-flight event lands. Don't.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
