@@ -177,6 +177,7 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
         "name": "32-ID FlyScan morning session",
         "plan_id": str(plan_id),
         "subject_id": str(subject_id),
+        "raid": None,
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.event_id == run_event_id
