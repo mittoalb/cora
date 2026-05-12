@@ -102,6 +102,31 @@ def _settings_for_app() -> Settings:
     return Settings()  # type: ignore[call-arg]  # Pydantic loads from env
 
 
+_PROD_APP_ENVS = frozenset({"prod", "production"})
+
+
+def _enforce_production_principal_policy(settings: Settings) -> None:
+    """Refuse to boot a production deployment with the permissive
+    SYSTEM-fallback principal mode.
+
+    Phase-3e production-posture gate. Setting `app_env=prod` (or
+    `production`) without also setting
+    `require_authenticated_principal=True` would silently run
+    every header-less request as `SYSTEM_PRINCIPAL_ID` -- which,
+    under `AllowAllAuthorize`, is the entire API authenticated as
+    nobody. Failing fast at app construction is cheaper than
+    discovering this in production logs.
+    """
+    if settings.app_env in _PROD_APP_ENVS and not settings.require_authenticated_principal:
+        msg = (
+            f"app_env={settings.app_env!r} requires "
+            "require_authenticated_principal=True (set "
+            "REQUIRE_AUTHENTICATED_PRINCIPAL=true). The permissive "
+            "SYSTEM_PRINCIPAL_ID fallback is not safe for production."
+        )
+        raise RuntimeError(msg)
+
+
 def create_app() -> FastAPI:
     """Build a fresh FastAPI app with its own FastMCP server instance.
 
@@ -109,6 +134,7 @@ def create_app() -> FastAPI:
     `TestClient` context to get isolation.
     """
     settings = _settings_for_app()
+    _enforce_production_principal_policy(settings)
     # configure_tracing is a no-op when otel_exporter == "none" (the
     # default in tests), so calling it per create_app() is safe. In
     # production it runs once and installs the global TracerProvider.

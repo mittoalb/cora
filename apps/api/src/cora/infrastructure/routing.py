@@ -8,10 +8,13 @@ Hosts the three pieces every BC's slice routes need:
     the no-op tracer).
   - `get_principal_id` — FastAPI Depends that extracts the calling
     principal's UUID from the `X-Principal-Id` header (Pydantic
-    UUID-validates → 422 on malformed) and falls back to
-    `SYSTEM_PRINCIPAL_ID` when the header is absent. See the
-    "Production hardening conventions" section of CONTRIBUTING.md
-    for the trust-the-proxy deployment requirement.
+    UUID-validates -> 422 on malformed). When
+    `Settings.require_authenticated_principal` is False (Phase 1
+    dev / test default), an absent header falls back to
+    `SYSTEM_PRINCIPAL_ID`. When True (production posture), an
+    absent header raises HTTP 401 instead. See the "Production
+    hardening conventions" section of CONTRIBUTING.md for the
+    trust-the-proxy deployment requirement.
   - `ErrorResponse` — Pydantic body shape for OpenAPI documentation
     of error responses.
 
@@ -34,7 +37,7 @@ per slice. That's the only per-slice DI helper left.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Header
+from fastapi import Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel
 
 from cora.infrastructure.observability import current_correlation_id
@@ -42,12 +45,14 @@ from cora.infrastructure.observability import current_correlation_id
 SYSTEM_PRINCIPAL_ID = UUID("00000000-0000-0000-0000-000000000000")
 """Fallback principal used when no `X-Principal-Id` header is supplied.
 
-Production deployments behind an auth proxy never see this value
-(the proxy always sets the header). Dev / test / proxy-less
-deployments fall back to this constant; under `TrustAuthorize` with
-a real policy that doesn't permit `SYSTEM_PRINCIPAL_ID`, those
-requests get 403 — fail-closed behaviour pinned by
-`tests/contract/test_principal_header.py`.
+Used only when `Settings.require_authenticated_principal` is False
+(Phase 1 dev / test posture). Production deployments behind an auth
+proxy set the header on every request and turn the setting on so
+header-absent requests are rejected at the boundary instead of
+silently running as SYSTEM. Under `TrustAuthorize` with a real
+policy that doesn't permit `SYSTEM_PRINCIPAL_ID`, fallback-using
+requests get 403 even with the setting off — defense in depth pinned
+by `tests/contract/test_principal_header.py`.
 """
 
 
@@ -70,6 +75,17 @@ def get_correlation_id() -> UUID:
     return current_correlation_id()
 
 
+def _require_authenticated_principal(request: Request) -> bool:
+    """Read the `require_authenticated_principal` flag off the running
+    app's settings (carried on the kernel attached to `app.state.deps`).
+
+    Lives as its own Depends so `get_principal_id` stays testable in
+    isolation and so the read happens at request time (the kernel
+    isn't attached to app.state until the lifespan runs).
+    """
+    return bool(request.app.state.deps.settings.require_authenticated_principal)
+
+
 def get_principal_id(
     x_principal_id: Annotated[
         UUID | None,
@@ -80,22 +96,39 @@ def get_principal_id(
                 "front the API with an auth proxy that verifies the caller's "
                 "credentials, strips any client-supplied X-Principal-Id, and "
                 "sets it to the verified principal UUID. The application "
-                "TRUSTS this header — there is no cryptographic verification "
-                "here. When absent, falls back to SYSTEM_PRINCIPAL_ID for "
-                "dev / test convenience."
+                "TRUSTS this header (no cryptographic verification here). "
+                "Behavior when absent depends on "
+                "Settings.require_authenticated_principal: False (default) "
+                "falls back to SYSTEM_PRINCIPAL_ID; True returns 401."
             ),
         ),
     ] = None,
+    require_authenticated: Annotated[
+        bool,
+        Depends(_require_authenticated_principal),
+    ] = False,
 ) -> UUID:
     """Resolve the calling principal's id from the X-Principal-Id header.
 
     Trust-the-proxy extraction shape (Phase 3f). See the header
     description above for the production deployment requirement.
     Pydantic validates UUID format; malformed values surface as 422
-    before this function is even called. Header absent →
-    `SYSTEM_PRINCIPAL_ID` (the Phase 1 fallback used by tests + dev).
+    before this function is even called. Behavior on missing header:
+
+      - `require_authenticated_principal=False` (Phase 1 default):
+        fall back to `SYSTEM_PRINCIPAL_ID`.
+      - `require_authenticated_principal=True` (production posture):
+        raise HTTP 401.
     """
     if x_principal_id is None:
+        if require_authenticated:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=(
+                    "Missing X-Principal-Id header; this deployment "
+                    "requires an authenticated principal."
+                ),
+            )
         return SYSTEM_PRINCIPAL_ID
     return x_principal_id
 

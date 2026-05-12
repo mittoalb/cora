@@ -209,3 +209,83 @@ def test_missing_x_principal_id_falls_back_to_system_and_is_denied(
     client, _, _ = trust_authorize_app
     response = client.post("/actors", json={"name": "Doga"})
     assert response.status_code == 403
+
+
+# ---------- require_authenticated_principal ----------
+
+
+@pytest.mark.contract
+def test_missing_header_returns_401_when_authentication_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Phase-3e production posture: setting
+    `require_authenticated_principal=True` makes a missing
+    `X-Principal-Id` header a 401 instead of falling back to
+    SYSTEM_PRINCIPAL_ID."""
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("REQUIRE_AUTHENTICATED_PRINCIPAL", "true")
+
+    with TestClient(create_app()) as client:
+        response = client.post("/actors", json={"name": "Doga"})
+    assert response.status_code == 401
+    assert "X-Principal-Id" in response.json()["detail"]
+
+
+@pytest.mark.contract
+def test_present_header_passes_through_when_authentication_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With `require_authenticated_principal=True` and AllowAllAuthorize,
+    a present X-Principal-Id flows through normally and the request
+    succeeds. Pin: enabling the require flag does not break the happy
+    path; it only changes the absent-header behavior."""
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("REQUIRE_AUTHENTICATED_PRINCIPAL", "true")
+    pid = str(uuid4())
+
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/actors",
+            json={"name": "Doga"},
+            headers={"X-Principal-Id": pid},
+        )
+    assert response.status_code == 201
+
+
+@pytest.mark.contract
+def test_create_app_refuses_to_boot_in_prod_without_require_auth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Phase-3e production startup gate: `app_env=prod` (or
+    `production`) demands `require_authenticated_principal=True`.
+    The cost of failing at boot is cheaper than discovering the
+    SYSTEM-fallback in production logs."""
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.delenv("REQUIRE_AUTHENTICATED_PRINCIPAL", raising=False)
+    with pytest.raises(RuntimeError, match="require_authenticated_principal"):
+        create_app()
+
+
+@pytest.mark.contract
+def test_create_app_boots_in_prod_with_require_auth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sanity inverse: production env + require=True boots cleanly."""
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.setenv("REQUIRE_AUTHENTICATED_PRINCIPAL", "true")
+    # Just constructing the app is enough; no need to enter lifespan
+    # (which would try to open a real DB pool against production URL).
+    app = create_app()
+    assert app is not None
+
+
+@pytest.mark.contract
+@pytest.mark.parametrize("env_value", ["prod", "production"])
+def test_startup_gate_recognizes_both_prod_app_env_spellings(
+    monkeypatch: pytest.MonkeyPatch,
+    env_value: str,
+) -> None:
+    monkeypatch.setenv("APP_ENV", env_value)
+    monkeypatch.delenv("REQUIRE_AUTHENTICATED_PRINCIPAL", raising=False)
+    with pytest.raises(RuntimeError):
+        create_app()

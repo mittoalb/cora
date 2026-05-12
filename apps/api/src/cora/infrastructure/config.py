@@ -72,6 +72,17 @@ class Settings(BaseSettings):
     # See `cora/trust/authorize.py` docstring for the full rationale.
     trust_policy_id: UUID | None = None
 
+    # Production deployments behind an auth proxy that sets
+    # `X-Principal-Id` should set this true: requests without the
+    # header are then rejected with 401 instead of silently falling
+    # back to `SYSTEM_PRINCIPAL_ID`. Default false matches the
+    # Phase 1 dev / test posture where the fallback is convenient.
+    # The startup check in `create_app()` refuses to boot when
+    # `app_env in {"prod", "production"}` and this is False, so a
+    # production deployment cannot accidentally launch with the
+    # permissive default.
+    require_authenticated_principal: bool = False
+
     # Idempotency
     # Stripe prunes idempotency keys 24 hours after creation; we follow
     # the same default. The pruner itself is a future-work item (a

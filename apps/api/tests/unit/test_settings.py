@@ -128,3 +128,24 @@ def test_settings_rejects_zero_or_negative_idempotency_ttl_hours(
     monkeypatch.setenv("IDEMPOTENCY_TTL_HOURS", "0")
     with pytest.raises(pydantic.ValidationError):
         Settings()
+
+
+@pytest.mark.unit
+def test_settings_require_authenticated_principal_defaults_to_false(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Phase-1 dev / test posture: SYSTEM_PRINCIPAL_ID fallback for
+    header-less requests is convenient. Production deployments
+    explicitly turn this on."""
+    monkeypatch.delenv("REQUIRE_AUTHENTICATED_PRINCIPAL", raising=False)
+    settings = Settings()
+    assert settings.require_authenticated_principal is False
+
+
+@pytest.mark.unit
+def test_settings_require_authenticated_principal_reads_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("REQUIRE_AUTHENTICATED_PRINCIPAL", "true")
+    settings = Settings()
+    assert settings.require_authenticated_principal is True
