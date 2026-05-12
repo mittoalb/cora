@@ -20,6 +20,9 @@ from cora.recipe.features.deprecate_practice import tool as deprecate_practice_t
 from cora.recipe.features.get_method import tool as get_method_tool
 from cora.recipe.features.get_plan import tool as get_plan_tool
 from cora.recipe.features.get_practice import tool as get_practice_tool
+from cora.recipe.features.list_methods import tool as list_methods_tool
+from cora.recipe.features.list_plans import tool as list_plans_tool
+from cora.recipe.features.list_practices import tool as list_practices_tool
 from cora.recipe.features.version_method import tool as version_method_tool
 from cora.recipe.features.version_plan import tool as version_plan_tool
 from cora.recipe.features.version_practice import tool as version_practice_tool
@@ -79,4 +82,16 @@ def register_recipe_tools(
     deprecate_plan_tool.register(
         mcp,
         get_handler=lambda: get_handlers().deprecate_plan,
+    )
+    list_methods_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().list_methods,
+    )
+    list_practices_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().list_practices,
+    )
+    list_plans_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().list_plans,
     )

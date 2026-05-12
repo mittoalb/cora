@@ -40,6 +40,9 @@ from cora.recipe.features import (
     get_method,
     get_plan,
     get_practice,
+    list_methods,
+    list_plans,
+    list_practices,
     version_method,
     version_plan,
     version_practice,
@@ -69,6 +72,9 @@ class RecipeHandlers:
     get_plan: get_plan.Handler
     version_plan: version_plan.Handler
     deprecate_plan: deprecate_plan.Handler
+    list_methods: list_methods.Handler
+    list_practices: list_practices.Handler
+    list_plans: list_plans.Handler
 
 
 def wire_recipe(deps: Kernel) -> RecipeHandlers:
@@ -156,5 +162,23 @@ def wire_recipe(deps: Kernel) -> RecipeHandlers:
             deprecate_plan.bind(deps),
             command_name="DeprecatePlan",
             bc=_BC,
+        ),
+        list_methods=with_tracing(
+            list_methods.bind(deps),
+            command_name="ListMethods",
+            bc=_BC,
+            kind="query",
+        ),
+        list_practices=with_tracing(
+            list_practices.bind(deps),
+            command_name="ListPractices",
+            bc=_BC,
+            kind="query",
+        ),
+        list_plans=with_tracing(
+            list_plans.bind(deps),
+            command_name="ListPlans",
+            bc=_BC,
+            kind="query",
         ),
     )

@@ -43,6 +43,7 @@ Layout (mirrors Equipment / Trust / Subject):
     tools.py                  -- register_recipe_tools(mcp, *, get_handlers)
 """
 
+from cora.recipe._projections import register_recipe_projections
 from cora.recipe.errors import UnauthorizedError
 from cora.recipe.routes import register_recipe_routes
 from cora.recipe.tools import register_recipe_tools
@@ -51,6 +52,7 @@ from cora.recipe.wire import RecipeHandlers, wire_recipe
 __all__ = [
     "RecipeHandlers",
     "UnauthorizedError",
+    "register_recipe_projections",
     "register_recipe_routes",
     "register_recipe_tools",
     "wire_recipe",

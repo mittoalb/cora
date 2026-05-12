@@ -74,6 +74,7 @@ from cora.infrastructure.projection import (
 )
 from cora.recipe import (
     RecipeHandlers,
+    register_recipe_projections,
     register_recipe_routes,
     register_recipe_tools,
     wire_recipe,
@@ -230,6 +231,7 @@ def create_app() -> FastAPI:
             register_access_projections(registry, deps)
             register_subject_projections(registry, deps)
             register_equipment_projections(registry, deps)
+            register_recipe_projections(registry, deps)
             app.state.projections = registry
 
             async with projection_worker_lifespan(deps, registry, settings):

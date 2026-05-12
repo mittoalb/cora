@@ -113,11 +113,14 @@ def bola_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, UUID
                 "GetActor",
                 "GetSubject",
                 "GetAsset",
-                # List-side (8e-1c, 8e-2a, 8e-3a, 8e-3b)
+                # List-side (8e-1c, 8e-2a, 8e-3a, 8e-3b, 8e-4)
                 "ListActors",
                 "ListSubjects",
                 "ListAssets",
                 "ListCapabilities",
+                "ListMethods",
+                "ListPractices",
+                "ListPlans",
             }
         ),
     )
@@ -320,4 +323,29 @@ def test_p1_can_call_list_capabilities_when_command_permitted(
 ) -> None:
     client, p1, _ = bola_app
     response = client.get("/capabilities", headers={"X-Principal-Id": str(p1)})
+    assert response.status_code == 200
+
+
+@pytest.mark.contract
+@pytest.mark.parametrize("path", ["/methods", "/practices", "/plans"])
+def test_p2_cannot_call_recipe_list_endpoints_when_command_not_permitted(
+    bola_app: tuple[TestClient, UUID, UUID],
+    path: str,
+) -> None:
+    """Recipe BC's three list endpoints (8e-4) all sit behind the
+    same command-name gate. P2 isn't permitted, so each is denied
+    at the route boundary before the projection table is queried."""
+    client, _, p2 = bola_app
+    response = client.get(path, headers={"X-Principal-Id": str(p2)})
+    assert response.status_code == 403
+
+
+@pytest.mark.contract
+@pytest.mark.parametrize("path", ["/methods", "/practices", "/plans"])
+def test_p1_can_call_recipe_list_endpoints_when_command_permitted(
+    bola_app: tuple[TestClient, UUID, UUID],
+    path: str,
+) -> None:
+    client, p1, _ = bola_app
+    response = client.get(path, headers={"X-Principal-Id": str(p1)})
     assert response.status_code == 200

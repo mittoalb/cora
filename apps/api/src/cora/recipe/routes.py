@@ -69,6 +69,9 @@ from cora.recipe.features import (
     get_method,
     get_plan,
     get_practice,
+    list_methods,
+    list_plans,
+    list_practices,
     version_method,
     version_plan,
     version_practice,
@@ -145,6 +148,9 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(get_plan.router)
     app.include_router(version_plan.router)
     app.include_router(deprecate_plan.router)
+    app.include_router(list_methods.router)
+    app.include_router(list_practices.router)
+    app.include_router(list_plans.router)
     for validation_cls in (
         InvalidMethodNameError,
         InvalidMethodVersionTagError,
