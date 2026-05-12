@@ -1,6 +1,6 @@
 # Glossary
 
-Terse definitions for the vocabulary that shows up in CORA code, commits, and design notes. Linked from the [README](../README.md) and [CONTRIBUTING.md](../CONTRIBUTING.md).
+Terse definitions for the vocabulary that shows up in CORA code, commits, and design notes. The dictionary; for prose, see [architecture.md](architecture.md) (layer 2) and [stack.md](stack.md) (layer 3). Linked from the [README](../README.md) and [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## DDD and architecture
 
@@ -56,11 +56,35 @@ Terse definitions for the vocabulary that shows up in CORA code, commits, and de
 - **Run.** An execution of a plan. Has a lifecycle FSM (started, held, resumed, stopped, completed, aborted, truncated).
 - **Logbook.** Append-only narrative log attached to a Run or Decision. Used for OTel `gen_ai.*` reasoning entries on Decisions, and for cached telemetry on Runs (planned).
 
+## Roles
+
+Layer-2 role names paired with the current layer-3 pick. Reasoning and swap triggers live in [stack.md](stack.md).
+
+- **HTTP framework.** Mounts REST routes, parses request bodies, serialises responses. Currently FastAPI.
+- **Async DB driver.** Talks to the relational store from async Python. Currently asyncpg.
+- **Agent-protocol SDK.** Mounts the agent surface, registers tools, handles the protocol handshake. Currently the official MCP Python SDK.
+- **Validation layer.** Defines request and response schemas, enforces invariants at the API boundary. Currently Pydantic v2.
+- **Relational store.** Holds events, projections, idempotency records, vector indices. Currently Postgres 18.
+- **Event store.** Append-only event log; the source of truth. Currently a hand-rolled `events` table on the relational store, INSERT-only at the database role level.
+- **Vector index.** Stores and queries embeddings (Decision-BC reasoning). Currently pgvector inside the relational store.
+- **Schema migration tool.** Manages forward-only DDL migrations with hash-verified integrity. Currently Atlas.
+- **Authentication wiring.** Carries the verified principal id from a fronting proxy into the application. Currently the `X-Principal-Id` header pattern.
+- **Authorisation port.** The seam every command and query passes through. The production policy model is planned to be ReBAC.
+- **Decision-BC policy language.** Expresses Decision predicates such as `has_determining_policies`. Currently Cedar.
+- **Structured logging.** JSON log lines with trace-context injection. Currently structlog.
+- **Metrics.** Prometheus-format counters and histograms on every handler. Currently prometheus-client + prometheus-fastapi-instrumentator.
+- **Tracing.** Distributed traces, span-based correlation ids, OTel `gen_ai.*` semconv for reasoning logbooks. Currently OpenTelemetry.
+
 ## Tooling
+
+Layer-3 details for the developer-facing toolchain. See [stack.md](stack.md) for the full table including reasoning and swap triggers.
 
 - **uv.** Python package and venv manager. Replaces pip + virtualenv + pip-tools.
 - **Atlas.** Schema migration tool. Migrations live in [infra/atlas/migrations/](../infra/atlas/migrations/), forward-only.
 - **tach.** Python import-boundary linter. Enforces BC isolation.
 - **Ruff.** Python linter and formatter.
 - **Pyright.** Python type checker, run in strict mode.
+- **pytest + pytest-asyncio.** Test runner. `--import-mode=importlib` per `src/` layout convention.
+- **testcontainers.** Spins up a fresh Postgres per integration test run.
+- **pre-commit.** Hook framework wired in [.pre-commit-config.yaml](../.pre-commit-config.yaml).
 - **Biome.** JS/TS linter and formatter (frontend, planned).

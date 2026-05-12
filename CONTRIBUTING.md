@@ -1,5 +1,7 @@
 # Contributing to CORA
 
+This file is the **layer-3** view of CORA: the operational conventions for working in the repo. It names specific products (FastAPI, Postgres, Atlas, MCP SDK, structlog, etc.) because the conventions are written against those concrete tools. For the architecture-level view (patterns, roles, no products) see [docs/architecture.md](docs/architecture.md). For the per-pick reasoning and swap triggers see [docs/stack.md](docs/stack.md).
+
 ## Reading order for newcomers
 
 If you've never touched this repo, read in this order. Stop at any point and you'll have a working mental model of the layer above.

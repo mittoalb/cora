@@ -8,6 +8,19 @@ The name is also the diagnosis: **Continuously Overpromised, Rarely Automated**.
 
 **Active development; pre-1.0.** Foundation infrastructure (event store, ports, BC scaffolding) and several bounded-context keystones are in place. APIs, schema, and BC topology are still subject to change. Not yet production-ready.
 
+## Documentation map
+
+CORA's docs are layered so a reader can stop at the level they need.
+
+| Layer | Vocabulary | Where |
+| --- | --- | --- |
+| 1. Capability | What CORA does for users | this README |
+| 2. Architecture | Roles and patterns, no products | [docs/architecture.md](docs/architecture.md) |
+| 3. Implementation | Current product picks and reasoning | [docs/stack.md](docs/stack.md), [CONTRIBUTING.md](CONTRIBUTING.md) |
+| 4. Pinned versions | Exact strings | `apps/api/pyproject.toml`, `Makefile`, `infra/atlas/migrations/` |
+
+Vocabulary in any layer is defined in [docs/glossary.md](docs/glossary.md).
+
 ## Quick start
 
 Requires: Python 3.13.12 (managed via uv), Docker (for Postgres), [Atlas](https://atlasgo.io/) (for schema migrations). Node 24 LTS comes later for the frontend.
@@ -56,7 +69,7 @@ curl -X POST http://localhost:8000/actors \
 # -> 201 {"actor_id": "01900000-..."}
 ```
 
-**MCP** (Model Context Protocol — for LLM agents). Streamable HTTP transport mounted at `/mcp`. The full handshake is `initialize` → `notifications/initialized` → `tools/call`. Example using a JSON-RPC client:
+**MCP** (Model Context Protocol, the agent surface). Streamable HTTP transport mounted at `/mcp`. The full handshake is `initialize` → `notifications/initialized` → `tools/call`. Example using a JSON-RPC client:
 
 ```bash
 # 1. Initialize, capture mcp-session-id from response headers
@@ -95,7 +108,7 @@ cora/
 ├── infra/                     # local dev infra + IaC
 │   ├── atlas/                 # schema migrations
 │   └── docker-compose.yml
-├── docs/                      # design docs (placeholder)
+├── docs/                      # architecture, stack, glossary
 ├── Makefile                   # top-level orchestration
 ├── .python-version            # repo-wide Python pin
 └── README.md
@@ -105,16 +118,8 @@ Test layout is **separate `tests/` mirroring `src/`** with pytest's `--import-mo
 
 ## Architecture (high level)
 
-Modern functional DDD with bounded contexts. Hexagonal (Functional Core / Imperative Shell). Postgres event sourcing (asyncpg, hand-rolled). REST + MCP API surface. Recipe ladder (Method → Practice → Plan → Run) is the facility-neutrality mechanism.
+Functional DDD with bounded contexts. Hexagonal (Functional Core / Imperative Shell). Event-sourced backend on a relational store. Two equivalent API surfaces (REST and an agent protocol) backed by the same handler. The recipe ladder (Method, Practice, Plan, Run) is the facility-neutrality mechanism.
 
-Modeling lenses adopted: ISA-95 (structural), ISA-88 (Track A: episodic procedures), ISA-106 (Track B: continuous operations), ISA-99 (Track C: trust topology), ISO/IEC 42001 + NIST AI RMF (AI governance), W3C PROV-O (provenance vocabulary at API boundaries).
+Modelling lenses: ISA-95 (structural), ISA-88 (Track A, episodic procedures), ISA-106 (Track B, continuous operations), ISA-99 (Track C, trust topology), ISO/IEC 42001 + NIST AI RMF (AI governance), W3C PROV-O (provenance vocabulary at API boundaries).
 
-For BC, aggregate, decider, evolver, port, kernel, ISA-X, ReBAC, and other vocabulary, see [docs/glossary.md](docs/glossary.md).
-
-## Tooling
-
-- **uv** — Python package management
-- **ruff** — lint + format (Python)
-- **pyright** — type checking (strict mode)
-- **pytest + pytest-asyncio** — testing
-- **Biome** — lint + format (JS/TS, frontend later)
+Full layer-2 view: [docs/architecture.md](docs/architecture.md). For the current concrete picks (FastAPI, Postgres, Atlas, MCP SDK, etc.) and the reasoning behind each, see [docs/stack.md](docs/stack.md).
