@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from cora.decision.aggregates.decision import (
     DECISION_CHOICE_MAX_LENGTH,
     DECISION_CONTEXT_MAX_LENGTH,
+    confidence_band,
 )
 from cora.decision.features.get_decision.handler import Handler
 from cora.decision.features.get_decision.query import GetDecision
@@ -16,7 +17,13 @@ from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_p
 
 
 class DecisionResponse(BaseModel):
-    """Read-side DTO at the API boundary."""
+    """Read-side DTO at the API boundary.
+
+    `confidence_band` is a derived field (Low / Medium / High /
+    Certain) computed at read time from the stored `confidence`
+    float. Never stored; one source of truth = the float.
+    Returns null when confidence is null.
+    """
 
     id: UUID
     actor_id: UUID
@@ -28,6 +35,7 @@ class DecisionResponse(BaseModel):
     reasoning: str | None
     confidence: float | None
     confidence_source: str | None
+    confidence_band: str | None
     alternatives: list[str]
     decision_inputs: dict[str, Any] | None
     reasoning_signature: str | None
@@ -72,6 +80,7 @@ async def get_decisions(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Decision {decision_id} not found",
         )
+    band = confidence_band(decision.confidence)
     return DecisionResponse(
         id=decision.id,
         actor_id=decision.actor_id,
@@ -85,6 +94,7 @@ async def get_decisions(
         confidence_source=(
             decision.confidence_source.value if decision.confidence_source is not None else None
         ),
+        confidence_band=band.value if band is not None else None,
         alternatives=list(decision.alternatives),
         decision_inputs=decision.decision_inputs,
         reasoning_signature=decision.reasoning_signature,

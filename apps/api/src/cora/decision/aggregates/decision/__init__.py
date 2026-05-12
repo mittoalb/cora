@@ -10,6 +10,9 @@ from cora.decision.aggregates.decision.events import (
 from cora.decision.aggregates.decision.evolver import evolve, fold
 from cora.decision.aggregates.decision.read import load_decision
 from cora.decision.aggregates.decision.state import (
+    CONFIDENCE_BAND_CERTAIN_MIN,
+    CONFIDENCE_BAND_HIGH_MIN,
+    CONFIDENCE_BAND_MEDIUM_MIN,
     DECISION_ALTERNATIVE_ENTRY_MAX_LENGTH,
     DECISION_ALTERNATIVES_MAX_ENTRIES,
     DECISION_CHOICE_MAX_LENGTH,
@@ -27,6 +30,7 @@ from cora.decision.aggregates.decision.state import (
     DECISION_REASONING_MAX_LENGTH,
     DECISION_REASONING_SIGNATURE_MAX_LENGTH,
     DECISION_RULE_MAX_LENGTH,
+    ConfidenceBand,
     DeciderActorNotFoundError,
     Decision,
     DecisionAlreadyExistsError,
@@ -46,6 +50,8 @@ from cora.decision.aggregates.decision.state import (
     InvalidReasoningSignatureError,
     OverrideKindRequiresParentError,
     ParentDecisionNotFoundError,
+    confidence_band,
+    has_determining_policies,
     validate_alternatives,
     validate_confidence,
     validate_decision_inputs,
@@ -54,6 +60,9 @@ from cora.decision.aggregates.decision.state import (
 )
 
 __all__ = [
+    "CONFIDENCE_BAND_CERTAIN_MIN",
+    "CONFIDENCE_BAND_HIGH_MIN",
+    "CONFIDENCE_BAND_MEDIUM_MIN",
     "DECISION_ALTERNATIVES_MAX_ENTRIES",
     "DECISION_ALTERNATIVE_ENTRY_MAX_LENGTH",
     "DECISION_CHOICE_MAX_LENGTH",
@@ -71,6 +80,7 @@ __all__ = [
     "DECISION_REASONING_MAX_LENGTH",
     "DECISION_REASONING_SIGNATURE_MAX_LENGTH",
     "DECISION_RULE_MAX_LENGTH",
+    "ConfidenceBand",
     "DeciderActorNotFoundError",
     "Decision",
     "DecisionAlreadyExistsError",
@@ -92,10 +102,12 @@ __all__ = [
     "InvalidReasoningSignatureError",
     "OverrideKindRequiresParentError",
     "ParentDecisionNotFoundError",
+    "confidence_band",
     "event_type_name",
     "evolve",
     "fold",
     "from_stored",
+    "has_determining_policies",
     "load_decision",
     "to_payload",
     "validate_alternatives",

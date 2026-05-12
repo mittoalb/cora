@@ -12,6 +12,7 @@ from cora.decision.aggregates.decision import (
     DECISION_CHOICE_MAX_LENGTH,
     DECISION_CONTEXT_MAX_LENGTH,
     DecisionNotFoundError,
+    confidence_band,
 )
 from cora.decision.features.get_decision.handler import Handler
 from cora.decision.features.get_decision.query import GetDecision
@@ -19,7 +20,11 @@ from cora.infrastructure.observability import current_correlation_id
 
 
 class DecisionOutput(BaseModel):
-    """Structured output of the `get_decision` MCP tool."""
+    """Structured output of the `get_decision` MCP tool.
+
+    `confidence_band` is a derived field (Low / Medium / High /
+    Certain) computed at read time from the stored `confidence`.
+    """
 
     id: UUID
     actor_id: UUID
@@ -31,6 +36,7 @@ class DecisionOutput(BaseModel):
     reasoning: str | None
     confidence: float | None
     confidence_source: str | None
+    confidence_band: str | None
     alternatives: list[str]
     decision_inputs: dict[str, Any] | None
     reasoning_signature: str | None
@@ -60,6 +66,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         )
         if decision is None:
             raise DecisionNotFoundError(decision_id)
+        band = confidence_band(decision.confidence)
         return DecisionOutput(
             id=decision.id,
             actor_id=decision.actor_id,
@@ -75,6 +82,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             confidence_source=(
                 decision.confidence_source.value if decision.confidence_source is not None else None
             ),
+            confidence_band=band.value if band is not None else None,
             alternatives=list(decision.alternatives),
             decision_inputs=decision.decision_inputs,
             reasoning_signature=decision.reasoning_signature,

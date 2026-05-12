@@ -90,6 +90,17 @@ DECISION_INPUTS_MAX_ENTRIES = 64
 DECISION_INPUTS_KEY_MAX_LENGTH = 100
 DECISION_REASONING_SIGNATURE_MAX_LENGTH = 4096
 
+# Confidence-band boundaries (8b derived field). Stored confidence
+# is a float in [0, 1]; the derived band is a UX/triage layer
+# computed at read time. Boundaries match the 2025-2026 LLM
+# calibration literature: ECE <0.05 = "well-calibrated", and
+# >=0.95 / <=0.05 is the high-stakes auto-accept/auto-reject
+# threshold cited across KDD 2025 + JMIR 2025 + MICCAI 2025. The
+# band is never stored (one source of truth = the float).
+CONFIDENCE_BAND_MEDIUM_MIN = 0.3
+CONFIDENCE_BAND_HIGH_MIN = 0.7
+CONFIDENCE_BAND_CERTAIN_MIN = 0.95
+
 # Well-known context discriminators per BC map. Open-ended: new
 # contexts arrive without schema migration. Validated at
 # projection time, not at write time.
@@ -129,6 +140,31 @@ class DecisionConfidenceSource(StrEnum):
     LOGPROB = "logprob"
     ENSEMBLE = "ensemble"
     HUMAN = "human"
+
+
+class ConfidenceBand(StrEnum):
+    """Triage band derived from the stored `confidence` float (8b).
+
+    Computed at read time via `confidence_band()`; never stored
+    (one source of truth = the float). Boundaries:
+
+      - Low:     confidence < 0.3
+      - Medium:  0.3 <= confidence < 0.7
+      - High:    0.7 <= confidence < 0.95
+      - Certain: confidence >= 0.95
+
+    Operators reason about bands more naturally than raw floats;
+    the >=0.95 cut matches the high-stakes auto-accept/auto-reject
+    threshold cited across 2025-2026 LLM calibration literature.
+    A `confidence` of None yields no band (returns None from
+    `confidence_band()`); the field stays None in projections
+    rather than mapping to a misleading "Low".
+    """
+
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
+    CERTAIN = "Certain"
 
 
 # `override_kind` discriminator. When `parent_id` is set, this
@@ -472,6 +508,63 @@ def validate_reasoning_signature(value: str | None) -> str | None:
     if len(trimmed) > DECISION_REASONING_SIGNATURE_MAX_LENGTH:
         raise InvalidReasoningSignatureError(value)
     return trimmed
+
+
+def confidence_band(confidence: float | None) -> ConfidenceBand | None:
+    """Map a stored `confidence` float to its triage band.
+
+    Returns None when confidence is None (preserves the
+    not-set distinction; never silently maps to "Low"). For
+    floats in [0, 1], returns the band per the documented
+    boundaries (CONFIDENCE_BAND_MEDIUM_MIN / HIGH_MIN /
+    CERTAIN_MIN). Floats outside [0, 1] should never reach this
+    function (`validate_confidence` rejects them at the BC
+    boundary), but if they do (stale projection input), this
+    function still returns a band by clamping to the nearest
+    segment (>=1.0 to Certain, <0.0 to Low) so consumers don't
+    crash on bad data.
+
+    NaN handling: returns None. NaN means the value is
+    meaningless; silently mapping it to any band would
+    misrepresent it. Without an explicit check, NaN would fall
+    through to Certain because all NaN comparisons are False.
+    Same posture as None: "we can't classify this."
+    """
+    if confidence is None:
+        return None
+    if confidence != confidence:  # NaN check (NaN != NaN)
+        return None
+    if confidence < CONFIDENCE_BAND_MEDIUM_MIN:
+        return ConfidenceBand.LOW
+    if confidence < CONFIDENCE_BAND_HIGH_MIN:
+        return ConfidenceBand.MEDIUM
+    if confidence < CONFIDENCE_BAND_CERTAIN_MIN:
+        return ConfidenceBand.HIGH
+    return ConfidenceBand.CERTAIN
+
+
+def has_determining_policies(decision: "Decision") -> bool:
+    """Predicate: this Decision has determining-policy IDs recorded.
+
+    True iff `context == "PolicyGrant"` AND `alternatives` is
+    non-empty. Mirrors Cedar's `determining_policies` response
+    field (the canonical noun for "policy IDs that produced this
+    decision"). For non-PolicyGrant contexts, returns False
+    because the Cedar-style determining-policies convention
+    doesn't apply to those Decisions; callers asking 'is this
+    audit-complete for PolicyGrant purposes?' use this predicate
+    directly. Callers asking the inverse ('PolicyGrant decisions
+    missing their determining policies') compose:
+
+        decision.context.value == DECISION_CONTEXT_POLICY_GRANT
+        and not has_determining_policies(decision)
+
+    Use case: projection-time auditors flagging incomplete
+    PolicyGrant records.
+    """
+    return (
+        decision.context.value == DECISION_CONTEXT_POLICY_GRANT and len(decision.alternatives) > 0
+    )
 
 
 @dataclass(frozen=True)

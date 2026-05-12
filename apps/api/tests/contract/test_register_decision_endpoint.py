@@ -182,6 +182,58 @@ def test_post_decisions_rejects_extra_fields_with_422() -> None:
 
 
 @pytest.mark.contract
+def test_get_decisions_response_includes_confidence_band_when_confidence_set() -> None:
+    """8b derived field: confidence_band surfaces in the GET response."""
+    with TestClient(create_app()) as client:
+        actor_id = _register_actor(client)
+        decision_id = client.post(
+            "/decisions",
+            json=_good_body(actor_id, confidence=0.85, confidence_source="ensemble"),
+        ).json()["decision_id"]
+        response = client.get(f"/decisions/{decision_id}")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["confidence"] == 0.85
+    assert body["confidence_band"] == "High"
+
+
+@pytest.mark.contract
+def test_get_decisions_response_confidence_band_is_null_when_confidence_null() -> None:
+    """Preserves the not-set distinction; never silently maps None to Low."""
+    with TestClient(create_app()) as client:
+        actor_id = _register_actor(client)
+        decision_id = client.post("/decisions", json=_good_body(actor_id)).json()["decision_id"]
+        response = client.get(f"/decisions/{decision_id}")
+    body = response.json()
+    assert body["confidence"] is None
+    assert body["confidence_band"] is None
+
+
+@pytest.mark.contract
+@pytest.mark.parametrize(
+    ("confidence", "expected_band"),
+    [
+        (0.1, "Low"),
+        (0.5, "Medium"),
+        (0.85, "High"),
+        (0.99, "Certain"),
+    ],
+)
+def test_get_decisions_response_confidence_band_classification(
+    confidence: float, expected_band: str
+) -> None:
+    """Round-trip the band derivation through HTTP."""
+    with TestClient(create_app()) as client:
+        actor_id = _register_actor(client)
+        decision_id = client.post(
+            "/decisions",
+            json=_good_body(actor_id, confidence=confidence, confidence_source="logprob"),
+        ).json()["decision_id"]
+        response = client.get(f"/decisions/{decision_id}")
+    assert response.json()["confidence_band"] == expected_band
+
+
+@pytest.mark.contract
 def test_get_decisions_returns_404_for_unknown_id() -> None:
     with TestClient(create_app()) as client:
         response = client.get(f"/decisions/{uuid4()}")
