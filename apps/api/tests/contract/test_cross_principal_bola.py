@@ -30,7 +30,7 @@ change.
 # pyright: reportUnknownMemberType=false, reportUnknownArgumentType=false
 
 import asyncio
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID, uuid4
@@ -156,22 +156,15 @@ def _create_asset_as(client: TestClient, principal: UUID) -> UUID:
     return UUID(response.json()["asset_id"])
 
 
+CreateFn = Callable[[TestClient, UUID], UUID]
+"""Shape of a BOLA-scenario factory: takes the test client and the
+principal to create-as, returns the new aggregate's id."""
+
+
 _BOLA_SCENARIOS = [
-    pytest.param(
-        _create_actor_as,
-        "/actors",
-        id="access:actor",
-    ),
-    pytest.param(
-        _create_subject_as,
-        "/subjects",
-        id="subject:subject",
-    ),
-    pytest.param(
-        _create_asset_as,
-        "/assets",
-        id="equipment:asset",
-    ),
+    pytest.param(_create_actor_as, "/actors", id="access:actor"),
+    pytest.param(_create_subject_as, "/subjects", id="subject:subject"),
+    pytest.param(_create_asset_as, "/assets", id="equipment:asset"),
 ]
 
 
@@ -179,7 +172,7 @@ _BOLA_SCENARIOS = [
 @pytest.mark.parametrize(("create_fn", "read_path_prefix"), _BOLA_SCENARIOS)
 def test_p2_cannot_read_p1s_aggregate_when_policy_gates_principal(
     bola_app: tuple[TestClient, UUID, UUID],
-    create_fn: object,
+    create_fn: CreateFn,
     read_path_prefix: str,
 ) -> None:
     """P1 (permitted) creates an aggregate; P2 (not permitted) tries
@@ -188,8 +181,7 @@ def test_p2_cannot_read_p1s_aggregate_when_policy_gates_principal(
     are authenticated."""
     client, p1, p2 = bola_app
 
-    aggregate_id = cast("object", create_fn)(client, p1)  # type: ignore[operator]
-    assert isinstance(aggregate_id, UUID)
+    aggregate_id = create_fn(client, p1)
 
     # P2 attempts to read the resource P1 just created.
     response = client.get(
@@ -208,15 +200,14 @@ def test_p2_cannot_read_p1s_aggregate_when_policy_gates_principal(
 @pytest.mark.parametrize(("create_fn", "read_path_prefix"), _BOLA_SCENARIOS)
 def test_p1_can_still_read_their_own_aggregate(
     bola_app: tuple[TestClient, UUID, UUID],
-    create_fn: object,
+    create_fn: CreateFn,
     read_path_prefix: str,
 ) -> None:
     """Inverse sanity: the gate is per-principal, not blanket-deny.
     P1 (permitted) reads their own resource and gets 200."""
     client, p1, _ = bola_app
 
-    aggregate_id = cast("object", create_fn)(client, p1)  # type: ignore[operator]
-    assert isinstance(aggregate_id, UUID)
+    aggregate_id = create_fn(client, p1)
 
     response = client.get(
         f"{read_path_prefix}/{aggregate_id}",

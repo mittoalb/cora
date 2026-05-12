@@ -100,37 +100,6 @@ def test_settings_rejects_malformed_trust_policy_id(
 
 
 @pytest.mark.unit
-def test_settings_idempotency_ttl_hours_default(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Stripe-style 24h default; documented in the field comment."""
-    monkeypatch.delenv("IDEMPOTENCY_TTL_HOURS", raising=False)
-    settings = Settings()
-    assert settings.idempotency_ttl_hours == 24
-
-
-@pytest.mark.unit
-def test_settings_idempotency_ttl_hours_reads_env(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("IDEMPOTENCY_TTL_HOURS", "72")
-    settings = Settings()
-    assert settings.idempotency_ttl_hours == 72
-
-
-@pytest.mark.unit
-def test_settings_rejects_zero_or_negative_idempotency_ttl_hours(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Zero or negative TTL would mean immediate (or retroactive) expiry."""
-    import pydantic
-
-    monkeypatch.setenv("IDEMPOTENCY_TTL_HOURS", "0")
-    with pytest.raises(pydantic.ValidationError):
-        Settings()
-
-
-@pytest.mark.unit
 def test_settings_require_authenticated_principal_defaults_to_false(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

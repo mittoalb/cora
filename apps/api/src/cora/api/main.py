@@ -86,11 +86,11 @@ from cora.subject import (
 )
 from cora.trust import (
     TrustHandlers,
+    build_authorize,
     register_trust_routes,
     register_trust_tools,
     wire_trust,
 )
-from cora.trust.authorize_factory import build_authorize
 
 
 def _settings_for_app() -> Settings:

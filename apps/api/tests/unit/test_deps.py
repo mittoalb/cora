@@ -19,8 +19,8 @@ from cora.infrastructure.deps import build_kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import AllowAllAuthorize
+from cora.trust import build_authorize
 from cora.trust.authorize import TrustAuthorize
-from cora.trust.authorize_factory import build_authorize
 
 
 @pytest.mark.unit

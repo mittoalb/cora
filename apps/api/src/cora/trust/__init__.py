@@ -19,6 +19,7 @@ Layout:
 """
 
 from cora.trust.authorize import TrustAuthorize
+from cora.trust.authorize_factory import build_authorize
 from cora.trust.errors import UnauthorizedError
 from cora.trust.routes import register_trust_routes
 from cora.trust.tools import register_trust_tools
@@ -28,6 +29,7 @@ __all__ = [
     "TrustAuthorize",
     "TrustHandlers",
     "UnauthorizedError",
+    "build_authorize",
     "register_trust_routes",
     "register_trust_tools",
     "wire_trust",

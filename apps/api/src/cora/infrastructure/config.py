@@ -83,17 +83,6 @@ class Settings(BaseSettings):
     # permissive default.
     require_authenticated_principal: bool = False
 
-    # Idempotency
-    # Stripe prunes idempotency keys 24 hours after creation; we follow
-    # the same default. The pruner itself is a future-work item (a
-    # separate periodic job that runs `DELETE FROM idempotency_keys
-    # WHERE created_at < now() - interval 'N hours'`); this setting
-    # is the knob that pruner will read so deployments can tighten or
-    # loosen retention without a code change. Until the pruner ships,
-    # the table grows unbounded; not a production concern at zero
-    # traffic, tracked in `memory/project_deferred.md`.
-    idempotency_ttl_hours: int = 24
-
     @field_validator("database_url")
     @classmethod
     def _validate_database_url(cls, value: str) -> str:
@@ -114,14 +103,5 @@ class Settings(BaseSettings):
         """Sampler ratio must be in [0.0, 1.0]; outside that range is meaningless."""
         if not 0.0 <= value <= 1.0:
             msg = f"otel_sampler_ratio must be in [0.0, 1.0], got {value}"
-            raise ValueError(msg)
-        return value
-
-    @field_validator("idempotency_ttl_hours")
-    @classmethod
-    def _validate_idempotency_ttl_hours(cls, value: int) -> int:
-        """Positive integer; zero would mean immediate expiry."""
-        if value <= 0:
-            msg = f"idempotency_ttl_hours must be positive, got {value}"
             raise ValueError(msg)
         return value
