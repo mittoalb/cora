@@ -60,6 +60,7 @@ from cora.decision import (
 )
 from cora.equipment import (
     EquipmentHandlers,
+    register_equipment_projections,
     register_equipment_routes,
     register_equipment_tools,
     wire_equipment,
@@ -228,6 +229,7 @@ def create_app() -> FastAPI:
             registry = ProjectionRegistry()
             register_access_projections(registry, deps)
             register_subject_projections(registry, deps)
+            register_equipment_projections(registry, deps)
             app.state.projections = registry
 
             async with projection_worker_lifespan(deps, registry, settings):

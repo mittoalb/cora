@@ -31,6 +31,7 @@ Layout:
     routes.py                 -- register_equipment_routes(app)
 """
 
+from cora.equipment._projections import register_equipment_projections
 from cora.equipment.errors import UnauthorizedError
 from cora.equipment.routes import register_equipment_routes
 from cora.equipment.tools import register_equipment_tools
@@ -39,6 +40,7 @@ from cora.equipment.wire import EquipmentHandlers, wire_equipment
 __all__ = [
     "EquipmentHandlers",
     "UnauthorizedError",
+    "register_equipment_projections",
     "register_equipment_routes",
     "register_equipment_tools",
     "wire_equipment",

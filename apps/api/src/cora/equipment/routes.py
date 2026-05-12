@@ -66,6 +66,7 @@ from cora.equipment.features import (
     enter_maintenance,
     get_asset,
     get_capability,
+    list_assets,
     register_asset,
     relocate_asset,
     remove_asset_capability,
@@ -151,6 +152,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(add_asset_capability.router)
     app.include_router(remove_asset_capability.router)
     app.include_router(get_asset.router)
+    app.include_router(list_assets.router)
     for validation_cls in (
         InvalidCapabilityNameError,
         InvalidCapabilityVersionTagError,

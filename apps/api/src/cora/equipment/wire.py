@@ -46,6 +46,7 @@ from cora.equipment.features import (
     enter_maintenance,
     get_asset,
     get_capability,
+    list_assets,
     register_asset,
     relocate_asset,
     remove_asset_capability,
@@ -86,6 +87,7 @@ class EquipmentHandlers:
     add_asset_capability: add_asset_capability.Handler
     remove_asset_capability: remove_asset_capability.Handler
     get_asset: get_asset.Handler
+    list_assets: list_assets.Handler
 
 
 def wire_equipment(deps: Kernel) -> EquipmentHandlers:
@@ -169,6 +171,12 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
         get_asset=with_tracing(
             get_asset.bind(deps),
             command_name="GetAsset",
+            bc=_BC,
+            kind="query",
+        ),
+        list_assets=with_tracing(
+            list_assets.bind(deps),
+            command_name="ListAssets",
             bc=_BC,
             kind="query",
         ),
