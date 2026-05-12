@@ -98,6 +98,7 @@ carried in event payloads.
 """
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -106,21 +107,36 @@ from cora.infrastructure.name import validate_name
 RUN_NAME_MAX_LENGTH = 200
 RUN_ABORT_REASON_MAX_LENGTH = 500
 RUN_STOP_REASON_MAX_LENGTH = 500
+RUN_TRUNCATE_REASON_MAX_LENGTH = 500
 
 
 class RunStatus(StrEnum):
     """The Run's lifecycle state.
 
-    6f-3 ships the full active-phase FSM (Running plus the Held
-    pause-state plus the three reachable terminals). Truncated
-    lands in 6f-4.
+    6f-4 closes the FSM with the partial-data terminal. The full
+    set is now: Running plus the Held pause-state plus four
+    reachable terminals (Completed, Aborted, Stopped, Truncated).
 
       Running (6f-1)
         ⇄ Held (6f-3 hold/resume; bidirectional cycle, unlimited)
         → Completed (6f-2 happy-path; single-source from Running)
         → Aborted (6f-2 emergency; multi-source from Running | Held)
         → Stopped (6f-3 controlled exit; multi-source from Running | Held)
-        → Truncated (6f-4 partial-data terminal)
+        → Truncated (6f-4 partial-data terminal; multi-source from
+                     Running | Held)
+
+    Stopped vs Truncated (6f-4 lifecycle-layer distinction):
+    Stopped is a controlled exit while the system is responsive and
+    the operator decides to end the Run early; data up to the stop
+    point is valid. Truncated is a cleanup terminal for a Run that
+    became known-dead through interruption (power loss, process
+    crash, hardware fault) and is being closed retroactively. The
+    Run was already de-facto over before the operator could mark
+    it; truncation captures that fact plus the operator's best
+    guess at when the actual interruption occurred (optional
+    interrupted_at on RunTruncated). The system does not detect
+    de-facto-dead Runs itself today (gate-review L4-followup);
+    operators must call truncate explicitly.
 
     Why complete_run is single-source while stop/abort_run are
     multi-source (gate-review 6f-3 Q1 lock): completion claims
@@ -152,6 +168,7 @@ class RunStatus(StrEnum):
     COMPLETED = "Completed"
     ABORTED = "Aborted"
     STOPPED = "Stopped"
+    TRUNCATED = "Truncated"
 
 
 class InvalidRunNameError(ValueError):
@@ -356,7 +373,7 @@ class RunCannotStopError(Exception):
     """Attempted to stop a Run not in `Running` or `Held`.
 
     Multi-source guard: `stop_run` accepts `Running | Held`.
-    Symmetric with abort_run's source set — operator-initiated
+    Symmetric with abort_run's source set, operator-initiated
     controlled exits don't require an active state, only any
     non-terminal state. Stopping a terminal Run raises.
 
@@ -367,6 +384,38 @@ class RunCannotStopError(Exception):
         super().__init__(
             f"Run {run_id} cannot be stopped: currently in status "
             f"{current_status.value}, stop requires "
+            f"{RunStatus.RUNNING.value} or {RunStatus.HELD.value}"
+        )
+        self.run_id = run_id
+        self.current_status = current_status
+
+
+class RunCannotTruncateError(Exception):
+    """Attempted to truncate a Run not in `Running` or `Held`.
+
+    Multi-source guard: `truncate_run` accepts `Running | Held`.
+    Same source set as stop / abort, every operator-initiated
+    terminal accepts any non-terminal state. Truncating a Run that
+    has already reached a terminal (Completed | Aborted | Stopped |
+    Truncated) raises; re-truncating a `Truncated` Run raises
+    (strict-not-idempotent, matches the other terminals).
+
+    Truncated and Stopped are both operator-initiated, but they are
+    semantically distinct: Stopped is a controlled exit while the
+    system is still responsive; Truncated is the cleanup mechanism
+    for a Run that became de-facto dead through interruption (power
+    loss, process crash, hardware fault) and is being closed
+    retroactively. The current_status field will typically still be
+    Running (the FSM never observed the interruption) when
+    truncate is called.
+
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, run_id: UUID, current_status: "RunStatus") -> None:
+        super().__init__(
+            f"Run {run_id} cannot be truncated: currently in status "
+            f"{current_status.value}, truncate requires "
             f"{RunStatus.RUNNING.value} or {RunStatus.HELD.value}"
         )
         self.run_id = run_id
@@ -453,7 +502,7 @@ class InvalidRunStopReasonError(ValueError):
 class RunStopReason:
     """Free-form stop reason. Trimmed; 1-500 chars.
 
-    Sibling of `RunAbortReason` — identical pattern, distinct
+    Sibling of `RunAbortReason`, identical pattern, distinct
     error class for clearer API error responses. The on-the-wire
     representation in `RunStopped.reason` is `str` (post-trim)
     for payload simplicity; the VO exists at decider-input time
@@ -467,6 +516,85 @@ class RunStopReason:
             self.value,
             max_length=RUN_STOP_REASON_MAX_LENGTH,
             error_class=InvalidRunStopReasonError,
+        )
+        object.__setattr__(self, "value", trimmed)
+
+
+class InvalidRunTruncateReasonError(ValueError):
+    """The supplied truncate reason is empty, whitespace-only, or too long.
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the decider via this error. Sibling of
+    `InvalidRunStopReasonError`; kept as a separate class so API
+    error responses unambiguously identify which transition the
+    invalid reason was for.
+
+    Free-form `str` (1-500 chars) is the locked 6f-4 design (gate-
+    review L8 + stress-test confirmation). Same future-additive
+    structured-taxonomy posture as `RunAborted.reason` /
+    `RunStopped.reason`, the same three documented re-evaluation
+    triggers apply:
+      - vocabulary convergence across >=10 real truncations;
+      - Decision BC adopts RunTruncate with structured-context queries;
+      - compliance/audit demand for categorical reason tracking.
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Run truncate reason must be 1-{RUN_TRUNCATE_REASON_MAX_LENGTH} chars after "
+            f"trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+class InvalidRunInterruptedAtError(ValueError):
+    """The supplied truncate `interrupted_at` is in the future relative to `now`.
+
+    `interrupted_at` is the operator's best guess at when the
+    actual interruption happened, separate from `occurred_at`
+    (when the truncate command was processed). The two timestamps
+    can be hours or days apart for weekend / overnight
+    interruptions, but `interrupted_at` MUST not be later than
+    `now`, you cannot have been interrupted in the future.
+
+    Validated defensively at the decider via this error so direct
+    in-process callers (sagas, tests) get the same protection as
+    HTTP / MCP callers. The API surface does not pre-validate
+    against `now` (Pydantic Field has no relative-bound primitive),
+    only the absolute schema (datetime parse + tz-aware), so this
+    decider check is the one source of truth.
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, interrupted_at: datetime, now: datetime) -> None:
+        super().__init__(
+            f"Run truncate interrupted_at {interrupted_at.isoformat()} is in the future "
+            f"(now is {now.isoformat()}); the interruption cannot have happened later than "
+            f"the truncate command itself"
+        )
+        self.interrupted_at = interrupted_at
+        self.now = now
+
+
+@dataclass(frozen=True)
+class RunTruncateReason:
+    """Free-form truncate reason. Trimmed; 1-500 chars.
+
+    Sibling of `RunStopReason` and `RunAbortReason`. The on-the-
+    wire representation in `RunTruncated.reason` is `str` (post-
+    trim); the VO exists at decider-input time only.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_name(
+            self.value,
+            max_length=RUN_TRUNCATE_REASON_MAX_LENGTH,
+            error_class=InvalidRunTruncateReasonError,
         )
         object.__setattr__(self, "value", trimmed)
 

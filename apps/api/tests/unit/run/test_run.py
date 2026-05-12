@@ -75,18 +75,19 @@ def test_run_name_is_frozen() -> None:
 
 
 @pytest.mark.unit
-def test_run_status_has_full_active_phase_fsm_in_6f3() -> None:
-    """Phase 6f-3 ships the full active-phase FSM: Running (active
-    steady-state) + Held (pause-state) + the three terminals reachable
-    from Running | Held: Completed (happy path; single-source from
-    Running), Aborted (emergency; multi-source), Stopped (controlled
-    exit; multi-source). Truncated lands in 6f-4."""
+def test_run_status_has_full_lifecycle_fsm_in_6f4() -> None:
+    """Phase 6f-4 closes the lifecycle FSM: Running (active steady-state)
+    + Held (pause-state) + the four reachable terminals: Completed (happy
+    path; single-source from Running), Aborted (emergency; multi-source),
+    Stopped (controlled exit; multi-source), Truncated (partial-data
+    cleanup for known-dead Runs; multi-source)."""
     assert {s.value for s in RunStatus} == {
         "Running",
         "Held",
         "Completed",
         "Aborted",
         "Stopped",
+        "Truncated",
     }
 
 
@@ -99,6 +100,7 @@ def test_run_status_is_str_enum_for_natural_serialization() -> None:
     assert RunStatus.COMPLETED == "Completed"
     assert RunStatus.ABORTED == "Aborted"
     assert RunStatus.STOPPED == "Stopped"
+    assert RunStatus.TRUNCATED == "Truncated"
 
 
 # ---------- Error classes ----------

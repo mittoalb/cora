@@ -19,11 +19,12 @@ first):
 
 Phase 6f-1 shipped `start_run` (idempotency-wrapped) + `get_run`
 (read side). Phase 6f-2 added `complete_run` + `abort_run` (terminal
-transitions). Phase 6f-3 adds `hold_run` + `resume_run` + `stop_run`
+transitions). Phase 6f-3 added `hold_run` + `resume_run` + `stop_run`
 (the bidirectional pause cycle plus the controlled-exit terminal).
+Phase 6f-4 closes the FSM with `truncate_run` (partial-data terminal
+for known-dead Runs being closed retroactively).
 
 Subsequent slices land per-phase:
-  - 6f-4: Truncated terminal
   - 6f-5: First observation channels for Run (separate infra; not a slice in this bundle)
 """
 
@@ -41,6 +42,7 @@ from cora.run.features import (
     resume_run,
     start_run,
     stop_run,
+    truncate_run,
 )
 
 _BC = "run"
@@ -56,6 +58,7 @@ class RunHandlers:
     hold_run: hold_run.Handler
     resume_run: resume_run.Handler
     stop_run: stop_run.Handler
+    truncate_run: truncate_run.Handler
     get_run: get_run.Handler
 
 
@@ -98,6 +101,11 @@ def wire_run(deps: SharedDeps) -> RunHandlers:
         stop_run=with_tracing(
             stop_run.bind(deps),
             command_name="StopRun",
+            bc=_BC,
+        ),
+        truncate_run=with_tracing(
+            truncate_run.bind(deps),
+            command_name="TruncateRun",
             bc=_BC,
         ),
         get_run=with_tracing(

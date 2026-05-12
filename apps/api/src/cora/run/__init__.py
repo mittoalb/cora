@@ -21,16 +21,16 @@ Track A BC. Depends on:
   - `Subject.Subject` (referenced by `Run.subject_id` if non-null;
     must be in Mounted or Measured state)
 
-## Phase 6f-3 scope
+## Phase 6f-4 scope
 
-Full active-phase FSM:
+Full lifecycle FSM closed:
   - `id` + `name` (RunName: 11th bounded-name VO)
-  - `plan_id: UUID` — eventual-consistency ref; existence verified
+  - `plan_id: UUID`, eventual-consistency ref; existence verified
     at handler-load time
-  - `subject_id: UUID | None` — null for calibration / dark-field
+  - `subject_id: UUID | None`, null for calibration / dark-field
     runs; if non-null, Subject must be in Mounted | Measured
   - `status: RunStatus` (`Running | Held | Completed | Aborted |
-    Stopped` at 6f-3; Truncated lands in 6f-4)
+    Stopped | Truncated`)
 
 Cross-aggregate validation at Run-start (gate-review Q2 / Q5
 locked answers): handler pre-loads Plan + Subject (if subject_id)
@@ -61,6 +61,16 @@ Active-phase transitions (6f-2 + 6f-3):
     data flagged as potentially invalid (PackML + Bluesky lifecycle-
     layer distinction; observation-channel cleanup semantics materialize in
     6f-5+).
+  - `truncate_run` (Running | Held → Truncated): multi-source
+    cleanup terminal for a Run that became de-facto dead through
+    interruption (power loss, process crash, hardware fault) and
+    is being closed retroactively. Carries free-form `reason: str`
+    (1-500 chars) plus optional `interrupted_at: datetime | None`
+    (operator's best guess at when the actual interruption happened;
+    distinct from `occurred_at` which is when truncation was
+    processed). The system itself does not detect de-facto-dead
+    Runs; operators must call truncate explicitly. Stale-RUNNING
+    detection is a separate liveness concern (out of scope).
 
 Why complete_run is single-source while abort/stop are multi-
 source (gate-review 6f-3 Q1 lock): completion claims achievement,
@@ -75,9 +85,12 @@ Phase history:
     exit) ✅
   - 6f-3: hold_run + resume_run + stop_run (pause cycle +
     controlled-exit terminal) ✅
-  - 6f-4 (deferred): Truncated terminal + truncation-reason design
+  - 6f-4: truncate_run (partial-data terminal for known-dead Runs
+    being closed retroactively; closes the lifecycle FSM) ✅
   - 6f-5 (deferred): Additional observation channels + per-frame
-    trigger channel (high-cardinality telemetry)
+    trigger channel (high-cardinality telemetry); when Run gains
+    logbooks, truncate_run extends to auto-close them per gate-
+    review L4.
 
 Known gaps (pre-6f-1 sequencing decisions, gate-review Q3 locked):
   - **Supply availability check** (Track B Supply BC not shipped):

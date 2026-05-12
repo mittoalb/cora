@@ -50,10 +50,23 @@ RunResumed, RunCompleted] with arbitrary cycle counts. The fold
 preserves only the latest status; per-cycle audit lives in the
 event stream itself.
 
+Phase 6f-4 closes the lifecycle FSM with the partial-data terminal:
+  - `RunTruncated` — cleanup terminal (Running | Held → Truncated).
+    Payload carries `run_id` + free-form `reason: str` (1-500 chars)
+    + optional `interrupted_at: datetime | None` (operator's best
+    guess at when the actual interruption occurred, separate from
+    `occurred_at` which is when truncation was processed) +
+    `occurred_at`. Mirrors RunStopped's reason shape; adds the
+    interrupted_at field because Truncated is uniquely retroactive
+    among the terminals (the Run was already de-facto over before
+    the operator could mark it).
+
 Subsequent phases:
-  - 6f-4: RunTruncated (partial-data terminal; reason design TBD)
-  - 6f-5: observation events (per-frame triggers, motor positions —
-    NOT on the main Run stream; observation-channel territory)
+  - 6f-5: observation events (per-frame triggers, motor positions,
+    NOT on the main Run stream; observation-channel territory).
+    When Run aggregate adds logbooks, the truncate_run decider
+    extends to emit RunLogbookClosed events for each open logbook
+    before RunTruncated (gate-review L4).
 
 ## Payload conventions
 
@@ -177,8 +190,43 @@ class RunStopped:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class RunTruncated:
+    """A Run reached its partial-data terminal (Running | Held → Truncated).
+
+    Cleanup terminal for a Run that became de-facto dead through
+    interruption (power loss, process crash, hardware fault) and is
+    being closed retroactively by an operator. The Run was already
+    over before the operator could mark it; truncation captures
+    that fact.
+
+    `reason` is a free-form string (1-500 chars after trimming),
+    captured verbatim from the operator. Same shape and future-
+    additive structured-taxonomy posture as RunStopped's reason.
+
+    `interrupted_at` is the operator's best guess at when the
+    actual interruption occurred (None when unknown). Distinct from
+    `occurred_at`, which is when the truncate command was
+    processed. The two timestamps can be hours or days apart for
+    weekend / overnight interruptions; the explicit field saves
+    auditors from parsing the free-text reason for a date.
+
+    Stopped vs Truncated (lifecycle-layer distinction): Stopped
+    is a controlled exit while the system is responsive; Truncated
+    is a cleanup mechanism for known-dead Runs. The system itself
+    does not detect de-facto-dead Runs (separate liveness concern,
+    out of scope for 6f-4); operators must invoke truncate
+    explicitly.
+    """
+
+    run_id: UUID
+    reason: str
+    interrupted_at: datetime | None
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Run aggregate emits.
-RunEvent = RunStarted | RunHeld | RunResumed | RunCompleted | RunAborted | RunStopped
+RunEvent = RunStarted | RunHeld | RunResumed | RunCompleted | RunAborted | RunStopped | RunTruncated
 
 
 def event_type_name(event: RunEvent) -> str:
@@ -235,6 +283,19 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "reason": reason,
                 "occurred_at": occurred_at.isoformat(),
             }
+        case RunTruncated(
+            run_id=run_id,
+            reason=reason,
+            interrupted_at=interrupted_at,
+            occurred_at=occurred_at,
+        ):
+            interrupted_at_iso = interrupted_at.isoformat() if interrupted_at is not None else None
+            return {
+                "run_id": str(run_id),
+                "reason": reason,
+                "interrupted_at": interrupted_at_iso,
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -284,6 +345,18 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 reason=payload["reason"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "RunTruncated":
+            raw_interrupted_at = payload["interrupted_at"]
+            return RunTruncated(
+                run_id=UUID(payload["run_id"]),
+                reason=payload["reason"],
+                interrupted_at=(
+                    datetime.fromisoformat(raw_interrupted_at)
+                    if raw_interrupted_at is not None
+                    else None
+                ),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown RunEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -297,6 +370,7 @@ __all__ = [
     "RunResumed",
     "RunStarted",
     "RunStopped",
+    "RunTruncated",
     "event_type_name",
     "from_stored",
     "to_payload",

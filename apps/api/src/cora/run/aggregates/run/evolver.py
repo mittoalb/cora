@@ -12,6 +12,7 @@ Status mapping per event type:
   - `RunCompleted` -> COMPLETED (happy-path terminal)
   - `RunAborted`   -> ABORTED   (emergency-exit terminal)
   - `RunStopped`   -> STOPPED   (controlled-exit terminal)
+  - `RunTruncated` -> TRUNCATED (partial-data terminal)
 
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
@@ -48,6 +49,7 @@ from cora.run.aggregates.run.events import (
     RunResumed,
     RunStarted,
     RunStopped,
+    RunTruncated,
 )
 from cora.run.aggregates.run.state import Run, RunName, RunStatus
 
@@ -94,6 +96,11 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 msg = "RunStopped before RunStarted: stream is corrupted"
                 raise ValueError(msg)
             return replace(state, status=RunStatus.STOPPED)
+        case RunTruncated():
+            if state is None:
+                msg = "RunTruncated before RunStarted: stream is corrupted"
+                raise ValueError(msg)
+            return replace(state, status=RunStatus.TRUNCATED)
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 

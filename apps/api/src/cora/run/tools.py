@@ -17,6 +17,7 @@ from cora.run.features.hold_run import tool as hold_run_tool
 from cora.run.features.resume_run import tool as resume_run_tool
 from cora.run.features.start_run import tool as start_run_tool
 from cora.run.features.stop_run import tool as stop_run_tool
+from cora.run.features.truncate_run import tool as truncate_run_tool
 from cora.run.wire import RunHandlers
 
 
@@ -49,6 +50,10 @@ def register_run_tools(
     stop_run_tool.register(
         mcp,
         get_handler=lambda: get_handlers().stop_run,
+    )
+    truncate_run_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().truncate_run,
     )
     get_run_tool.register(
         mcp,

@@ -16,11 +16,14 @@ does not re-register them.
 ## Loop-collapse pattern
 
 Mirrors Recipe / Equipment / Subject. Generic error handlers per
-family, tuple loops to register them. Phase 6f-3 adds three new
-transition handlers + their guard errors.
+family, tuple loops to register them. Phase 6f-4 adds the truncate
+transition handler + its guard errors (RunCannotTruncateError +
+two validation errors: InvalidRunTruncateReasonError +
+InvalidRunInterruptedAtError).
 
   - 400 (validation): InvalidRunNameError, InvalidRunAbortReasonError,
-    InvalidRunStopReasonError
+    InvalidRunStopReasonError, InvalidRunTruncateReasonError,
+    InvalidRunInterruptedAtError
   - 404 (load miss): RunNotFoundError
   - 409 (defensive guard for AlreadyExists): RunAlreadyExistsError
   - 409 (Run-start binding-state guards): PlanDeprecatedError,
@@ -30,6 +33,7 @@ transition handlers + their guard errors.
     RunCannotAbortError
   - 409 (Run transition guards, 6f-3): RunCannotHoldError,
     RunCannotResumeError, RunCannotStopError
+  - 409 (Run transition guards, 6f-4): RunCannotTruncateError
 """
 
 from fastapi import FastAPI, Request, status
@@ -37,8 +41,10 @@ from fastapi.responses import JSONResponse
 
 from cora.run.aggregates.run import (
     InvalidRunAbortReasonError,
+    InvalidRunInterruptedAtError,
     InvalidRunNameError,
     InvalidRunStopReasonError,
+    InvalidRunTruncateReasonError,
     PlanDeprecatedError,
     RunAlreadyExistsError,
     RunAssetDecommissionedError,
@@ -47,6 +53,7 @@ from cora.run.aggregates.run import (
     RunCannotHoldError,
     RunCannotResumeError,
     RunCannotStopError,
+    RunCannotTruncateError,
     RunCapabilitiesNotSatisfiedError,
     RunNotFoundError,
     SubjectNotMountableError,
@@ -60,6 +67,7 @@ from cora.run.features import (
     resume_run,
     start_run,
     stop_run,
+    truncate_run,
 )
 
 
@@ -110,7 +118,7 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
     Covers Run-start binding-state guards (Plan deprecated, Subject
     not mountable, Asset decommissioned, capabilities not satisfied)
     plus Run transition guards (cannot complete / abort / hold /
-    resume / stop).
+    resume / stop / truncate).
     """
     _ = request
     return JSONResponse(
@@ -127,11 +135,14 @@ def register_run_routes(app: FastAPI) -> None:
     app.include_router(hold_run.router)
     app.include_router(resume_run.router)
     app.include_router(stop_run.router)
+    app.include_router(truncate_run.router)
     app.include_router(get_run.router)
     for validation_cls in (
         InvalidRunNameError,
         InvalidRunAbortReasonError,
         InvalidRunStopReasonError,
+        InvalidRunTruncateReasonError,
+        InvalidRunInterruptedAtError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (RunNotFoundError,):
@@ -151,6 +162,8 @@ def register_run_routes(app: FastAPI) -> None:
         RunCannotHoldError,
         RunCannotResumeError,
         RunCannotStopError,
+        # Run transition guards (6f-4).
+        RunCannotTruncateError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
