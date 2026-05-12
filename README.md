@@ -4,7 +4,7 @@
 
 ## Status
 
-**Phase 0 — project skeleton.** No domain logic yet. Walking-skeleton wiring being added in subsequent phases.
+**Active development; pre-1.0.** Foundation infrastructure (event store, ports, BC scaffolding) and several bounded-context keystones are in place. APIs, schema, and BC topology are still subject to change. Not yet production-ready.
 
 ## Quick start
 
@@ -69,7 +69,7 @@ curl -i -X POST http://localhost:8000/mcp \
 # Response is structured content with the new actor_id.
 ```
 
-For Claude Code or other MCP-aware clients, point the client at `http://localhost:8000/mcp` and the `register_actor` tool appears alongside any future tools.
+For Claude Code or other MCP-aware clients, point the client at `http://localhost:8000/mcp`; tools across every scaffolded BC (`access`, `equipment`, `recipe`, `run`, `data`, `decision`, `subject`, `trust`) appear in the client.
 
 ## Repo layout (monorepo)
 
@@ -79,23 +79,23 @@ cora/
 │   ├── api/                   # FastAPI + MCP backend (Python)
 │   │   ├── src/cora/
 │   │   │   ├── api/           # HTTP + MCP entrypoints
-│   │   │   ├── shared/        # cross-BC primitives (added on demand)
-│   │   │   └── <bc>/          # bounded contexts (Equipment scaffolded; others on demand)
-│   │   │       ├── domain/         # pure functional core: deciders, value objects, aggregates
-│   │   │       ├── application/    # commands, queries, integration events
-│   │   │       └── infrastructure/ # asyncpg adapters, port implementations
+│   │   │   ├── infrastructure/ # cross-cutting kernel: ports, deps, event envelope, observability
+│   │   │   └── <bc>/          # bounded contexts (8 scaffolded so far: access, equipment, recipe, run, data, decision, subject, trust)
+│   │   │       ├── aggregates/      # state, events, evolver, fold-on-read per aggregate
+│   │   │       └── features/        # vertical slices: one folder per command or query
 │   │   ├── tests/
 │   │   │   ├── unit/          # pure, no I/O
 │   │   │   ├── integration/   # require Postgres or other external services
 │   │   │   ├── contract/      # REST/MCP schema verification
 │   │   │   └── e2e/           # full end-to-end
 │   │   └── pyproject.toml
-│   ├── web/                   # Next.js frontend (Phase 0.5+)
-│   └── workers/               # background processors / agents (later)
-├── packages/                  # shared libraries (created on demand)
-│   ├── contracts/             # OpenAPI/MCP schemas + generated TS types (later)
-│   └── ui/                    # shared frontend components (later)
+│   ├── web/                   # Next.js frontend (planned)
+│   └── workers/               # background processors and agents (planned)
+├── packages/                  # shared libraries (planned)
+│   ├── contracts/             # OpenAPI/MCP schemas + generated TS types
+│   └── ui/                    # shared frontend components
 ├── infra/                     # local dev infra + IaC
+│   ├── atlas/                 # schema migrations
 │   └── docker-compose.yml
 ├── docs/                      # design docs (placeholder)
 ├── Makefile                   # top-level orchestration
