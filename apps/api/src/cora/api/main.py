@@ -40,6 +40,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from cora import __version__
 from cora.access import (
     AccessHandlers,
+    register_access_projections,
     register_access_routes,
     register_access_tools,
     wire_access,
@@ -220,12 +221,11 @@ def create_app() -> FastAPI:
             app.state.decision = wire_decision(deps)
 
             # Phase-8e-1a: projection worker. Each BC that owns
-            # projections will export a `register_<bc>_projections`
-            # function and we'll call it here to populate the
-            # registry. None today (8e-1a ships the framework only;
-            # 8e-1b adds the first projection to Access). The worker
-            # context manager handles spawn / cancel / drain.
+            # projections exports a `register_<bc>_projections`
+            # function called here to populate the registry. The
+            # worker context manager handles spawn / cancel / drain.
             registry = ProjectionRegistry()
+            register_access_projections(registry, deps)
             app.state.projections = registry
 
             async with projection_worker_lifespan(deps, registry, settings):

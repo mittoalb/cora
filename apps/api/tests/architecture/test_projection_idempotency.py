@@ -60,7 +60,14 @@ def test_every_apply_carries_idempotency_marker() -> None:
 
     failures: list[str] = []
     for projection in registry:
-        source = inspect.getsource(projection.apply)
+        # Scan the whole module so projections that pull SQL into
+        # module-level constants (the canonical pattern for asyncpg
+        # adapters in this codebase) still match the heuristic.
+        module = inspect.getmodule(type(projection))
+        if module is None:
+            failures.append(projection.name)
+            continue
+        source = inspect.getsource(module)
         if "ON CONFLICT" not in source.upper() and "# idempotent:" not in source:
             failures.append(projection.name)
 
