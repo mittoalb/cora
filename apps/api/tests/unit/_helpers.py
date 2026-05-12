@@ -43,6 +43,7 @@ from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
+    Authorize,
     AuthzResult,
     Deny,
     FixedIdGenerator,
@@ -75,6 +76,7 @@ def build_deps(
     now: datetime | None = None,
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
+    authorize: Authorize | None = None,
 ) -> Kernel:
     """Build a Kernel for unit-test handler invocation.
 
@@ -82,12 +84,18 @@ def build_deps(
     InMemoryEventStore, fresh InMemoryIdempotencyStore, no pool. Pass
     `ids=` for the FixedIdGenerator queue (the handler consumes them
     in order: aggregate ids first, then event ids per emitted event).
+
+    `authorize` overrides the default authorize port (use this for
+    tests injecting a recording / counting / specific-reason
+    Authorize stub). When `authorize` is set, `deny` is ignored.
     """
+    if authorize is None:
+        authorize = DenyAllAuthorize() if deny else AllowAllAuthorize()
     return Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(now or DEFAULT_NOW),
         id_generator=FixedIdGenerator(list(ids or [])),
-        authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
+        authorize=authorize,
         event_store=event_store or InMemoryEventStore(),
         idempotency_store=InMemoryIdempotencyStore(),
         pool=None,

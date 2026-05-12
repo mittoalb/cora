@@ -10,18 +10,9 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import (
-    Allow,
-    AllowAllAuthorize,
-    AuthzResult,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
-)
+from cora.infrastructure.ports import Allow, AuthzResult, Deny
 from cora.subject import SubjectHandlers, UnauthorizedError, wire_subject
 from cora.subject.aggregates.subject import Subject, SubjectName, SubjectStatus
 from cora.subject.features import (
@@ -36,6 +27,7 @@ from cora.subject.features.measure_subject import MeasureSubject
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
 from cora.subject.features.remove_subject import RemoveSubject
+from tests.unit._helpers import build_deps as _build_deps_shared
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000005ab1")
@@ -51,22 +43,17 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
 def _build_deps(event_store: InMemoryEventStore | None = None) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [
-                _NEW_ID,
-                _REGISTER_EVENT_ID,
-                _MOUNT_EVENT_ID,
-                _MEASURE_EVENT_ID,
-                _REMOVE_EVENT_ID,
-            ],
-        ),
-        authorize=AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
+    """Thin wrapper preserving this file's ID list."""
+    return _build_deps_shared(
+        ids=[
+            _NEW_ID,
+            _REGISTER_EVENT_ID,
+            _MOUNT_EVENT_ID,
+            _MEASURE_EVENT_ID,
+            _REMOVE_EVENT_ID,
+        ],
+        now=_NOW,
+        event_store=event_store,
     )
 
 
@@ -203,13 +190,10 @@ async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
     the decision is always Allow, but the call site is in place so the
     eventual TrustAuthorize swap is mechanical per handler)."""
     tracking = _RecordingAuthorize()
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID, _REGISTER_EVENT_ID]),
+    deps = _build_deps_shared(
+        ids=[_NEW_ID, _REGISTER_EVENT_ID],
+        now=_NOW,
         authorize=tracking,
-        event_store=InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
     )
 
     handler = get_subject.bind(deps)
@@ -224,13 +208,10 @@ async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_on_deny() -> None:
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID, _REGISTER_EVENT_ID]),
+    deps = _build_deps_shared(
+        ids=[_NEW_ID, _REGISTER_EVENT_ID],
+        now=_NOW,
         authorize=_DenyAllAuthorize(),
-        event_store=InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
     )
 
     handler = get_subject.bind(deps)

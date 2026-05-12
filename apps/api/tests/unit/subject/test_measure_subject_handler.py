@@ -9,18 +9,9 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    AuthzResult,
-    ConcurrencyError,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
-)
+from cora.infrastructure.ports import ConcurrencyError
 from cora.subject import SubjectHandlers, UnauthorizedError, wire_subject
 from cora.subject.aggregates.subject import (
     SubjectCannotMeasureError,
@@ -31,6 +22,7 @@ from cora.subject.features import measure_subject, mount_subject, register_subje
 from cora.subject.features.measure_subject import MeasureSubject
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
+from tests.unit._helpers import build_deps as _build_deps_shared
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000005ab1")
@@ -41,35 +33,17 @@ _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
-class DenyAllAuthorize:
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
 def _build_deps(
     *,
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
 ) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    # register_subject consumes [_NEW_ID, _REGISTER_EVENT_ID];
-    # mount_subject consumes [_MOUNT_EVENT_ID];
-    # measure_subject consumes [_MEASURE_EVENT_ID].
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [_NEW_ID, _REGISTER_EVENT_ID, _MOUNT_EVENT_ID, _MEASURE_EVENT_ID],
-        ),
-        authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
+    """Thin wrapper preserving this file's ID list."""
+    return _build_deps_shared(
+        ids=[_NEW_ID, _REGISTER_EVENT_ID, _MOUNT_EVENT_ID, _MEASURE_EVENT_ID],
+        now=_NOW,
+        event_store=event_store,
+        deny=deny,
     )
 
 
