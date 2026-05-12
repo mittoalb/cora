@@ -6,10 +6,10 @@ authors:
   - family-names: Gursoy
     given-names: Doga
     affiliation: Argonne National Laboratory
-    orcid: "https://orcid.org/0000-0002-2502-0780"
+    orcid: "https://orcid.org/0000-0002-0080-8101"
 repository-code: "https://github.com/xmap/cora"
 url: "https://xmap.github.io/cora/"
-license: Apache-2.0
+license: BSD-3-Clause
 version: 0.1.0
 date-released: "2026-05-12"
 keywords:
