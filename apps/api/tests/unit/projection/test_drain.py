@@ -30,11 +30,17 @@ async def test_drain_empty_registry_is_no_op() -> None:
 @pytest.mark.unit
 def test_drain_timeout_carries_diagnostic_state() -> None:
     """The exception body should make it obvious WHY the drain
-    failed (head position vs. each bookmark) so a flaky integration
-    test surfaces the lag at a glance."""
+    failed (per-projection subscribed head vs. each bookmark) so a
+    flaky integration test surfaces the lag at a glance.
+
+    The drain compares each projection's bookmark to ITS subscribed
+    head (max position of an event with one of its subscribed types),
+    not the global head, so multi-projection BCs don't trip the
+    timeout when one projection is genuinely idle.
+    """
     exc = ProjectionDrainTimeoutError(
         deadline_seconds=2.5,
-        head_position=42,
+        subscribed_heads={"proj_a": 42, "proj_b": 41},
         bookmarks={"proj_a": 40, "proj_b": 41},
     )
     msg = str(exc)
@@ -42,5 +48,5 @@ def test_drain_timeout_carries_diagnostic_state() -> None:
     assert "42" in msg
     assert "proj_a" in msg
     assert "proj_b" in msg
-    assert exc.head_position == 42
+    assert exc.subscribed_heads["proj_a"] == 42
     assert exc.bookmarks["proj_a"] == 40

@@ -1,14 +1,29 @@
 """`drain_projections`: integration-test helper.
 
 Synchronously advances every registered projection until each
-bookmark catches up to the head event position, OR raises
-`ProjectionDrainTimeoutError` if the deadline elapses first.
+bookmark catches up to the latest event of types it subscribes to,
+OR raises `ProjectionDrainTimeoutError` if the deadline elapses
+first.
 
 Lets contract / integration tests assert against projection state
 immediately after appending events without sprinkling
 `asyncio.sleep(...)` and hoping. Also serves as the documented
 escape hatch for in-process workflows that need synchronous
 projection consistency (rare; should not become a regular pattern).
+
+## Per-projection "subscribed head" semantics
+
+Each projection has a "subscribed head" — the maximum event
+position whose `event_type` is in that projection's
+`subscribed_event_types`. A projection is considered caught up
+when its bookmark >= its subscribed head, NOT the global head.
+
+This matters when multiple projections from different aggregates
+are co-registered (Equipment's Asset + Capability is the first
+case): an asset-only test would otherwise leave the Capability
+projection's bookmark stuck at 0 forever because no event of its
+subscribed types exists yet, and the drain helper would time out
+even though the projection is correctly idle.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -20,7 +35,9 @@ import asyncpg
 from cora.infrastructure.projection.registry import ProjectionRegistry
 from cora.infrastructure.projection.worker import advance_subscriber_once
 
-_HEAD_POSITION_SQL = "SELECT COALESCE(MAX(position), 0) FROM events"
+_SUBSCRIBED_HEAD_SQL = """
+SELECT COALESCE(MAX(position), 0) FROM events WHERE event_type = ANY($1::text[])
+"""
 
 _BOOKMARK_POSITION_SQL = """
 SELECT last_position FROM projection_bookmarks WHERE name = $1
@@ -37,15 +54,15 @@ class ProjectionDrainTimeoutError(Exception):
         self,
         *,
         deadline_seconds: float,
-        head_position: int,
+        subscribed_heads: dict[str, int],
         bookmarks: dict[str, int],
     ) -> None:
         super().__init__(
             f"drain_projections did not catch up within {deadline_seconds}s. "
-            f"Head position: {head_position}; bookmarks: {bookmarks}"
+            f"Subscribed heads: {subscribed_heads}; bookmarks: {bookmarks}"
         )
         self.deadline_seconds = deadline_seconds
-        self.head_position = head_position
+        self.subscribed_heads = subscribed_heads
         self.bookmarks = bookmarks
 
 
@@ -56,10 +73,10 @@ async def drain_projections(
     deadline_seconds: float = 5.0,
     batch_size: int = 100,
 ) -> None:
-    """Advance every registered projection until all bookmarks reach
-    the head event position, or the deadline expires.
+    """Advance every registered projection until each bookmark reaches
+    its subscribed head, or the deadline expires.
 
-    The head position is sampled once per outer loop iteration; if
+    The subscribed head is sampled once per outer loop iteration; if
     new events land mid-drain, they're caught on the next sample.
     """
     if registry.is_empty():
@@ -70,19 +87,27 @@ async def drain_projections(
 
     while True:
         async with pool.acquire() as conn:
-            head_position: int = int(await conn.fetchval(_HEAD_POSITION_SQL))
+            subscribed_heads: dict[str, int] = {}
             bookmarks: dict[str, int] = {}
             for projection in registry:
+                subscribed = sorted(projection.subscribed_event_types)
+                head = int(await conn.fetchval(_SUBSCRIBED_HEAD_SQL, subscribed))
+                subscribed_heads[projection.name] = head
                 row = await conn.fetchval(_BOOKMARK_POSITION_SQL, projection.name)
                 bookmarks[projection.name] = int(row) if row is not None else 0
 
-        if all(pos >= head_position for pos in bookmarks.values()):
+        behind = [
+            projection
+            for projection in registry
+            if bookmarks[projection.name] < subscribed_heads[projection.name]
+        ]
+        if not behind:
             return
 
         if loop.time() >= deadline:
             raise ProjectionDrainTimeoutError(
                 deadline_seconds=deadline_seconds,
-                head_position=head_position,
+                subscribed_heads=subscribed_heads,
                 bookmarks=bookmarks,
             )
 
@@ -90,8 +115,7 @@ async def drain_projections(
         await asyncio.gather(
             *[
                 advance_subscriber_once(pool, projection, batch_size=batch_size)
-                for projection in registry
-                if bookmarks[projection.name] < head_position
+                for projection in behind
             ]
         )
 

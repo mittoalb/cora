@@ -113,10 +113,11 @@ def bola_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, UUID
                 "GetActor",
                 "GetSubject",
                 "GetAsset",
-                # List-side (8e-1c, 8e-2a, 8e-3a)
+                # List-side (8e-1c, 8e-2a, 8e-3a, 8e-3b)
                 "ListActors",
                 "ListSubjects",
                 "ListAssets",
+                "ListCapabilities",
             }
         ),
     )
@@ -301,4 +302,22 @@ def test_p1_can_call_list_assets_when_command_permitted(
 ) -> None:
     client, p1, _ = bola_app
     response = client.get("/assets", headers={"X-Principal-Id": str(p1)})
+    assert response.status_code == 200
+
+
+@pytest.mark.contract
+def test_p2_cannot_call_list_capabilities_when_command_not_permitted(
+    bola_app: tuple[TestClient, UUID, UUID],
+) -> None:
+    client, _, p2 = bola_app
+    response = client.get("/capabilities", headers={"X-Principal-Id": str(p2)})
+    assert response.status_code == 403
+
+
+@pytest.mark.contract
+def test_p1_can_call_list_capabilities_when_command_permitted(
+    bola_app: tuple[TestClient, UUID, UUID],
+) -> None:
+    client, p1, _ = bola_app
+    response = client.get("/capabilities", headers={"X-Principal-Id": str(p1)})
     assert response.status_code == 200

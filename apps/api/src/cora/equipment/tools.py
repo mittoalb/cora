@@ -24,6 +24,7 @@ from cora.equipment.features.enter_maintenance import tool as enter_maintenance_
 from cora.equipment.features.get_asset import tool as get_asset_tool
 from cora.equipment.features.get_capability import tool as get_capability_tool
 from cora.equipment.features.list_assets import tool as list_assets_tool
+from cora.equipment.features.list_capabilities import tool as list_capabilities_tool
 from cora.equipment.features.register_asset import tool as register_asset_tool
 from cora.equipment.features.relocate_asset import tool as relocate_asset_tool
 from cora.equipment.features.remove_asset_capability import (
@@ -97,4 +98,8 @@ def register_equipment_tools(
     list_assets_tool.register(
         mcp,
         get_handler=lambda: get_handlers().list_assets,
+    )
+    list_capabilities_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().list_capabilities,
     )
