@@ -2,8 +2,9 @@
 
 `GET /runs/{run_id}` returns 200 + RunResponse on hit, 404 on miss.
 
-Response shape: `{id, name, plan_id, subject_id, status}`.
-`subject_id` is null for calibration / dark-field runs.
+Response shape: `{id, name, plan_id, subject_id, raid, status}`.
+`subject_id` and `raid` are null when not set (calibration runs, or
+Runs not registered against a research activity respectively).
 """
 
 from typing import Annotated
@@ -22,14 +23,16 @@ class RunResponse(BaseModel):
     """Read-side DTO at the API boundary.
 
     Carries primitives, not domain VOs. `status` is the StrEnum's
-    string value (Running at 6f-1; transitions add more in 6f-2+).
-    `subject_id` is null for calibration / dark-field runs.
+    string value. `subject_id` is null for calibration / dark-field
+    runs. `raid` is null when no Research Activity Identifier was
+    supplied at start time (post-7d retrofit).
     """
 
     id: UUID
     name: str = Field(..., max_length=RUN_NAME_MAX_LENGTH)
     plan_id: UUID
     subject_id: UUID | None
+    raid: str | None
     status: str
 
 
@@ -77,5 +80,6 @@ async def get_runs(
         name=run.name.value,
         plan_id=run.plan_id,
         subject_id=run.subject_id,
+        raid=run.raid,
         status=run.status.value,
     )

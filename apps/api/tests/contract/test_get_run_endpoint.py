@@ -56,6 +56,7 @@ def test_get_run_returns_200_with_running_status_for_sample_run() -> None:
         "name": "32-ID FlyScan",
         "plan_id": plan_id,
         "subject_id": subject_id,
+        "raid": None,
         "status": "Running",
     }
 

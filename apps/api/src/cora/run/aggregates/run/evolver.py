@@ -62,6 +62,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
             name=name,
             plan_id=plan_id,
             subject_id=subject_id,
+            raid=raid,
         ):
             _ = state  # RunStarted is the genesis event; prior state ignored.
             return Run(
@@ -69,6 +70,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 name=RunName(name),
                 plan_id=plan_id,
                 subject_id=subject_id,
+                raid=raid,
                 status=RunStatus.RUNNING,
             )
         case RunHeld():

@@ -149,6 +149,7 @@ def decide(
             name=name.value,
             plan_id=command.plan_id,
             subject_id=command.subject_id,
+            raid=command.raid,
             occurred_at=now,
         )
     ]

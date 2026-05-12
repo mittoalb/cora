@@ -628,13 +628,17 @@ class Run:
     `plan_id` is the Plan being executed (eventual-consistency ref;
     loaded at handler-load time for re-validation, NOT verified by
     the decider as opaque). `subject_id` is the Subject being
-    measured, or None for calibration / dark-field runs. `status`
-    defaults to `Running` — the active steady-state (6f-1 ships
-    only this state; terminals land in 6f-2+).
+    measured, or None for calibration / dark-field runs. `raid` is
+    the Research Activity Identifier (ISO 23527) for the project
+    this Run belongs to, opaque string carried verbatim, defaults
+    to None (post-7d retrofit; pre-7d Runs fold with raid=None
+    because old RunStarted payloads have no raid key). `status`
+    defaults to `Running` — the active steady-state.
     """
 
     id: UUID
     name: RunName
     plan_id: UUID
     subject_id: UUID | None
+    raid: str | None = None
     status: RunStatus = RunStatus.RUNNING

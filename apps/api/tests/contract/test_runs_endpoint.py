@@ -95,6 +95,48 @@ def test_post_runs_accepts_explicit_null_subject_id() -> None:
 
 
 @pytest.mark.contract
+def test_post_runs_accepts_raid_and_round_trips_into_get_run_response() -> None:
+    """7d retrofit: RAiD (ISO 23527) carries verbatim from POST body
+    through the RunStarted event and back out via GET /runs/{id}."""
+    raid_value = "https://raid.org/10.7935/cora-test-raid"
+    with TestClient(create_app()) as client:
+        plan_id, subject_id = _setup_full_chain(client)
+        create = client.post(
+            "/runs",
+            json={
+                "name": "32-ID FlyScan with RAiD",
+                "plan_id": plan_id,
+                "subject_id": subject_id,
+                "raid": raid_value,
+            },
+        )
+        assert create.status_code == 201
+        run_id = create.json()["run_id"]
+        get = client.get(f"/runs/{run_id}")
+    assert get.status_code == 200
+    assert get.json()["raid"] == raid_value
+
+
+@pytest.mark.contract
+def test_post_runs_accepts_omitted_raid_and_get_returns_null() -> None:
+    """raid is optional (defaults to None) for pre-7d-style requests."""
+    with TestClient(create_app()) as client:
+        plan_id, subject_id = _setup_full_chain(client)
+        create = client.post(
+            "/runs",
+            json={
+                "name": "no-raid run",
+                "plan_id": plan_id,
+                "subject_id": subject_id,
+            },
+        )
+        assert create.status_code == 201
+        run_id = create.json()["run_id"]
+        get = client.get(f"/runs/{run_id}")
+    assert get.json()["raid"] is None
+
+
+@pytest.mark.contract
 def test_post_runs_trims_whitespace_in_name() -> None:
     with TestClient(create_app()) as client:
         plan_id, subject_id = _setup_full_chain(client)

@@ -58,10 +58,22 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ] = None,
+        raid: Annotated[
+            str | None,
+            Field(
+                default=None,
+                max_length=2048,
+                description=(
+                    "Research Activity Identifier (ISO 23527). Optional; opaque "
+                    "string carried verbatim. Used at PROV-O / DataCite export "
+                    "boundaries for cross-facility provenance."
+                ),
+            ),
+        ] = None,
     ) -> StartRunOutput:
         handler = get_handler()
         run_id = await handler(
-            StartRun(name=name, plan_id=plan_id, subject_id=subject_id),
+            StartRun(name=name, plan_id=plan_id, subject_id=subject_id, raid=raid),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
         )

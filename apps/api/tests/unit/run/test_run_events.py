@@ -72,6 +72,7 @@ def test_to_payload_serializes_run_started_with_subject_to_primitives() -> None:
         "name": "32-ID FlyScan",
         "plan_id": str(plan_id),
         "subject_id": str(subject_id),
+        "raid": None,
         "occurred_at": _NOW.isoformat(),
     }
 
@@ -91,6 +92,63 @@ def test_to_payload_serializes_run_started_without_subject_as_null() -> None:
     )
     payload = to_payload(event)
     assert payload["subject_id"] is None
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_run_started_with_raid() -> None:
+    """7d retrofit: raid carries verbatim through the payload."""
+    event = RunStarted(
+        run_id=uuid4(),
+        name="32-ID FlyScan",
+        plan_id=uuid4(),
+        subject_id=None,
+        occurred_at=_NOW,
+        raid="https://raid.org/10.7935/cora-test-raid",
+    )
+    assert to_payload(event)["raid"] == "https://raid.org/10.7935/cora-test-raid"
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_started_without_raid_key_as_none() -> None:
+    """Forward-compatible load: pre-7d events have no raid key in
+    jsonb. from_stored returns raid=None for those, keeping older
+    streams replayable."""
+    run_id = uuid4()
+    plan_id = uuid4()
+    stored = _stored(
+        "RunStarted",
+        {
+            "run_id": str(run_id),
+            "name": "Dark field calibration",
+            "plan_id": str(plan_id),
+            "subject_id": None,
+            "occurred_at": _NOW.isoformat(),
+            # NOTE: no "raid" key — this is what pre-7d events look like.
+        },
+    )
+    event = from_stored(stored)
+    assert isinstance(event, RunStarted)
+    assert event.raid is None
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_started_with_raid_key() -> None:
+    run_id = uuid4()
+    plan_id = uuid4()
+    stored = _stored(
+        "RunStarted",
+        {
+            "run_id": str(run_id),
+            "name": "32-ID FlyScan",
+            "plan_id": str(plan_id),
+            "subject_id": None,
+            "raid": "https://raid.org/10.7935/cora-test-raid",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    event = from_stored(stored)
+    assert isinstance(event, RunStarted)
+    assert event.raid == "https://raid.org/10.7935/cora-test-raid"
 
 
 @pytest.mark.unit

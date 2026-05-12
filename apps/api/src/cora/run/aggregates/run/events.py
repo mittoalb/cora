@@ -99,6 +99,13 @@ class RunStarted:
     at handler-load time; not re-verified at fold time). `subject_id`
     is null for dark-field / flat-field calibration runs per
     beamline-domain convention.
+
+    `raid` (post-7d) is the Research Activity Identifier (ISO
+    23527), opaque string carried verbatim. Defaults to None (a
+    Run that wasn't registered against a research activity).
+    Forward-compatible jsonb load: `from_stored` reads the key
+    with `.get(...)` so pre-7d events without the raid key
+    deserialize as `raid=None`.
     """
 
     run_id: UUID
@@ -106,6 +113,7 @@ class RunStarted:
     plan_id: UUID
     subject_id: UUID | None
     occurred_at: datetime
+    raid: str | None = None
 
 
 @dataclass(frozen=True)
@@ -247,6 +255,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
             name=name,
             plan_id=plan_id,
             subject_id=subject_id,
+            raid=raid,
             occurred_at=occurred_at,
         ):
             return {
@@ -254,6 +263,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "name": name,
                 "plan_id": str(plan_id),
                 "subject_id": str(subject_id) if subject_id is not None else None,
+                "raid": raid,
                 "occurred_at": occurred_at.isoformat(),
             }
         case RunHeld(run_id=run_id, occurred_at=occurred_at):
@@ -311,11 +321,16 @@ def from_stored(stored: StoredEvent) -> RunEvent:
     match stored.event_type:
         case "RunStarted":
             raw_subject = payload["subject_id"]
+            # `raid` was added in 7d. Pre-7d events have no key in
+            # the jsonb payload; .get(...) returns None for those,
+            # matching the new field's default and keeping older
+            # streams replayable.
             return RunStarted(
                 run_id=UUID(payload["run_id"]),
                 name=payload["name"],
                 plan_id=UUID(payload["plan_id"]),
                 subject_id=UUID(raw_subject) if raw_subject is not None else None,
+                raid=payload.get("raid"),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "RunHeld":

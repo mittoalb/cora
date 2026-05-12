@@ -21,6 +21,7 @@ class RunOutput(BaseModel):
     name: str = Field(..., max_length=RUN_NAME_MAX_LENGTH)
     plan_id: UUID
     subject_id: UUID | None
+    raid: str | None
     status: str
 
 
@@ -51,5 +52,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             name=run.name.value,
             plan_id=run.plan_id,
             subject_id=run.subject_id,
+            raid=run.raid,
             status=run.status.value,
         )

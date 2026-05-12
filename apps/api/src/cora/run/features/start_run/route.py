@@ -53,6 +53,16 @@ class StartRunRequest(BaseModel):
             "Mounted or Measured state (else 409)."
         ),
     )
+    raid: str | None = Field(
+        default=None,
+        max_length=2048,
+        description=(
+            "Research Activity Identifier (ISO 23527) for the project "
+            "this Run belongs to. Optional opaque string carried verbatim. "
+            "Used at PROV-O / DataCite export boundaries to link Datasets, "
+            "Subjects, Instruments, and people for cross-facility provenance."
+        ),
+    )
 
 
 class StartRunResponse(BaseModel):
@@ -129,6 +139,7 @@ async def post_runs(
             name=body.name,
             plan_id=body.plan_id,
             subject_id=body.subject_id,
+            raid=body.raid,
         ),
         principal_id=principal_id,
         correlation_id=cid,
