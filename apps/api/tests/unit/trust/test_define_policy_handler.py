@@ -6,7 +6,7 @@ from uuid import UUID
 import pytest
 
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
@@ -47,9 +47,9 @@ def _build_deps(
     *,
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
-) -> SharedDeps:
+) -> Kernel:
     settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return SharedDeps(
+    return Kernel(
         settings=settings,
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID]),

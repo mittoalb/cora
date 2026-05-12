@@ -12,7 +12,7 @@ domain-idempotent (second call from `Removed` state hits
 from typing import Protocol
 from uuid import UUID
 
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.subject._update_handler import make_subject_update_handler
 from cora.subject.features.remove_subject.command import RemoveSubject
 from cora.subject.features.remove_subject.decider import decide
@@ -31,7 +31,7 @@ class Handler(Protocol):
     ) -> None: ...
 
 
-def bind(deps: SharedDeps) -> Handler:
+def bind(deps: Kernel) -> Handler:
     """Build a remove_subject handler closed over the shared deps."""
     return make_subject_update_handler(
         deps,

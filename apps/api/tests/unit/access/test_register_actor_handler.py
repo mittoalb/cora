@@ -15,7 +15,7 @@ from cora.access.aggregates.actor import InvalidActorNameError
 from cora.access.features import register_actor
 from cora.access.features.register_actor import RegisterActor
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
@@ -50,7 +50,7 @@ def _build_deps(
     *,
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
-) -> SharedDeps:
+) -> Kernel:
     settings = Settings(app_env="test")  # type: ignore[call-arg]
     # FixedIdGenerator yields IDs in order. register_actor consumes
     # exactly two per successful call: one for the new aggregate id
@@ -58,7 +58,7 @@ def _build_deps(
     # emitted event for event_id. Tests that exercise the auth-deny
     # path don't reach the second consumption but the extra id is
     # cheap and keeps the deps factory uniform across tests.
-    return SharedDeps(
+    return Kernel(
         settings=settings,
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID]),
@@ -203,7 +203,7 @@ async def test_handler_generates_event_id_via_id_generator() -> None:
     appended event's event_id."""
     sentinel_event_id = UUID("01900000-0000-7000-8000-0000000000ee")
     store = InMemoryEventStore()
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([_NEW_ID, sentinel_event_id]),

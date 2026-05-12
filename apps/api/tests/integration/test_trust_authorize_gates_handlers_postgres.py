@@ -9,7 +9,7 @@ into a `TrustHandlers` bundle (with the full `with_tracing` /
 permitted principals succeed, non-permitted principals raise
 `UnauthorizedError`, and a misconfigured policy_id fails closed.
 
-Test setup uses TWO `SharedDeps` against a shared Postgres pool:
+Test setup uses TWO `Kernel` against a shared Postgres pool:
 
   1. Bootstrap deps (`AllowAllAuthorize`) defines the policy that
      gates everything. The chicken-and-egg from TrustAuthorize's
@@ -35,7 +35,7 @@ import asyncpg
 import pytest
 
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -62,9 +62,9 @@ def _bootstrap_deps(
     db_pool: asyncpg.Pool,
     *,
     ids: list[UUID],
-) -> SharedDeps:
-    """Build SharedDeps with AllowAllAuthorize for the policy-define step."""
-    return SharedDeps(
+) -> Kernel:
+    """Build Kernel with AllowAllAuthorize for the policy-define step."""
+    return Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(ids),
@@ -79,10 +79,10 @@ def _gated_deps(
     *,
     policy_id: UUID,
     ids: list[UUID],
-) -> SharedDeps:
-    """Build SharedDeps with TrustAuthorize gating against `policy_id`."""
+) -> Kernel:
+    """Build Kernel with TrustAuthorize gating against `policy_id`."""
     event_store = PostgresEventStore(db_pool)
-    return SharedDeps(
+    return Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(ids),

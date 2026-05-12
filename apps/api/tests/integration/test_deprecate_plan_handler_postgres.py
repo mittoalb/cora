@@ -23,7 +23,7 @@ from cora.equipment.features.add_asset_capability import AddAssetCapability
 from cora.equipment.features.define_capability import DefineCapability
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -69,7 +69,7 @@ async def test_deprecate_plan_persists_and_preserves_version_through_fold(
     plan_versioned_event_id = UUID("01900000-0000-7000-8000-00000062af03")
     plan_deprecated_event_id = UUID("01900000-0000-7000-8000-00000062af04")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(

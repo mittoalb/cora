@@ -9,7 +9,7 @@ import asyncpg
 import pytest
 
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -37,7 +37,7 @@ async def test_version_practice_persists_event_and_round_trips_through_fold(
     method_id = UUID("01900000-0000-7000-8000-000000000111")
     site_id = UUID("01900000-0000-7000-8000-000000000222")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([practice_id, defined_event_id, versioned_event_id]),

@@ -20,7 +20,7 @@ JSON-in-JSON output that log aggregators can't index.
 Caching nuance — `cache_logger_on_first_use=True` means structlog binds
 each named logger to its current configuration on first use and ignores
 subsequent `configure_logging()` calls for that name. In tests where
-`build_shared_deps()` (which calls `configure_logging()`) runs many
+`build_kernel()` (which calls `configure_logging()`) runs many
 times — once per `create_app()` — only the first call's level/handler
 take effect for the rest of the process. Acceptable for our test setup
 (everyone uses INFO and the JSONRenderer); breaks if a test tries to

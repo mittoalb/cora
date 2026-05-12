@@ -28,7 +28,7 @@ from cora.equipment.features.enter_maintenance import EnterMaintenance
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.restore_from_maintenance import RestoreFromMaintenance
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
@@ -65,9 +65,9 @@ def _build_deps(
     *,
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
-) -> SharedDeps:
+) -> Kernel:
     settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return SharedDeps(
+    return Kernel(
         settings=settings,
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(
@@ -85,7 +85,7 @@ def _build_deps(
     )
 
 
-async def _register_activate_enter(deps: SharedDeps) -> UUID:
+async def _register_activate_enter(deps: Kernel) -> UUID:
     """Helper: drive an asset all the way to Maintenance lifecycle."""
     asset_id = await register_asset.bind(deps)(
         RegisterAsset(name="APS-2BM", level=AssetLevel.UNIT, parent_id=_PARENT_ID),

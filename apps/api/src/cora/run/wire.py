@@ -1,4 +1,4 @@
-"""Compose the Run BC's handlers from `SharedDeps`.
+"""Compose the Run BC's handlers from `Kernel`.
 
 `wire_run(deps)` is invoked once from the FastAPI lifespan and the
 returned `RunHandlers` bundle is stored on `app.state.run`. Routes
@@ -31,8 +31,8 @@ Subsequent slices land per-phase:
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.run.features import (
     abort_run,
@@ -50,7 +50,7 @@ _BC = "run"
 
 @dataclass(frozen=True)
 class RunHandlers:
-    """The Run BC's handler bundle, each closed over SharedDeps."""
+    """The Run BC's handler bundle, each closed over Kernel."""
 
     start_run: start_run.IdempotentHandler
     complete_run: complete_run.Handler
@@ -62,7 +62,7 @@ class RunHandlers:
     get_run: get_run.Handler
 
 
-def wire_run(deps: SharedDeps) -> RunHandlers:
+def wire_run(deps: Kernel) -> RunHandlers:
     """Build the Run BC handlers from shared dependencies."""
     return RunHandlers(
         start_run=with_tracing(

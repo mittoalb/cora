@@ -19,7 +19,7 @@ from cora.equipment.features import add_asset_capability, register_asset
 from cora.equipment.features.add_asset_capability import AddAssetCapability
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -43,7 +43,7 @@ async def test_add_asset_capability_persists_event_and_round_trips_through_fold(
     add_event_id = UUID("01900000-0000-7000-8000-00000056fa0f")
     cap1 = UUID("01900000-0000-7000-8000-000000000111")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([asset_id, register_event_id, add_event_id]),

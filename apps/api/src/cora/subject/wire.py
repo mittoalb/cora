@@ -1,4 +1,4 @@
-"""Compose the Subject BC's handlers from `SharedDeps`.
+"""Compose the Subject BC's handlers from `Kernel`.
 
 `wire_subject(deps)` is invoked once from the FastAPI lifespan and
 the returned `SubjectHandlers` bundle is stored on `app.state.subject`.
@@ -31,8 +31,8 @@ the same state is the desired behavior, no Idempotency-Key needed.
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.subject.features import (
     discard_subject,
@@ -50,7 +50,7 @@ _BC = "subject"
 
 @dataclass(frozen=True)
 class SubjectHandlers:
-    """The Subject BC's handler bundle, each closed over SharedDeps.
+    """The Subject BC's handler bundle, each closed over Kernel.
 
     Phase 4a shipped `register_subject` (create-style; idempotency-
     wrapped). Phases 4b-c added the active-phase transitions
@@ -72,7 +72,7 @@ class SubjectHandlers:
     get_subject: get_subject.Handler
 
 
-def wire_subject(deps: SharedDeps) -> SubjectHandlers:
+def wire_subject(deps: Kernel) -> SubjectHandlers:
     """Build the Subject BC handlers from shared dependencies."""
     return SubjectHandlers(
         register_subject=with_tracing(

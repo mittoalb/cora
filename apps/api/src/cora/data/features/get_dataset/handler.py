@@ -23,7 +23,7 @@ from uuid import UUID
 from cora.data.aggregates.dataset import Dataset, load_dataset
 from cora.data.errors import UnauthorizedError
 from cora.data.features.get_dataset.query import GetDataset
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 
@@ -45,7 +45,7 @@ class Handler(Protocol):
     ) -> Dataset | None: ...
 
 
-def bind(deps: SharedDeps) -> Handler:
+def bind(deps: Kernel) -> Handler:
     """Build a get_dataset handler closed over the shared deps."""
 
     async def handler(

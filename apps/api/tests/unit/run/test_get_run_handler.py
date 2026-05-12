@@ -10,8 +10,8 @@ from uuid import UUID, uuid4
 import pytest
 
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
@@ -44,9 +44,9 @@ _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
-def _build_deps(event_store: InMemoryEventStore | None = None) -> SharedDeps:
+def _build_deps(event_store: InMemoryEventStore | None = None) -> Kernel:
     settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return SharedDeps(
+    return Kernel(
         settings=settings,
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([_RUN_ID]),
@@ -164,7 +164,7 @@ class _DenyAllAuthorize:
 @pytest.mark.unit
 async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
     tracking = _RecordingAuthorize()
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([_RUN_ID]),
@@ -185,7 +185,7 @@ async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_on_deny() -> None:
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([_RUN_ID]),

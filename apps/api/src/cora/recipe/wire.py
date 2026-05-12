@@ -1,4 +1,4 @@
-"""Compose the Recipe BC's handlers from `SharedDeps`.
+"""Compose the Recipe BC's handlers from `Kernel`.
 
 `wire_recipe(deps)` is invoked once from the FastAPI lifespan and
 the returned `RecipeHandlers` bundle is stored on
@@ -27,8 +27,8 @@ Phase 6a ships `define_method` + `get_method`. Subsequent phases:
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.recipe.features import (
     define_method,
@@ -50,7 +50,7 @@ _BC = "recipe"
 
 @dataclass(frozen=True)
 class RecipeHandlers:
-    """The Recipe BC's handler bundle, each closed over SharedDeps.
+    """The Recipe BC's handler bundle, each closed over Kernel.
 
     Phase 6a ships `define_method` (create-style; idempotency-
     wrapped) and `get_method` (read side). Subsequent slices
@@ -71,7 +71,7 @@ class RecipeHandlers:
     deprecate_plan: deprecate_plan.Handler
 
 
-def wire_recipe(deps: SharedDeps) -> RecipeHandlers:
+def wire_recipe(deps: Kernel) -> RecipeHandlers:
     """Build the Recipe BC handlers from shared dependencies."""
     return RecipeHandlers(
         define_method=with_tracing(

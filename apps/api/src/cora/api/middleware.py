@@ -33,7 +33,7 @@ Send = Callable[[dict[str, Any]], Awaitable[None]]
 
 # structlog loggers are lazy: get_logger() returns a proxy and config
 # is applied at first .info() call. Module-level binding is safe even
-# though configure_logging() runs later in build_shared_deps().
+# though configure_logging() runs later in build_kernel().
 _log = get_logger(__name__)
 
 

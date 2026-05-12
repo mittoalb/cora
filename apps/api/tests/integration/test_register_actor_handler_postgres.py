@@ -17,7 +17,7 @@ import pytest
 from cora.access.features import register_actor
 from cora.access.features.register_actor import RegisterActor
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -37,7 +37,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 async def test_handler_persists_actor_registered_to_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID]),

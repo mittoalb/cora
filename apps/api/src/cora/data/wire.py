@@ -1,4 +1,4 @@
-"""Compose the Data BC's handlers from `SharedDeps`.
+"""Compose the Data BC's handlers from `Kernel`.
 
 `wire_data(deps)` is invoked once from the FastAPI lifespan and the
 returned `DataHandlers` bundle is stored on `app.state.data`. Routes
@@ -25,8 +25,8 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from cora.data.features import discard_dataset, get_dataset, register_dataset
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 
 _BC = "data"
@@ -34,7 +34,7 @@ _BC = "data"
 
 @dataclass(frozen=True)
 class DataHandlers:
-    """The Data BC's handler bundle, each closed over SharedDeps.
+    """The Data BC's handler bundle, each closed over Kernel.
 
     Phase 7a shipped `register_dataset` (create-style; idempotency-
     wrapped) plus `get_dataset` (read-side; no idempotency). Phase
@@ -46,7 +46,7 @@ class DataHandlers:
     get_dataset: get_dataset.Handler
 
 
-def wire_data(deps: SharedDeps) -> DataHandlers:
+def wire_data(deps: Kernel) -> DataHandlers:
     """Build the Data BC handlers from shared dependencies."""
     return DataHandlers(
         register_dataset=with_tracing(

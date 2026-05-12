@@ -26,8 +26,8 @@ import asyncpg
 import pytest
 
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     Allow,
     AllowAllAuthorize,
@@ -95,7 +95,7 @@ async def test_trust_authorize_persists_traversals_against_postgres(
 
     event_store = PostgresEventStore(db_pool)
     traversals_store = PostgresTraversalStore(db_pool)
-    define_conduit_deps = SharedDeps(
+    define_conduit_deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(

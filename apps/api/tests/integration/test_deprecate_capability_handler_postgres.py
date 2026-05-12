@@ -23,7 +23,7 @@ from cora.equipment.features.define_capability import DefineCapability
 from cora.equipment.features.deprecate_capability import DeprecateCapability
 from cora.equipment.features.version_capability import VersionCapability
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -46,7 +46,7 @@ async def test_deprecate_capability_persists_and_preserves_version_through_fold(
     versioned_event_id = UUID("01900000-0000-7000-8000-00000057fb0f")
     deprecated_event_id = UUID("01900000-0000-7000-8000-00000057fb10")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(

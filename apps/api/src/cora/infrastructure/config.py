@@ -1,6 +1,6 @@
 """Typed application configuration loaded from environment variables.
 
-`Settings` is loaded once at process start (in `build_shared_deps`) and passed
+`Settings` is loaded once at process start (in `build_kernel`) and passed
 to adapters that need values from it. Domain and application layers never read
 environment variables directly.
 """
@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     otel_sampler_ratio: float = 1.0
 
     # Authorization — Trust BC wiring
-    # When None, `build_shared_deps` wires `AllowAllAuthorize` and every
+    # When None, `build_kernel` wires `AllowAllAuthorize` and every
     # command is permitted (Phase 1 default; matches dev/test). When
     # set to a UUID, `TrustAuthorize` is wired and gates every command
     # through that single Policy aggregate. Multi-policy resolution

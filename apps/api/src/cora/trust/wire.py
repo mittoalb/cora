@@ -1,4 +1,4 @@
-"""Compose the Trust BC's handlers from `SharedDeps`.
+"""Compose the Trust BC's handlers from `Kernel`.
 
 `wire_trust(deps)` is invoked once from the FastAPI lifespan and the
 returned `TrustHandlers` bundle is stored on `app.state.trust`. Routes
@@ -20,8 +20,8 @@ matters — innermost first):
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.trust.features import (
     define_conduit,
@@ -35,7 +35,7 @@ _BC = "trust"
 
 @dataclass(frozen=True)
 class TrustHandlers:
-    """The Trust BC's handler bundle, each closed over SharedDeps.
+    """The Trust BC's handler bundle, each closed over Kernel.
 
     Phase 3d ships `define_zone` + `define_conduit` + `define_policy` +
     `evaluate_policy` (first Trust query slice). Future fields
@@ -51,7 +51,7 @@ class TrustHandlers:
     evaluate_policy: evaluate_policy.Handler
 
 
-def wire_trust(deps: SharedDeps) -> TrustHandlers:
+def wire_trust(deps: Kernel) -> TrustHandlers:
     """Build the Trust BC handlers from shared dependencies."""
     return TrustHandlers(
         define_zone=with_tracing(

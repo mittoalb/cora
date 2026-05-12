@@ -8,7 +8,7 @@ module is a thin slice-specific bind.
 from typing import Protocol
 from uuid import UUID
 
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.subject._update_handler import make_subject_update_handler
 from cora.subject.features.return_subject.command import ReturnSubject
 from cora.subject.features.return_subject.decider import decide
@@ -27,7 +27,7 @@ class Handler(Protocol):
     ) -> None: ...
 
 
-def bind(deps: SharedDeps) -> Handler:
+def bind(deps: Kernel) -> Handler:
     """Build a return_subject handler closed over the shared deps."""
     return make_subject_update_handler(
         deps,

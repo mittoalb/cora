@@ -27,7 +27,7 @@ from cora.access import wire_access
 from cora.access.features.deactivate_actor import DeactivateActor
 from cora.access.features.register_actor import RegisterActor
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -52,8 +52,8 @@ _BOOTSTRAP_PRINCIPAL = UUID("01900000-0000-7000-8000-00000000c099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-00000000c0aa")
 
 
-def _bootstrap_deps(db_pool: asyncpg.Pool, *, ids: list[UUID]) -> SharedDeps:
-    return SharedDeps(
+def _bootstrap_deps(db_pool: asyncpg.Pool, *, ids: list[UUID]) -> Kernel:
+    return Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(ids),
@@ -63,9 +63,9 @@ def _bootstrap_deps(db_pool: asyncpg.Pool, *, ids: list[UUID]) -> SharedDeps:
     )
 
 
-def _gated_deps(db_pool: asyncpg.Pool, *, policy_id: UUID, ids: list[UUID]) -> SharedDeps:
+def _gated_deps(db_pool: asyncpg.Pool, *, policy_id: UUID, ids: list[UUID]) -> Kernel:
     event_store = PostgresEventStore(db_pool)
-    return SharedDeps(
+    return Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(ids),

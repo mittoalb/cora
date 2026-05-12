@@ -26,7 +26,7 @@ from cora.equipment.features.activate_asset import ActivateAsset
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.relocate_asset import RelocateAsset
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -52,7 +52,7 @@ async def test_relocate_asset_persists_event_from_commissioned_state(
     register_event_id = UUID("01900000-0000-7000-8000-00000054ef0e")
     relocate_event_id = UUID("01900000-0000-7000-8000-00000054ef0f")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([asset_id, register_event_id, relocate_event_id]),
@@ -99,7 +99,7 @@ async def test_relocate_asset_persists_event_from_active_state(
     activate_event_id = UUID("01900000-0000-7000-8000-00000054f00f")
     relocate_event_id = UUID("01900000-0000-7000-8000-00000054f010")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(

@@ -1,7 +1,7 @@
 """Port `Protocol`s — contracts the application layer depends on.
 
 Adapters implementing these ports live alongside (in `infrastructure/`) and are
-wired into `SharedDeps` at startup. Domain and application code imports only
+wired into `Kernel` at startup. Domain and application code imports only
 from `ports/`, never from adapter modules.
 """
 

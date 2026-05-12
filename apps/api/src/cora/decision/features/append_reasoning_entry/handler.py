@@ -58,8 +58,8 @@ from cora.decision.features.append_reasoning_entry.command import (
     AppendReasoningEntries,
     ReasoningEntryInput,
 )
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 from cora.infrastructure.ports.event_store import ConcurrencyError
@@ -91,12 +91,12 @@ class Handler(Protocol):
     ) -> int: ...
 
 
-def bind(deps: SharedDeps, *, reasoning_store: ReasoningStore) -> Handler:
+def bind(deps: Kernel, *, reasoning_store: ReasoningStore) -> Handler:
     """Build an append_reasoning_entry handler closed over deps + store.
 
     `reasoning_store` is BC-internal (constructed in `wire_decision`
     from `deps.pool` for Postgres, or InMemory for `app_env=test`).
-    Not promoted to SharedDeps per the per-category-writer pattern
+    Not promoted to Kernel per the per-category-writer pattern
     locked at gate-review L9 (mirrors Conduit's TraversalStore).
     """
 

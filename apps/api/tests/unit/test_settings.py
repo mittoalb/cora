@@ -68,7 +68,7 @@ def test_settings_rejects_sqlalchemy_style_url(
 def test_settings_trust_policy_id_defaults_to_none(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Default unset → AllowAllAuthorize wired by build_shared_deps.
+    """Default unset → AllowAllAuthorize wired by build_kernel.
     Phase 1 permissive default; matches dev/test."""
     monkeypatch.delenv("TRUST_POLICY_ID", raising=False)
     settings = Settings()

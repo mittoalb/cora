@@ -1,4 +1,4 @@
-"""Compose the Access BC's handlers from `SharedDeps`.
+"""Compose the Access BC's handlers from `Kernel`.
 
 `wire_access(deps)` is invoked once from the FastAPI lifespan and the
 returned `AccessHandlers` bundle is stored on `app.state.access`. Routes
@@ -27,8 +27,8 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from cora.access.features import deactivate_actor, get_actor, register_actor
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 
 _BC = "access"
@@ -36,7 +36,7 @@ _BC = "access"
 
 @dataclass(frozen=True)
 class AccessHandlers:
-    """The Access BC's handler bundle, each closed over SharedDeps.
+    """The Access BC's handler bundle, each closed over Kernel.
 
     Field types reflect what's stored: register_actor is the
     idempotency-wrapped variant (signature gains optional
@@ -51,7 +51,7 @@ class AccessHandlers:
     get_actor: get_actor.Handler
 
 
-def wire_access(deps: SharedDeps) -> AccessHandlers:
+def wire_access(deps: Kernel) -> AccessHandlers:
     """Build the Access BC handlers from shared dependencies."""
     return AccessHandlers(
         register_actor=with_tracing(

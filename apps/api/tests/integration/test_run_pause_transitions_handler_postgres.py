@@ -31,7 +31,7 @@ from cora.equipment.features.add_asset_capability import AddAssetCapability
 from cora.equipment.features.define_capability import DefineCapability
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -63,8 +63,8 @@ _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
-def _build_deps_with_ids(db_pool: asyncpg.Pool, ids: list[UUID]) -> SharedDeps:
-    return SharedDeps(
+def _build_deps_with_ids(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:
+    return Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(ids),
@@ -75,7 +75,7 @@ def _build_deps_with_ids(db_pool: asyncpg.Pool, ids: list[UUID]) -> SharedDeps:
 
 
 async def _seed_chain_and_start_run(
-    deps: SharedDeps,
+    deps: Kernel,
     *,
     asset_id: UUID,
     cap_id: UUID,

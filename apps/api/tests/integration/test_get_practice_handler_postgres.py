@@ -9,7 +9,7 @@ import asyncpg
 import pytest
 
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -36,7 +36,7 @@ async def test_get_practice_loads_state_from_real_postgres(
     method_id = UUID("01900000-0000-7000-8000-000000000333")
     site_id = UUID("01900000-0000-7000-8000-000000000444")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([practice_id, event_id]),

@@ -21,7 +21,7 @@ from cora.equipment.features import activate_asset, register_asset
 from cora.equipment.features.activate_asset import ActivateAsset
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
@@ -56,11 +56,11 @@ def _build_deps(
     *,
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
-) -> SharedDeps:
+) -> Kernel:
     settings = Settings(app_env="test")  # type: ignore[call-arg]
     # register_asset consumes [_NEW_ID, _REGISTER_EVENT_ID];
     # activate_asset consumes [_ACTIVATE_EVENT_ID].
-    return SharedDeps(
+    return Kernel(
         settings=settings,
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([_NEW_ID, _REGISTER_EVENT_ID, _ACTIVATE_EVENT_ID]),
@@ -70,7 +70,7 @@ def _build_deps(
     )
 
 
-async def _register_asset_helper(deps: SharedDeps) -> UUID:
+async def _register_asset_helper(deps: Kernel) -> UUID:
     """Helper: register an asset and return its id."""
     handler = register_asset.bind(deps)
     return await handler(

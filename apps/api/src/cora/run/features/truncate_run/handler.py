@@ -31,8 +31,8 @@ scope for 6f-4.
 from typing import Protocol
 from uuid import UUID
 
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 from cora.run.aggregates.run import (
@@ -66,7 +66,7 @@ class Handler(Protocol):
     ) -> None: ...
 
 
-def bind(deps: SharedDeps) -> Handler:
+def bind(deps: Kernel) -> Handler:
     """Build a truncate_run handler closed over the shared deps."""
 
     async def handler(

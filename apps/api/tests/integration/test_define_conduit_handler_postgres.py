@@ -21,7 +21,7 @@ import asyncpg
 import pytest
 
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -47,7 +47,7 @@ _TARGET_ZONE = UUID("01900000-0000-7000-8000-00000000bbbb")
 async def test_handler_persists_conduit_defined_to_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(

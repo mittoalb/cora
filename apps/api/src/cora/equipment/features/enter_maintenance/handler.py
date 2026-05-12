@@ -18,7 +18,7 @@ from uuid import UUID
 from cora.equipment._asset_update_handler import make_asset_update_handler
 from cora.equipment.features.enter_maintenance.command import EnterMaintenance
 from cora.equipment.features.enter_maintenance.decider import decide
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 
 
 class Handler(Protocol):
@@ -34,7 +34,7 @@ class Handler(Protocol):
     ) -> None: ...
 
 
-def bind(deps: SharedDeps) -> Handler:
+def bind(deps: Kernel) -> Handler:
     """Build an enter_maintenance handler closed over the shared deps."""
     return make_asset_update_handler(
         deps,

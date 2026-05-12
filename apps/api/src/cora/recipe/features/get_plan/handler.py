@@ -23,7 +23,7 @@ Query handlers do NOT emit `causation_id` log fields.
 from typing import Protocol
 from uuid import UUID
 
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 from cora.recipe.aggregates.plan import Plan, load_plan
@@ -48,7 +48,7 @@ class Handler(Protocol):
     ) -> Plan | None: ...
 
 
-def bind(deps: SharedDeps) -> Handler:
+def bind(deps: Kernel) -> Handler:
     """Build a get_plan handler closed over the shared deps."""
 
     async def handler(

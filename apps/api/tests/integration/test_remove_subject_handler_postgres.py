@@ -16,7 +16,7 @@ import asyncpg
 import pytest
 
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -49,7 +49,7 @@ async def test_remove_subject_persists_event_from_mounted_state(
     register_event_id = UUID("01900000-0000-7000-8000-00000054d1ed")
     mount_event_id = UUID("01900000-0000-7000-8000-00000054d1ee")
     remove_event_id = UUID("01900000-0000-7000-8000-00000054d1ef")
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([new_id, register_event_id, mount_event_id, remove_event_id]),
@@ -101,7 +101,7 @@ async def test_remove_subject_persists_event_from_measured_state(
     mount_event_id = UUID("01900000-0000-7000-8000-00000054d2ee")
     measure_event_id = UUID("01900000-0000-7000-8000-00000054d2ef")
     remove_event_id = UUID("01900000-0000-7000-8000-00000054d2f0")
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(

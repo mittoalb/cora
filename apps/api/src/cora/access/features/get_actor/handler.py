@@ -21,7 +21,7 @@ from uuid import UUID
 from cora.access.aggregates.actor import Actor, load_actor
 from cora.access.errors import UnauthorizedError
 from cora.access.features.get_actor.query import GetActor
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 
@@ -30,7 +30,7 @@ _CONDUIT_DEFAULT_ID = UUID(int=0)
 
 # structlog loggers are lazy: get_logger() returns a proxy and config is
 # applied at first .info() call. Module-level binding is safe even though
-# configure_logging() runs later in build_shared_deps().
+# configure_logging() runs later in build_kernel().
 _log = get_logger(__name__)
 
 
@@ -46,7 +46,7 @@ class Handler(Protocol):
     ) -> Actor | None: ...
 
 
-def bind(deps: SharedDeps) -> Handler:
+def bind(deps: Kernel) -> Handler:
     """Build a get_actor handler closed over the shared deps."""
 
     async def handler(

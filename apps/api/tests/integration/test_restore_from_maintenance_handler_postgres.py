@@ -25,7 +25,7 @@ from cora.equipment.features.enter_maintenance import EnterMaintenance
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.restore_from_maintenance import RestoreFromMaintenance
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -50,7 +50,7 @@ async def test_restore_from_maintenance_persists_event_from_maintenance_state(
     enter_event_id = UUID("01900000-0000-7000-8000-00000055ee10")
     restore_event_id = UUID("01900000-0000-7000-8000-00000055ee11")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(

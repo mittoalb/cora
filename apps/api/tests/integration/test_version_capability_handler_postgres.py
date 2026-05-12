@@ -21,7 +21,7 @@ from cora.equipment.features import define_capability, version_capability
 from cora.equipment.features.define_capability import DefineCapability
 from cora.equipment.features.version_capability import VersionCapability
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -43,7 +43,7 @@ async def test_version_capability_persists_event_and_round_trips_through_fold(
     defined_event_id = UUID("01900000-0000-7000-8000-00000057fa0e")
     versioned_event_id = UUID("01900000-0000-7000-8000-00000057fa0f")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([capability_id, defined_event_id, versioned_event_id]),

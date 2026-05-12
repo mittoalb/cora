@@ -80,8 +80,8 @@ from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 from cora.subject.aggregates.subject import (
@@ -131,7 +131,7 @@ class _SubjectUpdateHandler(Protocol):
 
 
 def make_subject_update_handler(
-    deps: SharedDeps,
+    deps: Kernel,
     *,
     command_name: str,
     log_prefix: str,

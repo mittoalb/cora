@@ -90,8 +90,8 @@ from cora.equipment.aggregates.asset import (
     to_payload,
 )
 from cora.equipment.errors import UnauthorizedError
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 
@@ -133,7 +133,7 @@ class _AssetUpdateHandler(Protocol):
 
 
 def make_asset_update_handler(
-    deps: SharedDeps,
+    deps: Kernel,
     *,
     command_name: str,
     log_prefix: str,

@@ -15,7 +15,7 @@ import asyncpg
 import pytest
 
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -48,7 +48,7 @@ async def test_get_subject_loads_received_state_from_real_postgres(
 ) -> None:
     subject_id = UUID("01900000-0000-7000-8000-00000054f1ec")
     register_event_id = UUID("01900000-0000-7000-8000-00000054f1ed")
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([subject_id, register_event_id]),
@@ -88,7 +88,7 @@ async def test_get_subject_loads_full_lifecycle_state_from_real_postgres(
     mount_event_id = UUID("01900000-0000-7000-8000-00000054f2ee")
     measure_event_id = UUID("01900000-0000-7000-8000-00000054f2ef")
     remove_event_id = UUID("01900000-0000-7000-8000-00000054f2f0")
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(

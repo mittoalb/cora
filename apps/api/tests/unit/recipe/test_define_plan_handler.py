@@ -34,8 +34,8 @@ from cora.equipment.aggregates.asset.events import (
     to_payload as asset_to_payload,
 )
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
@@ -106,14 +106,14 @@ def _build_deps(
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
     extra_ids: list[UUID] | None = None,
-) -> SharedDeps:
+) -> Kernel:
     """Plan operation consumes 2 ids (plan_id + event_id); extras
     can be supplied for tests that exercise multiple plan creations."""
     settings = Settings(app_env="test")  # type: ignore[call-arg]
     ids = [_NEW_ID, _EVENT_ID]
     if extra_ids:
         ids.extend(extra_ids)
-    return SharedDeps(
+    return Kernel(
         settings=settings,
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(ids),

@@ -19,7 +19,7 @@ from cora.access.features import deactivate_actor, register_actor
 from cora.access.features.deactivate_actor import DeactivateActor
 from cora.access.features.register_actor import RegisterActor
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
@@ -54,14 +54,14 @@ def _build_deps(
     *,
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
-) -> SharedDeps:
+) -> Kernel:
     settings = Settings(app_env="test")  # type: ignore[call-arg]
     # Tests that exercise deactivate typically register first via the
     # `_register_actor` helper. That flow consumes [_NEW_ID,
     # _REGISTER_EVENT_ID] (aggregate id + event_id), then deactivate
     # consumes [_DEACTIVATE_EVENT_ID] for its event_id. Three ids
     # cover both consumed and partially-consumed paths uniformly.
-    return SharedDeps(
+    return Kernel(
         settings=settings,
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(
@@ -73,7 +73,7 @@ def _build_deps(
     )
 
 
-async def _register_actor(deps: SharedDeps) -> UUID:
+async def _register_actor(deps: Kernel) -> UUID:
     """Helper: register an actor and return its id."""
     handler = register_actor.bind(deps)
     return await handler(
@@ -187,7 +187,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     seed_deps = _build_deps()
     actor_id = await _register_actor(seed_deps)
     # Then point the deactivate handler at the same store but with deny.
-    deny_deps = SharedDeps(
+    deny_deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         # Even though the auth-deny path never reaches event_id

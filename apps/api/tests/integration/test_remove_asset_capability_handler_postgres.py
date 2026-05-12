@@ -22,7 +22,7 @@ from cora.equipment.features.add_asset_capability import AddAssetCapability
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.remove_asset_capability import RemoveAssetCapability
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -47,7 +47,7 @@ async def test_remove_asset_capability_persists_event_and_drops_from_fold(
     remove_event_id = UUID("01900000-0000-7000-8000-00000056fb10")
     cap1 = UUID("01900000-0000-7000-8000-000000000222")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([asset_id, register_event_id, add_event_id, remove_event_id]),

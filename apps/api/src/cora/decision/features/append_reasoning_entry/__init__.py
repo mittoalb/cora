@@ -1,7 +1,7 @@
 """Vertical slice for the `AppendReasoningEntries` command (8c-b).
 
 Module-as-namespace surface. Mirrors register_decision but takes
-the BC-internal `reasoning_store` at bind time (not via SharedDeps).
+the BC-internal `reasoning_store` at bind time (not via Kernel).
 """
 
 from cora.decision.features.append_reasoning_entry import tool

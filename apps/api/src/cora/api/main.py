@@ -23,7 +23,7 @@ Observability stack:
   / outbound trace propagation per the W3C spec.
 - Prometheus metrics are exposed on `/metrics` (operational endpoint,
   excluded from OpenAPI schema).
-- structlog is configured in `build_shared_deps()`; an OTel processor
+- structlog is configured in `build_kernel()`; an OTel processor
   injects `trace_id` and `span_id` into every log line emitted inside
   an active span.
 """
@@ -64,7 +64,7 @@ from cora.equipment import (
     wire_equipment,
 )
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import build_shared_deps
+from cora.infrastructure.deps import build_kernel
 from cora.infrastructure.observability import configure_tracing, instrument_app
 from cora.recipe import (
     RecipeHandlers,
@@ -90,6 +90,7 @@ from cora.trust import (
     register_trust_tools,
     wire_trust,
 )
+from cora.trust.authorize_factory import build_authorize
 
 
 def _settings_for_app() -> Settings:
@@ -177,7 +178,7 @@ def create_app() -> FastAPI:
         # MCP session manager first (per python-sdk#1367), then our
         # shared deps inside it so both surfaces share one wiring.
         async with mcp_app.router.lifespan_context(app):
-            deps, teardown = await build_shared_deps()
+            deps, teardown = await build_kernel(authorize_factory=build_authorize)
             app.state.deps = deps
             app.state.access = wire_access(deps)
             app.state.trust = wire_trust(deps)

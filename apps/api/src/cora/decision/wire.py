@@ -1,4 +1,4 @@
-"""Compose the Decision BC's handlers from `SharedDeps`.
+"""Compose the Decision BC's handlers from `Kernel`.
 
 ## BC-internal ReasoningStore wiring (gate-review L9)
 
@@ -7,7 +7,7 @@ adapter. Per the per-category-writer pattern locked at gate-review
 L8 from 6f-5a (Conduit's TraversalStore), the store is built
 LOCALLY here from `deps.pool` (Postgres in production) or as
 `InMemoryReasoningStore` in `app_env=test`. NOT promoted to
-SharedDeps fields. Mirrors how Trust BC wires its TraversalStore.
+Kernel fields. Mirrors how Trust BC wires its TraversalStore.
 """
 
 from dataclasses import dataclass
@@ -23,8 +23,8 @@ from cora.decision.features import (
     get_decision,
     register_decision,
 )
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 
 _BC = "decision"
@@ -32,14 +32,14 @@ _BC = "decision"
 
 @dataclass(frozen=True)
 class DecisionHandlers:
-    """The Decision BC's handler bundle, each closed over SharedDeps."""
+    """The Decision BC's handler bundle, each closed over Kernel."""
 
     register_decision: register_decision.IdempotentHandler
     get_decision: get_decision.Handler
     append_reasoning_entry: append_reasoning_entry.Handler
 
 
-def wire_decision(deps: SharedDeps) -> DecisionHandlers:
+def wire_decision(deps: Kernel) -> DecisionHandlers:
     """Build the Decision BC handlers from shared dependencies."""
     reasoning_store: ReasoningStore = (
         PostgresReasoningStore(deps.pool) if deps.pool is not None else InMemoryReasoningStore()

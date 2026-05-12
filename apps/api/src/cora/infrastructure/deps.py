@@ -1,50 +1,38 @@
-"""Shared application dependencies — built once at startup, passed to BC modules.
+"""Kernel-construction orchestration.
 
-Each BC's `wire_*(deps)` function pulls the ports it needs from `SharedDeps`
-to build its handlers, routes, and MCP tools.
+`build_kernel` builds the process-wide `Kernel` from `Settings`,
+called once from the FastAPI lifespan. The authorize-port factory
+is INJECTED via the `authorize_factory` callable so this module
+has zero BC imports (Phase-8d hardening: the prior version lazy-
+imported `cora.trust` for `_build_authorize`, which tach correctly
+flagged as a layer violation even though Python tolerated it).
 
-Adapters selected by `Settings.app_env`:
-  - `test` -> in-memory adapters (no Postgres needed; used by contract
-    tests of API surface that don't care about persistence semantics)
+Composition root (`cora.api.main`) injects
+`cora.trust.authorize_factory.build_authorize`; tests inject any
+`Authorize` factory they want (typically
+`lambda *a, **kw: AllowAllAuthorize()`).
+
+Adapter selection is driven by `Settings.app_env`:
+  - `test` -> in-memory adapters (no Postgres needed; used by
+    contract tests of API surface that don't care about
+    persistence semantics)
   - anything else -> Postgres-backed adapters over an asyncpg pool
 
-`build_shared_deps` returns the deps and a `teardown` callable so the
-lifespan can release pool resources without `SharedDeps` having to expose
-its private state.
-
-## SharedDeps shape and BC-specific stores
-
-`SharedDeps` carries the cross-BC primitives (settings, clock,
-id_generator, authorize, event_store, idempotency_store) plus the
-asyncpg `pool` (None for `app_env=test`). BC-specific entry
-stores (e.g., the Trust BC's `TraversalStore`) are constructed by
-each BC's wire function using the pool, and live BC-internal —
-they are NOT promoted to SharedDeps fields. This keeps the
-cross-BC dependency container clean as more BCs adopt the logbook
-+ entry pattern.
-
-## Phase 6f-5a: TrustAuthorize entry wiring
-
-TrustAuthorize is the production Authorize-port adapter. When
-constructed (only when `Settings.trust_policy_id` is set), it
-receives the Trust BC's `TraversalStore` so it can emit one
-`ConduitTraversal` row per Allow / Deny decision. The TraversalStore
-is built locally inside `_build_authorize` rather than passing
-through SharedDeps. The AllowAllAuthorize fallback skips emission
-entirely.
+`build_kernel` returns the kernel and a `teardown` callable so the
+lifespan can release pool resources without `Kernel` having to
+expose its private state.
 """
 
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from typing import Protocol
 
 import asyncpg
 
 from cora.infrastructure.config import Settings
+from cora.infrastructure.kernel import Kernel, Teardown
 from cora.infrastructure.logging import configure_logging
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
-    AllowAllAuthorize,
     Authorize,
     Clock,
     EventStore,
@@ -58,41 +46,37 @@ from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.infrastructure.postgres.pool import create_pool
 
 
-@dataclass(frozen=True)
-class SharedDeps:
-    """Process-wide dependencies. Immutable after `build_shared_deps` returns.
+class AuthorizeFactory(Protocol):
+    """Builds the production Authorize port for the Kernel.
 
-    `pool` is the asyncpg connection pool (None when `app_env=test`).
-    BCs that need additional Postgres-backed adapters (entry
-    stores, projections, etc.) construct them in their own
-    `wire_<bc>(deps)` from this pool, keeping BC-specific stores out
-    of SharedDeps.
+    Injected by the composition root so this module stays BC-free.
+    Production wires `cora.trust.authorize_factory.build_authorize`;
+    tests inject lambda-shaped factories.
     """
 
-    settings: Settings
-    clock: Clock
-    id_generator: IdGenerator
-    authorize: Authorize
-    event_store: EventStore
-    idempotency_store: IdempotencyStore
-    pool: asyncpg.Pool | None = None
+    def __call__(
+        self,
+        settings: Settings,
+        event_store: EventStore,
+        *,
+        pool: asyncpg.Pool | None,
+        clock: Clock,
+        id_generator: IdGenerator,
+    ) -> Authorize: ...
 
 
-Teardown = Callable[[], Awaitable[None]]
-
-
-async def build_shared_deps() -> tuple[SharedDeps, Teardown]:
-    """Construct shared dependencies. Called once from the FastAPI lifespan."""
+async def build_kernel(*, authorize_factory: AuthorizeFactory) -> tuple[Kernel, Teardown]:
+    """Construct the kernel. Called once from the FastAPI lifespan."""
     settings = Settings()  # type: ignore[call-arg]  # Pydantic loads from env
     configure_logging(settings.log_level)
     pool, event_store, idempotency_store, teardown = await _build_stores(settings)
     clock = SystemClock()
     id_generator = UUIDv7Generator()
-    deps = SharedDeps(
+    kernel = Kernel(
         settings=settings,
         clock=clock,
         id_generator=id_generator,
-        authorize=_build_authorize(
+        authorize=authorize_factory(
             settings,
             event_store,
             pool=pool,
@@ -103,59 +87,7 @@ async def build_shared_deps() -> tuple[SharedDeps, Teardown]:
         idempotency_store=idempotency_store,
         pool=pool,
     )
-    return deps, teardown
-
-
-def _build_authorize(
-    settings: Settings,
-    event_store: EventStore,
-    *,
-    pool: asyncpg.Pool | None,
-    clock: Clock,
-    id_generator: IdGenerator,
-) -> Authorize:
-    """Choose the Authorize adapter based on Settings.
-
-    `trust_policy_id` unset (None) → `AllowAllAuthorize` (Phase 1
-    permissive default; matches dev/test). Set → `TrustAuthorize` gates
-    every command through that single Policy aggregate. See
-    `cora/trust/authorize.py` for the bootstrap workflow when first
-    enabling real auth in a deployment.
-
-    `TrustAuthorize` (and its `TraversalStore`) are imported lazily
-    because `cora.trust.__init__` transitively imports `SharedDeps`
-    from this module (via `cora.trust.wire` → handlers); a top-level
-    import here would trigger a partially-initialized-module circular
-    import. Splitting `SharedDeps` into a separate module would also
-    fix it but is a bigger refactor; the lazy imports are local to
-    this function.
-
-    Phase 6f-5a: when `TrustAuthorize` is wired, the TraversalStore is
-    constructed inline (Postgres if pool is set, in-memory otherwise)
-    and passed in alongside clock + id_generator so the adapter emits
-    per-decision ConduitTraversal entries. AllowAllAuthorize stays
-    bare (no entries from the permissive default).
-    """
-    if settings.trust_policy_id is None:
-        return AllowAllAuthorize()
-
-    from cora.trust.aggregates.conduit.entries import (
-        InMemoryTraversalStore,
-        PostgresTraversalStore,
-        TraversalStore,
-    )
-    from cora.trust.authorize import TrustAuthorize
-
-    traversals_store: TraversalStore = (
-        PostgresTraversalStore(pool) if pool is not None else InMemoryTraversalStore()
-    )
-    return TrustAuthorize(
-        event_store,
-        policy_id=settings.trust_policy_id,
-        traversals_store=traversals_store,
-        clock=clock,
-        id_generator=id_generator,
-    )
+    return kernel, teardown
 
 
 async def _build_stores(
@@ -191,3 +123,9 @@ def _make_pool_teardown(pool: asyncpg.Pool) -> Teardown:
         await pool.close()
 
     return teardown
+
+
+__all__ = [
+    "AuthorizeFactory",
+    "build_kernel",
+]

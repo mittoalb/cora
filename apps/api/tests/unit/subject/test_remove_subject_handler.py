@@ -12,7 +12,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
@@ -65,9 +65,9 @@ def _build_deps(
     *,
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
-) -> SharedDeps:
+) -> Kernel:
     settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return SharedDeps(
+    return Kernel(
         settings=settings,
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(
@@ -85,7 +85,7 @@ def _build_deps(
     )
 
 
-async def _register_and_mount(deps: SharedDeps) -> UUID:
+async def _register_and_mount(deps: Kernel) -> UUID:
     """Helper: register + mount a subject and return its id."""
     register_handler = register_subject.bind(deps)
     subject_id = await register_handler(
@@ -101,7 +101,7 @@ async def _register_and_mount(deps: SharedDeps) -> UUID:
     return subject_id
 
 
-async def _register_mount_measure(deps: SharedDeps) -> UUID:
+async def _register_mount_measure(deps: Kernel) -> UUID:
     """Helper: register + mount + measure a subject and return its id."""
     subject_id = await _register_and_mount(deps)
     await measure_subject.bind(deps)(

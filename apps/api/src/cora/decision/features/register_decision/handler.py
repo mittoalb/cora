@@ -31,8 +31,8 @@ from cora.decision.errors import UnauthorizedError
 from cora.decision.features.register_decision.command import RegisterDecision
 from cora.decision.features.register_decision.context import DecisionRegistrationContext
 from cora.decision.features.register_decision.decider import decide
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 
@@ -70,7 +70,7 @@ class IdempotentHandler(Protocol):
     ) -> UUID: ...
 
 
-def bind(deps: SharedDeps) -> Handler:
+def bind(deps: Kernel) -> Handler:
     """Build a register_decision handler closed over the shared deps."""
 
     async def handler(

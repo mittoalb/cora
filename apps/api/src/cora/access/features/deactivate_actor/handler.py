@@ -35,8 +35,8 @@ from cora.access.aggregates.actor import (
 from cora.access.errors import UnauthorizedError
 from cora.access.features.deactivate_actor.command import DeactivateActor
 from cora.access.features.deactivate_actor.decider import decide
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 
@@ -46,7 +46,7 @@ _CONDUIT_DEFAULT_ID = UUID(int=0)
 
 # structlog loggers are lazy: get_logger() returns a proxy and config is
 # applied at first .info() call. Module-level binding is safe even though
-# configure_logging() runs later in build_shared_deps().
+# configure_logging() runs later in build_kernel().
 _log = get_logger(__name__)
 
 
@@ -69,7 +69,7 @@ class Handler(Protocol):
     ) -> None: ...
 
 
-def bind(deps: SharedDeps) -> Handler:
+def bind(deps: Kernel) -> Handler:
     """Build a deactivate_actor handler closed over the shared deps."""
 
     async def handler(

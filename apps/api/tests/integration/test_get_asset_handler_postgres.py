@@ -24,7 +24,7 @@ from cora.equipment.features.get_asset import GetAsset
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.relocate_asset import RelocateAsset
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -47,7 +47,7 @@ async def test_get_asset_loads_state_from_real_postgres(
     asset_id = UUID("01900000-0000-7000-8000-00000054fa02")
     register_event_id = UUID("01900000-0000-7000-8000-00000054fa0e")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([asset_id, register_event_id]),
@@ -87,7 +87,7 @@ async def test_get_asset_reflects_relocate_against_real_postgres(
     register_event_id = UUID("01900000-0000-7000-8000-00000054fb0e")
     relocate_event_id = UUID("01900000-0000-7000-8000-00000054fb0f")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([asset_id, register_event_id, relocate_event_id]),

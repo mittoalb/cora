@@ -9,8 +9,8 @@ callers use `from cora.trust.features import define_policy` then
 from typing import Protocol
 from uuid import UUID
 
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 from cora.trust.aggregates.policy import event_type_name, to_payload
@@ -58,7 +58,7 @@ class IdempotentHandler(Protocol):
     ) -> UUID: ...
 
 
-def bind(deps: SharedDeps) -> Handler:
+def bind(deps: Kernel) -> Handler:
     """Build a define_policy handler closed over the shared deps."""
 
     async def handler(

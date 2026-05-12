@@ -24,7 +24,7 @@ from cora.equipment.features.define_capability import DefineCapability
 from cora.equipment.features.deprecate_capability import DeprecateCapability
 from cora.equipment.features.version_capability import VersionCapability
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
@@ -59,9 +59,9 @@ def _build_deps(
     *,
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
-) -> SharedDeps:
+) -> Kernel:
     settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return SharedDeps(
+    return Kernel(
         settings=settings,
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(
@@ -78,7 +78,7 @@ def _build_deps(
     )
 
 
-async def _define_capability_helper(deps: SharedDeps) -> UUID:
+async def _define_capability_helper(deps: Kernel) -> UUID:
     return await define_capability.bind(deps)(
         DefineCapability(name="Tomography"),
         principal_id=_PRINCIPAL_ID,

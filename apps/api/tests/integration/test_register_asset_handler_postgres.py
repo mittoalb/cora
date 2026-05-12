@@ -23,7 +23,7 @@ from cora.equipment.aggregates.asset import (
 from cora.equipment.features import register_asset
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -47,7 +47,7 @@ async def test_register_asset_persists_enterprise_root_to_postgres(
     asset_id = UUID("01900000-0000-7000-8000-00000054ea01")
     event_id = UUID("01900000-0000-7000-8000-00000054ea0e")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([asset_id, event_id]),
@@ -96,7 +96,7 @@ async def test_register_asset_persists_site_with_parent_to_postgres(
     event_id = UUID("01900000-0000-7000-8000-00000054eb0e")
     parent_id = UUID("01900000-0000-7000-8000-00000054eb00")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([asset_id, event_id]),

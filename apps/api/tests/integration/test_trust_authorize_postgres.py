@@ -14,7 +14,7 @@ import asyncpg
 import pytest
 
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     Allow,
     AllowAllAuthorize,
@@ -46,7 +46,7 @@ async def test_trust_authorize_gates_via_real_postgres_policy(
     db_pool: asyncpg.Pool,
 ) -> None:
     event_store = PostgresEventStore(db_pool)
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([_POLICY_ID, _DEFINE_EVENT_ID]),

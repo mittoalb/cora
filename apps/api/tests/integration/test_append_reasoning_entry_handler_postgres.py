@@ -33,7 +33,7 @@ from cora.decision.features.append_reasoning_entry import (
 from cora.decision.features.register_decision import RegisterDecision
 from cora.decision.features.register_decision import bind as bind_register_decision
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -47,8 +47,8 @@ _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
-def _build_deps(db_pool: asyncpg.Pool, ids: list[UUID]) -> SharedDeps:
-    return SharedDeps(
+def _build_deps(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:
+    return Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(ids),

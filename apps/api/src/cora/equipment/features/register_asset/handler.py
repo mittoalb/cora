@@ -16,8 +16,8 @@ from cora.equipment.aggregates.asset import event_type_name, to_payload
 from cora.equipment.errors import UnauthorizedError
 from cora.equipment.features.register_asset.command import RegisterAsset
 from cora.equipment.features.register_asset.decider import decide
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 
@@ -61,7 +61,7 @@ class IdempotentHandler(Protocol):
     ) -> UUID: ...
 
 
-def bind(deps: SharedDeps) -> Handler:
+def bind(deps: Kernel) -> Handler:
     """Build a register_asset handler closed over the shared deps."""
 
     async def handler(

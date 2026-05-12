@@ -6,7 +6,7 @@ from uuid import UUID
 from cora.decision.aggregates.decision import Decision, load_decision
 from cora.decision.errors import UnauthorizedError
 from cora.decision.features.get_decision.query import GetDecision
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 
@@ -28,7 +28,7 @@ class Handler(Protocol):
     ) -> Decision | None: ...
 
 
-def bind(deps: SharedDeps) -> Handler:
+def bind(deps: Kernel) -> Handler:
     """Build a get_decision handler closed over the shared deps."""
 
     async def handler(

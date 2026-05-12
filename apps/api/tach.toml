@@ -23,20 +23,15 @@ source_roots = ["src"]
 
 # Foundation. Depends on nothing in the cora package.
 #
-# The two `deprecated` entries below mark a known layering smell:
-# `infrastructure/deps.py::_build_authorize` lazy-imports from
-# `cora.trust` to break a circular import (see the function's
-# docstring, lines 125-131). The fix is to split `SharedDeps` into
-# its own module or to move `_build_authorize` to the composition
-# root (`cora.api.main`) or `cora.trust.wire`. Tracked as deferred
-# refactor; deprecation marker keeps the violation visible in CI
-# without failing the build today.
+# Phase-8d hardening retired the prior lazy `cora.trust` import
+# from `infrastructure/deps.py`. The Kernel data class now lives
+# in `cora.infrastructure.kernel` (zero BC imports) and the
+# authorize factory is injected into `build_kernel` via the
+# composition root (`cora.api.main` -> `cora.trust.authorize_factory.
+# build_authorize`). Foundation is back to depending on nothing.
 [[modules]]
 path = "cora.infrastructure"
-depends_on = [
-    { path = "cora.trust", deprecated = true },
-    { path = "cora.trust.aggregates", deprecated = true },
-]
+depends_on = []
 
 # Aggregate kernels: declared as their own modules so other BCs
 # can target them with `depends_on = ["cora.X.aggregates"]` while

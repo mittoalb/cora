@@ -16,7 +16,7 @@ import asyncpg
 import pytest
 
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     Allow,
     AllowAllAuthorize,
@@ -44,7 +44,7 @@ _OTHER_PRINCIPAL = UUID("01900000-0000-7000-8000-000000000a02")
 async def test_evaluate_policy_loads_and_evaluates_through_real_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([_POLICY_ID, _DEFINE_EVENT_ID]),
@@ -103,7 +103,7 @@ async def test_evaluate_policy_returns_none_when_policy_does_not_exist(
     """Pin the missing-policy → None contract against the real adapter
     (PostgresEventStore.load returns ([], 0) for an empty stream;
     the handler maps that to None)."""
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([UUID(int=i) for i in range(1, 9)]),

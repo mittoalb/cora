@@ -15,7 +15,7 @@ import asyncpg
 import pytest
 
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -40,7 +40,7 @@ async def test_define_method_persists_event_to_postgres_with_capabilities(
     cap1 = UUID("01900000-0000-7000-8000-000000000111")
     cap2 = UUID("01900000-0000-7000-8000-000000000222")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([method_id, event_id]),
@@ -88,7 +88,7 @@ async def test_define_method_persists_procedural_method_with_empty_capabilities(
     method_id = UUID("01900000-0000-7000-8000-00000056ee01")
     event_id = UUID("01900000-0000-7000-8000-00000056ee0e")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([method_id, event_id]),

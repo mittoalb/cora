@@ -18,7 +18,7 @@ from uuid import UUID
 from cora.equipment._asset_update_handler import make_asset_update_handler
 from cora.equipment.features.decommission_asset.command import DecommissionAsset
 from cora.equipment.features.decommission_asset.decider import decide
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 
 
 class Handler(Protocol):
@@ -34,7 +34,7 @@ class Handler(Protocol):
     ) -> None: ...
 
 
-def bind(deps: SharedDeps) -> Handler:
+def bind(deps: Kernel) -> Handler:
     """Build a decommission_asset handler closed over the shared deps."""
     return make_asset_update_handler(
         deps,

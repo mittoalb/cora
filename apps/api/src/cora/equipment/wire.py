@@ -1,4 +1,4 @@
-"""Compose the Equipment BC's handlers from `SharedDeps`.
+"""Compose the Equipment BC's handlers from `Kernel`.
 
 `wire_equipment(deps)` is invoked once from the FastAPI lifespan
 and the returned `EquipmentHandlers` bundle is stored on
@@ -52,8 +52,8 @@ from cora.equipment.features import (
     restore_from_maintenance,
     version_capability,
 )
-from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 
 _BC = "equipment"
@@ -61,7 +61,7 @@ _BC = "equipment"
 
 @dataclass(frozen=True)
 class EquipmentHandlers:
-    """The Equipment BC's handler bundle, each closed over SharedDeps.
+    """The Equipment BC's handler bundle, each closed over Kernel.
 
     Phase 5a shipped `define_capability` (create-style; idempotency-
     wrapped) and `get_capability` (read side). Phase 5b added
@@ -88,7 +88,7 @@ class EquipmentHandlers:
     get_asset: get_asset.Handler
 
 
-def wire_equipment(deps: SharedDeps) -> EquipmentHandlers:
+def wire_equipment(deps: Kernel) -> EquipmentHandlers:
     """Build the Equipment BC handlers from shared dependencies."""
     return EquipmentHandlers(
         define_capability=with_tracing(

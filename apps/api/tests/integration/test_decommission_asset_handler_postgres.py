@@ -28,7 +28,7 @@ from cora.equipment.features.decommission_asset import DecommissionAsset
 from cora.equipment.features.enter_maintenance import EnterMaintenance
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -53,7 +53,7 @@ async def test_decommission_asset_persists_event_from_commissioned_state(
     register_event_id = UUID("01900000-0000-7000-8000-00000054ed0e")
     decommission_event_id = UUID("01900000-0000-7000-8000-00000054ed0f")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([asset_id, register_event_id, decommission_event_id]),
@@ -94,7 +94,7 @@ async def test_decommission_asset_persists_event_from_active_state(
     activate_event_id = UUID("01900000-0000-7000-8000-00000054ee0f")
     decommission_event_id = UUID("01900000-0000-7000-8000-00000054ee10")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(
@@ -144,7 +144,7 @@ async def test_decommission_asset_persists_event_from_maintenance_state(
     enter_event_id = UUID("01900000-0000-7000-8000-00000054ef10")
     decommission_event_id = UUID("01900000-0000-7000-8000-00000054ef11")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(

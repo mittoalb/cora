@@ -20,7 +20,7 @@ react to). Same convention as `get_capability` / `get_asset`.
 from typing import Protocol
 from uuid import UUID
 
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 from cora.recipe.aggregates.method import Method, load_method
@@ -45,7 +45,7 @@ class Handler(Protocol):
     ) -> Method | None: ...
 
 
-def bind(deps: SharedDeps) -> Handler:
+def bind(deps: Kernel) -> Handler:
     """Build a get_method handler closed over the shared deps."""
 
     async def handler(

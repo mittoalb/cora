@@ -9,7 +9,7 @@ import asyncpg
 import pytest
 
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -41,7 +41,7 @@ async def test_deprecate_practice_persists_and_preserves_version_through_fold(
     versioned_event_id = UUID("01900000-0000-7000-8000-0000005afb0f")
     deprecated_event_id = UUID("01900000-0000-7000-8000-0000005afb10")
 
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator(

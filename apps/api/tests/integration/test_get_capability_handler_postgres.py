@@ -13,7 +13,7 @@ from cora.equipment.features import define_capability, get_capability
 from cora.equipment.features.define_capability import DefineCapability
 from cora.equipment.features.get_capability import GetCapability
 from cora.infrastructure.config import Settings
-from cora.infrastructure.deps import SharedDeps
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FixedIdGenerator,
@@ -33,7 +33,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 async def test_get_capability_loads_state_from_real_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
-    deps = SharedDeps(
+    deps = Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
         id_generator=FixedIdGenerator([_CAPABILITY_ID, _EVENT_ID]),
