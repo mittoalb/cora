@@ -59,3 +59,8 @@ out/
 # Logs
 logs/
 *.log
+
+# MkDocs site (built output + staged copies of README/CONTRIBUTING)
+/site/
+/docs/index.md
+/docs/contributing.md

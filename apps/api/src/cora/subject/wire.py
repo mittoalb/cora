@@ -37,6 +37,7 @@ from cora.infrastructure.observability import with_tracing
 from cora.subject.features import (
     discard_subject,
     get_subject,
+    list_subjects,
     measure_subject,
     mount_subject,
     register_subject,
@@ -70,6 +71,7 @@ class SubjectHandlers:
     store_subject: store_subject.Handler
     discard_subject: discard_subject.Handler
     get_subject: get_subject.Handler
+    list_subjects: list_subjects.Handler
 
 
 def wire_subject(deps: Kernel) -> SubjectHandlers:
@@ -121,6 +123,12 @@ def wire_subject(deps: Kernel) -> SubjectHandlers:
         get_subject=with_tracing(
             get_subject.bind(deps),
             command_name="GetSubject",
+            bc=_BC,
+            kind="query",
+        ),
+        list_subjects=with_tracing(
+            list_subjects.bind(deps),
+            command_name="ListSubjects",
             bc=_BC,
             kind="query",
         ),

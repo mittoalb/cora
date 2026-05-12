@@ -1,6 +1,6 @@
 .PHONY: install dev db-up db-down db-reset lint typecheck test test-unit test-int test-contract fmt clean help \
         migrate-status migrate-apply migrate-new migrate-hash precommit precommit-run \
-        arch-check arch-show
+        arch-check arch-show docs-stage docs-build docs-serve
 
 API_DIR := apps/api
 COMPOSE := docker compose -f infra/docker-compose.yml
@@ -29,6 +29,9 @@ help:
 	@echo "  arch-show       Open the dependency graph (tach show)"
 	@echo "  precommit       Install pre-commit hooks (one-time per clone)"
 	@echo "  precommit-run   Run all pre-commit hooks against all files"
+	@echo "  docs-stage      Stage README + CONTRIBUTING into docs/ (link rewrites for site)"
+	@echo "  docs-build      Stage + build the static site into ./site"
+	@echo "  docs-serve      Stage + serve the docs site locally on :8001"
 	@echo "  clean           Remove caches and build artefacts"
 
 install:
@@ -103,6 +106,20 @@ migrate-hash:
 # scratch DB before merging — that catches the same class of issues
 # `lint` would flag (data loss, locking-prone DDL).
 
+# Docs site (mkdocs-material) — published to xmap.github.io/cora/ via
+# .github/workflows/docs.yml on every push to main. Locally, install
+# mkdocs-material once with: pip install --user mkdocs-material==9.5.49
+
+docs-stage:
+	python scripts/stage_docs.py
+
+docs-build: docs-stage
+	mkdocs build --strict
+
+docs-serve: docs-stage
+	mkdocs serve -a localhost:8001
+
 clean:
 	cd $(API_DIR) && rm -rf .pytest_cache .ruff_cache .pyright_cache build dist *.egg-info
 	find . -type d -name __pycache__ -exec rm -rf {} +
+	rm -rf site docs/index.md docs/contributing.md

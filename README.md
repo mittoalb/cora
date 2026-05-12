@@ -10,7 +10,7 @@ The name is also the diagnosis: **Continuously Overpromised, Rarely Automated**.
 
 ## Documentation map
 
-CORA's docs are layered so a reader can stop at the level they need.
+CORA's docs are layered so a reader can stop at the level they need. The full set is rendered as a static site at **[xmap.github.io/cora](https://xmap.github.io/cora/)** (auto-deployed on every push to `main`).
 
 | Layer | Vocabulary | Where |
 | --- | --- | --- |

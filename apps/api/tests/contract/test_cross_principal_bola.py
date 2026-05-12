@@ -113,8 +113,9 @@ def bola_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, UUID
                 "GetActor",
                 "GetSubject",
                 "GetAsset",
-                # List-side (8e-1c)
+                # List-side (8e-1c, 8e-2a)
                 "ListActors",
+                "ListSubjects",
             }
         ),
     )
@@ -262,3 +263,23 @@ def test_p1_can_call_list_actors_when_command_permitted(
     assert response.status_code == 200, (
         f"P1 should be permitted ListActors (status={response.status_code}, body={response.text})."
     )
+
+
+@pytest.mark.contract
+def test_p2_cannot_call_list_subjects_when_command_not_permitted(
+    bola_app: tuple[TestClient, UUID, UUID],
+) -> None:
+    """Same shape as ListActors test: P2 not permitted -> 403 at the
+    command-name gate. Per-row scoping deferred until ReBAC."""
+    client, _, p2 = bola_app
+    response = client.get("/subjects", headers={"X-Principal-Id": str(p2)})
+    assert response.status_code == 403
+
+
+@pytest.mark.contract
+def test_p1_can_call_list_subjects_when_command_permitted(
+    bola_app: tuple[TestClient, UUID, UUID],
+) -> None:
+    client, p1, _ = bola_app
+    response = client.get("/subjects", headers={"X-Principal-Id": str(p1)})
+    assert response.status_code == 200

@@ -85,6 +85,7 @@ from cora.run import (
 )
 from cora.subject import (
     SubjectHandlers,
+    register_subject_projections,
     register_subject_routes,
     register_subject_tools,
     wire_subject,
@@ -226,6 +227,7 @@ def create_app() -> FastAPI:
             # worker context manager handles spawn / cancel / drain.
             registry = ProjectionRegistry()
             register_access_projections(registry, deps)
+            register_subject_projections(registry, deps)
             app.state.projections = registry
 
             async with projection_worker_lifespan(deps, registry, settings):
