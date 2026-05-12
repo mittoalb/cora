@@ -68,6 +68,15 @@ class ListenNotifyWakeup:
     Holds one dedicated connection from the pool for the LISTEN. On
     listener disconnect, the next `wait()` re-acquires; the worker's
     outer error handling absorbs the transient failure.
+
+    Lazy connection acquisition: the LISTEN connection is acquired on
+    the first `wait()` call, not at construction. This is safe because
+    the projection worker uses the advance query (bookmark + xid8
+    snapshot horizon) as the source of truth — NOTIFY is purely a
+    latency optimization. Events that commit between worker startup
+    and first `wait()` are picked up by the next batch advance, not
+    by NOTIFY. Once `wait()` runs and acquires the LISTEN connection,
+    subsequent commits trigger immediate wake-up.
     """
 
     def __init__(self, pool: asyncpg.Pool) -> None:

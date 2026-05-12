@@ -46,11 +46,13 @@ from cora.infrastructure.projection.handler import Projection
 from cora.infrastructure.projection.lifespan import projection_worker_lifespan
 from cora.infrastructure.projection.registry import (
     DuplicateProjectionError,
+    EmptySubscriptionError,
     ProjectionRegistry,
 )
 
 __all__ = [
     "DuplicateProjectionError",
+    "EmptySubscriptionError",
     "InvalidCursorError",
     "Projection",
     "ProjectionDrainTimeoutError",

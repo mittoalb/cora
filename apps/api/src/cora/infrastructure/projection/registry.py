@@ -26,6 +26,28 @@ class DuplicateProjectionError(Exception):
         self.name = name
 
 
+class EmptySubscriptionError(Exception):
+    """Raised when a projection registers with an empty
+    `subscribed_event_types` set.
+
+    The advance query uses `event_type = ANY($subscribed)`; an empty
+    set always matches zero rows, so the projection would silently
+    never advance. Catching this at registration surfaces the bug at
+    startup instead of as a "why is my projection empty?" investigation
+    later.
+    """
+
+    def __init__(self, name: str) -> None:
+        super().__init__(
+            f"Projection {name!r} has empty subscribed_event_types. "
+            "An empty set never matches any event; the projection would "
+            "register, the worker would advance it, and zero events "
+            "would ever be processed. List the event_type strings the "
+            "projection cares about."
+        )
+        self.name = name
+
+
 class ProjectionRegistry:
     """Holds the set of registered projections; iterable by the worker."""
 
@@ -35,6 +57,8 @@ class ProjectionRegistry:
     def register(self, projection: Projection) -> None:
         if projection.name in self._by_name:
             raise DuplicateProjectionError(projection.name)
+        if not projection.subscribed_event_types:
+            raise EmptySubscriptionError(projection.name)
         self._by_name[projection.name] = projection
 
     def get(self, name: str) -> Projection | None:
@@ -53,4 +77,4 @@ class ProjectionRegistry:
         return len(self._by_name)
 
 
-__all__ = ["DuplicateProjectionError", "ProjectionRegistry"]
+__all__ = ["DuplicateProjectionError", "EmptySubscriptionError", "ProjectionRegistry"]

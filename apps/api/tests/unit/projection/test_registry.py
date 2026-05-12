@@ -5,6 +5,7 @@ import pytest
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.infrastructure.projection import (
     DuplicateProjectionError,
+    EmptySubscriptionError,
     ProjectionRegistry,
 )
 from cora.infrastructure.projection.handler import ConnectionLike
@@ -66,3 +67,14 @@ def test_duplicate_name_raises() -> None:
     registry.register(_NoopProjection("proj_dup", frozenset({"X"})))
     with pytest.raises(DuplicateProjectionError, match="proj_dup"):
         registry.register(_NoopProjection("proj_dup", frozenset({"Y"})))
+
+
+@pytest.mark.unit
+def test_empty_subscribed_event_types_raises() -> None:
+    """An empty event-type set means `event_type = ANY('{}')` matches
+    zero rows forever — silent no-op. Catch at registration so the
+    bug surfaces at startup, not as a 'why isn't my projection
+    advancing?' investigation later."""
+    registry = ProjectionRegistry()
+    with pytest.raises(EmptySubscriptionError, match="proj_empty"):
+        registry.register(_NoopProjection("proj_empty", frozenset()))

@@ -141,15 +141,12 @@ class ProjectionWorker:
     async def run(self) -> None:
         """Run advance loops until cancelled. Per-projection failures
         stay inside their own loop (caught + backed-off) so one
-        misbehaving projection cannot bring the whole worker down."""
-        if self._registry.is_empty():
-            # Nothing to advance; wait forever for cancellation.
-            # Avoids `TaskGroup` exit semantics with an empty body.
-            never = asyncio.Event()
-            try:
-                await never.wait()
-            except asyncio.CancelledError:
-                return
+        misbehaving projection cannot bring the whole worker down.
+
+        Empty-registry case is gated by `projection_worker_lifespan`
+        which short-circuits before constructing the worker, so
+        `TaskGroup` always has at least one task here.
+        """
         async with asyncio.TaskGroup() as tg:
             for projection in self._registry:
                 tg.create_task(
