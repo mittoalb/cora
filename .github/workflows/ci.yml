@@ -45,6 +45,9 @@ jobs:
       - name: Typecheck (pyright strict)
         run: uv run pyright src tests
 
+      - name: Architecture (tach dependency contract)
+        run: uv run tach check
+
       - name: Test (pytest)
         run: uv run pytest
 

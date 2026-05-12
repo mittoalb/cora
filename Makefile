@@ -1,5 +1,6 @@
 .PHONY: install dev db-up db-down db-reset lint typecheck test test-unit test-int test-contract fmt clean help \
-        migrate-status migrate-apply migrate-new migrate-hash precommit precommit-run
+        migrate-status migrate-apply migrate-new migrate-hash precommit precommit-run \
+        arch-check arch-show
 
 API_DIR := apps/api
 COMPOSE := docker compose -f infra/docker-compose.yml
@@ -24,6 +25,8 @@ help:
 	@echo "  test-unit       Run only unit tests"
 	@echo "  test-int        Run only integration tests"
 	@echo "  test-contract   Run only contract tests"
+	@echo "  arch-check      Tach dependency contract + architecture fitness-function tests"
+	@echo "  arch-show       Open the dependency graph (tach show)"
 	@echo "  precommit       Install pre-commit hooks (one-time per clone)"
 	@echo "  precommit-run   Run all pre-commit hooks against all files"
 	@echo "  clean           Remove caches and build artefacts"
@@ -66,6 +69,13 @@ test-int:
 
 test-contract:
 	cd $(API_DIR) && uv run pytest -m contract
+
+arch-check:
+	cd $(API_DIR) && uv run tach check
+	cd $(API_DIR) && uv run pytest tests/architecture
+
+arch-show:
+	cd $(API_DIR) && uv run tach show
 
 precommit:
 	cd $(API_DIR) && uv run pre-commit install

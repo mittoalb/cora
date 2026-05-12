@@ -1,0 +1,116 @@
+# Tach: declarative dependency contract for the cora package.
+#
+# Enforces:
+#   1. Layered: infrastructure depends on nothing; BCs depend on
+#      infrastructure; api depends on every BC.
+#   2. Cross-BC: a BC may only reach into a sibling BC through that
+#      sibling's `aggregates.*` namespace (the read-side public
+#      surface). Never through `features.*` (sibling slice handlers).
+#   3. Aggregate kernels are leaf modules with their own dependency
+#      whitelist, so cross-BC deps target `cora.X.aggregates`
+#      specifically and `cora.X.features` is implicitly forbidden
+#      to outsiders.
+#
+# Cross-slice independence inside a BC and slice file contracts are
+# enforced by `tests/architecture/` (AST-based) rather than tach,
+# because per-slice module declarations would balloon this file.
+#
+# Run: `uv run tach check` (also wired into pre-commit and CI).
+# Visualize: `uv run tach show` opens the dependency graph.
+
+exclude = ["tests", "**/__pycache__", ".venv", "build", "dist"]
+source_roots = ["src"]
+
+# Foundation. Depends on nothing in the cora package.
+#
+# The two `deprecated` entries below mark a known layering smell:
+# `infrastructure/deps.py::_build_authorize` lazy-imports from
+# `cora.trust` to break a circular import (see the function's
+# docstring, lines 125-131). The fix is to split `SharedDeps` into
+# its own module or to move `_build_authorize` to the composition
+# root (`cora.api.main`) or `cora.trust.wire`. Tracked as deferred
+# refactor; deprecation marker keeps the violation visible in CI
+# without failing the build today.
+[[modules]]
+path = "cora.infrastructure"
+depends_on = [
+    { path = "cora.trust", deprecated = true },
+    { path = "cora.trust.aggregates", deprecated = true },
+]
+
+# Aggregate kernels: declared as their own modules so other BCs
+# can target them with `depends_on = ["cora.X.aggregates"]` while
+# `cora.X.features` stays implicitly off-limits to outsiders.
+[[modules]]
+path = "cora.access.aggregates"
+depends_on = ["cora.infrastructure"]
+
+[[modules]]
+path = "cora.equipment.aggregates"
+depends_on = ["cora.infrastructure"]
+
+[[modules]]
+path = "cora.recipe.aggregates"
+depends_on = ["cora.infrastructure", "cora.equipment.aggregates"]
+
+[[modules]]
+path = "cora.run.aggregates"
+depends_on = ["cora.infrastructure"]
+
+[[modules]]
+path = "cora.subject.aggregates"
+depends_on = ["cora.infrastructure"]
+
+[[modules]]
+path = "cora.trust.aggregates"
+depends_on = ["cora.infrastructure"]
+
+# Bounded contexts. Each BC depends on its own aggregate kernel,
+# infrastructure, and any sibling aggregate kernels it integrates
+# with at handler-load time (cross-aggregate validation pattern).
+[[modules]]
+path = "cora.access"
+depends_on = ["cora.infrastructure", "cora.access.aggregates"]
+
+[[modules]]
+path = "cora.equipment"
+depends_on = ["cora.infrastructure", "cora.equipment.aggregates"]
+
+[[modules]]
+path = "cora.subject"
+depends_on = ["cora.infrastructure", "cora.subject.aggregates"]
+
+[[modules]]
+path = "cora.trust"
+depends_on = ["cora.infrastructure", "cora.trust.aggregates"]
+
+[[modules]]
+path = "cora.recipe"
+depends_on = [
+    "cora.infrastructure",
+    "cora.recipe.aggregates",
+    "cora.equipment.aggregates",
+]
+
+[[modules]]
+path = "cora.run"
+depends_on = [
+    "cora.infrastructure",
+    "cora.run.aggregates",
+    "cora.equipment.aggregates",
+    "cora.recipe.aggregates",
+    "cora.subject.aggregates",
+]
+
+# API entrypoint composes every BC.
+[[modules]]
+path = "cora.api"
+depends_on = [
+    "cora.infrastructure",
+    "cora.access",
+    "cora.equipment",
+    "cora.recipe",
+    "cora.run",
+    "cora.subject",
+    "cora.trust",
+]

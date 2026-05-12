@@ -34,3 +34,23 @@ repos:
         language: system
         pass_filenames: false
         files: ^apps/api/(src|tests)/.+\.py$
+
+      # Tach: declarative dependency contract for the cora package.
+      # Runs against the project's uv venv so it sees the same source
+      # tree as pytest. Configuration lives at apps/api/tach.toml.
+      - id: tach-check
+        name: tach check (apps/api)
+        entry: bash -c 'cd apps/api && uv run tach check'
+        language: system
+        pass_filenames: false
+        files: ^apps/api/(src/cora/.+\.py|tach\.toml)$
+
+      # Architecture fitness functions: AST + filesystem checks that
+      # tach can't express (slice file contract, decider purity,
+      # routes/wire completeness). Fast, run on every Python change.
+      - id: arch-tests
+        name: architecture fitness functions (apps/api)
+        entry: bash -c 'cd apps/api && uv run pytest tests/architecture -q'
+        language: system
+        pass_filenames: false
+        files: ^apps/api/(src/cora/.+\.py|tests/architecture/.+\.py)$
