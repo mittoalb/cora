@@ -188,6 +188,75 @@ async def test_lifecycle_deprecate_preserves_method_and_site(
 
 
 @pytest.mark.integration
+async def test_combined_status_and_method_id_filter(db_pool: asyncpg.Pool) -> None:
+    """Pin: the combined-filter SQL path narrows on BOTH status and
+    method_id together. Three Practices: Versioned-for-A, Defined-
+    for-A, Versioned-for-B. Filter status=Versioned + method_id=A
+    returns only the first."""
+    method_a = uuid4()
+    method_b = uuid4()
+    practice_versioned_a = uuid4()
+    practice_defined_a = uuid4()
+    practice_versioned_b = uuid4()
+    site_id = uuid4()
+    deps = _build_deps(
+        db_pool,
+        [
+            method_a,
+            uuid4(),
+            method_b,
+            uuid4(),
+            practice_versioned_a,
+            uuid4(),
+            uuid4(),  # version event for practice_versioned_a
+            practice_defined_a,
+            uuid4(),
+            practice_versioned_b,
+            uuid4(),
+            uuid4(),  # version event for practice_versioned_b
+        ],
+    )
+    await _seed_method(deps, name="MethodA")
+    await _seed_method(deps, name="MethodB")
+    define = bind_define(deps)
+    await define(
+        DefinePractice(name="VerForA", method_id=method_a, site_id=site_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_version(deps)(
+        VersionPractice(practice_id=practice_versioned_a, version_tag="v1"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await define(
+        DefinePractice(name="DefForA", method_id=method_a, site_id=site_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await define(
+        DefinePractice(name="VerForB", method_id=method_b, site_id=site_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_version(deps)(
+        VersionPractice(practice_id=practice_versioned_b, version_tag="v1"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    await _drain(db_pool)
+    handler = bind_list(deps)
+    page = await handler(
+        ListPractices(status="Versioned", method_id=method_a, limit=10),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert len(page.items) == 1
+    assert page.items[0].practice_id == practice_versioned_a
+
+
+@pytest.mark.integration
 async def test_empty_table_returns_empty_page(db_pool: asyncpg.Pool) -> None:
     deps = _build_deps(db_pool, [])
     handler = bind_list(deps)

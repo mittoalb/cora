@@ -227,6 +227,65 @@ async def test_lifecycle_deprecate_preserves_practice_and_method(
 
 
 @pytest.mark.integration
+async def test_combined_status_and_practice_id_filter(db_pool: asyncpg.Pool) -> None:
+    """Pin: combined-filter SQL path narrows on BOTH status and
+    practice_id together. Two Plans for Practice A (one Versioned,
+    one Defined) plus one Versioned Plan for Practice B. Filter
+    status=Versioned + practice_id=A returns only the first."""
+    plan_versioned_a = uuid4()
+    deps_a = _build_deps(
+        db_pool,
+        [*_chain_ids(), plan_versioned_a, uuid4(), uuid4()],
+    )
+    practice_a, _, asset_a = await _seed_chain(deps_a)
+    await bind_define(deps_a)(
+        DefinePlan(name="VerForA", practice_id=practice_a, asset_ids=frozenset({asset_a})),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_version(deps_a)(
+        VersionPlan(plan_id=plan_versioned_a, version_tag="v1"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    plan_defined_a = uuid4()
+    deps_a2 = _build_deps(db_pool, [plan_defined_a, uuid4()])
+    await bind_define(deps_a2)(
+        DefinePlan(name="DefForA", practice_id=practice_a, asset_ids=frozenset({asset_a})),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    plan_versioned_b = uuid4()
+    deps_b = _build_deps(
+        db_pool,
+        [*_chain_ids(), plan_versioned_b, uuid4(), uuid4()],
+    )
+    practice_b, _, asset_b = await _seed_chain(deps_b)
+    await bind_define(deps_b)(
+        DefinePlan(name="VerForB", practice_id=practice_b, asset_ids=frozenset({asset_b})),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_version(deps_b)(
+        VersionPlan(plan_id=plan_versioned_b, version_tag="v1"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    await _drain(db_pool)
+    handler = bind_list(deps_a)
+    page = await handler(
+        ListPlans(status="Versioned", practice_id=practice_a, limit=10),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert len(page.items) == 1
+    assert page.items[0].plan_id == plan_versioned_a
+
+
+@pytest.mark.integration
 async def test_empty_table_returns_empty_page(db_pool: asyncpg.Pool) -> None:
     deps = _build_deps(db_pool, [])
     handler = bind_list(deps)
