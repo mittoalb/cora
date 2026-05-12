@@ -5,6 +5,6 @@ re-exports them so `register_access_projections` (in the BC's
 top-level wiring) can import from one place.
 """
 
-from cora.access.projections.actor_summary import ActorSummaryProjection
+from cora.access.projections.summary import ActorSummaryProjection
 
 __all__ = ["ActorSummaryProjection"]

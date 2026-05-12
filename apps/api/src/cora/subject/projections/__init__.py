@@ -1,5 +1,5 @@
 """Subject BC projections."""
 
-from cora.subject.projections.subject_summary import SubjectSummaryProjection
+from cora.subject.projections.summary import SubjectSummaryProjection
 
 __all__ = ["SubjectSummaryProjection"]

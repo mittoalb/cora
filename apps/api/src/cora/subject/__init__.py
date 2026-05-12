@@ -23,7 +23,7 @@ Layout:
     routes.py                 -- register_subject_routes(app)
 """
 
-from cora.subject._projection_registry import register_subject_projections
+from cora.subject._projections import register_subject_projections
 from cora.subject.errors import UnauthorizedError
 from cora.subject.routes import register_subject_routes
 from cora.subject.tools import register_subject_tools

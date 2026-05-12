@@ -22,7 +22,7 @@ from cora.infrastructure.ports import AllowAllAuthorize, FixedIdGenerator, Froze
 from cora.infrastructure.postgres.event_store import PostgresEventStore
 from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
-from cora.subject._projection_registry import register_subject_projections
+from cora.subject._projections import register_subject_projections
 from cora.subject.features.discard_subject import DiscardSubject
 from cora.subject.features.discard_subject import bind as bind_discard
 from cora.subject.features.list_subjects import ListSubjects

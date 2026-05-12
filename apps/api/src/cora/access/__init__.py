@@ -11,7 +11,7 @@ Layout:
     routes.py                 -- register_access_routes(app)
 """
 
-from cora.access._projection_registry import register_access_projections
+from cora.access._projections import register_access_projections
 from cora.access.errors import UnauthorizedError
 from cora.access.routes import register_access_routes
 from cora.access.tools import register_access_tools

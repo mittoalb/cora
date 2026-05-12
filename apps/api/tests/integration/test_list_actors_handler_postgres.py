@@ -28,7 +28,7 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
-from cora.access._projection_registry import register_access_projections
+from cora.access._projections import register_access_projections
 from cora.access.features.deactivate_actor import DeactivateActor
 from cora.access.features.deactivate_actor import bind as bind_deactivate
 from cora.access.features.list_actors import ListActors

@@ -29,7 +29,7 @@ import pytest
 
 from cora.access.features.register_actor import RegisterActor
 from cora.access.features.register_actor import bind as bind_register
-from cora.access.projections.actor_summary import ActorSummaryProjection
+from cora.access.projections.summary import ActorSummaryProjection
 from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
