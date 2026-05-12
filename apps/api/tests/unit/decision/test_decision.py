@@ -252,6 +252,33 @@ def test_validate_decision_inputs_rejects_too_long_key() -> None:
         validate_decision_inputs({too_long: 1})
 
 
+@pytest.mark.unit
+def test_validate_decision_inputs_rejects_non_json_roundtrippable_datetime() -> None:
+    """Defensive: non-JSON values fail at the BC boundary rather
+    than deep at jsonb serialization time."""
+    from datetime import datetime as dt
+
+    with pytest.raises(InvalidDecisionInputsError) as exc_info:
+        validate_decision_inputs({"timestamp": dt.now()})
+    assert "JSON-roundtrippable" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_validate_decision_inputs_rejects_set_value() -> None:
+    with pytest.raises(InvalidDecisionInputsError):
+        validate_decision_inputs({"items": {1, 2, 3}})
+
+
+@pytest.mark.unit
+def test_validate_decision_inputs_accepts_nested_json_value() -> None:
+    """Nested dicts/lists of primitives round-trip cleanly."""
+    inputs: dict[str, Any] = {
+        "outer": {"inner_list": [1, 2, 3], "inner_dict": {"k": "v"}},
+        "scalar": 42,
+    }
+    assert validate_decision_inputs(inputs) == inputs
+
+
 # ---------- validate_reasoning_signature ----------
 
 

@@ -2,7 +2,7 @@
 
 8a ships the genesis arm only. The aggregate is atomic-immutable
 (no transitions; corrections land as new Decisions with parent_id
-chains), so the evolver remains tiny by design — `assert_never`
+chains), so the evolver remains tiny by design, `assert_never`
 catches any future event type added without an arm.
 """
 

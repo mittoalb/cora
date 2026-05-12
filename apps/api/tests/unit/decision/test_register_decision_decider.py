@@ -263,6 +263,74 @@ def test_decide_accepts_parent_without_override_kind() -> None:
     assert events[0].override_kind is None
 
 
+# ---------- Codified design choices (lax stances; intentional non-enforcement) ----------
+
+
+@pytest.mark.unit
+def test_decide_accepts_confidence_without_confidence_source() -> None:
+    """The BC does NOT enforce the confidence + confidence_source
+    pairing convention. Either field can be set independently;
+    auditors flag bare-confidence-without-source records at
+    projection time."""
+    cmd = _good_command(confidence=0.92, confidence_source=None)
+    events = register_decision.decide(
+        state=None,
+        command=cmd,
+        context=DecisionRegistrationContext(actor=_actor()),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].confidence == 0.92
+    assert events[0].confidence_source is None
+
+
+@pytest.mark.unit
+def test_decide_accepts_confidence_source_without_confidence() -> None:
+    """Inverse pairing-not-enforced case: source without numeric value."""
+    cmd = _good_command(confidence=None, confidence_source=DecisionConfidenceSource.ENSEMBLE)
+    events = register_decision.decide(
+        state=None,
+        command=cmd,
+        context=DecisionRegistrationContext(actor=_actor()),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].confidence is None
+    assert events[0].confidence_source is DecisionConfidenceSource.ENSEMBLE
+
+
+@pytest.mark.unit
+def test_decide_accepts_decision_rule_none_for_procedure_execution_context() -> None:
+    """The BC does NOT enforce 'decision_rule required for
+    ProcedureExecution / RecipeApproval'. Context-conditional
+    requiredness is a projection-time audit-policy concern."""
+    cmd = _good_command(context="ProcedureExecution", decision_rule=None)
+    events = register_decision.decide(
+        state=None,
+        command=cmd,
+        context=DecisionRegistrationContext(actor=_actor()),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].decision_rule is None
+
+
+@pytest.mark.unit
+def test_decide_accepts_arbitrary_context_value() -> None:
+    """Q5 lock A: context is open-string. New contexts arrive
+    without schema migration; well-known-value validation is a
+    projection-time concern."""
+    cmd = _good_command(context="FacilityCustom_v3")
+    events = register_decision.decide(
+        state=None,
+        command=cmd,
+        context=DecisionRegistrationContext(actor=_actor()),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].context == "FacilityCustom_v3"
+
+
 # ---------- Cross-aggregate validation ----------
 
 

@@ -68,10 +68,11 @@ projection rule (documented in this BC's `__init__.py`).
 `validate_name` helper hoisted in 6e-1, with a higher max-length
 cap (reasoning text is naturally longer than display names).
 `DecisionContext` is intentionally an open string with documented
-well-known constants — new contexts arrive without schema
+well-known constants, new contexts arrive without schema
 migration.
 """
 
+import json
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Literal
@@ -226,8 +227,12 @@ class InvalidDecisionInputsError(ValueError):
     Optional dict for the `decision_rule`'s input values (per ISO
     17025 Clause 7.1.3 + ILAC-G8:09/2019: a rule without its
     inputs is unauditable). Each key must be 1-100 chars after
-    trim; values must be JSON-roundtrippable primitives or nested
-    dicts/lists thereof. Cap is 64 entries.
+    trim; values must be JSON-roundtrippable. Cap is 64 entries.
+
+    JSON-roundtrip is enforced at the BC boundary via
+    `json.dumps(value)`: a `datetime`, `set`, or other
+    non-JSON-native value raises here rather than failing deep
+    at jsonb serialization time.
     """
 
     def __init__(self, reason: str) -> None:
@@ -350,11 +355,16 @@ class DecisionRule:
 
     Per ISO 17025 Clause 7.1.3, the decision rule must be
     documented and agreed before the test/calibration; reports
-    must cite it. Required for `ProcedureExecution` and
-    `RecipeApproval` contexts at the application layer; optional
-    for other contexts. Format is free-form but the convention
-    encourages prefixed identifiers like
-    `iso17025:7.1.3:simple_acceptance` or
+    must cite it. The BC accepts `decision_rule = None` for any
+    context: context-conditional requiredness ("ProcedureExecution
+    must carry a rule", "RecipeApproval must carry one") is a
+    projection-time audit-policy concern, not a domain invariant.
+    Different facilities have different rules about which contexts
+    require a citation. The deferred-with-trigger is "first audit
+    demand for context-strict enforcement".
+
+    Format is free-form but the convention encourages prefixed
+    identifiers like `iso17025:7.1.3:simple_acceptance` or
     `cora:policy:recipe_approval:v1`.
     """
 
@@ -422,12 +432,14 @@ def validate_alternatives(value: tuple[str, ...]) -> tuple[str, ...]:
 
 
 def validate_decision_inputs(value: dict[str, Any] | None) -> dict[str, Any] | None:
-    """Validate optional decision_inputs dict shape + per-key length.
+    """Validate optional decision_inputs dict.
 
-    Per-value JSON-roundtrip is enforced at the event-payload
-    serialization layer (any non-roundtrippable value will raise
-    there). Here we only check shape: cap on entry count, key
-    length, and key non-emptiness.
+    Three checks: cardinality (max 64 keys), per-key shape (1-100
+    chars after trim, non-empty), per-value JSON-roundtrippability.
+    The JSON check uses `json.dumps(value)` so a single
+    non-roundtrippable value (datetime, set, custom object) raises
+    here at the BC boundary rather than failing deep at jsonb
+    serialization time.
     """
     if value is None:
         return None
@@ -443,6 +455,10 @@ def validate_decision_inputs(value: dict[str, Any] | None) -> dict[str, Any] | N
             raise InvalidDecisionInputsError(
                 f"key exceeds {DECISION_INPUTS_KEY_MAX_LENGTH} chars: {key!r}"
             )
+    try:
+        json.dumps(value)
+    except (TypeError, ValueError) as exc:
+        raise InvalidDecisionInputsError(f"value is not JSON-roundtrippable: {exc}") from exc
     return value
 
 

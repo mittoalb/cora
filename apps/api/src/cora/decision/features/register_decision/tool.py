@@ -50,7 +50,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             "override_kind for corrections / exceptions / appeals / "
             "supersessions. Use decision_rule + decision_inputs for "
             "ISO 17025 Clause 7.1.3 conformance. Use confidence + "
-            "confidence_source for AI-decider audit (always pair them; "
+            "confidence_source for AI-decider audit (pair by convention; "
             "self_reported confidence has the lowest audit weight)."
         ),
     )

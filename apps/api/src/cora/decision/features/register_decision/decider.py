@@ -10,14 +10,17 @@ the Clock and IdGenerator ports.
 
 ## Cross-aggregate validation (gate-review Q2 lock B)
 
-Existence-only checks; the decider trusts the handler's loads:
+Existence-only checks; the decider trusts the handler's loads.
+The handler raises `DeciderActorNotFoundError` upstream if the
+Actor doesn't exist (and `context.actor: Actor` is non-Optional
+to make the contract explicit at the type boundary). The decider
+checks only the parent-Decision branch because parent_id is
+conditional:
 
-  - `context.actor` must be non-None (handler raises
-    `DeciderActorNotFoundError` upstream if the Actor doesn't
-    exist; this branch validates the handler's contract).
   - If `command.parent_id` is set, `context.parent` must be
     non-None (handler raises `ParentDecisionNotFoundError`
-    upstream; same shape).
+    upstream; this branch is the decider-level statement of the
+    contract for the conditional case).
 
 No status checks: a Decision can be made by any Actor including
 Deactivated (the historical fact still holds), and any prior
@@ -41,7 +44,6 @@ from datetime import datetime
 from uuid import UUID
 
 from cora.decision.aggregates.decision import (
-    DeciderActorNotFoundError,
     Decision,
     DecisionAlreadyExistsError,
     DecisionChoice,
@@ -72,10 +74,9 @@ def decide(
     if state is not None:
         raise DecisionAlreadyExistsError(state.id)
 
-    # Cross-agg defensive guards (handler raises upstream if these
-    # don't hold; this is the decider-level statement of contract).
-    if context.actor is None:  # type: ignore[unreachable]  # defensive
-        raise DeciderActorNotFoundError(command.actor_id)
+    # Cross-agg parent guard (handler raises ParentDecisionNotFoundError
+    # upstream; this branch is the decider-level statement of contract
+    # for the conditional case).
     if command.parent_id is not None and context.parent is None:
         raise ParentDecisionNotFoundError(command.parent_id)
 

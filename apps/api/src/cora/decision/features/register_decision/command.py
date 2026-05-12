@@ -1,4 +1,4 @@
-"""The `RegisterDecision` command — intent dataclass for this slice.
+"""The `RegisterDecision` command, intent dataclass for this slice.
 
 Carries the caller-controlled inputs:
 
@@ -24,10 +24,13 @@ Carries the caller-controlled inputs:
     decision. Token-by-token AI reasoning traces go to a
     `reasoning` logbook on the Decision aggregate (8c), NOT
     here; this field is the human-readable summary.
-  - `confidence`: optional float in [0.0, 1.0]. ALWAYS pair with
-    `confidence_source` so consumers can audit how the value
-    was computed (see DecisionConfidenceSource docstring for
-    the audit-weight gradient).
+  - `confidence`: optional float in [0.0, 1.0]. By convention,
+    pair with `confidence_source` so consumers can audit how the
+    value was computed (see DecisionConfidenceSource docstring
+    for the audit-weight gradient). The BC does NOT enforce the
+    pairing; either field can be set independently. Projection-
+    time auditors flag bare-confidence-without-source records as
+    a quality concern.
   - `confidence_source`: where the confidence came from
     (self_reported / logprob / ensemble / human).
   - `alternatives`: tuple of options considered (ORDER PRESERVED;

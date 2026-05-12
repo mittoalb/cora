@@ -1,4 +1,4 @@
-"""The `GetDecision` query — intent dataclass for this read slice."""
+"""The `GetDecision` query, intent dataclass for this read slice."""
 
 from dataclasses import dataclass
 from uuid import UUID

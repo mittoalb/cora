@@ -44,7 +44,7 @@ _log = get_logger(__name__)
 
 
 class Handler(Protocol):
-    """Bare register_decision handler — what `bind()` returns."""
+    """Bare register_decision handler, what `bind()` returns."""
 
     async def __call__(
         self,

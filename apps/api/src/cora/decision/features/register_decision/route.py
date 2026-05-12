@@ -98,9 +98,10 @@ class RegisterDecisionRequest(BaseModel):
         ge=0.0,
         le=1.0,
         description=(
-            "Confidence in the decision, in [0.0, 1.0]. ALWAYS pair with "
-            "confidence_source so consumers can audit how the value was "
-            "computed."
+            "Confidence in the decision, in [0.0, 1.0]. Pair with "
+            "confidence_source by convention so consumers can audit how "
+            "the value was computed (BC does not enforce pairing; either "
+            "field can be set independently)."
         ),
     )
     confidence_source: DecisionConfidenceSource | None = Field(

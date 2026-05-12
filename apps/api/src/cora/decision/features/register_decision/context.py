@@ -4,7 +4,7 @@ Built by the `register_decision` handler from `load_actor` +
 optional `load_decision` (for parent_id) before reaching the pure
 decider. Per gate-review Q2 lock B (existence-only, no status
 check), the Actor can be in any lifecycle state including
-Deactivated — historical decisions are valid regardless of the
+Deactivated, historical decisions are valid regardless of the
 Actor's current status. Same posture for the parent Decision.
 
 Slice-local module by design: only `register_decision` uses it.

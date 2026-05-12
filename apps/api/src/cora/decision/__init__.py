@@ -1,7 +1,7 @@
 """Decision bounded context.
 
 Owns the structured-audit story for every consequential choice in
-CORA — human approval, AI inference, agent action, operator
+CORA, human approval, AI inference, agent action, operator
 override. Single aggregate (Decision), unified across deciders.
 
 ## Why "decisions" is its own BC
