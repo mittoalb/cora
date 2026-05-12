@@ -9,20 +9,35 @@ When snapshots are added later, `load` will internally read the latest snapshot
 and replay only the events after it; the contract returned to callers is
 unchanged.
 
-Sequence-rollback hazard for projections (read this before building one)
------------------------------------------------------------------------
+Projection cursor: `(transaction_id, position)` tuple, not bare position
+------------------------------------------------------------------------
 `StoredEvent.position` is a global commit-order watermark from a Postgres
 `bigserial`. Sequences advance even on rolled-back transactions, and a
-later-started transaction can commit before an earlier one. A naive projection
-that polls `WHERE position > last_processed_position` will skip events from a
-slow transaction that committed after a fast one with a higher position.
+later-started transaction can commit before an earlier one. A naive
+projection that polls `WHERE position > last_processed_position` will skip
+events from a slow transaction that committed after a fast one with a
+higher position.
 
-Mitigations the projection adapter must apply:
-  - Track `last_processed_position` per projection.
-  - When polling, exclude positions whose owning transactions are still
-    in-flight (e.g. via `pg_snapshot_xmin(pg_current_snapshot())`), or
-    re-scan a small overlap window each tick to recover any late commits.
-  - Combined with the LISTEN/NOTIFY wake-up signal, polling can be infrequent.
+The Phase-8e fix (added in migration `20260512240000_add_transaction_id`):
+each event row carries a `transaction_id` (xid8 = 64-bit FullTransactionId,
+monotonic, no wraparound; set by `DEFAULT pg_current_xact_id()` on INSERT,
+never written from app code). Projection consumers advance via the
+lexicographic tuple cursor:
+
+    WHERE (transaction_id, position) > ($last_tx::xid8, $last_pos)
+      AND transaction_id < pg_snapshot_xmin(pg_current_snapshot())
+    ORDER BY transaction_id ASC, position ASC
+
+The xid8 in-flight exclusion ensures we only consume events from
+transactions that have FULLY committed; the tuple cursor preserves
+ordering inside a single transaction (where one xid8 may span N events
+with distinct positions). Pattern source: Khyst's postgresql-event-
+sourcing reference + Dudycz's "Ordering in Postgres Outbox" article.
+
+Combined with LISTEN/NOTIFY wake-up signal, polling can be infrequent.
+Long-running transactions in the same database PAUSE all projections
+until they commit (because `pg_snapshot_xmin` returns the lowest active
+xid8); this is by design (correctness) but worth knowing operationally.
 """
 
 from dataclasses import dataclass, field
@@ -62,8 +77,15 @@ class StoredEvent:
     """A domain event read from the store. Carries store-assigned metadata.
 
     `position` is the global commit-order watermark (`bigserial` from the DB).
-    See module docstring for the sequence-rollback hazard projections must
-    handle when consuming events by position.
+    Use the `(transaction_id, position)` tuple as a projection cursor; see
+    the module docstring for why position alone is unsafe.
+
+    `transaction_id` is the Postgres `xid8` of the transaction that wrote
+    this event (monotonic 64-bit, no wraparound). Set automatically by
+    `DEFAULT pg_current_xact_id()` on INSERT; never written from app
+    code. Returned as a Python `int`. Defaulted to 0 here so test
+    fixtures that build StoredEvent directly stay terse; the two
+    production adapters always set a real value.
 
     `event_id` is the producer-assigned identity (the same UUID supplied
     at append time in NewEvent.event_id). It is UNIQUE across the events
@@ -83,6 +105,7 @@ class StoredEvent:
     occurred_at: datetime
     recorded_at: datetime
     metadata: dict[str, Any] = field(default_factory=dict[str, Any])
+    transaction_id: int = 0
 
 
 class ConcurrencyError(Exception):

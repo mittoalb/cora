@@ -31,6 +31,12 @@ class InMemoryEventStore:
         self._streams: dict[tuple[str, UUID], list[StoredEvent]] = {}
         self._event_ids: set[UUID] = set()
         self._position = count(start=1)
+        # Fake xid8: monotonic per append() call. All events in the same
+        # batch share a transaction_id (mirrors Postgres semantics where
+        # one transaction can emit N events). Starts at a non-zero value
+        # so the bookmark sentinel ('0'::xid8 in production, 0 here)
+        # compares strictly less than any real value.
+        self._transaction_id = count(start=1)
         self._lock = Lock()
 
     async def load(
@@ -79,6 +85,7 @@ class InMemoryEventStore:
                 existing = []
                 self._streams[key] = existing
             now = datetime.now(tz=UTC)
+            tx_id = next(self._transaction_id)
             next_version = expected_version
             for event in events:
                 next_version += 1
@@ -96,6 +103,7 @@ class InMemoryEventStore:
                     causation_id=event.causation_id,
                     occurred_at=event.occurred_at,
                     recorded_at=now,
+                    transaction_id=tx_id,
                 )
                 existing.append(stored)
                 self._event_ids.add(event.event_id)

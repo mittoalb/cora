@@ -39,11 +39,17 @@ from cora.infrastructure.ports.event_store import (
 _LOAD_SQL = """
 SELECT position, event_id, stream_type, stream_id, version, event_type,
        schema_version, payload, metadata, correlation_id, causation_id,
-       occurred_at, recorded_at
+       occurred_at, recorded_at, transaction_id::text AS transaction_id_text
 FROM events
 WHERE stream_type = $1 AND stream_id = $2
 ORDER BY version
 """
+# asyncpg 0.31 + PG18 has no built-in OUTPUT codec for xid8, so we
+# cast to text in the SELECT and parse to Python int in `_row_to_event`.
+# (Empirically verified by `tests/integration/test_event_store_xid8_postgres.py`.)
+# On the INPUT side asyncpg accepts a Python int for an `$1::xid8`
+# parameter — the projection-bookmark UPDATE (when 8e-1 lands) will
+# pass int directly without the text round-trip.
 
 _APPEND_SQL = """
 INSERT INTO events (
@@ -143,4 +149,5 @@ def _row_to_event(row: Any) -> StoredEvent:
         causation_id=row["causation_id"],
         occurred_at=row["occurred_at"],
         recorded_at=row["recorded_at"],
+        transaction_id=int(row["transaction_id_text"]),
     )

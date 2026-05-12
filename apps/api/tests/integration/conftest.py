@@ -49,7 +49,7 @@ def _read_migration_statements() -> list[str]:
 @pytest.fixture(scope="session")
 def postgres_container() -> Generator[PostgresContainer]:
     """One Postgres container per test session."""
-    container = PostgresContainer("pgvector/pgvector:pg17", driver=None)
+    container = PostgresContainer("pgvector/pgvector:pg18", driver=None)
     container.start()
     try:
         yield container

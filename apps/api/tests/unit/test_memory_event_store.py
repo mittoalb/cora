@@ -222,3 +222,63 @@ async def test_causation_id_round_trips() -> None:
     await store.append("Actor", stream_id, 0, [new_event])
     loaded, _ = await store.load("Actor", stream_id)
     assert loaded[0].causation_id == cause
+
+
+def _build_event(event_type: str = "Recorded") -> NewEvent:
+    return NewEvent(
+        event_id=uuid4(),
+        event_type=event_type,
+        schema_version=1,
+        payload={},
+        occurred_at=datetime.now(tz=UTC),
+        correlation_id=uuid4(),
+        causation_id=None,
+        metadata={},
+    )
+
+
+@pytest.mark.unit
+async def test_in_memory_assigns_monotonic_transaction_ids() -> None:
+    """Mirrors Postgres `xid8` semantics: each `append()` call gets one
+    transaction_id, monotonically increasing across calls."""
+    store = InMemoryEventStore()
+    stream_a = uuid4()
+    stream_b = uuid4()
+
+    await store.append("Actor", stream_a, 0, [_build_event()])
+    await store.append("Actor", stream_b, 0, [_build_event()])
+    loaded_a, _ = await store.load("Actor", stream_a)
+    loaded_b, _ = await store.load("Actor", stream_b)
+
+    assert loaded_b[0].transaction_id > loaded_a[0].transaction_id
+
+
+@pytest.mark.unit
+async def test_in_memory_events_in_same_append_share_transaction_id() -> None:
+    """Mirrors Postgres semantics: N events in one append() = one tx_id."""
+    store = InMemoryEventStore()
+    stream_id = uuid4()
+
+    await store.append(
+        "Actor",
+        stream_id,
+        0,
+        [_build_event(), _build_event(), _build_event()],
+    )
+    loaded, _ = await store.load("Actor", stream_id)
+
+    tx_ids = {e.transaction_id for e in loaded}
+    assert len(loaded) == 3
+    assert len(tx_ids) == 1
+
+
+@pytest.mark.unit
+async def test_in_memory_transaction_id_starts_above_sentinel_zero() -> None:
+    """Bookmark sentinel (0) must compare strictly less than first real value."""
+    store = InMemoryEventStore()
+    stream_id = uuid4()
+
+    await store.append("Actor", stream_id, 0, [_build_event()])
+    loaded, _ = await store.load("Actor", stream_id)
+
+    assert loaded[0].transaction_id > 0
