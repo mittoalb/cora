@@ -51,6 +51,12 @@ from cora.data import (
     register_data_tools,
     wire_data,
 )
+from cora.decision import (
+    DecisionHandlers,
+    register_decision_routes,
+    register_decision_tools,
+    wire_decision,
+)
 from cora.equipment import (
     EquipmentHandlers,
     register_equipment_routes,
@@ -152,6 +158,10 @@ def create_app() -> FastAPI:
         handlers: DataHandlers = fastapi_app.state.data
         return handlers
 
+    def _get_decision_handlers() -> DecisionHandlers:
+        handlers: DecisionHandlers = fastapi_app.state.decision
+        return handlers
+
     register_access_tools(mcp, get_handlers=_get_access_handlers)
     register_trust_tools(mcp, get_handlers=_get_trust_handlers)
     register_subject_tools(mcp, get_handlers=_get_subject_handlers)
@@ -159,6 +169,7 @@ def create_app() -> FastAPI:
     register_recipe_tools(mcp, get_handlers=_get_recipe_handlers)
     register_run_tools(mcp, get_handlers=_get_run_handlers)
     register_data_tools(mcp, get_handlers=_get_data_handlers)
+    register_decision_tools(mcp, get_handlers=_get_decision_handlers)
     mcp_app = mcp.streamable_http_app()
 
     @asynccontextmanager
@@ -175,6 +186,7 @@ def create_app() -> FastAPI:
             app.state.recipe = wire_recipe(deps)
             app.state.run = wire_run(deps)
             app.state.data = wire_data(deps)
+            app.state.decision = wire_decision(deps)
             try:
                 yield
             finally:
@@ -226,6 +238,7 @@ def create_app() -> FastAPI:
     register_recipe_routes(fastapi_app)
     register_run_routes(fastapi_app)
     register_data_routes(fastapi_app)
+    register_decision_routes(fastapi_app)
     fastapi_app.mount("/mcp", mcp_app)
 
     @fastapi_app.get("/health")

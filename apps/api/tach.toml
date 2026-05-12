@@ -50,6 +50,10 @@ path = "cora.data.aggregates"
 depends_on = ["cora.infrastructure"]
 
 [[modules]]
+path = "cora.decision.aggregates"
+depends_on = ["cora.infrastructure"]
+
+[[modules]]
 path = "cora.equipment.aggregates"
 depends_on = ["cora.infrastructure"]
 
@@ -89,6 +93,18 @@ depends_on = [
     "cora.subject.aggregates",
 ]
 
+# Decision BC depends on its own aggregates plus Access aggregate
+# kernel for actor existence-check at register_decision time
+# (DecisionRegistrationContext pre-loads the Actor + optional
+# parent Decision).
+[[modules]]
+path = "cora.decision"
+depends_on = [
+    "cora.infrastructure",
+    "cora.decision.aggregates",
+    "cora.access.aggregates",
+]
+
 [[modules]]
 path = "cora.equipment"
 depends_on = ["cora.infrastructure", "cora.equipment.aggregates"]
@@ -126,6 +142,7 @@ depends_on = [
     "cora.infrastructure",
     "cora.access",
     "cora.data",
+    "cora.decision",
     "cora.equipment",
     "cora.recipe",
     "cora.run",
