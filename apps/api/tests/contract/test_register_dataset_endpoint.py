@@ -2,7 +2,7 @@
 
 Genesis create-style endpoint mirroring the shape used by every
 other register / define endpoint. Body carries nested checksum +
-format objects, plus the optional cross-aggregate refs.
+encoding objects, plus the optional cross-aggregate refs.
 """
 
 from uuid import uuid4

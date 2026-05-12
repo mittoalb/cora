@@ -1,7 +1,7 @@
 """The `RegisterDataset` command, intent dataclass for this slice.
 
 Carries everything the caller controls: identity-free metadata
-(name, uri, checksum, byte_size, format) plus the optional cross-
+(name, uri, checksum, byte_size, encoding) plus the optional cross-
 aggregate refs (producing_run_id, subject_id, derived_from). The
 new Dataset id is server-allocated by the handler from the
 IdGenerator port (matches every other create-style slice in the
@@ -26,7 +26,7 @@ already-existing artefact). Same convention as `register_actor`,
 All three are validated by the handler at load time (existence
 only, no status check; gate-review Q2 lock B).
 
-## Format shape
+## Encoding shape
 
 `media_type` is a loose MIME-type-ish string; `conforms_to` is a
 possibly-empty set of profile URIs the Dataset claims to conform

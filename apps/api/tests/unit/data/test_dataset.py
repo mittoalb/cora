@@ -213,14 +213,14 @@ def test_dataset_checksum_rejects_non_hex_chars() -> None:
 
 
 @pytest.mark.unit
-def test_dataset_format_accepts_media_type_only() -> None:
+def test_dataset_encoding_accepts_media_type_only() -> None:
     fmt = DatasetEncoding(media_type="application/x-hdf5")
     assert fmt.media_type == "application/x-hdf5"
     assert fmt.conforms_to == frozenset()
 
 
 @pytest.mark.unit
-def test_dataset_format_accepts_conforms_to() -> None:
+def test_dataset_encoding_accepts_conforms_to() -> None:
     fmt = DatasetEncoding(
         media_type="application/x-hdf5",
         conforms_to=frozenset({"https://manual.nexusformat.org/"}),
@@ -229,7 +229,7 @@ def test_dataset_format_accepts_conforms_to() -> None:
 
 
 @pytest.mark.unit
-def test_dataset_format_trims_media_type_and_conforms_to_entries() -> None:
+def test_dataset_encoding_trims_media_type_and_conforms_to_entries() -> None:
     fmt = DatasetEncoding(
         media_type="  application/x-hdf5  ",
         conforms_to=frozenset({"  https://manual.nexusformat.org/  "}),
@@ -239,25 +239,25 @@ def test_dataset_format_trims_media_type_and_conforms_to_entries() -> None:
 
 
 @pytest.mark.unit
-def test_dataset_format_rejects_empty_media_type() -> None:
+def test_dataset_encoding_rejects_empty_media_type() -> None:
     with pytest.raises(InvalidDatasetEncodingError):
         DatasetEncoding(media_type="")
 
 
 @pytest.mark.unit
-def test_dataset_format_rejects_whitespace_only_media_type() -> None:
+def test_dataset_encoding_rejects_whitespace_only_media_type() -> None:
     with pytest.raises(InvalidDatasetEncodingError):
         DatasetEncoding(media_type="   ")
 
 
 @pytest.mark.unit
-def test_dataset_format_rejects_empty_conforms_to_entry() -> None:
+def test_dataset_encoding_rejects_empty_conforms_to_entry() -> None:
     with pytest.raises(InvalidDatasetEncodingError):
         DatasetEncoding(media_type="application/x-hdf5", conforms_to=frozenset({""}))
 
 
 @pytest.mark.unit
-def test_dataset_format_rejects_too_many_conforms_to_entries() -> None:
+def test_dataset_encoding_rejects_too_many_conforms_to_entries() -> None:
     with pytest.raises(InvalidDatasetEncodingError):
         DatasetEncoding(
             media_type="application/x-hdf5",

@@ -4,7 +4,7 @@ Surfaces the same handler the REST route uses, exposed as a Model
 Context Protocol tool. Uses `SYSTEM_PRINCIPAL_ID` until the MCP
 auth-flow phase lands (cross-BC convention).
 
-The MCP tool flattens the nested `checksum` and `format` objects
+The MCP tool flattens the nested `checksum` and `encoding` objects
 into discrete arguments because FastMCP's tool-arg JSON Schema is
 easier for LLM consumers to fill correctly when fields are flat;
 the REST route preserves the nested shape for typed clients.

@@ -141,7 +141,7 @@ def test_decide_accepts_zero_byte_size() -> None:
 
 
 @pytest.mark.unit
-def test_decide_accepts_format_conforms_to_set() -> None:
+def test_decide_accepts_encoding_conforms_to_set() -> None:
     cmd = _good_command(conforms_to=frozenset({"https://manual.nexusformat.org/"}))
     events = register_dataset.decide(
         state=None, command=cmd, context=DatasetRegistrationContext(), now=_NOW, new_id=uuid4()
@@ -205,7 +205,7 @@ def test_decide_raises_invalid_byte_size_for_negative() -> None:
 
 
 @pytest.mark.unit
-def test_decide_raises_invalid_format_for_empty_media_type() -> None:
+def test_decide_raises_invalid_encoding_for_empty_media_type() -> None:
     cmd = _good_command(media_type="")
     with pytest.raises(InvalidDatasetEncodingError):
         register_dataset.decide(

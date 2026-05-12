@@ -496,7 +496,7 @@ class DatasetEncoding:
 
     The on-the-wire payload representation sorts `conforms_to`
     deterministically (matches the Policy/permitted_principals
-    precedent) so two registrations of the same logical format
+    precedent) so two registrations of the same logical encoding
     produce byte-identical jsonb.
     """
 

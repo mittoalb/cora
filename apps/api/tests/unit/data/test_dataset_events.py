@@ -70,7 +70,7 @@ def test_to_payload_serializes_all_fields_with_nulls_and_empties() -> None:
 @pytest.mark.unit
 def test_to_payload_sorts_set_semantic_fields_deterministically() -> None:
     """Two registrations of the same logical Dataset produce byte-
-    identical jsonb. Set-semantic fields (`derived_from`, `format.
+    identical jsonb. Set-semantic fields (`derived_from`, `encoding.
     conforms_to`) sort canonically in the wire payload."""
     derived_a = uuid4()
     derived_b = uuid4()
