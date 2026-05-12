@@ -258,3 +258,71 @@ def test_fold_started_then_held_then_stopped_yields_stopped() -> None:
     )
     assert state is not None
     assert state.status is RunStatus.STOPPED
+
+
+# ---------- 7d: raid preservation across transitions ----------
+
+
+@pytest.mark.unit
+def test_evolve_run_started_preserves_raid() -> None:
+    """7d retrofit: raid carried verbatim into Run state on RunStarted."""
+    state = evolve(
+        None,
+        _run_started_with_raid(raid="https://raid.org/10.7935/cora-test"),
+    )
+    assert state.raid == "https://raid.org/10.7935/cora-test"
+
+
+@pytest.mark.unit
+def test_evolve_run_started_without_raid_yields_state_with_raid_none() -> None:
+    """raid is optional; pre-7d-style RunStarted folds with raid=None."""
+    state = evolve(None, _run_started())
+    assert state.raid is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "transitions",
+    [
+        [RunHeld],
+        [RunHeld, RunResumed],
+        [RunCompleted],
+        [RunAborted],
+        [RunStopped],
+        [RunHeld, RunAborted],
+        [RunHeld, RunResumed, RunCompleted],
+    ],
+)
+def test_fold_preserves_raid_across_every_transition_path(
+    transitions: list[type],
+) -> None:
+    """Structural property: replace(state, status=...) in evolver
+    transition arms preserves the raid field by dataclass semantics.
+    A future evolver refactor that constructs Run() from scratch in
+    a transition arm would silently drop raid; this test guards it."""
+    run_id = uuid4()
+    raid_value = "https://raid.org/10.7935/cora-fold-test"
+    events: list[object] = [_run_started_with_raid(run_id=run_id, raid=raid_value)]
+    for cls in transitions:
+        if cls is RunAborted or cls is RunStopped:
+            events.append(cls(run_id=run_id, reason="X", occurred_at=_NOW))
+        else:
+            events.append(cls(run_id=run_id, occurred_at=_NOW))
+    state = fold(events)  # type: ignore[arg-type]
+    assert state is not None
+    assert state.raid == raid_value
+
+
+def _run_started_with_raid(
+    *,
+    run_id: UUID | None = None,
+    raid: str | None,
+) -> RunStarted:
+    return RunStarted(
+        run_id=run_id or uuid4(),
+        name="32-ID FlyScan",
+        plan_id=uuid4(),
+        subject_id=None,
+        occurred_at=_NOW,
+        raid=raid,
+    )

@@ -106,11 +106,15 @@ def decide(
     )
     if missing_derived:
         raise DerivedFromDatasetsNotFoundError(missing_derived)
+    # context.derived_from is built ONLY from command.derived_from
+    # (see register_dataset/handler.py); every key here is in
+    # derived_from by construction. We don't re-filter on `d in
+    # derived_from`.
     discarded_derived = sorted(
         (
             d
             for d, loaded in context.derived_from.items()
-            if d in derived_from and loaded.status is DatasetStatus.DISCARDED
+            if loaded.status is DatasetStatus.DISCARDED
         ),
         key=str,
     )

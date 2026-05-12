@@ -107,6 +107,7 @@ def bind(deps: SharedDeps) -> Handler:
             command_name=_COMMAND_NAME,
             plan_id=str(command.plan_id),
             subject_id=str(command.subject_id) if command.subject_id is not None else None,
+            raid=command.raid,
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             causation_id=str(causation_id) if causation_id is not None else None,

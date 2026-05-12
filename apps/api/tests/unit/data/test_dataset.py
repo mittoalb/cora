@@ -128,6 +128,52 @@ def test_dataset_uri_rejects_too_long() -> None:
         DatasetUri("s3://" + "a" * DATASET_URI_MAX_LENGTH)
 
 
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "javascript:alert(1)",
+        "data:text/html,<script>alert(1)</script>",
+        "vbscript:msgbox(1)",
+        "about:blank",
+        "view-source:https://example.com",
+        # Case-insensitive: scheme.lower() check.
+        "JavaScript:alert(1)",
+        "DATA:text/plain;base64,SGVsbG8=",
+    ],
+)
+def test_dataset_uri_rejects_known_xss_schemes(uri: str) -> None:
+    """Defensive blocklist: known-XSS URI schemes are never legit
+    Dataset URIs and would be a free phishing vector if rendered as
+    a clickable link by a downstream UI."""
+    with pytest.raises(InvalidDatasetUriError) as exc_info:
+        DatasetUri(uri)
+    assert "blocked" in str(exc_info.value).lower()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "uri",
+    [
+        # Common storage backends a facility might use; none are blocked.
+        "s3://bucket/key",
+        "gs://bucket/object",
+        "azure://account/container/blob",
+        "ipfs://Qm.../file.h5",
+        "sftp://server/path",
+        "ftp://server/path",
+        "file:///local/path/data.h5",
+        "globus://endpoint/path",
+        "https://example.com/dataset/123",
+    ],
+)
+def test_dataset_uri_accepts_real_storage_schemes(uri: str) -> None:
+    """The blocklist is defensive, not a closed allowlist; common
+    storage / transport schemes pass through."""
+    parsed = DatasetUri(uri)
+    assert parsed.value == uri
+
+
 # ---------- DatasetChecksum VO ----------
 
 

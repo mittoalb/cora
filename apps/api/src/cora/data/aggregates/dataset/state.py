@@ -89,10 +89,13 @@ identifiers (DOIs via DataCite, including the IGSN-via-DataCite
 flow for samples) land at the export layer when first needed; they
 are not part of the in-domain Dataset identity.
 
-## Eleventh-onwards bounded-name VO
+## Twelfth bounded-name VO
 
 `DatasetName` calls the shared `validate_name` helper hoisted in
-6e-1 (`cora.infrastructure.name`). Same pattern as the prior 11.
+6e-1 (`cora.infrastructure.name`). Twelfth occurrence of the
+trimmed-bounded-name VO pattern (after Actor / Zone / Conduit /
+Policy / Subject / Capability / Asset / Method / Practice / Plan /
+Run).
 """
 
 from dataclasses import dataclass, field
@@ -111,6 +114,22 @@ DATASET_DERIVED_FROM_MAX_ENTRIES = 64
 DATASET_CHECKSUM_ALGORITHM_SHA256 = "sha256"
 DATASET_CHECKSUM_SHA256_HEX_LENGTH = 64
 DATASET_DISCARD_REASON_MAX_LENGTH = 500
+
+# URI schemes that are never legitimate Dataset URIs and that pose
+# XSS risk if a downstream UI renders the URI as a clickable link.
+# Pure blocklist (not allowlist) so we don't constrain real storage
+# schemes (s3, https, file, globus, posix, ipfs, sftp, azure, gs,
+# etc.). The broader "allowlist of approved storage backends"
+# conversation lands when the first storage adapter ships.
+DATASET_URI_BLOCKED_SCHEMES = frozenset[str](
+    {
+        "javascript",
+        "vbscript",
+        "data",
+        "about",
+        "view-source",
+    }
+)
 
 
 class DatasetStatus(StrEnum):
@@ -410,6 +429,16 @@ class DatasetUri:
         parsed = urlparse(trimmed)
         if not parsed.scheme:
             raise InvalidDatasetUriError(self.value, "missing URI scheme")
+        # Defensive blocklist for known-XSS URI schemes (javascript,
+        # data, vbscript, about, view-source). Pure blocklist so we
+        # don't constrain real storage schemes (s3, https, file,
+        # globus, posix, ipfs, sftp, etc.). Comparison is lower-cased
+        # because `JavaScript:` is the same threat as `javascript:`.
+        if parsed.scheme.lower() in DATASET_URI_BLOCKED_SCHEMES:
+            raise InvalidDatasetUriError(
+                self.value,
+                f"URI scheme {parsed.scheme!r} is blocked (XSS risk)",
+            )
         object.__setattr__(self, "value", trimmed)
 
 

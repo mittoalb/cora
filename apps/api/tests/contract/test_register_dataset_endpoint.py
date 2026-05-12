@@ -210,6 +210,24 @@ def test_post_datasets_rejects_uri_without_scheme_with_400() -> None:
 
 
 @pytest.mark.contract
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "javascript:alert(1)",
+        "data:text/html,<script>alert(1)</script>",
+        "vbscript:msgbox(1)",
+    ],
+)
+def test_post_datasets_rejects_known_xss_uri_schemes_with_400(uri: str) -> None:
+    """Defensive blocklist applied at the API boundary. Pure blocklist
+    so we don't constrain real storage schemes."""
+    with TestClient(create_app()) as client:
+        response = client.post("/datasets", json=_good_body(uri=uri))
+    assert response.status_code == 400
+    assert "blocked" in response.json()["detail"].lower()
+
+
+@pytest.mark.contract
 def test_post_datasets_rejects_extra_fields_with_422() -> None:
     """Pydantic model_config={'extra': 'forbid'} rejects unknown keys."""
     with TestClient(create_app()) as client:

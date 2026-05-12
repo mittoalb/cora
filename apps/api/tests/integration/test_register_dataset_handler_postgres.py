@@ -97,6 +97,7 @@ async def _seed_chain_and_start_run(
     subject_id: UUID,
     plan_id: UUID,
     run_id: UUID,
+    raid: str | None = None,
 ) -> None:
     await define_capability.bind(deps)(
         DefineCapability(name="FlyMotion"),
@@ -147,6 +148,7 @@ async def _seed_chain_and_start_run(
             name="32-ID FlyScan morning session",
             plan_id=plan_id,
             subject_id=subject_id,
+            raid=raid,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -172,7 +174,7 @@ async def test_register_dataset_against_run_subject_and_lineage_round_trip(
     site_id = UUID("01900000-0000-7000-8000-000000077e01")
     plan_id = UUID("01900000-0000-7000-8000-000000077f01")
     plan_event_id = UUID("01900000-0000-7000-8000-000000077f02")
-    subject_id = UUID("01900000-0000-7000-8000-00000007800")
+    subject_id = UUID("01900000-0000-7000-8000-000000078000")
     subject_register_event_id = UUID("01900000-0000-7000-8000-000000078001")
     subject_mount_event_id = UUID("01900000-0000-7000-8000-000000078002")
     run_id = UUID("01900000-0000-7000-8000-000000078101")
@@ -214,6 +216,7 @@ async def test_register_dataset_against_run_subject_and_lineage_round_trip(
         ],
     )
 
+    raid_value = "https://raid.org/10.7935/cora-7c-integration"
     await _seed_chain_and_start_run(
         deps,
         asset_id=asset_id,
@@ -224,7 +227,16 @@ async def test_register_dataset_against_run_subject_and_lineage_round_trip(
         subject_id=subject_id,
         plan_id=plan_id,
         run_id=run_id,
+        raid=raid_value,
     )
+
+    # 7d round-trip check: raid persists through PostgresEventStore
+    # jsonb + load_run fold, even though no Data BC code reads it.
+    from cora.run.aggregates.run import load_run
+
+    run_state = await load_run(deps.event_store, run_id)
+    assert run_state is not None
+    assert run_state.raid == raid_value
 
     # Register raw Dataset against the Run + Subject.
     raw_id = await register_dataset.bind(deps)(
