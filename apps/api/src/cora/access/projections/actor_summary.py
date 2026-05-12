@@ -53,7 +53,17 @@ class ActorSummaryProjection:
         event: StoredEvent,
         conn: ConnectionLike,
     ) -> None:
-        """Dispatch on event_type. Both branches are idempotent."""
+        """Dispatch on event_type. Both branches are idempotent.
+
+        The worker's advance query filters by
+        `event_type = ANY($subscribed_event_types)` so apply() never
+        sees unsubscribed types in production. The bare `case _: pass`
+        below is for pyright exhaustiveness on `str`, not defensive
+        runtime logic — a future projection author who adds an event
+        type to `subscribed_event_types` without adding a match arm
+        will see missing rows in the projection table (loud and easy
+        to debug), not silent corruption.
+        """
         match event.event_type:
             case "ActorRegistered":
                 await conn.execute(
@@ -68,11 +78,7 @@ class ActorSummaryProjection:
                     UUID(event.payload["actor_id"]),
                 )
             case _:
-                # Subscribed_event_types is the SQL-side filter; the
-                # worker should never deliver an event outside the
-                # set. Defensive fall-through: drop silently rather
-                # than write garbage to the projection.
-                return
+                pass
 
 
 __all__ = ["ActorSummaryProjection"]

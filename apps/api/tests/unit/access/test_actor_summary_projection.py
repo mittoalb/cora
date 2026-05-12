@@ -91,9 +91,13 @@ async def test_actor_deactivated_updates_status() -> None:
 
 
 @pytest.mark.unit
-async def test_unknown_event_type_silently_dropped() -> None:
-    """SQL-side filter should never deliver unsubscribed events; the
-    defensive fall-through is a belt-and-suspenders no-op."""
+async def test_unknown_event_type_falls_through_match() -> None:
+    """SQL-side filter guarantees apply() never sees unsubscribed
+    types. If a future projection author adds an event_type to the
+    subscribed set without adding a match arm, the bare match falls
+    through (no execute, no error). Surfaces as missing rows in the
+    projection table — easier to debug than a silent return swallowed
+    inside the projection."""
     proj = ActorSummaryProjection()
     conn = AsyncMock()
     event = _stored("UnrelatedEvent", {})

@@ -147,30 +147,22 @@ async def test_drain_with_no_events_advances_bookmark_to_zero(
 
 
 @pytest.mark.integration
-async def test_unsubscribed_event_types_do_not_advance_bookmark(
+async def test_bookmark_advances_when_subscribed_event_arrives(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """An event with a type the projection doesn't subscribe to is
-    skipped by the SQL filter; bookmark advances PAST it (because
-    advance reads from the events table head, not just subscribed
-    types). Specifically: only ActorRegistered/ActorDeactivated
-    advance the projection's APPLY logic, but the bookmark moves to
-    cover any seen position so we don't re-scan the same events
-    forever.
+    """Pin: a subscribed event in the stream causes the bookmark to
+    advance past sentinel zero to that event's (transaction_id,
+    position).
 
-    Wait — actually our filter pushes event_type = ANY(...) into the
-    SQL, so unsubscribed events don't appear in the SELECT result at
-    all. The bookmark only advances to the last RETURNED row's tx_id
-    + position. So unsubscribed events between two subscribed ones
-    cause the bookmark to skip back-and-forth across them on each
-    batch (re-scanning unsubscribed events forever). That's a known
-    cost of per-projection event_type filtering at SQL.
-
-    This test pins the WORKING behavior: in our case, the only
-    event type stored is one the projection subscribes to, so the
-    bookmark advances cleanly. A future test (when more BCs are
-    registered) would document the unsubscribed-skip behavior in
-    detail.
+    The lexicographic-cursor + SQL-side `event_type = ANY(...)`
+    filter combination means unsubscribed events between two
+    subscribed ones are skipped CORRECTLY (the next iteration's
+    `>` comparison covers them via the bookmark moving to the last
+    RETURNED row, not the last SCANNED row). When more BCs ship
+    projections, an explicit cross-BC test could pin that behavior
+    against an actual mixed-event-type stream; today the only events
+    in scope are Actor events, so this test pins the simpler shape:
+    bookmark moves off sentinel when work is available.
     """
     actor_id = UUID("01900000-0000-7000-8000-00000000c001")
     actor_event_id = UUID("01900000-0000-7000-8000-00000000c002")
