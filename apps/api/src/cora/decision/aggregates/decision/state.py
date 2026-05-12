@@ -4,9 +4,12 @@
 choice in CORA: human approval, AI inference, agent action,
 operator override. The aggregate is unified across deciders, so
 the same shape captures human approvers and LLM inferences alike.
-The split between "AI made it" and "human made it" is a property
-of `actor_id` (whose Actor.role discriminator distinguishes them)
-plus optional `parent_id` chains (AI recommends → human overrides).
+Distinguishing AI from human deciders today happens at the
+projection layer (the Decision is a record, not a typed sum); a
+future Actor.role discriminator (deferred-with-trigger: first
+audit-policy demanding role-based filtering) will let consumers
+type-narrow at query time. Optional `parent_id` chains carry the
+AI-recommends-then-human-overrides flow.
 
 ## What a Decision is NOT
 
@@ -17,9 +20,10 @@ plus optional `parent_id` chains (AI recommends → human overrides).
     `decision_rule` + `confidence_source` + `override_kind` etc.
     keep the structure scannable.
   - Not a place for token-by-token AI traces. Those go to a
-    `reasoning` logbook on the Decision aggregate (6f-5a infra,
-    integration in 8c) carrying OpenTelemetry `gen_ai.*`
-    semantic-convention attributes.
+    `reasoning` logbook on the Decision aggregate (6f-5a precedent;
+    aggregate infra in 8c-a; first consumer slice in 8c-b)
+    carrying OpenTelemetry `gen_ai.*` semantic-convention
+    attributes.
 
 ## Phase 8a scope
 
@@ -75,7 +79,7 @@ migration.
 import json
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Final, Literal
 from uuid import UUID
 
 from cora.infrastructure.name import validate_name
@@ -100,6 +104,15 @@ DECISION_REASONING_SIGNATURE_MAX_LENGTH = 4096
 CONFIDENCE_BAND_MEDIUM_MIN = 0.3
 CONFIDENCE_BAND_HIGH_MIN = 0.7
 CONFIDENCE_BAND_CERTAIN_MIN = 0.95
+
+# Logbook kind for AI-decider reasoning traces (8c). When an AI
+# decider produces a Decision, the producer opens a logbook of
+# this kind on the Decision aggregate and appends per-trace
+# entries (one per LLM call / tool invocation / agent span)
+# carrying OpenTelemetry GenAI semantic-convention attributes
+# (gen_ai.*). Mirrors `LOGBOOK_KIND_TRAVERSALS` in Conduit BC
+# (6f-5a precedent).
+LOGBOOK_KIND_REASONING: Final = "reasoning"
 
 # Well-known context discriminators per BC map. Open-ended: new
 # contexts arrive without schema migration. Validated at
@@ -341,6 +354,45 @@ class OverrideKindRequiresParentError(ValueError):
     def __init__(self, override_kind: str) -> None:
         super().__init__(f"Decision override_kind={override_kind!r} requires a parent_id")
         self.override_kind = override_kind
+
+
+class DecisionLogbookAlreadyOpenError(Exception):
+    """Attempted to open a second logbook of the same kind on a Decision.
+
+    The at-most-one-open-per-kind invariant: each Decision carries
+    `logbooks: dict[str, UUID]` keyed by kind. Opening a second
+    logbook of the same kind would silently shadow the first
+    (losing the reference to its entries); the evolver raises
+    instead. The existing logbook id is carried on the error so
+    operators can resolve via close-then-reopen if intentional.
+
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, decision_id: UUID, kind: str, existing_logbook_id: UUID) -> None:
+        super().__init__(
+            f"Decision {decision_id} already has an open logbook of kind {kind!r} "
+            f"(existing logbook_id={existing_logbook_id})"
+        )
+        self.decision_id = decision_id
+        self.kind = kind
+        self.existing_logbook_id = existing_logbook_id
+
+
+class DecisionLogbookNotOpenError(Exception):
+    """Attempted to close a logbook that isn't currently open on the Decision.
+
+    Either the logbook id was never opened (typo / wrong id), or it
+    was already closed (re-close after close). Strict-not-idempotent
+    for the same reason every other terminal-style transition is.
+
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, decision_id: UUID, logbook_id: UUID) -> None:
+        super().__init__(f"Decision {decision_id} has no open logbook with id {logbook_id}")
+        self.decision_id = decision_id
+        self.logbook_id = logbook_id
 
 
 @dataclass(frozen=True)
@@ -590,3 +642,9 @@ class Decision:
     alternatives: tuple[str, ...] = field(default_factory=tuple[str, ...])
     decision_inputs: dict[str, Any] | None = None
     reasoning_signature: str | None = None
+    # 8c: logbooks attached to this Decision, keyed by kind. Today
+    # the only kind is `LOGBOOK_KIND_REASONING` (AI-decider trace
+    # entries with OTel gen_ai.* attrs). Future kinds (evidence
+    # chains, evaluator votes, etc.) follow the same shape.
+    # At-most-one-open-per-kind enforced by the evolver.
+    logbooks: dict[str, UUID] = field(default_factory=dict[str, UUID])

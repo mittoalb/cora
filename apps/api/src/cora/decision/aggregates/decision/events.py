@@ -1,11 +1,20 @@
 """Domain events emitted by the Decision aggregate.
 
-## Phase 8a scope
+## Phase 8a/8c-a scope
 
-Single event: `DecisionRegistered`. The aggregate is atomic-
-immutable; corrections, exceptions, appeals, and supersessions
-land as NEW Decisions with `parent_id` pointing at the original
-and `override_kind` explaining the transition. There is no
+Three events:
+
+  - `DecisionRegistered` (8a, genesis): the Decision itself.
+  - `DecisionLogbookOpened` (8c-a): declares an attached
+    observation logbook (kind + schema). Mirrors the Conduit
+    BC's logbook-open event from 6f-5a. At-most-one-open-per-
+    kind enforced by the evolver.
+  - `DecisionLogbookClosed` (8c-a): terminates a logbook.
+    Strict-not-idempotent: re-closing raises.
+
+Corrections, exceptions, appeals, and supersessions land as NEW
+Decisions with `parent_id` pointing at the original and
+`override_kind` explaining the transition. There is no
 DecisionUpdated / DecisionRevoked / DecisionCorrected event.
 
 ## Payload conventions
@@ -42,6 +51,7 @@ from cora.decision.aggregates.decision.state import (
     DecisionConfidenceSource,
     DecisionOverrideKind,
 )
+from cora.infrastructure.logbook import LogbookSchema
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -70,8 +80,44 @@ class DecisionRegistered:
     occurred_at: datetime
 
 
-# Phase 8a only ships DecisionRegistered.
-DecisionEvent = DecisionRegistered
+@dataclass(frozen=True)
+class DecisionLogbookOpened:
+    """An observation logbook was attached to a Decision.
+
+    `kind` discriminates the logbook category (today only
+    `LOGBOOK_KIND_REASONING` from state.py); `schema` declares the
+    entry-row shape per Bluesky's EventDescriptor pattern. The
+    schema lives on the event so projections can read entry shape
+    uniformly without per-BC adapters.
+
+    At-most-one-open-per-kind enforced by the evolver: opening a
+    second logbook of an existing kind raises
+    `DecisionLogbookAlreadyOpenError`.
+    """
+
+    decision_id: UUID
+    logbook_id: UUID
+    kind: str
+    schema: LogbookSchema
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class DecisionLogbookClosed:
+    """An observation logbook was closed (no further entries).
+
+    Strict-not-idempotent: re-closing raises
+    `DecisionLogbookNotOpenError`. Closing an unknown logbook id
+    raises the same error.
+    """
+
+    decision_id: UUID
+    logbook_id: UUID
+    occurred_at: datetime
+
+
+# 8c-a expands the union with the two logbook lifecycle events.
+DecisionEvent = DecisionRegistered | DecisionLogbookOpened | DecisionLogbookClosed
 
 
 def event_type_name(event: DecisionEvent) -> str:
@@ -117,6 +163,30 @@ def to_payload(event: DecisionEvent) -> dict[str, Any]:
                 "reasoning_signature": reasoning_signature,
                 "occurred_at": occurred_at.isoformat(),
             }
+        case DecisionLogbookOpened(
+            decision_id=decision_id,
+            logbook_id=logbook_id,
+            kind=kind,
+            schema=schema,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "decision_id": str(decision_id),
+                "logbook_id": str(logbook_id),
+                "kind": kind,
+                "schema": schema.to_dict(),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case DecisionLogbookClosed(
+            decision_id=decision_id,
+            logbook_id=logbook_id,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "decision_id": str(decision_id),
+                "logbook_id": str(logbook_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -149,6 +219,20 @@ def from_stored(stored: StoredEvent) -> DecisionEvent:
                 reasoning_signature=payload["reasoning_signature"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "DecisionLogbookOpened":
+            return DecisionLogbookOpened(
+                decision_id=UUID(payload["decision_id"]),
+                logbook_id=UUID(payload["logbook_id"]),
+                kind=payload["kind"],
+                schema=LogbookSchema.from_dict(payload["schema"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "DecisionLogbookClosed":
+            return DecisionLogbookClosed(
+                decision_id=UUID(payload["decision_id"]),
+                logbook_id=UUID(payload["logbook_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown DecisionEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -156,6 +240,8 @@ def from_stored(stored: StoredEvent) -> DecisionEvent:
 
 __all__ = [
     "DecisionEvent",
+    "DecisionLogbookClosed",
+    "DecisionLogbookOpened",
     "DecisionRegistered",
     "event_type_name",
     "from_stored",
