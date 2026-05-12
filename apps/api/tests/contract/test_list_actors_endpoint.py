@@ -90,13 +90,14 @@ def test_get_actors_rejects_invalid_cursor_with_422(
 
 
 @pytest.mark.contract
-def test_get_actors_includes_correlation_id_in_traceparent_propagation(
+def test_get_actors_accepts_traceparent_header_without_error(
     client: TestClient,
 ) -> None:
-    """traceparent flows through the route into the handler's
-    correlation_id (verified end-to-end in test_principal_header.py
-    for other endpoints; pin here too so list endpoint stays in the
-    same propagation path)."""
+    """Pin: the W3C traceparent header is accepted without breaking
+    the list endpoint. Full correlation-id propagation (header ->
+    handler kwarg) is verified end-to-end for other endpoints in
+    `test_principal_header.py`; here we just guard against the
+    list endpoint regressing the header parsing."""
     with client:
         response = client.get(
             "/actors",

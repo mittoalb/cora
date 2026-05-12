@@ -38,10 +38,12 @@ class _DenyAllAuthorize:
         return Deny(reason="denied for test")
 
 
-def _build_kernel(*, deny: bool = False, with_pool: bool = False) -> Kernel:
-    """Build a Kernel for handler tests. Pool-less unless `with_pool`
-    is explicitly requested (Postgres-backed tests live in the
-    integration suite)."""
+def _build_kernel(*, deny: bool = False) -> Kernel:
+    """Build a Kernel for handler tests. Pool-less by design (Postgres-
+    backed tests live in the integration suite); the handler's
+    no-pool branch returns an empty page so the unit tests pin the
+    in-memory-test-environment behavior. End-to-end pagination is
+    tested in `tests/integration/test_list_actors_handler_postgres.py`."""
     return Kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(_NOW),
@@ -49,7 +51,7 @@ def _build_kernel(*, deny: bool = False, with_pool: bool = False) -> Kernel:
         authorize=_DenyAllAuthorize() if deny else AllowAllAuthorize(),
         event_store=InMemoryEventStore(),
         idempotency_store=InMemoryIdempotencyStore(),
-        pool=None,  # explicit: in-memory test
+        pool=None,
     )
 
 
