@@ -8,10 +8,11 @@ I/O, no awaits, no side effects.
 `now` and `new_id` are injected by the application handler from
 the Clock and IdGenerator ports.
 
-## Cross-aggregate validation (gate-review Q2 lock B)
+## Cross-aggregate validation (gate-review Q2 lock B + 7b status check)
 
-Existence-only checks; the decider trusts the handler's loads.
-Specifically:
+Existence-only checks for Run + Subject; existence + non-Discarded
+status check for derived_from sources. The decider trusts the
+handler's loads. Specifically:
 
   - If `command.producing_run_id` is set, `context.producing_run`
     must be non-None (handler raises `ProducingRunNotFoundError`
@@ -20,15 +21,12 @@ Specifically:
   - If `command.subject_id` is set, `context.subject` must be
     non-None (same shape).
   - For each id in `command.derived_from`, `context.derived_from`
-    must contain it (handler raises
-    `DerivedFromDatasetsNotFoundError` upstream listing every
-    missing id).
+    must contain it AND its status must NOT be `Discarded` (we
+    don't allow new lineage edges into bytes that no longer exist).
 
-No status checks: Datasets register against any Run state,
-against any Subject state, against any non-Discarded Dataset.
-(Today, with no Discarded transition shipped, every existing
-Dataset is acceptable as a derived_from source. 7b's discard slice
-will tighten this to "must not be Discarded".)
+No status checks for Run / Subject (Datasets register against any
+Run state, against any Subject state). Discarded-status check only
+applies to derived_from lineage sources (7b tightening).
 
 Per the precedent set by `start_run`'s decider, defensive guards
 on context.* alignment are assertions of the handler's contract,
@@ -52,7 +50,9 @@ from cora.data.aggregates.dataset import (
     DatasetFormat,
     DatasetName,
     DatasetRegistered,
+    DatasetStatus,
     DatasetUri,
+    DerivedFromDatasetsDiscardedError,
     DerivedFromDatasetsNotFoundError,
     LinkedSubjectNotFoundError,
     ProducingRunNotFoundError,
@@ -106,6 +106,16 @@ def decide(
     )
     if missing_derived:
         raise DerivedFromDatasetsNotFoundError(missing_derived)
+    discarded_derived = sorted(
+        (
+            d
+            for d, loaded in context.derived_from.items()
+            if d in derived_from and loaded.status is DatasetStatus.DISCARDED
+        ),
+        key=str,
+    )
+    if discarded_derived:
+        raise DerivedFromDatasetsDiscardedError(discarded_derived)
 
     return [
         DatasetRegistered(

@@ -263,9 +263,9 @@ def test_validate_derived_from_rejects_over_cap() -> None:
 
 
 @pytest.mark.unit
-def test_dataset_status_only_registered_in_7a() -> None:
-    """7a ships only Registered. Discarded lands in 7b."""
-    assert {s.value for s in DatasetStatus} == {"Registered"}
+def test_dataset_status_in_7b() -> None:
+    """7b adds Discarded; full lifecycle FSM today is Registered → Discarded."""
+    assert {s.value for s in DatasetStatus} == {"Registered", "Discarded"}
 
 
 @pytest.mark.unit
@@ -273,6 +273,7 @@ def test_dataset_status_is_str_enum_for_natural_serialization() -> None:
     assert isinstance(DatasetStatus.REGISTERED, str)
     assert DatasetStatus.REGISTERED == "Registered"
     assert f"{DatasetStatus.REGISTERED}" == "Registered"
+    assert DatasetStatus.DISCARDED == "Discarded"
 
 
 # ---------- Dataset aggregate root ----------

@@ -23,15 +23,16 @@ other BC.
 
   - 400 (validation): InvalidDatasetNameError, InvalidDatasetUriError,
     InvalidDatasetChecksumError, InvalidDatasetByteSizeError,
-    InvalidDatasetFormatError, InvalidDerivedFromError
-  - 404: DatasetNotFoundError (via the get_dataset route's HTTPException
-    pathway; the Data BC does not register a not-found handler today
-    because the read slice handles None directly. Domain code that
-    raises DatasetNotFoundError from a handler will trigger the
-    handler-level 404 below.)
+    InvalidDatasetFormatError, InvalidDerivedFromError,
+    InvalidDatasetDiscardReasonError (7b)
+  - 404: DatasetNotFoundError (raised by the discard_dataset decider
+    when the target stream is empty; also surfaced by get_dataset's
+    route HTTPException pathway).
   - 409 (defensive AlreadyExists): DatasetAlreadyExistsError
   - 409 (cross-aggregate refs): ProducingRunNotFoundError,
-    LinkedSubjectNotFoundError, DerivedFromDatasetsNotFoundError
+    LinkedSubjectNotFoundError, DerivedFromDatasetsNotFoundError,
+    DerivedFromDatasetsDiscardedError (7b)
+  - 409 (Dataset transition guards, 7b): DatasetCannotDiscardError
 """
 
 from fastapi import FastAPI, Request, status
@@ -39,10 +40,13 @@ from fastapi.responses import JSONResponse
 
 from cora.data.aggregates.dataset import (
     DatasetAlreadyExistsError,
+    DatasetCannotDiscardError,
     DatasetNotFoundError,
+    DerivedFromDatasetsDiscardedError,
     DerivedFromDatasetsNotFoundError,
     InvalidDatasetByteSizeError,
     InvalidDatasetChecksumError,
+    InvalidDatasetDiscardReasonError,
     InvalidDatasetFormatError,
     InvalidDatasetNameError,
     InvalidDatasetUriError,
@@ -51,7 +55,7 @@ from cora.data.aggregates.dataset import (
     ProducingRunNotFoundError,
 )
 from cora.data.errors import UnauthorizedError
-from cora.data.features import get_dataset, register_dataset
+from cora.data.features import discard_dataset, get_dataset, register_dataset
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -90,16 +94,31 @@ async def _handle_already_exists(request: Request, exc: Exception) -> JSONRespon
     )
 
 
-async def _handle_cross_agg_not_found(request: Request, exc: Exception) -> JSONResponse:
-    """Shared 409 handler for cross-aggregate-reference not-found errors.
+async def _handle_cross_agg_conflict(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 409 handler for cross-aggregate-reference errors.
 
     `register_dataset` accepts optional refs to a Run, a Subject, and
     a set of upstream Datasets. If any referenced aggregate doesn't
     exist, the handler raises one of (ProducingRunNotFoundError,
     LinkedSubjectNotFoundError, DerivedFromDatasetsNotFoundError).
-    All three map to 409 because they signal a logical conflict
-    (the request is well-formed but inconsistent with the current
-    state of the world).
+    7b adds DerivedFromDatasetsDiscardedError when one of the
+    referenced lineage sources is in Discarded status. All map to
+    409 because they signal a logical conflict (well-formed request,
+    inconsistent with current world state).
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 409 handler for state-transition guards.
+
+    7b adds `DatasetCannotDiscardError`. All transition-state-mismatch
+    errors map to 409 + `{"detail": str(exc)}`. Adding a new transition
+    is one extra entry in the tuple.
     """
     _ = request
     return JSONResponse(
@@ -111,6 +130,7 @@ async def _handle_cross_agg_not_found(request: Request, exc: Exception) -> JSONR
 def register_data_routes(app: FastAPI) -> None:
     """Attach Data slice routers and exception handlers to the FastAPI app."""
     app.include_router(register_dataset.router)
+    app.include_router(discard_dataset.router)
     app.include_router(get_dataset.router)
     for validation_cls in (
         InvalidDatasetNameError,
@@ -119,6 +139,7 @@ def register_data_routes(app: FastAPI) -> None:
         InvalidDatasetByteSizeError,
         InvalidDatasetFormatError,
         InvalidDerivedFromError,
+        InvalidDatasetDiscardReasonError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (DatasetNotFoundError,):
@@ -129,6 +150,9 @@ def register_data_routes(app: FastAPI) -> None:
         ProducingRunNotFoundError,
         LinkedSubjectNotFoundError,
         DerivedFromDatasetsNotFoundError,
+        DerivedFromDatasetsDiscardedError,
     ):
-        app.add_exception_handler(cross_agg_cls, _handle_cross_agg_not_found)
+        app.add_exception_handler(cross_agg_cls, _handle_cross_agg_conflict)
+    for cannot_transition_cls in (DatasetCannotDiscardError,):
+        app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

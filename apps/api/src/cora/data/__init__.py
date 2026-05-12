@@ -20,16 +20,21 @@ What `Dataset` is NOT:
     samples logbook with the dataset URI as a column)
   - Not a Transfer (separate aggregate, deferred to its own phase)
 
-## Phase 7a scope
+## Phase 7a/7b scope
 
 Minimal Dataset: id + name + uri + checksum + byte_size + format +
-optional cross-refs + status (defaults `Registered`). Two slices:
+optional cross-refs + status (defaults `Registered`).
+
+Three slices:
   - `register_dataset` (create-style; idempotency-wrapped; full
-    cross-aggregate validation via DatasetRegistrationContext)
+    cross-aggregate validation via DatasetRegistrationContext;
+    rejects Discarded sources in derived_from per 7b tightening)
+  - `discard_dataset` (Registered → Discarded terminal; strict-not-
+    idempotent; free-form `reason: str` 1-500 chars; GDPR-shaped)
   - `get_dataset` (read side; fold-on-read; mirrors get_subject)
 
-The Discarded terminal lands in 7b. Archive / Verify / Move
-transitions defer until storage tiers / re-checksum workflows ship.
+Archive / Verify / Move transitions defer until storage tiers /
+re-checksum workflows ship.
 
 ## Standards alignment (post-survey, gate-review L3 + deferred-with-trigger)
 

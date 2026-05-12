@@ -5,15 +5,15 @@ union, `event_type_name`, `to_payload`, `from_stored`. The
 persistence-envelope construction (`NewEvent`) lives at
 `cora.infrastructure.event_envelope.to_new_event`.
 
-## Phase 7a scope
+## Phase 7a/7b scope
 
-Single event: `DatasetRegistered`. Carries the full registration
-payload: identity, URI, checksum (algorithm + value), byte_size,
-format (media_type + sorted conforms_to list), producing_run_id,
-subject_id, derived_from (sorted UUID list), occurred_at.
-
-7b adds `DatasetDiscarded` (Registered → Discarded terminal) with
-free-form `reason: str`.
+  - `DatasetRegistered` (7a, genesis): identity, URI, checksum
+    (algorithm + value), byte_size, format (media_type + sorted
+    conforms_to list), producing_run_id, subject_id, derived_from
+    (sorted UUID list), occurred_at.
+  - `DatasetDiscarded` (7b, terminal): dataset_id, free-form
+    `reason: str` (1-500 chars after trimming), occurred_at. Mirrors
+    RunStopped / RunAborted / RunTruncated reason shape.
 
 ## Payload conventions
 
@@ -67,11 +67,29 @@ class DatasetRegistered:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class DatasetDiscarded:
+    """A Dataset was discarded (Registered → Discarded terminal).
+
+    `reason` is a free-form string (1-500 chars after trimming),
+    captured verbatim from the operator. Mirrors RunStopped /
+    RunAborted / RunTruncated reason shape; same future-additive
+    structured-taxonomy posture.
+
+    GDPR-shaped: bytes at the URI are gone but this event keeps the
+    metadata + reason for audit. The Discarded record itself does
+    NOT capture the URI's deletion-time-state (operators may need
+    to re-discover the original URI to re-run analysis chains); the
+    URI lives on the prior DatasetRegistered event.
+    """
+
+    dataset_id: UUID
+    reason: str
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Dataset aggregate emits.
-# 7a only ships DatasetRegistered; the union exists so the evolver
-# match has a single arm today and grows by one entry per new event
-# type.
-DatasetEvent = DatasetRegistered
+DatasetEvent = DatasetRegistered | DatasetDiscarded
 
 
 def event_type_name(event: DatasetEvent) -> str:
@@ -119,6 +137,12 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
                 "derived_from": sorted(str(d) for d in derived_from),
                 "occurred_at": occurred_at.isoformat(),
             }
+        case DatasetDiscarded(dataset_id=dataset_id, reason=reason, occurred_at=occurred_at):
+            return {
+                "dataset_id": str(dataset_id),
+                "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -157,12 +181,19 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
                 derived_from=frozenset(UUID(d) for d in payload["derived_from"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "DatasetDiscarded":
+            return DatasetDiscarded(
+                dataset_id=UUID(payload["dataset_id"]),
+                reason=payload["reason"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown DatasetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
 
 
 __all__ = [
+    "DatasetDiscarded",
     "DatasetEvent",
     "DatasetRegistered",
     "event_type_name",

@@ -6,19 +6,24 @@ is added to `DatasetEvent` without a matching match arm here.
 
 Status mapping per event type:
   - `DatasetRegistered` -> REGISTERED  (genesis)
-
-7b extends with:
   - `DatasetDiscarded`  -> DISCARDED   (terminal)
 
 The mapping is hardcoded per match arm; the event type IS the
 state-change indicator (no status field in event payloads). Same
 precedent as the rest of the codebase.
+
+Defensive guard: `DatasetDiscarded` arms raise on `state is None`
+(the parent Dataset must exist before the discard event). If a
+stream contains DatasetDiscarded without a prior DatasetRegistered,
+the stream is corrupted and the evolver fails loud.
 """
 
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import assert_never
 
 from cora.data.aggregates.dataset.events import (
+    DatasetDiscarded,
     DatasetEvent,
     DatasetRegistered,
 )
@@ -57,6 +62,11 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 derived_from=derived_from,
                 status=DatasetStatus.REGISTERED,
             )
+        case DatasetDiscarded():
+            if state is None:
+                msg = "DatasetDiscarded before DatasetRegistered: stream is corrupted"
+                raise ValueError(msg)
+            return replace(state, status=DatasetStatus.DISCARDED)
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 

@@ -15,13 +15,26 @@ references back to whatever produced or describes the data.
   - Not a Transfer record (Transfer is a separate aggregate,
     deferred to its own phase)
 
-## Phase 7a scope
+## Phase 7a/7b scope
 
 Minimal Dataset: id + name + uri + checksum + byte_size + format +
 optional cross-refs (producing_run_id, subject_id, derived_from)
-+ status (defaults `Registered`). The `Discarded` terminal lands
-in 7b. Archive / Verify / Move transitions defer until storage
-tiers / re-checksum workflows ship.
++ status (defaults `Registered`).
+
+7a shipped Registered as the genesis state. 7b adds the Discarded
+terminal: a Registered Dataset can transition to Discarded with a
+free-form reason (1-500 chars; mirrors stop_run / abort_run /
+truncate_run shape). Discarded is GDPR-shaped: bytes at the URI
+have been deleted from storage but the metadata record + reason are
+retained for audit. Re-discarding raises (strict-not-idempotent).
+
+7b also tightens the lineage invariant: registering a Dataset with
+`derived_from` referencing any Discarded Dataset raises
+`DerivedFromDatasetsDiscardedError` (we don't allow new lineage
+edges into bytes that no longer exist).
+
+Archive / Verify / Move transitions defer until storage tiers /
+re-checksum workflows ship.
 
 ## Format as structured VO (gate-review L3 refinement, 2026-05-11)
 
@@ -97,20 +110,24 @@ DATASET_CONFORMS_TO_MAX_ENTRIES = 16
 DATASET_DERIVED_FROM_MAX_ENTRIES = 64
 DATASET_CHECKSUM_ALGORITHM_SHA256 = "sha256"
 DATASET_CHECKSUM_SHA256_HEX_LENGTH = 64
+DATASET_DISCARD_REASON_MAX_LENGTH = 500
 
 
 class DatasetStatus(StrEnum):
     """The Dataset's lifecycle state.
 
-    7a ships only `Registered`. The Discarded terminal lands in 7b.
-    Archive / Verify / Move transitions defer until storage tiers
-    actually exist in a deployment (gate-review Q1 lock B).
+    7a ships `Registered`. 7b adds `Discarded` (terminal, with
+    operator-supplied reason; bytes at the URI are gone but the
+    metadata + audit trail remain). Archive / Verify / Move
+    transitions defer until storage tiers actually exist in a
+    deployment (gate-review Q1 lock B).
 
     Enum values are PascalCase strings (matches BC-map status
     vocabulary; log lines and DTOs read naturally without mapping).
     """
 
     REGISTERED = "Registered"
+    DISCARDED = "Discarded"
 
 
 class InvalidDatasetNameError(ValueError):
@@ -268,6 +285,86 @@ class DerivedFromDatasetsNotFoundError(Exception):
             f"non-existent Datasets: {[str(d) for d in missing_ids]}"
         )
         self.missing_ids = missing_ids
+
+
+class DerivedFromDatasetsDiscardedError(Exception):
+    """One or more derived_from references point at Discarded Datasets.
+
+    7b status check on top of the 7a existence check: registering a
+    Dataset with `derived_from` referencing a Discarded Dataset is
+    rejected (we don't allow new lineage edges into bytes that no
+    longer exist). The error carries the full list of discarded ids
+    so the operator can fix the input. Mapped to HTTP 409.
+    """
+
+    def __init__(self, discarded_ids: list[UUID]) -> None:
+        super().__init__(
+            f"Cannot register Dataset: derived_from references the following "
+            f"Discarded Datasets: {[str(d) for d in discarded_ids]}"
+        )
+        self.discarded_ids = discarded_ids
+
+
+class InvalidDatasetDiscardReasonError(ValueError):
+    """The supplied discard reason is empty, whitespace-only, or too long.
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the decider via this error. Mirrors the
+    InvalidRunStopReasonError / InvalidRunAbortReasonError /
+    InvalidRunTruncateReasonError pattern.
+
+    Free-form `str` (1-500 chars) shape with the same future-additive
+    structured-taxonomy posture (re-evaluation triggers documented at
+    the Run BC's reason-error classes apply identically here).
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Dataset discard reason must be 1-{DATASET_DISCARD_REASON_MAX_LENGTH} chars after "
+            f"trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+class DatasetCannotDiscardError(Exception):
+    """Attempted to discard a Dataset not in `Registered` status.
+
+    Single-source guard: only `Registered → Discarded`. Re-discarding
+    an already-`Discarded` Dataset raises (strict-not-idempotent,
+    matches every other terminal-transition pattern in the codebase).
+
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, dataset_id: UUID, current_status: "DatasetStatus") -> None:
+        super().__init__(
+            f"Dataset {dataset_id} cannot be discarded: currently in status "
+            f"{current_status.value}, discard requires {DatasetStatus.REGISTERED.value}"
+        )
+        self.dataset_id = dataset_id
+        self.current_status = current_status
+
+
+@dataclass(frozen=True)
+class DatasetDiscardReason:
+    """Free-form discard reason. Trimmed; 1-500 chars.
+
+    Mirrors RunStopReason / RunTruncateReason / RunAbortReason. The
+    on-the-wire representation in `DatasetDiscarded.reason` is `str`
+    (post-trim); the VO exists at decider-input time only.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_name(
+            self.value,
+            max_length=DATASET_DISCARD_REASON_MAX_LENGTH,
+            error_class=InvalidDatasetDiscardReasonError,
+        )
+        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

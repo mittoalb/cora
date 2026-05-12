@@ -16,13 +16,15 @@ Cross-cutting decorators applied here mirror every other BC
 
 Phase 7a ships `register_dataset` (create-style; idempotency-
 wrapped) and `get_dataset` (read side; no idempotency). Phase 7b
-adds the `discard_dataset` transition (update-style; bare handler).
+adds the `discard_dataset` transition (update-style; bare handler;
+strict-not-idempotent so retries are domain-safe via
+`DatasetCannotDiscardError`).
 """
 
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.data.features import get_dataset, register_dataset
+from cora.data.features import discard_dataset, get_dataset, register_dataset
 from cora.infrastructure.deps import SharedDeps
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.observability import with_tracing
@@ -34,11 +36,13 @@ _BC = "data"
 class DataHandlers:
     """The Data BC's handler bundle, each closed over SharedDeps.
 
-    Phase 7a ships `register_dataset` (create-style; idempotency-
-    wrapped) plus `get_dataset` (read-side; no idempotency).
+    Phase 7a shipped `register_dataset` (create-style; idempotency-
+    wrapped) plus `get_dataset` (read-side; no idempotency). Phase
+    7b adds `discard_dataset` (update-style transition; bare handler).
     """
 
     register_dataset: register_dataset.IdempotentHandler
+    discard_dataset: discard_dataset.Handler
     get_dataset: get_dataset.Handler
 
 
@@ -56,6 +60,11 @@ def wire_data(deps: SharedDeps) -> DataHandlers:
                 deserialize_result=UUID,
             ),
             command_name="RegisterDataset",
+            bc=_BC,
+        ),
+        discard_dataset=with_tracing(
+            discard_dataset.bind(deps),
+            command_name="DiscardDataset",
             bc=_BC,
         ),
         get_dataset=with_tracing(
