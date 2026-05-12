@@ -27,17 +27,9 @@ from cora.equipment.features.activate_asset import ActivateAsset
 from cora.equipment.features.enter_maintenance import EnterMaintenance
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.restore_from_maintenance import RestoreFromMaintenance
-from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    AuthzResult,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
-)
+from tests.unit._helpers import build_deps as _build_deps_shared
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000009ca1")
@@ -50,38 +42,17 @@ _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
-class DenyAllAuthorize:
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
 def _build_deps(
     *,
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
 ) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [
-                _NEW_ID,
-                _REGISTER_EVENT_ID,
-                _ACTIVATE_EVENT_ID,
-                _ENTER_EVENT_ID,
-                _RESTORE_EVENT_ID,
-            ]
-        ),
-        authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
+    """Thin wrapper preserving this file's ID list + clock."""
+    return _build_deps_shared(
+        ids=[_NEW_ID, _REGISTER_EVENT_ID, _ACTIVATE_EVENT_ID, _ENTER_EVENT_ID, _RESTORE_EVENT_ID],
+        now=_NOW,
+        event_store=event_store,
+        deny=deny,
     )
 
 
