@@ -22,7 +22,7 @@ def _good_body(**overrides: object) -> dict[str, object]:
         "uri": "s3://aps-32id/runs/abc/recon.h5",
         "checksum": {"algorithm": "sha256", "value": _GOOD_SHA256},
         "byte_size": 1024,
-        "format": {"media_type": "application/x-hdf5", "conforms_to": []},
+        "encoding": {"media_type": "application/x-hdf5", "conforms_to": []},
     }
     base.update(overrides)
     return base
@@ -77,7 +77,7 @@ def test_post_datasets_round_trips_into_get_dataset_response() -> None:
         create = client.post(
             "/datasets",
             json=_good_body(
-                format={
+                encoding={
                     "media_type": "application/x-hdf5",
                     "conforms_to": [
                         "https://manual.nexusformat.org/",
@@ -97,9 +97,9 @@ def test_post_datasets_round_trips_into_get_dataset_response() -> None:
     assert body["checksum"]["algorithm"] == "sha256"
     assert body["checksum"]["value"] == _GOOD_SHA256
     assert body["byte_size"] == 1024
-    assert body["format"]["media_type"] == "application/x-hdf5"
+    assert body["encoding"]["media_type"] == "application/x-hdf5"
     # Wire-shape conforms_to is sorted (canonical).
-    assert body["format"]["conforms_to"] == [
+    assert body["encoding"]["conforms_to"] == [
         "https://example.com/profile",
         "https://manual.nexusformat.org/",
     ]

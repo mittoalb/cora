@@ -2,10 +2,10 @@
 
 `POST /datasets` returns 201 + RegisterDatasetResponse on success.
 Body carries the full Dataset metadata: name, uri, checksum
-(algorithm + value), byte_size, format (media_type + conforms_to),
+(algorithm + value), byte_size, encoding (media_type + conforms_to),
 plus the optional cross-aggregate refs.
 
-Body shape uses nested `checksum` and `format` objects to mirror
+Body shape uses nested `checksum` and `encoding` objects to mirror
 the on-the-wire event payload, so the client-facing API and the
 persisted event are byte-aligned (one less translation surface).
 """
@@ -51,15 +51,15 @@ class ChecksumRequest(BaseModel):
     )
 
 
-class FormatRequest(BaseModel):
-    """Structured format descriptor on the registration request body."""
+class EncodingRequest(BaseModel):
+    """Structured encoding descriptor on the registration request body."""
 
     media_type: str = Field(
         ...,
         min_length=1,
         max_length=DATASET_MEDIA_TYPE_MAX_LENGTH,
         description=(
-            "Loose MIME-type-ish string describing the wire format "
+            "Loose MIME-type-ish string describing the wire encoding "
             "(for example 'application/x-hdf5', 'application/x-zarr')."
         ),
     )
@@ -106,9 +106,9 @@ class RegisterDatasetRequest(BaseModel):
             "storage backends impose their own."
         ),
     )
-    format: FormatRequest = Field(
+    encoding: EncodingRequest = Field(
         ...,
-        description="Structured format descriptor (media_type + conforms_to profile URIs).",
+        description="Structured encoding descriptor (media_type + conforms_to profile URIs).",
     )
     producing_run_id: UUID | None = Field(
         default=None,
@@ -154,7 +154,7 @@ router = APIRouter(tags=["data"])
 # Per-entry conforms_to length validation: the body model can't
 # express a per-element max_length on a list[str] in Pydantic
 # v2 + JSON Schema cleanly, so we leave per-entry length to the
-# domain VO (DatasetFormat) which raises InvalidDatasetFormatError
+# domain VO (DatasetEncoding) which raises InvalidDatasetEncodingError
 # (mapped to 400). The list-cardinality cap is enforced here so
 # clients get 422 fast for obviously-malformed payloads.
 _ = DATASET_CONFORMS_TO_ENTRY_MAX_LENGTH  # docstring reference
@@ -170,7 +170,7 @@ _ = DATASET_CONFORMS_TO_ENTRY_MAX_LENGTH  # docstring reference
             "description": (
                 "Domain invariant violated: whitespace-only name, malformed URI, "
                 "non-sha256 or malformed checksum, negative byte_size, invalid "
-                "format media_type, or invalid conforms_to entry."
+                "encoding media_type, or invalid conforms_to entry."
             ),
         },
         status.HTTP_403_FORBIDDEN: {
@@ -217,8 +217,8 @@ async def post_datasets(
             checksum_algorithm=body.checksum.algorithm,
             checksum_value=body.checksum.value,
             byte_size=body.byte_size,
-            media_type=body.format.media_type,
-            conforms_to=frozenset(body.format.conforms_to),
+            media_type=body.encoding.media_type,
+            conforms_to=frozenset(body.encoding.conforms_to),
             producing_run_id=body.producing_run_id,
             subject_id=body.subject_id,
             derived_from=frozenset(body.derived_from),

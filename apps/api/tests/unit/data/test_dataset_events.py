@@ -8,7 +8,7 @@ import pytest
 from cora.data.aggregates.dataset import (
     DATASET_CHECKSUM_SHA256_HEX_LENGTH,
     DatasetChecksum,
-    DatasetFormat,
+    DatasetEncoding,
     DatasetRegistered,
     event_type_name,
     from_stored,
@@ -28,7 +28,7 @@ def test_event_type_name_returns_class_name() -> None:
         uri="s3://b/k",
         checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
         byte_size=0,
-        format=DatasetFormat(media_type="application/x-hdf5"),
+        encoding=DatasetEncoding(media_type="application/x-hdf5"),
         producing_run_id=None,
         subject_id=None,
         derived_from=frozenset(),
@@ -46,7 +46,7 @@ def test_to_payload_serializes_all_fields_with_nulls_and_empties() -> None:
         uri="s3://b/k",
         checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
         byte_size=0,
-        format=DatasetFormat(media_type="application/x-hdf5"),
+        encoding=DatasetEncoding(media_type="application/x-hdf5"),
         producing_run_id=None,
         subject_id=None,
         derived_from=frozenset(),
@@ -59,7 +59,7 @@ def test_to_payload_serializes_all_fields_with_nulls_and_empties() -> None:
         "uri": "s3://b/k",
         "checksum": {"algorithm": "sha256", "value": _GOOD_SHA256},
         "byte_size": 0,
-        "format": {"media_type": "application/x-hdf5", "conforms_to": []},
+        "encoding": {"media_type": "application/x-hdf5", "conforms_to": []},
         "producing_run_id": None,
         "subject_id": None,
         "derived_from": [],
@@ -81,7 +81,7 @@ def test_to_payload_sorts_set_semantic_fields_deterministically() -> None:
         uri="s3://b/k",
         checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
         byte_size=1,
-        format=DatasetFormat(
+        encoding=DatasetEncoding(
             media_type="application/x-hdf5",
             conforms_to=frozenset({"https://b.example/", "https://a.example/"}),
         ),
@@ -91,7 +91,7 @@ def test_to_payload_sorts_set_semantic_fields_deterministically() -> None:
         occurred_at=_NOW,
     )
     payload = to_payload(event)
-    assert payload["format"]["conforms_to"] == ["https://a.example/", "https://b.example/"]
+    assert payload["encoding"]["conforms_to"] == ["https://a.example/", "https://b.example/"]
     assert payload["derived_from"] == sorted([str(derived_a), str(derived_b), str(derived_c)])
 
 
@@ -105,7 +105,7 @@ def test_to_payload_serializes_optional_refs_when_set() -> None:
         uri="s3://b/k",
         checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
         byte_size=0,
-        format=DatasetFormat(media_type="application/x-hdf5"),
+        encoding=DatasetEncoding(media_type="application/x-hdf5"),
         producing_run_id=run_id,
         subject_id=subject_id,
         derived_from=frozenset(),
@@ -129,7 +129,7 @@ def test_round_trip_through_stored_envelope() -> None:
         uri="s3://aps-32id/runs/abc/recon.h5",
         checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
         byte_size=1_073_741_824,
-        format=DatasetFormat(
+        encoding=DatasetEncoding(
             media_type="application/x-hdf5",
             conforms_to=frozenset({"https://manual.nexusformat.org/"}),
         ),

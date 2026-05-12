@@ -4,7 +4,7 @@
 404 on miss.
 
 The wire DTO mirrors the on-the-wire event payload shape (nested
-`checksum` and `format` objects, sorted set fields) so client code
+`checksum` and `encoding` objects, sorted set fields) so client code
 reading the registration response and the get response sees the
 same structure.
 """
@@ -30,8 +30,8 @@ class ChecksumResponse(BaseModel):
     value: str
 
 
-class FormatResponse(BaseModel):
-    """Structured format descriptor on the response body."""
+class EncodingResponse(BaseModel):
+    """Structured encoding descriptor on the response body."""
 
     media_type: str
     conforms_to: list[str]
@@ -51,7 +51,7 @@ class DatasetResponse(BaseModel):
     uri: str
     checksum: ChecksumResponse
     byte_size: int
-    format: FormatResponse
+    encoding: EncodingResponse
     producing_run_id: UUID | None
     subject_id: UUID | None
     derived_from: list[UUID]
@@ -106,9 +106,9 @@ async def get_datasets(
             value=dataset.checksum.value,
         ),
         byte_size=dataset.byte_size,
-        format=FormatResponse(
-            media_type=dataset.format.media_type,
-            conforms_to=sorted(dataset.format.conforms_to),
+        encoding=EncodingResponse(
+            media_type=dataset.encoding.media_type,
+            conforms_to=sorted(dataset.encoding.conforms_to),
         ),
         producing_run_id=dataset.producing_run_id,
         subject_id=dataset.subject_id,

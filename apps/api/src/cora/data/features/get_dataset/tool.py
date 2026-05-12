@@ -1,7 +1,7 @@
 """MCP tool for the `get_dataset` query slice.
 
 Returns a structured `DatasetOutput` mirroring the REST `DatasetResponse`
-shape (nested checksum + format, sorted set fields). MCP-side
+shape (nested checksum + encoding, sorted set fields). MCP-side
 404-equivalent uses the FastMCP `isError` mechanism via raised
 exception → MCP result.
 """
@@ -25,7 +25,7 @@ class ChecksumOutput(BaseModel):
     value: str
 
 
-class FormatOutput(BaseModel):
+class EncodingOutput(BaseModel):
     media_type: str
     conforms_to: list[str]
 
@@ -38,7 +38,7 @@ class DatasetOutput(BaseModel):
     uri: str
     checksum: ChecksumOutput
     byte_size: int
-    format: FormatOutput
+    encoding: EncodingOutput
     producing_run_id: UUID | None
     subject_id: UUID | None
     derived_from: list[UUID]
@@ -52,7 +52,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         name="get_dataset",
         description=(
             "Read the current state of an existing Dataset by id. Returns "
-            "the full Dataset metadata (URI, checksum, byte_size, format, "
+            "the full Dataset metadata (URI, checksum, byte_size, encoding, "
             "cross-aggregate refs, status). Raises if the dataset_id has "
             "no events in the store."
         ),
@@ -80,9 +80,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 value=dataset.checksum.value,
             ),
             byte_size=dataset.byte_size,
-            format=FormatOutput(
-                media_type=dataset.format.media_type,
-                conforms_to=sorted(dataset.format.conforms_to),
+            encoding=EncodingOutput(
+                media_type=dataset.encoding.media_type,
+                conforms_to=sorted(dataset.encoding.conforms_to),
             ),
             producing_run_id=dataset.producing_run_id,
             subject_id=dataset.subject_id,

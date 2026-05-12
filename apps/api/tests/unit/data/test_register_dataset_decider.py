@@ -16,13 +16,13 @@ from cora.data.aggregates.dataset import (
     Dataset,
     DatasetAlreadyExistsError,
     DatasetChecksum,
-    DatasetFormat,
+    DatasetEncoding,
     DatasetName,
     DatasetUri,
     DerivedFromDatasetsNotFoundError,
     InvalidDatasetByteSizeError,
     InvalidDatasetChecksumError,
-    InvalidDatasetFormatError,
+    InvalidDatasetEncodingError,
     InvalidDatasetNameError,
     InvalidDatasetUriError,
     InvalidDerivedFromError,
@@ -65,7 +65,7 @@ def _existing_dataset() -> Dataset:
         uri=DatasetUri("s3://b/k"),
         checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
         byte_size=0,
-        format=DatasetFormat(media_type="application/x-hdf5"),
+        encoding=DatasetEncoding(media_type="application/x-hdf5"),
     )
 
 
@@ -105,8 +105,8 @@ def test_decide_emits_dataset_registered_with_minimum_fields() -> None:
     assert event.checksum.algorithm == "sha256"
     assert event.checksum.value == _GOOD_SHA256
     assert event.byte_size == 1024
-    assert event.format.media_type == "application/x-hdf5"
-    assert event.format.conforms_to == frozenset()
+    assert event.encoding.media_type == "application/x-hdf5"
+    assert event.encoding.conforms_to == frozenset()
     assert event.producing_run_id is None
     assert event.subject_id is None
     assert event.derived_from == frozenset()
@@ -146,7 +146,7 @@ def test_decide_accepts_format_conforms_to_set() -> None:
     events = register_dataset.decide(
         state=None, command=cmd, context=DatasetRegistrationContext(), now=_NOW, new_id=uuid4()
     )
-    assert events[0].format.conforms_to == frozenset({"https://manual.nexusformat.org/"})
+    assert events[0].encoding.conforms_to == frozenset({"https://manual.nexusformat.org/"})
 
 
 # ---------- Field validation ----------
@@ -207,7 +207,7 @@ def test_decide_raises_invalid_byte_size_for_negative() -> None:
 @pytest.mark.unit
 def test_decide_raises_invalid_format_for_empty_media_type() -> None:
     cmd = _good_command(media_type="")
-    with pytest.raises(InvalidDatasetFormatError):
+    with pytest.raises(InvalidDatasetEncodingError):
         register_dataset.decide(
             state=None,
             command=cmd,

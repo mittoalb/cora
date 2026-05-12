@@ -3,7 +3,7 @@
 `Dataset` is the logical research data product, not the bytes
 themselves. Bytes live wherever the URI points (S3 / Globus /
 POSIX / etc.); the Data BC stores only the metadata: identity,
-URI, checksum, byte_size, format, lineage, and the cross-aggregate
+URI, checksum, byte_size, encoding, lineage, and the cross-aggregate
 references back to whatever produced or describes the data.
 
 ## What a Dataset is NOT
@@ -17,8 +17,8 @@ references back to whatever produced or describes the data.
 
 ## Phase 7a/7b scope
 
-Minimal Dataset: id + name + uri + checksum + byte_size + format +
-optional cross-refs (producing_run_id, subject_id, derived_from)
+Minimal Dataset: id + name + uri + checksum + byte_size + encoding
++ optional cross-refs (producing_run_id, subject_id, derived_from)
 + status (defaults `Registered`).
 
 7a shipped Registered as the genesis state. 7b adds the Discarded
@@ -36,17 +36,23 @@ edges into bytes that no longer exist).
 Archive / Verify / Move transitions defer until storage tiers /
 re-checksum workflows ship.
 
-## Format as structured VO (gate-review L3 refinement, 2026-05-11)
+## Encoding as structured VO (gate-review L3 refinement, 2026-05-11)
 
-`format` is a small VO: `media_type: str` (loose MIME-type-ish
+`encoding` is a small VO: `media_type: str` (loose MIME-type-ish
 string) plus `conforms_to: frozenset[str]` (zero or more profile
 URIs the Dataset claims to conform to, for example
 `https://manual.nexusformat.org/...` or `https://ngff.openmicroscopy.org/0.4/`).
-This matches RO-Crate 1.2's pattern. The free-form-string-only
-alternative was the original draft, but the standards survey
-showed real Datasets can claim multiple profiles (NeXus + OME-
-Zarr is a documented case), and retrofitting `conforms_to` later
-would be a breaking change on the genesis event payload.
+This matches schema.org's `encodingFormat` + `conformsTo` pair and
+RO-Crate 1.2's pattern. The free-form-string-only alternative was
+the original draft, but the standards survey showed real Datasets
+can claim multiple profiles (NeXus + OME-Zarr is a documented
+case), and retrofitting `conforms_to` later would be a breaking
+change on the genesis event payload.
+
+Field name `encoding` rather than `format` deliberately avoids
+shadowing the Python builtin `format()` and aligns with
+schema.org's vocabulary; DataCite's export schema uses `format`,
+which the export adapter maps to when one ships.
 
 ## Cross-aggregate references
 
@@ -208,8 +214,8 @@ class InvalidDatasetByteSizeError(ValueError):
         self.value = value
 
 
-class InvalidDatasetFormatError(ValueError):
-    """The supplied format VO has an invalid media_type or conforms_to entry.
+class InvalidDatasetEncodingError(ValueError):
+    """The supplied encoding VO has an invalid media_type or conforms_to entry.
 
     Media_type must trim to 1-200 chars (loose MIME-type validation;
     the exact taxonomy is free-form per gate-review Q5 lock A,
@@ -220,7 +226,7 @@ class InvalidDatasetFormatError(ValueError):
     """
 
     def __init__(self, reason: str) -> None:
-        super().__init__(f"Dataset format invalid: {reason}")
+        super().__init__(f"Dataset encoding invalid: {reason}")
         self.reason = reason
 
 
@@ -477,8 +483,8 @@ class DatasetChecksum:
 
 
 @dataclass(frozen=True)
-class DatasetFormat:
-    """Structured format descriptor: media_type + conforms_to profile URIs.
+class DatasetEncoding:
+    """Structured encoding descriptor: media_type + conforms_to profile URIs.
 
     Per the gate-review L3 refinement (post-standards-survey), this
     is a small VO rather than a free-form string. `media_type` is
@@ -500,13 +506,13 @@ class DatasetFormat:
     def __post_init__(self) -> None:
         trimmed_media_type = self.media_type.strip()
         if not trimmed_media_type:
-            raise InvalidDatasetFormatError("media_type empty or whitespace-only")
+            raise InvalidDatasetEncodingError("media_type empty or whitespace-only")
         if len(trimmed_media_type) > DATASET_MEDIA_TYPE_MAX_LENGTH:
-            raise InvalidDatasetFormatError(
+            raise InvalidDatasetEncodingError(
                 f"media_type exceeds {DATASET_MEDIA_TYPE_MAX_LENGTH} chars"
             )
         if len(self.conforms_to) > DATASET_CONFORMS_TO_MAX_ENTRIES:
-            raise InvalidDatasetFormatError(
+            raise InvalidDatasetEncodingError(
                 f"conforms_to has too many entries "
                 f"(max {DATASET_CONFORMS_TO_MAX_ENTRIES}, got {len(self.conforms_to)})"
             )
@@ -514,9 +520,9 @@ class DatasetFormat:
         for entry in self.conforms_to:
             entry_trimmed = entry.strip()
             if not entry_trimmed:
-                raise InvalidDatasetFormatError("conforms_to entry is empty or whitespace-only")
+                raise InvalidDatasetEncodingError("conforms_to entry is empty or whitespace-only")
             if len(entry_trimmed) > DATASET_CONFORMS_TO_ENTRY_MAX_LENGTH:
-                raise InvalidDatasetFormatError(
+                raise InvalidDatasetEncodingError(
                     f"conforms_to entry exceeds "
                     f"{DATASET_CONFORMS_TO_ENTRY_MAX_LENGTH} chars: {entry!r}"
                 )
@@ -569,7 +575,7 @@ class Dataset:
     uri: DatasetUri
     checksum: DatasetChecksum
     byte_size: int
-    format: DatasetFormat
+    encoding: DatasetEncoding
     producing_run_id: UUID | None = None
     subject_id: UUID | None = None
     derived_from: frozenset[UUID] = field(default_factory=frozenset[UUID])

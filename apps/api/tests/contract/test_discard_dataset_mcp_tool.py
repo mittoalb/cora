@@ -20,7 +20,7 @@ def _register(client: TestClient) -> str:
             "uri": "s3://b/k",
             "checksum": {"algorithm": "sha256", "value": _GOOD_SHA256},
             "byte_size": 0,
-            "format": {"media_type": "application/x-hdf5", "conforms_to": []},
+            "encoding": {"media_type": "application/x-hdf5", "conforms_to": []},
         },
     ).json()["dataset_id"]
 

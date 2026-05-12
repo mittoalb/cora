@@ -22,8 +22,8 @@ What `Dataset` is NOT:
 
 ## Phase 7a/7b scope
 
-Minimal Dataset: id + name + uri + checksum + byte_size + format +
-optional cross-refs + status (defaults `Registered`).
+Minimal Dataset: id + name + uri + checksum + byte_size + encoding
++ optional cross-refs + status (defaults `Registered`).
 
 Three slices:
   - `register_dataset` (create-style; idempotency-wrapped; full
@@ -45,9 +45,10 @@ re-checksum workflows ship.
   - RO-Crate 1.2 as packaging (deferred until cross-facility export)
   - FAIR Signposting at REST export (deferred-with-trigger: first
     license / citation / PROV graph endpoint)
-  - In-domain `format` follows RO-Crate's pattern (media_type +
-    conforms_to: list of profile URIs); locked at L3 to avoid
-    breaking change later
+  - In-domain `encoding` (schema.org / RO-Crate vocabulary) carries
+    media_type + conforms_to: list of profile URIs; locked at L3 to
+    avoid breaking change later. DataCite's export schema uses
+    `format` which the export adapter would map to.
   - Croissant defer (ML-side; trigger = first ML-training export)
   - Zarr v3 defer (trigger = first cloud-native facility ingest)
 

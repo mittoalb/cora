@@ -23,7 +23,7 @@ other BC.
 
   - 400 (validation): InvalidDatasetNameError, InvalidDatasetUriError,
     InvalidDatasetChecksumError, InvalidDatasetByteSizeError,
-    InvalidDatasetFormatError, InvalidDerivedFromError,
+    InvalidDatasetEncodingError, InvalidDerivedFromError,
     InvalidDatasetDiscardReasonError (7b)
   - 404: DatasetNotFoundError (raised by the discard_dataset decider
     when the target stream is empty; also surfaced by get_dataset's
@@ -47,7 +47,7 @@ from cora.data.aggregates.dataset import (
     InvalidDatasetByteSizeError,
     InvalidDatasetChecksumError,
     InvalidDatasetDiscardReasonError,
-    InvalidDatasetFormatError,
+    InvalidDatasetEncodingError,
     InvalidDatasetNameError,
     InvalidDatasetUriError,
     InvalidDerivedFromError,
@@ -137,7 +137,7 @@ def register_data_routes(app: FastAPI) -> None:
         InvalidDatasetUriError,
         InvalidDatasetChecksumError,
         InvalidDatasetByteSizeError,
-        InvalidDatasetFormatError,
+        InvalidDatasetEncodingError,
         InvalidDerivedFromError,
         InvalidDatasetDiscardReasonError,
     ):

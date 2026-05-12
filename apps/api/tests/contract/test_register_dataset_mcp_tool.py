@@ -71,7 +71,7 @@ def test_mcp_register_dataset_tool_succeeds_with_all_optional_refs() -> None:
                 "uri": "s3://b/k",
                 "checksum": {"algorithm": "sha256", "value": _GOOD_SHA256},
                 "byte_size": 0,
-                "format": {"media_type": "application/x-hdf5", "conforms_to": []},
+                "encoding": {"media_type": "application/x-hdf5", "conforms_to": []},
             },
         ).json()["dataset_id"]
         subject_id = client.post("/subjects", json={"name": "Sample"}).json()["subject_id"]
@@ -129,7 +129,7 @@ def test_mcp_get_dataset_tool_returns_dataset_after_registration() -> None:
                 "uri": "s3://b/k",
                 "checksum": {"algorithm": "sha256", "value": _GOOD_SHA256},
                 "byte_size": 0,
-                "format": {"media_type": "application/x-hdf5", "conforms_to": []},
+                "encoding": {"media_type": "application/x-hdf5", "conforms_to": []},
             },
         ).json()["dataset_id"]
         headers = open_session(client)

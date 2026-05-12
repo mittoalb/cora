@@ -22,7 +22,7 @@ def _register(client: TestClient, **overrides: object) -> str:
         "uri": "s3://b/k",
         "checksum": {"algorithm": "sha256", "value": _GOOD_SHA256},
         "byte_size": 0,
-        "format": {"media_type": "application/x-hdf5", "conforms_to": []},
+        "encoding": {"media_type": "application/x-hdf5", "conforms_to": []},
     }
     body.update(overrides)
     return client.post("/datasets", json=body).json()["dataset_id"]
@@ -119,7 +119,7 @@ def test_post_datasets_returns_409_when_derived_from_id_is_discarded() -> None:
                 "uri": "s3://b/derived",
                 "checksum": {"algorithm": "sha256", "value": _GOOD_SHA256},
                 "byte_size": 0,
-                "format": {"media_type": "application/x-hdf5", "conforms_to": []},
+                "encoding": {"media_type": "application/x-hdf5", "conforms_to": []},
                 "derived_from": [upstream_id],
             },
         )
@@ -142,7 +142,7 @@ def test_post_datasets_409_message_lists_all_discarded_derived_from_ids() -> Non
                 "uri": "s3://b/derived",
                 "checksum": {"algorithm": "sha256", "value": _GOOD_SHA256},
                 "byte_size": 0,
-                "format": {"media_type": "application/x-hdf5", "conforms_to": []},
+                "encoding": {"media_type": "application/x-hdf5", "conforms_to": []},
                 "derived_from": [a, b],
             },
         )

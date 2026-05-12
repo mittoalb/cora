@@ -10,7 +10,7 @@ from cora.data.aggregates.dataset import (
     DATASET_CHECKSUM_SHA256_HEX_LENGTH,
     DatasetCannotDiscardError,
     DatasetChecksum,
-    DatasetFormat,
+    DatasetEncoding,
     DatasetNotFoundError,
     InvalidDatasetDiscardReasonError,
 )
@@ -76,7 +76,7 @@ async def _seed_registered(store: InMemoryEventStore, dataset_id: UUID) -> None:
         uri="s3://b/k",
         checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
         byte_size=0,
-        format=DatasetFormat(media_type="application/x-hdf5"),
+        encoding=DatasetEncoding(media_type="application/x-hdf5"),
         producing_run_id=None,
         subject_id=None,
         derived_from=frozenset(),

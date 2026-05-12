@@ -13,7 +13,7 @@ import pytest
 from cora.data.aggregates.dataset import (
     DATASET_CHECKSUM_SHA256_HEX_LENGTH,
     DatasetChecksum,
-    DatasetFormat,
+    DatasetEncoding,
     DatasetRegistered,
     DatasetStatus,
     evolve,
@@ -33,7 +33,7 @@ def test_evolve_registered_creates_dataset_with_registered_status() -> None:
         uri="s3://b/k",
         checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
         byte_size=42,
-        format=DatasetFormat(media_type="application/x-hdf5"),
+        encoding=DatasetEncoding(media_type="application/x-hdf5"),
         producing_run_id=None,
         subject_id=None,
         derived_from=frozenset(),
@@ -46,8 +46,8 @@ def test_evolve_registered_creates_dataset_with_registered_status() -> None:
     assert state.checksum.algorithm == "sha256"
     assert state.checksum.value == _GOOD_SHA256
     assert state.byte_size == 42
-    assert state.format.media_type == "application/x-hdf5"
-    assert state.format.conforms_to == frozenset()
+    assert state.encoding.media_type == "application/x-hdf5"
+    assert state.encoding.conforms_to == frozenset()
     assert state.producing_run_id is None
     assert state.subject_id is None
     assert state.derived_from == frozenset()
@@ -65,7 +65,7 @@ def test_evolve_preserves_optional_refs() -> None:
         uri="s3://b/k",
         checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
         byte_size=0,
-        format=DatasetFormat(
+        encoding=DatasetEncoding(
             media_type="application/x-hdf5",
             conforms_to=frozenset({"https://manual.nexusformat.org/"}),
         ),
@@ -78,7 +78,7 @@ def test_evolve_preserves_optional_refs() -> None:
     assert state.producing_run_id == run_id
     assert state.subject_id == subject_id
     assert state.derived_from == frozenset({derived})
-    assert state.format.conforms_to == frozenset({"https://manual.nexusformat.org/"})
+    assert state.encoding.conforms_to == frozenset({"https://manual.nexusformat.org/"})
 
 
 @pytest.mark.unit
@@ -94,7 +94,7 @@ def test_fold_single_register_event_returns_dataset() -> None:
         uri="s3://b/k",
         checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
         byte_size=0,
-        format=DatasetFormat(media_type="application/x-hdf5"),
+        encoding=DatasetEncoding(media_type="application/x-hdf5"),
         producing_run_id=None,
         subject_id=None,
         derived_from=frozenset(),

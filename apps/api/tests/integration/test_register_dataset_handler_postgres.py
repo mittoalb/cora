@@ -283,7 +283,7 @@ async def test_register_dataset_against_run_subject_and_lineage_round_trip(
     assert raw.producing_run_id == run_id
     assert raw.subject_id == subject_id
     assert raw.derived_from == frozenset()
-    assert raw.format.conforms_to == frozenset({"https://manual.nexusformat.org/"})
+    assert raw.encoding.conforms_to == frozenset({"https://manual.nexusformat.org/"})
     assert raw.status is DatasetStatus.REGISTERED
 
     derived = await load_dataset(deps.event_store, derived_id)
@@ -301,7 +301,7 @@ async def test_register_dataset_against_run_subject_and_lineage_round_trip(
     assert raw_events[0].payload["producing_run_id"] == str(run_id)
     assert raw_events[0].payload["subject_id"] == str(subject_id)
     assert raw_events[0].payload["derived_from"] == []
-    assert raw_events[0].payload["format"]["conforms_to"] == ["https://manual.nexusformat.org/"]
+    assert raw_events[0].payload["encoding"]["conforms_to"] == ["https://manual.nexusformat.org/"]
 
     derived_events, _ = await deps.event_store.load("Dataset", derived_id)
     assert len(derived_events) == 1

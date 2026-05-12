@@ -17,7 +17,7 @@ from cora.data.aggregates.dataset import (
     DatasetCannotDiscardError,
     DatasetChecksum,
     DatasetDiscarded,
-    DatasetFormat,
+    DatasetEncoding,
     DatasetName,
     DatasetNotFoundError,
     DatasetStatus,
@@ -38,7 +38,7 @@ def _dataset(*, status: DatasetStatus = DatasetStatus.REGISTERED) -> Dataset:
         uri=DatasetUri("s3://b/k"),
         checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
         byte_size=0,
-        format=DatasetFormat(media_type="application/x-hdf5"),
+        encoding=DatasetEncoding(media_type="application/x-hdf5"),
         status=status,
     )
 

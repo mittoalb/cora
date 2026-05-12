@@ -36,7 +36,7 @@ never fire.
 ## VO trim semantics
 
 Field VOs (`DatasetName`, `DatasetUri`, `DatasetChecksum`,
-`DatasetFormat`) handle their own trimming + validation in
+`DatasetEncoding`) handle their own trimming + validation in
 `__post_init__`; the on-the-wire payload carries the trimmed
 values (so the persisted event payload is canonical).
 """
@@ -47,7 +47,7 @@ from uuid import UUID
 from cora.data.aggregates.dataset import (
     DatasetAlreadyExistsError,
     DatasetChecksum,
-    DatasetFormat,
+    DatasetEncoding,
     DatasetName,
     DatasetRegistered,
     DatasetStatus,
@@ -77,7 +77,7 @@ def decide(
         raise DatasetAlreadyExistsError(state.id)
 
     # Field-level validation via VOs (trims + bounded-length checks
-    # + format-specific invariants). Each VO raises its specific
+    # + encoding-specific invariants). Each VO raises its specific
     # error class on failure, mapped to HTTP 400.
     name = DatasetName(command.name)
     uri = DatasetUri(command.uri)
@@ -86,7 +86,7 @@ def decide(
         value=command.checksum_value,
     )
     byte_size = validate_byte_size(command.byte_size)
-    format_ = DatasetFormat(
+    encoding = DatasetEncoding(
         media_type=command.media_type,
         conforms_to=command.conforms_to,
     )
@@ -128,7 +128,7 @@ def decide(
             uri=uri.value,
             checksum=checksum,
             byte_size=byte_size,
-            format=format_,
+            encoding=encoding,
             producing_run_id=command.producing_run_id,
             subject_id=command.subject_id,
             derived_from=derived_from,

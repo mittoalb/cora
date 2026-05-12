@@ -17,7 +17,7 @@ from cora.data.aggregates.dataset import (
     Dataset,
     DatasetAlreadyExistsError,
     DatasetChecksum,
-    DatasetFormat,
+    DatasetEncoding,
     DatasetName,
     DatasetNotFoundError,
     DatasetStatus,
@@ -25,7 +25,7 @@ from cora.data.aggregates.dataset import (
     DerivedFromDatasetsNotFoundError,
     InvalidDatasetByteSizeError,
     InvalidDatasetChecksumError,
-    InvalidDatasetFormatError,
+    InvalidDatasetEncodingError,
     InvalidDatasetNameError,
     InvalidDatasetUriError,
     InvalidDerivedFromError,
@@ -209,19 +209,19 @@ def test_dataset_checksum_rejects_non_hex_chars() -> None:
         DatasetChecksum(algorithm="sha256", value="g" * 64)
 
 
-# ---------- DatasetFormat VO ----------
+# ---------- DatasetEncoding VO ----------
 
 
 @pytest.mark.unit
 def test_dataset_format_accepts_media_type_only() -> None:
-    fmt = DatasetFormat(media_type="application/x-hdf5")
+    fmt = DatasetEncoding(media_type="application/x-hdf5")
     assert fmt.media_type == "application/x-hdf5"
     assert fmt.conforms_to == frozenset()
 
 
 @pytest.mark.unit
 def test_dataset_format_accepts_conforms_to() -> None:
-    fmt = DatasetFormat(
+    fmt = DatasetEncoding(
         media_type="application/x-hdf5",
         conforms_to=frozenset({"https://manual.nexusformat.org/"}),
     )
@@ -230,7 +230,7 @@ def test_dataset_format_accepts_conforms_to() -> None:
 
 @pytest.mark.unit
 def test_dataset_format_trims_media_type_and_conforms_to_entries() -> None:
-    fmt = DatasetFormat(
+    fmt = DatasetEncoding(
         media_type="  application/x-hdf5  ",
         conforms_to=frozenset({"  https://manual.nexusformat.org/  "}),
     )
@@ -240,26 +240,26 @@ def test_dataset_format_trims_media_type_and_conforms_to_entries() -> None:
 
 @pytest.mark.unit
 def test_dataset_format_rejects_empty_media_type() -> None:
-    with pytest.raises(InvalidDatasetFormatError):
-        DatasetFormat(media_type="")
+    with pytest.raises(InvalidDatasetEncodingError):
+        DatasetEncoding(media_type="")
 
 
 @pytest.mark.unit
 def test_dataset_format_rejects_whitespace_only_media_type() -> None:
-    with pytest.raises(InvalidDatasetFormatError):
-        DatasetFormat(media_type="   ")
+    with pytest.raises(InvalidDatasetEncodingError):
+        DatasetEncoding(media_type="   ")
 
 
 @pytest.mark.unit
 def test_dataset_format_rejects_empty_conforms_to_entry() -> None:
-    with pytest.raises(InvalidDatasetFormatError):
-        DatasetFormat(media_type="application/x-hdf5", conforms_to=frozenset({""}))
+    with pytest.raises(InvalidDatasetEncodingError):
+        DatasetEncoding(media_type="application/x-hdf5", conforms_to=frozenset({""}))
 
 
 @pytest.mark.unit
 def test_dataset_format_rejects_too_many_conforms_to_entries() -> None:
-    with pytest.raises(InvalidDatasetFormatError):
-        DatasetFormat(
+    with pytest.raises(InvalidDatasetEncodingError):
+        DatasetEncoding(
             media_type="application/x-hdf5",
             conforms_to=frozenset(f"https://example.com/p/{i}" for i in range(64)),
         )
@@ -333,7 +333,7 @@ def test_dataset_default_status_is_registered() -> None:
         uri=DatasetUri("s3://b/k"),
         checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
         byte_size=0,
-        format=DatasetFormat(media_type="application/x-hdf5"),
+        encoding=DatasetEncoding(media_type="application/x-hdf5"),
     )
     assert ds.status is DatasetStatus.REGISTERED
 
@@ -346,7 +346,7 @@ def test_dataset_default_optional_refs_are_none_or_empty() -> None:
         uri=DatasetUri("s3://b/k"),
         checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
         byte_size=0,
-        format=DatasetFormat(media_type="application/x-hdf5"),
+        encoding=DatasetEncoding(media_type="application/x-hdf5"),
     )
     assert ds.producing_run_id is None
     assert ds.subject_id is None

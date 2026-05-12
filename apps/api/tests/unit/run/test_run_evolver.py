@@ -20,6 +20,7 @@ from cora.run.aggregates.run.events import (
     RunResumed,
     RunStarted,
     RunStopped,
+    RunTruncated,
 )
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
@@ -289,7 +290,10 @@ def test_evolve_run_started_without_raid_yields_state_with_raid_none() -> None:
         [RunCompleted],
         [RunAborted],
         [RunStopped],
+        [RunTruncated],
         [RunHeld, RunAborted],
+        [RunHeld, RunStopped],
+        [RunHeld, RunTruncated],
         [RunHeld, RunResumed, RunCompleted],
     ],
 )
@@ -299,13 +303,27 @@ def test_fold_preserves_raid_across_every_transition_path(
     """Structural property: replace(state, status=...) in evolver
     transition arms preserves the raid field by dataclass semantics.
     A future evolver refactor that constructs Run() from scratch in
-    a transition arm would silently drop raid; this test guards it."""
+    a transition arm would silently drop raid; this test guards it.
+
+    Covers every reachable terminal (Completed / Aborted / Stopped /
+    Truncated) plus the bidirectional Hold cycle, from the genesis
+    raid being set on RunStarted.
+    """
     run_id = uuid4()
     raid_value = "https://raid.org/10.7935/cora-fold-test"
     events: list[object] = [_run_started_with_raid(run_id=run_id, raid=raid_value)]
     for cls in transitions:
         if cls is RunAborted or cls is RunStopped:
             events.append(cls(run_id=run_id, reason="X", occurred_at=_NOW))
+        elif cls is RunTruncated:
+            events.append(
+                RunTruncated(
+                    run_id=run_id,
+                    reason="X",
+                    interrupted_at=None,
+                    occurred_at=_NOW,
+                )
+            )
         else:
             events.append(cls(run_id=run_id, occurred_at=_NOW))
     state = fold(events)  # type: ignore[arg-type]

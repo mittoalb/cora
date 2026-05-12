@@ -8,7 +8,7 @@ persistence-envelope construction (`NewEvent`) lives at
 ## Phase 7a/7b scope
 
   - `DatasetRegistered` (7a, genesis): identity, URI, checksum
-    (algorithm + value), byte_size, format (media_type + sorted
+    (algorithm + value), byte_size, encoding (media_type + sorted
     conforms_to list), producing_run_id, subject_id, derived_from
     (sorted UUID list), occurred_at.
   - `DatasetDiscarded` (7b, terminal): dataset_id, free-form
@@ -21,11 +21,11 @@ persistence-envelope construction (`NewEvent`) lives at
   serialize as sorted string lists (matches the Policy precedent
   for set-semantic fields, so two registrations of the same logical
   Dataset produce byte-identical jsonb).
-- `conforms_to` (in format) serializes as a sorted string list
+- `conforms_to` (in encoding) serializes as a sorted string list
   for the same reason.
 - Optional refs (`producing_run_id`, `subject_id`) serialize as
   null when None.
-- `format` serializes as a nested object: `{"media_type": str,
+- `encoding` serializes as a nested object: `{"media_type": str,
   "conforms_to": list[str]}`.
 - `checksum` serializes as a nested object: `{"algorithm": str,
   "value": str}`.
@@ -41,7 +41,7 @@ from uuid import UUID
 
 from cora.data.aggregates.dataset.state import (
     DatasetChecksum,
-    DatasetFormat,
+    DatasetEncoding,
 )
 from cora.infrastructure.ports.event_store import StoredEvent
 
@@ -60,7 +60,7 @@ class DatasetRegistered:
     uri: str
     checksum: DatasetChecksum
     byte_size: int
-    format: DatasetFormat
+    encoding: DatasetEncoding
     producing_run_id: UUID | None
     subject_id: UUID | None
     derived_from: frozenset[UUID]
@@ -100,8 +100,8 @@ def event_type_name(event: DatasetEvent) -> str:
 def to_payload(event: DatasetEvent) -> dict[str, Any]:
     """Serialize a Dataset event to a JSON-friendly dict for jsonb storage.
 
-    Set-semantic fields (`derived_from`, `format.conforms_to`) sort
-    deterministically so two registrations of the same logical
+    Set-semantic fields (`derived_from`, `encoding.conforms_to`)
+    sort deterministically so two registrations of the same logical
     Dataset produce byte-identical jsonb.
     """
     match event:
@@ -111,7 +111,7 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
             uri=uri,
             checksum=checksum,
             byte_size=byte_size,
-            format=format_,
+            encoding=encoding,
             producing_run_id=producing_run_id,
             subject_id=subject_id,
             derived_from=derived_from,
@@ -126,9 +126,9 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
                     "value": checksum.value,
                 },
                 "byte_size": byte_size,
-                "format": {
-                    "media_type": format_.media_type,
-                    "conforms_to": sorted(format_.conforms_to),
+                "encoding": {
+                    "media_type": encoding.media_type,
+                    "conforms_to": sorted(encoding.conforms_to),
                 },
                 "producing_run_id": (
                     str(producing_run_id) if producing_run_id is not None else None
@@ -160,7 +160,7 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
             raw_producing_run_id = payload["producing_run_id"]
             raw_subject_id = payload["subject_id"]
             raw_checksum = payload["checksum"]
-            raw_format = payload["format"]
+            raw_encoding = payload["encoding"]
             return DatasetRegistered(
                 dataset_id=UUID(payload["dataset_id"]),
                 name=payload["name"],
@@ -170,9 +170,9 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
                     value=raw_checksum["value"],
                 ),
                 byte_size=int(payload["byte_size"]),
-                format=DatasetFormat(
-                    media_type=raw_format["media_type"],
-                    conforms_to=frozenset(raw_format["conforms_to"]),
+                encoding=DatasetEncoding(
+                    media_type=raw_encoding["media_type"],
+                    conforms_to=frozenset(raw_encoding["conforms_to"]),
                 ),
                 producing_run_id=(
                     UUID(raw_producing_run_id) if raw_producing_run_id is not None else None
