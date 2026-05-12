@@ -5,7 +5,7 @@ description = "Continuously Overpromised, Rarely Automated — research facility
 readme = "README.md"
 requires-python = ">=3.13"
 authors = [{ name = "Doga Gursoy" }]
-license = { text = "TBD" }
+license = { text = "Apache-2.0" }
 
 dependencies = [
     "fastapi>=0.136.1,<0.137",

@@ -1,0 +1,46 @@
+version: 2
+
+updates:
+  # Python dependencies (uv lockfile + pyproject.toml).
+  - package-ecosystem: "uv"
+    directory: "/apps/api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "America/Chicago"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    groups:
+      # Group OpenTelemetry packages: api/sdk + instrumentations + semconv
+      # are pinned to release in lockstep (see pyproject.toml comment).
+      opentelemetry:
+        patterns:
+          - "opentelemetry-*"
+      python-deps:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "opentelemetry-*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions used by .github/workflows/*.yml
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "America/Chicago"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      gha:
+        patterns:
+          - "*"
