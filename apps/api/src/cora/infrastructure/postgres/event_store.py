@@ -39,7 +39,8 @@ from cora.infrastructure.ports.event_store import (
 _LOAD_SQL = """
 SELECT position, event_id, stream_type, stream_id, version, event_type,
        schema_version, payload, metadata, correlation_id, causation_id,
-       occurred_at, recorded_at, transaction_id::text AS transaction_id_text
+       principal_id, occurred_at, recorded_at,
+       transaction_id::text AS transaction_id_text
 FROM events
 WHERE stream_type = $1 AND stream_id = $2
 ORDER BY version
@@ -54,8 +55,9 @@ ORDER BY version
 _APPEND_SQL = """
 INSERT INTO events (
     event_id, stream_type, stream_id, version, event_type, schema_version,
-    payload, metadata, correlation_id, causation_id, occurred_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    payload, metadata, correlation_id, causation_id, occurred_at,
+    principal_id
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 """
 
 _CURRENT_VERSION_SQL = """
@@ -111,6 +113,7 @@ class PostgresEventStore:
                         event.correlation_id,
                         event.causation_id,
                         event.occurred_at,
+                        event.principal_id,
                     )
                 return next_version
         except asyncpg.UniqueViolationError as exc:
@@ -150,4 +153,5 @@ def _row_to_event(row: Any) -> StoredEvent:
         occurred_at=row["occurred_at"],
         recorded_at=row["recorded_at"],
         transaction_id=int(row["transaction_id_text"]),
+        principal_id=row["principal_id"],
     )

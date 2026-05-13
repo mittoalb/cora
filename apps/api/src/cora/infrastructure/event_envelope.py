@@ -54,6 +54,7 @@ def to_new_event(
     correlation_id: UUID,
     causation_id: UUID | None = None,
     schema_version: int = 1,
+    principal_id: UUID | None = None,
 ) -> NewEvent:
     """Build a `NewEvent` envelope from a per-aggregate (event_type, payload).
 
@@ -63,6 +64,13 @@ def to_new_event(
     fields and returns the `NewEvent` ready to hand to
     `EventStore.append`. `schema_version` defaults to `1`; bump only
     when the schema-evolution policy in CONTRIBUTING.md forces it.
+
+    `principal_id` carries the UUID of the entity that pulled the
+    trigger for the command that produced this event (the same value
+    the handler received as its `principal_id` kwarg). Optional in
+    Phase 9b-A so the kwarg can ship through ports + adapters before
+    handlers are wired in 9b-B; becomes required in 9b-C. Day-1 hook
+    for the future ReBAC graph projection (see project_authz_future).
     """
     return NewEvent(
         event_id=event_id,
@@ -73,4 +81,5 @@ def to_new_event(
         correlation_id=correlation_id,
         causation_id=causation_id,
         metadata={"command": command_name},
+        principal_id=principal_id,
     )

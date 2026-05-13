@@ -104,6 +104,7 @@ class InMemoryEventStore:
                     occurred_at=event.occurred_at,
                     recorded_at=now,
                     transaction_id=tx_id,
+                    principal_id=event.principal_id,
                 )
                 existing.append(stored)
                 self._event_ids.add(event.event_id)

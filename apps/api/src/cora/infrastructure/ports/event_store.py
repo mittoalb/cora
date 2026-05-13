@@ -60,6 +60,18 @@ class NewEvent:
 
     `occurred_at` is domain time, set by the handler via the Clock port. The
     store also records its own `recorded_at` (DB write time) on persistence.
+
+    `principal_id` is the UUID of the entity that pulled the trigger for
+    this event (the authenticated caller; same value the handler received
+    as its `principal_id` kwarg and the same one the Authorize port gated
+    on). Day-1 hook for the future ReBAC graph projection (see
+    `project_authz_future` memory). Optional in Phase 9b-A so the field
+    can ship through ports + adapters before handlers are wired in 9b-B;
+    becomes required at the application layer in 9b-C. Pre-hook events
+    in storage stay legitimately None forever (no derivable historical
+    value). Aligned with W3C PROV-O `prov:wasAssociatedWith.agent` at the
+    envelope level; per-aggregate fields (Decision.actor_id) provide the
+    domain-specific shapes layered above.
     """
 
     event_id: UUID
@@ -70,6 +82,7 @@ class NewEvent:
     correlation_id: UUID
     causation_id: UUID | None = None
     metadata: dict[str, Any] = field(default_factory=dict[str, Any])
+    principal_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -90,6 +103,14 @@ class StoredEvent:
     `event_id` is the producer-assigned identity (the same UUID supplied
     at append time in NewEvent.event_id). It is UNIQUE across the events
     table and serves as the dedup key for downstream consumers.
+
+    `principal_id` is the UUID of the entity that pulled the trigger
+    (the authenticated caller). Stays `None` forever for events written
+    before the 9b-A hook landed; non-None for events written through the
+    9b-B/C application-layer contract. The DB column is `NULL`-able by
+    design: the past/future boundary lives at the column level, not in
+    a backfill. See `NewEvent.principal_id` for the day-1-hook
+    rationale.
     """
 
     position: int
@@ -106,6 +127,7 @@ class StoredEvent:
     recorded_at: datetime
     metadata: dict[str, Any] = field(default_factory=dict[str, Any])
     transaction_id: int = 0
+    principal_id: UUID | None = None
 
 
 class ConcurrencyError(Exception):

@@ -1,0 +1,49 @@
+-- Phase 9b-A: ReBAC day-1 envelope hook, infrastructure foundation.
+--
+-- Add `events.principal_id` column carrying the UUID of the
+-- principal (the entity that pulled the trigger for this event)
+-- onto the persistence envelope. Wires the data through ports +
+-- adapters in this commit; handlers thread it in Phase 9b-B; the
+-- application-layer contract tightens in Phase 9b-C.
+--
+-- ## Why this hook ships day-1 ahead of the full ReBAC build
+--
+-- See [[project_authz_future]]. The future ReBAC graph projection
+-- (SpiceDB / OpenFGA / Cedar; engine pick deferred until trigger
+-- conditions surface) needs to derive ownership tuples from event
+-- history. Without `principal_id` on the envelope, that projection
+-- would be authz-blind to every event written before the hook.
+-- Capturing it now means the hook is in place before any of the
+-- three trigger conditions fire (multi-stakeholder pilot,
+-- cross-PI leak risk, Trust Policy expressivity gap).
+--
+-- ## Why nullable forever, not nullable-then-NOT-NULL
+--
+-- The standard pattern across CORA's prior schema-evolution
+-- migrations (cf. 20260510010000_add_event_id) is ADD-NULLABLE +
+-- BACKFILL + SET-NOT-NULL. That pattern fits when historical rows
+-- have a derivable value. Here they don't: events written before
+-- this hook landed have NO recoverable principal id (the value
+-- existed at handler time but was never persisted). Per the 2026
+-- event-driven.io schema-evolution guidance ("represent the past/
+-- future boundary correctly by generating the field going forward,
+-- while for historical events representing it as 'unknown / not
+-- produced' rather than absent"), we leave the column NULLABLE
+-- forever and enforce the contract at the application layer:
+-- `to_new_event` will require the kwarg in Phase 9b-C, which
+-- guarantees every NEW event carries the value, while pre-hook
+-- rows stay legitimately NULL.
+--
+-- Greenfield-friendly. No backfill needed. No CHECK constraint
+-- (would reject the historical NULL rows we want to preserve).
+--
+-- ## Index choice: none in this commit
+--
+-- Future ReBAC graph projection will query by `principal_id` but
+-- we don't yet know its access pattern (covered by composite with
+-- created_at? recent-N rows? per-stream-type?). Per the project's
+-- "indexes when a query needs them, not speculatively" rule,
+-- defer the index to a forward migration when the projection
+-- ships.
+
+ALTER TABLE events ADD COLUMN principal_id uuid NULL;
