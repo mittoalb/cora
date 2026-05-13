@@ -80,7 +80,7 @@ async def test_discard_subject_persists_event_to_postgres(
     )
 
     await discard_subject.bind(deps)(
-        DiscardSubject(subject_id=subject_id),
+        DiscardSubject(subject_id=subject_id, reason="contaminated; biohazard incinerator"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -97,6 +97,7 @@ async def test_discard_subject_persists_event_to_postgres(
     discarded = events[3]
     assert discarded.payload == {
         "subject_id": str(subject_id),
+        "reason": "contaminated; biohazard incinerator",
         "occurred_at": _NOW.isoformat(),
     }
     assert discarded.event_id == _DISCARD_EVENT_ID

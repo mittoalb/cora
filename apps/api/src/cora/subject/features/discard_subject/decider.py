@@ -7,9 +7,16 @@ Terminal disposition: `Removed -> Discarded`. Single-source guard
 Strict semantics, not idempotent: re-discarding an already-`Discarded`
 subject raises rather than no-op.
 
+`reason` validation goes through the `SubjectDiscardReason` VO
+(which calls the shared `validate_name` helper). The on-the-wire
+payload in `SubjectDiscarded.reason` carries the trimmed string.
+
 Invariants:
   - State must not be None -> SubjectNotFoundError
-  - State.status must be `Removed` -> SubjectCannotDiscardError(current_status=...)
+  - command.reason must be 1-500 chars after trimming
+    -> InvalidSubjectDiscardReasonError
+  - State.status must be `Removed`
+    -> SubjectCannotDiscardError(current_status=...)
 """
 
 from datetime import datetime
@@ -18,6 +25,7 @@ from cora.subject.aggregates.subject import (
     Subject,
     SubjectCannotDiscardError,
     SubjectDiscarded,
+    SubjectDiscardReason,
     SubjectNotFoundError,
     SubjectStatus,
 )
@@ -33,6 +41,7 @@ def decide(
     """Decide the events produced by discarding an existing subject."""
     if state is None:
         raise SubjectNotFoundError(command.subject_id)
+    reason = SubjectDiscardReason(command.reason)
     if state.status is not SubjectStatus.REMOVED:
         raise SubjectCannotDiscardError(state.id, current_status=state.status)
-    return [SubjectDiscarded(subject_id=state.id, occurred_at=now)]
+    return [SubjectDiscarded(subject_id=state.id, reason=reason.value, occurred_at=now)]

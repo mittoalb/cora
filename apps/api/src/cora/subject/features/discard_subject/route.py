@@ -2,17 +2,36 @@
 
 Action endpoint at `POST /subjects/{subject_id}/discard`. Same
 action-endpoint pattern as the other terminal disposition slices
-(return / store). 204 No Content on success.
+(return / store). Body carries `reason` (1-500 chars). 204 No
+Content on success.
 """
 
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Request, status
+from pydantic import BaseModel, Field
 
 from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.subject.aggregates.subject import SUBJECT_DISCARD_REASON_MAX_LENGTH
 from cora.subject.features.discard_subject.command import DiscardSubject
 from cora.subject.features.discard_subject.handler import Handler
+
+
+class DiscardSubjectRequest(BaseModel):
+    """Body for `POST /subjects/{subject_id}/discard`."""
+
+    reason: str = Field(
+        ...,
+        min_length=1,
+        max_length=SUBJECT_DISCARD_REASON_MAX_LENGTH,
+        description=(
+            "Free-form reason for the discard (1-500 chars after trimming). "
+            "Captured verbatim for GDPR + sample-handling audit. Today the "
+            "field is unstructured; structured taxonomy is future-additive on "
+            "the same triggers as DatasetDiscarded / RunStopped reasons."
+        ),
+    )
 
 
 def _get_handler(request: Request) -> Handler:
@@ -27,6 +46,10 @@ router = APIRouter(tags=["subject"])
     "/subjects/{subject_id}/discard",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorResponse,
+            "description": "Domain invariant violated: whitespace-only reason.",
+        },
         status.HTTP_403_FORBIDDEN: {
             "model": ErrorResponse,
             "description": "Authorize port denied the command.",
@@ -43,17 +66,21 @@ router = APIRouter(tags=["subject"])
                 "(optimistic concurrency)."
             ),
         },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "Path parameter or request body failed schema validation.",
+        },
     },
     summary="Destroy / discard an existing (Removed) subject",
 )
 async def post_subjects_discard(
     subject_id: Annotated[UUID, Path(description="Target subject's id.")],
+    body: DiscardSubjectRequest,
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
 ) -> None:
     await handler(
-        DiscardSubject(subject_id=subject_id),
+        DiscardSubject(subject_id=subject_id, reason=body.reason),
         principal_id=principal_id,
         correlation_id=cid,
     )

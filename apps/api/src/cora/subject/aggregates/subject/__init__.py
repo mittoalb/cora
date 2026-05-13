@@ -21,7 +21,9 @@ from cora.subject.aggregates.subject.events import (
 from cora.subject.aggregates.subject.evolver import evolve, fold
 from cora.subject.aggregates.subject.read import load_subject
 from cora.subject.aggregates.subject.state import (
+    SUBJECT_DISCARD_REASON_MAX_LENGTH,
     SUBJECT_NAME_MAX_LENGTH,
+    InvalidSubjectDiscardReasonError,
     InvalidSubjectNameError,
     Subject,
     SubjectAlreadyExistsError,
@@ -31,13 +33,16 @@ from cora.subject.aggregates.subject.state import (
     SubjectCannotRemoveError,
     SubjectCannotReturnError,
     SubjectCannotStoreError,
+    SubjectDiscardReason,
     SubjectName,
     SubjectNotFoundError,
     SubjectStatus,
 )
 
 __all__ = [
+    "SUBJECT_DISCARD_REASON_MAX_LENGTH",
     "SUBJECT_NAME_MAX_LENGTH",
+    "InvalidSubjectDiscardReasonError",
     "InvalidSubjectNameError",
     "Subject",
     "SubjectAlreadyExistsError",
@@ -47,6 +52,7 @@ __all__ = [
     "SubjectCannotRemoveError",
     "SubjectCannotReturnError",
     "SubjectCannotStoreError",
+    "SubjectDiscardReason",
     "SubjectDiscarded",
     "SubjectEvent",
     "SubjectMeasured",

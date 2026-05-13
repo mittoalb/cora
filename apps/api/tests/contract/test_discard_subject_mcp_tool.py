@@ -84,7 +84,7 @@ def test_mcp_discard_subject_tool_succeeds_for_removed_subject() -> None:
             client,
             headers,
             name="discard_subject",
-            args={"subject_id": str(subject_id)},
+            args={"subject_id": str(subject_id), "reason": "contaminated"},
             request_id=5,
         )
     assert body["result"]["isError"] is False
@@ -98,7 +98,7 @@ def test_mcp_discard_subject_tool_returns_iserror_for_unknown_subject() -> None:
             client,
             headers,
             name="discard_subject",
-            args={"subject_id": str(uuid4())},
+            args={"subject_id": str(uuid4()), "reason": "contaminated"},
             request_id=6,
         )
     assert body["result"]["isError"] is True
@@ -128,7 +128,7 @@ def test_mcp_discard_subject_tool_returns_iserror_when_not_yet_removed() -> None
             client,
             headers,
             name="discard_subject",
-            args={"subject_id": str(subject_id)},
+            args={"subject_id": str(subject_id), "reason": "contaminated"},
             request_id=9,
         )
     assert body["result"]["isError"] is True

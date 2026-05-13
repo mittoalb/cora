@@ -10,6 +10,7 @@ from uuid import uuid4
 import pytest
 
 from cora.subject.aggregates.subject import (
+    InvalidSubjectDiscardReasonError,
     Subject,
     SubjectCannotDiscardError,
     SubjectDiscarded,
@@ -32,10 +33,16 @@ def test_decide_emits_subject_discarded_when_state_is_removed() -> None:
     state = _subject(status=SubjectStatus.REMOVED)
     events = discard_subject.decide(
         state=state,
-        command=DiscardSubject(subject_id=state.id),
+        command=DiscardSubject(subject_id=state.id, reason="contaminated; biohazard incinerator"),
         now=_NOW,
     )
-    assert events == [SubjectDiscarded(subject_id=state.id, occurred_at=_NOW)]
+    assert events == [
+        SubjectDiscarded(
+            subject_id=state.id,
+            reason="contaminated; biohazard incinerator",
+            occurred_at=_NOW,
+        )
+    ]
 
 
 @pytest.mark.unit
@@ -44,7 +51,7 @@ def test_decide_raises_subject_not_found_when_state_is_none() -> None:
     with pytest.raises(SubjectNotFoundError) as exc_info:
         discard_subject.decide(
             state=None,
-            command=DiscardSubject(subject_id=target_id),
+            command=DiscardSubject(subject_id=target_id, reason="contaminated; incinerator"),
             now=_NOW,
         )
     assert exc_info.value.subject_id == target_id
@@ -72,7 +79,7 @@ def test_decide_raises_cannot_discard_for_every_non_removed_state(
     with pytest.raises(SubjectCannotDiscardError) as exc_info:
         discard_subject.decide(
             state=state,
-            command=DiscardSubject(subject_id=state.id),
+            command=DiscardSubject(subject_id=state.id, reason="contaminated; biohazard incinerator"),
             now=_NOW,
         )
     assert exc_info.value.subject_id == state.id
@@ -85,7 +92,7 @@ def test_decide_error_carries_current_status_for_diagnostic_messaging() -> None:
     with pytest.raises(SubjectCannotDiscardError) as exc_info:
         discard_subject.decide(
             state=state,
-            command=DiscardSubject(subject_id=state.id),
+            command=DiscardSubject(subject_id=state.id, reason="contaminated; biohazard incinerator"),
             now=_NOW,
         )
     msg = str(exc_info.value)
@@ -96,7 +103,36 @@ def test_decide_error_carries_current_status_for_diagnostic_messaging() -> None:
 @pytest.mark.unit
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     state = _subject(status=SubjectStatus.REMOVED)
-    command = DiscardSubject(subject_id=state.id)
+    command = DiscardSubject(subject_id=state.id, reason="contaminated; biohazard incinerator")
     first = discard_subject.decide(state=state, command=command, now=_NOW)
     second = discard_subject.decide(state=state, command=command, now=_NOW)
     assert first == second
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("bad_reason", ["", " ", "\t\n  ", "x" * 501])
+def test_decide_raises_invalid_reason_for_empty_or_overlong(bad_reason: str) -> None:
+    state = _subject(status=SubjectStatus.REMOVED)
+    with pytest.raises(InvalidSubjectDiscardReasonError):
+        discard_subject.decide(
+            state=state,
+            command=DiscardSubject(subject_id=state.id, reason=bad_reason),
+            now=_NOW,
+        )
+
+
+@pytest.mark.unit
+def test_decide_persists_trimmed_reason_in_event() -> None:
+    state = _subject(status=SubjectStatus.REMOVED)
+    events = discard_subject.decide(
+        state=state,
+        command=DiscardSubject(subject_id=state.id, reason="  whitespace edges  "),
+        now=_NOW,
+    )
+    assert events == [
+        SubjectDiscarded(
+            subject_id=state.id,
+            reason="whitespace edges",
+            occurred_at=_NOW,
+        )
+    ]

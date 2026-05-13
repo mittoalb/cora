@@ -31,6 +31,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from cora.subject.aggregates.subject import (
+    InvalidSubjectDiscardReasonError,
     InvalidSubjectNameError,
     SubjectAlreadyExistsError,
     SubjectCannotDiscardError,
@@ -123,7 +124,7 @@ def register_subject_routes(app: FastAPI) -> None:
     app.include_router(discard_subject.router)
     app.include_router(get_subject.router)
     app.include_router(list_subjects.router)
-    for validation_cls in (InvalidSubjectNameError,):
+    for validation_cls in (InvalidSubjectNameError, InvalidSubjectDiscardReasonError):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (SubjectNotFoundError,):
         app.add_exception_handler(not_found_cls, _handle_not_found)

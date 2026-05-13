@@ -68,6 +68,7 @@ from uuid import UUID
 from cora.infrastructure.name import validate_name
 
 SUBJECT_NAME_MAX_LENGTH = 200
+SUBJECT_DISCARD_REASON_MAX_LENGTH = 500
 
 
 class SubjectStatus(StrEnum):
@@ -250,6 +251,46 @@ class SubjectCannotDiscardError(Exception):
         )
         self.subject_id = subject_id
         self.current_status = current_status
+
+
+class InvalidSubjectDiscardReasonError(ValueError):
+    """The supplied discard reason is empty, whitespace-only, or too long.
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the decider via this error. Mirrors the
+    InvalidDatasetDiscardReasonError pattern (Data BC); free-form
+    `str` (1-500 chars) with the same future-additive structured-
+    taxonomy posture as Run BC reason fields.
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Subject discard reason must be 1-{SUBJECT_DISCARD_REASON_MAX_LENGTH} chars after "
+            f"trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+@dataclass(frozen=True)
+class SubjectDiscardReason:
+    """Free-form discard reason for a Subject. Trimmed; 1-500 chars.
+
+    Mirrors DatasetDiscardReason. The on-the-wire representation in
+    `SubjectDiscarded.reason` is `str` (post-trim); the VO exists at
+    decider-input time only.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_name(
+            self.value,
+            max_length=SUBJECT_DISCARD_REASON_MAX_LENGTH,
+            error_class=InvalidSubjectDiscardReasonError,
+        )
+        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

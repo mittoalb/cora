@@ -31,7 +31,9 @@ def _register_mount_remove(client: TestClient) -> str:
 def test_post_discard_returns_204_on_first_discard() -> None:
     with TestClient(create_app()) as client:
         subject_id = _register_mount_remove(client)
-        response = client.post(f"/subjects/{subject_id}/discard")
+        response = client.post(
+            f"/subjects/{subject_id}/discard", json={"reason": "contaminated"}
+        )
     assert response.status_code == 204
     assert response.content == b""
 
@@ -40,7 +42,9 @@ def test_post_discard_returns_204_on_first_discard() -> None:
 def test_post_discard_returns_404_when_subject_does_not_exist() -> None:
     missing_id = str(uuid4())
     with TestClient(create_app()) as client:
-        response = client.post(f"/subjects/{missing_id}/discard")
+        response = client.post(
+            f"/subjects/{missing_id}/discard", json={"reason": "contaminated"}
+        )
     assert response.status_code == 404
     body = response.json()
     assert "detail" in body
@@ -52,7 +56,9 @@ def test_post_discard_returns_409_when_subject_not_yet_removed() -> None:
     with TestClient(create_app()) as client:
         subject_id = _register_subject(client)
         client.post(f"/subjects/{subject_id}/mount")
-        response = client.post(f"/subjects/{subject_id}/discard")
+        response = client.post(
+            f"/subjects/{subject_id}/discard", json={"reason": "contaminated"}
+        )
     assert response.status_code == 409
     body = response.json()
     assert "Mounted" in body["detail"]
@@ -64,9 +70,13 @@ def test_post_discard_returns_409_when_already_discarded() -> None:
     """Strict semantics: re-discard raises SubjectCannotDiscardError -> 409."""
     with TestClient(create_app()) as client:
         subject_id = _register_mount_remove(client)
-        first = client.post(f"/subjects/{subject_id}/discard")
+        first = client.post(
+            f"/subjects/{subject_id}/discard", json={"reason": "contaminated"}
+        )
         assert first.status_code == 204
-        second = client.post(f"/subjects/{subject_id}/discard")
+        second = client.post(
+            f"/subjects/{subject_id}/discard", json={"reason": "contaminated"}
+        )
     assert second.status_code == 409
     body = second.json()
     assert "Discarded" in body["detail"]
@@ -87,6 +97,33 @@ def test_post_discard_with_x_principal_id_header_succeeds() -> None:
         subject_id = _register_mount_remove(client)
         response = client.post(
             f"/subjects/{subject_id}/discard",
+            json={"reason": "contaminated"},
             headers={"X-Principal-Id": pid},
         )
     assert response.status_code == 204
+
+
+@pytest.mark.contract
+def test_post_discard_returns_422_when_body_missing() -> None:
+    with TestClient(create_app()) as client:
+        subject_id = _register_mount_remove(client)
+        response = client.post(f"/subjects/{subject_id}/discard")
+    assert response.status_code == 422
+
+
+@pytest.mark.contract
+def test_post_discard_returns_400_when_reason_is_whitespace_only() -> None:
+    """Pydantic enforces min_length=1 (422); the VO catches whitespace-only (400).
+
+    Pydantic doesn't trim, so a whitespace-only string of length >= 1 passes
+    schema validation and is rejected by the decider's VO with HTTP 400.
+    """
+    with TestClient(create_app()) as client:
+        subject_id = _register_mount_remove(client)
+        response = client.post(
+            f"/subjects/{subject_id}/discard",
+            json={"reason": "   "},
+        )
+    assert response.status_code == 400
+    body = response.json()
+    assert "trimming" in body["detail"]

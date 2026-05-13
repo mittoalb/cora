@@ -111,9 +111,17 @@ class SubjectDiscarded:
     Terminal disposition: `Removed -> Discarded`. No further
     transitions expected. The evolver sets the new status; no
     status field in the payload.
+
+    `reason` is a free-form string (1-500 chars after trimming),
+    captured verbatim from the operator. Mirrors DatasetDiscarded /
+    RunStopped / RunAborted / RunTruncated reason shape; same
+    future-additive structured-taxonomy posture. Required for GDPR
+    + sample-handling audit: every irrecoverable Subject disposition
+    must carry the operator's stated reason.
     """
 
     subject_id: UUID
+    reason: str
     occurred_at: datetime
 
 
@@ -172,9 +180,10 @@ def to_payload(event: SubjectEvent) -> dict[str, Any]:
                 "subject_id": str(subject_id),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case SubjectDiscarded(subject_id=subject_id, occurred_at=occurred_at):
+        case SubjectDiscarded(subject_id=subject_id, reason=reason, occurred_at=occurred_at):
             return {
                 "subject_id": str(subject_id),
+                "reason": reason,
                 "occurred_at": occurred_at.isoformat(),
             }
         case _:  # pragma: no cover  # exhaustiveness guard
@@ -224,6 +233,7 @@ def from_stored(stored: StoredEvent) -> SubjectEvent:
         case "SubjectDiscarded":
             return SubjectDiscarded(
                 subject_id=UUID(payload["subject_id"]),
+                reason=payload["reason"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case _:

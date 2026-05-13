@@ -291,7 +291,10 @@ def test_evolve_subject_stored_flips_status_to_stored() -> None:
 def test_evolve_subject_discarded_flips_status_to_discarded() -> None:
     subject_id = uuid4()
     removed = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.REMOVED)
-    discarded = evolve(removed, SubjectDiscarded(subject_id=subject_id, occurred_at=_NOW))
+    discarded = evolve(
+        removed,
+        SubjectDiscarded(subject_id=subject_id, reason="contaminated", occurred_at=_NOW),
+    )
     assert discarded == Subject(
         id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.DISCARDED
     )
@@ -308,7 +311,7 @@ def test_evolve_terminal_events_preserve_id_and_name() -> None:
     for event in (
         SubjectReturned(subject_id=subject_id, occurred_at=_NOW),
         SubjectStored(subject_id=subject_id, occurred_at=_NOW),
-        SubjectDiscarded(subject_id=subject_id, occurred_at=_NOW),
+        SubjectDiscarded(subject_id=subject_id, reason="contaminated", occurred_at=_NOW),
     ):
         result = evolve(removed, event)
         assert result.id == subject_id
@@ -331,7 +334,7 @@ def test_evolve_subject_stored_on_empty_state_raises() -> None:
 @pytest.mark.unit
 def test_evolve_subject_discarded_on_empty_state_raises() -> None:
     with pytest.raises(ValueError, match="cannot be applied to empty state"):
-        evolve(None, SubjectDiscarded(subject_id=uuid4(), occurred_at=_NOW))
+        evolve(None, SubjectDiscarded(subject_id=uuid4(), reason="contaminated", occurred_at=_NOW))
 
 
 @pytest.mark.unit
@@ -380,7 +383,7 @@ def test_fold_full_lifecycle_to_discarded() -> None:
             SubjectMounted(subject_id=subject_id, occurred_at=_NOW),
             SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
             SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
-            SubjectDiscarded(subject_id=subject_id, occurred_at=_NOW),
+            SubjectDiscarded(subject_id=subject_id, reason="contaminated", occurred_at=_NOW),
         ]
     )
     assert state == Subject(

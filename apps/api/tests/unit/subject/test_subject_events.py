@@ -318,16 +318,17 @@ def test_to_payload_then_from_stored_round_trips_for_subject_stored() -> None:
 
 @pytest.mark.unit
 def test_event_type_name_returns_subject_discarded_class_name() -> None:
-    event = SubjectDiscarded(subject_id=uuid4(), occurred_at=_NOW)
+    event = SubjectDiscarded(subject_id=uuid4(), reason="contaminated", occurred_at=_NOW)
     assert event_type_name(event) == "SubjectDiscarded"
 
 
 @pytest.mark.unit
 def test_to_payload_serializes_subject_discarded_to_primitives() -> None:
     subject_id = uuid4()
-    event = SubjectDiscarded(subject_id=subject_id, occurred_at=_NOW)
+    event = SubjectDiscarded(subject_id=subject_id, reason="contaminated", occurred_at=_NOW)
     assert to_payload(event) == {
         "subject_id": str(subject_id),
+        "reason": "contaminated",
         "occurred_at": _NOW.isoformat(),
     }
     assert "status" not in to_payload(event)
@@ -340,16 +341,19 @@ def test_from_stored_rebuilds_subject_discarded() -> None:
         "SubjectDiscarded",
         {
             "subject_id": str(subject_id),
+            "reason": "contaminated",
             "occurred_at": _NOW.isoformat(),
         },
     )
     rebuilt = from_stored(stored)
-    assert rebuilt == SubjectDiscarded(subject_id=subject_id, occurred_at=_NOW)
+    assert rebuilt == SubjectDiscarded(
+        subject_id=subject_id, reason="contaminated", occurred_at=_NOW
+    )
 
 
 @pytest.mark.unit
 def test_to_payload_then_from_stored_round_trips_for_subject_discarded() -> None:
-    original = SubjectDiscarded(subject_id=uuid4(), occurred_at=_NOW)
+    original = SubjectDiscarded(subject_id=uuid4(), reason="contaminated", occurred_at=_NOW)
     stored = _stored("SubjectDiscarded", to_payload(original))
     assert from_stored(stored) == original
 

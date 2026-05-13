@@ -85,7 +85,7 @@ async def test_handler_returns_none_on_success() -> None:
     subject_id = await _register_mount_remove(deps)
 
     result = await discard_subject.bind(deps)(
-        DiscardSubject(subject_id=subject_id),
+        DiscardSubject(subject_id=subject_id, reason="contaminated; biohazard incinerator"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -99,7 +99,7 @@ async def test_handler_appends_subject_discarded_event() -> None:
     subject_id = await _register_mount_remove(deps)
 
     await discard_subject.bind(deps)(
-        DiscardSubject(subject_id=subject_id),
+        DiscardSubject(subject_id=subject_id, reason="contaminated; biohazard incinerator"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -110,6 +110,7 @@ async def test_handler_appends_subject_discarded_event() -> None:
     assert discarded.event_type == "SubjectDiscarded"
     assert discarded.payload == {
         "subject_id": str(subject_id),
+        "reason": "contaminated; biohazard incinerator",
         "occurred_at": _NOW.isoformat(),
     }
     assert discarded.event_id == _DISCARD_EVENT_ID
@@ -124,7 +125,7 @@ async def test_handler_raises_subject_not_found_when_subject_does_not_exist() ->
 
     with pytest.raises(SubjectNotFoundError):
         await handler(
-            DiscardSubject(subject_id=uuid4()),
+            DiscardSubject(subject_id=uuid4(), reason="contaminated; biohazard incinerator"),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -149,7 +150,7 @@ async def test_handler_raises_cannot_discard_when_subject_not_yet_removed() -> N
     handler = discard_subject.bind(deps)
     with pytest.raises(SubjectCannotDiscardError) as exc_info:
         await handler(
-            DiscardSubject(subject_id=subject_id),
+            DiscardSubject(subject_id=subject_id, reason="contaminated; biohazard incinerator"),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -166,13 +167,13 @@ async def test_handler_raises_cannot_discard_when_subject_already_discarded() ->
 
     handler = discard_subject.bind(deps)
     await handler(
-        DiscardSubject(subject_id=subject_id),
+        DiscardSubject(subject_id=subject_id, reason="contaminated; biohazard incinerator"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     with pytest.raises(SubjectCannotDiscardError) as exc_info:
         await handler(
-            DiscardSubject(subject_id=subject_id),
+            DiscardSubject(subject_id=subject_id, reason="contaminated; biohazard incinerator"),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -191,7 +192,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 
     with pytest.raises(UnauthorizedError) as exc_info:
         await handler(
-            DiscardSubject(subject_id=subject_id),
+            DiscardSubject(subject_id=subject_id, reason="contaminated; biohazard incinerator"),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -207,7 +208,7 @@ async def test_handler_does_not_append_when_denied() -> None:
     deny_deps = _build_deps(event_store=store, deny=True)
     with pytest.raises(UnauthorizedError):
         await discard_subject.bind(deny_deps)(
-            DiscardSubject(subject_id=subject_id),
+            DiscardSubject(subject_id=subject_id, reason="contaminated; biohazard incinerator"),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -229,7 +230,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     subject_id = await _register_mount_remove(deps)
 
     await discard_subject.bind(deps)(
-        DiscardSubject(subject_id=subject_id),
+        DiscardSubject(subject_id=subject_id, reason="contaminated; biohazard incinerator"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,
@@ -256,7 +257,7 @@ async def test_wired_handler_propagates_causation_id_through_full_composition() 
 
     handlers = wire_subject(deps)
     await handlers.discard_subject(
-        DiscardSubject(subject_id=subject_id),
+        DiscardSubject(subject_id=subject_id, reason="contaminated; biohazard incinerator"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,

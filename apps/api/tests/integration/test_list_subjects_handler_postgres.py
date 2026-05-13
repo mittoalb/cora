@@ -274,7 +274,7 @@ async def test_status_filter_narrows_to_discarded_terminal(
         correlation_id=_CORRELATION_ID,
     )
     await bind_discard(deps)(
-        DiscardSubject(subject_id=sid),
+        DiscardSubject(subject_id=sid, reason="contaminated; biohazard incinerator"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
