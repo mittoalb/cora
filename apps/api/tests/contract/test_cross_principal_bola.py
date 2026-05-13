@@ -113,7 +113,7 @@ def bola_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, UUID
                 "GetActor",
                 "GetSubject",
                 "GetAsset",
-                # List-side (8e-1c, 8e-2a, 8e-3a, 8e-3b, 8e-4, 8e-5, 8e-6, 8e-7)
+                # List-side (8e-1c, 8e-2a, 8e-3a, 8e-3b, 8e-4, 8e-5, 8e-6, 8e-7, 8e-8)
                 "ListActors",
                 "ListSubjects",
                 "ListAssets",
@@ -124,6 +124,9 @@ def bola_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, UUID
                 "ListRuns",
                 "ListDatasets",
                 "ListDecisions",
+                "ListZones",
+                "ListConduits",
+                "ListPolicies",
             }
         ),
     )
@@ -405,4 +408,58 @@ def test_p1_can_call_list_decisions_when_command_permitted(
 ) -> None:
     client, p1, _ = bola_app
     response = client.get("/decisions", headers={"X-Principal-Id": str(p1)})
+    assert response.status_code == 200
+
+
+@pytest.mark.contract
+def test_p2_cannot_call_list_zones_when_command_not_permitted(
+    bola_app: tuple[TestClient, UUID, UUID],
+) -> None:
+    client, _, p2 = bola_app
+    response = client.get("/zones", headers={"X-Principal-Id": str(p2)})
+    assert response.status_code == 403
+
+
+@pytest.mark.contract
+def test_p1_can_call_list_zones_when_command_permitted(
+    bola_app: tuple[TestClient, UUID, UUID],
+) -> None:
+    client, p1, _ = bola_app
+    response = client.get("/zones", headers={"X-Principal-Id": str(p1)})
+    assert response.status_code == 200
+
+
+@pytest.mark.contract
+def test_p2_cannot_call_list_conduits_when_command_not_permitted(
+    bola_app: tuple[TestClient, UUID, UUID],
+) -> None:
+    client, _, p2 = bola_app
+    response = client.get("/conduits", headers={"X-Principal-Id": str(p2)})
+    assert response.status_code == 403
+
+
+@pytest.mark.contract
+def test_p1_can_call_list_conduits_when_command_permitted(
+    bola_app: tuple[TestClient, UUID, UUID],
+) -> None:
+    client, p1, _ = bola_app
+    response = client.get("/conduits", headers={"X-Principal-Id": str(p1)})
+    assert response.status_code == 200
+
+
+@pytest.mark.contract
+def test_p2_cannot_call_list_policies_when_command_not_permitted(
+    bola_app: tuple[TestClient, UUID, UUID],
+) -> None:
+    client, _, p2 = bola_app
+    response = client.get("/policies", headers={"X-Principal-Id": str(p2)})
+    assert response.status_code == 403
+
+
+@pytest.mark.contract
+def test_p1_can_call_list_policies_when_command_permitted(
+    bola_app: tuple[TestClient, UUID, UUID],
+) -> None:
+    client, p1, _ = bola_app
+    response = client.get("/policies", headers={"X-Principal-Id": str(p1)})
     assert response.status_code == 200

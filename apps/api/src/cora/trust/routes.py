@@ -4,6 +4,12 @@
 exception handlers that translate the BC's domain / application errors
 to HTTP status codes. Called once at app construction.
 
+Routers attached:
+  - define_zone / define_conduit / define_policy (3a-c, command slices)
+  - evaluate_policy (3d, first query slice)
+  - list_zones / list_conduits / list_policies (8e-8, projection-
+    backed list slices closing read-side coverage)
+
 JSONResponse is used (not HTTPException) per FastAPI guidance to avoid
 nested-exception pitfalls.
 
@@ -13,7 +19,10 @@ registered by Access (the first BC that boots). They produce
 the same JSON shape regardless of which BC raised them, so Trust does
 not re-register them. A `ZoneNotFoundError` (or analogous "missing
 target" handler) lands here once the first slice that loads-and-folds
-the Zone stream ships (3b+); per YAGNI it doesn't exist yet.
+the Zone stream ships; per YAGNI it doesn't exist yet (the
+`tests/architecture/test_routes_completeness.py::WIP_ERRORS["trust"]`
+ledger tracks the deferred AlreadyExists / LogbookOpen / NotOpen
+trio for the next Trust cleanup pass).
 """
 
 from fastapi import FastAPI, Request, status
