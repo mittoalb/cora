@@ -1,0 +1,93 @@
+"""HTTP route for the `update_capability_schema` slice.
+
+Action endpoint at `POST /capabilities/{capability_id}/schema`.
+Body carries the JSON Schema (or null to clear). 204 No Content on
+success. Same action-endpoint pattern as the other transition
+slices.
+"""
+
+from typing import Annotated, Any
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Path, Request, status
+from pydantic import BaseModel, Field
+
+from cora.equipment.features.update_capability_schema.command import (
+    UpdateCapabilitySchema,
+)
+from cora.equipment.features.update_capability_schema.handler import Handler
+from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+
+
+class UpdateCapabilitySchemaRequest(BaseModel):
+    """Body for `POST /capabilities/{capability_id}/schema`."""
+
+    settings_schema: dict[str, Any] | None = Field(
+        ...,
+        description=(
+            "JSON Schema (Draft 2020-12, constrained subset) declaring "
+            "the shape of Asset.settings keys this Capability owns. "
+            "Pass `null` to clear an existing schema. Subset allows "
+            "only: $schema, type, required, properties, enum, minimum, "
+            "maximum, pattern. The $schema field is required (must "
+            "be 'https://json-schema.org/draft/2020-12/schema')."
+        ),
+    )
+
+
+def _get_handler(request: Request) -> Handler:
+    handler: Handler = request.app.state.equipment.update_capability_schema
+    return handler
+
+
+router = APIRouter(tags=["equipment"])
+
+
+@router.post(
+    "/capabilities/{capability_id}/schema",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorResponse,
+            "description": (
+                "Schema rejected: missing or wrong `$schema`, forbidden "
+                "keyword (e.g. $ref / oneOf / allOf), or jsonschema-rs "
+                "rejected the schema as malformed."
+            ),
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErrorResponse,
+            "description": "Authorize port denied the command.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "No capability exists with the given id.",
+        },
+        status.HTTP_409_CONFLICT: {
+            "model": ErrorResponse,
+            "description": (
+                "Concurrent write to the same capability stream conflicted "
+                "(optimistic concurrency)."
+            ),
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "Path parameter or request body failed schema validation.",
+        },
+    },
+    summary="Set, replace, or clear a Capability's settings_schema",
+)
+async def post_capabilities_schema(
+    capability_id: Annotated[UUID, Path(description="Target capability's id.")],
+    body: UpdateCapabilitySchemaRequest,
+    handler: Annotated[Handler, Depends(_get_handler)],
+    cid: Annotated[UUID, Depends(get_correlation_id)],
+    principal_id: Annotated[UUID, Depends(get_principal_id)],
+) -> None:
+    await handler(
+        UpdateCapabilitySchema(
+            capability_id=capability_id,
+            settings_schema=body.settings_schema,
+        ),
+        principal_id=principal_id,
+        correlation_id=cid,
+    )

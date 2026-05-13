@@ -80,8 +80,40 @@ class CapabilityDeprecated:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class CapabilitySchemaUpdated:
+    """The Capability's `settings_schema` was set, replaced, or cleared.
+
+    Phase 5g-a. Carries the FULL replacement schema (not a diff)
+    because schemas are small and full snapshots make the audit
+    trail unambiguous (operator at time T sees the exact schema in
+    force then by reading the latest CapabilitySchemaUpdated payload
+    on or before T). `settings_schema=None` is a valid payload
+    meaning "clear the schema" (operator explicitly removes
+    declarations); distinct from never-having-set-it (legacy
+    Capabilities pre-5g-a).
+
+    Independent of the Defined/Versioned/Deprecated lifecycle:
+    schema can be updated in any non-terminal state. Schema
+    iterations are expected to happen many times across a
+    Capability's life as the technique matures; bundling schema
+    into `CapabilityVersioned` would conflate content versioning
+    with schema iteration.
+
+    The validator (`schema_validation.validate_settings_schema`)
+    runs at decider time, so this event ALWAYS carries a valid
+    schema or None. Replay-time fold trusts the payload.
+    """
+
+    capability_id: UUID
+    settings_schema: dict[str, Any] | None
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Capability aggregate emits.
-CapabilityEvent = CapabilityDefined | CapabilityVersioned | CapabilityDeprecated
+CapabilityEvent = (
+    CapabilityDefined | CapabilityVersioned | CapabilityDeprecated | CapabilitySchemaUpdated
+)
 
 
 def event_type_name(event: CapabilityEvent) -> str:
@@ -116,6 +148,16 @@ def to_payload(event: CapabilityEvent) -> dict[str, Any]:
                 "capability_id": str(capability_id),
                 "occurred_at": occurred_at.isoformat(),
             }
+        case CapabilitySchemaUpdated(
+            capability_id=capability_id,
+            settings_schema=settings_schema,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "capability_id": str(capability_id),
+                "settings_schema": settings_schema,
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -146,6 +188,12 @@ def from_stored(stored: StoredEvent) -> CapabilityEvent:
                 capability_id=UUID(payload["capability_id"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "CapabilitySchemaUpdated":
+            return CapabilitySchemaUpdated(
+                capability_id=UUID(payload["capability_id"]),
+                settings_schema=payload.get("settings_schema"),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown CapabilityEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -155,6 +203,7 @@ __all__ = [
     "CapabilityDefined",
     "CapabilityDeprecated",
     "CapabilityEvent",
+    "CapabilitySchemaUpdated",
     "CapabilityVersioned",
     "event_type_name",
     "from_stored",

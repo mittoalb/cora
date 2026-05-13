@@ -43,7 +43,12 @@ def test_projection_metadata() -> None:
     proj = CapabilitySummaryProjection()
     assert proj.name == "proj_equipment_capability_summary"
     assert proj.subscribed_event_types == frozenset(
-        {"CapabilityDefined", "CapabilityVersioned", "CapabilityDeprecated"}
+        {
+            "CapabilityDefined",
+            "CapabilityVersioned",
+            "CapabilityDeprecated",
+            "CapabilitySchemaUpdated",
+        }
     )
 
 
@@ -157,3 +162,104 @@ async def test_asset_registered_is_silently_dropped() -> None:
     event = _stored("AssetRegistered", {"asset_id": str(uuid4())})
     await proj.apply(event, conn)
     conn.execute.assert_not_awaited()
+
+
+# ---- Phase 5g-a: settings_schema_present folding -------------------------
+
+
+_TEST_SCHEMA = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {"energy_kev": {"type": "number"}},
+}
+
+
+@pytest.mark.unit
+async def test_capability_schema_updated_with_schema_sets_present_true() -> None:
+    proj = CapabilitySummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "CapabilitySchemaUpdated",
+        {
+            "capability_id": str(_CAPABILITY_ID),
+            "settings_schema": _TEST_SCHEMA,
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "UPDATE proj_equipment_capability_summary" in sql
+    assert "settings_schema_present = $2" in sql
+    assert args.args[1] == _CAPABILITY_ID
+    assert args.args[2] is True
+
+
+@pytest.mark.unit
+async def test_capability_schema_updated_with_none_sets_present_false() -> None:
+    proj = CapabilitySummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "CapabilitySchemaUpdated",
+        {
+            "capability_id": str(_CAPABILITY_ID),
+            "settings_schema": None,
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[2] is False
+
+
+@pytest.mark.unit
+async def test_capability_schema_updated_missing_payload_key_treated_as_none() -> None:
+    """Tolerates payloads without the settings_schema key (treats as
+    None / FALSE). Matches the from_stored additive-evolution
+    stance."""
+    proj = CapabilitySummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "CapabilitySchemaUpdated",
+        {
+            "capability_id": str(_CAPABILITY_ID),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[2] is False
+
+
+@pytest.mark.unit
+async def test_capability_defined_inserts_with_schema_present_false() -> None:
+    """The genesis INSERT must default settings_schema_present to
+    FALSE (no schema declared yet); pinned because the column
+    default is FALSE in the migration AND the SQL literal is FALSE
+    in _INSERT_CAPABILITY_SQL."""
+    proj = CapabilitySummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "CapabilityDefined",
+        {
+            "capability_id": str(_CAPABILITY_ID),
+            "name": "Tomography",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "FALSE" in sql  # explicit FALSE in INSERT

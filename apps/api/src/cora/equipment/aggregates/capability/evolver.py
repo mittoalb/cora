@@ -35,6 +35,7 @@ from cora.equipment.aggregates.capability.events import (
     CapabilityDefined,
     CapabilityDeprecated,
     CapabilityEvent,
+    CapabilitySchemaUpdated,
     CapabilityVersioned,
 )
 from cora.equipment.aggregates.capability.state import (
@@ -70,6 +71,10 @@ def evolve(state: Capability | None, event: CapabilityEvent) -> Capability:
                 name=prior.name,
                 status=CapabilityStatus.VERSIONED,
                 version=version_tag,
+                # settings_schema preserved across content versioning;
+                # schema iteration is independent of content versioning
+                # (separate CapabilitySchemaUpdated event).
+                settings_schema=prior.settings_schema,
             )
         case CapabilityDeprecated():
             prior = _require_state(state, "CapabilityDeprecated")
@@ -79,6 +84,18 @@ def evolve(state: Capability | None, event: CapabilityEvent) -> Capability:
                 status=CapabilityStatus.DEPRECATED,
                 # version preserved across deprecation.
                 version=prior.version,
+                # settings_schema preserved across deprecation; the
+                # historical declaration remains visible for audit.
+                settings_schema=prior.settings_schema,
+            )
+        case CapabilitySchemaUpdated(settings_schema=settings_schema):
+            prior = _require_state(state, "CapabilitySchemaUpdated")
+            return Capability(
+                id=prior.id,
+                name=prior.name,
+                status=prior.status,
+                version=prior.version,
+                settings_schema=settings_schema,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

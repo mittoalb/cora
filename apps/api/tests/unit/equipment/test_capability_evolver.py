@@ -15,6 +15,7 @@ from cora.equipment.aggregates.capability import (
 from cora.equipment.aggregates.capability.events import (
     CapabilityDefined,
     CapabilityDeprecated,
+    CapabilitySchemaUpdated,
     CapabilityVersioned,
 )
 from cora.equipment.features import define_capability
@@ -242,3 +243,123 @@ def test_fold_define_version_deprecate_preserves_version_through_deprecation() -
     assert state is not None
     assert state.status is CapabilityStatus.DEPRECATED
     assert state.version == "v2"
+
+
+# ---- Phase 5g-a: settings_schema folding ---------------------------------
+
+
+_TEST_SCHEMA = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {"energy_kev": {"type": "number"}},
+}
+
+
+@pytest.mark.unit
+def test_capability_defined_starts_with_no_settings_schema() -> None:
+    """Pre-5g-a additive-state default: a Capability without any
+    schema-update event has settings_schema=None."""
+    capability_id = uuid4()
+    state = fold([CapabilityDefined(capability_id=capability_id, name="X", occurred_at=_NOW)])
+    assert state is not None
+    assert state.settings_schema is None
+
+
+@pytest.mark.unit
+def test_capability_schema_updated_sets_schema() -> None:
+    capability_id = uuid4()
+    state = fold(
+        [
+            CapabilityDefined(capability_id=capability_id, name="X", occurred_at=_NOW),
+            CapabilitySchemaUpdated(
+                capability_id=capability_id,
+                settings_schema=_TEST_SCHEMA,
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.settings_schema == _TEST_SCHEMA
+
+
+@pytest.mark.unit
+def test_capability_schema_updated_with_none_clears_schema() -> None:
+    """Operator explicitly removes a previously-declared schema."""
+    capability_id = uuid4()
+    state = fold(
+        [
+            CapabilityDefined(capability_id=capability_id, name="X", occurred_at=_NOW),
+            CapabilitySchemaUpdated(
+                capability_id=capability_id,
+                settings_schema=_TEST_SCHEMA,
+                occurred_at=_NOW,
+            ),
+            CapabilitySchemaUpdated(
+                capability_id=capability_id,
+                settings_schema=None,
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.settings_schema is None
+
+
+@pytest.mark.unit
+def test_settings_schema_preserved_across_versioning() -> None:
+    """Schema iteration is independent of content versioning;
+    CapabilityVersioned must NOT clobber a previously-set schema."""
+    capability_id = uuid4()
+    state = fold(
+        [
+            CapabilityDefined(capability_id=capability_id, name="X", occurred_at=_NOW),
+            CapabilitySchemaUpdated(
+                capability_id=capability_id,
+                settings_schema=_TEST_SCHEMA,
+                occurred_at=_NOW,
+            ),
+            CapabilityVersioned(capability_id=capability_id, version_tag="v2", occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.version == "v2"
+    assert state.settings_schema == _TEST_SCHEMA
+
+
+@pytest.mark.unit
+def test_settings_schema_preserved_across_deprecation() -> None:
+    """Same independence: CapabilityDeprecated preserves the schema
+    so audit can answer 'what shape did this capability declare at
+    its last update?'"""
+    capability_id = uuid4()
+    state = fold(
+        [
+            CapabilityDefined(capability_id=capability_id, name="X", occurred_at=_NOW),
+            CapabilitySchemaUpdated(
+                capability_id=capability_id,
+                settings_schema=_TEST_SCHEMA,
+                occurred_at=_NOW,
+            ),
+            CapabilityDeprecated(capability_id=capability_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.status is CapabilityStatus.DEPRECATED
+    assert state.settings_schema == _TEST_SCHEMA
+
+
+@pytest.mark.unit
+def test_capability_schema_updated_on_empty_state_raises() -> None:
+    """Like all transition events, schema-update before genesis is
+    stream corruption."""
+    capability_id = uuid4()
+    with pytest.raises(ValueError, match="empty state"):
+        fold(
+            [
+                CapabilitySchemaUpdated(
+                    capability_id=capability_id,
+                    settings_schema=_TEST_SCHEMA,
+                    occurred_at=_NOW,
+                ),
+            ]
+        )

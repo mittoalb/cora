@@ -29,6 +29,7 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.62b1,<0.63",
     "opentelemetry-instrumentation-asyncpg>=0.62b1,<0.63",
     "opentelemetry-exporter-otlp-proto-http>=1.41,<2",
+    "jsonschema-rs>=0.20,<1",
 ]
 
 [dependency-groups]

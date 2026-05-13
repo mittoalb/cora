@@ -44,8 +44,9 @@ landed; CapabilityName now calls that helper while keeping its own
 frozen dataclass type and per-aggregate error class.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 from uuid import UUID
 
 from cora.infrastructure.name import validate_name
@@ -195,9 +196,22 @@ class Capability:
     decider; no VO (same precedent as AssetRelocated.reason). Default
     None keeps pre-5f-2 CapabilityDefined-only streams folding cleanly
     (additive-state pattern).
+
+    `settings_schema` is the optional JSON Schema (Draft 2020-12,
+    constrained subset) declaring the shape of `Asset.settings` keys
+    this Capability "owns" (Phase 5g-a). When an Asset.settings
+    update lands (Phase 5g-c), the validator unions all assigned
+    Capabilities' schemas and rejects keys / values that don't
+    conform. Defaults to None for legacy Capabilities (additive-state
+    pattern); None means "this Capability declares nothing about
+    Asset settings — accept anything for keys it would have owned".
+    Distinct from `{}` (empty schema, "operator explicitly said no
+    constraints"). See [[project_capability_settings_schema]] memory
+    for the locked subset + validation policy.
     """
 
     id: UUID
     name: CapabilityName
     status: CapabilityStatus = CapabilityStatus.DEFINED
     version: str | None = None
+    settings_schema: dict[str, Any] | None = field(default=None)

@@ -1,0 +1,33 @@
+-- Phase 5g-a: track whether each Capability has declared a
+-- settings_schema, on the Capability summary projection.
+--
+-- Adds a single boolean column `settings_schema_present` to
+-- `proj_equipment_capability_summary`. Defaults to FALSE; existing
+-- rows backfill cleanly with no application-layer change required.
+--
+-- ## Why a boolean, not the schema dict itself
+--
+-- The schema can be large (~100s of bytes for non-trivial
+-- equipment) and projecting it would bloat the summary table that
+-- backs `GET /capabilities`. The list endpoint's job is "show me
+-- all capabilities at a glance"; the schema content itself is a
+-- per-Capability detail loaded on demand (today: fold-on-read of
+-- the Capability stream; future Phase 5g-c+: a dedicated
+-- `get_capability_schema` slice when consumers ask for it).
+--
+-- The boolean lets list-endpoint consumers filter "all capabilities
+-- with a schema declared" without needing the schema content.
+--
+-- ## Default semantics
+--
+-- FALSE for both pre-5g-a Capabilities (no schema-update event ever
+-- emitted) AND for newly-defined Capabilities that haven't had
+-- `update_capability_schema` called. Becomes TRUE on the first
+-- `CapabilitySchemaUpdated` with a non-NULL settings_schema; stays
+-- TRUE if the schema is replaced; goes back to FALSE if the schema
+-- is cleared (event with settings_schema=NULL).
+--
+-- Pure ADD COLUMN with safe default; greenfield-friendly.
+
+ALTER TABLE proj_equipment_capability_summary
+    ADD COLUMN settings_schema_present BOOLEAN NOT NULL DEFAULT FALSE;
