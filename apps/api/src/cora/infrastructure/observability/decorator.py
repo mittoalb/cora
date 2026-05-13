@@ -8,7 +8,7 @@ status ERROR with description `<ExcType>: <message>` automatically
 (both behaviors are SDK defaults: `record_exception=True` and
 `set_status_on_exception=True` on `start_as_current_span`). The
 wrapper deliberately does NOT call `record_exception` or `set_status`
-itself — doing so would either duplicate the exception event or
+itself, doing so would either duplicate the exception event or
 fight the SDK over the description.
 
 Composition order in `wire.py` (innermost first): tracing wraps
@@ -16,11 +16,17 @@ idempotency wraps the bare handler, so cache hits, cache misses, and
 domain failures all attribute to the tracing span correctly.
 
 Span attributes use the `cora.*` namespace for project-specific
-metadata (`cora.bc`, `cora.command`, `cora.query`); HTTP / DB /
-messaging attributes come from the underlying instrumentations.
+metadata (`cora.bc`, `cora.command`, `cora.query`, `cora.principal_id`);
+HTTP / DB / messaging attributes come from the underlying
+instrumentations. `cora.principal_id` is sniffed from kwargs since
+every handler in CORA takes `principal_id: UUID` as a keyword arg
+(per the cross-BC handler-call convention). When present, the value
+is recorded so trace queries can filter "everything principal X did
+in this trace", aligning with the 2026 multi-agent identity audit
+practice (EU AI Act Article 12, SOC 2 CC7.2).
 """
 
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 from opentelemetry import trace
 from opentelemetry.trace import SpanKind
@@ -64,13 +70,17 @@ def with_tracing[**P, R](
     name_attr = f"cora.{kind}"
 
     async def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
+        attributes: dict[str, Any] = {
+            "cora.bc": bc,
+            name_attr: command_name,
+        }
+        principal_id = kwargs.get("principal_id")
+        if principal_id is not None:
+            attributes["cora.principal_id"] = str(principal_id)
         with _tracer.start_as_current_span(
             span_name,
             kind=SpanKind.INTERNAL,
-            attributes={
-                "cora.bc": bc,
-                name_attr: command_name,
-            },
+            attributes=attributes,
         ):
             return await handler(*args, **kwargs)
 

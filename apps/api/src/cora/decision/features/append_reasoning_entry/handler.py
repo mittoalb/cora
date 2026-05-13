@@ -167,6 +167,7 @@ def bind(deps: Kernel, *, reasoning_store: ReasoningStore) -> Handler:
                 command_name=_COMMAND_NAME,
                 correlation_id=correlation_id,
                 causation_id=causation_id,
+                principal_id=principal_id,
             )
             # The version we just folded equals the events count we
             # loaded; pass it as expected_version (Postgres event

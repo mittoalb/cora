@@ -100,6 +100,7 @@ def bind(deps: Kernel) -> Handler:
                 command_name=_COMMAND_NAME,
                 correlation_id=correlation_id,
                 causation_id=causation_id,
+                principal_id=principal_id,
             )
             for event in domain_events
         ]

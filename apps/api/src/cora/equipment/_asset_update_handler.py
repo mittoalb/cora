@@ -201,6 +201,7 @@ def make_asset_update_handler(
                 command_name=command_name,
                 correlation_id=correlation_id,
                 causation_id=causation_id,
+                principal_id=principal_id,
             )
             for event in domain_events
         ]
