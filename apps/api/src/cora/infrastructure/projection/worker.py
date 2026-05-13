@@ -23,13 +23,18 @@ silently skips an event.
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
 import asyncio
+import contextlib
 from typing import Any
 
 import asyncpg
 
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports.event_store import StoredEvent
-from cora.infrastructure.projection.bookmark import read_bookmark, write_bookmark
+from cora.infrastructure.projection.bookmark import (
+    read_bookmark,
+    write_bookmark,
+    write_bookmark_failure,
+)
 from cora.infrastructure.projection.handler import Subscriber
 from cora.infrastructure.projection.registry import ProjectionRegistry
 from cora.infrastructure.projection.wakeup import WakeupSource
@@ -125,6 +130,7 @@ async def advance_subscriber_once(
             subscriber.name,
             last_transaction_id=last.transaction_id,
             last_position=last.position,
+            last_event_recorded_at=last.recorded_at,
         )
     return len(events)
 
@@ -185,12 +191,25 @@ class ProjectionWorker:
                     await self._wakeup.wait(self._poll_interval_seconds)
             except asyncio.CancelledError:
                 raise
-            except Exception:
+            except Exception as exc:
                 _log.exception(
                     "projection.advance.error",
                     projection=projection.name,
                     backoff_seconds=backoff,
                 )
+                # Phase 8e-9: persist failure state in a separate
+                # small transaction so the operator can see "this
+                # projection has failed N times since last success
+                # with this error" without log-spelunking. If THIS
+                # write itself fails we swallow it; we already logged
+                # the original error and don't want failure-recording
+                # to itself crash the loop.
+                with contextlib.suppress(Exception):
+                    await write_bookmark_failure(
+                        self._pool,
+                        projection.name,
+                        error_message=str(exc),
+                    )
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, _BACKOFF_MAX_SECONDS)
 

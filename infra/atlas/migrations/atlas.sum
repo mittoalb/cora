@@ -1,4 +1,4 @@
-h1:zu6rfv6MpwWICPg6cCwZUAck1DeaCh0yrlNnfhXa728=
+h1:crg4IfYJgCIVToS5HVi5BgTcaM2FviHZM02tpn3F0v8=
 20260509120000_init_events.sql h1:GmgCZKfaqXu1m96/cKAks2vhaLWTdEaHTLkFtUo9FXg=
 20260509170000_init_idempotency.sql h1:Nbu8DIE4Sv1WiHw3G22+tYffPhKc5Jryw3PMK8wB2zY=
 20260510010000_add_event_id.sql h1:RbtYP6uMnOB20zhJ9dNXUi4YVqbmlEzf562pmygnRW8=
@@ -24,3 +24,4 @@ h1:zu6rfv6MpwWICPg6cCwZUAck1DeaCh0yrlNnfhXa728=
 20260513050000_init_proj_trust_conduit_summary.sql h1:bZG2vOBjbFLa7T8vl3P5zItlpsz6DpgDLNioWQqEYS4=
 20260513060000_init_proj_trust_policy_summary.sql h1:iQpppdzFan8YAAfiM9grChVUGPwVj2BCsnFKoSs+6XQ=
 20260513070000_add_principal_id_to_events.sql h1:/T9bnbC0OC2gzFp/RDU8Yhb5/MhgB9eto7X2YaW7nno=
+20260513080000_add_projection_bookmarks_observability.sql h1:KaF1qku1xuQtWUSWweKGwpfOY8E8Zfl/sTYjE9Cc32I=

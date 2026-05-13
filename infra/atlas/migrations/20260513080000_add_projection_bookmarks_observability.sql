@@ -1,0 +1,73 @@
+-- Phase 8e-9: projection observability day-1 hook.
+--
+-- Add four columns to projection_bookmarks so silent intermittent
+-- failures stop rotating out of logs. Pre-positions for the full
+-- read-side observability surface (admin endpoint + lag sampler +
+-- OTel) which stays deferred until the trigger fires (per
+-- project_deferred.md "Projection read-side observability surface").
+--
+-- ## Why this hook ships pre-trigger
+--
+-- The deferred entry calls this out explicitly: "column additions
+-- are awkward to retrofit because every new BC's projection
+-- migration follows the bookmark template, and silent intermittent
+-- failures lose information today that no later read-side build
+-- can reconstruct." So we ship the SCHEMA + WORKER WRITES now,
+-- and the consumer surface (admin endpoint, lag sampler, OTel
+-- instrumentation) lands when the first ops question forces it.
+--
+-- ## Column rationale
+--
+--   - `last_event_recorded_at TIMESTAMPTZ NULL`: the `recorded_at`
+--     of the last event applied by this projection. Lag = now() -
+--     last_event_recorded_at, modulo pg_snapshot_xmin floor (the
+--     in-flight exclusion in the worker's _ADVANCE_SQL means lag is
+--     bounded below by the longest open writing transaction; long
+--     test fixtures or maintenance work create false-positive lag
+--     spikes that the eventual admin endpoint must surface
+--     pg_snapshot_xmin alongside lag values to debug).
+--
+--   - `last_error_at TIMESTAMPTZ NULL`: timestamp of the most
+--     recent advance-loop exception. NULL means "no failure since
+--     last success" (the success path clears it).
+--
+--   - `last_error_message TEXT NULL`: str(exc)[:500] of the most
+--     recent advance-loop exception. 500 chars bounds the bookmark
+--     UPDATE size; full traceback goes to OTel spans when the full
+--     surface ships. NULL means "no failure since last success".
+--
+--   - `consecutive_failures INT NOT NULL DEFAULT 0`: count of
+--     advance-loop exceptions since the last successful batch.
+--     Resets to 0 on success. Standard circuit-breaker primitive
+--     (typical 5-trip / 3-close-on-success thresholds; CORA
+--     persists the count but does NOT yet implement skip-poison-
+--     pill behavior - that is a behavior change that belongs in
+--     the trigger-gated full surface, not the day-1 hook).
+--
+-- ## Worker write semantics
+--
+-- Success path: bookmark advance UPDATE sets `last_event_recorded_at
+-- = MAX(events.recorded_at)` from the batch + `consecutive_failures
+-- = 0` + `last_error_at/last_error_message = NULL`. All inside the
+-- existing batch transaction so atomicity is preserved.
+--
+-- Failure path: SEPARATE small transaction (NOT inside the rolling-
+-- back advance-loop transaction) updates only the failure columns:
+-- `last_error_at = now()`, `last_error_message = str(exc)[:500]`,
+-- `consecutive_failures = consecutive_failures + 1`. The bookmark
+-- POSITION itself stays put so retry semantics are preserved. If
+-- the failure UPDATE itself fails, the worker swallows that loss
+-- silently (we already failed once; logging+metric on the original
+-- failure is what the operator sees).
+--
+-- ## Greenfield-friendly
+--
+-- All new columns have safe defaults: three NULLable, one INT NOT
+-- NULL DEFAULT 0. Existing bookmark rows backfill cleanly with no
+-- application-layer change required. Pure ADD COLUMN.
+
+ALTER TABLE projection_bookmarks
+    ADD COLUMN last_event_recorded_at TIMESTAMPTZ NULL,
+    ADD COLUMN last_error_at          TIMESTAMPTZ NULL,
+    ADD COLUMN last_error_message     TEXT        NULL,
+    ADD COLUMN consecutive_failures   INTEGER     NOT NULL DEFAULT 0;
