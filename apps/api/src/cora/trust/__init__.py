@@ -18,6 +18,7 @@ Layout:
     routes.py                 -- register_trust_routes(app)
 """
 
+from cora.trust._projections import register_trust_projections
 from cora.trust.authorize import TrustAuthorize
 from cora.trust.authorize_factory import build_authorize
 from cora.trust.errors import UnauthorizedError
@@ -30,6 +31,7 @@ __all__ = [
     "TrustHandlers",
     "UnauthorizedError",
     "build_authorize",
+    "register_trust_projections",
     "register_trust_routes",
     "register_trust_tools",
     "wire_trust",

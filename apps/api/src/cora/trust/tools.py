@@ -14,6 +14,9 @@ from cora.trust.features.define_conduit import tool as define_conduit_tool
 from cora.trust.features.define_policy import tool as define_policy_tool
 from cora.trust.features.define_zone import tool as define_zone_tool
 from cora.trust.features.evaluate_policy import tool as evaluate_policy_tool
+from cora.trust.features.list_conduits import tool as list_conduits_tool
+from cora.trust.features.list_policies import tool as list_policies_tool
+from cora.trust.features.list_zones import tool as list_zones_tool
 from cora.trust.wire import TrustHandlers
 
 
@@ -38,4 +41,16 @@ def register_trust_tools(
     evaluate_policy_tool.register(
         mcp,
         get_handler=lambda: get_handlers().evaluate_policy,
+    )
+    list_zones_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().list_zones,
+    )
+    list_conduits_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().list_conduits,
+    )
+    list_policies_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().list_policies,
     )

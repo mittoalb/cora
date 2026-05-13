@@ -99,6 +99,7 @@ from cora.subject import (
 from cora.trust import (
     TrustHandlers,
     build_authorize,
+    register_trust_projections,
     register_trust_routes,
     register_trust_tools,
     wire_trust,
@@ -233,6 +234,7 @@ def create_app() -> FastAPI:
             # worker context manager handles spawn / cancel / drain.
             registry = ProjectionRegistry()
             register_access_projections(registry, deps)
+            register_trust_projections(registry, deps)
             register_subject_projections(registry, deps)
             register_equipment_projections(registry, deps)
             register_recipe_projections(registry, deps)
