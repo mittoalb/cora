@@ -168,6 +168,55 @@ class AssetCapabilityRemoved:
 
 
 @dataclass(frozen=True)
+class AssetDegraded:
+    """An asset's condition transitioned to `Degraded`.
+
+    Condition transition: any condition -> Degraded (target-state
+    semantics, mirrors `enter_maintenance`'s lifecycle target). The
+    evolver sets the new condition; no condition field in the
+    payload (event TYPE encodes the change).
+
+    `reason` is operator-supplied free text (e.g. "hot pixel detected
+    at (12, 42)"); validated 1-500 chars at the API boundary, the
+    decider trusts the input. Same precedent as `AssetRelocated.reason`.
+    """
+
+    asset_id: UUID
+    reason: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class AssetFaulted:
+    """An asset's condition transitioned to `Faulted`.
+
+    Condition transition: any condition -> Faulted. Mirror of
+    `AssetDegraded`. Operationally: device is down, requires repair
+    before any further use.
+    """
+
+    asset_id: UUID
+    reason: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class AssetRestored:
+    """An asset's condition transitioned to `Nominal`.
+
+    Condition transition: any condition -> Nominal. Mirror of
+    `AssetDegraded`. Operationally: device fully repaired and back
+    to normal operating specs. Partial repairs (Faulted -> Degraded)
+    use `degrade_asset`, NOT `restore_asset` with a target arg —
+    each slice has a fixed target.
+    """
+
+    asset_id: UUID
+    reason: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
 class AssetRelocated:
     """An asset's parent in the hierarchy tree changed.
 
@@ -202,6 +251,9 @@ AssetEvent = (
     | AssetRestoredFromMaintenance
     | AssetCapabilityAdded
     | AssetCapabilityRemoved
+    | AssetDegraded
+    | AssetFaulted
+    | AssetRestored
 )
 
 
@@ -285,6 +337,24 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
                 "capability_id": str(capability_id),
                 "occurred_at": occurred_at.isoformat(),
             }
+        case AssetDegraded(asset_id=asset_id, reason=reason, occurred_at=occurred_at):
+            return {
+                "asset_id": str(asset_id),
+                "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case AssetFaulted(asset_id=asset_id, reason=reason, occurred_at=occurred_at):
+            return {
+                "asset_id": str(asset_id),
+                "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case AssetRestored(asset_id=asset_id, reason=reason, occurred_at=occurred_at):
+            return {
+                "asset_id": str(asset_id),
+                "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -347,6 +417,24 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                 capability_id=UUID(payload["capability_id"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "AssetDegraded":
+            return AssetDegraded(
+                asset_id=UUID(payload["asset_id"]),
+                reason=payload["reason"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "AssetFaulted":
+            return AssetFaulted(
+                asset_id=UUID(payload["asset_id"]),
+                reason=payload["reason"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "AssetRestored":
+            return AssetRestored(
+                asset_id=UUID(payload["asset_id"]),
+                reason=payload["reason"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown AssetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -357,10 +445,13 @@ __all__ = [
     "AssetCapabilityAdded",
     "AssetCapabilityRemoved",
     "AssetDecommissioned",
+    "AssetDegraded",
     "AssetEvent",
+    "AssetFaulted",
     "AssetMaintenanceEntered",
     "AssetRegistered",
     "AssetRelocated",
+    "AssetRestored",
     "AssetRestoredFromMaintenance",
     "event_type_name",
     "from_stored",

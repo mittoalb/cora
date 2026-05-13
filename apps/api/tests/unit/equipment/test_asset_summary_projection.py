@@ -52,6 +52,9 @@ def test_projection_metadata() -> None:
             "AssetMaintenanceEntered",
             "AssetRestoredFromMaintenance",
             "AssetRelocated",
+            "AssetDegraded",
+            "AssetFaulted",
+            "AssetRestored",
         }
     )
 
@@ -88,6 +91,8 @@ async def test_asset_registered_inserts_with_commissioned_lifecycle_and_parent()
     assert "INSERT INTO proj_equipment_asset_summary" in sql
     assert "ON CONFLICT (asset_id) DO NOTHING" in sql
     assert "'Commissioned'" in sql
+    # 5g-b: condition column also seeded with 'Nominal' default
+    assert "'Nominal'" in sql
     assert args.args[1] == _ASSET_ID
     assert args.args[2] == "BeamlineEnclosure-32-ID"
     assert args.args[3] == "Unit"
@@ -202,3 +207,81 @@ async def test_asset_capability_added_is_silently_dropped() -> None:
     event = _stored("AssetCapabilityAdded", {"asset_id": str(_ASSET_ID)})
     await proj.apply(event, conn)
     conn.execute.assert_not_awaited()
+
+
+# ---------- Phase 5g-b: condition transitions ----------
+
+
+@pytest.mark.unit
+async def test_asset_degraded_updates_condition_to_degraded() -> None:
+    proj = AssetSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "AssetDegraded",
+        {"asset_id": str(_ASSET_ID), "reason": "hot pixel", "occurred_at": _NOW.isoformat()},
+    )
+
+    await proj.apply(event, conn)
+
+    conn.execute.assert_awaited_once()
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "UPDATE proj_equipment_asset_summary" in sql
+    assert "SET condition = $2" in sql
+    assert args.args[1] == _ASSET_ID
+    assert args.args[2] == "Degraded"
+
+
+@pytest.mark.unit
+async def test_asset_faulted_updates_condition_to_faulted() -> None:
+    proj = AssetSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "AssetFaulted",
+        {"asset_id": str(_ASSET_ID), "reason": "seized", "occurred_at": _NOW.isoformat()},
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[2] == "Faulted"
+
+
+@pytest.mark.unit
+async def test_asset_restored_updates_condition_to_nominal() -> None:
+    proj = AssetSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "AssetRestored",
+        {"asset_id": str(_ASSET_ID), "reason": "repaired", "occurred_at": _NOW.isoformat()},
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[2] == "Nominal"
+
+
+@pytest.mark.unit
+async def test_condition_event_does_not_carry_reason_into_sql_args() -> None:
+    """Reason is audit metadata on the event payload, NOT projected
+    into the summary table (a future logbook would carry it). Pin so
+    a regression doesn't accidentally start storing reasons in the
+    summary row."""
+    proj = AssetSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "AssetDegraded",
+        {
+            "asset_id": str(_ASSET_ID),
+            "reason": "long detailed reason that should not appear in args",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    args = conn.execute.await_args
+    assert args is not None
+    assert "long detailed reason" not in str(args.args)

@@ -7,6 +7,7 @@ import pytest
 
 from cora.equipment.aggregates.asset import (
     Asset,
+    AssetCondition,
     AssetLevel,
     AssetLifecycle,
     AssetName,
@@ -18,9 +19,12 @@ from cora.equipment.aggregates.asset.events import (
     AssetCapabilityAdded,
     AssetCapabilityRemoved,
     AssetDecommissioned,
+    AssetDegraded,
+    AssetFaulted,
     AssetMaintenanceEntered,
     AssetRegistered,
     AssetRelocated,
+    AssetRestored,
     AssetRestoredFromMaintenance,
 )
 from cora.equipment.features import register_asset
@@ -878,3 +882,214 @@ def test_fold_register_add_remove_yields_empty_capabilities() -> None:
     )
     assert state is not None
     assert state.capabilities == frozenset()
+
+
+# ---------- Phase 5g-b: condition transitions + preservation ----------
+
+
+@pytest.mark.unit
+def test_evolve_asset_registered_defaults_condition_to_nominal() -> None:
+    """Genesis: AssetRegistered yields condition=Nominal via the
+    state default (no synthetic initialization event)."""
+    asset_id = uuid4()
+    state = evolve(
+        None,
+        AssetRegistered(
+            asset_id=asset_id,
+            name="X",
+            level="Unit",
+            parent_id=uuid4(),
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.condition is AssetCondition.NOMINAL
+
+
+@pytest.mark.unit
+def test_evolve_asset_degraded_sets_condition_to_degraded() -> None:
+    asset_id = uuid4()
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+    )
+    state = evolve(prior, AssetDegraded(asset_id=asset_id, reason="hot pixel", occurred_at=_NOW))
+    assert state.condition is AssetCondition.DEGRADED
+
+
+@pytest.mark.unit
+def test_evolve_asset_faulted_sets_condition_to_faulted() -> None:
+    asset_id = uuid4()
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+    )
+    state = evolve(prior, AssetFaulted(asset_id=asset_id, reason="seized", occurred_at=_NOW))
+    assert state.condition is AssetCondition.FAULTED
+
+
+@pytest.mark.unit
+def test_evolve_asset_restored_sets_condition_to_nominal() -> None:
+    asset_id = uuid4()
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        condition=AssetCondition.FAULTED,
+    )
+    state = evolve(prior, AssetRestored(asset_id=asset_id, reason="repaired", occurred_at=_NOW))
+    assert state.condition is AssetCondition.NOMINAL
+
+
+@pytest.mark.unit
+def test_evolve_condition_transition_preserves_lifecycle_and_capabilities() -> None:
+    """Condition transitions don't touch lifecycle / capabilities /
+    parent_id / level / name. Pin so a future evolver mistake doesn't
+    silently couple the dimensions."""
+    asset_id = uuid4()
+    parent = uuid4()
+    cap = uuid4()
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("X"),
+        level=AssetLevel.DEVICE,
+        parent_id=parent,
+        lifecycle=AssetLifecycle.MAINTENANCE,
+        condition=AssetCondition.NOMINAL,
+        capabilities=frozenset({cap}),
+    )
+    state = evolve(prior, AssetFaulted(asset_id=asset_id, reason="test", occurred_at=_NOW))
+    assert state.lifecycle is AssetLifecycle.MAINTENANCE
+    assert state.capabilities == frozenset({cap})
+    assert state.parent_id == parent
+    assert state.level is AssetLevel.DEVICE
+    assert state.name == AssetName("X")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("name", "transition"),
+    [
+        ("activate", AssetActivated),
+        ("decommission", AssetDecommissioned),
+        ("enter_maintenance", AssetMaintenanceEntered),
+        ("restore_from_maintenance", AssetRestoredFromMaintenance),
+    ],
+)
+def test_evolve_lifecycle_transition_preserves_condition(
+    name: str,
+    transition: type,
+) -> None:
+    """Critical pin: every lifecycle transition arm MUST carry
+    condition through from prior state. Constructing Asset(...)
+    without explicitly passing condition would silently WIPE it to
+    NOMINAL. Same shape as the capabilities-preservation pin."""
+    _ = name  # parametrize id only
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        lifecycle=(
+            AssetLifecycle.COMMISSIONED
+            if transition is AssetActivated
+            else AssetLifecycle.ACTIVE
+            if transition is AssetMaintenanceEntered
+            else AssetLifecycle.MAINTENANCE
+            if transition is AssetRestoredFromMaintenance
+            else AssetLifecycle.ACTIVE
+        ),
+        condition=AssetCondition.FAULTED,
+    )
+    state = evolve(
+        prior,
+        transition(asset_id=prior.id, occurred_at=_NOW),
+    )
+    assert state.condition is AssetCondition.FAULTED
+
+
+@pytest.mark.unit
+def test_evolve_relocate_preserves_condition() -> None:
+    """Hierarchy mutation also must preserve condition."""
+    old_parent = uuid4()
+    new_parent = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=old_parent,
+        condition=AssetCondition.DEGRADED,
+    )
+    state = evolve(
+        prior,
+        AssetRelocated(
+            asset_id=prior.id,
+            from_parent_id=old_parent,
+            to_parent_id=new_parent,
+            reason="moved",
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.condition is AssetCondition.DEGRADED
+
+
+@pytest.mark.unit
+def test_evolve_capability_added_preserves_condition() -> None:
+    cap = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        condition=AssetCondition.DEGRADED,
+    )
+    state = evolve(
+        prior,
+        AssetCapabilityAdded(asset_id=prior.id, capability_id=cap, occurred_at=_NOW),
+    )
+    assert state.condition is AssetCondition.DEGRADED
+
+
+@pytest.mark.unit
+def test_evolve_capability_removed_preserves_condition() -> None:
+    cap = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        condition=AssetCondition.DEGRADED,
+        capabilities=frozenset({cap}),
+    )
+    state = evolve(
+        prior,
+        AssetCapabilityRemoved(asset_id=prior.id, capability_id=cap, occurred_at=_NOW),
+    )
+    assert state.condition is AssetCondition.DEGRADED
+
+
+@pytest.mark.unit
+def test_fold_register_then_fault_then_restore_round_trip() -> None:
+    """End-to-end audit: register -> fault -> restore lands at
+    Nominal. Pin so the fold layer faithfully reflects the
+    target-state semantics across the three condition events."""
+    asset_id = uuid4()
+    state = fold(
+        [
+            AssetRegistered(
+                asset_id=asset_id,
+                name="X",
+                level="Unit",
+                parent_id=uuid4(),
+                occurred_at=_NOW,
+            ),
+            AssetFaulted(asset_id=asset_id, reason="bad", occurred_at=_NOW),
+            AssetRestored(asset_id=asset_id, reason="fixed", occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.condition is AssetCondition.NOMINAL

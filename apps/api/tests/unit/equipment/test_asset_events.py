@@ -10,9 +10,12 @@ from cora.equipment.aggregates.asset.events import (
     AssetCapabilityAdded,
     AssetCapabilityRemoved,
     AssetDecommissioned,
+    AssetDegraded,
+    AssetFaulted,
     AssetMaintenanceEntered,
     AssetRegistered,
     AssetRelocated,
+    AssetRestored,
     AssetRestoredFromMaintenance,
     event_type_name,
     from_stored,
@@ -523,3 +526,122 @@ def test_to_payload_then_from_stored_round_trips_for_asset_capability_removed() 
     original = AssetCapabilityRemoved(asset_id=uuid4(), capability_id=uuid4(), occurred_at=_NOW)
     stored = _stored("AssetCapabilityRemoved", to_payload(original))
     assert from_stored(stored) == original
+
+
+# ---------- Phase 5g-b: condition-transition events ----------
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_asset_degraded() -> None:
+    asset_id = uuid4()
+    event = AssetDegraded(asset_id=asset_id, reason="hot pixel", occurred_at=_NOW)
+    assert to_payload(event) == {
+        "asset_id": str(asset_id),
+        "reason": "hot pixel",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_asset_degraded() -> None:
+    asset_id = uuid4()
+    stored = _stored(
+        "AssetDegraded",
+        {
+            "asset_id": str(asset_id),
+            "reason": "hot pixel",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    assert from_stored(stored) == AssetDegraded(
+        asset_id=asset_id, reason="hot pixel", occurred_at=_NOW
+    )
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_asset_degraded() -> None:
+    original = AssetDegraded(asset_id=uuid4(), reason="hot pixel", occurred_at=_NOW)
+    stored = _stored("AssetDegraded", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_asset_faulted() -> None:
+    asset_id = uuid4()
+    event = AssetFaulted(asset_id=asset_id, reason="vacuum pump seized", occurred_at=_NOW)
+    assert to_payload(event) == {
+        "asset_id": str(asset_id),
+        "reason": "vacuum pump seized",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_asset_faulted() -> None:
+    asset_id = uuid4()
+    stored = _stored(
+        "AssetFaulted",
+        {
+            "asset_id": str(asset_id),
+            "reason": "vacuum pump seized",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    assert from_stored(stored) == AssetFaulted(
+        asset_id=asset_id, reason="vacuum pump seized", occurred_at=_NOW
+    )
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_asset_faulted() -> None:
+    original = AssetFaulted(asset_id=uuid4(), reason="seized", occurred_at=_NOW)
+    stored = _stored("AssetFaulted", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_asset_restored() -> None:
+    asset_id = uuid4()
+    event = AssetRestored(asset_id=asset_id, reason="replaced flat cable", occurred_at=_NOW)
+    assert to_payload(event) == {
+        "asset_id": str(asset_id),
+        "reason": "replaced flat cable",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_asset_restored() -> None:
+    asset_id = uuid4()
+    stored = _stored(
+        "AssetRestored",
+        {
+            "asset_id": str(asset_id),
+            "reason": "replaced flat cable",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    assert from_stored(stored) == AssetRestored(
+        asset_id=asset_id, reason="replaced flat cable", occurred_at=_NOW
+    )
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_asset_restored() -> None:
+    original = AssetRestored(asset_id=uuid4(), reason="repaired", occurred_at=_NOW)
+    stored = _stored("AssetRestored", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_class_name_for_condition_events() -> None:
+    asset_id = uuid4()
+    assert event_type_name(AssetDegraded(asset_id=asset_id, reason="r", occurred_at=_NOW)) == (
+        "AssetDegraded"
+    )
+    assert event_type_name(AssetFaulted(asset_id=asset_id, reason="r", occurred_at=_NOW)) == (
+        "AssetFaulted"
+    )
+    assert event_type_name(AssetRestored(asset_id=asset_id, reason="r", occurred_at=_NOW)) == (
+        "AssetRestored"
+    )

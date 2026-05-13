@@ -64,8 +64,10 @@ from cora.equipment.features import (
     add_asset_capability,
     decommission_asset,
     define_capability,
+    degrade_asset,
     deprecate_capability,
     enter_maintenance,
+    fault_asset,
     get_asset,
     get_capability,
     list_assets,
@@ -73,6 +75,7 @@ from cora.equipment.features import (
     register_asset,
     relocate_asset,
     remove_asset_capability,
+    restore_asset,
     restore_from_maintenance,
     update_capability_schema,
     version_capability,
@@ -157,6 +160,9 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(restore_from_maintenance.router)
     app.include_router(add_asset_capability.router)
     app.include_router(remove_asset_capability.router)
+    app.include_router(degrade_asset.router)
+    app.include_router(fault_asset.router)
+    app.include_router(restore_asset.router)
     app.include_router(get_asset.router)
     app.include_router(list_assets.router)
     for validation_cls in (

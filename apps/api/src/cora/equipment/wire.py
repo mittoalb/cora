@@ -42,8 +42,10 @@ from cora.equipment.features import (
     add_asset_capability,
     decommission_asset,
     define_capability,
+    degrade_asset,
     deprecate_capability,
     enter_maintenance,
+    fault_asset,
     get_asset,
     get_capability,
     list_assets,
@@ -51,6 +53,7 @@ from cora.equipment.features import (
     register_asset,
     relocate_asset,
     remove_asset_capability,
+    restore_asset,
     restore_from_maintenance,
     update_capability_schema,
     version_capability,
@@ -89,6 +92,9 @@ class EquipmentHandlers:
     restore_from_maintenance: restore_from_maintenance.Handler
     add_asset_capability: add_asset_capability.Handler
     remove_asset_capability: remove_asset_capability.Handler
+    degrade_asset: degrade_asset.Handler
+    fault_asset: fault_asset.Handler
+    restore_asset: restore_asset.Handler
     get_asset: get_asset.Handler
     list_assets: list_assets.Handler
     list_capabilities: list_capabilities.Handler
@@ -177,6 +183,21 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
         remove_asset_capability=with_tracing(
             remove_asset_capability.bind(deps),
             command_name="RemoveAssetCapability",
+            bc=_BC,
+        ),
+        degrade_asset=with_tracing(
+            degrade_asset.bind(deps),
+            command_name="DegradeAsset",
+            bc=_BC,
+        ),
+        fault_asset=with_tracing(
+            fault_asset.bind(deps),
+            command_name="FaultAsset",
+            bc=_BC,
+        ),
+        restore_asset=with_tracing(
+            restore_asset.bind(deps),
+            command_name="RestoreAsset",
             bc=_BC,
         ),
         get_asset=with_tracing(

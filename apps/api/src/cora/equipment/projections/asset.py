@@ -1,15 +1,19 @@
 """AssetSummaryProjection: folds the Asset aggregate's lifecycle +
-hierarchy events into the `proj_equipment_asset_summary` read model
-that backs `GET /assets`.
+hierarchy + condition events into the `proj_equipment_asset_summary`
+read model that backs `GET /assets`.
 
 Subscribed events:
-  - AssetRegistered            -> INSERT (lifecycle=Commissioned;
-                                  level + parent_id from payload)
+  - AssetRegistered            -> INSERT (lifecycle=Commissioned,
+                                  condition=Nominal; level + parent_id
+                                  from payload)
   - AssetActivated             -> UPDATE lifecycle=Active
   - AssetDecommissioned        -> UPDATE lifecycle=Decommissioned
   - AssetMaintenanceEntered    -> UPDATE lifecycle=Maintenance
   - AssetRestoredFromMaintenance -> UPDATE lifecycle=Active
   - AssetRelocated             -> UPDATE parent_id=to_parent_id
+  - AssetDegraded              -> UPDATE condition=Degraded
+  - AssetFaulted               -> UPDATE condition=Faulted
+  - AssetRestored              -> UPDATE condition=Nominal
 
 NOT subscribed:
   - AssetCapabilityAdded / AssetCapabilityRemoved — these describe
@@ -31,8 +35,8 @@ from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_ASSET_SQL = """
 INSERT INTO proj_equipment_asset_summary
-    (asset_id, name, level, lifecycle, parent_id, created_at)
-VALUES ($1, $2, $3, 'Commissioned', $4, $5)
+    (asset_id, name, level, lifecycle, condition, parent_id, created_at)
+VALUES ($1, $2, $3, 'Commissioned', 'Nominal', $4, $5)
 ON CONFLICT (asset_id) DO NOTHING
 """
 
@@ -45,6 +49,12 @@ WHERE asset_id = $1
 _UPDATE_PARENT_SQL = """
 UPDATE proj_equipment_asset_summary
 SET parent_id = $2, updated_at = now()
+WHERE asset_id = $1
+"""
+
+_UPDATE_CONDITION_SQL = """
+UPDATE proj_equipment_asset_summary
+SET condition = $2, updated_at = now()
 WHERE asset_id = $1
 """
 
@@ -61,6 +71,9 @@ class AssetSummaryProjection:
             "AssetMaintenanceEntered",
             "AssetRestoredFromMaintenance",
             "AssetRelocated",
+            "AssetDegraded",
+            "AssetFaulted",
+            "AssetRestored",
         }
     )
 
@@ -96,6 +109,12 @@ class AssetSummaryProjection:
                     UUID(event.payload["asset_id"]),
                     UUID(event.payload["to_parent_id"]),
                 )
+            case "AssetDegraded":
+                await self._update_condition(event, conn, "Degraded")
+            case "AssetFaulted":
+                await self._update_condition(event, conn, "Faulted")
+            case "AssetRestored":
+                await self._update_condition(event, conn, "Nominal")
             case _:
                 pass
 
@@ -109,6 +128,18 @@ class AssetSummaryProjection:
             _UPDATE_LIFECYCLE_SQL,
             UUID(event.payload["asset_id"]),
             new_lifecycle,
+        )
+
+    async def _update_condition(
+        self,
+        event: StoredEvent,
+        conn: ConnectionLike,
+        new_condition: str,
+    ) -> None:
+        await conn.execute(
+            _UPDATE_CONDITION_SQL,
+            UUID(event.payload["asset_id"]),
+            new_condition,
         )
 
 

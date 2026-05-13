@@ -114,6 +114,32 @@ class AssetLifecycle(StrEnum):
     DECOMMISSIONED = "Decommissioned"
 
 
+class AssetCondition(StrEnum):
+    """The Asset's real-time device-health state.
+
+    Orthogonal to lifecycle: lifecycle answers "is this device part
+    of inventory and assignable", condition answers "is it actually
+    working right now". An Active asset can be Faulted (broken but
+    still owned); a Decommissioned asset can be discovered Faulted on
+    inventory check (honest about device-state-in-storage).
+
+    Transitions land per-slice (5g-b), each moves to a fixed target
+    from any source:
+      - degrade_asset            -> Degraded
+      - fault_asset              -> Faulted
+      - restore_asset            -> Nominal
+
+    `Nominal` is the default at registration time (no synthetic
+    initialization event; default-via-state). Pattern matches PI-System
+    asset-health attributes (Good / Warning / Bad) and SEMI E10's
+    productive vs unproductive time orthogonality.
+    """
+
+    NOMINAL = "Nominal"
+    DEGRADED = "Degraded"
+    FAULTED = "Faulted"
+
+
 class InvalidAssetNameError(ValueError):
     """The supplied name is empty, whitespace-only, or too long."""
 
@@ -350,10 +376,16 @@ class Asset:
     `AssetRegistered`-only streams fold cleanly without an upcaster
     (the additive-state pattern; see CONTRIBUTING.md).
 
-    Future additive facets (5f+ continuation): `condition`,
-    `settings`, `ports`, `owner`, `persistent_id`. The state-level
-    fields land with defaults for the same forward-compatibility
-    reason.
+    `condition` (5g-b): real-time device health, orthogonal to
+    lifecycle. Defaults to `AssetCondition.NOMINAL` at registration
+    (no synthetic initialization event); transitions land via the
+    degrade / fault / restore slices. Older AssetRegistered-only
+    streams from before 5g-b fold cleanly with the default
+    (additive-state pattern).
+
+    Future additive facets (5g-c+): `settings`, `ports`, `owner`,
+    `persistent_id`. The state-level fields land with defaults for
+    the same forward-compatibility reason.
     """
 
     id: UUID
@@ -361,6 +393,7 @@ class Asset:
     level: AssetLevel
     parent_id: UUID | None
     lifecycle: AssetLifecycle = AssetLifecycle.COMMISSIONED
+    condition: AssetCondition = AssetCondition.NOMINAL
     # frozenset[UUID] generic-callable trick (PEP 585): plain
     # `frozenset` as default_factory triggers reportUnknownVariableType
     # under pyright strict because the empty frozenset has no element
