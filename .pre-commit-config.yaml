@@ -54,3 +54,33 @@ repos:
         language: system
         pass_filenames: false
         files: ^apps/api/(src/cora/.+\.py|tests/architecture/.+\.py)$
+
+      # ----------------------------------------------------------------
+      # Pre-push only: full-tree ruff check + format (matches CI exactly).
+      #
+      # The ruff-pre-commit hooks above run against STAGED files only,
+      # so unstaged drift can sneak past pre-commit and trip CI on push.
+      # This hook runs ruff against the entire src/tests tree at push
+      # time so the same violations CI would catch are caught locally
+      # one round-trip earlier.
+      #
+      # Install with: pre-commit install --hook-type pre-push
+      # (one-shot per clone; idempotent if already installed).
+      #
+      # Fast (~1s); pyright + tach + arch-tests run on pre-commit so
+      # they stay there to keep pre-push lean.
+      # ----------------------------------------------------------------
+      - id: ruff-check-all
+        name: ruff check (full tree, matches CI)
+        entry: bash -c 'cd apps/api && uv run ruff check src tests'
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        always_run: true
+      - id: ruff-format-check-all
+        name: ruff format --check (full tree, matches CI)
+        entry: bash -c 'cd apps/api && uv run ruff format --check src tests'
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        always_run: true
