@@ -139,8 +139,8 @@ async def write_bookmark_failure(
     exception handler AFTER the failed batch has rolled back.
     Increments `consecutive_failures` and records `last_error_at` +
     `last_error_message`. Does NOT touch `last_transaction_id` or
-    `last_position` — retry semantics are preserved by leaving the
-    cursor where it was.
+    `last_position`, so retry semantics are preserved by leaving
+    the cursor where it was.
 
     Truncates `error_message` to 500 chars to bound bookmark UPDATE
     size. If this UPDATE itself fails, the worker swallows that loss

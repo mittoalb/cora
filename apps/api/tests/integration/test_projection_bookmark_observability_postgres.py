@@ -209,8 +209,10 @@ async def test_success_after_failure_clears_failure_columns(
     """The recovery path: failure recorded → next successful drain
     clears the error columns and resets counter to 0."""
     projection = _CapturingProjection()
-    # Use a unique name to avoid collision with the success-path test
-    object.__setattr__(projection, "name", "proj_test_phase_8e_9_recovery")
+    # Use a unique name to avoid collision with the success-path test.
+    # `_CapturingProjection` is a regular class (not a frozen dataclass),
+    # so plain attribute assignment shadows the class-level default.
+    projection.name = "proj_test_phase_8e_9_recovery"
     await _ensure_bookmark(db_pool, projection.name)
 
     # First, record some failures
@@ -223,6 +225,9 @@ async def test_success_after_failure_clears_failure_columns(
     cols_before = await _read_bookmark_columns(db_pool, projection.name)
     assert cols_before["consecutive_failures"] == 2
     assert cols_before["last_error_message"] == "prior failure 1"
+    assert cols_before["last_event_recorded_at"] is None, (
+        "no successful batch yet, so last_event_recorded_at should still be NULL"
+    )
 
     # Now successful drain
     store = PostgresEventStore(db_pool)
@@ -235,8 +240,8 @@ async def test_success_after_failure_clears_failure_columns(
     assert cols_after["last_error_at"] is None, "error timestamp should clear on success"
     assert cols_after["last_error_message"] is None, "error message should clear on success"
     assert cols_after["consecutive_failures"] == 0, "counter should reset to 0 on success"
-    assert cols_after["last_event_recorded_at"] is not None, (
-        "last_event_recorded_at should advance on the successful batch"
+    assert isinstance(cols_after["last_event_recorded_at"], datetime), (
+        "last_event_recorded_at should advance from NULL to the applied event's recorded_at"
     )
 
 
