@@ -61,9 +61,7 @@ async def test_measure_subject_persists_event_to_postgres(
         correlation_id=_CORRELATION_ID,
     )
     assert subject_id == _NEW_ID
-    asset_id = await seed_active_asset(
-        deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID
-    )
+    asset_id = await seed_active_asset(deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID)
     await mount_subject.bind(deps)(
         MountSubject(subject_id=subject_id, asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,

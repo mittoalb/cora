@@ -22,9 +22,7 @@ def _register_subject(client: TestClient, name: str = "Sample-A1") -> str:
 def _register_mount_remove(client: TestClient) -> str:
     subject_id = _register_subject(client)
     asset_id = register_active_asset(client)
-    mounted = client.post(
-        f"/subjects/{subject_id}/mount", json={"asset_id": asset_id}
-    )
+    mounted = client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id})
     assert mounted.status_code == 204
     removed = client.post(f"/subjects/{subject_id}/remove")
     assert removed.status_code == 204

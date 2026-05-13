@@ -207,9 +207,7 @@ async def test_trust_policy_gates_subject_update_style_command(
     )
 
     # Now mount under TrustAuthorize via the make_subject_update_handler chain.
-    asset_id = await seed_active_asset(
-        gated.event_store, now=_NOW, correlation_id=_CORRELATION_ID
-    )
+    asset_id = await seed_active_asset(gated.event_store, now=_NOW, correlation_id=_CORRELATION_ID)
     await handlers.mount_subject(
         MountSubject(subject_id=subject_id, asset_id=asset_id),
         principal_id=_PERMITTED_PRINCIPAL,

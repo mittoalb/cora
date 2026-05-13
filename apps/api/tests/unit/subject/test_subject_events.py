@@ -131,9 +131,7 @@ def test_from_stored_rebuilds_subject_mounted() -> None:
         },
     )
     rebuilt = from_stored(stored)
-    assert rebuilt == SubjectMounted(
-        subject_id=subject_id, asset_id=asset_id, occurred_at=_NOW
-    )
+    assert rebuilt == SubjectMounted(subject_id=subject_id, asset_id=asset_id, occurred_at=_NOW)
 
 
 @pytest.mark.unit

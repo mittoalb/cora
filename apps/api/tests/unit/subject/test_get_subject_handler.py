@@ -101,9 +101,7 @@ async def test_handler_reflects_status_after_mount() -> None:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    asset_id = await seed_active_asset(
-        deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID
-    )
+    asset_id = await seed_active_asset(deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID)
     await mount_subject.bind(deps)(
         MountSubject(subject_id=_NEW_ID, asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
@@ -134,9 +132,7 @@ async def test_handler_reflects_status_through_full_lifecycle() -> None:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    asset_id = await seed_active_asset(
-        deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID
-    )
+    asset_id = await seed_active_asset(deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID)
     await mount_subject.bind(deps)(
         MountSubject(subject_id=_NEW_ID, asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
