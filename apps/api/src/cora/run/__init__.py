@@ -109,6 +109,7 @@ Layout (mirrors Recipe / Equipment / Trust / Subject):
     tools.py                  -- register_run_tools(mcp, *, get_handlers)
 """
 
+from cora.run._projections import register_run_projections
 from cora.run.errors import UnauthorizedError
 from cora.run.routes import register_run_routes
 from cora.run.tools import register_run_tools
@@ -117,6 +118,7 @@ from cora.run.wire import RunHandlers, wire_run
 __all__ = [
     "RunHandlers",
     "UnauthorizedError",
+    "register_run_projections",
     "register_run_routes",
     "register_run_tools",
     "wire_run",

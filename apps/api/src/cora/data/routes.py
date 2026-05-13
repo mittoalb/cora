@@ -56,7 +56,7 @@ from cora.data.aggregates.dataset import (
     ProducingRunNotFoundError,
 )
 from cora.data.errors import UnauthorizedError
-from cora.data.features import discard_dataset, get_dataset, register_dataset
+from cora.data.features import discard_dataset, get_dataset, list_datasets, register_dataset
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -133,6 +133,7 @@ def register_data_routes(app: FastAPI) -> None:
     app.include_router(register_dataset.router)
     app.include_router(discard_dataset.router)
     app.include_router(get_dataset.router)
+    app.include_router(list_datasets.router)
     for validation_cls in (
         InvalidDatasetNameError,
         InvalidDatasetUriError,

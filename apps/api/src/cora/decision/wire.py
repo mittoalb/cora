@@ -21,6 +21,7 @@ from cora.decision.aggregates.decision import (
 from cora.decision.features import (
     append_reasoning_entry,
     get_decision,
+    list_decisions,
     register_decision,
 )
 from cora.infrastructure.idempotency import with_idempotency
@@ -36,6 +37,7 @@ class DecisionHandlers:
 
     register_decision: register_decision.IdempotentHandler
     get_decision: get_decision.Handler
+    list_decisions: list_decisions.Handler
     append_reasoning_entry: append_reasoning_entry.Handler
 
 
@@ -67,5 +69,11 @@ def wire_decision(deps: Kernel) -> DecisionHandlers:
             append_reasoning_entry.bind(deps, reasoning_store=reasoning_store),
             command_name="AppendReasoningEntry",
             bc=_BC,
+        ),
+        list_decisions=with_tracing(
+            list_decisions.bind(deps),
+            command_name="ListDecisions",
+            bc=_BC,
+            kind="query",
         ),
     )

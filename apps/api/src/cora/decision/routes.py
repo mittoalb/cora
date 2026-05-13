@@ -25,6 +25,8 @@ from fastapi.responses import JSONResponse
 from cora.decision.aggregates.decision import (
     DeciderActorNotFoundError,
     DecisionAlreadyExistsError,
+    DecisionLogbookAlreadyOpenError,
+    DecisionLogbookNotOpenError,
     DecisionNotFoundError,
     InvalidDecisionAlternativesError,
     InvalidDecisionChoiceError,
@@ -40,6 +42,7 @@ from cora.decision.errors import OverrideKindRequiresParentError, UnauthorizedEr
 from cora.decision.features import (
     append_reasoning_entry,
     get_decision,
+    list_decisions,
     register_decision,
 )
 
@@ -91,6 +94,7 @@ def register_decision_routes(app: FastAPI) -> None:
     app.include_router(register_decision.router)
     app.include_router(get_decision.router)
     app.include_router(append_reasoning_entry.router)
+    app.include_router(list_decisions.router)
     for validation_cls in (
         InvalidDecisionChoiceError,
         InvalidDecisionContextError,
@@ -109,4 +113,12 @@ def register_decision_routes(app: FastAPI) -> None:
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cross_agg_cls in (DeciderActorNotFoundError, ParentDecisionNotFoundError):
         app.add_exception_handler(cross_agg_cls, _handle_cross_agg_conflict)
+    # Logbook-state transition guards (at-most-one-open + close-only-when-open
+    # invariants from the Decision logbook aggregate); 409 shape mirrors the
+    # cross-agg-conflict family.
+    for logbook_state_cls in (
+        DecisionLogbookAlreadyOpenError,
+        DecisionLogbookNotOpenError,
+    ):
+        app.add_exception_handler(logbook_state_cls, _handle_cross_agg_conflict)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

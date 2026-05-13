@@ -39,6 +39,7 @@ from cora.run.features import (
     complete_run,
     get_run,
     hold_run,
+    list_runs,
     resume_run,
     start_run,
     stop_run,
@@ -60,6 +61,7 @@ class RunHandlers:
     stop_run: stop_run.Handler
     truncate_run: truncate_run.Handler
     get_run: get_run.Handler
+    list_runs: list_runs.Handler
 
 
 def wire_run(deps: Kernel) -> RunHandlers:
@@ -112,6 +114,12 @@ def wire_run(deps: Kernel) -> RunHandlers:
         get_run=with_tracing(
             get_run.bind(deps),
             command_name="GetRun",
+            bc=_BC,
+            kind="query",
+        ),
+        list_runs=with_tracing(
+            list_runs.bind(deps),
+            command_name="ListRuns",
             bc=_BC,
             kind="query",
         ),

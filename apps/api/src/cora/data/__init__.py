@@ -60,6 +60,7 @@ Layout (mirrors every other BC):
     tools.py                 -- register_data_tools(mcp, *, get_handlers)
 """
 
+from cora.data._projections import register_data_projections
 from cora.data.errors import UnauthorizedError
 from cora.data.routes import register_data_routes
 from cora.data.tools import register_data_tools
@@ -68,6 +69,7 @@ from cora.data.wire import DataHandlers, wire_data
 __all__ = [
     "DataHandlers",
     "UnauthorizedError",
+    "register_data_projections",
     "register_data_routes",
     "register_data_tools",
     "wire_data",

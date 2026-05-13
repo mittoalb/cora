@@ -28,7 +28,17 @@ _QUERY_SLICE_FILES: frozenset[str] = frozenset(
 
 # Slices currently in flight. Each entry MUST cite the phase that
 # will close it; reviewers should reject additions that don't.
-WIP_SLICES: frozenset[str] = frozenset()
+#
+# Architectural exemption: entry-appending slices (Phase 8c-b
+# precedent) write to a typed entries store rather than emitting
+# events through a decider, so they have no `decider.py`. The
+# slice contract doesn't yet have a separate file-set for this
+# shape; until it does, exempt these via WIP_SLICES.
+WIP_SLICES: frozenset[str] = frozenset(
+    {
+        "cora.decision.features.append_reasoning_entry",
+    }
+)
 
 
 def _qualified(slice_dir: Path) -> str:

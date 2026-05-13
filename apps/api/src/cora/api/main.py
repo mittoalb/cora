@@ -48,12 +48,14 @@ from cora.access import (
 from cora.api.middleware import BodySizeLimitMiddleware
 from cora.data import (
     DataHandlers,
+    register_data_projections,
     register_data_routes,
     register_data_tools,
     wire_data,
 )
 from cora.decision import (
     DecisionHandlers,
+    register_decision_projections,
     register_decision_routes,
     register_decision_tools,
     wire_decision,
@@ -82,6 +84,7 @@ from cora.recipe import (
 )
 from cora.run import (
     RunHandlers,
+    register_run_projections,
     register_run_routes,
     register_run_tools,
     wire_run,
@@ -233,6 +236,9 @@ def create_app() -> FastAPI:
             register_subject_projections(registry, deps)
             register_equipment_projections(registry, deps)
             register_recipe_projections(registry, deps)
+            register_run_projections(registry, deps)
+            register_data_projections(registry, deps)
+            register_decision_projections(registry, deps)
             app.state.projections = registry
 
             async with (

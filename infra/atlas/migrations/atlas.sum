@@ -1,4 +1,4 @@
-h1:G9gKp1c+siYBZyNamAj0cXlWsBhkOffJIOM1w5qyVgM=
+h1:vu9RHmyiwBt9gZS+qgZF8rq9Wj9LW2SRQlkcwtp8e3Y=
 20260509120000_init_events.sql h1:GmgCZKfaqXu1m96/cKAks2vhaLWTdEaHTLkFtUo9FXg=
 20260509170000_init_idempotency.sql h1:Nbu8DIE4Sv1WiHw3G22+tYffPhKc5Jryw3PMK8wB2zY=
 20260510010000_add_event_id.sql h1:RbtYP6uMnOB20zhJ9dNXUi4YVqbmlEzf562pmygnRW8=
@@ -16,3 +16,6 @@ h1:G9gKp1c+siYBZyNamAj0cXlWsBhkOffJIOM1w5qyVgM=
 20260512310000_init_proj_recipe_practice_summary.sql h1:wQFzO50aXUKFo+O2APgnIXvrf8z9Nl3x+wK+BGxqDMs=
 20260512320000_init_proj_recipe_plan_summary.sql h1:D3fQ9XYygEep6Vwxi1W69lGXUdEPJkrvOrqogUBESxk=
 20260512330000_add_locked_at_idempotency.sql h1:/7PoPGQb82WdKV1VRY2OdlymSQy792rnH7BPWht0WcE=
+20260513000000_init_proj_run_summary.sql h1:3tr6M7YvRE5gLpwj9vwpRzCZhCQbX8JsbBGLrabPY8U=
+20260513010000_init_proj_data_dataset_summary.sql h1:4ExfG5tgFq1Uvg0DxmQoz0Ou/MkZF3DrbmDM+nJLQUk=
+20260513020000_init_proj_decision_summary.sql h1:SL+xOt5muCsjtJHsfpGplPQwkW3W33Q+WU6xC5/cpjg=

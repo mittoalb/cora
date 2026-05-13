@@ -65,6 +65,7 @@ from cora.run.features import (
     complete_run,
     get_run,
     hold_run,
+    list_runs,
     resume_run,
     start_run,
     stop_run,
@@ -138,6 +139,7 @@ def register_run_routes(app: FastAPI) -> None:
     app.include_router(stop_run.router)
     app.include_router(truncate_run.router)
     app.include_router(get_run.router)
+    app.include_router(list_runs.router)
     for validation_cls in (
         InvalidRunNameError,
         InvalidRunAbortReasonError,

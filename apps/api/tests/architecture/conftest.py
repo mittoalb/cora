@@ -22,6 +22,8 @@ CORA_ROOT = SRC_ROOT / "cora"
 
 BCS: tuple[str, ...] = (
     "access",
+    "data",
+    "decision",
     "equipment",
     "recipe",
     "run",
