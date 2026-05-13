@@ -35,19 +35,14 @@ def _asset(
     asset_id: UUID | None = None,
     lifecycle: AssetLifecycle = AssetLifecycle.ACTIVE,
 ) -> Asset:
-    parent_id = uuid4() if lifecycle is not AssetLifecycle.DECOMMISSIONED else uuid4()
     return Asset(
         id=asset_id or uuid4(),
         name=AssetName("Goniometer-1"),
         level=AssetLevel.DEVICE,
-        parent_id=parent_id,
+        parent_id=uuid4(),
         lifecycle=lifecycle,
         capabilities=frozenset(),
     )
-
-
-def _ctx(asset: Asset | None = None) -> MountSubjectContext:
-    return MountSubjectContext(asset=asset or _asset())
 
 
 @pytest.mark.unit
@@ -60,9 +55,7 @@ def test_decide_emits_subject_mounted_when_state_is_received_and_asset_active() 
         context=MountSubjectContext(asset=asset),
         now=_NOW,
     )
-    assert events == [
-        SubjectMounted(subject_id=state.id, asset_id=asset.id, occurred_at=_NOW)
-    ]
+    assert events == [SubjectMounted(subject_id=state.id, asset_id=asset.id, occurred_at=_NOW)]
 
 
 @pytest.mark.unit

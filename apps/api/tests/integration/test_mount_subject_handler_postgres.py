@@ -50,9 +50,7 @@ async def test_mount_subject_persists_event_to_postgres(
     )
 
     # Seed an Active Asset for the mount cross-aggregate validation.
-    asset_id = await seed_active_asset(
-        deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID
-    )
+    asset_id = await seed_active_asset(deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID)
 
     # Register a subject (consumes _NEW_ID + _REGISTER_EVENT_ID).
     subject_id = await register_subject.bind(deps)(
@@ -78,6 +76,7 @@ async def test_mount_subject_persists_event_to_postgres(
     assert mounted.schema_version == 1
     assert mounted.payload == {
         "subject_id": str(subject_id),
+        "asset_id": str(asset_id),
         "occurred_at": _NOW.isoformat(),
     }
     assert mounted.correlation_id == _CORRELATION_ID
