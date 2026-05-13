@@ -36,6 +36,12 @@ _DRAFT_2020_12_URI = "https://json-schema.org/draft/2020-12/schema"
 # Top-level + properties-level keys allowed in CORA's subset.
 # Every other JSON Schema keyword (including $ref / oneOf / anyOf /
 # allOf / conditionals / additionalProperties / etc.) is rejected.
+#
+# When widening this set with a new RECURSIVE keyword (for example
+# `items` for arrays, `patternProperties` for prefix-keyed maps), you
+# MUST also extend `_check_subset` below to recurse into that
+# keyword's value(s). Forgetting to do so opens a hole: forbidden
+# keywords nested inside the new keyword would slip through.
 _ALLOWED_SCHEMA_KEYS: frozenset[str] = frozenset(
     {
         "$schema",

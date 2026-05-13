@@ -147,6 +147,8 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(get_capability.router)
     app.include_router(version_capability.router)
     app.include_router(deprecate_capability.router)
+    app.include_router(update_capability_schema.router)
+    app.include_router(list_capabilities.router)
     app.include_router(register_asset.router)
     app.include_router(activate_asset.router)
     app.include_router(decommission_asset.router)
@@ -157,8 +159,6 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(remove_asset_capability.router)
     app.include_router(get_asset.router)
     app.include_router(list_assets.router)
-    app.include_router(list_capabilities.router)
-    app.include_router(update_capability_schema.router)
     for validation_cls in (
         InvalidCapabilityNameError,
         InvalidCapabilitySchemaError,

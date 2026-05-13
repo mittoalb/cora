@@ -135,6 +135,27 @@ def test_accepts_nested_properties_with_subset_only() -> None:
 
 
 @pytest.mark.unit
+def test_accepts_nested_dollar_schema_declaration() -> None:
+    """Nested property-schemas may carry their own `$schema` even
+    though only the root NEEDS one. Pinned deliberately: the validator
+    treats `$schema` as harmless at every depth (allowing it nested
+    keeps the recursion API simple). If a future change tightens this
+    to root-only, this test should flip to `pytest.raises`."""
+    validate_settings_schema(
+        _schema(
+            type="object",
+            properties={
+                "alignment": {
+                    "$schema": _DRAFT,
+                    "type": "object",
+                    "properties": {"pitch_urad": {"type": "number"}},
+                },
+            },
+        )
+    )
+
+
+@pytest.mark.unit
 def test_rejects_malformed_schema_via_jsonschema_rs() -> None:
     """If the schema is in-subset but jsonschema-rs rejects it as
     malformed (for example, an invalid `pattern` regex), we surface
@@ -146,6 +167,4 @@ def test_rejects_malformed_schema_via_jsonschema_rs() -> None:
                 properties={"x": {"type": "string", "pattern": "[invalid(regex"}},
             )
         )
-    # Either the subset check passes and jsonschema-rs catches it,
-    # OR fastjsonschema-style rejection lands here.
     assert "Invalid Capability settings_schema" in str(exc_info.value)
