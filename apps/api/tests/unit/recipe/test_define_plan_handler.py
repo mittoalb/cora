@@ -143,6 +143,7 @@ async def _append(
         event_id=uuid4(),
         command_name=command_name,
         correlation_id=_CORRELATION_ID,
+        principal_id=uuid4(),
     )
     await store.append(
         stream_type=stream_type,

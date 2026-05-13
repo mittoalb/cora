@@ -84,6 +84,7 @@ async def _seed_dataset(store: InMemoryEventStore, dataset_id: UUID) -> None:
         event_id=uuid4(),
         command_name="RegisterDataset",
         correlation_id=_CORRELATION_ID,
+        principal_id=uuid4(),
     )
     await store.append(
         stream_type="Dataset", stream_id=dataset_id, expected_version=0, events=[new_event]

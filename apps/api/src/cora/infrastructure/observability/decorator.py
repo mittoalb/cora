@@ -24,6 +24,14 @@ every handler in CORA takes `principal_id: UUID` as a keyword arg
 is recorded so trace queries can filter "everything principal X did
 in this trace", aligning with the 2026 multi-agent identity audit
 practice (EU AI Act Article 12, SOC 2 CC7.2).
+
+Cached-hit semantics: tracing wraps idempotency, so the
+`cora.principal_id` attribute is set BEFORE the inner idempotency
+wrapper decides whether to invoke the bare handler or return a
+cached result. This is intentional: the trace records "principal X
+attempted command Y, got cached result Z" even when no event is
+written to the store. Trace queries that count "principal X's
+distinct command attempts" remain accurate under retry.
 """
 
 from typing import Any, Literal, Protocol

@@ -117,6 +117,7 @@ async def _seed_decision(store: InMemoryEventStore, decision_id: UUID) -> None:
         event_id=uuid4(),
         command_name="RegisterDecision",
         correlation_id=_CORRELATION_ID,
+        principal_id=uuid4(),
     )
     await store.append(
         stream_type="Decision", stream_id=decision_id, expected_version=0, events=[new_event]
@@ -352,6 +353,7 @@ async def test_handler_retries_on_concurrent_logbook_open_race() -> None:
                 event_id=raced_open_event_id,
                 command_name="ConcurrentWriter",
                 correlation_id=_CORRELATION_ID,
+                principal_id=uuid4(),
             )
             await real_append(stream_type, stream_id, expected_version, [new_event])
             raise ConcurrencyError(

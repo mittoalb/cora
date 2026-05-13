@@ -20,7 +20,7 @@ Also exercises:
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import asyncpg
 import pytest
@@ -151,6 +151,7 @@ async def test_trust_authorize_persists_traversals_against_postgres(
         event_id=policy_event_id,
         command_name="DefinePolicy",
         correlation_id=_CORRELATION_ID,
+        principal_id=uuid4(),
     )
     await event_store.append("Policy", policy_id, expected_version=0, events=[policy_envelope])
 

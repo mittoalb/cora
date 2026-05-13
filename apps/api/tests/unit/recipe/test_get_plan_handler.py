@@ -88,6 +88,7 @@ async def _seed_plan(
         event_id=uuid4(),
         command_name="DefinePlan",
         correlation_id=_CORRELATION_ID,
+        principal_id=uuid4(),
     )
     await store.append(
         stream_type="Plan",

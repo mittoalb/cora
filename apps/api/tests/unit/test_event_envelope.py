@@ -36,6 +36,7 @@ def test_builds_new_event_with_all_required_fields() -> None:
         event_id=event_id,
         command_name="DoSomething",
         correlation_id=correlation_id,
+        principal_id=uuid4(),
     )
 
     assert new_event.event_id == event_id
@@ -59,6 +60,7 @@ def test_propagates_causation_id_when_supplied() -> None:
         command_name="DoSomething",
         correlation_id=uuid4(),
         causation_id=causation,
+        principal_id=uuid4(),
     )
     assert new_event.causation_id == causation
 
@@ -75,6 +77,7 @@ def test_metadata_holds_only_command_name() -> None:
         event_id=uuid4(),
         command_name="DoX",
         correlation_id=uuid4(),
+        principal_id=uuid4(),
     )
     assert new_event.metadata == {"command": "DoX"}
     assert set(new_event.metadata.keys()) == {"command"}
@@ -89,6 +92,7 @@ def test_default_schema_version_is_one() -> None:
         event_id=uuid4(),
         command_name="DoX",
         correlation_id=uuid4(),
+        principal_id=uuid4(),
     )
     assert new_event.schema_version == 1
 
@@ -106,6 +110,7 @@ def test_explicit_schema_version_overrides_default() -> None:
         command_name="DoX",
         correlation_id=uuid4(),
         schema_version=2,
+        principal_id=uuid4(),
     )
     assert new_event.schema_version == 2
 
@@ -124,24 +129,9 @@ def test_payload_is_stored_unchanged() -> None:
         event_id=uuid4(),
         command_name="DoX",
         correlation_id=uuid4(),
+        principal_id=uuid4(),
     )
     assert new_event.payload is payload
-
-
-@pytest.mark.unit
-def test_default_principal_id_is_none() -> None:
-    """Phase 9b-a transition window: existing call sites that don't
-    yet pass `principal_id=` produce envelopes with the field unset.
-    Removed in 9b-c when the kwarg becomes required."""
-    new_event = to_new_event(
-        event_type="X",
-        payload={},
-        occurred_at=_NOW,
-        event_id=uuid4(),
-        command_name="DoX",
-        correlation_id=uuid4(),
-    )
-    assert new_event.principal_id is None
 
 
 @pytest.mark.unit

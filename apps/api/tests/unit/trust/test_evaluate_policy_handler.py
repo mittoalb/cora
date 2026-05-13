@@ -96,6 +96,7 @@ async def _seed_policy(
         event_id=uuid4(),
         command_name="DefinePolicy",
         correlation_id=uuid4(),
+        principal_id=uuid4(),
     )
     await store.append("Policy", policy_id, expected_version=0, events=[new_event])
 

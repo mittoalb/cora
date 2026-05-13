@@ -77,21 +77,3 @@ async def test_per_event_principal_ids_preserved_within_batch() -> None:
 
     loaded, _ = await store.load("Actor", stream_id)
     assert [e.principal_id for e in loaded] == [p1, p2, None]
-
-
-@pytest.mark.unit
-async def test_default_principal_id_is_none_when_kwarg_omitted() -> None:
-    """Sanity: the dataclass default is None so existing call sites
-    that don't yet pass the kwarg behave correctly during the Phase
-    9b-a -> 9b-b transition window. (Helper-side default + pass-
-    through tests live in `test_event_envelope.py` per its module
-    docstring as the canonical home for the envelope helper.)"""
-    event = NewEvent(
-        event_id=uuid4(),
-        event_type="Recorded",
-        schema_version=1,
-        payload={},
-        occurred_at=datetime.now(tz=UTC),
-        correlation_id=uuid4(),
-    )
-    assert event.principal_id is None

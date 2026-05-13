@@ -147,6 +147,7 @@ def test_round_trip_through_stored_envelope() -> None:
         event_id=uuid4(),
         command_name="RegisterDataset",
         correlation_id=uuid4(),
+        principal_id=uuid4(),
     )
     # Round trip via the StoredEvent shape.
     from cora.infrastructure.ports.event_store import StoredEvent

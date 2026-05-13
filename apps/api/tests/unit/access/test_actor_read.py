@@ -34,6 +34,7 @@ def _new_event(event: ActorRegistered | ActorDeactivated) -> NewEvent:
         correlation_id=uuid4(),
         causation_id=None,
         metadata={},
+        principal_id=uuid4(),
     )
 
 

@@ -75,6 +75,7 @@ def _seed_policy(
         event_id=uuid4(),
         command_name="DefinePolicy",
         correlation_id=uuid4(),
+        principal_id=uuid4(),
     )
     asyncio.run(
         app.state.deps.event_store.append("Policy", policy_id, 0, [new_event]),

@@ -37,6 +37,7 @@ def _new(*, occurred_at: datetime) -> object:
         event_id=uuid4(),
         command_name="SmokeTest",
         correlation_id=uuid4(),
+        principal_id=uuid4(),
     )
 
 

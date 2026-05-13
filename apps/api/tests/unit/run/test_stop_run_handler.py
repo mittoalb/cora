@@ -85,6 +85,7 @@ async def _seed_run_started(store: InMemoryEventStore, run_id: UUID) -> None:
         event_id=uuid4(),
         command_name="StartRun",
         correlation_id=_CORRELATION_ID,
+        principal_id=uuid4(),
     )
     await store.append(stream_type="Run", stream_id=run_id, expected_version=0, events=[new_event])
 
@@ -99,6 +100,7 @@ async def _seed_run_stopped(store: InMemoryEventStore, run_id: UUID) -> None:
         event_id=uuid4(),
         command_name="StopRun",
         correlation_id=_CORRELATION_ID,
+        principal_id=uuid4(),
     )
     await store.append(stream_type="Run", stream_id=run_id, expected_version=1, events=[new_event])
 

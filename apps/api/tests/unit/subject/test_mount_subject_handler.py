@@ -92,6 +92,7 @@ async def _seed_asset(
             event_id=uuid4(),
             command_name="RegisterAsset",
             correlation_id=_CORRELATION_ID,
+            principal_id=uuid4(),
         )
     ]
     if activated:
@@ -104,6 +105,7 @@ async def _seed_asset(
                 event_id=uuid4(),
                 command_name="ActivateAsset",
                 correlation_id=_CORRELATION_ID,
+                principal_id=uuid4(),
             )
         )
     await store.append(stream_type="Asset", stream_id=asset_id, expected_version=0, events=events)

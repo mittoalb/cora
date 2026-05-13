@@ -126,6 +126,7 @@ def test_round_trip_through_stored_envelope() -> None:
         event_id=uuid4(),
         command_name="RegisterDecision",
         correlation_id=uuid4(),
+        principal_id=uuid4(),
     )
     stored = StoredEvent(
         position=1,
@@ -181,6 +182,7 @@ def test_round_trip_preserves_uuid_field_types() -> None:
         event_id=uuid4(),
         command_name="RegisterDecision",
         correlation_id=uuid4(),
+        principal_id=uuid4(),
     )
     stored = StoredEvent(
         position=1,

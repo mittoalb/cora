@@ -82,6 +82,7 @@ async def _seed_decision(store: InMemoryEventStore, decision_id: UUID) -> None:
         event_id=uuid4(),
         command_name="RegisterDecision",
         correlation_id=_CORRELATION_ID,
+        principal_id=uuid4(),
     )
     await store.append(
         stream_type="Decision", stream_id=decision_id, expected_version=0, events=[new_event]

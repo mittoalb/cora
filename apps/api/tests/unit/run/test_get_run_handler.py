@@ -78,6 +78,7 @@ async def _seed_run(
         event_id=uuid4(),
         command_name="StartRun",
         correlation_id=_CORRELATION_ID,
+        principal_id=uuid4(),
     )
     await store.append(
         stream_type="Run",

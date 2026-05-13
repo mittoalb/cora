@@ -77,6 +77,7 @@ async def _seed_policy(
         event_id=uuid4(),
         command_name="DefinePolicy",
         correlation_id=uuid4(),
+        principal_id=uuid4(),
     )
     await store.append("Policy", policy_id, expected_version=0, events=[new_event])
 
@@ -225,6 +226,7 @@ async def _seed_conduit_with_open_traversals_logbook(
             event_id=uuid4(),
             command_name="DefineConduit",
             correlation_id=uuid4(),
+            principal_id=uuid4(),
         )
         for e in (defined, opened)
     ]
@@ -358,6 +360,7 @@ async def test_skips_traversal_when_traversals_logbook_was_closed() -> None:
         event_id=uuid4(),
         command_name="CloseConduitChannel",
         correlation_id=uuid4(),
+        principal_id=uuid4(),
     )
     await store.append(
         "Conduit",

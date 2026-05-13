@@ -31,6 +31,7 @@ def _make_event(
         correlation_id=uuid4(),
         causation_id=None,
         metadata={"actor": "test"},
+        principal_id=uuid4(),
     )
 
 
@@ -135,6 +136,7 @@ async def test_causation_id_round_trips(db_pool: asyncpg.Pool) -> None:
         correlation_id=uuid4(),
         causation_id=cause,
         metadata={},
+        principal_id=uuid4(),
     )
     await store.append("Actor", stream_id, 0, [new_event])
     loaded, _ = await store.load("Actor", stream_id)

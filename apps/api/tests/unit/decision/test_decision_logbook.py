@@ -147,6 +147,7 @@ def test_decision_logbook_opened_round_trip_through_stored_envelope() -> None:
         event_id=uuid4(),
         command_name="OpenDecisionReasoningLogbook",
         correlation_id=uuid4(),
+        principal_id=uuid4(),
     )
     stored = StoredEvent(
         position=1,
@@ -201,6 +202,7 @@ def test_decision_logbook_closed_round_trip_through_stored_envelope() -> None:
         event_id=uuid4(),
         command_name="CloseDecisionReasoningLogbook",
         correlation_id=uuid4(),
+        principal_id=uuid4(),
     )
     stored = StoredEvent(
         position=2,

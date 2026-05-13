@@ -95,6 +95,7 @@ async def _seed_plan(store: InMemoryEventStore, plan_id: UUID) -> None:
         event_id=uuid4(),
         command_name="DefinePlan",
         correlation_id=_CORRELATION_ID,
+        principal_id=uuid4(),
     )
     await store.append(
         stream_type="Plan", stream_id=plan_id, expected_version=0, events=[new_event]
@@ -112,6 +113,7 @@ async def _seed_plan_deprecated(store: InMemoryEventStore, plan_id: UUID) -> Non
         event_id=uuid4(),
         command_name="DeprecatePlan",
         correlation_id=_CORRELATION_ID,
+        principal_id=uuid4(),
     )
     await store.append(
         stream_type="Plan", stream_id=plan_id, expected_version=1, events=[new_event]

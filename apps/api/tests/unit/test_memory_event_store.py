@@ -19,6 +19,7 @@ def _event(payload: dict[str, object] | None = None) -> NewEvent:
         correlation_id=uuid4(),
         causation_id=None,
         metadata={},
+        principal_id=uuid4(),
     )
 
 
@@ -129,6 +130,7 @@ async def test_event_id_round_trips() -> None:
         correlation_id=uuid4(),
         causation_id=None,
         metadata={},
+        principal_id=uuid4(),
     )
 
     await store.append("Actor", stream_id, 0, [event])
@@ -152,6 +154,7 @@ async def test_append_rejects_duplicate_event_id_in_batch() -> None:
         correlation_id=uuid4(),
         causation_id=None,
         metadata={},
+        principal_id=uuid4(),
     )
     e2 = NewEvent(
         event_id=duplicate,  # same id — illegal
@@ -162,6 +165,7 @@ async def test_append_rejects_duplicate_event_id_in_batch() -> None:
         correlation_id=uuid4(),
         causation_id=None,
         metadata={},
+        principal_id=uuid4(),
     )
 
     with pytest.raises(ValueError, match="Duplicate event_id within"):
@@ -186,6 +190,7 @@ async def test_append_rejects_event_id_already_in_store() -> None:
         correlation_id=uuid4(),
         causation_id=None,
         metadata={},
+        principal_id=uuid4(),
     )
     await store.append("Actor", uuid4(), 0, [event])
 
@@ -198,6 +203,7 @@ async def test_append_rejects_event_id_already_in_store() -> None:
         correlation_id=uuid4(),
         causation_id=None,
         metadata={},
+        principal_id=uuid4(),
     )
     with pytest.raises(ValueError, match="event_id already exists"):
         await store.append("Actor", uuid4(), 0, [second])
@@ -217,6 +223,7 @@ async def test_causation_id_round_trips() -> None:
         correlation_id=uuid4(),
         causation_id=cause,
         metadata={},
+        principal_id=uuid4(),
     )
 
     await store.append("Actor", stream_id, 0, [new_event])
@@ -234,6 +241,7 @@ def _build_event(event_type: str = "Recorded") -> NewEvent:
         correlation_id=uuid4(),
         causation_id=None,
         metadata={},
+        principal_id=uuid4(),
     )
 
 
