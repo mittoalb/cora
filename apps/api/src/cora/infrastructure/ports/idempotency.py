@@ -203,7 +203,17 @@ class IdempotencyStore(Protocol):
         result: Any,
     ) -> None:
         """Clear `locked_at` and store the success result. The row
-        was previously claimed by `claim()` returning `Claimed`."""
+        was previously claimed by `claim()` returning `Claimed`.
+
+        Caller contract: `result` MUST be JSON-serializable AND
+        MUST NOT be `None`. The PG adapter's CHECK constraint
+        requires `(locked_at IS NULL AND result IS NOT NULL)` for
+        the completed-success row state; passing `result=None`
+        would either violate the constraint (PG) or leave the row
+        in an unreachable tri-state (memory). Handlers that
+        legitimately return `None` should serialize to a sentinel
+        (e.g. `serialize_result=lambda _: "ok"`) at wire time.
+        """
         ...
 
     async def finalize_error(
@@ -215,7 +225,15 @@ class IdempotencyStore(Protocol):
     ) -> None:
         """Clear `locked_at` and store the cached error so future
         retries replay it. The row was previously claimed by
-        `claim()` returning `Claimed`."""
+        `claim()` returning `Claimed`.
+
+        Caller contract: both `error_type` and `error_msg` MUST be
+        non-empty strings. The PG adapter's CHECK constraint
+        requires `(locked_at IS NULL AND error_type IS NOT NULL
+        AND error_msg IS NOT NULL)` for the completed-error row
+        state. The decorator always passes `_full_class_name(exc)`
+        and `str(exc)` which are non-empty by construction.
+        """
         ...
 
     async def prune(self, *, ttl_hours: int) -> int:
