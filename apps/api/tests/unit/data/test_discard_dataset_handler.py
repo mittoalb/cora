@@ -9,8 +9,6 @@ from cora.data import DataHandlers, UnauthorizedError, wire_data
 from cora.data.aggregates.dataset import (
     DATASET_CHECKSUM_SHA256_HEX_LENGTH,
     DatasetCannotDiscardError,
-    DatasetChecksum,
-    DatasetEncoding,
     DatasetNotFoundError,
     InvalidDatasetDiscardReasonError,
 )
@@ -74,9 +72,11 @@ async def _seed_registered(store: InMemoryEventStore, dataset_id: UUID) -> None:
         dataset_id=dataset_id,
         name="seed",
         uri="s3://b/k",
-        checksum=DatasetChecksum(algorithm="sha256", value=_GOOD_SHA256),
+        checksum_algorithm="sha256",
+        checksum_value=_GOOD_SHA256,
         byte_size=0,
-        encoding=DatasetEncoding(media_type="application/x-hdf5"),
+        media_type="application/x-hdf5",
+        conforms_to=frozenset(),
         producing_run_id=None,
         subject_id=None,
         derived_from=frozenset(),

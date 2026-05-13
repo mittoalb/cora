@@ -39,10 +39,6 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
-from cora.data.aggregates.dataset.state import (
-    DatasetChecksum,
-    DatasetEncoding,
-)
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -53,14 +49,22 @@ class DatasetRegistered:
     Status is implicit (`Registered`); the evolver sets it. All
     cross-aggregate refs (`producing_run_id`, `subject_id`,
     `derived_from`) are eventual-consistency primitives.
+
+    Per CONTRIBUTING.md "Primitives in event payloads": every field
+    here is a primitive (str, int, UUID, datetime, frozenset of
+    primitives). VOs (`DatasetChecksum`, `DatasetEncoding`) are
+    reconstructed by the evolver on fold; the decider unwraps VOs
+    before constructing the event.
     """
 
     dataset_id: UUID
     name: str
     uri: str
-    checksum: DatasetChecksum
+    checksum_algorithm: str
+    checksum_value: str
     byte_size: int
-    encoding: DatasetEncoding
+    media_type: str
+    conforms_to: frozenset[str]
     producing_run_id: UUID | None
     subject_id: UUID | None
     derived_from: frozenset[UUID]
@@ -109,9 +113,11 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
             dataset_id=dataset_id,
             name=name,
             uri=uri,
-            checksum=checksum,
+            checksum_algorithm=checksum_algorithm,
+            checksum_value=checksum_value,
             byte_size=byte_size,
-            encoding=encoding,
+            media_type=media_type,
+            conforms_to=conforms_to,
             producing_run_id=producing_run_id,
             subject_id=subject_id,
             derived_from=derived_from,
@@ -122,13 +128,13 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
                 "name": name,
                 "uri": uri,
                 "checksum": {
-                    "algorithm": checksum.algorithm,
-                    "value": checksum.value,
+                    "algorithm": checksum_algorithm,
+                    "value": checksum_value,
                 },
                 "byte_size": byte_size,
                 "encoding": {
-                    "media_type": encoding.media_type,
-                    "conforms_to": sorted(encoding.conforms_to),
+                    "media_type": media_type,
+                    "conforms_to": sorted(conforms_to),
                 },
                 "producing_run_id": (
                     str(producing_run_id) if producing_run_id is not None else None
@@ -165,15 +171,11 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
                 dataset_id=UUID(payload["dataset_id"]),
                 name=payload["name"],
                 uri=payload["uri"],
-                checksum=DatasetChecksum(
-                    algorithm=raw_checksum["algorithm"],
-                    value=raw_checksum["value"],
-                ),
+                checksum_algorithm=raw_checksum["algorithm"],
+                checksum_value=raw_checksum["value"],
                 byte_size=int(payload["byte_size"]),
-                encoding=DatasetEncoding(
-                    media_type=raw_encoding["media_type"],
-                    conforms_to=frozenset(raw_encoding["conforms_to"]),
-                ),
+                media_type=raw_encoding["media_type"],
+                conforms_to=frozenset(raw_encoding["conforms_to"]),
                 producing_run_id=(
                     UUID(raw_producing_run_id) if raw_producing_run_id is not None else None
                 ),
