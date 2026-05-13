@@ -79,7 +79,9 @@ def test_decide_raises_cannot_discard_for_every_non_removed_state(
     with pytest.raises(SubjectCannotDiscardError) as exc_info:
         discard_subject.decide(
             state=state,
-            command=DiscardSubject(subject_id=state.id, reason="contaminated; biohazard incinerator"),
+            command=DiscardSubject(
+                subject_id=state.id, reason="contaminated; biohazard incinerator"
+            ),
             now=_NOW,
         )
     assert exc_info.value.subject_id == state.id
@@ -92,7 +94,9 @@ def test_decide_error_carries_current_status_for_diagnostic_messaging() -> None:
     with pytest.raises(SubjectCannotDiscardError) as exc_info:
         discard_subject.decide(
             state=state,
-            command=DiscardSubject(subject_id=state.id, reason="contaminated; biohazard incinerator"),
+            command=DiscardSubject(
+                subject_id=state.id, reason="contaminated; biohazard incinerator"
+            ),
             now=_NOW,
         )
     msg = str(exc_info.value)

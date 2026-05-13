@@ -14,7 +14,11 @@ from cora.equipment.aggregates.asset import (
     AssetActivated,
     AssetNotFoundError,
     AssetRegistered,
+)
+from cora.equipment.aggregates.asset import (
     event_type_name as asset_event_type_name,
+)
+from cora.equipment.aggregates.asset import (
     to_payload as asset_to_payload,
 )
 from cora.infrastructure.event_envelope import to_new_event
@@ -102,9 +106,7 @@ async def _seed_asset(
                 correlation_id=_CORRELATION_ID,
             )
         )
-    await store.append(
-        stream_type="Asset", stream_id=asset_id, expected_version=0, events=events
-    )
+    await store.append(stream_type="Asset", stream_id=asset_id, expected_version=0, events=events)
     return asset_id
 
 

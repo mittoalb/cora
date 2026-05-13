@@ -8,7 +8,7 @@ store. This module provides the canonical seed helper.
 
 from __future__ import annotations
 
-from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from cora.equipment.aggregates.asset import (
@@ -18,7 +18,11 @@ from cora.equipment.aggregates.asset import (
     to_payload,
 )
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.ports.event_store import EventStore
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from cora.infrastructure.ports.event_store import EventStore
 
 DEFAULT_ASSET_ID = UUID("01900000-0000-7000-8000-00000000a55e")
 
@@ -66,9 +70,7 @@ async def seed_active_asset(
                 correlation_id=correlation_id,
             )
         )
-    await store.append(
-        stream_type="Asset", stream_id=asset_id, expected_version=0, events=events
-    )
+    await store.append(stream_type="Asset", stream_id=asset_id, expected_version=0, events=events)
     return asset_id
 
 

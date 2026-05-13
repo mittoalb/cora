@@ -8,9 +8,11 @@ via the public HTTP API.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from fastapi.testclient import TestClient
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
 
 
 def register_active_asset(client: TestClient, *, name: str = "Goniometer-1") -> str:

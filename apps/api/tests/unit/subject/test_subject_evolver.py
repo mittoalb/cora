@@ -89,7 +89,10 @@ def test_evolve_subject_mounted_flips_status_to_mounted() -> None:
     the event TYPE (same precedent as ActorDeactivated -> is_active=False)."""
     subject_id = uuid4()
     received = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.RECEIVED)
-    mounted = evolve(received, SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW))
+    mounted = evolve(
+        received,
+        SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
+    )
     assert mounted == Subject(
         id=subject_id,
         name=SubjectName("Sample-A1"),
@@ -106,7 +109,10 @@ def test_evolve_subject_mounted_preserves_id_and_name() -> None:
     fields only) is caught."""
     subject_id = uuid4()
     received = Subject(id=subject_id, name=SubjectName("Original"), status=SubjectStatus.RECEIVED)
-    mounted = evolve(received, SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW))
+    mounted = evolve(
+        received,
+        SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
+    )
     assert mounted.id == subject_id
     assert mounted.name == SubjectName("Original")
 
