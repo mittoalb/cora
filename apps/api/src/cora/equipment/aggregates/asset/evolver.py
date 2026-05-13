@@ -95,8 +95,10 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 level=AssetLevel(level),
                 parent_id=parent_id,
                 lifecycle=AssetLifecycle.COMMISSIONED,
-                # capabilities defaults to empty frozenset; additive-state
-                # pattern ensures pre-5f-1 streams fold cleanly.
+                # capabilities defaults to empty frozenset; condition
+                # defaults to NOMINAL. Additive-state pattern: both
+                # default-via-state so pre-5f-1 / pre-5g-b streams fold
+                # cleanly without an upcaster.
             )
         case AssetActivated():
             prior = _require_state(state, "AssetActivated")

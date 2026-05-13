@@ -1,18 +1,19 @@
 """Shared scaffolding for the Asset aggregate's update-style handlers.
 
-Five update-style Asset transition handlers shipped across Phases
-5c-5e (activate / decommission / relocate / enter_maintenance /
-restore_from_maintenance). Four are byte-identical scaffolding
-around per-slice decide bodies; the fifth (`relocate_asset`) carries
-an extra `to_parent_id` diagnostic log field (its command has more
-than one operationally relevant id) and stays longhand. Each of the
-four matches the same load + authorize + fold + decide + append
-template, differing only in two strings (command_name, log_prefix)
-and the imported `decide` function. This module factors the template
-into one `make_asset_update_handler(...)` factory so each compatible
-slice's handler.py shrinks from ~120 lines to ~50 (a per-slice
-`Handler` Protocol plus a 7-line `bind` that supplies the two
-strings and the decider).
+Update-style Asset transition handlers across Phases 5c-5g-b
+(activate / decommission / relocate / enter_maintenance /
+restore_from_maintenance / degrade / fault / restore). All but one
+(`relocate_asset`) are byte-identical scaffolding around per-slice
+decide bodies; relocate carries an extra `to_parent_id` diagnostic
+log field (its command has more than one operationally relevant id)
+and stays longhand. Each compatible slice matches the same load +
+authorize + fold + decide + append template, differing only in two
+strings (command_name, log_prefix) and the imported `decide`
+function. This module factors the template into one
+`make_asset_update_handler(...)` factory so each compatible slice's
+handler.py shrinks from ~120 lines to ~50 (a per-slice `Handler`
+Protocol plus a 7-line `bind` that supplies the two strings and the
+decider).
 
 **Per-aggregate, not per-BC.** Equipment owns two aggregates
 (Capability + Asset). This factory only handles Asset transitions —
@@ -59,11 +60,19 @@ a single-aggregate BC; same per-aggregate scoping applies there.
 
 Captured by the `_AssetTargetingCommand` Protocol below. The factory
 reads the target id directly off the command via this attribute, and
-every existing single-field Asset transition command (Activate /
-Decommission / EnterMaintenance / RestoreFromMaintenance) satisfies
-the Protocol structurally. RelocateAsset also has `asset_id` but
-carries additional fields (`to_parent_id`, `reason`) that we want to
-log; it stays longhand for that reason.
+every commands with `asset_id` satisfies the Protocol structurally
+regardless of what other fields it carries. Commands using the
+factory today: Activate / Decommission / EnterMaintenance /
+RestoreFromMaintenance / DegradeAsset / FaultAsset / RestoreAsset.
+
+The condition slices (5g-b: degrade / fault / restore) carry a
+`reason: str` field alongside `asset_id`, which IS captured on the
+emitted event payload but is intentionally NOT logged at the
+handler boundary (the event-store stream is the source of truth for
+audit; surface-layer log lines stay shape-stable across slices).
+RelocateAsset also has additional fields (`to_parent_id`, `reason`)
+but stays longhand because its log shape DOES carry `to_parent_id`
+as an operationally-relevant id field for diagnostics.
 
 ## Why Equipment-only (not cross-BC)
 
