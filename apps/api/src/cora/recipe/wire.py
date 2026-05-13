@@ -89,6 +89,7 @@ def wire_recipe(deps: Kernel) -> RecipeHandlers:
                 # rebuild via UUID() on retrieval.
                 serialize_result=str,
                 deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="DefineMethod",
             bc=_BC,
@@ -116,6 +117,7 @@ def wire_recipe(deps: Kernel) -> RecipeHandlers:
                 command_name="DefinePractice",
                 serialize_result=str,
                 deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="DefinePractice",
             bc=_BC,
@@ -143,6 +145,7 @@ def wire_recipe(deps: Kernel) -> RecipeHandlers:
                 command_name="DefinePlan",
                 serialize_result=str,
                 deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="DefinePlan",
             bc=_BC,

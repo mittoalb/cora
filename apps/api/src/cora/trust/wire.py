@@ -63,6 +63,7 @@ def wire_trust(deps: Kernel) -> TrustHandlers:
                 # rebuild via UUID() on retrieval.
                 serialize_result=str,
                 deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="DefineZone",
             bc=_BC,
@@ -74,6 +75,7 @@ def wire_trust(deps: Kernel) -> TrustHandlers:
                 command_name="DefineConduit",
                 serialize_result=str,
                 deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="DefineConduit",
             bc=_BC,
@@ -85,6 +87,7 @@ def wire_trust(deps: Kernel) -> TrustHandlers:
                 command_name="DefinePolicy",
                 serialize_result=str,
                 deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="DefinePolicy",
             bc=_BC,

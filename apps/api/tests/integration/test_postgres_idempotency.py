@@ -1,65 +1,129 @@
-"""Integration tests for `PostgresIdempotencyStore` against real Postgres."""
+"""Integration tests for `PostgresIdempotencyStore` against real Postgres (Phase 9a).
+
+Pins the new claim/finalize/prune surface end-to-end:
+  - claim returns Claimed for a fresh key
+  - claim returns CachedSuccess after finalize_success
+  - claim returns CachedError after finalize_error
+  - claim returns LockedRecent on a fresh in-flight lock
+  - claim returns Claimed on stale-lock takeover
+  - claim returns HashConflict for same key + different command_hash
+  - prune deletes only completed rows older than the TTL window
+  - keys are namespaced per-principal
+"""
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
+import asyncio
 from uuid import uuid4
 
 import asyncpg
 import pytest
 
-from cora.infrastructure.ports import CachedResult
+from cora.infrastructure.ports import (
+    CachedError,
+    CachedSuccess,
+    Claimed,
+    HashConflict,
+    LockedRecent,
+)
 from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 
 
-def _record(result: object = "abc") -> CachedResult:
-    return CachedResult(
-        command_hash="deadbeefcafebabe",
-        command_name="RegisterActor",
-        result=result,
-    )
-
-
 @pytest.mark.integration
-async def test_get_returns_none_for_unknown_key(db_pool: asyncpg.Pool) -> None:
+async def test_claim_returns_claimed_for_fresh_key(db_pool: asyncpg.Pool) -> None:
     store = PostgresIdempotencyStore(db_pool)
-    assert await store.get(uuid4(), "missing") is None
+    outcome = await store.claim(
+        uuid4(), "fresh-key", "hash1", "RegisterActor", lock_stale_seconds=60
+    )
+    assert isinstance(outcome, Claimed)
 
 
 @pytest.mark.integration
-async def test_put_then_get_round_trips(db_pool: asyncpg.Pool) -> None:
+async def test_claim_returns_cached_success_after_finalize_success(
+    db_pool: asyncpg.Pool,
+) -> None:
     store = PostgresIdempotencyStore(db_pool)
     principal = uuid4()
-    record = _record("01900000-0000-7000-8000-000000000001")
-    await store.put(principal, "k1", record)
+    await store.claim(principal, "k", "hash1", "RegisterActor", lock_stale_seconds=60)
+    await store.finalize_success(principal, "k", "result-1")
 
-    cached = await store.get(principal, "k1")
-    assert cached == record
+    outcome = await store.claim(principal, "k", "hash1", "RegisterActor", lock_stale_seconds=60)
+    assert isinstance(outcome, CachedSuccess)
+    assert outcome.result == "result-1"
+    assert outcome.command_hash == "hash1"
+
+
+@pytest.mark.integration
+async def test_claim_returns_cached_error_after_finalize_error(
+    db_pool: asyncpg.Pool,
+) -> None:
+    store = PostgresIdempotencyStore(db_pool)
+    principal = uuid4()
+    await store.claim(principal, "k", "hash1", "RegisterActor", lock_stale_seconds=60)
+    await store.finalize_error(principal, "k", "InvalidActorNameError", "name must be 1-200 chars")
+
+    outcome = await store.claim(principal, "k", "hash1", "RegisterActor", lock_stale_seconds=60)
+    assert isinstance(outcome, CachedError)
+    assert outcome.error_type == "InvalidActorNameError"
+    assert outcome.error_msg == "name must be 1-200 chars"
+
+
+@pytest.mark.integration
+async def test_claim_returns_locked_recent_on_in_flight_collision(
+    db_pool: asyncpg.Pool,
+) -> None:
+    store = PostgresIdempotencyStore(db_pool)
+    principal = uuid4()
+    first = await store.claim(principal, "k", "hash1", "RegisterActor", lock_stale_seconds=60)
+    assert isinstance(first, Claimed)
+
+    second = await store.claim(principal, "k", "hash1", "RegisterActor", lock_stale_seconds=60)
+    assert isinstance(second, LockedRecent)
+
+
+@pytest.mark.integration
+async def test_claim_takes_over_stale_lock(db_pool: asyncpg.Pool) -> None:
+    """If the lock is older than `lock_stale_seconds`, the next claim
+    atomically takes it over (worker-crash recovery)."""
+    store = PostgresIdempotencyStore(db_pool)
+    principal = uuid4()
+    await store.claim(principal, "k", "hash1", "RegisterActor", lock_stale_seconds=60)
+    await asyncio.sleep(0.05)
+    second = await store.claim(principal, "k", "hash2", "RegisterActor", lock_stale_seconds=0)
+    assert isinstance(second, Claimed)
+
+
+@pytest.mark.integration
+async def test_claim_returns_hash_conflict_on_different_command(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Same key reused with a DIFFERENT command body. Client bug -> 422."""
+    store = PostgresIdempotencyStore(db_pool)
+    principal = uuid4()
+    await store.claim(principal, "k", "hash1", "RegisterActor", lock_stale_seconds=60)
+    await store.finalize_success(principal, "k", "result-1")
+
+    outcome = await store.claim(
+        principal, "k", "DIFFERENT-HASH", "RegisterActor", lock_stale_seconds=60
+    )
+    assert isinstance(outcome, HashConflict)
+    assert outcome.expected_hash == "hash1"
+    assert outcome.actual_hash == "DIFFERENT-HASH"
 
 
 @pytest.mark.integration
 async def test_keys_namespaced_by_principal(db_pool: asyncpg.Pool) -> None:
     store = PostgresIdempotencyStore(db_pool)
     p1, p2 = uuid4(), uuid4()
-    await store.put(p1, "shared-key", _record("p1-result"))
-    await store.put(p2, "shared-key", _record("p2-result"))
+    await store.claim(p1, "shared-key", "hash1", "X", lock_stale_seconds=60)
+    await store.finalize_success(p1, "shared-key", "p1-result")
+    await store.claim(p2, "shared-key", "hash2", "X", lock_stale_seconds=60)
+    await store.finalize_success(p2, "shared-key", "p2-result")
 
-    r1 = await store.get(p1, "shared-key")
-    r2 = await store.get(p2, "shared-key")
-    assert r1 is not None and r1.result == "p1-result"
-    assert r2 is not None and r2.result == "p2-result"
-
-
-@pytest.mark.integration
-async def test_put_is_first_writer_wins(db_pool: asyncpg.Pool) -> None:
-    """ON CONFLICT DO NOTHING: a second put for an existing key is a no-op."""
-    store = PostgresIdempotencyStore(db_pool)
-    principal = uuid4()
-    await store.put(principal, "k", _record("first"))
-    await store.put(principal, "k", _record("second"))
-
-    cached = await store.get(principal, "k")
-    assert cached is not None
-    assert cached.result == "first"
+    r1 = await store.claim(p1, "shared-key", "hash1", "X", lock_stale_seconds=60)
+    r2 = await store.claim(p2, "shared-key", "hash2", "X", lock_stale_seconds=60)
+    assert isinstance(r1, CachedSuccess) and r1.result == "p1-result"
+    assert isinstance(r2, CachedSuccess) and r2.result == "p2-result"
 
 
 @pytest.mark.integration
@@ -68,8 +132,44 @@ async def test_jsonb_round_trips_dict_results(db_pool: asyncpg.Pool) -> None:
     store = PostgresIdempotencyStore(db_pool)
     principal = uuid4()
     body = {"actor_id": "01900000-0000-7000-8000-aaaaaaaaaaaa", "is_active": True}
-    await store.put(principal, "k", _record(body))
+    await store.claim(principal, "k", "hash1", "X", lock_stale_seconds=60)
+    await store.finalize_success(principal, "k", body)
 
-    cached = await store.get(principal, "k")
-    assert cached is not None
-    assert cached.result == body
+    outcome = await store.claim(principal, "k", "hash1", "X", lock_stale_seconds=60)
+    assert isinstance(outcome, CachedSuccess)
+    assert outcome.result == body
+
+
+@pytest.mark.integration
+async def test_prune_deletes_only_old_completed_rows(db_pool: asyncpg.Pool) -> None:
+    """Rows older than `ttl_hours` AND completed (locked_at IS NULL)
+    are deleted; in-flight rows survive (locked_at predicate)."""
+    store = PostgresIdempotencyStore(db_pool)
+    principal = uuid4()
+    await store.claim(principal, "old-completed", "h", "X", lock_stale_seconds=60)
+    await store.finalize_success(principal, "old-completed", "x")
+    await store.claim(principal, "new-completed", "h", "X", lock_stale_seconds=60)
+    await store.finalize_success(principal, "new-completed", "x")
+    await store.claim(principal, "old-locked", "h", "X", lock_stale_seconds=60)
+
+    # Backdate created_at on the two "old" rows (year ago).
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE idempotency_keys SET created_at = now() - interval '365 days' "
+            "WHERE principal_id = $1 AND key IN ('old-completed', 'old-locked')",
+            principal,
+        )
+
+    deleted = await store.prune(ttl_hours=1)
+    assert deleted == 1  # only old-completed (in-flight excluded by SQL)
+
+    # new-completed survives — confirmed via cache hit.
+    new_outcome = await store.claim(principal, "new-completed", "h", "X", lock_stale_seconds=60)
+    assert isinstance(new_outcome, CachedSuccess)
+
+    # old-locked also survives (locked_at predicate excluded it from prune).
+    # Subsequent claim sees LockedRecent because locked_at itself is recent
+    # (only created_at was backdated; locked_at was set by the original
+    # claim a few ms ago).
+    old_locked_outcome = await store.claim(principal, "old-locked", "h", "X", lock_stale_seconds=60)
+    assert isinstance(old_locked_outcome, LockedRecent)

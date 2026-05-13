@@ -74,6 +74,7 @@ def wire_run(deps: Kernel) -> RunHandlers:
                 # rebuild via UUID() on retrieval.
                 serialize_result=str,
                 deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="StartRun",
             bc=_BC,

@@ -19,11 +19,11 @@ in the post-5b cleanup so all 4 BCs follow the same pattern.
 
 ## Cross-BC infra errors registered here
 
-`ConcurrencyError` and `IdempotencyConflictError` are infrastructure-
-layer errors that any BC can raise. Access (the first BC that boots)
-registers them globally — Subject / Trust / Equipment do NOT
-re-register them. The JSON shape is the same regardless of which BC
-issued the error.
+`ConcurrencyError`, `IdempotencyConflictError`, `IdempotencyClaimLostError`,
+and `CachedHandlerError` are infrastructure-layer errors that any BC can
+raise. Access (the first BC that boots) registers them globally — Subject /
+Trust / Equipment / Recipe / Run / Data / Decision do NOT re-register them.
+The JSON shape is the same regardless of which BC issued the error.
 """
 
 from fastapi import FastAPI, Request, status
@@ -42,7 +42,13 @@ from cora.access.features import (
     list_actors,
     register_actor,
 )
-from cora.infrastructure.ports import ConcurrencyError, IdempotencyConflictError
+from cora.infrastructure.idempotency import classify_error_status
+from cora.infrastructure.ports import (
+    CachedHandlerError,
+    ConcurrencyError,
+    IdempotencyClaimLostError,
+    IdempotencyConflictError,
+)
 from cora.infrastructure.projection import InvalidCursorError
 
 
@@ -133,6 +139,42 @@ async def _handle_invalid_cursor(request: Request, exc: Exception) -> JSONRespon
     )
 
 
+async def _handle_idempotency_claim_lost(request: Request, exc: Exception) -> JSONResponse:
+    """Race lost on a concurrent idempotency-key claim. Standard HTTP
+    semantics: 409 Conflict + `Retry-After: 1` header tells the client
+    (and any standards-conforming SDK) to wait one second and retry.
+    The next claim either finds the original request completed (cache
+    hit -> same response) or takes over a stale lock (worker crashed)."""
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+        headers={"Retry-After": "1"},
+    )
+
+
+async def _handle_cached_handler_error(request: Request, exc: Exception) -> JSONResponse:
+    """A previous handler invocation raised a cacheable 4xx error;
+    replay the same status + body. The cached `error_type` (the
+    fully-qualified class name) is fed back through the convention-
+    based classifier to recover the HTTP status. Falls back to 500
+    only if classification fails — that shouldn't happen because only
+    4xx-classified errors get cached, but the fallback closes the loop."""
+    _ = request
+    cached: CachedHandlerError = exc  # type: ignore[assignment]
+    short_name = cached.error_type.rsplit(".", 1)[-1]
+    # Synthesize a stub exception whose class NAME matches the cached
+    # error so the classifier picks the right status. The stub class is
+    # defined locally per call (cheap; only fires on cache hit on error
+    # path which is uncommon).
+    stub = type(short_name, (Exception,), {})()
+    http_status = classify_error_status(stub) or 500
+    return JSONResponse(
+        status_code=http_status,
+        content={"detail": cached.error_msg},
+    )
+
+
 def register_access_routes(app: FastAPI) -> None:
     """Attach Access slice routers and exception handlers to the FastAPI app."""
     app.include_router(register_actor.router)
@@ -151,4 +193,6 @@ def register_access_routes(app: FastAPI) -> None:
     # Infrastructure errors (cross-BC; Access registers them globally — see module docstring).
     app.add_exception_handler(ConcurrencyError, _handle_concurrency_conflict)
     app.add_exception_handler(IdempotencyConflictError, _handle_idempotency_conflict)
+    app.add_exception_handler(IdempotencyClaimLostError, _handle_idempotency_claim_lost)
+    app.add_exception_handler(CachedHandlerError, _handle_cached_handler_error)
     app.add_exception_handler(InvalidCursorError, _handle_invalid_cursor)

@@ -26,9 +26,16 @@ from cora.infrastructure.ports.id_generator import (
     UUIDv7Generator,
 )
 from cora.infrastructure.ports.idempotency import (
-    CachedResult,
+    CachedError,
+    CachedHandlerError,
+    CachedSuccess,
+    Claimed,
+    ClaimOutcome,
+    HashConflict,
+    IdempotencyClaimLostError,
     IdempotencyConflictError,
     IdempotencyStore,
+    LockedRecent,
 )
 
 __all__ = [
@@ -36,7 +43,11 @@ __all__ = [
     "AllowAllAuthorize",
     "Authorize",
     "AuthzResult",
-    "CachedResult",
+    "CachedError",
+    "CachedHandlerError",
+    "CachedSuccess",
+    "ClaimOutcome",
+    "Claimed",
     "Clock",
     "ConcurrencyError",
     "Deny",
@@ -44,9 +55,12 @@ __all__ = [
     "EventStore",
     "FixedIdGenerator",
     "FrozenClock",
+    "HashConflict",
     "IdGenerator",
+    "IdempotencyClaimLostError",
     "IdempotencyConflictError",
     "IdempotencyStore",
+    "LockedRecent",
     "NewEvent",
     "StoredEvent",
     "SystemClock",

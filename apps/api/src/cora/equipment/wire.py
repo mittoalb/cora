@@ -104,6 +104,7 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
                 # rebuild via UUID() on retrieval.
                 serialize_result=str,
                 deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="DefineCapability",
             bc=_BC,
@@ -131,6 +132,7 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
                 command_name="RegisterAsset",
                 serialize_result=str,
                 deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="RegisterAsset",
             bc=_BC,

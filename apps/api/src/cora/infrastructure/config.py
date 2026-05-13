@@ -101,6 +101,22 @@ class Settings(BaseSettings):
     # 0.1s prevents accidental tight-loop misconfiguration.
     projection_poll_interval_seconds: float = 5.0
 
+    # Idempotency (Phase 9a)
+    # `idempotency_ttl_hours` is read by the pruner background task
+    # which periodically deletes idempotency_keys rows older than this.
+    # Stripe's industry default is 24h; clients are expected to retry
+    # within that window or accept that a duplicate request will hit
+    # a fresh handler invocation. Set to 0 to disable the pruner
+    # entirely (rows live forever — useful for forensic deployments).
+    idempotency_ttl_hours: int = 24
+    # `idempotency_lock_stale_seconds` is the threshold above which an
+    # in-flight (locked) idempotency row is considered stale and re-
+    # claimable. Covers the case where a process crashed mid-handler
+    # and never released its lock. Default 60s is generous over typical
+    # handler latency (~100ms) but short enough that a crashed worker's
+    # locked rows recover within a minute.
+    idempotency_lock_stale_seconds: int = 60
+
     @field_validator("database_url")
     @classmethod
     def _validate_database_url(cls, value: str) -> str:
@@ -132,6 +148,29 @@ class Settings(BaseSettings):
             msg = (
                 f"projection_poll_interval_seconds must be >= 0.1, got {value}; "
                 "values below 100ms would tight-loop the projection worker"
+            )
+            raise ValueError(msg)
+        return value
+
+    @field_validator("idempotency_ttl_hours")
+    @classmethod
+    def _validate_idempotency_ttl_hours(cls, value: int) -> int:
+        """0 disables the pruner; negative values would invert the
+        TTL window (always-prune-everything) so are rejected."""
+        if value < 0:
+            msg = f"idempotency_ttl_hours must be >= 0 (0 disables pruner), got {value}"
+            raise ValueError(msg)
+        return value
+
+    @field_validator("idempotency_lock_stale_seconds")
+    @classmethod
+    def _validate_idempotency_lock_stale_seconds(cls, value: int) -> int:
+        """Floor of 1s prevents a tight stale-lock recovery loop where
+        every claim immediately considers prior locks stale."""
+        if value < 1:
+            msg = (
+                f"idempotency_lock_stale_seconds must be >= 1, got {value}; "
+                "values below 1s would treat every concurrent claim as stale"
             )
             raise ValueError(msg)
         return value

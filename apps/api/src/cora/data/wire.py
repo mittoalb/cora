@@ -58,6 +58,7 @@ def wire_data(deps: Kernel) -> DataHandlers:
                 # rebuild via UUID() on retrieval.
                 serialize_result=str,
                 deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="RegisterDataset",
             bc=_BC,

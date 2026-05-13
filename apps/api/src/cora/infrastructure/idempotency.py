@@ -1,32 +1,43 @@
-"""Cross-cutting idempotency decorator for command handlers.
+"""Cross-cutting idempotency decorator for command handlers (Phase 9a).
 
 `with_idempotency(handler, store, *, command_name, serialize_result,
-deserialize_result)` returns a wrapped handler with Idempotency-Key
-support. The wrap is applied in each BC's `wire.py` so every create-
-style command handler gets idempotency through one composition point;
-slices stay focused on domain logic.
+deserialize_result, lock_stale_seconds)` returns a wrapped handler
+with full Idempotency-Key support: two-phase claim, 4xx error
+caching, stale-lock recovery. The wrap is applied in each BC's
+`wire.py` so every create-style command handler gets idempotency
+through one composition point; slices stay focused on domain logic.
 
 Lives at `cora/infrastructure/` (not in any single BC) because it
 applies uniformly to every BC's command handlers and depends only on
 the IdempotencyStore port + the cross-BC handler-call convention
 (`(command, *, principal_id, correlation_id, causation_id) -> TResult`).
-The Access BC was the first consumer; Trust is the second; the file
-moved out of `cora/access/` when the second consumer landed, per the
-BC-2-trigger note in CONTRIBUTING.md.
 
-Single-phase semantics (Phase 2d MVP): on each call with a key, look
-up the cache; if hit and the command hash matches, return the cached
-result; if hit but the hash differs, raise IdempotencyConflictError
-(mapped to HTTP 422); if miss, execute the handler and cache the
-result. Race condition under genuinely concurrent retries (same key,
-two parallel requests both miss) is documented in the IdempotencyStore
-port docstring; production fix is two-phase claim/complete per Stripe.
+## Phase 9a flow
 
-Hashing: commands MUST be frozen dataclasses (with primitive or nested-
+For each call with a key, the decorator:
+
+  1. Computes the canonical hash of the command body.
+  2. Calls `store.claim()` — a single SQL round-trip (in the happy
+     path) that either wins the in-flight lock or returns the
+     existing outcome.
+  3. Dispatches on the outcome:
+     - `Claimed` -> run handler. On success, `finalize_success()`
+       and return. On a cacheable 4xx exception, `finalize_error()`
+       and re-raise the original. On a 5xx / uncacheable exception,
+       re-raise without finalizing — the row stays locked and is
+       recovered on the next retry via stale-lock takeover.
+     - `CachedSuccess` -> return the deserialized cached result.
+     - `CachedError` -> raise `CachedHandlerError`; the route layer
+       reconstructs the original 4xx response.
+     - `LockedRecent` -> raise `IdempotencyClaimLostError` -> 409
+       with `Retry-After: 1`. Standard HTTP retry-after semantics.
+     - `HashConflict` -> raise `IdempotencyConflictError` -> 422.
+
+## Hashing
+
+Commands MUST be frozen dataclasses (with primitive or nested-
 dataclass fields). `hash_command(cmd)` serializes via `asdict` +
-`json.dumps(sort_keys=True, default=str)` + SHA256. The `default=str`
-defangs UUIDs and datetimes that may appear in command fields.
-Non-dataclass commands raise `TypeError` at hash time.
+`json.dumps(sort_keys=True, default=str)` + SHA256.
 
 `set` and `frozenset` fields on the command get normalized to sorted
 lists before hashing — Python's set iteration order varies across
@@ -37,9 +48,27 @@ conflict" responses on legitimate retries. Routes that convert JSON
 arrays to `frozenset` for command construction (e.g. permission
 sets in `DefinePolicy`) rely on this normalization.
 
-Key length: capped at `_MAX_KEY_LENGTH` (255 chars, matching Stripe's
-limit). Longer keys raise `ValueError` from the decorator before any
-store lookup or handler invocation.
+## Error classification (4xx caching scope)
+
+`classify_error_status(exc)` maps an exception to its HTTP status
+by class-name convention. Returns None for unknown shapes (treated
+as 5xx -> not cached -> retry-friendly). The convention codifies
+existing routes.py groupings:
+
+  - `Invalid*`           -> 400
+  - `UnauthorizedError`  -> 403
+  - `*NotFoundError`     -> 404
+  - `*AlreadyExistsError`, `*Cannot*Error`, `ConcurrencyError`  -> 409
+  - `IdempotencyConflictError`  -> 422
+
+Per-class override via `idempotency_http_status: ClassVar[int]`
+attribute (rare; convention covers the existing 67-class spectrum).
+
+## Key length
+
+Capped at `_MAX_KEY_LENGTH` (255 chars, matching Stripe's limit).
+Longer keys raise `ValueError` from the decorator before any store
+lookup or handler invocation.
 """
 
 import hashlib
@@ -51,34 +80,30 @@ from uuid import UUID
 
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import (
-    CachedResult,
+    CachedError,
+    CachedHandlerError,
+    CachedSuccess,
+    Claimed,
+    HashConflict,
+    IdempotencyClaimLostError,
     IdempotencyConflictError,
     IdempotencyStore,
+    LockedRecent,
 )
 
 _MAX_KEY_LENGTH = 255
 
-# structlog loggers are lazy: get_logger() returns a proxy and config
-# is applied at first .info() call. Module-level binding is safe even
-# though configure_logging() runs later in build_kernel().
 _log = get_logger(__name__)
 
 
 def _normalize_for_hash(obj: Any) -> Any:
     """Recursively normalize containers so the JSON form is hash-stable.
 
-    `set` and `frozenset` are sorted by string form (UUIDs / strings
-    both compare lexicographically that way) — without this,
+    `set` and `frozenset` are sorted by string form — without this,
     PYTHONHASHSEED randomizes set iteration across workers and
     breaks idempotency. `dict` and `list`/`tuple` recurse into their
-    elements; `tuple` flattens to `list` for JSON. Other primitives
-    pass through; non-JSON values still hit `default=str` in the
-    `json.dumps` call below.
+    elements.
     """
-    # `cast` here because pyright (strict) narrows isinstance(obj, frozenset)
-    # to `frozenset[Unknown]` rather than `frozenset[Any]`, even though `obj`
-    # is annotated `Any`. The casts assert what asdict() guarantees: nested
-    # values are themselves Any-typed.
     if isinstance(obj, (set, frozenset)):
         items_set = cast("set[Any] | frozenset[Any]", obj)
         return sorted((_normalize_for_hash(item) for item in items_set), key=str)
@@ -92,12 +117,7 @@ def _normalize_for_hash(obj: Any) -> Any:
 
 
 def hash_command(command: Any) -> str:
-    """SHA256 hex digest of canonical JSON of the command's dict form.
-
-    Raises TypeError if `command` is not a dataclass instance. See the
-    module docstring for why set-typed fields are normalized before
-    hashing.
-    """
+    """SHA256 hex digest of canonical JSON of the command's dict form."""
     if not is_dataclass(command) or isinstance(command, type):
         msg = (
             f"hash_command requires a dataclass instance, got {type(command).__name__}. "
@@ -107,6 +127,41 @@ def hash_command(command: Any) -> str:
     normalized = _normalize_for_hash(asdict(command))
     canonical = json.dumps(normalized, sort_keys=True, default=str)
     return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def classify_error_status(exc: BaseException) -> int | None:
+    """Map a domain exception class to its HTTP status by class-name convention.
+
+    Returns None when the exception isn't a known cacheable shape
+    (treated as 5xx -> not cached, retry-friendly). Per-class override
+    via `idempotency_http_status: ClassVar[int]` attribute on the
+    exception class.
+    """
+    explicit = getattr(type(exc), "idempotency_http_status", None)
+    if explicit is not None:
+        return int(explicit)
+    name = type(exc).__name__
+    if name.startswith("Invalid"):
+        return 400
+    if name == "UnauthorizedError":
+        return 403
+    if name.endswith("NotFoundError"):
+        return 404
+    if name.endswith("AlreadyExistsError"):
+        return 409
+    if "Cannot" in name and name.endswith("Error"):
+        return 409
+    if name == "ConcurrencyError":
+        return 409
+    if name == "IdempotencyConflictError":
+        return 422
+    return None
+
+
+def _full_class_name(exc: BaseException) -> str:
+    """`module.qualname` of the exception's class, for cached error_type."""
+    cls = type(exc)
+    return f"{cls.__module__}.{cls.__qualname__}"
 
 
 class _BareHandler[TCommand, TResult](Protocol):
@@ -139,8 +194,14 @@ def with_idempotency[TCommand, TResult](
     command_name: str,
     serialize_result: Callable[[TResult], Any],
     deserialize_result: Callable[[Any], TResult],
+    lock_stale_seconds: int,
 ) -> _IdempotentHandler[TCommand, TResult]:
-    """Wrap a bare command handler with Idempotency-Key support."""
+    """Wrap a bare command handler with two-phase Idempotency-Key support.
+
+    `lock_stale_seconds` is sourced from `Settings.idempotency_lock_stale_seconds`
+    at wire-time. It controls how long a locked row sits before being
+    re-claimable by another request (worker-crash recovery).
+    """
 
     async def wrapped(
         command: TCommand,
@@ -163,60 +224,98 @@ def with_idempotency[TCommand, TResult](
             raise ValueError(msg)
 
         cmd_hash = hash_command(command)
-        cached = await store.get(principal_id, idempotency_key)
-        if cached is not None:
-            if cached.command_hash != cmd_hash:
+        outcome = await store.claim(
+            principal_id,
+            idempotency_key,
+            cmd_hash,
+            command_name,
+            lock_stale_seconds=lock_stale_seconds,
+        )
+
+        log_ctx = {
+            "command_name": command_name,
+            "principal_id": str(principal_id),
+            "correlation_id": str(correlation_id),
+            "key": idempotency_key,
+        }
+
+        match outcome:
+            case Claimed():
+                _log.info("idempotency.claimed", **log_ctx)
+                try:
+                    result = await handler(
+                        command,
+                        principal_id=principal_id,
+                        correlation_id=correlation_id,
+                        causation_id=causation_id,
+                    )
+                except Exception as exc:
+                    status = classify_error_status(exc)
+                    if status is not None and 400 <= status < 500:
+                        await store.finalize_error(
+                            principal_id,
+                            idempotency_key,
+                            error_type=_full_class_name(exc),
+                            error_msg=str(exc),
+                        )
+                        _log.info(
+                            "idempotency.cached_error",
+                            error_type=_full_class_name(exc),
+                            http_status=status,
+                            **log_ctx,
+                        )
+                    else:
+                        # 5xx or unknown shape: leave the row locked.
+                        # Stale-lock recovery will let the next retry
+                        # re-claim after `lock_stale_seconds`.
+                        _log.info(
+                            "idempotency.uncached_error",
+                            error_type=_full_class_name(exc),
+                            **log_ctx,
+                        )
+                    raise
+                await store.finalize_success(
+                    principal_id,
+                    idempotency_key,
+                    serialize_result(result),
+                )
+                _log.info("idempotency.cached_success", **log_ctx)
+                return result
+            case CachedSuccess(result=cached):
+                _log.info("idempotency.hit_success", **log_ctx)
+                return deserialize_result(cached)
+            case CachedError(error_type=error_type, error_msg=error_msg):
+                _log.info(
+                    "idempotency.hit_error",
+                    cached_error_type=error_type,
+                    **log_ctx,
+                )
+                raise CachedHandlerError(error_type=error_type, error_msg=error_msg)
+            case LockedRecent(locked_at=locked_at):
+                _log.info(
+                    "idempotency.claim_lost",
+                    locked_at=locked_at.isoformat(),
+                    **log_ctx,
+                )
+                raise IdempotencyClaimLostError(key=idempotency_key, locked_at=locked_at)
+            case HashConflict(expected_hash=expected, actual_hash=actual):
                 _log.info(
                     "idempotency.conflict",
-                    command_name=command_name,
-                    principal_id=str(principal_id),
-                    correlation_id=str(correlation_id),
-                    key=idempotency_key,
-                    expected_hash=cached.command_hash,
-                    actual_hash=cmd_hash,
+                    expected_hash=expected,
+                    actual_hash=actual,
+                    **log_ctx,
                 )
                 raise IdempotencyConflictError(
                     key=idempotency_key,
-                    expected_hash=cached.command_hash,
-                    actual_hash=cmd_hash,
+                    expected_hash=expected,
+                    actual_hash=actual,
                 )
-            _log.info(
-                "idempotency.cache_hit",
-                command_name=command_name,
-                principal_id=str(principal_id),
-                correlation_id=str(correlation_id),
-                key=idempotency_key,
-            )
-            return deserialize_result(cached.result)
-
-        _log.info(
-            "idempotency.cache_miss",
-            command_name=command_name,
-            principal_id=str(principal_id),
-            correlation_id=str(correlation_id),
-            key=idempotency_key,
-        )
-        result = await handler(
-            command,
-            principal_id=principal_id,
-            correlation_id=correlation_id,
-            causation_id=causation_id,
-        )
-        await store.put(
-            principal_id,
-            idempotency_key,
-            CachedResult(
-                command_hash=cmd_hash,
-                command_name=command_name,
-                result=serialize_result(result),
-            ),
-        )
-        return result
 
     return wrapped
 
 
 __all__ = [
+    "classify_error_status",
     "hash_command",
     "with_idempotency",
 ]

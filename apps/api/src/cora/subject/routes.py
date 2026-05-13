@@ -8,8 +8,9 @@ construction.
 JSONResponse is used (not HTTPException) per FastAPI guidance to
 avoid nested-exception pitfalls.
 
-`IdempotencyConflictError` and `ConcurrencyError` are infra-layer
-errors registered by Access (the first BC that boots). They produce
+`IdempotencyConflictError`, `IdempotencyClaimLostError`,
+`CachedHandlerError`, and `ConcurrencyError` are infra-layer errors
+registered by Access (the first BC that boots). They produce
 the same JSON shape regardless of which BC raised them, so Subject
 does not re-register them.
 

@@ -67,6 +67,7 @@ from cora.equipment import (
 )
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import build_kernel
+from cora.infrastructure.idempotency_pruner import idempotency_pruner_lifespan
 from cora.infrastructure.observability import configure_tracing, instrument_app
 from cora.infrastructure.projection import (
     ProjectionRegistry,
@@ -234,7 +235,10 @@ def create_app() -> FastAPI:
             register_recipe_projections(registry, deps)
             app.state.projections = registry
 
-            async with projection_worker_lifespan(deps, registry, settings):
+            async with (
+                projection_worker_lifespan(deps, registry, settings),
+                idempotency_pruner_lifespan(deps),
+            ):
                 try:
                     yield
                 finally:

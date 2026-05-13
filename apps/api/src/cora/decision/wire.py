@@ -52,6 +52,7 @@ def wire_decision(deps: Kernel) -> DecisionHandlers:
                 command_name="RegisterDecision",
                 serialize_result=str,
                 deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="RegisterDecision",
             bc=_BC,

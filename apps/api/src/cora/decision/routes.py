@@ -11,7 +11,8 @@ errors to HTTP status codes.
 
 ## Cross-BC infra errors NOT registered here
 
-`ConcurrencyError`, `IdempotencyConflictError`, and
+`ConcurrencyError`, `IdempotencyConflictError`,
+`IdempotencyClaimLostError`, `CachedHandlerError`, and
 `InvalidCursorError` are infrastructure-layer errors that any BC
 can raise. They're registered globally in `cora/access/routes.py`
 (the first BC that boots); other BCs do NOT re-register them. The

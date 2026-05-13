@@ -69,6 +69,7 @@ def wire_access(deps: Kernel) -> AccessHandlers:
                 # rebuild via UUID() on retrieval.
                 serialize_result=str,
                 deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="RegisterActor",
             bc=_BC,

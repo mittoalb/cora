@@ -86,6 +86,7 @@ def wire_subject(deps: Kernel) -> SubjectHandlers:
                 # rebuild via UUID() on retrieval.
                 serialize_result=str,
                 deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="RegisterSubject",
             bc=_BC,
