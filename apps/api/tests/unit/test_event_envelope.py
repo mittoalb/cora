@@ -126,3 +126,37 @@ def test_payload_is_stored_unchanged() -> None:
         correlation_id=uuid4(),
     )
     assert new_event.payload is payload
+
+
+@pytest.mark.unit
+def test_default_principal_id_is_none() -> None:
+    """Phase 9b-a transition window: existing call sites that don't
+    yet pass `principal_id=` produce envelopes with the field unset.
+    Removed in 9b-c when the kwarg becomes required."""
+    new_event = to_new_event(
+        event_type="X",
+        payload={},
+        occurred_at=_NOW,
+        event_id=uuid4(),
+        command_name="DoX",
+        correlation_id=uuid4(),
+    )
+    assert new_event.principal_id is None
+
+
+@pytest.mark.unit
+def test_explicit_principal_id_passes_through() -> None:
+    """When `principal_id` is supplied, it lands on the NewEvent
+    unchanged. Day-1 ReBAC hook: the value will be persisted to
+    `events.principal_id` by the event-store adapter."""
+    principal = UUID("01900000-0000-7000-8000-00000000aa44")
+    new_event = to_new_event(
+        event_type="X",
+        payload={},
+        occurred_at=_NOW,
+        event_id=uuid4(),
+        command_name="DoX",
+        correlation_id=uuid4(),
+        principal_id=principal,
+    )
+    assert new_event.principal_id == principal

@@ -1,10 +1,10 @@
--- Phase 9b-A: ReBAC day-1 envelope hook, infrastructure foundation.
+-- Phase 9b-a: ReBAC day-1 envelope hook, infrastructure foundation.
 --
 -- Add `events.principal_id` column carrying the UUID of the
 -- principal (the entity that pulled the trigger for this event)
 -- onto the persistence envelope. Wires the data through ports +
--- adapters in this commit; handlers thread it in Phase 9b-B; the
--- application-layer contract tightens in Phase 9b-C.
+-- adapters in this commit; handlers thread it in Phase 9b-b; the
+-- application-layer contract tightens in Phase 9b-c.
 --
 -- ## Why this hook ships day-1 ahead of the full ReBAC build
 --
@@ -30,7 +30,7 @@
 -- while for historical events representing it as 'unknown / not
 -- produced' rather than absent"), we leave the column NULLABLE
 -- forever and enforce the contract at the application layer:
--- `to_new_event` will require the kwarg in Phase 9b-C, which
+-- `to_new_event` will require the kwarg in Phase 9b-c, which
 -- guarantees every NEW event carries the value, while pre-hook
 -- rows stay legitimately NULL.
 --

@@ -44,7 +44,8 @@ _log = get_logger(__name__)
 _ADVANCE_SQL = """
 SELECT position, event_id, stream_type, stream_id, version, event_type,
        schema_version, payload, metadata, correlation_id, causation_id,
-       occurred_at, recorded_at, transaction_id::text AS transaction_id_text
+       principal_id, occurred_at, recorded_at,
+       transaction_id::text AS transaction_id_text
 FROM events
 WHERE (transaction_id, position) > ($1::xid8, $2)
   AND transaction_id < pg_snapshot_xmin(pg_current_snapshot())
@@ -61,7 +62,14 @@ def _row_to_stored_event(row: Any) -> StoredEvent:
     """Mirror of postgres.event_store._row_to_event for the advance query.
     Duplicated rather than imported because the advance query has its
     own SELECT shape (transaction_id alias) that differs from the
-    stream-load query."""
+    stream-load query.
+
+    Both projections of the SELECT must surface every column on
+    StoredEvent, otherwise subscribers see stale `None` values for
+    fields that exist on the row but were dropped here. Keep the
+    column lists in lock-step with `postgres.event_store._LOAD_SQL`
+    when adding new envelope fields.
+    """
     return StoredEvent(
         position=int(row["position"]),
         event_id=row["event_id"],
@@ -77,6 +85,7 @@ def _row_to_stored_event(row: Any) -> StoredEvent:
         occurred_at=row["occurred_at"],
         recorded_at=row["recorded_at"],
         transaction_id=int(row["transaction_id_text"]),
+        principal_id=row["principal_id"],
     )
 
 

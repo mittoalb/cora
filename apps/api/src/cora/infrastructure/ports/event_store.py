@@ -65,9 +65,9 @@ class NewEvent:
     this event (the authenticated caller; same value the handler received
     as its `principal_id` kwarg and the same one the Authorize port gated
     on). Day-1 hook for the future ReBAC graph projection (see
-    `project_authz_future` memory). Optional in Phase 9b-A so the field
-    can ship through ports + adapters before handlers are wired in 9b-B;
-    becomes required at the application layer in 9b-C. Pre-hook events
+    `project_authz_future` memory). Optional in Phase 9b-a so the field
+    can ship through ports + adapters before handlers are wired in 9b-b;
+    becomes required at the application layer in 9b-c. Pre-hook events
     in storage stay legitimately None forever (no derivable historical
     value). Aligned with W3C PROV-O `prov:wasAssociatedWith.agent` at the
     envelope level; per-aggregate fields (Decision.actor_id) provide the
@@ -106,8 +106,8 @@ class StoredEvent:
 
     `principal_id` is the UUID of the entity that pulled the trigger
     (the authenticated caller). Stays `None` forever for events written
-    before the 9b-A hook landed; non-None for events written through the
-    9b-B/C application-layer contract. The DB column is `NULL`-able by
+    before the 9b-a hook landed; non-None for events written through the
+    9b-b/C application-layer contract. The DB column is `NULL`-able by
     design: the past/future boundary lives at the column level, not in
     a backfill. See `NewEvent.principal_id` for the day-1-hook
     rationale.

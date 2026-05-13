@@ -68,8 +68,8 @@ def to_new_event(
     `principal_id` carries the UUID of the entity that pulled the
     trigger for the command that produced this event (the same value
     the handler received as its `principal_id` kwarg). Optional in
-    Phase 9b-A so the kwarg can ship through ports + adapters before
-    handlers are wired in 9b-B; becomes required in 9b-C. Day-1 hook
+    Phase 9b-a so the kwarg can ship through ports + adapters before
+    handlers are wired in 9b-b; becomes required in 9b-c. Day-1 hook
     for the future ReBAC graph projection (see project_authz_future).
     """
     return NewEvent(
