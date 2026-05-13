@@ -50,7 +50,6 @@ from cora.decision.aggregates.decision import (
     DecisionContext,
     DecisionRegistered,
     DecisionRule,
-    OverrideKindRequiresParentError,
     ParentDecisionNotFoundError,
     validate_alternatives,
     validate_confidence,
@@ -58,6 +57,7 @@ from cora.decision.aggregates.decision import (
     validate_reasoning,
     validate_reasoning_signature,
 )
+from cora.decision.errors import OverrideKindRequiresParentError
 from cora.decision.features.register_decision.command import RegisterDecision
 from cora.decision.features.register_decision.context import DecisionRegistrationContext
 

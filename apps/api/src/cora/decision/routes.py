@@ -33,10 +33,9 @@ from cora.decision.aggregates.decision import (
     InvalidDecisionReasoningError,
     InvalidDecisionRuleError,
     InvalidReasoningSignatureError,
-    OverrideKindRequiresParentError,
     ParentDecisionNotFoundError,
 )
-from cora.decision.errors import UnauthorizedError
+from cora.decision.errors import OverrideKindRequiresParentError, UnauthorizedError
 from cora.decision.features import (
     append_reasoning_entry,
     get_decision,

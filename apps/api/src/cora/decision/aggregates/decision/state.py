@@ -344,18 +344,6 @@ class ParentDecisionNotFoundError(Exception):
         self.parent_id = parent_id
 
 
-class OverrideKindRequiresParentError(ValueError):
-    """`override_kind` was supplied without a `parent_id`.
-
-    Override semantics only make sense when there's something to
-    override. Either supply both or neither.
-    """
-
-    def __init__(self, override_kind: str) -> None:
-        super().__init__(f"Decision override_kind={override_kind!r} requires a parent_id")
-        self.override_kind = override_kind
-
-
 class DecisionLogbookAlreadyOpenError(Exception):
     """Attempted to open a second logbook of the same kind on a Decision.
 

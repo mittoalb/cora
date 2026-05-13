@@ -20,9 +20,9 @@ from cora.decision.aggregates.decision import (
     InvalidDecisionInputsError,
     InvalidDecisionReasoningError,
     InvalidDecisionRuleError,
-    OverrideKindRequiresParentError,
     ParentDecisionNotFoundError,
 )
+from cora.decision.errors import OverrideKindRequiresParentError
 from cora.decision.features import register_decision
 from cora.decision.features.register_decision import (
     DecisionRegistrationContext,

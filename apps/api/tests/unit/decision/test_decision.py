@@ -31,7 +31,6 @@ from cora.decision.aggregates.decision import (
     InvalidDecisionReasoningError,
     InvalidDecisionRuleError,
     InvalidReasoningSignatureError,
-    OverrideKindRequiresParentError,
     ParentDecisionNotFoundError,
     validate_alternatives,
     validate_confidence,
@@ -39,6 +38,7 @@ from cora.decision.aggregates.decision import (
     validate_reasoning,
     validate_reasoning_signature,
 )
+from cora.decision.errors import OverrideKindRequiresParentError
 
 # ---------- DecisionChoice / DecisionContext / DecisionRule ----------
 
