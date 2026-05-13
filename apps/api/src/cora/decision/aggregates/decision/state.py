@@ -57,6 +57,36 @@ parent_id set, parent Decision exists).
     encrypted summary) for tamper-evidence beyond the row-level
     INSERT-only guarantee.
 
+## `actor_id` vs envelope `principal_id` (Phase 9b clarification)
+
+These are distinct fields with overlapping but non-identical
+semantics. They will TYPICALLY hold the same UUID but can
+legitimately differ:
+
+  - `Decision.actor_id` is the WHO of the decision: the human or
+    AI that made the choice. PROV-O `prov:wasAssociatedWith.agent`.
+    Lives on the Decision aggregate's state and is captured in the
+    DecisionRegistered event payload.
+  - `events.principal_id` (Phase 9b envelope hook) is the WHO of
+    the COMMAND: the authenticated caller that triggered the
+    register_decision command. Lives on the persistence envelope,
+    independent of payload.
+
+Today they're always the same UUID (the Actor that made the
+decision is the same Actor whose credentials called the API).
+Future cases where they differ:
+
+  - Admin records a decision made by another Actor (audit-policy
+    feature; admin's principal_id, decided-by Actor's actor_id).
+  - Saga emits register_decision on behalf of an originating
+    principal (saga's machine principal_id, original-decider's
+    actor_id).
+
+Convention when sagas land: the saga passes-through the
+originating principal_id to downstream commands; the saga's own
+identity goes in event metadata, not the principal_id field.
+See [[project_authz_future]] for the saga-propagation pattern.
+
 ## Aggregate is atomic-immutable; chains carry corrections
 
 Decisions are append-only and never updated in place. Corrections,

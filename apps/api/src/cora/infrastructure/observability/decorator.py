@@ -32,6 +32,15 @@ cached result. This is intentional: the trace records "principal X
 attempted command Y, got cached result Z" even when no event is
 written to the store. Trace queries that count "principal X's
 distinct command attempts" remain accurate under retry.
+
+Strict-accuracy footnote: the attribute is set when `principal_id`
+is non-None in the kwargs. Under production posture
+(`Settings.require_authenticated_principal=True`), the auth proxy
+guarantees a real UUID on every request so this is always the case.
+Under dev/test posture the fallback `SYSTEM_PRINCIPAL_ID` is also a
+real UUID, so the attribute still lands. The `None`-omission branch
+exists only as defensive code for hypothetical future call shapes
+that pass no kwarg at all.
 """
 
 from typing import Any, Literal, Protocol
