@@ -18,6 +18,7 @@ from cora.run.aggregates.run import (
 from cora.run.features.start_run.route import (
     _get_handler as _get_start_run_handler,  # pyright: ignore[reportPrivateUsage]
 )
+from tests.contract._subject_helpers import register_active_asset
 
 
 def _setup_full_chain(client: TestClient) -> tuple[str, str]:
@@ -45,7 +46,10 @@ def _setup_full_chain(client: TestClient) -> tuple[str, str]:
     subject_id = client.post("/subjects", json={"name": "PorousCeramicSample-A"}).json()[
         "subject_id"
     ]
-    mount_resp = client.post(f"/subjects/{subject_id}/mount")
+    mount_asset_id = register_active_asset(client)
+    mount_resp = client.post(
+        f"/subjects/{subject_id}/mount", json={"asset_id": mount_asset_id}
+    )
     assert mount_resp.status_code == 204
     return plan_id, subject_id
 

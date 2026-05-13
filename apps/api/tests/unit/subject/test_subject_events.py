@@ -98,20 +98,21 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
 
 @pytest.mark.unit
 def test_event_type_name_returns_subject_mounted_class_name() -> None:
-    event = SubjectMounted(subject_id=uuid4(), occurred_at=_NOW)
+    event = SubjectMounted(subject_id=uuid4(), asset_id=uuid4(), occurred_at=_NOW)
     assert event_type_name(event) == "SubjectMounted"
 
 
 @pytest.mark.unit
 def test_to_payload_serializes_subject_mounted_to_primitives() -> None:
     """Status NOT in payload — event type encodes the state change.
-    Pinned because adding `status` to the payload (e.g., to support
-    a generic 'set status' command later) is an additive change that
-    must be deliberate."""
+    `asset_id` IS in payload (load-bearing for "where is sample X?"
+    downstream queries)."""
     subject_id = uuid4()
-    event = SubjectMounted(subject_id=subject_id, occurred_at=_NOW)
+    asset_id = uuid4()
+    event = SubjectMounted(subject_id=subject_id, asset_id=asset_id, occurred_at=_NOW)
     assert to_payload(event) == {
         "subject_id": str(subject_id),
+        "asset_id": str(asset_id),
         "occurred_at": _NOW.isoformat(),
     }
     assert "status" not in to_payload(event)
@@ -120,20 +121,24 @@ def test_to_payload_serializes_subject_mounted_to_primitives() -> None:
 @pytest.mark.unit
 def test_from_stored_rebuilds_subject_mounted() -> None:
     subject_id = uuid4()
+    asset_id = uuid4()
     stored = _stored(
         "SubjectMounted",
         {
             "subject_id": str(subject_id),
+            "asset_id": str(asset_id),
             "occurred_at": _NOW.isoformat(),
         },
     )
     rebuilt = from_stored(stored)
-    assert rebuilt == SubjectMounted(subject_id=subject_id, occurred_at=_NOW)
+    assert rebuilt == SubjectMounted(
+        subject_id=subject_id, asset_id=asset_id, occurred_at=_NOW
+    )
 
 
 @pytest.mark.unit
 def test_to_payload_then_from_stored_round_trips_for_subject_mounted() -> None:
-    original = SubjectMounted(subject_id=uuid4(), occurred_at=_NOW)
+    original = SubjectMounted(subject_id=uuid4(), asset_id=uuid4(), occurred_at=_NOW)
     stored = _stored("SubjectMounted", to_payload(original))
     assert from_stored(stored) == original
 

@@ -106,7 +106,11 @@ depends_on = ["cora.infrastructure", "cora.equipment.aggregates"]
 
 [[modules]]
 path = "cora.subject"
-depends_on = ["cora.infrastructure", "cora.subject.aggregates"]
+depends_on = [
+    "cora.infrastructure",
+    "cora.subject.aggregates",
+    "cora.equipment.aggregates",
+]
 
 [[modules]]
 path = "cora.trust"

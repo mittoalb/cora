@@ -1,7 +1,8 @@
 """Unit tests for the `mount_subject` application handler.
 
 Exercises the load+fold+decide+append flow against InMemoryEventStore.
-Mirrors `test_deactivate_handler.py` for the update-style pattern.
+Mirrors `test_deactivate_handler.py` for the update-style pattern, plus
+the cross-aggregate-context pre-load (Asset) per the start_run pattern.
 """
 
 from datetime import UTC, datetime
@@ -9,12 +10,21 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.equipment.aggregates.asset import (
+    AssetActivated,
+    AssetNotFoundError,
+    AssetRegistered,
+    event_type_name as asset_event_type_name,
+    to_payload as asset_to_payload,
+)
+from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.ports import ConcurrencyError
 from cora.subject import SubjectHandlers, UnauthorizedError, wire_subject
 from cora.subject.aggregates.subject import (
     SubjectCannotMountError,
+    SubjectMountTargetUnavailableError,
     SubjectNotFoundError,
     SubjectStatus,
 )
@@ -29,6 +39,7 @@ _REGISTER_EVENT_ID = UUID("01900000-0000-7000-8000-000000005be1")
 _MOUNT_EVENT_ID = UUID("01900000-0000-7000-8000-000000005be2")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+_ASSET_ID = UUID("01900000-0000-7000-8000-00000000a55e")
 
 
 def _build_deps(
@@ -36,9 +47,7 @@ def _build_deps(
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
 ) -> Kernel:
-    """Thin per-file wrapper preserving this file's `_NOW` + ID list.
-    register_subject consumes [_NEW_ID, _REGISTER_EVENT_ID];
-    mount_subject consumes [_MOUNT_EVENT_ID] for its event_id."""
+    """Thin per-file wrapper preserving this file's `_NOW` + ID list."""
     return _build_deps_shared(
         ids=[_NEW_ID, _REGISTER_EVENT_ID, _MOUNT_EVENT_ID],
         now=_NOW,
@@ -57,17 +66,59 @@ async def _register_subject(deps: Kernel) -> UUID:
     )
 
 
+async def _seed_asset(
+    store: InMemoryEventStore,
+    *,
+    asset_id: UUID = _ASSET_ID,
+    activated: bool = True,
+) -> UUID:
+    """Seed an Asset stream with AssetRegistered (+ optional AssetActivated)."""
+    registered = AssetRegistered(
+        asset_id=asset_id,
+        name="Goniometer-1",
+        level="Enterprise",
+        parent_id=None,
+        occurred_at=_NOW,
+    )
+    events = [
+        to_new_event(
+            event_type=asset_event_type_name(registered),
+            payload=asset_to_payload(registered),
+            occurred_at=_NOW,
+            event_id=uuid4(),
+            command_name="RegisterAsset",
+            correlation_id=_CORRELATION_ID,
+        )
+    ]
+    if activated:
+        activated_evt = AssetActivated(asset_id=asset_id, occurred_at=_NOW)
+        events.append(
+            to_new_event(
+                event_type=asset_event_type_name(activated_evt),
+                payload=asset_to_payload(activated_evt),
+                occurred_at=_NOW,
+                event_id=uuid4(),
+                command_name="ActivateAsset",
+                correlation_id=_CORRELATION_ID,
+            )
+        )
+    await store.append(
+        stream_type="Asset", stream_id=asset_id, expected_version=0, events=events
+    )
+    return asset_id
+
+
 @pytest.mark.unit
 async def test_handler_returns_none_on_success() -> None:
     """Update-style handlers return None (no new id; mutation is the side
-    effect). Pinned because returning anything else would break route /
-    MCP layers that rely on `await handler(...)` not yielding a value."""
+    effect)."""
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     subject_id = await _register_subject(deps)
+    asset_id = await _seed_asset(store)
 
     result = await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -79,9 +130,10 @@ async def test_handler_appends_subject_mounted_event() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     subject_id = await _register_subject(deps)
+    asset_id = await _seed_asset(store)
 
     await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -93,6 +145,7 @@ async def test_handler_appends_subject_mounted_event() -> None:
     assert mounted.event_type == "SubjectMounted"
     assert mounted.payload == {
         "subject_id": str(subject_id),
+        "asset_id": str(asset_id),
         "occurred_at": _NOW.isoformat(),
     }
     assert mounted.event_id == _MOUNT_EVENT_ID
@@ -104,36 +157,74 @@ async def test_handler_appends_subject_mounted_event() -> None:
 async def test_handler_raises_subject_not_found_when_subject_does_not_exist() -> None:
     """The decider's SubjectNotFoundError propagates unchanged through
     the handler — the route maps it to 404."""
-    deps = _build_deps()
+    store = InMemoryEventStore()
+    deps = _build_deps(event_store=store)
+    asset_id = await _seed_asset(store)
     handler = mount_subject.bind(deps)
 
     with pytest.raises(SubjectNotFoundError):
         await handler(
-            MountSubject(subject_id=uuid4()),
+            MountSubject(subject_id=uuid4(), asset_id=asset_id),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
 
 
 @pytest.mark.unit
-async def test_handler_raises_cannot_mount_when_subject_already_mounted() -> None:
-    """Strict semantics: re-mount raises rather than no-ops. Pinned for
-    the same reason `ActorAlreadyDeactivatedError` is — the domain
-    refuses redundant transitions; Idempotency-Key handles retry safety
-    separately."""
+async def test_handler_raises_asset_not_found_when_asset_does_not_exist() -> None:
+    """The handler's load_asset returning None propagates as
+    AssetNotFoundError — Equipment's routes map it to 404."""
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     subject_id = await _register_subject(deps)
 
     handler = mount_subject.bind(deps)
+    with pytest.raises(AssetNotFoundError):
+        await handler(
+            MountSubject(subject_id=subject_id, asset_id=uuid4()),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+@pytest.mark.unit
+async def test_handler_raises_when_asset_not_active() -> None:
+    """Asset that exists but is still Commissioned (not yet activated)
+    triggers SubjectMountTargetUnavailableError -> 409."""
+    store = InMemoryEventStore()
+    deps = _build_deps(event_store=store)
+    subject_id = await _register_subject(deps)
+    asset_id = await _seed_asset(store, activated=False)
+
+    handler = mount_subject.bind(deps)
+    with pytest.raises(SubjectMountTargetUnavailableError) as exc_info:
+        await handler(
+            MountSubject(subject_id=subject_id, asset_id=asset_id),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert exc_info.value.subject_id == subject_id
+    assert exc_info.value.asset_id == asset_id
+    assert exc_info.value.current_lifecycle == "Commissioned"
+
+
+@pytest.mark.unit
+async def test_handler_raises_cannot_mount_when_subject_already_mounted() -> None:
+    """Strict semantics: re-mount raises rather than no-ops."""
+    store = InMemoryEventStore()
+    deps = _build_deps(event_store=store)
+    subject_id = await _register_subject(deps)
+    asset_id = await _seed_asset(store)
+
+    handler = mount_subject.bind(deps)
     await handler(
-        MountSubject(subject_id=subject_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     with pytest.raises(SubjectCannotMountError) as exc_info:
         await handler(
-            MountSubject(subject_id=subject_id),
+            MountSubject(subject_id=subject_id, asset_id=asset_id),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -147,13 +238,14 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     subject_id = await _register_subject(deps)
+    asset_id = await _seed_asset(store)
 
     deny_deps = _build_deps(event_store=store, deny=True)
     handler = mount_subject.bind(deny_deps)
 
     with pytest.raises(UnauthorizedError) as exc_info:
         await handler(
-            MountSubject(subject_id=subject_id),
+            MountSubject(subject_id=subject_id, asset_id=asset_id),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -165,11 +257,12 @@ async def test_handler_does_not_append_when_denied() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     subject_id = await _register_subject(deps)
+    asset_id = await _seed_asset(store)
 
     deny_deps = _build_deps(event_store=store, deny=True)
     with pytest.raises(UnauthorizedError):
         await mount_subject.bind(deny_deps)(
-            MountSubject(subject_id=subject_id),
+            MountSubject(subject_id=subject_id, asset_id=asset_id),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -187,9 +280,10 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     subject_id = await _register_subject(deps)
+    asset_id = await _seed_asset(store)
 
     await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,
@@ -201,30 +295,21 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
 
 @pytest.mark.unit
 async def test_handler_uses_optimistic_concurrency_check() -> None:
-    """The handler appends with `expected_version=current_version`. A
-    concurrent write that bumped the version surfaces as a
-    ConcurrencyError. Pinned because losing the optimistic check would
-    silently allow lost updates."""
+    """Second mount fails the decider's status guard, not the
+    concurrency check — that's the strict-semantics path."""
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     subject_id = await _register_subject(deps)
+    asset_id = await _seed_asset(store)
 
-    # First mount succeeds.
     await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    # Second mount fails the decider's status guard, not the
-    # concurrency check — that's the strict-semantics path. To verify
-    # ConcurrencyError specifically, we'd need a parallel-write
-    # scenario; covered by integration tests against the real event
-    # store. Here we just confirm that the second call raises
-    # SubjectCannotMountError (decider-level) rather than silently
-    # producing a stream with two SubjectMounted events.
     with pytest.raises(SubjectCannotMountError):
         await mount_subject.bind(deps)(
-            MountSubject(subject_id=subject_id),
+            MountSubject(subject_id=subject_id, asset_id=asset_id),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -251,10 +336,11 @@ async def test_wired_handler_propagates_causation_id_through_full_composition() 
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     subject_id = await _register_subject(deps)
+    asset_id = await _seed_asset(store)
 
     handlers = wire_subject(deps)
     await handlers.mount_subject(
-        MountSubject(subject_id=subject_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,

@@ -146,6 +146,28 @@ class SubjectCannotMountError(Exception):
         self.current_status = current_status
 
 
+class SubjectMountTargetUnavailableError(Exception):
+    """Mount target Asset exists but is not in `Active` lifecycle.
+
+    Mount requires the sample-environment Asset to be `Active`. If
+    the operator names a `Commissioned`, `Maintenance`, or
+    `Decommissioned` Asset, the mount is rejected. Cross-aggregate
+    validation pattern: handler pre-loads the Asset, decider
+    validates its lifecycle.
+
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, subject_id: UUID, asset_id: UUID, current_lifecycle: str) -> None:
+        super().__init__(
+            f"Subject {subject_id} cannot be mounted on Asset {asset_id}: "
+            f"Asset currently in lifecycle {current_lifecycle}, mount requires Active"
+        )
+        self.subject_id = subject_id
+        self.asset_id = asset_id
+        self.current_lifecycle = current_lifecycle
+
+
 class SubjectCannotMeasureError(Exception):
     """Attempted to measure a subject not in the `Mounted` state.
 
@@ -317,8 +339,16 @@ class SubjectName:
 
 @dataclass(frozen=True)
 class Subject:
-    """Aggregate root: the entity being measured / observed / studied."""
+    """Aggregate root: the entity being measured / observed / studied.
+
+    `mounted_on_asset_id` is the sample-environment Asset the Subject
+    is currently mounted on. Set on `mount_subject`, preserved through
+    `measure_subject`, cleared on `remove_subject` and the terminal
+    dispositions. None when the Subject is not mounted (Received,
+    Removed, or any terminal state).
+    """
 
     id: UUID
     name: SubjectName
     status: SubjectStatus = SubjectStatus.RECEIVED
+    mounted_on_asset_id: UUID | None = None

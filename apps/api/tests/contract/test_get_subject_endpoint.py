@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._subject_helpers import register_active_asset
 
 
 def _register_subject(client: TestClient, name: str = "Sample-A1") -> UUID:
@@ -38,7 +39,8 @@ def test_get_subject_returns_200_with_received_status_for_new_subject() -> None:
 def test_get_subject_reflects_mount_transition() -> None:
     with TestClient(create_app()) as client:
         subject_id = _register_subject(client)
-        client.post(f"/subjects/{subject_id}/mount")
+        asset_id = register_active_asset(client)
+        client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id})
         response = client.get(f"/subjects/{subject_id}")
 
     assert response.status_code == 200
@@ -53,7 +55,8 @@ def test_get_subject_reflects_full_lifecycle_to_returned() -> None:
     evolver edit that diverges from the write path)."""
     with TestClient(create_app()) as client:
         subject_id = _register_subject(client)
-        client.post(f"/subjects/{subject_id}/mount")
+        asset_id = register_active_asset(client)
+        client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id})
         client.post(f"/subjects/{subject_id}/measure")
         client.post(f"/subjects/{subject_id}/remove")
         client.post(f"/subjects/{subject_id}/return")

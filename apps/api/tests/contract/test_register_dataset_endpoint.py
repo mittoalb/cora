@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
 from cora.data.aggregates.dataset import DATASET_CHECKSUM_SHA256_HEX_LENGTH
+from tests.contract._subject_helpers import register_active_asset
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
 
@@ -47,7 +48,8 @@ def _start_run(client: TestClient) -> str:
         json={"name": "Plan", "practice_id": practice_id, "asset_ids": [asset_id]},
     ).json()["plan_id"]
     subject_id = client.post("/subjects", json={"name": "Sample"}).json()["subject_id"]
-    client.post(f"/subjects/{subject_id}/mount")
+    mount_asset_id = register_active_asset(client)
+    client.post(f"/subjects/{subject_id}/mount", json={"asset_id": mount_asset_id})
     run_id = client.post(
         "/runs",
         json={"name": "32-ID FlyScan", "plan_id": plan_id, "subject_id": subject_id},

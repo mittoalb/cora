@@ -40,6 +40,7 @@ from cora.subject.aggregates.subject import (
     SubjectCannotRemoveError,
     SubjectCannotReturnError,
     SubjectCannotStoreError,
+    SubjectMountTargetUnavailableError,
     SubjectNotFoundError,
 )
 from cora.subject.errors import UnauthorizedError
@@ -137,6 +138,7 @@ def register_subject_routes(app: FastAPI) -> None:
         SubjectCannotReturnError,
         SubjectCannotStoreError,
         SubjectCannotDiscardError,
+        SubjectMountTargetUnavailableError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

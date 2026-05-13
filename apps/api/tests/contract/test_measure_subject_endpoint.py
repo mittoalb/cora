@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._subject_helpers import register_active_asset
 
 
 def _register_subject(client: TestClient, name: str = "Sample-A1") -> str:
@@ -22,7 +23,10 @@ def _register_subject(client: TestClient, name: str = "Sample-A1") -> str:
 
 def _register_and_mount(client: TestClient) -> str:
     subject_id = _register_subject(client)
-    mounted = client.post(f"/subjects/{subject_id}/mount")
+    asset_id = register_active_asset(client)
+    mounted = client.post(
+        f"/subjects/{subject_id}/mount", json={"asset_id": asset_id}
+    )
     assert mounted.status_code == 204
     return subject_id
 

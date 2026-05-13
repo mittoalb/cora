@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
 from tests.contract._mcp_helpers import open_session, parse_sse_data
+from tests.contract._subject_helpers import register_active_asset
 
 
 def _register_subject_via_tool(client: TestClient, headers: dict[str, str]) -> UUID:
@@ -34,6 +35,7 @@ def _register_subject_via_tool(client: TestClient, headers: dict[str, str]) -> U
 
 
 def _mount_subject_via_tool(client: TestClient, headers: dict[str, str], subject_id: UUID) -> None:
+    asset_id = register_active_asset(client)
     response = client.post(
         "/mcp",
         json={
@@ -42,7 +44,7 @@ def _mount_subject_via_tool(client: TestClient, headers: dict[str, str], subject
             "method": "tools/call",
             "params": {
                 "name": "mount_subject",
-                "arguments": {"subject_id": str(subject_id)},
+                "arguments": {"subject_id": str(subject_id), "asset_id": asset_id},
             },
         },
         headers=headers,

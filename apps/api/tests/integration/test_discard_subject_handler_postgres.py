@@ -31,6 +31,7 @@ from cora.subject.features.discard_subject import DiscardSubject
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
 from cora.subject.features.remove_subject import RemoveSubject
+from tests.unit.subject._asset_helper import seed_active_asset
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000054e3ec")
@@ -68,8 +69,11 @@ async def test_discard_subject_persists_event_to_postgres(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
+    asset_id = await seed_active_asset(
+        deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID
+    )
     await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

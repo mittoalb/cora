@@ -27,6 +27,7 @@ from cora.subject.features.register_subject import RegisterSubject
 from cora.subject.features.remove_subject import RemoveSubject
 from cora.subject.features.store_subject import StoreSubject
 from tests.unit._helpers import build_deps as _build_deps_shared
+from tests.unit.subject._asset_helper import seed_active_asset
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000005ab1")
@@ -65,8 +66,11 @@ async def _register_mount_remove(deps: Kernel) -> UUID:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
+    asset_id = await seed_active_asset(
+        deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID
+    )
     await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -140,8 +144,11 @@ async def test_handler_raises_cannot_store_when_subject_not_yet_removed() -> Non
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
+    asset_id = await seed_active_asset(
+        deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID
+    )
     await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

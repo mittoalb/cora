@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
 from tests.contract._mcp_helpers import open_session, parse_sse_data
+from tests.contract._subject_helpers import register_active_asset
 
 
 def _register_subject_via_tool(client: TestClient, headers: dict[str, str]) -> UUID:
@@ -51,6 +52,7 @@ def test_mcp_mount_subject_tool_succeeds_for_received_subject() -> None:
     with TestClient(create_app()) as client:
         headers = open_session(client)
         subject_id = _register_subject_via_tool(client, headers)
+        asset_id = register_active_asset(client)
         response = client.post(
             "/mcp",
             json={
@@ -59,7 +61,7 @@ def test_mcp_mount_subject_tool_succeeds_for_received_subject() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "mount_subject",
-                    "arguments": {"subject_id": str(subject_id)},
+                    "arguments": {"subject_id": str(subject_id), "asset_id": asset_id},
                 },
             },
             headers=headers,
@@ -73,6 +75,7 @@ def test_mcp_mount_subject_tool_returns_iserror_for_unknown_subject() -> None:
     """SubjectNotFoundError propagates → FastMCP wraps as isError."""
     with TestClient(create_app()) as client:
         headers = open_session(client)
+        asset_id = register_active_asset(client)
         response = client.post(
             "/mcp",
             json={
@@ -81,7 +84,7 @@ def test_mcp_mount_subject_tool_returns_iserror_for_unknown_subject() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "mount_subject",
-                    "arguments": {"subject_id": str(uuid4())},
+                    "arguments": {"subject_id": str(uuid4()), "asset_id": asset_id},
                 },
             },
             headers=headers,
@@ -97,6 +100,7 @@ def test_mcp_mount_subject_tool_returns_iserror_when_already_mounted() -> None:
     with TestClient(create_app()) as client:
         headers = open_session(client)
         subject_id = _register_subject_via_tool(client, headers)
+        asset_id = register_active_asset(client)
 
         # First mount: success.
         first = client.post(
@@ -107,7 +111,7 @@ def test_mcp_mount_subject_tool_returns_iserror_when_already_mounted() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "mount_subject",
-                    "arguments": {"subject_id": str(subject_id)},
+                    "arguments": {"subject_id": str(subject_id), "asset_id": asset_id},
                 },
             },
             headers=headers,
@@ -123,7 +127,7 @@ def test_mcp_mount_subject_tool_returns_iserror_when_already_mounted() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "mount_subject",
-                    "arguments": {"subject_id": str(subject_id)},
+                    "arguments": {"subject_id": str(subject_id), "asset_id": asset_id},
                 },
             },
             headers=headers,

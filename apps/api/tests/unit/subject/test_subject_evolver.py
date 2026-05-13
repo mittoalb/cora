@@ -1,7 +1,7 @@
 """Unit tests for the Subject aggregate's evolver."""
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -25,6 +25,7 @@ from cora.subject.features import register_subject
 from cora.subject.features.register_subject import RegisterSubject
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
+_ASSET_ID = UUID("01900000-0000-7000-8000-00000000a55e")
 
 
 @pytest.mark.unit
@@ -88,9 +89,12 @@ def test_evolve_subject_mounted_flips_status_to_mounted() -> None:
     the event TYPE (same precedent as ActorDeactivated -> is_active=False)."""
     subject_id = uuid4()
     received = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.RECEIVED)
-    mounted = evolve(received, SubjectMounted(subject_id=subject_id, occurred_at=_NOW))
+    mounted = evolve(received, SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW))
     assert mounted == Subject(
-        id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.MOUNTED
+        id=subject_id,
+        name=SubjectName("Sample-A1"),
+        status=SubjectStatus.MOUNTED,
+        mounted_on_asset_id=_ASSET_ID,
     )
 
 
@@ -102,7 +106,7 @@ def test_evolve_subject_mounted_preserves_id_and_name() -> None:
     fields only) is caught."""
     subject_id = uuid4()
     received = Subject(id=subject_id, name=SubjectName("Original"), status=SubjectStatus.RECEIVED)
-    mounted = evolve(received, SubjectMounted(subject_id=subject_id, occurred_at=_NOW))
+    mounted = evolve(received, SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW))
     assert mounted.id == subject_id
     assert mounted.name == SubjectName("Original")
 
@@ -112,7 +116,7 @@ def test_evolve_subject_mounted_on_empty_state_raises() -> None:
     """SubjectMounted before SubjectRegistered = corrupted stream.
     Fail loud rather than silently producing an empty subject."""
     with pytest.raises(ValueError, match="cannot be applied to empty state"):
-        evolve(None, SubjectMounted(subject_id=uuid4(), occurred_at=_NOW))
+        evolve(None, SubjectMounted(subject_id=uuid4(), asset_id=_ASSET_ID, occurred_at=_NOW))
 
 
 @pytest.mark.unit
@@ -122,11 +126,14 @@ def test_fold_register_then_mount_yields_mounted_subject() -> None:
     state = fold(
         [
             SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
         ]
     )
     assert state == Subject(
-        id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.MOUNTED
+        id=subject_id,
+        name=SubjectName("Sample-A1"),
+        status=SubjectStatus.MOUNTED,
+        mounted_on_asset_id=_ASSET_ID,
     )
 
 
@@ -170,12 +177,15 @@ def test_fold_register_mount_measure_yields_measured_subject() -> None:
     state = fold(
         [
             SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
             SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
         ]
     )
     assert state == Subject(
-        id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.MEASURED
+        id=subject_id,
+        name=SubjectName("Sample-A1"),
+        status=SubjectStatus.MEASURED,
+        mounted_on_asset_id=_ASSET_ID,
     )
 
 
@@ -234,7 +244,7 @@ def test_fold_register_mount_remove_yields_removed_subject() -> None:
     state = fold(
         [
             SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
             SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
         ]
     )
@@ -251,7 +261,7 @@ def test_fold_register_mount_measure_remove_yields_removed_subject() -> None:
     state = fold(
         [
             SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
             SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
             SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
         ]
@@ -346,7 +356,7 @@ def test_fold_full_lifecycle_to_returned() -> None:
     state = fold(
         [
             SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
             SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
             SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
             SubjectReturned(subject_id=subject_id, occurred_at=_NOW),
@@ -363,7 +373,7 @@ def test_fold_full_lifecycle_to_stored() -> None:
     state = fold(
         [
             SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
             SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
             SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
             SubjectStored(subject_id=subject_id, occurred_at=_NOW),
@@ -380,7 +390,7 @@ def test_fold_full_lifecycle_to_discarded() -> None:
     state = fold(
         [
             SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
             SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
             SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
             SubjectDiscarded(subject_id=subject_id, reason="contaminated", occurred_at=_NOW),

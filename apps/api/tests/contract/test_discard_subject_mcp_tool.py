@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
 from tests.contract._mcp_helpers import open_session, parse_sse_data
+from tests.contract._subject_helpers import register_active_asset
 
 
 def _call_tool(
@@ -44,11 +45,12 @@ def _register_mount_remove_via_tools(client: TestClient, headers: dict[str, str]
         request_id=2,
     )
     subject_id = UUID(body["result"]["structuredContent"]["subject_id"])
+    asset_id = register_active_asset(client)
     _call_tool(
         client,
         headers,
         name="mount_subject",
-        args={"subject_id": str(subject_id)},
+        args={"subject_id": str(subject_id), "asset_id": asset_id},
         request_id=3,
     )
     _call_tool(
@@ -117,11 +119,12 @@ def test_mcp_discard_subject_tool_returns_iserror_when_not_yet_removed() -> None
             request_id=7,
         )
         subject_id = UUID(body["result"]["structuredContent"]["subject_id"])
+        asset_id = register_active_asset(client)
         _call_tool(
             client,
             headers,
             name="mount_subject",
-            args={"subject_id": str(subject_id)},
+            args={"subject_id": str(subject_id), "asset_id": asset_id},
             request_id=8,
         )
         body = _call_tool(

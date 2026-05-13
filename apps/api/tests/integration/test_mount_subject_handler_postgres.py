@@ -26,6 +26,7 @@ from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.subject.features import mount_subject, register_subject
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
+from tests.unit.subject._asset_helper import seed_active_asset
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000054b2ec")
@@ -48,6 +49,11 @@ async def test_mount_subject_persists_event_to_postgres(
         idempotency_store=PostgresIdempotencyStore(db_pool),
     )
 
+    # Seed an Active Asset for the mount cross-aggregate validation.
+    asset_id = await seed_active_asset(
+        deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID
+    )
+
     # Register a subject (consumes _NEW_ID + _REGISTER_EVENT_ID).
     subject_id = await register_subject.bind(deps)(
         RegisterSubject(name="Sample-A1"),
@@ -58,7 +64,7 @@ async def test_mount_subject_persists_event_to_postgres(
 
     # Mount it (consumes _MOUNT_EVENT_ID).
     await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

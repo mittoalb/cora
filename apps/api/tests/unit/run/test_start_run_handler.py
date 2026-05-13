@@ -301,7 +301,7 @@ async def _seed_subject_mounted(
         payload=subject_to_payload(register_event),
         command_name="RegisterSubject",
     )
-    mount_event = SubjectMounted(subject_id=subject_id, occurred_at=_NOW)
+    mount_event = SubjectMounted(subject_id=subject_id, asset_id=uuid4(), occurred_at=_NOW)
     await _append(
         store,
         stream_type="Subject",

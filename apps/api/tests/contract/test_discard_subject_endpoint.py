@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._subject_helpers import register_active_asset
 
 
 def _register_subject(client: TestClient, name: str = "Sample-A1") -> str:
@@ -20,7 +21,10 @@ def _register_subject(client: TestClient, name: str = "Sample-A1") -> str:
 
 def _register_mount_remove(client: TestClient) -> str:
     subject_id = _register_subject(client)
-    mounted = client.post(f"/subjects/{subject_id}/mount")
+    asset_id = register_active_asset(client)
+    mounted = client.post(
+        f"/subjects/{subject_id}/mount", json={"asset_id": asset_id}
+    )
     assert mounted.status_code == 204
     removed = client.post(f"/subjects/{subject_id}/remove")
     assert removed.status_code == 204
@@ -55,7 +59,8 @@ def test_post_discard_returns_404_when_subject_does_not_exist() -> None:
 def test_post_discard_returns_409_when_subject_not_yet_removed() -> None:
     with TestClient(create_app()) as client:
         subject_id = _register_subject(client)
-        client.post(f"/subjects/{subject_id}/mount")
+        asset_id = register_active_asset(client)
+        client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id})
         response = client.post(
             f"/subjects/{subject_id}/discard", json={"reason": "contaminated"}
         )

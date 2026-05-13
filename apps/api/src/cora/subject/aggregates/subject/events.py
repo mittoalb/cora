@@ -44,9 +44,17 @@ class SubjectMounted:
 
     Status transition: `Received -> Mounted`. The evolver sets the
     new status; no status field in the payload.
+
+    `asset_id` records the sample-environment `Equipment.Asset` the
+    Subject was mounted on. Captured for "where is sample X?"
+    downstream queries and for full sample-handling provenance.
+    Eventual-consistency reference: existence verified at handler-
+    load time (404 on missing); decider validates Asset lifecycle is
+    `Active` at mount time (409 on non-Active).
     """
 
     subject_id: UUID
+    asset_id: UUID
     occurred_at: datetime
 
 
@@ -155,9 +163,10 @@ def to_payload(event: SubjectEvent) -> dict[str, Any]:
                 "name": name,
                 "occurred_at": occurred_at.isoformat(),
             }
-        case SubjectMounted(subject_id=subject_id, occurred_at=occurred_at):
+        case SubjectMounted(subject_id=subject_id, asset_id=asset_id, occurred_at=occurred_at):
             return {
                 "subject_id": str(subject_id),
+                "asset_id": str(asset_id),
                 "occurred_at": occurred_at.isoformat(),
             }
         case SubjectMeasured(subject_id=subject_id, occurred_at=occurred_at):
@@ -208,6 +217,7 @@ def from_stored(stored: StoredEvent) -> SubjectEvent:
         case "SubjectMounted":
             return SubjectMounted(
                 subject_id=UUID(payload["subject_id"]),
+                asset_id=UUID(payload["asset_id"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "SubjectMeasured":

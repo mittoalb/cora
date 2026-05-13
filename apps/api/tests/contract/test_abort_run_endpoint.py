@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._subject_helpers import register_active_asset
 
 
 def _setup_full_run(client: TestClient) -> str:
@@ -32,7 +33,8 @@ def _setup_full_run(client: TestClient) -> str:
         json={"name": "Plan", "practice_id": practice_id, "asset_ids": [asset_id]},
     ).json()["plan_id"]
     subject_id = client.post("/subjects", json={"name": "Sample"}).json()["subject_id"]
-    client.post(f"/subjects/{subject_id}/mount")
+    mount_asset_id = register_active_asset(client)
+    client.post(f"/subjects/{subject_id}/mount", json={"asset_id": mount_asset_id})
     run_id = client.post(
         "/runs",
         json={"name": "32-ID FlyScan", "plan_id": plan_id, "subject_id": subject_id},

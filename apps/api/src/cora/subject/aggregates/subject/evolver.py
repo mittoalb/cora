@@ -17,6 +17,11 @@ The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
 precedent as `ActorDeactivated -> is_active=False`.
 
+`mounted_on_asset_id`: set on SubjectMounted (from event.asset_id),
+preserved through SubjectMeasured (from prior state), cleared on
+SubjectRemoved and the terminal dispositions. None on the Received
+genesis state.
+
 Transition events applied to empty state raise ValueError: they can
 never appear before `SubjectRegistered` in a well-formed stream.
 The shared guard helper keeps the per-arm bodies short.
@@ -55,25 +60,56 @@ def evolve(state: Subject | None, event: SubjectEvent) -> Subject:
                 id=subject_id,
                 name=SubjectName(name),
                 status=SubjectStatus.RECEIVED,
+                mounted_on_asset_id=None,
             )
-        case SubjectMounted():
+        case SubjectMounted(asset_id=asset_id):
             prior = _require_state(state, "SubjectMounted")
-            return Subject(id=prior.id, name=prior.name, status=SubjectStatus.MOUNTED)
+            return Subject(
+                id=prior.id,
+                name=prior.name,
+                status=SubjectStatus.MOUNTED,
+                mounted_on_asset_id=asset_id,
+            )
         case SubjectMeasured():
             prior = _require_state(state, "SubjectMeasured")
-            return Subject(id=prior.id, name=prior.name, status=SubjectStatus.MEASURED)
+            return Subject(
+                id=prior.id,
+                name=prior.name,
+                status=SubjectStatus.MEASURED,
+                mounted_on_asset_id=prior.mounted_on_asset_id,
+            )
         case SubjectRemoved():
             prior = _require_state(state, "SubjectRemoved")
-            return Subject(id=prior.id, name=prior.name, status=SubjectStatus.REMOVED)
+            return Subject(
+                id=prior.id,
+                name=prior.name,
+                status=SubjectStatus.REMOVED,
+                mounted_on_asset_id=None,
+            )
         case SubjectReturned():
             prior = _require_state(state, "SubjectReturned")
-            return Subject(id=prior.id, name=prior.name, status=SubjectStatus.RETURNED)
+            return Subject(
+                id=prior.id,
+                name=prior.name,
+                status=SubjectStatus.RETURNED,
+                mounted_on_asset_id=None,
+            )
         case SubjectStored():
             prior = _require_state(state, "SubjectStored")
-            return Subject(id=prior.id, name=prior.name, status=SubjectStatus.STORED)
+            return Subject(
+                id=prior.id,
+                name=prior.name,
+                status=SubjectStatus.STORED,
+                mounted_on_asset_id=None,
+            )
         case SubjectDiscarded():
             prior = _require_state(state, "SubjectDiscarded")
-            return Subject(id=prior.id, name=prior.name, status=SubjectStatus.DISCARDED)
+            return Subject(
+                id=prior.id,
+                name=prior.name,
+                status=SubjectStatus.DISCARDED,
+                mounted_on_asset_id=None,
+            )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 

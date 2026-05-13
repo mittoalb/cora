@@ -37,6 +37,7 @@ from cora.subject.features.remove_subject import RemoveSubject
 from cora.subject.features.remove_subject import bind as bind_remove
 from cora.subject.features.return_subject import ReturnSubject
 from cora.subject.features.return_subject import bind as bind_return
+from tests.unit.subject._asset_helper import seed_active_asset
 
 _NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -130,8 +131,11 @@ async def test_full_lifecycle_transitions_status_through_all_phases(
     await _drain(db_pool)
     await _assert_status(db_pool, sid, "Received")
 
+    asset_id = await seed_active_asset(
+        deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID
+    )
     await bind_mount(deps)(
-        MountSubject(subject_id=sid),
+        MountSubject(subject_id=sid, asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -228,10 +232,13 @@ async def test_status_filter_narrows_to_mounted_only(
             correlation_id=_CORRELATION_ID,
         )
 
+    asset_id = await seed_active_asset(
+        deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID
+    )
     mount = bind_mount(deps)
     for sid in (base_ids[1], base_ids[3]):
         await mount(
-            MountSubject(subject_id=sid),
+            MountSubject(subject_id=sid, asset_id=asset_id),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -263,8 +270,11 @@ async def test_status_filter_narrows_to_discarded_terminal(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
+    asset_id = await seed_active_asset(
+        deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID
+    )
     await bind_mount(deps)(
-        MountSubject(subject_id=sid),
+        MountSubject(subject_id=sid, asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

@@ -1,0 +1,95 @@
+# pyright: reportPrivateUsage=false
+
+"""Contract test for the 409 Conflict + `Retry-After: 1` response
+emitted when an Idempotency-Key claim race is lost.
+
+Phase 9a behavior: when one request holds the in-flight lock for a
+key and a second request arrives with the same key, the second
+request returns 409 Conflict with `Retry-After: 1` (IETF /
+RFC 9110 standard). HTTP-conformant SDKs auto-retry after the
+delay; the next claim either finds the original request completed
+(cache hit -> same response) or takes over a stale lock (worker
+crashed mid-handler).
+
+Tests inject a locked row directly into the in-memory store
+rather than racing two real concurrent requests, because the test
+client is synchronous and the in-memory store is thread-locked.
+The decorator's claim-lost path is exercised end-to-end: route ->
+decorator -> store.claim() -> LockedRecent -> raise
+IdempotencyClaimLostError -> Access global handler -> 409 + header.
+"""
+
+from datetime import UTC, datetime
+from uuid import UUID
+
+import pytest
+from fastapi.testclient import TestClient
+
+from cora.api.main import create_app
+from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore, _Row
+
+_PRINCIPAL_ID = UUID("00000000-0000-0000-0000-000000000099")
+
+
+def _seed_locked_row(store: InMemoryIdempotencyStore, key: str) -> None:
+    """Inject a fresh in-flight row simulating a concurrent request
+    that has just claimed the lock and is mid-handler."""
+    now = datetime.now(tz=UTC)
+    store._records[(_PRINCIPAL_ID, key)] = _Row(  # type: ignore[attr-defined]  # pyright: ignore[reportPrivateUsage]
+        command_hash="seeded-hash",
+        command_name="RegisterActor",
+        created_at=now,
+        locked_at=now,
+    )
+
+
+@pytest.mark.contract
+def test_post_actors_returns_409_with_retry_after_when_claim_lost() -> None:
+    """Locked-row injection simulates a concurrent in-flight request.
+    The second POST should receive 409 + `Retry-After: 1`."""
+    with TestClient(create_app()) as client:
+        store = client.app.state.deps.idempotency_store  # type: ignore[attr-defined]
+        assert isinstance(store, InMemoryIdempotencyStore)
+        _seed_locked_row(store, "race-key")
+
+        response = client.post(
+            "/actors",
+            json={"name": "Doga"},
+            headers={
+                "Idempotency-Key": "race-key",
+                "X-Principal-Id": str(_PRINCIPAL_ID),
+            },
+        )
+
+    assert response.status_code == 409
+    assert response.headers.get("Retry-After") == "1"
+    body = response.json()
+    assert "detail" in body
+    assert "race-key" in body["detail"]
+
+
+@pytest.mark.contract
+def test_409_response_body_does_not_leak_internal_state() -> None:
+    """The error body should mention the key and that retry is
+    expected, but not internal details like raw timestamps in non-
+    ISO format or implementation specifics."""
+    with TestClient(create_app()) as client:
+        store = client.app.state.deps.idempotency_store  # type: ignore[attr-defined]
+        assert isinstance(store, InMemoryIdempotencyStore)
+        _seed_locked_row(store, "diag-key")
+
+        response = client.post(
+            "/actors",
+            json={"name": "X"},
+            headers={
+                "Idempotency-Key": "diag-key",
+                "X-Principal-Id": str(_PRINCIPAL_ID),
+            },
+        )
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    # Sanity: detail is a string, mentions the key, mentions retry.
+    assert isinstance(detail, str)
+    assert "diag-key" in detail
+    assert "retry" in detail.lower()
