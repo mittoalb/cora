@@ -4,12 +4,12 @@ on:
   push:
     branches: [main]
     paths:
-      - "README.md"
       - "CONTRIBUTING.md"
       - "docs/**"
       - "mkdocs.yml"
       - ".github/workflows/docs.yml"
       - "scripts/stage_docs.py"
+      - "scripts/mkdocs_hooks.py"
   workflow_dispatch:
 
 # Allow only one concurrent deployment, no cancel-in-progress so a

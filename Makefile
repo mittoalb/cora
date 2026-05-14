@@ -111,7 +111,7 @@ migrate-hash:
 # mkdocs-material once with: pip install --user mkdocs-material==9.5.49
 
 docs-stage:
-	python scripts/stage_docs.py
+	python3 scripts/stage_docs.py
 
 docs-build: docs-stage
 	mkdocs build --strict

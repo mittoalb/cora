@@ -1,13 +1,20 @@
 """MkDocs build-time hooks.
 
 Rewrites markdown links in-memory so the static site at xmap.github.io/cora/
-resolves correctly without mutating the source files in docs/:
+resolves correctly without mutating the source files in docs/. Two distinct
+behaviors:
 
-    - Repo-relative paths (apps/, infra/, .github/, etc.) -> https://github.com/xmap/cora/blob/main/...
-    - ../README.md -> index.md   (the staged copy of the README)
-    - ../CONTRIBUTING.md -> contributing.md   (the staged copy)
-    - docs/foo.md -> foo.md   (intra-site)
-    - Links containing /.claude/ (private auto-memory) are stripped to plain text
+1. The staged contributing.md (mirrored from /CONTRIBUTING.md at build time)
+   has paths that are repo-root-relative. They are rewritten to either an
+   intra-site mkdocs path (when the target is a docs/ page) or a GitHub blob
+   URL (when the target is a repo file outside docs/).
+
+2. Every other page in docs/ is page-aware: links that resolve inside docs/
+   are left alone (mkdocs handles relative intra-site links natively); links
+   that resolve outside docs/ are rewritten to GitHub blob URLs (or to the
+   staged contributing.md for the ../CONTRIBUTING.md special case).
+
+Links containing /.claude/ (private auto-memory) are stripped to plain text.
 
 Registered in mkdocs.yml under `hooks:`.
 """
@@ -15,69 +22,102 @@ Registered in mkdocs.yml under `hooks:`.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any
 
 REPO_BLOB = "https://github.com/xmap/cora/blob/main/"
-
-# Files that exist in the published mkdocs site (matches mkdocs.yml nav).
-INTRA_SITE = {
-    "index.md",
-    "architecture.md",
-    "stack.md",
-    "glossary.md",
-    "contributing.md",
-}
+HOOK_DIR = Path(__file__).resolve().parent
+REPO_ROOT = HOOK_DIR.parent
+DOCS_DIR = REPO_ROOT / "docs"
 
 LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 
 
-def _rewrite(match: re.Match[str]) -> str:
-    label, target = match.group(1), match.group(2)
+def _rewrite_in_page(page_src_uri: str, markdown: str) -> str:
+    is_staged = page_src_uri == "contributing.md"
+    page_path_in_docs = Path(page_src_uri)
+    page_dir_in_docs = page_path_in_docs.parent
+    # Number of "../" steps to climb from the page back to docs/ root.
+    depth_to_docs_root = (
+        0 if str(page_dir_in_docs) == "." else len(page_dir_in_docs.parts)
+    )
+    up_to_docs_root = "../" * depth_to_docs_root
 
-    # Leave external links and anchors alone.
-    if target.startswith(("http://", "https://", "#", "mailto:")):
-        return match.group(0)
+    def _rewrite(match: re.Match[str]) -> str:
+        original = match.group(0)
+        label, target = match.group(1), match.group(2)
 
-    # Strip links into private auto-memory.
-    if "/.claude/" in target:
-        return label
+        # Leave external links, anchors, and mailto alone.
+        if target.startswith(("http://", "https://", "#", "mailto:")):
+            return original
 
-    # Split off any anchor fragment (e.g. file.md#section).
-    if "#" in target:
-        path_part, anchor = target.split("#", 1)
-        anchor = "#" + anchor
-    else:
-        path_part, anchor = target, ""
+        # Strip links into private auto-memory.
+        if "/.claude/" in target:
+            return label
 
-    # Normalise: drop leading ./ and ../ segments.
-    cleaned = path_part
-    while cleaned.startswith("../"):
-        cleaned = cleaned[3:]
-    while cleaned.startswith("./"):
-        cleaned = cleaned[2:]
+        # Split off any anchor fragment.
+        if "#" in target:
+            path_part, anchor = target.split("#", 1)
+            anchor = "#" + anchor
+        else:
+            path_part, anchor = target, ""
 
-    # Map repo-root docs to their published-site filenames.
-    if cleaned == "README.md":
-        return f"[{label}](index.md{anchor})"
-    if cleaned == "CONTRIBUTING.md":
-        return f"[{label}](contributing.md{anchor})"
+        if not path_part:
+            return original
 
-    # If the link is into docs/, strip the prefix so it resolves intra-site.
-    if cleaned.startswith("docs/"):
-        cleaned = cleaned[len("docs/") :]
+        if is_staged:
+            # Staged contributing.md mirrors /CONTRIBUTING.md, so paths in the
+            # source are repo-root-relative.
+            cleaned = path_part
+            while cleaned.startswith("../"):
+                cleaned = cleaned[3:]
+            while cleaned.startswith("./"):
+                cleaned = cleaned[2:]
 
-    if cleaned in INTRA_SITE:
-        return f"[{label}]({cleaned}{anchor})"
+            if cleaned == "CONTRIBUTING.md":
+                return f"[{label}](contributing.md{anchor})"
+            if cleaned.startswith("docs/"):
+                cleaned = cleaned[len("docs/") :]
+                if cleaned == "" or cleaned.endswith("/"):
+                    return f"[{label}](index.md{anchor})"
+                return f"[{label}]({cleaned}{anchor})"
 
-    # Anything else: rewrite as a GitHub blob URL.
-    return f"[{label}]({REPO_BLOB}{cleaned}{anchor})"
+            return f"[{label}]({REPO_BLOB}{cleaned}{anchor})"
+
+        # Non-staged page in docs/: paths are page-relative mkdocs links.
+        # Resolve to determine whether the target lives in docs/.
+        page_dir_abs = (DOCS_DIR / page_dir_in_docs).resolve()
+        try:
+            resolved = (page_dir_abs / path_part).resolve()
+        except (OSError, RuntimeError):
+            return original
+
+        # Inside docs/ -> mkdocs handles natively, leave alone.
+        try:
+            resolved.relative_to(DOCS_DIR.resolve())
+            return original
+        except ValueError:
+            pass
+
+        # Outside docs/ but inside the repo: rewrite.
+        try:
+            rel_in_repo = resolved.relative_to(REPO_ROOT.resolve()).as_posix()
+        except ValueError:
+            return original
+
+        if rel_in_repo == "CONTRIBUTING.md":
+            return f"[{label}]({up_to_docs_root}contributing.md{anchor})"
+
+        return f"[{label}]({REPO_BLOB}{rel_in_repo}{anchor})"
+
+    return LINK_RE.sub(_rewrite, markdown)
 
 
 def on_page_markdown(
     markdown: str,
     *,
-    page: Any,  # noqa: ARG001
+    page: Any,
     config: Any,  # noqa: ARG001
     files: Any,  # noqa: ARG001
 ) -> str:
-    return LINK_RE.sub(_rewrite, markdown)
+    return _rewrite_in_page(page.file.src_uri, markdown)

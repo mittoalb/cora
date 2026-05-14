@@ -1,0 +1,14 @@
+/* Match table text to body size; mkdocs-material default is ~0.64rem. */
+.md-typeset table:not([class]) {
+  font-size: inherit;
+}
+
+.md-typeset table:not([class]) th,
+.md-typeset table:not([class]) td {
+  font-size: inherit;
+}
+
+/* Inline code in tables should not break mid-token (BC names, file paths). */
+.md-typeset table:not([class]) code {
+  white-space: nowrap;
+}

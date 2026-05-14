@@ -60,9 +60,8 @@ out/
 logs/
 *.log
 
-# MkDocs site (built output + staged copies of README/CONTRIBUTING)
+# MkDocs site (built output + staged copy of CONTRIBUTING)
 /site/
-/docs/index.md
 /docs/contributing.md
 
 # Claude Code per-project state (settings, scheduled tasks, hooks, etc.)

@@ -14,15 +14,17 @@ theme:
   features:
     - navigation.instant
     - navigation.tabs
-    - navigation.sections
+    - navigation.tabs.sticky
+    - navigation.indexes
     - navigation.top
     - navigation.tracking
+    - navigation.expand
+    - toc.follow
     - search.suggest
     - search.highlight
     - search.share
     - content.code.copy
     - content.action.edit
-    - toc.follow
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -46,9 +48,47 @@ theme:
 
 nav:
   - Home: index.md
-  - Architecture: architecture.md
-  - Stack: stack.md
-  - Glossary: glossary.md
+  - Architecture:
+    - architecture/index.md
+    - Model: architecture/model.md
+    - State: architecture/state.md
+    - Surfaces: architecture/surfaces.md
+    - Standards: architecture/standards.md
+  - Stack:
+    - stack/index.md
+    - Backend: stack/backend.md
+    - Frontend: stack/frontend.md
+    - Data: stack/data.md
+    - Auth: stack/auth.md
+    - Observability: stack/observability.md
+    - Operations: stack/operations.md
+    - Deferred: stack/deferred.md
+  - Projects:
+    - projects/index.md
+    - 35-BM:
+      - projects/35-bm/index.md
+      - Goals: projects/35-bm/goals.md
+      - Substrate: projects/35-bm/substrate.md
+      - Approach: projects/35-bm/approach.md
+      - Samples: projects/35-bm/samples.md
+      - Experiment: projects/35-bm/experiment.md
+      - Features: projects/35-bm/features.md
+      - Horizon: projects/35-bm/horizon.md
+  - Reference:
+    - reference/index.md
+    - Workflow: reference/workflow.md
+    - Layout: reference/layout.md
+    - Modeling: reference/modeling.md
+    - Patterns: reference/patterns.md
+    - Runtime: reference/runtime.md
+  - Glossary:
+    - glossary/index.md
+    - Architecture: glossary/architecture.md
+    - Events: glossary/events.md
+    - Surfaces: glossary/surfaces.md
+    - Standards: glossary/standards.md
+    - Authz: glossary/authz.md
+    - Recipe ladder: glossary/ladder.md
   - Contributing: contributing.md
 
 markdown_extensions:
@@ -62,11 +102,19 @@ markdown_extensions:
       line_spans: __span
       pygments_lang_class: true
   - pymdownx.inlinehilite
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - toc:
       permalink: true
+      toc_depth: 2
+
+extra_css:
+  - stylesheets/extra.css
 
 plugins:
   - search
@@ -74,8 +122,8 @@ plugins:
 hooks:
   - scripts/mkdocs_hooks.py
 
-# Note: index.md and contributing.md are staged into docs/ at build
-# time from the repo root by .github/workflows/docs.yml. For local
-# `mkdocs serve` they are absent and mkdocs will warn; build with
-# `make docs-build` to stage them first.
+# Note: contributing.md is staged into docs/ at build time from the repo
+# root CONTRIBUTING.md by .github/workflows/docs.yml (see scripts/stage_docs.py).
+# For local `mkdocs serve` it is absent and mkdocs will warn; build with
+# `make docs-build` to stage it first. index.md is hand-crafted and lives in docs/.
 strict: false

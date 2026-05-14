@@ -5,7 +5,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/release/python-3130/)
 
-A unified operations platform for large-scale research facilities. Pilot: APS beamline 2-BM at Argonne National Laboratory. Long-horizon goal: facility-neutral across photon sources, neutron sources, free-electron lasers, and HPC centres.
+A unified operations platform for large-scale research facilities. Pilot: APS beamline 35-BM, a new dedicated micro-CT instrument at Argonne National Laboratory; rollout to APS's other imaging beamlines (2-BM, 7-BM, 32-ID), then cross-facility validation at MAX IV in Sweden. Long-horizon goal: facility-neutral across photon sources, neutron sources, free-electron lasers, and HPC centres.
 
 The name is also the diagnosis: **Continuously Overpromised, Rarely Automated**. Most facility software lives forever as a slide-deck capability. CORA is the version that ships.
 
@@ -20,11 +20,11 @@ CORA's docs are layered so a reader can stop at the level they need. The full se
 | Layer | Vocabulary | Where |
 | --- | --- | --- |
 | 1. Capability | What CORA does for users | this README |
-| 2. Architecture | Roles and patterns, no products | [docs/architecture.md](docs/architecture.md) |
-| 3. Implementation | Current product picks and reasoning | [docs/stack.md](docs/stack.md), [CONTRIBUTING.md](CONTRIBUTING.md) |
+| 2. Architecture | Roles and patterns, no products | [docs/architecture/](docs/architecture/index.md) |
+| 3. Implementation | Current product picks and reasoning | [docs/stack/](docs/stack/index.md), [docs/reference/](docs/reference/index.md) |
 | 4. Pinned versions | Exact strings | `apps/api/pyproject.toml`, `Makefile`, `infra/atlas/migrations/` |
 
-Vocabulary in any layer is defined in [docs/glossary.md](docs/glossary.md).
+Vocabulary in any layer is defined in [docs/glossary/](docs/glossary/index.md).
 
 ## Quick start
 
@@ -59,7 +59,7 @@ make dev
 
 Run `make help` for the full list of dev commands.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for commit message conventions and BC layout.
+See [docs/reference/](docs/reference/index.md) for commit message conventions and BC layout. See [CONTRIBUTING.md](CONTRIBUTING.md) for what kinds of collaboration are wanted.
 
 ## API surfaces
 
@@ -96,25 +96,25 @@ For Claude Code or other MCP-aware clients, point the client at `http://localhos
 ```
 cora/
 ├── apps/
-│   └── api/                # backend
+│   └── api/                       # backend
 │       ├── src/cora/
-│       │   ├── api/        # entrypoints
-│       │   ├── infrastructure/  # ports, kernel, adapters
-│       │   └── <bc>/       # one folder per bounded context
-│       │       ├── aggregates/  # state, events, evolver
-│       │       └── features/    # vertical slices
-│       ├── tests/          # unit, integration, contract, architecture
+│       │   ├── api/               # entrypoints
+│       │   ├── infrastructure/    # ports, kernel, adapters
+│       │   └── <bc>/              # one folder per bounded context
+│       │       ├── aggregates/    # state, events, evolver
+│       │       └── features/      # vertical slices
+│       ├── tests/                 # unit, integration, contract, architecture
 │       └── pyproject.toml
 ├── infra/
-│   ├── atlas/              # migrations
+│   ├── atlas/                     # migrations
 │   └── docker-compose.yml
-├── docs/                   # architecture, stack, glossary
+├── docs/                          # architecture, stack, glossary
 ├── CONTRIBUTING.md
 ├── Makefile
 └── README.md
 ```
 
-- **`<bc>/`** is one of 8 bounded contexts scaffolded today: `access`, `equipment`, `recipe`, `run`, `data`, `decision`, `subject`, `trust`. Each follows the same `aggregates/` + `features/` shape (see [CONTRIBUTING.md](CONTRIBUTING.md)).
+- **`<bc>/`** is one of 8 bounded contexts scaffolded today: `access`, `equipment`, `recipe`, `run`, `data`, `decision`, `subject`, `trust`. Each follows the same `aggregates/` + `features/` shape (see [docs/reference/](docs/reference/index.md)).
 - **`tests/`** mirrors `src/` and splits by category: `unit/` (pure), `integration/` (real Postgres), `contract/` (REST and MCP schema), `architecture/` (fitness checks).
 - **Planned but not yet on disk:** `apps/web` (frontend), `apps/workers` (background processors and agents), `packages/` (shared libs).
 
@@ -124,4 +124,4 @@ Functional DDD with bounded contexts. Hexagonal (Functional Core / Imperative Sh
 
 Modelling lenses: ISA-95 (structural), ISA-88 (Track A, episodic procedures), ISA-106 (Track B, continuous operations), ISA-99 (Track C, trust topology), ISO/IEC 42001 + NIST AI RMF (AI governance), W3C PROV-O (provenance vocabulary at API boundaries).
 
-Full layer-2 view: [docs/architecture.md](docs/architecture.md). For the current concrete picks (FastAPI, Postgres, Atlas, MCP SDK, etc.) and the reasoning behind each, see [docs/stack.md](docs/stack.md).
+Full layer-2 view: [docs/architecture/](docs/architecture/index.md). For the current concrete picks (FastAPI, Postgres, Atlas, MCP SDK, etc.) and the reasoning behind each, see [docs/stack/](docs/stack/index.md).
