@@ -3,34 +3,30 @@ JSON Schema subset (Phase 6g-a).
 
 Method.parameters_schema declares the shape of parameter dicts that
 downstream Plans (6g-b) and Runs (6g-c) carry for this Method. This
-module is the write-time guard that ensures every persisted schema
-is a valid, in-subset JSON Schema; the runtime validation of Plan
-defaults and Run effective_parameters against this schema (6g-b /
-6g-c) compiles via `jsonschema_rs.Draft202012Validator(schema)`.
+module is the write-time guard via the shared declarer-validator at
+`cora.infrastructure.json_schema_validation`. The runtime values
+validation (6g-b/c) uses the values-against-schema function in the
+same shared module via Plan / Run thin wrappers.
 
-## Constrained subset (locked in [[project_capability_settings_schema]])
+## Module shape
 
-Same subset as Capability.settings_schema. The whitelist + recursive
-checker live in `cora.infrastructure.json_schema_subset` (hoisted in
-6g-a once the third use site landed). This module wraps the shared
-checker with the Method-specific error class and the
-parameters-flavored docstring.
+This module is a thin BC-specific adapter: it defines the
+`InvalidMethodParametersSchemaError` exception class and a
+one-liner `validate_parameters_schema` that delegates to the
+shared validator. Mirrors the Capability schema-validation
+adapter shape from 5g-a.
 """
-
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
 from typing import Any
 
-import jsonschema_rs
-
-from cora.infrastructure.json_schema_subset import DRAFT_2020_12_URI, check_subset
+from cora.infrastructure.json_schema_validation import validate_schema_declaration
 
 
 class InvalidMethodParametersSchemaError(ValueError):
     """The supplied Method parameters_schema is not a valid JSON
     Schema in CORA's constrained subset.
 
-    Three failure modes:
+    Three failure modes (handled by the shared validator):
       1. Schema is not well-formed JSON Schema (jsonschema-rs raises
          on `Validator(schema)` construction).
       2. Schema uses a forbidden keyword (`$ref`, `oneOf`, etc.).
@@ -45,33 +41,13 @@ class InvalidMethodParametersSchemaError(ValueError):
 
 
 def validate_parameters_schema(schema: dict[str, Any]) -> None:
-    """Validate that `schema` is a well-formed JSON Schema in CORA's
-    constrained subset.
+    """Validate that `schema` is a well-formed in-subset JSON Schema.
 
-    Raises `InvalidMethodParametersSchemaError` on any of: missing or
-    wrong `$schema` declaration, forbidden top-level / properties-level
-    keyword, or jsonschema-rs rejecting the schema as malformed.
-
-    Returns None on success. The caller persists the schema as-is;
-    runtime validation of Plan.parameter_defaults and Run effective
-    parameters against this schema (Phase 6g-b / 6g-c) reuses the
-    same compilation path.
+    Raises `InvalidMethodParametersSchemaError(reason)` on
+    missing/wrong `$schema`, forbidden keyword, or jsonschema-rs
+    malformedness. Delegates to the shared declarer-validator.
     """
-    declared = schema.get("$schema")
-    if declared != DRAFT_2020_12_URI:
-        msg = (
-            f"$schema must be exactly {DRAFT_2020_12_URI!r} "
-            f"(got: {declared!r}); Phase 6g-a locks Draft 2020-12"
-        )
-        raise InvalidMethodParametersSchemaError(msg)
-
-    check_subset(schema, path="<root>", error_class=InvalidMethodParametersSchemaError)
-
-    try:
-        jsonschema_rs.Draft202012Validator(schema)
-    except (jsonschema_rs.ValidationError, ValueError) as exc:
-        msg = f"jsonschema-rs rejected the schema as malformed: {exc}"
-        raise InvalidMethodParametersSchemaError(msg) from exc
+    validate_schema_declaration(schema, error_class=InvalidMethodParametersSchemaError)
 
 
 __all__ = [
