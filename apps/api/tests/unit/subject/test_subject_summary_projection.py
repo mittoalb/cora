@@ -47,6 +47,7 @@ def test_projection_metadata() -> None:
             "SubjectRegistered",
             "SubjectMounted",
             "SubjectMeasured",
+            "SubjectDismounted",
             "SubjectRemoved",
             "SubjectReturned",
             "SubjectStored",
@@ -87,6 +88,7 @@ async def test_subject_registered_inserts_with_received_status() -> None:
     [
         ("SubjectMounted", "Mounted"),
         ("SubjectMeasured", "Measured"),
+        ("SubjectDismounted", "Received"),
         ("SubjectRemoved", "Removed"),
         ("SubjectReturned", "Returned"),
         ("SubjectStored", "Stored"),

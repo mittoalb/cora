@@ -1,4 +1,4 @@
-"""SubjectSummaryProjection: folds the 7 Subject lifecycle events into
+"""SubjectSummaryProjection: folds the 8 Subject lifecycle events into
 the `proj_subject_summary` read model that backs `GET /subjects`.
 
 Status semantics: derived from event TYPE (not payload). Each event
@@ -12,6 +12,7 @@ Subscribed events:
   - SubjectRegistered -> status=Received  (INSERT)
   - SubjectMounted    -> status=Mounted    (UPDATE)
   - SubjectMeasured   -> status=Measured   (UPDATE)
+  - SubjectDismounted -> status=Received   (UPDATE) — 4f re-mount cycle
   - SubjectRemoved    -> status=Removed    (UPDATE)
   - SubjectReturned   -> status=Returned   (UPDATE) — terminal
   - SubjectStored     -> status=Stored     (UPDATE) — terminal
@@ -63,6 +64,7 @@ class SubjectSummaryProjection:
             "SubjectRegistered",
             "SubjectMounted",
             "SubjectMeasured",
+            "SubjectDismounted",
             "SubjectRemoved",
             "SubjectReturned",
             "SubjectStored",
@@ -92,6 +94,12 @@ class SubjectSummaryProjection:
                 await self._update_status(event, conn, "Mounted")
             case "SubjectMeasured":
                 await self._update_status(event, conn, "Measured")
+            case "SubjectDismounted":
+                # 4f re-mount cycle: dismount returns the Subject to
+                # Received status (sample is in the lab, not currently
+                # mounted). The mount/dismount cycle can repeat any
+                # number of times before terminal disposition.
+                await self._update_status(event, conn, "Received")
             case "SubjectRemoved":
                 await self._update_status(event, conn, "Removed")
             case "SubjectReturned":
