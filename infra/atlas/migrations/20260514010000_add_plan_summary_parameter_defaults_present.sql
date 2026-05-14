@@ -1,0 +1,36 @@
+-- Phase 6g-b: track whether each Plan has set parameter_defaults,
+-- on the Plan summary projection.
+--
+-- Adds a single boolean column `parameter_defaults_present` to
+-- `proj_recipe_plan_summary`. Defaults to FALSE; existing rows
+-- backfill cleanly with no application-layer change required.
+--
+-- ## Why a boolean, not the defaults dict itself
+--
+-- The defaults dict can be arbitrarily large (operators may set
+-- many keys). Projecting the full dict would bloat the summary
+-- table that backs `GET /plans`. The list endpoint's job is "show
+-- me all plans at a glance"; the defaults content itself is a
+-- per-Plan detail loaded on demand (fold-on-read of the Plan
+-- stream; future dedicated `get_plan_parameter_defaults` slice if
+-- consumers ask for it).
+--
+-- The boolean lets list-endpoint consumers filter "all plans with
+-- parameter defaults set" without paying for the dict content.
+-- Mirrors `proj_recipe_method_summary.parameters_schema_present`
+-- from 6g-a and `proj_equipment_capability_summary
+-- .settings_schema_present` from 5g-a.
+--
+-- ## Default semantics
+--
+-- FALSE for both pre-6g-b Plans (no defaults-update event ever
+-- emitted) AND for newly-defined Plans that haven't had
+-- `update_plan_parameter_defaults` called. Becomes TRUE on the
+-- first `PlanParameterDefaultsUpdated` whose payload's
+-- parameter_defaults dict is non-empty; goes back to FALSE if
+-- the dict is cleared (post-merge result is `{}`).
+--
+-- Pure ADD COLUMN with safe default; greenfield-friendly.
+
+ALTER TABLE proj_recipe_plan_summary
+    ADD COLUMN parameter_defaults_present BOOLEAN NOT NULL DEFAULT FALSE;

@@ -44,6 +44,7 @@ from cora.recipe.features import (
     list_plans,
     list_practices,
     update_method_parameters_schema,
+    update_plan_parameter_defaults,
     version_method,
     version_plan,
     version_practice,
@@ -74,6 +75,7 @@ class RecipeHandlers:
     get_plan: get_plan.Handler
     version_plan: version_plan.Handler
     deprecate_plan: deprecate_plan.Handler
+    update_plan_parameter_defaults: update_plan_parameter_defaults.Handler
     list_methods: list_methods.Handler
     list_practices: list_practices.Handler
     list_plans: list_plans.Handler
@@ -171,6 +173,11 @@ def wire_recipe(deps: Kernel) -> RecipeHandlers:
         deprecate_plan=with_tracing(
             deprecate_plan.bind(deps),
             command_name="DeprecatePlan",
+            bc=_BC,
+        ),
+        update_plan_parameter_defaults=with_tracing(
+            update_plan_parameter_defaults.bind(deps),
+            command_name="UpdatePlanParameterDefaults",
             bc=_BC,
         ),
         list_methods=with_tracing(

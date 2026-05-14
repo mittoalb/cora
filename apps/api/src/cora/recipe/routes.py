@@ -43,6 +43,7 @@ from cora.recipe.aggregates.plan import (
     AssetDecommissionedError,
     InvalidPlanError,
     InvalidPlanNameError,
+    InvalidPlanParameterDefaultsError,
     InvalidPlanVersionTagError,
     MethodDeprecatedError,
     PlanAlreadyExistsError,
@@ -75,6 +76,7 @@ from cora.recipe.features import (
     list_plans,
     list_practices,
     update_method_parameters_schema,
+    update_plan_parameter_defaults,
     version_method,
     version_plan,
     version_practice,
@@ -152,6 +154,7 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(get_plan.router)
     app.include_router(version_plan.router)
     app.include_router(deprecate_plan.router)
+    app.include_router(update_plan_parameter_defaults.router)
     app.include_router(list_methods.router)
     app.include_router(list_practices.router)
     app.include_router(list_plans.router)
@@ -163,6 +166,7 @@ def register_recipe_routes(app: FastAPI) -> None:
         InvalidPracticeVersionTagError,
         InvalidPlanNameError,
         InvalidPlanError,
+        InvalidPlanParameterDefaultsError,
         InvalidPlanVersionTagError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)

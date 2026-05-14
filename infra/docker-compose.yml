@@ -9,7 +9,11 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - cora-pg-data:/var/lib/postgresql/data
+      # PG18 docker image stores data under /var/lib/postgresql/<major>/docker/
+      # rather than /var/lib/postgresql/data. Mount one level up so the image's
+      # initdb wrapper can place the cluster correctly. See:
+      # https://github.com/docker-library/postgres/pull/1259
+      - cora-pg-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U cora -d cora"]
       interval: 5s

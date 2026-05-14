@@ -5,11 +5,17 @@ case forces pyright (and the runtime) to error if a new event type
 is added to `PlanEvent` without a matching match arm here.
 
 Status mapping per event type:
-  - `PlanDefined`    -> DEFINED   (genesis; version=None)
-  - `PlanVersioned`  -> VERSIONED (version=event.version_tag;
-                                    multi-source: Defined | Versioned)
-  - `PlanDeprecated` -> DEPRECATED (version preserved;
-                                    multi-source: Defined | Versioned)
+  - `PlanDefined`                  -> DEFINED   (genesis; version=None,
+                                                  parameter_defaults={};
+                                                  method_id read from payload)
+  - `PlanVersioned`                -> VERSIONED (version=event.version_tag;
+                                                  multi-source: Defined | Versioned)
+  - `PlanDeprecated`               -> DEPRECATED (version preserved;
+                                                  multi-source: Defined | Versioned)
+  - `PlanParameterDefaultsUpdated` -> status preserved (orthogonal to
+                                                  lifecycle; updates the
+                                                  parameter_defaults field
+                                                  with the post-merge dict; 6g-b)
 
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
@@ -29,16 +35,24 @@ PRESERVED by PlanDeprecated as the audit signal of the last revision
 before deprecation. Pre-6e-2 PlanDefined-only streams fold cleanly
 with version=None (the additive-state pattern).
 
-The audit snapshots in PlanDefined (method_id,
-method_needs_capabilities_snapshot, asset_capabilities_snapshot)
+The audit snapshots in PlanDefined
+(method_needs_capabilities_snapshot, asset_capabilities_snapshot)
 are NOT folded into state — they're audit-only payload data per
 gate-review Q4. The evolver intentionally ignores them.
 
+`method_id` was originally in that audit-only set; promoted to
+state in 6g-b because the `update_plan_parameter_defaults` decider
+needs it to look up `Method.parameters_schema` (per the slim-aggregate
+escape clause: state holds what future deciders need). Pre-6g-b
+PlanDefined streams fold cleanly because `method_id` was already
+in the payload from day one.
+
 **Critical invariant**: every transition arm MUST carry
-`practice_id`, `asset_ids`, AND `version` through from prior state.
-Constructing `Plan(id=..., name=..., status=...)` without explicitly
-passing the carry-through fields would silently change them. The
-transition arms explicitly pass each.
+`practice_id`, `asset_ids`, `version`, `method_id`, AND
+`parameter_defaults` through from prior state. Constructing
+`Plan(id=..., name=..., status=...)` without explicitly passing
+the carry-through fields would silently change them. The transition
+arms explicitly pass each.
 
 Transition events applied to empty state raise ValueError: they can
 never appear before `PlanDefined` in a well-formed stream. The
@@ -53,6 +67,7 @@ from cora.recipe.aggregates.plan.events import (
     PlanDefined,
     PlanDeprecated,
     PlanEvent,
+    PlanParameterDefaultsUpdated,
     PlanVersioned,
 )
 from cora.recipe.aggregates.plan.state import Plan, PlanName, PlanStatus
@@ -74,10 +89,13 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
             name=name,
             practice_id=practice_id,
             asset_ids=asset_ids,
+            method_id=method_id,
         ):
             _ = state  # PlanDefined is the genesis event; prior state ignored.
-            # Audit-only payload fields (method_id, snapshots) deliberately
-            # not destructured — slim aggregate doesn't fold them.
+            # Audit-only snapshot fields deliberately not destructured —
+            # they're payload-only per slim-aggregate principle. method_id
+            # IS folded as of 6g-b (decider for parameter_defaults needs
+            # it; see evolver docstring).
             return Plan(
                 id=plan_id,
                 name=PlanName(name),
@@ -85,6 +103,8 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 asset_ids=frozenset(asset_ids),
                 status=PlanStatus.DEFINED,
                 # version defaults to None.
+                method_id=method_id,
+                # parameter_defaults defaults to {} via state default.
             )
         case PlanVersioned(version_tag=version_tag):
             prior = _require_state(state, "PlanVersioned")
@@ -95,6 +115,8 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 asset_ids=prior.asset_ids,
                 status=PlanStatus.VERSIONED,
                 version=version_tag,
+                method_id=prior.method_id,
+                parameter_defaults=prior.parameter_defaults,
             )
         case PlanDeprecated():
             prior = _require_state(state, "PlanDeprecated")
@@ -106,6 +128,20 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 status=PlanStatus.DEPRECATED,
                 # version preserved across deprecation.
                 version=prior.version,
+                method_id=prior.method_id,
+                parameter_defaults=prior.parameter_defaults,
+            )
+        case PlanParameterDefaultsUpdated(parameter_defaults=parameter_defaults):
+            prior = _require_state(state, "PlanParameterDefaultsUpdated")
+            return Plan(
+                id=prior.id,
+                name=prior.name,
+                practice_id=prior.practice_id,
+                asset_ids=prior.asset_ids,
+                status=prior.status,
+                version=prior.version,
+                method_id=prior.method_id,
+                parameter_defaults=parameter_defaults,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

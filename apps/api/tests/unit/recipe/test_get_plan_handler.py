@@ -119,6 +119,7 @@ async def test_handler_returns_plan_for_known_id() -> None:
         practice_id=_PRACTICE_ID,
         asset_ids=frozenset({_ASSET_ID}),
         status=PlanStatus.DEFINED,
+        method_id=_METHOD_ID,
     )
 
 

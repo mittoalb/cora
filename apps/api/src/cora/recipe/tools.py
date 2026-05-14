@@ -26,6 +26,9 @@ from cora.recipe.features.list_practices import tool as list_practices_tool
 from cora.recipe.features.update_method_parameters_schema import (
     tool as update_method_parameters_schema_tool,
 )
+from cora.recipe.features.update_plan_parameter_defaults import (
+    tool as update_plan_parameter_defaults_tool,
+)
 from cora.recipe.features.version_method import tool as version_method_tool
 from cora.recipe.features.version_plan import tool as version_plan_tool
 from cora.recipe.features.version_practice import tool as version_practice_tool
@@ -89,6 +92,10 @@ def register_recipe_tools(
     deprecate_plan_tool.register(
         mcp,
         get_handler=lambda: get_handlers().deprecate_plan,
+    )
+    update_plan_parameter_defaults_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().update_plan_parameter_defaults,
     )
     list_methods_tool.register(
         mcp,

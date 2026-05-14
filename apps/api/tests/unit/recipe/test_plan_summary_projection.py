@@ -45,7 +45,12 @@ def test_projection_metadata() -> None:
     proj = PlanSummaryProjection()
     assert proj.name == "proj_recipe_plan_summary"
     assert proj.subscribed_event_types == frozenset(
-        {"PlanDefined", "PlanVersioned", "PlanDeprecated"}
+        {
+            "PlanDefined",
+            "PlanVersioned",
+            "PlanDeprecated",
+            "PlanParameterDefaultsUpdated",
+        }
     )
 
 
@@ -129,6 +134,50 @@ async def test_plan_deprecated_only_updates_status() -> None:
     assert "practice_id" not in sql
     assert "method_id" not in sql
     assert "version_tag" not in sql
+
+
+@pytest.mark.unit
+async def test_plan_parameter_defaults_updated_with_non_empty_sets_present_true() -> None:
+    """Phase 6g-b: defaults-update event with non-empty payload flips
+    parameter_defaults_present TRUE."""
+    proj = PlanSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "PlanParameterDefaultsUpdated",
+        {
+            "plan_id": str(_PLAN_ID),
+            "parameter_defaults": {"energy_kev": 12.0},
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "UPDATE proj_recipe_plan_summary" in sql
+    assert "parameter_defaults_present" in sql
+    assert args.args[1] == _PLAN_ID
+    assert args.args[2] is True
+
+
+@pytest.mark.unit
+async def test_plan_parameter_defaults_updated_with_empty_sets_present_false() -> None:
+    """Phase 6g-b: clearing all keys (empty post-merge dict) flips
+    parameter_defaults_present back to FALSE."""
+    proj = PlanSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "PlanParameterDefaultsUpdated",
+        {
+            "plan_id": str(_PLAN_ID),
+            "parameter_defaults": {},
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[2] is False
 
 
 @pytest.mark.unit

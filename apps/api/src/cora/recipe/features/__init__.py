@@ -11,6 +11,9 @@ Slices ship per aggregate / per state transition:
   - 6g-a: update_method_parameters_schema (Method.parameters_schema
     JSON Schema declaration; pre-positions Plan defaults / Run
     overrides in 6g-b/c)
-  - 6g-b/c (future): Plan.parameter_defaults + Run.parameter_overrides
-    + effective_parameters snapshot on RunStarted
+  - 6g-b: update_plan_parameter_defaults (Plan.parameter_defaults
+    PATCH RFC 7396 with merge_patch reuse; validated against owning
+    Method.parameters_schema with permissive-when-None posture)
+  - 6g-c (future): Run.parameter_overrides + effective_parameters
+    snapshot on RunStarted
 """

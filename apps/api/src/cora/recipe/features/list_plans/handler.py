@@ -34,7 +34,15 @@ _log = get_logger(__name__)
 
 @dataclass(frozen=True)
 class PlanSummaryItem:
-    """One row from the plan projection."""
+    """One row from the plan projection.
+
+    `parameter_defaults_present` reflects whether the most recent
+    `PlanParameterDefaultsUpdated` event for this Plan carried a
+    non-empty parameter_defaults dict (Phase 6g-b). Default FALSE on
+    legacy rows + on Plans that have never had
+    `update_plan_parameter_defaults` called. The defaults dict
+    itself is not in this projection (load on demand via `get_plan`).
+    """
 
     plan_id: UUID
     name: str
@@ -43,6 +51,7 @@ class PlanSummaryItem:
     status: str
     version_tag: str | None
     created_at: datetime
+    parameter_defaults_present: bool
 
 
 @dataclass(frozen=True)
@@ -66,7 +75,8 @@ class Handler(Protocol):
 
 
 _LIST_NO_CURSOR_SQL = """
-SELECT plan_id, name, practice_id, method_id, status, version_tag, created_at
+SELECT plan_id, name, practice_id, method_id, status, version_tag, created_at,
+       parameter_defaults_present
 FROM proj_recipe_plan_summary
 WHERE ($2::text IS NULL OR status = $2)
   AND ($3::uuid IS NULL OR practice_id = $3)
@@ -75,7 +85,8 @@ LIMIT $1
 """
 
 _LIST_WITH_CURSOR_SQL = """
-SELECT plan_id, name, practice_id, method_id, status, version_tag, created_at
+SELECT plan_id, name, practice_id, method_id, status, version_tag, created_at,
+       parameter_defaults_present
 FROM proj_recipe_plan_summary
 WHERE ($2::text IS NULL OR status = $2)
   AND ($3::uuid IS NULL OR practice_id = $3)
@@ -163,6 +174,7 @@ def bind(deps: Kernel) -> Handler:
                 status=str(row["status"]),
                 version_tag=(str(row["version_tag"]) if row["version_tag"] is not None else None),
                 created_at=row["created_at"],
+                parameter_defaults_present=bool(row["parameter_defaults_present"]),
             )
             for row in kept
         ]

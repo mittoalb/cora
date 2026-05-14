@@ -12,12 +12,16 @@ from cora.recipe.aggregates.plan.events import (
     PlanDefined,
     PlanDeprecated,
     PlanEvent,
+    PlanParameterDefaultsUpdated,
     PlanVersioned,
     event_type_name,
     from_stored,
     to_payload,
 )
 from cora.recipe.aggregates.plan.evolver import evolve, fold
+from cora.recipe.aggregates.plan.parameters_validation import (
+    validate_parameter_defaults_against_method_schema,
+)
 from cora.recipe.aggregates.plan.read import load_plan
 from cora.recipe.aggregates.plan.state import (
     PLAN_NAME_MAX_LENGTH,
@@ -25,6 +29,7 @@ from cora.recipe.aggregates.plan.state import (
     AssetDecommissionedError,
     InvalidPlanError,
     InvalidPlanNameError,
+    InvalidPlanParameterDefaultsError,
     InvalidPlanVersionTagError,
     MethodDeprecatedError,
     Plan,
@@ -44,6 +49,7 @@ __all__ = [
     "AssetDecommissionedError",
     "InvalidPlanError",
     "InvalidPlanNameError",
+    "InvalidPlanParameterDefaultsError",
     "InvalidPlanVersionTagError",
     "MethodDeprecatedError",
     "Plan",
@@ -56,6 +62,7 @@ __all__ = [
     "PlanEvent",
     "PlanName",
     "PlanNotFoundError",
+    "PlanParameterDefaultsUpdated",
     "PlanStatus",
     "PlanVersioned",
     "PracticeDeprecatedError",
@@ -65,4 +72,5 @@ __all__ = [
     "from_stored",
     "load_plan",
     "to_payload",
+    "validate_parameter_defaults_against_method_schema",
 ]

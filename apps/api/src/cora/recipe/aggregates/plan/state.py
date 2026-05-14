@@ -86,8 +86,9 @@ helper got hoisted to `cora.infrastructure.name.validate_name`
 one; the prior 9 VOs were refactored in the same 6e-1 commit.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 from uuid import UUID
 
 from cora.infrastructure.name import validate_name
@@ -239,6 +240,22 @@ class PlanCannotDeprecateError(Exception):
         self.current_status = current_status
 
 
+class InvalidPlanParameterDefaultsError(ValueError):
+    """The supplied Plan parameter_defaults dict failed validation
+    against the owning Method's parameters_schema (Phase 6g-b).
+
+    Permissive when Method.parameters_schema is None: any defaults
+    are accepted (Method declares no contract). When the schema IS
+    declared, the merged defaults must conform per jsonschema-rs
+    Draft 2020-12. Mapped to HTTP 400 by the recipe BC's exception
+    handler.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Invalid Plan parameter_defaults: {reason}")
+        self.reason = reason
+
+
 class InvalidPlanVersionTagError(ValueError):
     """The supplied version tag is empty, whitespace-only, or too long.
 
@@ -325,6 +342,28 @@ class Plan:
     Method/Practice/Capability `version` semantics: preserved across
     deprecation as an audit signal of the last revision before
     deprecation.
+
+    `method_id` is the Method ultimately implemented by this Plan
+    (originally captured in PlanDefined.method_id payload as audit-
+    only data; promoted to state in 6g-b because the
+    `update_plan_parameter_defaults` decider needs it to look up
+    `Method.parameters_schema` for validation). Pre-6g-b PlanDefined
+    streams fold cleanly: the evolver reads `method_id` from the
+    payload field that was present from day one. Default-defaults to
+    a sentinel via the constructor; in practice every well-formed
+    stream sets it explicitly via PlanDefined. Mirrors the
+    "state holds what future deciders need" precedent in the
+    docstring above.
+
+    `parameter_defaults: dict[str, Any]` (Phase 6g-b) is the
+    operator-set defaults for parameters that downstream Runs
+    (6g-c) merge with their per-run overrides. Validated against
+    the owning Method's `parameters_schema` at decide time
+    (permissive when Method declares no schema; see
+    [[project_run_parameters_design]]). Defaults to empty dict
+    for legacy Plans (additive-state pattern). The full dict is
+    persisted; PATCH semantics handled by the slice via RFC 7396
+    `merge_patch`. Mirrors `Asset.settings` shape from 5g-c.
     """
 
     id: UUID
@@ -333,3 +372,5 @@ class Plan:
     asset_ids: frozenset[UUID]
     status: PlanStatus = PlanStatus.DEFINED
     version: str | None = None
+    method_id: UUID | None = None
+    parameter_defaults: dict[str, Any] = field(default_factory=dict[str, Any])

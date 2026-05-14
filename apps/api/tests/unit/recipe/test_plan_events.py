@@ -16,6 +16,7 @@ from cora.infrastructure.ports.event_store import StoredEvent
 from cora.recipe.aggregates.plan.events import (
     PlanDefined,
     PlanDeprecated,
+    PlanParameterDefaultsUpdated,
     PlanVersioned,
     event_type_name,
     from_stored,
@@ -325,4 +326,69 @@ def test_from_stored_rebuilds_plan_deprecated() -> None:
 def test_to_payload_then_from_stored_round_trips_for_plan_deprecated() -> None:
     original = PlanDeprecated(plan_id=uuid4(), occurred_at=_NOW)
     stored = _stored("PlanDeprecated", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- PlanParameterDefaultsUpdated (Phase 6g-b) ----------
+
+
+_SAMPLE_DEFAULTS: dict[str, object] = {"energy_kev": 12.0, "exposure_ms": 100}
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_parameter_defaults_updated_class_name() -> None:
+    event = PlanParameterDefaultsUpdated(
+        plan_id=uuid4(), parameter_defaults=_SAMPLE_DEFAULTS, occurred_at=_NOW
+    )
+    assert event_type_name(event) == "PlanParameterDefaultsUpdated"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_parameter_defaults_updated_with_dict() -> None:
+    plan_id = uuid4()
+    event = PlanParameterDefaultsUpdated(
+        plan_id=plan_id, parameter_defaults=_SAMPLE_DEFAULTS, occurred_at=_NOW
+    )
+    assert to_payload(event) == {
+        "plan_id": str(plan_id),
+        "parameter_defaults": _SAMPLE_DEFAULTS,
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_parameter_defaults_updated_with_empty_dict() -> None:
+    """Empty dict is serialized as `{}` (NOT omitted). Pinned because
+    the projection's `bool(payload.get("parameter_defaults"))` test
+    relies on the key being present."""
+    plan_id = uuid4()
+    event = PlanParameterDefaultsUpdated(plan_id=plan_id, parameter_defaults={}, occurred_at=_NOW)
+    payload = to_payload(event)
+    assert payload["parameter_defaults"] == {}
+    assert "parameter_defaults" in payload
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_parameter_defaults_updated() -> None:
+    plan_id = uuid4()
+    stored = _stored(
+        "PlanParameterDefaultsUpdated",
+        {
+            "plan_id": str(plan_id),
+            "parameter_defaults": _SAMPLE_DEFAULTS,
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == PlanParameterDefaultsUpdated(
+        plan_id=plan_id, parameter_defaults=_SAMPLE_DEFAULTS, occurred_at=_NOW
+    )
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_parameter_defaults_updated() -> None:
+    original = PlanParameterDefaultsUpdated(
+        plan_id=uuid4(), parameter_defaults=_SAMPLE_DEFAULTS, occurred_at=_NOW
+    )
+    stored = _stored("PlanParameterDefaultsUpdated", to_payload(original))
     assert from_stored(stored) == original
