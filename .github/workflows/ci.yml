@@ -26,6 +26,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          # diff-cover needs both branches to compute patch coverage on PRs.
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -48,8 +51,31 @@ jobs:
       - name: Architecture (tach dependency contract)
         run: uv run tach check
 
-      - name: Test (pytest)
-        run: uv run pytest
+      - name: Test (pytest with coverage)
+        # `--cov` reads `[tool.coverage.run] source` from pyproject.toml.
+        # XML report feeds diff-cover; term-missing surfaces uncovered
+        # lines in the CI log. Total fail_under=80 (in pyproject) is the
+        # soft floor; diff-cover (next step) is the hard gate on PRs.
+        run: uv run pytest --cov --cov-report=xml --cov-report=term-missing
+
+      - name: Diff coverage (PRs only, hard gate at 90% on changed lines)
+        # Modern best practice: diff coverage hard, total coverage soft.
+        # Punishing total-percentage refactors trains for assertion-free
+        # tests; gating on patch coverage aligns with PR review reality.
+        if: github.event_name == 'pull_request'
+        run: |
+          uv run diff-cover coverage.xml \
+            --compare-branch=origin/${{ github.event.pull_request.base.ref }} \
+            --fail-under=90
+
+      - name: Upload coverage XML artifact
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: coverage-xml
+          path: apps/api/coverage.xml
+          if-no-files-found: warn
+          retention-days: 14
 
   migrations:
     name: Migrations (atlas hash + safety scan)

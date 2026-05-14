@@ -36,6 +36,9 @@ dependencies = [
 dev = [
     "pytest>=9.0.3,<10",
     "pytest-asyncio>=1.3.0,<2",
+    "pytest-cov>=7.1.0,<8",
+    "coverage[toml]>=7.14.0,<8",
+    "diff-cover>=9.5.0,<10",
     "ruff>=0.15.12,<0.16",
     "pyright>=1.1.409,<2",
     "httpx>=0.28.0",
@@ -101,3 +104,39 @@ markers = [
     "contract: REST/MCP schema verification tests",
     "e2e: full end-to-end tests",
 ]
+
+# Coverage configuration. Default trace core (NOT sys.monitoring) until
+# Python 3.14 lands and the FastAPI+asyncpg async-miss-line bugs close
+# (coveragepy#1240, #1082). Branch coverage on per modern best practice.
+# Switch `parallel = true` if pytest-xdist is adopted.
+[tool.coverage.run]
+branch = true
+source = ["src/cora"]
+omit = [
+    "*/tests/*",
+    "*/conftest.py",
+    "*/__main__.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+precision = 1
+# `exclude_also` preserves the default `pragma: no cover` plus these
+# AST-shape-level exclusions. `exclude_lines` would replace the defaults.
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@(abc\\.)?abstractmethod",
+    "\\.\\.\\.",
+    "if __name__ == .__main__.:",
+]
+# Soft floor; ratchet up over time. Diff coverage (changed lines only)
+# is the hard gate via diff-cover in CI; total coverage is informational.
+fail_under = 80
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"

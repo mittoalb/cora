@@ -1,4 +1,5 @@
-.PHONY: install dev db-up db-down db-reset lint typecheck test test-unit test-int test-contract fmt clean help \
+.PHONY: install dev db-up db-down db-reset lint typecheck test test-unit test-int test-contract \
+        test-coverage diff-coverage fmt clean help \
         migrate-status migrate-apply migrate-new migrate-hash precommit precommit-run \
         arch-check arch-show docs-stage docs-build docs-serve
 
@@ -25,6 +26,8 @@ help:
 	@echo "  test-unit       Run only unit tests"
 	@echo "  test-int        Run only integration tests"
 	@echo "  test-contract   Run only contract tests"
+	@echo "  test-coverage   Run all tests with coverage report (term + html + xml)"
+	@echo "  diff-coverage   Run diff-cover against origin/main (fails if patch <90%)"
 	@echo "  arch-check      Tach dependency contract + architecture fitness-function tests"
 	@echo "  arch-show       Open the dependency graph (tach show)"
 	@echo "  precommit       Install pre-commit hooks (one-time per clone)"
@@ -72,6 +75,12 @@ test-int:
 
 test-contract:
 	cd $(API_DIR) && uv run pytest -m contract
+
+test-coverage:
+	cd $(API_DIR) && uv run pytest --cov --cov-report=term-missing --cov-report=html --cov-report=xml
+
+diff-coverage:
+	cd $(API_DIR) && uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under=90
 
 arch-check:
 	cd $(API_DIR) && uv run tach check
