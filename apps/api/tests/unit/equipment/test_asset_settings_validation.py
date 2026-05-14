@@ -93,6 +93,34 @@ def test_merge_patch_replaces_dict_with_scalar() -> None:
     assert merge_patch({"a": {"x": 1}}, {"a": 42}) == {"a": 42}
 
 
+@pytest.mark.unit
+def test_merge_patch_does_not_alias_nested_dicts_from_current() -> None:
+    """Pinned: the result must be deeply independent of `current`.
+    Mutating a nested dict in the returned result must NOT propagate
+    back into `current`. Pre-fix the implementation passed nested
+    dicts by reference (shallow copy at top level only), which would
+    let event-payload mutations corrupt prior Asset state across
+    folds."""
+    current: dict[str, Any] = {"a": {"x": 1, "y": 2}, "b": "scalar"}
+    patch: dict[str, Any] = {"c": 3}  # patch doesn't touch `a`
+    result = merge_patch(current, patch)
+    # Mutate the nested dict in the result.
+    result["a"]["x"] = 999
+    # `current` must NOT see the mutation.
+    assert current["a"]["x"] == 1
+
+
+@pytest.mark.unit
+def test_merge_patch_does_not_alias_nested_dicts_from_patch() -> None:
+    """Symmetric pin: mutating a nested dict in the returned result
+    must NOT propagate back into `patch` either."""
+    current: dict[str, Any] = {}
+    patch = {"a": {"x": 1}}
+    result = merge_patch(current, patch)
+    result["a"]["x"] = 999
+    assert patch["a"]["x"] == 1
+
+
 # ---------- validate_settings_against_capabilities ----------
 
 

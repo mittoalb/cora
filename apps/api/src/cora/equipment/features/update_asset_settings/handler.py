@@ -18,6 +18,30 @@ The `key_count` log field at start/success is the only externally-
 visible diagnostic for the patch shape; the patch itself is captured
 on the emitted event payload (post-merge, full dict) and is the
 source of truth for audit.
+
+## Two concurrency races (both knowingly accepted)
+
+The handler's optimistic-lock guards the Asset stream write but
+does NOT guard cross-stream consistency:
+
+  1. **Capability schema race**: a Capability schema may be updated
+     concurrently with this handler. We snapshot the schemas at
+     read time; if a schema changes after our load but before our
+     append, the validated dict reflects the older schema. Existing
+     Asset.settings rows are never auto-revalidated when a schema
+     changes (locked design; see the 5g-c memo) so this is
+     consistent with the broader stance.
+
+  2. **Capability-set race**: a concurrent `add_asset_capability`
+     between our Asset load and our Asset append would NOT be in
+     our union (its schema isn't loaded). The Asset's
+     `expected_version` guard would detect the conflicting Asset
+     write and raise ConcurrencyError; the operator retries and
+     gets the wider union on the next attempt.
+
+Both races are rare in practice (Capabilities and their schemas
+don't churn rapidly); we accept the small window rather than
+locking across streams.
 """
 
 import asyncio

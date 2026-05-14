@@ -31,14 +31,27 @@ false` clause WHEN every assigned Capability has declared a schema
 we skip the strict clause (permissive mode); unknown keys are
 tolerated. This preserves 5g-a's "degrade gracefully" stance.
 
-## Schemaless-Capability tolerance
+## Schemaless-Capability tolerance + zero-Capabilities edge case
 
 A Capability with `settings_schema=None` does not contribute to the
-union. If at least one assigned Capability is schemaless, the
-validator runs in PERMISSIVE mode (unknown keys allowed). Once
-every assigned Capability declares a schema, the validator runs in
-STRICT mode (orphan keys rejected). Locked design per the 5g-c
-memo.
+union. Three modes follow:
+
+  - **STRICT**: every assigned Capability declares a schema (no
+    schemaless Capabilities). The validator rejects orphan keys
+    (`additionalProperties: false`).
+  - **PERMISSIVE**: at least one assigned Capability is schemaless,
+    AND at least one declares a schema. Unknown keys are tolerated
+    (`degrade gracefully`); declared keys still validate.
+  - **NO-CAPABILITIES**: the Asset has zero assigned Capabilities.
+    Empty settings is trivially valid; non-empty settings is
+    rejected (no schema source). This is hard-strict: an Asset with
+    no Capabilities has no claim to any settings.
+
+The asymmetry between PERMISSIVE (>=1 schemaless cap allows
+anything) and NO-CAPABILITIES (zero caps allows nothing) is
+deliberate: a schemaless cap is an explicit "this Capability
+exists but its schema isn't declared yet"; zero caps is "this Asset
+shouldn't have settings at all".
 
 ## Error shape
 
@@ -54,6 +67,7 @@ detail for an operator to fix the patch:
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
+import copy
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -68,7 +82,8 @@ _DRAFT_2020_12_URI = "https://json-schema.org/draft/2020-12/schema"
 def merge_patch(current: Mapping[str, Any], patch: Mapping[str, Any]) -> dict[str, Any]:
     """Apply RFC 7396 JSON Merge Patch semantics.
 
-    Returns a NEW dict (does not mutate `current`):
+    Returns a NEW deeply-copied dict (does not alias `current` at any
+    nesting depth):
       - keys in `patch` with non-null values: set / replace
       - keys in `patch` with null: deleted from result
       - keys absent from `patch`: preserved from `current`
@@ -78,11 +93,17 @@ def merge_patch(current: Mapping[str, Any], patch: Mapping[str, Any]) -> dict[st
     null also deletes (`merge_patch({"a": {"b": 1}}, {"a": {"b":
     null}}) == {"a": {}}`).
 
+    The result is `copy.deepcopy`'d so caller mutations of the
+    returned dict do not propagate into `current` (the prior
+    `Asset.settings`) or into the event payload that this dict
+    becomes. Settings dicts are typically small (5-30 keys), so
+    deepcopy cost is negligible compared to the safety guarantee.
+
     Note: cannot represent "set key to null" — null is overloaded as
     the delete sentinel. Settings values in CORA are never null in
     practice (use absence or a typed sentinel).
     """
-    result: dict[str, Any] = dict(current)
+    result: dict[str, Any] = copy.deepcopy(dict(current))
     for key, value in patch.items():
         if value is None:
             result.pop(key, None)
@@ -90,8 +111,10 @@ def merge_patch(current: Mapping[str, Any], patch: Mapping[str, Any]) -> dict[st
             # Recursive merge into existing nested dict
             result[key] = merge_patch(result[key], value)
         else:
-            # Set / replace (including dict-into-non-dict and scalars)
-            result[key] = value
+            # Set / replace (including dict-into-non-dict and scalars).
+            # Deep-copy the patch value so caller mutations of the
+            # patch don't propagate into the result either.
+            result[key] = copy.deepcopy(value)
     return result
 
 
@@ -167,7 +190,7 @@ def _collect_declared_property_names(schemas: Sequence[dict[str, Any]]) -> set[s
     for schema in schemas:
         properties = schema.get("properties")
         if isinstance(properties, dict):
-            declared.update(properties.keys())  # pyright: ignore[reportUnknownArgumentType]
+            declared.update(properties.keys())
     return declared
 
 

@@ -1,10 +1,12 @@
 """Contract tests for `GET /assets/{asset_id}`.
 
 Mirrors `test_get_capability_endpoint.py` / `test_get_subject_endpoint.py`.
-Pinned response shape: `{id, name, level, parent_id, lifecycle}`
-where `level` and `lifecycle` are the StrEnum string values
-(PascalCase per the BC map). `parent_id` is null only for
-Enterprise-level roots.
+Pinned response shape: `{id, name, level, parent_id, lifecycle,
+condition, capabilities, settings}` where `level`, `lifecycle`, and
+`condition` are the StrEnum string values (PascalCase per the BC
+map). `parent_id` is null only for Enterprise-level roots.
+`condition` (5g-b) and `settings` (5g-c) were added alongside their
+respective state-field landings.
 """
 
 from uuid import UUID, uuid4
