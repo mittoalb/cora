@@ -262,24 +262,9 @@ async def test_start_run_rejects_overrides_violating_method_schema(
         )
 
 
-@pytest.mark.integration
-async def test_start_run_permissive_when_method_has_no_schema(
-    db_pool: asyncpg.Pool,
-) -> None:
-    """Locked posture: Method without parameters_schema accepts any overrides."""
-    plan_id, subject_id = await _seed_full_chain(db_pool, method_schema=None, plan_defaults=None)
-    deps = _build_deps(db_pool, [uuid4(), uuid4()])
-
-    run_id = await start_run.bind(deps)(
-        StartRun(
-            name="Run-permissive",
-            plan_id=plan_id,
-            subject_id=subject_id,
-            parameter_overrides={"undeclared": "anything"},
-        ),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    loaded = await load_run(deps.event_store, run_id)
-    assert loaded is not None
-    assert loaded.effective_parameters == {"undeclared": "anything"}
+# NOTE: an old `test_start_run_permissive_when_method_has_no_schema` test
+# lived here pre-audit. It was replaced by the strict-mode pair
+# (test_start_run_strict_when_method_has_no_schema +
+# test_start_run_accepts_no_schema_when_no_overrides_and_no_defaults)
+# in the post-6g audit reversal commit. See [[project_run_parameters_design]]
+# §audit-correction.

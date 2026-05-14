@@ -95,10 +95,33 @@ def test_validate_rejects_orphan_key_when_all_capabilities_have_schemas() -> Non
 
 
 @pytest.mark.unit
-def test_validate_tolerates_unknown_key_when_one_capability_is_schemaless() -> None:
-    """PERMISSIVE mode: a single schemaless Capability widens the union to
-    accept unknown keys (5g-a 'degrade gracefully' stance).
-    """
+def test_validate_strict_when_one_capability_is_schemaless_rejects_unknown_key() -> None:
+    """Strict (post-6g audit reversal): a schemaless Capability is a
+    no-op in the union; only DECLARED schemas constrain the
+    allowed-keys set. An unknown key (`vendor_specific` not declared
+    by any declared schema) is rejected even when at least one
+    Capability is schemaless. Originally permissive ("degrade
+    gracefully"), reversed for consistency with the 6g-b/c
+    strict-when-no-schema reversal."""
+    declared = _capability(
+        settings_schema=_schema(
+            type="object",
+            properties={"energy_kev": {"type": "number"}},
+        )
+    )
+    schemaless = _capability(settings_schema=None)
+    with pytest.raises(InvalidAssetSettingsError):
+        validate_settings_against_capabilities(
+            {"energy_kev": 30, "vendor_specific": "x"},
+            [declared, schemaless],
+        )
+
+
+@pytest.mark.unit
+def test_validate_passes_when_one_capability_is_schemaless_and_keys_are_declared() -> None:
+    """Strict mode still accepts declared keys when a sibling
+    Capability is schemaless — the schemaless one contributes nothing
+    but doesn't block the declared keys."""
     declared = _capability(
         settings_schema=_schema(
             type="object",
@@ -107,9 +130,45 @@ def test_validate_tolerates_unknown_key_when_one_capability_is_schemaless() -> N
     )
     schemaless = _capability(settings_schema=None)
     validate_settings_against_capabilities(
-        {"energy_kev": 30, "vendor_specific": "x"},
+        {"energy_kev": 30},
         [declared, schemaless],
     )
+
+
+@pytest.mark.unit
+def test_validate_rejects_when_all_capabilities_are_schemaless_with_settings() -> None:
+    """ALL-SCHEMALESS mode: when every Capability is schemaless and
+    settings is non-empty, reject with a clear message instructing
+    the operator to declare a schema on at least one Capability
+    (an empty `{}` is valid). Mirrors the NO-CAPABILITIES posture
+    and the 6g-b/c "Method declares no schema" rejection."""
+    schemaless_a = _capability(settings_schema=None)
+    schemaless_b = _capability(settings_schema=None)
+    with pytest.raises(InvalidAssetSettingsError) as exc_info:
+        validate_settings_against_capabilities(
+            {"some_key": "some_value"},
+            [schemaless_a, schemaless_b],
+        )
+    assert "every assigned Capability is schemaless" in exc_info.value.reason
+    assert "'some_key'" in exc_info.value.reason
+
+
+@pytest.mark.unit
+def test_validate_passes_when_all_capabilities_are_schemaless_with_empty_settings() -> None:
+    """ALL-SCHEMALESS mode allows empty settings (no contract, no
+    values, no conflict)."""
+    schemaless = _capability(settings_schema=None)
+    validate_settings_against_capabilities({}, [schemaless])
+
+
+@pytest.mark.unit
+def test_validate_passes_when_capability_declares_empty_schema_and_settings_empty() -> None:
+    """Operators can declare `settings_schema={}` to explicitly say
+    'this Capability has no settings to constrain'. With non-empty
+    settings, the empty schema rejects unknown keys (jsonschema-rs);
+    with empty settings, validation passes."""
+    explicit_empty = _capability(settings_schema=_schema())  # {"$schema": DRAFT}, no properties
+    validate_settings_against_capabilities({}, [explicit_empty])
 
 
 @pytest.mark.unit

@@ -26,33 +26,42 @@ For each currently-assigned Capability with a non-None
     the lowest, `type` must agree across all declarations.
 
 The implementation builds a single mega-schema with `allOf: [...]`
-(one entry per Capability with a schema) PLUS an `unevaluatedProperties:
-false` clause WHEN every assigned Capability has declared a schema
-(strict mode). If at least one assigned Capability is schemaless,
-we skip the strict clause (permissive mode); unknown keys are
-tolerated. This preserves 5g-a's "degrade gracefully" stance.
+(one entry per Capability with a schema) PLUS an
+`additionalProperties: false` clause whenever ANY schemas exist.
+Schemaless Capabilities are no-ops in the union: they contribute
+nothing to the allowed-keys set.
 
-## Schemaless-Capability tolerance + zero-Capabilities edge case
+## Strict-by-default modes (post-6g audit alignment)
 
 A Capability with `settings_schema=None` does not contribute to the
 union. Three modes follow:
 
-  - **STRICT**: every assigned Capability declares a schema (no
-    schemaless Capabilities). The validator rejects orphan keys
-    (`additionalProperties: false`).
-  - **PERMISSIVE**: at least one assigned Capability is schemaless,
-    AND at least one declares a schema. Unknown keys are tolerated
-    (`degrade gracefully`); declared keys still validate.
+  - **DECLARED**: at least one assigned Capability declares a
+    schema. The validator strictly rejects keys not declared by
+    any of the declared schemas (`additionalProperties: false`),
+    and validates declared keys against their union constraints.
+    Schemaless Capabilities present alongside declared ones are
+    no-ops; they do NOT widen the accepted-keys set.
+  - **ALL-SCHEMALESS**: every assigned Capability is schemaless
+    (none declares a schema). Empty settings is trivially valid;
+    non-empty settings is rejected with a clear "no Capability
+    declares a schema" message. Mirrors the NO-CAPABILITIES
+    posture for consistency.
   - **NO-CAPABILITIES**: the Asset has zero assigned Capabilities.
     Empty settings is trivially valid; non-empty settings is
-    rejected (no schema source). This is hard-strict: an Asset with
-    no Capabilities has no claim to any settings.
+    rejected with "Asset has no assigned Capabilities to validate
+    against".
 
-The asymmetry between PERMISSIVE (>=1 schemaless cap allows
-anything) and NO-CAPABILITIES (zero caps allows nothing) is
-deliberate: a schemaless cap is an explicit "this Capability
-exists but its schema isn't declared yet"; zero caps is "this Asset
-shouldn't have settings at all".
+Originally (5g-c through pre-6g cleanup) the **PERMISSIVE** mode
+existed: when at least one Capability was schemaless AND at least
+one declared a schema, the union widened to accept unknown keys.
+Post-6g audit reversed this for consistency with the 6g-b/c
+strict-when-no-Method-schema reversal: silent typo prevention
+beats graceful degradation when both are at stake. Operators
+wanting "this Capability has no settings" declare
+`settings_schema={}` explicitly. See
+[[project_run_parameters_design]] §audit-correction for the
+shared rationale.
 
 ## Error shape
 
@@ -85,23 +94,44 @@ def validate_settings_against_capabilities(
     """Validate `settings` against the union of `capabilities`'
     settings_schemas. Raises InvalidAssetSettingsError on failure.
 
-    Returns None on success. Empty `capabilities` (Asset has no
-    Capabilities assigned): all settings are orphan. STRICT-mode
-    rejection if `settings` is non-empty; empty `settings` passes
-    trivially.
+    Returns None on success. Strict-by-default (post-6g audit
+    alignment): non-empty settings without any declared
+    settings_schema is rejected. See module docstring for the three
+    modes (DECLARED / ALL-SCHEMALESS / NO-CAPABILITIES).
     """
     schemas = [c.settings_schema for c in capabilities if c.settings_schema is not None]
-    schemaless_count = len(capabilities) - len(schemas)
 
     # Edge case: no assigned Capabilities and no settings -> trivially valid.
     if not capabilities and not settings:
         return
 
     # Edge case: no assigned Capabilities but non-empty settings -> orphan.
-    # STRICT by default since there are no schemaless Capabilities to soften.
     if not capabilities and settings:
         keys = ", ".join(f"'{k}'" for k in sorted(settings.keys()))
         msg = f"key(s) {keys} cannot be set: Asset has no assigned Capabilities to validate against"
+        raise InvalidAssetSettingsError(msg)
+
+    # Post-6g audit: ALL-SCHEMALESS mode. If every assigned
+    # Capability is schemaless, no schema constrains the union.
+    # Empty settings is trivially valid (no contract, no values, no
+    # conflict). Non-empty settings rejects with a clear message
+    # (mirrors the NO-CAPABILITIES posture and the 6g-b/c "Method
+    # declares no schema" rejection). Operators wanting a schemaless
+    # Capability that nonetheless permits settings declare
+    # `settings_schema={}` explicitly on the Capability — empty
+    # schema means "no constraints, but the Capability has been
+    # inspected" and joins the union as a no-op constraint that
+    # still allows declared keys from siblings.
+    if not schemas:
+        if not settings:
+            return
+        keys = ", ".join(f"'{k}'" for k in sorted(settings.keys()))
+        msg = (
+            f"key(s) {keys} cannot be set: every assigned Capability is "
+            f"schemaless (settings_schema=None). Declare a settings_schema "
+            f"on at least one Capability (an empty `{{}}` is valid for "
+            f"Capabilities with no settings to constrain) or remove the keys."
+        )
         raise InvalidAssetSettingsError(msg)
 
     # Detect true cross-Capability type conflicts BEFORE running
@@ -110,23 +140,18 @@ def validate_settings_against_capabilities(
     # ourselves).
     _check_cross_capability_type_conflicts(capabilities)
 
-    # Build the mega-schema: allOf the per-Capability schemas. If
-    # every assigned Capability has a schema, also add
-    # `unevaluatedProperties: false` to reject orphan keys. If at
-    # least one Capability is schemaless, skip the strict clause
-    # (permissive mode tolerates unknown keys).
+    # Build the mega-schema: allOf the per-Capability schemas, plus
+    # the strict-mode clause (every key not declared by any schema
+    # is rejected). Schemaless Capabilities are no-ops here; they
+    # don't widen the allowed-keys set (post-6g audit reversal).
     mega: dict[str, Any] = {
         "$schema": DRAFT_2020_12_URI,
         "type": "object",
     }
-    if schemas:
-        mega["allOf"] = list(schemas)
-    if schemaless_count == 0 and schemas:
-        # Strict mode: enumerate every property name declared by any
-        # schema, and reject anything else.
-        declared_keys = _collect_declared_property_names(schemas)
-        mega["properties"] = {k: True for k in declared_keys}
-        mega["additionalProperties"] = False
+    mega["allOf"] = list(schemas)
+    declared_keys = _collect_declared_property_names(schemas)
+    mega["properties"] = {k: True for k in declared_keys}
+    mega["additionalProperties"] = False
 
     try:
         validator = jsonschema_rs.Draft202012Validator(mega)
