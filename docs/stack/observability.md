@@ -1,6 +1,6 @@
 # Observability
 
-*Logging, metrics, tracing, receivers.*
+For implementers wiring telemetry. Emitters are picked; receivers are deferred until the first non-local deployment.
 
 ## Emitters
 

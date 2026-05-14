@@ -59,7 +59,7 @@ Built first for white-beam micro-CT at **APS beamline 35-BM** (Argonne). Greenfi
 
     [Read the contribution call →](contributing.md)
 
--   __Pattern researcher__
+-   __AI researcher__
 
     Agents-as-principals, ReBAC, decision strategies, DCB. Got a pattern to try on a real facility? CORA can be a substrate.
 
@@ -72,5 +72,3 @@ Built first for white-beam micro-CT at **APS beamline 35-BM** (Argonne). Greenfi
 - **Solo project.** A research bet, not a startup, not a product.
 - **Code is agent-written; design is human.**
 - **Pre-1.0.** Foundation in place; bounded contexts grow from real APS use cases.
-
-[Source on GitHub →](https://github.com/xmap/cora)

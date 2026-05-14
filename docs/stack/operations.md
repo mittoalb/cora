@@ -1,6 +1,6 @@
 # Operations
 
-*Deployment, tooling.*
+For implementers picking deployment and developer tooling. Each row names a role, the current pick, and the trigger that would force a swap.
 
 ## Deployment
 

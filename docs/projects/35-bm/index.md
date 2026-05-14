@@ -30,7 +30,7 @@ Every transition emits events. The full stream re-derives the deliverables. The 
 
 <div class="grid cards" markdown>
 
--   :material-foundation:{ .lg .middle } __Ground__
+-   :material-terrain:{ .lg .middle } __Ground__
 
     ---
 
