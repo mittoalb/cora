@@ -68,8 +68,11 @@ class StartRunRequest(BaseModel):
         description=(
             "Operator-supplied overrides on top of `Plan.parameter_defaults` "
             "(RFC 7396 merge semantics). The post-merge result is "
-            "validated against the owning Method's `parameters_schema` "
-            "(permissive when the Method declares no schema). Phase 6g-c."
+            "validated against the owning Method's `parameters_schema`; "
+            "STRICT when the Method declares no schema (non-empty "
+            "effective parameters rejected with 400; declare an empty "
+            "`{}` schema for parameter-less Methods, or omit overrides "
+            "and ensure Plan defaults are empty). Phase 6g-c."
         ),
     )
     triggered_by: str | None = Field(

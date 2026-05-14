@@ -5,7 +5,10 @@ Phase 6g-b. The decider:
   - Merges the patch into prior parameter_defaults via RFC 7396 semantics
   - Validates the merged result against the supplied
     `method_parameters_schema` (raises InvalidPlanParameterDefaultsError
-    on failure; permissive when method_parameters_schema is None)
+    on failure; STRICT when method_parameters_schema is None — non-empty
+    merged defaults are rejected; mirrors 5g-c's "no Capabilities +
+    non-empty settings → reject" anchor; post-6g audit reversal, see
+    [[project_run_parameters_design]] §audit-correction)
   - No-ops (returns []) if the merged result equals the current
     parameter_defaults (matches 5g-c precedent: identical re-submission
     carries no audit value)

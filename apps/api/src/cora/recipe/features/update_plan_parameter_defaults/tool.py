@@ -25,10 +25,11 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "(JSON Merge Patch) semantics. Non-null values set/replace; "
             "null values delete; absent keys are preserved. The merged "
             "result is validated against the owning Method's "
-            "parameters_schema (6g-a); validation is permissive when "
-            "the Method declares no schema. Phase 6g-b: pre-positions "
-            "Run.parameter_overrides + effective_parameters resolution "
-            "in 6g-c."
+            "parameters_schema (6g-a); STRICT when the Method declares "
+            "no schema (non-empty defaults rejected; declare an empty "
+            "`{}` schema for parameter-less Methods, or omit defaults). "
+            "Phase 6g-b: pre-positions Run.parameter_overrides + "
+            "effective_parameters resolution in 6g-c."
         ),
     )
     async def update_plan_parameter_defaults_tool(  # pyright: ignore[reportUnusedFunction]

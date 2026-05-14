@@ -19,9 +19,12 @@ exactly one Method per Plan, so a sequential load is just as fast.
 
 If the Method id refers to a non-existent stream (eventual-
 consistency stance — Plans can hold method_ids whose stream was
-discarded) we treat it as schemaless and pass None into the decider
-(permissive validation per the locked design). This matches 5g-c's
-"missing Capability is treated as schemaless" precedent.
+discarded) we pass None into the decider as parameters_schema.
+Post-6g audit, the strict validator then rejects any non-empty
+defaults with a clear "Method declares no parameters_schema"
+error — operator's fix is to declare the Method properly OR omit
+the defaults. Mirrors 5g-c's "no Capabilities + non-empty settings →
+reject" anchor; see [[project_run_parameters_design]] §audit-correction.
 """
 
 from typing import Protocol

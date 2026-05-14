@@ -13,7 +13,8 @@ Slices ship per aggregate / per state transition:
     overrides in 6g-b/c)
   - 6g-b: update_plan_parameter_defaults (Plan.parameter_defaults
     PATCH RFC 7396 with merge_patch reuse; validated against owning
-    Method.parameters_schema with permissive-when-None posture)
-  - 6g-c (future): Run.parameter_overrides + effective_parameters
-    snapshot on RunStarted
+    Method.parameters_schema; STRICT when Method has no schema, post-6g
+    audit reversal mirroring 5g-c's "no Capabilities → reject" anchor)
+  - 6g-c: Run.parameter_overrides + effective_parameters snapshot
+    on RunStarted (same strict-when-no-schema posture)
 """

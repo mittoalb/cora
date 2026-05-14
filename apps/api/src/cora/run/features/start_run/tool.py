@@ -78,9 +78,11 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                     "Operator-supplied overrides on top of "
                     "Plan.parameter_defaults (RFC 7396 merge). The "
                     "post-merge result is validated against the owning "
-                    "Method's parameters_schema (permissive when the "
-                    "Method declares no schema). Omit or null for an "
-                    "empty overrides dict. Phase 6g-c."
+                    "Method's parameters_schema; STRICT when the Method "
+                    "declares no schema (non-empty effective rejected; "
+                    "declare an empty `{}` schema for parameter-less "
+                    "Methods). Omit or null for an empty overrides dict. "
+                    "Phase 6g-c."
                 ),
             ),
         ] = None,

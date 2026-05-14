@@ -359,11 +359,14 @@ class Plan:
     operator-set defaults for parameters that downstream Runs
     (6g-c) merge with their per-run overrides. Validated against
     the owning Method's `parameters_schema` at decide time
-    (permissive when Method declares no schema; see
-    [[project_run_parameters_design]]). Defaults to empty dict
-    for legacy Plans (additive-state pattern). The full dict is
-    persisted; PATCH semantics handled by the slice via RFC 7396
-    `merge_patch`. Mirrors `Asset.settings` shape from 5g-c.
+    (STRICT when Method declares no schema: non-empty defaults
+    rejected; operators wanting "no parameters" Methods declare
+    `parameters_schema={}` explicitly. Mirrors 5g-c's
+    "no Capabilities + non-empty settings → reject" anchor; see
+    [[project_run_parameters_design]] §audit-correction).
+    Defaults to empty dict for legacy Plans (additive-state pattern).
+    The full dict is persisted; PATCH semantics handled by the slice
+    via RFC 7396 `merge_patch`. Mirrors `Asset.settings` shape from 5g-c.
     """
 
     id: UUID

@@ -118,9 +118,11 @@ def decide(
     command overrides) the handler computed via `merge_patch`.
     `method_parameters_schema` is the Method's parameters_schema
     (None if Method declares no contract). The decider validates
-    `effective_parameters` against the schema (permissive when the
-    schema is None per 6g-b posture) and emits RunStarted carrying
-    BOTH the operator's overrides AND the resolved effective set.
+    `effective_parameters` against the schema; STRICT when the schema
+    is None — non-empty effective rejected (post-6g audit reversal,
+    mirrors 5g-c's "no Capabilities + non-empty settings → reject"
+    anchor). Emits RunStarted carrying BOTH the operator's overrides
+    AND the resolved effective set.
     """
     if state is not None:
         raise RunAlreadyExistsError(state.id)
