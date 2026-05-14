@@ -30,7 +30,7 @@ Live at the smallest scope owning the invariants:
 
 Promote up only after ≥3 real usages with identical, stable invariants.
 
-**Bounded-name VOs share a validation helper, not a base class.** The 10 bounded-name VOs (`ActorName`, `MethodName`, ...) call `cora.infrastructure.name.validate_name`:
+**Trimmed-bounded-text VOs share a validation helper, not a base class.** The bounded-text VOs (`ActorName`, `MethodName`, reason fields on Run / Subject / Dataset, choice / context / rule on Decision, ...) call `cora.infrastructure.bounded_text.validate_bounded_text`:
 
 ```python
 @dataclass(frozen=True)
@@ -38,7 +38,7 @@ class ActorName:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=ACTOR_NAME_MAX_LENGTH,
             error_class=InvalidActorNameError,
