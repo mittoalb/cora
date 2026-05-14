@@ -1,4 +1,4 @@
-h1:C6JXwj+KxtLlZ7DhamdjdLfy+RfaC0NikxIIaj57LFs=
+h1://oN789Kj1OE2RdoSIDAGRGVCQ8LVCgCUSweABK/D6c=
 20260509120000_init_events.sql h1:GmgCZKfaqXu1m96/cKAks2vhaLWTdEaHTLkFtUo9FXg=
 20260509170000_init_idempotency.sql h1:Nbu8DIE4Sv1WiHw3G22+tYffPhKc5Jryw3PMK8wB2zY=
 20260510010000_add_event_id.sql h1:RbtYP6uMnOB20zhJ9dNXUi4YVqbmlEzf562pmygnRW8=
@@ -27,3 +27,4 @@ h1:C6JXwj+KxtLlZ7DhamdjdLfy+RfaC0NikxIIaj57LFs=
 20260513080000_add_projection_bookmarks_observability.sql h1:KaF1qku1xuQtWUSWweKGwpfOY8E8Zfl/sTYjE9Cc32I=
 20260513090000_add_capability_summary_settings_schema_present.sql h1:AkHZmKlSA8q/BJyGR5wwn5hhUtknv75NRotl8kxUdl8=
 20260513100000_add_asset_summary_condition.sql h1:XmyOhjiQVOSv+mU3K52Ai1i+ulbuFGNzUpPrg1heOnM=
+20260514000000_add_method_summary_parameters_schema_present.sql h1:HRT/mjNuqEXC5GXXXwrqqemlfnmXaDC4kzCLWSrLWzw=

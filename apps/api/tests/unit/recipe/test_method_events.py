@@ -15,6 +15,7 @@ from cora.infrastructure.ports.event_store import StoredEvent
 from cora.recipe.aggregates.method.events import (
     MethodDefined,
     MethodDeprecated,
+    MethodParametersSchemaUpdated,
     MethodVersioned,
     event_type_name,
     from_stored,
@@ -266,4 +267,94 @@ def test_from_stored_rebuilds_method_deprecated() -> None:
 def test_to_payload_then_from_stored_round_trips_for_method_deprecated() -> None:
     original = MethodDeprecated(method_id=uuid4(), occurred_at=_NOW)
     stored = _stored("MethodDeprecated", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- MethodParametersSchemaUpdated (Phase 6g-a) ----------
+
+
+_DRAFT = "https://json-schema.org/draft/2020-12/schema"
+_SAMPLE_SCHEMA = {
+    "$schema": _DRAFT,
+    "type": "object",
+    "properties": {"energy_kev": {"type": "number"}},
+}
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_parameters_schema_updated_class_name() -> None:
+    event = MethodParametersSchemaUpdated(
+        method_id=uuid4(), parameters_schema=_SAMPLE_SCHEMA, occurred_at=_NOW
+    )
+    assert event_type_name(event) == "MethodParametersSchemaUpdated"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_parameters_schema_updated_with_dict() -> None:
+    method_id = uuid4()
+    event = MethodParametersSchemaUpdated(
+        method_id=method_id, parameters_schema=_SAMPLE_SCHEMA, occurred_at=_NOW
+    )
+    assert to_payload(event) == {
+        "method_id": str(method_id),
+        "parameters_schema": _SAMPLE_SCHEMA,
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_parameters_schema_updated_with_none() -> None:
+    """Clearing the schema serializes parameters_schema=null. Pinned
+    so a future change can't drop the key (the projection's
+    `payload.get("parameters_schema") is not None` would silently
+    keep the present-flag at TRUE)."""
+    method_id = uuid4()
+    event = MethodParametersSchemaUpdated(
+        method_id=method_id, parameters_schema=None, occurred_at=_NOW
+    )
+    payload = to_payload(event)
+    assert payload["parameters_schema"] is None
+    assert "parameters_schema" in payload
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_parameters_schema_updated_with_dict() -> None:
+    method_id = uuid4()
+    stored = _stored(
+        "MethodParametersSchemaUpdated",
+        {
+            "method_id": str(method_id),
+            "parameters_schema": _SAMPLE_SCHEMA,
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == MethodParametersSchemaUpdated(
+        method_id=method_id, parameters_schema=_SAMPLE_SCHEMA, occurred_at=_NOW
+    )
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_parameters_schema_updated_with_none() -> None:
+    method_id = uuid4()
+    stored = _stored(
+        "MethodParametersSchemaUpdated",
+        {
+            "method_id": str(method_id),
+            "parameters_schema": None,
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == MethodParametersSchemaUpdated(
+        method_id=method_id, parameters_schema=None, occurred_at=_NOW
+    )
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_parameters_schema_updated() -> None:
+    original = MethodParametersSchemaUpdated(
+        method_id=uuid4(), parameters_schema=_SAMPLE_SCHEMA, occurred_at=_NOW
+    )
+    stored = _stored("MethodParametersSchemaUpdated", to_payload(original))
     assert from_stored(stored) == original

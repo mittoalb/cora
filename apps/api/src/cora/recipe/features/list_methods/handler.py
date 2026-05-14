@@ -34,13 +34,22 @@ _log = get_logger(__name__)
 
 @dataclass(frozen=True)
 class MethodSummaryItem:
-    """One row from the method projection."""
+    """One row from the method projection.
+
+    `parameters_schema_present` reflects whether the most recent
+    `MethodParametersSchemaUpdated` event for this Method carried a
+    non-NULL parameters_schema (Phase 6g-a). Default FALSE on legacy
+    rows + on Methods that have never had `update_method_parameters_schema`
+    called. The schema content itself is not in this projection (load
+    on demand via `get_method`).
+    """
 
     method_id: UUID
     name: str
     status: str
     version_tag: str | None
     created_at: datetime
+    parameters_schema_present: bool
 
 
 @dataclass(frozen=True)
@@ -64,7 +73,7 @@ class Handler(Protocol):
 
 
 _LIST_NO_CURSOR_SQL = """
-SELECT method_id, name, status, version_tag, created_at
+SELECT method_id, name, status, version_tag, created_at, parameters_schema_present
 FROM proj_recipe_method_summary
 WHERE ($2::text IS NULL OR status = $2)
 ORDER BY created_at ASC, method_id ASC
@@ -72,7 +81,7 @@ LIMIT $1
 """
 
 _LIST_WITH_CURSOR_SQL = """
-SELECT method_id, name, status, version_tag, created_at
+SELECT method_id, name, status, version_tag, created_at, parameters_schema_present
 FROM proj_recipe_method_summary
 WHERE ($2::text IS NULL OR status = $2)
   AND (created_at, method_id) > ($3, $4)
@@ -154,6 +163,7 @@ def bind(deps: Kernel) -> Handler:
                 status=str(row["status"]),
                 version_tag=(str(row["version_tag"]) if row["version_tag"] is not None else None),
                 created_at=row["created_at"],
+                parameters_schema_present=bool(row["parameters_schema_present"]),
             )
             for row in kept
         ]

@@ -1,0 +1,34 @@
+-- Phase 6g-a: track whether each Method has declared a
+-- parameters_schema, on the Method summary projection.
+--
+-- Adds a single boolean column `parameters_schema_present` to
+-- `proj_recipe_method_summary`. Defaults to FALSE; existing rows
+-- backfill cleanly with no application-layer change required.
+--
+-- ## Why a boolean, not the schema dict itself
+--
+-- The schema can be large (~100s of bytes for non-trivial Methods)
+-- and projecting it would bloat the summary table that backs
+-- `GET /methods`. The list endpoint's job is "show me all methods
+-- at a glance"; the schema content itself is a per-Method detail
+-- loaded on demand (fold-on-read of the Method stream; future
+-- dedicated `get_method_schema` slice if consumers ask for it).
+--
+-- The boolean lets list-endpoint consumers filter "all methods with
+-- a parameter contract declared" without needing the schema content.
+--
+-- ## Default semantics
+--
+-- FALSE for both pre-6g-a Methods (no schema-update event ever
+-- emitted) AND for newly-defined Methods that haven't had
+-- `update_method_parameters_schema` called. Becomes TRUE on the
+-- first `MethodParametersSchemaUpdated` with a non-NULL
+-- parameters_schema; stays TRUE if the schema is replaced; goes
+-- back to FALSE if the schema is cleared (event with
+-- parameters_schema=NULL).
+--
+-- Pure ADD COLUMN with safe default; greenfield-friendly. Mirrors
+-- 20260513090000_add_capability_summary_settings_schema_present.sql.
+
+ALTER TABLE proj_recipe_method_summary
+    ADD COLUMN parameters_schema_present BOOLEAN NOT NULL DEFAULT FALSE;

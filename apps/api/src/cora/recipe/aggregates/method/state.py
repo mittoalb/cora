@@ -69,6 +69,7 @@ idempotency hash.
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 from uuid import UUID
 
 from cora.infrastructure.name import validate_name
@@ -233,6 +234,16 @@ class Method:
     Capability's `version` semantics (Equipment 5f-2): preserved
     across deprecation as an audit signal of the last revision before
     deprecation.
+
+    `parameters_schema` is the optional JSON Schema (Draft 2020-12,
+    constrained subset) declaring the shape of parameter dicts that
+    Plans (6g-b) and Runs (6g-c) carry for this Method. Defaults to
+    None for legacy Methods (additive-state pattern); None means
+    "this Method declares no parameter contract — accept any dict".
+    Distinct from `{}` (empty schema, "operator explicitly said no
+    parameters"). Subset shared with Capability.settings_schema via
+    `cora.infrastructure.json_schema_subset`. See
+    [[project_run_parameters_design]] for the full 6g family layout.
     """
 
     id: UUID
@@ -240,3 +251,4 @@ class Method:
     needs_capabilities: frozenset[UUID] = field(default_factory=frozenset[UUID])
     status: MethodStatus = MethodStatus.DEFINED
     version: str | None = None
+    parameters_schema: dict[str, Any] | None = field(default=None)

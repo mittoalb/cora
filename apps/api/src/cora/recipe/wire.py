@@ -43,6 +43,7 @@ from cora.recipe.features import (
     list_methods,
     list_plans,
     list_practices,
+    update_method_parameters_schema,
     version_method,
     version_plan,
     version_practice,
@@ -64,6 +65,7 @@ class RecipeHandlers:
     get_method: get_method.Handler
     version_method: version_method.Handler
     deprecate_method: deprecate_method.Handler
+    update_method_parameters_schema: update_method_parameters_schema.Handler
     define_practice: define_practice.IdempotentHandler
     get_practice: get_practice.Handler
     version_practice: version_practice.Handler
@@ -108,6 +110,11 @@ def wire_recipe(deps: Kernel) -> RecipeHandlers:
         deprecate_method=with_tracing(
             deprecate_method.bind(deps),
             command_name="DeprecateMethod",
+            bc=_BC,
+        ),
+        update_method_parameters_schema=with_tracing(
+            update_method_parameters_schema.bind(deps),
+            command_name="UpdateMethodParametersSchema",
             bc=_BC,
         ),
         define_practice=with_tracing(

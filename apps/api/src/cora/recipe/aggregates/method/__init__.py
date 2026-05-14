@@ -9,12 +9,17 @@ from cora.recipe.aggregates.method.events import (
     MethodDefined,
     MethodDeprecated,
     MethodEvent,
+    MethodParametersSchemaUpdated,
     MethodVersioned,
     event_type_name,
     from_stored,
     to_payload,
 )
 from cora.recipe.aggregates.method.evolver import evolve, fold
+from cora.recipe.aggregates.method.parameters_validation import (
+    InvalidMethodParametersSchemaError,
+    validate_parameters_schema,
+)
 from cora.recipe.aggregates.method.read import load_method
 from cora.recipe.aggregates.method.state import (
     METHOD_NAME_MAX_LENGTH,
@@ -34,6 +39,7 @@ __all__ = [
     "METHOD_NAME_MAX_LENGTH",
     "METHOD_VERSION_TAG_MAX_LENGTH",
     "InvalidMethodNameError",
+    "InvalidMethodParametersSchemaError",
     "InvalidMethodVersionTagError",
     "Method",
     "MethodAlreadyExistsError",
@@ -44,6 +50,7 @@ __all__ = [
     "MethodEvent",
     "MethodName",
     "MethodNotFoundError",
+    "MethodParametersSchemaUpdated",
     "MethodStatus",
     "MethodVersioned",
     "event_type_name",
@@ -52,4 +59,5 @@ __all__ = [
     "from_stored",
     "load_method",
     "to_payload",
+    "validate_parameters_schema",
 ]

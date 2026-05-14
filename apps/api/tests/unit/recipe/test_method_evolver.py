@@ -19,6 +19,7 @@ from cora.recipe.aggregates.method import (
 from cora.recipe.aggregates.method.events import (
     MethodDefined,
     MethodDeprecated,
+    MethodParametersSchemaUpdated,
     MethodVersioned,
 )
 from cora.recipe.features import define_method
@@ -343,3 +344,145 @@ def test_evolve_method_versioned_preserves_needs_capabilities() -> None:
         MethodVersioned(method_id=defined.id, version_tag="v2", occurred_at=_NOW),
     )
     assert versioned.needs_capabilities == frozenset({cap1, cap2})
+
+
+# ---------- MethodParametersSchemaUpdated (Phase 6g-a) ----------
+
+
+_SCHEMA_A = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {"energy_kev": {"type": "number"}},
+}
+
+
+@pytest.mark.unit
+def test_evolve_method_defined_starts_with_null_parameters_schema() -> None:
+    """Genesis-only stream folds with parameters_schema=None
+    (additive-state pattern; pre-6g-a streams fold cleanly without
+    an upcaster)."""
+    state = evolve(
+        None,
+        MethodDefined(method_id=uuid4(), name="X", needs_capabilities=[], occurred_at=_NOW),
+    )
+    assert state.parameters_schema is None
+
+
+@pytest.mark.unit
+def test_evolve_method_parameters_schema_updated_sets_schema_and_preserves_status() -> None:
+    """Schema update is orthogonal to lifecycle: status preserved on apply."""
+    method_id = uuid4()
+    cap1 = uuid4()
+    defined = Method(
+        id=method_id,
+        name=MethodName("X"),
+        needs_capabilities=frozenset({cap1}),
+        status=MethodStatus.DEFINED,
+    )
+    updated = evolve(
+        defined,
+        MethodParametersSchemaUpdated(
+            method_id=method_id, parameters_schema=_SCHEMA_A, occurred_at=_NOW
+        ),
+    )
+    assert updated.parameters_schema == _SCHEMA_A
+    assert updated.status is MethodStatus.DEFINED
+    assert updated.needs_capabilities == frozenset({cap1})
+
+
+@pytest.mark.unit
+def test_evolve_method_parameters_schema_updated_with_none_clears_schema() -> None:
+    method_id = uuid4()
+    state_with_schema = Method(
+        id=method_id,
+        name=MethodName("X"),
+        needs_capabilities=frozenset(),
+        status=MethodStatus.DEFINED,
+        parameters_schema=_SCHEMA_A,
+    )
+    cleared = evolve(
+        state_with_schema,
+        MethodParametersSchemaUpdated(
+            method_id=method_id, parameters_schema=None, occurred_at=_NOW
+        ),
+    )
+    assert cleared.parameters_schema is None
+
+
+@pytest.mark.unit
+def test_evolve_method_parameters_schema_updated_on_empty_state_raises() -> None:
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(
+            None,
+            MethodParametersSchemaUpdated(
+                method_id=uuid4(), parameters_schema=_SCHEMA_A, occurred_at=_NOW
+            ),
+        )
+
+
+@pytest.mark.unit
+def test_evolve_method_versioned_preserves_parameters_schema() -> None:
+    """Critical pin: parameters_schema MUST carry through the version
+    transition. Mirrors `test_evolve_method_versioned_preserves_needs_capabilities`."""
+    state = Method(
+        id=uuid4(),
+        name=MethodName("X"),
+        needs_capabilities=frozenset(),
+        status=MethodStatus.DEFINED,
+        parameters_schema=_SCHEMA_A,
+    )
+    versioned = evolve(
+        state, MethodVersioned(method_id=state.id, version_tag="v2", occurred_at=_NOW)
+    )
+    assert versioned.parameters_schema == _SCHEMA_A
+
+
+@pytest.mark.unit
+def test_evolve_method_deprecated_preserves_parameters_schema() -> None:
+    """Critical pin: parameters_schema MUST carry through the deprecate
+    transition (audit-relevant historical artifact)."""
+    state = Method(
+        id=uuid4(),
+        name=MethodName("X"),
+        needs_capabilities=frozenset(),
+        status=MethodStatus.VERSIONED,
+        version="v1",
+        parameters_schema=_SCHEMA_A,
+    )
+    deprecated = evolve(state, MethodDeprecated(method_id=state.id, occurred_at=_NOW))
+    assert deprecated.parameters_schema == _SCHEMA_A
+
+
+@pytest.mark.unit
+def test_fold_define_update_schema_yields_state_with_schema() -> None:
+    method_id = uuid4()
+    state = fold(
+        [
+            MethodDefined(method_id=method_id, name="X", needs_capabilities=[], occurred_at=_NOW),
+            MethodParametersSchemaUpdated(
+                method_id=method_id, parameters_schema=_SCHEMA_A, occurred_at=_NOW
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.parameters_schema == _SCHEMA_A
+    assert state.status is MethodStatus.DEFINED
+
+
+@pytest.mark.unit
+def test_fold_define_update_schema_version_carries_schema_through_versioning() -> None:
+    """Multi-event fold: schema set first, then versioning preserves it."""
+    method_id = uuid4()
+    state = fold(
+        [
+            MethodDefined(method_id=method_id, name="X", needs_capabilities=[], occurred_at=_NOW),
+            MethodParametersSchemaUpdated(
+                method_id=method_id, parameters_schema=_SCHEMA_A, occurred_at=_NOW
+            ),
+            MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.parameters_schema == _SCHEMA_A
+    assert state.version == "v2"
+    assert state.status is MethodStatus.VERSIONED

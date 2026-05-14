@@ -21,7 +21,7 @@ tuple loops to register them. Phase 6a only ships Method, so the
 tuples are single-element today; future aggregates (Practice / Plan
 / Run) and transition errors append entries without restructuring.
 
-  - 400 (validation): InvalidMethodNameError
+  - 400 (validation): InvalidMethodNameError, InvalidMethodParametersSchemaError
   - 404 (load miss): MethodNotFoundError
   - 409 (defensive guard for AlreadyExists): MethodAlreadyExistsError
   - 409 (transition guards): future <Aggregate>Cannot<Verb>Error families
@@ -32,6 +32,7 @@ from fastapi.responses import JSONResponse
 
 from cora.recipe.aggregates.method import (
     InvalidMethodNameError,
+    InvalidMethodParametersSchemaError,
     InvalidMethodVersionTagError,
     MethodAlreadyExistsError,
     MethodCannotDeprecateError,
@@ -73,6 +74,7 @@ from cora.recipe.features import (
     list_methods,
     list_plans,
     list_practices,
+    update_method_parameters_schema,
     version_method,
     version_plan,
     version_practice,
@@ -141,6 +143,7 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(get_method.router)
     app.include_router(version_method.router)
     app.include_router(deprecate_method.router)
+    app.include_router(update_method_parameters_schema.router)
     app.include_router(define_practice.router)
     app.include_router(get_practice.router)
     app.include_router(version_practice.router)
@@ -154,6 +157,7 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(list_plans.router)
     for validation_cls in (
         InvalidMethodNameError,
+        InvalidMethodParametersSchemaError,
         InvalidMethodVersionTagError,
         InvalidPracticeNameError,
         InvalidPracticeVersionTagError,

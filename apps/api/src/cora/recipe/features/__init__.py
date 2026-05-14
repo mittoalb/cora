@@ -6,6 +6,11 @@ Slices ship per aggregate / per state transition:
   - 6d: define_practice, get_practice, version_practice, deprecate_practice
   - 6e: define_plan, get_plan, version_plan, deprecate_plan
   - 6c (deferred): Method/Practice/Plan enrichment (description,
-    owner, default parameters) — defer-candidate
+    owner) — defer-candidate
   - 6f: Run aggregate slices (the keystone)
+  - 6g-a: update_method_parameters_schema (Method.parameters_schema
+    JSON Schema declaration; pre-positions Plan defaults / Run
+    overrides in 6g-b/c)
+  - 6g-b/c (future): Plan.parameter_defaults + Run.parameter_overrides
+    + effective_parameters snapshot on RunStarted
 """

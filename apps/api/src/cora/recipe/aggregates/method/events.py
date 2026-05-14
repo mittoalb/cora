@@ -94,8 +94,32 @@ class MethodDeprecated:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class MethodParametersSchemaUpdated:
+    """The Method's parameter-shape contract was updated (Phase 6g-a).
+
+    `parameters_schema` is the new JSON Schema (Draft 2020-12,
+    constrained subset) replacing whatever was on state. None clears
+    the contract (Method declares no parameter shape; downstream Plans
+    and Runs accept any dict). Schema-changes do NOT auto-revalidate
+    pre-existing Plans / Runs; existing Plans preserve historical
+    validity (locked, mirrors 5g-a posture).
+
+    Validator (`parameters_validation.validate_parameters_schema`)
+    runs at decide time so persisted payloads are always well-formed.
+    Mirrors `CapabilitySchemaUpdated` shape from Equipment 5g-a.
+
+    Status is NOT carried — schema updates are orthogonal to lifecycle
+    (Defined / Versioned / Deprecated all permit schema updates).
+    """
+
+    method_id: UUID
+    parameters_schema: dict[str, Any] | None
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Method aggregate emits.
-MethodEvent = MethodDefined | MethodVersioned | MethodDeprecated
+MethodEvent = MethodDefined | MethodVersioned | MethodDeprecated | MethodParametersSchemaUpdated
 
 
 def event_type_name(event: MethodEvent) -> str:
@@ -139,6 +163,16 @@ def to_payload(event: MethodEvent) -> dict[str, Any]:
                 "method_id": str(method_id),
                 "occurred_at": occurred_at.isoformat(),
             }
+        case MethodParametersSchemaUpdated(
+            method_id=method_id,
+            parameters_schema=parameters_schema,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "method_id": str(method_id),
+                "parameters_schema": parameters_schema,
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -170,6 +204,12 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
                 method_id=UUID(payload["method_id"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "MethodParametersSchemaUpdated":
+            return MethodParametersSchemaUpdated(
+                method_id=UUID(payload["method_id"]),
+                parameters_schema=payload["parameters_schema"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown MethodEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -179,6 +219,7 @@ __all__ = [
     "MethodDefined",
     "MethodDeprecated",
     "MethodEvent",
+    "MethodParametersSchemaUpdated",
     "MethodVersioned",
     "event_type_name",
     "from_stored",

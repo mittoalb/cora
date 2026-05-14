@@ -1,18 +1,30 @@
 """MethodSummaryProjection: folds the Method aggregate's
-3 lifecycle events into the `proj_recipe_method_summary`
+4 events into the `proj_recipe_method_summary`
 read model that backs `GET /methods`.
 
 Subscribed events:
-  - MethodDefined    -> INSERT (status=Defined, version_tag=NULL)
-  - MethodVersioned  -> UPDATE status=Versioned + version_tag from payload
-  - MethodDeprecated -> UPDATE status=Deprecated (version_tag preserved
-                        on purpose; the audit trail of "last
-                        revised at version X before deprecation"
-                        stays visible)
+  - MethodDefined                  -> INSERT (status=Defined,
+                                              version_tag=NULL,
+                                              parameters_schema_present=FALSE)
+  - MethodVersioned                -> UPDATE status=Versioned + version_tag
+                                              from payload
+  - MethodDeprecated               -> UPDATE status=Deprecated (version_tag
+                                              preserved on purpose; the
+                                              audit trail of "last revised
+                                              at version X before
+                                              deprecation" stays visible)
+  - MethodParametersSchemaUpdated  -> UPDATE parameters_schema_present
+                                              (TRUE if parameters_schema is
+                                              non-NULL; FALSE if cleared
+                                              via NULL) (Phase 6g-a)
 
 All branches idempotent. `version_tag` lands in the projection ONLY
 on MethodVersioned; the Defined INSERT leaves it NULL and the
-Deprecated UPDATE doesn't touch it.
+Deprecated UPDATE doesn't touch it. `parameters_schema_present` is
+TRUE iff the latest `MethodParametersSchemaUpdated.parameters_schema`
+payload was non-NULL; the schema content itself lives in the event
+stream (loaded on demand, not projected to keep the summary table
+small). Mirrors `CapabilitySummaryProjection` (Equipment 5g-a).
 
 `needs_capabilities` from the genesis payload is intentionally NOT
 in this projection: it's a list, the keyset+filter shape doesn't
@@ -31,8 +43,9 @@ from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_METHOD_SQL = """
 INSERT INTO proj_recipe_method_summary
-    (method_id, name, status, version_tag, created_at)
-VALUES ($1, $2, 'Defined', NULL, $3)
+    (method_id, name, status, version_tag, created_at,
+     parameters_schema_present)
+VALUES ($1, $2, 'Defined', NULL, $3, FALSE)
 ON CONFLICT (method_id) DO NOTHING
 """
 
@@ -48,12 +61,25 @@ SET status = 'Deprecated', updated_at = now()
 WHERE method_id = $1
 """
 
+_UPDATE_PARAMETERS_SCHEMA_PRESENT_SQL = """
+UPDATE proj_recipe_method_summary
+SET parameters_schema_present = $2, updated_at = now()
+WHERE method_id = $1
+"""
+
 
 class MethodSummaryProjection:
     """Maintains the `proj_recipe_method_summary` read model."""
 
     name = "proj_recipe_method_summary"
-    subscribed_event_types = frozenset({"MethodDefined", "MethodVersioned", "MethodDeprecated"})
+    subscribed_event_types = frozenset(
+        {
+            "MethodDefined",
+            "MethodVersioned",
+            "MethodDeprecated",
+            "MethodParametersSchemaUpdated",
+        }
+    )
 
     async def apply(
         self,
@@ -78,6 +104,12 @@ class MethodSummaryProjection:
                 await conn.execute(
                     _UPDATE_DEPRECATED_SQL,
                     UUID(event.payload["method_id"]),
+                )
+            case "MethodParametersSchemaUpdated":
+                await conn.execute(
+                    _UPDATE_PARAMETERS_SCHEMA_PRESENT_SQL,
+                    UUID(event.payload["method_id"]),
+                    event.payload.get("parameters_schema") is not None,
                 )
             case _:
                 pass

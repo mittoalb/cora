@@ -5,11 +5,20 @@ case forces pyright (and the runtime) to error if a new event type
 is added to `MethodEvent` without a matching match arm here.
 
 Status mapping per event type:
-  - `MethodDefined`    -> DEFINED   (genesis; version=None)
-  - `MethodVersioned`  -> VERSIONED (version=event.version_tag;
-                                      multi-source: Defined | Versioned)
-  - `MethodDeprecated` -> DEPRECATED (version preserved;
-                                      multi-source: Defined | Versioned)
+  - `MethodDefined`              -> DEFINED   (genesis; version=None,
+                                                parameters_schema=None)
+  - `MethodVersioned`            -> VERSIONED (version=event.version_tag;
+                                                multi-source: Defined |
+                                                Versioned; parameters_schema
+                                                preserved)
+  - `MethodDeprecated`           -> DEPRECATED (version preserved;
+                                                multi-source: Defined |
+                                                Versioned; parameters_schema
+                                                preserved)
+  - `MethodParametersSchemaUpdated` -> status preserved (orthogonal to
+                                                lifecycle; updates the
+                                                parameters_schema field
+                                                only; 6g-a)
 
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
@@ -27,12 +36,13 @@ PRESERVED by MethodDeprecated. Pre-6b MethodDefined-only streams fold
 cleanly with version=None (the additive-state pattern).
 
 **Critical invariant**: every transition arm MUST carry
-`needs_capabilities` AND `version` through from prior state.
-Constructing `Method(id=..., name=..., status=...)` without explicitly
-passing the additive frozenset/optional fields would silently WIPE
-them to defaults. Pinned by
-`test_evolve_<transition>_preserves_needs_capabilities` and the
-existing `version` preservation tests.
+`needs_capabilities`, `version`, AND `parameters_schema` through from
+prior state. Constructing `Method(id=..., name=..., status=...)`
+without explicitly passing the additive frozenset/optional fields
+would silently WIPE them to defaults. Pinned by
+`test_evolve_<transition>_preserves_needs_capabilities`, the existing
+`version` preservation tests, and 6g-a's
+`test_evolve_<transition>_preserves_parameters_schema` cases.
 
 Transition events applied to empty state raise ValueError: they can
 never appear before `MethodDefined` in a well-formed stream. The
@@ -47,6 +57,7 @@ from cora.recipe.aggregates.method.events import (
     MethodDefined,
     MethodDeprecated,
     MethodEvent,
+    MethodParametersSchemaUpdated,
     MethodVersioned,
 )
 from cora.recipe.aggregates.method.state import (
@@ -88,6 +99,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 needs_capabilities=prior.needs_capabilities,
                 status=MethodStatus.VERSIONED,
                 version=version_tag,
+                parameters_schema=prior.parameters_schema,
             )
         case MethodDeprecated():
             prior = _require_state(state, "MethodDeprecated")
@@ -98,6 +110,17 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 status=MethodStatus.DEPRECATED,
                 # version preserved across deprecation.
                 version=prior.version,
+                parameters_schema=prior.parameters_schema,
+            )
+        case MethodParametersSchemaUpdated(parameters_schema=parameters_schema):
+            prior = _require_state(state, "MethodParametersSchemaUpdated")
+            return Method(
+                id=prior.id,
+                name=prior.name,
+                needs_capabilities=prior.needs_capabilities,
+                status=prior.status,
+                version=prior.version,
+                parameters_schema=parameters_schema,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

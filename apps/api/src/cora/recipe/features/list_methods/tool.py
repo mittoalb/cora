@@ -24,6 +24,14 @@ class MethodSummaryRow(BaseModel):
     status: MethodStatusFilter
     version_tag: str | None = Field(default=None, max_length=METHOD_VERSION_TAG_MAX_LENGTH)
     created_at: datetime
+    parameters_schema_present: bool = Field(
+        default=False,
+        description=(
+            "True iff the Method has a parameters_schema declared (Phase "
+            "6g-a). The schema content itself is loaded on demand via "
+            "`get_method`."
+        ),
+    )
 
 
 class MethodListOutput(BaseModel):
@@ -73,6 +81,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                     status=item.status,  # type: ignore[arg-type]
                     version_tag=item.version_tag,
                     created_at=item.created_at,
+                    parameters_schema_present=item.parameters_schema_present,
                 )
                 for item in page.items
             ],

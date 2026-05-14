@@ -75,8 +75,7 @@ import jsonschema_rs
 
 from cora.equipment.aggregates.asset.state import InvalidAssetSettingsError
 from cora.equipment.aggregates.capability.state import Capability
-
-_DRAFT_2020_12_URI = "https://json-schema.org/draft/2020-12/schema"
+from cora.infrastructure.json_schema_subset import DRAFT_2020_12_URI
 
 
 def merge_patch(current: Mapping[str, Any], patch: Mapping[str, Any]) -> dict[str, Any]:
@@ -156,7 +155,7 @@ def validate_settings_against_capabilities(
     # least one Capability is schemaless, skip the strict clause
     # (permissive mode tolerates unknown keys).
     mega: dict[str, Any] = {
-        "$schema": _DRAFT_2020_12_URI,
+        "$schema": DRAFT_2020_12_URI,
         "type": "object",
     }
     if schemas:

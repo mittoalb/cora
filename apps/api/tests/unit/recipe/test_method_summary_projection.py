@@ -43,7 +43,12 @@ def test_projection_metadata() -> None:
     proj = MethodSummaryProjection()
     assert proj.name == "proj_recipe_method_summary"
     assert proj.subscribed_event_types == frozenset(
-        {"MethodDefined", "MethodVersioned", "MethodDeprecated"}
+        {
+            "MethodDefined",
+            "MethodVersioned",
+            "MethodDeprecated",
+            "MethodParametersSchemaUpdated",
+        }
     )
 
 
@@ -136,6 +141,50 @@ async def test_unknown_event_type_falls_through_match() -> None:
     event = _stored("UnrelatedEvent", {})
     await proj.apply(event, conn)
     conn.execute.assert_not_awaited()
+
+
+@pytest.mark.unit
+async def test_method_parameters_schema_updated_with_non_null_sets_present_true() -> None:
+    """Phase 6g-a: schema-update event with non-null payload flips
+    parameters_schema_present TRUE."""
+    proj = MethodSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "MethodParametersSchemaUpdated",
+        {
+            "method_id": str(_METHOD_ID),
+            "parameters_schema": {"$schema": "x", "type": "object"},
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "UPDATE proj_recipe_method_summary" in sql
+    assert "parameters_schema_present" in sql
+    assert args.args[1] == _METHOD_ID
+    assert args.args[2] is True
+
+
+@pytest.mark.unit
+async def test_method_parameters_schema_updated_with_null_sets_present_false() -> None:
+    """Phase 6g-a: clearing the schema flips parameters_schema_present
+    back to FALSE."""
+    proj = MethodSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "MethodParametersSchemaUpdated",
+        {
+            "method_id": str(_METHOD_ID),
+            "parameters_schema": None,
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[2] is False
 
 
 @pytest.mark.unit

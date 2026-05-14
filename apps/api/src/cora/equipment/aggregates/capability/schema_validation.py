@@ -9,20 +9,14 @@ write-time guard that ensures every persisted schema is a valid,
 in-subset JSON Schema; the runtime Asset.settings validation hook
 in 5g-c reuses the same compilation path.
 
-## Constrained subset (locked in project_capability_settings_schema)
+## Constrained subset (locked in [[project_capability_settings_schema]])
 
-Every Capability schema MUST include `"$schema":
-"https://json-schema.org/draft/2020-12/schema"`. Top-level keys are
-restricted to: `$schema`, `type`, `required`, `properties`, `enum`,
-`minimum`, `maximum`, `pattern`. Properties values follow the same
-restriction recursively. Forbidden: `$ref`, `oneOf`, `anyOf`,
-`allOf`, `not`, conditionals, `additionalProperties` /
-`unevaluatedProperties` / `prefixItems` / `$dynamicRef`.
-
-Rationale: smaller validation surface, clearer error messages,
-predictable validator behavior across `jsonschema-rs` versions.
-Future expansion via additive widening of `_ALLOWED_SCHEMA_KEYS`
-when a real use case demands it.
+The subset whitelist + recursive checker live in
+`cora.infrastructure.json_schema_subset` (hoisted in 6g-a once the
+third use site landed: this module + Asset settings union compile +
+Method.parameters_schema). This module wraps the shared checker with
+the Capability-specific error class and the Capability-flavored
+docstring.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -31,29 +25,7 @@ from typing import Any
 
 import jsonschema_rs
 
-_DRAFT_2020_12_URI = "https://json-schema.org/draft/2020-12/schema"
-
-# Top-level + properties-level keys allowed in CORA's subset.
-# Every other JSON Schema keyword (including $ref / oneOf / anyOf /
-# allOf / conditionals / additionalProperties / etc.) is rejected.
-#
-# When widening this set with a new RECURSIVE keyword (for example
-# `items` for arrays, `patternProperties` for prefix-keyed maps), you
-# MUST also extend `_check_subset` below to recurse into that
-# keyword's value(s). Forgetting to do so opens a hole: forbidden
-# keywords nested inside the new keyword would slip through.
-_ALLOWED_SCHEMA_KEYS: frozenset[str] = frozenset(
-    {
-        "$schema",
-        "type",
-        "required",
-        "properties",
-        "enum",
-        "minimum",
-        "maximum",
-        "pattern",
-    }
-)
+from cora.infrastructure.json_schema_subset import DRAFT_2020_12_URI, check_subset
 
 
 class InvalidCapabilitySchemaError(ValueError):
@@ -88,55 +60,20 @@ def validate_settings_schema(schema: dict[str, Any]) -> None:
     and uses the resulting validator to check incoming dicts.
     """
     declared = schema.get("$schema")
-    if declared != _DRAFT_2020_12_URI:
+    if declared != DRAFT_2020_12_URI:
         msg = (
-            f"$schema must be exactly {_DRAFT_2020_12_URI!r} "
+            f"$schema must be exactly {DRAFT_2020_12_URI!r} "
             f"(got: {declared!r}); Phase 5g-a locks Draft 2020-12"
         )
         raise InvalidCapabilitySchemaError(msg)
 
-    _check_subset(schema, path="<root>")
+    check_subset(schema, path="<root>", error_class=InvalidCapabilitySchemaError)
 
     try:
         jsonschema_rs.Draft202012Validator(schema)
     except (jsonschema_rs.ValidationError, ValueError) as exc:
         msg = f"jsonschema-rs rejected the schema as malformed: {exc}"
         raise InvalidCapabilitySchemaError(msg) from exc
-
-
-def _check_subset(node: dict[str, Any], *, path: str) -> None:
-    """Recursively assert that `node` only uses keys in the allowed
-    subset. Recurses into `properties.<name>` (each value is itself
-    a schema)."""
-    forbidden = set(node.keys()) - _ALLOWED_SCHEMA_KEYS
-    if forbidden:
-        msg = (
-            f"forbidden keyword(s) {sorted(forbidden)} at {path}; "
-            f"CORA's subset allows only {sorted(_ALLOWED_SCHEMA_KEYS)}"
-        )
-        raise InvalidCapabilitySchemaError(msg)
-
-    properties = node.get("properties")
-    if properties is None:
-        return
-    if not isinstance(properties, dict):
-        msg = f"properties at {path} must be a dict (got: {type(properties).__name__})"
-        raise InvalidCapabilitySchemaError(msg)
-
-    for prop_name, prop_schema in properties.items():
-        if not isinstance(prop_schema, dict):
-            msg = (
-                f"properties.{prop_name} at {path} must be a schema dict "
-                f"(got: {type(prop_schema).__name__})"
-            )
-            raise InvalidCapabilitySchemaError(msg)
-        # Properties-level schemas don't need their own $schema
-        # declaration; only the root carries it. So we exclude
-        # $schema from the allowed set for nested checks. Doing that
-        # by passing a different allowed set would clutter the API;
-        # instead, allow $schema everywhere (harmless at nested
-        # levels) and document.
-        _check_subset(prop_schema, path=f"{path}.properties.{prop_name}")
 
 
 __all__ = [
