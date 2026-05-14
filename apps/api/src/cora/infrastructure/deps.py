@@ -21,6 +21,22 @@ Adapter selection is driven by `Settings.app_env`:
 `build_kernel` returns the kernel and a `teardown` callable so the
 lifespan can release pool resources without `Kernel` having to
 expose its private state.
+
+## Single-Kernel-construction-site invariant
+
+`Kernel(...)` is constructed in exactly two places: `make_postgres_kernel`
+and `make_inmemory_kernel` below. Production's `build_kernel` calls
+the appropriate primitive with `SystemClock` / `UUIDv7Generator` /
+env-loaded `Settings`; tests call the same primitives via thin
+wrappers in `tests/unit/_helpers.py` and `tests/integration/_helpers.py`
+that supply `FrozenClock` / `FixedIdGenerator` / test `Settings`.
+
+The architecture fitness function
+`tests/architecture/test_kernel_construction_single_site.py` enforces
+this invariant: any direct `Kernel(...)` call outside this module
+fails the build. Adding a required `Kernel` field then needs to land
+in exactly two function bodies (the two primitives) instead of every
+test file individually.
 """
 
 from typing import Protocol
@@ -65,53 +81,131 @@ class AuthorizeFactory(Protocol):
     ) -> Authorize: ...
 
 
+def make_postgres_kernel(
+    pool: asyncpg.Pool,
+    *,
+    settings: Settings,
+    clock: Clock,
+    id_generator: IdGenerator,
+    authorize: Authorize,
+    event_store: EventStore | None = None,
+    idempotency_store: IdempotencyStore | None = None,
+) -> Kernel:
+    """Postgres-backed Kernel primitive.
+
+    Single construction site for `Kernel(...)` with a Postgres pool.
+    Production's `build_kernel` postgres branch calls this with
+    `SystemClock` + `UUIDv7Generator` + env-loaded `Settings` + the
+    `authorize` instance built around `event_store`. Integration tests
+    call it via the `tests.integration._helpers.build_postgres_deps`
+    wrapper, which supplies `FrozenClock` + `FixedIdGenerator` + test
+    `Settings`.
+
+    `event_store` / `idempotency_store` default to fresh
+    `PostgresEventStore(pool)` / `PostgresIdempotencyStore(pool)` for
+    test convenience. Production passes the prebuilt instances so
+    they're shared with the authorize_factory (chicken-and-egg:
+    `authorize` needs `event_store` before the Kernel is constructed).
+    """
+    return Kernel(
+        settings=settings,
+        clock=clock,
+        id_generator=id_generator,
+        authorize=authorize,
+        event_store=event_store if event_store is not None else PostgresEventStore(pool),
+        idempotency_store=(
+            idempotency_store if idempotency_store is not None else PostgresIdempotencyStore(pool)
+        ),
+        pool=pool,
+    )
+
+
+def make_inmemory_kernel(
+    *,
+    settings: Settings,
+    clock: Clock,
+    id_generator: IdGenerator,
+    authorize: Authorize,
+    event_store: EventStore | None = None,
+    idempotency_store: IdempotencyStore | None = None,
+) -> Kernel:
+    """In-memory Kernel primitive.
+
+    Single construction site for `Kernel(...)` with no Postgres pool.
+    Production's `build_kernel` `app_env=test` branch calls this for
+    contract tests of the API surface. Unit tests call it via the
+    `tests.unit._helpers.build_deps` wrapper.
+
+    Two unit-test files allowlisted in the architecture fitness
+    function (`test_idempotency_pruner.py` for a pool-presence
+    sentinel; `test_list_actors_handler.py` predates the helper)
+    construct `Kernel(...)` directly and don't go through this
+    primitive.
+    """
+    return Kernel(
+        settings=settings,
+        clock=clock,
+        id_generator=id_generator,
+        authorize=authorize,
+        event_store=event_store if event_store is not None else InMemoryEventStore(),
+        idempotency_store=(
+            idempotency_store if idempotency_store is not None else InMemoryIdempotencyStore()
+        ),
+        pool=None,
+    )
+
+
 async def build_kernel(*, authorize_factory: AuthorizeFactory) -> tuple[Kernel, Teardown]:
     """Construct the kernel. Called once from the FastAPI lifespan."""
     settings = Settings()  # type: ignore[call-arg]  # Pydantic loads from env
     configure_logging(settings.log_level)
-    pool, event_store, idempotency_store, teardown = await _build_stores(settings)
     clock = SystemClock()
     id_generator = UUIDv7Generator()
-    kernel = Kernel(
-        settings=settings,
-        clock=clock,
-        id_generator=id_generator,
-        authorize=authorize_factory(
+
+    if settings.app_env == "test":
+        event_store: EventStore = InMemoryEventStore()
+        idempotency_store: IdempotencyStore = InMemoryIdempotencyStore()
+        authorize = authorize_factory(
             settings,
             event_store,
-            pool=pool,
+            pool=None,
             clock=clock,
             id_generator=id_generator,
-        ),
-        event_store=event_store,
-        idempotency_store=idempotency_store,
-        pool=pool,
-    )
-    return kernel, teardown
-
-
-async def _build_stores(
-    settings: Settings,
-) -> tuple[asyncpg.Pool | None, EventStore, IdempotencyStore, Teardown]:
-    if settings.app_env == "test":
-        return (
-            None,
-            InMemoryEventStore(),
-            InMemoryIdempotencyStore(),
-            _noop_teardown,
         )
+        kernel = make_inmemory_kernel(
+            settings=settings,
+            clock=clock,
+            id_generator=id_generator,
+            authorize=authorize,
+            event_store=event_store,
+            idempotency_store=idempotency_store,
+        )
+        return kernel, _noop_teardown
 
     pool = await create_pool(
         settings.database_url,
         min_size=settings.db_pool_min_size,
         max_size=settings.db_pool_max_size,
     )
-    return (
-        pool,
-        PostgresEventStore(pool),
-        PostgresIdempotencyStore(pool),
-        _make_pool_teardown(pool),
+    pg_event_store: EventStore = PostgresEventStore(pool)
+    pg_idempotency_store: IdempotencyStore = PostgresIdempotencyStore(pool)
+    authorize = authorize_factory(
+        settings,
+        pg_event_store,
+        pool=pool,
+        clock=clock,
+        id_generator=id_generator,
     )
+    kernel = make_postgres_kernel(
+        pool,
+        settings=settings,
+        clock=clock,
+        id_generator=id_generator,
+        authorize=authorize,
+        event_store=pg_event_store,
+        idempotency_store=pg_idempotency_store,
+    )
+    return kernel, _make_pool_teardown(pool)
 
 
 async def _noop_teardown() -> None:
@@ -128,4 +222,6 @@ def _make_pool_teardown(pool: asyncpg.Pool) -> Teardown:
 __all__ = [
     "AuthorizeFactory",
     "build_kernel",
+    "make_inmemory_kernel",
+    "make_postgres_kernel",
 ]

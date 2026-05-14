@@ -33,6 +33,7 @@ from uuid import UUID
 import asyncpg
 
 from cora.infrastructure.config import Settings
+from cora.infrastructure.deps import make_postgres_kernel
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
@@ -42,8 +43,6 @@ from cora.infrastructure.ports import (
     FrozenClock,
     IdempotencyStore,
 )
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 
 
 def build_postgres_deps(
@@ -65,14 +64,14 @@ def build_postgres_deps(
     `ids=` queues UUIDs for the FixedIdGenerator (handler consumes them
     in order: aggregate ids first, then event ids per emitted event).
     """
-    return Kernel(
+    return make_postgres_kernel(
+        pool,
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(now),
         id_generator=FixedIdGenerator(list(ids or [])),
         authorize=authorize or AllowAllAuthorize(),
-        event_store=event_store or PostgresEventStore(pool),
-        idempotency_store=idempotency_store or PostgresIdempotencyStore(pool),
-        pool=pool,
+        event_store=event_store,
+        idempotency_store=idempotency_store,
     )
 
 

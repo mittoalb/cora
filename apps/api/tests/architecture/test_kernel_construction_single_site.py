@@ -1,19 +1,29 @@
-"""Integration tests must construct Kernel via `build_postgres_deps`.
+"""Direct `Kernel(...)` construction is restricted to one production site
++ the integration-test helper.
 
-Phase B (Kernel parity factory) consolidates Postgres-backed Kernel
-construction in `tests/integration/_helpers.py::build_postgres_deps`.
-Direct `Kernel(...)` construction in `tests/integration/` would
-re-introduce the wiring drift Phase B closed: a new required `Kernel`
-field would need to be added to N test files individually instead of
-to one factory.
+The two `make_postgres_kernel` / `make_inmemory_kernel` primitives in
+`cora/infrastructure/deps.py` are the only place production constructs
+a Kernel. Tests call them via thin wrappers: `tests/unit/_helpers.py::
+build_deps` (in-memory) and `tests/integration/_helpers.py::
+build_postgres_deps` (Postgres-backed).
 
-The `tests/unit/_helpers.py::build_deps` helper enforces the same
-discipline for unit tests, but unit tests are allowed two documented
-holdouts (`test_idempotency_pruner.py` for custom Settings,
-`test_list_actors_handler.py` for a pool-presence smoke). Integration
-tests have no such holdouts at landing time; the test below allows the
-helper module itself plus the integration `conftest.py` to construct
-Kernel-adjacent things, and rejects everything else.
+This test scans `src/` and `tests/integration/` only:
+
+  - `src/`: forbid direct `Kernel(...)` outside the single allowed
+    site, `cora/infrastructure/deps.py`.
+  - `tests/integration/`: forbid direct `Kernel(...)` outside the
+    single allowed site, `tests/integration/_helpers.py`.
+
+`tests/unit/` is INTENTIONALLY out of scope. Per the
+`tests/unit/_helpers.py::build_deps` docstring, ~35 unit-test files
+still define their own per-BC `_build_deps` function (54 instances
+pre-consolidation). Migration to the shared helper is opportunistic;
+this test would otherwise generate a 35-entry allowlist that
+documents nothing the helper docstring doesn't already say.
+
+When a unit-test file migrates, it picks up the single-site discipline
+transitively through the helper's call to `make_inmemory_kernel`. New
+unit-test files SHOULD use `build_deps` from day one.
 """
 
 import ast
@@ -21,34 +31,55 @@ from pathlib import Path
 
 import pytest
 
-# tests/architecture/test_integration_kernel_factory.py -> apps/api/
+# tests/architecture/test_kernel_construction_single_site.py -> apps/api/
 _API_ROOT = Path(__file__).resolve().parents[2]
-_INTEGRATION_DIR = _API_ROOT / "tests" / "integration"
+_SRC_ROOT = _API_ROOT / "src"
+_INTEGRATION_TESTS = _API_ROOT / "tests" / "integration"
 
-# Files in tests/integration/ that are permitted to call `Kernel(...)`
-# directly. The helper module is the canonical factory site; conftest
-# does not currently call Kernel but is whitelisted in case a future
-# fixture needs it.
-_ALLOWED = frozenset({"_helpers.py", "conftest.py"})
+# The single allowed Kernel-construction sites in each scanned tree.
+# Paths are relative to apps/api/.
+_ALLOWLIST: frozenset[str] = frozenset(
+    {
+        "src/cora/infrastructure/deps.py",
+        "tests/integration/_helpers.py",
+    }
+)
 
 
-def _integration_test_files() -> list[Path]:
-    if not _INTEGRATION_DIR.is_dir():
-        return []
-    return sorted(p for p in _INTEGRATION_DIR.glob("test_*.py") if p.name not in _ALLOWED)
+def _python_files() -> list[Path]:
+    """All Python files under src/ and tests/integration/. Excludes
+    __pycache__ and .venv. tests/unit/ is intentionally not scanned
+    (see module docstring)."""
+    out: list[Path] = []
+    for root in (_SRC_ROOT, _INTEGRATION_TESTS):
+        if not root.is_dir():
+            continue
+        for p in sorted(root.rglob("*.py")):
+            if "__pycache__" in p.parts or ".venv" in p.parts:
+                continue
+            out.append(p)
+    return out
+
+
+def _candidate_files() -> list[Path]:
+    """Files that mention `Kernel(` (cheap textual heuristic). The AST
+    scan inside the parametrized test confirms; false positives (e.g.
+    in comments) are harmless because the AST returns zero call sites.
+    """
+    return [p for p in _python_files() if "Kernel(" in p.read_text()]
 
 
 def _qualified(p: Path) -> str:
-    return "tests.integration." + p.with_suffix("").name
+    return str(p.relative_to(_API_ROOT))
 
 
 def _kernel_call_lines(tree: ast.AST) -> list[int]:
     """Find every Call node whose func is a bare `Name("Kernel")`.
 
-    Catches both `Kernel(...)` and `Kernel(settings=..., ...)`. Does
-    NOT catch `cora.infrastructure.kernel.Kernel(...)` — but that
-    namespaced form does not appear in tests today, and adding it
-    would still be caught by the import linter in tach.toml.
+    Catches `Kernel(...)` and `Kernel(settings=..., ...)`. Does not
+    catch `cora.infrastructure.kernel.Kernel(...)` (namespaced form);
+    that form is unused today and would still fail tach's import
+    contract if added in a forbidden module.
     """
     lines: list[int] = []
     for node in ast.walk(tree):
@@ -62,27 +93,36 @@ def _kernel_call_lines(tree: ast.AST) -> list[int]:
 
 
 @pytest.mark.architecture
-@pytest.mark.parametrize("test_file", _integration_test_files(), ids=_qualified)
-def test_no_direct_kernel_construction_in_integration_test(test_file: Path) -> None:
-    qualified = _qualified(test_file)
-    tree = ast.parse(test_file.read_text(), filename=str(test_file))
+@pytest.mark.parametrize("py_file", _candidate_files(), ids=_qualified)
+def test_kernel_constructed_only_in_allowed_sites(py_file: Path) -> None:
+    qualified = _qualified(py_file)
+    tree = ast.parse(py_file.read_text(), filename=str(py_file))
     lines = _kernel_call_lines(tree)
+
+    if qualified in _ALLOWLIST:
+        # Allowlisted file MUST still construct Kernel; otherwise the
+        # allowlist is stale and should be pruned.
+        assert lines, (
+            f"{qualified} is allowlisted but no longer constructs Kernel(). "
+            f"Prune the allowlist in {Path(__file__).name}."
+        )
+        return
+
     assert not lines, (
         f"{qualified}: direct Kernel(...) construction at line(s) "
-        f"{sorted(lines)}. Integration tests must use "
-        f"`build_postgres_deps(db_pool, ...)` from "
-        f"`tests.integration._helpers` so the wiring stays in lockstep "
-        f"with production. Add a new factory parameter if you need a "
-        f"shape the helper does not yet support."
+        f"{sorted(lines)}. Use `make_postgres_kernel` or "
+        f"`make_inmemory_kernel` from `cora.infrastructure.deps` (or, "
+        f"in tests, the `build_postgres_deps` / `build_deps` wrappers "
+        f"that call them). Adding a new field to Kernel should land in "
+        f"exactly two function bodies, not N callsites."
     )
 
 
 @pytest.mark.architecture
-def test_integration_test_files_were_actually_discovered() -> None:
-    """Drift catcher: if the integration glob breaks, fail loudly."""
-    files = _integration_test_files()
-    assert len(files) >= 50, (
-        f"Expected >=50 integration test files, found {len(files)}. "
-        f"The integration suite shouldn't shrink dramatically; check "
-        f"the glob in {Path(__file__).name}."
+def test_allowlist_files_exist() -> None:
+    """Drift catcher: if an allowlisted file moves or is renamed, fail loudly."""
+    missing = [rel for rel in _ALLOWLIST if not (_API_ROOT / rel).is_file()]
+    assert not missing, (
+        f"Allowlist references files that no longer exist: {missing}. "
+        f"Update the allowlist in {Path(__file__).name}."
     )

@@ -38,9 +38,9 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from cora.infrastructure.config import Settings
+from cora.infrastructure.deps import make_inmemory_kernel
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     Authorize,
@@ -91,14 +91,12 @@ def build_deps(
     """
     if authorize is None:
         authorize = DenyAllAuthorize() if deny else AllowAllAuthorize()
-    return Kernel(
+    return make_inmemory_kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FrozenClock(now or DEFAULT_NOW),
         id_generator=FixedIdGenerator(list(ids or [])),
         authorize=authorize,
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-        pool=None,
+        event_store=event_store,
     )
 
 
