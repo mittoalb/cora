@@ -126,11 +126,14 @@ async def _handle_cross_agg_conflict(request: Request, exc: Exception) -> JSONRe
 
 
 async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONResponse:
-    """Shared 409 handler for state-transition guards.
+    """Shared 409 handler for state-transition / mutation-guard errors.
 
-    7b adds `DatasetCannotDiscardError`. All transition-state-mismatch
-    errors map to 409 + `{"detail": str(exc)}`. Adding a new transition
-    is one extra entry in the tuple.
+    7b adds `DatasetCannotDiscardError` (Discarded terminal). 7e adds
+    `DatasetCannotPromoteError` (covers Discarded / Run-not-Completed
+    / lineage-not-Production branches) and `DatasetAlreadyPromotedError`
+    (strict-not-idempotent re-promote). All map to 409 +
+    `{"detail": str(exc)}`. Adding a new mutation guard is one
+    extra entry in the tuple.
     """
     _ = request
     return JSONResponse(

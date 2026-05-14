@@ -243,6 +243,25 @@ async def test_handler_raises_already_promoted_on_second_promote() -> None:
 
 
 @pytest.mark.unit
+async def test_handler_raises_dataset_not_found_for_unknown_dataset() -> None:
+    """Handler-level coverage of the empty-stream path: when no
+    DatasetRegistered event exists for the target id, fold returns
+    None, and the decider raises DatasetNotFoundError. Pinned at
+    the handler boundary because this is the route → 404 path."""
+    from cora.data.aggregates.dataset import DatasetNotFoundError
+
+    store = InMemoryEventStore()
+    deps = build_deps(ids=[_PROMOTE_EVENT_ID], now=_NOW, event_store=store)
+    unknown_id = UUID("01900000-0000-7000-8000-000000007e99")
+    with pytest.raises(DatasetNotFoundError):
+        await promote_dataset.bind(deps)(
+            PromoteDataset(dataset_id=unknown_id, reason="trying"),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+@pytest.mark.unit
 def test_wire_data_includes_promote_dataset() -> None:
     deps = build_deps(ids=[_PROMOTE_EVENT_ID], now=_NOW)
     handlers = wire_data(deps)

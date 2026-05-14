@@ -18,7 +18,10 @@ Phase 7a ships `register_dataset` (create-style; idempotency-
 wrapped) and `get_dataset` (read side; no idempotency). Phase 7b
 adds the `discard_dataset` transition (update-style; bare handler;
 strict-not-idempotent so retries are domain-safe via
-`DatasetCannotDiscardError`).
+`DatasetCannotDiscardError`). Phase 7e adds `promote_dataset`
+(update-style; bare handler; strict-not-idempotent via
+`DatasetAlreadyPromotedError`; loads peer Datasets via slice-local
+PromotionContext for the lineage-must-be-Production guard).
 """
 
 from dataclasses import dataclass
@@ -45,6 +48,8 @@ class DataHandlers:
     Phase 7a shipped `register_dataset` (create-style; idempotency-
     wrapped) plus `get_dataset` (read-side; no idempotency). Phase
     7b adds `discard_dataset` (update-style transition; bare handler).
+    Phase 7e adds `promote_dataset` (Trial → Production intent;
+    update-style; bare handler).
     """
 
     register_dataset: register_dataset.IdempotentHandler

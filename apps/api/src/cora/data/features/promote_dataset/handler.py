@@ -24,6 +24,26 @@ peer; the load is required because intent can change over time
 (Trial -> Production via this slice, or future demotion paths).
 Re-loading at promotion time is the canonical "capture the world
 right now, validate, then commit" pattern.
+
+## Missing-peer-load failure mode (post-7e gate review documentation)
+
+If `load_dataset` returns None for a peer that's referenced in
+`state.derived_from`, the handler silently drops the peer from
+`PromotionContext.derived_from`. The decider then iterates only
+the LOADED peers — meaning a peer that vanished from the event
+store is NOT flagged. Two reasons this is operationally safe:
+
+  1. The event-store immutability guarantee (REVOKE UPDATE/DELETE
+     on the cora_app role) makes "peer vanished from the event
+     store" structurally impossible in production.
+  2. Pre-7e registration via 7c's existence guard
+     (`DerivedFromDatasetsNotFoundError`) prevents creating a
+     Dataset whose derived_from references a non-existent stream
+     in the first place.
+
+If those guarantees are ever weakened (e.g., manual stream deletion
+for compliance), the lineage-must-be-Production guard would silently
+permit promotion of Datasets whose lineage proof has gone missing.
 """
 
 from typing import Protocol

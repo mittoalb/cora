@@ -226,3 +226,69 @@ def test_evolve_promoted_raises_on_empty_state() -> None:
     )
     with pytest.raises(ValueError, match="DatasetPromoted"):
         evolve(state=None, event=promoted)
+
+
+@pytest.mark.unit
+def test_evolve_discarded_preserves_producing_run_end_state() -> None:
+    """Critical pin: DatasetDiscarded carries producing_run_end_state
+    through. A regression that drops this field on discard would
+    silently break audit fidelity (we lose the ability to reason
+    about which Datasets came from Completed vs Aborted Runs after
+    they're discarded)."""
+    register = DatasetRegistered(
+        dataset_id=uuid4(),
+        name="D",
+        uri="s3://b/k",
+        checksum_algorithm="sha256",
+        checksum_value=_GOOD_SHA256,
+        byte_size=0,
+        media_type="application/x-hdf5",
+        conforms_to=frozenset(),
+        producing_run_id=uuid4(),
+        subject_id=None,
+        derived_from=frozenset(),
+        occurred_at=_NOW,
+        producing_run_end_state="Completed",
+    )
+    discarded = DatasetDiscarded(
+        dataset_id=register.dataset_id,
+        reason="bytes purged",
+        occurred_at=_NOW,
+    )
+    state = fold([register, discarded])
+    assert state is not None
+    assert state.status is DatasetStatus.DISCARDED
+    # The captured Run end-state survives discard for audit fidelity.
+    assert state.producing_run_end_state == "Completed"
+
+
+@pytest.mark.unit
+def test_evolve_promoted_preserves_producing_run_end_state() -> None:
+    """Pin: DatasetPromoted carries producing_run_end_state through.
+    The promoted-then-discarded chain preserves it (already covered
+    above); pin the promoted-only case explicitly to defend the
+    intermediate evolver arm."""
+    register = DatasetRegistered(
+        dataset_id=uuid4(),
+        name="D",
+        uri="s3://b/k",
+        checksum_algorithm="sha256",
+        checksum_value=_GOOD_SHA256,
+        byte_size=0,
+        media_type="application/x-hdf5",
+        conforms_to=frozenset(),
+        producing_run_id=uuid4(),
+        subject_id=None,
+        derived_from=frozenset(),
+        occurred_at=_NOW,
+        producing_run_end_state="Completed",
+    )
+    promoted = DatasetPromoted(
+        dataset_id=register.dataset_id,
+        reason="passed review",
+        occurred_at=_NOW,
+    )
+    state = fold([register, promoted])
+    assert state is not None
+    assert state.intent is Intent.PRODUCTION
+    assert state.producing_run_end_state == "Completed"

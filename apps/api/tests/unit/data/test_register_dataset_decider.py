@@ -359,3 +359,81 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
         new_id=new_id,
     )
     assert first == second
+
+
+# ---------- Phase 7e: producing_run_end_state capture matrix ----------
+
+
+def _fake_run_with_status(status: RunStatus) -> Run:
+    return Run(
+        id=uuid4(),
+        name=RunName("seed-run"),
+        plan_id=uuid4(),
+        subject_id=uuid4(),
+        status=status,
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "run_status",
+    [
+        RunStatus.RUNNING,
+        RunStatus.HELD,
+        RunStatus.COMPLETED,
+        RunStatus.ABORTED,
+        RunStatus.STOPPED,
+        RunStatus.TRUNCATED,
+    ],
+)
+def test_decide_captures_producing_run_status_into_event_payload(
+    run_status: RunStatus,
+) -> None:
+    """Phase 7e: when producing_run is loaded, the decider captures
+    its status.value into the DatasetRegistered event's
+    `producing_run_end_state` field. The captured string is the
+    SOLE input to the promote_dataset Run-must-be-Completed guard,
+    so every Run lifecycle status must round-trip cleanly."""
+    cmd = _good_command(producing_run_id=uuid4())
+    run = _fake_run_with_status(run_status)
+    events = register_dataset.decide(
+        state=None,
+        command=cmd,
+        context=DatasetRegistrationContext(producing_run=run),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1
+    assert events[0].producing_run_end_state == run_status.value
+
+
+@pytest.mark.unit
+def test_decide_captures_none_end_state_when_no_producing_run() -> None:
+    """Standalone-upload Datasets (no producing_run_id) get None
+    producing_run_end_state. The promote_dataset Run-guard skips
+    when this is None — so we pin the None branch explicitly."""
+    cmd = _good_command()  # no producing_run_id
+    events = register_dataset.decide(
+        state=None,
+        command=cmd,
+        context=DatasetRegistrationContext(),  # no producing_run loaded
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1
+    assert events[0].producing_run_end_state is None
+
+
+@pytest.mark.unit
+def test_decide_defaults_intent_to_trial_in_event_payload() -> None:
+    """Phase 7e: every register_dataset event lands with intent='Trial'
+    (default). Promotion is a separate explicit slice."""
+    cmd = _good_command()
+    events = register_dataset.decide(
+        state=None,
+        command=cmd,
+        context=DatasetRegistrationContext(),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].intent == "Trial"

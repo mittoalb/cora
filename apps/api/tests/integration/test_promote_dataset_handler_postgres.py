@@ -110,3 +110,126 @@ async def test_re_promote_raises_already_promoted_against_postgres(
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
+
+
+@pytest.mark.integration
+async def test_register_dataset_persists_producing_run_end_state_in_payload(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Pin: the producing_run_end_state captured at register-time
+    actually persists into the DatasetRegistered event's jsonb payload
+    and survives a real PG round-trip (no silent drop, no field
+    rename in storage). This is the audit trail that powers the
+    promote_dataset Run-must-be-Completed guard."""
+    from cora.equipment.aggregates.asset import AssetLevel
+    from cora.equipment.features import (
+        add_asset_capability,
+        define_capability,
+        register_asset,
+    )
+    from cora.equipment.features.add_asset_capability import AddAssetCapability
+    from cora.equipment.features.define_capability import DefineCapability
+    from cora.equipment.features.register_asset import RegisterAsset
+    from cora.recipe.features import define_method, define_plan, define_practice
+    from cora.recipe.features.define_method import DefineMethod
+    from cora.recipe.features.define_plan import DefinePlan
+    from cora.recipe.features.define_practice import DefinePractice
+    from cora.run.features import abort_run, start_run
+    from cora.run.features.abort_run import AbortRun
+    from cora.run.features.start_run import StartRun
+    from cora.subject.features import mount_subject, register_subject
+    from cora.subject.features.mount_subject import MountSubject
+    from cora.subject.features.register_subject import RegisterSubject
+    from tests.unit.subject._asset_helper import seed_active_asset
+
+    # Generous id pool: full upstream chain + Run + abort + Dataset.
+    deps = _build_deps(db_pool, [uuid4() for _ in range(20)])
+
+    # Set up: Capability → Method → Practice → Asset → Plan → Subject → Run
+    cap_id = await define_capability.bind(deps)(
+        DefineCapability(name="FlyMotion"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    method_id = await define_method.bind(deps)(
+        DefineMethod(name="M", needs_capabilities=frozenset({cap_id})),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    practice_id = await define_practice.bind(deps)(
+        DefinePractice(name="P", method_id=method_id, site_id=uuid4()),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    asset_id = await register_asset.bind(deps)(
+        RegisterAsset(name="A", level=AssetLevel.ENTERPRISE, parent_id=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await add_asset_capability.bind(deps)(
+        AddAssetCapability(asset_id=asset_id, capability_id=cap_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    plan_id = await define_plan.bind(deps)(
+        DefinePlan(name="Plan", practice_id=practice_id, asset_ids=frozenset({asset_id})),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    subject_id = await register_subject.bind(deps)(
+        RegisterSubject(name="Sample"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    mount_asset_id = await seed_active_asset(
+        deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID
+    )
+    await mount_subject.bind(deps)(
+        MountSubject(subject_id=subject_id, asset_id=mount_asset_id, reason="test"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    run_id = await start_run.bind(deps)(
+        StartRun(
+            name="Run",
+            plan_id=plan_id,
+            subject_id=subject_id,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    # Drive the Run to Aborted so the captured end_state is non-trivial.
+    await abort_run.bind(deps)(
+        AbortRun(run_id=run_id, reason="simulated abort for test"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # Register the Dataset against the Aborted Run.
+    dataset_id = await register_dataset.bind(deps)(
+        RegisterDataset(
+            name="post-abort dataset",
+            uri="s3://bucket/post-abort.h5",
+            checksum_algorithm="sha256",
+            checksum_value=_GOOD_SHA256,
+            byte_size=42,
+            media_type="application/x-hdf5",
+            conforms_to=frozenset(),
+            producing_run_id=run_id,
+            subject_id=subject_id,
+            derived_from=frozenset(),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # Inspect the persisted DatasetRegistered event's payload directly.
+    stored_events, _ = await deps.event_store.load(stream_type="Dataset", stream_id=dataset_id)
+    assert len(stored_events) == 1
+    payload = stored_events[0].payload
+    # The producing_run_end_state is the captured Run terminal state
+    # at the moment of dataset registration. Run was aborted before
+    # the dataset registered, so we expect "Aborted" (not "Running").
+    assert payload["producing_run_end_state"] == "Aborted"
+    # Intent defaults to Trial on registration.
+    assert payload["intent"] == "Trial"

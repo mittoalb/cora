@@ -2,9 +2,20 @@
 
 Vertical slices that operate on this aggregate live under
 `cora.data.features.<verb>_dataset/` and import from here for state
-and event types. The `DatasetRegistrationContext` cross-aggregate
-value object lives at `cora.data.features.register_dataset.context`
-(slice-local; only register_dataset needs it today).
+and event types. Two slice-local cross-aggregate context VOs:
+  - `DatasetRegistrationContext` at
+    `cora.data.features.register_dataset.context` — Run + Subject +
+    derived_from peers loaded at registration.
+  - `PromotionContext` at
+    `cora.data.features.promote_dataset.context` — derived_from
+    peers loaded at promotion-time for the lineage-must-be-Production
+    guard (Phase 7e).
+
+Phase 7e adds the trust-level dimension orthogonal to lifecycle:
+`Dataset.intent` (Trial | Production) flipped via the dedicated
+`promote_dataset` slice. `Dataset.producing_run_end_state` (str |
+None) is captured at registration to support the Run-must-be-
+Completed promotion guard. See [[project_dataset_lineage_design]].
 """
 
 from cora.data.aggregates.dataset.events import (
