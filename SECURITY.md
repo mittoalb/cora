@@ -29,15 +29,15 @@ In scope:
 
 Out of scope:
 - Vulnerabilities in upstream dependencies (report those upstream; CORA pulls security fixes via Dependabot).
-- Misconfiguration of a downstream deployment that does not front the API with a verifying proxy as documented in [CONTRIBUTING.md](CONTRIBUTING.md). The application's `X-Principal-Id` header trust contract is documented; deploying without a verifying proxy is a deployment misconfiguration, not an application vulnerability.
+- Misconfiguration of a downstream deployment that does not front the API with a verifying proxy as documented in [docs/reference/runtime.md](docs/reference/runtime.md). The application's `X-Principal-Id` header trust contract is documented; deploying without a verifying proxy is a deployment misconfiguration, not an application vulnerability.
 - Issues that require an authenticated principal already holding sufficient privilege (those are bugs, not security vulnerabilities; please open a normal issue).
 
 ## Hardening notes
 
 If you are deploying CORA, the production gates are:
 
-- `DATABASE_URL` connects as the `cora_app` role (SELECT + INSERT only on `events` and `entries_*` tables; UPDATE / DELETE / TRUNCATE revoked).
+- `DATABASE_URL` connects as the `cora_app` role: `events` and `entries_*` tables are INSERT-only (UPDATE / DELETE / TRUNCATE revoked); `proj_*` projection tables get full DML. Migrations run as the database owner.
 - `REQUIRE_AUTHENTICATED_PRINCIPAL=true`
 - `APP_ENV=prod` (refuses to boot if the above flag is not set)
 
-A verifying proxy in front of the API is mandatory in production: it must authenticate the caller, strip any client-supplied `X-Principal-Id` header, and set the verified principal id. See the Authentication wiring row in [docs/stack.md](docs/stack.md) and the Production hardening section in [CONTRIBUTING.md](CONTRIBUTING.md).
+A verifying proxy in front of the API is mandatory in production: it must authenticate the caller, strip any client-supplied `X-Principal-Id` header, and set the verified principal id. See the Auth wiring row in [docs/stack/auth.md](docs/stack/auth.md) and the Production hardening section in [docs/reference/runtime.md](docs/reference/runtime.md).
