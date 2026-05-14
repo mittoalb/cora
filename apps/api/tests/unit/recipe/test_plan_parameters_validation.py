@@ -1,8 +1,10 @@
 """Unit tests for the Plan parameter_defaults validator (Phase 6g-b).
 
 Validates dicts against a Method's parameters_schema using
-jsonschema-rs. Permissive when the schema is None (locked posture
-per [[project_run_parameters_design]] §6g-b).
+jsonschema-rs. STRICT when the schema is None — non-empty defaults
+without a declared schema raise InvalidPlanParameterDefaultsError
+(post-6g audit reversal; aligns with 5g-c, Ajv strict-by-default,
+and Argo Workflows declared-parameters precedent).
 """
 
 from typing import Any
@@ -28,11 +30,16 @@ def test_passes_when_schema_is_none_and_defaults_is_empty() -> None:
 
 
 @pytest.mark.unit
-def test_passes_when_schema_is_none_and_defaults_is_non_empty() -> None:
-    """Permissive: Method declares no contract -> any defaults accepted.
-    Asymmetric vs 5g-c (zero-Capabilities + non-empty settings -> reject).
-    Pinned per the 6g-b locked design."""
-    validate_parameter_defaults_against_method_schema({"anything": 42}, None)
+def test_raises_when_schema_is_none_and_defaults_is_non_empty() -> None:
+    """Strict (post-6g audit reversal): Method declares no contract
+    AND defaults supplied -> reject. Operator must declare schema
+    (an empty `{}` works for parameter-less Methods) or omit defaults.
+    Aligns with 5g-c's strict zero-Capabilities posture and Ajv /
+    Argo Workflows community precedent."""
+    with pytest.raises(InvalidPlanParameterDefaultsError) as exc_info:
+        validate_parameter_defaults_against_method_schema({"anything": 42}, None)
+    assert "Method declares no parameters_schema" in exc_info.value.reason
+    assert "'anything'" in exc_info.value.reason
 
 
 @pytest.mark.unit

@@ -5,7 +5,8 @@ Phase 6g-c. Exercises:
   - start_run accepts `parameter_overrides` + `triggered_by` body fields
   - effective_parameters = merge(plan.parameter_defaults, overrides)
   - get_run surfaces parameter_overrides + effective_parameters + triggered_by
-  - Method-without-schema is permissive (accept any overrides)
+  - Method-without-schema is STRICT (post-6g audit reversal): rejects
+    non-empty effective_parameters with 400 + clear error message
   - Method-with-schema validates effective_parameters at start (400 on violation)
   - Plan defaults flow through when overrides omitted
 """
@@ -158,17 +159,40 @@ def test_start_run_returns_400_when_effective_parameters_violate_schema() -> Non
 
 
 @pytest.mark.contract
-def test_start_run_permissive_when_method_has_no_schema() -> None:
-    """Locked posture: Method without parameters_schema accepts any overrides."""
+def test_start_run_strict_when_method_has_no_schema() -> None:
+    """Strict (post-6g audit reversal): Method without parameters_schema
+    rejects non-empty effective_parameters with a clear 400. Operator's
+    fix is to declare a schema (an empty `{}` works for parameter-less
+    Methods) or omit overrides AND clear Plan defaults."""
     with TestClient(create_app()) as client:
         plan_id, subject_id = _setup_run_chain(client, method_schema=None)
         response = client.post(
             "/runs",
             json={
-                "name": "Run-permissive",
+                "name": "Run-strict",
                 "plan_id": plan_id,
                 "subject_id": subject_id,
                 "parameter_overrides": {"undeclared": "anything"},
+            },
+        )
+    assert response.status_code == 400, response.text
+    body = response.json()
+    assert "Method declares no parameters_schema" in body["detail"]
+
+
+@pytest.mark.contract
+def test_start_run_accepts_no_schema_when_no_overrides_and_no_defaults() -> None:
+    """Strict still allows the trivial case: no Plan defaults, no
+    overrides, no Method schema -> empty effective_parameters,
+    accepted."""
+    with TestClient(create_app()) as client:
+        plan_id, subject_id = _setup_run_chain(client, method_schema=None)
+        response = client.post(
+            "/runs",
+            json={
+                "name": "Run-empty-trivial",
+                "plan_id": plan_id,
+                "subject_id": subject_id,
             },
         )
     assert response.status_code == 201, response.text

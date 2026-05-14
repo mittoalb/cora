@@ -2,7 +2,8 @@
 
 Phase 6g-b. Action endpoint with body `{parameter_defaults_patch}`.
 RFC 7396 merge semantics. Validates against the owning Method's
-parameters_schema (permissive when the Method declares no schema).
+parameters_schema; STRICT when the Method declares no schema (post-6g
+audit reversal: non-empty defaults rejected when no schema declared).
 Mirrors `test_update_asset_settings_endpoint.py` (5g-c) shape.
 """
 
@@ -109,14 +110,31 @@ def test_patch_plan_parameter_defaults_returns_400_for_constraint_violation() ->
 
 
 @pytest.mark.contract
-def test_patch_plan_parameter_defaults_permissive_when_method_has_no_schema() -> None:
-    """Locked posture: Method without parameters_schema accepts any
-    defaults dict."""
+def test_patch_plan_parameter_defaults_strict_when_method_has_no_schema() -> None:
+    """Strict (post-6g audit reversal): Method without parameters_schema
+    rejects non-empty defaults with a clear 400. Operator's fix is to
+    declare a schema on the Method (an empty `{}` works for parameter-
+    less Methods) or omit defaults."""
     with TestClient(create_app()) as client:
         plan_id = _setup_plan_with_schema(client, method_schema=None)
         response = client.patch(
             f"/plans/{plan_id}/parameter-defaults",
             json={"parameter_defaults_patch": {"undeclared_key": "anything"}},
+        )
+    assert response.status_code == 400
+    body = response.json()
+    assert "Method declares no parameters_schema" in body["detail"]
+
+
+@pytest.mark.contract
+def test_patch_plan_parameter_defaults_accepts_empty_when_method_has_no_schema() -> None:
+    """Strict still allows the trivial 'no contract + no values'
+    state: clearing all defaults on a no-schema Method works."""
+    with TestClient(create_app()) as client:
+        plan_id = _setup_plan_with_schema(client, method_schema=None)
+        response = client.patch(
+            f"/plans/{plan_id}/parameter-defaults",
+            json={"parameter_defaults_patch": {}},
         )
     assert response.status_code == 204
 

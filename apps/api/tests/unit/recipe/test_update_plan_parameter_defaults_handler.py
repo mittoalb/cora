@@ -299,47 +299,53 @@ async def test_handler_raises_invalid_when_post_merge_violates_schema() -> None:
 
 
 @pytest.mark.unit
-async def test_handler_permissive_when_method_has_no_schema() -> None:
-    """Locked: Method-without-schema accepts any defaults. Pinned at
-    the handler level (the loaded Method's parameters_schema is None
-    when no MethodParametersSchemaUpdated event has fired)."""
+async def test_handler_strict_when_method_has_no_schema() -> None:
+    """Strict (post-6g audit reversal): Method-without-schema rejects
+    non-empty defaults. Pinned at the handler level (the loaded
+    Method's parameters_schema is None when no
+    MethodParametersSchemaUpdated event has fired)."""
     store = InMemoryEventStore()
     await _seed_method(store, schema=None)
     await _seed_plan(store)
     deps = _build_deps(event_store=store)
 
-    await update_plan_parameter_defaults.bind(deps)(
-        UpdatePlanParameterDefaults(
-            plan_id=_PLAN_ID,
-            parameter_defaults_patch={"undeclared_key": "anything"},
-        ),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
+    with pytest.raises(InvalidPlanParameterDefaultsError):
+        await update_plan_parameter_defaults.bind(deps)(
+            UpdatePlanParameterDefaults(
+                plan_id=_PLAN_ID,
+                parameter_defaults_patch={"undeclared_key": "anything"},
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
 
-    events, _ = await store.load("Plan", _PLAN_ID)
-    assert events[1].payload["parameter_defaults"] == {"undeclared_key": "anything"}
+    # Stream untouched: only the seeded PlanDefined event.
+    events, version = await store.load("Plan", _PLAN_ID)
+    assert version == 1
+    assert events[0].event_type == "PlanDefined"
 
 
 @pytest.mark.unit
-async def test_handler_permissive_when_method_id_refers_to_missing_stream() -> None:
-    """Eventual-consistency: Plan can hold a method_id whose stream
-    doesn't exist (Method was never defined or events were discarded).
-    Handler treats this as schemaless rather than raising."""
+async def test_handler_strict_when_method_id_refers_to_missing_stream() -> None:
+    """Eventual-consistency edge case: Plan can hold a method_id whose
+    stream doesn't exist (Method was never defined or events were
+    discarded). Post-audit, handler still loads None from the missing
+    stream and the strict validator rejects with the same 'Method
+    declares no parameters_schema' message — operator's fix is to
+    declare the Method properly OR omit the defaults."""
     store = InMemoryEventStore()
     # NOTE: skip _seed_method — Method stream is empty.
     await _seed_plan(store)
     deps = _build_deps(event_store=store)
 
-    # Without a Method stream, validation is permissive.
-    await update_plan_parameter_defaults.bind(deps)(
-        UpdatePlanParameterDefaults(plan_id=_PLAN_ID, parameter_defaults_patch={"anything": 42}),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-
-    events, _ = await store.load("Plan", _PLAN_ID)
-    assert events[1].payload["parameter_defaults"] == {"anything": 42}
+    with pytest.raises(InvalidPlanParameterDefaultsError):
+        await update_plan_parameter_defaults.bind(deps)(
+            UpdatePlanParameterDefaults(
+                plan_id=_PLAN_ID, parameter_defaults_patch={"anything": 42}
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
 
 
 @pytest.mark.unit

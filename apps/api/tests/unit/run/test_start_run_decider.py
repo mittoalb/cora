@@ -526,9 +526,37 @@ def test_decide_raises_invalid_run_parameters_on_post_merge_violation() -> None:
 
 
 @pytest.mark.unit
-def test_decide_permissive_when_method_schema_is_none() -> None:
-    """Locked posture: Method without parameters_schema accepts any
-    effective dict. Pinned at the decider layer."""
+def test_decide_strict_when_method_schema_is_none_with_non_empty_effective() -> None:
+    """Strict (post-6g audit reversal): Method without parameters_schema
+    rejects non-empty effective dict. Pinned at the decider layer.
+    Aligns with 5g-c's strict zero-Capabilities posture and Ajv /
+    Argo Workflows precedent."""
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
+    subject = _subject()
+    context = RunStartContext(plan=plan, subject=subject, assets={asset_id: asset})
+
+    with pytest.raises(InvalidRunParametersError) as exc_info:
+        start_run.decide(
+            state=None,
+            command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
+            context=context,
+            needs_capabilities_snapshot=frozenset({cap}),
+            effective_parameters={"undeclared_key": "anything"},
+            method_parameters_schema=None,
+            now=_NOW,
+            new_id=uuid4(),
+        )
+    assert "Method declares no parameters_schema" in exc_info.value.reason
+
+
+@pytest.mark.unit
+def test_decide_accepts_no_schema_when_effective_is_empty() -> None:
+    """Strict still allows the trivial 'no contract + no values'
+    state: starting a Run with no overrides AND no Plan defaults
+    against a no-schema Method is fine."""
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
@@ -541,10 +569,10 @@ def test_decide_permissive_when_method_schema_is_none() -> None:
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
         needs_capabilities_snapshot=frozenset({cap}),
-        effective_parameters={"undeclared_key": "anything"},
+        effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
         new_id=uuid4(),
     )
     assert len(events) == 1
-    assert events[0].effective_parameters == {"undeclared_key": "anything"}
+    assert events[0].effective_parameters == {}

@@ -4,7 +4,8 @@ Phase 6g-b. The decider:
   - Raises PlanNotFoundError on empty state
   - Merges the patch into prior parameter_defaults via RFC 7396 semantics
   - Validates the merged result against the supplied
-    method_parameters_schema (permissive when None)
+    method_parameters_schema; STRICT when None (post-6g audit reversal:
+    non-empty defaults rejected when no schema declared)
   - No-ops (returns []) on unchanged-vs-current
   - Emits PlanParameterDefaultsUpdated with the post-merge dict otherwise
 """
@@ -170,21 +171,37 @@ def test_decide_raises_invalid_when_post_merge_violates_schema() -> None:
 
 
 @pytest.mark.unit
-def test_decide_permissive_when_method_has_no_schema() -> None:
-    """Locked: Method-without-schema accepts any defaults (asymmetric
-    vs 5g-c). Pinned at the decider layer."""
+def test_decide_strict_when_method_has_no_schema_with_non_empty_defaults() -> None:
+    """Strict (post-6g audit reversal): Method-without-schema rejects
+    non-empty defaults. Operator must declare a schema (an empty `{}`
+    works) or omit the defaults. Aligns with 5g-c's strict zero-
+    Capabilities posture and Ajv / Argo Workflows precedent."""
+    state = _plan()
+    with pytest.raises(InvalidPlanParameterDefaultsError) as exc_info:
+        update_plan_parameter_defaults.decide(
+            state=state,
+            command=UpdatePlanParameterDefaults(
+                plan_id=state.id,
+                parameter_defaults_patch={"undeclared_key": "anything"},
+            ),
+            method_parameters_schema=None,
+            now=_NOW,
+        )
+    assert "Method declares no parameters_schema" in exc_info.value.reason
+
+
+@pytest.mark.unit
+def test_decide_accepts_empty_defaults_when_method_has_no_schema() -> None:
+    """Strict still allows trivial 'no contract + no values' state.
+    No-op decider returns [] (defaults unchanged from empty)."""
     state = _plan()
     events = update_plan_parameter_defaults.decide(
         state=state,
-        command=UpdatePlanParameterDefaults(
-            plan_id=state.id,
-            parameter_defaults_patch={"undeclared_key": "anything"},
-        ),
+        command=UpdatePlanParameterDefaults(plan_id=state.id, parameter_defaults_patch={}),
         method_parameters_schema=None,
         now=_NOW,
     )
-    assert len(events) == 1
-    assert events[0].parameter_defaults == {"undeclared_key": "anything"}
+    assert events == []
 
 
 @pytest.mark.unit
