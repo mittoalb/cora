@@ -51,8 +51,6 @@ _ALLOWLIST: frozenset[str] = frozenset(
         "src/cora/infrastructure/deps.py",
         "tests/integration/_helpers.py",
         "tests/unit/_helpers.py",
-        "tests/unit/test_idempotency_pruner.py",
-        "tests/unit/access/test_list_actors_handler.py",
     }
 )
 

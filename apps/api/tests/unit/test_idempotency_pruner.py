@@ -24,9 +24,9 @@ from uuid import UUID
 import pytest
 
 from cora.infrastructure.config import Settings
+from cora.infrastructure.deps import make_inmemory_kernel
 from cora.infrastructure.idempotency_pruner import idempotency_pruner_lifespan
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
@@ -45,7 +45,7 @@ def _build_kernel(
     """Build a Kernel for pruner tests. `pool` defaults to a sentinel
     string (not None) so the pruner's "no pool" skip branch isn't
     accidentally triggered by every test; pass `pool=None` to opt in."""
-    return Kernel(
+    return make_inmemory_kernel(
         settings=Settings(  # type: ignore[call-arg]
             app_env="test",
             idempotency_ttl_hours=ttl_hours,
@@ -53,9 +53,8 @@ def _build_kernel(
         clock=FrozenClock(datetime(2026, 5, 13, 12, 0, 0, tzinfo=UTC)),
         id_generator=FixedIdGenerator([]),
         authorize=AllowAllAuthorize(),
-        event_store=InMemoryEventStore(),
-        idempotency_store=store or InMemoryIdempotencyStore(),
-        pool=pool,  # type: ignore[arg-type]
+        idempotency_store=store,
+        pool=pool,
     )
 
 

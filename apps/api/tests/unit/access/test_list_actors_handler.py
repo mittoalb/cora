@@ -10,49 +10,12 @@ from uuid import UUID
 import pytest
 
 from cora.access.features.list_actors import ListActors, bind
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
-)
 from cora.infrastructure.projection import InvalidCursorError, encode_cursor
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-
-
-class _DenyAllAuthorize:
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> Deny:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
-def _build_kernel(*, deny: bool = False) -> Kernel:
-    """Build a Kernel for handler tests. Pool-less by design (Postgres-
-    backed tests live in the integration suite); the handler's
-    no-pool branch returns an empty page so the unit tests pin the
-    in-memory-test-environment behavior. End-to-end pagination is
-    tested in `tests/integration/test_list_actors_handler_postgres.py`."""
-    return Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([]),
-        authorize=_DenyAllAuthorize() if deny else AllowAllAuthorize(),
-        event_store=InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-        pool=None,
-    )
 
 
 @pytest.mark.unit
@@ -60,7 +23,7 @@ async def test_handler_returns_empty_page_when_no_pool() -> None:
     """In-memory test environment has no projection table; handler
     returns an empty page so contract tests using `app_env=test`
     don't need Postgres just to hit the endpoint."""
-    handler = bind(_build_kernel())
+    handler = bind(build_deps(now=_NOW))
 
     page = await handler(
         ListActors(),
@@ -74,7 +37,7 @@ async def test_handler_returns_empty_page_when_no_pool() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_on_deny() -> None:
-    handler = bind(_build_kernel(deny=True))
+    handler = bind(build_deps(now=_NOW, deny=True))
 
     with pytest.raises(Exception, match="denied for test"):
         await handler(
@@ -88,7 +51,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 async def test_handler_raises_invalid_cursor_for_garbage() -> None:
     """Malformed cursor propagates `InvalidCursorError` from the
     framework's decode_cursor; route layer maps to 422."""
-    handler = bind(_build_kernel())
+    handler = bind(build_deps(now=_NOW))
 
     with pytest.raises(InvalidCursorError):
         await handler(
@@ -106,7 +69,7 @@ async def test_handler_accepts_well_formed_cursor() -> None:
         created_at=_NOW,
         item_id=UUID("01900000-0000-7000-8000-000000000001"),
     )
-    handler = bind(_build_kernel())
+    handler = bind(build_deps(now=_NOW))
 
     page = await handler(
         ListActors(cursor=cursor),

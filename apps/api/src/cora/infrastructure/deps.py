@@ -128,6 +128,7 @@ def make_inmemory_kernel(
     authorize: Authorize,
     event_store: EventStore | None = None,
     idempotency_store: IdempotencyStore | None = None,
+    pool: object | None = None,
 ) -> Kernel:
     """In-memory Kernel primitive.
 
@@ -136,11 +137,11 @@ def make_inmemory_kernel(
     contract tests of the API surface. Unit tests call it via the
     `tests.unit._helpers.build_deps` wrapper.
 
-    Two unit-test files allowlisted in the architecture fitness
-    function (`test_idempotency_pruner.py` for a pool-presence
-    sentinel; `test_list_actors_handler.py` predates the helper)
-    construct `Kernel(...)` directly and don't go through this
-    primitive.
+    `pool` exists as an optional override exclusively for the
+    idempotency-pruner tests, which need a non-None sentinel to
+    exercise the "pool present" branch of the lifespan task without
+    standing up a real Postgres connection. Production callers (and
+    every other test) leave it as the default `None`.
     """
     return Kernel(
         settings=settings,
@@ -151,7 +152,7 @@ def make_inmemory_kernel(
         idempotency_store=(
             idempotency_store if idempotency_store is not None else InMemoryIdempotencyStore()
         ),
-        pool=None,
+        pool=pool,  # type: ignore[arg-type]
     )
 
 
