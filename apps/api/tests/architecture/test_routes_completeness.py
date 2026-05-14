@@ -29,25 +29,7 @@ from tests.architecture.conftest import BCS
 # OR pre-existing drift this test surfaced and which is being
 # cleaned up in a follow-up. Each entry MUST have a comment.
 # Empty each entry as the slice ships / drift is fixed.
-WIP_ERRORS: dict[str, frozenset[str]] = {
-    "trust": frozenset(
-        {
-            # PRE-EXISTING DRIFT surfaced by this test on first run.
-            # These domain errors exist in cora.trust.aggregates but
-            # cora/trust/routes.py never registered an HTTP handler
-            # for them, so they would surface as 500 instead of a
-            # clean 409 (the same defensive-handler pattern run BC
-            # uses for RunAlreadyExistsError). Fix in a follow-up
-            # by adding a `_handle_already_exists` and a
-            # `_handle_logbook_state` to register_trust_routes.
-            "ConduitAlreadyExistsError",
-            "PolicyAlreadyExistsError",
-            "ZoneAlreadyExistsError",
-            "ConduitLogbookAlreadyOpenError",
-            "ConduitLogbookNotOpenError",
-        }
-    ),
-}
+WIP_ERRORS: dict[str, frozenset[str]] = {}
 
 
 def _bc_module(bc: str) -> Any:

@@ -19,18 +19,33 @@ registered by Access (the first BC that boots). They produce
 the same JSON shape regardless of which BC raised them, so Trust does
 not re-register them. A `ZoneNotFoundError` (or analogous "missing
 target" handler) lands here once the first slice that loads-and-folds
-the Zone stream ships; per YAGNI it doesn't exist yet (the
-`tests/architecture/test_routes_completeness.py::WIP_ERRORS["trust"]`
-ledger tracks the deferred AlreadyExists / LogbookOpen / NotOpen
-trio for the next Trust cleanup pass).
+the Zone stream ships; per YAGNI it doesn't exist yet.
+
+## Loop-collapse pattern
+
+Mirrors Run / Recipe / Equipment / Subject. Generic error handlers
+per family, tuple loops to register them. Status-code groupings:
+
+  - 400 (validation): InvalidZoneNameError, InvalidConduitNameError,
+    InvalidPolicyNameError
+  - 403 (authz): UnauthorizedError
+  - 409 (defensive guard for AlreadyExists): ZoneAlreadyExistsError,
+    ConduitAlreadyExistsError, PolicyAlreadyExistsError
+  - 409 (Conduit logbook state guards): ConduitLogbookAlreadyOpenError,
+    ConduitLogbookNotOpenError
 """
 
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
-from cora.trust.aggregates.conduit import InvalidConduitNameError
-from cora.trust.aggregates.policy import InvalidPolicyNameError
-from cora.trust.aggregates.zone import InvalidZoneNameError
+from cora.trust.aggregates.conduit import (
+    ConduitAlreadyExistsError,
+    ConduitLogbookAlreadyOpenError,
+    ConduitLogbookNotOpenError,
+    InvalidConduitNameError,
+)
+from cora.trust.aggregates.policy import InvalidPolicyNameError, PolicyAlreadyExistsError
+from cora.trust.aggregates.zone import InvalidZoneNameError, ZoneAlreadyExistsError
 from cora.trust.errors import UnauthorizedError
 from cora.trust.features import (
     define_conduit,
@@ -68,6 +83,36 @@ async def _handle_unauthorized(request: Request, exc: Exception) -> JSONResponse
     )
 
 
+async def _handle_already_exists(request: Request, exc: Exception) -> JSONResponse:
+    """Defensive 409 handler for `<Aggregate>AlreadyExistsError`.
+
+    The decider raises this if the target stream already has events.
+    With UUIDv7 ids this is essentially impossible in production, but
+    the unmapped raise would surface as 500 instead of a clean 409.
+    Mirrors the Run BC's pattern.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_logbook_state(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 409 handler for Conduit logbook state guards.
+
+    `ConduitLogbookAlreadyOpenError` (open attempted while the kind
+    already has an open logbook) and `ConduitLogbookNotOpenError`
+    (close attempted on an id that's not currently open). Both
+    encode the at-most-one-open-per-kind invariant.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+
 def register_trust_routes(app: FastAPI) -> None:
     """Attach Trust slice routers and exception handlers to the FastAPI app."""
     app.include_router(define_zone.router)
@@ -83,4 +128,15 @@ def register_trust_routes(app: FastAPI) -> None:
         InvalidPolicyNameError,
     ):
         app.add_exception_handler(invalid_name_cls, _handle_invalid_name)
+    for already_exists_cls in (
+        ZoneAlreadyExistsError,
+        ConduitAlreadyExistsError,
+        PolicyAlreadyExistsError,
+    ):
+        app.add_exception_handler(already_exists_cls, _handle_already_exists)
+    for logbook_state_cls in (
+        ConduitLogbookAlreadyOpenError,
+        ConduitLogbookNotOpenError,
+    ):
+        app.add_exception_handler(logbook_state_cls, _handle_logbook_state)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
