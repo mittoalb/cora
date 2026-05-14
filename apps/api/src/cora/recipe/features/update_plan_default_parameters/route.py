@@ -36,8 +36,10 @@ class UpdatePlanDefaultParametersRequest(BaseModel):
       - absent keys are preserved
 
     The decider validates the post-merge result against the owning
-    Method's `parameters_schema` (loaded by the handler). Permissive
-    when the Method declares no schema. Validation failure surfaces
+    Method's `parameters_schema` (loaded by the handler). Strict when
+    the Method declares no schema: non-empty defaults are rejected
+    (operators wanting parameter-less Methods declare
+    `parameters_schema={}` explicitly). Validation failure surfaces
     as HTTP 400.
     """
 

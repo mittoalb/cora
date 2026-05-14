@@ -669,11 +669,14 @@ class InvalidRunParametersError(ValueError):
     """The supplied Run effective_parameters (defaults + overrides) failed
     validation against the owning Method's parameters_schema (Phase 6g-c).
 
-    Permissive when Method.parameters_schema is None: any merge result
-    is accepted (Method declares no contract). When the schema IS
-    declared, the merged dict must conform per jsonschema-rs Draft
-    2020-12. Mirrors `InvalidPlanDefaultParametersError` shape from
-    6g-b. Mapped to HTTP 400 by the run BC's exception handler.
+    Strict when Method.parameters_schema is None: non-empty effective
+    parameters are rejected (Method declares no contract; operators
+    wanting parameter-less Methods declare `parameters_schema={}`
+    explicitly). When the schema IS declared, the merged dict must
+    conform per jsonschema-rs Draft 2020-12. Mirrors
+    `InvalidPlanDefaultParametersError` shape from 6g-b and the 5g-c
+    "no Capabilities + non-empty settings → reject" cross-BC anchor.
+    Mapped to HTTP 400 by the run BC's exception handler.
     """
 
     def __init__(self, reason: str) -> None:

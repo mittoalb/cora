@@ -130,7 +130,8 @@ class PlanDefaultParametersUpdated:
     Validation runs at the decider against the owning Method's
     `parameters_schema` (loaded by the handler before reaching the
     decider, then handed in via the slice's MethodSchemaContext).
-    Permissive when Method.parameters_schema is None.
+    Strict when Method.parameters_schema is None: non-empty defaults
+    are rejected.
 
     Status is NOT carried — defaults updates are orthogonal to
     lifecycle (Defined / Versioned / Deprecated all permit defaults

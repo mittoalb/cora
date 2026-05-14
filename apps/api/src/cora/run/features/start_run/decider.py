@@ -157,9 +157,11 @@ def decide(
         raise RunCapabilitiesNotSatisfiedError(missing)
 
     # 6g-c: validate the resolved (defaults + overrides) parameter set
-    # against the owning Method's parameters_schema. Permissive when
-    # the schema is None (Method declares no contract — accept any
-    # merge result; locked posture per [[project_run_parameters_design]]).
+    # against the owning Method's parameters_schema. Strict when the
+    # schema is None: non-empty effective parameters are rejected
+    # (post-6g audit reversal; mirrors 5g-c's "no Capabilities + non-
+    # empty settings → reject" anchor; see
+    # [[project_schema_validated_values_pattern]]).
     validate_effective_parameters_against_method_schema(
         effective_parameters, method_parameters_schema
     )

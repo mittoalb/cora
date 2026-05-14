@@ -244,11 +244,14 @@ class InvalidPlanDefaultParametersError(ValueError):
     """The supplied Plan default_parameters dict failed validation
     against the owning Method's parameters_schema (Phase 6g-b).
 
-    Permissive when Method.parameters_schema is None: any defaults
-    are accepted (Method declares no contract). When the schema IS
-    declared, the merged defaults must conform per jsonschema-rs
-    Draft 2020-12. Mapped to HTTP 400 by the recipe BC's exception
-    handler.
+    Strict when Method.parameters_schema is None: non-empty defaults
+    are rejected (Method declares no contract; operators wanting
+    parameter-less Methods declare `parameters_schema={}` explicitly).
+    When the schema IS declared, the merged defaults must conform per
+    jsonschema-rs Draft 2020-12. Mapped to HTTP 400 by the recipe BC's
+    exception handler. Mirrors the 5g-c "no Capabilities + non-empty
+    settings → reject" cross-BC anchor; see
+    [[project_schema_validated_values_pattern]].
     """
 
     def __init__(self, reason: str) -> None:

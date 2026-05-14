@@ -8,8 +8,10 @@ deleted; absent keys are preserved.
 
 Validation runs at the handler boundary against the owning
 Method's `parameters_schema` (loaded by the handler before
-reaching the decider). Permissive when Method declares no schema
-(see [[project_run_parameters_design]] §6g-b).
+reaching the decider). Strict when Method declares no schema:
+non-empty defaults are rejected (mirrors 5g-c's "no Capabilities
++ non-empty settings → reject" anchor; see
+[[project_schema_validated_values_pattern]]).
 """
 
 from dataclasses import dataclass
