@@ -95,6 +95,7 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
     "unit: pure tests with no I/O",
+    "architecture: structural fitness functions (AST/filesystem/SQL-text checks); no I/O",
     "integration: tests requiring Postgres or other external services",
     "contract: REST/MCP schema verification tests",
     "e2e: full end-to-end tests",

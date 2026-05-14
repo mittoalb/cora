@@ -49,7 +49,7 @@ def _populate_registry_from_bcs() -> ProjectionRegistry:
     return registry
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 def test_every_apply_carries_idempotency_marker() -> None:
     registry = _populate_registry_from_bcs()
     if registry.is_empty():

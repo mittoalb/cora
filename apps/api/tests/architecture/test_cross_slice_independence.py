@@ -36,7 +36,7 @@ def _qualified(p: Path) -> str:
     return "cora." + ".".join(p.relative_to(CORA_ROOT).with_suffix("").parts)
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 @pytest.mark.parametrize("py_file", _slice_python_files(), ids=_qualified)
 def test_no_cross_slice_imports(py_file: Path) -> None:
     """A slice file may only import from its own slice + aggregate kernel + infra."""

@@ -58,7 +58,7 @@ def _all_slices() -> list[Path]:
     return out
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 @pytest.mark.parametrize("slice_dir", _all_slices(), ids=_qualified)
 def test_slice_has_required_files(slice_dir: Path) -> None:
     qualified = _qualified(slice_dir)
@@ -82,7 +82,7 @@ def test_slice_has_required_files(slice_dir: Path) -> None:
     assert not missing, f"{qualified}: missing required files {sorted(missing)}"
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 def test_wip_slices_actually_exist() -> None:
     """WIP_SLICES entries must point at real directories. Drift catcher."""
     for qualified in WIP_SLICES:

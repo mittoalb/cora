@@ -101,7 +101,7 @@ def _routes_source(bc: str) -> str:
     return inspect.getsource(routes)
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 @pytest.mark.parametrize("bc", BCS)
 def test_every_domain_error_registered_as_http_handler(bc: str) -> None:
     error_classes = _bc_error_classes(bc)
@@ -118,7 +118,7 @@ def test_every_domain_error_registered_as_http_handler(bc: str) -> None:
     )
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 @pytest.mark.parametrize("bc", BCS)
 def test_wip_errors_actually_exist(bc: str) -> None:
     """WIP_ERRORS entries must point at real Error classes. Drift catcher."""

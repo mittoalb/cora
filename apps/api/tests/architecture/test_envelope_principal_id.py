@@ -73,7 +73,7 @@ def _to_new_event_calls(tree: ast.AST) -> list[ast.Call]:
     return calls
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 @pytest.mark.parametrize("handler_file", _handler_files(), ids=_qualified)
 def test_handler_to_new_event_calls_pass_principal_id(handler_file: Path) -> None:
     qualified = _qualified(handler_file)
@@ -99,7 +99,7 @@ def test_handler_to_new_event_calls_pass_principal_id(handler_file: Path) -> Non
     )
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 def test_handler_files_were_actually_discovered() -> None:
     """Drift catcher. If the handler-file glob breaks (BC layout
     changes, slice contract changes), this test fails loudly rather

@@ -35,7 +35,7 @@ def _shipped_slices_per_bc() -> list[tuple[str, str]]:
     return out
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 @pytest.mark.parametrize(("bc", "slice_name"), _shipped_slices_per_bc())
 def test_slice_is_wired_into_bc(bc: str, slice_name: str) -> None:
     wire_module = importlib.import_module(f"cora.{bc}.wire")
@@ -49,7 +49,7 @@ def test_slice_is_wired_into_bc(bc: str, slice_name: str) -> None:
     )
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 @pytest.mark.parametrize("bc", BCS)
 def test_wire_function_exists(bc: str) -> None:
     """Each BC must expose `wire_<bc>(deps)` from its wire module."""

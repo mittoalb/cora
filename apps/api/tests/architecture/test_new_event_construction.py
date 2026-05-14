@@ -58,7 +58,7 @@ def _new_event_call_lines(tree: ast.AST) -> list[int]:
     return lines
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 def test_new_event_only_constructed_in_envelope_helper() -> None:
     """Single arch test, not parametrized: scan all src files, fail
     loud if any constructs NewEvent outside `event_envelope.py`."""

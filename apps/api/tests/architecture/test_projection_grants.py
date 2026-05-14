@@ -42,7 +42,7 @@ def _proj_tables_created() -> set[str]:
     return out
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 def test_every_proj_table_has_cora_app_grant() -> None:
     """Pattern accepted: `GRANT ... ON [TABLE] <table> ... TO cora_app`.
     Doesn't enforce the exact privilege list because Postgres GRANT

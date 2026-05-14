@@ -66,7 +66,7 @@ def _append_only_tables_created() -> set[str]:
     return out
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 def test_migrations_directory_exists() -> None:
     """Sanity: the path-resolution heuristic above lands somewhere
     real. Refactors that move the conftest will trip this first."""
@@ -80,7 +80,7 @@ def test_migrations_directory_exists() -> None:
     )
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 def test_every_append_only_table_has_cora_app_revoke() -> None:
     """REVOKE UPDATE / DELETE / TRUNCATE on cora_app must appear in
     some migration for every events / entries_* table created.

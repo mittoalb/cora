@@ -71,7 +71,7 @@ def _populate_registry_from_bcs() -> ProjectionRegistry:
     return registry
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 def test_every_registered_projection_has_a_create_table_migration() -> None:
     """A projection name in the registry must appear in some migration's
     `CREATE TABLE proj_<name>` statement. Catches code-level
@@ -96,7 +96,7 @@ def test_every_registered_projection_has_a_create_table_migration() -> None:
     )
 
 
-@pytest.mark.unit
+@pytest.mark.architecture
 def test_every_proj_table_in_migrations_has_a_registration() -> None:
     """Inverse direction: a `CREATE TABLE proj_<name>` migration with
     no matching code registration is an orphan (table but no consumer
