@@ -2,6 +2,8 @@
 
 *Event sourcing, value objects, field grouping.*
 
+Events are immutable; everything else evolves. The rules below exist to keep that asymmetry honest: schema evolution that doesn't lie about old events, value objects that re-validate on read, primitives at the wire and VOs at the boundaries.
+
 ## Event sourcing
 
 **Routing key: `(stream_type, event_type)`, never `event_type` alone.** `events.event_type` stores the unqualified class name; a cross-BC name collision is plausible.

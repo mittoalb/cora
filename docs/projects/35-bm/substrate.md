@@ -2,6 +2,8 @@
 
 *What already exists at 35-BM and must be integrated with.*
 
+Substrate is what CORA inherits, not what it designs. Aerotech, FPGA, EPICS, TomoPy, Polaris are mature, owned by other teams, and not on the table for replacement. CORA's job is to wrap, observe, and audit them; where ISA-95 strains against this reality is called out below.
+
 ## Assets
 
 The ISA-95 backbone for 35-BM:

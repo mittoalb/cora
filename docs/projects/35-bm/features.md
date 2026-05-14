@@ -4,7 +4,7 @@
 
 Each targets a CORA primitive and an imaging pain point.
 
-## Telemetry substreams
+## High-rate telemetry
 
 | | |
 | --- | --- |
@@ -12,7 +12,7 @@ Each targets a CORA primitive and an imaging pain point.
 | Pain | Encoder readings at PSO trigger rate can't share the main events table without choking projection workers |
 | Success | Projection workers process a 1-min scan with 50,000+ telemetry samples without falling behind real time |
 
-## Streaming Run
+## Mid-scan changes
 
 | | |
 | --- | --- |
@@ -20,7 +20,7 @@ Each targets a CORA primitive and an imaging pain point.
 | Pain | Optique Peter zoom-in during streaming reconstruction needs flat-field refresh and angle resync without restarting |
 | Success | A scan changes lens (1.1× → 5×) mid-Run; reconstruction stitches cleanly across the magnification change |
 
-## COR strategy port
+## COR strategy swap
 
 | | |
 | --- | --- |
@@ -36,13 +36,15 @@ Each targets a CORA primitive and an imaging pain point.
 | Pain | Mail-in samples lose context between shipping label, beamline, reconstruction |
 | Success | A sample is locatable from any of: shipping label, proposal id, run id, dataset id, deliverable URI |
 
-## Method portability (deferred to MAX IV)
+## Method portability
 
 | | |
 | --- | --- |
 | Primitive | Recipe ladder Method/Practice split |
 | Pain | Per-facility scripts duplicate the same physics with different brand names |
 | Success | A Method named at 35-BM binds to a Practice at MAX IV without modifying the Method |
+
+Validation deferred to the [MAX IV deployment](horizon.md#max-iv); 35-BM alone cannot prove portability.
 
 ## Replayable audit
 

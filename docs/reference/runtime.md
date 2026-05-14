@@ -2,6 +2,8 @@
 
 *Production hardening, logging, HTTP errors.*
 
+Default-secure or refuse to boot. The app declines to start in production unless authentication is required and the DB role is the read-write app role, not the migration owner. Everything else (limits, tracing, log shape) is wired so a missing piece is visible, not silent.
+
 ## Production hardening
 
 Wired in `cora/api/main.py:create_app()`.

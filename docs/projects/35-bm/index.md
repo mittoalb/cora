@@ -16,17 +16,10 @@ A new dedicated micro-CT instrument at Argonne. White-beam micro-CT moves here f
 
 ```mermaid
 flowchart LR
-    P[Proposal<br/>access] --> A[Allocation<br/>access]
-    A --> S[Sample receipt<br/>subject]
-    S --> AL[Alignment<br/>equipment + run]
-    AL --> PB[Practice binding<br/>recipe + run]
-    PB --> SC[Fly scan<br/>run]
-    SC --> R[Reconstruction + COR<br/>decision + run]
-    R --> SG[Segmentation<br/>decision]
-    SG --> D[Delivery<br/>data + access]
+    P[Proposal] --> S[Sample] --> SU[Setup] --> SC[Scan] --> A[Analysis] --> D[Delivery]
 ```
 
-Every transition emits events. The full stream re-derives the deliverables.
+Every transition emits events. The full stream re-derives the deliverables. The end-to-end walk lives in [Experiment](experiment.md); the BC mapping in [Approach](approach.md).
 
 ## Why first
 

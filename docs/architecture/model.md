@@ -2,25 +2,27 @@
 
 *Bounded contexts, aggregates, vertical slices.*
 
+The shape under every CORA feature: a BC owns a slice of the domain, an aggregate owns a consistency boundary inside it, a vertical slice owns one command or query end-to-end. Get these three right and adding a feature stops being a refactor.
+
 ## Bounded contexts
 
 CORA is a set of bounded contexts (BCs). Each owns its model, language, and API surface.
 
 | BC | Owns | Status |
 | --- | --- | --- |
-| `access` | Identity and authentication (Actors) | Active |
-| `subject` | Subjects under measurement, custody, hazard | Active |
+| `access` | Actors with identity and authentication | Active |
+| `subject` | Subjects under measurement, custody, and hazard | Active |
 | `equipment` | Capabilities and Asset hierarchy | Active |
-| `recipe` | Methods, Practices, Plans (the recipe ladder) | Active |
-| `run` | Run executions with FSM and audit | Active |
-| `decision` | Audit and provenance for consequential choices | Active |
+| `recipe` | Methods, Practices, and Plans (the recipe ladder) | Active |
+| `run` | Run executions with lifecycle FSM and audit | Active |
+| `decision` | Decisions and provenance for consequential choices | Active |
 | `data` | Datasets and transfers (lineage, tiers) | Active |
-| `trust` | Zones, Conduits, Policies (ISA-99 / IEC 62443) | Active |
+| `trust` | Zones, Conduits, and Policies | Active |
 | `campaign` | Multi-Run studies (in-situ, operando, screening) | Planned |
 | `supply` | Continuous resources (beam, power, cooling, LN2) | Planned |
-| `operation` | Episodic 106-procedures (bakeout, calibration) | Planned |
+| `operation` | Episodic procedures (bakeout, calibration) | Planned |
 | `strategy` | Decision-making policies (mode, thresholds, fallbacks) | Planned |
-| `budget` | Resource allocation with limits and circuit breakers | Planned |
+| `budget` | Resource allocation (limits, circuit breakers) | Planned |
 
 ## Aggregates
 
@@ -31,16 +33,18 @@ The unit of consistency inside a BC: state, invariants, events.
 One folder per command or query, holding everything the slice needs:
 
 ```
-features/register_actor/
-├── command.py    input shape
-├── decider.py    pure rule: (state, command) -> events
-├── handler.py    shell: wires core to ports
-├── route.py      REST adapter
-└── tool.py       MCP adapter
+features/<verb>_<aggregate>/
+├── command         input shape
+├── decider         pure rule: (state, command) -> events
+├── handler         shell: wires core to ports
+└── adapters        one per surface (HTTP API, agent tool, ...)
 ```
 
-Independently readable, testable, deletable.
+Independently readable, testable, deletable. For the in-repo file layout, see [Reference/Layout](../reference/layout.md).
 
-- **Functional core.** Decider `(state, command) -> events` decides which facts a command should emit. Evolver `(state, event) -> state` folds each fact back into state. Both pure, no I/O.
-- **Imperative shell.** Handler injects the side-effect ports (clock, IDs, event store, authorize, idempotency), each typed as a `Protocol`. Real adapters in production, fakes in tests.
-- **Thin adapters.** `route.py` (REST) and `tool.py` (MCP) translate protocol-specific input (HTTP body, MCP arguments) into the same handler call. Schema validation only, no business rules. New surface, new adapter; the core does not move.
+- **Command.** Immutable input shape, one per slice. Captures the caller's intent. Structurally validated at the adapter, semantically validated by the decider.
+- **Functional core.** Decider takes a command and current state, returns events. Evolver folds events back into state. Both pure, no I/O.
+- **Imperative shell.** Handler wires the core to side-effect ports (clock, IDs, event store, authorize, idempotency). Real ports in production, fakes in tests.
+- **Thin adapters.** One per surface, translates protocol-specific input into the same handler call. Schema validation only, no business rules.
+
+Query slices follow the same shape with `query` in place of `command` and no decider, since there's no state change. Single-record reads fold the stream; list and filter reads hit a projection. See [Reference/Patterns](../reference/patterns.md).

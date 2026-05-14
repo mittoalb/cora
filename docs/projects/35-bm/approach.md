@@ -4,7 +4,7 @@
 
 [Substrate](substrate.md) is what already exists. This is what CORA brings on top.
 
-## Bounded contexts
+## Domain map
 
 BCs in imaging-pilot meaning:
 
@@ -49,7 +49,7 @@ Three steps interchangeable across human and agent strategies:
 
 The port shape ensures manual and AI COR picks produce structurally identical events. Strategy is auditable; result is a first-class entity.
 
-## Trust.Conduit
+## Conduits
 
 EPICS PVs are the lingua franca. The Trust BC models the EPICS surface as a Conduit between Z1 (Control) and Z0 (Process). PV reads are observations; PV writes are actuations. Both are events.
 

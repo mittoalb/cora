@@ -1,8 +1,8 @@
 # Stack
 
-*Picks, reasons, swap triggers.*
+*Picks today. Triggers for picks tomorrow.*
 
-Roles in [Architecture](../architecture/index.md). Pinned versions in `pyproject.toml`, `docker-compose.yml`, `Makefile`. Picks are starting points: seam discipline (ports + adapters, BC isolation) lets any one swap without touching the core.
+Every pick on this page is a starting point with a written escape hatch. Roles are pinned in [Architecture](../architecture/index.md); products are pinned in `pyproject.toml`, `docker-compose.yml`, and `Makefile`. Seam discipline (ports, adapters, BC isolation) means any one can be swapped without touching the core. Picks marked deferred are *not yet warranted*, not unwanted.
 
 ## Pages
 

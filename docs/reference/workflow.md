@@ -2,6 +2,8 @@
 
 *Reading order, commits, branch flow, migrations, tests.*
 
+The mechanics a contributor (human or LLM) has to internalise before touching the code. Each section is the rule, not the rationale; rationale lives next to the artifact it constrains.
+
 ## Reading order
 
 Stop at any step and you have a working mental model of the layer above.

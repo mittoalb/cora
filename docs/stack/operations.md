@@ -22,6 +22,6 @@
 | HTTP test client | httpx | FastAPI's `TestClient` rides on it |
 | Integration test isolation | testcontainers (Postgres) | Fresh Postgres per run; mirrors prod schema via Atlas |
 | Import-boundary linter | tach | Enforces BC isolation at import time |
-| Pre-commit | pre-commit | Standard Python tooling |
+| Pre-commit | pre-commit | Hooks for lint, format, and type-check on commit |
 | Local container runtime | Docker + docker-compose | Postgres + pgvector for local dev |
 | CI | GitHub Actions | Repo on GitHub; standard |

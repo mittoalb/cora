@@ -1,8 +1,8 @@
 # Projects
 
-*Pilot deployments. Each earns its place.*
+*Pilots earn the abstractions.*
 
-A deployment target where the recipe ladder, BCs, and trust boundaries get exercised against a real instrument with real users. Each project exposes a shape the abstractions have to absorb.
+Vertical before horizontal. CORA's domain model only contains what at least one real deployment forced into it. A project is a real instrument with real users where the recipe ladder, BCs, and trust boundaries get stress-tested. Until a project takes a shape on, the shape stays out.
 
 ## Active
 

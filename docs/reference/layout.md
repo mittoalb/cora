@@ -2,6 +2,8 @@
 
 *BC structure, imports, naming, bootstrap, shared code.*
 
+Two axes on purpose: aggregates own the data shape so the domain stays explicit, slices own the use cases so a feature lives in one folder. Modular Monolith on the macro side, Vertical Slice on the micro. Keeping both stops the codebase from collapsing into either pure DDD or pure feature-folders.
+
 ## BC layout
 
 Two-axis: aggregates own data shape; features (vertical slices) own use cases.

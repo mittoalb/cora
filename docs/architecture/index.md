@@ -1,12 +1,12 @@
 # Architecture
 
-*Patterns and roles. No products named.*
+*Roles, not products. Patterns, not picks.*
 
-What each piece does, not which product implements it. Picks live in [Stack](../stack/index.md), vocabulary in [Glossary](../glossary/index.md), patterns grounded in a domain in [35-BM](../projects/35-bm/index.md).
+Most architecture docs name vendors and rot the moment one is replaced. CORA's doesn't. Each role is described by what it does in the system. The product that fills the role today lives one layer down in [Stack](../stack/index.md), so a swap is a stack change, not an architecture change.
 
 ## Pages
 
 - [Model](model.md): bounded contexts, aggregates, vertical slices, FCIS.
 - [State](state.md): event sourcing, projections, read models.
-- [Surfaces](surfaces.md): REST, agent protocol, cross-cutting concerns.
+- [Surfaces](surfaces.md): surface adapters, handlers, cross-cutting concerns.
 - [Standards](standards.md): ISA lenses, recipe ladder, in-code map.

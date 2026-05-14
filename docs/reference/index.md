@@ -1,8 +1,8 @@
 # Reference
 
-*Codebase conventions. The internal contract the code follows.*
+*The internal contract the code follows.*
 
-For collaboration on the design (not the code), see [Contributing](../../CONTRIBUTING.md).
+Not a tutorial. Not onboarding. The rules a human or LLM agent has to honor when modifying CORA so the codebase doesn't drift. If the code disagrees with this page, the code is wrong. For collaboration on the design (not the code), see [Contributing](../../CONTRIBUTING.md).
 
 ## Pages
 

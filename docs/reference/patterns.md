@@ -1,8 +1,12 @@
 # Patterns
 
-*Read side, query slices, projections, idempotency, cross-aggregate validation.*
+*Read side, query slices, projections, idempotency, cross-aggregate validation, rejections.*
+
+The shapes that recur across slices: how reads work, when retries stay safe, where slices need another aggregate, what failure looks like. New slices follow them or have a reason not to.
 
 ## Read side
+
+Two read paths, picked by query shape.
 
 - **Fold-on-read** (`aggregates/<aggregate>/read.py:load_<aggregate>`) for single-aggregate `GET`. O(events-per-stream).
 - **Projection worker** for list / filter / search and high-traffic queries. Background task tails the events channel; `GET` reads a denormalized table.
@@ -41,7 +45,7 @@ Query handlers DO call `authorize` with the query name as `command_name`. Per-ro
 
 ## Projections
 
-`cora.infrastructure.projection`. Composition root spawns one in-process worker via FastAPI lifespan; advances every registered `Projection` along the event stream.
+Background workers maintain denormalized read tables by tailing the event store. Located at `cora.infrastructure.projection`; composition root spawns one in-process worker via FastAPI lifespan, which advances every registered `Projection` along the event stream.
 
 - **`Projection` Protocol** in `cora/<bc>/projections/<name>.py`: `name` (matches `proj_*` table + bookmark), `subscribed_event_types`, `apply(event, conn)`. Advance orders by `(transaction_id, position)` with `pg_snapshot_xmin` exclusion.
 - **`apply()` MUST be idempotent** (at-least-once delivery). `INSERT ... ON CONFLICT (key) DO NOTHING/UPDATE` or `# idempotent: <reason>`. Enforced by `test_projection_idempotency.py`.
@@ -57,7 +61,7 @@ Tests use `await drain_projections(pool, registry, deadline=2.0)` instead of `as
 
 ## Idempotency
 
-[IETF `Idempotency-Key`](https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-idempotency-key-header-07) (Stripe / Adyen / PayPal). Decorator at `cora/infrastructure/idempotency.py`; wrap applied in each BC's `wire.py`.
+Create-style commands accept an idempotency key so client-side retries don't duplicate. Standard: [IETF `Idempotency-Key`](https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-idempotency-key-header-07) (Stripe / Adyen / PayPal). Decorator at `cora/infrastructure/idempotency.py`; wrap applied in each BC's `wire.py`.
 
 - **Apply**: create-style commands (server generates id; retries would otherwise duplicate).
 - **Skip**: queries; updates not needing cached-success-on-retry.

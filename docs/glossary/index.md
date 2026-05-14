@@ -1,8 +1,8 @@
 # Glossary
 
-*Terms used in CORA code, commits, and design notes.*
+*One definition per term. Used everywhere.*
 
-The dictionary, browseable by category. For prose, see [Architecture](../architecture/index.md). For picks, see [Stack](../stack/index.md).
+Names are load-bearing. Drift in vocabulary is drift in the model. Each term here is defined once and used the same way in code, commits, and prose. If a page uses a term differently, the page is wrong.
 
 ## Pages
 
