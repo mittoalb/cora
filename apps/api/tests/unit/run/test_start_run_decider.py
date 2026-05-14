@@ -32,7 +32,10 @@ from cora.recipe.aggregates.plan import (
     Plan,
     PlanName,
     PlanStatus,
+    PlanWireAssetNotBoundError,
+    PlanWireDirectionMismatchError,
     PlanWirePortNotFoundError,
+    PlanWireSignalTypeMismatchError,
     Wire,
 )
 from cora.run.aggregates.run import (
@@ -714,3 +717,253 @@ def test_decide_rejects_when_plan_wire_references_removed_port() -> None:
             now=_NOW,
             new_id=uuid4(),
         )
+
+
+def _wire_capable_assets(
+    src_id: UUID,
+    tgt_id: UUID,
+    *,
+    cap: UUID,
+    src_direction: PortDirection = PortDirection.OUTPUT,
+    tgt_direction: PortDirection = PortDirection.INPUT,
+    src_signal_type: str = "TTL",
+    tgt_signal_type: str = "TTL",
+) -> tuple[Asset, Asset]:
+    """Helper: a pair of Assets each carrying one port suitable for a
+    trigger_out -> trigger_in wire. Direction / signal_type knobs let
+    drift-regression tests model "operator changed the port shape after
+    the wire was added"."""
+    src_asset = Asset(
+        id=src_id,
+        name=AssetName("PandABox"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        lifecycle=AssetLifecycle.ACTIVE,
+        capabilities=frozenset({cap}),
+        ports=frozenset(
+            {AssetPort(name="trigger_out", direction=src_direction, signal_type=src_signal_type)}
+        ),
+    )
+    tgt_asset = Asset(
+        id=tgt_id,
+        name=AssetName("Camera"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        lifecycle=AssetLifecycle.ACTIVE,
+        capabilities=frozenset({cap}),
+        ports=frozenset(
+            {AssetPort(name="trigger_in", direction=tgt_direction, signal_type=tgt_signal_type)}
+        ),
+    )
+    return src_asset, tgt_asset
+
+
+def _trigger_wire(src_id: UUID, tgt_id: UUID) -> Wire:
+    return Wire(
+        source_asset_id=src_id,
+        source_port_name="trigger_out",
+        target_asset_id=tgt_id,
+        target_port_name="trigger_in",
+    )
+
+
+@pytest.mark.unit
+def test_decide_rejects_when_plan_wire_references_unbound_asset_at_run_start() -> None:
+    """Hot-swap drift: the wire's target Asset was UNBOUND from Plan.asset_ids
+    after the wire was added (e.g., operator re-defined the Plan with a
+    different asset set, or a future re-bind slice removed it). The Wire
+    survives in Plan.wires; Run-start re-validation catches the orphan."""
+    cap = uuid4()
+    src_id = uuid4()
+    tgt_id = uuid4()  # NOT in plan.asset_ids
+    src_asset, tgt_asset = _wire_capable_assets(src_id, tgt_id, cap=cap)
+    plan = Plan(
+        id=uuid4(),
+        name=PlanName("Run"),
+        practice_id=uuid4(),
+        asset_ids=frozenset({src_id}),  # only src is bound
+        status=PlanStatus.DEFINED,
+        method_id=uuid4(),
+        wires=frozenset({_trigger_wire(src_id, tgt_id)}),
+    )
+    context = RunStartContext(
+        plan=plan,
+        subject=_subject(),
+        assets={src_id: src_asset, tgt_id: tgt_asset},
+    )
+    with pytest.raises(PlanWireAssetNotBoundError) as exc_info:
+        start_run.decide(
+            state=None,
+            command=StartRun(name="Run", plan_id=plan.id, subject_id=_subject().id),
+            context=context,
+            needs_capabilities_snapshot=frozenset({cap}),
+            effective_parameters={},
+            method_parameters_schema=None,
+            now=_NOW,
+            new_id=uuid4(),
+        )
+    assert tgt_id in exc_info.value.missing_asset_ids
+
+
+@pytest.mark.unit
+def test_decide_rejects_when_plan_wire_target_port_direction_flipped() -> None:
+    """Hot-swap drift: the target port was removed and re-added with
+    direction=OUTPUT after the wire was added. Run-start re-validation
+    catches the direction violation."""
+    cap = uuid4()
+    src_id = uuid4()
+    tgt_id = uuid4()
+    src_asset, tgt_asset = _wire_capable_assets(
+        src_id, tgt_id, cap=cap, tgt_direction=PortDirection.OUTPUT
+    )
+    plan = Plan(
+        id=uuid4(),
+        name=PlanName("Run"),
+        practice_id=uuid4(),
+        asset_ids=frozenset({src_id, tgt_id}),
+        status=PlanStatus.DEFINED,
+        method_id=uuid4(),
+        wires=frozenset({_trigger_wire(src_id, tgt_id)}),
+    )
+    context = RunStartContext(
+        plan=plan,
+        subject=_subject(),
+        assets={src_id: src_asset, tgt_id: tgt_asset},
+    )
+    with pytest.raises(PlanWireDirectionMismatchError):
+        start_run.decide(
+            state=None,
+            command=StartRun(name="Run", plan_id=plan.id, subject_id=_subject().id),
+            context=context,
+            needs_capabilities_snapshot=frozenset({cap}),
+            effective_parameters={},
+            method_parameters_schema=None,
+            now=_NOW,
+            new_id=uuid4(),
+        )
+
+
+@pytest.mark.unit
+def test_decide_rejects_when_plan_wire_signal_type_changed() -> None:
+    """Hot-swap drift: the target port was removed and re-added with a
+    different signal_type after the wire was added. Run-start re-
+    validation catches the type mismatch."""
+    cap = uuid4()
+    src_id = uuid4()
+    tgt_id = uuid4()
+    src_asset, tgt_asset = _wire_capable_assets(src_id, tgt_id, cap=cap, tgt_signal_type="LVDS")
+    plan = Plan(
+        id=uuid4(),
+        name=PlanName("Run"),
+        practice_id=uuid4(),
+        asset_ids=frozenset({src_id, tgt_id}),
+        status=PlanStatus.DEFINED,
+        method_id=uuid4(),
+        wires=frozenset({_trigger_wire(src_id, tgt_id)}),
+    )
+    context = RunStartContext(
+        plan=plan,
+        subject=_subject(),
+        assets={src_id: src_asset, tgt_id: tgt_asset},
+    )
+    with pytest.raises(PlanWireSignalTypeMismatchError) as exc_info:
+        start_run.decide(
+            state=None,
+            command=StartRun(name="Run", plan_id=plan.id, subject_id=_subject().id),
+            context=context,
+            needs_capabilities_snapshot=frozenset({cap}),
+            effective_parameters={},
+            method_parameters_schema=None,
+            now=_NOW,
+            new_id=uuid4(),
+        )
+    assert exc_info.value.source_signal_type == "TTL"
+    assert exc_info.value.target_signal_type == "LVDS"
+
+
+@pytest.mark.unit
+def test_decide_revalidation_fails_fast_on_first_invalid_wire_in_a_set() -> None:
+    """Multi-wire selectivity: the re-validation loop iterates wires;
+    when wire #1 is valid and wire #2 is broken (port removed), the
+    decider raises on wire #2 — wire #1 doesn't mask the failure.
+    Pinned because the loop in start_run.decider uses a plain `for`
+    that re-raises on the first violator (no exception aggregation)."""
+    cap = uuid4()
+    src_id = uuid4()
+    tgt_id_1 = uuid4()
+    tgt_id_2 = uuid4()
+    # Two valid Asset pairs; tgt_id_2 ports removed (empty ports set).
+    src_asset = Asset(
+        id=src_id,
+        name=AssetName("PandABox"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        lifecycle=AssetLifecycle.ACTIVE,
+        capabilities=frozenset({cap}),
+        ports=frozenset(
+            {
+                AssetPort(name="trigger_out_1", direction=PortDirection.OUTPUT, signal_type="TTL"),
+                AssetPort(name="trigger_out_2", direction=PortDirection.OUTPUT, signal_type="TTL"),
+            }
+        ),
+    )
+    tgt_asset_1 = Asset(
+        id=tgt_id_1,
+        name=AssetName("Camera1"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        lifecycle=AssetLifecycle.ACTIVE,
+        capabilities=frozenset({cap}),
+        ports=frozenset(
+            {AssetPort(name="trigger_in", direction=PortDirection.INPUT, signal_type="TTL")}
+        ),
+    )
+    # tgt_2 is BOUND but its port was removed (drift).
+    tgt_asset_2 = Asset(
+        id=tgt_id_2,
+        name=AssetName("Camera2"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        lifecycle=AssetLifecycle.ACTIVE,
+        capabilities=frozenset({cap}),
+        ports=frozenset(),  # port removed since wire-add
+    )
+    wire_valid = Wire(
+        source_asset_id=src_id,
+        source_port_name="trigger_out_1",
+        target_asset_id=tgt_id_1,
+        target_port_name="trigger_in",
+    )
+    wire_broken = Wire(
+        source_asset_id=src_id,
+        source_port_name="trigger_out_2",
+        target_asset_id=tgt_id_2,
+        target_port_name="trigger_in",  # this port no longer exists
+    )
+    plan = Plan(
+        id=uuid4(),
+        name=PlanName("Run"),
+        practice_id=uuid4(),
+        asset_ids=frozenset({src_id, tgt_id_1, tgt_id_2}),
+        status=PlanStatus.DEFINED,
+        method_id=uuid4(),
+        wires=frozenset({wire_valid, wire_broken}),
+    )
+    context = RunStartContext(
+        plan=plan,
+        subject=_subject(),
+        assets={src_id: src_asset, tgt_id_1: tgt_asset_1, tgt_id_2: tgt_asset_2},
+    )
+    with pytest.raises(PlanWirePortNotFoundError) as exc_info:
+        start_run.decide(
+            state=None,
+            command=StartRun(name="Run", plan_id=plan.id, subject_id=_subject().id),
+            context=context,
+            needs_capabilities_snapshot=frozenset({cap}),
+            effective_parameters={},
+            method_parameters_schema=None,
+            now=_NOW,
+            new_id=uuid4(),
+        )
+    # The broken wire's target port name must appear in the diagnostic.
+    assert any("trigger_in" in entry[1] for entry in exc_info.value.missing)

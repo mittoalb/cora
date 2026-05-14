@@ -323,6 +323,81 @@ def test_decide_raises_direction_mismatch_when_source_is_input() -> None:
 
 
 @pytest.mark.unit
+def test_decide_raises_direction_mismatch_when_target_is_output() -> None:
+    """Target port must be INPUT; using an OUTPUT port as target rejects.
+
+    Covers the second branch of the boolean OR in wires_validation:
+    the case where source IS OUTPUT (passes its check) but target is
+    also OUTPUT (fails). Without this case, the target-direction
+    branch is never exercised."""
+    src_id = uuid4()
+    tgt_id = uuid4()
+    state = _plan(asset_ids=frozenset({src_id, tgt_id}))
+    with pytest.raises(PlanWireDirectionMismatchError) as exc_info:
+        add_plan_wire.decide(
+            state=state,
+            command=AddPlanWire(
+                plan_id=state.id,
+                source_asset_id=src_id,
+                source_port_name="trigger_out",
+                target_asset_id=tgt_id,
+                target_port_name="actually_output",
+            ),
+            context=PlanWireContext(
+                assets={
+                    src_id: _asset(
+                        asset_id=src_id,
+                        ports=_ports(("trigger_out", PortDirection.OUTPUT, "TTL")),
+                    ),
+                    tgt_id: _asset(
+                        asset_id=tgt_id,
+                        ports=_ports(("actually_output", PortDirection.OUTPUT, "TTL")),
+                    ),
+                }
+            ),
+            now=_NOW,
+        )
+    assert exc_info.value.actual_source_direction == "Output"
+    assert exc_info.value.actual_target_direction == "Output"
+
+
+@pytest.mark.unit
+def test_decide_raises_direction_mismatch_when_both_endpoints_are_output() -> None:
+    """Both endpoints OUTPUT: the boolean OR fires on both branches; the
+    error carries both actual directions for diagnostics."""
+    src_id = uuid4()
+    tgt_id = uuid4()
+    state = _plan(asset_ids=frozenset({src_id, tgt_id}))
+    with pytest.raises(PlanWireDirectionMismatchError) as exc_info:
+        add_plan_wire.decide(
+            state=state,
+            command=AddPlanWire(
+                plan_id=state.id,
+                source_asset_id=src_id,
+                source_port_name="out_a",
+                target_asset_id=tgt_id,
+                target_port_name="out_b",
+            ),
+            context=PlanWireContext(
+                assets={
+                    src_id: _asset(
+                        asset_id=src_id,
+                        ports=_ports(("out_a", PortDirection.OUTPUT, "TTL")),
+                    ),
+                    tgt_id: _asset(
+                        asset_id=tgt_id,
+                        ports=_ports(("out_b", PortDirection.OUTPUT, "TTL")),
+                    ),
+                }
+            ),
+            now=_NOW,
+        )
+    # Source is OUTPUT (passes its OUTPUT check) but target is also OUTPUT.
+    # The error message lists both actuals — one of them must be "wrong".
+    assert exc_info.value.actual_target_direction == "Output"
+
+
+@pytest.mark.unit
 def test_decide_raises_signal_type_mismatch_on_different_signal_types() -> None:
     """Source and target signal_type must match exactly."""
     src_id = uuid4()
