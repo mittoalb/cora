@@ -5,8 +5,10 @@ case forces pyright (and the runtime) to error if a new event type
 is added to `DatasetEvent` without a matching match arm here.
 
 Status mapping per event type:
-  - `DatasetRegistered` -> REGISTERED  (genesis)
+  - `DatasetRegistered` -> REGISTERED  (genesis); intent defaults to TRIAL
   - `DatasetDiscarded`  -> DISCARDED   (terminal)
+  - `DatasetPromoted`   -> status preserved (orthogonal to lifecycle;
+                                              flips intent to PRODUCTION; 7e)
 
 The mapping is hardcoded per match arm; the event type IS the
 state-change indicator (no status field in event payloads). Same
@@ -17,16 +19,16 @@ Dataset field through from prior state. Constructing
 `Dataset(id=..., name=..., uri=..., checksum=..., byte_size=...,
 encoding=..., status=...)` without explicitly passing the optional
 cross-aggregate refs (`producing_run_id`, `subject_id`,
-`derived_from`) would silently WIPE them to defaults (None / empty
-frozenset). Aligned to explicit construction post-domain-audit to
-match the documented pattern in
+`derived_from`) AND the 7e additions (`producing_run_end_state`,
+`intent`) would silently WIPE them to defaults. Aligned to explicit
+construction post-domain-audit to match the documented pattern in
 Asset/Plan/Method/Practice/Capability/Subject evolvers.
 
-Defensive guard: `DatasetDiscarded` arm raises on `state is None`
-(the parent Dataset must exist before the discard event). If a
-stream contains DatasetDiscarded without a prior DatasetRegistered,
-the stream is corrupted and the evolver fails loud. The
-`_require_state` helper keeps per-arm bodies short.
+Defensive guard: `DatasetDiscarded` and `DatasetPromoted` arms raise
+on `state is None` (the parent Dataset must exist before any
+transition event). If a stream contains a transition without a prior
+DatasetRegistered, the stream is corrupted and the evolver fails
+loud. The `_require_state` helper keeps per-arm bodies short.
 """
 
 from collections.abc import Sequence
@@ -35,6 +37,7 @@ from typing import assert_never
 from cora.data.aggregates.dataset.events import (
     DatasetDiscarded,
     DatasetEvent,
+    DatasetPromoted,
     DatasetRegistered,
 )
 from cora.data.aggregates.dataset.state import (
@@ -44,6 +47,7 @@ from cora.data.aggregates.dataset.state import (
     DatasetName,
     DatasetStatus,
     DatasetUri,
+    Intent,
 )
 
 
@@ -70,6 +74,8 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
             producing_run_id=producing_run_id,
             subject_id=subject_id,
             derived_from=derived_from,
+            producing_run_end_state=producing_run_end_state,
+            intent=intent,
         ):
             _ = state  # DatasetRegistered is the genesis event; prior state ignored.
             return Dataset(
@@ -89,6 +95,10 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 subject_id=subject_id,
                 derived_from=derived_from,
                 status=DatasetStatus.REGISTERED,
+                # Phase 7e: carry from event payload (default-handled
+                # via payload.get for pre-7e events in from_stored).
+                producing_run_end_state=producing_run_end_state,
+                intent=Intent(intent),
             )
         case DatasetDiscarded():
             prior = _require_state(state, "DatasetDiscarded")
@@ -103,6 +113,28 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 subject_id=prior.subject_id,
                 derived_from=prior.derived_from,
                 status=DatasetStatus.DISCARDED,
+                # Phase 7e carry-through: discard preserves intent +
+                # producing_run_end_state (audit-relevant historical artifacts).
+                producing_run_end_state=prior.producing_run_end_state,
+                intent=prior.intent,
+            )
+        case DatasetPromoted():
+            prior = _require_state(state, "DatasetPromoted")
+            return Dataset(
+                id=prior.id,
+                name=prior.name,
+                uri=prior.uri,
+                checksum=prior.checksum,
+                byte_size=prior.byte_size,
+                encoding=prior.encoding,
+                producing_run_id=prior.producing_run_id,
+                subject_id=prior.subject_id,
+                derived_from=prior.derived_from,
+                # Status preserved (intent is orthogonal to lifecycle).
+                status=prior.status,
+                producing_run_end_state=prior.producing_run_end_state,
+                # The state change: intent flips Trial -> Production.
+                intent=Intent.PRODUCTION,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

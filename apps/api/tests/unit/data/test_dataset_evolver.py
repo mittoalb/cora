@@ -12,8 +12,11 @@ import pytest
 
 from cora.data.aggregates.dataset import (
     DATASET_CHECKSUM_SHA256_HEX_LENGTH,
+    DatasetDiscarded,
+    DatasetPromoted,
     DatasetRegistered,
     DatasetStatus,
+    Intent,
     evolve,
     fold,
 )
@@ -104,3 +107,122 @@ def test_fold_single_register_event_returns_dataset() -> None:
     state = fold([event])
     assert state is not None
     assert state.status is DatasetStatus.REGISTERED
+
+
+# ---------- Phase 7e: intent + producing_run_end_state on DatasetRegistered ----------
+
+
+@pytest.mark.unit
+def test_evolve_registered_defaults_intent_to_trial() -> None:
+    """New Datasets land in Trial intent on registration."""
+    event = DatasetRegistered(
+        dataset_id=uuid4(),
+        name="D",
+        uri="s3://b/k",
+        checksum_algorithm="sha256",
+        checksum_value=_GOOD_SHA256,
+        byte_size=0,
+        media_type="application/x-hdf5",
+        conforms_to=frozenset(),
+        producing_run_id=None,
+        subject_id=None,
+        derived_from=frozenset(),
+        occurred_at=_NOW,
+    )
+    state = evolve(state=None, event=event)
+    assert state.intent is Intent.TRIAL
+    assert state.producing_run_end_state is None
+
+
+@pytest.mark.unit
+def test_evolve_registered_captures_producing_run_end_state_when_provided() -> None:
+    """When the handler captured the Run's end_state at registration,
+    the evolver carries it through to state."""
+    event = DatasetRegistered(
+        dataset_id=uuid4(),
+        name="D",
+        uri="s3://b/k",
+        checksum_algorithm="sha256",
+        checksum_value=_GOOD_SHA256,
+        byte_size=0,
+        media_type="application/x-hdf5",
+        conforms_to=frozenset(),
+        producing_run_id=uuid4(),
+        subject_id=None,
+        derived_from=frozenset(),
+        occurred_at=_NOW,
+        producing_run_end_state="Completed",
+    )
+    state = evolve(state=None, event=event)
+    assert state.producing_run_end_state == "Completed"
+
+
+# ---------- Phase 7e: DatasetPromoted arm ----------
+
+
+def _registered_event() -> DatasetRegistered:
+    return DatasetRegistered(
+        dataset_id=uuid4(),
+        name="D",
+        uri="s3://b/k",
+        checksum_algorithm="sha256",
+        checksum_value=_GOOD_SHA256,
+        byte_size=0,
+        media_type="application/x-hdf5",
+        conforms_to=frozenset(),
+        producing_run_id=None,
+        subject_id=None,
+        derived_from=frozenset(),
+        occurred_at=_NOW,
+    )
+
+
+@pytest.mark.unit
+def test_evolve_promoted_flips_intent_to_production() -> None:
+    """DatasetPromoted arm: intent goes Trial -> Production; status preserved."""
+    register = _registered_event()
+    promoted = DatasetPromoted(
+        dataset_id=register.dataset_id,
+        reason="passed review",
+        occurred_at=_NOW,
+    )
+    state = fold([register, promoted])
+    assert state is not None
+    assert state.intent is Intent.PRODUCTION
+    # Status preserved (intent is orthogonal to lifecycle).
+    assert state.status is DatasetStatus.REGISTERED
+
+
+@pytest.mark.unit
+def test_evolve_discarded_after_promoted_preserves_intent() -> None:
+    """Carry-through invariant: DatasetDiscarded preserves intent
+    (audit-relevant historical artifact)."""
+    register = _registered_event()
+    promoted = DatasetPromoted(
+        dataset_id=register.dataset_id,
+        reason="passed review",
+        occurred_at=_NOW,
+    )
+    discarded = DatasetDiscarded(
+        dataset_id=register.dataset_id,
+        reason="bytes purged",
+        occurred_at=_NOW,
+    )
+    state = fold([register, promoted, discarded])
+    assert state is not None
+    assert state.status is DatasetStatus.DISCARDED
+    # Intent preserved across discard (we keep the audit signal that
+    # this was once promoted to Production).
+    assert state.intent is Intent.PRODUCTION
+
+
+@pytest.mark.unit
+def test_evolve_promoted_raises_on_empty_state() -> None:
+    """Defensive guard: DatasetPromoted requires prior state."""
+    promoted = DatasetPromoted(
+        dataset_id=uuid4(),
+        reason="trying",
+        occurred_at=_NOW,
+    )
+    with pytest.raises(ValueError, match="DatasetPromoted"):
+        evolve(state=None, event=promoted)

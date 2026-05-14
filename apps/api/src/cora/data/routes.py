@@ -33,7 +33,9 @@ other BC.
   - 409 (cross-aggregate refs): ProducingRunNotFoundError,
     LinkedSubjectNotFoundError, DerivedFromDatasetsNotFoundError,
     DerivedFromDatasetsDiscardedError (7b)
-  - 409 (Dataset transition guards, 7b): DatasetCannotDiscardError
+  - 409 (Dataset transition guards, 7b + 7e): DatasetCannotDiscardError,
+    DatasetCannotPromoteError, DatasetAlreadyPromotedError
+  - 400 (validation, 7e adds): InvalidPromotionReasonError
 """
 
 from fastapi import FastAPI, Request, status
@@ -41,7 +43,9 @@ from fastapi.responses import JSONResponse
 
 from cora.data.aggregates.dataset import (
     DatasetAlreadyExistsError,
+    DatasetAlreadyPromotedError,
     DatasetCannotDiscardError,
+    DatasetCannotPromoteError,
     DatasetNotFoundError,
     DerivedFromDatasetsDiscardedError,
     DerivedFromDatasetsNotFoundError,
@@ -52,11 +56,18 @@ from cora.data.aggregates.dataset import (
     InvalidDatasetNameError,
     InvalidDatasetUriError,
     InvalidDerivedFromError,
+    InvalidPromotionReasonError,
     LinkedSubjectNotFoundError,
     ProducingRunNotFoundError,
 )
 from cora.data.errors import UnauthorizedError
-from cora.data.features import discard_dataset, get_dataset, list_datasets, register_dataset
+from cora.data.features import (
+    discard_dataset,
+    get_dataset,
+    list_datasets,
+    promote_dataset,
+    register_dataset,
+)
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -132,6 +143,7 @@ def register_data_routes(app: FastAPI) -> None:
     """Attach Data slice routers and exception handlers to the FastAPI app."""
     app.include_router(register_dataset.router)
     app.include_router(discard_dataset.router)
+    app.include_router(promote_dataset.router)
     app.include_router(get_dataset.router)
     app.include_router(list_datasets.router)
     for validation_cls in (
@@ -142,6 +154,8 @@ def register_data_routes(app: FastAPI) -> None:
         InvalidDatasetEncodingError,
         InvalidDerivedFromError,
         InvalidDatasetDiscardReasonError,
+        # 7e validation guard: free-form promotion reason length check.
+        InvalidPromotionReasonError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (DatasetNotFoundError,):
@@ -155,6 +169,14 @@ def register_data_routes(app: FastAPI) -> None:
         DerivedFromDatasetsDiscardedError,
     ):
         app.add_exception_handler(cross_agg_cls, _handle_cross_agg_conflict)
-    for cannot_transition_cls in (DatasetCannotDiscardError,):
+    for cannot_transition_cls in (
+        DatasetCannotDiscardError,
+        # 7e transition / promotion guards. Both surface as 409 with
+        # the same body shape; cannot-promote covers Discarded /
+        # Run-not-Completed / lineage-not-Production branches; already-
+        # promoted is the strict-not-idempotent re-promote rejection.
+        DatasetCannotPromoteError,
+        DatasetAlreadyPromotedError,
+    ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

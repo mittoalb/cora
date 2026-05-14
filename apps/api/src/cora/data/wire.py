@@ -24,7 +24,13 @@ strict-not-idempotent so retries are domain-safe via
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.data.features import discard_dataset, get_dataset, list_datasets, register_dataset
+from cora.data.features import (
+    discard_dataset,
+    get_dataset,
+    list_datasets,
+    promote_dataset,
+    register_dataset,
+)
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
@@ -43,6 +49,7 @@ class DataHandlers:
 
     register_dataset: register_dataset.IdempotentHandler
     discard_dataset: discard_dataset.Handler
+    promote_dataset: promote_dataset.Handler
     get_dataset: get_dataset.Handler
     list_datasets: list_datasets.Handler
 
@@ -67,6 +74,11 @@ def wire_data(deps: Kernel) -> DataHandlers:
         discard_dataset=with_tracing(
             discard_dataset.bind(deps),
             command_name="DiscardDataset",
+            bc=_BC,
+        ),
+        promote_dataset=with_tracing(
+            promote_dataset.bind(deps),
+            command_name="PromoteDataset",
             bc=_BC,
         ),
         get_dataset=with_tracing(

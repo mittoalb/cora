@@ -7,12 +7,14 @@ import pytest
 
 from cora.data.aggregates.dataset import (
     DATASET_CHECKSUM_SHA256_HEX_LENGTH,
+    DatasetPromoted,
     DatasetRegistered,
     event_type_name,
     from_stored,
     to_payload,
 )
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.ports.event_store import StoredEvent
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
@@ -66,6 +68,9 @@ def test_to_payload_serializes_all_fields_with_nulls_and_empties() -> None:
         "subject_id": None,
         "derived_from": [],
         "occurred_at": _NOW.isoformat(),
+        # Phase 7e additive fields (default values when not specified):
+        "producing_run_end_state": None,
+        "intent": "Trial",
     }
 
 
@@ -193,3 +198,128 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
     )
     with pytest.raises(ValueError, match="DatasetTeleported"):
         from_stored(stored)
+
+
+# ---------- Phase 7e additive evolution: DatasetRegistered new fields ----------
+
+
+@pytest.mark.unit
+def test_to_payload_includes_phase_7e_fields_when_set() -> None:
+    """When Run is captured at registration, payload carries the
+    end_state and intent."""
+    event = DatasetRegistered(
+        dataset_id=uuid4(),
+        name="D",
+        uri="s3://b/k",
+        checksum_algorithm="sha256",
+        checksum_value=_GOOD_SHA256,
+        byte_size=0,
+        media_type="application/x-hdf5",
+        conforms_to=frozenset(),
+        producing_run_id=uuid4(),
+        subject_id=None,
+        derived_from=frozenset(),
+        occurred_at=_NOW,
+        producing_run_end_state="Completed",
+        intent="Trial",
+    )
+    payload = to_payload(event)
+    assert payload["producing_run_end_state"] == "Completed"
+    assert payload["intent"] == "Trial"
+
+
+@pytest.mark.unit
+def test_from_stored_pre_7e_dataset_registered_folds_with_defaults() -> None:
+    """Backward compat: pre-7e DatasetRegistered events (without
+    producing_run_end_state or intent in the payload) fold cleanly
+    via payload.get defaults: end_state=None, intent='Trial'."""
+    dataset_id = uuid4()
+    pre_7e_payload: dict[str, object] = {
+        "dataset_id": str(dataset_id),
+        "name": "D",
+        "uri": "s3://b/k",
+        "checksum": {"algorithm": "sha256", "value": _GOOD_SHA256},
+        "byte_size": 0,
+        "encoding": {"media_type": "application/x-hdf5", "conforms_to": []},
+        "producing_run_id": None,
+        "subject_id": None,
+        "derived_from": [],
+        "occurred_at": _NOW.isoformat(),
+        # NOTE: producing_run_end_state + intent deliberately ABSENT
+    }
+    stored = StoredEvent(
+        position=1,
+        event_id=uuid4(),
+        stream_type="Dataset",
+        stream_id=dataset_id,
+        version=1,
+        event_type="DatasetRegistered",
+        schema_version=1,
+        payload=pre_7e_payload,
+        correlation_id=uuid4(),
+        causation_id=None,
+        occurred_at=_NOW,
+        recorded_at=_NOW,
+        metadata={},
+    )
+    event = from_stored(stored)
+    assert isinstance(event, DatasetRegistered)
+    assert event.producing_run_end_state is None
+    assert event.intent == "Trial"
+
+
+# ---------- Phase 7e: DatasetPromoted ----------
+
+
+@pytest.mark.unit
+def test_dataset_promoted_event_type_name() -> None:
+    event = DatasetPromoted(dataset_id=uuid4(), reason="passed review", occurred_at=_NOW)
+    assert event_type_name(event) == "DatasetPromoted"
+
+
+@pytest.mark.unit
+def test_dataset_promoted_to_payload_serializes_primitive_fields() -> None:
+    dataset_id = uuid4()
+    event = DatasetPromoted(dataset_id=dataset_id, reason="passed review", occurred_at=_NOW)
+    payload = to_payload(event)
+    assert payload == {
+        "dataset_id": str(dataset_id),
+        "reason": "passed review",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_dataset_promoted_round_trip_through_stored() -> None:
+    """Full round-trip: original -> to_payload -> from_stored == original."""
+    original = DatasetPromoted(
+        dataset_id=uuid4(),
+        reason="initial promotion",
+        occurred_at=_NOW,
+    )
+    new_event = to_new_event(
+        event_type=event_type_name(original),
+        payload=to_payload(original),
+        occurred_at=original.occurred_at,
+        event_id=uuid4(),
+        command_name="PromoteDataset",
+        correlation_id=uuid4(),
+        principal_id=uuid4(),
+    )
+    stored = StoredEvent(
+        position=1,
+        event_id=new_event.event_id,
+        stream_type="Dataset",
+        stream_id=original.dataset_id,
+        version=1,
+        event_type="DatasetPromoted",
+        schema_version=1,
+        payload=new_event.payload,
+        correlation_id=new_event.correlation_id,
+        causation_id=new_event.causation_id,
+        occurred_at=new_event.occurred_at,
+        recorded_at=_NOW,
+        metadata=new_event.metadata,
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == original

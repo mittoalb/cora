@@ -1,0 +1,89 @@
+"""Unit tests for the new 7e value objects: Intent enum + PromotionReason VO.
+
+Pin:
+  - Intent enum values are exact strings (Trial / Production); StrEnum
+    serializes naturally as those strings.
+  - PromotionReason VO trims whitespace + validates length.
+  - Open-enum stance: future values land additively without breaking
+    pre-7e DatasetRegistered events.
+"""
+
+import pytest
+
+from cora.data.aggregates.dataset import (
+    DATASET_PROMOTION_REASON_MAX_LENGTH,
+    Intent,
+    InvalidPromotionReasonError,
+    PromotionReason,
+)
+
+# ---------- Intent ----------
+
+
+@pytest.mark.unit
+def test_intent_values_match_locked_strings() -> None:
+    """Pin the exact serialized strings — these are persisted in event
+    payloads and breaking them is a payload-format change."""
+    assert Intent.TRIAL.value == "Trial"
+    assert Intent.PRODUCTION.value == "Production"
+
+
+@pytest.mark.unit
+def test_intent_string_round_trip() -> None:
+    """Intent("Trial") and Intent("Production") roundtrip cleanly via
+    the StrEnum constructor — used by the evolver to rebuild from
+    the raw string in the event payload."""
+    assert Intent("Trial") is Intent.TRIAL
+    assert Intent("Production") is Intent.PRODUCTION
+
+
+@pytest.mark.unit
+def test_intent_unknown_value_raises() -> None:
+    """Unknown intent strings raise ValueError — protects against
+    payload corruption / typos at fold time."""
+    with pytest.raises(ValueError, match="Calibration"):
+        Intent("Calibration")  # not a current value (open-enum future)
+
+
+# ---------- PromotionReason ----------
+
+
+@pytest.mark.unit
+def test_promotion_reason_trims_whitespace() -> None:
+    reason = PromotionReason("  passed peer review  ")
+    assert reason.value == "passed peer review"
+
+
+@pytest.mark.unit
+def test_promotion_reason_accepts_max_length() -> None:
+    at_max = "x" * DATASET_PROMOTION_REASON_MAX_LENGTH
+    reason = PromotionReason(at_max)
+    assert reason.value == at_max
+
+
+@pytest.mark.unit
+def test_promotion_reason_rejects_empty() -> None:
+    with pytest.raises(InvalidPromotionReasonError):
+        PromotionReason("")
+
+
+@pytest.mark.unit
+def test_promotion_reason_rejects_whitespace_only() -> None:
+    with pytest.raises(InvalidPromotionReasonError):
+        PromotionReason("   ")
+
+
+@pytest.mark.unit
+def test_promotion_reason_rejects_overlong() -> None:
+    overlong = "x" * (DATASET_PROMOTION_REASON_MAX_LENGTH + 1)
+    with pytest.raises(InvalidPromotionReasonError):
+        PromotionReason(overlong)
+
+
+@pytest.mark.unit
+def test_promotion_reason_is_hashable_and_equatable() -> None:
+    """Frozen dataclass: same trimmed value -> equal instances."""
+    a = PromotionReason("passed review")
+    b = PromotionReason("  passed review  ")  # trims to same
+    assert a == b
+    assert hash(a) == hash(b)

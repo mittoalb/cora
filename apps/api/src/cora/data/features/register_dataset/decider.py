@@ -121,6 +121,18 @@ def decide(
     if discarded_derived:
         raise DerivedFromDatasetsDiscardedError(discarded_derived)
 
+    # Phase 7e: capture producing Run's terminal status at registration
+    # (per non-determinism principle: capture, don't recompute). The
+    # Run is in some end state by the time a Dataset references it
+    # — production scenario expects Completed, but the Run may be
+    # Running / Held / Aborted / Stopped / Truncated at register time
+    # because in-situ measurements register Datasets while the Run
+    # is still active. The captured value powers promote_dataset's
+    # Run-must-be-Completed guard later.
+    producing_run_end_state: str | None = (
+        context.producing_run.status.value if context.producing_run is not None else None
+    )
+
     return [
         DatasetRegistered(
             dataset_id=new_id,
@@ -135,5 +147,8 @@ def decide(
             subject_id=command.subject_id,
             derived_from=derived_from,
             occurred_at=now,
+            producing_run_end_state=producing_run_end_state,
+            # intent defaults to "Trial" on the dataclass; promotion is a
+            # separate explicit slice (promote_dataset).
         )
     ]

@@ -120,6 +120,8 @@ DATASET_DERIVED_FROM_MAX_ENTRIES = 64
 DATASET_CHECKSUM_ALGORITHM_SHA256 = "sha256"
 DATASET_CHECKSUM_SHA256_HEX_LENGTH = 64
 DATASET_DISCARD_REASON_MAX_LENGTH = 500
+DATASET_PROMOTION_REASON_MAX_LENGTH = 500
+RUN_END_STATE_COMPLETED = "Completed"  # raw string match against Run BC's RunStatus.COMPLETED.value
 
 # URI schemes that are never legitimate Dataset URIs and that pose
 # XSS risk if a downstream UI renders the URI as a clickable link.
@@ -153,6 +155,30 @@ class DatasetStatus(StrEnum):
 
     REGISTERED = "Registered"
     DISCARDED = "Discarded"
+
+
+class Intent(StrEnum):
+    """The Dataset's trust level / promotion state (Phase 7e).
+
+    `Trial`: default on register. Working data — calibration scans,
+    alignment runs, exposure tests, exploratory acquisitions. Not
+    authoritative; no peer-reviewed claims attached.
+
+    `Production`: explicitly promoted via `promote_dataset`.
+    Publication-grade, citable. Operator's intent is "this is the
+    keeper"; the audit log captures WHY (PromotionReason) immutably.
+
+    Open enum: future values (Calibration, Superseded, Retracted,
+    Authoritative) land additively without breaking existing payloads
+    (additive-state pattern). See [[project_dataset_lineage_design]].
+
+    Distinct from `DatasetStatus` (Registered | Discarded) which
+    captures lifecycle. Intent captures trust level — orthogonal to
+    lifecycle, mutated by a separate slice (`promote_dataset`).
+    """
+
+    TRIAL = "Trial"
+    PRODUCTION = "Production"
 
 
 class InvalidDatasetNameError(ValueError):
@@ -372,6 +398,95 @@ class DatasetCannotDiscardError(Exception):
         self.current_status = current_status
 
 
+class InvalidPromotionReasonError(ValueError):
+    """The supplied promotion reason is empty, whitespace-only, or too long.
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the decider via this error. Mirrors the
+    InvalidDatasetDiscardReasonError shape exactly — same free-form
+    `str` (1-500 chars) posture, same future-additive structured-
+    taxonomy re-evaluation triggers (see RunAbortReason vocabulary
+    convergence triggers).
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Dataset promotion reason must be 1-{DATASET_PROMOTION_REASON_MAX_LENGTH} chars "
+            f"after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+class DatasetAlreadyPromotedError(Exception):
+    """Attempted to promote a Dataset that's already in `Production` intent.
+
+    Strict-not-idempotent: re-promote raises rather than silent no-op
+    (same posture as `add_plan_wire`, `add_asset_port`, every other
+    add-style mutation in the codebase). Operators get clear feedback
+    on accidental double-promote.
+
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, dataset_id: UUID, current_intent: "Intent") -> None:
+        super().__init__(
+            f"Dataset {dataset_id} cannot be promoted: currently in intent "
+            f"{current_intent.value}, promotion requires {Intent.TRIAL.value}"
+        )
+        self.dataset_id = dataset_id
+        self.current_intent = current_intent
+
+
+class DatasetCannotPromoteError(Exception):
+    """A guard rejected the promotion to Production (Phase 7e).
+
+    Three branches, all surfaced via this single error class with a
+    branch-specific reason string:
+
+      - `dataset is discarded; cannot promote` (status guard)
+      - `producing Run X ended in <state>; only Completed Runs can
+        produce Production datasets` (Run-must-be-Completed guard)
+      - `derived_from Datasets [...] are still Trial; cannot promote
+        dataset above its inputs` (lineage-must-be-Production guard;
+        mirrors the lineage-into-Discarded guard from 7c)
+
+    Mapped to HTTP 409. Carries the offending entity ids in the
+    reason string for operator clarity.
+    """
+
+    def __init__(self, dataset_id: UUID, reason: str) -> None:
+        super().__init__(f"Dataset {dataset_id} cannot be promoted: {reason}")
+        self.dataset_id = dataset_id
+        self.reason = reason
+
+
+@dataclass(frozen=True)
+class PromotionReason:
+    """Free-form promotion reason. Trimmed; 1-500 chars.
+
+    Mirrors DatasetDiscardReason / RunStopReason / RunTruncateReason /
+    RunAbortReason precedent. The on-the-wire representation in
+    `DatasetPromoted.reason` is `str` (post-trim); the VO exists at
+    decider-input time only to centralize the validation.
+
+    Free-form `str` shape with the same future-additive structured-
+    taxonomy posture (re-evaluation triggers documented at the Run BC's
+    reason-error classes apply identically here).
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_bounded_text(
+            self.value,
+            max_length=DATASET_PROMOTION_REASON_MAX_LENGTH,
+            error_class=InvalidPromotionReasonError,
+        )
+        object.__setattr__(self, "value", trimmed)
+
+
 @dataclass(frozen=True)
 class DatasetDiscardReason:
     """Free-form discard reason. Trimmed; 1-500 chars.
@@ -568,6 +683,19 @@ class Dataset:
 
     `status` defaults to `Registered`; the lifecycle FSM expands in
     7b (Discarded terminal) and later phases.
+
+    `producing_run_end_state` (Phase 7e): captures the producing
+    Run's terminal status at the moment of Dataset registration
+    (per non-determinism principle: capture, don't recompute). Null
+    when there's no producing_run_id (standalone-upload Dataset) OR
+    for legacy DatasetRegistered events from before 7e (pre-7e events
+    fold cleanly via payload.get default). Powers the
+    `promote_dataset` Run-must-be-Completed guard.
+
+    `intent` (Phase 7e): trust level / promotion state, orthogonal to
+    `status` (lifecycle). Defaults to `Trial`; flipped to `Production`
+    by an explicit `promote_dataset` call with audit reason. See
+    [[project_dataset_lineage_design]].
     """
 
     id: UUID
@@ -580,3 +708,6 @@ class Dataset:
     subject_id: UUID | None = None
     derived_from: frozenset[UUID] = field(default_factory=frozenset[UUID])
     status: DatasetStatus = DatasetStatus.REGISTERED
+    # Phase 7e additions:
+    producing_run_end_state: str | None = None
+    intent: Intent = Intent.TRIAL

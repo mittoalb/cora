@@ -55,6 +55,14 @@ class DatasetRegistered:
     primitives). VOs (`DatasetChecksum`, `DatasetEncoding`) are
     reconstructed by the evolver on fold; the decider unwraps VOs
     before constructing the event.
+
+    Phase 7e additions (additive, forward-compat):
+      - `producing_run_end_state: str | None`: Run's terminal status
+        captured at registration when producing_run_id is set; None
+        otherwise. Pre-7e events fold cleanly with this defaulting
+        to None (payload.get).
+      - `intent: str`: trust level (Intent.value); defaults to "Trial"
+        on register. Pre-7e events fold cleanly with default "Trial".
     """
 
     dataset_id: UUID
@@ -68,6 +76,28 @@ class DatasetRegistered:
     producing_run_id: UUID | None
     subject_id: UUID | None
     derived_from: frozenset[UUID]
+    occurred_at: datetime
+    # Phase 7e additions:
+    producing_run_end_state: str | None = None
+    intent: str = "Trial"
+
+
+@dataclass(frozen=True)
+class DatasetPromoted:
+    """A Dataset was promoted from Trial to Production intent (Phase 7e).
+
+    `reason` is a free-form string (1-500 chars after trimming),
+    captured verbatim from the operator. Mirrors DatasetDiscarded /
+    RunStopped / RunAborted reason shape; same future-additive
+    structured-taxonomy posture.
+
+    Operationally this records "we're claiming this is publication-
+    grade and here's why". The audit trail is immutable: the WHY
+    survives forever even if the Dataset is later discarded.
+    """
+
+    dataset_id: UUID
+    reason: str
     occurred_at: datetime
 
 
@@ -93,7 +123,7 @@ class DatasetDiscarded:
 
 
 # Discriminated union of every event the Dataset aggregate emits.
-DatasetEvent = DatasetRegistered | DatasetDiscarded
+DatasetEvent = DatasetRegistered | DatasetDiscarded | DatasetPromoted
 
 
 def event_type_name(event: DatasetEvent) -> str:
@@ -122,6 +152,8 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
             subject_id=subject_id,
             derived_from=derived_from,
             occurred_at=occurred_at,
+            producing_run_end_state=producing_run_end_state,
+            intent=intent,
         ):
             return {
                 "dataset_id": str(dataset_id),
@@ -142,8 +174,17 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
                 "subject_id": str(subject_id) if subject_id is not None else None,
                 "derived_from": sorted(str(d) for d in derived_from),
                 "occurred_at": occurred_at.isoformat(),
+                # Phase 7e additions:
+                "producing_run_end_state": producing_run_end_state,
+                "intent": intent,
             }
         case DatasetDiscarded(dataset_id=dataset_id, reason=reason, occurred_at=occurred_at):
+            return {
+                "dataset_id": str(dataset_id),
+                "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case DatasetPromoted(dataset_id=dataset_id, reason=reason, occurred_at=occurred_at):
             return {
                 "dataset_id": str(dataset_id),
                 "reason": reason,
@@ -182,9 +223,21 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
                 subject_id=UUID(raw_subject_id) if raw_subject_id is not None else None,
                 derived_from=frozenset(UUID(d) for d in payload["derived_from"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                # Phase 7e additive evolution: pre-7e events have no
+                # producing_run_end_state or intent in payload; default
+                # to None and "Trial" respectively (state evolver will
+                # construct Intent.TRIAL from the string).
+                producing_run_end_state=payload.get("producing_run_end_state"),
+                intent=payload.get("intent", "Trial"),
             )
         case "DatasetDiscarded":
             return DatasetDiscarded(
+                dataset_id=UUID(payload["dataset_id"]),
+                reason=payload["reason"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "DatasetPromoted":
+            return DatasetPromoted(
                 dataset_id=UUID(payload["dataset_id"]),
                 reason=payload["reason"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
@@ -197,6 +250,7 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
 __all__ = [
     "DatasetDiscarded",
     "DatasetEvent",
+    "DatasetPromoted",
     "DatasetRegistered",
     "event_type_name",
     "from_stored",
