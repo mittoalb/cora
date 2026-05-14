@@ -58,7 +58,7 @@ from cora.equipment.features import (
     restore_asset,
     restore_from_maintenance,
     update_asset_settings,
-    update_capability_schema,
+    update_capability_settings_schema,
     version_capability,
 )
 from cora.infrastructure.idempotency import with_idempotency
@@ -86,7 +86,7 @@ class EquipmentHandlers:
     get_capability: get_capability.Handler
     version_capability: version_capability.Handler
     deprecate_capability: deprecate_capability.Handler
-    update_capability_schema: update_capability_schema.Handler
+    update_capability_settings_schema: update_capability_settings_schema.Handler
     register_asset: register_asset.IdempotentHandler
     activate_asset: activate_asset.Handler
     decommission_asset: decommission_asset.Handler
@@ -139,9 +139,9 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
             command_name="DeprecateCapability",
             bc=_BC,
         ),
-        update_capability_schema=with_tracing(
-            update_capability_schema.bind(deps),
-            command_name="UpdateCapabilitySchema",
+        update_capability_settings_schema=with_tracing(
+            update_capability_settings_schema.bind(deps),
+            command_name="UpdateCapabilitySettingsSchema",
             bc=_BC,
         ),
         register_asset=with_tracing(

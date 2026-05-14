@@ -3,7 +3,7 @@
 `cora.infrastructure.json_schema_subset` was hoisted in 6g-a once the
 third use site landed (Capability schema declaration + Asset settings
 union compile + Method parameters declaration). The two BC-specific
-wrappers (`equipment.aggregates.capability.schema_validation` and
+wrappers (`equipment.aggregates.capability.settings_validation` and
 `recipe.aggregates.method.parameters_validation`) carry their own
 deeper test suites for full $schema + jsonschema-rs coverage; this
 file is the structural-subset contract pinned ONCE.

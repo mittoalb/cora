@@ -8,7 +8,7 @@ Phase 6g-a. Round-trips the new event + projection column:
   - Clear the schema (None payload)
   - Projection flips back to FALSE
 
-Mirrors `test_update_capability_schema_handler_postgres.py` (5g-a).
+Mirrors `test_update_capability_settings_schema_handler_postgres.py` (5g-a).
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false

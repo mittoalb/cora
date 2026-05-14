@@ -4,7 +4,7 @@ Phase 6g-a. Update-style: load + fold + decide + append. Not
 idempotency-wrapped (no-op-on-unchanged is handled at the decider
 layer; cross-process replay safety is the IdempotencyStore concern,
 not in scope for an update slice). Mirrors
-`update_capability_schema` (Equipment 5g-a) handler shape.
+`update_capability_settings_schema` (Equipment 5g-a) handler shape.
 """
 
 from typing import Protocol

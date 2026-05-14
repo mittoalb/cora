@@ -107,7 +107,7 @@ class MethodParametersSchemaUpdated:
 
     Validator (`parameters_validation.validate_parameters_schema`)
     runs at decide time so persisted payloads are always well-formed.
-    Mirrors `CapabilitySchemaUpdated` shape from Equipment 5g-a.
+    Mirrors `CapabilitySettingsSchemaUpdated` shape from Equipment 5g-a.
 
     Status is NOT carried — schema updates are orthogonal to lifecycle
     (Defined / Versioned / Deprecated all permit schema updates).

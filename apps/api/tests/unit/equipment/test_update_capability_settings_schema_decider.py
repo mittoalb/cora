@@ -1,10 +1,10 @@
-"""Unit tests for the `update_capability_schema` slice's pure decider.
+"""Unit tests for the `update_capability_settings_schema` slice's pure decider.
 
 Phase 5g-a. The decider:
   - Raises CapabilityNotFoundError on empty state
   - Validates the proposed schema via validate_settings_schema
   - No-ops (returns []) on unchanged-vs-current schema
-  - Emits CapabilitySchemaUpdated otherwise
+  - Emits CapabilitySettingsSchemaUpdated otherwise
 
 Schema can be set, replaced, or cleared (None payload). All
 lifecycle states (Defined / Versioned / Deprecated) are valid
@@ -21,12 +21,12 @@ from cora.equipment.aggregates.capability import (
     Capability,
     CapabilityName,
     CapabilityNotFoundError,
-    CapabilitySchemaUpdated,
+    CapabilitySettingsSchemaUpdated,
     CapabilityStatus,
-    InvalidCapabilitySchemaError,
+    InvalidCapabilitySettingsSchemaError,
 )
-from cora.equipment.features import update_capability_schema
-from cora.equipment.features.update_capability_schema import UpdateCapabilitySchema
+from cora.equipment.features import update_capability_settings_schema
+from cora.equipment.features.update_capability_settings_schema import UpdateCapabilitySettingsSchema
 
 _NOW = datetime(2026, 5, 13, 12, 0, 0, tzinfo=UTC)
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
@@ -57,13 +57,13 @@ def _valid_schema(min_val: int = 5) -> dict[str, Any]:
 def test_decide_emits_event_when_setting_schema_for_first_time() -> None:
     state = _capability(settings_schema=None)
     schema = _valid_schema()
-    events = update_capability_schema.decide(
+    events = update_capability_settings_schema.decide(
         state=state,
-        command=UpdateCapabilitySchema(capability_id=state.id, settings_schema=schema),
+        command=UpdateCapabilitySettingsSchema(capability_id=state.id, settings_schema=schema),
         now=_NOW,
     )
     assert events == [
-        CapabilitySchemaUpdated(
+        CapabilitySettingsSchemaUpdated(
             capability_id=state.id,
             settings_schema=schema,
             occurred_at=_NOW,
@@ -75,9 +75,9 @@ def test_decide_emits_event_when_setting_schema_for_first_time() -> None:
 def test_decide_emits_event_when_replacing_schema() -> None:
     state = _capability(settings_schema=_valid_schema(min_val=5))
     new_schema = _valid_schema(min_val=10)
-    events = update_capability_schema.decide(
+    events = update_capability_settings_schema.decide(
         state=state,
-        command=UpdateCapabilitySchema(capability_id=state.id, settings_schema=new_schema),
+        command=UpdateCapabilitySettingsSchema(capability_id=state.id, settings_schema=new_schema),
         now=_NOW,
     )
     assert len(events) == 1
@@ -89,9 +89,9 @@ def test_decide_emits_event_when_clearing_schema() -> None:
     """Clearing via None payload IS an event (audit trail of
     'operator removed declarations on date X')."""
     state = _capability(settings_schema=_valid_schema())
-    events = update_capability_schema.decide(
+    events = update_capability_settings_schema.decide(
         state=state,
-        command=UpdateCapabilitySchema(capability_id=state.id, settings_schema=None),
+        command=UpdateCapabilitySettingsSchema(capability_id=state.id, settings_schema=None),
         now=_NOW,
     )
     assert len(events) == 1
@@ -105,9 +105,9 @@ def test_decide_no_op_when_schema_unchanged() -> None:
     re-submission carries no information."""
     schema = _valid_schema()
     state = _capability(settings_schema=schema)
-    events = update_capability_schema.decide(
+    events = update_capability_settings_schema.decide(
         state=state,
-        command=UpdateCapabilitySchema(capability_id=state.id, settings_schema=schema),
+        command=UpdateCapabilitySettingsSchema(capability_id=state.id, settings_schema=schema),
         now=_NOW,
     )
     assert events == []
@@ -116,9 +116,9 @@ def test_decide_no_op_when_schema_unchanged() -> None:
 @pytest.mark.unit
 def test_decide_no_op_when_both_current_and_proposed_are_none() -> None:
     state = _capability(settings_schema=None)
-    events = update_capability_schema.decide(
+    events = update_capability_settings_schema.decide(
         state=state,
-        command=UpdateCapabilitySchema(capability_id=state.id, settings_schema=None),
+        command=UpdateCapabilitySettingsSchema(capability_id=state.id, settings_schema=None),
         now=_NOW,
     )
     assert events == []
@@ -128,9 +128,9 @@ def test_decide_no_op_when_both_current_and_proposed_are_none() -> None:
 def test_decide_raises_capability_not_found_when_state_is_none() -> None:
     target_id = uuid4()
     with pytest.raises(CapabilityNotFoundError) as exc_info:
-        update_capability_schema.decide(
+        update_capability_settings_schema.decide(
             state=None,
-            command=UpdateCapabilitySchema(
+            command=UpdateCapabilitySettingsSchema(
                 capability_id=target_id, settings_schema=_valid_schema()
             ),
             now=_NOW,
@@ -141,10 +141,10 @@ def test_decide_raises_capability_not_found_when_state_is_none() -> None:
 @pytest.mark.unit
 def test_decide_raises_invalid_schema_for_missing_dollar_schema() -> None:
     state = _capability()
-    with pytest.raises(InvalidCapabilitySchemaError):
-        update_capability_schema.decide(
+    with pytest.raises(InvalidCapabilitySettingsSchemaError):
+        update_capability_settings_schema.decide(
             state=state,
-            command=UpdateCapabilitySchema(
+            command=UpdateCapabilitySettingsSchema(
                 capability_id=state.id,
                 settings_schema={"type": "object"},  # no $schema
             ),
@@ -155,10 +155,10 @@ def test_decide_raises_invalid_schema_for_missing_dollar_schema() -> None:
 @pytest.mark.unit
 def test_decide_raises_invalid_schema_for_forbidden_keyword() -> None:
     state = _capability()
-    with pytest.raises(InvalidCapabilitySchemaError):
-        update_capability_schema.decide(
+    with pytest.raises(InvalidCapabilitySettingsSchemaError):
+        update_capability_settings_schema.decide(
             state=state,
-            command=UpdateCapabilitySchema(
+            command=UpdateCapabilitySettingsSchema(
                 capability_id=state.id,
                 settings_schema={"$schema": _DRAFT, "oneOf": [{"type": "string"}]},
             ),
@@ -178,9 +178,11 @@ def test_decide_accepts_schema_update_in_any_lifecycle_state(
     can be updated even on Deprecated capabilities (operators may
     refine the audit-record schema after deprecation)."""
     state = _capability(status=lifecycle_status)
-    events = update_capability_schema.decide(
+    events = update_capability_settings_schema.decide(
         state=state,
-        command=UpdateCapabilitySchema(capability_id=state.id, settings_schema=_valid_schema()),
+        command=UpdateCapabilitySettingsSchema(
+            capability_id=state.id, settings_schema=_valid_schema()
+        ),
         now=_NOW,
     )
     assert len(events) == 1

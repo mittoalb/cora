@@ -15,7 +15,7 @@ from cora.equipment.aggregates.capability import (
 from cora.equipment.aggregates.capability.events import (
     CapabilityDefined,
     CapabilityDeprecated,
-    CapabilitySchemaUpdated,
+    CapabilitySettingsSchemaUpdated,
     CapabilityVersioned,
 )
 from cora.equipment.features import define_capability
@@ -266,12 +266,12 @@ def test_capability_defined_starts_with_no_settings_schema() -> None:
 
 
 @pytest.mark.unit
-def test_capability_schema_updated_sets_schema() -> None:
+def test_capability_settings_schema_updated_sets_schema() -> None:
     capability_id = uuid4()
     state = fold(
         [
             CapabilityDefined(capability_id=capability_id, name="X", occurred_at=_NOW),
-            CapabilitySchemaUpdated(
+            CapabilitySettingsSchemaUpdated(
                 capability_id=capability_id,
                 settings_schema=_TEST_SCHEMA,
                 occurred_at=_NOW,
@@ -283,18 +283,18 @@ def test_capability_schema_updated_sets_schema() -> None:
 
 
 @pytest.mark.unit
-def test_capability_schema_updated_with_none_clears_schema() -> None:
+def test_capability_settings_schema_updated_with_none_clears_schema() -> None:
     """Operator explicitly removes a previously-declared schema."""
     capability_id = uuid4()
     state = fold(
         [
             CapabilityDefined(capability_id=capability_id, name="X", occurred_at=_NOW),
-            CapabilitySchemaUpdated(
+            CapabilitySettingsSchemaUpdated(
                 capability_id=capability_id,
                 settings_schema=_TEST_SCHEMA,
                 occurred_at=_NOW,
             ),
-            CapabilitySchemaUpdated(
+            CapabilitySettingsSchemaUpdated(
                 capability_id=capability_id,
                 settings_schema=None,
                 occurred_at=_NOW,
@@ -313,7 +313,7 @@ def test_settings_schema_preserved_across_versioning() -> None:
     state = fold(
         [
             CapabilityDefined(capability_id=capability_id, name="X", occurred_at=_NOW),
-            CapabilitySchemaUpdated(
+            CapabilitySettingsSchemaUpdated(
                 capability_id=capability_id,
                 settings_schema=_TEST_SCHEMA,
                 occurred_at=_NOW,
@@ -335,7 +335,7 @@ def test_settings_schema_preserved_across_deprecation() -> None:
     state = fold(
         [
             CapabilityDefined(capability_id=capability_id, name="X", occurred_at=_NOW),
-            CapabilitySchemaUpdated(
+            CapabilitySettingsSchemaUpdated(
                 capability_id=capability_id,
                 settings_schema=_TEST_SCHEMA,
                 occurred_at=_NOW,
@@ -349,14 +349,14 @@ def test_settings_schema_preserved_across_deprecation() -> None:
 
 
 @pytest.mark.unit
-def test_capability_schema_updated_on_empty_state_raises() -> None:
+def test_capability_settings_schema_updated_on_empty_state_raises() -> None:
     """Like all transition events, schema-update before genesis is
     stream corruption."""
     capability_id = uuid4()
     with pytest.raises(ValueError, match="empty state"):
         fold(
             [
-                CapabilitySchemaUpdated(
+                CapabilitySettingsSchemaUpdated(
                     capability_id=capability_id,
                     settings_schema=_TEST_SCHEMA,
                     occurred_at=_NOW,

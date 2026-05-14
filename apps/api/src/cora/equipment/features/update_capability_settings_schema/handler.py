@@ -1,4 +1,4 @@
-"""Application handler for the `update_capability_schema` slice.
+"""Application handler for the `update_capability_settings_schema` slice.
 
 Phase 5g-a. Update-style: load + fold + decide + append. Not
 idempotency-wrapped (no-op-on-unchanged is handled at the decider
@@ -17,28 +17,28 @@ from cora.equipment.aggregates.capability import (
     to_payload,
 )
 from cora.equipment.errors import UnauthorizedError
-from cora.equipment.features.update_capability_schema.command import (
-    UpdateCapabilitySchema,
+from cora.equipment.features.update_capability_settings_schema.command import (
+    UpdateCapabilitySettingsSchema,
 )
-from cora.equipment.features.update_capability_schema.decider import decide
+from cora.equipment.features.update_capability_settings_schema.decider import decide
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 
 _STREAM_TYPE = "Capability"
-_COMMAND_NAME = "UpdateCapabilitySchema"
+_COMMAND_NAME = "UpdateCapabilitySettingsSchema"
 _CONDUIT_DEFAULT_ID = UUID(int=0)
 
 _log = get_logger(__name__)
 
 
 class Handler(Protocol):
-    """Callable interface every update_capability_schema handler implements."""
+    """Callable interface every update_capability_settings_schema handler implements."""
 
     async def __call__(
         self,
-        command: UpdateCapabilitySchema,
+        command: UpdateCapabilitySettingsSchema,
         *,
         principal_id: UUID,
         correlation_id: UUID,
@@ -47,17 +47,17 @@ class Handler(Protocol):
 
 
 def bind(deps: Kernel) -> Handler:
-    """Build an update_capability_schema handler closed over the shared deps."""
+    """Build an update_capability_settings_schema handler closed over the shared deps."""
 
     async def handler(
-        command: UpdateCapabilitySchema,
+        command: UpdateCapabilitySettingsSchema,
         *,
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
     ) -> None:
         _log.info(
-            "update_capability_schema.start",
+            "update_capability_settings_schema.start",
             command_name=_COMMAND_NAME,
             capability_id=str(command.capability_id),
             schema_present=command.settings_schema is not None,
@@ -73,7 +73,7 @@ def bind(deps: Kernel) -> Handler:
         )
         if isinstance(decision, Deny):
             _log.info(
-                "update_capability_schema.denied",
+                "update_capability_settings_schema.denied",
                 command_name=_COMMAND_NAME,
                 capability_id=str(command.capability_id),
                 principal_id=str(principal_id),
@@ -96,7 +96,7 @@ def bind(deps: Kernel) -> Handler:
 
         if not domain_events:
             _log.info(
-                "update_capability_schema.no_op",
+                "update_capability_settings_schema.no_op",
                 command_name=_COMMAND_NAME,
                 capability_id=str(command.capability_id),
                 principal_id=str(principal_id),
@@ -126,7 +126,7 @@ def bind(deps: Kernel) -> Handler:
         )
 
         _log.info(
-            "update_capability_schema.success",
+            "update_capability_settings_schema.success",
             command_name=_COMMAND_NAME,
             capability_id=str(command.capability_id),
             schema_present=command.settings_schema is not None,

@@ -23,13 +23,13 @@ from cora.equipment.features import (
     define_capability,
     register_asset,
     update_asset_settings,
-    update_capability_schema,
+    update_capability_settings_schema,
 )
 from cora.equipment.features.add_asset_capability import AddAssetCapability
 from cora.equipment.features.define_capability import DefineCapability
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.update_asset_settings import UpdateAssetSettings
-from cora.equipment.features.update_capability_schema import UpdateCapabilitySchema
+from cora.equipment.features.update_capability_settings_schema import UpdateCapabilitySettingsSchema
 from cora.infrastructure.kernel import Kernel
 from tests.integration._helpers import build_postgres_deps
 
@@ -56,7 +56,7 @@ async def test_update_asset_settings_persists_event_with_full_post_merge_dict(
         # define_capability: capability_id, define_event_id
         cap_id,
         UUID("01900000-0000-7000-8000-0000005c0011"),
-        # update_capability_schema: schema_event_id
+        # update_capability_settings_schema: schema_event_id
         UUID("01900000-0000-7000-8000-0000005c0012"),
         # register_asset: asset_id, register_event_id
         asset_id,
@@ -73,8 +73,8 @@ async def test_update_asset_settings_persists_event_with_full_post_merge_dict(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await update_capability_schema.bind(deps)(
-        UpdateCapabilitySchema(
+    await update_capability_settings_schema.bind(deps)(
+        UpdateCapabilitySettingsSchema(
             capability_id=cap_id,
             settings_schema={
                 "$schema": _DRAFT,
@@ -141,8 +141,8 @@ async def test_update_asset_settings_merges_across_two_patches(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await update_capability_schema.bind(deps)(
-        UpdateCapabilitySchema(
+    await update_capability_settings_schema.bind(deps)(
+        UpdateCapabilitySettingsSchema(
             capability_id=cap_id,
             settings_schema={
                 "$schema": _DRAFT,
@@ -211,8 +211,8 @@ async def test_update_asset_settings_rejects_true_type_conflict_across_capabilit
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await update_capability_schema.bind(deps)(
-        UpdateCapabilitySchema(
+    await update_capability_settings_schema.bind(deps)(
+        UpdateCapabilitySettingsSchema(
             capability_id=cap_a_id,
             settings_schema={
                 "$schema": _DRAFT,
@@ -228,8 +228,8 @@ async def test_update_asset_settings_rejects_true_type_conflict_across_capabilit
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await update_capability_schema.bind(deps)(
-        UpdateCapabilitySchema(
+    await update_capability_settings_schema.bind(deps)(
+        UpdateCapabilitySettingsSchema(
             capability_id=cap_b_id,
             settings_schema={
                 "$schema": _DRAFT,

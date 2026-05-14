@@ -60,7 +60,7 @@ from cora.equipment.aggregates.capability import (
     CapabilityCannotVersionError,
     CapabilityNotFoundError,
     InvalidCapabilityNameError,
-    InvalidCapabilitySchemaError,
+    InvalidCapabilitySettingsSchemaError,
     InvalidCapabilityVersionTagError,
 )
 from cora.equipment.errors import UnauthorizedError
@@ -85,7 +85,7 @@ from cora.equipment.features import (
     restore_asset,
     restore_from_maintenance,
     update_asset_settings,
-    update_capability_schema,
+    update_capability_settings_schema,
     version_capability,
 )
 
@@ -158,7 +158,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(get_capability.router)
     app.include_router(version_capability.router)
     app.include_router(deprecate_capability.router)
-    app.include_router(update_capability_schema.router)
+    app.include_router(update_capability_settings_schema.router)
     app.include_router(list_capabilities.router)
     app.include_router(register_asset.router)
     app.include_router(activate_asset.router)
@@ -178,7 +178,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(list_assets.router)
     for validation_cls in (
         InvalidCapabilityNameError,
-        InvalidCapabilitySchemaError,
+        InvalidCapabilitySettingsSchemaError,
         InvalidCapabilityVersionTagError,
         InvalidAssetNameError,
         InvalidAssetParentError,

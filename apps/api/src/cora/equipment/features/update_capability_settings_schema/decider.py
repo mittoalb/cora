@@ -1,4 +1,4 @@
-"""Pure decider for the `UpdateCapabilitySchema` command.
+"""Pure decider for the `UpdateCapabilitySettingsSchema` command.
 
 Phase 5g-a. Mostly delegates to `validate_settings_schema` for
 well-formedness; the only domain-level guard is "Capability must
@@ -19,7 +19,7 @@ identical re-submission carries no new information.
 Invariants:
   - State must not be None -> CapabilityNotFoundError
   - settings_schema (if non-None) must be a valid in-subset
-    JSON Schema -> InvalidCapabilitySchemaError
+    JSON Schema -> InvalidCapabilitySettingsSchemaError
   - If proposed == current, return [] (no event emitted)
 """
 
@@ -28,20 +28,20 @@ from datetime import datetime
 from cora.equipment.aggregates.capability import (
     Capability,
     CapabilityNotFoundError,
-    CapabilitySchemaUpdated,
+    CapabilitySettingsSchemaUpdated,
     validate_settings_schema,
 )
-from cora.equipment.features.update_capability_schema.command import (
-    UpdateCapabilitySchema,
+from cora.equipment.features.update_capability_settings_schema.command import (
+    UpdateCapabilitySettingsSchema,
 )
 
 
 def decide(
     state: Capability | None,
-    command: UpdateCapabilitySchema,
+    command: UpdateCapabilitySettingsSchema,
     *,
     now: datetime,
-) -> list[CapabilitySchemaUpdated]:
+) -> list[CapabilitySettingsSchemaUpdated]:
     """Decide the events produced by updating a capability's schema."""
     if state is None:
         raise CapabilityNotFoundError(command.capability_id)
@@ -50,7 +50,7 @@ def decide(
     if command.settings_schema == state.settings_schema:
         return []
     return [
-        CapabilitySchemaUpdated(
+        CapabilitySettingsSchemaUpdated(
             capability_id=state.id,
             settings_schema=command.settings_schema,
             occurred_at=now,

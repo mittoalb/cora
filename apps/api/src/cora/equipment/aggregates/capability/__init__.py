@@ -9,7 +9,7 @@ from cora.equipment.aggregates.capability.events import (
     CapabilityDefined,
     CapabilityDeprecated,
     CapabilityEvent,
-    CapabilitySchemaUpdated,
+    CapabilitySettingsSchemaUpdated,
     CapabilityVersioned,
     event_type_name,
     from_stored,
@@ -17,8 +17,8 @@ from cora.equipment.aggregates.capability.events import (
 )
 from cora.equipment.aggregates.capability.evolver import evolve, fold
 from cora.equipment.aggregates.capability.read import load_capability
-from cora.equipment.aggregates.capability.schema_validation import (
-    InvalidCapabilitySchemaError,
+from cora.equipment.aggregates.capability.settings_validation import (
+    InvalidCapabilitySettingsSchemaError,
     validate_settings_schema,
 )
 from cora.equipment.aggregates.capability.state import (
@@ -47,11 +47,11 @@ __all__ = [
     "CapabilityEvent",
     "CapabilityName",
     "CapabilityNotFoundError",
-    "CapabilitySchemaUpdated",
+    "CapabilitySettingsSchemaUpdated",
     "CapabilityStatus",
     "CapabilityVersioned",
     "InvalidCapabilityNameError",
-    "InvalidCapabilitySchemaError",
+    "InvalidCapabilitySettingsSchemaError",
     "InvalidCapabilityVersionTagError",
     "event_type_name",
     "evolve",

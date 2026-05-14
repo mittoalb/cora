@@ -41,8 +41,8 @@ from cora.equipment.features.restore_from_maintenance import (
 from cora.equipment.features.update_asset_settings import (
     tool as update_asset_settings_tool,
 )
-from cora.equipment.features.update_capability_schema import (
-    tool as update_capability_schema_tool,
+from cora.equipment.features.update_capability_settings_schema import (
+    tool as update_capability_settings_schema_tool,
 )
 from cora.equipment.features.version_capability import tool as version_capability_tool
 from cora.equipment.wire import EquipmentHandlers
@@ -70,9 +70,9 @@ def register_equipment_tools(
         mcp,
         get_handler=lambda: get_handlers().deprecate_capability,
     )
-    update_capability_schema_tool.register(
+    update_capability_settings_schema_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().update_capability_schema,
+        get_handler=lambda: get_handlers().update_capability_settings_schema,
     )
     register_asset_tool.register(
         mcp,

@@ -12,7 +12,7 @@ Subscribed events:
                                         trail of "last revised at
                                         version X before deprecation"
                                         stays visible)
-  - CapabilitySchemaUpdated  -> UPDATE settings_schema_present (TRUE
+  - CapabilitySettingsSchemaUpdated  -> UPDATE settings_schema_present (TRUE
                                         if settings_schema is non-NULL;
                                         FALSE if cleared via NULL)
                                         (Phase 5g-a)
@@ -20,7 +20,7 @@ Subscribed events:
 All branches idempotent. `version_tag` lands in the projection ONLY
 on CapabilityVersioned; the Defined INSERT leaves it NULL and the
 Deprecated UPDATE doesn't touch it. `settings_schema_present` is
-TRUE iff the latest `CapabilitySchemaUpdated.settings_schema`
+TRUE iff the latest `CapabilitySettingsSchemaUpdated.settings_schema`
 payload was non-NULL; the schema content itself lives in the event
 stream (loaded on demand, not projected to keep the summary table
 small).
@@ -70,7 +70,7 @@ class CapabilitySummaryProjection:
             "CapabilityDefined",
             "CapabilityVersioned",
             "CapabilityDeprecated",
-            "CapabilitySchemaUpdated",
+            "CapabilitySettingsSchemaUpdated",
         }
     )
 
@@ -98,7 +98,7 @@ class CapabilitySummaryProjection:
                     _UPDATE_DEPRECATED_SQL,
                     UUID(event.payload["capability_id"]),
                 )
-            case "CapabilitySchemaUpdated":
+            case "CapabilitySettingsSchemaUpdated":
                 await conn.execute(
                     _UPDATE_SCHEMA_PRESENT_SQL,
                     UUID(event.payload["capability_id"]),

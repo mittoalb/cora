@@ -1,6 +1,6 @@
-"""HTTP route for the `update_capability_schema` slice.
+"""HTTP route for the `update_capability_settings_schema` slice.
 
-Action endpoint at `POST /capabilities/{capability_id}/schema`.
+Action endpoint at `POST /capabilities/{capability_id}/settings-schema`.
 Body carries the JSON Schema (or null to clear). 204 No Content on
 success. Same action-endpoint pattern as the other transition
 slices.
@@ -12,15 +12,15 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Path, Request, status
 from pydantic import BaseModel, Field
 
-from cora.equipment.features.update_capability_schema.command import (
-    UpdateCapabilitySchema,
+from cora.equipment.features.update_capability_settings_schema.command import (
+    UpdateCapabilitySettingsSchema,
 )
-from cora.equipment.features.update_capability_schema.handler import Handler
+from cora.equipment.features.update_capability_settings_schema.handler import Handler
 from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
 
 
-class UpdateCapabilitySchemaRequest(BaseModel):
-    """Body for `POST /capabilities/{capability_id}/schema`."""
+class UpdateCapabilitySettingsSchemaRequest(BaseModel):
+    """Body for `POST /capabilities/{capability_id}/settings-schema`."""
 
     settings_schema: dict[str, Any] | None = Field(
         ...,
@@ -36,7 +36,7 @@ class UpdateCapabilitySchemaRequest(BaseModel):
 
 
 def _get_handler(request: Request) -> Handler:
-    handler: Handler = request.app.state.equipment.update_capability_schema
+    handler: Handler = request.app.state.equipment.update_capability_settings_schema
     return handler
 
 
@@ -44,7 +44,7 @@ router = APIRouter(tags=["equipment"])
 
 
 @router.post(
-    "/capabilities/{capability_id}/schema",
+    "/capabilities/{capability_id}/settings-schema",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_400_BAD_REQUEST: {
@@ -78,13 +78,13 @@ router = APIRouter(tags=["equipment"])
 )
 async def post_capabilities_schema(
     capability_id: Annotated[UUID, Path(description="Target capability's id.")],
-    body: UpdateCapabilitySchemaRequest,
+    body: UpdateCapabilitySettingsSchemaRequest,
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
 ) -> None:
     await handler(
-        UpdateCapabilitySchema(
+        UpdateCapabilitySettingsSchema(
             capability_id=capability_id,
             settings_schema=body.settings_schema,
         ),

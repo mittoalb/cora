@@ -2,7 +2,7 @@
 
 Phase 6g-a. Action endpoint with body `{parameters_schema}`. Schema
 can be set, replaced, or cleared (null payload). Mirrors
-`test_update_capability_schema_endpoint.py` (5g-a).
+`test_update_capability_settings_schema_endpoint.py` (5g-a).
 """
 
 from typing import Any

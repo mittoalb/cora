@@ -5,7 +5,7 @@ CORA has two structurally identical validation surfaces across BCs:
   - **Schema declaration validators** check that a stored schema is
     well-formed and in CORA's constrained subset. Used at write time
     when an operator submits a new schema (Capability.settings_schema
-    via 5g-a's `update_capability_schema`; Method.parameters_schema
+    via 5g-a's `update_capability_settings_schema`; Method.parameters_schema
     via 6g-a's `update_method_parameters_schema`).
   - **Values-against-schema validators** check that a values dict
     conforms to a previously-declared schema. Used when the values

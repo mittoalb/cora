@@ -24,7 +24,7 @@ def _define_capability(client: TestClient, *, name: str = "Tomography") -> UUID:
 
 def _set_capability_schema(client: TestClient, capability_id: UUID, schema: dict[str, Any]) -> None:
     response = client.post(
-        f"/capabilities/{capability_id}/schema",
+        f"/capabilities/{capability_id}/settings-schema",
         json={"settings_schema": schema},
     )
     assert response.status_code == 204, response.text

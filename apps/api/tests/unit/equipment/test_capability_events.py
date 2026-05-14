@@ -8,7 +8,7 @@ import pytest
 from cora.equipment.aggregates.capability.events import (
     CapabilityDefined,
     CapabilityDeprecated,
-    CapabilitySchemaUpdated,
+    CapabilitySettingsSchemaUpdated,
     CapabilityVersioned,
     event_type_name,
     from_stored,
@@ -183,7 +183,7 @@ def test_to_payload_then_from_stored_round_trips_for_capability_deprecated() -> 
     assert from_stored(stored) == original
 
 
-# ---------- CapabilitySchemaUpdated (Phase 5g-a) ----------
+# ---------- CapabilitySettingsSchemaUpdated (Phase 5g-a) ----------
 
 
 _TEST_SCHEMA = {
@@ -194,19 +194,19 @@ _TEST_SCHEMA = {
 
 
 @pytest.mark.unit
-def test_event_type_name_returns_capability_schema_updated_class_name() -> None:
-    event = CapabilitySchemaUpdated(
+def test_event_type_name_returns_capability_settings_schema_updated_class_name() -> None:
+    event = CapabilitySettingsSchemaUpdated(
         capability_id=uuid4(),
         settings_schema=_TEST_SCHEMA,
         occurred_at=_NOW,
     )
-    assert event_type_name(event) == "CapabilitySchemaUpdated"
+    assert event_type_name(event) == "CapabilitySettingsSchemaUpdated"
 
 
 @pytest.mark.unit
-def test_to_payload_serializes_capability_schema_updated_with_schema() -> None:
+def test_to_payload_serializes_capability_settings_schema_updated_with_schema() -> None:
     capability_id = uuid4()
-    event = CapabilitySchemaUpdated(
+    event = CapabilitySettingsSchemaUpdated(
         capability_id=capability_id,
         settings_schema=_TEST_SCHEMA,
         occurred_at=_NOW,
@@ -220,10 +220,10 @@ def test_to_payload_serializes_capability_schema_updated_with_schema() -> None:
 
 
 @pytest.mark.unit
-def test_to_payload_serializes_capability_schema_updated_with_none() -> None:
+def test_to_payload_serializes_capability_settings_schema_updated_with_none() -> None:
     """Clear-the-schema event payload carries explicit None."""
     capability_id = uuid4()
-    event = CapabilitySchemaUpdated(
+    event = CapabilitySettingsSchemaUpdated(
         capability_id=capability_id,
         settings_schema=None,
         occurred_at=_NOW,
@@ -237,10 +237,10 @@ def test_to_payload_serializes_capability_schema_updated_with_none() -> None:
 
 
 @pytest.mark.unit
-def test_from_stored_rebuilds_capability_schema_updated_with_schema() -> None:
+def test_from_stored_rebuilds_capability_settings_schema_updated_with_schema() -> None:
     capability_id = uuid4()
     stored = _stored(
-        "CapabilitySchemaUpdated",
+        "CapabilitySettingsSchemaUpdated",
         {
             "capability_id": str(capability_id),
             "settings_schema": _TEST_SCHEMA,
@@ -248,7 +248,7 @@ def test_from_stored_rebuilds_capability_schema_updated_with_schema() -> None:
         },
     )
     rebuilt = from_stored(stored)
-    assert rebuilt == CapabilitySchemaUpdated(
+    assert rebuilt == CapabilitySettingsSchemaUpdated(
         capability_id=capability_id,
         settings_schema=_TEST_SCHEMA,
         occurred_at=_NOW,
@@ -256,21 +256,19 @@ def test_from_stored_rebuilds_capability_schema_updated_with_schema() -> None:
 
 
 @pytest.mark.unit
-def test_from_stored_rebuilds_capability_schema_updated_with_none_when_payload_missing_key() -> (
-    None
-):
+def test_from_stored_rebuilds_settings_schema_updated_with_none_when_payload_missing() -> None:
     """Tolerates payloads missing the settings_schema key (treats as
     None). Matches the additive-evolution stance of from_stored."""
     capability_id = uuid4()
     stored = _stored(
-        "CapabilitySchemaUpdated",
+        "CapabilitySettingsSchemaUpdated",
         {
             "capability_id": str(capability_id),
             "occurred_at": _NOW.isoformat(),
         },
     )
     rebuilt = from_stored(stored)
-    assert rebuilt == CapabilitySchemaUpdated(
+    assert rebuilt == CapabilitySettingsSchemaUpdated(
         capability_id=capability_id,
         settings_schema=None,
         occurred_at=_NOW,
@@ -278,11 +276,11 @@ def test_from_stored_rebuilds_capability_schema_updated_with_none_when_payload_m
 
 
 @pytest.mark.unit
-def test_to_payload_then_from_stored_round_trips_for_capability_schema_updated() -> None:
-    original = CapabilitySchemaUpdated(
+def test_to_payload_then_from_stored_round_trips_for_capability_settings_schema_updated() -> None:
+    original = CapabilitySettingsSchemaUpdated(
         capability_id=uuid4(),
         settings_schema=_TEST_SCHEMA,
         occurred_at=_NOW,
     )
-    stored = _stored("CapabilitySchemaUpdated", to_payload(original))
+    stored = _stored("CapabilitySettingsSchemaUpdated", to_payload(original))
     assert from_stored(stored) == original

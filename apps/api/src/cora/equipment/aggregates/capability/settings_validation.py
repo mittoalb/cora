@@ -18,7 +18,7 @@ keyword whitelist (`$schema`, `type`, `required`, `properties`,
 ## Module shape
 
 This module is a thin BC-specific adapter: it defines the
-`InvalidCapabilitySchemaError` exception class and a one-liner
+`InvalidCapabilitySettingsSchemaError` exception class and a one-liner
 `validate_settings_schema` that delegates to the shared validator.
 Mirrors the `validate_name` hoist precedent (each VO type keeps
 its own error class, shared trim logic in
@@ -30,7 +30,7 @@ from typing import Any
 from cora.infrastructure.json_schema_validation import validate_schema_declaration
 
 
-class InvalidCapabilitySchemaError(ValueError):
+class InvalidCapabilitySettingsSchemaError(ValueError):
     """The supplied Capability settings_schema is not a valid JSON
     Schema in CORA's constrained subset.
 
@@ -51,14 +51,14 @@ class InvalidCapabilitySchemaError(ValueError):
 def validate_settings_schema(schema: dict[str, Any]) -> None:
     """Validate that `schema` is a well-formed in-subset JSON Schema.
 
-    Raises `InvalidCapabilitySchemaError(reason)` on missing/wrong
+    Raises `InvalidCapabilitySettingsSchemaError(reason)` on missing/wrong
     `$schema`, forbidden keyword, or jsonschema-rs malformedness.
     Delegates to the shared declarer-validator.
     """
-    validate_schema_declaration(schema, error_class=InvalidCapabilitySchemaError)
+    validate_schema_declaration(schema, error_class=InvalidCapabilitySettingsSchemaError)
 
 
 __all__ = [
-    "InvalidCapabilitySchemaError",
+    "InvalidCapabilitySettingsSchemaError",
     "validate_settings_schema",
 ]

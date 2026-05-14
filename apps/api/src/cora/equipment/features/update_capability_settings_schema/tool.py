@@ -1,4 +1,4 @@
-"""MCP tool for the `update_capability_schema` slice."""
+"""MCP tool for the `update_capability_settings_schema` slice."""
 
 from collections.abc import Callable
 from typing import Annotated, Any
@@ -8,18 +8,18 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from cora.equipment._bootstrap import SYSTEM_PRINCIPAL_ID
-from cora.equipment.features.update_capability_schema.command import (
-    UpdateCapabilitySchema,
+from cora.equipment.features.update_capability_settings_schema.command import (
+    UpdateCapabilitySettingsSchema,
 )
-from cora.equipment.features.update_capability_schema.handler import Handler
+from cora.equipment.features.update_capability_settings_schema.handler import Handler
 from cora.infrastructure.observability import current_correlation_id
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
-    """Register the `update_capability_schema` MCP tool."""
+    """Register the `update_capability_settings_schema` MCP tool."""
 
     @mcp.tool(
-        name="update_capability_schema",
+        name="update_capability_settings_schema",
         description=(
             "Set, replace, or clear a Capability's settings_schema "
             "(JSON Schema Draft 2020-12, constrained subset). The "
@@ -29,7 +29,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "the Asset.settings runtime validation hook in 5g-c."
         ),
     )
-    async def update_capability_schema_tool(  # pyright: ignore[reportUnusedFunction]
+    async def update_capability_settings_schema_tool(  # pyright: ignore[reportUnusedFunction]
         capability_id: Annotated[UUID, Field(description="Target capability's id.")],
         settings_schema: Annotated[
             dict[str, Any] | None,
@@ -46,7 +46,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     ) -> None:
         handler = get_handler()
         await handler(
-            UpdateCapabilitySchema(
+            UpdateCapabilitySettingsSchema(
                 capability_id=capability_id,
                 settings_schema=settings_schema,
             ),

@@ -10,8 +10,8 @@ from typing import Any
 
 import pytest
 
-from cora.equipment.aggregates.capability.schema_validation import (
-    InvalidCapabilitySchemaError,
+from cora.equipment.aggregates.capability.settings_validation import (
+    InvalidCapabilitySettingsSchemaError,
     validate_settings_schema,
 )
 
@@ -50,14 +50,14 @@ def test_accepts_full_subset() -> None:
 def test_rejects_missing_dollar_schema() -> None:
     """The $schema field is required — pins the draft explicitly so
     jsonschema-rs version changes can't silently flip the default."""
-    with pytest.raises(InvalidCapabilitySchemaError) as exc_info:
+    with pytest.raises(InvalidCapabilitySettingsSchemaError) as exc_info:
         validate_settings_schema({"type": "object"})
     assert "$schema must be exactly" in exc_info.value.reason
 
 
 @pytest.mark.unit
 def test_rejects_wrong_dollar_schema_uri() -> None:
-    with pytest.raises(InvalidCapabilitySchemaError) as exc_info:
+    with pytest.raises(InvalidCapabilitySettingsSchemaError) as exc_info:
         validate_settings_schema(
             {
                 "$schema": "https://json-schema.org/draft-07/schema#",
@@ -76,7 +76,7 @@ def test_rejects_forbidden_top_level_keyword(forbidden_key: str) -> None:
     """Anti-feature pinning: every keyword OUTSIDE the subset must
     raise. Catches a future contributor from quietly extending the
     surface area."""
-    with pytest.raises(InvalidCapabilitySchemaError) as exc_info:
+    with pytest.raises(InvalidCapabilitySettingsSchemaError) as exc_info:
         validate_settings_schema(_schema(**{forbidden_key: True}))
     assert "forbidden keyword" in exc_info.value.reason
     assert forbidden_key in exc_info.value.reason
@@ -86,7 +86,7 @@ def test_rejects_forbidden_top_level_keyword(forbidden_key: str) -> None:
 def test_rejects_forbidden_keyword_nested_in_properties() -> None:
     """Recursive subset enforcement: forbidden keywords inside
     properties values also raise."""
-    with pytest.raises(InvalidCapabilitySchemaError) as exc_info:
+    with pytest.raises(InvalidCapabilitySettingsSchemaError) as exc_info:
         validate_settings_schema(_schema(type="object", properties={"x": {"$ref": "#/defs/foo"}}))
     assert "$ref" in exc_info.value.reason
     assert "properties.x" in exc_info.value.reason
@@ -94,14 +94,14 @@ def test_rejects_forbidden_keyword_nested_in_properties() -> None:
 
 @pytest.mark.unit
 def test_rejects_properties_value_that_is_not_a_dict() -> None:
-    with pytest.raises(InvalidCapabilitySchemaError) as exc_info:
+    with pytest.raises(InvalidCapabilitySettingsSchemaError) as exc_info:
         validate_settings_schema(_schema(type="object", properties={"x": "not-a-schema"}))
     assert "must be a schema dict" in exc_info.value.reason
 
 
 @pytest.mark.unit
 def test_rejects_properties_that_is_not_a_dict() -> None:
-    with pytest.raises(InvalidCapabilitySchemaError) as exc_info:
+    with pytest.raises(InvalidCapabilitySettingsSchemaError) as exc_info:
         validate_settings_schema(_schema(type="object", properties=["a", "b"]))
     assert "must be a dict" in exc_info.value.reason
 
@@ -159,8 +159,8 @@ def test_accepts_nested_dollar_schema_declaration() -> None:
 def test_rejects_malformed_schema_via_jsonschema_rs() -> None:
     """If the schema is in-subset but jsonschema-rs rejects it as
     malformed (for example, an invalid `pattern` regex), we surface
-    that as InvalidCapabilitySchemaError — write-time guard."""
-    with pytest.raises(InvalidCapabilitySchemaError) as exc_info:
+    that as InvalidCapabilitySettingsSchemaError — write-time guard."""
+    with pytest.raises(InvalidCapabilitySettingsSchemaError) as exc_info:
         validate_settings_schema(
             _schema(
                 type="object",

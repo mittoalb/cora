@@ -1,4 +1,4 @@
-"""Contract tests for `POST /capabilities/{capability_id}/schema`.
+"""Contract tests for `POST /capabilities/{capability_id}/settings-schema`.
 
 Phase 5g-a. Action endpoint with body `{settings_schema}`. Schema
 can be set, replaced, or cleared (null payload).
@@ -33,11 +33,11 @@ def _example_schema() -> dict[str, Any]:
 
 
 @pytest.mark.contract
-def test_post_update_capability_schema_returns_204_when_setting_schema() -> None:
+def test_post_update_capability_settings_schema_returns_204_when_setting_schema() -> None:
     with TestClient(create_app()) as client:
         capability_id = _define_capability(client)
         response = client.post(
-            f"/capabilities/{capability_id}/schema",
+            f"/capabilities/{capability_id}/settings-schema",
             json={"settings_schema": _example_schema()},
         )
     assert response.status_code == 204
@@ -45,28 +45,28 @@ def test_post_update_capability_schema_returns_204_when_setting_schema() -> None
 
 
 @pytest.mark.contract
-def test_post_update_capability_schema_returns_204_when_clearing_schema() -> None:
+def test_post_update_capability_settings_schema_returns_204_when_clearing_schema() -> None:
     """Pass null to clear a previously-set schema."""
     with TestClient(create_app()) as client:
         capability_id = _define_capability(client)
         first = client.post(
-            f"/capabilities/{capability_id}/schema",
+            f"/capabilities/{capability_id}/settings-schema",
             json={"settings_schema": _example_schema()},
         )
         assert first.status_code == 204
         cleared = client.post(
-            f"/capabilities/{capability_id}/schema",
+            f"/capabilities/{capability_id}/settings-schema",
             json={"settings_schema": None},
         )
     assert cleared.status_code == 204
 
 
 @pytest.mark.contract
-def test_post_update_capability_schema_returns_400_for_missing_dollar_schema() -> None:
+def test_post_update_capability_settings_schema_returns_400_for_missing_dollar_schema() -> None:
     with TestClient(create_app()) as client:
         capability_id = _define_capability(client)
         response = client.post(
-            f"/capabilities/{capability_id}/schema",
+            f"/capabilities/{capability_id}/settings-schema",
             json={"settings_schema": {"type": "object"}},  # missing $schema
         )
     assert response.status_code == 400
@@ -75,11 +75,11 @@ def test_post_update_capability_schema_returns_400_for_missing_dollar_schema() -
 
 
 @pytest.mark.contract
-def test_post_update_capability_schema_returns_400_for_forbidden_keyword() -> None:
+def test_post_update_capability_settings_schema_returns_400_for_forbidden_keyword() -> None:
     with TestClient(create_app()) as client:
         capability_id = _define_capability(client)
         response = client.post(
-            f"/capabilities/{capability_id}/schema",
+            f"/capabilities/{capability_id}/settings-schema",
             json={
                 "settings_schema": {
                     "$schema": _DRAFT,
@@ -93,22 +93,22 @@ def test_post_update_capability_schema_returns_400_for_forbidden_keyword() -> No
 
 
 @pytest.mark.contract
-def test_post_update_capability_schema_returns_404_for_unknown_capability() -> None:
+def test_post_update_capability_settings_schema_returns_404_for_unknown_capability() -> None:
     unknown_id = uuid4()
     with TestClient(create_app()) as client:
         response = client.post(
-            f"/capabilities/{unknown_id}/schema",
+            f"/capabilities/{unknown_id}/settings-schema",
             json={"settings_schema": _example_schema()},
         )
     assert response.status_code == 404
 
 
 @pytest.mark.contract
-def test_post_update_capability_schema_returns_422_for_malformed_path() -> None:
+def test_post_update_capability_settings_schema_returns_422_for_malformed_path() -> None:
     """Bad UUID in path -> Pydantic 422."""
     with TestClient(create_app()) as client:
         response = client.post(
-            "/capabilities/not-a-uuid/schema",
+            "/capabilities/not-a-uuid/settings-schema",
             json={"settings_schema": None},
         )
     assert response.status_code == 422

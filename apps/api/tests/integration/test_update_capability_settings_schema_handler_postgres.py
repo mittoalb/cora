@@ -1,4 +1,4 @@
-"""End-to-end integration test: update_capability_schema against real Postgres.
+"""End-to-end integration test: update_capability_settings_schema against real Postgres.
 
 Phase 5g-a. Round-trip the new event + projection column:
   - Define capability
@@ -20,9 +20,9 @@ import pytest
 
 from cora.equipment._projections import register_equipment_projections
 from cora.equipment.aggregates.capability import load_capability
-from cora.equipment.features import define_capability, update_capability_schema
+from cora.equipment.features import define_capability, update_capability_settings_schema
 from cora.equipment.features.define_capability import DefineCapability
-from cora.equipment.features.update_capability_schema import UpdateCapabilitySchema
+from cora.equipment.features.update_capability_settings_schema import UpdateCapabilitySettingsSchema
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from tests.integration._helpers import build_postgres_deps
@@ -56,7 +56,7 @@ def _example_schema() -> dict[str, Any]:
 
 
 @pytest.mark.integration
-async def test_update_capability_schema_round_trips_through_event_store_and_projection(
+async def test_update_capability_settings_schema_round_trips_through_event_store_and_projection(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Full end-to-end: define, set schema, fold-on-read returns the
@@ -76,8 +76,8 @@ async def test_update_capability_schema_round_trips_through_event_store_and_proj
 
     # Update schema
     schema = _example_schema()
-    await update_capability_schema.bind(deps)(
-        UpdateCapabilitySchema(capability_id=capability_id, settings_schema=schema),
+    await update_capability_settings_schema.bind(deps)(
+        UpdateCapabilitySettingsSchema(capability_id=capability_id, settings_schema=schema),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -117,14 +117,16 @@ async def test_clearing_schema_flips_projection_present_back_to_false(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await update_capability_schema.bind(deps)(
-        UpdateCapabilitySchema(capability_id=capability_id, settings_schema=_example_schema()),
+    await update_capability_settings_schema.bind(deps)(
+        UpdateCapabilitySettingsSchema(
+            capability_id=capability_id, settings_schema=_example_schema()
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     # Now clear it
-    await update_capability_schema.bind(deps)(
-        UpdateCapabilitySchema(capability_id=capability_id, settings_schema=None),
+    await update_capability_settings_schema.bind(deps)(
+        UpdateCapabilitySettingsSchema(capability_id=capability_id, settings_schema=None),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -163,8 +165,8 @@ async def test_no_op_on_unchanged_schema_does_not_emit_event(
         correlation_id=_CORRELATION_ID,
     )
     schema = _example_schema()
-    await update_capability_schema.bind(deps)(
-        UpdateCapabilitySchema(capability_id=capability_id, settings_schema=schema),
+    await update_capability_settings_schema.bind(deps)(
+        UpdateCapabilitySettingsSchema(capability_id=capability_id, settings_schema=schema),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -172,8 +174,8 @@ async def test_no_op_on_unchanged_schema_does_not_emit_event(
     _, version_after_first = await deps.event_store.load("Capability", capability_id)
 
     # Re-submit identical schema; should be a no-op
-    await update_capability_schema.bind(deps)(
-        UpdateCapabilitySchema(capability_id=capability_id, settings_schema=schema),
+    await update_capability_settings_schema.bind(deps)(
+        UpdateCapabilitySettingsSchema(capability_id=capability_id, settings_schema=schema),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

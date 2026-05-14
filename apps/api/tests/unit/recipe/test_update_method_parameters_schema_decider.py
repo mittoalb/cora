@@ -10,7 +10,7 @@ Schema can be set, replaced, or cleared (None payload). All
 lifecycle states (Defined / Versioned / Deprecated) are valid
 sources — schema iteration is independent of content lifecycle.
 
-Mirrors `test_update_capability_schema_decider.py` (Equipment 5g-a)
+Mirrors `test_update_capability_settings_schema_decider.py` (Equipment 5g-a)
 shape and assertions.
 """
 

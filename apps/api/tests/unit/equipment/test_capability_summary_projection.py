@@ -47,7 +47,7 @@ def test_projection_metadata() -> None:
             "CapabilityDefined",
             "CapabilityVersioned",
             "CapabilityDeprecated",
-            "CapabilitySchemaUpdated",
+            "CapabilitySettingsSchemaUpdated",
         }
     )
 
@@ -175,11 +175,11 @@ _TEST_SCHEMA = {
 
 
 @pytest.mark.unit
-async def test_capability_schema_updated_with_schema_sets_present_true() -> None:
+async def test_capability_settings_schema_updated_with_schema_sets_present_true() -> None:
     proj = CapabilitySummaryProjection()
     conn = AsyncMock()
     event = _stored(
-        "CapabilitySchemaUpdated",
+        "CapabilitySettingsSchemaUpdated",
         {
             "capability_id": str(_CAPABILITY_ID),
             "settings_schema": _TEST_SCHEMA,
@@ -199,11 +199,11 @@ async def test_capability_schema_updated_with_schema_sets_present_true() -> None
 
 
 @pytest.mark.unit
-async def test_capability_schema_updated_with_none_sets_present_false() -> None:
+async def test_capability_settings_schema_updated_with_none_sets_present_false() -> None:
     proj = CapabilitySummaryProjection()
     conn = AsyncMock()
     event = _stored(
-        "CapabilitySchemaUpdated",
+        "CapabilitySettingsSchemaUpdated",
         {
             "capability_id": str(_CAPABILITY_ID),
             "settings_schema": None,
@@ -219,14 +219,14 @@ async def test_capability_schema_updated_with_none_sets_present_false() -> None:
 
 
 @pytest.mark.unit
-async def test_capability_schema_updated_missing_payload_key_treated_as_none() -> None:
+async def test_capability_settings_schema_updated_missing_payload_key_treated_as_none() -> None:
     """Tolerates payloads without the settings_schema key (treats as
     None / FALSE). Matches the from_stored additive-evolution
     stance."""
     proj = CapabilitySummaryProjection()
     conn = AsyncMock()
     event = _stored(
-        "CapabilitySchemaUpdated",
+        "CapabilitySettingsSchemaUpdated",
         {
             "capability_id": str(_CAPABILITY_ID),
             "occurred_at": _NOW.isoformat(),
