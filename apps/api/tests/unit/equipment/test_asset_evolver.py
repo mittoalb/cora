@@ -22,12 +22,15 @@ from cora.equipment.aggregates.asset.events import (
     AssetDegraded,
     AssetFaulted,
     AssetMaintenanceEntered,
+    AssetPortAdded,
+    AssetPortRemoved,
     AssetRegistered,
     AssetRelocated,
     AssetRestored,
     AssetRestoredFromMaintenance,
     AssetSettingsUpdated,
 )
+from cora.equipment.aggregates.asset.state import AssetPort, PortDirection
 from cora.equipment.features import register_asset
 from cora.equipment.features.register_asset import RegisterAsset
 
@@ -1279,3 +1282,161 @@ def test_evolve_condition_event_preserves_settings() -> None:
     )
     state = evolve(prior, AssetFaulted(asset_id=prior.id, reason="x", occurred_at=_NOW))
     assert state.settings == {"a": 1}
+
+
+# ---------- Phase 5h: ports transitions + preservation ----------
+
+
+@pytest.mark.unit
+def test_evolve_asset_registered_defaults_ports_to_empty_frozenset() -> None:
+    state = evolve(
+        None,
+        AssetRegistered(
+            asset_id=uuid4(),
+            name="X",
+            level="Unit",
+            parent_id=uuid4(),
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.ports == frozenset()
+
+
+@pytest.mark.unit
+def test_evolve_asset_port_added_inserts_port_into_frozenset() -> None:
+    asset_id = uuid4()
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+    )
+    state = evolve(
+        prior,
+        AssetPortAdded(
+            asset_id=asset_id,
+            port_name="trigger_in",
+            direction="Input",
+            signal_type="TTL",
+            occurred_at=_NOW,
+        ),
+    )
+    assert (
+        AssetPort(name="trigger_in", direction=PortDirection.INPUT, signal_type="TTL")
+        in state.ports
+    )
+
+
+@pytest.mark.unit
+def test_evolve_asset_port_removed_removes_by_name_only() -> None:
+    """The removed port may have any direction/signal_type; the
+    evolver matches by name alone (the unique key)."""
+    asset_id = uuid4()
+    keep = AssetPort(name="keep", direction=PortDirection.INPUT, signal_type="TTL")
+    drop = AssetPort(name="drop", direction=PortDirection.OUTPUT, signal_type="LVDS")
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        ports=frozenset({keep, drop}),
+    )
+    state = evolve(
+        prior,
+        AssetPortRemoved(asset_id=asset_id, port_name="drop", occurred_at=_NOW),
+    )
+    assert state.ports == frozenset({keep})
+
+
+@pytest.mark.unit
+def test_evolve_lifecycle_transition_preserves_ports() -> None:
+    port = AssetPort(name="x", direction=PortDirection.INPUT, signal_type="TTL")
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        lifecycle=AssetLifecycle.COMMISSIONED,
+        ports=frozenset({port}),
+    )
+    state = evolve(prior, AssetActivated(asset_id=prior.id, occurred_at=_NOW))
+    assert state.ports == frozenset({port})
+
+
+@pytest.mark.unit
+def test_evolve_settings_transition_preserves_ports() -> None:
+    port = AssetPort(name="x", direction=PortDirection.INPUT, signal_type="TTL")
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        ports=frozenset({port}),
+    )
+    state = evolve(
+        prior,
+        AssetSettingsUpdated(asset_id=prior.id, settings={"a": 1}, occurred_at=_NOW),
+    )
+    assert state.ports == frozenset({port})
+
+
+@pytest.mark.unit
+def test_evolve_port_added_preserves_other_facets() -> None:
+    """Port mutations must not touch lifecycle / condition / settings /
+    capabilities / parent_id."""
+    asset_id = uuid4()
+    parent = uuid4()
+    cap = uuid4()
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("X"),
+        level=AssetLevel.DEVICE,
+        parent_id=parent,
+        lifecycle=AssetLifecycle.MAINTENANCE,
+        condition=AssetCondition.DEGRADED,
+        capabilities=frozenset({cap}),
+        settings={"k": 1},
+    )
+    state = evolve(
+        prior,
+        AssetPortAdded(
+            asset_id=asset_id,
+            port_name="x",
+            direction="Input",
+            signal_type="TTL",
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.lifecycle is AssetLifecycle.MAINTENANCE
+    assert state.condition is AssetCondition.DEGRADED
+    assert state.capabilities == frozenset({cap})
+    assert state.settings == {"k": 1}
+    assert state.parent_id == parent
+
+
+@pytest.mark.unit
+def test_fold_register_then_add_then_remove_yields_empty_ports() -> None:
+    """End-to-end: register -> add port -> remove port lands at
+    empty ports. Pin against the fold layer."""
+    asset_id = uuid4()
+    state = fold(
+        [
+            AssetRegistered(
+                asset_id=asset_id,
+                name="X",
+                level="Unit",
+                parent_id=uuid4(),
+                occurred_at=_NOW,
+            ),
+            AssetPortAdded(
+                asset_id=asset_id,
+                port_name="trigger_in",
+                direction="Input",
+                signal_type="TTL",
+                occurred_at=_NOW,
+            ),
+            AssetPortRemoved(asset_id=asset_id, port_name="trigger_in", occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.ports == frozenset()

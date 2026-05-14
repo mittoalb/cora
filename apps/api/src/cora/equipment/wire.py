@@ -40,6 +40,7 @@ from uuid import UUID
 from cora.equipment.features import (
     activate_asset,
     add_asset_capability,
+    add_asset_port,
     decommission_asset,
     define_capability,
     degrade_asset,
@@ -53,6 +54,7 @@ from cora.equipment.features import (
     register_asset,
     relocate_asset,
     remove_asset_capability,
+    remove_asset_port,
     restore_asset,
     restore_from_maintenance,
     update_asset_settings,
@@ -97,6 +99,8 @@ class EquipmentHandlers:
     fault_asset: fault_asset.Handler
     restore_asset: restore_asset.Handler
     update_asset_settings: update_asset_settings.Handler
+    add_asset_port: add_asset_port.Handler
+    remove_asset_port: remove_asset_port.Handler
     get_asset: get_asset.Handler
     list_assets: list_assets.Handler
     list_capabilities: list_capabilities.Handler
@@ -205,6 +209,16 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
         update_asset_settings=with_tracing(
             update_asset_settings.bind(deps),
             command_name="UpdateAssetSettings",
+            bc=_BC,
+        ),
+        add_asset_port=with_tracing(
+            add_asset_port.bind(deps),
+            command_name="AddAssetPort",
+            bc=_BC,
+        ),
+        remove_asset_port=with_tracing(
+            remove_asset_port.bind(deps),
+            command_name="RemoveAssetPort",
             bc=_BC,
         ),
         get_asset=with_tracing(

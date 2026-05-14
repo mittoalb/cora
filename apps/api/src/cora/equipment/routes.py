@@ -40,14 +40,18 @@ from cora.equipment.aggregates.asset import (
     AssetAlreadyExistsError,
     AssetCannotActivateError,
     AssetCannotAddCapabilityError,
+    AssetCannotAddPortError,
     AssetCannotDecommissionError,
     AssetCannotEnterMaintenanceError,
     AssetCannotRelocateError,
     AssetCannotRemoveCapabilityError,
+    AssetCannotRemovePortError,
     AssetCannotRestoreFromMaintenanceError,
     AssetNotFoundError,
     InvalidAssetNameError,
     InvalidAssetParentError,
+    InvalidAssetPortNameError,
+    InvalidAssetPortSignalTypeError,
     InvalidAssetSettingsError,
 )
 from cora.equipment.aggregates.capability import (
@@ -63,6 +67,7 @@ from cora.equipment.errors import UnauthorizedError
 from cora.equipment.features import (
     activate_asset,
     add_asset_capability,
+    add_asset_port,
     decommission_asset,
     define_capability,
     degrade_asset,
@@ -76,6 +81,7 @@ from cora.equipment.features import (
     register_asset,
     relocate_asset,
     remove_asset_capability,
+    remove_asset_port,
     restore_asset,
     restore_from_maintenance,
     update_asset_settings,
@@ -166,6 +172,8 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(fault_asset.router)
     app.include_router(restore_asset.router)
     app.include_router(update_asset_settings.router)
+    app.include_router(add_asset_port.router)
+    app.include_router(remove_asset_port.router)
     app.include_router(get_asset.router)
     app.include_router(list_assets.router)
     for validation_cls in (
@@ -174,6 +182,8 @@ def register_equipment_routes(app: FastAPI) -> None:
         InvalidCapabilityVersionTagError,
         InvalidAssetNameError,
         InvalidAssetParentError,
+        InvalidAssetPortNameError,
+        InvalidAssetPortSignalTypeError,
         InvalidAssetSettingsError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
@@ -189,6 +199,8 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssetCannotRestoreFromMaintenanceError,
         AssetCannotAddCapabilityError,
         AssetCannotRemoveCapabilityError,
+        AssetCannotAddPortError,
+        AssetCannotRemovePortError,
         CapabilityCannotVersionError,
         CapabilityCannotDeprecateError,
     ):

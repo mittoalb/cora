@@ -55,6 +55,8 @@ def test_get_asset_returns_200_with_commissioned_lifecycle_for_new_asset() -> No
         "capabilities": [],
         # 5g-c: settings defaults to empty dict at registration.
         "settings": {},
+        # 5h: ports defaults to empty list at registration.
+        "ports": [],
     }
 
 

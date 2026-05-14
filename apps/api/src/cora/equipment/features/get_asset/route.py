@@ -9,7 +9,7 @@ deeper in the stack).
 Response carries the full Asset state including the hierarchy
 (`parent_id` is `UUID | None` — null only for Enterprise roots),
 the `lifecycle` enum string, the `condition` enum string (5g-b),
-and the `settings` dict (5g-c).
+the `settings` dict (5g-c), and the `ports` list (5h).
 """
 
 from typing import Annotated, Any
@@ -24,6 +24,14 @@ from cora.equipment.features.get_asset.query import GetAsset
 from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
 
 
+class AssetPortDTO(BaseModel):
+    """Read-side DTO for a single Asset port (5h)."""
+
+    name: str
+    direction: str
+    signal_type: str
+
+
 class AssetResponse(BaseModel):
     """Read-side DTO at the API boundary.
 
@@ -36,6 +44,7 @@ class AssetResponse(BaseModel):
     JSON boundary; sorted by UUID string form for response
     determinism). `settings` is the operator-supplied dict
     (operationally typed by Capability schemas at write time).
+    `ports` (5h) serializes as a list sorted by port name.
     """
 
     id: UUID
@@ -46,6 +55,7 @@ class AssetResponse(BaseModel):
     condition: str
     capabilities: list[UUID]
     settings: dict[str, Any]
+    ports: list[AssetPortDTO]
 
 
 def _get_handler(request: Request) -> Handler:
@@ -96,4 +106,12 @@ async def get_assets(
         condition=asset.condition.value,
         capabilities=sorted(asset.capabilities, key=str),
         settings=asset.settings,
+        ports=[
+            AssetPortDTO(
+                name=p.name,
+                direction=p.direction.value,
+                signal_type=p.signal_type,
+            )
+            for p in sorted(asset.ports, key=lambda port: port.name)
+        ],
     )

@@ -217,6 +217,41 @@ class AssetRestored:
 
 
 @dataclass(frozen=True)
+class AssetPortAdded:
+    """A typed port was added to an Asset's port set (5h).
+
+    Single-port event (not bulk-add), mirrors `AssetCapabilityAdded`.
+    Audit value: "when did this Asset gain a `sync_clock` port?"
+
+    `port_name`, `direction`, and `signal_type` are the three
+    components of the AssetPort VO; carried as primitives in the
+    event payload so the from_stored reconstruction can rebuild the
+    VO without reading the state.
+    """
+
+    asset_id: UUID
+    port_name: str
+    direction: str  # PortDirection.value (StrEnum)
+    signal_type: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class AssetPortRemoved:
+    """A typed port was removed from an Asset's port set (5h).
+
+    Mirror of `AssetPortAdded`. Carries only `port_name` because
+    that is the unique key on Asset.ports — the decider's evolver
+    pre-image gives the removed port's full shape if a future reader
+    needs it. Symmetric with `AssetCapabilityRemoved`.
+    """
+
+    asset_id: UUID
+    port_name: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
 class AssetSettingsUpdated:
     """An asset's settings dict was set / replaced via the
     update_asset_settings slice (5g-c).
@@ -281,6 +316,8 @@ AssetEvent = (
     | AssetFaulted
     | AssetRestored
     | AssetSettingsUpdated
+    | AssetPortAdded
+    | AssetPortRemoved
 )
 
 
@@ -388,6 +425,26 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
                 "settings": settings,
                 "occurred_at": occurred_at.isoformat(),
             }
+        case AssetPortAdded(
+            asset_id=asset_id,
+            port_name=port_name,
+            direction=direction,
+            signal_type=signal_type,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "asset_id": str(asset_id),
+                "port_name": port_name,
+                "direction": direction,
+                "signal_type": signal_type,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case AssetPortRemoved(asset_id=asset_id, port_name=port_name, occurred_at=occurred_at):
+            return {
+                "asset_id": str(asset_id),
+                "port_name": port_name,
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -476,6 +533,20 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                 settings=payload.get("settings", {}),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "AssetPortAdded":
+            return AssetPortAdded(
+                asset_id=UUID(payload["asset_id"]),
+                port_name=payload["port_name"],
+                direction=payload["direction"],
+                signal_type=payload["signal_type"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "AssetPortRemoved":
+            return AssetPortRemoved(
+                asset_id=UUID(payload["asset_id"]),
+                port_name=payload["port_name"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown AssetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -490,6 +561,8 @@ __all__ = [
     "AssetEvent",
     "AssetFaulted",
     "AssetMaintenanceEntered",
+    "AssetPortAdded",
+    "AssetPortRemoved",
     "AssetRegistered",
     "AssetRelocated",
     "AssetRestored",

@@ -22,6 +22,14 @@ from cora.equipment.features.get_asset.query import GetAsset
 from cora.infrastructure.observability import current_correlation_id
 
 
+class AssetPortOutput(BaseModel):
+    """Structured output for a single Asset port (5h)."""
+
+    name: str
+    direction: str
+    signal_type: str
+
+
 class AssetOutput(BaseModel):
     """Structured output of the `get_asset` MCP tool."""
 
@@ -33,6 +41,7 @@ class AssetOutput(BaseModel):
     condition: str
     capabilities: list[UUID]
     settings: dict[str, Any]
+    ports: list[AssetPortOutput]
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -66,4 +75,12 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             condition=asset.condition.value,
             capabilities=sorted(asset.capabilities, key=str),
             settings=asset.settings,
+            ports=[
+                AssetPortOutput(
+                    name=p.name,
+                    direction=p.direction.value,
+                    signal_type=p.signal_type,
+                )
+                for p in sorted(asset.ports, key=lambda port: port.name)
+            ],
         )

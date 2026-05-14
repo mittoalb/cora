@@ -15,6 +15,7 @@ from cora.equipment.features.activate_asset import tool as activate_asset_tool
 from cora.equipment.features.add_asset_capability import (
     tool as add_asset_capability_tool,
 )
+from cora.equipment.features.add_asset_port import tool as add_asset_port_tool
 from cora.equipment.features.decommission_asset import tool as decommission_asset_tool
 from cora.equipment.features.define_capability import tool as define_capability_tool
 from cora.equipment.features.degrade_asset import tool as degrade_asset_tool
@@ -32,6 +33,7 @@ from cora.equipment.features.relocate_asset import tool as relocate_asset_tool
 from cora.equipment.features.remove_asset_capability import (
     tool as remove_asset_capability_tool,
 )
+from cora.equipment.features.remove_asset_port import tool as remove_asset_port_tool
 from cora.equipment.features.restore_asset import tool as restore_asset_tool
 from cora.equipment.features.restore_from_maintenance import (
     tool as restore_from_maintenance_tool,
@@ -119,6 +121,14 @@ def register_equipment_tools(
     update_asset_settings_tool.register(
         mcp,
         get_handler=lambda: get_handlers().update_asset_settings,
+    )
+    add_asset_port_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().add_asset_port,
+    )
+    remove_asset_port_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().remove_asset_port,
     )
     get_asset_tool.register(
         mcp,

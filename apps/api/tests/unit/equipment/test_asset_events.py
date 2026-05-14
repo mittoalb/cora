@@ -13,6 +13,8 @@ from cora.equipment.aggregates.asset.events import (
     AssetDegraded,
     AssetFaulted,
     AssetMaintenanceEntered,
+    AssetPortAdded,
+    AssetPortRemoved,
     AssetRegistered,
     AssetRelocated,
     AssetRestored,
@@ -720,3 +722,89 @@ def test_to_payload_then_from_stored_round_trips_for_asset_settings_updated() ->
 def test_event_type_name_for_asset_settings_updated() -> None:
     event = AssetSettingsUpdated(asset_id=uuid4(), settings={}, occurred_at=_NOW)
     assert event_type_name(event) == "AssetSettingsUpdated"
+
+
+# ---------- Phase 5h: AssetPortAdded / AssetPortRemoved ----------
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_asset_port_added() -> None:
+    asset_id = uuid4()
+    event = AssetPortAdded(
+        asset_id=asset_id,
+        port_name="trigger_in",
+        direction="Input",
+        signal_type="TTL",
+        occurred_at=_NOW,
+    )
+    assert to_payload(event) == {
+        "asset_id": str(asset_id),
+        "port_name": "trigger_in",
+        "direction": "Input",
+        "signal_type": "TTL",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_asset_port_added() -> None:
+    asset_id = uuid4()
+    stored = _stored(
+        "AssetPortAdded",
+        {
+            "asset_id": str(asset_id),
+            "port_name": "trigger_in",
+            "direction": "Input",
+            "signal_type": "TTL",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    assert from_stored(stored) == AssetPortAdded(
+        asset_id=asset_id,
+        port_name="trigger_in",
+        direction="Input",
+        signal_type="TTL",
+        occurred_at=_NOW,
+    )
+
+
+@pytest.mark.unit
+def test_round_trip_for_asset_port_added() -> None:
+    original = AssetPortAdded(
+        asset_id=uuid4(),
+        port_name="encoder_a",
+        direction="Output",
+        signal_type="LVDS",
+        occurred_at=_NOW,
+    )
+    stored = _stored("AssetPortAdded", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_asset_port_removed() -> None:
+    asset_id = uuid4()
+    event = AssetPortRemoved(asset_id=asset_id, port_name="sync_clock", occurred_at=_NOW)
+    assert to_payload(event) == {
+        "asset_id": str(asset_id),
+        "port_name": "sync_clock",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_round_trip_for_asset_port_removed() -> None:
+    original = AssetPortRemoved(asset_id=uuid4(), port_name="x", occurred_at=_NOW)
+    stored = _stored("AssetPortRemoved", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_event_type_name_for_port_events() -> None:
+    asset_id = uuid4()
+    added = AssetPortAdded(
+        asset_id=asset_id, port_name="x", direction="Input", signal_type="TTL", occurred_at=_NOW
+    )
+    removed = AssetPortRemoved(asset_id=asset_id, port_name="x", occurred_at=_NOW)
+    assert event_type_name(added) == "AssetPortAdded"
+    assert event_type_name(removed) == "AssetPortRemoved"

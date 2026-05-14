@@ -7,9 +7,12 @@ a tree, NOT a DAG — single-parent rule per BC map). Carries a
 Device, ISA-88-derived), a `lifecycle` FSM
 (Commissioned -> Active -> Maintenance -> Decommissioned), a
 `condition` enum (Nominal / Degraded / Faulted, 5g-b: orthogonal to
-lifecycle), and a `settings` dict (5g-c: slow-changing operational
+lifecycle), a `settings` dict (5g-c: slow-changing operational
 parameters validated at write time against the union of assigned
-Capabilities' settings_schemas).
+Capabilities' settings_schemas), and `ports` (5h: typed connection
+points for trigger / encoder / sync / network signals; declarations
+of what ports the equipment HAS — Plan.wiring (6h) carries the
+actual port-to-port connections).
 
 ## Phase 5b scope
 
@@ -117,6 +120,83 @@ class AssetLifecycle(StrEnum):
     ACTIVE = "Active"
     MAINTENANCE = "Maintenance"
     DECOMMISSIONED = "Decommissioned"
+
+
+class PortDirection(StrEnum):
+    """The direction of an Asset port (5h).
+
+    Two values only: `INPUT` (receives a signal) and `OUTPUT`
+    (drives a signal). Bidirectional devices declare TWO ports with
+    opposite directions; matches PandABox / EPICS convention. A
+    single `BIDIRECTIONAL` value would create ambiguity at wire-up
+    time (Plan.wiring needs to know which side is the source).
+    """
+
+    INPUT = "Input"
+    OUTPUT = "Output"
+
+
+PORT_NAME_MAX_LENGTH = 100
+PORT_SIGNAL_TYPE_MAX_LENGTH = 50
+
+
+class InvalidAssetPortNameError(ValueError):
+    """The supplied port name is empty, whitespace-only, or too long."""
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Asset port name must be 1-{PORT_NAME_MAX_LENGTH} chars after trimming "
+            f"(got: {value!r})"
+        )
+        self.value = value
+
+
+class InvalidAssetPortSignalTypeError(ValueError):
+    """The supplied port signal_type is empty, whitespace-only, or too long."""
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Asset port signal_type must be 1-{PORT_SIGNAL_TYPE_MAX_LENGTH} chars "
+            f"after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+@dataclass(frozen=True)
+class AssetPort:
+    """A typed connection point exposed by an Asset (5h).
+
+    Tuple `(name, direction, signal_type)` describes one port. The
+    Asset declares what ports it HAS via `add_asset_port` /
+    `remove_asset_port`; the connection between two ports (which
+    port wires to which) lives in `Plan.wiring` (6h), not here.
+
+    `name` is operator-supplied within the Asset's scope (e.g.
+    `"trigger_in"`, `"encoder_a"`, `"sync_clock"`). Trimmed and
+    bounded 1-100 chars. Asset-wide name uniqueness is enforced by
+    the `add_asset_port` decider, NOT by this dataclass.
+
+    `signal_type` is operator-supplied free text 1-50 chars
+    (`"TTL"`, `"LVDS"`, `"Encoder"`, `"Network"`, `"Sync"`, etc.).
+    Free-form intentionally; promote to a closed StrEnum once the
+    pilot vocabulary settles (see project_asset_ports_design memo).
+    """
+
+    name: str
+    direction: PortDirection
+    signal_type: str
+
+    def __post_init__(self) -> None:
+        trimmed_name = self.name.strip()
+        if not trimmed_name or len(trimmed_name) > PORT_NAME_MAX_LENGTH:
+            raise InvalidAssetPortNameError(self.name)
+        trimmed_signal = self.signal_type.strip()
+        if not trimmed_signal or len(trimmed_signal) > PORT_SIGNAL_TYPE_MAX_LENGTH:
+            raise InvalidAssetPortSignalTypeError(self.signal_type)
+        # Frozen dataclasses block normal assignment in __post_init__;
+        # use object.__setattr__ to install trimmed values.
+        object.__setattr__(self, "name", trimmed_name)
+        object.__setattr__(self, "signal_type", trimmed_signal)
 
 
 class AssetCondition(StrEnum):
@@ -336,6 +416,42 @@ class AssetCannotRemoveCapabilityError(Exception):
         self.reason = reason
 
 
+class AssetCannotAddPortError(Exception):
+    """Attempted to add a port to an Asset under disqualifying conditions (5h).
+
+    Two failure modes:
+      - asset is `Decommissioned` (retired; no further port changes)
+      - port name is already in `asset.ports` (strict-not-idempotent;
+        same convention as Capability mutation)
+
+    Mirrors `AssetCannotAddCapabilityError`. The `port_name` is
+    surfaced as a separate field for diagnostics; the `reason`
+    string is what the route's 409 body shows.
+    """
+
+    def __init__(self, asset_id: UUID, port_name: str, reason: str) -> None:
+        super().__init__(f"Asset {asset_id} cannot add port {port_name!r}: {reason}")
+        self.asset_id = asset_id
+        self.port_name = port_name
+        self.reason = reason
+
+
+class AssetCannotRemovePortError(Exception):
+    """Attempted to remove a port from an Asset under disqualifying conditions (5h).
+
+    Two failure modes:
+      - asset is `Decommissioned` (retired)
+      - no port with the given name in `asset.ports` (strict-not-
+        idempotent; symmetric with `AssetCannotAddPortError`)
+    """
+
+    def __init__(self, asset_id: UUID, port_name: str, reason: str) -> None:
+        super().__init__(f"Asset {asset_id} cannot remove port {port_name!r}: {reason}")
+        self.asset_id = asset_id
+        self.port_name = port_name
+        self.reason = reason
+
+
 class AssetCannotRelocateError(Exception):
     """Attempted to relocate an asset under disqualifying conditions.
 
@@ -419,9 +535,18 @@ class Asset:
     semantics. Defaults to empty dict; pre-5g-c streams fold cleanly
     via the additive-state pattern.
 
-    Future additive facets (5h+): `ports`, `owner`, `persistent_id`.
-    The state-level fields land with defaults for the same
-    forward-compatibility reason.
+    `ports` (5h): typed connection points the Asset exposes
+    (trigger_in, encoder_a, sync_clock, etc.). Each AssetPort is a
+    name + direction + signal_type tuple. Updated incrementally via
+    `add_asset_port` / `remove_asset_port` slices (mirrors the
+    Capability-mutation precedent). Defaults to empty frozenset;
+    pre-5h streams fold cleanly via the additive-state pattern.
+    Plan.wiring (6h) will reference these by name to declare port-
+    to-port connections.
+
+    Future additive facets: `owner`, `persistent_id`. The state-
+    level fields land with defaults for the same forward-
+    compatibility reason.
     """
 
     id: UUID
@@ -441,3 +566,6 @@ class Asset:
     # has no element types for pyright to infer, so the parametrized
     # `dict[str, Any]` callable is supplied as the factory.
     settings: dict[str, Any] = field(default_factory=dict[str, Any])
+    # frozenset[AssetPort] for typed connection points (5h).
+    # Same parametrized-callable trick as capabilities.
+    ports: frozenset[AssetPort] = field(default_factory=frozenset[AssetPort])

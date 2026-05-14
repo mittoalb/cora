@@ -17,6 +17,8 @@ Lifecycle mapping per event type:
   - `AssetFaulted`                 -> (lifecycle UNCHANGED; condition -> FAULTED)
   - `AssetRestored`                -> (lifecycle UNCHANGED; condition -> NOMINAL)
   - `AssetSettingsUpdated`         -> (lifecycle UNCHANGED; settings -> event.settings)
+  - `AssetPortAdded`               -> (lifecycle UNCHANGED; inserts AssetPort into ports frozenset)
+  - `AssetPortRemoved`             -> (lifecycle UNCHANGED; removes AssetPort matching name)
 
 The lifecycle mapping is hardcoded per match arm — the event type
 IS the lifecycle-change indicator (no lifecycle field in event
@@ -35,17 +37,18 @@ mutated incrementally by `AssetCapabilityAdded` /
 `AssetCapabilityRemoved`.
 
 **Critical invariant**: every transition arm MUST carry
-`capabilities` AND `condition` AND `settings` through from prior
-state. Constructing `Asset(id=..., name=..., level=..., parent_id=...,
-lifecycle=...)` without explicitly passing them would silently WIPE
-the fields to their defaults (empty frozenset / NOMINAL / empty
-dict). 5f-1 added `capabilities` with a default solely for additive-
-state forward compatibility on genesis events; 5g-b added `condition`
-for the same reason; 5g-c added `settings` likewise. Transition arms
-must explicitly carry all three. Pinned by
-`test_evolve_<transition>_preserves_capabilities`,
-`test_evolve_<transition>_preserves_condition`, and
-`test_evolve_<transition>_preserves_settings` for each transition.
+`capabilities` AND `condition` AND `settings` AND `ports` through
+from prior state. Constructing `Asset(id=..., name=..., level=...,
+parent_id=..., lifecycle=...)` without explicitly passing them
+would silently WIPE the fields to their defaults (empty frozenset /
+NOMINAL / empty dict / empty frozenset). 5f-1 added `capabilities`
+with a default solely for additive-state forward compatibility on
+genesis events; 5g-b added `condition`, 5g-c added `settings`, 5h
+added `ports` likewise. Transition arms must explicitly carry all
+four. Pinned by `test_evolve_<transition>_preserves_capabilities`,
+`test_evolve_<transition>_preserves_condition`,
+`test_evolve_<transition>_preserves_settings`, and
+`test_evolve_<transition>_preserves_ports` for each transition.
 
 Transition events applied to empty state raise ValueError: they
 can never appear before `AssetRegistered` in a well-formed stream.
@@ -65,6 +68,8 @@ from cora.equipment.aggregates.asset.events import (
     AssetEvent,
     AssetFaulted,
     AssetMaintenanceEntered,
+    AssetPortAdded,
+    AssetPortRemoved,
     AssetRegistered,
     AssetRelocated,
     AssetRestored,
@@ -77,6 +82,8 @@ from cora.equipment.aggregates.asset.state import (
     AssetLevel,
     AssetLifecycle,
     AssetName,
+    AssetPort,
+    PortDirection,
 )
 
 
@@ -115,6 +122,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 condition=prior.condition,
                 capabilities=prior.capabilities,
                 settings=prior.settings,
+                ports=prior.ports,
             )
         case AssetDecommissioned():
             prior = _require_state(state, "AssetDecommissioned")
@@ -127,6 +135,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 condition=prior.condition,
                 capabilities=prior.capabilities,
                 settings=prior.settings,
+                ports=prior.ports,
             )
         case AssetRelocated(to_parent_id=to_parent_id):
             # Hierarchy mutation: only parent_id changes; lifecycle / level
@@ -144,6 +153,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 condition=prior.condition,
                 capabilities=prior.capabilities,
                 settings=prior.settings,
+                ports=prior.ports,
             )
         case AssetMaintenanceEntered():
             prior = _require_state(state, "AssetMaintenanceEntered")
@@ -156,6 +166,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 condition=prior.condition,
                 capabilities=prior.capabilities,
                 settings=prior.settings,
+                ports=prior.ports,
             )
         case AssetRestoredFromMaintenance():
             prior = _require_state(state, "AssetRestoredFromMaintenance")
@@ -168,6 +179,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 condition=prior.condition,
                 capabilities=prior.capabilities,
                 settings=prior.settings,
+                ports=prior.ports,
             )
         case AssetCapabilityAdded(capability_id=capability_id):
             # Capability mutation: only `capabilities` changes; everything
@@ -185,6 +197,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 condition=prior.condition,
                 capabilities=prior.capabilities | {capability_id},
                 settings=prior.settings,
+                ports=prior.ports,
             )
         case AssetCapabilityRemoved(capability_id=capability_id):
             # Mirror of AssetCapabilityAdded. Frozenset difference is a
@@ -203,6 +216,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 condition=prior.condition,
                 capabilities=prior.capabilities - {capability_id},
                 settings=prior.settings,
+                ports=prior.ports,
             )
         case AssetDegraded():
             # Condition mutation: only `condition` changes; everything
@@ -220,6 +234,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 condition=AssetCondition.DEGRADED,
                 capabilities=prior.capabilities,
                 settings=prior.settings,
+                ports=prior.ports,
             )
         case AssetFaulted():
             prior = _require_state(state, "AssetFaulted")
@@ -232,6 +247,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 condition=AssetCondition.FAULTED,
                 capabilities=prior.capabilities,
                 settings=prior.settings,
+                ports=prior.ports,
             )
         case AssetRestored():
             prior = _require_state(state, "AssetRestored")
@@ -244,6 +260,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 condition=AssetCondition.NOMINAL,
                 capabilities=prior.capabilities,
                 settings=prior.settings,
+                ports=prior.ports,
             )
         case AssetSettingsUpdated(settings=settings):
             # Settings mutation: only `settings` changes. Event payload
@@ -261,6 +278,56 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 condition=prior.condition,
                 capabilities=prior.capabilities,
                 settings=settings,
+                ports=prior.ports,
+            )
+        case AssetPortAdded(
+            port_name=port_name,
+            direction=direction,
+            signal_type=signal_type,
+        ):
+            # Ports mutation: only `ports` changes; everything else
+            # carries over. Frozenset semantics: adding the exact
+            # AssetPort tuple twice is a no-op AT THE EVOLVER LAYER;
+            # the decider's strict-not-idempotent guard enforces "no
+            # port with this name already exists" at command time
+            # (which is stricter than tuple equality).
+            prior = _require_state(state, "AssetPortAdded")
+            new_port = AssetPort(
+                name=port_name,
+                direction=PortDirection(direction),
+                signal_type=signal_type,
+            )
+            return Asset(
+                id=prior.id,
+                name=prior.name,
+                level=prior.level,
+                parent_id=prior.parent_id,
+                lifecycle=prior.lifecycle,
+                condition=prior.condition,
+                capabilities=prior.capabilities,
+                settings=prior.settings,
+                ports=prior.ports | {new_port},
+            )
+        case AssetPortRemoved(port_name=port_name):
+            # Mirror of AssetPortAdded. Removes the port whose `name`
+            # matches; AssetPort tuple equality alone wouldn't suffice
+            # because we may not know the direction/signal_type at the
+            # call site. Use a comprehension to filter by name. The
+            # decider enforces "port with this name MUST exist" at
+            # command time; the evolver-level filter is forgiving (no
+            # error if name not found, since by-design the only
+            # producer is the decider that already validated).
+            prior = _require_state(state, "AssetPortRemoved")
+            return Asset(
+                id=prior.id,
+                name=prior.name,
+                level=prior.level,
+                parent_id=prior.parent_id,
+                lifecycle=prior.lifecycle,
+                condition=prior.condition,
+                capabilities=prior.capabilities,
+                settings=prior.settings,
+                ports=frozenset(p for p in prior.ports if p.name != port_name),
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
