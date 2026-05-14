@@ -14,6 +14,12 @@ jobs:
   api:
     name: API (lint + typecheck + test)
     runs-on: ubuntu-latest
+    # py-cov-action needs `contents: write` to push the coverage badge
+    # to the dedicated `python-coverage-comment-action-data` branch and
+    # `pull-requests: write` to post the PR coverage comment.
+    permissions:
+      contents: write
+      pull-requests: write
     defaults:
       run:
         working-directory: apps/api
@@ -76,6 +82,23 @@ jobs:
           path: apps/api/coverage.xml
           if-no-files-found: warn
           retention-days: 14
+
+      # Publishes coverage badge SVG to a dedicated branch
+      # (`python-coverage-comment-action-data`) on push to main; posts a
+      # PR coverage comment on PRs. README references the badge SVG via
+      # the raw GitHub URL on that data branch.
+      - name: Publish coverage badge + PR comment
+        # `if: always()` so the badge updates even when an unrelated
+        # earlier step fails, preventing badge staleness during incident
+        # cleanup. The action itself short-circuits cleanly if no
+        # coverage XML exists.
+        if: always()
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # coverage XML lives in apps/api per the working-directory
+          # default; tell the action where to find it from repo root.
+          COVERAGE_PATH: apps/api
 
   migrations:
     name: Migrations (atlas hash + safety scan)
