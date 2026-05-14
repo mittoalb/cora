@@ -24,7 +24,9 @@ def _register_subject(client: TestClient, name: str = "Sample-A1") -> str:
 def _register_and_mount(client: TestClient) -> str:
     subject_id = _register_subject(client)
     asset_id = register_active_asset(client)
-    mounted = client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id})
+    mounted = client.post(
+        f"/subjects/{subject_id}/mount", json={"asset_id": asset_id, "reason": "test"}
+    )
     assert mounted.status_code == 204
     return subject_id
 
@@ -68,18 +70,14 @@ def test_post_remove_returns_404_when_subject_does_not_exist() -> None:
 
 
 @pytest.mark.contract
-def test_post_remove_returns_409_when_subject_only_received() -> None:
-    """SubjectCannotRemoveError on Received subject -> 409. Pinned
-    because the multi-source-state guard means the error message
-    must list BOTH allowed source states."""
+def test_post_remove_returns_204_when_subject_only_received() -> None:
+    """4f widening: removing a Received (never-mounted or post-
+    dismount) Subject is allowed. Covers the legitimate 'sample
+    arrived but never used' workflow."""
     with TestClient(create_app()) as client:
         subject_id = _register_subject(client)
         response = client.post(f"/subjects/{subject_id}/remove")
-    assert response.status_code == 409
-    body = response.json()
-    assert "Received" in body["detail"]
-    assert "Mounted" in body["detail"]
-    assert "Measured" in body["detail"]
+    assert response.status_code == 204
 
 
 @pytest.mark.contract

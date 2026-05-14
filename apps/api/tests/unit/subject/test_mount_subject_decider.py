@@ -51,11 +51,13 @@ def test_decide_emits_subject_mounted_when_state_is_received_and_asset_active() 
     asset = _asset()
     events = mount_subject.decide(
         state=state,
-        command=MountSubject(subject_id=state.id, asset_id=asset.id),
+        command=MountSubject(subject_id=state.id, asset_id=asset.id, reason=""),
         context=MountSubjectContext(asset=asset),
         now=_NOW,
     )
-    assert events == [SubjectMounted(subject_id=state.id, asset_id=asset.id, occurred_at=_NOW)]
+    assert events == [
+        SubjectMounted(subject_id=state.id, asset_id=asset.id, reason="", occurred_at=_NOW)
+    ]
 
 
 @pytest.mark.unit
@@ -66,7 +68,7 @@ def test_decide_raises_subject_not_found_when_state_is_none() -> None:
     with pytest.raises(SubjectNotFoundError) as exc_info:
         mount_subject.decide(
             state=None,
-            command=MountSubject(subject_id=target_id, asset_id=asset.id),
+            command=MountSubject(subject_id=target_id, asset_id=asset.id, reason=""),
             context=MountSubjectContext(asset=asset),
             now=_NOW,
         )
@@ -97,7 +99,7 @@ def test_decide_raises_cannot_mount_for_every_non_received_state(
     with pytest.raises(SubjectCannotMountError) as exc_info:
         mount_subject.decide(
             state=state,
-            command=MountSubject(subject_id=state.id, asset_id=asset.id),
+            command=MountSubject(subject_id=state.id, asset_id=asset.id, reason=""),
             context=MountSubjectContext(asset=asset),
             now=_NOW,
         )
@@ -115,7 +117,7 @@ def test_decide_error_carries_current_status_for_diagnostic_messaging() -> None:
     with pytest.raises(SubjectCannotMountError) as exc_info:
         mount_subject.decide(
             state=state,
-            command=MountSubject(subject_id=state.id, asset_id=asset.id),
+            command=MountSubject(subject_id=state.id, asset_id=asset.id, reason=""),
             context=MountSubjectContext(asset=asset),
             now=_NOW,
         )
@@ -128,7 +130,7 @@ def test_decide_error_carries_current_status_for_diagnostic_messaging() -> None:
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     state = _subject(status=SubjectStatus.RECEIVED)
     asset = _asset()
-    command = MountSubject(subject_id=state.id, asset_id=asset.id)
+    command = MountSubject(subject_id=state.id, asset_id=asset.id, reason="")
     context = MountSubjectContext(asset=asset)
     first = mount_subject.decide(state=state, command=command, context=context, now=_NOW)
     second = mount_subject.decide(state=state, command=command, context=context, now=_NOW)
@@ -152,7 +154,7 @@ def test_decide_raises_when_asset_lifecycle_not_active(
     with pytest.raises(SubjectMountTargetUnavailableError) as exc_info:
         mount_subject.decide(
             state=state,
-            command=MountSubject(subject_id=state.id, asset_id=asset.id),
+            command=MountSubject(subject_id=state.id, asset_id=asset.id, reason=""),
             context=MountSubjectContext(asset=asset),
             now=_NOW,
         )

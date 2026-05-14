@@ -25,7 +25,9 @@ def _register_mount_remove(client: TestClient) -> str:
     """Walk a subject all the way to Removed."""
     subject_id = _register_subject(client)
     asset_id = register_active_asset(client)
-    mounted = client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id})
+    mounted = client.post(
+        f"/subjects/{subject_id}/mount", json={"asset_id": asset_id, "reason": "test"}
+    )
     assert mounted.status_code == 204
     removed = client.post(f"/subjects/{subject_id}/remove")
     assert removed.status_code == 204
@@ -61,7 +63,7 @@ def test_post_return_returns_409_when_subject_not_yet_removed() -> None:
     with TestClient(create_app()) as client:
         subject_id = _register_subject(client)
         asset_id = register_active_asset(client)
-        client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id})
+        client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id, "reason": "test"})
         response = client.post(f"/subjects/{subject_id}/return")
     assert response.status_code == 409
     body = response.json()

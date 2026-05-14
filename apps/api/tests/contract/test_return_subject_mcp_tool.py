@@ -53,7 +53,7 @@ def _register_mount_remove_via_tools(client: TestClient, headers: dict[str, str]
         client,
         headers,
         name="mount_subject",
-        args={"subject_id": str(subject_id), "asset_id": asset_id},
+        args={"subject_id": str(subject_id), "asset_id": asset_id, "reason": "test"},
         request_id=3,
     )
     assert body["result"]["isError"] is False
@@ -131,7 +131,7 @@ def test_mcp_return_subject_tool_returns_iserror_when_not_yet_removed() -> None:
             client,
             headers,
             name="mount_subject",
-            args={"subject_id": str(subject_id), "asset_id": asset_id},
+            args={"subject_id": str(subject_id), "asset_id": asset_id, "reason": "test"},
             request_id=8,
         )
         assert body["result"]["isError"] is False

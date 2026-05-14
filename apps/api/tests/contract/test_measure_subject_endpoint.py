@@ -24,7 +24,9 @@ def _register_subject(client: TestClient, name: str = "Sample-A1") -> str:
 def _register_and_mount(client: TestClient) -> str:
     subject_id = _register_subject(client)
     asset_id = register_active_asset(client)
-    mounted = client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id})
+    mounted = client.post(
+        f"/subjects/{subject_id}/mount", json={"asset_id": asset_id, "reason": "test"}
+    )
     assert mounted.status_code == 204
     return subject_id
 

@@ -26,7 +26,9 @@ def test_post_mount_returns_204_on_first_mount() -> None:
     with TestClient(create_app()) as client:
         subject_id = _register_subject(client)
         asset_id = register_active_asset(client)
-        response = client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id})
+        response = client.post(
+            f"/subjects/{subject_id}/mount", json={"asset_id": asset_id, "reason": "test"}
+        )
     assert response.status_code == 204
     assert response.content == b""
 
@@ -37,7 +39,9 @@ def test_post_mount_returns_404_when_subject_does_not_exist() -> None:
     missing_id = str(uuid4())
     with TestClient(create_app()) as client:
         asset_id = register_active_asset(client)
-        response = client.post(f"/subjects/{missing_id}/mount", json={"asset_id": asset_id})
+        response = client.post(
+            f"/subjects/{missing_id}/mount", json={"asset_id": asset_id, "reason": "test"}
+        )
     assert response.status_code == 404
     body = response.json()
     assert "detail" in body
@@ -50,9 +54,13 @@ def test_post_mount_returns_409_when_already_mounted() -> None:
     with TestClient(create_app()) as client:
         subject_id = _register_subject(client)
         asset_id = register_active_asset(client)
-        first = client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id})
+        first = client.post(
+            f"/subjects/{subject_id}/mount", json={"asset_id": asset_id, "reason": "test"}
+        )
         assert first.status_code == 204
-        second = client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id})
+        second = client.post(
+            f"/subjects/{subject_id}/mount", json={"asset_id": asset_id, "reason": "test"}
+        )
     assert second.status_code == 409
     body = second.json()
     assert "detail" in body
@@ -79,7 +87,7 @@ def test_post_mount_with_x_principal_id_header_succeeds() -> None:
         asset_id = register_active_asset(client)
         response = client.post(
             f"/subjects/{subject_id}/mount",
-            json={"asset_id": asset_id},
+            json={"asset_id": asset_id, "reason": "test"},
             headers={"X-Principal-Id": pid},
         )
     assert response.status_code == 204

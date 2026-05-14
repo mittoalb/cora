@@ -44,7 +44,11 @@ def _mount_subject_via_tool(client: TestClient, headers: dict[str, str], subject
             "method": "tools/call",
             "params": {
                 "name": "mount_subject",
-                "arguments": {"subject_id": str(subject_id), "asset_id": asset_id},
+                "arguments": {
+                    "subject_id": str(subject_id),
+                    "asset_id": asset_id,
+                    "reason": "test",
+                },
             },
         },
         headers=headers,

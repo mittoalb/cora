@@ -28,6 +28,7 @@ class SubjectOutput(BaseModel):
     id: UUID
     name: str = Field(..., max_length=SUBJECT_NAME_MAX_LENGTH)
     status: str
+    mounted_on_asset_id: UUID | None
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -56,4 +57,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             id=subject.id,
             name=subject.name.value,
             status=subject.status.value,
+            mounted_on_asset_id=subject.mounted_on_asset_id,
         )

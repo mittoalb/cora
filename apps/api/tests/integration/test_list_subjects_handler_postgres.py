@@ -133,7 +133,7 @@ async def test_full_lifecycle_transitions_status_through_all_phases(
 
     asset_id = await seed_active_asset(deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID)
     await bind_mount(deps)(
-        MountSubject(subject_id=sid, asset_id=asset_id),
+        MountSubject(subject_id=sid, asset_id=asset_id, reason=""),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -234,7 +234,7 @@ async def test_status_filter_narrows_to_mounted_only(
     mount = bind_mount(deps)
     for sid in (base_ids[1], base_ids[3]):
         await mount(
-            MountSubject(subject_id=sid, asset_id=asset_id),
+            MountSubject(subject_id=sid, asset_id=asset_id, reason=""),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -268,7 +268,7 @@ async def test_status_filter_narrows_to_discarded_terminal(
     )
     asset_id = await seed_active_asset(deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID)
     await bind_mount(deps)(
-        MountSubject(subject_id=sid, asset_id=asset_id),
+        MountSubject(subject_id=sid, asset_id=asset_id, reason=""),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

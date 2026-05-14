@@ -1,8 +1,9 @@
 """HTTP route for the `mount_subject` slice.
 
 Action endpoint at `POST /subjects/{subject_id}/mount`. Body carries
-`asset_id` (the sample-environment Asset to mount onto). 204 No
-Content on success.
+`asset_id` (the sample-environment Asset to mount onto) and a
+required `reason` string (1-500 chars, 4f). 204 No Content on
+success.
 """
 
 from typing import Annotated
@@ -15,6 +16,8 @@ from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_p
 from cora.subject.features.mount_subject.command import MountSubject
 from cora.subject.features.mount_subject.handler import Handler
 
+_REASON_MAX_LENGTH = 500
+
 
 class MountSubjectRequest(BaseModel):
     """Body for `POST /subjects/{subject_id}/mount`."""
@@ -22,6 +25,16 @@ class MountSubjectRequest(BaseModel):
     asset_id: UUID = Field(
         ...,
         description="Sample-environment Asset id (Equipment.Asset, must be Active).",
+    )
+    reason: str = Field(
+        ...,
+        min_length=1,
+        max_length=_REASON_MAX_LENGTH,
+        description=(
+            "Operator-supplied reason for the mount (audit-log "
+            "breadcrumb). Examples: 'loaded for run #1234', "
+            "'calibration mount', 'transport break complete'."
+        ),
     )
 
 
@@ -67,7 +80,7 @@ async def post_subjects_mount(
     principal_id: Annotated[UUID, Depends(get_principal_id)],
 ) -> None:
     await handler(
-        MountSubject(subject_id=subject_id, asset_id=body.asset_id),
+        MountSubject(subject_id=subject_id, asset_id=body.asset_id, reason=body.reason),
         principal_id=principal_id,
         correlation_id=cid,
     )

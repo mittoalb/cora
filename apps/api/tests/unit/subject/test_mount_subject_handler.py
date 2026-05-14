@@ -122,7 +122,7 @@ async def test_handler_returns_none_on_success() -> None:
     asset_id = await _seed_asset(store)
 
     result = await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id, asset_id=asset_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -137,7 +137,7 @@ async def test_handler_appends_subject_mounted_event() -> None:
     asset_id = await _seed_asset(store)
 
     await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id, asset_id=asset_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -150,6 +150,7 @@ async def test_handler_appends_subject_mounted_event() -> None:
     assert mounted.payload == {
         "subject_id": str(subject_id),
         "asset_id": str(asset_id),
+        "reason": "",
         "occurred_at": _NOW.isoformat(),
     }
     assert mounted.event_id == _MOUNT_EVENT_ID
@@ -168,7 +169,7 @@ async def test_handler_raises_subject_not_found_when_subject_does_not_exist() ->
 
     with pytest.raises(SubjectNotFoundError):
         await handler(
-            MountSubject(subject_id=uuid4(), asset_id=asset_id),
+            MountSubject(subject_id=uuid4(), asset_id=asset_id, reason=""),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -185,7 +186,7 @@ async def test_handler_raises_asset_not_found_when_asset_does_not_exist() -> Non
     handler = mount_subject.bind(deps)
     with pytest.raises(AssetNotFoundError):
         await handler(
-            MountSubject(subject_id=subject_id, asset_id=uuid4()),
+            MountSubject(subject_id=subject_id, asset_id=uuid4(), reason=""),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -203,7 +204,7 @@ async def test_handler_raises_when_asset_not_active() -> None:
     handler = mount_subject.bind(deps)
     with pytest.raises(SubjectMountTargetUnavailableError) as exc_info:
         await handler(
-            MountSubject(subject_id=subject_id, asset_id=asset_id),
+            MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -222,13 +223,13 @@ async def test_handler_raises_cannot_mount_when_subject_already_mounted() -> Non
 
     handler = mount_subject.bind(deps)
     await handler(
-        MountSubject(subject_id=subject_id, asset_id=asset_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     with pytest.raises(SubjectCannotMountError) as exc_info:
         await handler(
-            MountSubject(subject_id=subject_id, asset_id=asset_id),
+            MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -249,7 +250,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 
     with pytest.raises(UnauthorizedError) as exc_info:
         await handler(
-            MountSubject(subject_id=subject_id, asset_id=asset_id),
+            MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -266,7 +267,7 @@ async def test_handler_does_not_append_when_denied() -> None:
     deny_deps = _build_deps(event_store=store, deny=True)
     with pytest.raises(UnauthorizedError):
         await mount_subject.bind(deny_deps)(
-            MountSubject(subject_id=subject_id, asset_id=asset_id),
+            MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -287,7 +288,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     asset_id = await _seed_asset(store)
 
     await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id, asset_id=asset_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,
@@ -307,13 +308,13 @@ async def test_handler_uses_optimistic_concurrency_check() -> None:
     asset_id = await _seed_asset(store)
 
     await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id, asset_id=asset_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     with pytest.raises(SubjectCannotMountError):
         await mount_subject.bind(deps)(
-            MountSubject(subject_id=subject_id, asset_id=asset_id),
+            MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -344,7 +345,7 @@ async def test_wired_handler_propagates_causation_id_through_full_composition() 
 
     handlers = wire_subject(deps)
     await handlers.mount_subject(
-        MountSubject(subject_id=subject_id, asset_id=asset_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,

@@ -74,7 +74,7 @@ async def _register_mount_remove(deps: Kernel) -> UUID:
     )
     asset_id = await seed_active_asset(deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID)
     await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id, asset_id=asset_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -154,7 +154,7 @@ async def test_handler_raises_cannot_return_when_subject_not_yet_removed() -> No
     )
     asset_id = await seed_active_asset(deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID)
     await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id, asset_id=asset_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

@@ -73,7 +73,7 @@ async def _register_and_mount(deps: Kernel) -> UUID:
     )
     asset_id = await seed_active_asset(deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID)
     await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id, asset_id=asset_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -180,9 +180,10 @@ async def test_handler_raises_subject_not_found_when_subject_does_not_exist() ->
 
 
 @pytest.mark.unit
-async def test_handler_raises_cannot_remove_when_subject_only_received() -> None:
-    """Strict semantics: removing a Received (not yet Mounted) subject
-    raises. Tests the multi-source-state guard via the handler."""
+async def test_handler_allows_remove_when_subject_only_received() -> None:
+    """4f widening: removing a Received (not yet Mounted) subject is
+    allowed. Covers the legitimate 'sample arrived but never used'
+    workflow AND the post-dismount remove path."""
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     register_handler = register_subject.bind(deps)
@@ -193,14 +194,16 @@ async def test_handler_raises_cannot_remove_when_subject_only_received() -> None
     )
 
     handler = remove_subject.bind(deps)
-    with pytest.raises(SubjectCannotRemoveError) as exc_info:
-        await handler(
-            RemoveSubject(subject_id=subject_id),
-            principal_id=_PRINCIPAL_ID,
-            correlation_id=_CORRELATION_ID,
-        )
-    assert exc_info.value.subject_id == subject_id
-    assert exc_info.value.current_status is SubjectStatus.RECEIVED
+    # No exception raised; remove from Received succeeds.
+    await handler(
+        RemoveSubject(subject_id=subject_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    events, version = await store.load("Subject", subject_id)
+    assert version == 2
+    assert events[1].event_type == "SubjectRemoved"
 
 
 @pytest.mark.unit

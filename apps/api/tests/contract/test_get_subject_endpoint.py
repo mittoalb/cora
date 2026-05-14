@@ -32,6 +32,8 @@ def test_get_subject_returns_200_with_received_status_for_new_subject() -> None:
         "id": str(subject_id),
         "name": "Sample-A1",
         "status": "Received",
+        # 4f: mounted_on_asset_id field; null for newly-registered Subject.
+        "mounted_on_asset_id": None,
     }
 
 
@@ -40,7 +42,7 @@ def test_get_subject_reflects_mount_transition() -> None:
     with TestClient(create_app()) as client:
         subject_id = _register_subject(client)
         asset_id = register_active_asset(client)
-        client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id})
+        client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id, "reason": "test"})
         response = client.get(f"/subjects/{subject_id}")
 
     assert response.status_code == 200
@@ -56,7 +58,7 @@ def test_get_subject_reflects_full_lifecycle_to_returned() -> None:
     with TestClient(create_app()) as client:
         subject_id = _register_subject(client)
         asset_id = register_active_asset(client)
-        client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id})
+        client.post(f"/subjects/{subject_id}/mount", json={"asset_id": asset_id, "reason": "test"})
         client.post(f"/subjects/{subject_id}/measure")
         client.post(f"/subjects/{subject_id}/remove")
         client.post(f"/subjects/{subject_id}/return")

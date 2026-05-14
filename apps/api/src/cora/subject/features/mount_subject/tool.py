@@ -38,10 +38,18 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             UUID,
             Field(description="Sample-environment Asset id (must be Active)."),
         ],
+        reason: Annotated[
+            str,
+            Field(
+                min_length=1,
+                max_length=500,
+                description="Operator-supplied reason for the mount (audit-log breadcrumb).",
+            ),
+        ],
     ) -> None:
         handler = get_handler()
         await handler(
-            MountSubject(subject_id=subject_id, asset_id=asset_id),
+            MountSubject(subject_id=subject_id, asset_id=asset_id, reason=reason),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
         )

@@ -72,7 +72,7 @@ async def test_return_subject_persists_event_to_postgres(
     )
     asset_id = await seed_active_asset(deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID)
     await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id, asset_id=asset_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

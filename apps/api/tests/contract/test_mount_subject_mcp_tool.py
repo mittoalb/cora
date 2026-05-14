@@ -61,7 +61,11 @@ def test_mcp_mount_subject_tool_succeeds_for_received_subject() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "mount_subject",
-                    "arguments": {"subject_id": str(subject_id), "asset_id": asset_id},
+                    "arguments": {
+                        "subject_id": str(subject_id),
+                        "asset_id": asset_id,
+                        "reason": "test",
+                    },
                 },
             },
             headers=headers,
@@ -84,7 +88,11 @@ def test_mcp_mount_subject_tool_returns_iserror_for_unknown_subject() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "mount_subject",
-                    "arguments": {"subject_id": str(uuid4()), "asset_id": asset_id},
+                    "arguments": {
+                        "subject_id": str(uuid4()),
+                        "asset_id": asset_id,
+                        "reason": "test",
+                    },
                 },
             },
             headers=headers,
@@ -111,7 +119,11 @@ def test_mcp_mount_subject_tool_returns_iserror_when_already_mounted() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "mount_subject",
-                    "arguments": {"subject_id": str(subject_id), "asset_id": asset_id},
+                    "arguments": {
+                        "subject_id": str(subject_id),
+                        "asset_id": asset_id,
+                        "reason": "test",
+                    },
                 },
             },
             headers=headers,
@@ -127,7 +139,11 @@ def test_mcp_mount_subject_tool_returns_iserror_when_already_mounted() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "mount_subject",
-                    "arguments": {"subject_id": str(subject_id), "asset_id": asset_id},
+                    "arguments": {
+                        "subject_id": str(subject_id),
+                        "asset_id": asset_id,
+                        "reason": "test",
+                    },
                 },
             },
             headers=headers,

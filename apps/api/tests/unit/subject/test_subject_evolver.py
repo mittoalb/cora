@@ -14,6 +14,7 @@ from cora.subject.aggregates.subject import (
 )
 from cora.subject.aggregates.subject.events import (
     SubjectDiscarded,
+    SubjectDismounted,
     SubjectMeasured,
     SubjectMounted,
     SubjectRegistered,
@@ -91,7 +92,7 @@ def test_evolve_subject_mounted_flips_status_to_mounted() -> None:
     received = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.RECEIVED)
     mounted = evolve(
         received,
-        SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
+        SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
     )
     assert mounted == Subject(
         id=subject_id,
@@ -111,7 +112,7 @@ def test_evolve_subject_mounted_preserves_id_and_name() -> None:
     received = Subject(id=subject_id, name=SubjectName("Original"), status=SubjectStatus.RECEIVED)
     mounted = evolve(
         received,
-        SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
+        SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
     )
     assert mounted.id == subject_id
     assert mounted.name == SubjectName("Original")
@@ -122,7 +123,10 @@ def test_evolve_subject_mounted_on_empty_state_raises() -> None:
     """SubjectMounted before SubjectRegistered = corrupted stream.
     Fail loud rather than silently producing an empty subject."""
     with pytest.raises(ValueError, match="cannot be applied to empty state"):
-        evolve(None, SubjectMounted(subject_id=uuid4(), asset_id=_ASSET_ID, occurred_at=_NOW))
+        evolve(
+            None,
+            SubjectMounted(subject_id=uuid4(), asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
+        )
 
 
 @pytest.mark.unit
@@ -132,7 +136,7 @@ def test_fold_register_then_mount_yields_mounted_subject() -> None:
     state = fold(
         [
             SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
         ]
     )
     assert state == Subject(
@@ -183,7 +187,7 @@ def test_fold_register_mount_measure_yields_measured_subject() -> None:
     state = fold(
         [
             SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
             SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
         ]
     )
@@ -250,7 +254,7 @@ def test_fold_register_mount_remove_yields_removed_subject() -> None:
     state = fold(
         [
             SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
             SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
         ]
     )
@@ -267,7 +271,7 @@ def test_fold_register_mount_measure_remove_yields_removed_subject() -> None:
     state = fold(
         [
             SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
             SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
             SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
         ]
@@ -362,7 +366,7 @@ def test_fold_full_lifecycle_to_returned() -> None:
     state = fold(
         [
             SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
             SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
             SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
             SubjectReturned(subject_id=subject_id, occurred_at=_NOW),
@@ -379,7 +383,7 @@ def test_fold_full_lifecycle_to_stored() -> None:
     state = fold(
         [
             SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
             SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
             SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
             SubjectStored(subject_id=subject_id, occurred_at=_NOW),
@@ -396,7 +400,7 @@ def test_fold_full_lifecycle_to_discarded() -> None:
     state = fold(
         [
             SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, occurred_at=_NOW),
+            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
             SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
             SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
             SubjectDiscarded(subject_id=subject_id, reason="contaminated", occurred_at=_NOW),
@@ -405,3 +409,88 @@ def test_fold_full_lifecycle_to_discarded() -> None:
     assert state == Subject(
         id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.DISCARDED
     )
+
+
+# ---------- Phase 4f: SubjectDismounted ----------
+
+
+@pytest.mark.unit
+def test_evolve_subject_dismounted_returns_to_received_with_no_asset() -> None:
+    """4f: dismount returns the Subject to Received status with
+    mounted_on_asset_id cleared. Sample is back to 'in the lab, not
+    currently mounted'; ready for re-mount or removal."""
+    subject_id = uuid4()
+    prior = Subject(
+        id=subject_id,
+        name=SubjectName("Sample-A1"),
+        status=SubjectStatus.MOUNTED,
+        mounted_on_asset_id=_ASSET_ID,
+    )
+    state = evolve(
+        prior,
+        SubjectDismounted(
+            subject_id=subject_id,
+            from_asset_id=_ASSET_ID,
+            reason="run complete",
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.status is SubjectStatus.RECEIVED
+    assert state.mounted_on_asset_id is None
+
+
+@pytest.mark.unit
+def test_evolve_subject_dismounted_preserves_name() -> None:
+    subject_id = uuid4()
+    prior = Subject(
+        id=subject_id,
+        name=SubjectName("Sample-XYZ"),
+        status=SubjectStatus.MEASURED,
+        mounted_on_asset_id=_ASSET_ID,
+    )
+    state = evolve(
+        prior,
+        SubjectDismounted(
+            subject_id=subject_id,
+            from_asset_id=_ASSET_ID,
+            reason="x",
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.name == SubjectName("Sample-XYZ")
+
+
+@pytest.mark.unit
+def test_fold_mount_dismount_remount_cycle_lands_at_second_asset() -> None:
+    """End-to-end audit log: register, mount on A, dismount, mount
+    on B. Final state is Mounted on B; the audit log records all
+    four events for full chain-of-custody."""
+    subject_id = uuid4()
+    asset_a = UUID("01900000-0000-7000-8000-00000000a001")
+    asset_b = UUID("01900000-0000-7000-8000-00000000b001")
+    state = fold(
+        [
+            SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
+            SubjectMounted(
+                subject_id=subject_id,
+                asset_id=asset_a,
+                reason="alignment",
+                occurred_at=_NOW,
+            ),
+            SubjectDismounted(
+                subject_id=subject_id,
+                from_asset_id=asset_a,
+                reason="moving",
+                occurred_at=_NOW,
+            ),
+            SubjectMounted(
+                subject_id=subject_id,
+                asset_id=asset_b,
+                reason="loaded for scan",
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.status is SubjectStatus.MOUNTED
+    assert state.mounted_on_asset_id == asset_b

@@ -49,7 +49,9 @@ def _start_run(client: TestClient) -> str:
     ).json()["plan_id"]
     subject_id = client.post("/subjects", json={"name": "Sample"}).json()["subject_id"]
     mount_asset_id = register_active_asset(client)
-    client.post(f"/subjects/{subject_id}/mount", json={"asset_id": mount_asset_id})
+    client.post(
+        f"/subjects/{subject_id}/mount", json={"asset_id": mount_asset_id, "reason": "test"}
+    )
     run_id = client.post(
         "/runs",
         json={"name": "32-ID FlyScan", "plan_id": plan_id, "subject_id": subject_id},

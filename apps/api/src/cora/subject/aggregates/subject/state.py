@@ -191,14 +191,18 @@ class SubjectCannotMeasureError(Exception):
 
 
 class SubjectCannotRemoveError(Exception):
-    """Attempted to remove a subject from a state other than Mounted or Measured.
+    """Attempted to remove a subject from a state other than Mounted, Measured, or Received.
 
-    First multi-source-state guard in the codebase: `remove_subject`
-    accepts BOTH `Mounted` (sample present but not yet measured —
-    operator changed mind, removing without measuring) and `Measured`
-    (data collected, ready to remove). The decider checks via
-    tuple-membership (`status not in (MOUNTED, MEASURED)`); the error
-    message lists both allowed source states for diagnostic clarity.
+    Multi-source-state guard. `remove_subject` accepts:
+      - `Mounted` (sample present but not yet measured -- operator
+        changed mind, removing without measuring)
+      - `Measured` (data collected, ready to remove)
+      - `Received` (4f widening: sample arrived but was never
+        mounted, OR sample mounted then dismounted -- in either case
+        operator decided to remove without further use)
+
+    The decider checks via tuple-membership; the error message lists
+    all allowed source states for diagnostic clarity.
 
     See `SubjectCannotMountError` docstring for the per-transition-
     error rationale.
@@ -208,6 +212,29 @@ class SubjectCannotRemoveError(Exception):
         super().__init__(
             f"Subject {subject_id} cannot be removed: currently in state "
             f"{current_status.value}, remove requires "
+            f"{SubjectStatus.RECEIVED.value}, {SubjectStatus.MOUNTED.value}, "
+            f"or {SubjectStatus.MEASURED.value}"
+        )
+        self.subject_id = subject_id
+        self.current_status = current_status
+
+
+class SubjectCannotDismountError(Exception):
+    """Attempted to dismount a subject not currently mounted (4f).
+
+    Single-source guard at the status level: `dismount_subject`
+    accepts only `Mounted` and `Measured` source states (a Received
+    Subject has nothing to dismount; terminal-state Subjects are
+    out-of-bounds entirely).
+
+    Per-transition error class -- same naming convention as
+    `SubjectCannotMountError`. Mapped to HTTP 409.
+    """
+
+    def __init__(self, subject_id: UUID, current_status: "SubjectStatus") -> None:
+        super().__init__(
+            f"Subject {subject_id} cannot be dismounted: currently in state "
+            f"{current_status.value}, dismount requires "
             f"{SubjectStatus.MOUNTED.value} or {SubjectStatus.MEASURED.value}"
         )
         self.subject_id = subject_id

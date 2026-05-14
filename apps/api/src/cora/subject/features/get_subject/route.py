@@ -27,11 +27,15 @@ class SubjectResponse(BaseModel):
     (for example, a SubjectName invariant change doesn't break older
     clients). `status` is the StrEnum's string value (Received /
     Mounted / Measured / Removed / Returned / Stored / Discarded).
+    `mounted_on_asset_id` (4f) is the Equipment.Asset id the Subject
+    is currently mounted on, or null when not mounted (Received,
+    post-dismount, Removed, or any terminal state).
     """
 
     id: UUID
     name: str = Field(..., max_length=SUBJECT_NAME_MAX_LENGTH)
     status: str
+    mounted_on_asset_id: UUID | None
 
 
 def _get_handler(request: Request) -> Handler:
@@ -77,4 +81,5 @@ async def get_subjects(
         id=subject.id,
         name=subject.name.value,
         status=subject.status.value,
+        mounted_on_asset_id=subject.mounted_on_asset_id,
     )

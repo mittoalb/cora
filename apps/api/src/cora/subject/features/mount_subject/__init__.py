@@ -4,7 +4,7 @@ Module-as-namespace surface:
 
     from cora.subject.features import mount_subject
 
-    cmd = mount_subject.MountSubject(subject_id=..., asset_id=...)
+    cmd = mount_subject.MountSubject(subject_id=..., asset_id=..., reason="")
     handler = mount_subject.bind(deps)
     await handler(cmd, principal_id=..., correlation_id=...)
 """

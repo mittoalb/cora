@@ -61,6 +61,7 @@ def decide(
         SubjectMounted(
             subject_id=state.id,
             asset_id=context.asset.id,
+            reason=command.reason,
             occurred_at=now,
         )
     ]

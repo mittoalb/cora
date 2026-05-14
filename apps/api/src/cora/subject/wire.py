@@ -36,6 +36,7 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.subject.features import (
     discard_subject,
+    dismount_subject,
     get_subject,
     list_subjects,
     measure_subject,
@@ -65,6 +66,7 @@ class SubjectHandlers:
 
     register_subject: register_subject.IdempotentHandler
     mount_subject: mount_subject.Handler
+    dismount_subject: dismount_subject.Handler
     measure_subject: measure_subject.Handler
     remove_subject: remove_subject.Handler
     return_subject: return_subject.Handler
@@ -94,6 +96,11 @@ def wire_subject(deps: Kernel) -> SubjectHandlers:
         mount_subject=with_tracing(
             mount_subject.bind(deps),
             command_name="MountSubject",
+            bc=_BC,
+        ),
+        dismount_subject=with_tracing(
+            dismount_subject.bind(deps),
+            command_name="DismountSubject",
             bc=_BC,
         ),
         measure_subject=with_tracing(

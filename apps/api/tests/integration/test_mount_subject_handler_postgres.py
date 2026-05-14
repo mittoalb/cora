@@ -62,7 +62,7 @@ async def test_mount_subject_persists_event_to_postgres(
 
     # Mount it (consumes _MOUNT_EVENT_ID).
     await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id, asset_id=asset_id),
+        MountSubject(subject_id=subject_id, asset_id=asset_id, reason=""),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -77,6 +77,7 @@ async def test_mount_subject_persists_event_to_postgres(
     assert mounted.payload == {
         "subject_id": str(subject_id),
         "asset_id": str(asset_id),
+        "reason": "",
         "occurred_at": _NOW.isoformat(),
     }
     assert mounted.correlation_id == _CORRELATION_ID

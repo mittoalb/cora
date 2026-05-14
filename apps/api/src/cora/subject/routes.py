@@ -36,6 +36,7 @@ from cora.subject.aggregates.subject import (
     InvalidSubjectNameError,
     SubjectAlreadyExistsError,
     SubjectCannotDiscardError,
+    SubjectCannotDismountError,
     SubjectCannotMeasureError,
     SubjectCannotMountError,
     SubjectCannotRemoveError,
@@ -47,6 +48,7 @@ from cora.subject.aggregates.subject import (
 from cora.subject.errors import UnauthorizedError
 from cora.subject.features import (
     discard_subject,
+    dismount_subject,
     get_subject,
     list_subjects,
     measure_subject,
@@ -119,6 +121,7 @@ def register_subject_routes(app: FastAPI) -> None:
     """Attach Subject slice routers and exception handlers to the FastAPI app."""
     app.include_router(register_subject.router)
     app.include_router(mount_subject.router)
+    app.include_router(dismount_subject.router)
     app.include_router(measure_subject.router)
     app.include_router(remove_subject.router)
     app.include_router(return_subject.router)
@@ -134,6 +137,7 @@ def register_subject_routes(app: FastAPI) -> None:
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
         SubjectCannotMountError,
+        SubjectCannotDismountError,
         SubjectCannotMeasureError,
         SubjectCannotRemoveError,
         SubjectCannotReturnError,

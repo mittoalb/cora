@@ -29,7 +29,9 @@ def _setup_full_chain(client: TestClient) -> tuple[str, str]:
     ).json()["plan_id"]
     subject_id = client.post("/subjects", json={"name": "Sample"}).json()["subject_id"]
     mount_asset_id = register_active_asset(client)
-    client.post(f"/subjects/{subject_id}/mount", json={"asset_id": mount_asset_id})
+    client.post(
+        f"/subjects/{subject_id}/mount", json={"asset_id": mount_asset_id, "reason": "test"}
+    )
     return plan_id, subject_id
 
 

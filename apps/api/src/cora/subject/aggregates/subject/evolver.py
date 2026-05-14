@@ -8,7 +8,8 @@ Status mapping per event type:
   - `SubjectRegistered` -> RECEIVED  (genesis)
   - `SubjectMounted`    -> MOUNTED
   - `SubjectMeasured`   -> MEASURED
-  - `SubjectRemoved`    -> REMOVED   (multi-source: Mounted | Measured)
+  - `SubjectDismounted` -> RECEIVED  (4f: Mounted | Measured -> Received cycle)
+  - `SubjectRemoved`    -> REMOVED   (multi-source: Mounted | Measured | Received)
   - `SubjectReturned`   -> RETURNED  (terminal disposition)
   - `SubjectStored`     -> STORED    (terminal disposition)
   - `SubjectDiscarded`  -> DISCARDED (terminal disposition)
@@ -32,6 +33,7 @@ from typing import assert_never
 
 from cora.subject.aggregates.subject.events import (
     SubjectDiscarded,
+    SubjectDismounted,
     SubjectEvent,
     SubjectMeasured,
     SubjectMounted,
@@ -108,6 +110,20 @@ def evolve(state: Subject | None, event: SubjectEvent) -> Subject:
                 id=prior.id,
                 name=prior.name,
                 status=SubjectStatus.DISCARDED,
+                mounted_on_asset_id=None,
+            )
+        case SubjectDismounted():
+            # 4f: physical-mount cycle. Status returns to Received
+            # (sample is in the lab, not currently mounted) so the
+            # mount_subject decider's source-state guard naturally
+            # supports re-mount. mounted_on_asset_id cleared. The
+            # event payload's from_asset_id and reason are audit
+            # metadata, not folded into state.
+            prior = _require_state(state, "SubjectDismounted")
+            return Subject(
+                id=prior.id,
+                name=prior.name,
+                status=SubjectStatus.RECEIVED,
                 mounted_on_asset_id=None,
             )
         case _:  # pragma: no cover  # exhaustiveness guard

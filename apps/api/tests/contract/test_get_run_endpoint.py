@@ -37,7 +37,9 @@ def _setup_full_run(
     if with_subject:
         subject_id = client.post("/subjects", json={"name": "Sample"}).json()["subject_id"]
         mount_asset_id = register_active_asset(client)
-        client.post(f"/subjects/{subject_id}/mount", json={"asset_id": mount_asset_id})
+        client.post(
+            f"/subjects/{subject_id}/mount", json={"asset_id": mount_asset_id, "reason": "test"}
+        )
     body: dict[str, object] = {"name": "32-ID FlyScan", "plan_id": plan_id}
     if subject_id is not None:
         body["subject_id"] = subject_id

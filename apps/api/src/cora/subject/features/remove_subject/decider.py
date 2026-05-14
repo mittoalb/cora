@@ -1,22 +1,24 @@
 """Pure decider for the `RemoveSubject` command.
 
-First multi-source-state transition in the codebase:
-`Mounted | Measured -> Removed`. Either source state is valid:
+Multi-source-state transition (4f widening):
+`Received | Mounted | Measured -> Removed`. Three valid source
+states:
 
+  - Received: sample arrived but was never mounted (legitimate
+    "remove without use" workflow), OR sample was mounted then
+    dismounted (4f re-mount cycle path) and the operator decided to
+    remove rather than re-mount.
   - Mounted: sample physically present but no data collected yet
     (operator changed mind, removing without measuring).
   - Measured: data collected, ready to remove.
 
-Source-state guard uses tuple-membership rather than a
-match-statement: the check is "is in {Mounted, Measured}", which is
-naturally a set-membership test. Match-statement would add ceremony
-without expressiveness gain. The error message lists both allowed
-source states for diagnostic clarity (carried by
+Source-state guard uses tuple-membership; the error message lists
+all allowed source states for diagnostic clarity (carried by
 `SubjectCannotRemoveError`).
 
 Invariants:
   - State must not be None -> SubjectNotFoundError
-  - State.status must be in {Mounted, Measured}
+  - State.status must be in {Received, Mounted, Measured}
     -> SubjectCannotRemoveError(current_status=...)
 """
 
@@ -32,6 +34,7 @@ from cora.subject.aggregates.subject import (
 from cora.subject.features.remove_subject.command import RemoveSubject
 
 _REMOVABLE_STATES: tuple[SubjectStatus, ...] = (
+    SubjectStatus.RECEIVED,
     SubjectStatus.MOUNTED,
     SubjectStatus.MEASURED,
 )

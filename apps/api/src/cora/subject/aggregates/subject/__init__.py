@@ -7,6 +7,7 @@ state and event types.
 
 from cora.subject.aggregates.subject.events import (
     SubjectDiscarded,
+    SubjectDismounted,
     SubjectEvent,
     SubjectMeasured,
     SubjectMounted,
@@ -28,6 +29,7 @@ from cora.subject.aggregates.subject.state import (
     Subject,
     SubjectAlreadyExistsError,
     SubjectCannotDiscardError,
+    SubjectCannotDismountError,
     SubjectCannotMeasureError,
     SubjectCannotMountError,
     SubjectCannotRemoveError,
@@ -48,6 +50,7 @@ __all__ = [
     "Subject",
     "SubjectAlreadyExistsError",
     "SubjectCannotDiscardError",
+    "SubjectCannotDismountError",
     "SubjectCannotMeasureError",
     "SubjectCannotMountError",
     "SubjectCannotRemoveError",
@@ -55,6 +58,7 @@ __all__ = [
     "SubjectCannotStoreError",
     "SubjectDiscardReason",
     "SubjectDiscarded",
+    "SubjectDismounted",
     "SubjectEvent",
     "SubjectMeasured",
     "SubjectMountTargetUnavailableError",

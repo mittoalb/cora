@@ -45,7 +45,11 @@ def _mount_subject_via_tool(client: TestClient, headers: dict[str, str], subject
             "method": "tools/call",
             "params": {
                 "name": "mount_subject",
-                "arguments": {"subject_id": str(subject_id), "asset_id": asset_id},
+                "arguments": {
+                    "subject_id": str(subject_id),
+                    "asset_id": asset_id,
+                    "reason": "test",
+                },
             },
         },
         headers=headers,
@@ -161,11 +165,10 @@ def test_mcp_remove_subject_tool_returns_iserror_for_unknown_subject() -> None:
 
 
 @pytest.mark.contract
-def test_mcp_remove_subject_tool_returns_iserror_when_only_received() -> None:
-    """SubjectCannotRemoveError on Received subject -> isError. Pinned
-    because the multi-source-state guard means the message must list
-    BOTH allowed source states for diagnostic clarity at the MCP
-    surface (same as REST)."""
+def test_mcp_remove_subject_tool_succeeds_from_received() -> None:
+    """4f widening: removing a Received Subject is allowed via the
+    MCP surface (same as REST). Covers the legitimate 'sample
+    arrived but never used' workflow."""
     with TestClient(create_app()) as client:
         headers = open_session(client)
         subject_id = _register_subject_via_tool(client, headers)
@@ -183,8 +186,4 @@ def test_mcp_remove_subject_tool_returns_iserror_when_only_received() -> None:
             headers=headers,
         )
     body = parse_sse_data(response.text)
-    assert body["result"]["isError"] is True
-    text = body["result"]["content"][0]["text"]
-    assert "Received" in text
-    assert "Mounted" in text
-    assert "Measured" in text
+    assert body["result"]["isError"] is False
