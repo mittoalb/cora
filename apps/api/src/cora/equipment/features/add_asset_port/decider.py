@@ -45,9 +45,14 @@ def decide(
         raise AssetNotFoundError(command.asset_id)
 
     if state.lifecycle is AssetLifecycle.DECOMMISSIONED:
+        # Diagnostic uses the trimmed name to match the duplicate-
+        # name branch below (and the stored canonicalization in the
+        # AssetPort VO). The route's Pydantic body has already
+        # rejected empty strings, so .strip() always yields a
+        # useful string here.
         raise AssetCannotAddPortError(
             state.id,
-            command.port_name,
+            command.port_name.strip(),
             reason=(
                 f"asset is currently {AssetLifecycle.DECOMMISSIONED.value} "
                 "(retired from service; port changes are not allowed)"

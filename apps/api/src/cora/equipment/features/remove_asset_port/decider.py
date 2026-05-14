@@ -30,22 +30,28 @@ def decide(
     if state is None:
         raise AssetNotFoundError(command.asset_id)
 
+    # Trim before lookup. Stored port names are canonicalized via
+    # the AssetPort VO's __post_init__; honoring the same convention
+    # on remove keeps add/remove symmetric and prevents whitespace
+    # surprises from the route boundary.
+    name = command.port_name.strip()
+
     if state.lifecycle is AssetLifecycle.DECOMMISSIONED:
         raise AssetCannotRemovePortError(
             state.id,
-            command.port_name,
+            name,
             reason=(
                 f"asset is currently {AssetLifecycle.DECOMMISSIONED.value} "
                 "(retired from service; port changes are not allowed)"
             ),
         )
 
-    if not any(p.name == command.port_name for p in state.ports):
+    if not any(p.name == name for p in state.ports):
         raise AssetCannotRemovePortError(
             state.id,
-            command.port_name,
+            name,
             reason=(
-                f"port name {command.port_name!r} is not in this asset's "
+                f"port name {name!r} is not in this asset's "
                 "port set (strict-not-idempotent; cannot remove a port "
                 "that does not exist)"
             ),
@@ -54,7 +60,7 @@ def decide(
     return [
         AssetPortRemoved(
             asset_id=state.id,
-            port_name=command.port_name,
+            port_name=name,
             occurred_at=now,
         )
     ]
