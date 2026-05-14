@@ -18,6 +18,8 @@ from cora.recipe.aggregates.plan.events import (
     PlanDefined,
     PlanDeprecated,
     PlanVersioned,
+    PlanWireAdded,
+    PlanWireRemoved,
     event_type_name,
     from_stored,
     to_payload,
@@ -391,4 +393,163 @@ def test_to_payload_then_from_stored_round_trips_for_default_parameters_updated(
         plan_id=uuid4(), default_parameters=_SAMPLE_DEFAULTS, occurred_at=_NOW
     )
     stored = _stored("PlanDefaultParametersUpdated", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- PlanWireAdded / PlanWireRemoved (Phase 6h) ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_wire_added_class_name() -> None:
+    event = PlanWireAdded(
+        plan_id=uuid4(),
+        source_asset_id=uuid4(),
+        source_port_name="trigger_out",
+        target_asset_id=uuid4(),
+        target_port_name="trigger_in",
+        occurred_at=_NOW,
+    )
+    assert event_type_name(event) == "PlanWireAdded"
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_wire_removed_class_name() -> None:
+    event = PlanWireRemoved(
+        plan_id=uuid4(),
+        source_asset_id=uuid4(),
+        source_port_name="trigger_out",
+        target_asset_id=uuid4(),
+        target_port_name="trigger_in",
+        occurred_at=_NOW,
+    )
+    assert event_type_name(event) == "PlanWireRemoved"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_wire_added_with_full_4_tuple() -> None:
+    plan_id = uuid4()
+    src_id = uuid4()
+    tgt_id = uuid4()
+    event = PlanWireAdded(
+        plan_id=plan_id,
+        source_asset_id=src_id,
+        source_port_name="trigger_out",
+        target_asset_id=tgt_id,
+        target_port_name="trigger_in",
+        occurred_at=_NOW,
+    )
+    assert to_payload(event) == {
+        "plan_id": str(plan_id),
+        "source_asset_id": str(src_id),
+        "source_port_name": "trigger_out",
+        "target_asset_id": str(tgt_id),
+        "target_port_name": "trigger_in",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_wire_removed_with_full_4_tuple() -> None:
+    """Wire removal carries all 4 components because the Wire's identity
+    IS the 4-tuple (no shorter unique key)."""
+    plan_id = uuid4()
+    src_id = uuid4()
+    tgt_id = uuid4()
+    event = PlanWireRemoved(
+        plan_id=plan_id,
+        source_asset_id=src_id,
+        source_port_name="trigger_out",
+        target_asset_id=tgt_id,
+        target_port_name="trigger_in",
+        occurred_at=_NOW,
+    )
+    assert to_payload(event) == {
+        "plan_id": str(plan_id),
+        "source_asset_id": str(src_id),
+        "source_port_name": "trigger_out",
+        "target_asset_id": str(tgt_id),
+        "target_port_name": "trigger_in",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_wire_added() -> None:
+    plan_id = uuid4()
+    src_id = uuid4()
+    tgt_id = uuid4()
+    stored = _stored(
+        "PlanWireAdded",
+        {
+            "plan_id": str(plan_id),
+            "source_asset_id": str(src_id),
+            "source_port_name": "trigger_out",
+            "target_asset_id": str(tgt_id),
+            "target_port_name": "trigger_in",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == PlanWireAdded(
+        plan_id=plan_id,
+        source_asset_id=src_id,
+        source_port_name="trigger_out",
+        target_asset_id=tgt_id,
+        target_port_name="trigger_in",
+        occurred_at=_NOW,
+    )
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_wire_removed() -> None:
+    plan_id = uuid4()
+    src_id = uuid4()
+    tgt_id = uuid4()
+    stored = _stored(
+        "PlanWireRemoved",
+        {
+            "plan_id": str(plan_id),
+            "source_asset_id": str(src_id),
+            "source_port_name": "trigger_out",
+            "target_asset_id": str(tgt_id),
+            "target_port_name": "trigger_in",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == PlanWireRemoved(
+        plan_id=plan_id,
+        source_asset_id=src_id,
+        source_port_name="trigger_out",
+        target_asset_id=tgt_id,
+        target_port_name="trigger_in",
+        occurred_at=_NOW,
+    )
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_wire_added() -> None:
+    original = PlanWireAdded(
+        plan_id=uuid4(),
+        source_asset_id=uuid4(),
+        source_port_name="trigger_out",
+        target_asset_id=uuid4(),
+        target_port_name="trigger_in",
+        occurred_at=_NOW,
+    )
+    stored = _stored("PlanWireAdded", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_for_wire_removed() -> None:
+    original = PlanWireRemoved(
+        plan_id=uuid4(),
+        source_asset_id=uuid4(),
+        source_port_name="trigger_out",
+        target_asset_id=uuid4(),
+        target_port_name="trigger_in",
+        occurred_at=_NOW,
+    )
+    stored = _stored("PlanWireRemoved", to_payload(original))
     assert from_stored(stored) == original

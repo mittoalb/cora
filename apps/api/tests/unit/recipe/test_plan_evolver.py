@@ -9,6 +9,7 @@ from cora.recipe.aggregates.plan import (
     Plan,
     PlanName,
     PlanStatus,
+    Wire,
     evolve,
     fold,
 )
@@ -17,6 +18,8 @@ from cora.recipe.aggregates.plan.events import (
     PlanDefined,
     PlanDeprecated,
     PlanVersioned,
+    PlanWireAdded,
+    PlanWireRemoved,
 )
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
@@ -95,7 +98,9 @@ def test_evolve_plan_defined_does_not_fold_other_audit_snapshots() -> None:
     method_needs_capabilities_snapshot or asset_capabilities_snapshot.
     This test pins the contract so future additions are deliberate.
     default_parameters is also on state (defaults to {} via
-    additive-state pattern). Field set IS the contract."""
+    additive-state pattern). wires is also on state (Phase 6h;
+    defaults to frozenset() via additive-state pattern). Field set
+    IS the contract."""
     state = evolve(None, _plan_defined())
     assert {f for f in state.__dataclass_fields__} == {
         "id",
@@ -106,6 +111,7 @@ def test_evolve_plan_defined_does_not_fold_other_audit_snapshots() -> None:
         "version",
         "method_id",
         "default_parameters",
+        "wires",
     }
 
 
@@ -438,3 +444,149 @@ def test_evolve_plan_deprecated_preserves_method_id_and_default_parameters() -> 
     deprecated = evolve(state, PlanDeprecated(plan_id=state.id, occurred_at=_NOW))
     assert deprecated.method_id == method_id
     assert deprecated.default_parameters == _DEFAULTS_A
+
+
+# ---------- PlanWireAdded / PlanWireRemoved (Phase 6h) ----------
+
+
+@pytest.mark.unit
+def test_evolve_plan_wire_added_appends_to_wires_set() -> None:
+    """Folding PlanWireAdded grows the wires frozenset by one."""
+    src_id = uuid4()
+    tgt_id = uuid4()
+    state = Plan(
+        id=uuid4(),
+        name=PlanName("X"),
+        practice_id=uuid4(),
+        asset_ids=frozenset({src_id, tgt_id}),
+        status=PlanStatus.DEFINED,
+        method_id=uuid4(),
+    )
+    new_state = evolve(
+        state,
+        PlanWireAdded(
+            plan_id=state.id,
+            source_asset_id=src_id,
+            source_port_name="trigger_out",
+            target_asset_id=tgt_id,
+            target_port_name="trigger_in",
+            occurred_at=_NOW,
+        ),
+    )
+    assert len(new_state.wires) == 1
+    expected = Wire(
+        source_asset_id=src_id,
+        source_port_name="trigger_out",
+        target_asset_id=tgt_id,
+        target_port_name="trigger_in",
+    )
+    assert expected in new_state.wires
+
+
+@pytest.mark.unit
+def test_evolve_plan_wire_removed_removes_from_wires_set() -> None:
+    """Folding PlanWireRemoved shrinks the wires frozenset by one."""
+    src_id = uuid4()
+    tgt_id = uuid4()
+    existing = Wire(
+        source_asset_id=src_id,
+        source_port_name="trigger_out",
+        target_asset_id=tgt_id,
+        target_port_name="trigger_in",
+    )
+    state = Plan(
+        id=uuid4(),
+        name=PlanName("X"),
+        practice_id=uuid4(),
+        asset_ids=frozenset({src_id, tgt_id}),
+        status=PlanStatus.DEFINED,
+        method_id=uuid4(),
+        wires=frozenset({existing}),
+    )
+    new_state = evolve(
+        state,
+        PlanWireRemoved(
+            plan_id=state.id,
+            source_asset_id=src_id,
+            source_port_name="trigger_out",
+            target_asset_id=tgt_id,
+            target_port_name="trigger_in",
+            occurred_at=_NOW,
+        ),
+    )
+    assert new_state.wires == frozenset()
+
+
+@pytest.mark.unit
+def test_evolve_wire_events_preserve_other_state_fields() -> None:
+    """Critical pin: wire mutations preserve method_id, default_parameters,
+    status, version (orthogonal to lifecycle and parameters)."""
+    method_id = uuid4()
+    src_id = uuid4()
+    tgt_id = uuid4()
+    state = Plan(
+        id=uuid4(),
+        name=PlanName("X"),
+        practice_id=uuid4(),
+        asset_ids=frozenset({src_id, tgt_id}),
+        status=PlanStatus.VERSIONED,
+        version="v1",
+        method_id=method_id,
+        default_parameters=_DEFAULTS_A,
+    )
+    new_state = evolve(
+        state,
+        PlanWireAdded(
+            plan_id=state.id,
+            source_asset_id=src_id,
+            source_port_name="trigger_out",
+            target_asset_id=tgt_id,
+            target_port_name="trigger_in",
+            occurred_at=_NOW,
+        ),
+    )
+    assert new_state.status == PlanStatus.VERSIONED
+    assert new_state.version == "v1"
+    assert new_state.method_id == method_id
+    assert new_state.default_parameters == _DEFAULTS_A
+
+
+@pytest.mark.unit
+def test_fold_full_wire_lifecycle_yields_empty_wire_set() -> None:
+    """Add + remove the same Wire = empty wire set."""
+    plan_id = uuid4()
+    src_id = uuid4()
+    tgt_id = uuid4()
+    practice_id = uuid4()
+    method_id = uuid4()
+    events: list[object] = [
+        PlanDefined(
+            plan_id=plan_id,
+            name="X",
+            practice_id=practice_id,
+            asset_ids=[src_id, tgt_id],
+            method_id=method_id,
+            method_needs_capabilities_snapshot=[],
+            asset_capabilities_snapshot={},
+            occurred_at=_NOW,
+        ),
+        PlanWireAdded(
+            plan_id=plan_id,
+            source_asset_id=src_id,
+            source_port_name="trigger_out",
+            target_asset_id=tgt_id,
+            target_port_name="trigger_in",
+            occurred_at=_NOW,
+        ),
+        PlanWireRemoved(
+            plan_id=plan_id,
+            source_asset_id=src_id,
+            source_port_name="trigger_out",
+            target_asset_id=tgt_id,
+            target_port_name="trigger_in",
+            occurred_at=_NOW,
+        ),
+    ]
+    final = fold(events)  # type: ignore[arg-type]
+    assert final is not None
+    assert final.wires == frozenset()

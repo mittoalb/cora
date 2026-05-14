@@ -25,11 +25,15 @@ from cora.equipment.aggregates.asset import (
     AssetLevel,
     AssetLifecycle,
     AssetName,
+    AssetPort,
+    PortDirection,
 )
 from cora.recipe.aggregates.plan import (
     Plan,
     PlanName,
     PlanStatus,
+    PlanWirePortNotFoundError,
+    Wire,
 )
 from cora.run.aggregates.run import (
     InvalidRunNameError,
@@ -576,3 +580,137 @@ def test_decide_accepts_no_schema_when_effective_is_empty() -> None:
     )
     assert len(events) == 1
     assert events[0].effective_parameters == {}
+
+
+# ---------- Phase 6h: Plan.wires re-validation at Run start ----------
+
+
+@pytest.mark.unit
+def test_decide_passes_when_plan_wires_endpoints_still_valid() -> None:
+    """Happy path: a Plan with wires whose endpoints still exist on the
+    bound Assets passes Run-start re-validation."""
+    cap = uuid4()
+    src_id = uuid4()
+    tgt_id = uuid4()
+    src_asset = Asset(
+        id=src_id,
+        name=AssetName("PandABox"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        lifecycle=AssetLifecycle.ACTIVE,
+        capabilities=frozenset({cap}),
+        ports=frozenset(
+            {AssetPort(name="trigger_out", direction=PortDirection.OUTPUT, signal_type="TTL")}
+        ),
+    )
+    tgt_asset = Asset(
+        id=tgt_id,
+        name=AssetName("Camera"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        lifecycle=AssetLifecycle.ACTIVE,
+        capabilities=frozenset({cap}),
+        ports=frozenset(
+            {AssetPort(name="trigger_in", direction=PortDirection.INPUT, signal_type="TTL")}
+        ),
+    )
+    plan = Plan(
+        id=uuid4(),
+        name=PlanName("Run"),
+        practice_id=uuid4(),
+        asset_ids=frozenset({src_id, tgt_id}),
+        status=PlanStatus.DEFINED,
+        method_id=uuid4(),
+        wires=frozenset(
+            {
+                Wire(
+                    source_asset_id=src_id,
+                    source_port_name="trigger_out",
+                    target_asset_id=tgt_id,
+                    target_port_name="trigger_in",
+                )
+            }
+        ),
+    )
+    context = RunStartContext(
+        plan=plan,
+        subject=_subject(),
+        assets={src_id: src_asset, tgt_id: tgt_asset},
+    )
+    events = start_run.decide(
+        state=None,
+        command=StartRun(name="Run", plan_id=plan.id, subject_id=_subject().id),
+        context=context,
+        needs_capabilities_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1
+
+
+@pytest.mark.unit
+def test_decide_rejects_when_plan_wire_references_removed_port() -> None:
+    """Hot-swap regression: if an Asset port referenced by a Plan wire was
+    removed between add_plan_wire and start_run, Run-start re-validation
+    catches it. Strict-forward-reference applies at BOTH ends of the
+    Wire's lifetime."""
+    cap = uuid4()
+    src_id = uuid4()
+    tgt_id = uuid4()
+    # Source asset MISSING the trigger_out port that the wire references.
+    src_asset = Asset(
+        id=src_id,
+        name=AssetName("PandABox"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        lifecycle=AssetLifecycle.ACTIVE,
+        capabilities=frozenset({cap}),
+        ports=frozenset(),  # port was removed!
+    )
+    tgt_asset = Asset(
+        id=tgt_id,
+        name=AssetName("Camera"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        lifecycle=AssetLifecycle.ACTIVE,
+        capabilities=frozenset({cap}),
+        ports=frozenset(
+            {AssetPort(name="trigger_in", direction=PortDirection.INPUT, signal_type="TTL")}
+        ),
+    )
+    plan = Plan(
+        id=uuid4(),
+        name=PlanName("Run"),
+        practice_id=uuid4(),
+        asset_ids=frozenset({src_id, tgt_id}),
+        status=PlanStatus.DEFINED,
+        method_id=uuid4(),
+        wires=frozenset(
+            {
+                Wire(
+                    source_asset_id=src_id,
+                    source_port_name="trigger_out",
+                    target_asset_id=tgt_id,
+                    target_port_name="trigger_in",
+                )
+            }
+        ),
+    )
+    context = RunStartContext(
+        plan=plan,
+        subject=_subject(),
+        assets={src_id: src_asset, tgt_id: tgt_asset},
+    )
+    with pytest.raises(PlanWirePortNotFoundError):
+        start_run.decide(
+            state=None,
+            command=StartRun(name="Run", plan_id=plan.id, subject_id=_subject().id),
+            context=context,
+            needs_capabilities_snapshot=frozenset({cap}),
+            effective_parameters={},
+            method_parameters_schema=None,
+            now=_NOW,
+            new_id=uuid4(),
+        )

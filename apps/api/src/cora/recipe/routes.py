@@ -45,12 +45,21 @@ from cora.recipe.aggregates.plan import (
     InvalidPlanError,
     InvalidPlanNameError,
     InvalidPlanVersionTagError,
+    InvalidWireError,
     MethodDeprecatedError,
     PlanAlreadyExistsError,
     PlanCannotDeprecateError,
     PlanCannotVersionError,
     PlanCapabilitiesNotSatisfiedError,
     PlanNotFoundError,
+    PlanWireAlreadyExistsError,
+    PlanWireAssetNotBoundError,
+    PlanWireDirectionMismatchError,
+    PlanWireNotFoundError,
+    PlanWirePortNotFoundError,
+    PlanWireSelfLoopError,
+    PlanWireSignalTypeMismatchError,
+    PlanWireTargetAlreadyConnectedError,
     PracticeDeprecatedError,
 )
 from cora.recipe.aggregates.practice import (
@@ -63,6 +72,7 @@ from cora.recipe.aggregates.practice import (
 )
 from cora.recipe.errors import UnauthorizedError
 from cora.recipe.features import (
+    add_plan_wire,
     define_method,
     define_plan,
     define_practice,
@@ -75,6 +85,7 @@ from cora.recipe.features import (
     list_methods,
     list_plans,
     list_practices,
+    remove_plan_wire,
     update_method_parameters_schema,
     update_plan_default_parameters,
     version_method,
@@ -155,6 +166,8 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(version_plan.router)
     app.include_router(deprecate_plan.router)
     app.include_router(update_plan_default_parameters.router)
+    app.include_router(add_plan_wire.router)
+    app.include_router(remove_plan_wire.router)
     app.include_router(list_methods.router)
     app.include_router(list_practices.router)
     app.include_router(list_plans.router)
@@ -168,14 +181,25 @@ def register_recipe_routes(app: FastAPI) -> None:
         InvalidPlanError,
         InvalidPlanDefaultParametersError,
         InvalidPlanVersionTagError,
+        InvalidWireError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
-    for not_found_cls in (MethodNotFoundError, PracticeNotFoundError, PlanNotFoundError):
+    for not_found_cls in (
+        MethodNotFoundError,
+        PracticeNotFoundError,
+        PlanNotFoundError,
+        # 6h: removing a Wire that's not currently in the Plan's wire
+        # set (strict-not-idempotent symmetry with PlanWireAlreadyExistsError).
+        PlanWireNotFoundError,
+    ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (
         MethodAlreadyExistsError,
         PracticeAlreadyExistsError,
         PlanAlreadyExistsError,
+        # 6h: re-adding an already-present Wire (strict-not-idempotent;
+        # mirrors 5h add_asset_port).
+        PlanWireAlreadyExistsError,
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
@@ -192,6 +216,15 @@ def register_recipe_routes(app: FastAPI) -> None:
         MethodDeprecatedError,
         AssetDecommissionedError,
         PlanCapabilitiesNotSatisfiedError,
+        # 6h Plan.wires structural / cross-aggregate guards. All map
+        # to 409 (state-conflict family; the wire is structurally
+        # invalid given current Plan binding + Asset.ports state).
+        PlanWireTargetAlreadyConnectedError,
+        PlanWireAssetNotBoundError,
+        PlanWirePortNotFoundError,
+        PlanWireDirectionMismatchError,
+        PlanWireSignalTypeMismatchError,
+        PlanWireSelfLoopError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

@@ -74,7 +74,7 @@ from typing import Any
 from uuid import UUID
 
 from cora.equipment.aggregates.asset import AssetLifecycle
-from cora.recipe.aggregates.plan import PlanStatus
+from cora.recipe.aggregates.plan import PlanStatus, validate_wire_endpoints
 from cora.run.aggregates.run import (
     PlanDeprecatedError,
     Run,
@@ -165,6 +165,22 @@ def decide(
     validate_effective_parameters_against_method_schema(
         effective_parameters, method_parameters_schema
     )
+
+    # 6h: re-validate every Wire in the Plan's wires set against the
+    # CURRENT Asset.ports state (drift since wire-add is real:
+    # operators may have removed a referenced port between
+    # add_plan_wire and start_run). Mirrors the capability re-validation
+    # above. Wires whose endpoint Asset isn't in context.assets surface
+    # as PlanWireAssetNotBoundError (the asset was removed from the
+    # Plan's binding); wires whose port no longer exists surface as
+    # PlanWirePortNotFoundError. See [[project_plan_wiring_design]]
+    # §hot-swap procedure for the operational expectation.
+    for wire in context.plan.wires:
+        validate_wire_endpoints(
+            wire,
+            bound_asset_ids=context.plan.asset_ids,
+            assets_by_id=context.assets,
+        )
 
     name = RunName(command.name)  # validates + trims; raises InvalidRunNameError
     return [

@@ -31,6 +31,7 @@ from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.recipe.features import (
+    add_plan_wire,
     define_method,
     define_plan,
     define_practice,
@@ -43,6 +44,7 @@ from cora.recipe.features import (
     list_methods,
     list_plans,
     list_practices,
+    remove_plan_wire,
     update_method_parameters_schema,
     update_plan_default_parameters,
     version_method,
@@ -76,6 +78,8 @@ class RecipeHandlers:
     version_plan: version_plan.Handler
     deprecate_plan: deprecate_plan.Handler
     update_plan_default_parameters: update_plan_default_parameters.Handler
+    add_plan_wire: add_plan_wire.Handler
+    remove_plan_wire: remove_plan_wire.Handler
     list_methods: list_methods.Handler
     list_practices: list_practices.Handler
     list_plans: list_plans.Handler
@@ -178,6 +182,16 @@ def wire_recipe(deps: Kernel) -> RecipeHandlers:
         update_plan_default_parameters=with_tracing(
             update_plan_default_parameters.bind(deps),
             command_name="UpdatePlanDefaultParameters",
+            bc=_BC,
+        ),
+        add_plan_wire=with_tracing(
+            add_plan_wire.bind(deps),
+            command_name="AddPlanWire",
+            bc=_BC,
+        ),
+        remove_plan_wire=with_tracing(
+            remove_plan_wire.bind(deps),
+            command_name="RemovePlanWire",
             bc=_BC,
         ),
         list_methods=with_tracing(

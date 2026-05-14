@@ -17,4 +17,10 @@ Slices ship per aggregate / per state transition:
     audit reversal mirroring 5g-c's "no Capabilities → reject" anchor)
   - 6g-c: Run.override_parameters + effective_parameters snapshot
     on RunStarted (same strict-when-no-schema posture)
+  - 6h: add_plan_wire / remove_plan_wire (Plan.wires graph of
+    typed port-to-port connections between bound Assets; per-edge
+    add/remove slices mirroring 5h's add/remove_asset_port; strict
+    direction + signal_type + port-existence validation against
+    Asset.ports; fan-in forbidden, fan-out allowed; see
+    [[project_plan_wiring_design]])
 """

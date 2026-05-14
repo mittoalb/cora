@@ -11,6 +11,7 @@ from collections.abc import Callable
 
 from mcp.server.fastmcp import FastMCP
 
+from cora.recipe.features.add_plan_wire import tool as add_plan_wire_tool
 from cora.recipe.features.define_method import tool as define_method_tool
 from cora.recipe.features.define_plan import tool as define_plan_tool
 from cora.recipe.features.define_practice import tool as define_practice_tool
@@ -23,6 +24,7 @@ from cora.recipe.features.get_practice import tool as get_practice_tool
 from cora.recipe.features.list_methods import tool as list_methods_tool
 from cora.recipe.features.list_plans import tool as list_plans_tool
 from cora.recipe.features.list_practices import tool as list_practices_tool
+from cora.recipe.features.remove_plan_wire import tool as remove_plan_wire_tool
 from cora.recipe.features.update_method_parameters_schema import (
     tool as update_method_parameters_schema_tool,
 )
@@ -96,6 +98,14 @@ def register_recipe_tools(
     update_plan_default_parameters_tool.register(
         mcp,
         get_handler=lambda: get_handlers().update_plan_default_parameters,
+    )
+    add_plan_wire_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().add_plan_wire,
+    )
+    remove_plan_wire_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().remove_plan_wire,
     )
     list_methods_tool.register(
         mcp,

@@ -7,6 +7,7 @@ is added to `PlanEvent` without a matching match arm here.
 Status mapping per event type:
   - `PlanDefined`                  -> DEFINED   (genesis; version=None,
                                                   default_parameters={};
+                                                  wires=frozenset();
                                                   method_id read from payload)
   - `PlanVersioned`                -> VERSIONED (version=event.version_tag;
                                                   multi-source: Defined | Versioned)
@@ -16,6 +17,12 @@ Status mapping per event type:
                                                   lifecycle; updates the
                                                   default_parameters field
                                                   with the post-merge dict; 6g-b)
+  - `PlanWireAdded`                -> status preserved (orthogonal to
+                                                  lifecycle; adds a Wire to
+                                                  state.wires; 6h)
+  - `PlanWireRemoved`              -> status preserved (orthogonal to
+                                                  lifecycle; removes a Wire
+                                                  from state.wires; 6h)
 
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
@@ -48,11 +55,11 @@ PlanDefined streams fold cleanly because `method_id` was already
 in the payload from day one.
 
 **Critical invariant**: every transition arm MUST carry
-`practice_id`, `asset_ids`, `version`, `method_id`, AND
-`default_parameters` through from prior state. Constructing
-`Plan(id=..., name=..., status=...)` without explicitly passing
-the carry-through fields would silently change them. The transition
-arms explicitly pass each.
+`practice_id`, `asset_ids`, `version`, `method_id`,
+`default_parameters`, AND `wires` through from prior state.
+Constructing `Plan(id=..., name=..., status=...)` without
+explicitly passing the carry-through fields would silently change
+them. The transition arms explicitly pass each.
 
 Transition events applied to empty state raise ValueError: they can
 never appear before `PlanDefined` in a well-formed stream. The
@@ -69,8 +76,10 @@ from cora.recipe.aggregates.plan.events import (
     PlanDeprecated,
     PlanEvent,
     PlanVersioned,
+    PlanWireAdded,
+    PlanWireRemoved,
 )
-from cora.recipe.aggregates.plan.state import Plan, PlanName, PlanStatus
+from cora.recipe.aggregates.plan.state import Plan, PlanName, PlanStatus, Wire
 
 
 def _require_state(state: Plan | None, event_type: str) -> Plan:
@@ -117,6 +126,7 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 version=version_tag,
                 method_id=prior.method_id,
                 default_parameters=prior.default_parameters,
+                wires=prior.wires,
             )
         case PlanDeprecated():
             prior = _require_state(state, "PlanDeprecated")
@@ -130,6 +140,7 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 version=prior.version,
                 method_id=prior.method_id,
                 default_parameters=prior.default_parameters,
+                wires=prior.wires,
             )
         case PlanDefaultParametersUpdated(default_parameters=default_parameters):
             prior = _require_state(state, "PlanDefaultParametersUpdated")
@@ -142,6 +153,55 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 version=prior.version,
                 method_id=prior.method_id,
                 default_parameters=default_parameters,
+                wires=prior.wires,
+            )
+        case PlanWireAdded(
+            source_asset_id=source_asset_id,
+            source_port_name=source_port_name,
+            target_asset_id=target_asset_id,
+            target_port_name=target_port_name,
+        ):
+            prior = _require_state(state, "PlanWireAdded")
+            new_wire = Wire(
+                source_asset_id=source_asset_id,
+                source_port_name=source_port_name,
+                target_asset_id=target_asset_id,
+                target_port_name=target_port_name,
+            )
+            return Plan(
+                id=prior.id,
+                name=prior.name,
+                practice_id=prior.practice_id,
+                asset_ids=prior.asset_ids,
+                status=prior.status,
+                version=prior.version,
+                method_id=prior.method_id,
+                default_parameters=prior.default_parameters,
+                wires=prior.wires | {new_wire},
+            )
+        case PlanWireRemoved(
+            source_asset_id=source_asset_id,
+            source_port_name=source_port_name,
+            target_asset_id=target_asset_id,
+            target_port_name=target_port_name,
+        ):
+            prior = _require_state(state, "PlanWireRemoved")
+            removed_wire = Wire(
+                source_asset_id=source_asset_id,
+                source_port_name=source_port_name,
+                target_asset_id=target_asset_id,
+                target_port_name=target_port_name,
+            )
+            return Plan(
+                id=prior.id,
+                name=prior.name,
+                practice_id=prior.practice_id,
+                asset_ids=prior.asset_ids,
+                status=prior.status,
+                version=prior.version,
+                method_id=prior.method_id,
+                default_parameters=prior.default_parameters,
+                wires=prior.wires - {removed_wire},
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

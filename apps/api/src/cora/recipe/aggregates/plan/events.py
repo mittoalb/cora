@@ -119,6 +119,50 @@ class PlanDeprecated:
 
 
 @dataclass(frozen=True)
+class PlanWireAdded:
+    """A typed Wire was added to a Plan's wire set (Phase 6h).
+
+    Single-wire event (not bulk-add); mirrors `AssetPortAdded` shape
+    from 5h. Audit value: "when did this Plan gain the connection
+    from pandabox.trigger_out → camera.trigger_in?"
+
+    The four port-reference fields together form the Wire's
+    identity (no separate `wire_id`). Carried as primitives in the
+    event payload so `from_stored` can rebuild the `Wire` VO without
+    importing state.
+
+    Status is NOT carried — wiring updates are orthogonal to
+    lifecycle (Defined / Versioned / Deprecated all permit wiring
+    updates; mirrors the 6g-b default-parameters stance and
+    PortAdded's lifecycle independence at the Asset side).
+    """
+
+    plan_id: UUID
+    source_asset_id: UUID
+    source_port_name: str
+    target_asset_id: UUID
+    target_port_name: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class PlanWireRemoved:
+    """A typed Wire was removed from a Plan's wire set (Phase 6h).
+
+    Mirror of `PlanWireAdded`. Carries all 4 endpoint components
+    because the Wire's identity IS the 4-tuple (no shorter unique
+    key). Symmetric with `AssetPortRemoved` from 5h.
+    """
+
+    plan_id: UUID
+    source_asset_id: UUID
+    source_port_name: str
+    target_asset_id: UUID
+    target_port_name: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
 class PlanDefaultParametersUpdated:
     """The Plan's parameter defaults were updated (Phase 6g-b).
 
@@ -144,7 +188,14 @@ class PlanDefaultParametersUpdated:
 
 
 # Discriminated union of every event the Plan aggregate emits.
-PlanEvent = PlanDefined | PlanVersioned | PlanDeprecated | PlanDefaultParametersUpdated
+PlanEvent = (
+    PlanDefined
+    | PlanVersioned
+    | PlanDeprecated
+    | PlanDefaultParametersUpdated
+    | PlanWireAdded
+    | PlanWireRemoved
+)
 
 
 def event_type_name(event: PlanEvent) -> str:
@@ -231,6 +282,38 @@ def to_payload(event: PlanEvent) -> dict[str, Any]:
                 "default_parameters": default_parameters,
                 "occurred_at": occurred_at.isoformat(),
             }
+        case PlanWireAdded(
+            plan_id=plan_id,
+            source_asset_id=source_asset_id,
+            source_port_name=source_port_name,
+            target_asset_id=target_asset_id,
+            target_port_name=target_port_name,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "plan_id": str(plan_id),
+                "source_asset_id": str(source_asset_id),
+                "source_port_name": source_port_name,
+                "target_asset_id": str(target_asset_id),
+                "target_port_name": target_port_name,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case PlanWireRemoved(
+            plan_id=plan_id,
+            source_asset_id=source_asset_id,
+            source_port_name=source_port_name,
+            target_asset_id=target_asset_id,
+            target_port_name=target_port_name,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "plan_id": str(plan_id),
+                "source_asset_id": str(source_asset_id),
+                "source_port_name": source_port_name,
+                "target_asset_id": str(target_asset_id),
+                "target_port_name": target_port_name,
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -276,6 +359,24 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
                 default_parameters=payload["default_parameters"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "PlanWireAdded":
+            return PlanWireAdded(
+                plan_id=UUID(payload["plan_id"]),
+                source_asset_id=UUID(payload["source_asset_id"]),
+                source_port_name=payload["source_port_name"],
+                target_asset_id=UUID(payload["target_asset_id"]),
+                target_port_name=payload["target_port_name"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "PlanWireRemoved":
+            return PlanWireRemoved(
+                plan_id=UUID(payload["plan_id"]),
+                source_asset_id=UUID(payload["source_asset_id"]),
+                source_port_name=payload["source_port_name"],
+                target_asset_id=UUID(payload["target_asset_id"]),
+                target_port_name=payload["target_port_name"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown PlanEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -287,6 +388,8 @@ __all__ = [
     "PlanDeprecated",
     "PlanEvent",
     "PlanVersioned",
+    "PlanWireAdded",
+    "PlanWireRemoved",
     "event_type_name",
     "from_stored",
     "to_payload",

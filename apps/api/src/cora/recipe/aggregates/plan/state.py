@@ -95,6 +95,7 @@ from cora.infrastructure.bounded_text import validate_bounded_text
 
 PLAN_NAME_MAX_LENGTH = 200
 PLAN_VERSION_TAG_MAX_LENGTH = 50
+WIRE_PORT_NAME_MAX_LENGTH = 100  # mirrors PORT_NAME_MAX_LENGTH on AssetPort (5h)
 
 
 class PlanStatus(StrEnum):
@@ -370,6 +371,18 @@ class Plan:
     Defaults to empty dict for legacy Plans (additive-state pattern).
     The full dict is persisted; PATCH semantics handled by the slice
     via RFC 7396 `merge_patch`. Mirrors `Asset.settings` shape from 5g-c.
+
+    `wires: frozenset[Wire]` (Phase 6h) is the typed graph of port-
+    to-port connections between bound Assets. Each `Wire` carries
+    a 4-tuple identifying source/target ports across two Assets.
+    Mutated via `add_plan_wire` / `remove_plan_wire` slices (mirrors
+    5h's add/remove_asset_port pattern). Direction is enforced
+    (source=OUTPUT, target=INPUT), `signal_type` must match exactly,
+    fan-out allowed (one source port → many target ports), fan-in
+    forbidden (one target port = at most one incoming Wire). See
+    [[project_plan_wiring_design]] for the locked design memo.
+    Defaults to empty frozenset for legacy Plans (additive-state
+    pattern).
     """
 
     id: UUID
@@ -380,3 +393,254 @@ class Plan:
     version: str | None = None
     method_id: UUID | None = None
     default_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
+    wires: frozenset["Wire"] = field(default_factory=frozenset["Wire"])
+
+
+class InvalidWireError(ValueError):
+    """A Wire's source / target port name is empty, whitespace-only,
+    or exceeds the configured max length after trimming.
+
+    Mirrors `InvalidAssetPortNameError` (5h). Mapped to HTTP 400 by
+    the recipe BC's exception handler. Validation runs in the Wire
+    VO's `__post_init__` so the route's Pydantic body keeps these
+    to 422 by catching them at the boundary; deciders raise this
+    when they construct a Wire from operator-supplied components.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Wire port name must be 1-{WIRE_PORT_NAME_MAX_LENGTH} chars after trimming "
+            f"(got: {value!r})"
+        )
+        self.value = value
+
+
+@dataclass(frozen=True)
+class Wire:
+    """A typed port-to-port connection between two bound Assets (Phase 6h).
+
+    Tuple `(source_asset_id, source_port_name, target_asset_id,
+    target_port_name)` describes one connection. The 4-tuple IS the
+    identity; `frozenset[Wire]` deduplicates on the tuple.
+
+    `source` / `target` labels match OPC UA SourceNode/TargetNode
+    + Argo Workflows dependency direction (clearer than `from`/`to`,
+    avoids collision with `PortDirection.{INPUT, OUTPUT}` that the
+    `out`/`in` labels would create).
+
+    Validation rules enforced at the decider level (NOT here):
+      - source port must have `direction=OUTPUT`
+      - target port must have `direction=INPUT`
+      - `source_port.signal_type == target_port.signal_type` (exact match)
+      - both endpoint asset_ids must be in the Plan's `asset_ids` set
+      - both endpoint port_names must exist on their respective Asset.ports
+      - target port can be the destination of at most one Wire (fan-in
+        forbidden); fan-out (one source → many targets) is allowed
+      - self-loops allowed iff `source_port_name != target_port_name`
+
+    `__post_init__` validates only structural shape (port-name lengths
+    + canonicalization via trim); the cross-aggregate validations
+    above need a `PlanWireContext` and live in the slice deciders.
+
+    See [[project_plan_wiring_design]] for the locked design memo.
+    """
+
+    source_asset_id: UUID
+    source_port_name: str
+    target_asset_id: UUID
+    target_port_name: str
+
+    def __post_init__(self) -> None:
+        trimmed_source = self.source_port_name.strip()
+        if not trimmed_source or len(trimmed_source) > WIRE_PORT_NAME_MAX_LENGTH:
+            raise InvalidWireError(self.source_port_name)
+        trimmed_target = self.target_port_name.strip()
+        if not trimmed_target or len(trimmed_target) > WIRE_PORT_NAME_MAX_LENGTH:
+            raise InvalidWireError(self.target_port_name)
+        # Frozen dataclasses block normal assignment in __post_init__;
+        # use object.__setattr__ to install canonicalized names.
+        object.__setattr__(self, "source_port_name", trimmed_source)
+        object.__setattr__(self, "target_port_name", trimmed_target)
+
+
+class PlanWireAlreadyExistsError(Exception):
+    """Attempted to add a Wire that's already in the Plan's wire set.
+
+    Strict-not-idempotent (mirrors 5h `add_asset_port`). Mapped to
+    HTTP 409. Operators get clear feedback rather than a silent
+    no-op so re-running a partially-applied template surface the
+    duplicate.
+    """
+
+    def __init__(self, wire: Wire) -> None:
+        super().__init__(
+            f"Wire {_wire_diagnostic(wire)} is already in this Plan's wire set "
+            "(strict-not-idempotent; remove the existing wire first if you mean "
+            "to replace it)"
+        )
+        self.wire = wire
+
+
+class PlanWireNotFoundError(Exception):
+    """Attempted to remove a Wire that's not in the Plan's wire set.
+
+    Strict-not-idempotent (symmetric with `PlanWireAlreadyExistsError`).
+    Mapped to HTTP 404 (the target resource — this specific Wire — is
+    not in the collection).
+    """
+
+    def __init__(self, wire: Wire) -> None:
+        super().__init__(
+            f"Wire {_wire_diagnostic(wire)} is not in this Plan's wire set "
+            "(strict-not-idempotent; cannot remove a wire that does not exist)"
+        )
+        self.wire = wire
+
+
+class PlanWireTargetAlreadyConnectedError(Exception):
+    """The target port is already wired (fan-in is forbidden).
+
+    Each `(target_asset_id, target_port_name)` pair can be the
+    destination of at most one Wire (consensus across IEC 61131-3,
+    IEC 61499 data arcs, PandABox mux, areaDetector NDArrayPort).
+    Carries the existing Wire so operators can see what blocks the
+    new add. Mapped to HTTP 409.
+
+    Policy not physics: when fan-in is genuinely needed, introduce
+    a `Combiner` Capability Asset with N inputs + 1 output and wire
+    through it. See [[project_plan_wiring_design]].
+    """
+
+    def __init__(self, attempted: Wire, existing: Wire) -> None:
+        super().__init__(
+            f"Cannot add wire {_wire_diagnostic(attempted)}: target port is "
+            f"already wired by {_wire_diagnostic(existing)} (fan-in forbidden)"
+        )
+        self.attempted = attempted
+        self.existing = existing
+
+
+class PlanWireAssetNotBoundError(Exception):
+    """A Wire references an Asset that's not in the Plan's `asset_ids` set.
+
+    Both endpoints of every Wire MUST reference Assets bound by the
+    Plan. Carries the offending asset_ids for diagnostics. Mapped
+    to HTTP 409 (state-conflict family; the wire is structurally
+    invalid given current Plan binding).
+    """
+
+    def __init__(self, wire: Wire, missing_asset_ids: list[UUID]) -> None:
+        super().__init__(
+            f"Cannot add wire {_wire_diagnostic(wire)}: the following endpoint "
+            f"Assets are not bound by this Plan: "
+            f"{[str(a) for a in missing_asset_ids]} (bind the Asset first via "
+            "Plan re-definition, OR pick an Asset already bound)"
+        )
+        self.wire = wire
+        self.missing_asset_ids = missing_asset_ids
+
+
+class PlanWirePortNotFoundError(Exception):
+    """A Wire references a port name that doesn't exist on its endpoint Asset.
+
+    Strict forward-reference: Plan.wires rejects if either endpoint
+    port doesn't currently exist on the bound Asset. Operators must
+    add the port to the Asset (5h `add_asset_port`) BEFORE wiring
+    against it. The same dependency-aware ordering applies to
+    removal: remove the wire BEFORE removing the port (PostgreSQL FK
+    shape; see [[project_plan_wiring_design]] §hot-swap procedure).
+
+    Carries the offending port references as `(asset_id, port_name,
+    direction_role)` triples where `direction_role` is "source" or
+    "target". Mapped to HTTP 409.
+    """
+
+    def __init__(self, wire: Wire, missing: list[tuple[UUID, str, str]]) -> None:
+        details = ", ".join(
+            f"{role}={asset_id}:{port_name!r}" for asset_id, port_name, role in missing
+        )
+        super().__init__(
+            f"Cannot add wire {_wire_diagnostic(wire)}: the following port "
+            f"references don't exist on their endpoint Assets: {details} "
+            "(add the port to the Asset first via add_asset_port, OR pick "
+            "a port already declared)"
+        )
+        self.wire = wire
+        self.missing = missing
+
+
+class PlanWireDirectionMismatchError(Exception):
+    """A Wire's source port is not OUTPUT, or its target port is not INPUT.
+
+    Direction is enforced (universal across IEC 61131-3, IEC 61499,
+    SysML, PandABox, EPICS, NiFi, LabVIEW). Carries the actual
+    directions seen for diagnostics. Mapped to HTTP 409.
+    """
+
+    def __init__(
+        self,
+        wire: Wire,
+        actual_source_direction: str,
+        actual_target_direction: str,
+    ) -> None:
+        super().__init__(
+            f"Cannot add wire {_wire_diagnostic(wire)}: source must be "
+            f"OUTPUT (got {actual_source_direction!r}), target must be "
+            f"INPUT (got {actual_target_direction!r})"
+        )
+        self.wire = wire
+        self.actual_source_direction = actual_source_direction
+        self.actual_target_direction = actual_target_direction
+
+
+class PlanWireSignalTypeMismatchError(Exception):
+    """A Wire's source and target ports have different `signal_type` values.
+
+    Exact-match required (matches IEC 61131-3 wire-type rules and
+    LabVIEW G's broken-wire-on-mismatch). Carries both signal_types
+    for diagnostics. Mapped to HTTP 409. If conversion is needed,
+    add an explicit "converter" Asset; do not bake coercion into
+    wire validation.
+    """
+
+    def __init__(
+        self,
+        wire: Wire,
+        source_signal_type: str,
+        target_signal_type: str,
+    ) -> None:
+        super().__init__(
+            f"Cannot add wire {_wire_diagnostic(wire)}: source signal_type "
+            f"{source_signal_type!r} does not match target signal_type "
+            f"{target_signal_type!r} (exact match required)"
+        )
+        self.wire = wire
+        self.source_signal_type = source_signal_type
+        self.target_signal_type = target_signal_type
+
+
+class PlanWireSelfLoopError(Exception):
+    """A Wire connects a port to itself (same asset_id AND same port_name).
+
+    Self-loops between DIFFERENT ports on the same Asset are allowed
+    (PandABox LUT block self-feedback pattern). Self-loops where
+    source and target ports are identical are rejected as a
+    degenerate case.
+    """
+
+    def __init__(self, wire: Wire) -> None:
+        super().__init__(
+            f"Cannot add wire {_wire_diagnostic(wire)}: source and target "
+            "are the same port (self-loops on a single port are degenerate; "
+            "use two distinct ports on the same Asset for legitimate "
+            "feedback patterns)"
+        )
+        self.wire = wire
+
+
+def _wire_diagnostic(wire: Wire) -> str:
+    """Compact human-readable Wire renderer for error messages."""
+    return (
+        f"({wire.source_asset_id}:{wire.source_port_name!r} → "
+        f"{wire.target_asset_id}:{wire.target_port_name!r})"
+    )
