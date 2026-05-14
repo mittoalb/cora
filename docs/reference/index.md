@@ -1,13 +1,49 @@
 # Reference
 
-*The internal contract the code follows.*
-
-Not a tutorial. Not onboarding. The rules a human or LLM agent has to honor when modifying CORA so the codebase doesn't drift. If the code disagrees with this page, the code is wrong. For collaboration on the design (not the code), see [Contributing](../../CONTRIBUTING.md).
+For humans and LLM agents writing CORA code, and for code reviewers. Not a tutorial. The rules to honor when modifying CORA so the codebase doesn't drift. If the code disagrees with this page, the code is wrong. For collaboration on the design (not the code), see [Contributing](../../CONTRIBUTING.md).
 
 ## Pages
 
-- [Workflow](workflow.md): reading order, commits, branch flow, migrations, tests.
-- [Layout](layout.md): BC structure, imports, naming, bootstrap, shared code.
-- [Modeling](modeling.md): event sourcing, value objects, field grouping.
-- [Patterns](patterns.md): read side, query slices, projections, idempotency, cross-aggregate validation.
-- [Runtime](runtime.md): production hardening, logging, HTTP errors.
+<div class="grid cards" markdown>
+
+-   :material-source-branch:{ .lg .middle } __Workflow__
+
+    ---
+
+    Reading order, commits, branch flow, migrations, tests.
+
+    [Read →](workflow.md)
+
+-   :material-file-tree-outline:{ .lg .middle } __Layout__
+
+    ---
+
+    BC structure, imports, naming, bootstrap, shared code.
+
+    [Read →](layout.md)
+
+-   :material-graph-outline:{ .lg .middle } __Modeling__
+
+    ---
+
+    Event sourcing, value objects, field grouping.
+
+    [Read →](modeling.md)
+
+-   :material-puzzle-outline:{ .lg .middle } __Patterns__
+
+    ---
+
+    Read side, query slices, projections, idempotency, cross-aggregate validation.
+
+    [Read →](patterns.md)
+
+-   :material-rocket-launch-outline:{ .lg .middle } __Runtime__
+
+    ---
+
+    Production hardening, logging, HTTP errors.
+
+    [Read →](runtime.md)
+
+</div>

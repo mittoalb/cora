@@ -145,6 +145,52 @@ body::before {
   color: #fff;
 }
 
+/* Bottom-anchored link strip inside the hero. Lives in the same fixed layer
+   as the masthead so it shares the scroll fade. Sits above the bottom gradient
+   (96px) with breathing room. md-grid keeps it left-aligned to the masthead.
+   Wrapper is pointer-events: none so background area still scrolls; only the
+   anchors re-enable pointer events. */
+.cora-hero__strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 7rem;
+  pointer-events: none;
+}
+
+.cora-hero__strip-inner {
+  width: 100%;
+  font-family: "Inter", sans-serif;
+  font-size: clamp(0.6rem, 0.7vw, 0.75rem);
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.cora-hero__strip a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  padding-bottom: 2px;
+  pointer-events: auto;
+  transition:
+    color 150ms ease,
+    border-color 150ms ease;
+}
+
+.cora-hero__strip a:hover,
+.cora-hero__strip a:focus-visible {
+  color: #fff;
+  border-bottom-color: rgba(255, 255, 255, 0.6);
+  outline: none;
+}
+
+.cora-hero__strip span {
+  opacity: 0.5;
+  margin-right: 0.6rem;
+}
+
 /* Match table text to body size; mkdocs-material default is ~0.64rem. */
 .md-typeset table:not([class]) {
   font-size: inherit;
@@ -158,4 +204,212 @@ body::before {
 /* Inline code in tables should not break mid-token (BC names, file paths). */
 .md-typeset table:not([class]) code {
   white-space: nowrap;
+}
+
+/* ---- Modern table styling ----
+   Stripe / Linear / Vercel pattern: borderless body, single header divider,
+   subtle row hover. Material's default cell borders make data tables read
+   as busy grids; pulling them lets the type carry the structure. */
+.md-typeset table:not([class]) {
+  width: 100%;
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  background: transparent;
+  box-shadow: none;
+  margin: 1.2em 0;
+}
+
+.md-typeset table:not([class]) thead {
+  background: transparent;
+}
+
+.md-typeset table:not([class]) th {
+  background: transparent;
+  color: var(--md-default-fg-color--light);
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: none;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  padding: 0.7rem 0.9rem;
+  text-align: left;
+  vertical-align: bottom;
+}
+
+.md-typeset table:not([class]) td {
+  border: none;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  padding: 0.75rem 0.9rem;
+  vertical-align: top;
+}
+
+.md-typeset table:not([class]) tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.md-typeset table:not([class]) tbody tr {
+  transition: background-color 120ms ease;
+}
+
+.md-typeset table:not([class]) tbody tr:hover {
+  background-color: var(--md-accent-fg-color--transparent);
+}
+
+/* First column reads as the "key" / identifier in most CORA reference tables;
+   slight weight bump (500 vs 400) makes it scan-able without going bold. */
+.md-typeset table:not([class]) tbody td:first-child {
+  font-weight: 500;
+  color: var(--md-default-fg-color);
+}
+
+/* Dark mode: softer borders so the divider doesn't feel like a hard rule. */
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) th,
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) td {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-typeset table:not([class]) tbody tr {
+    transition: none;
+  }
+}
+
+/* ---- Code block polish ----
+   Rounded corners, soft shadow, subtle border on the .highlight wrapper
+   that holds <pre> + the copy button. Dark mode gets a deeper shadow so
+   blocks read as raised cards rather than embossed wells. */
+.md-typeset .highlight {
+  background-color: var(--md-code-bg-color);
+  border-radius: 0.4rem;
+  overflow: hidden;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Material's default leaves <pre> with 1em top/bottom margin; inside the
+   painted .highlight box that margin showed through as darker stripes
+   against the page background. Collapse it so <code> fills the box edge
+   to edge. */
+.md-typeset .highlight > pre {
+  margin: 0;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .highlight {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.md-typeset pre > code {
+  border-radius: 0;
+}
+
+/* Inline code: pill shape, gentle padding so it sits inside the line. */
+.md-typeset :not(pre) > code {
+  border-radius: 0.25rem;
+  padding: 0.1em 0.35em;
+}
+
+/* ---- Grid cards: subtle lift on hover ----
+   Material ships grid cards but the default has no motion. Cards lift 2px
+   and the shadow deepens, mirroring the code-block chrome. */
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid > .card {
+  border-radius: 0.4rem;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition:
+    transform 180ms ease-out,
+    box-shadow 180ms ease-out,
+    border-color 180ms ease-out;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .grid.cards > ul > li,
+[data-md-color-scheme="slate"] .md-typeset .grid > .card {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.md-typeset .grid.cards > ul > li:hover,
+.md-typeset .grid > .card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.05);
+  border-color: var(--md-accent-fg-color);
+}
+
+/* Whole-card click target. The last <p> in each grid card holds the
+   "Read →" link; we expand that anchor's hit area to cover the full tile
+   via ::after so clicking anywhere on the card navigates. li becomes the
+   positioning context; cursor: pointer signals it's clickable. */
+.md-typeset .grid.cards > ul > li {
+  position: relative;
+  cursor: pointer;
+}
+
+.md-typeset .grid.cards > ul > li > p:last-child a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: 1;
+}
+
+/* Keep the visible "Read →" text underline hover working — the cover is
+   transparent so the link styles still apply. Focus ring lives on the
+   card via focus-within so keyboard users see where they are. */
+.md-typeset .grid.cards > ul > li:focus-within {
+  outline: 2px solid var(--md-accent-fg-color);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-typeset .grid.cards > ul > li,
+  .md-typeset .grid > .card {
+    transition: none;
+  }
+  .md-typeset .grid.cards > ul > li:hover,
+  .md-typeset .grid > .card:hover {
+    transform: none;
+  }
+}
+
+/* ---- Section reveal-on-scroll ----
+   section-reveal.js adds .cora-revealed when an element scrolls into view.
+   Pre-reveal state is opacity 0 + 8px down; revealed state animates back
+   to natural. Reduced-motion users see no offset. */
+.md-content .cora-reveal {
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 360ms ease-out,
+    transform 360ms ease-out;
+}
+
+.md-content .cora-reveal.cora-revealed {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-content .cora-reveal,
+  .md-content .cora-reveal.cora-revealed {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ---- View Transitions for theme toggle ----
+   nav-theme.js wraps the palette swap in document.startViewTransition; the
+   browser cross-fades old/new automatically. Tuning duration keeps it from
+   feeling heavy. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 280ms;
+  animation-timing-function: ease-out;
 }

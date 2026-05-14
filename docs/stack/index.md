@@ -1,15 +1,65 @@
 # Stack
 
-*Picks today. Triggers for picks tomorrow.*
-
-Every pick on this page is a starting point with a written escape hatch. Roles are pinned in [Architecture](../architecture/index.md); products are pinned in `pyproject.toml`, `docker-compose.yml`, and `Makefile`. Seam discipline (ports, adapters, BC isolation) means any one can be swapped without touching the core. Picks marked deferred are *not yet warranted*, not unwanted.
+For implementers and operators modifying `pyproject.toml`, `docker-compose.yml`, or `Makefile`. Every pick is a starting point with a written escape hatch. Roles are pinned in [Architecture](../architecture/index.md); seam discipline (ports, adapters, BC isolation) means any pick can be swapped without touching the core. Picks marked deferred are *not yet warranted*, not unwanted.
 
 ## Pages
 
-- [Backend](backend.md): language, HTTP, async DB, agent SDK, validation, settings, IDs, server.
-- [Frontend](frontend.md): framework, lint, format.
-- [Data](data.md): relational store, event store, vector index, migrations.
-- [Auth](auth.md): authentication wiring, authorization model, policy language.
-- [Observability](observability.md): logging, metrics, tracing, receivers.
-- [Operations](operations.md): deployment, tooling.
-- [Deferred](deferred.md): picks held until a real consumer demands them.
+<div class="grid cards" markdown>
+
+-   :material-server-outline:{ .lg .middle } __Backend__
+
+    ---
+
+    Language, HTTP, async DB, agent SDK, validation, settings, IDs, server.
+
+    [Read →](backend.md)
+
+-   :material-monitor-dashboard:{ .lg .middle } __Frontend__
+
+    ---
+
+    Framework, lint, format.
+
+    [Read →](frontend.md)
+
+-   :material-database:{ .lg .middle } __Data__
+
+    ---
+
+    Relational store, event store, vector index, migrations.
+
+    [Read →](data.md)
+
+-   :material-shield-key-outline:{ .lg .middle } __Auth__
+
+    ---
+
+    Authentication wiring, authorization model, policy language.
+
+    [Read →](auth.md)
+
+-   :material-chart-line:{ .lg .middle } __Observability__
+
+    ---
+
+    Logging, metrics, tracing, receivers.
+
+    [Read →](observability.md)
+
+-   :material-tools:{ .lg .middle } __Operations__
+
+    ---
+
+    Deployment, tooling.
+
+    [Read →](operations.md)
+
+-   :material-clock-outline:{ .lg .middle } __Deferred__
+
+    ---
+
+    Picks held until a real consumer demands them.
+
+    [Read →](deferred.md)
+
+</div>

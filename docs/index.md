@@ -4,15 +4,7 @@ template: home.html
 
 # CORA
 
-*A unified operations platform for large-scale research facilities.*
-
-**Continuously Overpromised, Rarely Automated.** Most facility software lives forever as a slide-deck capability. CORA is the version that ships.
-
-## Shape
-
-- **Solo project.** A research bet, not a startup, not a product.
-- **Code is agent-written; design is human.**
-- **Pre-1.0.** Foundation in place; bounded contexts grow from real APS use cases.
+Most facility software lives forever as a slide-deck capability. CORA is the version that ships.
 
 ## Problem
 
@@ -37,24 +29,48 @@ flowchart LR
 
 A *method* names how a class of measurement works. A *practice* binds it to one facility's instruments. A *plan* schedules it. A *run* executes it, captured as events.
 
-## Where next
+For 35-BM micro-CT this reads: **Method** tomography, **Practice** 35-BM tomography, **Plan** scan #2351, **Run** today's measurement events.
+
+## Pilot
+
+Built first for white-beam micro-CT at **APS beamline 35-BM** (Argonne). Greenfield instrument, real operations. CORA schedules, audits, and governs the existing open-source stack (TomoScan, TomoPy, mctOptics, Noise2Inverse360) without reimplementing it.
+
+[See the 35-BM pilot →](projects/35-bm/index.md)
+
+## Start here
 
 <div class="grid cards" markdown>
 
--   **[Architecture →](architecture/index.md)**
+-   __Beamline scientist__
 
-    Patterns and roles.
+    Could CORA run your experiments? Start with the pilot.
 
--   **[Stack →](stack/index.md)**
+    [See 35-BM →](projects/35-bm/index.md)
 
-    Picks and swap triggers.
+-   __Software architect__
 
--   **[Projects →](projects/index.md)**
+    DDD, event sourcing, agents-as-principals. Read how it's built.
 
-    Pilots, starting with 35-BM.
+    [Read the architecture →](architecture/index.md)
 
--   **[Source →](https://github.com/xmap/cora)**
+-   __Future pilot host__
 
-    Code, issues, history.
+    Your beamline could be the next deployment after 35-BM.
+
+    [Read the contribution call →](contributing.md)
+
+-   __Pattern researcher__
+
+    Agents-as-principals, ReBAC, decision strategies, DCB. Got a pattern to try on a real facility? CORA can be a substrate.
+
+    [Read the contribution call →](contributing.md)
 
 </div>
+
+## About
+
+- **Solo project.** A research bet, not a startup, not a product.
+- **Code is agent-written; design is human.**
+- **Pre-1.0.** Foundation in place; bounded contexts grow from real APS use cases.
+
+[Source on GitHub →](https://github.com/xmap/cora)

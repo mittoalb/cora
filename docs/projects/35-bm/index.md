@@ -28,7 +28,38 @@ Every transition emits events. The full stream re-derives the deliverables. The 
 
 ## Read
 
-- [Ground](ground.md): what the pilot inherits at this beamline
-- [Scope](scope.md): what the pilot commits to and what it does not
-- [Walk](walk.md): one scan, end to end
-- [Capabilities](capabilities.md): what the pilot leaves the beamline with
+<div class="grid cards" markdown>
+
+-   :material-foundation:{ .lg .middle } __Ground__
+
+    ---
+
+    What the pilot inherits at this beamline.
+
+    [Read →](ground.md)
+
+-   :material-target:{ .lg .middle } __Scope__
+
+    ---
+
+    What the pilot commits to and what it does not.
+
+    [Read →](scope.md)
+
+-   :material-walk:{ .lg .middle } __Walk__
+
+    ---
+
+    One scan, end to end.
+
+    [Read →](walk.md)
+
+-   :material-flag-checkered:{ .lg .middle } __Capabilities__
+
+    ---
+
+    What the pilot leaves the beamline with.
+
+    [Read →](capabilities.md)
+
+</div>
