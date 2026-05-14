@@ -22,7 +22,7 @@ passing its `parameters_schema` into `decide` as the
 from datetime import datetime
 from typing import Any
 
-from cora.equipment.aggregates.asset.settings_validation import merge_patch
+from cora.infrastructure.json_merge_patch import merge_patch
 from cora.recipe.aggregates.plan import (
     Plan,
     PlanNotFoundError,

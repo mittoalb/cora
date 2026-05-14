@@ -28,11 +28,11 @@ from cora.equipment.aggregates.asset import (
     AssetSettingsUpdated,
 )
 from cora.equipment.aggregates.asset.settings_validation import (
-    merge_patch,
     validate_settings_against_capabilities,
 )
 from cora.equipment.aggregates.capability.state import Capability
 from cora.equipment.features.update_asset_settings.command import UpdateAssetSettings
+from cora.infrastructure.json_merge_patch import merge_patch
 
 
 def decide(

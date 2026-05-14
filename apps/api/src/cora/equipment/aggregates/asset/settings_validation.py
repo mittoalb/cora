@@ -1,16 +1,17 @@
 """Cross-Capability validation for Asset.settings (Phase 5g-c).
 
-Two pieces:
+`validate_settings_against_capabilities(settings, capabilities)`:
+union all assigned Capabilities' settings_schemas (5g-a) and validate
+the proposed settings dict against the union via `jsonschema-rs`.
+Raises `InvalidAssetSettingsError(reason)` on failure with a clear
+diagnostic.
 
-  - `merge_patch(current, patch)`: apply RFC 7396 (JSON Merge Patch)
-    semantics. Keys with non-null values are set/replaced; keys with
-    null are deleted; absent keys are preserved.
-
-  - `validate_settings_against_capabilities(settings, capabilities)`:
-    union all assigned Capabilities' settings_schemas (5g-a) and
-    validate the proposed settings dict against the union via
-    `jsonschema-rs`. Raises `InvalidAssetSettingsError(reason)` on
-    failure with a clear diagnostic.
+The companion RFC 7396 `merge_patch` helper originally lived in this
+module (5g-c shipped both together). Post-6g cleanup hoisted it to
+`cora.infrastructure.json_merge_patch` once the third call site
+landed (5g-c here + 6g-b Plan.parameter_defaults + 6g-c Run
+effective_parameters resolution). New callers import directly from
+the infrastructure module.
 
 ## Union semantics
 
@@ -67,7 +68,6 @@ detail for an operator to fix the patch:
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
-import copy
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -76,45 +76,6 @@ import jsonschema_rs
 from cora.equipment.aggregates.asset.state import InvalidAssetSettingsError
 from cora.equipment.aggregates.capability.state import Capability
 from cora.infrastructure.json_schema_subset import DRAFT_2020_12_URI
-
-
-def merge_patch(current: Mapping[str, Any], patch: Mapping[str, Any]) -> dict[str, Any]:
-    """Apply RFC 7396 JSON Merge Patch semantics.
-
-    Returns a NEW deeply-copied dict (does not alias `current` at any
-    nesting depth):
-      - keys in `patch` with non-null values: set / replace
-      - keys in `patch` with null: deleted from result
-      - keys absent from `patch`: preserved from `current`
-
-    Recursive on nested dicts: `merge_patch({"a": {"b": 1}}, {"a":
-    {"c": 2}}) == {"a": {"b": 1, "c": 2}}`. RFC 7396 says nested
-    null also deletes (`merge_patch({"a": {"b": 1}}, {"a": {"b":
-    null}}) == {"a": {}}`).
-
-    The result is `copy.deepcopy`'d so caller mutations of the
-    returned dict do not propagate into `current` (the prior
-    `Asset.settings`) or into the event payload that this dict
-    becomes. Settings dicts are typically small (5-30 keys), so
-    deepcopy cost is negligible compared to the safety guarantee.
-
-    Note: cannot represent "set key to null" — null is overloaded as
-    the delete sentinel. Settings values in CORA are never null in
-    practice (use absence or a typed sentinel).
-    """
-    result: dict[str, Any] = copy.deepcopy(dict(current))
-    for key, value in patch.items():
-        if value is None:
-            result.pop(key, None)
-        elif isinstance(value, dict) and isinstance(result.get(key), dict):
-            # Recursive merge into existing nested dict
-            result[key] = merge_patch(result[key], value)
-        else:
-            # Set / replace (including dict-into-non-dict and scalars).
-            # Deep-copy the patch value so caller mutations of the
-            # patch don't propagate into the result either.
-            result[key] = copy.deepcopy(value)
-    return result
 
 
 def validate_settings_against_capabilities(
@@ -236,7 +197,4 @@ def _check_cross_capability_type_conflicts(capabilities: Sequence[Capability]) -
             raise InvalidAssetSettingsError(msg)
 
 
-__all__ = [
-    "merge_patch",
-    "validate_settings_against_capabilities",
-]
+__all__ = ["validate_settings_against_capabilities"]

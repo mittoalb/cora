@@ -38,8 +38,8 @@ from typing import Protocol
 from uuid import UUID
 
 from cora.equipment.aggregates.asset import Asset, AssetNotFoundError, load_asset
-from cora.equipment.aggregates.asset.settings_validation import merge_patch
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.json_merge_patch import merge_patch
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
