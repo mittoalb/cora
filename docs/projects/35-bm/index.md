@@ -19,7 +19,7 @@ flowchart LR
     P[Proposal] --> S[Sample] --> SU[Setup] --> SC[Scan] --> A[Analysis] --> D[Delivery]
 ```
 
-Every transition emits events. The full stream re-derives the deliverables. The end-to-end walk lives in [Experiment](experiment.md); the BC mapping in [Approach](approach.md).
+Every transition emits events. The full stream re-derives the deliverables. The end-to-end walk lives in [Walk](walk.md).
 
 ## Why first
 

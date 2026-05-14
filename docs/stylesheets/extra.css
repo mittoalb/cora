@@ -49,8 +49,6 @@ body::before {
   right: 0;
   height: 4.8rem;
   background-color: rgba(10, 126, 140, var(--cora-header-overlay, 1));
-  backdrop-filter: blur(calc((1 - var(--cora-header-overlay, 1)) * 14px));
-  -webkit-backdrop-filter: blur(calc((1 - var(--cora-header-overlay, 1)) * 14px));
   z-index: 2;
   pointer-events: none;
 }

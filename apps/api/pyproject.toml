@@ -112,6 +112,11 @@ markers = [
 [tool.coverage.run]
 branch = true
 source = ["src/cora"]
+# Required by py-cov-action/python-coverage-comment-action: the action
+# runs from repo root while pytest runs from apps/api, so absolute paths
+# in .coverage become unresolvable. Relative paths also make .coverage
+# files portable across the dev/CI/container split.
+relative_files = true
 omit = [
     "*/tests/*",
     "*/conftest.py",
