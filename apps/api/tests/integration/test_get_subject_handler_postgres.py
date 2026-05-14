@@ -6,23 +6,12 @@ fold-on-read against PostgresEventStore correctly reproduces the
 state every transition produced.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
 import asyncpg
 import pytest
 
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.subject.aggregates.subject import SubjectName, SubjectStatus
 from cora.subject.features import (
     get_subject,
@@ -36,6 +25,7 @@ from cora.subject.features.measure_subject import MeasureSubject
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
 from cora.subject.features.remove_subject import RemoveSubject
+from tests.integration._helpers import build_postgres_deps
 from tests.unit.subject._asset_helper import seed_active_asset
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
@@ -49,14 +39,7 @@ async def test_get_subject_loads_received_state_from_real_postgres(
 ) -> None:
     subject_id = UUID("01900000-0000-7000-8000-00000054f1ec")
     register_event_id = UUID("01900000-0000-7000-8000-00000054f1ed")
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([subject_id, register_event_id]),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-    )
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[subject_id, register_event_id])
 
     await register_subject.bind(deps)(
         RegisterSubject(name="Sample-A1"),
@@ -89,21 +72,16 @@ async def test_get_subject_loads_full_lifecycle_state_from_real_postgres(
     mount_event_id = UUID("01900000-0000-7000-8000-00000054f2ee")
     measure_event_id = UUID("01900000-0000-7000-8000-00000054f2ef")
     remove_event_id = UUID("01900000-0000-7000-8000-00000054f2f0")
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [
-                subject_id,
-                register_event_id,
-                mount_event_id,
-                measure_event_id,
-                remove_event_id,
-            ]
-        ),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[
+            subject_id,
+            register_event_id,
+            mount_event_id,
+            measure_event_id,
+            remove_event_id,
+        ],
     )
 
     await register_subject.bind(deps)(

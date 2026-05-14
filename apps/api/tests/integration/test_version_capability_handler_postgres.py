@@ -4,8 +4,6 @@ Round-trip: define + version + load_capability returns the
 versioned state with version set.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -20,15 +18,7 @@ from cora.equipment.aggregates.capability import (
 from cora.equipment.features import define_capability, version_capability
 from cora.equipment.features.define_capability import DefineCapability
 from cora.equipment.features.version_capability import VersionCapability
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -43,13 +33,10 @@ async def test_version_capability_persists_event_and_round_trips_through_fold(
     defined_event_id = UUID("01900000-0000-7000-8000-00000057fa0e")
     versioned_event_id = UUID("01900000-0000-7000-8000-00000057fa0f")
 
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([capability_id, defined_event_id, versioned_event_id]),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[capability_id, defined_event_id, versioned_event_id],
     )
 
     await define_capability.bind(deps)(

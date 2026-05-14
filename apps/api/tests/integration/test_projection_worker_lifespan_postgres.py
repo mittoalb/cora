@@ -30,18 +30,11 @@ import pytest
 from cora.access.features.register_actor import RegisterActor
 from cora.access.features.register_actor import bind as bind_register
 from cora.access.projections.summary import ActorSummaryProjection
-from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.infrastructure.projection import ProjectionRegistry
 from cora.infrastructure.projection.wakeup import PollOnlyWakeup
 from cora.infrastructure.projection.worker import ProjectionWorker
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -49,15 +42,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
 def _build_deps(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:
-    return Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(ids),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-        pool=db_pool,
-    )
+    return build_postgres_deps(db_pool, now=_NOW, ids=ids)
 
 
 async def _wait_for_row(

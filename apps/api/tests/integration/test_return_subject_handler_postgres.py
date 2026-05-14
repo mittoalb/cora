@@ -5,23 +5,12 @@ composes with PostgresEventStore for the Removed -> Returned terminal
 transition.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
 import asyncpg
 import pytest
 
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.subject.features import (
     mount_subject,
     register_subject,
@@ -32,6 +21,7 @@ from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
 from cora.subject.features.remove_subject import RemoveSubject
 from cora.subject.features.return_subject import ReturnSubject
+from tests.integration._helpers import build_postgres_deps
 from tests.unit.subject._asset_helper import seed_active_asset
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
@@ -48,21 +38,16 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 async def test_return_subject_persists_event_to_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [
-                _NEW_ID,
-                _REGISTER_EVENT_ID,
-                _MOUNT_EVENT_ID,
-                _REMOVE_EVENT_ID,
-                _RETURN_EVENT_ID,
-            ]
-        ),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[
+            _NEW_ID,
+            _REGISTER_EVENT_ID,
+            _MOUNT_EVENT_ID,
+            _REMOVE_EVENT_ID,
+            _RETURN_EVENT_ID,
+        ],
     )
 
     subject_id = await register_subject.bind(deps)(

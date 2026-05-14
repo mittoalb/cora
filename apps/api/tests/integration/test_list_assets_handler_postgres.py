@@ -32,12 +32,9 @@ from cora.equipment.features.relocate_asset import RelocateAsset
 from cora.equipment.features.relocate_asset import bind as bind_relocate
 from cora.equipment.features.restore_from_maintenance import RestoreFromMaintenance
 from cora.equipment.features.restore_from_maintenance import bind as bind_restore
-from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import AllowAllAuthorize, FixedIdGenerator, FrozenClock
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -45,15 +42,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
 def _build_deps(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:
-    return Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(ids),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-        pool=db_pool,
-    )
+    return build_postgres_deps(db_pool, now=_NOW, ids=ids)
 
 
 async def _drain(db_pool: asyncpg.Pool) -> None:

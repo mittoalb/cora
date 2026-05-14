@@ -7,23 +7,12 @@ load+fold+decide+append cycle is validated for both source states with
 the real event store.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
 import asyncpg
 import pytest
 
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.subject.features import (
     measure_subject,
     mount_subject,
@@ -34,6 +23,7 @@ from cora.subject.features.measure_subject import MeasureSubject
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
 from cora.subject.features.remove_subject import RemoveSubject
+from tests.integration._helpers import build_postgres_deps
 from tests.unit.subject._asset_helper import seed_active_asset
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
@@ -50,13 +40,10 @@ async def test_remove_subject_persists_event_from_mounted_state(
     register_event_id = UUID("01900000-0000-7000-8000-00000054d1ed")
     mount_event_id = UUID("01900000-0000-7000-8000-00000054d1ee")
     remove_event_id = UUID("01900000-0000-7000-8000-00000054d1ef")
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([new_id, register_event_id, mount_event_id, remove_event_id]),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[new_id, register_event_id, mount_event_id, remove_event_id],
     )
 
     subject_id = await register_subject.bind(deps)(
@@ -103,21 +90,16 @@ async def test_remove_subject_persists_event_from_measured_state(
     mount_event_id = UUID("01900000-0000-7000-8000-00000054d2ee")
     measure_event_id = UUID("01900000-0000-7000-8000-00000054d2ef")
     remove_event_id = UUID("01900000-0000-7000-8000-00000054d2f0")
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [
-                new_id,
-                register_event_id,
-                mount_event_id,
-                measure_event_id,
-                remove_event_id,
-            ]
-        ),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[
+            new_id,
+            register_event_id,
+            mount_event_id,
+            measure_event_id,
+            remove_event_id,
+        ],
     )
 
     subject_id = await register_subject.bind(deps)(

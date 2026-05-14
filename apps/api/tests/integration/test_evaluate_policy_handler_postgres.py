@@ -7,28 +7,20 @@ real adapter (jsonb payload survives → frozenset bridge in evolver
 → pure evaluate produces the right result).
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
 import asyncpg
 import pytest
 
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     Allow,
-    AllowAllAuthorize,
     Deny,
-    FixedIdGenerator,
-    FrozenClock,
 )
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.trust.features import define_policy, evaluate_policy
 from cora.trust.features.define_policy import DefinePolicy
 from cora.trust.features.evaluate_policy import EvaluatePolicy
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _POLICY_ID = UUID("01900000-0000-7000-8000-00000c0c0fc1")
@@ -44,14 +36,7 @@ _OTHER_PRINCIPAL = UUID("01900000-0000-7000-8000-000000000a02")
 async def test_evaluate_policy_loads_and_evaluates_through_real_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_POLICY_ID, _DEFINE_EVENT_ID]),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-    )
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[_POLICY_ID, _DEFINE_EVENT_ID])
 
     # Define a Policy through the real handler so it lands in pg as a
     # PolicyDefined event with the expected jsonb shape.
@@ -103,14 +88,7 @@ async def test_evaluate_policy_returns_none_when_policy_does_not_exist(
     """Pin the missing-policy → None contract against the real adapter
     (PostgresEventStore.load returns ([], 0) for an empty stream;
     the handler maps that to None)."""
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([UUID(int=i) for i in range(1, 9)]),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-    )
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[UUID(int=i) for i in range(1, 9)])
 
     result = await evaluate_policy.bind(deps)(
         EvaluatePolicy(

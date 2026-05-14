@@ -13,8 +13,6 @@ test uses a distinct run_id (different aggregate stream) so they
 don't interfere even if the test DB is shared.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -30,15 +28,7 @@ from cora.equipment.features import (
 from cora.equipment.features.add_asset_capability import AddAssetCapability
 from cora.equipment.features.define_capability import DefineCapability
 from cora.equipment.features.register_asset import RegisterAsset
-from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.recipe.features import (
     define_method,
     define_plan,
@@ -55,6 +45,7 @@ from cora.run.features.start_run import StartRun
 from cora.subject.features import mount_subject, register_subject
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
+from tests.integration._helpers import build_postgres_deps
 from tests.unit.subject._asset_helper import seed_active_asset
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
@@ -63,14 +54,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
 def _build_deps_with_ids(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:
-    return Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(ids),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-    )
+    return build_postgres_deps(db_pool, now=_NOW, ids=ids)
 
 
 async def _seed_chain_and_start_run(

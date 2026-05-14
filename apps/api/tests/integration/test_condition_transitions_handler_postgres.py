@@ -13,8 +13,6 @@ Scenarios:
     (degrade then enter_maintenance: condition stays Degraded)
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -36,15 +34,7 @@ from cora.equipment.features.enter_maintenance import EnterMaintenance
 from cora.equipment.features.fault_asset import FaultAsset
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.restore_asset import RestoreAsset
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 13, 12, 0, 0, tzinfo=UTC)
 _PARENT_ID = UUID("01900000-0000-7000-8000-0000005f0b00")
@@ -62,15 +52,10 @@ async def test_degrade_asset_persists_event_with_reason(
     activate_event_id = UUID("01900000-0000-7000-8000-0000005f0b1f")
     degrade_event_id = UUID("01900000-0000-7000-8000-0000005f0b20")
 
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [asset_id, register_event_id, activate_event_id, degrade_event_id]
-        ),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[asset_id, register_event_id, activate_event_id, degrade_event_id],
     )
 
     await register_asset.bind(deps)(
@@ -118,14 +103,7 @@ async def test_fault_then_restore_round_trip(
         UUID("01900000-0000-7000-8000-0000005f0b34"),  # restore event
     ]
 
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(ids),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-    )
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=ids)
 
     await register_asset.bind(deps)(
         RegisterAsset(name="Pump-XDS35i", level=AssetLevel.DEVICE, parent_id=_PARENT_ID),
@@ -175,14 +153,7 @@ async def test_no_op_when_already_in_target_condition(
         UUID("01900000-0000-7000-8000-0000005f0b43"),  # first degrade event
     ]
 
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(ids),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-    )
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=ids)
 
     await register_asset.bind(deps)(
         RegisterAsset(name="Stage-A3200", level=AssetLevel.DEVICE, parent_id=_PARENT_ID),
@@ -231,14 +202,7 @@ async def test_condition_preserved_across_lifecycle_transition(
         UUID("01900000-0000-7000-8000-0000005f0b54"),
     ]
 
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(ids),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-    )
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=ids)
 
     await register_asset.bind(deps)(
         RegisterAsset(name="Pump-Y", level=AssetLevel.DEVICE, parent_id=_PARENT_ID),

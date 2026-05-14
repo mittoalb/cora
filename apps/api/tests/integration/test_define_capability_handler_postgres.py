@@ -1,7 +1,5 @@
 """End-to-end integration test: define_capability handler against real Postgres."""
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -10,15 +8,7 @@ import pytest
 
 from cora.equipment.features import define_capability
 from cora.equipment.features.define_capability import DefineCapability
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000054ca01")
@@ -31,14 +21,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 async def test_define_capability_persists_event_to_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID]),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-    )
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[_NEW_ID, _EVENT_ID])
 
     capability_id = await define_capability.bind(deps)(
         DefineCapability(name="Continuous Rotation Tomography"),

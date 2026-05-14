@@ -6,25 +6,15 @@ the serialized payload survives jsonb round-trip and the event lands
 under stream_type='Zone' with the right shape.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
 import asyncpg
 import pytest
 
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.trust.features import define_zone
 from cora.trust.features.define_zone import DefineZone
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000000c0de")
@@ -37,14 +27,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 async def test_handler_persists_zone_defined_to_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID]),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-    )
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[_NEW_ID, _EVENT_ID])
     handler = define_zone.bind(deps)
 
     zone_id = await handler(

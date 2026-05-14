@@ -20,8 +20,6 @@ limit=2, asserts contiguous coverage, then verifies status filter
 narrows correctly.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -35,12 +33,9 @@ from cora.access.features.list_actors import ListActors
 from cora.access.features.list_actors import bind as bind_list
 from cora.access.features.register_actor import RegisterActor
 from cora.access.features.register_actor import bind as bind_register
-from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import AllowAllAuthorize, FixedIdGenerator, FrozenClock
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -48,15 +43,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
 def _build_deps(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:
-    return Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(ids),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-        pool=db_pool,
-    )
+    return build_postgres_deps(db_pool, now=_NOW, ids=ids)
 
 
 async def _seed_actors_and_drain(

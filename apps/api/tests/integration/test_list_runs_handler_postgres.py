@@ -32,15 +32,7 @@ from cora.equipment.features import (
 from cora.equipment.features.add_asset_capability import AddAssetCapability
 from cora.equipment.features.define_capability import DefineCapability
 from cora.equipment.features.register_asset import RegisterAsset
-from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.recipe._projections import register_recipe_projections
 from cora.recipe.features import define_method, define_plan, define_practice
@@ -64,6 +56,7 @@ from cora.run.features.stop_run import StopRun
 from cora.run.features.stop_run import bind as bind_stop
 from cora.run.features.truncate_run import TruncateRun
 from cora.run.features.truncate_run import bind as bind_truncate
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 13, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -71,15 +64,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
 def _build_deps(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:
-    return Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(ids),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-        pool=db_pool,
-    )
+    return build_postgres_deps(db_pool, now=_NOW, ids=ids)
 
 
 async def _drain(db_pool: asyncpg.Pool) -> None:

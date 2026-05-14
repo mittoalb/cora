@@ -12,8 +12,6 @@ Practice + Method + each Asset + Subject from real event-store
 streams, builds RunStartContext, decider validates.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -29,15 +27,6 @@ from cora.equipment.features import (
 from cora.equipment.features.add_asset_capability import AddAssetCapability
 from cora.equipment.features.define_capability import DefineCapability
 from cora.equipment.features.register_asset import RegisterAsset
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.recipe.features import (
     define_method,
     define_plan,
@@ -52,6 +41,7 @@ from cora.run.features.start_run import StartRun
 from cora.subject.features import mount_subject, register_subject
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
+from tests.integration._helpers import build_postgres_deps
 from tests.unit.subject._asset_helper import seed_active_asset
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
@@ -81,32 +71,27 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
     run_id = UUID("01900000-0000-7000-8000-00000063b101")
     run_event_id = UUID("01900000-0000-7000-8000-00000063b102")
 
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [
-                cap_id,
-                cap_event_id,
-                asset_id,
-                asset_register_event_id,
-                asset_addcap_event_id,
-                method_id,
-                method_event_id,
-                practice_id,
-                practice_event_id,
-                plan_id,
-                plan_event_id,
-                subject_id,
-                subject_register_event_id,
-                subject_mount_event_id,
-                run_id,
-                run_event_id,
-            ]
-        ),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[
+            cap_id,
+            cap_event_id,
+            asset_id,
+            asset_register_event_id,
+            asset_addcap_event_id,
+            method_id,
+            method_event_id,
+            practice_id,
+            practice_event_id,
+            plan_id,
+            plan_event_id,
+            subject_id,
+            subject_register_event_id,
+            subject_mount_event_id,
+            run_id,
+            run_event_id,
+        ],
     )
 
     # Seed full upstream chain.

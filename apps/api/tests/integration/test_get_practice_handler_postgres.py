@@ -1,26 +1,16 @@
 """Integration test: get_practice handler against real Postgres."""
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
 import asyncpg
 import pytest
 
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.recipe.aggregates.practice import PracticeName, PracticeStatus
 from cora.recipe.features import define_practice, get_practice
 from cora.recipe.features.define_practice import DefinePractice
 from cora.recipe.features.get_practice import GetPractice
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -36,14 +26,7 @@ async def test_get_practice_loads_state_from_real_postgres(
     method_id = UUID("01900000-0000-7000-8000-000000000333")
     site_id = UUID("01900000-0000-7000-8000-000000000444")
 
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([practice_id, event_id]),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-    )
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[practice_id, event_id])
 
     await define_practice.bind(deps)(
         DefinePractice(

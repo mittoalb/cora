@@ -6,8 +6,6 @@ because the payload's nullable parent_id round-trip through
 Postgres jsonb is one of the structural guarantees Asset relies on.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -22,15 +20,7 @@ from cora.equipment.aggregates.asset import (
 )
 from cora.equipment.features import register_asset
 from cora.equipment.features.register_asset import RegisterAsset
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -47,14 +37,7 @@ async def test_register_asset_persists_enterprise_root_to_postgres(
     asset_id = UUID("01900000-0000-7000-8000-00000054ea01")
     event_id = UUID("01900000-0000-7000-8000-00000054ea0e")
 
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([asset_id, event_id]),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-    )
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[asset_id, event_id])
 
     returned_asset_id = await register_asset.bind(deps)(
         RegisterAsset(name="ANL", level=AssetLevel.ENTERPRISE, parent_id=None),
@@ -96,14 +79,7 @@ async def test_register_asset_persists_site_with_parent_to_postgres(
     event_id = UUID("01900000-0000-7000-8000-00000054eb0e")
     parent_id = UUID("01900000-0000-7000-8000-00000054eb00")
 
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([asset_id, event_id]),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-    )
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[asset_id, event_id])
 
     await register_asset.bind(deps)(
         RegisterAsset(name="APS", level=AssetLevel.SITE, parent_id=parent_id),

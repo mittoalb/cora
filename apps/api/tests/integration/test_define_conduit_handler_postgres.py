@@ -12,25 +12,15 @@ that invariant lives in `test_postgres_event_store.py:
 test_streams_are_isolated_by_type_and_id`.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
 import asyncpg
 import pytest
 
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.trust.features import define_conduit
 from cora.trust.features.define_conduit import DefineConduit
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000c0c0de1")
@@ -47,20 +37,15 @@ _TARGET_ZONE = UUID("01900000-0000-7000-8000-00000000bbbb")
 async def test_handler_persists_conduit_defined_to_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [
-                _NEW_ID,
-                _TRAVERSALS_LOGBOOK_ID,
-                _DEFINED_EVENT_ID,
-                _LOGBOOK_OPENED_EVENT_ID,
-            ]
-        ),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[
+            _NEW_ID,
+            _TRAVERSALS_LOGBOOK_ID,
+            _DEFINED_EVENT_ID,
+            _LOGBOOK_OPENED_EVENT_ID,
+        ],
     )
     handler = define_conduit.bind(deps)
 

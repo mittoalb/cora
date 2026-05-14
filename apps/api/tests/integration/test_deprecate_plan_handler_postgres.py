@@ -5,8 +5,6 @@ load_plan returns the deprecated state with `version` preserved
 (audit signal of the last revision before deprecation).
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -22,15 +20,6 @@ from cora.equipment.features import (
 from cora.equipment.features.add_asset_capability import AddAssetCapability
 from cora.equipment.features.define_capability import DefineCapability
 from cora.equipment.features.register_asset import RegisterAsset
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.recipe.aggregates.plan import PlanStatus, load_plan
 from cora.recipe.features import (
     define_method,
@@ -44,6 +33,7 @@ from cora.recipe.features.define_plan import DefinePlan
 from cora.recipe.features.define_practice import DefinePractice
 from cora.recipe.features.deprecate_plan import DeprecatePlan
 from cora.recipe.features.version_plan import VersionPlan
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -69,29 +59,24 @@ async def test_deprecate_plan_persists_and_preserves_version_through_fold(
     plan_versioned_event_id = UUID("01900000-0000-7000-8000-00000062af03")
     plan_deprecated_event_id = UUID("01900000-0000-7000-8000-00000062af04")
 
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [
-                cap_id,
-                cap_event_id,
-                asset_id,
-                asset_register_event_id,
-                asset_addcap_event_id,
-                method_id,
-                method_event_id,
-                practice_id,
-                practice_event_id,
-                plan_id,
-                plan_defined_event_id,
-                plan_versioned_event_id,
-                plan_deprecated_event_id,
-            ]
-        ),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[
+            cap_id,
+            cap_event_id,
+            asset_id,
+            asset_register_event_id,
+            asset_addcap_event_id,
+            method_id,
+            method_event_id,
+            practice_id,
+            practice_event_id,
+            plan_id,
+            plan_defined_event_id,
+            plan_versioned_event_id,
+            plan_deprecated_event_id,
+        ],
     )
 
     await define_capability.bind(deps)(

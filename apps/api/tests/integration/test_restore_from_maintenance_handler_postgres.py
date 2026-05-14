@@ -5,8 +5,6 @@ enter_maintenance + restore_from_maintenance against the real event
 store.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -24,15 +22,7 @@ from cora.equipment.features.activate_asset import ActivateAsset
 from cora.equipment.features.enter_maintenance import EnterMaintenance
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.restore_from_maintenance import RestoreFromMaintenance
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PARENT_ID = UUID("01900000-0000-7000-8000-00000055ee00")
@@ -50,21 +40,16 @@ async def test_restore_from_maintenance_persists_event_from_maintenance_state(
     enter_event_id = UUID("01900000-0000-7000-8000-00000055ee10")
     restore_event_id = UUID("01900000-0000-7000-8000-00000055ee11")
 
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [
-                asset_id,
-                register_event_id,
-                activate_event_id,
-                enter_event_id,
-                restore_event_id,
-            ]
-        ),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[
+            asset_id,
+            register_event_id,
+            activate_event_id,
+            enter_event_id,
+            restore_event_id,
+        ],
     )
 
     await register_asset.bind(deps)(

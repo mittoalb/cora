@@ -12,8 +12,6 @@ asserted on the persisted payload to guarantee the round-trip is
 correct under jsonb storage.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -25,15 +23,7 @@ from cora.equipment.features import activate_asset, register_asset, relocate_ass
 from cora.equipment.features.activate_asset import ActivateAsset
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.relocate_asset import RelocateAsset
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PARENT_ID = UUID("01900000-0000-7000-8000-00000054ef00")
@@ -52,13 +42,10 @@ async def test_relocate_asset_persists_event_from_commissioned_state(
     register_event_id = UUID("01900000-0000-7000-8000-00000054ef0e")
     relocate_event_id = UUID("01900000-0000-7000-8000-00000054ef0f")
 
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([asset_id, register_event_id, relocate_event_id]),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[asset_id, register_event_id, relocate_event_id],
     )
 
     await register_asset.bind(deps)(
@@ -99,15 +86,10 @@ async def test_relocate_asset_persists_event_from_active_state(
     activate_event_id = UUID("01900000-0000-7000-8000-00000054f00f")
     relocate_event_id = UUID("01900000-0000-7000-8000-00000054f010")
 
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [asset_id, register_event_id, activate_event_id, relocate_event_id]
-        ),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[asset_id, register_event_id, activate_event_id, relocate_event_id],
     )
 
     await register_asset.bind(deps)(

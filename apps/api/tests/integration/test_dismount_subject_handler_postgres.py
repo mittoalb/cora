@@ -6,27 +6,17 @@ from_asset_id from prior state and the SubjectStatus returns to
 Received via the evolver, allowing re-mount.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
 import asyncpg
 import pytest
 
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.subject.features import dismount_subject, mount_subject, register_subject
 from cora.subject.features.dismount_subject import DismountSubject
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
+from tests.integration._helpers import build_postgres_deps
 from tests.unit.subject._asset_helper import seed_active_asset
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
@@ -47,21 +37,16 @@ async def test_dismount_then_remount_round_trip_against_postgres(
     dismount_event_id = UUID("01900000-0000-7000-8000-0000004f0013")
     remount_event_id = UUID("01900000-0000-7000-8000-0000004f0014")
 
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [
-                subject_id,
-                register_event_id,
-                mount_event_id,
-                dismount_event_id,
-                remount_event_id,
-            ]
-        ),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[
+            subject_id,
+            register_event_id,
+            mount_event_id,
+            dismount_event_id,
+            remount_event_id,
+        ],
     )
 
     asset_id = await seed_active_asset(deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID)

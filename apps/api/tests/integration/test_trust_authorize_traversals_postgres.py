@@ -25,18 +25,14 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
-from cora.infrastructure.config import Settings
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     Allow,
-    AllowAllAuthorize,
     Deny,
     FixedIdGenerator,
     FrozenClock,
 )
 from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.trust.aggregates.conduit.entries import (
     ConduitTraversal,
     PostgresTraversalStore,
@@ -53,6 +49,7 @@ from cora.trust.aggregates.policy.events import (
 from cora.trust.authorize import TrustAuthorize
 from cora.trust.features import define_conduit
 from cora.trust.features.define_conduit import DefineConduit
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-00000000c001")
@@ -95,21 +92,16 @@ async def test_trust_authorize_persists_traversals_against_postgres(
 
     event_store = PostgresEventStore(db_pool)
     traversals_store = PostgresTraversalStore(db_pool)
-    define_conduit_deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [
-                conduit_id,
-                traversals_logbook_id,
-                define_conduit_event_id,
-                logbook_opened_event_id,
-            ]
-        ),
-        authorize=AllowAllAuthorize(),
+    define_conduit_deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[
+            conduit_id,
+            traversals_logbook_id,
+            define_conduit_event_id,
+            logbook_opened_event_id,
+        ],
         event_store=event_store,
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-        pool=db_pool,
     )
 
     # 1. Define the Conduit (writes ConduitDefined + ConduitLogbookOpened).

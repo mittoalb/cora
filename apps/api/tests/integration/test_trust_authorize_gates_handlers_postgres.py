@@ -26,28 +26,20 @@ every BC's create-style handlers use. Cross-BC scenarios (Subject
 handlers gated by Trust policy) land in Phase B.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
 import asyncpg
 import pytest
 
-from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
 from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.trust import UnauthorizedError, wire_trust
 from cora.trust.authorize import TrustAuthorize
 from cora.trust.features import define_policy
 from cora.trust.features.define_policy import DefinePolicy
 from cora.trust.features.define_zone import DefineZone
+from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 # Post-3h: handlers pass nil conduit_id; gating policy matches.
@@ -64,14 +56,7 @@ def _bootstrap_deps(
     ids: list[UUID],
 ) -> Kernel:
     """Build Kernel with AllowAllAuthorize for the policy-define step."""
-    return Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(ids),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-    )
+    return build_postgres_deps(db_pool, now=_NOW, ids=ids)
 
 
 def _gated_deps(
@@ -82,13 +67,12 @@ def _gated_deps(
 ) -> Kernel:
     """Build Kernel with TrustAuthorize gating against `policy_id`."""
     event_store = PostgresEventStore(db_pool)
-    return Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(ids),
+    return build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=ids,
         authorize=TrustAuthorize(event_store, policy_id=policy_id),
         event_store=event_store,
-        idempotency_store=PostgresIdempotencyStore(db_pool),
     )
 
 

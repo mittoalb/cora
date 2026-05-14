@@ -14,8 +14,6 @@ is verified end-to-end so a future change that breaks it surfaces
 here, not in production.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -26,15 +24,8 @@ from cora.access import UnauthorizedError as AccessUnauthorizedError
 from cora.access import wire_access
 from cora.access.features.deactivate_actor import DeactivateActor
 from cora.access.features.register_actor import RegisterActor
-from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
 from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.subject import UnauthorizedError as SubjectUnauthorizedError
 from cora.subject import wire_subject
 from cora.subject.features.mount_subject import MountSubject
@@ -42,6 +33,7 @@ from cora.subject.features.register_subject import RegisterSubject
 from cora.trust.authorize import TrustAuthorize
 from cora.trust.features import define_policy
 from cora.trust.features.define_policy import DefinePolicy
+from tests.integration._helpers import build_postgres_deps
 from tests.unit.subject._asset_helper import seed_active_asset
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
@@ -54,25 +46,17 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-00000000c0aa")
 
 
 def _bootstrap_deps(db_pool: asyncpg.Pool, *, ids: list[UUID]) -> Kernel:
-    return Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(ids),
-        authorize=AllowAllAuthorize(),
-        event_store=PostgresEventStore(db_pool),
-        idempotency_store=PostgresIdempotencyStore(db_pool),
-    )
+    return build_postgres_deps(db_pool, now=_NOW, ids=ids)
 
 
 def _gated_deps(db_pool: asyncpg.Pool, *, policy_id: UUID, ids: list[UUID]) -> Kernel:
     event_store = PostgresEventStore(db_pool)
-    return Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(ids),
+    return build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=ids,
         authorize=TrustAuthorize(event_store, policy_id=policy_id),
         event_store=event_store,
-        idempotency_store=PostgresIdempotencyStore(db_pool),
     )
 
 
