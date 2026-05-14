@@ -81,3 +81,9 @@ MCP tools import from `_bootstrap.py` (preserves per-BC naming); REST routes pul
 ## Shared code
 
 Don't extract until **three real usages with identical, stable logic** (Rule of Three). Shared primitives (errors, VOs across aggregates) live at the BC root or in `_shared/`. Cross-BC concerns under `cora/infrastructure/`.
+
+### When the Rule of Three yields to local clarity
+
+The 13 `aggregates/<aggregate>/read.py` files are 7-line near-clones that differ only in the stream-type constant and three import lines. Rule of Three was crossed long ago, but the duplication stays. A generic `load_aggregate(event_store, stream_type, from_stored, fold)` would save ~3 lines per call site at the cost of an extra parameter-passing chain — the caller still has to import the aggregate-specific `from_stored` / `fold` to pass them in. The wrappers are mechanical, stable, and locally legible: opening `aggregates/<aggregate>/read.py` shows the entire fold-on-read path for that aggregate without a hop. A 14th aggregate doesn't change the answer.
+
+The same posture applies to other "13 mechanical near-clones" surfaces (per-aggregate `events.py` `event_type_name` / `to_payload` / `from_stored`, evolver `fold` walker): per-aggregate locality wins over a generic helper that wouldn't actually shrink the call sites.

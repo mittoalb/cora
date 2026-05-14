@@ -31,6 +31,36 @@ The implementation builds a single mega-schema with `allOf: [...]`
 Schemaless Capabilities are no-ops in the union: they contribute
 nothing to the allowed-keys set.
 
+## Why not reuse `validate_values_against_schema`
+
+This validator's mega-schema construction is structurally different
+from the single-schema path the shared
+`cora.infrastructure.json_schema_validation.validate_values_against_schema`
+walks, and that difference is forced by a real JSON Schema pitfall:
+`additionalProperties: false` only sees properties declared in the
+SAME schema object — it CANNOT see properties declared in `allOf`
+subschemas (per JSON Schema 2020-12 spec; see the upstream
+discussion at json-schema/json-schema#116). Naively wrapping each
+Capability's schema in `allOf` and hoping `additionalProperties:
+false` would close the union over all the subschemas' property names
+silently rejects every key that isn't redeclared at the root.
+
+The standard 2020-12 fix is the `unevaluatedProperties` keyword,
+which DOES recognize properties declared in subschemas. CORA's
+constrained subset deliberately forbids it (see
+`cora.infrastructure.json_schema_subset` — keeping the subset small
+is a separate locked design decision).
+
+So the Asset validator manually closes the union: collect declared
+property names from each Capability's `properties`, emit them as
+`properties: {k: True for k in declared}` at the root, then add
+`additionalProperties: false` at the root and the per-Capability
+constraints under `allOf`. This is the correct workaround for the
+pitfall under the subset constraint. Sharing the iter_errors loop
+with `validate_values_against_schema` would save ~5 lines but
+muddle the union-construction logic that justifies the standalone
+implementation.
+
 ## Strict-by-default modes (post-6g audit alignment)
 
 A Capability with `settings_schema=None` does not contribute to the
