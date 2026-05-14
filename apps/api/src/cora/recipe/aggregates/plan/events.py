@@ -119,10 +119,10 @@ class PlanDeprecated:
 
 
 @dataclass(frozen=True)
-class PlanParameterDefaultsUpdated:
+class PlanDefaultParametersUpdated:
     """The Plan's parameter defaults were updated (Phase 6g-b).
 
-    `parameter_defaults` is the POST-merge dict (RFC 7396 PATCH
+    `default_parameters` is the POST-merge dict (RFC 7396 PATCH
     applied at the slice layer; the event payload carries the
     resolved snapshot, not the patch — same self-contained-audit-log
     precedent as `AssetSettingsUpdated` from 5g-c).
@@ -138,12 +138,12 @@ class PlanParameterDefaultsUpdated:
     """
 
     plan_id: UUID
-    parameter_defaults: dict[str, Any]
+    default_parameters: dict[str, Any]
     occurred_at: datetime
 
 
 # Discriminated union of every event the Plan aggregate emits.
-PlanEvent = PlanDefined | PlanVersioned | PlanDeprecated | PlanParameterDefaultsUpdated
+PlanEvent = PlanDefined | PlanVersioned | PlanDeprecated | PlanDefaultParametersUpdated
 
 
 def event_type_name(event: PlanEvent) -> str:
@@ -220,14 +220,14 @@ def to_payload(event: PlanEvent) -> dict[str, Any]:
                 "plan_id": str(plan_id),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case PlanParameterDefaultsUpdated(
+        case PlanDefaultParametersUpdated(
             plan_id=plan_id,
-            parameter_defaults=parameter_defaults,
+            default_parameters=default_parameters,
             occurred_at=occurred_at,
         ):
             return {
                 "plan_id": str(plan_id),
-                "parameter_defaults": parameter_defaults,
+                "default_parameters": default_parameters,
                 "occurred_at": occurred_at.isoformat(),
             }
         case _:  # pragma: no cover  # exhaustiveness guard
@@ -269,10 +269,10 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
                 plan_id=UUID(payload["plan_id"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
-        case "PlanParameterDefaultsUpdated":
-            return PlanParameterDefaultsUpdated(
+        case "PlanDefaultParametersUpdated":
+            return PlanDefaultParametersUpdated(
                 plan_id=UUID(payload["plan_id"]),
-                parameter_defaults=payload["parameter_defaults"],
+                default_parameters=payload["default_parameters"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case _:
@@ -281,10 +281,10 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
 
 
 __all__ = [
+    "PlanDefaultParametersUpdated",
     "PlanDefined",
     "PlanDeprecated",
     "PlanEvent",
-    "PlanParameterDefaultsUpdated",
     "PlanVersioned",
     "event_type_name",
     "from_stored",

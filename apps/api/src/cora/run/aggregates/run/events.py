@@ -107,8 +107,8 @@ class RunStarted:
     with `.get(...)` so pre-7d events without the raid key
     deserialize as `raid=None`.
 
-    `parameter_overrides` (post-6g-c) is the operator-supplied
-    overrides on top of `Plan.parameter_defaults` (RFC 7396 merge
+    `override_parameters` (post-6g-c) is the operator-supplied
+    overrides on top of `Plan.default_parameters` (RFC 7396 merge
     semantics). `effective_parameters` is the resolved post-merge
     snapshot (defaults + overrides) that governs this Run; mirrors
     the Bluesky start-document / MLflow params / W&B run.config /
@@ -131,7 +131,7 @@ class RunStarted:
     subject_id: UUID | None
     occurred_at: datetime
     raid: str | None = None
-    parameter_overrides: dict[str, Any] = field(default_factory=dict[str, Any])
+    override_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     effective_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     triggered_by: str | None = None
 
@@ -276,7 +276,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
             plan_id=plan_id,
             subject_id=subject_id,
             raid=raid,
-            parameter_overrides=parameter_overrides,
+            override_parameters=override_parameters,
             effective_parameters=effective_parameters,
             triggered_by=triggered_by,
             occurred_at=occurred_at,
@@ -287,7 +287,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "plan_id": str(plan_id),
                 "subject_id": str(subject_id) if subject_id is not None else None,
                 "raid": raid,
-                "parameter_overrides": parameter_overrides,
+                "override_parameters": override_parameters,
                 "effective_parameters": effective_parameters,
                 "triggered_by": triggered_by,
                 "occurred_at": occurred_at.isoformat(),
@@ -348,7 +348,7 @@ def from_stored(stored: StoredEvent) -> RunEvent:
         case "RunStarted":
             raw_subject = payload["subject_id"]
             # Forward-compat additive evolution: `raid` was added in 7d
-            # and `parameter_overrides` / `effective_parameters` /
+            # and `override_parameters` / `effective_parameters` /
             # `triggered_by` in 6g-c. Each .get(...) returns the
             # field's default when the key isn't in the jsonb payload,
             # so pre-additive streams replay without an upcaster.
@@ -358,7 +358,7 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 plan_id=UUID(payload["plan_id"]),
                 subject_id=UUID(raw_subject) if raw_subject is not None else None,
                 raid=payload.get("raid"),
-                parameter_overrides=payload.get("parameter_overrides", {}),
+                override_parameters=payload.get("override_parameters", {}),
                 effective_parameters=payload.get("effective_parameters", {}),
                 triggered_by=payload.get("triggered_by"),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),

@@ -37,8 +37,8 @@ _log = get_logger(__name__)
 class RunSummaryItem:
     """One row from the run projection.
 
-    `parameter_overrides_present` (Phase 6g-c) reflects whether
-    RunStarted's `parameter_overrides` payload was non-empty
+    `override_parameters_present` (Phase 6g-c) reflects whether
+    RunStarted's `override_parameters` payload was non-empty
     (operator customized parameters at start time). Default FALSE
     on legacy rows + on Runs started with no overrides. The full
     overrides + effective_parameters dicts live on the event;
@@ -52,7 +52,7 @@ class RunSummaryItem:
     raid: str | None
     status: str
     created_at: datetime
-    parameter_overrides_present: bool
+    override_parameters_present: bool
 
 
 @dataclass(frozen=True)
@@ -77,7 +77,7 @@ class Handler(Protocol):
 
 _LIST_NO_CURSOR_SQL = """
 SELECT run_id, name, plan_id, subject_id, raid, status, created_at,
-       parameter_overrides_present
+       override_parameters_present
 FROM proj_run_summary
 WHERE ($2::text IS NULL OR status = $2)
   AND ($3::uuid IS NULL OR plan_id = $3)
@@ -87,7 +87,7 @@ LIMIT $1
 
 _LIST_WITH_CURSOR_SQL = """
 SELECT run_id, name, plan_id, subject_id, raid, status, created_at,
-       parameter_overrides_present
+       override_parameters_present
 FROM proj_run_summary
 WHERE ($2::text IS NULL OR status = $2)
   AND ($3::uuid IS NULL OR plan_id = $3)
@@ -175,7 +175,7 @@ def bind(deps: Kernel) -> Handler:
                 raid=str(row["raid"]) if row["raid"] is not None else None,
                 status=str(row["status"]),
                 created_at=row["created_at"],
-                parameter_overrides_present=bool(row["parameter_overrides_present"]),
+                override_parameters_present=bool(row["override_parameters_present"]),
             )
             for row in kept
         ]

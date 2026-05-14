@@ -30,11 +30,11 @@ class PlanSummaryDTO(BaseModel):
     status: PlanStatusFilter
     version_tag: str | None = Field(default=None, max_length=PLAN_VERSION_TAG_MAX_LENGTH)
     created_at: datetime
-    parameter_defaults_present: bool = Field(
+    default_parameters_present: bool = Field(
         default=False,
         description=(
-            "True iff the most recent `PlanParameterDefaultsUpdated` event "
-            "for this Plan carried a non-empty parameter_defaults dict "
+            "True iff the most recent `PlanDefaultParametersUpdated` event "
+            "for this Plan carried a non-empty default_parameters dict "
             "(Phase 6g-b). The dict content itself is loaded on demand."
         ),
     )
@@ -118,7 +118,7 @@ async def list_plans(
                 status=item.status,  # type: ignore[arg-type]
                 version_tag=item.version_tag,
                 created_at=item.created_at,
-                parameter_defaults_present=item.parameter_defaults_present,
+                default_parameters_present=item.default_parameters_present,
             )
             for item in page.items
         ],

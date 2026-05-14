@@ -26,10 +26,10 @@ class PlanSummaryRow(BaseModel):
     status: PlanStatusFilter
     version_tag: str | None = Field(default=None, max_length=PLAN_VERSION_TAG_MAX_LENGTH)
     created_at: datetime
-    parameter_defaults_present: bool = Field(
+    default_parameters_present: bool = Field(
         default=False,
         description=(
-            "True iff the Plan has parameter_defaults set (Phase 6g-b). "
+            "True iff the Plan has default_parameters set (Phase 6g-b). "
             "The dict content itself is loaded on demand via `get_plan`."
         ),
     )
@@ -90,7 +90,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                     status=item.status,  # type: ignore[arg-type]
                     version_tag=item.version_tag,
                     created_at=item.created_at,
-                    parameter_defaults_present=item.parameter_defaults_present,
+                    default_parameters_present=item.default_parameters_present,
                 )
                 for item in page.items
             ],

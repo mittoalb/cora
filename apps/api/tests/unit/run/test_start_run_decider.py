@@ -466,7 +466,7 @@ def _energy_schema() -> dict[str, Any]:
 
 @pytest.mark.unit
 def test_decide_emits_run_started_with_6gc_parameter_fields() -> None:
-    """Phase 6g-c: command's parameter_overrides + triggered_by carry
+    """Phase 6g-c: command's override_parameters + triggered_by carry
     into the RunStarted event; effective_parameters comes from the
     handler-computed merge (passed in as a kwarg here)."""
     cap = uuid4()
@@ -484,7 +484,7 @@ def test_decide_emits_run_started_with_6gc_parameter_fields() -> None:
             name="Run",
             plan_id=plan.id,
             subject_id=subject.id,
-            parameter_overrides=overrides,
+            override_parameters=overrides,
             triggered_by="operator:opid:5",
         ),
         context=context,
@@ -496,7 +496,7 @@ def test_decide_emits_run_started_with_6gc_parameter_fields() -> None:
     )
     assert len(events) == 1
     started = events[0]
-    assert started.parameter_overrides == overrides
+    assert started.override_parameters == overrides
     assert started.effective_parameters == effective
     assert started.triggered_by == "operator:opid:5"
 

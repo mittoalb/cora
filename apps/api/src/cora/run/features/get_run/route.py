@@ -27,7 +27,7 @@ class RunResponse(BaseModel):
     runs. `raid` is null when no Research Activity Identifier was
     supplied at start time (post-7d retrofit).
 
-    `parameter_overrides` and `effective_parameters` carry the post-
+    `override_parameters` and `effective_parameters` carry the post-
     6g-c parameter set: overrides the operator supplied at start
     time, and the resolved merge of Plan defaults + overrides that
     actually governed this Run. Both default `{}`. `triggered_by`
@@ -40,7 +40,7 @@ class RunResponse(BaseModel):
     subject_id: UUID | None
     raid: str | None
     status: str
-    parameter_overrides: dict[str, Any] = Field(default_factory=dict)
+    override_parameters: dict[str, Any] = Field(default_factory=dict)
     effective_parameters: dict[str, Any] = Field(default_factory=dict)
     triggered_by: str | None = None
 
@@ -91,7 +91,7 @@ async def get_runs(
         subject_id=run.subject_id,
         raid=run.raid,
         status=run.status.value,
-        parameter_overrides=run.parameter_overrides,
+        override_parameters=run.override_parameters,
         effective_parameters=run.effective_parameters,
         triggered_by=run.triggered_by,
     )

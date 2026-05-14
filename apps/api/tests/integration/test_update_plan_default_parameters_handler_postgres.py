@@ -1,8 +1,8 @@
-"""End-to-end integration test: update_plan_parameter_defaults against real Postgres.
+"""End-to-end integration test: update_plan_default_parameters against real Postgres.
 
 Phase 6g-b. Round-trips the new event + projection column through
 real PG, including the cross-aggregate Method load that validates
-parameter_defaults against parameters_schema.
+default_parameters against parameters_schema.
 
 Mirrors `test_update_method_parameters_schema_handler_postgres.py`
 (6g-a) shape but exercises the cross-aggregate validation path.
@@ -25,7 +25,7 @@ from cora.recipe.aggregates.method.events import MethodDefined, MethodParameters
 from cora.recipe.aggregates.method.events import event_type_name as method_event_type_name
 from cora.recipe.aggregates.method.events import to_payload as method_to_payload
 from cora.recipe.aggregates.plan import (
-    InvalidPlanParameterDefaultsError,
+    InvalidPlanDefaultParametersError,
     load_plan,
 )
 from cora.recipe.aggregates.plan.events import (
@@ -33,9 +33,9 @@ from cora.recipe.aggregates.plan.events import (
     event_type_name,
     to_payload,
 )
-from cora.recipe.features import update_plan_parameter_defaults
-from cora.recipe.features.update_plan_parameter_defaults import (
-    UpdatePlanParameterDefaults,
+from cora.recipe.features import update_plan_default_parameters
+from cora.recipe.features.update_plan_default_parameters import (
+    UpdatePlanDefaultParameters,
 )
 from tests.integration._helpers import build_postgres_deps
 
@@ -142,12 +142,12 @@ async def _seed_plan(deps: Kernel, plan_id: UUID, method_id: UUID) -> None:
 
 
 @pytest.mark.integration
-async def test_update_plan_parameter_defaults_round_trips_event_and_projection(
+async def test_update_plan_default_parameters_round_trips_event_and_projection(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Full end-to-end: seed Method with schema, seed Plan, update
     defaults, fold-on-read returns merged dict, projection
-    parameter_defaults_present = TRUE."""
+    default_parameters_present = TRUE."""
     plan_id = uuid4()
     method_id = uuid4()
     deps = _build_deps(db_pool, [uuid4()])  # one event id for the defaults-update event
@@ -155,24 +155,24 @@ async def test_update_plan_parameter_defaults_round_trips_event_and_projection(
     await _seed_method_with_schema(deps, method_id, _example_schema())
     await _seed_plan(deps, plan_id, method_id)
 
-    await update_plan_parameter_defaults.bind(deps)(
-        UpdatePlanParameterDefaults(plan_id=plan_id, parameter_defaults_patch={"energy_kev": 12.0}),
+    await update_plan_default_parameters.bind(deps)(
+        UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy_kev": 12.0}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
     loaded = await load_plan(deps.event_store, plan_id)
     assert loaded is not None
-    assert loaded.parameter_defaults == {"energy_kev": 12.0}
+    assert loaded.default_parameters == {"energy_kev": 12.0}
 
     await _drain(db_pool)
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT parameter_defaults_present FROM proj_recipe_plan_summary WHERE plan_id = $1",
+            "SELECT default_parameters_present FROM proj_recipe_plan_summary WHERE plan_id = $1",
             plan_id,
         )
     assert row is not None
-    assert row["parameter_defaults_present"] is True
+    assert row["default_parameters_present"] is True
 
 
 @pytest.mark.integration
@@ -188,29 +188,29 @@ async def test_clearing_all_keys_flips_projection_present_back_to_false(
     await _seed_method_with_schema(deps, method_id, _example_schema())
     await _seed_plan(deps, plan_id, method_id)
 
-    await update_plan_parameter_defaults.bind(deps)(
-        UpdatePlanParameterDefaults(plan_id=plan_id, parameter_defaults_patch={"energy_kev": 12.0}),
+    await update_plan_default_parameters.bind(deps)(
+        UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy_kev": 12.0}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await update_plan_parameter_defaults.bind(deps)(
-        UpdatePlanParameterDefaults(plan_id=plan_id, parameter_defaults_patch={"energy_kev": None}),
+    await update_plan_default_parameters.bind(deps)(
+        UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy_kev": None}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
     loaded = await load_plan(deps.event_store, plan_id)
     assert loaded is not None
-    assert loaded.parameter_defaults == {}
+    assert loaded.default_parameters == {}
 
     await _drain(db_pool)
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT parameter_defaults_present FROM proj_recipe_plan_summary WHERE plan_id = $1",
+            "SELECT default_parameters_present FROM proj_recipe_plan_summary WHERE plan_id = $1",
             plan_id,
         )
     assert row is not None
-    assert row["parameter_defaults_present"] is False
+    assert row["default_parameters_present"] is False
 
 
 @pytest.mark.integration
@@ -226,10 +226,10 @@ async def test_validation_rejects_post_merge_violation(
     await _seed_method_with_schema(deps, method_id, _example_schema())
     await _seed_plan(deps, plan_id, method_id)
 
-    with pytest.raises(InvalidPlanParameterDefaultsError):
-        await update_plan_parameter_defaults.bind(deps)(
-            UpdatePlanParameterDefaults(
-                plan_id=plan_id, parameter_defaults_patch={"energy_kev": 1.0}
+    with pytest.raises(InvalidPlanDefaultParametersError):
+        await update_plan_default_parameters.bind(deps)(
+            UpdatePlanDefaultParameters(
+                plan_id=plan_id, default_parameters_patch={"energy_kev": 1.0}
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
@@ -251,16 +251,16 @@ async def test_no_op_on_unchanged_does_not_emit(
     await _seed_method_with_schema(deps, method_id, _example_schema())
     await _seed_plan(deps, plan_id, method_id)
 
-    await update_plan_parameter_defaults.bind(deps)(
-        UpdatePlanParameterDefaults(plan_id=plan_id, parameter_defaults_patch={"energy_kev": 12.0}),
+    await update_plan_default_parameters.bind(deps)(
+        UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy_kev": 12.0}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
     _, version_after_first = await deps.event_store.load("Plan", plan_id)
 
-    await update_plan_parameter_defaults.bind(deps)(
-        UpdatePlanParameterDefaults(plan_id=plan_id, parameter_defaults_patch={"energy_kev": 12.0}),
+    await update_plan_default_parameters.bind(deps)(
+        UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy_kev": 12.0}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

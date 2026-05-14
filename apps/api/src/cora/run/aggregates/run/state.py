@@ -636,8 +636,8 @@ class Run:
     because old RunStarted payloads have no raid key). `status`
     defaults to `Running` — the active steady-state.
 
-    `parameter_overrides` (post-6g-c) is the operator-supplied
-    overrides on top of `Plan.parameter_defaults` (RFC 7396 merge).
+    `override_parameters` (post-6g-c) is the operator-supplied
+    overrides on top of `Plan.default_parameters` (RFC 7396 merge).
     `effective_parameters` is the post-merge resolved snapshot
     (defaults + overrides) that governed this Run. Both default to
     `{}` for legacy pre-6g-c streams (additive-state pattern;
@@ -660,7 +660,7 @@ class Run:
     subject_id: UUID | None
     raid: str | None = None
     status: RunStatus = RunStatus.RUNNING
-    parameter_overrides: dict[str, Any] = field(default_factory=dict[str, Any])
+    override_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     effective_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     triggered_by: str | None = None
 
@@ -672,7 +672,7 @@ class InvalidRunParametersError(ValueError):
     Permissive when Method.parameters_schema is None: any merge result
     is accepted (Method declares no contract). When the schema IS
     declared, the merged dict must conform per jsonschema-rs Draft
-    2020-12. Mirrors `InvalidPlanParameterDefaultsError` shape from
+    2020-12. Mirrors `InvalidPlanDefaultParametersError` shape from
     6g-b. Mapped to HTTP 400 by the run BC's exception handler.
     """
 

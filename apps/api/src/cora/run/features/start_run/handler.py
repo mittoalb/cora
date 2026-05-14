@@ -109,7 +109,7 @@ def bind(deps: Kernel) -> Handler:
             plan_id=str(command.plan_id),
             subject_id=str(command.subject_id) if command.subject_id is not None else None,
             raid=command.raid,
-            override_key_count=len(command.parameter_overrides),
+            override_key_count=len(command.override_parameters),
             triggered_by=command.triggered_by,
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
@@ -171,7 +171,7 @@ def bind(deps: Kernel) -> Handler:
         # with the command's overrides (RFC 7396). The merged dict is
         # what governs this Run; it gets validated against the
         # Method's parameters_schema by the decider.
-        effective_parameters = merge_patch(plan.parameter_defaults, command.parameter_overrides)
+        effective_parameters = merge_patch(plan.default_parameters, command.override_parameters)
 
         domain_events = decide(
             state=None,
@@ -212,7 +212,7 @@ def bind(deps: Kernel) -> Handler:
             subject_id=str(command.subject_id) if command.subject_id is not None else None,
             raid=command.raid,
             method_id=str(method.id),
-            override_key_count=len(command.parameter_overrides),
+            override_key_count=len(command.override_parameters),
             effective_key_count=len(effective_parameters),
             schema_present=method.parameters_schema is not None,
             triggered_by=command.triggered_by,

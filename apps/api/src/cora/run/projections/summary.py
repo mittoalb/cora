@@ -4,7 +4,7 @@ into the `proj_run_summary` read model that backs `GET /runs`.
 Subscribed events (genesis + 6 transitions):
   - RunStarted     -> INSERT (status=Running, name + plan_id +
                               subject_id? + raid? + 6g-c
-                              parameter_overrides_present from payload)
+                              override_parameters_present from payload)
   - RunHeld        -> UPDATE status=Held
   - RunResumed     -> UPDATE status=Running
   - RunCompleted   -> UPDATE status=Completed   (terminal)
@@ -13,11 +13,11 @@ Subscribed events (genesis + 6 transitions):
   - RunTruncated   -> UPDATE status=Truncated   (terminal)
 
 All branches idempotent. Genesis-event payload values (plan_id,
-subject_id, raid, parameter_overrides_present) land on INSERT and
+subject_id, raid, override_parameters_present) land on INSERT and
 never change; lifecycle UPDATEs only touch `status`.
 
-`parameter_overrides_present` (Phase 6g-c) is TRUE iff RunStarted's
-`parameter_overrides` payload was non-empty (operator customized
+`override_parameters_present` (Phase 6g-c) is TRUE iff RunStarted's
+`override_parameters` payload was non-empty (operator customized
 parameters at start time vs. just used Plan defaults). The full
 overrides + effective_parameters dicts live on the event itself,
 loaded on demand via `get_run` fold-on-read; the boolean is the
@@ -38,7 +38,7 @@ from cora.infrastructure.projection.handler import ConnectionLike
 _INSERT_RUN_SQL = """
 INSERT INTO proj_run_summary
     (run_id, name, plan_id, subject_id, raid, status, created_at,
-     parameter_overrides_present)
+     override_parameters_present)
 VALUES ($1, $2, $3, $4, $5, 'Running', $6, $7)
 ON CONFLICT (run_id) DO NOTHING
 """
@@ -84,9 +84,9 @@ class RunSummaryProjection:
             payload = event.payload
             subject_id = UUID(payload["subject_id"]) if payload.get("subject_id") else None
             # Forward-compat: pre-6g-c RunStarted payloads have no
-            # parameter_overrides key; bool({}) is FALSE so legacy
+            # override_parameters key; bool({}) is FALSE so legacy
             # rows backfill cleanly.
-            overrides_present = bool(payload.get("parameter_overrides"))
+            overrides_present = bool(payload.get("override_parameters"))
             await conn.execute(
                 _INSERT_RUN_SQL,
                 UUID(payload["run_id"]),

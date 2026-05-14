@@ -33,7 +33,7 @@ _NO_SCHEMA_MESSAGE = (
     "Method declares no parameters_schema; cannot start Run with "
     "resolved parameters {keys}. Either declare a parameters_schema "
     "on the Method (an empty `{{}}` is valid for parameter-less "
-    "Methods) or omit parameter_overrides AND clear Plan defaults."
+    "Methods) or omit override_parameters AND clear Plan defaults."
 )
 
 

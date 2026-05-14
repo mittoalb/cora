@@ -1,4 +1,4 @@
-"""Validate Plan.parameter_defaults against the owning Method's
+"""Validate Plan.default_parameters against the owning Method's
 parameters_schema (Phase 6g-b).
 
 The 6g-a Method-side checker validates the SHAPE of the schema
@@ -10,9 +10,9 @@ when the schema is None (post-6g audit reversal; mirrors 5g-c's
 
 ## Module shape
 
-Thin BC-specific adapter: defines `InvalidPlanParameterDefaultsError`
+Thin BC-specific adapter: defines `InvalidPlanDefaultParametersError`
 on `plan.state` (next to other Plan domain errors) + a one-liner
-`validate_parameter_defaults_against_method_schema` that delegates
+`validate_default_parameters_against_method_schema` that delegates
 to the shared validator with the Plan-specific operator-facing
 error message. See [[project_run_parameters_design]] §audit-correction
 for the strict posture rationale and
@@ -24,7 +24,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from cora.infrastructure.json_schema_validation import validate_values_against_schema
-from cora.recipe.aggregates.plan.state import InvalidPlanParameterDefaultsError
+from cora.recipe.aggregates.plan.state import InvalidPlanDefaultParametersError
 
 _NO_SCHEMA_MESSAGE = (
     "Method declares no parameters_schema; cannot accept defaults "
@@ -33,23 +33,23 @@ _NO_SCHEMA_MESSAGE = (
 )
 
 
-def validate_parameter_defaults_against_method_schema(
-    parameter_defaults: Mapping[str, Any],
+def validate_default_parameters_against_method_schema(
+    default_parameters: Mapping[str, Any],
     method_parameters_schema: dict[str, Any] | None,
 ) -> None:
-    """Validate `parameter_defaults` against the Method's schema.
+    """Validate `default_parameters` against the Method's schema.
 
     Strict when `method_parameters_schema is None`: empty defaults
     pass trivially, but ANY non-empty defaults dict raises
-    `InvalidPlanParameterDefaultsError` with operator guidance.
+    `InvalidPlanDefaultParametersError` with operator guidance.
     Delegates to the shared values-validator.
     """
     validate_values_against_schema(
-        parameter_defaults,
+        default_parameters,
         method_parameters_schema,
-        error_class=InvalidPlanParameterDefaultsError,
+        error_class=InvalidPlanDefaultParametersError,
         no_schema_message=_NO_SCHEMA_MESSAGE,
     )
 
 
-__all__ = ["validate_parameter_defaults_against_method_schema"]
+__all__ = ["validate_default_parameters_against_method_schema"]

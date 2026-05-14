@@ -13,9 +13,9 @@ from cora.recipe.aggregates.plan import (
     fold,
 )
 from cora.recipe.aggregates.plan.events import (
+    PlanDefaultParametersUpdated,
     PlanDefined,
     PlanDeprecated,
-    PlanParameterDefaultsUpdated,
     PlanVersioned,
 )
 
@@ -45,7 +45,7 @@ def _plan_defined(
 def test_evolve_plan_defined_sets_status_to_defined() -> None:
     """PlanDefined is the genesis event; status defaults to Defined
     via the evolver. method_id is folded as of 6g-b (the
-    update_plan_parameter_defaults decider needs it). Other audit
+    update_plan_default_parameters decider needs it). Other audit
     snapshots in payload are NOT folded into state (slim aggregate).
     """
     plan_id = uuid4()
@@ -91,10 +91,10 @@ def test_evolve_plan_defined_converts_asset_ids_list_to_frozenset() -> None:
 def test_evolve_plan_defined_does_not_fold_other_audit_snapshots() -> None:
     """Slim aggregate: snapshots in payload are NOT folded into
     state. Plan state holds method_id (promoted in 6g-b for the
-    update_plan_parameter_defaults decider) but NOT
+    update_plan_default_parameters decider) but NOT
     method_needs_capabilities_snapshot or asset_capabilities_snapshot.
     This test pins the contract so future additions are deliberate.
-    parameter_defaults is also on state (defaults to {} via
+    default_parameters is also on state (defaults to {} via
     additive-state pattern). Field set IS the contract."""
     state = evolve(None, _plan_defined())
     assert {f for f in state.__dataclass_fields__} == {
@@ -105,7 +105,7 @@ def test_evolve_plan_defined_does_not_fold_other_audit_snapshots() -> None:
         "status",
         "version",
         "method_id",
-        "parameter_defaults",
+        "default_parameters",
     }
 
 
@@ -309,24 +309,24 @@ def test_fold_is_pure_same_input_same_output() -> None:
     assert fold(events) == fold(events)
 
 
-# ---------- PlanParameterDefaultsUpdated (Phase 6g-b) ----------
+# ---------- PlanDefaultParametersUpdated (Phase 6g-b) ----------
 
 
 _DEFAULTS_A: dict[str, object] = {"energy_kev": 12.0, "exposure_ms": 100}
 
 
 @pytest.mark.unit
-def test_evolve_plan_defined_starts_with_empty_parameter_defaults() -> None:
-    """Genesis-only stream folds with parameter_defaults={}
+def test_evolve_plan_defined_starts_with_empty_default_parameters() -> None:
+    """Genesis-only stream folds with default_parameters={}
     (additive-state pattern; pre-6g-b streams fold cleanly)."""
     state = evolve(None, _plan_defined())
-    assert state.parameter_defaults == {}
+    assert state.default_parameters == {}
 
 
 @pytest.mark.unit
 def test_evolve_plan_defined_folds_method_id_from_payload() -> None:
     """Phase 6g-b: method_id was promoted from audit-only payload to
-    state because the update_plan_parameter_defaults decider needs it."""
+    state because the update_plan_default_parameters decider needs it."""
     method_id = uuid4()
     plan_id = uuid4()
     state = evolve(
@@ -346,7 +346,7 @@ def test_evolve_plan_defined_folds_method_id_from_payload() -> None:
 
 
 @pytest.mark.unit
-def test_evolve_plan_parameter_defaults_updated_sets_defaults_and_preserves_status() -> None:
+def test_evolve_plan_default_parameters_updated_sets_defaults_and_preserves_status() -> None:
     """Defaults update is orthogonal to lifecycle: status preserved."""
     plan_id = uuid4()
     practice_id = uuid4()
@@ -362,46 +362,46 @@ def test_evolve_plan_parameter_defaults_updated_sets_defaults_and_preserves_stat
     )
     updated = evolve(
         defined,
-        PlanParameterDefaultsUpdated(
-            plan_id=plan_id, parameter_defaults=_DEFAULTS_A, occurred_at=_NOW
+        PlanDefaultParametersUpdated(
+            plan_id=plan_id, default_parameters=_DEFAULTS_A, occurred_at=_NOW
         ),
     )
-    assert updated.parameter_defaults == _DEFAULTS_A
+    assert updated.default_parameters == _DEFAULTS_A
     assert updated.status is PlanStatus.DEFINED
     assert updated.method_id == method_id
 
 
 @pytest.mark.unit
-def test_evolve_plan_parameter_defaults_updated_with_empty_clears_defaults() -> None:
+def test_evolve_plan_default_parameters_updated_with_empty_clears_defaults() -> None:
     state = Plan(
         id=uuid4(),
         name=PlanName("X"),
         practice_id=uuid4(),
         asset_ids=frozenset({uuid4()}),
         status=PlanStatus.DEFINED,
-        parameter_defaults=_DEFAULTS_A,
+        default_parameters=_DEFAULTS_A,
     )
     cleared = evolve(
         state,
-        PlanParameterDefaultsUpdated(plan_id=state.id, parameter_defaults={}, occurred_at=_NOW),
+        PlanDefaultParametersUpdated(plan_id=state.id, default_parameters={}, occurred_at=_NOW),
     )
-    assert cleared.parameter_defaults == {}
+    assert cleared.default_parameters == {}
 
 
 @pytest.mark.unit
-def test_evolve_plan_parameter_defaults_updated_on_empty_state_raises() -> None:
+def test_evolve_plan_default_parameters_updated_on_empty_state_raises() -> None:
     with pytest.raises(ValueError, match="cannot be applied to empty state"):
         evolve(
             None,
-            PlanParameterDefaultsUpdated(
-                plan_id=uuid4(), parameter_defaults=_DEFAULTS_A, occurred_at=_NOW
+            PlanDefaultParametersUpdated(
+                plan_id=uuid4(), default_parameters=_DEFAULTS_A, occurred_at=_NOW
             ),
         )
 
 
 @pytest.mark.unit
-def test_evolve_plan_versioned_preserves_method_id_and_parameter_defaults() -> None:
-    """Critical pin: method_id AND parameter_defaults MUST carry
+def test_evolve_plan_versioned_preserves_method_id_and_default_parameters() -> None:
+    """Critical pin: method_id AND default_parameters MUST carry
     through the version transition. Mirrors the
     test_evolve_plan_versioned_preserves_practice_id_and_asset_ids
     safety-net pattern."""
@@ -413,15 +413,15 @@ def test_evolve_plan_versioned_preserves_method_id_and_parameter_defaults() -> N
         asset_ids=frozenset({uuid4()}),
         status=PlanStatus.DEFINED,
         method_id=method_id,
-        parameter_defaults=_DEFAULTS_A,
+        default_parameters=_DEFAULTS_A,
     )
     versioned = evolve(state, PlanVersioned(plan_id=state.id, version_tag="v2", occurred_at=_NOW))
     assert versioned.method_id == method_id
-    assert versioned.parameter_defaults == _DEFAULTS_A
+    assert versioned.default_parameters == _DEFAULTS_A
 
 
 @pytest.mark.unit
-def test_evolve_plan_deprecated_preserves_method_id_and_parameter_defaults() -> None:
+def test_evolve_plan_deprecated_preserves_method_id_and_default_parameters() -> None:
     """Critical pin: same as above for the deprecate transition
     (audit-relevant historical artifact)."""
     method_id = uuid4()
@@ -433,8 +433,8 @@ def test_evolve_plan_deprecated_preserves_method_id_and_parameter_defaults() -> 
         status=PlanStatus.VERSIONED,
         version="v1",
         method_id=method_id,
-        parameter_defaults=_DEFAULTS_A,
+        default_parameters=_DEFAULTS_A,
     )
     deprecated = evolve(state, PlanDeprecated(plan_id=state.id, occurred_at=_NOW))
     assert deprecated.method_id == method_id
-    assert deprecated.parameter_defaults == _DEFAULTS_A
+    assert deprecated.default_parameters == _DEFAULTS_A

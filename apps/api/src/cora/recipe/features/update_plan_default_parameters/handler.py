@@ -1,4 +1,4 @@
-"""Application handler for the `update_plan_parameter_defaults` slice.
+"""Application handler for the `update_plan_default_parameters` slice.
 
 Phase 6g-b. Update-style: load + fold + decide + append. NOT
 idempotency-wrapped (no-op-on-unchanged at the decider; HTTP-layer
@@ -43,24 +43,24 @@ from cora.recipe.aggregates.plan import (
     to_payload,
 )
 from cora.recipe.errors import UnauthorizedError
-from cora.recipe.features.update_plan_parameter_defaults.command import (
-    UpdatePlanParameterDefaults,
+from cora.recipe.features.update_plan_default_parameters.command import (
+    UpdatePlanDefaultParameters,
 )
-from cora.recipe.features.update_plan_parameter_defaults.decider import decide
+from cora.recipe.features.update_plan_default_parameters.decider import decide
 
 _STREAM_TYPE = "Plan"
-_COMMAND_NAME = "UpdatePlanParameterDefaults"
+_COMMAND_NAME = "UpdatePlanDefaultParameters"
 _CONDUIT_DEFAULT_ID = UUID(int=0)
 
 _log = get_logger(__name__)
 
 
 class Handler(Protocol):
-    """Callable interface every update_plan_parameter_defaults handler implements."""
+    """Callable interface every update_plan_default_parameters handler implements."""
 
     async def __call__(
         self,
-        command: UpdatePlanParameterDefaults,
+        command: UpdatePlanDefaultParameters,
         *,
         principal_id: UUID,
         correlation_id: UUID,
@@ -69,20 +69,20 @@ class Handler(Protocol):
 
 
 def bind(deps: Kernel) -> Handler:
-    """Build an update_plan_parameter_defaults handler closed over the shared deps."""
+    """Build an update_plan_default_parameters handler closed over the shared deps."""
 
     async def handler(
-        command: UpdatePlanParameterDefaults,
+        command: UpdatePlanDefaultParameters,
         *,
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
     ) -> None:
         _log.info(
-            "update_plan_parameter_defaults.start",
+            "update_plan_default_parameters.start",
             command_name=_COMMAND_NAME,
             plan_id=str(command.plan_id),
-            key_count=len(command.parameter_defaults_patch),
+            key_count=len(command.default_parameters_patch),
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             causation_id=str(causation_id) if causation_id is not None else None,
@@ -95,7 +95,7 @@ def bind(deps: Kernel) -> Handler:
         )
         if isinstance(decision, Deny):
             _log.info(
-                "update_plan_parameter_defaults.denied",
+                "update_plan_default_parameters.denied",
                 command_name=_COMMAND_NAME,
                 plan_id=str(command.plan_id),
                 principal_id=str(principal_id),
@@ -132,7 +132,7 @@ def bind(deps: Kernel) -> Handler:
 
         if not domain_events:
             _log.info(
-                "update_plan_parameter_defaults.no_op",
+                "update_plan_default_parameters.no_op",
                 command_name=_COMMAND_NAME,
                 plan_id=str(command.plan_id),
                 principal_id=str(principal_id),
@@ -162,10 +162,10 @@ def bind(deps: Kernel) -> Handler:
         )
 
         _log.info(
-            "update_plan_parameter_defaults.success",
+            "update_plan_default_parameters.success",
             command_name=_COMMAND_NAME,
             plan_id=str(command.plan_id),
-            key_count=len(command.parameter_defaults_patch),
+            key_count=len(command.default_parameters_patch),
             schema_present=method_parameters_schema is not None,
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),

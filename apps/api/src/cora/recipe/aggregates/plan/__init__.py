@@ -9,10 +9,10 @@ slices may reuse or get their own context shape).
 """
 
 from cora.recipe.aggregates.plan.events import (
+    PlanDefaultParametersUpdated,
     PlanDefined,
     PlanDeprecated,
     PlanEvent,
-    PlanParameterDefaultsUpdated,
     PlanVersioned,
     event_type_name,
     from_stored,
@@ -20,16 +20,16 @@ from cora.recipe.aggregates.plan.events import (
 )
 from cora.recipe.aggregates.plan.evolver import evolve, fold
 from cora.recipe.aggregates.plan.parameters_validation import (
-    validate_parameter_defaults_against_method_schema,
+    validate_default_parameters_against_method_schema,
 )
 from cora.recipe.aggregates.plan.read import load_plan
 from cora.recipe.aggregates.plan.state import (
     PLAN_NAME_MAX_LENGTH,
     PLAN_VERSION_TAG_MAX_LENGTH,
     AssetDecommissionedError,
+    InvalidPlanDefaultParametersError,
     InvalidPlanError,
     InvalidPlanNameError,
-    InvalidPlanParameterDefaultsError,
     InvalidPlanVersionTagError,
     MethodDeprecatedError,
     Plan,
@@ -47,9 +47,9 @@ __all__ = [
     "PLAN_NAME_MAX_LENGTH",
     "PLAN_VERSION_TAG_MAX_LENGTH",
     "AssetDecommissionedError",
+    "InvalidPlanDefaultParametersError",
     "InvalidPlanError",
     "InvalidPlanNameError",
-    "InvalidPlanParameterDefaultsError",
     "InvalidPlanVersionTagError",
     "MethodDeprecatedError",
     "Plan",
@@ -57,12 +57,12 @@ __all__ = [
     "PlanCannotDeprecateError",
     "PlanCannotVersionError",
     "PlanCapabilitiesNotSatisfiedError",
+    "PlanDefaultParametersUpdated",
     "PlanDefined",
     "PlanDeprecated",
     "PlanEvent",
     "PlanName",
     "PlanNotFoundError",
-    "PlanParameterDefaultsUpdated",
     "PlanStatus",
     "PlanVersioned",
     "PracticeDeprecatedError",
@@ -72,5 +72,5 @@ __all__ = [
     "from_stored",
     "load_plan",
     "to_payload",
-    "validate_parameter_defaults_against_method_schema",
+    "validate_default_parameters_against_method_schema",
 ]

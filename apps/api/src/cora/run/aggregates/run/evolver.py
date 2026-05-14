@@ -63,7 +63,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
             plan_id=plan_id,
             subject_id=subject_id,
             raid=raid,
-            parameter_overrides=parameter_overrides,
+            override_parameters=override_parameters,
             effective_parameters=effective_parameters,
             triggered_by=triggered_by,
         ):
@@ -75,7 +75,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 subject_id=subject_id,
                 raid=raid,
                 status=RunStatus.RUNNING,
-                parameter_overrides=parameter_overrides,
+                override_parameters=override_parameters,
                 effective_parameters=effective_parameters,
                 triggered_by=triggered_by,
             )

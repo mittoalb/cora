@@ -1,4 +1,4 @@
-"""Unit tests for the `update_plan_parameter_defaults` application handler.
+"""Unit tests for the `update_plan_default_parameters` application handler.
 
 Phase 6g-b. Mirrors `test_update_method_parameters_schema_handler.py`
 shape but threads the Method-load through the handler under test.
@@ -10,18 +10,8 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.infrastructure.config import Settings
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    AuthzResult,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
-)
 from cora.recipe import RecipeHandlers, UnauthorizedError, wire_recipe
 from cora.recipe.aggregates.method.events import (
     MethodDefined,
@@ -30,7 +20,7 @@ from cora.recipe.aggregates.method.events import (
 from cora.recipe.aggregates.method.events import event_type_name as method_event_type_name
 from cora.recipe.aggregates.method.events import to_payload as method_to_payload
 from cora.recipe.aggregates.plan import (
-    InvalidPlanParameterDefaultsError,
+    InvalidPlanDefaultParametersError,
     PlanNotFoundError,
 )
 from cora.recipe.aggregates.plan.events import (
@@ -38,10 +28,11 @@ from cora.recipe.aggregates.plan.events import (
     event_type_name,
     to_payload,
 )
-from cora.recipe.features import update_plan_parameter_defaults
-from cora.recipe.features.update_plan_parameter_defaults import (
-    UpdatePlanParameterDefaults,
+from cora.recipe.features import update_plan_default_parameters
+from cora.recipe.features.update_plan_default_parameters import (
+    UpdatePlanDefaultParameters,
 )
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _PLAN_ID = UUID("01900000-0000-7000-8000-00000000cd01")
@@ -65,33 +56,6 @@ def _schema() -> dict[str, Any]:
             "exposure_ms": {"type": "integer", "minimum": 1},
         },
     }
-
-
-class DenyAllAuthorize:
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
-def _build_deps(
-    *,
-    event_store: InMemoryEventStore | None = None,
-    deny: bool = False,
-) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_DEFAULTS_EVENT_ID_1, _DEFAULTS_EVENT_ID_2]),
-        authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
 
 
 async def _seed_method(store: InMemoryEventStore, *, schema: dict[str, Any] | None) -> None:
@@ -168,11 +132,11 @@ async def test_handler_returns_none_on_success() -> None:
     store = InMemoryEventStore()
     await _seed_method(store, schema=_schema())
     await _seed_plan(store)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DEFAULTS_EVENT_ID_1, _DEFAULTS_EVENT_ID_2], now=_NOW, event_store=store)
 
-    result = await update_plan_parameter_defaults.bind(deps)(
-        UpdatePlanParameterDefaults(
-            plan_id=_PLAN_ID, parameter_defaults_patch={"energy_kev": 12.0}
+    result = await update_plan_default_parameters.bind(deps)(
+        UpdatePlanDefaultParameters(
+            plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -181,15 +145,15 @@ async def test_handler_returns_none_on_success() -> None:
 
 
 @pytest.mark.unit
-async def test_handler_appends_plan_parameter_defaults_updated_event() -> None:
+async def test_handler_appends_plan_default_parameters_updated_event() -> None:
     store = InMemoryEventStore()
     await _seed_method(store, schema=_schema())
     await _seed_plan(store)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DEFAULTS_EVENT_ID_1, _DEFAULTS_EVENT_ID_2], now=_NOW, event_store=store)
 
-    await update_plan_parameter_defaults.bind(deps)(
-        UpdatePlanParameterDefaults(
-            plan_id=_PLAN_ID, parameter_defaults_patch={"energy_kev": 12.0}
+    await update_plan_default_parameters.bind(deps)(
+        UpdatePlanDefaultParameters(
+            plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -199,12 +163,12 @@ async def test_handler_appends_plan_parameter_defaults_updated_event() -> None:
     assert version == 2
     assert [e.event_type for e in events] == [
         "PlanDefined",
-        "PlanParameterDefaultsUpdated",
+        "PlanDefaultParametersUpdated",
     ]
     defaults_event = events[1]
     assert defaults_event.event_id == _DEFAULTS_EVENT_ID_1
-    assert defaults_event.metadata == {"command": "UpdatePlanParameterDefaults"}
-    assert defaults_event.payload["parameter_defaults"] == {"energy_kev": 12.0}
+    assert defaults_event.metadata == {"command": "UpdatePlanDefaultParameters"}
+    assert defaults_event.payload["default_parameters"] == {"energy_kev": 12.0}
 
 
 @pytest.mark.unit
@@ -213,19 +177,19 @@ async def test_handler_merges_patch_into_existing_defaults() -> None:
     store = InMemoryEventStore()
     await _seed_method(store, schema=_schema())
     await _seed_plan(store)
-    deps = _build_deps(event_store=store)
-    handler = update_plan_parameter_defaults.bind(deps)
+    deps = build_deps(ids=[_DEFAULTS_EVENT_ID_1, _DEFAULTS_EVENT_ID_2], now=_NOW, event_store=store)
+    handler = update_plan_default_parameters.bind(deps)
 
     await handler(
-        UpdatePlanParameterDefaults(
-            plan_id=_PLAN_ID, parameter_defaults_patch={"energy_kev": 12.0}
+        UpdatePlanDefaultParameters(
+            plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await handler(
-        UpdatePlanParameterDefaults(
-            plan_id=_PLAN_ID, parameter_defaults_patch={"exposure_ms": 250}
+        UpdatePlanDefaultParameters(
+            plan_id=_PLAN_ID, default_parameters_patch={"exposure_ms": 250}
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -233,7 +197,7 @@ async def test_handler_merges_patch_into_existing_defaults() -> None:
 
     events, _ = await store.load("Plan", _PLAN_ID)
     # Second event's payload carries the FULL post-merge dict.
-    assert events[2].payload["parameter_defaults"] == {
+    assert events[2].payload["default_parameters"] == {
         "energy_kev": 12.0,
         "exposure_ms": 250,
     }
@@ -244,20 +208,20 @@ async def test_handler_no_op_on_unchanged_defaults_does_not_append() -> None:
     store = InMemoryEventStore()
     await _seed_method(store, schema=_schema())
     await _seed_plan(store)
-    deps = _build_deps(event_store=store)
-    handler = update_plan_parameter_defaults.bind(deps)
+    deps = build_deps(ids=[_DEFAULTS_EVENT_ID_1, _DEFAULTS_EVENT_ID_2], now=_NOW, event_store=store)
+    handler = update_plan_default_parameters.bind(deps)
 
     await handler(
-        UpdatePlanParameterDefaults(
-            plan_id=_PLAN_ID, parameter_defaults_patch={"energy_kev": 12.0}
+        UpdatePlanDefaultParameters(
+            plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     # Re-submit identical patch (merge result == current).
     await handler(
-        UpdatePlanParameterDefaults(
-            plan_id=_PLAN_ID, parameter_defaults_patch={"energy_kev": 12.0}
+        UpdatePlanDefaultParameters(
+            plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -269,12 +233,12 @@ async def test_handler_no_op_on_unchanged_defaults_does_not_append() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_plan_not_found_when_plan_does_not_exist() -> None:
-    deps = _build_deps()
-    handler = update_plan_parameter_defaults.bind(deps)
+    deps = build_deps(ids=[_DEFAULTS_EVENT_ID_1, _DEFAULTS_EVENT_ID_2], now=_NOW)
+    handler = update_plan_default_parameters.bind(deps)
     with pytest.raises(PlanNotFoundError):
         await handler(
-            UpdatePlanParameterDefaults(
-                plan_id=_PLAN_ID, parameter_defaults_patch={"energy_kev": 12.0}
+            UpdatePlanDefaultParameters(
+                plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
@@ -286,12 +250,12 @@ async def test_handler_raises_invalid_when_post_merge_violates_schema() -> None:
     store = InMemoryEventStore()
     await _seed_method(store, schema=_schema())
     await _seed_plan(store)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DEFAULTS_EVENT_ID_1, _DEFAULTS_EVENT_ID_2], now=_NOW, event_store=store)
 
-    with pytest.raises(InvalidPlanParameterDefaultsError):
-        await update_plan_parameter_defaults.bind(deps)(
-            UpdatePlanParameterDefaults(
-                plan_id=_PLAN_ID, parameter_defaults_patch={"energy_kev": 1.0}
+    with pytest.raises(InvalidPlanDefaultParametersError):
+        await update_plan_default_parameters.bind(deps)(
+            UpdatePlanDefaultParameters(
+                plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 1.0}
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
@@ -307,13 +271,13 @@ async def test_handler_strict_when_method_has_no_schema() -> None:
     store = InMemoryEventStore()
     await _seed_method(store, schema=None)
     await _seed_plan(store)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DEFAULTS_EVENT_ID_1, _DEFAULTS_EVENT_ID_2], now=_NOW, event_store=store)
 
-    with pytest.raises(InvalidPlanParameterDefaultsError):
-        await update_plan_parameter_defaults.bind(deps)(
-            UpdatePlanParameterDefaults(
+    with pytest.raises(InvalidPlanDefaultParametersError):
+        await update_plan_default_parameters.bind(deps)(
+            UpdatePlanDefaultParameters(
                 plan_id=_PLAN_ID,
-                parameter_defaults_patch={"undeclared_key": "anything"},
+                default_parameters_patch={"undeclared_key": "anything"},
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
@@ -336,12 +300,12 @@ async def test_handler_strict_when_method_id_refers_to_missing_stream() -> None:
     store = InMemoryEventStore()
     # NOTE: skip _seed_method — Method stream is empty.
     await _seed_plan(store)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DEFAULTS_EVENT_ID_1, _DEFAULTS_EVENT_ID_2], now=_NOW, event_store=store)
 
-    with pytest.raises(InvalidPlanParameterDefaultsError):
-        await update_plan_parameter_defaults.bind(deps)(
-            UpdatePlanParameterDefaults(
-                plan_id=_PLAN_ID, parameter_defaults_patch={"anything": 42}
+    with pytest.raises(InvalidPlanDefaultParametersError):
+        await update_plan_default_parameters.bind(deps)(
+            UpdatePlanDefaultParameters(
+                plan_id=_PLAN_ID, default_parameters_patch={"anything": 42}
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
@@ -354,11 +318,13 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     await _seed_method(store, schema=_schema())
     await _seed_plan(store)
 
-    deny_deps = _build_deps(event_store=store, deny=True)
+    deny_deps = build_deps(
+        ids=[_DEFAULTS_EVENT_ID_1, _DEFAULTS_EVENT_ID_2], now=_NOW, event_store=store, deny=True
+    )
     with pytest.raises(UnauthorizedError) as exc_info:
-        await update_plan_parameter_defaults.bind(deny_deps)(
-            UpdatePlanParameterDefaults(
-                plan_id=_PLAN_ID, parameter_defaults_patch={"energy_kev": 12.0}
+        await update_plan_default_parameters.bind(deny_deps)(
+            UpdatePlanDefaultParameters(
+                plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
@@ -372,11 +338,11 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     store = InMemoryEventStore()
     await _seed_method(store, schema=_schema())
     await _seed_plan(store)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DEFAULTS_EVENT_ID_1, _DEFAULTS_EVENT_ID_2], now=_NOW, event_store=store)
 
-    await update_plan_parameter_defaults.bind(deps)(
-        UpdatePlanParameterDefaults(
-            plan_id=_PLAN_ID, parameter_defaults_patch={"energy_kev": 12.0}
+    await update_plan_default_parameters.bind(deps)(
+        UpdatePlanDefaultParameters(
+            plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -388,8 +354,8 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
 
 
 @pytest.mark.unit
-def test_wire_recipe_includes_update_plan_parameter_defaults() -> None:
-    deps = _build_deps()
+def test_wire_recipe_includes_update_plan_default_parameters() -> None:
+    deps = build_deps(ids=[_DEFAULTS_EVENT_ID_1, _DEFAULTS_EVENT_ID_2], now=_NOW)
     handlers = wire_recipe(deps)
     assert isinstance(handlers, RecipeHandlers)
-    assert callable(handlers.update_plan_parameter_defaults)
+    assert callable(handlers.update_plan_default_parameters)

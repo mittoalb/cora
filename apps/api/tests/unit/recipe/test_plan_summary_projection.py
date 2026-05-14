@@ -49,7 +49,7 @@ def test_projection_metadata() -> None:
             "PlanDefined",
             "PlanVersioned",
             "PlanDeprecated",
-            "PlanParameterDefaultsUpdated",
+            "PlanDefaultParametersUpdated",
         }
     )
 
@@ -137,16 +137,16 @@ async def test_plan_deprecated_only_updates_status() -> None:
 
 
 @pytest.mark.unit
-async def test_plan_parameter_defaults_updated_with_non_empty_sets_present_true() -> None:
+async def test_plan_default_parameters_updated_with_non_empty_sets_present_true() -> None:
     """Phase 6g-b: defaults-update event with non-empty payload flips
-    parameter_defaults_present TRUE."""
+    default_parameters_present TRUE."""
     proj = PlanSummaryProjection()
     conn = AsyncMock()
     event = _stored(
-        "PlanParameterDefaultsUpdated",
+        "PlanDefaultParametersUpdated",
         {
             "plan_id": str(_PLAN_ID),
-            "parameter_defaults": {"energy_kev": 12.0},
+            "default_parameters": {"energy_kev": 12.0},
             "occurred_at": _NOW.isoformat(),
         },
     )
@@ -155,22 +155,22 @@ async def test_plan_parameter_defaults_updated_with_non_empty_sets_present_true(
     assert args is not None
     sql = args.args[0]
     assert "UPDATE proj_recipe_plan_summary" in sql
-    assert "parameter_defaults_present" in sql
+    assert "default_parameters_present" in sql
     assert args.args[1] == _PLAN_ID
     assert args.args[2] is True
 
 
 @pytest.mark.unit
-async def test_plan_parameter_defaults_updated_with_empty_sets_present_false() -> None:
+async def test_plan_default_parameters_updated_with_empty_sets_present_false() -> None:
     """Phase 6g-b: clearing all keys (empty post-merge dict) flips
-    parameter_defaults_present back to FALSE."""
+    default_parameters_present back to FALSE."""
     proj = PlanSummaryProjection()
     conn = AsyncMock()
     event = _stored(
-        "PlanParameterDefaultsUpdated",
+        "PlanDefaultParametersUpdated",
         {
             "plan_id": str(_PLAN_ID),
-            "parameter_defaults": {},
+            "default_parameters": {},
             "occurred_at": _NOW.isoformat(),
         },
     )

@@ -1,12 +1,12 @@
 """End-to-end integration test: 6g-c parameter flow against real Postgres.
 
 Exercises the cross-aggregate parameter resolution at start_run:
-  - Plan.parameter_defaults (set via 6g-b update_plan_parameter_defaults)
-  - merged with command.parameter_overrides (RFC 7396 via merge_patch)
+  - Plan.default_parameters (set via 6g-b update_plan_default_parameters)
+  - merged with command.override_parameters (RFC 7396 via merge_patch)
   - validated against Method.parameters_schema (set via 6g-a)
-  - persisted in RunStarted payload (parameter_overrides + effective_parameters + triggered_by)
+  - persisted in RunStarted payload (override_parameters + effective_parameters + triggered_by)
   - folded into Run state on load
-  - projection's `parameter_overrides_present` column flips TRUE
+  - projection's `override_parameters_present` column flips TRUE
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -34,7 +34,7 @@ from cora.recipe.features import (
     define_plan,
     define_practice,
     update_method_parameters_schema,
-    update_plan_parameter_defaults,
+    update_plan_default_parameters,
 )
 from cora.recipe.features.define_method import DefineMethod
 from cora.recipe.features.define_plan import DefinePlan
@@ -42,8 +42,8 @@ from cora.recipe.features.define_practice import DefinePractice
 from cora.recipe.features.update_method_parameters_schema import (
     UpdateMethodParametersSchema,
 )
-from cora.recipe.features.update_plan_parameter_defaults import (
-    UpdatePlanParameterDefaults,
+from cora.recipe.features.update_plan_default_parameters import (
+    UpdatePlanDefaultParameters,
 )
 from cora.run._projections import register_run_projections
 from cora.run.aggregates.run import InvalidRunParametersError, load_run
@@ -138,8 +138,8 @@ async def _seed_full_chain(
         correlation_id=_CORRELATION_ID,
     )
     if plan_defaults:
-        await update_plan_parameter_defaults.bind(deps)(
-            UpdatePlanParameterDefaults(plan_id=plan_id, parameter_defaults_patch=plan_defaults),
+        await update_plan_default_parameters.bind(deps)(
+            UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch=plan_defaults),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -179,7 +179,7 @@ async def test_start_run_merges_defaults_and_overrides_into_effective_parameters
             name="Run-with-overrides",
             plan_id=plan_id,
             subject_id=subject_id,
-            parameter_overrides={"exposure_ms": 250},
+            override_parameters={"exposure_ms": 250},
             triggered_by="operator:opid:5",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -188,7 +188,7 @@ async def test_start_run_merges_defaults_and_overrides_into_effective_parameters
 
     loaded = await load_run(deps.event_store, run_id)
     assert loaded is not None
-    assert loaded.parameter_overrides == {"exposure_ms": 250}
+    assert loaded.override_parameters == {"exposure_ms": 250}
     # Defaults' energy_kev preserved; override's exposure_ms wins.
     assert loaded.effective_parameters == {"energy_kev": 12.0, "exposure_ms": 250}
     assert loaded.triggered_by == "operator:opid:5"
@@ -196,11 +196,11 @@ async def test_start_run_merges_defaults_and_overrides_into_effective_parameters
     await _drain_run_projections(db_pool)
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT parameter_overrides_present FROM proj_run_summary WHERE run_id = $1",
+            "SELECT override_parameters_present FROM proj_run_summary WHERE run_id = $1",
             run_id,
         )
     assert row is not None
-    assert row["parameter_overrides_present"] is True
+    assert row["override_parameters_present"] is True
 
 
 @pytest.mark.integration
@@ -222,18 +222,18 @@ async def test_start_run_with_no_overrides_uses_plan_defaults(
     )
     loaded = await load_run(deps.event_store, run_id)
     assert loaded is not None
-    assert loaded.parameter_overrides == {}
+    assert loaded.override_parameters == {}
     assert loaded.effective_parameters == {"energy_kev": 12.0, "exposure_ms": 100}
 
     await _drain_run_projections(db_pool)
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT parameter_overrides_present FROM proj_run_summary WHERE run_id = $1",
+            "SELECT override_parameters_present FROM proj_run_summary WHERE run_id = $1",
             run_id,
         )
     assert row is not None
     # Defaults straight, no overrides supplied -> projection FALSE.
-    assert row["parameter_overrides_present"] is False
+    assert row["override_parameters_present"] is False
 
 
 @pytest.mark.integration
@@ -255,7 +255,7 @@ async def test_start_run_rejects_overrides_violating_method_schema(
                 name="Run-bad",
                 plan_id=plan_id,
                 subject_id=subject_id,
-                parameter_overrides={"energy_kev": 1.0},
+                override_parameters={"energy_kev": 1.0},
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,

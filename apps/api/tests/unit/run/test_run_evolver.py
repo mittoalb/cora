@@ -286,7 +286,7 @@ def test_evolve_run_started_without_raid_yields_state_with_raid_none() -> None:
 
 @pytest.mark.unit
 def test_evolve_run_started_folds_6gc_parameter_fields() -> None:
-    """6g-c additive payload: parameter_overrides + effective_parameters
+    """6g-c additive payload: override_parameters + effective_parameters
     + triggered_by carry verbatim from RunStarted into Run state."""
     overrides = {"energy_kev": 12.0}
     effective = {"energy_kev": 12.0, "exposure_ms": 100}
@@ -298,12 +298,12 @@ def test_evolve_run_started_folds_6gc_parameter_fields() -> None:
             plan_id=uuid4(),
             subject_id=None,
             occurred_at=_NOW,
-            parameter_overrides=overrides,
+            override_parameters=overrides,
             effective_parameters=effective,
             triggered_by="operator:opid:5",
         ),
     )
-    assert state.parameter_overrides == overrides
+    assert state.override_parameters == overrides
     assert state.effective_parameters == effective
     assert state.triggered_by == "operator:opid:5"
 
@@ -313,7 +313,7 @@ def test_evolve_run_started_without_6gc_fields_yields_state_defaults() -> None:
     """Pre-6g-c-style RunStarted (defaults via additive-state pattern)
     folds with empty dicts and None triggered_by."""
     state = evolve(None, _run_started())
-    assert state.parameter_overrides == {}
+    assert state.override_parameters == {}
     assert state.effective_parameters == {}
     assert state.triggered_by is None
 
@@ -321,7 +321,7 @@ def test_evolve_run_started_without_6gc_fields_yields_state_defaults() -> None:
 @pytest.mark.unit
 def test_evolve_held_then_resumed_preserves_6gc_fields() -> None:
     """Critical pin: every transition uses dataclass.replace which
-    preserves all fields. parameter_overrides + effective_parameters
+    preserves all fields. override_parameters + effective_parameters
     + triggered_by must survive Hold → Resume cycles unchanged."""
     overrides = {"energy_kev": 12.0}
     effective = {"energy_kev": 12.0, "exposure_ms": 100}
@@ -333,14 +333,14 @@ def test_evolve_held_then_resumed_preserves_6gc_fields() -> None:
             plan_id=uuid4(),
             subject_id=None,
             occurred_at=_NOW,
-            parameter_overrides=overrides,
+            override_parameters=overrides,
             effective_parameters=effective,
             triggered_by="scheduler:auto",
         ),
     )
     held = evolve(state, RunHeld(run_id=state.id, occurred_at=_NOW))
     resumed = evolve(held, RunResumed(run_id=state.id, occurred_at=_NOW))
-    assert resumed.parameter_overrides == overrides
+    assert resumed.override_parameters == overrides
     assert resumed.effective_parameters == effective
     assert resumed.triggered_by == "scheduler:auto"
     assert resumed.status is RunStatus.RUNNING

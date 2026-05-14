@@ -9,7 +9,7 @@ diagnostic.
 The companion RFC 7396 `merge_patch` helper originally lived in this
 module (5g-c shipped both together). Post-6g cleanup hoisted it to
 `cora.infrastructure.json_merge_patch` once the third call site
-landed (5g-c here + 6g-b Plan.parameter_defaults + 6g-c Run
+landed (5g-c here + 6g-b Plan.default_parameters + 6g-c Run
 effective_parameters resolution). New callers import directly from
 the infrastructure module.
 

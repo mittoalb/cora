@@ -63,10 +63,10 @@ class StartRunRequest(BaseModel):
             "Subjects, Instruments, and people for cross-facility provenance."
         ),
     )
-    parameter_overrides: dict[str, Any] = Field(
+    override_parameters: dict[str, Any] = Field(
         default_factory=dict,
         description=(
-            "Operator-supplied overrides on top of `Plan.parameter_defaults` "
+            "Operator-supplied overrides on top of `Plan.default_parameters` "
             "(RFC 7396 merge semantics). The post-merge result is "
             "validated against the owning Method's `parameters_schema`; "
             "STRICT when the Method declares no schema (non-empty "
@@ -161,7 +161,7 @@ async def post_runs(
             plan_id=body.plan_id,
             subject_id=body.subject_id,
             raid=body.raid,
-            parameter_overrides=body.parameter_overrides,
+            override_parameters=body.override_parameters,
             triggered_by=body.triggered_by,
         ),
         principal_id=principal_id,

@@ -1,19 +1,19 @@
-"""Pure decider for the `UpdatePlanParameterDefaults` command.
+"""Pure decider for the `UpdatePlanDefaultParameters` command.
 
 Phase 6g-b. The decider:
   - Raises PlanNotFoundError on empty state
-  - Merges the patch into prior parameter_defaults via RFC 7396 semantics
+  - Merges the patch into prior default_parameters via RFC 7396 semantics
   - Validates the merged result against the supplied
-    `method_parameters_schema` (raises InvalidPlanParameterDefaultsError
+    `method_parameters_schema` (raises InvalidPlanDefaultParametersError
     on failure; STRICT when method_parameters_schema is None — non-empty
     merged defaults are rejected; mirrors 5g-c's "no Capabilities +
     non-empty settings → reject" anchor; post-6g audit reversal, see
     [[project_run_parameters_design]] §audit-correction)
   - No-ops (returns []) if the merged result equals the current
-    parameter_defaults (matches 5g-c precedent: identical re-submission
+    default_parameters (matches 5g-c precedent: identical re-submission
     carries no audit value)
-  - Otherwise emits PlanParameterDefaultsUpdated(plan_id,
-    parameter_defaults, occurred_at) with the FULL post-merge dict in
+  - Otherwise emits PlanDefaultParametersUpdated(plan_id,
+    default_parameters, occurred_at) with the FULL post-merge dict in
     the payload (NOT the patch — readers reconstruct current state
     without folding back through prior events)
 
@@ -28,37 +28,37 @@ from typing import Any
 from cora.infrastructure.json_merge_patch import merge_patch
 from cora.recipe.aggregates.plan import (
     Plan,
+    PlanDefaultParametersUpdated,
     PlanNotFoundError,
-    PlanParameterDefaultsUpdated,
-    validate_parameter_defaults_against_method_schema,
+    validate_default_parameters_against_method_schema,
 )
-from cora.recipe.features.update_plan_parameter_defaults.command import (
-    UpdatePlanParameterDefaults,
+from cora.recipe.features.update_plan_default_parameters.command import (
+    UpdatePlanDefaultParameters,
 )
 
 
 def decide(
     state: Plan | None,
-    command: UpdatePlanParameterDefaults,
+    command: UpdatePlanDefaultParameters,
     *,
     method_parameters_schema: dict[str, Any] | None,
     now: datetime,
-) -> list[PlanParameterDefaultsUpdated]:
-    """Decide the events produced by a Plan.parameter_defaults update."""
+) -> list[PlanDefaultParametersUpdated]:
+    """Decide the events produced by a Plan.default_parameters update."""
     if state is None:
         raise PlanNotFoundError(command.plan_id)
 
-    merged = merge_patch(state.parameter_defaults, command.parameter_defaults_patch)
+    merged = merge_patch(state.default_parameters, command.default_parameters_patch)
 
-    validate_parameter_defaults_against_method_schema(merged, method_parameters_schema)
+    validate_default_parameters_against_method_schema(merged, method_parameters_schema)
 
-    if merged == state.parameter_defaults:
+    if merged == state.default_parameters:
         return []
 
     return [
-        PlanParameterDefaultsUpdated(
+        PlanDefaultParametersUpdated(
             plan_id=state.id,
-            parameter_defaults=merged,
+            default_parameters=merged,
             occurred_at=now,
         )
     ]

@@ -12,8 +12,8 @@ Carries the caller-controlled inputs:
     verbatim. Added in 7d to support cross-facility provenance
     export (DataCite / RAiD ecosystem); pre-7d Runs have raid=None
     and stay valid via the forward-compatible payload load.
-  - `parameter_overrides` (post-6g-c) — operator-supplied overrides
-    on top of `Plan.parameter_defaults`. Applied via RFC 7396 merge
+  - `override_parameters` (post-6g-c) — operator-supplied overrides
+    on top of `Plan.default_parameters`. Applied via RFC 7396 merge
     by the handler before the decider validates against the owning
     Method's `parameters_schema`. Default `{}`.
   - `triggered_by` (post-6g-c) — operator-supplied free text
@@ -48,5 +48,5 @@ class StartRun:
     plan_id: UUID
     subject_id: UUID | None
     raid: str | None = None
-    parameter_overrides: dict[str, Any] = field(default_factory=dict[str, Any])
+    override_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     triggered_by: str | None = None

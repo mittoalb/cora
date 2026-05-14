@@ -2,9 +2,9 @@
 `GET /runs/{id}`.
 
 Phase 6g-c. Exercises:
-  - start_run accepts `parameter_overrides` + `triggered_by` body fields
-  - effective_parameters = merge(plan.parameter_defaults, overrides)
-  - get_run surfaces parameter_overrides + effective_parameters + triggered_by
+  - start_run accepts `override_parameters` + `triggered_by` body fields
+  - effective_parameters = merge(plan.default_parameters, overrides)
+  - get_run surfaces override_parameters + effective_parameters + triggered_by
   - Method-without-schema is STRICT (post-6g audit reversal): rejects
     non-empty effective_parameters with 400 + clear error message
   - Method-with-schema validates effective_parameters at start (400 on violation)
@@ -69,8 +69,8 @@ def _setup_run_chain(
     ).json()["plan_id"]
     if plan_defaults:
         r2 = client.patch(
-            f"/plans/{plan_id}/parameter-defaults",
-            json={"parameter_defaults_patch": plan_defaults},
+            f"/plans/{plan_id}/default-parameters",
+            json={"default_parameters_patch": plan_defaults},
         )
         assert r2.status_code == 204, r2.text
     subject_id = client.post("/subjects", json={"name": "PorousCeramicSample-A"}).json()[
@@ -85,7 +85,7 @@ def _setup_run_chain(
 
 
 @pytest.mark.contract
-def test_start_run_accepts_parameter_overrides_and_triggered_by() -> None:
+def test_start_run_accepts_override_parameters_and_triggered_by() -> None:
     with TestClient(create_app()) as client:
         plan_id, subject_id = _setup_run_chain(
             client, method_schema=_energy_schema(), plan_defaults={"energy_kev": 12.0}
@@ -96,7 +96,7 @@ def test_start_run_accepts_parameter_overrides_and_triggered_by() -> None:
                 "name": "Run-with-overrides",
                 "plan_id": plan_id,
                 "subject_id": subject_id,
-                "parameter_overrides": {"exposure_ms": 250},
+                "override_parameters": {"exposure_ms": 250},
                 "triggered_by": "operator:opid:5",
             },
         )
@@ -120,7 +120,7 @@ def test_get_run_surfaces_effective_parameters_after_merge() -> None:
                 "name": "Run-X",
                 "plan_id": plan_id,
                 "subject_id": subject_id,
-                "parameter_overrides": {"exposure_ms": 250},
+                "override_parameters": {"exposure_ms": 250},
                 "triggered_by": "operator:opid:5",
             },
         )
@@ -130,7 +130,7 @@ def test_get_run_surfaces_effective_parameters_after_merge() -> None:
         get = client.get(f"/runs/{run_id}")
     assert get.status_code == 200
     body = get.json()
-    assert body["parameter_overrides"] == {"exposure_ms": 250}
+    assert body["override_parameters"] == {"exposure_ms": 250}
     # Defaults' energy_kev preserved + override's exposure_ms wins.
     assert body["effective_parameters"] == {"energy_kev": 12.0, "exposure_ms": 250}
     assert body["triggered_by"] == "operator:opid:5"
@@ -150,7 +150,7 @@ def test_start_run_returns_400_when_effective_parameters_violate_schema() -> Non
                 "name": "Run-bad",
                 "plan_id": plan_id,
                 "subject_id": subject_id,
-                "parameter_overrides": {"energy_kev": 1.0},
+                "override_parameters": {"energy_kev": 1.0},
             },
         )
     assert response.status_code == 400, response.text
@@ -172,7 +172,7 @@ def test_start_run_strict_when_method_has_no_schema() -> None:
                 "name": "Run-strict",
                 "plan_id": plan_id,
                 "subject_id": subject_id,
-                "parameter_overrides": {"undeclared": "anything"},
+                "override_parameters": {"undeclared": "anything"},
             },
         )
     assert response.status_code == 400, response.text
@@ -200,8 +200,8 @@ def test_start_run_accepts_no_schema_when_no_overrides_and_no_defaults() -> None
 
 @pytest.mark.contract
 def test_get_run_returns_plan_defaults_as_effective_when_no_overrides() -> None:
-    """Operator omits parameter_overrides -> effective_parameters
-    equals Plan.parameter_defaults straight."""
+    """Operator omits override_parameters -> effective_parameters
+    equals Plan.default_parameters straight."""
     with TestClient(create_app()) as client:
         plan_id, subject_id = _setup_run_chain(
             client,
@@ -217,7 +217,7 @@ def test_get_run_returns_plan_defaults_as_effective_when_no_overrides() -> None:
         get = client.get(f"/runs/{run_id}")
     assert get.status_code == 200
     body = get.json()
-    assert body["parameter_overrides"] == {}
+    assert body["override_parameters"] == {}
     assert body["effective_parameters"] == {"energy_kev": 12.0, "exposure_ms": 100}
     assert body["triggered_by"] is None
 
@@ -235,5 +235,5 @@ def test_start_run_defaults_to_empty_when_neither_plan_nor_overrides_set() -> No
         run_id = post.json()["run_id"]
         get = client.get(f"/runs/{run_id}")
     body = get.json()
-    assert body["parameter_overrides"] == {}
+    assert body["override_parameters"] == {}
     assert body["effective_parameters"] == {}

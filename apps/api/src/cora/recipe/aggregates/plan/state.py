@@ -240,8 +240,8 @@ class PlanCannotDeprecateError(Exception):
         self.current_status = current_status
 
 
-class InvalidPlanParameterDefaultsError(ValueError):
-    """The supplied Plan parameter_defaults dict failed validation
+class InvalidPlanDefaultParametersError(ValueError):
+    """The supplied Plan default_parameters dict failed validation
     against the owning Method's parameters_schema (Phase 6g-b).
 
     Permissive when Method.parameters_schema is None: any defaults
@@ -252,7 +252,7 @@ class InvalidPlanParameterDefaultsError(ValueError):
     """
 
     def __init__(self, reason: str) -> None:
-        super().__init__(f"Invalid Plan parameter_defaults: {reason}")
+        super().__init__(f"Invalid Plan default_parameters: {reason}")
         self.reason = reason
 
 
@@ -346,7 +346,7 @@ class Plan:
     `method_id` is the Method ultimately implemented by this Plan
     (originally captured in PlanDefined.method_id payload as audit-
     only data; promoted to state in 6g-b because the
-    `update_plan_parameter_defaults` decider needs it to look up
+    `update_plan_default_parameters` decider needs it to look up
     `Method.parameters_schema` for validation). Pre-6g-b PlanDefined
     streams fold cleanly: the evolver reads `method_id` from the
     payload field that was present from day one. Default-defaults to
@@ -355,7 +355,7 @@ class Plan:
     "state holds what future deciders need" precedent in the
     docstring above.
 
-    `parameter_defaults: dict[str, Any]` (Phase 6g-b) is the
+    `default_parameters: dict[str, Any]` (Phase 6g-b) is the
     operator-set defaults for parameters that downstream Runs
     (6g-c) merge with their per-run overrides. Validated against
     the owning Method's `parameters_schema` at decide time
@@ -376,4 +376,4 @@ class Plan:
     status: PlanStatus = PlanStatus.DEFINED
     version: str | None = None
     method_id: UUID | None = None
-    parameter_defaults: dict[str, Any] = field(default_factory=dict[str, Any])
+    default_parameters: dict[str, Any] = field(default_factory=dict[str, Any])

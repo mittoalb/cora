@@ -5,9 +5,9 @@ Hoisted in the post-6g cleanup (originally lived in
 the third call site landed. Use sites:
 
   - 5g-c `update_asset_settings` (Equipment) — Asset.settings PATCH
-  - 6g-b `update_plan_parameter_defaults` (Recipe) — Plan defaults PATCH
-  - 6g-c `start_run` (Run) — effective_parameters = merge(plan.parameter_defaults,
-    command.parameter_overrides)
+  - 6g-b `update_plan_default_parameters` (Recipe) — Plan defaults PATCH
+  - 6g-c `start_run` (Run) — effective_parameters = merge(plan.default_parameters,
+    command.override_parameters)
 
 Three sites across three BCs is the rule-of-three threshold (matches
 the `json_schema_subset` hoist precedent from 6g-a, which had the

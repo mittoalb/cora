@@ -169,7 +169,7 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
         "raid": None,
         # 6g-c additive payload fields default to {} / None when no
         # overrides / no Plan defaults / no triggered_by are supplied.
-        "parameter_overrides": {},
+        "override_parameters": {},
         "effective_parameters": {},
         "triggered_by": None,
         "occurred_at": _NOW.isoformat(),

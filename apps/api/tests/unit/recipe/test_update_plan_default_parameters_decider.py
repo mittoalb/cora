@@ -1,13 +1,13 @@
-"""Unit tests for the `update_plan_parameter_defaults` slice's pure decider.
+"""Unit tests for the `update_plan_default_parameters` slice's pure decider.
 
 Phase 6g-b. The decider:
   - Raises PlanNotFoundError on empty state
-  - Merges the patch into prior parameter_defaults via RFC 7396 semantics
+  - Merges the patch into prior default_parameters via RFC 7396 semantics
   - Validates the merged result against the supplied
     method_parameters_schema; STRICT when None (post-6g audit reversal:
     non-empty defaults rejected when no schema declared)
   - No-ops (returns []) on unchanged-vs-current
-  - Emits PlanParameterDefaultsUpdated with the post-merge dict otherwise
+  - Emits PlanDefaultParametersUpdated with the post-merge dict otherwise
 """
 
 from datetime import UTC, datetime
@@ -17,16 +17,16 @@ from uuid import uuid4
 import pytest
 
 from cora.recipe.aggregates.plan import (
-    InvalidPlanParameterDefaultsError,
+    InvalidPlanDefaultParametersError,
     Plan,
+    PlanDefaultParametersUpdated,
     PlanName,
     PlanNotFoundError,
-    PlanParameterDefaultsUpdated,
     PlanStatus,
 )
-from cora.recipe.features import update_plan_parameter_defaults
-from cora.recipe.features.update_plan_parameter_defaults import (
-    UpdatePlanParameterDefaults,
+from cora.recipe.features import update_plan_default_parameters
+from cora.recipe.features.update_plan_default_parameters import (
+    UpdatePlanDefaultParameters,
 )
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
@@ -35,7 +35,7 @@ _DRAFT = "https://json-schema.org/draft/2020-12/schema"
 
 def _plan(
     *,
-    parameter_defaults: dict[str, Any] | None = None,
+    default_parameters: dict[str, Any] | None = None,
     status: PlanStatus = PlanStatus.DEFINED,
 ) -> Plan:
     return Plan(
@@ -45,7 +45,7 @@ def _plan(
         asset_ids=frozenset({uuid4()}),
         status=status,
         method_id=uuid4(),
-        parameter_defaults=parameter_defaults if parameter_defaults is not None else {},
+        default_parameters=default_parameters if default_parameters is not None else {},
     )
 
 
@@ -63,18 +63,18 @@ def _schema() -> dict[str, Any]:
 @pytest.mark.unit
 def test_decide_emits_event_when_setting_first_keys() -> None:
     state = _plan()
-    events = update_plan_parameter_defaults.decide(
+    events = update_plan_default_parameters.decide(
         state=state,
-        command=UpdatePlanParameterDefaults(
-            plan_id=state.id, parameter_defaults_patch={"energy_kev": 12.0}
+        command=UpdatePlanDefaultParameters(
+            plan_id=state.id, default_parameters_patch={"energy_kev": 12.0}
         ),
         method_parameters_schema=_schema(),
         now=_NOW,
     )
     assert events == [
-        PlanParameterDefaultsUpdated(
+        PlanDefaultParametersUpdated(
             plan_id=state.id,
-            parameter_defaults={"energy_kev": 12.0},
+            default_parameters={"energy_kev": 12.0},
             occurred_at=_NOW,
         )
     ]
@@ -84,43 +84,43 @@ def test_decide_emits_event_when_setting_first_keys() -> None:
 def test_decide_event_payload_carries_post_merge_not_patch() -> None:
     """Locked design: event carries the FULL post-merge dict so each
     event is a self-contained audit record (5g-c precedent)."""
-    state = _plan(parameter_defaults={"energy_kev": 12.0})
-    events = update_plan_parameter_defaults.decide(
+    state = _plan(default_parameters={"energy_kev": 12.0})
+    events = update_plan_default_parameters.decide(
         state=state,
-        command=UpdatePlanParameterDefaults(
-            plan_id=state.id, parameter_defaults_patch={"exposure_ms": 250}
+        command=UpdatePlanDefaultParameters(
+            plan_id=state.id, default_parameters_patch={"exposure_ms": 250}
         ),
         method_parameters_schema=_schema(),
         now=_NOW,
     )
     assert len(events) == 1
     # Post-merge: BOTH keys present, not just the patch's exposure_ms.
-    assert events[0].parameter_defaults == {"energy_kev": 12.0, "exposure_ms": 250}
+    assert events[0].default_parameters == {"energy_kev": 12.0, "exposure_ms": 250}
 
 
 @pytest.mark.unit
 def test_decide_null_patch_value_deletes_key() -> None:
     """RFC 7396: null in patch deletes the key."""
-    state = _plan(parameter_defaults={"energy_kev": 12.0, "exposure_ms": 100})
-    events = update_plan_parameter_defaults.decide(
+    state = _plan(default_parameters={"energy_kev": 12.0, "exposure_ms": 100})
+    events = update_plan_default_parameters.decide(
         state=state,
-        command=UpdatePlanParameterDefaults(
-            plan_id=state.id, parameter_defaults_patch={"exposure_ms": None}
+        command=UpdatePlanDefaultParameters(
+            plan_id=state.id, default_parameters_patch={"exposure_ms": None}
         ),
         method_parameters_schema=_schema(),
         now=_NOW,
     )
     assert len(events) == 1
-    assert events[0].parameter_defaults == {"energy_kev": 12.0}
+    assert events[0].default_parameters == {"energy_kev": 12.0}
 
 
 @pytest.mark.unit
 def test_decide_no_op_when_merge_result_unchanged() -> None:
     """Re-submitting an empty patch on existing defaults: no event."""
-    state = _plan(parameter_defaults={"energy_kev": 12.0})
-    events = update_plan_parameter_defaults.decide(
+    state = _plan(default_parameters={"energy_kev": 12.0})
+    events = update_plan_default_parameters.decide(
         state=state,
-        command=UpdatePlanParameterDefaults(plan_id=state.id, parameter_defaults_patch={}),
+        command=UpdatePlanDefaultParameters(plan_id=state.id, default_parameters_patch={}),
         method_parameters_schema=_schema(),
         now=_NOW,
     )
@@ -129,11 +129,11 @@ def test_decide_no_op_when_merge_result_unchanged() -> None:
 
 @pytest.mark.unit
 def test_decide_no_op_when_setting_same_value() -> None:
-    state = _plan(parameter_defaults={"energy_kev": 12.0})
-    events = update_plan_parameter_defaults.decide(
+    state = _plan(default_parameters={"energy_kev": 12.0})
+    events = update_plan_default_parameters.decide(
         state=state,
-        command=UpdatePlanParameterDefaults(
-            plan_id=state.id, parameter_defaults_patch={"energy_kev": 12.0}
+        command=UpdatePlanDefaultParameters(
+            plan_id=state.id, default_parameters_patch={"energy_kev": 12.0}
         ),
         method_parameters_schema=_schema(),
         now=_NOW,
@@ -145,10 +145,10 @@ def test_decide_no_op_when_setting_same_value() -> None:
 def test_decide_raises_plan_not_found_when_state_is_none() -> None:
     target_id = uuid4()
     with pytest.raises(PlanNotFoundError) as exc_info:
-        update_plan_parameter_defaults.decide(
+        update_plan_default_parameters.decide(
             state=None,
-            command=UpdatePlanParameterDefaults(
-                plan_id=target_id, parameter_defaults_patch={"energy_kev": 12.0}
+            command=UpdatePlanDefaultParameters(
+                plan_id=target_id, default_parameters_patch={"energy_kev": 12.0}
             ),
             method_parameters_schema=_schema(),
             now=_NOW,
@@ -159,11 +159,11 @@ def test_decide_raises_plan_not_found_when_state_is_none() -> None:
 @pytest.mark.unit
 def test_decide_raises_invalid_when_post_merge_violates_schema() -> None:
     state = _plan()
-    with pytest.raises(InvalidPlanParameterDefaultsError):
-        update_plan_parameter_defaults.decide(
+    with pytest.raises(InvalidPlanDefaultParametersError):
+        update_plan_default_parameters.decide(
             state=state,
-            command=UpdatePlanParameterDefaults(
-                plan_id=state.id, parameter_defaults_patch={"energy_kev": 1.0}
+            command=UpdatePlanDefaultParameters(
+                plan_id=state.id, default_parameters_patch={"energy_kev": 1.0}
             ),
             method_parameters_schema=_schema(),
             now=_NOW,
@@ -177,12 +177,12 @@ def test_decide_strict_when_method_has_no_schema_with_non_empty_defaults() -> No
     works) or omit the defaults. Aligns with 5g-c's strict zero-
     Capabilities posture and Ajv / Argo Workflows precedent."""
     state = _plan()
-    with pytest.raises(InvalidPlanParameterDefaultsError) as exc_info:
-        update_plan_parameter_defaults.decide(
+    with pytest.raises(InvalidPlanDefaultParametersError) as exc_info:
+        update_plan_default_parameters.decide(
             state=state,
-            command=UpdatePlanParameterDefaults(
+            command=UpdatePlanDefaultParameters(
                 plan_id=state.id,
-                parameter_defaults_patch={"undeclared_key": "anything"},
+                default_parameters_patch={"undeclared_key": "anything"},
             ),
             method_parameters_schema=None,
             now=_NOW,
@@ -195,9 +195,9 @@ def test_decide_accepts_empty_defaults_when_method_has_no_schema() -> None:
     """Strict still allows trivial 'no contract + no values' state.
     No-op decider returns [] (defaults unchanged from empty)."""
     state = _plan()
-    events = update_plan_parameter_defaults.decide(
+    events = update_plan_default_parameters.decide(
         state=state,
-        command=UpdatePlanParameterDefaults(plan_id=state.id, parameter_defaults_patch={}),
+        command=UpdatePlanDefaultParameters(plan_id=state.id, default_parameters_patch={}),
         method_parameters_schema=None,
         now=_NOW,
     )
@@ -216,10 +216,10 @@ def test_decide_accepts_defaults_update_in_any_lifecycle_state(
     Plans accept defaults updates (operators may refine defaults
     after deprecation as audit-only data)."""
     state = _plan(status=lifecycle_status)
-    events = update_plan_parameter_defaults.decide(
+    events = update_plan_default_parameters.decide(
         state=state,
-        command=UpdatePlanParameterDefaults(
-            plan_id=state.id, parameter_defaults_patch={"energy_kev": 12.0}
+        command=UpdatePlanDefaultParameters(
+            plan_id=state.id, default_parameters_patch={"energy_kev": 12.0}
         ),
         method_parameters_schema=_schema(),
         now=_NOW,

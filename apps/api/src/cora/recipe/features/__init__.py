@@ -11,10 +11,10 @@ Slices ship per aggregate / per state transition:
   - 6g-a: update_method_parameters_schema (Method.parameters_schema
     JSON Schema declaration; pre-positions Plan defaults / Run
     overrides in 6g-b/c)
-  - 6g-b: update_plan_parameter_defaults (Plan.parameter_defaults
+  - 6g-b: update_plan_default_parameters (Plan.default_parameters
     PATCH RFC 7396 with merge_patch reuse; validated against owning
     Method.parameters_schema; STRICT when Method has no schema, post-6g
     audit reversal mirroring 5g-c's "no Capabilities → reject" anchor)
-  - 6g-c: Run.parameter_overrides + effective_parameters snapshot
+  - 6g-c: Run.override_parameters + effective_parameters snapshot
     on RunStarted (same strict-when-no-schema posture)
 """

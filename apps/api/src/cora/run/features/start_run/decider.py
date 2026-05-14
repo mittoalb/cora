@@ -172,7 +172,7 @@ def decide(
             plan_id=command.plan_id,
             subject_id=command.subject_id,
             raid=command.raid,
-            parameter_overrides=command.parameter_overrides,
+            override_parameters=command.override_parameters,
             effective_parameters=effective_parameters,
             triggered_by=command.triggered_by,
             occurred_at=now,

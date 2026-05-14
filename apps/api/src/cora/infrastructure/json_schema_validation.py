@@ -9,7 +9,7 @@ CORA has two structurally identical validation surfaces across BCs:
     via 6g-a's `update_method_parameters_schema`).
   - **Values-against-schema validators** check that a values dict
     conforms to a previously-declared schema. Used when the values
-    are written (Plan.parameter_defaults via 6g-b; Run.effective_parameters
+    are written (Plan.default_parameters via 6g-b; Run.effective_parameters
     via 6g-c) or when an Asset's settings are updated against the
     union of assigned Capabilities' schemas (5g-c).
 
@@ -115,7 +115,7 @@ def validate_values_against_schema(
         jsonschema-rs Draft 2020-12, run iter_errors, raise on first
         violation with path-prefixed diagnostic
 
-    Used by 6g-b (Plan.parameter_defaults) and 6g-c (Run.effective_parameters).
+    Used by 6g-b (Plan.default_parameters) and 6g-c (Run.effective_parameters).
     The Asset.settings validator (5g-c) builds a UNION mega-schema
     from multiple Capabilities first, then could reuse the
     iter_errors path here (currently retains its own implementation
