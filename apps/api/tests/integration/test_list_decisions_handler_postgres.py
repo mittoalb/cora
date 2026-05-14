@@ -223,3 +223,54 @@ async def test_empty_table_returns_empty_page(db_pool: asyncpg.Pool) -> None:
     )
     assert page.items == []
     assert page.next_cursor is None
+
+
+@pytest.mark.integration
+async def test_cursor_walks_pages(db_pool: asyncpg.Pool) -> None:
+    """5 Decisions, limit=2: walk 3 pages with cursors. Covers the
+    `_LIST_WITH_CURSOR_SQL` branch and `next_cursor` build that the
+    other tests in this file (single-row + filter) don't reach."""
+    actor_id_holder: list[UUID] = []
+    actor_id = uuid4()
+    deps_actor = _build_deps(db_pool, [actor_id, uuid4()])
+    actor_id_holder.append(await _seed_actor(deps_actor))
+
+    decision_ids: list[UUID] = []
+    for i in range(5):
+        dec_id = uuid4()
+        decision_ids.append(dec_id)
+        deps = _build_deps(db_pool, [dec_id, uuid4()])
+        await bind_register(deps)(
+            RegisterDecision(
+                actor_id=actor_id_holder[0],
+                context="RecipeApproval",
+                choice=f"approve-{i}",
+                confidence=0.50,
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+    await _drain(db_pool)
+
+    handler = bind_list(_build_deps(db_pool, []))
+    page1 = await handler(
+        ListDecisions(limit=2),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    page2 = await handler(
+        ListDecisions(cursor=page1.next_cursor, limit=2),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    page3 = await handler(
+        ListDecisions(cursor=page2.next_cursor, limit=2),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert len(page1.items) == 2 and page1.next_cursor is not None
+    assert len(page2.items) == 2 and page2.next_cursor is not None
+    assert len(page3.items) == 1 and page3.next_cursor is None
+    seen = {item.decision_id for p in (page1, page2, page3) for item in p.items}
+    assert seen == set(decision_ids)

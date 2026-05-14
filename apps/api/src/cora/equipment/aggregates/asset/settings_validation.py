@@ -185,7 +185,9 @@ def validate_settings_against_capabilities(
 
     try:
         validator = jsonschema_rs.Draft202012Validator(mega)
-    except (jsonschema_rs.ValidationError, ValueError) as exc:
+    except (jsonschema_rs.ValidationError, ValueError) as exc:  # pragma: no cover
+        # Double-defense: per-Capability schemas already validated cleanly upstream,
+        # so a union compile-failure here would mean an Ajv-vs-jsonschema-rs divergence.
         msg = f"jsonschema-rs failed to compile the union schema: {exc}"
         raise InvalidAssetSettingsError(msg) from exc
 
@@ -233,10 +235,10 @@ def _check_cross_capability_type_conflicts(capabilities: Sequence[Capability]) -
         if not isinstance(properties, dict):
             continue
         for prop_name, prop_schema in properties.items():  # pyright: ignore[reportUnknownVariableType]
-            if not isinstance(prop_schema, dict):
+            if not isinstance(prop_schema, dict):  # pragma: no cover  # malformed-schema guard
                 continue
             declared_type = prop_schema.get("type")
-            if declared_type is None:
+            if declared_type is None:  # pragma: no cover  # type-less prop, nothing to compare
                 continue
             type_by_key.setdefault(prop_name, []).append((str(cap.id), declared_type))
 

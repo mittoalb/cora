@@ -272,7 +272,7 @@ class PostgresReasoningStore:
         self._pool = pool
 
     async def append(self, rows: list[DecisionReasoning]) -> None:
-        if not rows:
+        if not rows:  # pragma: no cover  # callers pre-filter empty batches; defensive early-out
             return
         # asyncpg encodes Python list -> Postgres array natively;
         # finish_reasons is text[] (matches the column type).

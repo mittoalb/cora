@@ -6,10 +6,13 @@ before the request reaches any route. Tests bookend a small,
 explicit limit to prove the middleware fires at the boundary.
 """
 
+from typing import Any
+
 import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from cora.api.middleware import BodySizeLimitMiddleware
 
 
 def _padded_name(target_total_body_bytes: int) -> str:
@@ -58,3 +61,39 @@ def test_413_response_is_json_with_detail(monkeypatch: pytest.MonkeyPatch) -> No
     assert response.headers["content-type"].startswith("application/json")
     body = response.json()
     assert set(body.keys()) == {"detail"}
+
+
+@pytest.mark.contract
+async def test_malformed_content_length_falls_through_to_inner_app() -> None:
+    """Content-Length that isn't an integer (e.g. `notanumber`) is
+    treated as length 0 and the request continues to the inner app —
+    Starlette will then return 400 for the actual malformed-header
+    condition. Hits the `int(raw_length)` ValueError fallback that
+    every well-behaved HTTP client makes unreachable.
+
+    Direct ASGI invocation: TestClient/httpx normalize Content-Length
+    before transport, so the malformed bytes only land if we drive
+    the middleware directly."""
+    inner_called = False
+
+    async def inner_app(scope: dict[str, Any], receive: Any, send: Any) -> None:
+        _ = (scope, receive, send)
+        nonlocal inner_called
+        inner_called = True
+
+    middleware = BodySizeLimitMiddleware(inner_app, max_bytes=1024)
+    scope: dict[str, Any] = {
+        "type": "http",
+        "method": "POST",
+        "path": "/anywhere",
+        "headers": [(b"content-length", b"notanumber")],
+    }
+
+    async def _receive() -> dict[str, Any]:
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def _send(_msg: dict[str, Any]) -> None:
+        return None
+
+    await middleware(scope, _receive, _send)
+    assert inner_called is True, "Malformed Content-Length should not 413; it falls through."

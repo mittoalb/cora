@@ -194,7 +194,7 @@ def bind(deps: Kernel, *, reasoning_store: ReasoningStore) -> Handler:
             logbook_id = new_logbook_id
             opened_logbook_now = True
             break
-        else:
+        else:  # pragma: no cover  # retry-exhaustion guard, requires contention injection
             # Hit retry limit; surface the conflict.
             raise ConcurrencyError(
                 stream_type=_STREAM_TYPE,

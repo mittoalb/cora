@@ -11,7 +11,9 @@ import pytest
 
 from cora.data.aggregates.dataset import (
     DATASET_CHECKSUM_SHA256_HEX_LENGTH,
+    DATASET_CONFORMS_TO_ENTRY_MAX_LENGTH,
     DATASET_DERIVED_FROM_MAX_ENTRIES,
+    DATASET_MEDIA_TYPE_MAX_LENGTH,
     DATASET_NAME_MAX_LENGTH,
     DATASET_URI_MAX_LENGTH,
     Dataset,
@@ -263,6 +265,23 @@ def test_dataset_encoding_rejects_too_many_conforms_to_entries() -> None:
             media_type="application/x-hdf5",
             conforms_to=frozenset(f"https://example.com/p/{i}" for i in range(64)),
         )
+
+
+@pytest.mark.unit
+def test_dataset_encoding_rejects_media_type_over_max_length() -> None:
+    with pytest.raises(InvalidDatasetEncodingError) as exc_info:
+        DatasetEncoding(media_type="x" * (DATASET_MEDIA_TYPE_MAX_LENGTH + 1))
+    assert str(DATASET_MEDIA_TYPE_MAX_LENGTH) in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_dataset_encoding_rejects_conforms_to_entry_over_max_length() -> None:
+    with pytest.raises(InvalidDatasetEncodingError) as exc_info:
+        DatasetEncoding(
+            media_type="application/x-hdf5",
+            conforms_to=frozenset({"x" * (DATASET_CONFORMS_TO_ENTRY_MAX_LENGTH + 1)}),
+        )
+    assert str(DATASET_CONFORMS_TO_ENTRY_MAX_LENGTH) in str(exc_info.value)
 
 
 # ---------- byte_size validation ----------

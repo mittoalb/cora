@@ -29,7 +29,7 @@ def evolve(state: Actor | None, event: ActorEvent) -> Actor:
         case ActorRegistered(actor_id=actor_id, name=name):
             return Actor(id=actor_id, name=ActorName(name), is_active=True)
         case ActorDeactivated():
-            if state is None:
+            if state is None:  # pragma: no cover  # corruption guard
                 # ActorDeactivated never appears before ActorRegistered in a
                 # well-formed stream; if it does, the stream is corrupted.
                 msg = "ActorDeactivated cannot be applied to empty state"
