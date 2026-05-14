@@ -11,17 +11,11 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.infrastructure.config import Settings
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
     Allow,
     AuthzResult,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
 )
 from cora.recipe import RecipeHandlers, UnauthorizedError, wire_recipe
 from cora.recipe.aggregates.plan import (
@@ -137,28 +131,10 @@ class _RecordingAuthorize:
         return Allow()
 
 
-class _DenyAllAuthorize:
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
 @pytest.mark.unit
 async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
     tracking = _RecordingAuthorize()
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_PLAN_ID]),
-        authorize=tracking,
-        event_store=InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
+    deps = build_deps(ids=[_PLAN_ID], now=_NOW, authorize=tracking)
 
     handler = get_plan.bind(deps)
     await handler(
@@ -172,14 +148,7 @@ async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_on_deny() -> None:
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_PLAN_ID]),
-        authorize=_DenyAllAuthorize(),
-        event_store=InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
+    deps = build_deps(ids=[_PLAN_ID], now=_NOW, deny=True)
 
     handler = get_plan.bind(deps)
     with pytest.raises(UnauthorizedError) as exc_info:

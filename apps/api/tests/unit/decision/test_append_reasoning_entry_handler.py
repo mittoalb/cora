@@ -29,16 +29,8 @@ from cora.decision.features.append_reasoning_entry import (
     AppendReasoningEntries,
     ReasoningEntryInput,
 )
-from cora.infrastructure.config import Settings
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    FixedIdGenerator,
-    FrozenClock,
-)
 from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 12, 12, 0, 0, tzinfo=UTC)
@@ -408,15 +400,7 @@ async def test_decision_state_after_append_carries_reasoning_logbook() -> None:
 
 @pytest.mark.unit
 def test_wire_decision_includes_append_reasoning_entry() -> None:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    deps = Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([uuid4()]),
-        authorize=AllowAllAuthorize(),
-        event_store=InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
+    deps = build_deps(ids=[uuid4()], now=_NOW)
     handlers = wire_decision(deps)
     assert isinstance(handlers, DecisionHandlers)
     assert callable(handlers.append_reasoning_entry)
