@@ -1,3 +1,7 @@
+---
+template: home.html
+---
+
 # CORA
 
 *A unified operations platform for large-scale research facilities.*

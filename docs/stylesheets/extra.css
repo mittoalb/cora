@@ -1,3 +1,152 @@
+/* CORA deep teal palette. Primary drives the top banner; accent drives links. */
+:root {
+  --md-primary-fg-color: #0A7E8C;
+  --md-primary-fg-color--light: #2BA0AE;
+  --md-primary-fg-color--dark: #075964;
+  --md-accent-fg-color: #14B8A6;
+  --md-accent-fg-color--transparent: rgba(20, 184, 166, 0.1);
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #0A7E8C;
+  --md-primary-fg-color--light: #2BA0AE;
+  --md-primary-fg-color--dark: #075964;
+  --md-accent-fg-color: #2DD4BF;
+  --md-accent-fg-color--transparent: rgba(45, 212, 191, 0.1);
+}
+
+/* Magazine-style homepage hero. Playfair Display masthead, Inter for kickers. */
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap");
+
+/* Hero with normal scroll. Image scrolls away naturally; text layer is
+   position: fixed, anchored to the viewport area below header+tabs, and
+   fades via hero-fade.js as the user scrolls through the hero's height.
+   Negative margin pulls the image up behind the (transparent-on-load)
+   header + tabs strip so the hero feels like the page's true top. */
+.cora-hero {
+  position: relative;
+  width: 100%;
+  margin: -4.8rem 0 0 0;
+  padding: 0;
+  background: #000;
+  overflow: hidden;
+  height: 100vh;
+  min-height: 600px;
+}
+
+/* Single fixed backdrop spanning header + tabs. Both bars are transparent
+   and sit on top of this one surface, so they share an identical backdrop
+   and fade as one visual unit. Without this, each bar paints its own teal
+   over a different slice of the hero image and the chrome inside the header
+   (search field bg) makes the header read as a different surface than the
+   tabs strip even at identical alpha. hero-fade.js drives the overlay var
+   0->1; on non-hero pages the var is unset and defaults to 1 (solid teal). */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4.8rem;
+  background-color: rgba(10, 126, 140, var(--cora-header-overlay, 1));
+  backdrop-filter: blur(calc((1 - var(--cora-header-overlay, 1)) * 14px));
+  -webkit-backdrop-filter: blur(calc((1 - var(--cora-header-overlay, 1)) * 14px));
+  z-index: 2;
+  pointer-events: none;
+}
+
+.md-header,
+.md-tabs {
+  background-color: transparent;
+}
+
+/* Override Material's .md-header--shadow rule. Material adds this class on
+   scroll and applies a 250ms box-shadow transition, which makes the header
+   look like it arrives late vs the tabs strip. We tie the shadow to the
+   same scroll variable as the bg, and kill the transition so they snap
+   together every animation frame. */
+.md-header.md-header--shadow {
+  box-shadow:
+    0 0 0.2rem rgba(0, 0, 0, calc(var(--cora-header-overlay, 1) * 0.1)),
+    0 0.2rem 0.4rem rgba(0, 0, 0, calc(var(--cora-header-overlay, 1) * 0.2));
+  transition: none;
+}
+
+.cora-hero__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.cora-hero::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 96px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0), var(--md-default-bg-color));
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Layer is fixed to the viewport so it stays put while the image scrolls.
+   hero-fade.js drives opacity from 1 (scroll=0) to 0 (scroll=heroHeight). */
+.cora-hero__layer {
+  position: fixed;
+  top: 4.8rem;
+  left: 0;
+  right: 0;
+  height: calc(100vh - 4.8rem);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  z-index: 2;
+  will-change: opacity;
+}
+
+/* Inner = .md-grid (max-width: 61rem, centered) so text aligns with header nav. */
+.cora-hero__inner {
+  width: 100%;
+  position: relative;
+  color: #fff;
+}
+
+.cora-hero__kicker {
+  font-family: "Inter", sans-serif;
+  font-size: clamp(0.65rem, 0.75vw, 0.8rem);
+  font-weight: 600;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  margin-bottom: 1rem;
+}
+
+.cora-hero__masthead {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 900;
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin: 0 0 1rem 0;
+}
+
+.cora-hero__tagline {
+  font-family: "Playfair Display", Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(0.95rem, 1.4vw, 1.25rem);
+  line-height: 1.3;
+  margin: 0;
+  max-width: 22ch;
+  color: #fff;
+}
+
 /* Match table text to body size; mkdocs-material default is ~0.64rem. */
 .md-typeset table:not([class]) {
   font-size: inherit;

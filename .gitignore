@@ -64,6 +64,10 @@ logs/
 /site/
 /docs/contributing.md
 
+# Hero source PNGs (regenerated via scripts/generate_hero_images.py).
+# Only the .webp variants are served by the site and committed.
+/docs/assets/*.png
+
 # Claude Code per-project state (settings, scheduled tasks, hooks, etc.)
 .claude/
 !.claude/CLAUDE.md

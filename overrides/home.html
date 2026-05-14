@@ -1,0 +1,20 @@
+{% extends "main.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  <link rel="preload" as="image" href="{{ 'assets/hero-bloom.webp' | url }}" fetchpriority="high">
+{% endblock %}
+
+{% block tabs %}
+  {{ super() }}
+  <div class="cora-hero cora-hero--editorial">
+    <img src="{{ 'assets/hero-bloom.webp' | url }}" alt="" class="cora-hero__image" fetchpriority="high">
+    <div class="cora-hero__layer">
+      <div class="md-grid cora-hero__inner">
+        <div class="cora-hero__kicker">Vol. 0 &nbsp;&middot;&nbsp; 2026</div>
+        <h1 class="cora-hero__masthead">CORA</h1>
+        <p class="cora-hero__tagline">A unified platform for research facilities.</p>
+      </div>
+    </div>
+  </div>
+{% endblock %}
