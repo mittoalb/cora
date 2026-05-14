@@ -243,27 +243,34 @@ def create_app() -> FastAPI:
             register_decision_projections(registry, deps)
             app.state.projections = registry
 
-            async with (
-                projection_worker_lifespan(deps, registry, settings),
-                idempotency_pruner_lifespan(deps),
-            ):
-                try:
+            try:
+                async with (
+                    projection_worker_lifespan(deps, registry, settings),
+                    idempotency_pruner_lifespan(deps),
+                ):
                     yield
+            finally:
+                # Workers must stop before the pool closes, otherwise
+                # the next worker iteration after `task.cancel()`
+                # returns races against `pool.close()` and surfaces an
+                # asyncpg `InterfaceError("pool is closing")`. Putting
+                # `await teardown()` AFTER the workers' async-with
+                # block guarantees the cancel-and-await dance has fully
+                # unwound before any pool resource goes away.
+                #
+                # Independent try/finally pairs so an exception in pool
+                # close (rare but observed under DB-side connection
+                # drops at shutdown) doesn't skip the tracing flush.
+                # Without this, any spans buffered by
+                # BatchSpanProcessor would be lost.
+                try:
+                    await teardown()
                 finally:
-                    # Independent try/finally for each teardown so an
-                    # exception in the asyncpg pool close (rare but
-                    # observed under DB-side connection drops at
-                    # shutdown) doesn't skip the tracing flush.
-                    # Without this, any spans buffered by
-                    # BatchSpanProcessor would be lost.
-                    try:
-                        await teardown()
-                    finally:
-                        # Flush pending OTel spans before the process
-                        # exits so short-lived runs (CLI invocations,
-                        # smoke tests) don't drop traces. No-op when
-                        # tracing is off.
-                        tracing_teardown()
+                    # Flush pending OTel spans before the process exits
+                    # so short-lived runs (CLI invocations, smoke
+                    # tests) don't drop traces. No-op when tracing is
+                    # off.
+                    tracing_teardown()
 
     fastapi_app = FastAPI(
         title="CORA",
