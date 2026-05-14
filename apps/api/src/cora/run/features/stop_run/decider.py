@@ -7,7 +7,7 @@ Stopping any terminal Run (Completed | Aborted | Stopped) raises;
 re-stopping a `Stopped` Run raises (strict-not-idempotent).
 
 `reason` validation goes through the `RunStopReason` VO (which
-calls the shared `validate_name` helper). The on-the-wire payload
+calls the shared `validate_bounded_text` helper). The on-the-wire payload
 in `RunStopped.reason` carries the trimmed string.
 
 Invariants:

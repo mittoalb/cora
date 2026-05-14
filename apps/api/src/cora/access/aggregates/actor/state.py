@@ -9,7 +9,7 @@ length-bounded). All errors raised by the domain layer are
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.infrastructure.name import validate_name
+from cora.infrastructure.bounded_text import validate_bounded_text
 
 ACTOR_NAME_MAX_LENGTH = 200
 
@@ -55,7 +55,7 @@ class ActorName:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=ACTOR_NAME_MAX_LENGTH,
             error_class=InvalidActorNameError,

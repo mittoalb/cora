@@ -64,7 +64,7 @@ mirrors Method's: Defined → Versioned → Deprecated.
 `PracticeName` is the **ninth** trimmed-bounded-name VO after
 Actor / Zone / Conduit / Policy / Subject / Capability / Asset /
 Method. Phase 6e-1 hoisted the shared trim+length-check logic to
-`cora.infrastructure.name.validate_name` once the 10th VO (PlanName)
+`cora.infrastructure.bounded_text.validate_bounded_text` once the 10th VO (PlanName)
 landed; PracticeName now calls that helper while keeping its own
 frozen dataclass type and per-aggregate error class.
 """
@@ -73,7 +73,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
 
-from cora.infrastructure.name import validate_name
+from cora.infrastructure.bounded_text import validate_bounded_text
 
 PRACTICE_NAME_MAX_LENGTH = 200
 PRACTICE_VERSION_TAG_MAX_LENGTH = 50
@@ -191,14 +191,14 @@ class PracticeName:
     """Display name for a practice. Trimmed; 1-200 chars.
 
     Ninth occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_name` helper hoisted in 6e-1 (see
-    `cora.infrastructure.name`).
+    the shared `validate_bounded_text` helper hoisted in 6e-1 (see
+    `cora.infrastructure.bounded_text`).
     """
 
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=PRACTICE_NAME_MAX_LENGTH,
             error_class=InvalidPracticeNameError,

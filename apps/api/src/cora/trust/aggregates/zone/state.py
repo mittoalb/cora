@@ -19,7 +19,7 @@ event-payload-level changes need new event types).
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.infrastructure.name import validate_name
+from cora.infrastructure.bounded_text import validate_bounded_text
 
 ZONE_NAME_MAX_LENGTH = 200
 
@@ -49,7 +49,7 @@ class ZoneName:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=ZONE_NAME_MAX_LENGTH,
             error_class=InvalidZoneNameError,

@@ -50,7 +50,7 @@ derives the new status from the event TYPE — same precedent as
 `MethodName` is the **eighth** trimmed-bounded-name VO after
 `ActorName`, `ZoneName`, `ConduitName`, `PolicyName`, `SubjectName`,
 `CapabilityName`, `AssetName`. Phase 6e-1 hoisted the shared
-trim+length-check logic to `cora.infrastructure.name.validate_name`
+trim+length-check logic to `cora.infrastructure.bounded_text.validate_bounded_text`
 once the 10th VO (PlanName) landed; MethodName now calls that helper
 while keeping its own frozen dataclass type and per-aggregate error
 class. See the helper module's docstring for the design rationale.
@@ -72,7 +72,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
-from cora.infrastructure.name import validate_name
+from cora.infrastructure.bounded_text import validate_bounded_text
 
 METHOD_NAME_MAX_LENGTH = 200
 METHOD_VERSION_TAG_MAX_LENGTH = 50
@@ -198,14 +198,14 @@ class MethodName:
     """Display name for a method. Trimmed; 1-200 chars.
 
     Eighth occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_name` helper hoisted in 6e-1 (see
-    `cora.infrastructure.name`).
+    the shared `validate_bounded_text` helper hoisted in 6e-1 (see
+    `cora.infrastructure.bounded_text`).
     """
 
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=METHOD_NAME_MAX_LENGTH,
             error_class=InvalidMethodNameError,

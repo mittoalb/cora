@@ -7,7 +7,7 @@ terminal Run (Completed | Aborted | Stopped | Truncated) raises;
 re-truncating a `Truncated` Run raises (strict-not-idempotent).
 
 `reason` validation goes through the `RunTruncateReason` VO (which
-calls the shared `validate_name` helper). The on-the-wire payload
+calls the shared `validate_bounded_text` helper). The on-the-wire payload
 in `RunTruncated.reason` carries the trimmed string.
 
 `interrupted_at` is operator-supplied and optional. When provided,

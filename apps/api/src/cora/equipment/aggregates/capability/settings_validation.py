@@ -20,9 +20,9 @@ keyword whitelist (`$schema`, `type`, `required`, `properties`,
 This module is a thin BC-specific adapter: it defines the
 `InvalidCapabilitySettingsSchemaError` exception class and a one-liner
 `validate_settings_schema` that delegates to the shared validator.
-Mirrors the `validate_name` hoist precedent (each VO type keeps
+Mirrors the `validate_bounded_text` hoist precedent (each VO type keeps
 its own error class, shared trim logic in
-`cora.infrastructure.name`).
+`cora.infrastructure.bounded_text`).
 """
 
 from typing import Any

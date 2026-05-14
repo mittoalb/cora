@@ -8,7 +8,7 @@ Strict semantics, not idempotent: re-discarding an already-`Discarded`
 subject raises rather than no-op.
 
 `reason` validation goes through the `SubjectDiscardReason` VO
-(which calls the shared `validate_name` helper). The on-the-wire
+(which calls the shared `validate_bounded_text` helper). The on-the-wire
 payload in `SubjectDiscarded.reason` carries the trimmed string.
 
 Invariants:

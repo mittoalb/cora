@@ -84,8 +84,8 @@ carried in event payloads.
 
 ## Eleventh bounded-name VO
 
-`RunName` calls the shared `validate_name` helper hoisted in
-6e-1 (`cora.infrastructure.name`). Same pattern as the prior 10.
+`RunName` calls the shared `validate_bounded_text` helper hoisted in
+6e-1 (`cora.infrastructure.bounded_text`). Same pattern as the prior 10.
 
 ## Known gaps documented (gate-review Q3)
 
@@ -103,7 +103,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
-from cora.infrastructure.name import validate_name
+from cora.infrastructure.bounded_text import validate_bounded_text
 
 RUN_NAME_MAX_LENGTH = 200
 RUN_ABORT_REASON_MAX_LENGTH = 500
@@ -454,7 +454,7 @@ class RunAbortReason:
     """Free-form abort reason. Trimmed; 1-500 chars.
 
     Domain VO (not just `str`) so the decider validates uniformly
-    via the shared `validate_name` helper (same trimming + bounded-
+    via the shared `validate_bounded_text` helper (same trimming + bounded-
     length contract as the 11 BoundedName VOs). The on-the-wire
     representation in `RunAborted.reason` is `str` (post-trim) for
     payload simplicity; the VO exists at decider-input time only.
@@ -463,7 +463,7 @@ class RunAbortReason:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=RUN_ABORT_REASON_MAX_LENGTH,
             error_class=InvalidRunAbortReasonError,
@@ -513,7 +513,7 @@ class RunStopReason:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=RUN_STOP_REASON_MAX_LENGTH,
             error_class=InvalidRunStopReasonError,
@@ -592,7 +592,7 @@ class RunTruncateReason:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=RUN_TRUNCATE_REASON_MAX_LENGTH,
             error_class=InvalidRunTruncateReasonError,
@@ -605,14 +605,14 @@ class RunName:
     """Display name for a run. Trimmed; 1-200 chars.
 
     Eleventh occurrence of the trimmed-bounded-name VO pattern.
-    Uses the shared `validate_name` helper hoisted in 6e-1 (see
-    `cora.infrastructure.name`).
+    Uses the shared `validate_bounded_text` helper hoisted in 6e-1 (see
+    `cora.infrastructure.bounded_text`).
     """
 
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=RUN_NAME_MAX_LENGTH,
             error_class=InvalidRunNameError,

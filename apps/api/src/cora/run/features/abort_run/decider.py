@@ -8,7 +8,7 @@ Aborted | Stopped) raises `RunCannotAbortError`; re-aborting an
 `Aborted` Run raises (strict-not-idempotent).
 
 `reason` validation goes through the `RunAbortReason` VO (which
-calls the shared `validate_name` helper). The on-the-wire payload
+calls the shared `validate_bounded_text` helper). The on-the-wire payload
 in `RunAborted.reason` carries the trimmed string.
 
 Invariants:

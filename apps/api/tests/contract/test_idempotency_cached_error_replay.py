@@ -37,7 +37,7 @@ def test_post_actors_invalid_name_returns_400_then_cached_400_on_retry() -> None
     cached error replayed as 400 with identical body, NO handler re-execution.
 
     Whitespace-only is the right trigger: Pydantic's `min_length=1`
-    accepts "   " (3 chars), but the decider's `validate_name` trims
+    accepts "   " (3 chars), but the decider's `validate_bounded_text` trims
     first and raises. So the error originates in domain code and
     flows through the decorator's cacheable-4xx branch."""
     with TestClient(create_app()) as client:

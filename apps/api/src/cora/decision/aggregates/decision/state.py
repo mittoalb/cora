@@ -99,7 +99,7 @@ projection rule (documented in this BC's `__init__.py`).
 ## Thirteenth bounded-name VO
 
 `DecisionChoice` and `DecisionReasoning` use the shared
-`validate_name` helper hoisted in 6e-1, with a higher max-length
+`validate_bounded_text` helper hoisted in 6e-1, with a higher max-length
 cap (reasoning text is naturally longer than display names).
 `DecisionContext` is intentionally an open string with documented
 well-known constants, new contexts arrive without schema
@@ -112,7 +112,7 @@ from enum import StrEnum
 from typing import Any, Final, Literal
 from uuid import UUID
 
-from cora.infrastructure.name import validate_name
+from cora.infrastructure.bounded_text import validate_bounded_text
 
 DECISION_CHOICE_MAX_LENGTH = 500
 DECISION_REASONING_MAX_LENGTH = 5000
@@ -426,7 +426,7 @@ class DecisionChoice:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=DECISION_CHOICE_MAX_LENGTH,
             error_class=InvalidDecisionChoiceError,
@@ -447,7 +447,7 @@ class DecisionContext:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=DECISION_CONTEXT_MAX_LENGTH,
             error_class=InvalidDecisionContextError,
@@ -477,7 +477,7 @@ class DecisionRule:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=DECISION_RULE_MAX_LENGTH,
             error_class=InvalidDecisionRuleError,

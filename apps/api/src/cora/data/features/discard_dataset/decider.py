@@ -6,7 +6,7 @@ rather than no-op (matches every other terminal-transition pattern
 in the codebase).
 
 `reason` validation goes through the `DatasetDiscardReason` VO
-(which calls the shared `validate_name` helper). The on-the-wire
+(which calls the shared `validate_bounded_text` helper). The on-the-wire
 payload in `DatasetDiscarded.reason` carries the trimmed string.
 
 Invariants:

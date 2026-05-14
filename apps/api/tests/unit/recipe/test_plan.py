@@ -60,19 +60,20 @@ def test_plan_name_is_frozen() -> None:
 
 
 @pytest.mark.unit
-def test_plan_name_uses_shared_validate_name_helper() -> None:
+def test_plan_name_uses_shared_validate_bounded_text_helper() -> None:
     """Pin: PlanName is the 10th VO; it routes through the shared
-    `cora.infrastructure.name.validate_name` helper hoisted in 6e-1.
-    A direct import test ensures we don't accidentally re-add the
-    duplicated trim logic later."""
+    `cora.infrastructure.bounded_text.validate_bounded_text` helper
+    (originally hoisted as `validate_name` in 6e-1, renamed when the
+    helper picked up non-name callers). A direct import test ensures
+    we don't accidentally re-add the duplicated trim logic later."""
     import inspect
 
     from cora.recipe.aggregates.plan import state as plan_state
 
     src = inspect.getsource(PlanName.__post_init__)
-    assert "validate_name" in src
-    assert "validate_name" in plan_state.__dict__ or any(
-        "validate_name" in str(v) for v in plan_state.__dict__.values()
+    assert "validate_bounded_text" in src
+    assert "validate_bounded_text" in plan_state.__dict__ or any(
+        "validate_bounded_text" in str(v) for v in plan_state.__dict__.values()
     )
 
 

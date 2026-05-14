@@ -60,7 +60,7 @@ the evolver reconstructs via `AssetLevel(payload["level"])`.
 
 `AssetName` is the **seventh** trimmed-bounded-name VO. Phase 6e-1
 hoisted the shared trim+length-check logic to
-`cora.infrastructure.name.validate_name` once the 10th VO (PlanName)
+`cora.infrastructure.bounded_text.validate_bounded_text` once the 10th VO (PlanName)
 landed; AssetName now calls that helper while keeping its own frozen
 dataclass type and per-aggregate error class.
 """
@@ -70,7 +70,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
-from cora.infrastructure.name import validate_name
+from cora.infrastructure.bounded_text import validate_bounded_text
 
 ASSET_NAME_MAX_LENGTH = 200
 
@@ -484,14 +484,14 @@ class AssetName:
     """Display name for an asset. Trimmed; 1-200 chars.
 
     Seventh occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_name` helper hoisted in 6e-1 (see
-    `cora.infrastructure.name`).
+    the shared `validate_bounded_text` helper hoisted in 6e-1 (see
+    `cora.infrastructure.bounded_text`).
     """
 
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=ASSET_NAME_MAX_LENGTH,
             error_class=InvalidAssetNameError,

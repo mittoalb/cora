@@ -81,7 +81,7 @@ Q2).
 `PlanName` is the **tenth** bounded-name VO. The 5a gate-review
 parked extraction at "first per-VO divergence OR ~10 instances".
 We hit 10 with no divergence pressure, so the trim+length-check
-helper got hoisted to `cora.infrastructure.name.validate_name`
+helper got hoisted to `cora.infrastructure.bounded_text.validate_bounded_text`
 (see that module's docstring). PlanName uses the helper from day
 one; the prior 9 VOs were refactored in the same 6e-1 commit.
 """
@@ -91,7 +91,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
-from cora.infrastructure.name import validate_name
+from cora.infrastructure.bounded_text import validate_bounded_text
 
 PLAN_NAME_MAX_LENGTH = 200
 PLAN_VERSION_TAG_MAX_LENGTH = 50
@@ -305,8 +305,8 @@ class PlanName:
     """Display name for a plan. Trimmed; 1-200 chars.
 
     Tenth occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_name` helper hoisted in 6e-1 (see
-    `cora.infrastructure.name`). The helper preserves per-VO
+    the shared `validate_bounded_text` helper hoisted in 6e-1 (see
+    `cora.infrastructure.bounded_text`). The helper preserves per-VO
     distinctness (separate frozen dataclass type, separate error
     class) while removing the trim+length-check duplication that
     had accumulated across 10 aggregates.
@@ -315,7 +315,7 @@ class PlanName:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=PLAN_NAME_MAX_LENGTH,
             error_class=InvalidPlanNameError,

@@ -97,8 +97,8 @@ are not part of the in-domain Dataset identity.
 
 ## Twelfth bounded-name VO
 
-`DatasetName` calls the shared `validate_name` helper hoisted in
-6e-1 (`cora.infrastructure.name`). Twelfth occurrence of the
+`DatasetName` calls the shared `validate_bounded_text` helper hoisted in
+6e-1 (`cora.infrastructure.bounded_text`). Twelfth occurrence of the
 trimmed-bounded-name VO pattern (after Actor / Zone / Conduit /
 Policy / Subject / Capability / Asset / Method / Practice / Plan /
 Run).
@@ -109,7 +109,7 @@ from enum import StrEnum
 from urllib.parse import urlparse
 from uuid import UUID
 
-from cora.infrastructure.name import validate_name
+from cora.infrastructure.bounded_text import validate_bounded_text
 
 DATASET_NAME_MAX_LENGTH = 200
 DATASET_URI_MAX_LENGTH = 2048
@@ -384,7 +384,7 @@ class DatasetDiscardReason:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=DATASET_DISCARD_REASON_MAX_LENGTH,
             error_class=InvalidDatasetDiscardReasonError,
@@ -397,14 +397,14 @@ class DatasetName:
     """Display name for a Dataset. Trimmed; 1-200 chars.
 
     Twelfth occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_name` helper hoisted in 6e-1 (see
-    `cora.infrastructure.name`).
+    the shared `validate_bounded_text` helper hoisted in 6e-1 (see
+    `cora.infrastructure.bounded_text`).
     """
 
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = validate_name(
+        trimmed = validate_bounded_text(
             self.value,
             max_length=DATASET_NAME_MAX_LENGTH,
             error_class=InvalidDatasetNameError,

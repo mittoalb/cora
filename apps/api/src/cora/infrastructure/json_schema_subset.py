@@ -9,7 +9,7 @@ with the appropriate domain error class.
 
 Hoisted in 6g-a once the third use site landed (Capability schema +
 Asset settings union compilation + Method parameters schema). Mirrors
-the `validate_name` hoist precedent at 6e-1.
+the `validate_bounded_text` hoist precedent at 6e-1.
 
 ## Constrained subset (locked in [[project_capability_settings_schema]])
 

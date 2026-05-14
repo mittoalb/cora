@@ -1,13 +1,15 @@
-"""Trimmed-name validation helper for value object `__post_init__`.
+"""Trimmed-bounded-text validation helper for value object `__post_init__`.
 
-Hoisted in Phase 6e-1 after the 10th bounded-name VO landed
-(`PlanName`). The 5a gate-review parked this extraction at "first
-per-VO divergence OR ~10 instances"; we hit 10 with no divergence
-pressure, so the extraction is mechanical.
+Originally hoisted in Phase 6e-1 as `validate_name` after the 10th
+bounded-name VO landed (`PlanName`). Renamed to `validate_bounded_text`
+post-domain-audit once the helper picked up 8 non-name callers (Run /
+Subject / Dataset reason VOs + Decision choice/context/rule VOs) — the
+shared concept across all 21 sites is "trimmed string with a bounded
+length", not "name".
 
 Why hoist a function (not a class)
 -----------------------------------
-The duplicated body across the 10 VOs was the **trim + length-check
+The duplicated body across the call sites is the **trim + length-check
 + raise** logic, not the dataclass shape itself. Hoisting only the
 validation function preserves what's worth keeping per-VO:
 
@@ -18,15 +20,9 @@ validation function preserves what's worth keeping per-VO:
   - Per-VO `MAX_LENGTH` constant in the aggregate's state module
     (read by both the VO and the API-boundary Pydantic schema).
 
-A `Name` base class would couple all 10 aggregates to one type and
-make per-VO documentation harder to navigate. A class factory would
-weaken `isinstance` semantics. A free function avoids both.
-
-Why "name" (not "bounded_name")
--------------------------------
-Every VO is `<Aggregate>Name`; the shared concept word is "name."
-The "bounded" qualifier describes the *constraint* (visible in the
-`max_length=` kwarg at every call site), not the *thing*.
+A `BoundedText` base class would couple all aggregates to one type
+and make per-VO documentation harder to navigate. A class factory
+would weaken `isinstance` semantics. A free function avoids both.
 
 How VOs use it
 --------------
@@ -39,7 +35,7 @@ constraint without chasing a helper.
         value: str
 
         def __post_init__(self) -> None:
-            trimmed = validate_name(
+            trimmed = validate_bounded_text(
                 self.value,
                 max_length=ACTOR_NAME_MAX_LENGTH,
                 error_class=InvalidActorNameError,
@@ -52,7 +48,7 @@ sent.
 """
 
 
-def validate_name(
+def validate_bounded_text(
     value: str,
     *,
     max_length: int,
@@ -70,4 +66,4 @@ def validate_name(
     return trimmed
 
 
-__all__ = ["validate_name"]
+__all__ = ["validate_bounded_text"]
