@@ -283,7 +283,7 @@ def test_evolve_logbook_opened_raises_for_second_logbook_of_same_kind() -> None:
 def test_evolve_logbook_opened_before_genesis_raises_corrupted_stream() -> None:
     """Defensive: a logbook can't attach to a Decision that
     doesn't exist yet."""
-    with pytest.raises(ValueError, match="DecisionLogbookOpened before"):
+    with pytest.raises(ValueError, match="DecisionLogbookOpened cannot be applied to empty state"):
         evolve(
             None,
             DecisionLogbookOpened(
@@ -368,7 +368,7 @@ def test_evolve_logbook_closed_raises_for_unknown_logbook_id() -> None:
 
 @pytest.mark.unit
 def test_evolve_logbook_closed_before_genesis_raises_corrupted_stream() -> None:
-    with pytest.raises(ValueError, match="DecisionLogbookClosed before"):
+    with pytest.raises(ValueError, match="DecisionLogbookClosed cannot be applied to empty state"):
         evolve(
             None,
             DecisionLogbookClosed(decision_id=uuid4(), logbook_id=uuid4(), occurred_at=_NOW),

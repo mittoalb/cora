@@ -15,6 +15,15 @@ Phase 6f-5a adds two logbook-lifecycle event arms over the
     logbook id and removes that entry; raises
     `ConduitLogbookNotOpenError` if no kind owns the id.
 
+**Critical invariant**: every transition arm MUST carry `id`,
+`name`, `source_zone_id`, `target_zone_id` through from prior
+state, and either preserve or rewrite `logbooks` deliberately.
+Constructing `Conduit(id=..., name=..., source_zone_id=...,
+target_zone_id=...)` without explicitly passing `logbooks` would
+silently WIPE the dict to its empty default. Aligned to explicit
+construction post-domain-audit to match the documented pattern in
+Asset/Plan/Method/Practice/Capability/Subject evolvers.
+
 Defensive guards: both arms raise on `state is None` (the parent
 Conduit must exist before any logbook can attach to it). The
 evolver returns a fresh `Conduit` with a new `logbooks` dict on
@@ -25,7 +34,6 @@ used by every other aggregate.
 """
 
 from collections.abc import Sequence
-from dataclasses import replace
 from typing import assert_never
 
 from cora.trust.aggregates.conduit.events import (
@@ -40,6 +48,14 @@ from cora.trust.aggregates.conduit.state import (
     ConduitLogbookNotOpenError,
     ConduitName,
 )
+
+
+def _require_state(state: Conduit | None, event_type: str) -> Conduit:
+    """Transition events require prior state; empty stream is corruption."""
+    if state is None:
+        msg = f"{event_type} cannot be applied to empty state"
+        raise ValueError(msg)
+    return state
 
 
 def evolve(state: Conduit | None, event: ConduitEvent) -> Conduit:
@@ -59,26 +75,31 @@ def evolve(state: Conduit | None, event: ConduitEvent) -> Conduit:
                 target_zone_id=target_zone_id,
             )
         case ConduitLogbookOpened(logbook_id=logbook_id, kind=kind):
-            if state is None:
-                msg = "ConduitLogbookOpened before ConduitDefined: stream is corrupted"
-                raise ValueError(msg)
-            existing = state.logbooks.get(kind)
+            prior = _require_state(state, "ConduitLogbookOpened")
+            existing = prior.logbooks.get(kind)
             if existing is not None:
-                raise ConduitLogbookAlreadyOpenError(state.id, kind, existing)
-            return replace(state, logbooks={**state.logbooks, kind: logbook_id})
+                raise ConduitLogbookAlreadyOpenError(prior.id, kind, existing)
+            return Conduit(
+                id=prior.id,
+                name=prior.name,
+                source_zone_id=prior.source_zone_id,
+                target_zone_id=prior.target_zone_id,
+                logbooks={**prior.logbooks, kind: logbook_id},
+            )
         case ConduitLogbookClosed(logbook_id=logbook_id):
-            if state is None:
-                msg = "ConduitLogbookClosed before ConduitDefined: stream is corrupted"
-                raise ValueError(msg)
+            prior = _require_state(state, "ConduitLogbookClosed")
             matching_kind = next(
-                (k for k, v in state.logbooks.items() if v == logbook_id),
+                (k for k, v in prior.logbooks.items() if v == logbook_id),
                 None,
             )
             if matching_kind is None:
-                raise ConduitLogbookNotOpenError(state.id, logbook_id)
-            return replace(
-                state,
-                logbooks={k: v for k, v in state.logbooks.items() if k != matching_kind},
+                raise ConduitLogbookNotOpenError(prior.id, logbook_id)
+            return Conduit(
+                id=prior.id,
+                name=prior.name,
+                source_zone_id=prior.source_zone_id,
+                target_zone_id=prior.target_zone_id,
+                logbooks={k: v for k, v in prior.logbooks.items() if k != matching_kind},
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

@@ -3,7 +3,7 @@
 8a shipped the genesis arm only. The Decision aggregate is
 atomic-immutable for its core (corrections land as new Decisions
 with parent_id chains), so the genesis arm is the only state-
-producing arm.
+producing arm for the choice/reasoning fields.
 
 8c-a adds two logbook lifecycle arms over the
 `logbooks: dict[str, UUID]` state shape (mirrors Conduit BC's
@@ -18,6 +18,15 @@ producing arm.
     `logbook_id` and removes that entry; raises
     `DecisionLogbookNotOpenError` if no kind owns the id.
 
+**Critical invariant**: every transition arm MUST carry every
+core Decision field through from prior state, and either preserve
+or rewrite `logbooks` deliberately. Constructing `Decision(id=...,
+actor_id=..., context=..., choice=...)` without explicitly
+passing the additive fields would silently WIPE them to defaults
+(None / empty tuple / empty dict). Aligned to explicit construction
+post-domain-audit to match the documented pattern in
+Asset/Plan/Method/Practice/Capability/Subject evolvers.
+
 Defensive guards: both logbook arms raise on `state is None`
 (the parent Decision must exist before any logbook can attach
 to it). The evolver returns a fresh `Decision` with a new
@@ -28,7 +37,6 @@ same evolver-purity discipline used by every other aggregate.
 """
 
 from collections.abc import Sequence
-from dataclasses import replace
 from typing import assert_never
 
 from cora.decision.aggregates.decision.events import (
@@ -45,6 +53,14 @@ from cora.decision.aggregates.decision.state import (
     DecisionLogbookNotOpenError,
     DecisionRule,
 )
+
+
+def _require_state(state: Decision | None, event_type: str) -> Decision:
+    """Transition events require prior state; empty stream is corruption."""
+    if state is None:
+        msg = f"{event_type} cannot be applied to empty state"
+        raise ValueError(msg)
+    return state
 
 
 def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
@@ -82,26 +98,49 @@ def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
                 reasoning_signature=reasoning_signature,
             )
         case DecisionLogbookOpened(logbook_id=logbook_id, kind=kind):
-            if state is None:
-                msg = "DecisionLogbookOpened before DecisionRegistered: stream is corrupted"
-                raise ValueError(msg)
-            existing = state.logbooks.get(kind)
+            prior = _require_state(state, "DecisionLogbookOpened")
+            existing = prior.logbooks.get(kind)
             if existing is not None:
-                raise DecisionLogbookAlreadyOpenError(state.id, kind, existing)
-            return replace(state, logbooks={**state.logbooks, kind: logbook_id})
+                raise DecisionLogbookAlreadyOpenError(prior.id, kind, existing)
+            return Decision(
+                id=prior.id,
+                actor_id=prior.actor_id,
+                context=prior.context,
+                choice=prior.choice,
+                parent_id=prior.parent_id,
+                override_kind=prior.override_kind,
+                decision_rule=prior.decision_rule,
+                reasoning=prior.reasoning,
+                confidence=prior.confidence,
+                confidence_source=prior.confidence_source,
+                alternatives=prior.alternatives,
+                decision_inputs=prior.decision_inputs,
+                reasoning_signature=prior.reasoning_signature,
+                logbooks={**prior.logbooks, kind: logbook_id},
+            )
         case DecisionLogbookClosed(logbook_id=logbook_id):
-            if state is None:
-                msg = "DecisionLogbookClosed before DecisionRegistered: stream is corrupted"
-                raise ValueError(msg)
+            prior = _require_state(state, "DecisionLogbookClosed")
             matching_kind = next(
-                (k for k, v in state.logbooks.items() if v == logbook_id),
+                (k for k, v in prior.logbooks.items() if v == logbook_id),
                 None,
             )
             if matching_kind is None:
-                raise DecisionLogbookNotOpenError(state.id, logbook_id)
-            return replace(
-                state,
-                logbooks={k: v for k, v in state.logbooks.items() if k != matching_kind},
+                raise DecisionLogbookNotOpenError(prior.id, logbook_id)
+            return Decision(
+                id=prior.id,
+                actor_id=prior.actor_id,
+                context=prior.context,
+                choice=prior.choice,
+                parent_id=prior.parent_id,
+                override_kind=prior.override_kind,
+                decision_rule=prior.decision_rule,
+                reasoning=prior.reasoning,
+                confidence=prior.confidence,
+                confidence_source=prior.confidence_source,
+                alternatives=prior.alternatives,
+                decision_inputs=prior.decision_inputs,
+                reasoning_signature=prior.reasoning_signature,
+                logbooks={k: v for k, v in prior.logbooks.items() if k != matching_kind},
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

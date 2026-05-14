@@ -19,10 +19,6 @@ state-change indicator (no status field in event payloads). Same
 precedent as `PlanDefined → DEFINED` / `PlanVersioned → VERSIONED` /
 `PlanDeprecated → DEPRECATED` / `SubjectMounted → MOUNTED`.
 
-Transition events preserve `id`, `name`, `plan_id`, `subject_id`
-from the prior state (they're absent from the slim transition
-payloads — the event type alone updates `status`).
-
 Hold ⇄ Resume is the first bidirectional cycle in any Run aggregate
 event stream. The fold is order-sensitive (replay is sequential) so
 [RunHeld, RunResumed, RunHeld, RunResumed, RunCompleted] correctly
@@ -30,15 +26,28 @@ yields COMPLETED. Per-cycle audit lives in the event stream itself;
 the aggregate state only carries the latest status (slim-aggregate
 principle, gate-review 6f-3 L9 lock).
 
-Defensive guards: every transition event raises on `state is None`
-because no fold path produces a transition event before a genesis.
-The deciders enforce this at command time, but the evolver also
-asserts it so a contaminated stream (foreign or out-of-order events)
-fails loud rather than silently producing a defaulted aggregate.
+**Critical invariant**: every transition arm MUST carry `id`,
+`name`, `plan_id`, `subject_id`, `raid`, `override_parameters`,
+`effective_parameters`, AND `triggered_by` through from prior
+state. Constructing `Run(id=..., name=..., plan_id=...,
+subject_id=..., status=...)` without explicitly passing the
+additive fields would silently WIPE them to defaults (empty dict
+/ None). Pinned by the per-transition preserve-fields tests.
+
+This evolver previously used `dataclasses.replace(state,
+status=...)` for the transition arms (terse, but no field-add
+review surface — new fields would silently carry through without
+prompting evolver-arm review). Aligned to explicit construction
+post-domain-audit to match the documented pattern in
+Asset/Plan/Method/Practice/Capability/Subject evolvers.
+
+Transition events applied to empty state raise ValueError: they
+can never appear before `RunStarted` in a well-formed stream. The
+`_require_state` helper keeps per-arm bodies short (precedent
+locked by Subject's evolver in 4c).
 """
 
 from collections.abc import Sequence
-from dataclasses import replace
 from typing import assert_never
 
 from cora.run.aggregates.run.events import (
@@ -52,6 +61,14 @@ from cora.run.aggregates.run.events import (
     RunTruncated,
 )
 from cora.run.aggregates.run.state import Run, RunName, RunStatus
+
+
+def _require_state(state: Run | None, event_type: str) -> Run:
+    """Transition events require prior state; empty stream is corruption."""
+    if state is None:
+        msg = f"{event_type} cannot be applied to empty state"
+        raise ValueError(msg)
+    return state
 
 
 def evolve(state: Run | None, event: RunEvent) -> Run:
@@ -80,35 +97,83 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 triggered_by=triggered_by,
             )
         case RunHeld():
-            if state is None:
-                msg = "RunHeld before RunStarted: stream is corrupted"
-                raise ValueError(msg)
-            return replace(state, status=RunStatus.HELD)
+            prior = _require_state(state, "RunHeld")
+            return Run(
+                id=prior.id,
+                name=prior.name,
+                plan_id=prior.plan_id,
+                subject_id=prior.subject_id,
+                raid=prior.raid,
+                status=RunStatus.HELD,
+                override_parameters=prior.override_parameters,
+                effective_parameters=prior.effective_parameters,
+                triggered_by=prior.triggered_by,
+            )
         case RunResumed():
-            if state is None:
-                msg = "RunResumed before RunStarted: stream is corrupted"
-                raise ValueError(msg)
-            return replace(state, status=RunStatus.RUNNING)
+            prior = _require_state(state, "RunResumed")
+            return Run(
+                id=prior.id,
+                name=prior.name,
+                plan_id=prior.plan_id,
+                subject_id=prior.subject_id,
+                raid=prior.raid,
+                status=RunStatus.RUNNING,
+                override_parameters=prior.override_parameters,
+                effective_parameters=prior.effective_parameters,
+                triggered_by=prior.triggered_by,
+            )
         case RunCompleted():
-            if state is None:
-                msg = "RunCompleted before RunStarted: stream is corrupted"
-                raise ValueError(msg)
-            return replace(state, status=RunStatus.COMPLETED)
+            prior = _require_state(state, "RunCompleted")
+            return Run(
+                id=prior.id,
+                name=prior.name,
+                plan_id=prior.plan_id,
+                subject_id=prior.subject_id,
+                raid=prior.raid,
+                status=RunStatus.COMPLETED,
+                override_parameters=prior.override_parameters,
+                effective_parameters=prior.effective_parameters,
+                triggered_by=prior.triggered_by,
+            )
         case RunAborted():
-            if state is None:
-                msg = "RunAborted before RunStarted: stream is corrupted"
-                raise ValueError(msg)
-            return replace(state, status=RunStatus.ABORTED)
+            prior = _require_state(state, "RunAborted")
+            return Run(
+                id=prior.id,
+                name=prior.name,
+                plan_id=prior.plan_id,
+                subject_id=prior.subject_id,
+                raid=prior.raid,
+                status=RunStatus.ABORTED,
+                override_parameters=prior.override_parameters,
+                effective_parameters=prior.effective_parameters,
+                triggered_by=prior.triggered_by,
+            )
         case RunStopped():
-            if state is None:
-                msg = "RunStopped before RunStarted: stream is corrupted"
-                raise ValueError(msg)
-            return replace(state, status=RunStatus.STOPPED)
+            prior = _require_state(state, "RunStopped")
+            return Run(
+                id=prior.id,
+                name=prior.name,
+                plan_id=prior.plan_id,
+                subject_id=prior.subject_id,
+                raid=prior.raid,
+                status=RunStatus.STOPPED,
+                override_parameters=prior.override_parameters,
+                effective_parameters=prior.effective_parameters,
+                triggered_by=prior.triggered_by,
+            )
         case RunTruncated():
-            if state is None:
-                msg = "RunTruncated before RunStarted: stream is corrupted"
-                raise ValueError(msg)
-            return replace(state, status=RunStatus.TRUNCATED)
+            prior = _require_state(state, "RunTruncated")
+            return Run(
+                id=prior.id,
+                name=prior.name,
+                plan_id=prior.plan_id,
+                subject_id=prior.subject_id,
+                raid=prior.raid,
+                status=RunStatus.TRUNCATED,
+                override_parameters=prior.override_parameters,
+                effective_parameters=prior.effective_parameters,
+                triggered_by=prior.triggered_by,
+            )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 

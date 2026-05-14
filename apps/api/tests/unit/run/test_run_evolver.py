@@ -123,13 +123,13 @@ def test_evolve_run_aborted_transitions_to_aborted_preserving_other_fields() -> 
 def test_evolve_run_completed_on_none_state_raises() -> None:
     """Defensive guard: a transition event before a genesis means
     the stream is contaminated. Fail loud rather than silently fold."""
-    with pytest.raises(ValueError, match="RunCompleted before RunStarted"):
+    with pytest.raises(ValueError, match="RunCompleted cannot be applied to empty state"):
         evolve(None, RunCompleted(run_id=uuid4(), occurred_at=_NOW))
 
 
 @pytest.mark.unit
 def test_evolve_run_aborted_on_none_state_raises() -> None:
-    with pytest.raises(ValueError, match="RunAborted before RunStarted"):
+    with pytest.raises(ValueError, match="RunAborted cannot be applied to empty state"):
         evolve(None, RunAborted(run_id=uuid4(), reason="X", occurred_at=_NOW))
 
 
@@ -192,19 +192,19 @@ def test_evolve_run_stopped_transitions_to_stopped_preserving_other_fields() -> 
 
 @pytest.mark.unit
 def test_evolve_run_held_on_none_state_raises() -> None:
-    with pytest.raises(ValueError, match="RunHeld before RunStarted"):
+    with pytest.raises(ValueError, match="RunHeld cannot be applied to empty state"):
         evolve(None, RunHeld(run_id=uuid4(), occurred_at=_NOW))
 
 
 @pytest.mark.unit
 def test_evolve_run_resumed_on_none_state_raises() -> None:
-    with pytest.raises(ValueError, match="RunResumed before RunStarted"):
+    with pytest.raises(ValueError, match="RunResumed cannot be applied to empty state"):
         evolve(None, RunResumed(run_id=uuid4(), occurred_at=_NOW))
 
 
 @pytest.mark.unit
 def test_evolve_run_stopped_on_none_state_raises() -> None:
-    with pytest.raises(ValueError, match="RunStopped before RunStarted"):
+    with pytest.raises(ValueError, match="RunStopped cannot be applied to empty state"):
         evolve(None, RunStopped(run_id=uuid4(), reason="X", occurred_at=_NOW))
 
 

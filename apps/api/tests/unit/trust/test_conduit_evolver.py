@@ -194,7 +194,7 @@ def test_evolve_channel_closed_removes_kind_entry() -> None:
 def test_evolve_channel_opened_on_none_state_raises() -> None:
     """Defensive guard: a channel-open before genesis is stream
     contamination — fail loud."""
-    with pytest.raises(ValueError, match="ConduitLogbookOpened before ConduitDefined"):
+    with pytest.raises(ValueError, match="ConduitLogbookOpened cannot be applied to empty state"):
         evolve(
             None,
             ConduitLogbookOpened(
@@ -209,7 +209,7 @@ def test_evolve_channel_opened_on_none_state_raises() -> None:
 
 @pytest.mark.unit
 def test_evolve_channel_closed_on_none_state_raises() -> None:
-    with pytest.raises(ValueError, match="ConduitLogbookClosed before ConduitDefined"):
+    with pytest.raises(ValueError, match="ConduitLogbookClosed cannot be applied to empty state"):
         evolve(
             None,
             ConduitLogbookClosed(conduit_id=uuid4(), logbook_id=uuid4(), occurred_at=_NOW),
