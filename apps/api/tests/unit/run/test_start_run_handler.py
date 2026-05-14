@@ -31,18 +31,8 @@ from cora.equipment.aggregates.asset.events import (
 from cora.equipment.aggregates.asset.events import (
     to_payload as asset_to_payload,
 )
-from cora.infrastructure.config import Settings
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    AuthzResult,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
-)
 from cora.recipe.aggregates.method import MethodNotFoundError
 from cora.recipe.aggregates.method.events import MethodDefined
 from cora.recipe.aggregates.method.events import (
@@ -83,40 +73,13 @@ from cora.subject.aggregates.subject.events import (
 from cora.subject.aggregates.subject.events import (
     to_payload as subject_to_payload,
 )
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000000f01")
 _EVENT_ID = UUID("01900000-0000-7000-8000-000000000f02")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-
-
-class DenyAllAuthorize:
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
-def _build_deps(
-    *,
-    event_store: InMemoryEventStore | None = None,
-    deny: bool = False,
-) -> Kernel:
-    """start_run consumes 2 ids (run_id + event_id)."""
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID]),
-        authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
 
 
 # ---------- Direct event-seeding helpers ----------
@@ -361,7 +324,7 @@ async def _seed_full_chain(
 async def test_handler_returns_generated_run_id_for_sample_run() -> None:
     store = InMemoryEventStore()
     _, _, _, _, plan_id, subject_id = await _seed_full_chain(store)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
     result = await handler(
@@ -377,7 +340,7 @@ async def test_handler_returns_generated_run_id_for_dark_field_run() -> None:
     """Run without Subject (calibration / dark-field)."""
     store = InMemoryEventStore()
     _, _, _, _, plan_id, _ = await _seed_full_chain(store)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
     result = await handler(
@@ -392,7 +355,7 @@ async def test_handler_returns_generated_run_id_for_dark_field_run() -> None:
 async def test_handler_appends_run_started_event_to_store() -> None:
     store = InMemoryEventStore()
     _, _, _, _, plan_id, subject_id = await _seed_full_chain(store)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
     await handler(
@@ -418,7 +381,7 @@ async def test_handler_appends_run_started_event_to_store() -> None:
 async def test_handler_appends_run_started_with_null_subject_for_dark_field() -> None:
     store = InMemoryEventStore()
     _, _, _, _, plan_id, _ = await _seed_full_chain(store)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
     await handler(
@@ -436,7 +399,7 @@ async def test_handler_appends_run_started_with_null_subject_for_dark_field() ->
 
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_on_deny() -> None:
-    deps = _build_deps(deny=True)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, deny=True)
     handler = start_run.bind(deps)
 
     with pytest.raises(UnauthorizedError) as exc_info:
@@ -452,7 +415,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 async def test_handler_does_not_pre_load_when_denied() -> None:
     """Authorize runs BEFORE the cross-aggregate pre-loads."""
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store, deny=True)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store, deny=True)
     handler = start_run.bind(deps)
 
     with pytest.raises(UnauthorizedError):
@@ -472,7 +435,7 @@ async def test_handler_does_not_pre_load_when_denied() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_plan_not_found_when_plan_missing() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
     handler = start_run.bind(deps)
 
     missing_plan_id = uuid4()
@@ -502,7 +465,7 @@ async def test_handler_raises_practice_not_found_when_referenced_practice_missin
         asset_ids=[asset_id],
         method_id=method_id,
     )
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
     with pytest.raises(PracticeNotFoundError):
@@ -529,7 +492,7 @@ async def test_handler_raises_method_not_found_when_referenced_method_missing() 
         asset_ids=[asset_id],
         method_id=bogus_method_id,
     )
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
     with pytest.raises(MethodNotFoundError):
@@ -557,7 +520,7 @@ async def test_handler_raises_asset_not_found_when_bound_asset_missing() -> None
         asset_ids=[bogus_asset_id],
         method_id=method_id,
     )
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
     with pytest.raises(AssetNotFoundError):
@@ -572,7 +535,7 @@ async def test_handler_raises_asset_not_found_when_bound_asset_missing() -> None
 async def test_handler_raises_subject_not_found_when_subject_id_missing() -> None:
     store = InMemoryEventStore()
     _, _, _, _, plan_id, _ = await _seed_full_chain(store)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
     bogus_subject_id = uuid4()
@@ -591,7 +554,7 @@ async def test_handler_raises_subject_not_found_when_subject_id_missing() -> Non
 async def test_handler_propagates_plan_deprecated_error() -> None:
     store = InMemoryEventStore()
     _, _, _, _, plan_id, _ = await _seed_full_chain(store, plan_deprecated=True)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
     with pytest.raises(PlanDeprecatedError):
@@ -632,7 +595,7 @@ async def test_handler_propagates_subject_not_mountable_error() -> None:
         payload=subject_to_payload(removed),
         command_name="RemoveSubject",
     )
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
     with pytest.raises(SubjectNotMountableError):
@@ -647,7 +610,7 @@ async def test_handler_propagates_subject_not_mountable_error() -> None:
 async def test_handler_propagates_run_asset_decommissioned_error() -> None:
     store = InMemoryEventStore()
     _, _, _, _, plan_id, _ = await _seed_full_chain(store, asset_decommissioned=True)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
     with pytest.raises(RunAssetDecommissionedError):
@@ -663,7 +626,7 @@ async def test_handler_propagates_capabilities_not_satisfied_at_run_start() -> N
     """Re-validation: Asset capabilities drifted off after Plan-bind."""
     store = InMemoryEventStore()
     _, _, _, _, plan_id, _ = await _seed_full_chain(store, drift_capability_off_asset=True)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
     with pytest.raises(RunCapabilitiesNotSatisfiedError):
@@ -682,7 +645,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     causation = UUID("01900000-0000-7000-8000-0000000000bb")
     store = InMemoryEventStore()
     _, _, _, _, plan_id, _ = await _seed_full_chain(store)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
     await handler(
@@ -701,7 +664,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
 
 @pytest.mark.unit
 def test_wire_run_returns_handlers_bundle() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
     handlers = wire_run(deps)
     assert isinstance(handlers, RunHandlers)
     assert callable(handlers.start_run)

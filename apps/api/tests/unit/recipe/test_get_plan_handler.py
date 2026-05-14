@@ -18,7 +18,6 @@ from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
     Allow,
-    AllowAllAuthorize,
     AuthzResult,
     Deny,
     FixedIdGenerator,
@@ -37,6 +36,7 @@ from cora.recipe.aggregates.plan.events import (
 )
 from cora.recipe.features import get_plan
 from cora.recipe.features.get_plan import GetPlan
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PLAN_ID = UUID("01900000-0000-7000-8000-00000000ef01")
@@ -45,18 +45,6 @@ _ASSET_ID = UUID("01900000-0000-7000-8000-00000000ef03")
 _METHOD_ID = UUID("01900000-0000-7000-8000-00000000ef04")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-
-
-def _build_deps(event_store: InMemoryEventStore | None = None) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_PLAN_ID]),
-        authorize=AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
 
 
 async def _seed_plan(
@@ -105,7 +93,7 @@ async def test_handler_returns_plan_for_known_id() -> None:
     await _seed_plan(
         store, _PLAN_ID, practice_id=_PRACTICE_ID, asset_id=_ASSET_ID, method_id=_METHOD_ID
     )
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_PLAN_ID], now=_NOW, event_store=store)
     handler = get_plan.bind(deps)
     plan = await handler(
         GetPlan(plan_id=_PLAN_ID),
@@ -125,7 +113,7 @@ async def test_handler_returns_plan_for_known_id() -> None:
 
 @pytest.mark.unit
 async def test_handler_returns_none_for_unknown_id() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_PLAN_ID], now=_NOW)
     handler = get_plan.bind(deps)
     plan = await handler(
         GetPlan(plan_id=uuid4()),
@@ -205,7 +193,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 
 @pytest.mark.unit
 def test_wire_recipe_includes_get_plan() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_PLAN_ID], now=_NOW)
     handlers = wire_recipe(deps)
     assert isinstance(handlers, RecipeHandlers)
     assert callable(handlers.get_plan)

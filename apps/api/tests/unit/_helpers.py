@@ -40,12 +40,12 @@ from uuid import UUID
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import make_inmemory_kernel
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     Authorize,
     AuthzResult,
     Deny,
+    EventStore,
     FixedIdGenerator,
     FrozenClock,
 )
@@ -74,7 +74,7 @@ def build_deps(
     *,
     ids: list[UUID] | None = None,
     now: datetime | None = None,
-    event_store: InMemoryEventStore | None = None,
+    event_store: EventStore | None = None,
     deny: bool = False,
     authorize: Authorize | None = None,
 ) -> Kernel:

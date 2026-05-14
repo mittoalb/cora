@@ -24,18 +24,8 @@ from cora.data.aggregates.dataset.events import (
 )
 from cora.data.features import register_dataset
 from cora.data.features.register_dataset import RegisterDataset
-from cora.infrastructure.config import Settings
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    AuthzResult,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
-)
 from cora.run.aggregates.run.events import (
     RunStarted,
 )
@@ -54,6 +44,7 @@ from cora.subject.aggregates.subject.events import (
 from cora.subject.aggregates.subject.events import (
     to_payload as subject_to_payload,
 )
+from tests.unit._helpers import build_deps
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
@@ -61,37 +52,6 @@ _DATASET_ID = UUID("01900000-0000-7000-8000-000000007a01")
 _REG_EVENT_ID = UUID("01900000-0000-7000-8000-000000007a02")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-
-
-class DenyAllAuthorize:
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
-def _build_deps(
-    *,
-    event_store: InMemoryEventStore | None = None,
-    deny: bool = False,
-    extra_ids: list[UUID] | None = None,
-) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    ids = [_DATASET_ID, _REG_EVENT_ID]
-    if extra_ids:
-        ids = ids + extra_ids
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(ids),
-        authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
 
 
 def _good_command(**overrides: object) -> RegisterDataset:
@@ -185,7 +145,7 @@ async def _seed_dataset(store: InMemoryEventStore, dataset_id: UUID) -> None:
 
 @pytest.mark.unit
 async def test_handler_returns_new_dataset_id_on_success() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_DATASET_ID, _REG_EVENT_ID], now=_NOW)
     dataset_id = await register_dataset.bind(deps)(
         _good_command(),
         principal_id=_PRINCIPAL_ID,
@@ -197,7 +157,7 @@ async def test_handler_returns_new_dataset_id_on_success() -> None:
 @pytest.mark.unit
 async def test_handler_appends_dataset_registered_event_with_canonical_payload() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DATASET_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     await register_dataset.bind(deps)(
         _good_command(),
         principal_id=_PRINCIPAL_ID,
@@ -219,7 +179,7 @@ async def test_handler_appends_dataset_registered_event_with_canonical_payload()
 async def test_handler_propagates_causation_id_to_appended_event() -> None:
     causation = UUID("01900000-0000-7000-8000-0000000000bb")
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DATASET_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     await register_dataset.bind(deps)(
         _good_command(),
         principal_id=_PRINCIPAL_ID,
@@ -236,7 +196,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_on_deny() -> None:
     store = InMemoryEventStore()
-    deny_deps = _build_deps(event_store=store, deny=True)
+    deny_deps = build_deps(ids=[_DATASET_ID, _REG_EVENT_ID], now=_NOW, event_store=store, deny=True)
     with pytest.raises(UnauthorizedError) as exc_info:
         await register_dataset.bind(deny_deps)(
             _good_command(),
@@ -254,7 +214,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_producing_run_not_found_when_run_does_not_exist() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_DATASET_ID, _REG_EVENT_ID], now=_NOW)
     missing_run = uuid4()
     with pytest.raises(ProducingRunNotFoundError) as exc_info:
         await register_dataset.bind(deps)(
@@ -270,7 +230,7 @@ async def test_handler_loads_existing_run_and_appends_with_link() -> None:
     store = InMemoryEventStore()
     run_id = uuid4()
     await _seed_run(store, run_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DATASET_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     await register_dataset.bind(deps)(
         _good_command(producing_run_id=run_id),
         principal_id=_PRINCIPAL_ID,
@@ -282,7 +242,7 @@ async def test_handler_loads_existing_run_and_appends_with_link() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_linked_subject_not_found_when_subject_missing() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_DATASET_ID, _REG_EVENT_ID], now=_NOW)
     missing_subject = uuid4()
     with pytest.raises(LinkedSubjectNotFoundError) as exc_info:
         await register_dataset.bind(deps)(
@@ -298,7 +258,7 @@ async def test_handler_loads_existing_subject_and_appends_with_link() -> None:
     store = InMemoryEventStore()
     subject_id = uuid4()
     await _seed_subject(store, subject_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DATASET_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     await register_dataset.bind(deps)(
         _good_command(subject_id=subject_id),
         principal_id=_PRINCIPAL_ID,
@@ -315,7 +275,7 @@ async def test_handler_raises_derived_from_not_found_collecting_all_missing() ->
     missing_a = uuid4()
     missing_b = uuid4()
     await _seed_dataset(store, existing_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DATASET_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     with pytest.raises(DerivedFromDatasetsNotFoundError) as exc_info:
         await register_dataset.bind(deps)(
             _good_command(derived_from=frozenset({existing_id, missing_a, missing_b})),
@@ -334,7 +294,7 @@ async def test_handler_accepts_full_cross_agg_context() -> None:
     await _seed_run(store, run_id)
     await _seed_subject(store, subject_id)
     await _seed_dataset(store, derived_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DATASET_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     await register_dataset.bind(deps)(
         _good_command(
             producing_run_id=run_id,
@@ -361,7 +321,7 @@ async def test_handler_accepts_full_cross_agg_context() -> None:
 
 @pytest.mark.unit
 def test_wire_data_includes_register_dataset_and_get_dataset() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_DATASET_ID, _REG_EVENT_ID], now=_NOW)
     handlers = wire_data(deps)
     assert isinstance(handlers, DataHandlers)
     assert callable(handlers.register_dataset)

@@ -10,18 +10,8 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.infrastructure.config import Settings
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    AuthzResult,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
-)
 from cora.run import RunHandlers, UnauthorizedError, wire_run
 from cora.run.aggregates.run import (
     InvalidRunTruncateReasonError,
@@ -36,6 +26,7 @@ from cora.run.aggregates.run.events import (
 )
 from cora.run.features import truncate_run
 from cora.run.features.truncate_run import TruncateRun
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 _INTERRUPTED_AT = datetime(2026, 5, 9, 3, 14, 7, tzinfo=UTC)
@@ -43,33 +34,6 @@ _RUN_ID = UUID("01900000-0000-7000-8000-00000000ff01")
 _TRUNCATED_EVENT_ID = UUID("01900000-0000-7000-8000-00000000ff02")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-
-
-class DenyAllAuthorize:
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
-def _build_deps(
-    *,
-    event_store: InMemoryEventStore | None = None,
-    deny: bool = False,
-) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_TRUNCATED_EVENT_ID]),
-        authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
 
 
 async def _seed_run_started(store: InMemoryEventStore, run_id: UUID) -> None:
@@ -116,7 +80,7 @@ async def _seed_run_truncated(store: InMemoryEventStore, run_id: UUID) -> None:
 async def test_handler_returns_none_on_success() -> None:
     store = InMemoryEventStore()
     await _seed_run_started(store, _RUN_ID)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_TRUNCATED_EVENT_ID], now=_NOW, event_store=store)
 
     result = await truncate_run.bind(deps)(
         TruncateRun(
@@ -134,7 +98,7 @@ async def test_handler_returns_none_on_success() -> None:
 async def test_handler_appends_run_truncated_event_with_trimmed_reason_and_interrupted_at() -> None:
     store = InMemoryEventStore()
     await _seed_run_started(store, _RUN_ID)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_TRUNCATED_EVENT_ID], now=_NOW, event_store=store)
 
     await truncate_run.bind(deps)(
         TruncateRun(
@@ -160,7 +124,7 @@ async def test_handler_appends_run_truncated_event_with_trimmed_reason_and_inter
 async def test_handler_serializes_null_interrupted_at_as_null_in_payload() -> None:
     store = InMemoryEventStore()
     await _seed_run_started(store, _RUN_ID)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_TRUNCATED_EVENT_ID], now=_NOW, event_store=store)
 
     await truncate_run.bind(deps)(
         TruncateRun(run_id=_RUN_ID, reason="X", interrupted_at=None),
@@ -174,7 +138,7 @@ async def test_handler_serializes_null_interrupted_at_as_null_in_payload() -> No
 
 @pytest.mark.unit
 async def test_handler_raises_run_not_found_when_run_does_not_exist() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_TRUNCATED_EVENT_ID], now=_NOW)
     handler = truncate_run.bind(deps)
 
     with pytest.raises(RunNotFoundError):
@@ -189,7 +153,7 @@ async def test_handler_raises_run_not_found_when_run_does_not_exist() -> None:
 async def test_handler_raises_invalid_reason_for_whitespace_only() -> None:
     store = InMemoryEventStore()
     await _seed_run_started(store, _RUN_ID)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_TRUNCATED_EVENT_ID], now=_NOW, event_store=store)
 
     with pytest.raises(InvalidRunTruncateReasonError):
         await truncate_run.bind(deps)(
@@ -204,7 +168,7 @@ async def test_handler_raises_cannot_truncate_when_already_truncated() -> None:
     """Strict-not-idempotent: re-truncating raises."""
     store = InMemoryEventStore()
     await _seed_run_truncated(store, _RUN_ID)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_TRUNCATED_EVENT_ID], now=_NOW, event_store=store)
 
     with pytest.raises(RunCannotTruncateError):
         await truncate_run.bind(deps)(
@@ -218,7 +182,7 @@ async def test_handler_raises_cannot_truncate_when_already_truncated() -> None:
 async def test_handler_raises_unauthorized_on_deny() -> None:
     store = InMemoryEventStore()
     await _seed_run_started(store, _RUN_ID)
-    deny_deps = _build_deps(event_store=store, deny=True)
+    deny_deps = build_deps(ids=[_TRUNCATED_EVENT_ID], now=_NOW, event_store=store, deny=True)
 
     with pytest.raises(UnauthorizedError) as exc_info:
         await truncate_run.bind(deny_deps)(
@@ -234,7 +198,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     causation = UUID("01900000-0000-7000-8000-0000000000bb")
     store = InMemoryEventStore()
     await _seed_run_started(store, _RUN_ID)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_TRUNCATED_EVENT_ID], now=_NOW, event_store=store)
 
     await truncate_run.bind(deps)(
         TruncateRun(run_id=_RUN_ID, reason="X", interrupted_at=None),
@@ -249,7 +213,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
 
 @pytest.mark.unit
 def test_wire_run_includes_truncate_run() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_TRUNCATED_EVENT_ID], now=_NOW)
     handlers = wire_run(deps)
     assert isinstance(handlers, RunHandlers)
     assert callable(handlers.truncate_run)

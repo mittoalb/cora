@@ -9,17 +9,8 @@ from uuid import UUID
 
 import pytest
 
-from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    AuthzResult,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
-)
 from cora.recipe import RecipeHandlers, UnauthorizedError, wire_recipe
 from cora.recipe.aggregates.practice import (
     InvalidPracticeVersionTagError,
@@ -34,6 +25,7 @@ from cora.recipe.features import (
 from cora.recipe.features.define_practice import DefinePractice
 from cora.recipe.features.deprecate_practice import DeprecatePractice
 from cora.recipe.features.version_practice import VersionPractice
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PRACTICE_ID = UUID("01900000-0000-7000-8000-00000000bd01")
@@ -44,35 +36,6 @@ _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 _METHOD_ID = UUID("01900000-0000-7000-8000-000000000111")
 _SITE_ID = UUID("01900000-0000-7000-8000-000000000222")
-
-
-class DenyAllAuthorize:
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
-def _build_deps(
-    *,
-    event_store: InMemoryEventStore | None = None,
-    deny: bool = False,
-) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [_PRACTICE_ID, _DEFINED_EVENT_ID, _VERSIONED_EVENT_ID, _DEPRECATED_EVENT_ID]
-        ),
-        authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
 
 
 async def _define_practice_helper(deps: Kernel) -> UUID:
@@ -90,7 +53,11 @@ async def _define_practice_helper(deps: Kernel) -> UUID:
 @pytest.mark.unit
 async def test_handler_returns_none_on_success() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(
+        ids=[_PRACTICE_ID, _DEFINED_EVENT_ID, _VERSIONED_EVENT_ID, _DEPRECATED_EVENT_ID],
+        now=_NOW,
+        event_store=store,
+    )
     practice_id = await _define_practice_helper(deps)
 
     result = await version_practice.bind(deps)(
@@ -104,7 +71,11 @@ async def test_handler_returns_none_on_success() -> None:
 @pytest.mark.unit
 async def test_handler_appends_practice_versioned_event_with_version_tag() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(
+        ids=[_PRACTICE_ID, _DEFINED_EVENT_ID, _VERSIONED_EVENT_ID, _DEPRECATED_EVENT_ID],
+        now=_NOW,
+        event_store=store,
+    )
     practice_id = await _define_practice_helper(deps)
 
     await version_practice.bind(deps)(
@@ -126,7 +97,11 @@ async def test_handler_appends_practice_versioned_event_with_version_tag() -> No
 async def test_handler_supports_re_versioning() -> None:
     """Defined → Versioned → Versioned (subsequent revision)."""
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(
+        ids=[_PRACTICE_ID, _DEFINED_EVENT_ID, _VERSIONED_EVENT_ID, _DEPRECATED_EVENT_ID],
+        now=_NOW,
+        event_store=store,
+    )
     practice_id = await _define_practice_helper(deps)
     handler = version_practice.bind(deps)
 
@@ -149,7 +124,9 @@ async def test_handler_supports_re_versioning() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_practice_not_found_when_practice_does_not_exist() -> None:
-    deps = _build_deps()
+    deps = build_deps(
+        ids=[_PRACTICE_ID, _DEFINED_EVENT_ID, _VERSIONED_EVENT_ID, _DEPRECATED_EVENT_ID], now=_NOW
+    )
     handler = version_practice.bind(deps)
 
     with pytest.raises(PracticeNotFoundError):
@@ -163,7 +140,11 @@ async def test_handler_raises_practice_not_found_when_practice_does_not_exist() 
 @pytest.mark.unit
 async def test_handler_raises_invalid_version_tag_for_whitespace_only() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(
+        ids=[_PRACTICE_ID, _DEFINED_EVENT_ID, _VERSIONED_EVENT_ID, _DEPRECATED_EVENT_ID],
+        now=_NOW,
+        event_store=store,
+    )
     practice_id = await _define_practice_helper(deps)
 
     with pytest.raises(InvalidPracticeVersionTagError):
@@ -177,7 +158,11 @@ async def test_handler_raises_invalid_version_tag_for_whitespace_only() -> None:
 @pytest.mark.unit
 async def test_handler_raises_cannot_version_when_deprecated() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(
+        ids=[_PRACTICE_ID, _DEFINED_EVENT_ID, _VERSIONED_EVENT_ID, _DEPRECATED_EVENT_ID],
+        now=_NOW,
+        event_store=store,
+    )
     practice_id = await _define_practice_helper(deps)
 
     await deprecate_practice.bind(deps)(
@@ -197,10 +182,19 @@ async def test_handler_raises_cannot_version_when_deprecated() -> None:
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_on_deny() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(
+        ids=[_PRACTICE_ID, _DEFINED_EVENT_ID, _VERSIONED_EVENT_ID, _DEPRECATED_EVENT_ID],
+        now=_NOW,
+        event_store=store,
+    )
     practice_id = await _define_practice_helper(deps)
 
-    deny_deps = _build_deps(event_store=store, deny=True)
+    deny_deps = build_deps(
+        ids=[_PRACTICE_ID, _DEFINED_EVENT_ID, _VERSIONED_EVENT_ID, _DEPRECATED_EVENT_ID],
+        now=_NOW,
+        event_store=store,
+        deny=True,
+    )
     with pytest.raises(UnauthorizedError) as exc_info:
         await version_practice.bind(deny_deps)(
             VersionPractice(practice_id=practice_id, version_tag="v2"),
@@ -214,7 +208,11 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 async def test_handler_propagates_causation_id_to_appended_event() -> None:
     causation = UUID("01900000-0000-7000-8000-0000000000bb")
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(
+        ids=[_PRACTICE_ID, _DEFINED_EVENT_ID, _VERSIONED_EVENT_ID, _DEPRECATED_EVENT_ID],
+        now=_NOW,
+        event_store=store,
+    )
     practice_id = await _define_practice_helper(deps)
 
     await version_practice.bind(deps)(
@@ -230,7 +228,9 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
 
 @pytest.mark.unit
 def test_wire_recipe_includes_version_practice() -> None:
-    deps = _build_deps()
+    deps = build_deps(
+        ids=[_PRACTICE_ID, _DEFINED_EVENT_ID, _VERSIONED_EVENT_ID, _DEPRECATED_EVENT_ID], now=_NOW
+    )
     handlers = wire_recipe(deps)
     assert isinstance(handlers, RecipeHandlers)
     assert callable(handlers.version_practice)

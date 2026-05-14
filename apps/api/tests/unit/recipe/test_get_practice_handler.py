@@ -16,7 +16,6 @@ from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
     Allow,
-    AllowAllAuthorize,
     AuthzResult,
     Deny,
     FixedIdGenerator,
@@ -27,6 +26,7 @@ from cora.recipe.aggregates.practice import Practice, PracticeName, PracticeStat
 from cora.recipe.features import define_practice, get_practice
 from cora.recipe.features.define_practice import DefinePractice
 from cora.recipe.features.get_practice import GetPractice
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000000bc01")
@@ -37,22 +37,10 @@ _METHOD_ID = UUID("01900000-0000-7000-8000-000000000111")
 _SITE_ID = UUID("01900000-0000-7000-8000-000000000222")
 
 
-def _build_deps(event_store: InMemoryEventStore | None = None) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID]),
-        authorize=AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
-
-
 @pytest.mark.unit
 async def test_handler_returns_practice_for_known_id() -> None:
     """Round-trip: define + get."""
-    deps = _build_deps()
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
     await define_practice.bind(deps)(
         DefinePractice(
             name="APS Standard Tomography",
@@ -81,7 +69,7 @@ async def test_handler_returns_practice_for_known_id() -> None:
 
 @pytest.mark.unit
 async def test_handler_returns_none_for_unknown_id() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
     handler = get_practice.bind(deps)
     practice = await handler(
         GetPractice(practice_id=uuid4()),
@@ -161,7 +149,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 
 @pytest.mark.unit
 def test_wire_recipe_includes_get_practice() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
     handlers = wire_recipe(deps)
     assert isinstance(handlers, RecipeHandlers)
     assert callable(handlers.get_practice)

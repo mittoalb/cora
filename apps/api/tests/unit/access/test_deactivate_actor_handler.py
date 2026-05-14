@@ -18,18 +18,12 @@ from cora.access.aggregates.actor import (
 from cora.access.features import deactivate_actor, register_actor
 from cora.access.features.deactivate_actor import DeactivateActor
 from cora.access.features.register_actor import RegisterActor
-from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    AuthzResult,
     ConcurrencyError,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
 )
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000000001")
@@ -37,40 +31,6 @@ _REGISTER_EVENT_ID = UUID("01900000-0000-7000-8000-0000000000e1")
 _DEACTIVATE_EVENT_ID = UUID("01900000-0000-7000-8000-0000000000e2")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-
-
-class DenyAllAuthorize:
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
-def _build_deps(
-    *,
-    event_store: InMemoryEventStore | None = None,
-    deny: bool = False,
-) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    # Tests that exercise deactivate typically register first via the
-    # `_register_actor` helper. That flow consumes [_NEW_ID,
-    # _REGISTER_EVENT_ID] (aggregate id + event_id), then deactivate
-    # consumes [_DEACTIVATE_EVENT_ID] for its event_id. Three ids
-    # cover both consumed and partially-consumed paths uniformly.
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [_NEW_ID, _REGISTER_EVENT_ID, _DEACTIVATE_EVENT_ID],
-        ),
-        authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
 
 
 async def _register_actor(deps: Kernel) -> UUID:
@@ -86,7 +46,9 @@ async def _register_actor(deps: Kernel) -> UUID:
 @pytest.mark.unit
 async def test_handler_appends_actor_deactivated_event() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(
+        ids=[_NEW_ID, _REGISTER_EVENT_ID, _DEACTIVATE_EVENT_ID], now=_NOW, event_store=store
+    )
     actor_id = await _register_actor(deps)
 
     handler = deactivate_actor.bind(deps)
@@ -118,7 +80,9 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     event X" without retrofitting the handler signature."""
     causation = UUID("01900000-0000-7000-8000-0000000000bb")
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(
+        ids=[_NEW_ID, _REGISTER_EVENT_ID, _DEACTIVATE_EVENT_ID], now=_NOW, event_store=store
+    )
     actor_id = await _register_actor(deps)
 
     handler = deactivate_actor.bind(deps)
@@ -135,7 +99,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
 
 @pytest.mark.unit
 async def test_handler_returns_none() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_NEW_ID, _REGISTER_EVENT_ID, _DEACTIVATE_EVENT_ID], now=_NOW)
     actor_id = await _register_actor(deps)
 
     handler = deactivate_actor.bind(deps)
@@ -149,7 +113,7 @@ async def test_handler_returns_none() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_actor_not_found_for_unknown_id() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_NEW_ID, _REGISTER_EVENT_ID, _DEACTIVATE_EVENT_ID], now=_NOW)
     handler = deactivate_actor.bind(deps)
 
     with pytest.raises(ActorNotFoundError) as exc_info:
@@ -163,7 +127,7 @@ async def test_handler_raises_actor_not_found_for_unknown_id() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_already_deactivated_on_second_call() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_NEW_ID, _REGISTER_EVENT_ID, _DEACTIVATE_EVENT_ID], now=_NOW)
     actor_id = await _register_actor(deps)
     handler = deactivate_actor.bind(deps)
 
@@ -184,20 +148,18 @@ async def test_handler_raises_already_deactivated_on_second_call() -> None:
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_on_deny() -> None:
     # First register normally so the actor exists.
-    seed_deps = _build_deps()
+    seed_deps = build_deps(ids=[_NEW_ID, _REGISTER_EVENT_ID, _DEACTIVATE_EVENT_ID], now=_NOW)
     actor_id = await _register_actor(seed_deps)
     # Then point the deactivate handler at the same store but with deny.
-    deny_deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        # Even though the auth-deny path never reaches event_id
-        # generation, supply enough ids so a regression that bypasses
-        # the deny check doesn't fail with a misleading "exhausted"
-        # error instead of an UnauthorizedError.
-        id_generator=FixedIdGenerator([uuid4(), uuid4()]),
-        authorize=DenyAllAuthorize(),
+    # Even though the auth-deny path never reaches event_id generation,
+    # supply enough ids so a regression that bypasses the deny check
+    # doesn't fail with a misleading "exhausted" error instead of an
+    # UnauthorizedError.
+    deny_deps = build_deps(
+        ids=[uuid4(), uuid4()],
+        now=_NOW,
+        deny=True,
         event_store=seed_deps.event_store,
-        idempotency_store=InMemoryIdempotencyStore(),
     )
     handler = deactivate_actor.bind(deny_deps)
 
@@ -220,7 +182,9 @@ async def test_handler_propagates_concurrency_error_on_concurrent_write() -> Non
     version so the handler's append at expected_version=stale conflicts
     with the existing event in the stream."""
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(
+        ids=[_NEW_ID, _REGISTER_EVENT_ID, _DEACTIVATE_EVENT_ID], now=_NOW, event_store=store
+    )
     actor_id = await _register_actor(deps)
 
     handler = deactivate_actor.bind(deps)

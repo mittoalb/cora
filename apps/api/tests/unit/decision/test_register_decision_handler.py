@@ -27,51 +27,15 @@ from cora.decision.aggregates.decision.events import (
 )
 from cora.decision.features import register_decision
 from cora.decision.features.register_decision import RegisterDecision
-from cora.infrastructure.config import Settings
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    AuthzResult,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
-)
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 _DECISION_ID = UUID("01900000-0000-7000-8000-000000008a01")
 _REG_EVENT_ID = UUID("01900000-0000-7000-8000-000000008a02")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-
-
-class DenyAllAuthorize:
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
-def _build_deps(
-    *,
-    event_store: InMemoryEventStore | None = None,
-    deny: bool = False,
-) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_DECISION_ID, _REG_EVENT_ID]),
-        authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
 
 
 def _good_command(**overrides: Any) -> RegisterDecision:
@@ -148,7 +112,7 @@ async def test_handler_returns_new_decision_id_on_success() -> None:
     store = InMemoryEventStore()
     actor_id = uuid4()
     await _seed_actor(store, actor_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DECISION_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     decision_id = await register_decision.bind(deps)(
         _good_command(actor_id=actor_id),
         principal_id=_PRINCIPAL_ID,
@@ -162,7 +126,7 @@ async def test_handler_appends_decision_registered_event() -> None:
     store = InMemoryEventStore()
     actor_id = uuid4()
     await _seed_actor(store, actor_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DECISION_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     await register_decision.bind(deps)(
         _good_command(actor_id=actor_id, choice="Conditionally approved"),
         principal_id=_PRINCIPAL_ID,
@@ -184,7 +148,7 @@ async def test_handler_propagates_causation_id() -> None:
     store = InMemoryEventStore()
     actor_id = uuid4()
     await _seed_actor(store, actor_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DECISION_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     await register_decision.bind(deps)(
         _good_command(actor_id=actor_id),
         principal_id=_PRINCIPAL_ID,
@@ -203,7 +167,9 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     store = InMemoryEventStore()
     actor_id = uuid4()
     await _seed_actor(store, actor_id)
-    deny_deps = _build_deps(event_store=store, deny=True)
+    deny_deps = build_deps(
+        ids=[_DECISION_ID, _REG_EVENT_ID], now=_NOW, event_store=store, deny=True
+    )
     with pytest.raises(UnauthorizedError) as exc_info:
         await register_decision.bind(deny_deps)(
             _good_command(actor_id=actor_id),
@@ -220,7 +186,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_actor_not_found_when_actor_missing() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_DECISION_ID, _REG_EVENT_ID], now=_NOW)
     missing_actor = uuid4()
     with pytest.raises(DeciderActorNotFoundError) as exc_info:
         await register_decision.bind(deps)(
@@ -236,7 +202,7 @@ async def test_handler_raises_parent_not_found_when_parent_missing() -> None:
     store = InMemoryEventStore()
     actor_id = uuid4()
     await _seed_actor(store, actor_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DECISION_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     missing_parent = uuid4()
     with pytest.raises(ParentDecisionNotFoundError) as exc_info:
         await register_decision.bind(deps)(
@@ -254,7 +220,7 @@ async def test_handler_loads_existing_parent_and_appends_with_link() -> None:
     parent_id = uuid4()
     await _seed_actor(store, actor_id)
     await _seed_decision(store, parent_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_DECISION_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     await register_decision.bind(deps)(
         _good_command(
             actor_id=actor_id,
@@ -275,7 +241,7 @@ async def test_handler_loads_existing_parent_and_appends_with_link() -> None:
 
 @pytest.mark.unit
 def test_wire_decision_includes_register_and_get() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_DECISION_ID, _REG_EVENT_ID], now=_NOW)
     handlers = wire_decision(deps)
     assert isinstance(handlers, DecisionHandlers)
     assert callable(handlers.register_decision)

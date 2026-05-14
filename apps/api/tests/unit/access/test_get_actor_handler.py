@@ -11,18 +11,11 @@ from cora.access.features import deactivate_actor, get_actor, register_actor
 from cora.access.features.deactivate_actor import DeactivateActor
 from cora.access.features.get_actor import GetActor
 from cora.access.features.register_actor import RegisterActor
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
     Allow,
-    AllowAllAuthorize,
     AuthzResult,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
 )
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000000001")
@@ -35,21 +28,9 @@ _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
-def _build_deps(event_store: InMemoryEventStore | None = None) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID, _DEACTIVATE_EVENT_ID]),
-        authorize=AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
-
-
 @pytest.mark.unit
 async def test_handler_returns_actor_for_known_id() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID, _DEACTIVATE_EVENT_ID], now=_NOW)
     # Register first so an actor exists.
     await register_actor.bind(deps)(
         RegisterActor(name="Doga"),
@@ -69,7 +50,7 @@ async def test_handler_returns_actor_for_known_id() -> None:
 
 @pytest.mark.unit
 async def test_handler_returns_none_for_unknown_id() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID, _DEACTIVATE_EVENT_ID], now=_NOW)
     handler = get_actor.bind(deps)
     actor = await handler(
         GetActor(actor_id=uuid4()),
@@ -82,7 +63,7 @@ async def test_handler_returns_none_for_unknown_id() -> None:
 @pytest.mark.unit
 async def test_handler_returns_actor_with_is_active_false_after_deactivation() -> None:
     """Round-trip through the write side: register, deactivate, then GET."""
-    deps = _build_deps()
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID, _DEACTIVATE_EVENT_ID], now=_NOW)
     await register_actor.bind(deps)(
         RegisterActor(name="Doga"),
         principal_id=_PRINCIPAL_ID,
@@ -122,17 +103,6 @@ class _RecordingAuthorize:
         return Allow()
 
 
-class _DenyAllAuthorize:
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
 @pytest.mark.unit
 async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
     """Phase 2 query handlers DO call authorize (with AllowAllAuthorize the
@@ -140,13 +110,10 @@ async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
     Trust BC swap is mechanical per handler instead of a sweep that
     risks missing handlers)."""
     tracking = _RecordingAuthorize()
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID, _DEACTIVATE_EVENT_ID]),
+    deps = build_deps(
+        ids=[_NEW_ID, _EVENT_ID, _DEACTIVATE_EVENT_ID],
+        now=_NOW,
         authorize=tracking,
-        event_store=InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
     )
 
     handler = get_actor.bind(deps)
@@ -161,13 +128,10 @@ async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_on_deny() -> None:
-    deps = Kernel(
-        settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_NEW_ID, _EVENT_ID, _DEACTIVATE_EVENT_ID]),
-        authorize=_DenyAllAuthorize(),
-        event_store=InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
+    deps = build_deps(
+        ids=[_NEW_ID, _EVENT_ID, _DEACTIVATE_EVENT_ID],
+        now=_NOW,
+        deny=True,
     )
 
     handler = get_actor.bind(deps)

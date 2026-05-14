@@ -5,18 +5,11 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.infrastructure.config import Settings
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
     Allow,
-    AllowAllAuthorize,
-    AuthzResult,
     Deny,
-    FixedIdGenerator,
-    FrozenClock,
 )
 from cora.trust import TrustHandlers, UnauthorizedError, wire_trust
 from cora.trust.aggregates.policy.events import (
@@ -26,6 +19,7 @@ from cora.trust.aggregates.policy.events import (
 )
 from cora.trust.features import evaluate_policy
 from cora.trust.features.evaluate_policy import EvaluatePolicy
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _POLICY_ID = UUID("01900000-0000-7000-8000-000000000501")
@@ -35,37 +29,6 @@ _CONDUIT_ID = UUID("01900000-0000-7000-8000-00000000aaaa")
 _OTHER_CONDUIT = UUID("01900000-0000-7000-8000-00000000bbbb")
 _ALLOWED_PRINCIPAL = UUID("01900000-0000-7000-8000-000000000a01")
 _OTHER_PRINCIPAL = UUID("01900000-0000-7000-8000-000000000a02")
-
-
-class DenyAllAuthorize:
-    """Authorize stub that denies every command."""
-
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
-def _build_deps(
-    *,
-    event_store: InMemoryEventStore | None = None,
-    deny: bool = False,
-) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    # Sequence has plenty of ids for any seeding the test does;
-    # evaluate_policy itself doesn't consume id_generator.
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([uuid4() for _ in range(8)]),
-        authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
 
 
 async def _seed_policy(
@@ -119,7 +82,7 @@ def _query(
 @pytest.mark.unit
 async def test_handler_returns_none_when_policy_does_not_exist() -> None:
     """Missing policy → handler returns None (route layer maps to 404)."""
-    deps = _build_deps()
+    deps = build_deps(ids=[uuid4() for _ in range(8)], now=_NOW)
     handler = evaluate_policy.bind(deps)
 
     result = await handler(
@@ -133,7 +96,7 @@ async def test_handler_returns_none_when_policy_does_not_exist() -> None:
 @pytest.mark.unit
 async def test_handler_returns_allow_when_subject_matches_policy() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[uuid4() for _ in range(8)], now=_NOW, event_store=store)
     await _seed_policy(store)
     handler = evaluate_policy.bind(deps)
 
@@ -148,7 +111,7 @@ async def test_handler_returns_allow_when_subject_matches_policy() -> None:
 @pytest.mark.unit
 async def test_handler_returns_deny_when_principal_not_permitted() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[uuid4() for _ in range(8)], now=_NOW, event_store=store)
     await _seed_policy(store)
     handler = evaluate_policy.bind(deps)
 
@@ -164,7 +127,7 @@ async def test_handler_returns_deny_when_principal_not_permitted() -> None:
 @pytest.mark.unit
 async def test_handler_returns_deny_when_command_not_permitted() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[uuid4() for _ in range(8)], now=_NOW, event_store=store)
     await _seed_policy(store)
     handler = evaluate_policy.bind(deps)
 
@@ -180,7 +143,7 @@ async def test_handler_returns_deny_when_command_not_permitted() -> None:
 @pytest.mark.unit
 async def test_handler_returns_deny_when_conduit_does_not_match() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[uuid4() for _ in range(8)], now=_NOW, event_store=store)
     await _seed_policy(store)
     handler = evaluate_policy.bind(deps)
 
@@ -200,7 +163,7 @@ async def test_handler_raises_unauthorized_when_caller_authz_denies() -> None:
     question. Distinct from a Deny result, which IS a successful query
     that returned 'no'."""
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store, deny=True)
+    deps = build_deps(ids=[uuid4() for _ in range(8)], now=_NOW, event_store=store, deny=True)
     await _seed_policy(store)
     handler = evaluate_policy.bind(deps)
 
@@ -219,7 +182,7 @@ async def test_handler_does_not_load_policy_when_caller_authz_denies() -> None:
     hitting the event store. The policy doesn't exist for this query's
     policy_id; under the no-deny path the handler would return None,
     but here it must raise UnauthorizedError instead."""
-    deps = _build_deps(deny=True)  # no policy seeded
+    deps = build_deps(ids=[uuid4() for _ in range(8)], now=_NOW, deny=True)  # no policy seeded
     handler = evaluate_policy.bind(deps)
 
     with pytest.raises(UnauthorizedError):
@@ -235,7 +198,7 @@ async def test_handler_passes_subject_fields_through_to_evaluate() -> None:
     """Sanity check: the handler delegates query.subject_* fields to
     the pure evaluate function — not the caller's principal_id."""
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[uuid4() for _ in range(8)], now=_NOW, event_store=store)
     await _seed_policy(store)
     handler = evaluate_policy.bind(deps)
 
@@ -253,7 +216,7 @@ async def test_handler_passes_subject_fields_through_to_evaluate() -> None:
 
 @pytest.mark.unit
 def test_wire_trust_returns_handlers_bundle_with_evaluate_policy() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[uuid4() for _ in range(8)], now=_NOW)
     handlers = wire_trust(deps)
     assert isinstance(handlers, TrustHandlers)
     assert callable(handlers.evaluate_policy)
@@ -268,7 +231,7 @@ async def test_wired_handler_evaluates_through_full_composition() -> None:
     """End-to-end check that evaluate_policy survives the `with_tracing`
     wrap in wire.py. (No idempotency wrap on queries.)"""
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[uuid4() for _ in range(8)], now=_NOW, event_store=store)
     await _seed_policy(store)
     handlers = wire_trust(deps)
 

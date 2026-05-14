@@ -16,7 +16,6 @@ from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
     Allow,
-    AllowAllAuthorize,
     AuthzResult,
     Deny,
     FixedIdGenerator,
@@ -35,6 +34,7 @@ from cora.run.aggregates.run.events import (
 )
 from cora.run.features import get_run
 from cora.run.features.get_run import GetRun
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 _RUN_ID = UUID("01900000-0000-7000-8000-00000000ff01")
@@ -42,18 +42,6 @@ _PLAN_ID = UUID("01900000-0000-7000-8000-00000000ff02")
 _SUBJECT_ID = UUID("01900000-0000-7000-8000-00000000ff03")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-
-
-def _build_deps(event_store: InMemoryEventStore | None = None) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([_RUN_ID]),
-        authorize=AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
 
 
 async def _seed_run(
@@ -93,7 +81,7 @@ async def test_handler_returns_run_for_known_id_with_subject() -> None:
     """Round-trip: seed sample run + get."""
     store = InMemoryEventStore()
     await _seed_run(store, _RUN_ID, plan_id=_PLAN_ID, subject_id=_SUBJECT_ID)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_RUN_ID], now=_NOW, event_store=store)
     handler = get_run.bind(deps)
     run = await handler(
         GetRun(run_id=_RUN_ID),
@@ -114,7 +102,7 @@ async def test_handler_returns_run_for_known_id_without_subject() -> None:
     """Calibration / dark-field run: subject_id=None."""
     store = InMemoryEventStore()
     await _seed_run(store, _RUN_ID, plan_id=_PLAN_ID, subject_id=None, name="Dark field")
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_RUN_ID], now=_NOW, event_store=store)
     handler = get_run.bind(deps)
     run = await handler(
         GetRun(run_id=_RUN_ID),
@@ -127,7 +115,7 @@ async def test_handler_returns_run_for_known_id_without_subject() -> None:
 
 @pytest.mark.unit
 async def test_handler_returns_none_for_unknown_id() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_RUN_ID], now=_NOW)
     handler = get_run.bind(deps)
     run = await handler(
         GetRun(run_id=uuid4()),
@@ -206,7 +194,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 
 @pytest.mark.unit
 def test_wire_run_includes_get_run() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_RUN_ID], now=_NOW)
     handlers = wire_run(deps)
     assert isinstance(handlers, RunHandlers)
     assert callable(handlers.get_run)

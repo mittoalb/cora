@@ -13,49 +13,13 @@ from cora.decision.aggregates.decision.events import (
 )
 from cora.decision.features import get_decision
 from cora.decision.features.get_decision import GetDecision
-from cora.infrastructure.config import Settings
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    AuthzResult,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
-)
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-
-
-class DenyAllAuthorize:
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
-def _build_deps(
-    *,
-    event_store: InMemoryEventStore | None = None,
-    deny: bool = False,
-) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator([uuid4()]),
-        authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
 
 
 async def _seed_decision(store: InMemoryEventStore, decision_id: UUID) -> None:
@@ -94,7 +58,7 @@ async def test_handler_returns_decision_when_present() -> None:
     store = InMemoryEventStore()
     decision_id = uuid4()
     await _seed_decision(store, decision_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[uuid4()], now=_NOW, event_store=store)
     result = await get_decision.bind(deps)(
         GetDecision(decision_id=decision_id),
         principal_id=_PRINCIPAL_ID,
@@ -107,7 +71,7 @@ async def test_handler_returns_decision_when_present() -> None:
 
 @pytest.mark.unit
 async def test_handler_returns_none_when_decision_missing() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[uuid4()], now=_NOW)
     result = await get_decision.bind(deps)(
         GetDecision(decision_id=uuid4()),
         principal_id=_PRINCIPAL_ID,
@@ -118,7 +82,7 @@ async def test_handler_returns_none_when_decision_missing() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_on_deny() -> None:
-    deps = _build_deps(deny=True)
+    deps = build_deps(ids=[uuid4()], now=_NOW, deny=True)
     with pytest.raises(UnauthorizedError):
         await get_decision.bind(deps)(
             GetDecision(decision_id=uuid4()),

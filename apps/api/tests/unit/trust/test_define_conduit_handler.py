@@ -5,21 +5,12 @@ from uuid import UUID
 
 import pytest
 
-from cora.infrastructure.config import Settings
-from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    AuthzResult,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
-)
 from cora.trust import TrustHandlers, UnauthorizedError, wire_trust
 from cora.trust.aggregates.conduit import InvalidConduitNameError
 from cora.trust.features import define_conduit
 from cora.trust.features.define_conduit import DefineConduit
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000000301")
@@ -32,42 +23,6 @@ _SOURCE_ZONE = UUID("01900000-0000-7000-8000-00000000aaaa")
 _TARGET_ZONE = UUID("01900000-0000-7000-8000-00000000bbbb")
 
 
-class DenyAllAuthorize:
-    """Authorize stub that denies every command."""
-
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
-def _build_deps(
-    *,
-    event_store: InMemoryEventStore | None = None,
-    deny: bool = False,
-) -> Kernel:
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(
-            [
-                _NEW_ID,
-                _TRAVERSALS_LOGBOOK_ID,
-                _DEFINED_EVENT_ID,
-                _LOGBOOK_OPENED_EVENT_ID,
-            ]
-        ),
-        authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
-
-
 def _command(name: str = "Detector-to-Storage") -> DefineConduit:
     return DefineConduit(
         name=name,
@@ -78,7 +33,9 @@ def _command(name: str = "Detector-to-Storage") -> DefineConduit:
 
 @pytest.mark.unit
 async def test_handler_returns_generated_conduit_id() -> None:
-    deps = _build_deps()
+    deps = build_deps(
+        ids=[_NEW_ID, _TRAVERSALS_LOGBOOK_ID, _DEFINED_EVENT_ID, _LOGBOOK_OPENED_EVENT_ID], now=_NOW
+    )
     handler = define_conduit.bind(deps)
 
     result = await handler(
@@ -93,7 +50,11 @@ async def test_handler_returns_generated_conduit_id() -> None:
 @pytest.mark.unit
 async def test_handler_appends_conduit_defined_event_to_store() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(
+        ids=[_NEW_ID, _TRAVERSALS_LOGBOOK_ID, _DEFINED_EVENT_ID, _LOGBOOK_OPENED_EVENT_ID],
+        now=_NOW,
+        event_store=store,
+    )
     handler = define_conduit.bind(deps)
 
     await handler(
@@ -144,7 +105,11 @@ async def test_handler_appends_conduit_defined_event_to_store() -> None:
 @pytest.mark.unit
 async def test_handler_trims_conduit_name_via_value_object() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(
+        ids=[_NEW_ID, _TRAVERSALS_LOGBOOK_ID, _DEFINED_EVENT_ID, _LOGBOOK_OPENED_EVENT_ID],
+        now=_NOW,
+        event_store=store,
+    )
     handler = define_conduit.bind(deps)
 
     await handler(
@@ -159,7 +124,11 @@ async def test_handler_trims_conduit_name_via_value_object() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_on_deny() -> None:
-    deps = _build_deps(deny=True)
+    deps = build_deps(
+        ids=[_NEW_ID, _TRAVERSALS_LOGBOOK_ID, _DEFINED_EVENT_ID, _LOGBOOK_OPENED_EVENT_ID],
+        now=_NOW,
+        deny=True,
+    )
     handler = define_conduit.bind(deps)
 
     with pytest.raises(UnauthorizedError) as exc_info:
@@ -174,7 +143,12 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 @pytest.mark.unit
 async def test_handler_does_not_append_when_denied() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store, deny=True)
+    deps = build_deps(
+        ids=[_NEW_ID, _TRAVERSALS_LOGBOOK_ID, _DEFINED_EVENT_ID, _LOGBOOK_OPENED_EVENT_ID],
+        now=_NOW,
+        event_store=store,
+        deny=True,
+    )
     handler = define_conduit.bind(deps)
 
     with pytest.raises(UnauthorizedError):
@@ -191,7 +165,9 @@ async def test_handler_does_not_append_when_denied() -> None:
 
 @pytest.mark.unit
 async def test_handler_propagates_invalid_conduit_name_error() -> None:
-    deps = _build_deps()
+    deps = build_deps(
+        ids=[_NEW_ID, _TRAVERSALS_LOGBOOK_ID, _DEFINED_EVENT_ID, _LOGBOOK_OPENED_EVENT_ID], now=_NOW
+    )
     handler = define_conduit.bind(deps)
 
     with pytest.raises(InvalidConduitNameError):
@@ -205,7 +181,11 @@ async def test_handler_propagates_invalid_conduit_name_error() -> None:
 @pytest.mark.unit
 async def test_handler_does_not_append_when_decider_rejects() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(
+        ids=[_NEW_ID, _TRAVERSALS_LOGBOOK_ID, _DEFINED_EVENT_ID, _LOGBOOK_OPENED_EVENT_ID],
+        now=_NOW,
+        event_store=store,
+    )
     handler = define_conduit.bind(deps)
 
     with pytest.raises(InvalidConduitNameError):
@@ -224,7 +204,11 @@ async def test_handler_does_not_append_when_decider_rejects() -> None:
 async def test_handler_propagates_causation_id_to_appended_event() -> None:
     causation = UUID("01900000-0000-7000-8000-0000000000bb")
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(
+        ids=[_NEW_ID, _TRAVERSALS_LOGBOOK_ID, _DEFINED_EVENT_ID, _LOGBOOK_OPENED_EVENT_ID],
+        now=_NOW,
+        event_store=store,
+    )
     handler = define_conduit.bind(deps)
 
     await handler(
@@ -244,7 +228,9 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
 
 @pytest.mark.unit
 def test_wire_trust_returns_handlers_bundle_with_define_conduit() -> None:
-    deps = _build_deps()
+    deps = build_deps(
+        ids=[_NEW_ID, _TRAVERSALS_LOGBOOK_ID, _DEFINED_EVENT_ID, _LOGBOOK_OPENED_EVENT_ID], now=_NOW
+    )
     handlers = wire_trust(deps)
     assert isinstance(handlers, TrustHandlers)
     assert callable(handlers.define_conduit)
@@ -259,7 +245,11 @@ async def test_wired_handler_propagates_causation_id_through_full_composition() 
     second slice on this BC."""
     causation = UUID("01900000-0000-7000-8000-0000000000bb")
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    deps = build_deps(
+        ids=[_NEW_ID, _TRAVERSALS_LOGBOOK_ID, _DEFINED_EVENT_ID, _LOGBOOK_OPENED_EVENT_ID],
+        now=_NOW,
+        event_store=store,
+    )
     handlers = wire_trust(deps)
 
     await handlers.define_conduit(

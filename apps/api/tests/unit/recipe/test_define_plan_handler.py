@@ -33,18 +33,8 @@ from cora.equipment.aggregates.asset.events import (
 from cora.equipment.aggregates.asset.events import (
     to_payload as asset_to_payload,
 )
-from cora.infrastructure.config import Settings
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import (
-    AllowAllAuthorize,
-    AuthzResult,
-    Deny,
-    FixedIdGenerator,
-    FrozenClock,
-)
 from cora.recipe import RecipeHandlers, UnauthorizedError, wire_recipe
 from cora.recipe.aggregates.method import MethodNotFoundError
 from cora.recipe.aggregates.method.events import (
@@ -82,45 +72,13 @@ from cora.recipe.aggregates.practice.events import (
 )
 from cora.recipe.features import define_plan
 from cora.recipe.features.define_plan import DefinePlan
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000000ee01")
 _EVENT_ID = UUID("01900000-0000-7000-8000-00000000ee02")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-
-
-class DenyAllAuthorize:
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
-def _build_deps(
-    *,
-    event_store: InMemoryEventStore | None = None,
-    deny: bool = False,
-    extra_ids: list[UUID] | None = None,
-) -> Kernel:
-    """Plan operation consumes 2 ids (plan_id + event_id); extras
-    can be supplied for tests that exercise multiple plan creations."""
-    settings = Settings(app_env="test")  # type: ignore[call-arg]
-    ids = [_NEW_ID, _EVENT_ID]
-    if extra_ids:
-        ids.extend(extra_ids)
-    return Kernel(
-        settings=settings,
-        clock=FrozenClock(_NOW),
-        id_generator=FixedIdGenerator(ids),
-        authorize=DenyAllAuthorize() if deny else AllowAllAuthorize(),
-        event_store=event_store or InMemoryEventStore(),
-        idempotency_store=InMemoryIdempotencyStore(),
-    )
 
 
 # ---------- Direct event-seeding helpers ----------
@@ -287,7 +245,7 @@ async def test_handler_returns_generated_plan_id() -> None:
     await _seed_method(store, method_id, needs_capabilities=frozenset({cap}))
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id, capabilities=frozenset({cap}))
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
     result = await handler(
@@ -312,7 +270,7 @@ async def test_handler_appends_plan_defined_event_to_store() -> None:
     await _seed_method(store, method_id, needs_capabilities=frozenset({cap}))
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id, capabilities=frozenset({cap}))
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
     await handler(
@@ -352,7 +310,7 @@ async def test_handler_trims_plan_name_via_value_object() -> None:
     await _seed_method(store, method_id)
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
     await handler(
@@ -370,7 +328,7 @@ async def test_handler_trims_plan_name_via_value_object() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_on_deny() -> None:
-    deps = _build_deps(deny=True)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, deny=True)
     handler = define_plan.bind(deps)
 
     with pytest.raises(UnauthorizedError) as exc_info:
@@ -388,7 +346,7 @@ async def test_handler_does_not_pre_load_when_denied() -> None:
     denied, no Practice/Method/Asset loads happen — important for
     avoiding unnecessary I/O on denied requests."""
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store, deny=True)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store, deny=True)
     handler = define_plan.bind(deps)
 
     # Don't seed any prerequisites; if the handler tried to load
@@ -410,7 +368,7 @@ async def test_handler_does_not_pre_load_when_denied() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_practice_not_found_when_practice_missing() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
     handler = define_plan.bind(deps)
 
     missing_practice_id = uuid4()
@@ -437,7 +395,7 @@ async def test_handler_raises_method_not_found_when_referenced_method_missing() 
     # Practice references a method_id that doesn't exist in the store.
     await _seed_practice(store, practice_id, method_id=uuid4())
     await _seed_asset(store, asset_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
     with pytest.raises(MethodNotFoundError):
@@ -459,7 +417,7 @@ async def test_handler_raises_asset_not_found_when_any_bound_asset_missing() -> 
     await _seed_method(store, method_id)
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, existing_asset_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
     with pytest.raises(AssetNotFoundError):
@@ -486,7 +444,7 @@ async def test_handler_propagates_practice_deprecated_error() -> None:
     await _seed_method(store, method_id)
     await _seed_practice(store, practice_id, method_id=method_id, deprecated=True)
     await _seed_asset(store, asset_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
     with pytest.raises(PracticeDeprecatedError):
@@ -506,7 +464,7 @@ async def test_handler_propagates_method_deprecated_error() -> None:
     await _seed_method(store, method_id, deprecated=True)
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
     with pytest.raises(MethodDeprecatedError):
@@ -526,7 +484,7 @@ async def test_handler_propagates_asset_decommissioned_error() -> None:
     await _seed_method(store, method_id)
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id, decommissioned=True)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
     with pytest.raises(AssetDecommissionedError):
@@ -548,7 +506,7 @@ async def test_handler_propagates_capabilities_not_satisfied_error() -> None:
     await _seed_method(store, method_id, needs_capabilities=frozenset({needed_cap}))
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id, capabilities=frozenset({different_cap}))
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
     with pytest.raises(PlanCapabilitiesNotSatisfiedError):
@@ -568,7 +526,7 @@ async def test_handler_propagates_invalid_plan_name_error() -> None:
     await _seed_method(store, method_id)
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
     with pytest.raises(InvalidPlanNameError):
@@ -589,7 +547,7 @@ async def test_handler_propagates_invalid_plan_error_for_empty_asset_ids() -> No
     store = InMemoryEventStore()
     await _seed_method(store, method_id)
     await _seed_practice(store, practice_id, method_id=method_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
     with pytest.raises(InvalidPlanError):
@@ -613,7 +571,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     await _seed_method(store, method_id)
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
     await handler(
@@ -632,7 +590,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
 
 @pytest.mark.unit
 def test_wire_recipe_returns_handlers_bundle_with_plan() -> None:
-    deps = _build_deps()
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
     handlers = wire_recipe(deps)
     assert isinstance(handlers, RecipeHandlers)
     assert callable(handlers.define_plan)
@@ -650,7 +608,7 @@ async def test_wired_handler_propagates_causation_id_through_full_composition() 
     await _seed_method(store, method_id)
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id)
-    deps = _build_deps(event_store=store)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handlers = wire_recipe(deps)
 
     await handlers.define_plan(
