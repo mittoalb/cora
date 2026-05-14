@@ -24,7 +24,7 @@ InvalidRunInterruptedAtError).
 
   - 400 (validation): InvalidRunNameError, InvalidRunAbortReasonError,
     InvalidRunStopReasonError, InvalidRunTruncateReasonError,
-    InvalidRunInterruptedAtError
+    InvalidRunInterruptedAtError, InvalidRunParametersError
   - 404 (load miss): RunNotFoundError
   - 409 (defensive guard for AlreadyExists): RunAlreadyExistsError
   - 409 (Run-start binding-state guards): PlanDeprecatedError,
@@ -44,6 +44,7 @@ from cora.run.aggregates.run import (
     InvalidRunAbortReasonError,
     InvalidRunInterruptedAtError,
     InvalidRunNameError,
+    InvalidRunParametersError,
     InvalidRunStopReasonError,
     InvalidRunTruncateReasonError,
     PlanDeprecatedError,
@@ -146,6 +147,7 @@ def register_run_routes(app: FastAPI) -> None:
         InvalidRunStopReasonError,
         InvalidRunTruncateReasonError,
         InvalidRunInterruptedAtError,
+        InvalidRunParametersError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (RunNotFoundError,):

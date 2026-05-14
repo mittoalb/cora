@@ -90,6 +90,9 @@ async def test_run_started_inserts_with_running_status_and_genesis_refs() -> Non
     assert args.args[4] == _SUBJECT_ID
     assert args.args[5] == "https://raid.org/10.7935/test"
     assert args.args[6] == _NOW
+    # 6g-c: parameter_overrides_present defaults FALSE for legacy
+    # payloads (no parameter_overrides key in pre-6g-c events).
+    assert args.args[7] is False
 
 
 @pytest.mark.unit
@@ -115,6 +118,58 @@ async def test_run_started_with_null_subject_id_for_calibration_run() -> None:
     assert args is not None
     assert args.args[4] is None  # subject_id
     assert args.args[5] is None  # raid
+
+
+@pytest.mark.unit
+async def test_run_started_sets_parameter_overrides_present_true_when_non_empty() -> None:
+    """Phase 6g-c: RunStarted with non-empty parameter_overrides
+    payload sets the projection column TRUE."""
+    proj = RunSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "RunStarted",
+        {
+            "run_id": str(_RUN_ID),
+            "name": "Run-with-overrides",
+            "plan_id": str(_PLAN_ID),
+            "subject_id": None,
+            "raid": None,
+            "parameter_overrides": {"energy_kev": 12.0},
+            "effective_parameters": {"energy_kev": 12.0},
+            "triggered_by": "operator:opid:5",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[7] is True  # parameter_overrides_present
+
+
+@pytest.mark.unit
+async def test_run_started_sets_parameter_overrides_present_false_when_empty() -> None:
+    """Phase 6g-c: empty parameter_overrides payload (operator just used
+    Plan defaults straight) keeps the projection column FALSE."""
+    proj = RunSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "RunStarted",
+        {
+            "run_id": str(_RUN_ID),
+            "name": "Run-no-overrides",
+            "plan_id": str(_PLAN_ID),
+            "subject_id": None,
+            "raid": None,
+            "parameter_overrides": {},
+            "effective_parameters": {"energy_kev": 12.0},
+            "triggered_by": None,
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[7] is False
 
 
 @pytest.mark.unit

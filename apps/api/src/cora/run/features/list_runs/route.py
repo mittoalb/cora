@@ -29,6 +29,15 @@ class RunSummaryDTO(BaseModel):
     raid: str | None = Field(default=None, max_length=_RAID_MAX_LENGTH)
     status: RunStatusFilter
     created_at: datetime
+    parameter_overrides_present: bool = Field(
+        default=False,
+        description=(
+            "True iff RunStarted's parameter_overrides payload was "
+            "non-empty (operator customized parameters at start time). "
+            "Phase 6g-c. The full overrides + effective_parameters "
+            "dicts are loaded on demand via `get_run`."
+        ),
+    )
 
 
 class RunListResponse(BaseModel):
@@ -112,6 +121,7 @@ async def list_runs(
                 raid=item.raid,
                 status=item.status,  # type: ignore[arg-type]
                 created_at=item.created_at,
+                parameter_overrides_present=item.parameter_overrides_present,
             )
             for item in page.items
         ],

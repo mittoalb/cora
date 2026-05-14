@@ -73,6 +73,12 @@ def test_to_payload_serializes_run_started_with_subject_to_primitives() -> None:
         "plan_id": str(plan_id),
         "subject_id": str(subject_id),
         "raid": None,
+        # 6g-c additive payload fields default to {} / None when not
+        # supplied; pre-6g-c stored events stay forward-compat via
+        # `payload.get(..., default)` in `from_stored`.
+        "parameter_overrides": {},
+        "effective_parameters": {},
+        "triggered_by": None,
         "occurred_at": _NOW.isoformat(),
     }
 
@@ -106,6 +112,102 @@ def test_to_payload_serializes_run_started_with_raid() -> None:
         raid="https://raid.org/10.7935/cora-test-raid",
     )
     assert to_payload(event)["raid"] == "https://raid.org/10.7935/cora-test-raid"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_run_started_with_6gc_parameter_fields() -> None:
+    """Phase 6g-c additive payload: parameter_overrides,
+    effective_parameters, triggered_by carry verbatim through the
+    payload."""
+    overrides = {"energy_kev": 12.0}
+    effective = {"energy_kev": 12.0, "exposure_ms": 100}
+    event = RunStarted(
+        run_id=uuid4(),
+        name="32-ID FlyScan",
+        plan_id=uuid4(),
+        subject_id=None,
+        occurred_at=_NOW,
+        parameter_overrides=overrides,
+        effective_parameters=effective,
+        triggered_by="operator:opid:5",
+    )
+    payload = to_payload(event)
+    assert payload["parameter_overrides"] == overrides
+    assert payload["effective_parameters"] == effective
+    assert payload["triggered_by"] == "operator:opid:5"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_6gc_fields_with_defaults() -> None:
+    """Default empty dicts and None triggered_by serialize as `{}` /
+    null (NOT omitted). Pinned because the projection's
+    `bool(payload.get("parameter_overrides"))` test relies on the
+    key being present."""
+    event = RunStarted(
+        run_id=uuid4(),
+        name="32-ID FlyScan",
+        plan_id=uuid4(),
+        subject_id=None,
+        occurred_at=_NOW,
+    )
+    payload = to_payload(event)
+    assert payload["parameter_overrides"] == {}
+    assert payload["effective_parameters"] == {}
+    assert payload["triggered_by"] is None
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_started_without_6gc_keys_as_defaults() -> None:
+    """Forward-compatible load: pre-6g-c events have no
+    parameter_overrides/effective_parameters/triggered_by keys in
+    jsonb. from_stored returns the field defaults for those, keeping
+    older streams replayable. Mirrors the raid forward-compat pattern."""
+    run_id = uuid4()
+    plan_id = uuid4()
+    stored = _stored(
+        "RunStarted",
+        {
+            "run_id": str(run_id),
+            "name": "Pre-6g-c run",
+            "plan_id": str(plan_id),
+            "subject_id": None,
+            "occurred_at": _NOW.isoformat(),
+            # NOTE: no parameter_overrides, effective_parameters, or
+            # triggered_by keys — this is what pre-6g-c events look like.
+        },
+    )
+    event = from_stored(stored)
+    assert isinstance(event, RunStarted)
+    assert event.parameter_overrides == {}
+    assert event.effective_parameters == {}
+    assert event.triggered_by is None
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_started_with_6gc_keys() -> None:
+    """Post-6g-c events round-trip with parameter values intact."""
+    run_id = uuid4()
+    plan_id = uuid4()
+    overrides = {"energy_kev": 12.0}
+    effective = {"energy_kev": 12.0, "exposure_ms": 100}
+    stored = _stored(
+        "RunStarted",
+        {
+            "run_id": str(run_id),
+            "name": "Post-6g-c run",
+            "plan_id": str(plan_id),
+            "subject_id": None,
+            "occurred_at": _NOW.isoformat(),
+            "parameter_overrides": overrides,
+            "effective_parameters": effective,
+            "triggered_by": "operator:opid:5",
+        },
+    )
+    event = from_stored(stored)
+    assert isinstance(event, RunStarted)
+    assert event.parameter_overrides == overrides
+    assert event.effective_parameters == effective
+    assert event.triggered_by == "operator:opid:5"
 
 
 @pytest.mark.unit

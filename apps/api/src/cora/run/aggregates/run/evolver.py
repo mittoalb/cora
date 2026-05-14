@@ -63,6 +63,9 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
             plan_id=plan_id,
             subject_id=subject_id,
             raid=raid,
+            parameter_overrides=parameter_overrides,
+            effective_parameters=effective_parameters,
+            triggered_by=triggered_by,
         ):
             _ = state  # RunStarted is the genesis event; prior state ignored.
             return Run(
@@ -72,6 +75,9 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 subject_id=subject_id,
                 raid=raid,
                 status=RunStatus.RUNNING,
+                parameter_overrides=parameter_overrides,
+                effective_parameters=effective_parameters,
+                triggered_by=triggered_by,
             )
         case RunHeld():
             if state is None:

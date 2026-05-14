@@ -25,6 +25,14 @@ class RunSummaryRow(BaseModel):
     raid: str | None = Field(default=None, max_length=_RAID_MAX_LENGTH)
     status: RunStatusFilter
     created_at: datetime
+    parameter_overrides_present: bool = Field(
+        default=False,
+        description=(
+            "True iff the Run was started with operator-supplied "
+            "parameter_overrides (Phase 6g-c). The full overrides + "
+            "effective_parameters dicts are loaded on demand via `get_run`."
+        ),
+    )
 
 
 class RunListOutput(BaseModel):
@@ -82,6 +90,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                     raid=item.raid,
                     status=item.status,  # type: ignore[arg-type]
                     created_at=item.created_at,
+                    parameter_overrides_present=item.parameter_overrides_present,
                 )
                 for item in page.items
             ],

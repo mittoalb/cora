@@ -1,0 +1,40 @@
+-- Phase 6g-c: track whether each Run was started with operator-supplied
+-- parameter_overrides on top of Plan defaults, on the Run summary projection.
+--
+-- Adds a single boolean column `parameter_overrides_present` to
+-- `proj_run_summary`. Defaults to FALSE; existing rows backfill
+-- cleanly with no application-layer change required.
+--
+-- ## Why a boolean, not the dict itself
+--
+-- Mirrors 6g-a (Method.parameters_schema_present) and 6g-b
+-- (Plan.parameter_defaults_present). The full overrides /
+-- effective_parameters dicts can be arbitrary JSON; projecting them
+-- bloats the summary table. The dicts live in the RunStarted event
+-- and are loaded on demand via fold-on-read (`get_run`).
+--
+-- The boolean lets list-endpoint consumers filter "Runs where the
+-- operator customized parameters vs. used Plan defaults straight"
+-- without paying for the dict content.
+--
+-- ## Future trigger: promote to denormalized JSONB column
+--
+-- When the first list-side filter on a parameter VALUE surfaces
+-- (for example "Runs where energy_kev > 10"), promote to a
+-- denormalized JSONB column (`effective_parameters JSONB`) with a
+-- GIN index. This mirrors W&B's `config.<key>` and MLflow's
+-- `params.<key>` filterability. Locked in
+-- [[project_run_parameters_design]] §6g-c. Defer until trigger.
+--
+-- ## Default semantics
+--
+-- FALSE for both pre-6g-c Runs (RunStarted payloads have no
+-- parameter_overrides key; `payload.get("parameter_overrides", {})`
+-- returns empty) AND for 6g-c+ Runs that started with no overrides.
+-- Becomes TRUE when RunStarted's `parameter_overrides` payload is
+-- non-empty.
+--
+-- Pure ADD COLUMN with safe default; greenfield-friendly.
+
+ALTER TABLE proj_run_summary
+    ADD COLUMN parameter_overrides_present BOOLEAN NOT NULL DEFAULT FALSE;

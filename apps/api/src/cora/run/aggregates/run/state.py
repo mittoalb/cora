@@ -97,9 +97,10 @@ carried in event payloads.
     Decision BC ships.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 from uuid import UUID
 
 from cora.infrastructure.name import validate_name
@@ -634,6 +635,23 @@ class Run:
     to None (post-7d retrofit; pre-7d Runs fold with raid=None
     because old RunStarted payloads have no raid key). `status`
     defaults to `Running` — the active steady-state.
+
+    `parameter_overrides` (post-6g-c) is the operator-supplied
+    overrides on top of `Plan.parameter_defaults` (RFC 7396 merge).
+    `effective_parameters` is the post-merge resolved snapshot
+    (defaults + overrides) that governed this Run. Both default to
+    `{}` for legacy pre-6g-c streams (additive-state pattern;
+    forward-compat via `payload.get(..., {})` in `from_stored`).
+    Mirrors Bluesky start-document / MLflow run.params / W&B
+    run.config / ISA-88 control-recipe / RO-Crate CreateAction
+    convention: the run carries the resolved parameter set as a
+    first-class read surface (researched 2026-05-14;
+    [[project_run_parameters_design]] §6g-c).
+
+    `triggered_by` (post-6g-c) is operator-supplied free text
+    capturing what initiated this Run (operator-manual, scheduler,
+    prior-run, automation). Optional. Future Decision-BC integration
+    may populate this from `DecisionReasoning.entries` references.
     """
 
     id: UUID
@@ -642,3 +660,22 @@ class Run:
     subject_id: UUID | None
     raid: str | None = None
     status: RunStatus = RunStatus.RUNNING
+    parameter_overrides: dict[str, Any] = field(default_factory=dict[str, Any])
+    effective_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
+    triggered_by: str | None = None
+
+
+class InvalidRunParametersError(ValueError):
+    """The supplied Run effective_parameters (defaults + overrides) failed
+    validation against the owning Method's parameters_schema (Phase 6g-c).
+
+    Permissive when Method.parameters_schema is None: any merge result
+    is accepted (Method declares no contract). When the schema IS
+    declared, the merged dict must conform per jsonschema-rs Draft
+    2020-12. Mirrors `InvalidPlanParameterDefaultsError` shape from
+    6g-b. Mapped to HTTP 400 by the run BC's exception handler.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Invalid Run parameters: {reason}")
+        self.reason = reason

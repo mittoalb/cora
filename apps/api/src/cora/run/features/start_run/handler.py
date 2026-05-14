@@ -38,6 +38,7 @@ from typing import Protocol
 from uuid import UUID
 
 from cora.equipment.aggregates.asset import Asset, AssetNotFoundError, load_asset
+from cora.equipment.aggregates.asset.settings_validation import merge_patch
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
@@ -108,6 +109,8 @@ def bind(deps: Kernel) -> Handler:
             plan_id=str(command.plan_id),
             subject_id=str(command.subject_id) if command.subject_id is not None else None,
             raid=command.raid,
+            override_key_count=len(command.parameter_overrides),
+            triggered_by=command.triggered_by,
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             causation_id=str(causation_id) if causation_id is not None else None,
@@ -164,11 +167,19 @@ def bind(deps: Kernel) -> Handler:
         new_id = deps.id_generator.new_id()
         now = deps.clock.now()
 
+        # 6g-c: resolve effective_parameters by merging Plan defaults
+        # with the command's overrides (RFC 7396). The merged dict is
+        # what governs this Run; it gets validated against the
+        # Method's parameters_schema by the decider.
+        effective_parameters = merge_patch(plan.parameter_defaults, command.parameter_overrides)
+
         domain_events = decide(
             state=None,
             command=command,
             context=context,
             needs_capabilities_snapshot=method.needs_capabilities,
+            effective_parameters=effective_parameters,
+            method_parameters_schema=method.parameters_schema,
             now=now,
             new_id=new_id,
         )
@@ -201,6 +212,10 @@ def bind(deps: Kernel) -> Handler:
             subject_id=str(command.subject_id) if command.subject_id is not None else None,
             raid=command.raid,
             method_id=str(method.id),
+            override_key_count=len(command.parameter_overrides),
+            effective_key_count=len(effective_parameters),
+            schema_present=method.parameters_schema is not None,
+            triggered_by=command.triggered_by,
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             causation_id=str(causation_id) if causation_id is not None else None,

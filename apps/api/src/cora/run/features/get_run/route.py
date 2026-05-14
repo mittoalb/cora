@@ -7,7 +7,7 @@ Response shape: `{id, name, plan_id, subject_id, raid, status}`.
 Runs not registered against a research activity respectively).
 """
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
@@ -26,6 +26,12 @@ class RunResponse(BaseModel):
     string value. `subject_id` is null for calibration / dark-field
     runs. `raid` is null when no Research Activity Identifier was
     supplied at start time (post-7d retrofit).
+
+    `parameter_overrides` and `effective_parameters` carry the post-
+    6g-c parameter set: overrides the operator supplied at start
+    time, and the resolved merge of Plan defaults + overrides that
+    actually governed this Run. Both default `{}`. `triggered_by`
+    captures what initiated the Run (None if unrecorded).
     """
 
     id: UUID
@@ -34,6 +40,9 @@ class RunResponse(BaseModel):
     subject_id: UUID | None
     raid: str | None
     status: str
+    parameter_overrides: dict[str, Any] = Field(default_factory=dict)
+    effective_parameters: dict[str, Any] = Field(default_factory=dict)
+    triggered_by: str | None = None
 
 
 def _get_handler(request: Request) -> Handler:
@@ -82,4 +91,7 @@ async def get_runs(
         subject_id=run.subject_id,
         raid=run.raid,
         status=run.status.value,
+        parameter_overrides=run.parameter_overrides,
+        effective_parameters=run.effective_parameters,
+        triggered_by=run.triggered_by,
     )

@@ -81,7 +81,7 @@ MethodDefined / CapabilityDefined / SubjectMounted /
 ActorDeactivated / PlanDefined.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
@@ -106,6 +106,23 @@ class RunStarted:
     Forward-compatible jsonb load: `from_stored` reads the key
     with `.get(...)` so pre-7d events without the raid key
     deserialize as `raid=None`.
+
+    `parameter_overrides` (post-6g-c) is the operator-supplied
+    overrides on top of `Plan.parameter_defaults` (RFC 7396 merge
+    semantics). `effective_parameters` is the resolved post-merge
+    snapshot (defaults + overrides) that governs this Run; mirrors
+    the Bluesky start-document / MLflow params / W&B run.config /
+    ISA-88 control-recipe / RO-Crate CreateAction precedent (run
+    resource carries the resolved value set, not just an audit log).
+    Both default to `{}` and forward-compat: `from_stored` reads
+    each key with `payload.get(..., {})` so pre-6g-c streams replay.
+
+    `triggered_by` (post-6g-c) is operator-supplied free text
+    capturing what initiated this Run (operator-manual, scheduler
+    id, prior-run id, automation id). Optional (None when omitted).
+    Forward-compat via `payload.get("triggered_by")`. Future
+    Decision-BC integration may populate this from
+    `DecisionReasoning.entries` references.
     """
 
     run_id: UUID
@@ -114,6 +131,9 @@ class RunStarted:
     subject_id: UUID | None
     occurred_at: datetime
     raid: str | None = None
+    parameter_overrides: dict[str, Any] = field(default_factory=dict[str, Any])
+    effective_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
+    triggered_by: str | None = None
 
 
 @dataclass(frozen=True)
@@ -256,6 +276,9 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
             plan_id=plan_id,
             subject_id=subject_id,
             raid=raid,
+            parameter_overrides=parameter_overrides,
+            effective_parameters=effective_parameters,
+            triggered_by=triggered_by,
             occurred_at=occurred_at,
         ):
             return {
@@ -264,6 +287,9 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "plan_id": str(plan_id),
                 "subject_id": str(subject_id) if subject_id is not None else None,
                 "raid": raid,
+                "parameter_overrides": parameter_overrides,
+                "effective_parameters": effective_parameters,
+                "triggered_by": triggered_by,
                 "occurred_at": occurred_at.isoformat(),
             }
         case RunHeld(run_id=run_id, occurred_at=occurred_at):
@@ -321,16 +347,20 @@ def from_stored(stored: StoredEvent) -> RunEvent:
     match stored.event_type:
         case "RunStarted":
             raw_subject = payload["subject_id"]
-            # `raid` was added in 7d. Pre-7d events have no key in
-            # the jsonb payload; .get(...) returns None for those,
-            # matching the new field's default and keeping older
-            # streams replayable.
+            # Forward-compat additive evolution: `raid` was added in 7d
+            # and `parameter_overrides` / `effective_parameters` /
+            # `triggered_by` in 6g-c. Each .get(...) returns the
+            # field's default when the key isn't in the jsonb payload,
+            # so pre-additive streams replay without an upcaster.
             return RunStarted(
                 run_id=UUID(payload["run_id"]),
                 name=payload["name"],
                 plan_id=UUID(payload["plan_id"]),
                 subject_id=UUID(raw_subject) if raw_subject is not None else None,
                 raid=payload.get("raid"),
+                parameter_overrides=payload.get("parameter_overrides", {}),
+                effective_parameters=payload.get("effective_parameters", {}),
+                triggered_by=payload.get("triggered_by"),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "RunHeld":

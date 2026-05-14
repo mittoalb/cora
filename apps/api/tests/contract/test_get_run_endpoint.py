@@ -62,6 +62,11 @@ def test_get_run_returns_200_with_running_status_for_sample_run() -> None:
         "subject_id": subject_id,
         "raid": None,
         "status": "Running",
+        # 6g-c additive response surface: empty defaults when no
+        # overrides / no Plan defaults / no triggered_by were supplied.
+        "parameter_overrides": {},
+        "effective_parameters": {},
+        "triggered_by": None,
     }
 
 

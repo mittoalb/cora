@@ -21,6 +21,9 @@ from cora.run.aggregates.run.events import (
     to_payload,
 )
 from cora.run.aggregates.run.evolver import evolve, fold
+from cora.run.aggregates.run.parameters_validation import (
+    validate_effective_parameters_against_method_schema,
+)
 from cora.run.aggregates.run.read import load_run
 from cora.run.aggregates.run.state import (
     RUN_ABORT_REASON_MAX_LENGTH,
@@ -30,6 +33,7 @@ from cora.run.aggregates.run.state import (
     InvalidRunAbortReasonError,
     InvalidRunInterruptedAtError,
     InvalidRunNameError,
+    InvalidRunParametersError,
     InvalidRunStopReasonError,
     InvalidRunTruncateReasonError,
     PlanDeprecatedError,
@@ -60,6 +64,7 @@ __all__ = [
     "InvalidRunAbortReasonError",
     "InvalidRunInterruptedAtError",
     "InvalidRunNameError",
+    "InvalidRunParametersError",
     "InvalidRunStopReasonError",
     "InvalidRunTruncateReasonError",
     "PlanDeprecatedError",
@@ -94,4 +99,5 @@ __all__ = [
     "from_stored",
     "load_run",
     "to_payload",
+    "validate_effective_parameters_against_method_schema",
 ]

@@ -70,6 +70,7 @@ fundamental issues surface first:
 """
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from cora.equipment.aggregates.asset import AssetLifecycle
@@ -83,6 +84,7 @@ from cora.run.aggregates.run import (
     RunName,
     RunStarted,
     SubjectNotMountableError,
+    validate_effective_parameters_against_method_schema,
 )
 from cora.run.features.start_run.command import StartRun
 from cora.run.features.start_run.context import RunStartContext
@@ -100,6 +102,8 @@ def decide(
     *,
     context: RunStartContext,
     needs_capabilities_snapshot: frozenset[UUID],
+    effective_parameters: dict[str, Any],
+    method_parameters_schema: dict[str, Any] | None,
     now: datetime,
     new_id: UUID,
 ) -> list[RunStarted]:
@@ -109,6 +113,14 @@ def decide(
     set the handler resolved transitively from `plan.practice_id →
     practice.method_id → method.needs_capabilities`. Passed in as a
     plain frozenset so the decider stays purely state-driven.
+
+    `effective_parameters` is the post-merge dict (Plan defaults +
+    command overrides) the handler computed via `merge_patch`.
+    `method_parameters_schema` is the Method's parameters_schema
+    (None if Method declares no contract). The decider validates
+    `effective_parameters` against the schema (permissive when the
+    schema is None per 6g-b posture) and emits RunStarted carrying
+    BOTH the operator's overrides AND the resolved effective set.
     """
     if state is not None:
         raise RunAlreadyExistsError(state.id)
@@ -142,6 +154,14 @@ def decide(
     if missing:
         raise RunCapabilitiesNotSatisfiedError(missing)
 
+    # 6g-c: validate the resolved (defaults + overrides) parameter set
+    # against the owning Method's parameters_schema. Permissive when
+    # the schema is None (Method declares no contract — accept any
+    # merge result; locked posture per [[project_run_parameters_design]]).
+    validate_effective_parameters_against_method_schema(
+        effective_parameters, method_parameters_schema
+    )
+
     name = RunName(command.name)  # validates + trims; raises InvalidRunNameError
     return [
         RunStarted(
@@ -150,6 +170,9 @@ def decide(
             plan_id=command.plan_id,
             subject_id=command.subject_id,
             raid=command.raid,
+            parameter_overrides=command.parameter_overrides,
+            effective_parameters=effective_parameters,
+            triggered_by=command.triggered_by,
             occurred_at=now,
         )
     ]

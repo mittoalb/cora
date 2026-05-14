@@ -15,7 +15,7 @@ Decommissioned, capabilities not satisfied at Run-start) surface
 as 409.
 """
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Request, status
@@ -61,6 +61,24 @@ class StartRunRequest(BaseModel):
             "this Run belongs to. Optional opaque string carried verbatim. "
             "Used at PROV-O / DataCite export boundaries to link Datasets, "
             "Subjects, Instruments, and people for cross-facility provenance."
+        ),
+    )
+    parameter_overrides: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Operator-supplied overrides on top of `Plan.parameter_defaults` "
+            "(RFC 7396 merge semantics). The post-merge result is "
+            "validated against the owning Method's `parameters_schema` "
+            "(permissive when the Method declares no schema). Phase 6g-c."
+        ),
+    )
+    triggered_by: str | None = Field(
+        default=None,
+        max_length=500,
+        description=(
+            "Free-form text capturing what initiated this Run "
+            "(operator-manual, scheduler id, prior-run id, automation). "
+            "Optional. Phase 6g-c."
         ),
     )
 
@@ -140,6 +158,8 @@ async def post_runs(
             plan_id=body.plan_id,
             subject_id=body.subject_id,
             raid=body.raid,
+            parameter_overrides=body.parameter_overrides,
+            triggered_by=body.triggered_by,
         ),
         principal_id=principal_id,
         correlation_id=cid,

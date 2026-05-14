@@ -1,7 +1,7 @@
 """MCP tool for the `start_run` slice."""
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from mcp.server.fastmcp import FastMCP
@@ -70,10 +70,43 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ] = None,
+        parameter_overrides: Annotated[
+            dict[str, Any] | None,
+            Field(
+                default=None,
+                description=(
+                    "Operator-supplied overrides on top of "
+                    "Plan.parameter_defaults (RFC 7396 merge). The "
+                    "post-merge result is validated against the owning "
+                    "Method's parameters_schema (permissive when the "
+                    "Method declares no schema). Omit or null for an "
+                    "empty overrides dict. Phase 6g-c."
+                ),
+            ),
+        ] = None,
+        triggered_by: Annotated[
+            str | None,
+            Field(
+                default=None,
+                max_length=500,
+                description=(
+                    "Free-form text capturing what initiated this Run "
+                    "(operator-manual, scheduler id, prior-run id, "
+                    "automation). Optional. Phase 6g-c."
+                ),
+            ),
+        ] = None,
     ) -> StartRunOutput:
         handler = get_handler()
         run_id = await handler(
-            StartRun(name=name, plan_id=plan_id, subject_id=subject_id, raid=raid),
+            StartRun(
+                name=name,
+                plan_id=plan_id,
+                subject_id=subject_id,
+                raid=raid,
+                parameter_overrides=parameter_overrides if parameter_overrides else {},
+                triggered_by=triggered_by,
+            ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
         )

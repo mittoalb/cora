@@ -15,6 +15,7 @@ Validation order pinned per gate-review Q5:
 """
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -32,6 +33,7 @@ from cora.recipe.aggregates.plan import (
 )
 from cora.run.aggregates.run import (
     InvalidRunNameError,
+    InvalidRunParametersError,
     PlanDeprecatedError,
     Run,
     RunAlreadyExistsError,
@@ -110,6 +112,8 @@ def test_decide_emits_run_started_for_valid_sample_run() -> None:
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
         needs_capabilities_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
         now=_NOW,
         new_id=new_id,
     )
@@ -139,6 +143,8 @@ def test_decide_emits_run_started_for_dark_field_run_without_subject() -> None:
         command=StartRun(name="Dark field", plan_id=plan.id, subject_id=None),
         context=context,
         needs_capabilities_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
         now=_NOW,
         new_id=new_id,
     )
@@ -167,6 +173,8 @@ def test_decide_accepts_subject_in_measured_state() -> None:
         command=StartRun(name="Re-measurement", plan_id=plan.id, subject_id=subject.id),
         context=context,
         needs_capabilities_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
         now=_NOW,
         new_id=uuid4(),
     )
@@ -186,6 +194,8 @@ def test_decide_trims_run_name_via_value_object() -> None:
         command=StartRun(name="  Run  ", plan_id=plan.id, subject_id=subject.id),
         context=context,
         needs_capabilities_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
         now=_NOW,
         new_id=uuid4(),
     )
@@ -215,6 +225,8 @@ def test_decide_raises_run_already_exists_when_state_is_not_none() -> None:
             command=StartRun(name="X", plan_id=plan.id, subject_id=None),
             context=context,
             needs_capabilities_snapshot=frozenset(),
+            effective_parameters={},
+            method_parameters_schema=None,
             now=_NOW,
             new_id=uuid4(),
         )
@@ -236,6 +248,8 @@ def test_decide_raises_plan_deprecated_when_plan_is_deprecated() -> None:
             command=StartRun(name="X", plan_id=plan.id, subject_id=None),
             context=context,
             needs_capabilities_snapshot=frozenset(),
+            effective_parameters={},
+            method_parameters_schema=None,
             now=_NOW,
             new_id=uuid4(),
         )
@@ -270,6 +284,8 @@ def test_decide_raises_subject_not_mountable_for_disallowed_subject_states(
             command=StartRun(name="X", plan_id=plan.id, subject_id=subject.id),
             context=context,
             needs_capabilities_snapshot=frozenset(),
+            effective_parameters={},
+            method_parameters_schema=None,
             now=_NOW,
             new_id=uuid4(),
         )
@@ -290,6 +306,8 @@ def test_decide_skips_subject_check_when_subject_id_is_none() -> None:
         command=StartRun(name="Dark field", plan_id=plan.id, subject_id=None),
         context=context,
         needs_capabilities_snapshot=frozenset(),
+        effective_parameters={},
+        method_parameters_schema=None,
         now=_NOW,
         new_id=uuid4(),
     )
@@ -315,6 +333,8 @@ def test_decide_raises_asset_decommissioned_when_any_bound_asset_decommissioned(
             command=StartRun(name="X", plan_id=plan.id, subject_id=None),
             context=context,
             needs_capabilities_snapshot=frozenset(),
+            effective_parameters={},
+            method_parameters_schema=None,
             now=_NOW,
             new_id=uuid4(),
         )
@@ -340,6 +360,8 @@ def test_decide_raises_capabilities_not_satisfied_when_assets_drifted() -> None:
             command=StartRun(name="X", plan_id=plan.id, subject_id=None),
             context=context,
             needs_capabilities_snapshot=frozenset({needed_cap}),
+            effective_parameters={},
+            method_parameters_schema=None,
             now=_NOW,
             new_id=uuid4(),
         )
@@ -364,6 +386,8 @@ def test_decide_uses_union_of_bound_assets_capabilities_for_satisfaction() -> No
         command=StartRun(name="X", plan_id=plan.id, subject_id=None),
         context=context,
         needs_capabilities_snapshot=frozenset({cap1, cap2}),
+        effective_parameters={},
+        method_parameters_schema=None,
         now=_NOW,
         new_id=uuid4(),
     )
@@ -385,6 +409,8 @@ def test_decide_raises_invalid_run_name_for_whitespace_only() -> None:
             command=StartRun(name="   ", plan_id=plan.id, subject_id=None),
             context=context,
             needs_capabilities_snapshot=frozenset(),
+            effective_parameters={},
+            method_parameters_schema=None,
             now=_NOW,
             new_id=uuid4(),
         )
@@ -406,6 +432,8 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
         command=cmd,
         context=context,
         needs_capabilities_snapshot=frozenset(),
+        effective_parameters={},
+        method_parameters_schema=None,
         now=_NOW,
         new_id=new_id,
     )
@@ -414,7 +442,109 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
         command=cmd,
         context=context,
         needs_capabilities_snapshot=frozenset(),
+        effective_parameters={},
+        method_parameters_schema=None,
         now=_NOW,
         new_id=new_id,
     )
     assert first == second
+
+
+# ---------- 6g-c parameter validation + RunStarted payload extension ----------
+
+
+_DRAFT = "https://json-schema.org/draft/2020-12/schema"
+
+
+def _energy_schema() -> dict[str, Any]:
+    return {
+        "$schema": _DRAFT,
+        "type": "object",
+        "properties": {"energy_kev": {"type": "number", "minimum": 5, "maximum": 50}},
+    }
+
+
+@pytest.mark.unit
+def test_decide_emits_run_started_with_6gc_parameter_fields() -> None:
+    """Phase 6g-c: command's parameter_overrides + triggered_by carry
+    into the RunStarted event; effective_parameters comes from the
+    handler-computed merge (passed in as a kwarg here)."""
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
+    subject = _subject()
+    context = RunStartContext(plan=plan, subject=subject, assets={asset_id: asset})
+    overrides: dict[str, Any] = {"energy_kev": 12.0}
+    effective: dict[str, Any] = {"energy_kev": 12.0}
+
+    events = start_run.decide(
+        state=None,
+        command=StartRun(
+            name="Run",
+            plan_id=plan.id,
+            subject_id=subject.id,
+            parameter_overrides=overrides,
+            triggered_by="operator:opid:5",
+        ),
+        context=context,
+        needs_capabilities_snapshot=frozenset({cap}),
+        effective_parameters=effective,
+        method_parameters_schema=_energy_schema(),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1
+    started = events[0]
+    assert started.parameter_overrides == overrides
+    assert started.effective_parameters == effective
+    assert started.triggered_by == "operator:opid:5"
+
+
+@pytest.mark.unit
+def test_decide_raises_invalid_run_parameters_on_post_merge_violation() -> None:
+    """Resolved (defaults + overrides) merge violates the Method's
+    schema -> InvalidRunParametersError."""
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
+    subject = _subject()
+    context = RunStartContext(plan=plan, subject=subject, assets={asset_id: asset})
+
+    with pytest.raises(InvalidRunParametersError):
+        start_run.decide(
+            state=None,
+            command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
+            context=context,
+            needs_capabilities_snapshot=frozenset({cap}),
+            effective_parameters={"energy_kev": 1.0},  # below minimum=5
+            method_parameters_schema=_energy_schema(),
+            now=_NOW,
+            new_id=uuid4(),
+        )
+
+
+@pytest.mark.unit
+def test_decide_permissive_when_method_schema_is_none() -> None:
+    """Locked posture: Method without parameters_schema accepts any
+    effective dict. Pinned at the decider layer."""
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
+    subject = _subject()
+    context = RunStartContext(plan=plan, subject=subject, assets={asset_id: asset})
+
+    events = start_run.decide(
+        state=None,
+        command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
+        context=context,
+        needs_capabilities_snapshot=frozenset({cap}),
+        effective_parameters={"undeclared_key": "anything"},
+        method_parameters_schema=None,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1
+    assert events[0].effective_parameters == {"undeclared_key": "anything"}

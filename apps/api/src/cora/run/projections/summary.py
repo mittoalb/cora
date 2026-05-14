@@ -3,7 +3,8 @@ into the `proj_run_summary` read model that backs `GET /runs`.
 
 Subscribed events (genesis + 6 transitions):
   - RunStarted     -> INSERT (status=Running, name + plan_id +
-                              subject_id? + raid? from payload)
+                              subject_id? + raid? + 6g-c
+                              parameter_overrides_present from payload)
   - RunHeld        -> UPDATE status=Held
   - RunResumed     -> UPDATE status=Running
   - RunCompleted   -> UPDATE status=Completed   (terminal)
@@ -12,10 +13,18 @@ Subscribed events (genesis + 6 transitions):
   - RunTruncated   -> UPDATE status=Truncated   (terminal)
 
 All branches idempotent. Genesis-event payload values (plan_id,
-subject_id, raid) land on INSERT and never change; lifecycle UPDATEs
-only touch `status`. Match-or pattern groups the 5 status-only
-UPDATEs (Held, Resumed, and the 4 terminal transitions all fold to
-distinct status strings via the event TYPE).
+subject_id, raid, parameter_overrides_present) land on INSERT and
+never change; lifecycle UPDATEs only touch `status`.
+
+`parameter_overrides_present` (Phase 6g-c) is TRUE iff RunStarted's
+`parameter_overrides` payload was non-empty (operator customized
+parameters at start time vs. just used Plan defaults). The full
+overrides + effective_parameters dicts live on the event itself,
+loaded on demand via `get_run` fold-on-read; the boolean is the
+list-endpoint filter primitive. See
+[[project_run_parameters_design]] §6g-c for the locked design and
+the future JSONB-column trigger (promote when key-level value
+filtering becomes a pilot need).
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -28,8 +37,9 @@ from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_RUN_SQL = """
 INSERT INTO proj_run_summary
-    (run_id, name, plan_id, subject_id, raid, status, created_at)
-VALUES ($1, $2, $3, $4, $5, 'Running', $6)
+    (run_id, name, plan_id, subject_id, raid, status, created_at,
+     parameter_overrides_present)
+VALUES ($1, $2, $3, $4, $5, 'Running', $6, $7)
 ON CONFLICT (run_id) DO NOTHING
 """
 
@@ -73,6 +83,10 @@ class RunSummaryProjection:
         if event.event_type == "RunStarted":
             payload = event.payload
             subject_id = UUID(payload["subject_id"]) if payload.get("subject_id") else None
+            # Forward-compat: pre-6g-c RunStarted payloads have no
+            # parameter_overrides key; bool({}) is FALSE so legacy
+            # rows backfill cleanly.
+            overrides_present = bool(payload.get("parameter_overrides"))
             await conn.execute(
                 _INSERT_RUN_SQL,
                 UUID(payload["run_id"]),
@@ -81,6 +95,7 @@ class RunSummaryProjection:
                 subject_id,
                 payload.get("raid"),
                 datetime.fromisoformat(payload["occurred_at"]),
+                overrides_present,
             )
             return
         new_status = _EVENT_TO_STATUS.get(event.event_type)
