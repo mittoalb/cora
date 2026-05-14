@@ -28,15 +28,15 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: indigo
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
@@ -67,13 +67,10 @@ nav:
     - projects/index.md
     - 35-BM:
       - projects/35-bm/index.md
-      - Goals: projects/35-bm/goals.md
-      - Substrate: projects/35-bm/substrate.md
-      - Approach: projects/35-bm/approach.md
-      - Samples: projects/35-bm/samples.md
-      - Experiment: projects/35-bm/experiment.md
-      - Features: projects/35-bm/features.md
-      - Horizon: projects/35-bm/horizon.md
+      - Ground: projects/35-bm/ground.md
+      - Scope: projects/35-bm/scope.md
+      - Walk: projects/35-bm/walk.md
+      - Capabilities: projects/35-bm/capabilities.md
   - Reference:
     - reference/index.md
     - Workflow: reference/workflow.md

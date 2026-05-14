@@ -1,8 +1,20 @@
-# Experiment
+# Walk
 
-*One scan, walked end to end. Sample class is provisional pending 35-BM team scoping.*
+*One scan, end to end. Sample class is provisional pending 35-BM team scoping.*
 
 A representative micro-CT run: a porous rock core for in-situ flow imaging. From mail-in arrival to delivered segmentation. Concrete numbers (objective, energy, frame counts) are illustrative; the workflow shape is not.
+
+## Sample classes targeted
+
+The walk-through uses one provisional class. The full table is filled in with the 35-BM team; each row names the class and what about it stresses CORA.
+
+| Class | Method | Stress |
+| --- | --- | --- |
+| (TBD) | (TBD) | (TBD) |
+| (TBD) | (TBD) | (TBD) |
+| (TBD) | (TBD) | (TBD) |
+
+Classes left out on purpose (for example, live-cell imaging, robotic sample handling) will be listed here as explicit non-targets once scoped.
 
 ## Walk-through
 
@@ -20,7 +32,7 @@ Before any science scan, the instrument is aligned against its current Assembly:
 
 ### 4. Practice binding
 
-The PI selects the Method *Phase-contrast micro-CT, fly scan*. CORA resolves it against 35-BM's current Assembly into a Practice: *Mitutoyo 5×, 50 µm LuAG, 25 keV, propagation 30 mm*. The Method names the physics; the Practice names this facility's realization of it. The same Method will later bind to a different Practice at MAX IV without modification.
+The PI selects the Method *Phase-contrast micro-CT, fly scan*. CORA resolves it against 35-BM's current Assembly into a Practice: *Mitutoyo 5×, 50 µm LuAG, 25 keV, propagation 30 mm*. The Method names the physics; the Practice names this Assembly's realization of it. Swapping the lens or scintillator produces a different Practice for the same Method, without editing the Method.
 
 ### 5. Plan
 
@@ -58,4 +70,4 @@ Volume, mask, and the event stream that produced them are packaged as a dataset 
 
 One walk touches every part of the system: proposals and access, sample custody, instrument and alignment, the Method/Practice/Plan/Run ladder, all four interchangeable Decision points (review, alignment, COR, segmentation), the high-rate telemetry channel for encoder data, the four trust zones the data crosses, and a mid-Run equipment change. Re-running the recorded events re-derives the volume, the denoised volume, and the mask, given the same inputs.
 
-The walk is provisional in two ways: the sample class will be confirmed with the 35-BM team (see [Samples](samples.md)), and details (numbers, lens choices, strategies named) are illustrative.
+The walk is provisional in two ways: the sample class table will be confirmed with the 35-BM team, and details (numbers, lens choices, strategies named) are illustrative.

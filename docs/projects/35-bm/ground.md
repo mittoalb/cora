@@ -1,8 +1,8 @@
-# Substrate
+# Ground
 
-*What already exists at 35-BM and must be integrated with.*
+*What the pilot inherits at 35-BM. CORA wraps, observes, and audits; it does not replace.*
 
-Substrate is what CORA inherits, not what it designs. Aerotech, FPGA, EPICS, TomoPy, Polaris are mature, owned by other teams, and not on the table for replacement. CORA's job is to wrap, observe, and audit them; where ISA-95 strains against this reality is called out below.
+Aerotech, FPGA, EPICS, TomoPy, Polaris are mature, owned by other teams, and not on the table for replacement. Where ISA-95 strains against this reality is called out below.
 
 ## Assets
 
@@ -67,7 +67,7 @@ Conduits cross zones with explicit policies:
 - Z1 → Z0: PV writes (actuation), PV reads (observation)
 - Z0 → Z1: trigger pulses (PSO), data streams (image frames)
 
-Each Conduit gets a policy document in the trust BC. CORA does not weaken IEC 62443; it makes the zones legible.
+EPICS PVs are the lingua franca. The Trust BC models the EPICS surface as a Conduit between Z1 and Z0. PV reads are observations; PV writes are actuations. Both are events. The Conduit policy answers: which principal can issue which PV write, when, with which audit trail. IEC 62443 framing preserved; CORA does not invent a new authorization model for facility hardware.
 
 ## Compute
 
@@ -78,3 +78,20 @@ Reconstruction runs across tiers depending on scan size:
 - **NVIDIA H100 systems** (EOS): partnership compute, on- or off-network.
 
 A benchmark scaled near-linearly: 54 min at 16 A100s, ~5 min at 128 H100s. CORA observes the compute job as a Run sub-step; it does not replace the scheduler.
+
+## Where this beamline meets CORA
+
+CORA's bounded contexts mapped to the imaging-pilot meaning at 35-BM. The codebase uses the left column; staff conversations use the right.
+
+| BC | At 35-BM |
+| --- | --- |
+| `access` | Beamtime proposals, allocations, scheduling |
+| `subject` | The sample (mail-in receipt, custody, link to runs, retention) |
+| `equipment` | The tomo instrument and its devices: Aerotech stage, Optique Peter optics, FLIR/PCO detectors, softGlueZynq FPGA |
+| `recipe` | Method/Practice catalog: phase-contrast micro-CT, nano-CT with FZP, MHz imaging |
+| `run` | Scan Plans and Runs with full audit (encoder, FPGA pattern, lens changes, dropped frames) |
+| `decision` | DecisionStrategy ports for COR, ROI, segmentation, alignment |
+| `data` | Reconstructed volumes, segmentations, denoised outputs (dxfile/HDF5; events table is canonical) |
+| `trust` | Zones (Z3/Z2/Z1/Z0) and Conduits (EPICS gateway, file transfer) |
+
+For abstract patterns, see [Architecture](../../architecture/index.md).

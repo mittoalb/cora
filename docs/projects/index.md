@@ -12,18 +12,17 @@ Vertical before horizontal. CORA's domain model only contains what at least one 
 
 ## Template
 
-Every project under `docs/projects/<id>/` follows the same eight-page template. Thin content in any section signals the deployment is not ready.
+Every project under `docs/projects/<id>/` follows the same five-page template. Each page does one job. Thin content in any section signals the deployment is not ready.
 
-| Page | Contents |
+| Page | Role |
 | --- | --- |
-| Overview | What the project is and why now |
-| Goals | Commitments, non-commitments, success criteria |
-| Substrate | Asset hierarchy, software ecosystem, trust topology |
-| Approach | BCs, recipe ladder, governance shape |
-| Samples | Sample classes the project targets |
-| Experiment | One worked example, end to end |
-| Features | Stress-tested features with success criteria |
-| Horizon | What comes after the project completes |
+| `index` | The whole story in one read: framing, workflow, why this beamline first |
+| `ground` | What the pilot inherits at this beamline: assets, software, trust topology, BC↔domain bridge |
+| `scope` | What the pilot commits to and what it does not, with the measurable form of "it works" per commit. AI and autonomy as a first-class subsection (in scope, not in scope, stress) |
+| `walk` | One experiment walked end to end, the canonical example for this beamline |
+| `capabilities` | What the pilot leaves the beamline capable of after delivery |
+
+The template is audience-neutral: each page name names the role, not the modality or facility. The same shape works for micro-CT, sprays, nano-imaging, or anything else a beamline pilot covers.
 
 ## Adding a project
 

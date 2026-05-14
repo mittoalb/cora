@@ -25,14 +25,10 @@ Every transition emits events. The full stream re-derives the deliverables. The 
 
 - **Real operations.** Working facility, real users, real failure modes, real data scale.
 - **Known-good substrate.** TomoScan, TomoPy, mctOptics, Noise2Inverse360 are mature and open source. CORA schedules, audits, and governs them; it does not reimplement them.
-- **A clear next customer.** The rollout ladder gives every Method abstraction a real second use case before it locks.
 
 ## Read
 
-- [Goals](goals.md): commitments, non-commitments, success criteria
-- [Substrate](substrate.md): assets, software, trust topology
-- [Approach](approach.md): BCs, recipe ladder, Decision strategies
-- [Samples](samples.md): sample classes targeted
-- [Experiment](experiment.md): one scan end to end
-- [Features](features.md): features stress-tested with success criteria
-- [Horizon](horizon.md): what comes after 35-BM
+- [Ground](ground.md): what the pilot inherits at this beamline
+- [Scope](scope.md): what the pilot commits to and what it does not
+- [Walk](walk.md): one scan, end to end
+- [Capabilities](capabilities.md): what the pilot leaves the beamline with
