@@ -36,6 +36,9 @@ from cora.equipment.features.restore_asset import tool as restore_asset_tool
 from cora.equipment.features.restore_from_maintenance import (
     tool as restore_from_maintenance_tool,
 )
+from cora.equipment.features.update_asset_settings import (
+    tool as update_asset_settings_tool,
+)
 from cora.equipment.features.update_capability_schema import (
     tool as update_capability_schema_tool,
 )
@@ -112,6 +115,10 @@ def register_equipment_tools(
     restore_asset_tool.register(
         mcp,
         get_handler=lambda: get_handlers().restore_asset,
+    )
+    update_asset_settings_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().update_asset_settings,
     )
     get_asset_tool.register(
         mcp,

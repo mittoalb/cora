@@ -4,8 +4,12 @@
 a sample changer, an HPC node. Hierarchical via `parent_id` (forms
 a tree, NOT a DAG — single-parent rule per BC map). Carries a
 `level` discriminator (Enterprise / Site / Area / Unit / Assembly /
-Device, ISA-88-derived) and a `lifecycle` FSM
-(Commissioned -> Active -> Maintenance -> Decommissioned).
+Device, ISA-88-derived), a `lifecycle` FSM
+(Commissioned -> Active -> Maintenance -> Decommissioned), a
+`condition` enum (Nominal / Degraded / Faulted, 5g-b: orthogonal to
+lifecycle), and a `settings` dict (5g-c: slow-changing operational
+parameters validated at write time against the union of assigned
+Capabilities' settings_schemas).
 
 ## Phase 5b scope
 
@@ -60,6 +64,7 @@ dataclass type and per-aggregate error class.
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 from uuid import UUID
 
 from cora.infrastructure.name import validate_name
@@ -148,6 +153,29 @@ class InvalidAssetNameError(ValueError):
             f"Asset name must be 1-{ASSET_NAME_MAX_LENGTH} chars after trimming (got: {value!r})"
         )
         self.value = value
+
+
+class InvalidAssetSettingsError(ValueError):
+    """The proposed Asset.settings dict failed cross-Capability validation.
+
+    Three failure modes (5g-c):
+      1. A key in the proposed settings is not declared by any
+         currently-assigned Capability's settings_schema (orphan key
+         on a fully-schema-covered Asset).
+      2. A value violates the schema constraints declared for its
+         key by one or more assigned Capabilities (intersection via
+         `allOf` semantics; the most restrictive wins).
+      3. Two or more assigned Capabilities declare the same key with
+         incompatible types (true conflict; no value satisfies both).
+
+    Mapped to HTTP 400 by the equipment BC's exception handler. The
+    `reason` string identifies the offending key(s) and, where
+    applicable, the conflicting Capability ids.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Invalid Asset settings: {reason}")
+        self.reason = reason
 
 
 class InvalidAssetParentError(ValueError):
@@ -383,9 +411,17 @@ class Asset:
     streams from before 5g-b fold cleanly with the default
     (additive-state pattern).
 
-    Future additive facets (5g-c+): `settings`, `ports`, `owner`,
-    `persistent_id`. The state-level fields land with defaults for
-    the same forward-compatibility reason.
+    `settings` (5g-c): slow-changing operational parameters
+    (gap_mm, energy_kev, exposure_ms, filter_material, etc.).
+    Validated at write time against the union of currently-assigned
+    Capabilities' `settings_schema` declarations (5g-a). Updated via
+    the `update_asset_settings` slice with PATCH RFC 7396 merge
+    semantics. Defaults to empty dict; pre-5g-c streams fold cleanly
+    via the additive-state pattern.
+
+    Future additive facets (5h+): `ports`, `owner`, `persistent_id`.
+    The state-level fields land with defaults for the same
+    forward-compatibility reason.
     """
 
     id: UUID
@@ -400,3 +436,8 @@ class Asset:
     # type to infer. The parametrized form gives pyright the type
     # without runtime cost. Same trick used in Method.needs_capabilities.
     capabilities: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    # dict[str, Any] for runtime-typed operator-supplied settings.
+    # Same default_factory pattern as capabilities — the empty dict
+    # has no element types for pyright to infer, so the parametrized
+    # `dict[str, Any]` callable is supplied as the factory.
+    settings: dict[str, Any] = field(default_factory=dict[str, Any])

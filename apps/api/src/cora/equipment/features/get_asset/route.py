@@ -7,12 +7,12 @@ infrastructure stays focused on domain / application errors raised
 deeper in the stack).
 
 Response carries the full Asset state including the hierarchy
-(`parent_id` is `UUID | None` — null only for Enterprise roots) and
-the `lifecycle` enum string. The status surface is symmetric with
-`get_capability` (StrEnum's string value).
+(`parent_id` is `UUID | None` — null only for Enterprise roots),
+the `lifecycle` enum string, the `condition` enum string (5g-b),
+and the `settings` dict (5g-c).
 """
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
@@ -29,12 +29,13 @@ class AssetResponse(BaseModel):
 
     Carries primitives, not domain VOs. Decouples the wire format
     from the domain model so the two can evolve independently.
-    `level` and `lifecycle` are the StrEnum string values
-    (PascalCase per the BC map). `parent_id` is null only for
+    `level`, `lifecycle`, and `condition` are the StrEnum string
+    values (PascalCase per the BC map). `parent_id` is null only for
     Enterprise-level roots. `capabilities` serializes as a sorted
     list of UUIDs (frozenset semantics in domain state, list at the
     JSON boundary; sorted by UUID string form for response
-    determinism).
+    determinism). `settings` is the operator-supplied dict
+    (operationally typed by Capability schemas at write time).
     """
 
     id: UUID
@@ -42,7 +43,9 @@ class AssetResponse(BaseModel):
     level: str
     parent_id: UUID | None
     lifecycle: str
+    condition: str
     capabilities: list[UUID]
+    settings: dict[str, Any]
 
 
 def _get_handler(request: Request) -> Handler:
@@ -90,5 +93,7 @@ async def get_assets(
         level=asset.level.value,
         parent_id=asset.parent_id,
         lifecycle=asset.lifecycle.value,
+        condition=asset.condition.value,
         capabilities=sorted(asset.capabilities, key=str),
+        settings=asset.settings,
     )

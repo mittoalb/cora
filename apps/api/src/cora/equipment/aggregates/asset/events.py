@@ -217,6 +217,32 @@ class AssetRestored:
 
 
 @dataclass(frozen=True)
+class AssetSettingsUpdated:
+    """An asset's settings dict was set / replaced via the
+    update_asset_settings slice (5g-c).
+
+    The payload carries the FULL post-merge dict (`settings`), NOT
+    the patch (`settings_patch`) that was submitted. Readers
+    reconstruct current state without folding back through prior
+    events; the audit log answers "what is true at time T", not
+    "what changed between T and T-1". Trade-off: payloads are
+    slightly larger than carrying the diff, but for typical settings
+    dicts (5-30 keys) it's a non-issue.
+
+    The handler validates the post-merge dict against the union of
+    currently-assigned Capabilities' settings_schemas BEFORE
+    emitting; an event in the stream means validation passed at the
+    moment of write. Capability schemas changing later does NOT
+    auto-revalidate existing settings (locked design; see the 5g-c
+    memo).
+    """
+
+    asset_id: UUID
+    settings: dict[str, Any]
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
 class AssetRelocated:
     """An asset's parent in the hierarchy tree changed.
 
@@ -254,6 +280,7 @@ AssetEvent = (
     | AssetDegraded
     | AssetFaulted
     | AssetRestored
+    | AssetSettingsUpdated
 )
 
 
@@ -355,6 +382,12 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
                 "reason": reason,
                 "occurred_at": occurred_at.isoformat(),
             }
+        case AssetSettingsUpdated(asset_id=asset_id, settings=settings, occurred_at=occurred_at):
+            return {
+                "asset_id": str(asset_id),
+                "settings": settings,
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -435,6 +468,14 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                 reason=payload["reason"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "AssetSettingsUpdated":
+            # `payload.get` for additive evolution: pre-5g-c stored
+            # events without the settings key fold to {} (empty dict).
+            return AssetSettingsUpdated(
+                asset_id=UUID(payload["asset_id"]),
+                settings=payload.get("settings", {}),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown AssetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -453,6 +494,7 @@ __all__ = [
     "AssetRelocated",
     "AssetRestored",
     "AssetRestoredFromMaintenance",
+    "AssetSettingsUpdated",
     "event_type_name",
     "from_stored",
     "to_payload",

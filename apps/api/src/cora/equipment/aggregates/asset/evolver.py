@@ -16,6 +16,7 @@ Lifecycle mapping per event type:
   - `AssetDegraded`                -> (lifecycle UNCHANGED; condition -> DEGRADED)
   - `AssetFaulted`                 -> (lifecycle UNCHANGED; condition -> FAULTED)
   - `AssetRestored`                -> (lifecycle UNCHANGED; condition -> NOMINAL)
+  - `AssetSettingsUpdated`         -> (lifecycle UNCHANGED; settings -> event.settings)
 
 The lifecycle mapping is hardcoded per match arm — the event type
 IS the lifecycle-change indicator (no lifecycle field in event
@@ -34,15 +35,17 @@ mutated incrementally by `AssetCapabilityAdded` /
 `AssetCapabilityRemoved`.
 
 **Critical invariant**: every transition arm MUST carry
-`capabilities` AND `condition` through from prior state. Constructing
-`Asset(id=..., name=..., level=..., parent_id=..., lifecycle=...)`
-without explicitly passing them would silently WIPE the fields to
-their defaults (empty frozenset / NOMINAL). 5f-1 added `capabilities`
-with a default solely for additive-state forward compatibility on
-genesis events; 5g-b added `condition` for the same reason; transition
-arms must explicitly carry both. Pinned by
-`test_evolve_<transition>_preserves_capabilities` and
-`test_evolve_<transition>_preserves_condition` for each transition.
+`capabilities` AND `condition` AND `settings` through from prior
+state. Constructing `Asset(id=..., name=..., level=..., parent_id=...,
+lifecycle=...)` without explicitly passing them would silently WIPE
+the fields to their defaults (empty frozenset / NOMINAL / empty
+dict). 5f-1 added `capabilities` with a default solely for additive-
+state forward compatibility on genesis events; 5g-b added `condition`
+for the same reason; 5g-c added `settings` likewise. Transition arms
+must explicitly carry all three. Pinned by
+`test_evolve_<transition>_preserves_capabilities`,
+`test_evolve_<transition>_preserves_condition`, and
+`test_evolve_<transition>_preserves_settings` for each transition.
 
 Transition events applied to empty state raise ValueError: they
 can never appear before `AssetRegistered` in a well-formed stream.
@@ -66,6 +69,7 @@ from cora.equipment.aggregates.asset.events import (
     AssetRelocated,
     AssetRestored,
     AssetRestoredFromMaintenance,
+    AssetSettingsUpdated,
 )
 from cora.equipment.aggregates.asset.state import (
     Asset,
@@ -110,6 +114,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 lifecycle=AssetLifecycle.ACTIVE,
                 condition=prior.condition,
                 capabilities=prior.capabilities,
+                settings=prior.settings,
             )
         case AssetDecommissioned():
             prior = _require_state(state, "AssetDecommissioned")
@@ -121,13 +126,14 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 lifecycle=AssetLifecycle.DECOMMISSIONED,
                 condition=prior.condition,
                 capabilities=prior.capabilities,
+                settings=prior.settings,
             )
         case AssetRelocated(to_parent_id=to_parent_id):
             # Hierarchy mutation: only parent_id changes; lifecycle / level
-            # / name / capabilities / condition carry over from prior state.
-            # The from_parent_id and reason fields in the event aren't read
-            # here (they're audit metadata; the prior state's parent_id is
-            # the source of truth for the read path).
+            # / name / capabilities / condition / settings carry over from
+            # prior state. The from_parent_id and reason fields in the
+            # event aren't read here (audit metadata; prior state's
+            # parent_id is the source of truth for the read path).
             prior = _require_state(state, "AssetRelocated")
             return Asset(
                 id=prior.id,
@@ -137,6 +143,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
                 capabilities=prior.capabilities,
+                settings=prior.settings,
             )
         case AssetMaintenanceEntered():
             prior = _require_state(state, "AssetMaintenanceEntered")
@@ -148,6 +155,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 lifecycle=AssetLifecycle.MAINTENANCE,
                 condition=prior.condition,
                 capabilities=prior.capabilities,
+                settings=prior.settings,
             )
         case AssetRestoredFromMaintenance():
             prior = _require_state(state, "AssetRestoredFromMaintenance")
@@ -159,13 +167,14 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 lifecycle=AssetLifecycle.ACTIVE,
                 condition=prior.condition,
                 capabilities=prior.capabilities,
+                settings=prior.settings,
             )
         case AssetCapabilityAdded(capability_id=capability_id):
-            # Capability mutation: only `capabilities` changes; lifecycle /
-            # level / name / parent_id / condition carry over. Frozenset
-            # semantics: adding an already-present id is a no-op AT THE
-            # EVOLVER LAYER (the decider's strict-not-idempotent guard
-            # enforces "must not already be present" at command time).
+            # Capability mutation: only `capabilities` changes; everything
+            # else carries over. Frozenset semantics: adding an already-
+            # present id is a no-op AT THE EVOLVER LAYER (the decider's
+            # strict-not-idempotent guard enforces "must not already be
+            # present" at command time).
             prior = _require_state(state, "AssetCapabilityAdded")
             return Asset(
                 id=prior.id,
@@ -175,11 +184,15 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
                 capabilities=prior.capabilities | {capability_id},
+                settings=prior.settings,
             )
         case AssetCapabilityRemoved(capability_id=capability_id):
             # Mirror of AssetCapabilityAdded. Frozenset difference is a
             # no-op when the id isn't present (decider enforces
-            # presence at command time).
+            # presence at command time). Settings are NOT auto-purged
+            # when a Capability is removed (5g-c lock: preserve orphans;
+            # the update_asset_settings slice's null-write is the
+            # cleanup path).
             prior = _require_state(state, "AssetCapabilityRemoved")
             return Asset(
                 id=prior.id,
@@ -189,6 +202,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
                 capabilities=prior.capabilities - {capability_id},
+                settings=prior.settings,
             )
         case AssetDegraded():
             # Condition mutation: only `condition` changes; everything
@@ -205,6 +219,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 lifecycle=prior.lifecycle,
                 condition=AssetCondition.DEGRADED,
                 capabilities=prior.capabilities,
+                settings=prior.settings,
             )
         case AssetFaulted():
             prior = _require_state(state, "AssetFaulted")
@@ -216,6 +231,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 lifecycle=prior.lifecycle,
                 condition=AssetCondition.FAULTED,
                 capabilities=prior.capabilities,
+                settings=prior.settings,
             )
         case AssetRestored():
             prior = _require_state(state, "AssetRestored")
@@ -227,6 +243,24 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 lifecycle=prior.lifecycle,
                 condition=AssetCondition.NOMINAL,
                 capabilities=prior.capabilities,
+                settings=prior.settings,
+            )
+        case AssetSettingsUpdated(settings=settings):
+            # Settings mutation: only `settings` changes. Event payload
+            # carries the FULL post-merge dict (5g-c lock), so this arm
+            # simply replaces. Validation already happened at the handler
+            # boundary before append; an event in the stream is by
+            # definition validated.
+            prior = _require_state(state, "AssetSettingsUpdated")
+            return Asset(
+                id=prior.id,
+                name=prior.name,
+                level=prior.level,
+                parent_id=prior.parent_id,
+                lifecycle=prior.lifecycle,
+                condition=prior.condition,
+                capabilities=prior.capabilities,
+                settings=settings,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

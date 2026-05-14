@@ -48,6 +48,7 @@ from cora.equipment.aggregates.asset import (
     AssetNotFoundError,
     InvalidAssetNameError,
     InvalidAssetParentError,
+    InvalidAssetSettingsError,
 )
 from cora.equipment.aggregates.capability import (
     CapabilityAlreadyExistsError,
@@ -77,6 +78,7 @@ from cora.equipment.features import (
     remove_asset_capability,
     restore_asset,
     restore_from_maintenance,
+    update_asset_settings,
     update_capability_schema,
     version_capability,
 )
@@ -163,6 +165,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(degrade_asset.router)
     app.include_router(fault_asset.router)
     app.include_router(restore_asset.router)
+    app.include_router(update_asset_settings.router)
     app.include_router(get_asset.router)
     app.include_router(list_assets.router)
     for validation_cls in (
@@ -171,6 +174,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         InvalidCapabilityVersionTagError,
         InvalidAssetNameError,
         InvalidAssetParentError,
+        InvalidAssetSettingsError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (CapabilityNotFoundError, AssetNotFoundError):

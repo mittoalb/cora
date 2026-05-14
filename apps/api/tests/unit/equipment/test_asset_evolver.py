@@ -26,6 +26,7 @@ from cora.equipment.aggregates.asset.events import (
     AssetRelocated,
     AssetRestored,
     AssetRestoredFromMaintenance,
+    AssetSettingsUpdated,
 )
 from cora.equipment.features import register_asset
 from cora.equipment.features.register_asset import RegisterAsset
@@ -1093,3 +1094,188 @@ def test_fold_register_then_fault_then_restore_round_trip() -> None:
     )
     assert state is not None
     assert state.condition is AssetCondition.NOMINAL
+
+
+# ---------- Phase 5g-c: settings transitions + preservation ----------
+
+
+@pytest.mark.unit
+def test_evolve_asset_registered_defaults_settings_to_empty_dict() -> None:
+    """Genesis: AssetRegistered yields settings={} via the state
+    default (no synthetic initialization event)."""
+    state = evolve(
+        None,
+        AssetRegistered(
+            asset_id=uuid4(),
+            name="X",
+            level="Unit",
+            parent_id=uuid4(),
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.settings == {}
+
+
+@pytest.mark.unit
+def test_evolve_asset_settings_updated_replaces_settings() -> None:
+    """The event payload carries the FULL post-merge dict (5g-c
+    lock), so the evolver simply replaces."""
+    asset_id = uuid4()
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        settings={"old_key": "old_value"},
+    )
+    state = evolve(
+        prior,
+        AssetSettingsUpdated(
+            asset_id=asset_id,
+            settings={"new_key_a": 1, "new_key_b": "hello"},
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.settings == {"new_key_a": 1, "new_key_b": "hello"}
+    # Old key fully gone — settings is REPLACED, not merged at the
+    # evolver layer (merging happens in the decider).
+    assert "old_key" not in state.settings
+
+
+@pytest.mark.unit
+def test_evolve_settings_transition_preserves_lifecycle_condition_capabilities() -> None:
+    """Settings transitions don't touch other facets. Pin orthogonality."""
+    asset_id = uuid4()
+    cap = uuid4()
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("X"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        lifecycle=AssetLifecycle.MAINTENANCE,
+        condition=AssetCondition.DEGRADED,
+        capabilities=frozenset({cap}),
+        settings={"a": 1},
+    )
+    state = evolve(
+        prior,
+        AssetSettingsUpdated(asset_id=asset_id, settings={"b": 2}, occurred_at=_NOW),
+    )
+    assert state.lifecycle is AssetLifecycle.MAINTENANCE
+    assert state.condition is AssetCondition.DEGRADED
+    assert state.capabilities == frozenset({cap})
+    assert state.settings == {"b": 2}
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("name", "transition"),
+    [
+        ("activate", AssetActivated),
+        ("decommission", AssetDecommissioned),
+        ("enter_maintenance", AssetMaintenanceEntered),
+        ("restore_from_maintenance", AssetRestoredFromMaintenance),
+    ],
+)
+def test_evolve_lifecycle_transition_preserves_settings(
+    name: str,
+    transition: type,
+) -> None:
+    """Critical pin: every lifecycle transition arm MUST carry
+    settings through. Same shape as condition / capabilities
+    preservation."""
+    _ = name
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        lifecycle=(
+            AssetLifecycle.COMMISSIONED
+            if transition is AssetActivated
+            else AssetLifecycle.ACTIVE
+            if transition is AssetMaintenanceEntered
+            else AssetLifecycle.MAINTENANCE
+            if transition is AssetRestoredFromMaintenance
+            else AssetLifecycle.ACTIVE
+        ),
+        settings={"energy_kev": 30, "filter": "Cu"},
+    )
+    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW))
+    assert state.settings == {"energy_kev": 30, "filter": "Cu"}
+
+
+@pytest.mark.unit
+def test_evolve_relocate_preserves_settings() -> None:
+    old_parent = uuid4()
+    new_parent = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=old_parent,
+        settings={"a": 1},
+    )
+    state = evolve(
+        prior,
+        AssetRelocated(
+            asset_id=prior.id,
+            from_parent_id=old_parent,
+            to_parent_id=new_parent,
+            reason="moved",
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.settings == {"a": 1}
+
+
+@pytest.mark.unit
+def test_evolve_capability_added_preserves_settings() -> None:
+    cap = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        settings={"a": 1},
+    )
+    state = evolve(
+        prior,
+        AssetCapabilityAdded(asset_id=prior.id, capability_id=cap, occurred_at=_NOW),
+    )
+    assert state.settings == {"a": 1}
+
+
+@pytest.mark.unit
+def test_evolve_capability_removed_preserves_settings_orphans() -> None:
+    """5g-c lock: settings keys provided by a removed Capability
+    STAY on the Asset (no auto-purge). Pin against the evolver."""
+    cap = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        capabilities=frozenset({cap}),
+        settings={"key_owned_by_removed_cap": "value"},
+    )
+    state = evolve(
+        prior,
+        AssetCapabilityRemoved(asset_id=prior.id, capability_id=cap, occurred_at=_NOW),
+    )
+    assert state.capabilities == frozenset()
+    # Orphan key is preserved.
+    assert state.settings == {"key_owned_by_removed_cap": "value"}
+
+
+@pytest.mark.unit
+def test_evolve_condition_event_preserves_settings() -> None:
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        settings={"a": 1},
+    )
+    state = evolve(prior, AssetFaulted(asset_id=prior.id, reason="x", occurred_at=_NOW))
+    assert state.settings == {"a": 1}

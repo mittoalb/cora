@@ -47,8 +47,12 @@ def test_get_asset_returns_200_with_commissioned_lifecycle_for_new_asset() -> No
         "level": "Unit",
         "parent_id": parent_id,
         "lifecycle": "Commissioned",
+        # 5g-b: condition defaults to Nominal at registration.
+        "condition": "Nominal",
         # Empty until add_asset_capability runs (5f-1).
         "capabilities": [],
+        # 5g-c: settings defaults to empty dict at registration.
+        "settings": {},
     }
 
 

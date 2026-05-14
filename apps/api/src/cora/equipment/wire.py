@@ -55,6 +55,7 @@ from cora.equipment.features import (
     remove_asset_capability,
     restore_asset,
     restore_from_maintenance,
+    update_asset_settings,
     update_capability_schema,
     version_capability,
 )
@@ -95,6 +96,7 @@ class EquipmentHandlers:
     degrade_asset: degrade_asset.Handler
     fault_asset: fault_asset.Handler
     restore_asset: restore_asset.Handler
+    update_asset_settings: update_asset_settings.Handler
     get_asset: get_asset.Handler
     list_assets: list_assets.Handler
     list_capabilities: list_capabilities.Handler
@@ -198,6 +200,11 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
         restore_asset=with_tracing(
             restore_asset.bind(deps),
             command_name="RestoreAsset",
+            bc=_BC,
+        ),
+        update_asset_settings=with_tracing(
+            update_asset_settings.bind(deps),
+            command_name="UpdateAssetSettings",
             bc=_BC,
         ),
         get_asset=with_tracing(

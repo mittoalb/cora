@@ -18,6 +18,7 @@ from cora.equipment.aggregates.asset.events import (
     AssetRelocated,
     AssetRestored,
     AssetRestoredFromMaintenance,
+    AssetSettingsUpdated,
     event_type_name,
     from_stored,
     to_payload,
@@ -42,6 +43,7 @@ from cora.equipment.aggregates.asset.state import (
     AssetNotFoundError,
     InvalidAssetNameError,
     InvalidAssetParentError,
+    InvalidAssetSettingsError,
 )
 
 __all__ = [
@@ -72,8 +74,10 @@ __all__ = [
     "AssetRelocated",
     "AssetRestored",
     "AssetRestoredFromMaintenance",
+    "AssetSettingsUpdated",
     "InvalidAssetNameError",
     "InvalidAssetParentError",
+    "InvalidAssetSettingsError",
     "event_type_name",
     "evolve",
     "fold",

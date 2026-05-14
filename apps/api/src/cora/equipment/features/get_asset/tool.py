@@ -9,7 +9,7 @@ interpret).
 """
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from mcp.server.fastmcp import FastMCP
@@ -30,7 +30,9 @@ class AssetOutput(BaseModel):
     level: str
     parent_id: UUID | None
     lifecycle: str
+    condition: str
     capabilities: list[UUID]
+    settings: dict[str, Any]
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -61,5 +63,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             level=asset.level.value,
             parent_id=asset.parent_id,
             lifecycle=asset.lifecycle.value,
+            condition=asset.condition.value,
             capabilities=sorted(asset.capabilities, key=str),
+            settings=asset.settings,
         )
