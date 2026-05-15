@@ -378,6 +378,53 @@ body::before {
   }
 }
 
+/* ---- Talks page: download icon in the top-right corner ----
+   Card body click goes to the slides (handled by the existing
+   p:last-child a::after stretched-link rule above). The download
+   icon sits ABOVE that overlay (z-index: 2 > 1) so clicks on it
+   trigger the PDF download instead. */
+.md-typeset .grid.cards > ul > li > p > a.talk-download {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  color: var(--md-default-fg-color);
+  opacity: 0.45;
+  background: transparent;
+  transition:
+    opacity 150ms ease-out,
+    background-color 150ms ease-out,
+    color 150ms ease-out;
+}
+
+.md-typeset .grid.cards > ul > li > p > a.talk-download:hover,
+.md-typeset .grid.cards > ul > li > p > a.talk-download:focus-visible {
+  opacity: 1;
+  background: var(--md-accent-fg-color--transparent);
+  color: var(--md-accent-fg-color);
+  outline: none;
+}
+
+.md-typeset .grid.cards > ul > li > p > a.talk-download svg {
+  display: block;
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+/* The wrapping <p> for the absolutely-positioned download anchor would
+   otherwise add a vertical gap between the description and the slides
+   link. display: contents removes the <p> from layout while keeping
+   the anchor in the tree. */
+.md-typeset .grid.cards > ul > li > p:has(> a.talk-download:only-child) {
+  display: contents;
+}
+
 /* ---- Section reveal-on-scroll ----
    section-reveal.js adds .cora-revealed when an element scrolls into view.
    Pre-reveal state is opacity 0 + 8px down; revealed state animates back

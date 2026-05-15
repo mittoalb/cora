@@ -17,8 +17,8 @@ Recent CORA talks. Live slides for the browser, PDF for offline.
 
     A thirty-minute talk arguing that AI and autonomous experimentation need a single, queryable record of what happened at the beamline. Reproducibility, FAIR data, and debugging come along for free.
 
-    <a href="2026-maxiv-fov/">Open slides →</a>
+    <a href="2026-maxiv-fov/2026-maxiv-fov.pdf" class="talk-download" download title="Download PDF" aria-label="Download PDF"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm14-12h-4V2H9v6H5l7 7 7-7z"/></svg></a>
 
-    <a href="2026-maxiv-fov/2026-maxiv-fov.pdf">Download PDF →</a>
+    [Open slides →](2026-maxiv-fov/)
 
 </div>
