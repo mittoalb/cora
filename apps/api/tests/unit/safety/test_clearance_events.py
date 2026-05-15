@@ -231,6 +231,7 @@ def test_clearance_registered_event_type_name() -> None:
     event = ClearanceRegistered(
         clearance_id=_CLEARANCE_ID,
         kind="ESAF",
+        facility_asset_id=uuid4(),
         title="t",
         bindings=({"kind": "Run", "id": str(uuid4())},),
         declarations=(),
@@ -251,6 +252,7 @@ def test_clearance_registered_to_payload_round_trip() -> None:
     original = ClearanceRegistered(
         clearance_id=_CLEARANCE_ID,
         kind="ESAF",
+        facility_asset_id=uuid4(),
         title="Pilot ESAF for 35-BM",
         bindings=(
             {"kind": "Run", "id": str(rid)},
@@ -292,6 +294,7 @@ def test_clearance_registered_round_trip_handles_optional_datetimes() -> None:
     original = ClearanceRegistered(
         clearance_id=_CLEARANCE_ID,
         kind="DOOR",
+        facility_asset_id=uuid4(),
         title="t",
         bindings=({"kind": "External", "scheme": "btr", "id": "BTR-1"},),
         declarations=(),

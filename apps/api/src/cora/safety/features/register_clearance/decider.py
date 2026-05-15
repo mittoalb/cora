@@ -117,6 +117,7 @@ def decide(
         ClearanceRegistered(
             clearance_id=new_id,
             kind=command.kind.value,
+            facility_asset_id=command.facility_asset_id,
             title=title.value,
             bindings=bindings_payload,
             declarations=declarations_payload,

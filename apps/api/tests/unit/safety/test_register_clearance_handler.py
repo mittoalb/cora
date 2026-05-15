@@ -1,7 +1,7 @@
 """Application-handler tests for `register_clearance` slice."""
 
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -44,6 +44,7 @@ async def test_handler_returns_generated_clearance_id() -> None:
     result = await handler(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
+            facility_asset_id=uuid4(),
             title="Pilot ESAF",
             bindings=frozenset({RunBinding(run_id=UUID(int=42))}),
         ),
@@ -62,6 +63,7 @@ async def test_handler_appends_clearance_registered_event() -> None:
     await handler(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
+            facility_asset_id=uuid4(),
             title="Pilot ESAF",
             bindings=frozenset({RunBinding(run_id=rid)}),
         ),
@@ -91,6 +93,7 @@ async def test_handler_serializes_multi_binding_set() -> None:
     await handler(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
+            facility_asset_id=uuid4(),
             title="Multi-bind",
             bindings=frozenset({SubjectBinding(subject_id=sid), RunBinding(run_id=rid)}),
         ),
@@ -110,6 +113,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
         await handler(
             RegisterClearance(
                 kind=ClearanceKind.ESAF,
+                facility_asset_id=uuid4(),
                 title="t",
                 bindings=frozenset({RunBinding(run_id=UUID(int=1))}),
             ),
@@ -128,6 +132,7 @@ async def test_handler_does_not_append_when_denied() -> None:
         await handler(
             RegisterClearance(
                 kind=ClearanceKind.ESAF,
+                facility_asset_id=uuid4(),
                 title="t",
                 bindings=frozenset({RunBinding(run_id=UUID(int=1))}),
             ),
@@ -148,6 +153,7 @@ async def test_handler_records_causation_id_when_provided() -> None:
     await handler(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
+            facility_asset_id=uuid4(),
             title="t",
             bindings=frozenset({RunBinding(run_id=UUID(int=1))}),
         ),

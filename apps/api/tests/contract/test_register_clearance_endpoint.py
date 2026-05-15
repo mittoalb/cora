@@ -28,6 +28,7 @@ from cora.safety.features.register_clearance.route import (
 def _minimal_body() -> dict[str, object]:
     return {
         "kind": "ESAF",
+        "facility_asset_id": str(uuid4()),
         "title": "Pilot ESAF for 35-BM",
         "bindings": [{"kind": "Run", "id": str(uuid4())}],
     }
@@ -50,13 +51,11 @@ def test_post_clearances_returns_201_with_clearance_id() -> None:
         "ESAF",
         "SAF",
         "AForm",
-        "ESRFSAF",
         "DUO",
         "ESRA",
         "ERA",
         "PLHD",
         "DOOR",
-        "ESAF_ALS",
         "BTR",
         "Form9",
     ],
@@ -98,6 +97,7 @@ def test_post_clearances_accepts_declarations_with_classifications() -> None:
     sid = str(uuid4())
     body: dict[str, object] = {
         "kind": "ESAF",
+        "facility_asset_id": str(uuid4()),
         "title": "With hazards",
         "bindings": [{"kind": "Subject", "id": sid}],
         "declarations": [
@@ -184,6 +184,7 @@ def test_post_clearances_rejects_nfpa704_quadrant_above_4_with_422() -> None:
     sid = str(uuid4())
     body: dict[str, object] = {
         "kind": "ESAF",
+        "facility_asset_id": str(uuid4()),
         "title": "Bad NFPA",
         "bindings": [{"kind": "Subject", "id": sid}],
         "declarations": [
@@ -283,6 +284,7 @@ def test_post_clearances_rejects_declaration_target_not_in_bindings_with_400() -
     sid_out_of_set = str(uuid4())
     body: dict[str, object] = {
         "kind": "ESAF",
+        "facility_asset_id": str(uuid4()),
         "title": "Target out of scope",
         "bindings": [{"kind": "Subject", "id": sid_in_set}],
         "declarations": [

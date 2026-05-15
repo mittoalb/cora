@@ -38,6 +38,7 @@ def test_mcp_register_clearance_tool_returns_structured_clearance_id() -> None:
                     "name": "register_clearance",
                     "arguments": {
                         "kind": "ESAF",
+                        "facility_asset_id": str(uuid4()),
                         "title": "Pilot ESAF",
                         "bindings": [{"kind": "Run", "id": str(uuid4())}],
                     },
@@ -67,6 +68,7 @@ def test_mcp_register_clearance_tool_accepts_multi_binding() -> None:
                     "name": "register_clearance",
                     "arguments": {
                         "kind": "SAF",
+                        "facility_asset_id": str(uuid4()),
                         "title": "Multi-bind",
                         "bindings": [
                             {"kind": "Subject", "id": str(uuid4())},
@@ -100,6 +102,7 @@ def test_mcp_register_clearance_tool_returns_iserror_on_whitespace_title() -> No
                     "name": "register_clearance",
                     "arguments": {
                         "kind": "ESAF",
+                        "facility_asset_id": str(uuid4()),
                         "title": "   ",
                         "bindings": [{"kind": "Run", "id": str(uuid4())}],
                     },

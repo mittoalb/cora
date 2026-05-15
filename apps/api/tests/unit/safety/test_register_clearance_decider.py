@@ -34,6 +34,7 @@ def test_decide_emits_clearance_registered_when_stream_is_empty() -> None:
         state=None,
         command=RegisterClearance(
             kind=ClearanceKind.ESAF,
+            facility_asset_id=uuid4(),
             title="Pilot ESAF",
             bindings=frozenset({RunBinding(run_id=rid)}),
         ),
@@ -62,6 +63,7 @@ def test_decide_serializes_multi_binding() -> None:
         state=None,
         command=RegisterClearance(
             kind=ClearanceKind.SAF,
+            facility_asset_id=uuid4(),
             title="Multi",
             bindings=frozenset({SubjectBinding(subject_id=sid), RunBinding(run_id=rid)}),
         ),
@@ -79,6 +81,7 @@ def test_decide_serializes_declaration_with_classifications() -> None:
         state=None,
         command=RegisterClearance(
             kind=ClearanceKind.ESAF,
+            facility_asset_id=uuid4(),
             title="With hazards",
             bindings=frozenset({SubjectBinding(subject_id=sid)}),
             declarations=frozenset(
@@ -105,6 +108,7 @@ def test_decide_trims_external_id() -> None:
         state=None,
         command=RegisterClearance(
             kind=ClearanceKind.ESAF,
+            facility_asset_id=uuid4(),
             title="t",
             bindings=frozenset({RunBinding(run_id=uuid4())}),
             external_id="  ESAF-12345  ",
@@ -120,6 +124,7 @@ def test_decide_rejects_existing_state() -> None:
     existing = Clearance(
         id=uuid4(),
         kind=ClearanceKind.ESAF,
+        facility_asset_id=uuid4(),
         title=ClearanceTitle("existing"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),
     )
@@ -128,6 +133,7 @@ def test_decide_rejects_existing_state() -> None:
             state=existing,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
+                facility_asset_id=uuid4(),
                 title="other",
                 bindings=frozenset({RunBinding(run_id=uuid4())}),
             ),
@@ -144,6 +150,7 @@ def test_decide_rejects_empty_title() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
+                facility_asset_id=uuid4(),
                 title="   ",
                 bindings=frozenset({RunBinding(run_id=uuid4())}),
             ),
@@ -159,6 +166,7 @@ def test_decide_rejects_too_long_title() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
+                facility_asset_id=uuid4(),
                 title="a" * 201,
                 bindings=frozenset({RunBinding(run_id=uuid4())}),
             ),
@@ -174,6 +182,7 @@ def test_decide_rejects_empty_bindings() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
+                facility_asset_id=uuid4(),
                 title="t",
                 bindings=frozenset(),
             ),
@@ -189,6 +198,7 @@ def test_decide_rejects_empty_external_id() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
+                facility_asset_id=uuid4(),
                 title="t",
                 bindings=frozenset({RunBinding(run_id=uuid4())}),
                 external_id="   ",
@@ -205,6 +215,7 @@ def test_decide_rejects_too_long_external_id() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
+                facility_asset_id=uuid4(),
                 title="t",
                 bindings=frozenset({RunBinding(run_id=uuid4())}),
                 external_id="a" * 101,
@@ -223,6 +234,7 @@ def test_decide_rejects_inverted_validity_window() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
+                facility_asset_id=uuid4(),
                 title="t",
                 bindings=frozenset({RunBinding(run_id=uuid4())}),
                 valid_from=later,
@@ -240,6 +252,7 @@ def test_decide_accepts_validity_window_when_only_one_side_provided() -> None:
         state=None,
         command=RegisterClearance(
             kind=ClearanceKind.ESAF,
+            facility_asset_id=uuid4(),
             title="t",
             bindings=frozenset({RunBinding(run_id=uuid4())}),
             valid_from=_NOW,
@@ -260,6 +273,7 @@ def test_decide_rejects_zero_duration_validity_window() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
+                facility_asset_id=uuid4(),
                 title="t",
                 bindings=frozenset({RunBinding(run_id=uuid4())}),
                 valid_from=instant,
@@ -282,6 +296,7 @@ def test_decide_rejects_declaration_target_not_in_bindings() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
+                facility_asset_id=uuid4(),
                 title="t",
                 bindings=frozenset({SubjectBinding(subject_id=in_set_subject)}),
                 declarations=frozenset(
@@ -305,6 +320,7 @@ def test_decide_accepts_declaration_target_when_in_bindings() -> None:
         state=None,
         command=RegisterClearance(
             kind=ClearanceKind.ESAF,
+            facility_asset_id=uuid4(),
             title="t",
             bindings=frozenset({SubjectBinding(subject_id=sid)}),
             declarations=frozenset({HazardDeclaration(target=SubjectBinding(subject_id=sid))}),
@@ -320,6 +336,7 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
     rid = uuid4()
     cmd = RegisterClearance(
         kind=ClearanceKind.ESAF,
+        facility_asset_id=uuid4(),
         title="repeatable",
         bindings=frozenset({RunBinding(run_id=rid)}),
     )

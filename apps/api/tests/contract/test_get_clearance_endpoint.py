@@ -11,6 +11,7 @@ from cora.api.main import create_app
 def _seed_clearance(client: TestClient, **overrides: object) -> str:
     body: dict[str, object] = {
         "kind": "ESAF",
+        "facility_asset_id": str(uuid4()),
         "title": "Pilot ESAF for 35-BM",
         "bindings": [{"kind": "Run", "id": str(uuid4())}],
     }
@@ -62,6 +63,7 @@ def test_get_clearances_returns_bindings_with_kind_discriminator() -> None:
         sid, rid = str(uuid4()), str(uuid4())
         body = {
             "kind": "ESAF",
+            "facility_asset_id": str(uuid4()),
             "title": "Multi",
             "bindings": [
                 {"kind": "Subject", "id": sid},
@@ -84,6 +86,7 @@ def test_get_clearances_returns_declarations_with_classifications() -> None:
         sid = str(uuid4())
         body: dict[str, object] = {
             "kind": "ESAF",
+            "facility_asset_id": str(uuid4()),
             "title": "With hazards",
             "bindings": [{"kind": "Subject", "id": sid}],
             "declarations": [

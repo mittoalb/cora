@@ -49,6 +49,7 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
         case ClearanceRegistered(
             clearance_id=clearance_id,
             kind=kind,
+            facility_asset_id=facility_asset_id,
             title=title,
             bindings=bindings,
             declarations=declarations,
@@ -62,6 +63,7 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
             return Clearance(
                 id=clearance_id,
                 kind=ClearanceKind(kind),
+                facility_asset_id=facility_asset_id,
                 title=ClearanceTitle(title),
                 bindings=frozenset(deserialize_binding(b) for b in bindings),
                 declarations=frozenset(deserialize_declaration(d) for d in declarations),

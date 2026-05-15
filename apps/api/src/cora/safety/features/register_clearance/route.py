@@ -168,7 +168,19 @@ class RegisterClearanceRequest(BaseModel):
 
     kind: ClearanceKind = Field(
         ...,
-        description=("Facility safety-form kind. 12 values covering 9 surveyed facilities."),
+        description=(
+            "Form-type (template). 10 facility-independent form-types covering 9 "
+            "surveyed facilities. Facility identity carried separately in "
+            "`facility_asset_id`."
+        ),
+    )
+    facility_asset_id: UUID = Field(
+        ...,
+        description=(
+            "Reference to the Asset.Level.Site for the facility that issued "
+            "(or will issue) this clearance. CORA does NOT verify the Asset "
+            "exists at register time (eventual-consistency convention)."
+        ),
     )
     title: str = Field(
         ...,
@@ -284,6 +296,7 @@ def _declaration_from_dto(dto: _HazardDeclarationDTO) -> HazardDeclaration:
 def _command_from_request(body: RegisterClearanceRequest) -> RegisterClearance:
     return RegisterClearance(
         kind=body.kind,
+        facility_asset_id=body.facility_asset_id,
         title=body.title,
         bindings=frozenset(_binding_from_dto(b) for b in body.bindings),
         declarations=frozenset(_declaration_from_dto(d) for d in body.declarations),

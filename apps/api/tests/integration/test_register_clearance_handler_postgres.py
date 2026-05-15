@@ -36,6 +36,7 @@ async def test_register_clearance_persists_event_to_postgres(
     clearance_id = await register_clearance.bind(deps)(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
+            facility_asset_id=uuid4(),
             title="Pilot ESAF for 35-BM",
             bindings=frozenset({RunBinding(run_id=rid)}),
             risk_band=RiskBand.YELLOW,
@@ -79,6 +80,7 @@ async def test_register_then_get_clearance_round_trip_via_postgres(
     clearance_id = await register_clearance.bind(deps)(
         RegisterClearance(
             kind=ClearanceKind.SAF,
+            facility_asset_id=uuid4(),
             title="NSLS-II SAF roundtrip",
             bindings=frozenset({SubjectBinding(subject_id=sid), RunBinding(run_id=rid)}),
             declarations=frozenset(

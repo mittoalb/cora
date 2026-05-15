@@ -190,7 +190,19 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         ),
     )
     async def register_clearance_tool(  # pyright: ignore[reportUnusedFunction]
-        kind: Annotated[ClearanceKind, Field(description="Facility safety-form kind.")],
+        kind: Annotated[
+            ClearanceKind,
+            Field(description="Form-type (10 facility-independent form-types)."),
+        ],
+        facility_asset_id: Annotated[
+            UUID,
+            Field(
+                description=(
+                    "Reference to the Asset.Level.Site for the facility that issued "
+                    "(or will issue) this clearance."
+                ),
+            ),
+        ],
         title: Annotated[
             str,
             Field(
@@ -247,6 +259,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         clearance_id = await handler(
             RegisterClearance(
                 kind=kind,
+                facility_asset_id=facility_asset_id,
                 title=title,
                 bindings=frozenset(_binding_from_arg(b) for b in bindings),
                 declarations=frozenset(_declaration_from_arg(d) for d in (declarations or [])),

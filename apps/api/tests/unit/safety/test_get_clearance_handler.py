@@ -57,6 +57,7 @@ async def test_get_handler_returns_state_when_clearance_exists() -> None:
     clearance_id = await register_handler(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
+            facility_asset_id=uuid4(),
             title="Pilot",
             bindings=frozenset({RunBinding(run_id=rid)}),
         ),
@@ -133,6 +134,7 @@ async def test_get_handler_loads_state_from_directly_seeded_event_stream() -> No
     event = ClearanceRegistered(
         clearance_id=cid,
         kind="SAF",
+        facility_asset_id=uuid4(),
         title="Hand-crafted",
         bindings=({"kind": "Run", "id": str(rid)},),
         declarations=(),

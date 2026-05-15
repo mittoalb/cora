@@ -126,42 +126,54 @@ class ClearanceStatus(StrEnum):
 
 
 class ClearanceKind(StrEnum):
-    """The facility safety-form kind this Clearance wraps.
+    """The form-type (template) this Clearance wraps.
 
-    Twelve values covering the 9 surveyed facilities per the
-    cross-facility portability research (v3 pass; report at
-    /tmp/cora_hazard_research_v3.md):
+    Ten facility-independent form-types covering the 9 surveyed facilities
+    (cross-facility portability research v3 at /tmp/cora_hazard_research_v3.md).
+    Facility identity is carried separately via `Clearance.facility_asset_id`
+    (a reference to the `Asset.Level.Site` for the facility); it is NOT
+    smushed into the kind value.
 
-      - `ESAF`     -- APS Experiment Safety Assessment Form
-      - `SAF`      -- NSLS-II Safety Approval Form (PASS-managed)
+      - `ESAF`     -- Experiment Safety Assessment Form (used by APS + ALS;
+                      facility distinguishes between the two)
+      - `SAF`      -- Safety Approval Form (used by NSLS-II + ESRF)
       - `AForm`    -- ESRF A-form (per-proposal)
-      - `ESRFSAF`  -- ESRF Safety Approval Form (per-session, pairs with AForm)
       - `DUO`      -- MAX IV DUO (proposal-level)
       - `ESRA`     -- MAX IV ESRA (per-experiment, pairs with DUO)
       - `ERA`      -- DLS Experiment Risk Assessment (per-session)
       - `PLHD`     -- DLS Personal Lab Hazard Declaration (per-lab-visit)
       - `DOOR`     -- DESY DOOR (per-beamtime)
-      - `ESAF_ALS` -- ALS ESAF (distinct from APS ESAF; per-experiment with
-                      per-user certification). Snake-case value to match
-                      family-noun primacy (ESAF is the noun, ALS is the
-                      modifier; reads aloud "register an ESAF-ALS clearance").
       - `BTR`      -- SLAC Beam Time Request safety review
       - `Form9`    -- SPring-8 Form 9 (per-visit)
 
-    Future-additive: a 13th facility surfaces as a new enum member;
-    existing Clearances unaffected (StrEnum value space is open).
+    `(kind=ESAF, facility_asset_id=<APS_SITE_UUID>)` and
+    `(kind=ESAF, facility_asset_id=<ALS_SITE_UUID>)` are distinct without
+    string-mangling. Two orthogonal concepts (form-type + facility) are
+    cleanly separated; no `ESAF_APS` / `ESAF_ALS` smush.
+
+    Per [[project_safety_clearance_design]] §"Facility lives at
+    Asset.Level.Site": facility identity is the existing Asset.Site in
+    CORA's Equipment hierarchy, NOT a parallel StrEnum. Adding a new
+    facility requires no enum change at all (just register a new Site
+    Asset). A 13th form-type (rare; the global form-type registry is
+    relatively stable) lands as a new enum member.
+
+    Future ClearanceTemplate aggregate (watch item): when first
+    per-template body-schema-validation OR template-versioning need
+    surfaces, this StrEnum gets replaced by `template_id: UUID`
+    referencing a typed `ClearanceTemplate` aggregate (mirrors Capability
+    inside Equipment BC). Same trigger pattern as ProcedureTemplate watch
+    item in [[project_operation_design]].
     """
 
     ESAF = "ESAF"
     SAF = "SAF"
     AFORM = "AForm"
-    ESRFSAF = "ESRFSAF"
     DUO = "DUO"
     ESRA = "ESRA"
     ERA = "ERA"
     PLHD = "PLHD"
     DOOR = "DOOR"
-    ESAF_ALS = "ESAF_ALS"
     BTR = "BTR"
     FORM9 = "Form9"
 
@@ -497,6 +509,7 @@ class Clearance:
 
     id: UUID
     kind: ClearanceKind
+    facility_asset_id: UUID  # references the Asset.Level.Site for the facility
     title: ClearanceTitle
     bindings: frozenset[ClearanceBinding]
     declarations: frozenset[HazardDeclaration] = field(default_factory=frozenset[HazardDeclaration])
