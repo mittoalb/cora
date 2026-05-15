@@ -25,8 +25,8 @@ Phase 10c-a ships the BC scaffold + 2 slices:
   - get_procedure (read; fold-on-read)
 
 Phase 10c-b adds start_procedure / complete_procedure / abort_procedure
-plus the per-step substream (Setpoint/Action/Check rows on
-entries_operation_procedure_steps, mirroring 6f-5b RunReading).
+plus the per-step logbook (Setpoint/Action/Check rows in the
+entries_operation_procedure_steps table, mirroring 6f-5b RunReading).
 Phase 10c-c adds projection + list_procedures + truncate_procedure
 (and Held/Resumed only if pilot needs surface).
 """

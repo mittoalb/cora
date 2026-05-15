@@ -5,11 +5,15 @@ from uuid import uuid4
 import pytest
 
 from cora.operation.aggregates.procedure import (
+    LOGBOOK_KIND_STEPS,
     PROCEDURE_ABORT_REASON_MAX_LENGTH,
     PROCEDURE_NAME_MAX_LENGTH,
+    STEP_KIND_VALUES,
+    STEPS_LOGBOOK_SCHEMA,
     InvalidProcedureAbortReasonError,
     InvalidProcedureKindError,
     InvalidProcedureNameError,
+    InvalidStepKindError,
     ProcedureAbortReason,
     ProcedureAlreadyExistsError,
     ProcedureAssetDecommissionedError,
@@ -19,6 +23,7 @@ from cora.operation.aggregates.procedure import (
     ProcedureName,
     ProcedureNotFoundError,
     ProcedureStatus,
+    ProcedureStepsLogbookClosedError,
 )
 
 # ---------- ProcedureName VO ----------
@@ -189,3 +194,51 @@ def test_procedure_asset_decommissioned_error_carries_ids() -> None:
     assert err.asset_ids == [a, b]
     assert str(a) in str(err)
     assert str(b) in str(err)
+
+
+# ---------- 10c-b iter 2: step logbook constants + errors ----------
+
+
+@pytest.mark.unit
+def test_step_kind_values_locked() -> None:
+    """Pin the 3 step kinds; future additions must be a deliberate test edit.
+    Reflects CORA's rename of ISA-106's Command/Perform/Verify triplet."""
+    assert frozenset({"setpoint", "action", "check"}) == STEP_KIND_VALUES
+
+
+@pytest.mark.unit
+def test_logbook_kind_steps_constant() -> None:
+    assert LOGBOOK_KIND_STEPS == "steps"
+
+
+@pytest.mark.unit
+def test_steps_logbook_schema_declares_step_kind_and_timestamps() -> None:
+    """Schema declares the wrapper columns; per-kind body lives at the API layer."""
+    field_names = set(STEPS_LOGBOOK_SCHEMA.fields)
+    # Wrapper columns:
+    assert "step_kind" in field_names
+    assert "sampled_at" in field_names
+    assert "occurred_at" in field_names
+    assert "recorded_at" in field_names
+    # Polymorphic JSON body NOT declared in schema (LogbookFieldType is
+    # closed over primitives); per-kind shape lives in code.
+    assert "payload" not in field_names
+
+
+@pytest.mark.unit
+def test_invalid_step_kind_error_carries_value_and_allowed() -> None:
+    err = InvalidStepKindError("bogus", STEP_KIND_VALUES)
+    assert err.value == "bogus"
+    assert err.allowed == STEP_KIND_VALUES
+    assert "bogus" in str(err)
+    assert "setpoint" in str(err)
+
+
+@pytest.mark.unit
+def test_procedure_steps_logbook_closed_error_carries_id_and_status() -> None:
+    procedure_id = uuid4()
+    err = ProcedureStepsLogbookClosedError(procedure_id, current_status=ProcedureStatus.COMPLETED)
+    assert err.procedure_id == procedure_id
+    assert err.current_status is ProcedureStatus.COMPLETED
+    assert "Completed" in str(err)
+    assert "Running" in str(err)

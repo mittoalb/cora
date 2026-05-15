@@ -5,10 +5,13 @@ case forces pyright (and the runtime) to error if a new event type
 is added to `ProcedureEvent` without a matching match arm here.
 
 Status mapping per event type:
-  - `ProcedureRegistered` -> DEFINED   (genesis; universal initial-state convention)
-  - `ProcedureStarted`    -> RUNNING   (single-source genesis transition out of Defined)
-  - `ProcedureCompleted`  -> COMPLETED (happy-path terminal)
-  - `ProcedureAborted`    -> ABORTED   (emergency-exit terminal)
+  - `ProcedureRegistered`         -> DEFINED   (genesis; universal initial-state convention)
+  - `ProcedureStarted`            -> RUNNING   (single-source genesis transition out of Defined)
+  - `ProcedureCompleted`          -> COMPLETED (happy-path terminal)
+  - `ProcedureAborted`            -> ABORTED   (emergency-exit terminal)
+  - `ProcedureStepsLogbookOpened` -> STATUS UNCHANGED (sets steps_logbook_id;
+                                     lazy-open envelope event from
+                                     append_procedure_step, orthogonal to lifecycle)
 
 The mapping is hardcoded per match arm -- the event type IS the
 state-change indicator (no status field in event payloads). Same
@@ -21,11 +24,18 @@ layer (set semantics for ProcedureStartContext lookup); the payload
 already sorted in `to_payload` for persistence determinism.
 
 **Critical invariant**: every transition arm MUST carry `id`, `name`,
-`kind`, `target_asset_ids`, AND `parent_run_id` through from prior
-state. Constructing `Procedure(id=..., name=..., status=...)` without
-explicitly passing the additive fields would silently WIPE them to
-defaults (empty frozenset / None). Pinned by the per-transition
-preserve-fields tests. Same lesson as Run BC's evolver docstring.
+`kind`, `target_asset_ids`, `parent_run_id`, AND `steps_logbook_id`
+through from prior state. Constructing `Procedure(id=..., name=...,
+status=...)` without explicitly passing the additive fields would
+silently WIPE them to defaults (empty frozenset / None). Pinned by
+the per-transition preserve-fields tests. Same lesson as Run BC's
+evolver docstring.
+
+`steps_logbook_id` (Phase 10c-b iter 2) is set by the
+`ProcedureStepsLogbookOpened` arm (lazy open-on-first-write
+triggered by `append_procedure_step`); all other arms preserve
+whatever prior state held. Pre-10c-b-iter-2 streams fold with
+`steps_logbook_id=None`.
 
 The shared `require_state` helper at `cora.infrastructure.evolver`
 keeps per-arm bodies short. Hoisted post-7e once the 11th identical
@@ -43,6 +53,7 @@ from cora.operation.aggregates.procedure.events import (
     ProcedureEvent,
     ProcedureRegistered,
     ProcedureStarted,
+    ProcedureStepsLogbookOpened,
 )
 from cora.operation.aggregates.procedure.state import (
     Procedure,
@@ -69,6 +80,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 target_asset_ids=frozenset(target_asset_ids),
                 status=ProcedureStatus.DEFINED,
                 parent_run_id=parent_run_id,
+                steps_logbook_id=None,
             )
         case ProcedureStarted():
             prior = require_state(state, "ProcedureStarted")
@@ -79,6 +91,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 target_asset_ids=prior.target_asset_ids,
                 status=ProcedureStatus.RUNNING,
                 parent_run_id=prior.parent_run_id,
+                steps_logbook_id=prior.steps_logbook_id,
             )
         case ProcedureCompleted():
             prior = require_state(state, "ProcedureCompleted")
@@ -89,6 +102,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 target_asset_ids=prior.target_asset_ids,
                 status=ProcedureStatus.COMPLETED,
                 parent_run_id=prior.parent_run_id,
+                steps_logbook_id=prior.steps_logbook_id,
             )
         case ProcedureAborted():
             prior = require_state(state, "ProcedureAborted")
@@ -99,6 +113,22 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 target_asset_ids=prior.target_asset_ids,
                 status=ProcedureStatus.ABORTED,
                 parent_run_id=prior.parent_run_id,
+                steps_logbook_id=prior.steps_logbook_id,
+            )
+        case ProcedureStepsLogbookOpened(logbook_id=logbook_id):
+            # Lazy open-on-first-write (Phase 10c-b iter 2): preserve all
+            # prior state, set steps_logbook_id. Status NOT touched -- the
+            # logbook is orthogonal to lifecycle. Mirrors Run BC's
+            # RunReadingLogbookOpened arm exactly.
+            prior = require_state(state, "ProcedureStepsLogbookOpened")
+            return Procedure(
+                id=prior.id,
+                name=prior.name,
+                kind=prior.kind,
+                target_asset_ids=prior.target_asset_ids,
+                status=prior.status,
+                parent_run_id=prior.parent_run_id,
+                steps_logbook_id=logbook_id,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

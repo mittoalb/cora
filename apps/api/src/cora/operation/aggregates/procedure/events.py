@@ -13,7 +13,7 @@ three FSM-closure transition events:
     event encodes.
   - `ProcedureCompleted` -- happy-path terminal (Running -> Completed).
     Slim payload by design; substantive completion summary (step count,
-    duration, final check pass-rate) deferred until the step substream
+    duration, final check pass-rate) deferred until the step logbook
     has accreted real consumer signal.
   - `ProcedureAborted` -- emergency-exit terminal (Running -> Aborted).
     Payload carries `procedure_id` + free-form `reason: str` (1-500
@@ -23,7 +23,7 @@ three FSM-closure transition events:
     `InvalidProcedureAbortReasonError`).
 
 Phase 10c-b also adds `ProcedureStepsLogbookOpened` (lazy envelope
-event for the per-step substream). Phase 10c-c adds
+event for the per-step logbook table). Phase 10c-c adds
 `ProcedureTruncated` (mirrors RunTruncated from 6f-4) and possibly
 `ProcedureHeld / ProcedureResumed` if pilot needs surface.
 
@@ -52,6 +52,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.logbook import LogbookSchema
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -103,13 +104,57 @@ class ProcedureCompleted:
 
     Slim payload by design (mirrors RunCompleted): substantive
     completion summary (step count, final check pass-rate, duration)
-    deferred until the step substream consumer signal surfaces. Today
+    deferred until the step logbook consumer signal surfaces. Today
     consumers needing post-completion read state should fold the
     Procedure stream (short and bounded for terminal-by-design
     Lifecycle Aggregates).
     """
 
     procedure_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class ProcedureStepsLogbookOpened:
+    """A steps logbook was attached to this Procedure (Phase 10c-b iter 2).
+
+    Naming note: this event carries the entry-noun (`Steps`) in its name,
+    vs. Conduit/Decision's bare `<Aggregate>LogbookOpened`. Same rationale
+    as Run BC's `RunReadingLogbookOpened`: Procedure is planned to host
+    multiple logbook kinds in the future (operator-action audit, hazard
+    observations are likely future additions), so the event name carries
+    the entry-noun discriminator upfront. Per
+    [[project_logbook_entry_storage]] cross-BC family table.
+
+    Lazy open-on-first-write: emitted by the `append_procedure_step`
+    handler the first time a step is appended for this Procedure, NOT by
+    `start_procedure` (mirrors Decision BC's 8c-b precedent for
+    `DecisionLogbookOpened` and Run BC's 6f-5b precedent for
+    `RunReadingLogbookOpened`). Subsequent appends find the logbook
+    already attached and skip the open-event emission.
+
+    `kind` discriminates the logbook category. Today only
+    `LOGBOOK_KIND_STEPS` from state.py; future per-Procedure logbook
+    kinds (operator-action audit, hazard) would use distinct constants
+    and distinct state fields, not additional values for `kind` here.
+
+    `schema` declares the row shape of `entries_operation_procedure_steps`,
+    documenting the polymorphic `(step_kind, payload, sampled_at,
+    occurred_at, recorded_at)` shape for downstream projections.
+
+    No `ProcedureStepsLogbookClosed` event today: Procedure.status
+    terminals (Completed | Aborted | Truncated) are the implicit close
+    signal; `append_procedure_step` rejects writes when status is not
+    Running via `ProcedureStepsLogbookClosedError`. Audit fidelity is
+    preserved: the open event timestamps the logbook lifecycle start;
+    the terminal ProcedureCompleted / ProcedureAborted / etc. event
+    timestamps the lifecycle end.
+    """
+
+    procedure_id: UUID
+    logbook_id: UUID
+    kind: str
+    schema: LogbookSchema
     occurred_at: datetime
 
 
@@ -133,10 +178,16 @@ class ProcedureAborted:
 
 
 # Discriminated union of every event the Procedure aggregate emits.
-# 10c-b closes the FSM with the three transition events; the per-step
-# substream envelope event `ProcedureStepsLogbookOpened` lands in 10c-b
-# iter 2 alongside the substream port.
-ProcedureEvent = ProcedureRegistered | ProcedureStarted | ProcedureCompleted | ProcedureAborted
+# 10c-b iter 1 closed the FSM with the three transition events;
+# 10c-b iter 2 added the per-step logbook envelope event
+# `ProcedureStepsLogbookOpened` (lazy-open on first append).
+ProcedureEvent = (
+    ProcedureRegistered
+    | ProcedureStarted
+    | ProcedureCompleted
+    | ProcedureAborted
+    | ProcedureStepsLogbookOpened
+)
 
 
 def event_type_name(event: ProcedureEvent) -> str:
@@ -183,6 +234,20 @@ def to_payload(event: ProcedureEvent) -> dict[str, Any]:
             return {
                 "procedure_id": str(procedure_id),
                 "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case ProcedureStepsLogbookOpened(
+            procedure_id=procedure_id,
+            logbook_id=logbook_id,
+            kind=kind,
+            schema=schema,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "procedure_id": str(procedure_id),
+                "logbook_id": str(logbook_id),
+                "kind": kind,
+                "schema": schema.to_dict(),
                 "occurred_at": occurred_at.isoformat(),
             }
         case _:  # pragma: no cover  # exhaustiveness guard
@@ -233,6 +298,14 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
                 reason=payload["reason"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "ProcedureStepsLogbookOpened":
+            return ProcedureStepsLogbookOpened(
+                procedure_id=UUID(payload["procedure_id"]),
+                logbook_id=UUID(payload["logbook_id"]),
+                kind=payload["kind"],
+                schema=LogbookSchema.from_dict(payload["schema"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown ProcedureEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -244,6 +317,7 @@ __all__ = [
     "ProcedureEvent",
     "ProcedureRegistered",
     "ProcedureStarted",
+    "ProcedureStepsLogbookOpened",
     "event_type_name",
     "from_stored",
     "to_payload",

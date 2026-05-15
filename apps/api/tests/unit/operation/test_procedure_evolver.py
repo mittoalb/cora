@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from cora.operation.aggregates.procedure import (
+    STEPS_LOGBOOK_SCHEMA,
     Procedure,
     ProcedureAborted,
     ProcedureCompleted,
@@ -13,6 +14,7 @@ from cora.operation.aggregates.procedure import (
     ProcedureRegistered,
     ProcedureStarted,
     ProcedureStatus,
+    ProcedureStepsLogbookOpened,
     evolve,
     fold,
 )
@@ -288,3 +290,151 @@ def test_evolve_procedure_completed_on_empty_state_raises() -> None:
 def test_evolve_procedure_aborted_on_empty_state_raises() -> None:
     with pytest.raises(ValueError, match="ProcedureAborted"):
         evolve(None, ProcedureAborted(procedure_id=uuid4(), reason="x", occurred_at=_NOW))
+
+
+# --- 10c-b iter 2: ProcedureStepsLogbookOpened arm ---
+
+
+@pytest.mark.unit
+def test_genesis_state_has_no_steps_logbook_id() -> None:
+    """Procedure starts with steps_logbook_id=None; lazy-opened on first step."""
+    state = _defined()
+    assert state.steps_logbook_id is None
+
+
+@pytest.mark.unit
+def test_evolve_steps_logbook_opened_sets_logbook_id() -> None:
+    prior = _defined()
+    started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
+    logbook_id = uuid4()
+    state = evolve(
+        started,
+        ProcedureStepsLogbookOpened(
+            procedure_id=prior.id,
+            logbook_id=logbook_id,
+            kind="steps",
+            schema=STEPS_LOGBOOK_SCHEMA,
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.steps_logbook_id == logbook_id
+
+
+@pytest.mark.unit
+def test_evolve_steps_logbook_opened_does_not_change_status() -> None:
+    """Lazy-open is orthogonal to lifecycle; status preserved exactly."""
+    prior = _defined()
+    started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
+    state = evolve(
+        started,
+        ProcedureStepsLogbookOpened(
+            procedure_id=prior.id,
+            logbook_id=uuid4(),
+            kind="steps",
+            schema=STEPS_LOGBOOK_SCHEMA,
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.status is ProcedureStatus.RUNNING
+
+
+@pytest.mark.unit
+def test_evolve_steps_logbook_opened_preserves_all_other_fields() -> None:
+    asset = uuid4()
+    parent_run = uuid4()
+    prior = _defined(
+        name="35-BM rotation-axis alignment",
+        kind="alignment",
+        target_asset_ids=[asset],
+        parent_run_id=parent_run,
+    )
+    started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
+    logbook_id = uuid4()
+    state = evolve(
+        started,
+        ProcedureStepsLogbookOpened(
+            procedure_id=prior.id,
+            logbook_id=logbook_id,
+            kind="steps",
+            schema=STEPS_LOGBOOK_SCHEMA,
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.id == prior.id
+    assert state.name == prior.name
+    assert state.kind == "alignment"
+    assert state.target_asset_ids == frozenset({asset})
+    assert state.parent_run_id == parent_run
+    assert state.steps_logbook_id == logbook_id
+
+
+@pytest.mark.unit
+def test_evolve_transition_arms_preserve_steps_logbook_id() -> None:
+    """Critical invariant extension (10c-b iter 2): once steps_logbook_id is set,
+    later transitions (Complete, Abort) must preserve it. Otherwise the additive
+    field gets silently wiped on terminal transitions."""
+    prior = _defined()
+    started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
+    logbook_id = uuid4()
+    after_open = evolve(
+        started,
+        ProcedureStepsLogbookOpened(
+            procedure_id=prior.id,
+            logbook_id=logbook_id,
+            kind="steps",
+            schema=STEPS_LOGBOOK_SCHEMA,
+            occurred_at=_NOW,
+        ),
+    )
+    completed = evolve(after_open, ProcedureCompleted(procedure_id=prior.id, occurred_at=_NOW))
+    assert completed.steps_logbook_id == logbook_id
+    # And same on the abort terminal:
+    aborted = evolve(
+        after_open,
+        ProcedureAborted(procedure_id=prior.id, reason="x", occurred_at=_NOW),
+    )
+    assert aborted.steps_logbook_id == logbook_id
+
+
+@pytest.mark.unit
+def test_fold_lazy_open_then_complete_yields_completed_with_logbook_id() -> None:
+    pid = uuid4()
+    logbook_id = uuid4()
+    events = [
+        ProcedureRegistered(
+            procedure_id=pid,
+            name="X",
+            kind="bakeout",
+            target_asset_ids=[],
+            parent_run_id=None,
+            occurred_at=_NOW,
+        ),
+        ProcedureStarted(procedure_id=pid, occurred_at=_NOW),
+        ProcedureStepsLogbookOpened(
+            procedure_id=pid,
+            logbook_id=logbook_id,
+            kind="steps",
+            schema=STEPS_LOGBOOK_SCHEMA,
+            occurred_at=_NOW,
+        ),
+        ProcedureCompleted(procedure_id=pid, occurred_at=_NOW),
+    ]
+    state = fold(events)
+    assert state is not None
+    assert state.status is ProcedureStatus.COMPLETED
+    assert state.steps_logbook_id == logbook_id
+
+
+@pytest.mark.unit
+def test_evolve_steps_logbook_opened_on_empty_state_raises() -> None:
+    with pytest.raises(ValueError, match="ProcedureStepsLogbookOpened"):
+        evolve(
+            None,
+            ProcedureStepsLogbookOpened(
+                procedure_id=uuid4(),
+                logbook_id=uuid4(),
+                kind="steps",
+                schema=STEPS_LOGBOOK_SCHEMA,
+                occurred_at=_NOW,
+            ),
+        )

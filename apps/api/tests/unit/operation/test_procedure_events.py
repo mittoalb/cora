@@ -5,12 +5,15 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.logbook import LogbookFieldSpec, LogbookSchema
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.operation.aggregates.procedure import (
+    STEPS_LOGBOOK_SCHEMA,
     ProcedureAborted,
     ProcedureCompleted,
     ProcedureRegistered,
     ProcedureStarted,
+    ProcedureStepsLogbookOpened,
     event_type_name,
     from_stored,
     to_payload,
@@ -278,5 +281,80 @@ def test_procedure_completed_round_trips() -> None:
 def test_procedure_aborted_round_trips() -> None:
     original = ProcedureAborted(procedure_id=uuid4(), reason="hardware fault", occurred_at=_NOW)
     stored = _stored("ProcedureAborted", to_payload(original))
+    rebuilt = from_stored(stored)
+    assert rebuilt == original
+
+
+# --- 10c-b iter 2: ProcedureStepsLogbookOpened (lazy-open envelope) ---
+
+
+@pytest.mark.unit
+def test_event_type_name_for_procedure_steps_logbook_opened() -> None:
+    event = ProcedureStepsLogbookOpened(
+        procedure_id=uuid4(),
+        logbook_id=uuid4(),
+        kind="steps",
+        schema=STEPS_LOGBOOK_SCHEMA,
+        occurred_at=_NOW,
+    )
+    assert event_type_name(event) == "ProcedureStepsLogbookOpened"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_procedure_steps_logbook_opened() -> None:
+    procedure_id = UUID("01900000-0000-7000-8000-00000000c001")
+    logbook_id = UUID("01900000-0000-7000-8000-00000000c002")
+    schema = LogbookSchema(
+        fields={"step_kind": LogbookFieldSpec(type="string")},
+        description="test",
+    )
+    event = ProcedureStepsLogbookOpened(
+        procedure_id=procedure_id,
+        logbook_id=logbook_id,
+        kind="steps",
+        schema=schema,
+        occurred_at=_NOW,
+    )
+    payload = to_payload(event)
+    assert payload["procedure_id"] == str(procedure_id)
+    assert payload["logbook_id"] == str(logbook_id)
+    assert payload["kind"] == "steps"
+    assert payload["schema"] == schema.to_dict()
+    assert payload["occurred_at"] == _NOW.isoformat()
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_procedure_steps_logbook_opened() -> None:
+    procedure_id = uuid4()
+    logbook_id = uuid4()
+    schema = STEPS_LOGBOOK_SCHEMA
+    stored = _stored(
+        "ProcedureStepsLogbookOpened",
+        {
+            "procedure_id": str(procedure_id),
+            "logbook_id": str(logbook_id),
+            "kind": "steps",
+            "schema": schema.to_dict(),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, ProcedureStepsLogbookOpened)
+    assert rebuilt.procedure_id == procedure_id
+    assert rebuilt.logbook_id == logbook_id
+    assert rebuilt.kind == "steps"
+    assert rebuilt.schema == schema
+
+
+@pytest.mark.unit
+def test_procedure_steps_logbook_opened_round_trips() -> None:
+    original = ProcedureStepsLogbookOpened(
+        procedure_id=uuid4(),
+        logbook_id=uuid4(),
+        kind="steps",
+        schema=STEPS_LOGBOOK_SCHEMA,
+        occurred_at=_NOW,
+    )
+    stored = _stored("ProcedureStepsLogbookOpened", to_payload(original))
     rebuilt = from_stored(stored)
     assert rebuilt == original

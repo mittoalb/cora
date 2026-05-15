@@ -16,17 +16,17 @@ raised them, so Operation does not re-register them.
 
 ## Loop-collapse pattern
 
-Operation owns one aggregate (Procedure). Four error families share
-the same response shape and get collapsed via the Trust /
-Equipment / Supply-style loop pattern:
+Operation owns one aggregate (Procedure) plus its per-step logbook.
+Five error families share the same response shape and get collapsed
+via the Trust / Equipment / Supply-style loop pattern:
 
   - 400 (validation): InvalidProcedureName, InvalidProcedureKind,
-    InvalidProcedureAbortReason
+    InvalidProcedureAbortReason, InvalidStepKind
   - 404 (load miss): ProcedureNotFound
   - 409 (defensive guard for AlreadyExists): ProcedureAlreadyExists
   - 409 (transition guards): ProcedureCannotStart,
     ProcedureCannotComplete, ProcedureCannotAbort,
-    ProcedureAssetDecommissioned
+    ProcedureAssetDecommissioned, ProcedureStepsLogbookClosed
 
 10c-c will append ProcedureCannotTruncate to the transition-guard
 tuple.
@@ -39,16 +39,19 @@ from cora.operation.aggregates.procedure import (
     InvalidProcedureAbortReasonError,
     InvalidProcedureKindError,
     InvalidProcedureNameError,
+    InvalidStepKindError,
     ProcedureAlreadyExistsError,
     ProcedureAssetDecommissionedError,
     ProcedureCannotAbortError,
     ProcedureCannotCompleteError,
     ProcedureCannotStartError,
     ProcedureNotFoundError,
+    ProcedureStepsLogbookClosedError,
 )
 from cora.operation.errors import UnauthorizedError
 from cora.operation.features import (
     abort_procedure,
+    append_procedure_step,
     complete_procedure,
     get_procedure,
     register_procedure,
@@ -108,9 +111,11 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
     """Shared 409 handler for every transition-guard error.
 
     Covers ProcedureCannotStart / ProcedureCannotComplete /
-    ProcedureCannotAbort (FSM source-state guards) AND
+    ProcedureCannotAbort (FSM source-state guards),
     ProcedureAssetDecommissioned (cross-aggregate precondition guard
-    at start_procedure). All map to HTTP 409 + `{"detail": str(exc)}`.
+    at start_procedure), AND ProcedureStepsLogbookClosed (logbook
+    write guard for non-Running Procedures). All map to HTTP 409 +
+    `{"detail": str(exc)}`.
     """
     _ = request
     return JSONResponse(
@@ -125,11 +130,13 @@ def register_operation_routes(app: FastAPI) -> None:
     app.include_router(start_procedure.router)
     app.include_router(complete_procedure.router)
     app.include_router(abort_procedure.router)
+    app.include_router(append_procedure_step.router)
     app.include_router(get_procedure.router)
     for validation_cls in (
         InvalidProcedureNameError,
         InvalidProcedureKindError,
         InvalidProcedureAbortReasonError,
+        InvalidStepKindError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (ProcedureNotFoundError,):
@@ -141,6 +148,7 @@ def register_operation_routes(app: FastAPI) -> None:
         ProcedureCannotCompleteError,
         ProcedureCannotAbortError,
         ProcedureAssetDecommissionedError,
+        ProcedureStepsLogbookClosedError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

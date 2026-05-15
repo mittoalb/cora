@@ -42,9 +42,18 @@ WIP_SLICES: frozenset[str] = frozenset(
         # writes to a typed entries store via the per-category
         # ReadingStore port. Closes when the slice contract gains a
         # first-class entry-shape file-set rule (no decider.py
-        # required; the architectural exemption is now n=2, justifying
+        # required; the architectural exemption is now n=3, justifying
         # the new file-set classification — separate cleanup).
         "cora.run.features.append_run_reading",
+        # Phase 10c-b iter 2: append_procedure_step is the third
+        # entry-appending slice (after append_reasoning_entry and
+        # append_run_reading). Same entry-shape; writes to
+        # entries_operation_procedure_steps via the per-category
+        # StepStore port. With n=3 the rule-of-three has fired for the
+        # entry-shape file-set classification — separate cleanup pass
+        # will hoist a third file-set tuple and drop these from
+        # WIP_SLICES.
+        "cora.operation.features.append_procedure_step",
     }
 )
 

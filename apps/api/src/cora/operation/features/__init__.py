@@ -12,10 +12,10 @@ Phase 10c-b adds the FSM-closure transitions:
   - `complete_procedure` (Running -> Completed; happy path)
   - `abort_procedure` (Running -> Aborted; emergency exit with reason)
 
-Phase 10c-b iter 2 will add:
+Phase 10c-b iter 2 added the per-step logbook slice:
   - `append_procedure_step` (entry-shape slice; writes one
     Setpoint/Action/Check entry per step to the
-    entries_operation_procedure_steps substream; mirrors
+    entries_operation_procedure_steps logbook table; mirrors
     append_run_reading from 6f-5b, with lazy-open envelope event
     `ProcedureStepsLogbookOpened` on first append)
 
@@ -28,6 +28,7 @@ Phase 10c-c adds:
 
 from cora.operation.features import (
     abort_procedure,
+    append_procedure_step,
     complete_procedure,
     get_procedure,
     register_procedure,
@@ -36,6 +37,7 @@ from cora.operation.features import (
 
 __all__ = [
     "abort_procedure",
+    "append_procedure_step",
     "complete_procedure",
     "get_procedure",
     "register_procedure",

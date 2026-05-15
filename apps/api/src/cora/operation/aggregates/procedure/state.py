@@ -10,8 +10,10 @@ ISA-88 batch lens).
 The aggregate is intentionally slim per
 [[project_fold_cost_principles]]: identity + name + kind + target
 Asset refs + status + optional parent_run_id. Per-step records
-(Setpoint/Action/Check rows) live on a substream parallel to 6f-5b
-RunReading; step bodies do NOT fold into Procedure state.
+(Setpoint/Action/Check rows) live in a Logbook + Entry table parallel
+to 6f-5b RunReading (CORA's concrete realisation of the substream
+concept; see [[project_logbook_entry_storage]] §Terminology); step
+bodies do NOT fold into Procedure state.
 
 ## Phase 10c-a scope
 
@@ -19,7 +21,7 @@ Minimal Procedure: id + name + kind + target_asset_ids +
 parent_run_id (optional) + status. Two slices ship in 10c-a:
 `register_procedure` (genesis -> Defined) and `get_procedure` (read).
 Full FSM (Running / Completed / Aborted / Truncated transitions) +
-per-step substream land in 10c-b. Projection + list_procedures land
+per-step logbook land in 10c-b. Projection + list_procedures land
 in 10c-c.
 
 ## ProcedureStatus FSM (locked initial)
@@ -93,13 +95,84 @@ the binding is the discriminator.
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Literal
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.logbook import LogbookFieldSpec, LogbookSchema
 
 PROCEDURE_NAME_MAX_LENGTH = 200
 PROCEDURE_KIND_MAX_LENGTH = 50
 PROCEDURE_ABORT_REASON_MAX_LENGTH = 500
+
+# Phase 10c-b: per-Procedure step logbook constants.
+LOGBOOK_KIND_STEPS = "steps"
+"""Discriminator for the Procedure's per-step logbook (Phase 10c-b).
+
+Used as the `kind` value on `ProcedureStepsLogbookOpened` events. One
+Procedure has at most one steps logbook (lazy open-on-first-write);
+future distinct Procedure-side logbook kinds (operator-action audit,
+hazard observations) would land as separate constants and separate
+state fields, not as additional values for the same kind. Mirrors
+LOGBOOK_KIND_READING from Run BC."""
+
+# Closed enum for the `step_kind` discriminator on per-step rows.
+# The three values are CORA's rename of ISA-106's canonical
+# Command/Perform/Verify triplet (renamed to avoid CQRS Command
+# collision per [[project_operation_design]]). Future-additive
+# operational vocabulary (for example "wait", "rollback") lands as
+# code edits, not migrations (table column is plain TEXT, not a
+# CHECK-constrained enum, mirroring Run BC's sampling_procedure
+# precedent).
+StepKind = Literal["setpoint", "action", "check"]
+STEP_KIND_VALUES: frozenset[str] = frozenset({"setpoint", "action", "check"})
+
+# Schema declaration for the steps logbook. Documentation-grade per
+# [[project_logbook_entry_storage]]: declares the entry-row column
+# shape so projections can read entry shape uniformly. The shared
+# columns are the polymorphic-with-discriminator skeleton; the
+# kind-specific body lives in the JSON `payload` column (per-kind
+# Pydantic models guard the body shape at the API boundary).
+STEPS_LOGBOOK_SCHEMA = LogbookSchema(
+    fields={
+        "step_kind": LogbookFieldSpec(
+            type="string",
+            description=(
+                "Discriminator for the polymorphic step body. One of: "
+                "'setpoint' (control-point change applied), 'action' "
+                "(discrete operation performed), 'check' (verification "
+                "recorded). CORA's rename of ISA-106's canonical "
+                "Command/Perform/Verify triplet. The kind-specific "
+                "JSON `payload` column is NOT declared here because "
+                "LogbookFieldType is closed over primitives; per-kind "
+                "body shape lives at the API layer (Pydantic per-kind "
+                "models). See [[project_operation_design]]."
+            ),
+        ),
+        "sampled_at": LogbookFieldSpec(
+            type="datetime",
+            description=(
+                "phenomenonTime: when the step physically happened in "
+                "the field (operator-recorded or instrument-clock)."
+            ),
+        ),
+        "occurred_at": LogbookFieldSpec(
+            type="datetime",
+            description="When the handler appended the entry (CORA Clock port).",
+        ),
+        "recorded_at": LogbookFieldSpec(
+            type="datetime",
+            description="When Postgres wrote the row (DEFAULT now()).",
+        ),
+    },
+    description=(
+        "Per-Procedure step entries, polymorphic by step_kind "
+        "(setpoint | action | check | future). One row per step; "
+        "rows write directly to entries_operation_procedure_steps "
+        "via the StepStore port (no per-row event on the Procedure "
+        "stream). See [[project_operation_design]]."
+    ),
+)
 
 
 class ProcedureStatus(StrEnum):
@@ -126,7 +199,7 @@ class ProcedureStatus(StrEnum):
     `Verifying` is NOT standards-blessed at FSM level (PackML uses
     `Completing` for closeout/check work; OPC UA Programs has no
     Verify state). Per-step Check happens within Running synchronously
-    (via the Step substream's check_passed field at 10c-b). Held /
+    (via the Step logbook's check_passed field at 10c-b). Held /
     Resumed deferred until pilot operator feedback surfaces a need.
 
     Naming convention (per Run BC 6f-2 gate review): gerund /
@@ -265,6 +338,46 @@ class ProcedureCannotAbortError(Exception):
         self.current_status = current_status
 
 
+class InvalidStepKindError(ValueError):
+    """The supplied step_kind is not in the allowed set.
+
+    Pydantic catches this at the API boundary via `Literal[...]` on
+    the request body. The handler ALSO validates against
+    `STEP_KIND_VALUES` so direct in-process callers (sagas, tests)
+    get the same protection. Mirrors `InvalidSamplingProcedureError`
+    from Run BC. Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: str, allowed: frozenset[str]) -> None:
+        super().__init__(f"Procedure step_kind must be one of {sorted(allowed)} (got: {value!r})")
+        self.value = value
+        self.allowed = allowed
+
+
+class ProcedureStepsLogbookClosedError(Exception):
+    """Cannot append step to a Procedure in a terminal status.
+
+    Per [[project_operation_design]] the Procedure FSM's terminals
+    (Completed | Aborted | Truncated) implicitly close the steps
+    logbook; no explicit `ProcedureStepsLogbookClosed` event is
+    emitted. The `append_procedure_step` handler raises this when
+    a writer attempts to append after the Procedure has terminated.
+    Mirrors `RunReadingLogbookClosedError` from Run BC. Mapped to
+    HTTP 409.
+
+    Note: appending to a `Defined` (pre-start) Procedure also raises
+    this; steps are only valid in `Running`.
+    """
+
+    def __init__(self, procedure_id: UUID, current_status: "ProcedureStatus") -> None:
+        super().__init__(
+            f"Procedure {procedure_id} steps logbook is closed: currently in "
+            f"status {current_status.value}; appends require {ProcedureStatus.RUNNING.value}"
+        )
+        self.procedure_id = procedure_id
+        self.current_status = current_status
+
+
 class InvalidProcedureAbortReasonError(ValueError):
     """The supplied abort reason is empty, whitespace-only, or too long.
 
@@ -338,8 +451,9 @@ class Procedure:
 
     Slim aggregate per [[project_fold_cost_principles]]: identity +
     name + kind + target Asset refs + status + optional Run binding.
-    Per-step records (Setpoint/Action/Check) live on a substream at
-    10c-b; the step bodies do NOT fold into this state.
+    Per-step records (Setpoint/Action/Check) live in a Logbook + Entry
+    table at 10c-b (see [[project_logbook_entry_storage]]); the step
+    bodies do NOT fold into this state.
 
     `id` is the stable opaque handle. `name` is operator-readable.
     `kind` is the free-form ISA-106 procedure-kind discriminator
@@ -378,3 +492,13 @@ class Procedure:
     target_asset_ids: frozenset[UUID] = field(default_factory=frozenset[UUID])
     status: ProcedureStatus = ProcedureStatus.DEFINED
     parent_run_id: UUID | None = None
+    steps_logbook_id: UUID | None = None
+    """Phase 10c-b: lazy-opened on first append_procedure_step.
+
+    None until the first step is appended; populated by the
+    `ProcedureStepsLogbookOpened` envelope event the handler emits
+    on the Procedure stream. Mirrors `Run.reading_logbook_id`
+    (6f-5b). Per the lazy-open pattern: no eager open at
+    start_procedure, no Closed event (terminal Procedure.status
+    implicitly closes via `ProcedureStepsLogbookClosedError`).
+    """
