@@ -473,6 +473,146 @@ async def test_handler_preserves_explicit_occurred_at() -> None:
     assert rows[0].occurred_at == custom
 
 
+# ---------- Concurrent first-write race (post-gate-review P1) ----------
+
+
+@pytest.mark.unit
+async def test_handler_retries_on_concurrent_logbook_open_race() -> None:
+    """Two parallel first-appends both try to emit RunReadingLogbookOpened;
+    the second loses on optimistic concurrency. The handler retries from
+    load, the second pass sees the logbook now open + skips the open
+    step. Models the documented self-healing behavior. Mirrors 8c-b's
+    `test_handler_retries_on_concurrent_logbook_open_race`."""
+    from cora.infrastructure.ports.event_store import ConcurrencyError, NewEvent
+    from cora.run.aggregates.run import (
+        LOGBOOK_KIND_READING,
+        READING_LOGBOOK_SCHEMA,
+        RunReadingLogbookOpened,
+    )
+
+    event_store = InMemoryEventStore()
+    await _seed_run_started(event_store, _RUN_ID)
+    reading_store = InMemoryReadingStore()
+
+    real_append = event_store.append
+    real_load = event_store.load
+    concurrent_logbook_id = UUID("01900000-0000-7000-8000-0000000099aa")
+    raced_open_event_id = UUID("01900000-0000-7000-8000-0000000099bb")
+    fired = {"yes": False}
+
+    async def racing_append(
+        stream_type: str,
+        stream_id: UUID,
+        expected_version: int,
+        events: list[NewEvent],
+    ) -> int:
+        if not fired["yes"] and any(e.event_type == "RunReadingLogbookOpened" for e in events):
+            fired["yes"] = True
+            # Simulate the conflicting writer landing first.
+            conflict_event = RunReadingLogbookOpened(
+                run_id=stream_id,
+                logbook_id=concurrent_logbook_id,
+                kind=LOGBOOK_KIND_READING,
+                schema=READING_LOGBOOK_SCHEMA,
+                occurred_at=_NOW,
+            )
+            new_event = to_new_event(
+                event_type=event_type_name(conflict_event),
+                payload=to_payload(conflict_event),
+                occurred_at=_NOW,
+                event_id=raced_open_event_id,
+                command_name="ConcurrentWriter",
+                correlation_id=_CORRELATION_ID,
+                principal_id=uuid4(),
+            )
+            await real_append(stream_type, stream_id, expected_version, [new_event])
+            raise ConcurrencyError(
+                stream_type=stream_type,
+                stream_id=stream_id,
+                expected=expected_version,
+                actual=expected_version + 1,
+            )
+        return await real_append(stream_type, stream_id, expected_version, events)
+
+    event_store.append = racing_append  # type: ignore[method-assign]
+    event_store.load = real_load  # type: ignore[method-assign]
+
+    deps = build_deps(
+        ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID, uuid4(), uuid4()],
+        now=_NOW,
+        event_store=event_store,
+    )
+    count = await append_run_reading.bind(deps, reading_store=reading_store)(
+        AppendRunReadings(run_id=_RUN_ID, entries=(_entry(),)),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert count == 1
+    rows = reading_store.all()
+    assert len(rows) == 1
+    # The retry's reload saw the conflicting writer's logbook id and used IT,
+    # not the originally-allocated one.
+    assert rows[0].logbook_id == concurrent_logbook_id
+
+
+# ---------- sampled_at independence (post-gate-review P2) ----------
+
+
+@pytest.mark.unit
+async def test_handler_preserves_distinct_sampled_at_per_entry() -> None:
+    """Each entry's sampled_at survives the row build independent of
+    occurred_at. Pin at the handler boundary because the row factory
+    is where conflation could silently happen."""
+    event_store = InMemoryEventStore()
+    await _seed_run_started(event_store, _RUN_ID)
+    reading_store = InMemoryReadingStore()
+    deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
+
+    sampled_a = datetime(2026, 5, 14, 11, 59, 50, tzinfo=UTC)
+    sampled_b = datetime(2026, 5, 14, 11, 59, 51, tzinfo=UTC)
+    await append_run_reading.bind(deps, reading_store=reading_store)(
+        AppendRunReadings(
+            run_id=_RUN_ID,
+            entries=(
+                _entry(sampled_at=sampled_a, channel_name="a"),
+                _entry(sampled_at=sampled_b, channel_name="b"),
+            ),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    rows = reading_store.all()
+    row_a = next(r for r in rows if r.channel_name == "a")
+    row_b = next(r for r in rows if r.channel_name == "b")
+    assert row_a.sampled_at == sampled_a
+    assert row_b.sampled_at == sampled_b
+    assert row_a.sampled_at != row_a.occurred_at
+    assert row_b.sampled_at != row_b.occurred_at
+
+
+# ---------- 'monitor' rejected at 6f-5b (post-gate-review P2) ----------
+
+
+@pytest.mark.unit
+async def test_handler_rejects_monitor_sampling_procedure_at_6f5b() -> None:
+    """6f-5b ships only `baseline`; `monitor` lands in 6f-5c. Pinning
+    that the handler currently rejects `monitor` makes the 6f-5c
+    addition a deliberate, reviewable test edit."""
+    event_store = InMemoryEventStore()
+    await _seed_run_started(event_store, _RUN_ID)
+    reading_store = InMemoryReadingStore()
+    deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
+    with pytest.raises(InvalidSamplingProcedureError):
+        await append_run_reading.bind(deps, reading_store=reading_store)(
+            AppendRunReadings(
+                run_id=_RUN_ID,
+                entries=(_entry(sampling_procedure="monitor"),),
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
 # ---------- Wire surface ----------
 
 

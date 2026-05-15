@@ -223,6 +223,16 @@ class RunStopped:
 class RunReadingLogbookOpened:
     """A reading logbook was attached to this Run (Phase 6f-5b).
 
+    Naming note: this event carries the entry-noun (`Reading`) in its
+    name, vs. Conduit/Decision's bare `<Aggregate>LogbookOpened`. Why:
+    Run is planned to host MULTIPLE logbook kinds (reading now;
+    hazard events and operator-action audit are likely future
+    additions), so the event name needs the entry-noun discriminator
+    upfront. Conduit and Decision currently host one kind each and
+    use the bare form; if either grows a second kind, they would
+    follow the `<Aggregate><EntryNoun>LogbookOpened` skeleton then.
+    Per [[project_logbook_entry_storage]] cross-BC family table.
+
     Lazy open-on-first-write: emitted by the `append_run_reading`
     handler the first time a reading is appended for this Run, NOT
     by `start_run` (mirrors Decision BC's 8c-b precedent for

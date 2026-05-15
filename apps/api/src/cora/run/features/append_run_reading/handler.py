@@ -42,6 +42,7 @@ as the bounded-text VOs across the codebase.
 """
 
 import math
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
@@ -286,8 +287,6 @@ def _build_row(
     the command (taken from the envelope, not from the entry, per
     PII-vault posture).
     """
-    from datetime import datetime
-
     assert isinstance(fallback_now, datetime)
     occurred_at = entry.occurred_at if entry.occurred_at is not None else fallback_now
     return RunReading(

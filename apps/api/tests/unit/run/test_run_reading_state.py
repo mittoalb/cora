@@ -115,11 +115,14 @@ def test_run_reading_logbook_closed_error_for_each_terminal(terminal: RunStatus)
 
 
 @pytest.mark.unit
-def test_sampling_procedure_values_contains_baseline_at_6f5b() -> None:
+def test_sampling_procedure_values_locked_to_baseline_only_at_6f5b() -> None:
     """6f-5b ships {'baseline'} only. 6f-5c will extend to add
-    'monitor'. Pinning the 6f-5b value set so the 6f-5c addition
-    is a deliberate, reviewable change."""
-    assert "baseline" in SAMPLING_PROCEDURE_VALUES
+    'monitor'. Equality-pin (not membership) so the 6f-5c addition
+    is a deliberate, reviewable test edit. Tightened post-gate-review
+    P1: a stealth `monitor` addition would not break a `'baseline' in
+    SAMPLING_PROCEDURE_VALUES` membership check, but it WILL break
+    this `==` comparison."""
+    assert frozenset({"baseline"}) == SAMPLING_PROCEDURE_VALUES
 
 
 @pytest.mark.unit
