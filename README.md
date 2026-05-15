@@ -6,7 +6,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/release/python-3130/)
 
-A unified operations platform for large-scale research facilities. Pilot: APS beamline 35-BM, a new dedicated micro-CT instrument at Argonne National Laboratory; rollout to APS's other imaging beamlines (2-BM, 7-BM, 32-ID), then cross-facility validation at MAX IV in Sweden. Long-horizon goal: facility-neutral across photon sources, neutron sources, free-electron lasers, and HPC centres.
+An agent-native operations platform for large-scale research facilities. Pilot: APS beamline 35-BM, a new dedicated micro-CT instrument at Argonne National Laboratory; rollout to APS's other imaging beamlines (2-BM, 7-BM, 32-ID), then cross-facility validation at MAX IV in Sweden. Long-horizon goal: facility-neutral across photon sources, neutron sources, free-electron lasers, and HPC centres.
 
 The name is also the diagnosis: **Continuously Overpromised, Rarely Automated**. Most facility software lives forever as a slide-deck capability. CORA is the version that ships.
 
@@ -121,7 +121,7 @@ cora/
 
 ## Architecture (high level)
 
-Functional DDD with bounded contexts. Hexagonal (Functional Core / Imperative Shell). Event-sourced backend on a relational store. Two equivalent API surfaces (REST and an agent protocol) backed by the same handler. The recipe ladder (Method, Practice, Plan, Run) is the facility-neutrality mechanism.
+Functional DDD with bounded contexts. Hexagonal (Functional Core / Imperative Shell). Event-sourced backend on a relational store. Two equivalent API surfaces (REST and an agent protocol) backed by the same handler. Agents are principals, not features: same identity, authz, and audit as humans. The recipe ladder (Method, Practice, Plan, Run) is the facility-neutrality mechanism.
 
 Modelling lenses: ISA-95 (structural), ISA-88 (Track A, episodic procedures), ISA-106 (Track B, continuous operations), ISA-99 (Track C, trust topology), ISO/IEC 42001 + NIST AI RMF (AI governance), W3C PROV-O (provenance vocabulary at API boundaries).
 
