@@ -16,27 +16,31 @@ The name is also the diagnosis: **Continuously Overpromised, Rarely Automated**.
 
 ## Documentation map
 
-CORA's docs are layered so a reader can stop at the level they need. The full set is rendered as a static site at **[xmap.github.io/cora](https://xmap.github.io/cora/)** (auto-deployed on every push to `main`).
+The full docs render as a static site at **[xmap.github.io/cora](https://xmap.github.io/cora/)** (auto-deployed on every push to `main`).
 
-| Layer | Vocabulary | Where |
+| Section | Subject | Where |
 | --- | --- | --- |
-| 1. Capability | What CORA does for users | this README |
-| 2. Architecture | Roles and patterns, no products | [docs/architecture/](docs/architecture/index.md) |
-| 3. Implementation | Current product picks and reasoning | [docs/stack/](docs/stack/index.md), [docs/reference/](docs/reference/index.md) |
-| 4. Pinned versions | Exact strings | `apps/api/pyproject.toml`, `Makefile`, `infra/atlas/migrations/` |
+| README | What CORA is, status, quick start | this file |
+| Architecture | Bounded contexts, aggregates, slices, event sourcing, API surfaces, standards lenses | [docs/architecture/](docs/architecture/index.md) |
+| Stack | Concrete picks (backend, data, auth, frontend, observability, operations) and what is deliberately deferred | [docs/stack/](docs/stack/index.md) |
+| Reference | Rules for writing CORA code: layout, modeling, patterns, runtime, workflow | [docs/reference/](docs/reference/index.md) |
+| Glossary | Terminology used across architecture, code, commits, and prose | [docs/glossary/](docs/glossary/index.md) |
+| Projects | Pilots driving the model. Today: 35-BM micro-CT at APS | [docs/projects/](docs/projects/index.md) |
+| Contributing | What kinds of collaboration are wanted | [CONTRIBUTING.md](CONTRIBUTING.md) |
 
-Vocabulary in any layer is defined in [docs/glossary/](docs/glossary/index.md).
+Exact pinned versions live in `apps/api/pyproject.toml`, `Makefile`, and `infra/atlas/migrations/`, not in the docs.
 
 ## Quick start
 
 Requires: Python 3.13.12 (managed via uv), Docker (for Postgres), [Atlas](https://atlasgo.io/) (for schema migrations). Node 24 LTS comes later for the frontend.
 
 ```bash
-# Install Atlas (one-time per machine)
+# Install uv and Atlas (one-time per machine)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 curl -sSf https://atlasgo.sh | sh
 
-# Install Python deps via uv
-make install            # runs `uv sync` inside apps/api
+# Install Python deps (runs `uv sync --all-extras` inside apps/api)
+make install
 
 # Install pre-commit hooks (one-time per clone)
 make precommit
@@ -47,7 +51,7 @@ make db-up
 # Apply schema migrations
 make migrate-apply
 
-# Run smoke tests
+# Run the full test suite
 make test
 
 # Start the dev server
@@ -75,22 +79,28 @@ curl -X POST http://localhost:8000/actors \
 # -> 201 {"actor_id": "01900000-..."}
 ```
 
-**MCP** (Model Context Protocol, the agent surface). Streamable HTTP transport mounted at `/mcp`. The full handshake is `initialize` → `notifications/initialized` → `tools/call`. Example using a JSON-RPC client:
+**MCP** (Model Context Protocol, the agent surface). Streamable HTTP transport mounted at `/mcp`. Point an MCP-aware client (Claude Code, etc.) at `http://localhost:8000/mcp` and tools across every scaffolded BC (`access`, `data`, `decision`, `equipment`, `operation`, `recipe`, `run`, `subject`, `supply`, `trust`) appear in the client.
+
+Wire-level: JSON-RPC over POSTs, handshake is `initialize` (protocol version `2025-11-25`) → `notifications/initialized` → `tools/*`, with `mcp-session-id` propagated from the initialize response headers. Example listing tools by hand:
 
 ```bash
-# 1. Initialize, capture mcp-session-id from response headers
-curl -i -X POST http://localhost:8000/mcp \
-  -H 'Accept: application/json, text/event-stream' \
-  -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize",
-       "params":{"protocolVersion":"2025-06-18","capabilities":{},
-                 "clientInfo":{"name":"cli","version":"0.1"}}}'
+# Initialize, capture session id from response headers
+SID=$(curl -si -X POST http://localhost:8000/mcp \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"cli","version":"0.1"}}}' \
+  | awk -F': ' '/^mcp-session-id/ {print $2}' | tr -d '\r')
 
-# 2. Send notifications/initialized + 3. Call the tool  (use the captured session id)
-# Response is structured content with the new actor_id.
+# Acknowledge, then list tools
+curl -s -X POST http://localhost:8000/mcp -H "mcp-session-id: $SID" \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}'
+
+curl -s -X POST http://localhost:8000/mcp -H "mcp-session-id: $SID" \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
 ```
 
-For Claude Code or other MCP-aware clients, point the client at `http://localhost:8000/mcp`; tools across every scaffolded BC (`access`, `equipment`, `recipe`, `run`, `data`, `decision`, `subject`, `trust`) appear in the client.
+For the full handshake-and-call sequence used by tests, see `apps/api/tests/contract/_mcp_helpers.py`.
 
 ## Repo layout (monorepo)
 
@@ -104,25 +114,27 @@ cora/
 │       │   └── <bc>/              # one folder per bounded context
 │       │       ├── aggregates/    # state, events, evolver
 │       │       └── features/      # vertical slices
-│       ├── tests/                 # unit, integration, contract, architecture
+│       ├── tests/                 # unit, integration, contract, architecture, e2e
 │       └── pyproject.toml
 ├── infra/
 │   ├── atlas/                     # migrations
 │   └── docker-compose.yml
-├── docs/                          # architecture, stack, glossary
+├── docs/                          # architecture, stack, reference, glossary, projects
+├── scripts/                       # dev and CI helpers
+├── mkdocs.yml                     # docs site config
 ├── CONTRIBUTING.md
 ├── Makefile
 └── README.md
 ```
 
-- **`<bc>/`** is one of 8 bounded contexts scaffolded today: `access`, `equipment`, `recipe`, `run`, `data`, `decision`, `subject`, `trust`. Each follows the same `aggregates/` + `features/` shape (see [docs/reference/](docs/reference/index.md)).
-- **`tests/`** mirrors `src/` and splits by category: `unit/` (pure), `integration/` (real Postgres), `contract/` (REST and MCP schema), `architecture/` (fitness checks).
+- **`<bc>/`** is one of 10 bounded contexts scaffolded today: `access`, `data`, `decision`, `equipment`, `operation`, `recipe`, `run`, `subject`, `supply`, `trust`. Each follows the same `aggregates/` + `features/` shape (see [docs/reference/](docs/reference/index.md)).
+- **`tests/`** mirrors `src/` and splits by category: `unit/` (pure), `integration/` (real Postgres), `contract/` (REST and MCP schema), `architecture/` (fitness checks), `e2e/` (full surface-to-store flows).
 - **Planned but not yet on disk:** `apps/web` (frontend), `apps/workers` (background processors and agents), `packages/` (shared libs).
 
 ## Architecture (high level)
 
-Functional DDD with bounded contexts. Hexagonal (Functional Core / Imperative Shell). Event-sourced backend on a relational store. Two equivalent API surfaces (REST and an agent protocol) backed by the same handler. Agents are principals, not features: same identity, authz, and audit as humans. The recipe ladder (Method, Practice, Plan, Run) is the facility-neutrality mechanism.
+Functional DDD with bounded contexts. Hexagonal (Functional Core / Imperative Shell). Event-sourced backend on a relational store. Two equivalent API surfaces (REST and MCP) backed by the same handler. Agents are principals, not features: same identity, authz, and audit as humans. The recipe ladder (Method, Practice, Plan, Run) is the facility-neutrality mechanism.
 
-Modelling lenses: ISA-95 (structural), ISA-88 (Track A, episodic procedures), ISA-106 (Track B, continuous operations), ISA-99 (Track C, trust topology), ISO/IEC 42001 + NIST AI RMF (AI governance), W3C PROV-O (provenance vocabulary at API boundaries).
+Modelling lenses, borrowed for shared vocabulary with the field rather than wire conformance: ISA-95 (asset hierarchy), ISA-88 (episodic procedures), ISA-106 (continuous operations), ISA-99 / IEC 62443 (trust topology), ISO/IEC 42001 + NIST AI RMF (AI governance), W3C PROV-O (provenance at API boundaries).
 
-Full layer-2 view: [docs/architecture/](docs/architecture/index.md). For the current concrete picks (FastAPI, Postgres, Atlas, MCP SDK, etc.) and the reasoning behind each, see [docs/stack/](docs/stack/index.md).
+For the full design discussion see [docs/architecture/](docs/architecture/index.md); concrete picks (FastAPI, Postgres, Atlas, MCP SDK, etc.) live in [docs/stack/](docs/stack/index.md).

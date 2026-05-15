@@ -1,0 +1,111 @@
+"""HTTP setup for the Operation BC.
+
+`register_operation_routes(app)` includes every slice's router and
+registers exception handlers that translate the BC's domain /
+application errors to HTTP status codes. Called once at app
+construction.
+
+JSONResponse is used (not HTTPException) per FastAPI guidance to
+avoid nested-exception pitfalls.
+
+`IdempotencyConflictError`, `IdempotencyClaimLostError`,
+`CachedHandlerError`, and `ConcurrencyError` are infra-layer errors
+registered by Access (the first BC that boots). They produce the
+same JSON shape regardless of which BC raised them, so Operation
+does not re-register them.
+
+## Loop-collapse pattern
+
+Operation owns one aggregate (Procedure). Three error families share
+the same response shape and get collapsed via the Trust /
+Equipment / Supply-style loop pattern:
+
+  - 400 (validation): InvalidProcedureName, InvalidProcedureKind
+  - 404 (load miss): ProcedureNotFound
+  - 409 (defensive guard for AlreadyExists): ProcedureAlreadyExists
+
+10c-b will append transition guards (ProcedureCannotStart /
+ProcedureCannotComplete / ProcedureCannotAbort /
+ProcedureAssetDecommissioned) + reason-validation errors
+(InvalidProcedureAbortReason). 10c-c adds
+ProcedureCannotTruncate.
+"""
+
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
+
+from cora.operation.aggregates.procedure import (
+    InvalidProcedureKindError,
+    InvalidProcedureNameError,
+    ProcedureAlreadyExistsError,
+    ProcedureNotFoundError,
+)
+from cora.operation.errors import UnauthorizedError
+from cora.operation.features import (
+    get_procedure,
+    register_procedure,
+)
+
+
+async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 400 handler for every domain validation error.
+
+    Covers Invalid<X>NameError / Invalid<X>KindError. All map to
+    the same HTTP 400 + `{"detail": str(exc)}` body. Adding a new
+    validation-style error is one extra entry in the tuple in
+    `register_operation_routes`.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_unauthorized(request: Request, exc: Exception) -> JSONResponse:
+    _ = request
+    reason = exc.reason if isinstance(exc, UnauthorizedError) else str(exc)
+    return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN,
+        content={"detail": reason},
+    )
+
+
+async def _handle_not_found(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 404 handler for every aggregate's NotFoundError."""
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_already_exists(request: Request, exc: Exception) -> JSONResponse:
+    """Defensive 409 handler for every aggregate's AlreadyExistsError.
+
+    The decider raises these if the target stream already has events.
+    In production with UUIDv7 ids this is essentially impossible, but
+    the unmapped raise would surface as 500 instead of a clean 409 --
+    this handler closes that gap.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+
+def register_operation_routes(app: FastAPI) -> None:
+    """Attach Operation slice routers and exception handlers to the FastAPI app."""
+    app.include_router(register_procedure.router)
+    app.include_router(get_procedure.router)
+    for validation_cls in (
+        InvalidProcedureNameError,
+        InvalidProcedureKindError,
+    ):
+        app.add_exception_handler(validation_cls, _handle_validation_error)
+    for not_found_cls in (ProcedureNotFoundError,):
+        app.add_exception_handler(not_found_cls, _handle_not_found)
+    for already_exists_cls in (ProcedureAlreadyExistsError,):
+        app.add_exception_handler(already_exists_cls, _handle_already_exists)
+    app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

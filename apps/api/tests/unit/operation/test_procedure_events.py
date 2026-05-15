@@ -1,0 +1,161 @@
+"""Procedure event (de)serialization + roundtrip tests."""
+
+from datetime import UTC, datetime
+from uuid import UUID, uuid4
+
+import pytest
+
+from cora.infrastructure.ports.event_store import StoredEvent
+from cora.operation.aggregates.procedure import (
+    ProcedureRegistered,
+    event_type_name,
+    from_stored,
+    to_payload,
+)
+
+_NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
+
+
+def _stored(event_type: str, payload: dict[str, object]) -> StoredEvent:
+    return StoredEvent(
+        position=1,
+        event_id=uuid4(),
+        stream_type="Procedure",
+        stream_id=uuid4(),
+        version=1,
+        event_type=event_type,
+        schema_version=1,
+        payload=payload,
+        correlation_id=uuid4(),
+        causation_id=None,
+        occurred_at=_NOW,
+        recorded_at=_NOW,
+    )
+
+
+@pytest.mark.unit
+def test_event_type_name_for_procedure_registered() -> None:
+    event = ProcedureRegistered(
+        procedure_id=uuid4(),
+        name="X",
+        kind="bakeout",
+        target_asset_ids=[],
+        parent_run_id=None,
+        occurred_at=_NOW,
+    )
+    assert event_type_name(event) == "ProcedureRegistered"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_procedure_registered_to_primitives() -> None:
+    procedure_id = UUID("01900000-0000-7000-8000-00000000a001")
+    asset1 = UUID("01900000-0000-7000-8000-00000000a002")
+    asset2 = UUID("01900000-0000-7000-8000-00000000a003")
+    parent_run = UUID("01900000-0000-7000-8000-00000000a004")
+    event = ProcedureRegistered(
+        procedure_id=procedure_id,
+        name="35-BM rotation-axis alignment",
+        kind="alignment",
+        target_asset_ids=[asset2, asset1],  # unsorted input
+        parent_run_id=parent_run,
+        occurred_at=_NOW,
+    )
+    assert to_payload(event) == {
+        "procedure_id": str(procedure_id),
+        "name": "35-BM rotation-axis alignment",
+        "kind": "alignment",
+        # Sorted by string form for deterministic payload bytes.
+        "target_asset_ids": sorted([str(asset1), str(asset2)]),
+        "parent_run_id": str(parent_run),
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_standalone_procedure_with_null_parent() -> None:
+    """Standalone procedures (bakeouts, etc.) have parent_run_id=None."""
+    event = ProcedureRegistered(
+        procedure_id=uuid4(),
+        name="Vessel-A bakeout",
+        kind="bakeout",
+        target_asset_ids=[],
+        parent_run_id=None,
+        occurred_at=_NOW,
+    )
+    payload = to_payload(event)
+    assert payload["parent_run_id"] is None
+    assert payload["target_asset_ids"] == []
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_procedure_registered() -> None:
+    procedure_id = uuid4()
+    asset1 = uuid4()
+    parent_run = uuid4()
+    stored = _stored(
+        "ProcedureRegistered",
+        {
+            "procedure_id": str(procedure_id),
+            "name": "X",
+            "kind": "bakeout",
+            "target_asset_ids": [str(asset1)],
+            "parent_run_id": str(parent_run),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, ProcedureRegistered)
+    assert rebuilt.procedure_id == procedure_id
+    assert rebuilt.name == "X"
+    assert rebuilt.kind == "bakeout"
+    assert rebuilt.target_asset_ids == [asset1]
+    assert rebuilt.parent_run_id == parent_run
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_standalone_procedure_with_null_parent() -> None:
+    procedure_id = uuid4()
+    stored = _stored(
+        "ProcedureRegistered",
+        {
+            "procedure_id": str(procedure_id),
+            "name": "Vessel-A bakeout",
+            "kind": "bakeout",
+            "target_asset_ids": [],
+            "parent_run_id": None,
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, ProcedureRegistered)
+    assert rebuilt.parent_run_id is None
+    assert rebuilt.target_asset_ids == []
+
+
+@pytest.mark.unit
+def test_procedure_registered_round_trips() -> None:
+    asset1 = uuid4()
+    asset2 = uuid4()
+    parent_run = uuid4()
+    original = ProcedureRegistered(
+        procedure_id=uuid4(),
+        name="35-BM rotation-axis alignment",
+        kind="alignment",
+        target_asset_ids=[asset1, asset2],
+        parent_run_id=parent_run,
+        occurred_at=_NOW,
+    )
+    stored = _stored("ProcedureRegistered", to_payload(original))
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, ProcedureRegistered)
+    # Sets equal: payload sorts; from_stored preserves payload order.
+    assert set(rebuilt.target_asset_ids) == set(original.target_asset_ids)
+    assert rebuilt.procedure_id == original.procedure_id
+    assert rebuilt.parent_run_id == original.parent_run_id
+
+
+@pytest.mark.unit
+def test_from_stored_raises_on_unknown_event_type() -> None:
+    stored = _stored("BogusEvent", {})
+    with pytest.raises(ValueError, match="Unknown ProcedureEvent event_type"):
+        from_stored(stored)

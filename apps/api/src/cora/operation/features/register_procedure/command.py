@@ -1,0 +1,44 @@
+"""The `RegisterProcedure` command -- intent dataclass for this slice.
+
+Carries the caller-controlled fields:
+  - `name` -- operator-readable display name
+  - `kind` -- free-form ISA-106 procedure kind discriminator (1-50
+    chars after trim; bare str per the Supply.kind iter-1 lock
+    precedent; future StrEnum promotion deferred per
+    [[project_operation_design]] Watch item 7)
+  - `target_asset_ids` -- frozenset of Asset ids this procedure acts
+    on (eventual-consistency: existence not verified at register
+    time; gating happens at start_procedure in 10c-b via
+    ProcedureStartContext)
+  - `parent_run_id` -- optional Run binding (None = standalone
+    procedure, set = Phase-of-Run; resolves the Phase aggregate
+    question from [[project_run_parameters_design]])
+
+Server-side concerns (new aggregate id, wall-clock timestamp,
+correlation id, per-event ids) are injected by the handler from
+infrastructure ports, matching the cross-BC create-style command
+shape locked in Access / Trust / Subject / Equipment / Recipe /
+Run / Data / Decision / Supply.
+
+`target_asset_ids` is `frozenset[UUID]` (not `list`) so the command
+itself is hashable for `with_idempotency`'s SHA256 hash; the
+cross-BC `_normalize_for_hash` helper sorts frozensets for
+deterministic hashing across worker processes (locked in 3c).
+
+Status is implicit at registration (`Defined`) and not part of the
+command -- see Procedure aggregate's `state.py` docstring for the
+enum-in-state, derived-from-event-type-in-evolver convention.
+"""
+
+from dataclasses import dataclass, field
+from uuid import UUID
+
+
+@dataclass(frozen=True)
+class RegisterProcedure:
+    """Register a new episodic operational procedure (lands in `Defined`)."""
+
+    name: str
+    kind: str
+    target_asset_ids: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    parent_run_id: UUID | None = None
