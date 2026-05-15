@@ -313,12 +313,29 @@ async def test_list_cursor_with_filter_paginates_within_filtered_set(
 
 
 @pytest.mark.integration
-async def test_list_unique_address_constraint_enforced_at_projection(
+async def test_list_unique_address_swallows_second_insert_and_keeps_worker_running(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Two supplies with the same (scope, kind, name) are rejected by the
-    projection's UNIQUE INDEX. The aggregate cannot enforce cross-stream
-    uniqueness without DCB; the projection is the right layer."""
+    """Two supplies with the same (scope, kind, name) trip the projection's
+    UNIQUE INDEX on the second INSERT. The projection catches the
+    UniqueViolation, logs a structured warning, and advances the bookmark
+    so the worker keeps running. Operational behavior verified:
+
+      - Both Supply event streams exist in the event store (the duplicate
+        registration is audit-recorded, not silently dropped at the
+        write layer).
+      - The projection has exactly one row (the first insert wins; the
+        second's INSERT is a no-op via the catch).
+      - The drain itself does NOT raise (worker would otherwise stall
+        and block all Supply projection progress including transitions
+        on unrelated supplies).
+
+    The aggregate cannot enforce cross-stream uniqueness without DCB
+    (see [[project_deferred]]); graceful projection-level handling is
+    the right operational behavior pre-DCB. Operators discover the
+    duplicate via list_supplies and reconcile via the future
+    `deregister_supply` slice (Watch item 10).
+    """
     sup_id_1 = uuid4()
     sup_id_2 = uuid4()
     for sup_id in (sup_id_1, sup_id_2):
@@ -332,7 +349,20 @@ async def test_list_unique_address_constraint_enforced_at_projection(
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-    # Drain raises asyncpg.UniqueViolationError on the second INSERT
-    # (since UNIQUE INDEX on (scope, kind, name) catches the duplicate).
-    with pytest.raises(asyncpg.UniqueViolationError):
-        await _drain(db_pool)
+    # Drain succeeds (UniqueViolation caught + logged + swallowed).
+    await _drain(db_pool)
+
+    # Exactly one projection row (first insert wins).
+    list_deps = _build_deps(db_pool, [])
+    page = await bind_list(list_deps)(
+        ListSupplies(),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert len(page.items) == 1
+    assert page.items[0].supply_id in {sup_id_1, sup_id_2}
+
+    # Both Supply event streams exist in the event store (audit preserved).
+    async with db_pool.acquire() as conn:
+        row_count = await conn.fetchval("SELECT count(*) FROM events WHERE stream_type = 'Supply'")
+    assert row_count == 2

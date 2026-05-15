@@ -7,13 +7,31 @@ integration suite.
 
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+import asyncpg
 import pytest
 
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.supply.projections import SupplySummaryProjection
+
+
+def _conn_with_savepoint() -> AsyncMock:
+    """AsyncMock conn whose `transaction()` returns an async context manager.
+
+    The projection's `SupplyRegistered` arm wraps its INSERT in
+    `async with conn.transaction(): ...` so a UniqueViolation rolls
+    back only the inner SAVEPOINT (not the worker's outer batch txn).
+    The unit test mock needs to satisfy that protocol shape.
+    """
+    conn = AsyncMock()
+    transaction_cm = AsyncMock()
+    transaction_cm.__aenter__.return_value = None
+    transaction_cm.__aexit__.return_value = None
+    conn.transaction = MagicMock(return_value=transaction_cm)
+    return conn
+
 
 _SUPPLY_ID = uuid4()
 _EVENT_ID = uuid4()
@@ -66,7 +84,7 @@ def test_projection_does_not_subscribe_to_unrelated_events() -> None:
 @pytest.mark.unit
 async def test_supply_registered_inserts_with_unknown_status_and_null_audit() -> None:
     proj = SupplySummaryProjection()
-    conn = AsyncMock()
+    conn = _conn_with_savepoint()
     event = _stored(
         "SupplyRegistered",
         {
@@ -81,6 +99,7 @@ async def test_supply_registered_inserts_with_unknown_status_and_null_audit() ->
     await proj.apply(event, conn)
 
     conn.execute.assert_awaited_once()
+    conn.transaction.assert_called_once()  # SAVEPOINT engaged for the INSERT
     args = conn.execute.await_args
     assert args is not None
     sql = args.args[0]
@@ -132,3 +151,31 @@ async def test_projection_ignores_unsubscribed_event_type() -> None:
     conn = AsyncMock()
     await proj.apply(_stored("ImaginaryEvent", {}), conn)
     conn.execute.assert_not_awaited()
+
+
+@pytest.mark.unit
+async def test_supply_registered_swallows_unique_violation_and_logs_warn() -> None:
+    """Cross-stream duplicate on (scope, kind, name) raises UniqueViolation
+    inside the SAVEPOINT; the projection catches it, logs, and returns
+    cleanly so the worker's outer batch txn can keep advancing."""
+    proj = SupplySummaryProjection()
+    conn = _conn_with_savepoint()
+    # Make the INSERT raise UniqueViolation
+    conn.execute.side_effect = asyncpg.UniqueViolationError("duplicate (scope,kind,name)")
+    event = _stored(
+        "SupplyRegistered",
+        {
+            "supply_id": str(_SUPPLY_ID),
+            "scope": "Beamline",
+            "kind": "LiquidNitrogen",
+            "name": "35-BM LN2",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+
+    # Must NOT raise — the projection swallows the duplicate.
+    await proj.apply(event, conn)
+
+    # SAVEPOINT was engaged + INSERT was attempted
+    conn.transaction.assert_called_once()
+    conn.execute.assert_awaited_once()

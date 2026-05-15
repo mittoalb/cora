@@ -82,6 +82,14 @@ router = APIRouter(tags=["supply"])
             "model": ErrorResponse,
             "description": "Authorize port denied the command.",
         },
+        status.HTTP_409_CONFLICT: {
+            "model": ErrorResponse,
+            "description": (
+                "Defensive guard: the target supply stream already has events. "
+                "Essentially impossible in production with UUIDv7 ids; documented "
+                "for OpenAPI completeness against the BC's exception handler."
+            ),
+        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": (
                 "Request body failed schema validation (missing field, "
