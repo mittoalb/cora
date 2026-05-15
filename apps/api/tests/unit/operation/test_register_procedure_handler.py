@@ -170,3 +170,24 @@ def test_wire_operation_includes_register_procedure() -> None:
     assert isinstance(handlers, OperationHandlers)
     assert callable(handlers.register_procedure)
     assert callable(handlers.get_procedure)
+
+
+@pytest.mark.unit
+async def test_wired_handler_propagates_causation_id_through_full_composition() -> None:
+    """End-to-end: causation_id survives `with_tracing(with_idempotency(bare))`."""
+    from cora.operation import wire_operation
+
+    causation = UUID("01900000-0000-7000-8000-0000000000bb")
+    store = InMemoryEventStore()
+    deps = _build_deps(event_store=store)
+    handlers = wire_operation(deps)
+
+    await handlers.register_procedure(
+        RegisterProcedure(name="Vessel-A bakeout", kind="bakeout"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+        causation_id=causation,
+    )
+
+    events, _ = await store.load("Procedure", _NEW_ID)
+    assert events[0].causation_id == causation

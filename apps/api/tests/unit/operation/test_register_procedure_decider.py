@@ -181,3 +181,36 @@ def test_decide_returns_emitted_id_in_event() -> None:
         new_id=deterministic_id,
     )
     assert events[0].procedure_id == deterministic_id
+
+
+@pytest.mark.unit
+def test_decide_does_not_mutate_input_state() -> None:
+    """Pure decider invariant: same input state object is returned untouched."""
+    existing = Procedure(
+        id=uuid4(),
+        name=ProcedureName("Existing"),
+        kind="bakeout",
+        target_asset_ids=frozenset(),
+        status=ProcedureStatus.DEFINED,
+    )
+    snapshot = (
+        existing.id,
+        existing.name,
+        existing.kind,
+        existing.target_asset_ids,
+        existing.status,
+    )
+    with pytest.raises(ProcedureAlreadyExistsError):
+        register_procedure.decide(
+            state=existing,
+            command=RegisterProcedure(name="Other", kind="alignment"),
+            now=_NOW,
+            new_id=uuid4(),
+        )
+    assert (
+        existing.id,
+        existing.name,
+        existing.kind,
+        existing.target_asset_ids,
+        existing.status,
+    ) == snapshot

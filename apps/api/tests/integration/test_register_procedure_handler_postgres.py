@@ -64,6 +64,7 @@ async def test_register_procedure_persists_event_to_postgres_with_target_assets(
     }
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.event_id == event_id
+    assert stored.principal_id == _PRINCIPAL_ID
     assert stored.metadata == {"command": "RegisterProcedure"}
 
     # Round-trip back through fold to confirm state shape.

@@ -109,6 +109,15 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
     Dispatches on `stored.event_type`; raises ValueError on unknown
     discriminators so a stream contaminated with foreign event types
     fails loud rather than silently being dropped by the evolver.
+
+    NOTE: 10c-a uses strict `payload[...]` indexing because every key
+    in `ProcedureRegistered` is required at the schema level. When 10c-b
+    adds optional facets to the genesis payload (for example
+    `expected_step_count`, `triggered_by`, `requested_supply_kinds`),
+    those new keys MUST use `payload.get("k", default)` so pre-10c-b
+    streams fold cleanly without backfill. Same additive-evolution
+    pattern as `recipe/aggregates/method/events.py:from_stored`
+    (`needs_supplies` added in 10b).
     """
     payload = stored.payload
     match stored.event_type:

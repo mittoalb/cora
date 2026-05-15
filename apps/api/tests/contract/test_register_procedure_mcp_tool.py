@@ -75,6 +75,7 @@ def test_mcp_register_procedure_tool_accepts_target_asset_ids() -> None:
         )
     body = parse_sse_data(response.text)
     assert body["result"]["isError"] is False
+    assert "procedure_id" in body["result"]["structuredContent"]
 
 
 @pytest.mark.contract
@@ -97,3 +98,4 @@ def test_mcp_register_procedure_tool_accepts_parent_run_id() -> None:
         )
     body = parse_sse_data(response.text)
     assert body["result"]["isError"] is False
+    assert "procedure_id" in body["result"]["structuredContent"]
