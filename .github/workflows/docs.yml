@@ -63,8 +63,11 @@ jobs:
             (
               cd "$dir"
               npm install --no-audit --no-fund
+              # Belt-and-suspenders: playwright-chromium's postinstall sometimes
+              # skips the binary download in CI. Force it before exporting.
+              npx --yes playwright install chromium
               npm run build -- --base "/cora/talks/$slug/"
-              npm run export || echo "::warning::PDF export failed for $slug; continuing without PDF"
+              npm run export || echo "::warning::PDF export failed for $slug; deck will ship without PDF"
             )
             mkdir -p "site/talks/$slug"
             cp -R "$dir/dist/." "site/talks/$slug/"
