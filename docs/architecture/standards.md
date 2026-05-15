@@ -22,7 +22,7 @@ Asset persistent identifiers (PIDINST profile vs raw DataCite Instrument resourc
 
 ## Recipe ladder
 
-Method, Practice, Plan, Run. A Method is a reusable template. A Practice binds it to a site. A Plan binds a Practice to specific assets and a window. A Run executes a Plan with a lifecycle FSM. Site-specific behaviour lives at Practice and Plan; Methods stay portable.
+Michael Polanyi's observation that "we know more than we can tell" is the operating reality of every beamline. Operators carry years of practice that never makes it into the standard operating procedure (SOP), which is why software modeling only the SOP fails on contact with the floor. The ladder gives that tacit layer four steps. A **Method** is a reusable template, the portion that fits on paper. A **Practice** binds it to a site, capturing the local know-how that makes the Method operable. A **Plan** binds a Practice to specific assets and a window. A **Run** executes a Plan with a lifecycle FSM, recording the gap between plan and reality where the tacit layer becomes visible. Site-specific behaviour lives at Practice and Plan; Methods stay portable.
 
 ## In code
 
