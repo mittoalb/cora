@@ -179,6 +179,12 @@ async def test_append_procedure_step_lazy_open_and_polymorphic_round_trip(
     events, version = await deps.event_store.load("Procedure", procedure_id)
     assert version == 3
     assert events[2].event_type == "ProcedureStepsLogbookOpened"
+    # Open-event payload roundtripped through Postgres jsonb cleanly:
+    open_payload = events[2].payload
+    assert open_payload["procedure_id"] == str(procedure_id)
+    assert open_payload["logbook_id"] == str(logbook_id)
+    assert open_payload["kind"] == "steps"
+    assert "schema" in open_payload  # full schema dict serialized
     state = fold([from_stored(s) for s in events])
     assert state is not None
     assert state.steps_logbook_id == logbook_id
@@ -195,7 +201,11 @@ async def test_append_procedure_step_lazy_open_and_polymorphic_round_trip(
     assert setpoint_row["actor_id"] == _PRINCIPAL_ID
     assert setpoint_row["correlation_id"] == _CORRELATION_ID
     assert setpoint_row["command_name"] == "AppendProcedureStep"
-    assert setpoint_row["sampled_at"] == sampled_a
+    # Three-timestamp pattern (project_logbook_entry_storage):
+    assert setpoint_row["sampled_at"] == sampled_a  # phenomenonTime
+    assert setpoint_row["occurred_at"] == _NOW  # Clock port (handler-time)
+    # recorded_at is DEFAULT now() at the DB layer; must come AFTER occurred_at.
+    assert setpoint_row["recorded_at"] >= setpoint_row["occurred_at"]
     # asyncpg returns jsonb as a JSON string for plain SELECT; decode it.
     setpoint_payload = json.loads(setpoint_row["payload"])
     assert setpoint_payload == {

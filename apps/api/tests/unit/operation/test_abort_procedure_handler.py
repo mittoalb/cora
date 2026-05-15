@@ -10,21 +10,17 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.operation.aggregates.procedure import (
     InvalidProcedureAbortReasonError,
     ProcedureCannotAbortError,
     ProcedureNotFoundError,
-    ProcedureRegistered,
-    ProcedureStarted,
-    event_type_name,
-    to_payload,
 )
 from cora.operation.errors import UnauthorizedError
 from cora.operation.features import abort_procedure
 from cora.operation.features.abort_procedure import AbortProcedure
 from tests.unit._helpers import build_deps as _build_deps_shared
+from tests.unit.operation._seed_helpers import seed_running_procedure
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 _PRIOR = datetime(2026, 5, 15, 11, 0, 0, tzinfo=UTC)
@@ -35,32 +31,13 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
 async def _seed_running_procedure(store: InMemoryEventStore) -> None:
-    """Append Registered + Started events for a Running Procedure."""
-    registered = ProcedureRegistered(
+    await seed_running_procedure(
+        store,
         procedure_id=_PROCEDURE_ID,
-        name="X",
-        kind="bakeout",
-        target_asset_ids=[],
-        parent_run_id=None,
-        occurred_at=_PRIOR,
+        when=_PRIOR,
+        correlation_id=_CORRELATION_ID,
+        principal_id=_PRINCIPAL_ID,
     )
-    started = ProcedureStarted(procedure_id=_PROCEDURE_ID, occurred_at=_PRIOR)
-    for index, event in enumerate((registered, started)):
-        new_event = to_new_event(
-            event_type=event_type_name(event),
-            payload=to_payload(event),
-            occurred_at=event.occurred_at,
-            event_id=uuid4(),
-            command_name="RegisterProcedure" if index == 0 else "StartProcedure",
-            correlation_id=_CORRELATION_ID,
-            principal_id=_PRINCIPAL_ID,
-        )
-        await store.append(
-            stream_type="Procedure",
-            stream_id=_PROCEDURE_ID,
-            expected_version=index,
-            events=[new_event],
-        )
 
 
 @pytest.mark.unit

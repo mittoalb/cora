@@ -27,7 +27,6 @@ from cora.operation.aggregates.procedure import (
     ProcedureCannotStartError,
     ProcedureNotFoundError,
     ProcedureRegistered,
-    ProcedureStarted,
 )
 from cora.operation.aggregates.procedure import event_type_name as procedure_event_type_name
 from cora.operation.aggregates.procedure import to_payload as procedure_to_payload
@@ -290,12 +289,3 @@ async def test_handler_propagates_causation_id() -> None:
     )
     events, _ = await store.load("Procedure", _PROCEDURE_ID)
     assert events[1].causation_id == causation
-
-
-@pytest.mark.unit
-def test_handler_returns_an_event_typed_proceure_started() -> None:
-    """Smoke check: the decider's emitted event class is ProcedureStarted (not else)."""
-    # This is an indirect end-to-end check: the bare evolver folds the
-    # expected event type and surfaces RUNNING. See evolver tests for the
-    # rest. Kept as a 1-liner so an accidental rename is loud.
-    assert ProcedureStarted.__name__ == "ProcedureStarted"

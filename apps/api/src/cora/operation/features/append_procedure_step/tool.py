@@ -7,7 +7,7 @@ PK on event_id.
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 from uuid import UUID
 
 from mcp.server.fastmcp import FastMCP
@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from cora.infrastructure.observability import current_correlation_id
 from cora.operation._bootstrap import SYSTEM_PRINCIPAL_ID
+from cora.operation.aggregates.procedure import StepKind
 from cora.operation.features.append_procedure_step.command import (
     AppendProcedureSteps,
     ProcedureStepInput,
@@ -23,10 +24,14 @@ from cora.operation.features.append_procedure_step.handler import Handler
 
 
 class _ProcedureStepEntry(BaseModel):
-    """One step entry's input payload (mirrors HTTP route shape)."""
+    """One step entry's input payload (mirrors HTTP route shape).
+
+    `step_kind` reuses the `StepKind` Literal from the aggregate to
+    keep the wire contract single-sourced (matches route.py posture).
+    """
 
     event_id: UUID
-    step_kind: Literal["setpoint", "action", "check"]
+    step_kind: StepKind
     payload: dict[str, Any]
     sampled_at: datetime
     occurred_at: datetime | None = None

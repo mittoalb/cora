@@ -14,19 +14,14 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.operation.aggregates.procedure import (
     InMemoryStepStore,
     InvalidStepKindError,
     ProcedureNotFoundError,
-    ProcedureRegistered,
-    ProcedureStarted,
     ProcedureStepsLogbookClosedError,
-    event_type_name,
     fold,
     from_stored,
-    to_payload,
 )
 from cora.operation.errors import UnauthorizedError
 from cora.operation.features import append_procedure_step
@@ -35,6 +30,11 @@ from cora.operation.features.append_procedure_step import (
     ProcedureStepInput,
 )
 from tests.unit._helpers import build_deps as _build_deps_shared
+from tests.unit.operation._seed_helpers import (
+    seed_completed_procedure,
+    seed_registered_procedure,
+    seed_running_procedure,
+)
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 _PRIOR = datetime(2026, 5, 15, 11, 0, 0, tzinfo=UTC)
@@ -46,54 +46,22 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
 async def _seed_running_procedure(store: InMemoryEventStore) -> None:
-    """Append Registered + Started events for a Running Procedure."""
-    registered = ProcedureRegistered(
+    await seed_running_procedure(
+        store,
         procedure_id=_PROCEDURE_ID,
-        name="Vessel-A bakeout",
-        kind="bakeout",
-        target_asset_ids=[],
-        parent_run_id=None,
-        occurred_at=_PRIOR,
-    )
-    started = ProcedureStarted(procedure_id=_PROCEDURE_ID, occurred_at=_PRIOR)
-    for index, event in enumerate((registered, started)):
-        new_event = to_new_event(
-            event_type=event_type_name(event),
-            payload=to_payload(event),
-            occurred_at=event.occurred_at,
-            event_id=uuid4(),
-            command_name="RegisterProcedure" if index == 0 else "StartProcedure",
-            correlation_id=_CORRELATION_ID,
-            principal_id=_PRINCIPAL_ID,
-        )
-        await store.append(
-            stream_type="Procedure",
-            stream_id=_PROCEDURE_ID,
-            expected_version=index,
-            events=[new_event],
-        )
-
-
-async def _seed_completed_procedure(store: InMemoryEventStore) -> None:
-    """Append Registered + Started + Completed for a terminal Procedure."""
-    from cora.operation.aggregates.procedure import ProcedureCompleted
-
-    await _seed_running_procedure(store)
-    completed = ProcedureCompleted(procedure_id=_PROCEDURE_ID, occurred_at=_PRIOR)
-    new_event = to_new_event(
-        event_type=event_type_name(completed),
-        payload=to_payload(completed),
-        occurred_at=completed.occurred_at,
-        event_id=uuid4(),
-        command_name="CompleteProcedure",
+        when=_PRIOR,
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
     )
-    await store.append(
-        stream_type="Procedure",
-        stream_id=_PROCEDURE_ID,
-        expected_version=2,
-        events=[new_event],
+
+
+async def _seed_completed_procedure(store: InMemoryEventStore) -> None:
+    await seed_completed_procedure(
+        store,
+        procedure_id=_PROCEDURE_ID,
+        when=_PRIOR,
+        correlation_id=_CORRELATION_ID,
+        principal_id=_PRINCIPAL_ID,
     )
 
 
@@ -251,13 +219,42 @@ async def test_handler_threads_envelope_correlation_and_actor() -> None:
     assert row.causation_id is None
 
 
+@pytest.mark.unit
+async def test_handler_threads_causation_id_to_both_step_row_and_envelope_event() -> None:
+    """When causation_id is set, both the step row AND the lazy-open envelope
+    event carry it through. Catches a wire-handler regression where the
+    envelope-event path would drop causation while the step-row path threaded it."""
+    causation = UUID("01900000-0000-7000-8000-0000000000bb")
+    store = InMemoryEventStore()
+    await _seed_running_procedure(store)
+    deps = _build_deps_shared(ids=[_LOGBOOK_ID, _OPEN_EVENT_ID], now=_NOW, event_store=store)
+    step_store = InMemoryStepStore()
+    handler = append_procedure_step.bind(deps, step_store=step_store)
+
+    await handler(
+        AppendProcedureSteps(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+        causation_id=causation,
+    )
+    # Step row carries causation.
+    assert step_store.all()[0].causation_id == causation
+    # Lazy-open envelope event on the Procedure stream also carries it.
+    events, _ = await store.load("Procedure", _PROCEDURE_ID)
+    assert events[2].event_type == "ProcedureStepsLogbookOpened"
+    assert events[2].causation_id == causation
+
+
 # ---------- Error paths ----------
 
 
 @pytest.mark.unit
 async def test_handler_raises_when_procedure_not_found() -> None:
     store = InMemoryEventStore()  # empty
-    deps = _build_deps_shared(ids=[], now=_NOW, event_store=store)
+    # Pre-populate id queue so a future handler reordering that consumes
+    # an id BEFORE the not-found check fires still raises ProcedureNotFoundError
+    # (not IndexError). Belt-and-braces against test brittleness.
+    deps = _build_deps_shared(ids=[uuid4()], now=_NOW, event_store=store)
     handler = append_procedure_step.bind(deps, step_store=InMemoryStepStore())
     with pytest.raises(ProcedureNotFoundError):
         await handler(
@@ -285,29 +282,12 @@ async def test_handler_raises_steps_logbook_closed_when_terminal() -> None:
 async def test_handler_raises_steps_logbook_closed_when_defined() -> None:
     """Defined (pre-start) Procedures also reject step appends; only Running accepts."""
     store = InMemoryEventStore()
-    # Seed only the Registered event (Defined, not Running).
-    registered = ProcedureRegistered(
+    await seed_registered_procedure(
+        store,
         procedure_id=_PROCEDURE_ID,
-        name="X",
-        kind="bakeout",
-        target_asset_ids=[],
-        parent_run_id=None,
-        occurred_at=_PRIOR,
-    )
-    new_event = to_new_event(
-        event_type=event_type_name(registered),
-        payload=to_payload(registered),
-        occurred_at=registered.occurred_at,
-        event_id=uuid4(),
-        command_name="RegisterProcedure",
+        when=_PRIOR,
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
-    )
-    await store.append(
-        stream_type="Procedure",
-        stream_id=_PROCEDURE_ID,
-        expected_version=0,
-        events=[new_event],
     )
 
     deps = _build_deps_shared(ids=[], now=_NOW, event_store=store)

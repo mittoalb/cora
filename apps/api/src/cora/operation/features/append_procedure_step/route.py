@@ -32,13 +32,14 @@ pilot vocabulary settles (currently a watch item alongside
 """
 
 from datetime import datetime
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Request, status
 from pydantic import BaseModel, Field
 
 from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.operation.aggregates.procedure import StepKind
 from cora.operation.features.append_procedure_step.command import (
     AppendProcedureSteps,
     ProcedureStepInput,
@@ -67,13 +68,14 @@ class ProcedureStepRequest(BaseModel):
             "key; re-issuing the same id is a silent no-op."
         ),
     )
-    step_kind: Literal["setpoint", "action", "check"] = Field(
+    step_kind: StepKind = Field(
         ...,
         description=(
             "ISA-106-aligned discriminator. 'setpoint' = control-point "
             "change applied. 'action' = discrete operation performed. "
             "'check' = verification recorded. Future values land "
-            "additively (no migration)."
+            "additively (no migration). Single source of truth: the "
+            "`StepKind` Literal exported from cora.operation.aggregates.procedure."
         ),
     )
     payload: dict[str, Any] = Field(
