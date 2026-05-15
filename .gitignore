@@ -71,3 +71,6 @@ logs/
 # Claude Code per-project state (settings, scheduled tasks, hooks, etc.)
 .claude/
 !.claude/CLAUDE.md
+
+# Presentations (slidev decks, local-only)
+/presentations/
