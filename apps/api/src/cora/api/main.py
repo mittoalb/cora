@@ -96,6 +96,12 @@ from cora.run import (
     register_run_tools,
     wire_run,
 )
+from cora.safety import (
+    SafetyHandlers,
+    register_safety_routes,
+    register_safety_tools,
+    wire_safety,
+)
 from cora.subject import (
     SubjectHandlers,
     register_subject_projections,
@@ -224,6 +230,10 @@ def create_app() -> FastAPI:
         handlers: OperationHandlers = fastapi_app.state.operation
         return handlers
 
+    def _get_safety_handlers() -> SafetyHandlers:
+        handlers: SafetyHandlers = fastapi_app.state.safety
+        return handlers
+
     register_access_tools(mcp, get_handlers=_get_access_handlers)
     register_trust_tools(mcp, get_handlers=_get_trust_handlers)
     register_subject_tools(mcp, get_handlers=_get_subject_handlers)
@@ -234,6 +244,7 @@ def create_app() -> FastAPI:
     register_decision_tools(mcp, get_handlers=_get_decision_handlers)
     register_supply_tools(mcp, get_handlers=_get_supply_handlers)
     register_operation_tools(mcp, get_handlers=_get_operation_handlers)
+    register_safety_tools(mcp, get_handlers=_get_safety_handlers)
     mcp_app = mcp.streamable_http_app()
 
     @asynccontextmanager
@@ -253,6 +264,7 @@ def create_app() -> FastAPI:
             app.state.decision = wire_decision(deps)
             app.state.supply = wire_supply(deps)
             app.state.operation = wire_operation(deps)
+            app.state.safety = wire_safety(deps)
 
             # Phase-8e-1a: projection worker. Each BC that owns
             # projections exports a `register_<bc>_projections`
@@ -338,6 +350,7 @@ def create_app() -> FastAPI:
     register_decision_routes(fastapi_app)
     register_supply_routes(fastapi_app)
     register_operation_routes(fastapi_app)
+    register_safety_routes(fastapi_app)
     fastapi_app.mount("/mcp", mcp_app)
 
     @fastapi_app.get("/health")

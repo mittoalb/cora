@@ -110,10 +110,12 @@ def bola_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, UUID
                 "RegisterActor",
                 "RegisterSubject",
                 "RegisterAsset",
+                "RegisterClearance",
                 # Read-side (the gates this test exercises)
                 "GetActor",
                 "GetSubject",
                 "GetAsset",
+                "GetClearance",
                 # List-side (8e-1c, 8e-2a, 8e-3a, 8e-3b, 8e-4, 8e-5, 8e-6, 8e-7, 8e-8)
                 "ListActors",
                 "ListSubjects",
@@ -171,6 +173,28 @@ def _create_asset_as(client: TestClient, principal: UUID) -> UUID:
     return UUID(response.json()["asset_id"])
 
 
+def _create_clearance_as(client: TestClient, principal: UUID) -> UUID:
+    """Create a Safety BC Clearance via POST /clearances; used by the BOLA
+    parametrization to verify GET /clearances/{id} respects per-command gating.
+
+    Clearances carry regulatory IDs and hazard descriptions, so cross-principal
+    leaks here are higher-stakes than Actor/Subject/Asset reads.
+    """
+    from uuid import uuid4
+
+    response = client.post(
+        "/clearances",
+        json={
+            "kind": "ESAF",
+            "title": "P1's clearance",
+            "bindings": [{"kind": "Run", "id": str(uuid4())}],
+        },
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert response.status_code == 201, response.text
+    return UUID(response.json()["clearance_id"])
+
+
 CreateFn = Callable[[TestClient, UUID], UUID]
 """Shape of a BOLA-scenario factory: takes the test client and the
 principal to create-as, returns the new aggregate's id."""
@@ -180,6 +204,7 @@ _BOLA_SCENARIOS = [
     pytest.param(_create_actor_as, "/actors", id="access:actor"),
     pytest.param(_create_subject_as, "/subjects", id="subject:subject"),
     pytest.param(_create_asset_as, "/assets", id="equipment:asset"),
+    pytest.param(_create_clearance_as, "/clearances", id="safety:clearance"),
 ]
 
 
