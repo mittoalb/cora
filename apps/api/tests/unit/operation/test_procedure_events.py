@@ -7,7 +7,10 @@ import pytest
 
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.operation.aggregates.procedure import (
+    ProcedureAborted,
+    ProcedureCompleted,
     ProcedureRegistered,
+    ProcedureStarted,
     event_type_name,
     from_stored,
     to_payload,
@@ -159,3 +162,121 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
     stored = _stored("BogusEvent", {})
     with pytest.raises(ValueError, match="Unknown ProcedureEvent event_type"):
         from_stored(stored)
+
+
+# --- 10c-b transition events ---
+
+
+@pytest.mark.unit
+def test_event_type_name_for_procedure_started() -> None:
+    event = ProcedureStarted(procedure_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "ProcedureStarted"
+
+
+@pytest.mark.unit
+def test_event_type_name_for_procedure_completed() -> None:
+    event = ProcedureCompleted(procedure_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "ProcedureCompleted"
+
+
+@pytest.mark.unit
+def test_event_type_name_for_procedure_aborted() -> None:
+    event = ProcedureAborted(procedure_id=uuid4(), reason="x", occurred_at=_NOW)
+    assert event_type_name(event) == "ProcedureAborted"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_procedure_started() -> None:
+    procedure_id = UUID("01900000-0000-7000-8000-00000000b001")
+    event = ProcedureStarted(procedure_id=procedure_id, occurred_at=_NOW)
+    assert to_payload(event) == {
+        "procedure_id": str(procedure_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_procedure_completed() -> None:
+    procedure_id = UUID("01900000-0000-7000-8000-00000000b002")
+    event = ProcedureCompleted(procedure_id=procedure_id, occurred_at=_NOW)
+    assert to_payload(event) == {
+        "procedure_id": str(procedure_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_procedure_aborted() -> None:
+    procedure_id = UUID("01900000-0000-7000-8000-00000000b003")
+    event = ProcedureAborted(procedure_id=procedure_id, reason="quench", occurred_at=_NOW)
+    assert to_payload(event) == {
+        "procedure_id": str(procedure_id),
+        "reason": "quench",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_procedure_started() -> None:
+    procedure_id = uuid4()
+    stored = _stored(
+        "ProcedureStarted",
+        {"procedure_id": str(procedure_id), "occurred_at": _NOW.isoformat()},
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, ProcedureStarted)
+    assert rebuilt.procedure_id == procedure_id
+    assert rebuilt.occurred_at == _NOW
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_procedure_completed() -> None:
+    procedure_id = uuid4()
+    stored = _stored(
+        "ProcedureCompleted",
+        {"procedure_id": str(procedure_id), "occurred_at": _NOW.isoformat()},
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, ProcedureCompleted)
+    assert rebuilt.procedure_id == procedure_id
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_procedure_aborted() -> None:
+    procedure_id = uuid4()
+    stored = _stored(
+        "ProcedureAborted",
+        {
+            "procedure_id": str(procedure_id),
+            "reason": "vacuum loss",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, ProcedureAborted)
+    assert rebuilt.procedure_id == procedure_id
+    assert rebuilt.reason == "vacuum loss"
+
+
+@pytest.mark.unit
+def test_procedure_started_round_trips() -> None:
+    original = ProcedureStarted(procedure_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("ProcedureStarted", to_payload(original))
+    rebuilt = from_stored(stored)
+    assert rebuilt == original
+
+
+@pytest.mark.unit
+def test_procedure_completed_round_trips() -> None:
+    original = ProcedureCompleted(procedure_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("ProcedureCompleted", to_payload(original))
+    rebuilt = from_stored(stored)
+    assert rebuilt == original
+
+
+@pytest.mark.unit
+def test_procedure_aborted_round_trips() -> None:
+    original = ProcedureAborted(procedure_id=uuid4(), reason="hardware fault", occurred_at=_NOW)
+    stored = _stored("ProcedureAborted", to_payload(original))
+    rebuilt = from_stored(stored)
+    assert rebuilt == original

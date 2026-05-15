@@ -5,10 +5,25 @@ union, `event_type_name`, `to_payload`, `from_stored`. The
 persistence-envelope construction (`NewEvent`) lives at
 `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 10c-a ships `ProcedureRegistered` only. Phase 10c-b adds the
-transition events (`ProcedureStarted`, `ProcedureCompleted`,
-`ProcedureAborted`) plus the lazy `ProcedureStepsLogbookOpened`
-envelope event for the per-step substream. Phase 10c-c adds
+Phase 10c-a shipped `ProcedureRegistered`. Phase 10c-b adds the
+three FSM-closure transition events:
+  - `ProcedureStarted` -- single-source genesis transition (Defined ->
+    Running). Slim payload: procedure_id + occurred_at. Mirrors
+    `RunStarted`'s no-status convention; the start fact is what the
+    event encodes.
+  - `ProcedureCompleted` -- happy-path terminal (Running -> Completed).
+    Slim payload by design; substantive completion summary (step count,
+    duration, final check pass-rate) deferred until the step substream
+    has accreted real consumer signal.
+  - `ProcedureAborted` -- emergency-exit terminal (Running -> Aborted).
+    Payload carries `procedure_id` + free-form `reason: str` (1-500
+    chars after trimming) + `occurred_at`. Mirrors RunAborted's reason
+    shape exactly (free-form by design; structured taxonomy future-
+    additive on the same triggers documented at
+    `InvalidProcedureAbortReasonError`).
+
+Phase 10c-b also adds `ProcedureStepsLogbookOpened` (lazy envelope
+event for the per-step substream). Phase 10c-c adds
 `ProcedureTruncated` (mirrors RunTruncated from 6f-4) and possibly
 `ProcedureHeld / ProcedureResumed` if pilot needs surface.
 
@@ -64,9 +79,64 @@ class ProcedureRegistered:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class ProcedureStarted:
+    """A Procedure transitioned out of Defined into Running (10c-b).
+
+    Slim payload by design: the start fact is what the event encodes.
+    Status is implicit (`Running`); the evolver sets it. No reason
+    field (mirrors RunStarted; the operator already supplied name +
+    kind + targets at register time).
+
+    The `start_procedure` handler pre-loads each target Asset before
+    reaching the decider; Decommissioned-state guarding lives in the
+    decider via `ProcedureStartContext` (mirror of `RunStartContext`).
+    """
+
+    procedure_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class ProcedureCompleted:
+    """A Procedure reached its happy-path terminal (Running -> Completed).
+
+    Slim payload by design (mirrors RunCompleted): substantive
+    completion summary (step count, final check pass-rate, duration)
+    deferred until the step substream consumer signal surfaces. Today
+    consumers needing post-completion read state should fold the
+    Procedure stream (short and bounded for terminal-by-design
+    Lifecycle Aggregates).
+    """
+
+    procedure_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class ProcedureAborted:
+    """A Procedure reached its emergency-exit terminal (Running -> Aborted).
+
+    `reason` is a free-form string (1-500 chars after trimming),
+    captured verbatim from the operator. Mirror of RunAborted.reason
+    shape; same future-additive structured-taxonomy posture parked
+    at `InvalidProcedureAbortReasonError`.
+
+    Single-source guard at the decider (Running only). Held/Resumed
+    deferred to 10c-c per pilot need; if Held lands, the abort source
+    set widens to `Running | Held` to match Run BC's precedent.
+    """
+
+    procedure_id: UUID
+    reason: str
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Procedure aggregate emits.
-# 10c-a ships only ProcedureRegistered; transition events join in 10c-b.
-ProcedureEvent = ProcedureRegistered
+# 10c-b closes the FSM with the three transition events; the per-step
+# substream envelope event `ProcedureStepsLogbookOpened` lands in 10c-b
+# iter 2 alongside the substream port.
+ProcedureEvent = ProcedureRegistered | ProcedureStarted | ProcedureCompleted | ProcedureAborted
 
 
 def event_type_name(event: ProcedureEvent) -> str:
@@ -97,6 +167,22 @@ def to_payload(event: ProcedureEvent) -> dict[str, Any]:
                 "kind": kind,
                 "target_asset_ids": sorted(str(a) for a in target_asset_ids),
                 "parent_run_id": str(parent_run_id) if parent_run_id is not None else None,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case ProcedureStarted(procedure_id=procedure_id, occurred_at=occurred_at):
+            return {
+                "procedure_id": str(procedure_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case ProcedureCompleted(procedure_id=procedure_id, occurred_at=occurred_at):
+            return {
+                "procedure_id": str(procedure_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case ProcedureAborted(procedure_id=procedure_id, reason=reason, occurred_at=occurred_at):
+            return {
+                "procedure_id": str(procedure_id),
+                "reason": reason,
                 "occurred_at": occurred_at.isoformat(),
             }
         case _:  # pragma: no cover  # exhaustiveness guard
@@ -131,14 +217,33 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
                 parent_run_id=UUID(raw_parent) if raw_parent is not None else None,
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "ProcedureStarted":
+            return ProcedureStarted(
+                procedure_id=UUID(payload["procedure_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "ProcedureCompleted":
+            return ProcedureCompleted(
+                procedure_id=UUID(payload["procedure_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "ProcedureAborted":
+            return ProcedureAborted(
+                procedure_id=UUID(payload["procedure_id"]),
+                reason=payload["reason"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown ProcedureEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
 
 
 __all__ = [
+    "ProcedureAborted",
+    "ProcedureCompleted",
     "ProcedureEvent",
     "ProcedureRegistered",
+    "ProcedureStarted",
     "event_type_name",
     "from_stored",
     "to_payload",

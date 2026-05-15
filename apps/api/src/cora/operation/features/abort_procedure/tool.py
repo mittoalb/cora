@@ -1,0 +1,48 @@
+"""MCP tool for the `abort_procedure` slice."""
+
+from collections.abc import Callable
+from typing import Annotated
+from uuid import UUID
+
+from mcp.server.fastmcp import FastMCP
+from pydantic import Field
+
+from cora.infrastructure.observability import current_correlation_id
+from cora.operation._bootstrap import SYSTEM_PRINCIPAL_ID
+from cora.operation.aggregates.procedure import PROCEDURE_ABORT_REASON_MAX_LENGTH
+from cora.operation.features.abort_procedure.command import AbortProcedure
+from cora.operation.features.abort_procedure.handler import Handler
+
+
+def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
+    """Register the `abort_procedure` tool on the given MCP server."""
+
+    @mcp.tool(
+        name="abort_procedure",
+        description=(
+            "Mark an existing Procedure as aborted (emergency-exit terminal). "
+            "Requires the Procedure to currently be in `Running`. "
+            "Aborting a `Defined` / `Completed` / `Aborted` Procedure raises. "
+            "Reason is free-form (1-500 chars), captured verbatim for audit."
+        ),
+    )
+    async def abort_procedure_tool(  # pyright: ignore[reportUnusedFunction]
+        procedure_id: Annotated[
+            UUID,
+            Field(description="Target procedure's id."),
+        ],
+        reason: Annotated[
+            str,
+            Field(
+                min_length=1,
+                max_length=PROCEDURE_ABORT_REASON_MAX_LENGTH,
+                description=("Free-form reason for the abort (1-500 chars after trimming)."),
+            ),
+        ],
+    ) -> None:
+        handler = get_handler()
+        await handler(
+            AbortProcedure(procedure_id=procedure_id, reason=reason),
+            principal_id=SYSTEM_PRINCIPAL_ID,
+            correlation_id=current_correlation_id(),
+        )

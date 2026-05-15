@@ -99,6 +99,7 @@ from cora.infrastructure.bounded_text import validate_bounded_text
 
 PROCEDURE_NAME_MAX_LENGTH = 200
 PROCEDURE_KIND_MAX_LENGTH = 50
+PROCEDURE_ABORT_REASON_MAX_LENGTH = 500
 
 
 class ProcedureStatus(StrEnum):
@@ -190,6 +191,102 @@ class ProcedureNotFoundError(Exception):
         self.procedure_id = procedure_id
 
 
+class ProcedureAssetDecommissionedError(Exception):
+    """Procedure's target Assets include one or more Decommissioned at start.
+
+    Re-validation of Asset state at start_procedure (NOT just register-
+    time snapshot). If a target Asset got decommissioned between
+    register_procedure and start_procedure, the Procedure can't proceed
+    against the now-tombstoned Asset. Mirrors `RunAssetDecommissionedError`.
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, asset_ids: list[UUID]) -> None:
+        super().__init__(
+            f"Cannot start Procedure: the following target Assets are "
+            f"Decommissioned: {[str(a) for a in asset_ids]}"
+        )
+        self.asset_ids = asset_ids
+
+
+class ProcedureCannotStartError(Exception):
+    """Attempted to start a Procedure not in `Defined`.
+
+    Single-source guard: `start_procedure` accepts only `Defined`.
+    Re-starting a `Running` Procedure raises (strict-not-idempotent);
+    starting any terminal (Completed | Aborted | Truncated) raises.
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, procedure_id: UUID, current_status: "ProcedureStatus") -> None:
+        super().__init__(
+            f"Procedure {procedure_id} cannot be started: currently in status "
+            f"{current_status.value}, start requires {ProcedureStatus.DEFINED.value}"
+        )
+        self.procedure_id = procedure_id
+        self.current_status = current_status
+
+
+class ProcedureCannotCompleteError(Exception):
+    """Attempted to complete a Procedure not in `Running`.
+
+    Single-source guard: `complete_procedure` accepts only `Running`.
+    Re-completing a `Completed` Procedure raises (strict-not-idempotent);
+    completing any other state (Defined | Aborted | Truncated) raises.
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, procedure_id: UUID, current_status: "ProcedureStatus") -> None:
+        super().__init__(
+            f"Procedure {procedure_id} cannot be completed: currently in status "
+            f"{current_status.value}, complete requires {ProcedureStatus.RUNNING.value}"
+        )
+        self.procedure_id = procedure_id
+        self.current_status = current_status
+
+
+class ProcedureCannotAbortError(Exception):
+    """Attempted to abort a Procedure not in `Running`.
+
+    Single-source guard: `abort_procedure` accepts only `Running` (no
+    Held state in the Procedure FSM today; deferred to 10c-c per pilot
+    need). Aborting a `Defined` Procedure raises (use a different
+    workflow, for example: never start it, then leave it Defined or
+    extend the FSM with a cancel-defined slice if real); aborting any
+    terminal raises (strict-not-idempotent). Mapped to HTTP 409.
+    """
+
+    def __init__(self, procedure_id: UUID, current_status: "ProcedureStatus") -> None:
+        super().__init__(
+            f"Procedure {procedure_id} cannot be aborted: currently in status "
+            f"{current_status.value}, abort requires {ProcedureStatus.RUNNING.value}"
+        )
+        self.procedure_id = procedure_id
+        self.current_status = current_status
+
+
+class InvalidProcedureAbortReasonError(ValueError):
+    """The supplied abort reason is empty, whitespace-only, or too long.
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the decider via this error so direct in-process
+    callers (sagas, tests) get the same protection. Same precedent as
+    `InvalidRunAbortReasonError`.
+
+    Free-form `str` (1-500 chars). Structured taxonomy is future-additive
+    if vocabulary convergence across real aborts surfaces, or if Decision
+    BC adopts ProcedureAbort with structured-context queries. Mirrors
+    Run BC's posture exactly. Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Procedure abort reason must be 1-{PROCEDURE_ABORT_REASON_MAX_LENGTH} chars "
+            f"after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
 @dataclass(frozen=True)
 class ProcedureName:
     """Display name for a procedure. Trimmed; 1-200 chars.
@@ -209,6 +306,29 @@ class ProcedureName:
         )
         # Frozen dataclasses block normal assignment in __post_init__;
         # use object.__setattr__ to install the trimmed value.
+        object.__setattr__(self, "value", trimmed)
+
+
+@dataclass(frozen=True)
+class ProcedureAbortReason:
+    """Free-form abort reason. Trimmed; 1-500 chars.
+
+    Domain VO (not just `str`) so the decider validates uniformly via
+    the shared `validate_bounded_text` helper. The on-the-wire
+    representation in `ProcedureAborted.reason` is `str` (post-trim)
+    for payload simplicity; the VO exists at decider-input time only.
+    Sibling of `RunAbortReason`; same shape, distinct class for
+    BC-local HTTP-status registration.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_bounded_text(
+            self.value,
+            max_length=PROCEDURE_ABORT_REASON_MAX_LENGTH,
+            error_class=InvalidProcedureAbortReasonError,
+        )
         object.__setattr__(self, "value", trimmed)
 
 

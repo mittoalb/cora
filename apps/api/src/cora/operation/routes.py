@@ -9,51 +9,60 @@ JSONResponse is used (not HTTPException) per FastAPI guidance to
 avoid nested-exception pitfalls.
 
 `IdempotencyConflictError`, `IdempotencyClaimLostError`,
-`CachedHandlerError`, and `ConcurrencyError` are infra-layer errors
-registered by Access (the first BC that boots). They produce the
-same JSON shape regardless of which BC raised them, so Operation
-does not re-register them.
+`CachedHandlerError`, `ConcurrencyError`, and `AssetNotFoundError`
+(Equipment-BC) are infra-layer / cross-BC errors registered by their
+owning BC. They produce the same JSON shape regardless of which BC
+raised them, so Operation does not re-register them.
 
 ## Loop-collapse pattern
 
-Operation owns one aggregate (Procedure). Three error families share
+Operation owns one aggregate (Procedure). Four error families share
 the same response shape and get collapsed via the Trust /
 Equipment / Supply-style loop pattern:
 
-  - 400 (validation): InvalidProcedureName, InvalidProcedureKind
+  - 400 (validation): InvalidProcedureName, InvalidProcedureKind,
+    InvalidProcedureAbortReason
   - 404 (load miss): ProcedureNotFound
   - 409 (defensive guard for AlreadyExists): ProcedureAlreadyExists
+  - 409 (transition guards): ProcedureCannotStart,
+    ProcedureCannotComplete, ProcedureCannotAbort,
+    ProcedureAssetDecommissioned
 
-10c-b will append transition guards (ProcedureCannotStart /
-ProcedureCannotComplete / ProcedureCannotAbort /
-ProcedureAssetDecommissioned) + reason-validation errors
-(InvalidProcedureAbortReason). 10c-c adds
-ProcedureCannotTruncate.
+10c-c will append ProcedureCannotTruncate to the transition-guard
+tuple.
 """
 
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from cora.operation.aggregates.procedure import (
+    InvalidProcedureAbortReasonError,
     InvalidProcedureKindError,
     InvalidProcedureNameError,
     ProcedureAlreadyExistsError,
+    ProcedureAssetDecommissionedError,
+    ProcedureCannotAbortError,
+    ProcedureCannotCompleteError,
+    ProcedureCannotStartError,
     ProcedureNotFoundError,
 )
 from cora.operation.errors import UnauthorizedError
 from cora.operation.features import (
+    abort_procedure,
+    complete_procedure,
     get_procedure,
     register_procedure,
+    start_procedure,
 )
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
     """Shared 400 handler for every domain validation error.
 
-    Covers Invalid<X>NameError / Invalid<X>KindError. All map to
-    the same HTTP 400 + `{"detail": str(exc)}` body. Adding a new
-    validation-style error is one extra entry in the tuple in
-    `register_operation_routes`.
+    Covers Invalid<X>NameError / Invalid<X>KindError /
+    Invalid<X>AbortReasonError. All map to HTTP 400 +
+    `{"detail": str(exc)}` body. Adding a new validation-style error
+    is one extra entry in the tuple in `register_operation_routes`.
     """
     _ = request
     return JSONResponse(
@@ -95,17 +104,43 @@ async def _handle_already_exists(request: Request, exc: Exception) -> JSONRespon
     )
 
 
+async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 409 handler for every transition-guard error.
+
+    Covers ProcedureCannotStart / ProcedureCannotComplete /
+    ProcedureCannotAbort (FSM source-state guards) AND
+    ProcedureAssetDecommissioned (cross-aggregate precondition guard
+    at start_procedure). All map to HTTP 409 + `{"detail": str(exc)}`.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+
 def register_operation_routes(app: FastAPI) -> None:
     """Attach Operation slice routers and exception handlers to the FastAPI app."""
     app.include_router(register_procedure.router)
+    app.include_router(start_procedure.router)
+    app.include_router(complete_procedure.router)
+    app.include_router(abort_procedure.router)
     app.include_router(get_procedure.router)
     for validation_cls in (
         InvalidProcedureNameError,
         InvalidProcedureKindError,
+        InvalidProcedureAbortReasonError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (ProcedureNotFoundError,):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (ProcedureAlreadyExistsError,):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
+    for cannot_transition_cls in (
+        ProcedureCannotStartError,
+        ProcedureCannotCompleteError,
+        ProcedureCannotAbortError,
+        ProcedureAssetDecommissionedError,
+    ):
+        app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
