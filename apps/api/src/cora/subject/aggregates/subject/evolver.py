@@ -31,6 +31,7 @@ The shared guard helper keeps the per-arm bodies short.
 from collections.abc import Sequence
 from typing import assert_never
 
+from cora.infrastructure.evolver import require_state
 from cora.subject.aggregates.subject.events import (
     SubjectDiscarded,
     SubjectDismounted,
@@ -45,14 +46,6 @@ from cora.subject.aggregates.subject.events import (
 from cora.subject.aggregates.subject.state import Subject, SubjectName, SubjectStatus
 
 
-def _require_state(state: Subject | None, event_type: str) -> Subject:
-    """Transition events require prior state; empty stream is corruption."""
-    if state is None:
-        msg = f"{event_type} cannot be applied to empty state"
-        raise ValueError(msg)
-    return state
-
-
 def evolve(state: Subject | None, event: SubjectEvent) -> Subject:
     """Apply one event to the current state."""
     match event:
@@ -65,7 +58,7 @@ def evolve(state: Subject | None, event: SubjectEvent) -> Subject:
                 mounted_on_asset_id=None,
             )
         case SubjectMounted(asset_id=asset_id):
-            prior = _require_state(state, "SubjectMounted")
+            prior = require_state(state, "SubjectMounted")
             return Subject(
                 id=prior.id,
                 name=prior.name,
@@ -73,7 +66,7 @@ def evolve(state: Subject | None, event: SubjectEvent) -> Subject:
                 mounted_on_asset_id=asset_id,
             )
         case SubjectMeasured():
-            prior = _require_state(state, "SubjectMeasured")
+            prior = require_state(state, "SubjectMeasured")
             return Subject(
                 id=prior.id,
                 name=prior.name,
@@ -81,7 +74,7 @@ def evolve(state: Subject | None, event: SubjectEvent) -> Subject:
                 mounted_on_asset_id=prior.mounted_on_asset_id,
             )
         case SubjectRemoved():
-            prior = _require_state(state, "SubjectRemoved")
+            prior = require_state(state, "SubjectRemoved")
             return Subject(
                 id=prior.id,
                 name=prior.name,
@@ -89,7 +82,7 @@ def evolve(state: Subject | None, event: SubjectEvent) -> Subject:
                 mounted_on_asset_id=None,
             )
         case SubjectReturned():
-            prior = _require_state(state, "SubjectReturned")
+            prior = require_state(state, "SubjectReturned")
             return Subject(
                 id=prior.id,
                 name=prior.name,
@@ -97,7 +90,7 @@ def evolve(state: Subject | None, event: SubjectEvent) -> Subject:
                 mounted_on_asset_id=None,
             )
         case SubjectStored():
-            prior = _require_state(state, "SubjectStored")
+            prior = require_state(state, "SubjectStored")
             return Subject(
                 id=prior.id,
                 name=prior.name,
@@ -105,7 +98,7 @@ def evolve(state: Subject | None, event: SubjectEvent) -> Subject:
                 mounted_on_asset_id=None,
             )
         case SubjectDiscarded():
-            prior = _require_state(state, "SubjectDiscarded")
+            prior = require_state(state, "SubjectDiscarded")
             return Subject(
                 id=prior.id,
                 name=prior.name,
@@ -119,7 +112,7 @@ def evolve(state: Subject | None, event: SubjectEvent) -> Subject:
             # supports re-mount. mounted_on_asset_id cleared. The
             # event payload's from_asset_id and reason are audit
             # metadata, not folded into state.
-            prior = _require_state(state, "SubjectDismounted")
+            prior = require_state(state, "SubjectDismounted")
             return Subject(
                 id=prior.id,
                 name=prior.name,

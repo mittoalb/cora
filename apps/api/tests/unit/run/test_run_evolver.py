@@ -1,5 +1,6 @@
 """Unit tests for the Run aggregate's evolver."""
 
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
@@ -409,3 +410,208 @@ def _run_started_with_raid(
         occurred_at=_NOW,
         raid=raid,
     )
+
+
+# ---------- Phase 6f-5b: RunReadingLogbookOpened ----------
+
+from cora.run.aggregates.run import (  # noqa: E402
+    LOGBOOK_KIND_READING,
+    READING_LOGBOOK_SCHEMA,
+)
+from cora.run.aggregates.run.events import RunReadingLogbookOpened  # noqa: E402
+
+
+@pytest.mark.unit
+def test_evolve_run_reading_logbook_opened_sets_logbook_id() -> None:
+    """Lazy-open arm: RunReadingLogbookOpened sets reading_logbook_id
+    while preserving status and all other fields."""
+    run_id = uuid4()
+    plan_id = uuid4()
+    state_after_start = evolve(
+        None,
+        RunStarted(
+            run_id=run_id,
+            name="32-ID FlyScan",
+            plan_id=plan_id,
+            subject_id=None,
+            occurred_at=_NOW,
+        ),
+    )
+    assert state_after_start.reading_logbook_id is None  # baseline before open
+
+    logbook_id = uuid4()
+    open_event = RunReadingLogbookOpened(
+        run_id=run_id,
+        logbook_id=logbook_id,
+        kind=LOGBOOK_KIND_READING,
+        schema=READING_LOGBOOK_SCHEMA,
+        occurred_at=_NOW,
+    )
+    state = evolve(state_after_start, open_event)
+    assert state.reading_logbook_id == logbook_id
+    # Status is orthogonal to logbook lifecycle; not touched.
+    assert state.status is RunStatus.RUNNING
+    # All other fields preserved.
+    assert state.id == run_id
+    assert state.plan_id == plan_id
+    assert state.name == state_after_start.name
+
+
+@pytest.mark.unit
+def test_evolve_run_reading_logbook_opened_raises_on_empty_state() -> None:
+    """Defensive: opening a logbook against an unstarted Run is
+    stream corruption (the open event can never appear before
+    RunStarted in a well-formed stream)."""
+    open_event = RunReadingLogbookOpened(
+        run_id=uuid4(),
+        logbook_id=uuid4(),
+        kind=LOGBOOK_KIND_READING,
+        schema=READING_LOGBOOK_SCHEMA,
+        occurred_at=_NOW,
+    )
+    with pytest.raises(ValueError, match="RunReadingLogbookOpened"):
+        evolve(None, open_event)
+
+
+@pytest.mark.unit
+def test_evolve_terminal_after_logbook_opened_preserves_logbook_id() -> None:
+    """Critical preserve-fields invariant: RunCompleted (and other
+    terminals) MUST carry reading_logbook_id through. A regression
+    that wiped it would lose the audit anchor for which logbook the
+    Run's readings belong to."""
+    run_id = uuid4()
+    logbook_id = uuid4()
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="32-ID FlyScan",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+            ),
+            RunReadingLogbookOpened(
+                run_id=run_id,
+                logbook_id=logbook_id,
+                kind=LOGBOOK_KIND_READING,
+                schema=READING_LOGBOOK_SCHEMA,
+                occurred_at=_NOW,
+            ),
+            RunCompleted(run_id=run_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.status is RunStatus.COMPLETED
+    assert state.reading_logbook_id == logbook_id
+
+
+def _make_completed(rid: UUID) -> RunCompleted:
+    return RunCompleted(run_id=rid, occurred_at=_NOW)
+
+
+def _make_aborted(rid: UUID) -> RunAborted:
+    return RunAborted(run_id=rid, reason="emergency", occurred_at=_NOW)
+
+
+def _make_stopped(rid: UUID) -> RunStopped:
+    return RunStopped(run_id=rid, reason="controlled stop", occurred_at=_NOW)
+
+
+def _make_truncated(rid: UUID) -> RunTruncated:
+    return RunTruncated(run_id=rid, reason="crash", interrupted_at=None, occurred_at=_NOW)
+
+
+_TerminalFactory = Callable[[UUID], RunCompleted | RunAborted | RunStopped | RunTruncated]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "terminal_factory",
+    [_make_completed, _make_aborted, _make_stopped, _make_truncated],
+)
+def test_evolve_each_terminal_preserves_reading_logbook_id(
+    terminal_factory: _TerminalFactory,
+) -> None:
+    """Every terminal arm carries reading_logbook_id through. Pinned
+    per-terminal because the silent-wipe risk applies equally to all
+    four terminals (the explicit-construction discipline in the
+    evolver is what catches it)."""
+    run_id = uuid4()
+    logbook_id = uuid4()
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="Run",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+            ),
+            RunReadingLogbookOpened(
+                run_id=run_id,
+                logbook_id=logbook_id,
+                kind=LOGBOOK_KIND_READING,
+                schema=READING_LOGBOOK_SCHEMA,
+                occurred_at=_NOW,
+            ),
+            terminal_factory(run_id),
+        ]
+    )
+    assert state is not None
+    assert state.reading_logbook_id == logbook_id
+
+
+@pytest.mark.unit
+def test_evolve_held_resumed_preserves_reading_logbook_id() -> None:
+    """Hold ⇄ Resume cycle preserves reading_logbook_id (orthogonal
+    to lifecycle)."""
+    run_id = uuid4()
+    logbook_id = uuid4()
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="Run",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+            ),
+            RunReadingLogbookOpened(
+                run_id=run_id,
+                logbook_id=logbook_id,
+                kind=LOGBOOK_KIND_READING,
+                schema=READING_LOGBOOK_SCHEMA,
+                occurred_at=_NOW,
+            ),
+            RunHeld(run_id=run_id, occurred_at=_NOW),
+            RunResumed(run_id=run_id, occurred_at=_NOW),
+            RunHeld(run_id=run_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.status is RunStatus.HELD
+    assert state.reading_logbook_id == logbook_id
+
+
+@pytest.mark.unit
+def test_legacy_pre_6f5b_stream_folds_with_none_reading_logbook_id() -> None:
+    """Pre-6f-5b Runs in the event store have no
+    RunReadingLogbookOpened event in the stream. They MUST fold
+    cleanly with reading_logbook_id=None — that's the additive
+    backward-compat contract."""
+    run_id = uuid4()
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="Pre-6f-5b Run",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+            ),
+            RunCompleted(run_id=run_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.reading_logbook_id is None
+    assert state.status is RunStatus.COMPLETED

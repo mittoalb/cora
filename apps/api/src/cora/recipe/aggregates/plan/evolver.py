@@ -63,13 +63,14 @@ them. The transition arms explicitly pass each.
 
 Transition events applied to empty state raise ValueError: they can
 never appear before `PlanDefined` in a well-formed stream. The
-`_require_state` helper keeps per-arm bodies short (precedent locked
+`require_state` helper keeps per-arm bodies short (precedent locked
 by Subject's evolver in 4c).
 """
 
 from collections.abc import Sequence
 from typing import assert_never
 
+from cora.infrastructure.evolver import require_state
 from cora.recipe.aggregates.plan.events import (
     PlanDefaultParametersUpdated,
     PlanDefined,
@@ -80,14 +81,6 @@ from cora.recipe.aggregates.plan.events import (
     PlanWireRemoved,
 )
 from cora.recipe.aggregates.plan.state import Plan, PlanName, PlanStatus, Wire
-
-
-def _require_state(state: Plan | None, event_type: str) -> Plan:
-    """Transition events require prior state; empty stream is corruption."""
-    if state is None:
-        msg = f"{event_type} cannot be applied to empty state"
-        raise ValueError(msg)
-    return state
 
 
 def evolve(state: Plan | None, event: PlanEvent) -> Plan:
@@ -116,7 +109,7 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 # default_parameters defaults to {} via state default.
             )
         case PlanVersioned(version_tag=version_tag):
-            prior = _require_state(state, "PlanVersioned")
+            prior = require_state(state, "PlanVersioned")
             return Plan(
                 id=prior.id,
                 name=prior.name,
@@ -129,7 +122,7 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 wires=prior.wires,
             )
         case PlanDeprecated():
-            prior = _require_state(state, "PlanDeprecated")
+            prior = require_state(state, "PlanDeprecated")
             return Plan(
                 id=prior.id,
                 name=prior.name,
@@ -143,7 +136,7 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 wires=prior.wires,
             )
         case PlanDefaultParametersUpdated(default_parameters=default_parameters):
-            prior = _require_state(state, "PlanDefaultParametersUpdated")
+            prior = require_state(state, "PlanDefaultParametersUpdated")
             return Plan(
                 id=prior.id,
                 name=prior.name,
@@ -161,7 +154,7 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
             target_asset_id=target_asset_id,
             target_port_name=target_port_name,
         ):
-            prior = _require_state(state, "PlanWireAdded")
+            prior = require_state(state, "PlanWireAdded")
             new_wire = Wire(
                 source_asset_id=source_asset_id,
                 source_port_name=source_port_name,
@@ -185,7 +178,7 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
             target_asset_id=target_asset_id,
             target_port_name=target_port_name,
         ):
-            prior = _require_state(state, "PlanWireRemoved")
+            prior = require_state(state, "PlanWireRemoved")
             removed_wire = Wire(
                 source_asset_id=source_asset_id,
                 source_port_name=source_port_name,

@@ -28,7 +28,7 @@ Defensive guard: `DatasetDiscarded` and `DatasetPromoted` arms raise
 on `state is None` (the parent Dataset must exist before any
 transition event). If a stream contains a transition without a prior
 DatasetRegistered, the stream is corrupted and the evolver fails
-loud. The `_require_state` helper keeps per-arm bodies short.
+loud. The `require_state` helper keeps per-arm bodies short.
 """
 
 from collections.abc import Sequence
@@ -49,14 +49,7 @@ from cora.data.aggregates.dataset.state import (
     DatasetUri,
     Intent,
 )
-
-
-def _require_state(state: Dataset | None, event_type: str) -> Dataset:
-    """Transition events require prior state; empty stream is corruption."""
-    if state is None:
-        msg = f"{event_type} cannot be applied to empty state"
-        raise ValueError(msg)
-    return state
+from cora.infrastructure.evolver import require_state
 
 
 def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
@@ -101,7 +94,7 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 intent=Intent(intent),
             )
         case DatasetDiscarded():
-            prior = _require_state(state, "DatasetDiscarded")
+            prior = require_state(state, "DatasetDiscarded")
             return Dataset(
                 id=prior.id,
                 name=prior.name,
@@ -119,7 +112,7 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 intent=prior.intent,
             )
         case DatasetPromoted():
-            prior = _require_state(state, "DatasetPromoted")
+            prior = require_state(state, "DatasetPromoted")
             return Dataset(
                 id=prior.id,
                 name=prior.name,

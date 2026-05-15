@@ -1,8 +1,16 @@
 """Application handler for the `truncate_run` slice.
 
-Update-style handler — three-field command (run_id + reason +
-interrupted_at). Stays longhand for log-field clarity. Same shape as
-`stop_run` modulo the extra `interrupted_at` field.
+Update-style handler. Canonical body lives in
+`cora.run._update_handler.make_run_update_handler`; this module
+is a thin slice-specific bind.
+
+The command's `reason` and `interrupted_at` fields are captured
+on the emitted `RunTruncated` event payload but are intentionally
+NOT logged at the handler boundary (matches stop_run / abort_run
+/ Subject discard / Asset condition precedent). Pre-hoist this
+slice logged `interrupted_at` on the `start` line only — an
+asymmetric afterthought, not a designed log shape; aligned away
+during the cross-BC update-handler hoist.
 
 ## Per-event grouping note (gate-review L11)
 
@@ -31,26 +39,10 @@ scope for 6f-4.
 from typing import Protocol
 from uuid import UUID
 
-from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.logging import get_logger
-from cora.infrastructure.ports import Deny
-from cora.run.aggregates.run import (
-    RunEvent,
-    event_type_name,
-    fold,
-    from_stored,
-    to_payload,
-)
-from cora.run.errors import UnauthorizedError
+from cora.run._update_handler import make_run_update_handler
 from cora.run.features.truncate_run.command import TruncateRun
 from cora.run.features.truncate_run.decider import decide
-
-_STREAM_TYPE = "Run"
-_COMMAND_NAME = "TruncateRun"
-_CONDUIT_DEFAULT_ID = UUID(int=0)
-
-_log = get_logger(__name__)
 
 
 class Handler(Protocol):
@@ -68,83 +60,9 @@ class Handler(Protocol):
 
 def bind(deps: Kernel) -> Handler:
     """Build a truncate_run handler closed over the shared deps."""
-
-    async def handler(
-        command: TruncateRun,
-        *,
-        principal_id: UUID,
-        correlation_id: UUID,
-        causation_id: UUID | None = None,
-    ) -> None:
-        _log.info(
-            "truncate_run.start",
-            command_name=_COMMAND_NAME,
-            run_id=str(command.run_id),
-            principal_id=str(principal_id),
-            correlation_id=str(correlation_id),
-            causation_id=str(causation_id) if causation_id is not None else None,
-            interrupted_at=(
-                command.interrupted_at.isoformat() if command.interrupted_at is not None else None
-            ),
-        )
-
-        decision = await deps.authorize(
-            principal_id=principal_id,
-            command_name=_COMMAND_NAME,
-            conduit_id=_CONDUIT_DEFAULT_ID,
-        )
-        if isinstance(decision, Deny):
-            _log.info(
-                "truncate_run.denied",
-                command_name=_COMMAND_NAME,
-                run_id=str(command.run_id),
-                principal_id=str(principal_id),
-                correlation_id=str(correlation_id),
-                causation_id=str(causation_id) if causation_id is not None else None,
-                reason=decision.reason,
-            )
-            raise UnauthorizedError(decision.reason)
-
-        now = deps.clock.now()
-
-        stored, current_version = await deps.event_store.load(
-            stream_type=_STREAM_TYPE,
-            stream_id=command.run_id,
-        )
-        history: list[RunEvent] = [from_stored(s) for s in stored]
-        state = fold(history)
-
-        domain_events = decide(state=state, command=command, now=now)
-
-        new_events = [
-            to_new_event(
-                event_type=event_type_name(event),
-                payload=to_payload(event),
-                occurred_at=event.occurred_at,
-                event_id=deps.id_generator.new_id(),
-                command_name=_COMMAND_NAME,
-                correlation_id=correlation_id,
-                causation_id=causation_id,
-                principal_id=principal_id,
-            )
-            for event in domain_events
-        ]
-        await deps.event_store.append(
-            stream_type=_STREAM_TYPE,
-            stream_id=command.run_id,
-            expected_version=current_version,
-            events=new_events,
-        )
-
-        _log.info(
-            "truncate_run.success",
-            command_name=_COMMAND_NAME,
-            run_id=str(command.run_id),
-            principal_id=str(principal_id),
-            correlation_id=str(correlation_id),
-            causation_id=str(causation_id) if causation_id is not None else None,
-            event_count=len(new_events),
-            new_version=current_version + len(new_events),
-        )
-
-    return handler
+    return make_run_update_handler(
+        deps,
+        command_name="TruncateRun",
+        log_prefix="truncate_run",
+        decide_fn=decide,
+    )

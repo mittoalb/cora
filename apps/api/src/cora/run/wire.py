@@ -24,8 +24,20 @@ transitions). Phase 6f-3 added `hold_run` + `resume_run` + `stop_run`
 Phase 6f-4 closes the FSM with `truncate_run` (partial-data terminal
 for known-dead Runs being closed retroactively).
 
-Subsequent slices land per-phase:
-  - 6f-5: First observation channels for Run (separate infra; not a slice in this bundle)
+Phase 6f-5b adds `append_run_reading` (polymorphic sensor / motor
+reading logbook with SOSA `sampling_procedure` discriminator; lazy
+open-on-first-write). Not idempotency-wrapped: natural idempotence
+via the at-most-one-open-logbook invariant + entry-store PK
+(mirrors 8c-b's `append_reasoning_entry`).
+
+## BC-internal ReadingStore wiring (mirrors Decision BC's L9 pattern)
+
+The 6f-5b `append_run_reading` slice needs a `ReadingStore` adapter.
+Per the per-category-writer pattern locked at gate-review L8/L9 from
+6f-5a (Conduit's TraversalStore), the store is built LOCALLY here
+from `deps.pool` (Postgres in production) or as
+`InMemoryReadingStore` in `app_env=test`. NOT promoted to Kernel
+fields. Mirrors how Decision BC wires its ReasoningStore.
 """
 
 from dataclasses import dataclass
@@ -34,8 +46,14 @@ from uuid import UUID
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
+from cora.run.aggregates.run import (
+    InMemoryReadingStore,
+    PostgresReadingStore,
+    ReadingStore,
+)
 from cora.run.features import (
     abort_run,
+    append_run_reading,
     complete_run,
     get_run,
     hold_run,
@@ -60,12 +78,16 @@ class RunHandlers:
     resume_run: resume_run.Handler
     stop_run: stop_run.Handler
     truncate_run: truncate_run.Handler
+    append_run_reading: append_run_reading.Handler
     get_run: get_run.Handler
     list_runs: list_runs.Handler
 
 
 def wire_run(deps: Kernel) -> RunHandlers:
     """Build the Run BC handlers from shared dependencies."""
+    reading_store: ReadingStore = (
+        PostgresReadingStore(deps.pool) if deps.pool is not None else InMemoryReadingStore()
+    )
     return RunHandlers(
         start_run=with_tracing(
             with_idempotency(
@@ -109,6 +131,11 @@ def wire_run(deps: Kernel) -> RunHandlers:
         truncate_run=with_tracing(
             truncate_run.bind(deps),
             command_name="TruncateRun",
+            bc=_BC,
+        ),
+        append_run_reading=with_tracing(
+            append_run_reading.bind(deps, reading_store=reading_store),
+            command_name="AppendRunReading",
             bc=_BC,
         ),
         get_run=with_tracing(

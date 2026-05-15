@@ -28,11 +28,17 @@ principle, gate-review 6f-3 L9 lock).
 
 **Critical invariant**: every transition arm MUST carry `id`,
 `name`, `plan_id`, `subject_id`, `raid`, `override_parameters`,
-`effective_parameters`, AND `triggered_by` through from prior
-state. Constructing `Run(id=..., name=..., plan_id=...,
-subject_id=..., status=...)` without explicitly passing the
-additive fields would silently WIPE them to defaults (empty dict
-/ None). Pinned by the per-transition preserve-fields tests.
+`effective_parameters`, `triggered_by`, AND `reading_logbook_id`
+through from prior state. Constructing `Run(id=..., name=...,
+plan_id=..., subject_id=..., status=...)` without explicitly
+passing the additive fields would silently WIPE them to defaults
+(empty dict / None). Pinned by the per-transition preserve-fields
+tests.
+
+`reading_logbook_id` (Phase 6f-5b) is set by the
+`RunReadingLogbookOpened` arm (lazy open-on-first-write triggered
+by `append_run_reading`); all other arms preserve whatever prior
+state held. Pre-6f-5b streams fold with `reading_logbook_id=None`.
 
 This evolver previously used `dataclasses.replace(state,
 status=...)` for the transition arms (terse, but no field-add
@@ -43,32 +49,27 @@ Asset/Plan/Method/Practice/Capability/Subject evolvers.
 
 Transition events applied to empty state raise ValueError: they
 can never appear before `RunStarted` in a well-formed stream. The
-`_require_state` helper keeps per-arm bodies short (precedent
-locked by Subject's evolver in 4c).
+`require_state` helper at `cora.infrastructure.evolver` keeps
+per-arm bodies short (hoisted post-7e once the 11th identical
+copy landed).
 """
 
 from collections.abc import Sequence
 from typing import assert_never
 
+from cora.infrastructure.evolver import require_state
 from cora.run.aggregates.run.events import (
     RunAborted,
     RunCompleted,
     RunEvent,
     RunHeld,
+    RunReadingLogbookOpened,
     RunResumed,
     RunStarted,
     RunStopped,
     RunTruncated,
 )
 from cora.run.aggregates.run.state import Run, RunName, RunStatus
-
-
-def _require_state(state: Run | None, event_type: str) -> Run:
-    """Transition events require prior state; empty stream is corruption."""
-    if state is None:
-        msg = f"{event_type} cannot be applied to empty state"
-        raise ValueError(msg)
-    return state
 
 
 def evolve(state: Run | None, event: RunEvent) -> Run:
@@ -95,9 +96,10 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=override_parameters,
                 effective_parameters=effective_parameters,
                 triggered_by=triggered_by,
+                reading_logbook_id=None,
             )
         case RunHeld():
-            prior = _require_state(state, "RunHeld")
+            prior = require_state(state, "RunHeld")
             return Run(
                 id=prior.id,
                 name=prior.name,
@@ -108,9 +110,10 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=prior.effective_parameters,
                 triggered_by=prior.triggered_by,
+                reading_logbook_id=prior.reading_logbook_id,
             )
         case RunResumed():
-            prior = _require_state(state, "RunResumed")
+            prior = require_state(state, "RunResumed")
             return Run(
                 id=prior.id,
                 name=prior.name,
@@ -121,9 +124,10 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=prior.effective_parameters,
                 triggered_by=prior.triggered_by,
+                reading_logbook_id=prior.reading_logbook_id,
             )
         case RunCompleted():
-            prior = _require_state(state, "RunCompleted")
+            prior = require_state(state, "RunCompleted")
             return Run(
                 id=prior.id,
                 name=prior.name,
@@ -134,9 +138,10 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=prior.effective_parameters,
                 triggered_by=prior.triggered_by,
+                reading_logbook_id=prior.reading_logbook_id,
             )
         case RunAborted():
-            prior = _require_state(state, "RunAborted")
+            prior = require_state(state, "RunAborted")
             return Run(
                 id=prior.id,
                 name=prior.name,
@@ -147,9 +152,10 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=prior.effective_parameters,
                 triggered_by=prior.triggered_by,
+                reading_logbook_id=prior.reading_logbook_id,
             )
         case RunStopped():
-            prior = _require_state(state, "RunStopped")
+            prior = require_state(state, "RunStopped")
             return Run(
                 id=prior.id,
                 name=prior.name,
@@ -160,9 +166,10 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=prior.effective_parameters,
                 triggered_by=prior.triggered_by,
+                reading_logbook_id=prior.reading_logbook_id,
             )
         case RunTruncated():
-            prior = _require_state(state, "RunTruncated")
+            prior = require_state(state, "RunTruncated")
             return Run(
                 id=prior.id,
                 name=prior.name,
@@ -173,6 +180,24 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=prior.effective_parameters,
                 triggered_by=prior.triggered_by,
+                reading_logbook_id=prior.reading_logbook_id,
+            )
+        case RunReadingLogbookOpened(logbook_id=logbook_id):
+            # Lazy open-on-first-write (Phase 6f-5b): preserve all
+            # prior state, set reading_logbook_id. Status NOT touched
+            # — the logbook is orthogonal to lifecycle.
+            prior = require_state(state, "RunReadingLogbookOpened")
+            return Run(
+                id=prior.id,
+                name=prior.name,
+                plan_id=prior.plan_id,
+                subject_id=prior.subject_id,
+                raid=prior.raid,
+                status=prior.status,
+                override_parameters=prior.override_parameters,
+                effective_parameters=prior.effective_parameters,
+                triggered_by=prior.triggered_by,
+                reading_logbook_id=logbook_id,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

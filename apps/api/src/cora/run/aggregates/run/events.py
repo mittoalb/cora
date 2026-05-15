@@ -86,6 +86,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.logbook import LogbookSchema
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -219,6 +220,46 @@ class RunStopped:
 
 
 @dataclass(frozen=True)
+class RunReadingLogbookOpened:
+    """A reading logbook was attached to this Run (Phase 6f-5b).
+
+    Lazy open-on-first-write: emitted by the `append_run_reading`
+    handler the first time a reading is appended for this Run, NOT
+    by `start_run` (mirrors Decision BC's 8c-b precedent for
+    `DecisionLogbookOpened`). Subsequent appends find the logbook
+    already attached and skip the open-event emission.
+
+    `kind` discriminates the logbook category. Today only
+    `LOGBOOK_KIND_READING` from state.py; future per-Run logbook
+    kinds (hazard events, operator-action audit) would use distinct
+    constants and distinct state fields, not additional values for
+    `kind` here.
+
+    `schema` declares the row shape of `entries_run_readings`,
+    documenting the polymorphic `(channel_name, value, units?,
+    sampling_procedure, sampled_at, occurred_at, recorded_at)` shape
+    for downstream projections. Per
+    [[project_logbook_entry_storage]], the schema lives on the event
+    so projections can read entry shape uniformly without per-BC
+    adapters.
+
+    No `RunReadingLogbookClosed` event today: Run.status terminals
+    (Completed | Aborted | Stopped | Truncated) are the implicit
+    close signal; `append_run_reading` rejects writes when status is
+    terminal via `RunReadingLogbookClosedError`. Audit fidelity is
+    preserved: the open event timestamps the logbook lifecycle start;
+    the terminal RunCompleted / RunAborted / etc. event timestamps
+    the lifecycle end.
+    """
+
+    run_id: UUID
+    logbook_id: UUID
+    kind: str
+    schema: LogbookSchema
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
 class RunTruncated:
     """A Run reached its partial-data terminal (Running | Held → Truncated).
 
@@ -254,7 +295,16 @@ class RunTruncated:
 
 
 # Discriminated union of every event the Run aggregate emits.
-RunEvent = RunStarted | RunHeld | RunResumed | RunCompleted | RunAborted | RunStopped | RunTruncated
+RunEvent = (
+    RunStarted
+    | RunHeld
+    | RunResumed
+    | RunCompleted
+    | RunAborted
+    | RunStopped
+    | RunTruncated
+    | RunReadingLogbookOpened
+)
 
 
 def event_type_name(event: RunEvent) -> str:
@@ -332,6 +382,20 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "interrupted_at": interrupted_at_iso,
                 "occurred_at": occurred_at.isoformat(),
             }
+        case RunReadingLogbookOpened(
+            run_id=run_id,
+            logbook_id=logbook_id,
+            kind=kind,
+            schema=schema,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "run_id": str(run_id),
+                "logbook_id": str(logbook_id),
+                "kind": kind,
+                "schema": schema.to_dict(),
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -402,6 +466,14 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 ),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "RunReadingLogbookOpened":
+            return RunReadingLogbookOpened(
+                run_id=UUID(payload["run_id"]),
+                logbook_id=UUID(payload["logbook_id"]),
+                kind=payload["kind"],
+                schema=LogbookSchema.from_dict(payload["schema"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown RunEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -412,6 +484,7 @@ __all__ = [
     "RunCompleted",
     "RunEvent",
     "RunHeld",
+    "RunReadingLogbookOpened",
     "RunResumed",
     "RunStarted",
     "RunStopped",

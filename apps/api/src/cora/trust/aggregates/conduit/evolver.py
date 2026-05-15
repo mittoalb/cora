@@ -36,6 +36,7 @@ used by every other aggregate.
 from collections.abc import Sequence
 from typing import assert_never
 
+from cora.infrastructure.evolver import require_state
 from cora.trust.aggregates.conduit.events import (
     ConduitDefined,
     ConduitEvent,
@@ -48,14 +49,6 @@ from cora.trust.aggregates.conduit.state import (
     ConduitLogbookNotOpenError,
     ConduitName,
 )
-
-
-def _require_state(state: Conduit | None, event_type: str) -> Conduit:
-    """Transition events require prior state; empty stream is corruption."""
-    if state is None:
-        msg = f"{event_type} cannot be applied to empty state"
-        raise ValueError(msg)
-    return state
 
 
 def evolve(state: Conduit | None, event: ConduitEvent) -> Conduit:
@@ -75,7 +68,7 @@ def evolve(state: Conduit | None, event: ConduitEvent) -> Conduit:
                 target_zone_id=target_zone_id,
             )
         case ConduitLogbookOpened(logbook_id=logbook_id, kind=kind):
-            prior = _require_state(state, "ConduitLogbookOpened")
+            prior = require_state(state, "ConduitLogbookOpened")
             existing = prior.logbooks.get(kind)
             if existing is not None:
                 raise ConduitLogbookAlreadyOpenError(prior.id, kind, existing)
@@ -87,7 +80,7 @@ def evolve(state: Conduit | None, event: ConduitEvent) -> Conduit:
                 logbooks={**prior.logbooks, kind: logbook_id},
             )
         case ConduitLogbookClosed(logbook_id=logbook_id):
-            prior = _require_state(state, "ConduitLogbookClosed")
+            prior = require_state(state, "ConduitLogbookClosed")
             matching_kind = next(
                 (k for k, v in prior.logbooks.items() if v == logbook_id),
                 None,

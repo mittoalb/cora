@@ -37,6 +37,14 @@ _QUERY_SLICE_FILES: frozenset[str] = frozenset(
 WIP_SLICES: frozenset[str] = frozenset(
     {
         "cora.decision.features.append_reasoning_entry",
+        # Phase 6f-5b: append_run_reading is the second entry-appending
+        # slice (after Decision's append_reasoning_entry). Same shape:
+        # writes to a typed entries store via the per-category
+        # ReadingStore port. Closes when the slice contract gains a
+        # first-class entry-shape file-set rule (no decider.py
+        # required; the architectural exemption is now n=2, justifying
+        # the new file-set classification — separate cleanup).
+        "cora.run.features.append_run_reading",
     }
 )
 

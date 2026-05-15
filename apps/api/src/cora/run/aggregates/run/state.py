@@ -100,15 +100,85 @@ carried in event payloads.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.logbook import LogbookFieldSpec, LogbookSchema
 
 RUN_NAME_MAX_LENGTH = 200
 RUN_ABORT_REASON_MAX_LENGTH = 500
 RUN_STOP_REASON_MAX_LENGTH = 500
 RUN_TRUNCATE_REASON_MAX_LENGTH = 500
+
+# Phase 6f-5b: RunReading polymorphic logbook constants.
+READING_CHANNEL_NAME_MAX_LENGTH = 255
+READING_UNITS_MAX_LENGTH = 64
+LOGBOOK_KIND_READING = "reading"
+"""Discriminator string for the Run's reading logbook (Phase 6f-5b).
+
+Used as the `kind` value on `RunReadingLogbookOpened` events. One Run
+has at most one reading logbook (lazy open-on-first-write); future
+distinct logbook kinds (for example: hazard events, operator-action
+audit) would land as separate constants and separate state fields,
+not as additional values for the same kind."""
+
+# Closed enum for the SOSA-aligned `sampling_procedure` discriminator
+# field on RunReading rows. Values are Bluesky-aligned operator vocabulary;
+# additions land as code edits, not migrations (table column is plain
+# TEXT, not a CHECK-constrained enum, per [[project_run_reading_design]]).
+# 6f-5b ships with the single value "baseline"; 6f-5c extends to include
+# "monitor". Future values ("primary", "triggered") land additively.
+SamplingProcedure = Literal["baseline"]
+SAMPLING_PROCEDURE_VALUES: frozenset[str] = frozenset({"baseline"})
+
+# Schema declaration for the reading logbook. Documentation-grade per
+# [[project_logbook_entry_storage]]: declares the entry-row column
+# shape so projections can read entry shape uniformly without per-BC
+# adapters. Lives here (not in a slice module) because the schema is
+# attached to the Run aggregate, not to one specific writer.
+READING_LOGBOOK_SCHEMA = LogbookSchema(
+    fields={
+        "channel_name": LogbookFieldSpec(
+            type="string",
+            description="Sensor or motor identifier (operator-meaningful name).",
+        ),
+        "value": LogbookFieldSpec(
+            type="float",
+            description="Scalar reading value. NaN and Infinity rejected at write time.",
+        ),
+        "units": LogbookFieldSpec(
+            type="string",
+            description="Optional unit string (for example 'K', 'mm', 'mA').",
+        ),
+        "sampling_procedure": LogbookFieldSpec(
+            type="string",
+            description=(
+                "SOSA-aligned discriminator (W3C SOSA 2023 sosa:samplingProcedure). "
+                "Values: 'baseline' (snapshot at run boundary), 'monitor' (sub-Hz "
+                "time-series during run), and future-additive operational vocabulary."
+            ),
+        ),
+        "sampled_at": LogbookFieldSpec(
+            type="datetime",
+            description="SOSA phenomenonTime: when the sensor captured the value.",
+        ),
+        "occurred_at": LogbookFieldSpec(
+            type="datetime",
+            description="When the handler appended the entry (CORA Clock port).",
+        ),
+        "recorded_at": LogbookFieldSpec(
+            type="datetime",
+            description="When Postgres wrote the row (DEFAULT now()).",
+        ),
+    },
+    description=(
+        "Per-Run sensor and motor reading entries, polymorphic by sampling_procedure "
+        "(baseline | monitor | future). One row per reading; rows write directly to "
+        "entries_run_readings via the ReadingStore port (no per-row event on the "
+        "Run stream). See [[project_run_reading_design]]."
+    ),
+)
 
 
 class RunStatus(StrEnum):
@@ -600,6 +670,107 @@ class RunTruncateReason:
         object.__setattr__(self, "value", trimmed)
 
 
+class InvalidChannelNameError(ValueError):
+    """The supplied reading channel_name is empty, whitespace-only, or too long.
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the handler via the `ChannelName` VO so direct
+    in-process callers (sagas, tests) get the same protection. Same
+    pattern as `InvalidRunNameError`.
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Reading channel_name must be 1-{READING_CHANNEL_NAME_MAX_LENGTH} chars after "
+            f"trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+class InvalidReadingValueError(ValueError):
+    """The supplied reading value is NaN or Infinity.
+
+    Pydantic catches this at the API boundary via `allow_inf_nan=False`;
+    this error class exists for direct in-process callers (sagas, tests)
+    that bypass Pydantic. The Postgres adapter ALSO enforces the guard
+    via a CHECK constraint, providing defense-in-depth.
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: float) -> None:
+        super().__init__(
+            f"Reading value must be finite (got: {value!r}; NaN and Infinity rejected)"
+        )
+        self.value = value
+
+
+class InvalidSamplingProcedureError(ValueError):
+    """The supplied sampling_procedure is not in the allowed set.
+
+    Pydantic catches this at the API boundary via `Literal[...]`;
+    this error class exists for direct in-process callers that bypass
+    Pydantic. Allowed values evolve: 6f-5b ships {"baseline"};
+    6f-5c extends to {"baseline", "monitor"}; future values land
+    additively without a migration (the column is plain TEXT).
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: str, allowed: frozenset[str]) -> None:
+        super().__init__(
+            f"Reading sampling_procedure {value!r} not in allowed set {sorted(allowed)!r}"
+        )
+        self.value = value
+        self.allowed = allowed
+
+
+class RunReadingLogbookClosedError(Exception):
+    """Attempted to append a reading to a Run in a terminal state.
+
+    The Run's terminal status (Completed | Aborted | Stopped | Truncated)
+    implicitly closes the reading logbook: post-terminal readings are
+    rejected. There is no separate `RunReadingLogbookClosed` event today;
+    Run.status is the close signal (see [[project_run_reading_design]]
+    §Decision for the lazy-open + status-as-close-signal rationale).
+
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, run_id: UUID, current_status: "RunStatus") -> None:
+        super().__init__(
+            f"Run {run_id} reading logbook is closed: Run is in terminal "
+            f"status {current_status.value}; readings can only be appended "
+            f"while Run is in {RunStatus.RUNNING.value} or {RunStatus.HELD.value}"
+        )
+        self.run_id = run_id
+        self.current_status = current_status
+
+
+@dataclass(frozen=True)
+class ChannelName:
+    """Sensor or motor identifier on a RunReading entry. Trimmed; 1-255 chars.
+
+    Operator-meaningful free-form string (for example `T_sample`,
+    `motor_x`, `ring_current`). No regex or vocabulary constraint
+    (signal_type / channel naming conventions are pilot-specific and
+    will settle over time, mirroring AssetPort.signal_type's free-form
+    posture from 5h).
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_bounded_text(
+            self.value,
+            max_length=READING_CHANNEL_NAME_MAX_LENGTH,
+            error_class=InvalidChannelNameError,
+        )
+        object.__setattr__(self, "value", trimmed)
+
+
 @dataclass(frozen=True)
 class RunName:
     """Display name for a run. Trimmed; 1-200 chars.
@@ -663,6 +834,12 @@ class Run:
     override_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     effective_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     triggered_by: str | None = None
+    # Phase 6f-5b: lazily populated when first reading is appended
+    # (RunReadingLogbookOpened event sets this field). None on Runs
+    # that never recorded readings; legacy pre-6f-5b streams fold
+    # cleanly with this default. See [[project_run_reading_design]]
+    # for the lazy-open rationale.
+    reading_logbook_id: UUID | None = None
 
 
 class InvalidRunParametersError(ValueError):

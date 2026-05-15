@@ -46,13 +46,14 @@ would silently WIPE them to defaults. Pinned by
 
 Transition events applied to empty state raise ValueError: they can
 never appear before `MethodDefined` in a well-formed stream. The
-`_require_state` helper keeps per-arm bodies short (precedent locked
+`require_state` helper keeps per-arm bodies short (precedent locked
 by Subject's evolver in 4c).
 """
 
 from collections.abc import Sequence
 from typing import assert_never
 
+from cora.infrastructure.evolver import require_state
 from cora.recipe.aggregates.method.events import (
     MethodDefined,
     MethodDeprecated,
@@ -65,14 +66,6 @@ from cora.recipe.aggregates.method.state import (
     MethodName,
     MethodStatus,
 )
-
-
-def _require_state(state: Method | None, event_type: str) -> Method:
-    """Transition events require prior state; empty stream is corruption."""
-    if state is None:
-        msg = f"{event_type} cannot be applied to empty state"
-        raise ValueError(msg)
-    return state
 
 
 def evolve(state: Method | None, event: MethodEvent) -> Method:
@@ -92,7 +85,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 # version defaults to None.
             )
         case MethodVersioned(version_tag=version_tag):
-            prior = _require_state(state, "MethodVersioned")
+            prior = require_state(state, "MethodVersioned")
             return Method(
                 id=prior.id,
                 name=prior.name,
@@ -102,7 +95,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 parameters_schema=prior.parameters_schema,
             )
         case MethodDeprecated():
-            prior = _require_state(state, "MethodDeprecated")
+            prior = require_state(state, "MethodDeprecated")
             return Method(
                 id=prior.id,
                 name=prior.name,
@@ -113,7 +106,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 parameters_schema=prior.parameters_schema,
             )
         case MethodParametersSchemaUpdated(parameters_schema=parameters_schema):
-            prior = _require_state(state, "MethodParametersSchemaUpdated")
+            prior = require_state(state, "MethodParametersSchemaUpdated")
             return Method(
                 id=prior.id,
                 name=prior.name,

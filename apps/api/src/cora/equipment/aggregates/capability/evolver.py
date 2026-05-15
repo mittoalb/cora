@@ -24,7 +24,7 @@ Pre-5f-2 CapabilityDefined-only streams fold cleanly with version=None
 
 Transition events applied to empty state raise ValueError: they can
 never appear before `CapabilityDefined` in a well-formed stream.
-The `_require_state` helper keeps per-arm bodies short (precedent
+The `require_state` helper keeps per-arm bodies short (precedent
 locked by Subject's evolver in 4c).
 """
 
@@ -43,14 +43,7 @@ from cora.equipment.aggregates.capability.state import (
     CapabilityName,
     CapabilityStatus,
 )
-
-
-def _require_state(state: Capability | None, event_type: str) -> Capability:
-    """Transition events require prior state; empty stream is corruption."""
-    if state is None:
-        msg = f"{event_type} cannot be applied to empty state"
-        raise ValueError(msg)
-    return state
+from cora.infrastructure.evolver import require_state
 
 
 def evolve(state: Capability | None, event: CapabilityEvent) -> Capability:
@@ -65,7 +58,7 @@ def evolve(state: Capability | None, event: CapabilityEvent) -> Capability:
                 # version defaults to None.
             )
         case CapabilityVersioned(version_tag=version_tag):
-            prior = _require_state(state, "CapabilityVersioned")
+            prior = require_state(state, "CapabilityVersioned")
             return Capability(
                 id=prior.id,
                 name=prior.name,
@@ -77,7 +70,7 @@ def evolve(state: Capability | None, event: CapabilityEvent) -> Capability:
                 settings_schema=prior.settings_schema,
             )
         case CapabilityDeprecated():
-            prior = _require_state(state, "CapabilityDeprecated")
+            prior = require_state(state, "CapabilityDeprecated")
             return Capability(
                 id=prior.id,
                 name=prior.name,
@@ -89,7 +82,7 @@ def evolve(state: Capability | None, event: CapabilityEvent) -> Capability:
                 settings_schema=prior.settings_schema,
             )
         case CapabilitySettingsSchemaUpdated(settings_schema=settings_schema):
-            prior = _require_state(state, "CapabilitySettingsSchemaUpdated")
+            prior = require_state(state, "CapabilitySettingsSchemaUpdated")
             return Capability(
                 id=prior.id,
                 name=prior.name,

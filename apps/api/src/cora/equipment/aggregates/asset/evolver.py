@@ -52,7 +52,7 @@ four. Pinned by `test_evolve_<transition>_preserves_capabilities`,
 
 Transition events applied to empty state raise ValueError: they
 can never appear before `AssetRegistered` in a well-formed stream.
-The `_require_state` helper keeps the per-arm bodies short
+The `require_state` helper keeps the per-arm bodies short
 (precedent locked by Subject's evolver in 4c).
 """
 
@@ -85,14 +85,7 @@ from cora.equipment.aggregates.asset.state import (
     AssetPort,
     PortDirection,
 )
-
-
-def _require_state(state: Asset | None, event_type: str) -> Asset:
-    """Transition events require prior state; empty stream is corruption."""
-    if state is None:
-        msg = f"{event_type} cannot be applied to empty state"
-        raise ValueError(msg)
-    return state
+from cora.infrastructure.evolver import require_state
 
 
 def evolve(state: Asset | None, event: AssetEvent) -> Asset:
@@ -112,7 +105,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 # cleanly without an upcaster.
             )
         case AssetActivated():
-            prior = _require_state(state, "AssetActivated")
+            prior = require_state(state, "AssetActivated")
             return Asset(
                 id=prior.id,
                 name=prior.name,
@@ -125,7 +118,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 ports=prior.ports,
             )
         case AssetDecommissioned():
-            prior = _require_state(state, "AssetDecommissioned")
+            prior = require_state(state, "AssetDecommissioned")
             return Asset(
                 id=prior.id,
                 name=prior.name,
@@ -143,7 +136,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
             # prior state. The from_parent_id and reason fields in the
             # event aren't read here (audit metadata; prior state's
             # parent_id is the source of truth for the read path).
-            prior = _require_state(state, "AssetRelocated")
+            prior = require_state(state, "AssetRelocated")
             return Asset(
                 id=prior.id,
                 name=prior.name,
@@ -156,7 +149,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 ports=prior.ports,
             )
         case AssetMaintenanceEntered():
-            prior = _require_state(state, "AssetMaintenanceEntered")
+            prior = require_state(state, "AssetMaintenanceEntered")
             return Asset(
                 id=prior.id,
                 name=prior.name,
@@ -169,7 +162,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 ports=prior.ports,
             )
         case AssetRestoredFromMaintenance():
-            prior = _require_state(state, "AssetRestoredFromMaintenance")
+            prior = require_state(state, "AssetRestoredFromMaintenance")
             return Asset(
                 id=prior.id,
                 name=prior.name,
@@ -187,7 +180,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
             # present id is a no-op AT THE EVOLVER LAYER (the decider's
             # strict-not-idempotent guard enforces "must not already be
             # present" at command time).
-            prior = _require_state(state, "AssetCapabilityAdded")
+            prior = require_state(state, "AssetCapabilityAdded")
             return Asset(
                 id=prior.id,
                 name=prior.name,
@@ -206,7 +199,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
             # when a Capability is removed (5g-c lock: preserve orphans;
             # the update_asset_settings slice's null-write is the
             # cleanup path).
-            prior = _require_state(state, "AssetCapabilityRemoved")
+            prior = require_state(state, "AssetCapabilityRemoved")
             return Asset(
                 id=prior.id,
                 name=prior.name,
@@ -224,7 +217,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
             # metadata, not folded into state. Decider's no-op-on-unchanged
             # guard prevents redundant transitions; if one slips through
             # (concurrent writers), this arm idempotently sets DEGRADED.
-            prior = _require_state(state, "AssetDegraded")
+            prior = require_state(state, "AssetDegraded")
             return Asset(
                 id=prior.id,
                 name=prior.name,
@@ -237,7 +230,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 ports=prior.ports,
             )
         case AssetFaulted():
-            prior = _require_state(state, "AssetFaulted")
+            prior = require_state(state, "AssetFaulted")
             return Asset(
                 id=prior.id,
                 name=prior.name,
@@ -250,7 +243,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 ports=prior.ports,
             )
         case AssetRestored():
-            prior = _require_state(state, "AssetRestored")
+            prior = require_state(state, "AssetRestored")
             return Asset(
                 id=prior.id,
                 name=prior.name,
@@ -268,7 +261,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
             # simply replaces. Validation already happened at the handler
             # boundary before append; an event in the stream is by
             # definition validated.
-            prior = _require_state(state, "AssetSettingsUpdated")
+            prior = require_state(state, "AssetSettingsUpdated")
             return Asset(
                 id=prior.id,
                 name=prior.name,
@@ -291,7 +284,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
             # the decider's strict-not-idempotent guard enforces "no
             # port with this name already exists" at command time
             # (which is stricter than tuple equality).
-            prior = _require_state(state, "AssetPortAdded")
+            prior = require_state(state, "AssetPortAdded")
             new_port = AssetPort(
                 name=port_name,
                 direction=PortDirection(direction),
@@ -317,7 +310,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
             # command time; the evolver-level filter is forgiving (no
             # error if name not found, since by-design the only
             # producer is the decider that already validated).
-            prior = _require_state(state, "AssetPortRemoved")
+            prior = require_state(state, "AssetPortRemoved")
             return Asset(
                 id=prior.id,
                 name=prior.name,

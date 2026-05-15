@@ -1,0 +1,366 @@
+"""Supply aggregate state, value objects, status enum, and domain errors.
+
+`Supply` is a continuously-available resource that other aggregates
+depend on: photon beam, LN2, compressed air, electrical power,
+cooling water, vacuum, process gases, compute pool, FEL pulses,
+neutrons. Per the BC map, `Supply` is the Track B intro aggregate,
+multiple instances at runtime, one per resource. Physical
+infrastructure delivering the resource (gas cabinets, compressors,
+mass-flow controllers) stays as `Asset`s; the resource itself is
+`Supply`.
+
+The aggregate is intentionally slim: identity + scope + kind + name
++ a single `status` field driving the FSM. The 5-state FSM is locked
+day one per [[project_supply_design]]:
+
+  Unknown -> Available
+  Unknown -> Degraded
+  Unknown -> Unavailable
+  Available -> Degraded
+  Available -> Unavailable
+  Degraded -> Available
+  Degraded -> Unavailable
+  Unavailable -> Recovering
+  Recovering -> Available    (operator-ack via restore_supply slice)
+  Recovering -> Degraded
+  Recovering -> Unavailable
+
+`Unknown` is the registration-time initial state per universal
+precedent (Tango UNKNOWN, EPICS UDF/INVALID, areaDetector
+ADStatusInitializing, SKA Tango Base INIT, Azure Resource Health
+Unknown, Kubernetes Pod Pending, Prometheus `up{}` UNKNOWN-before-
+first-scrape, BACnet out_of_service, PackML STOPPED, PI Pt Created).
+The optimistic-Available default is an anti-pattern across all three
+research corpora.
+
+## Phase 10a-a scope
+
+Minimal Supply: id + scope + kind + name + status (defaults Unknown
+implicitly via genesis evolver) + registered_at. Two slices ship in
+10a-a: `register_supply` (genesis -> Unknown) and
+`mark_supply_available` (Unknown -> Available, operator-asserted
+first observation). The four remaining transition slices (`degrade`,
+`mark_unavailable`, `mark_recovering`, `restore`) ship in 10a-b.
+
+## Status as enum-in-state, derived-from-event-type-in-evolver
+
+`SupplyStatus` is a `StrEnum` so the values serialize naturally as
+JSON-friendly strings IF carried in an event payload. State holds
+the enum (typed); evolver derives status from event type
+(`SupplyRegistered -> UNKNOWN`, `SupplyMarkedAvailable -> AVAILABLE`).
+Same precedent as `SubjectStatus` / `CapabilityStatus` /
+`AssetLifecycle`.
+
+`SupplyScope` enum value DOES travel in event payloads (scope is set
+at registration and doesn't change). The payload carries the string;
+the evolver reconstructs via `SupplyScope(payload["scope"])`. Same
+precedent as `AssetLevel`.
+
+## TriggerSource locked 3-value day one
+
+`TriggerSource` is locked at three values (`Operator`, `Monitor`,
+`Auto`) from day one even though only `Operator` is used in 10a-a/b.
+The forward-compat motivation is in [[project_supply_design]]: when
+substream-driven `Monitor` slices and timer-based `Auto` recovery
+land, the enum doesn't need to widen. Carried in transition-event
+payloads as the trigger discriminator.
+
+## Identity: stable opaque + typed address
+
+`Supply` carries `id: UUID` (stable opaque handle, survives any
+operator-driven name changes; survives physical equipment swaps once
+binding lands per Watch item 6) plus `(scope, kind, name)` typed
+address. The 4-tuple `(scope, kind, name)` is the operator-readable
+identity surfaced in REST/MCP and indexed in the projection. The
+projection-side UNIQUE INDEX on `(scope, kind, name)` catches
+duplicate registrations at insert time; aggregates cannot enforce
+cross-stream uniqueness without DCB (per [[project_deferred]]).
+
+## Eleventh bounded-name VO
+
+`SupplyName` is the eleventh trimmed-bounded-name VO. Uses the
+shared `validate_bounded_text` helper hoisted in 6e-1
+(`cora.infrastructure.bounded_text`).
+
+## SupplyKind shape — BARE str, not a VO (gate-review iter 1 lock)
+
+`kind: str` is bare on the Supply state, NOT a VO. Validated at the
+decider via `validate_bounded_text` (1-50 chars after trim) and at
+the API boundary via Pydantic min_length / max_length. Closed
+StrEnum was rejected universally across all three research corpora
+(Kubernetes CRD, Crossplane MRD, OpenTelemetry semantic conventions,
+CloudEvents reverse-DNS; ISA-95 property model; IEC 61850 namespace
+extensions).
+
+The bare-str-not-VO choice was caught by the iter-1 gate review and
+backed by Khononov 2024 *Balancing Coupling*: wrap a primitive in a
+VO when the type carries domain *behavior or comparison semantics*,
+not when it merely needs a length check. Two converging arguments
+for the bare form here:
+
+  1. `kind` will eventually graduate to `SupplyKind: StrEnum` once
+     pilot vocabulary settles (Watch item 4 in
+     [[project_supply_design]]). Migration `str -> StrEnum` is a
+     clean parser change; `SupplyKind(VO) -> SupplyKind(StrEnum)`
+     would break every type-annotated call site.
+  2. `AssetPort.signal_type: str` is the in-codebase precedent:
+     bare-str discriminator with inline-validation, awaiting future
+     enum promotion. Same shape applies here.
+
+Documented starter vocabulary lives in [[project_supply_design]] as
+guidance, not constraint: PhotonBeam, FELPulses, Neutrons, IonBeam,
+LiquidNitrogen, LiquidHelium, CompressedAir, CoolingWater,
+ChilledWater, ElectricalPower, ProcessGas, Vacuum, ComputePool.
+
+`SupplyName` and `SupplyReason` STAY as VOs — `SupplyName` is a true
+free-form display name (will never be an enum), and `SupplyReason`
+is operator-supplied prose (matches `RunAbortReason` /
+`RunStopReason` / `RunTruncateReason` precedent exactly).
+"""
+
+from dataclasses import dataclass
+from enum import StrEnum
+from uuid import UUID
+
+from cora.infrastructure.bounded_text import validate_bounded_text
+
+SUPPLY_NAME_MAX_LENGTH = 200
+SUPPLY_KIND_MAX_LENGTH = 50
+SUPPLY_REASON_MAX_LENGTH = 500
+
+
+class SupplyStatus(StrEnum):
+    """The Supply's availability state.
+
+    Five values locked day one per [[project_supply_design]]:
+
+      - `Unknown`     — registration-time default; no observation yet
+      - `Available`   — resource is up and meeting consumer needs
+      - `Degraded`    — resource is up but below nominal capacity / quality
+      - `Unavailable` — resource is down (planned or unplanned)
+      - `Recovering`  — resource was Unavailable; observation suggests
+                        it may be coming back; operator must `restore_supply`
+                        to confirm `Recovering -> Available`
+
+    Initial `Unknown` is universal industrial + cloud-native consensus
+    (Tango UNKNOWN, EPICS UDF, Azure Resource Health Unknown, k8s
+    Pending, Prometheus `up{}` UNKNOWN-before-first-scrape). The
+    optimistic-Available default is an anti-pattern.
+    """
+
+    UNKNOWN = "Unknown"
+    AVAILABLE = "Available"
+    DEGRADED = "Degraded"
+    UNAVAILABLE = "Unavailable"
+    RECOVERING = "Recovering"
+
+
+class SupplyScope(StrEnum):
+    """The hierarchical scope at which a Supply is provisioned.
+
+    Three values per APS LMA18-3 LN2 distribution layering and
+    NeXus NXsource one-source-per-storage-ring precedent:
+
+      - `Facility` — facility-wide resource (storage-ring photon beam,
+        central LN2 plant, building electrical power, central
+        compressed air)
+      - `Sector` — a sub-portion of the facility (ring sector, gas-
+        manifold loop serving N beamlines)
+      - `Beamline` — beamline-local resource (per-beamline LN2 drop,
+        beamline-local vacuum subsystem, beamline-local compute)
+
+    Adding finer-grained scopes (e.g., Substrate, Chamber) is purely
+    additive when triggers fire.
+    """
+
+    FACILITY = "Facility"
+    SECTOR = "Sector"
+    BEAMLINE = "Beamline"
+
+
+class TriggerSource(StrEnum):
+    """The origin of a status-transition event.
+
+    Three values locked day one per [[project_supply_design]] for
+    forward-compat. Only `Operator` is wired in 10a-a/b; `Monitor`
+    and `Auto` are reserved for future slice families:
+
+      - `Operator` — explicit operator command (10a-a, 10a-b)
+      - `Monitor`  — substream-derived observation (deferred; needs
+        first DAQ substream ingest, paired with 6f-5b/c trigger)
+      - `Auto`     — timer-based auto-restore (deferred; needs first
+        operator complaint about `restore_supply` ack overhead OR
+        30+ days of substream-stable recoveries)
+
+    Locking three values day one avoids enum-evolution churn when
+    the deferred features land.
+    """
+
+    OPERATOR = "Operator"
+    MONITOR = "Monitor"
+    AUTO = "Auto"
+
+
+class InvalidSupplyNameError(ValueError):
+    """The supplied name is empty, whitespace-only, or too long."""
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Supply name must be 1-{SUPPLY_NAME_MAX_LENGTH} chars after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+class InvalidSupplyKindError(ValueError):
+    """The supplied kind is empty, whitespace-only, or too long.
+
+    Free-form 1-50 chars in 10a; future promotion to closed StrEnum
+    is a watch item per [[project_supply_design]]. Raised by the
+    `register_supply` decider via `validate_bounded_text`, NOT by a
+    `__post_init__` (kind is a bare `str` on Supply state, not a
+    VO; gate-review iter 1 lock).
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Supply kind must be 1-{SUPPLY_KIND_MAX_LENGTH} chars after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+class InvalidSupplyReasonError(ValueError):
+    """The supplied transition reason is empty, whitespace-only, or too long.
+
+    Validated at API boundary AND defensively at the decider so
+    direct in-process callers (sagas, tests) get the same protection.
+    Same precedent as `RunAbortReason`, `PromotionReason`,
+    `AssetCondition` reason fields.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Supply transition reason must be 1-{SUPPLY_REASON_MAX_LENGTH} chars "
+            f"after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+class SupplyAlreadyExistsError(Exception):
+    """Attempted to register a supply whose stream already has events."""
+
+    def __init__(self, supply_id: UUID) -> None:
+        super().__init__(f"Supply {supply_id} already exists")
+        self.supply_id = supply_id
+
+
+class SupplyNotFoundError(Exception):
+    """Attempted an operation on a supply whose stream has no events."""
+
+    def __init__(self, supply_id: UUID) -> None:
+        super().__init__(f"Supply {supply_id} not found")
+        self.supply_id = supply_id
+
+
+class SupplyCannotMarkAvailableError(Exception):
+    """Attempted `mark_supply_available` from a disqualifying status.
+
+    Single-source guard: `mark_supply_available` accepts ONLY
+    `Unknown` (first-observation declaration). The `Recovering ->
+    Available` transition has distinct audit semantics (recovery
+    acknowledgement vs first observation) and exits exclusively via
+    `restore_supply`. Strict-not-idempotent: re-marking an already-
+    Available supply also raises. Per the Phoebus latched-alarm
+    precedent: first-observation and recovery-confirmation are two
+    different operator gestures even though they target the same
+    `Available` status.
+    """
+
+    def __init__(self, supply_id: UUID, current_status: "SupplyStatus") -> None:
+        super().__init__(
+            f"Supply {supply_id} cannot be marked Available: currently in status "
+            f"{current_status.value}, mark_supply_available requires "
+            f"{SupplyStatus.UNKNOWN.value}"
+        )
+        self.supply_id = supply_id
+        self.current_status = current_status
+
+
+@dataclass(frozen=True)
+class SupplyName:
+    """Display name for a supply. Trimmed; 1-200 chars.
+
+    Eleventh occurrence of the trimmed-bounded-name VO pattern. Uses
+    the shared `validate_bounded_text` helper hoisted in 6e-1 (see
+    `cora.infrastructure.bounded_text`).
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_bounded_text(
+            self.value,
+            max_length=SUPPLY_NAME_MAX_LENGTH,
+            error_class=InvalidSupplyNameError,
+        )
+        # Frozen dataclasses block normal assignment in __post_init__;
+        # use object.__setattr__ to install the trimmed value.
+        object.__setattr__(self, "value", trimmed)
+
+
+@dataclass(frozen=True)
+class SupplyReason:
+    """Free-form transition reason. Trimmed; 1-500 chars.
+
+    Required on every transition event payload (10a-b adds four
+    transition slices, each carrying a reason). Same shape as
+    `RunAbortReason`, `PromotionReason`, Asset.condition reason
+    fields. Free-form by design; structured taxonomies are deferred-
+    with-trigger watch items.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_bounded_text(
+            self.value,
+            max_length=SUPPLY_REASON_MAX_LENGTH,
+            error_class=InvalidSupplyReasonError,
+        )
+        object.__setattr__(self, "value", trimmed)
+
+
+@dataclass(frozen=True)
+class Supply:
+    """Aggregate root: a continuously-available resource.
+
+    Slim aggregate per [[project_fold_cost_principles]]: identity +
+    typed address + status + registered_at. Per-transition audit
+    metadata (timestamps, reasons, triggers) lives in the event
+    stream itself; the projection denormalizes the latest values for
+    query-time access.
+
+    `id` is the stable opaque handle. `(scope, kind, name)` is the
+    operator-readable address; the projection enforces cross-stream
+    uniqueness via UNIQUE INDEX (the aggregate cannot enforce cross-
+    stream invariants without DCB).
+
+    `status` defaults to `SupplyStatus.UNKNOWN`: the registration-
+    time initial state per universal precedent. The genesis event
+    `SupplyRegistered` carries no status field; the evolver sets
+    `UNKNOWN` from the event type (same convention as
+    `SubjectRegistered -> Received`).
+
+    Future additive facets (per Watch items in
+    [[project_supply_design]]): `bound_asset_id` (physical-equipment
+    binding, mirrors 4f Subject pattern), `health` (orthogonal
+    facet, mirrors 5g-b Asset.condition), `auto_clear_after` (per-
+    kind timer for auto-restore), `capacity` (when first consumer
+    needs quantity tracking). All land with safe defaults so pre-
+    extension streams fold cleanly via the additive-state pattern.
+    """
+
+    id: UUID
+    scope: SupplyScope
+    kind: str
+    name: SupplyName
+    status: SupplyStatus = SupplyStatus.UNKNOWN

@@ -24,13 +24,14 @@ them. The transition arms explicitly pass each.
 
 Transition events applied to empty state raise ValueError: they can
 never appear before `PracticeDefined` in a well-formed stream. The
-`_require_state` helper keeps per-arm bodies short (precedent
+`require_state` helper keeps per-arm bodies short (precedent
 locked by Subject's evolver in 4c).
 """
 
 from collections.abc import Sequence
 from typing import assert_never
 
+from cora.infrastructure.evolver import require_state
 from cora.recipe.aggregates.practice.events import (
     PracticeDefined,
     PracticeDeprecated,
@@ -42,14 +43,6 @@ from cora.recipe.aggregates.practice.state import (
     PracticeName,
     PracticeStatus,
 )
-
-
-def _require_state(state: Practice | None, event_type: str) -> Practice:
-    """Transition events require prior state; empty stream is corruption."""
-    if state is None:
-        msg = f"{event_type} cannot be applied to empty state"
-        raise ValueError(msg)
-    return state
 
 
 def evolve(state: Practice | None, event: PracticeEvent) -> Practice:
@@ -71,7 +64,7 @@ def evolve(state: Practice | None, event: PracticeEvent) -> Practice:
                 # version defaults to None.
             )
         case PracticeVersioned(version_tag=version_tag):
-            prior = _require_state(state, "PracticeVersioned")
+            prior = require_state(state, "PracticeVersioned")
             return Practice(
                 id=prior.id,
                 name=prior.name,
@@ -81,7 +74,7 @@ def evolve(state: Practice | None, event: PracticeEvent) -> Practice:
                 version=version_tag,
             )
         case PracticeDeprecated():
-            prior = _require_state(state, "PracticeDeprecated")
+            prior = require_state(state, "PracticeDeprecated")
             return Practice(
                 id=prior.id,
                 name=prior.name,

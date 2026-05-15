@@ -11,6 +11,7 @@ from collections.abc import Callable
 from mcp.server.fastmcp import FastMCP
 
 from cora.run.features.abort_run import tool as abort_run_tool
+from cora.run.features.append_run_reading import tool as append_run_reading_tool
 from cora.run.features.complete_run import tool as complete_run_tool
 from cora.run.features.get_run import tool as get_run_tool
 from cora.run.features.hold_run import tool as hold_run_tool
@@ -55,6 +56,10 @@ def register_run_tools(
     truncate_run_tool.register(
         mcp,
         get_handler=lambda: get_handlers().truncate_run,
+    )
+    append_run_reading_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().append_run_reading,
     )
     get_run_tool.register(
         mcp,

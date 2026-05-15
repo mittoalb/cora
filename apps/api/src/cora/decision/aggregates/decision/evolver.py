@@ -53,14 +53,7 @@ from cora.decision.aggregates.decision.state import (
     DecisionLogbookNotOpenError,
     DecisionRule,
 )
-
-
-def _require_state(state: Decision | None, event_type: str) -> Decision:
-    """Transition events require prior state; empty stream is corruption."""
-    if state is None:
-        msg = f"{event_type} cannot be applied to empty state"
-        raise ValueError(msg)
-    return state
+from cora.infrastructure.evolver import require_state
 
 
 def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
@@ -98,7 +91,7 @@ def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
                 reasoning_signature=reasoning_signature,
             )
         case DecisionLogbookOpened(logbook_id=logbook_id, kind=kind):
-            prior = _require_state(state, "DecisionLogbookOpened")
+            prior = require_state(state, "DecisionLogbookOpened")
             existing = prior.logbooks.get(kind)
             if existing is not None:
                 raise DecisionLogbookAlreadyOpenError(prior.id, kind, existing)
@@ -119,7 +112,7 @@ def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
                 logbooks={**prior.logbooks, kind: logbook_id},
             )
         case DecisionLogbookClosed(logbook_id=logbook_id):
-            prior = _require_state(state, "DecisionLogbookClosed")
+            prior = require_state(state, "DecisionLogbookClosed")
             matching_kind = next(
                 (k for k, v in prior.logbooks.items() if v == logbook_id),
                 None,

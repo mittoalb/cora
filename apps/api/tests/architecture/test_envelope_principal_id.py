@@ -10,9 +10,16 @@ syntactically required.
 
 The test scans every command-handler module under `<bc>/features/
 <slice>/handler.py` (plus the cross-aggregate update helpers like
-`<bc>/_*_handler.py`) for any AST `Call` node whose function name
-is `to_new_event`. For each such call, it asserts a keyword argument
-named `principal_id` is present.
+`<bc>/_*_handler.py` and the cross-BC update factory at
+`infrastructure/update_handler.py`) for any AST `Call` node whose
+function name is `to_new_event`. For each such call, it asserts a
+keyword argument named `principal_id` is present.
+
+The cross-BC factory (`cora.infrastructure.update_handler`) is the
+single `to_new_event` call site for every slice that uses
+`make_<aggregate>_update_handler` (Subject / Asset / Run / Method /
+Practice / Plan), so its inclusion in the scan is load-bearing —
+without it, ~14 slices would be silently uncovered.
 
 Catches future drift (a new handler that forgets to thread the
 kwarg) at PR time rather than silently writing NULL principal_id
@@ -33,11 +40,14 @@ from tests.architecture.conftest import BCS, CORA_ROOT
 
 # Files to scan: every BC's slice-handler files plus any cross-aggregate
 # update helpers at the BC root (subject/_update_handler.py,
-# equipment/_asset_update_handler.py). We exclude the envelope helper
-# itself (which DEFINES to_new_event) and the idempotency decorator
-# (which calls handler(...) but not to_new_event).
+# equipment/_asset_update_handler.py, etc.) plus the cross-BC update
+# factory at infrastructure/update_handler.py (the single to_new_event
+# call site for every slice that delegates to make_<aggregate>_update_handler).
+# We exclude the envelope helper itself (which DEFINES to_new_event) and
+# the idempotency decorator (which calls handler(...) but not to_new_event).
 _HANDLER_GLOB = "features/*/handler.py"
 _BC_ROOT_HELPER_GLOB = "_*_handler.py"
+_CROSS_BC_FACTORY = CORA_ROOT / "infrastructure" / "update_handler.py"
 
 
 def _handler_files() -> list[Path]:
@@ -48,6 +58,8 @@ def _handler_files() -> list[Path]:
             continue
         out.extend(sorted(bc_root.glob(_HANDLER_GLOB)))
         out.extend(sorted(bc_root.glob(_BC_ROOT_HELPER_GLOB)))
+    if _CROSS_BC_FACTORY.is_file():
+        out.append(_CROSS_BC_FACTORY)
     return out
 
 

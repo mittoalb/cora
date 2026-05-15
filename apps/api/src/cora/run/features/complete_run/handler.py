@@ -1,34 +1,17 @@
 """Application handler for the `complete_run` slice.
 
-Update-style handler — single-field command (just run_id). Stays
-longhand for log-field clarity (matches `deprecate_plan` /
-`deprecate_practice` / `deprecate_method` / `deprecate_capability`
-shape — no `make_run_update_handler` factory yet at 1 instance).
+Update-style handler. Canonical body lives in
+`cora.run._update_handler.make_run_update_handler`; this module
+is a thin slice-specific bind.
 """
 
 from typing import Protocol
 from uuid import UUID
 
-from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.logging import get_logger
-from cora.infrastructure.ports import Deny
-from cora.run.aggregates.run import (
-    RunEvent,
-    event_type_name,
-    fold,
-    from_stored,
-    to_payload,
-)
-from cora.run.errors import UnauthorizedError
+from cora.run._update_handler import make_run_update_handler
 from cora.run.features.complete_run.command import CompleteRun
 from cora.run.features.complete_run.decider import decide
-
-_STREAM_TYPE = "Run"
-_COMMAND_NAME = "CompleteRun"
-_CONDUIT_DEFAULT_ID = UUID(int=0)
-
-_log = get_logger(__name__)
 
 
 class Handler(Protocol):
@@ -46,80 +29,9 @@ class Handler(Protocol):
 
 def bind(deps: Kernel) -> Handler:
     """Build a complete_run handler closed over the shared deps."""
-
-    async def handler(
-        command: CompleteRun,
-        *,
-        principal_id: UUID,
-        correlation_id: UUID,
-        causation_id: UUID | None = None,
-    ) -> None:
-        _log.info(
-            "complete_run.start",
-            command_name=_COMMAND_NAME,
-            run_id=str(command.run_id),
-            principal_id=str(principal_id),
-            correlation_id=str(correlation_id),
-            causation_id=str(causation_id) if causation_id is not None else None,
-        )
-
-        decision = await deps.authorize(
-            principal_id=principal_id,
-            command_name=_COMMAND_NAME,
-            conduit_id=_CONDUIT_DEFAULT_ID,
-        )
-        if isinstance(decision, Deny):
-            _log.info(
-                "complete_run.denied",
-                command_name=_COMMAND_NAME,
-                run_id=str(command.run_id),
-                principal_id=str(principal_id),
-                correlation_id=str(correlation_id),
-                causation_id=str(causation_id) if causation_id is not None else None,
-                reason=decision.reason,
-            )
-            raise UnauthorizedError(decision.reason)
-
-        now = deps.clock.now()
-
-        stored, current_version = await deps.event_store.load(
-            stream_type=_STREAM_TYPE,
-            stream_id=command.run_id,
-        )
-        history: list[RunEvent] = [from_stored(s) for s in stored]
-        state = fold(history)
-
-        domain_events = decide(state=state, command=command, now=now)
-
-        new_events = [
-            to_new_event(
-                event_type=event_type_name(event),
-                payload=to_payload(event),
-                occurred_at=event.occurred_at,
-                event_id=deps.id_generator.new_id(),
-                command_name=_COMMAND_NAME,
-                correlation_id=correlation_id,
-                causation_id=causation_id,
-                principal_id=principal_id,
-            )
-            for event in domain_events
-        ]
-        await deps.event_store.append(
-            stream_type=_STREAM_TYPE,
-            stream_id=command.run_id,
-            expected_version=current_version,
-            events=new_events,
-        )
-
-        _log.info(
-            "complete_run.success",
-            command_name=_COMMAND_NAME,
-            run_id=str(command.run_id),
-            principal_id=str(principal_id),
-            correlation_id=str(correlation_id),
-            causation_id=str(causation_id) if causation_id is not None else None,
-            event_count=len(new_events),
-            new_version=current_version + len(new_events),
-        )
-
-    return handler
+    return make_run_update_handler(
+        deps,
+        command_name="CompleteRun",
+        log_prefix="complete_run",
+        decide_fn=decide,
+    )
