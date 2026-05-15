@@ -18,8 +18,28 @@ keyword argument named `principal_id` is present.
 The cross-BC factory (`cora.infrastructure.update_handler`) is the
 single `to_new_event` call site for every slice that uses
 `make_<aggregate>_update_handler` (Subject / Asset / Run / Method /
-Practice / Plan), so its inclusion in the scan is load-bearing —
-without it, ~14 slices would be silently uncovered.
+Practice / Plan / Supply / Procedure), so its inclusion in the scan
+is load-bearing — without it, ~36 slices would be silently uncovered.
+
+## Skip categories (see `_classify_skip_reason`)
+
+When a handler file contains zero `to_new_event` calls the test
+skips with a categorized message so a future reader sees at a glance
+which architectural pattern explains the skip:
+
+  (a) read-style query handler -- emits no events (identified by a
+      `query.py` sibling file in the slice directory; covers
+      get_* / list_* / evaluate_*)
+  (b) update-style slice that delegates to the BC-local factory
+      wrapper (identified by an import of `make_*_update_handler`)
+      -- the actual to_new_event call is at the cross-BC factory,
+      which IS asserted directly
+  (c) BC-root factory wrapper file (`<bc>/_<aggregate>_update_handler.py`)
+      -- thin closure over the cross-BC factory; same coverage path
+      as (b)
+
+A skip with the "uncategorized" message is a coverage gap and
+should be classified explicitly (extend `_classify_skip_reason`).
 
 Catches future drift (a new handler that forgets to thread the
 kwarg) at PR time rather than silently writing NULL principal_id
@@ -85,6 +105,55 @@ def _to_new_event_calls(tree: ast.AST) -> list[ast.Call]:
     return calls
 
 
+def _classify_skip_reason(handler_file: Path, tree: ast.AST) -> str:
+    """Explain WHY this file has no `to_new_event` call.
+
+    Three categories cover every skip case so a future reader can see
+    at a glance whether each skip is benign or a coverage gap. The
+    architectural invariant ('every event carries principal_id') is
+    upheld for categories (a) trivially (no events emitted) and (b/c)
+    transitively (the cross-BC factory at cora.infrastructure.update_handler
+    is the single asserted call site).
+    """
+    rel = handler_file.relative_to(CORA_ROOT)
+    parts = rel.with_suffix("").parts
+
+    # (c) BC-root factory wrapper file: <bc>/_<aggregate>_update_handler.py.
+    # Thin closure that delegates to the cross-BC factory; the factory's
+    # to_new_event call site is asserted directly.
+    if len(parts) == 2 and parts[1].startswith("_") and "update_handler" in parts[1]:
+        return (
+            "BC-root factory wrapper: delegates to "
+            "cora.infrastructure.update_handler (asserted there)"
+        )
+
+    # (a) Read-style query handler: identified by a `query.py` sibling
+    # file in the slice directory (vs `command.py` for command slices —
+    # the canonical slice-contract distinction enforced by
+    # test_slice_contract.py). Covers get_* / list_* / evaluate_* and
+    # any future query-shape slice naming.
+    if len(parts) == 4 and parts[1] == "features" and parts[3] == "handler":
+        slice_dir = handler_file.parent
+        if (slice_dir / "query.py").is_file():
+            return "read-style query handler: emits no events"
+
+        # (b) Update-style slice handler that delegates to the BC-local
+        # factory wrapper. Identified by an import of `make_*_update_handler`.
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                for alias in node.names:
+                    if alias.name.startswith("make_") and alias.name.endswith("_update_handler"):
+                        return (
+                            f"update-style slice: delegates to {alias.name} "
+                            "(the cross-BC to_new_event call site is asserted at "
+                            "cora.infrastructure.update_handler)"
+                        )
+
+    # Uncategorized. Should not fire today; if it does, the file is a
+    # genuine coverage gap and the test author should classify it.
+    return "no to_new_event call (uncategorized: file may need explicit classification)"
+
+
 @pytest.mark.architecture
 @pytest.mark.parametrize("handler_file", _handler_files(), ids=_qualified)
 def test_handler_to_new_event_calls_pass_principal_id(handler_file: Path) -> None:
@@ -94,7 +163,7 @@ def test_handler_to_new_event_calls_pass_principal_id(handler_file: Path) -> Non
 
     calls = _to_new_event_calls(tree)
     if not calls:
-        pytest.skip(f"{qualified} does not call to_new_event")
+        pytest.skip(f"{qualified}: {_classify_skip_reason(handler_file, tree)}")
 
     missing: list[int] = []
     for call in calls:
