@@ -17,15 +17,23 @@ no new slices in this BC).
 """
 
 from cora.supply.features import (
+    degrade_supply,
     get_supply,
     list_supplies,
     mark_supply_available,
+    mark_supply_recovering,
+    mark_supply_unavailable,
     register_supply,
+    restore_supply,
 )
 
 __all__ = [
+    "degrade_supply",
     "get_supply",
     "list_supplies",
     "mark_supply_available",
+    "mark_supply_recovering",
+    "mark_supply_unavailable",
     "register_supply",
+    "restore_supply",
 ]

@@ -5,18 +5,21 @@ union, `event_type_name`, `to_payload`, `from_stored`. The
 persistence-envelope construction (`NewEvent`) lives at
 `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 10a-a ships `SupplyRegistered` (genesis -> Unknown) and
+Phase 10a-a shipped `SupplyRegistered` (genesis -> Unknown) and
 `SupplyMarkedAvailable` (Unknown -> Available, operator-asserted
 first observation). Phase 10a-b adds `SupplyDegraded`,
 `SupplyMarkedUnavailable`, `SupplyMarkedRecovering`, and
-`SupplyRestored` for the full degradation/recovery cycle.
+`SupplyRestored` for the full degradation/recovery cycle. All 5
+transition events share the same payload shape (`from_status, reason,
+trigger, occurred_at`) so the projection can fold them through one
+parameterized UPDATE.
 
-Status is NOT carried in `SupplyRegistered` / `SupplyMarkedAvailable`
-payloads — the event type IS the state-change indicator (matches
-`CapabilityDefined -> DEFINED`, `SubjectMounted -> MOUNTED`). Status
-DOES travel in transition-event payloads as `from_status` (10a-b
-transitions) so the projection can reconstruct exact source-state
-audit without re-folding the prior stream.
+Status is NOT carried in `SupplyRegistered`'s payload — the event
+type IS the state-change indicator (matches `CapabilityDefined ->
+DEFINED`, `SubjectMounted -> MOUNTED`). Status DOES travel in
+transition-event payloads as `from_status` so the projection can
+reconstruct exact source-state audit without re-folding the prior
+stream.
 
 `scope` and `kind` travel in the genesis payload as primitive strings;
 the evolver reconstructs typed `SupplyScope` and `SupplyKind` VOs.
@@ -91,12 +94,92 @@ class SupplyMarkedAvailable:
     occurred_at: datetime
 
 
-# Discriminated union of every event the Supply aggregate emits in 10a-a.
-# Phase 10a-b widens to: SupplyEvent = (
-#     SupplyRegistered | SupplyMarkedAvailable | SupplyDegraded
-#     | SupplyMarkedUnavailable | SupplyMarkedRecovering | SupplyRestored
-# )
-SupplyEvent = SupplyRegistered | SupplyMarkedAvailable
+@dataclass(frozen=True)
+class SupplyDegraded:
+    """The Supply transitioned to Degraded (10a-b).
+
+    Multi-source: `{Unknown, Available, Recovering} -> Degraded`. The
+    resource is up but below nominal capacity / quality (e.g.,
+    photon beam at half-current after partial top-up; LN2 dewar at
+    20% pressure margin). Same payload shape as
+    `SupplyMarkedAvailable`.
+    """
+
+    supply_id: UUID
+    from_status: str
+    reason: str
+    trigger: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class SupplyMarkedUnavailable:
+    """The Supply transitioned to Unavailable (10a-b).
+
+    Widest source set: `{Unknown, Available, Degraded, Recovering} ->
+    Unavailable`. The resource is down (planned shutdown, beam dump,
+    LN2 empty, vacuum loss). Same payload shape as
+    `SupplyMarkedAvailable`.
+    """
+
+    supply_id: UUID
+    from_status: str
+    reason: str
+    trigger: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class SupplyMarkedRecovering:
+    """The Supply transitioned to Recovering (10a-b).
+
+    Single-source: `{Unavailable} -> Recovering`. Observation
+    suggests the underlying resource may be coming back; the
+    operator hasn't yet confirmed full availability. Per the Phoebus
+    latched-alarm pattern, `Recovering -> Available` requires an
+    explicit `restore_supply` (operator acknowledgement); this event
+    is the entry into that latched state. Same payload shape as
+    `SupplyMarkedAvailable`.
+    """
+
+    supply_id: UUID
+    from_status: str
+    reason: str
+    trigger: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class SupplyRestored:
+    """The Supply transitioned from Recovering back to Available (10a-b).
+
+    Single-source: `{Recovering} -> Available`. This is the
+    recovery-acknowledgement event, distinct from
+    `SupplyMarkedAvailable` (first-observation declaration). Per the
+    Phoebus latched-alarm and PackML CLEARING -> RESETTING -> IDLE
+    convention, explicit operator gesture is required (auto-timer-
+    confirmed restore is deferred-with-trigger per Watch item 1 in
+    [[project_supply_design]]).
+
+    Same payload shape as `SupplyMarkedAvailable`.
+    """
+
+    supply_id: UUID
+    from_status: str
+    reason: str
+    trigger: str
+    occurred_at: datetime
+
+
+# Discriminated union of every event the Supply aggregate emits.
+SupplyEvent = (
+    SupplyRegistered
+    | SupplyMarkedAvailable
+    | SupplyDegraded
+    | SupplyMarkedUnavailable
+    | SupplyMarkedRecovering
+    | SupplyRestored
+)
 
 
 def event_type_name(event: SupplyEvent) -> str:
@@ -126,12 +209,42 @@ def to_payload(event: SupplyEvent) -> dict[str, Any]:
                 "name": name,
                 "occurred_at": occurred_at.isoformat(),
             }
-        case SupplyMarkedAvailable(
-            supply_id=supply_id,
-            from_status=from_status,
-            reason=reason,
-            trigger=trigger,
-            occurred_at=occurred_at,
+        case (
+            SupplyMarkedAvailable(
+                supply_id=supply_id,
+                from_status=from_status,
+                reason=reason,
+                trigger=trigger,
+                occurred_at=occurred_at,
+            )
+            | SupplyDegraded(
+                supply_id=supply_id,
+                from_status=from_status,
+                reason=reason,
+                trigger=trigger,
+                occurred_at=occurred_at,
+            )
+            | SupplyMarkedUnavailable(
+                supply_id=supply_id,
+                from_status=from_status,
+                reason=reason,
+                trigger=trigger,
+                occurred_at=occurred_at,
+            )
+            | SupplyMarkedRecovering(
+                supply_id=supply_id,
+                from_status=from_status,
+                reason=reason,
+                trigger=trigger,
+                occurred_at=occurred_at,
+            )
+            | SupplyRestored(
+                supply_id=supply_id,
+                from_status=from_status,
+                reason=reason,
+                trigger=trigger,
+                occurred_at=occurred_at,
+            )
         ):
             return {
                 "supply_id": str(supply_id),
@@ -162,22 +275,47 @@ def from_stored(stored: StoredEvent) -> SupplyEvent:
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "SupplyMarkedAvailable":
-            return SupplyMarkedAvailable(
-                supply_id=UUID(payload["supply_id"]),
-                from_status=payload["from_status"],
-                reason=payload["reason"],
-                trigger=payload["trigger"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            return SupplyMarkedAvailable(**_transition_kwargs(payload))
+        case "SupplyDegraded":
+            return SupplyDegraded(**_transition_kwargs(payload))
+        case "SupplyMarkedUnavailable":
+            return SupplyMarkedUnavailable(**_transition_kwargs(payload))
+        case "SupplyMarkedRecovering":
+            return SupplyMarkedRecovering(**_transition_kwargs(payload))
+        case "SupplyRestored":
+            return SupplyRestored(**_transition_kwargs(payload))
         case _:
             msg = f"Unknown SupplyEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
 
 
+def _transition_kwargs(payload: dict[str, Any]) -> dict[str, Any]:
+    """Shared payload-deserialization for all 5 transition events.
+
+    All transitions (SupplyMarkedAvailable / SupplyDegraded /
+    SupplyMarkedUnavailable / SupplyMarkedRecovering / SupplyRestored)
+    carry the same `(supply_id, from_status, reason, trigger,
+    occurred_at)` shape. Hoisting this kwargs builder keeps each
+    `from_stored` arm one-line and avoids 5 copies of the same dict
+    literal.
+    """
+    return {
+        "supply_id": UUID(payload["supply_id"]),
+        "from_status": payload["from_status"],
+        "reason": payload["reason"],
+        "trigger": payload["trigger"],
+        "occurred_at": datetime.fromisoformat(payload["occurred_at"]),
+    }
+
+
 __all__ = [
+    "SupplyDegraded",
     "SupplyEvent",
     "SupplyMarkedAvailable",
+    "SupplyMarkedRecovering",
+    "SupplyMarkedUnavailable",
     "SupplyRegistered",
+    "SupplyRestored",
     "event_type_name",
     "from_stored",
     "to_payload",

@@ -16,18 +16,20 @@ Subject / Equipment (composition order matters — innermost first):
 3. `with_tracing` — OTel span around every handler call. Records
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
-## Phase 10a-a scope
+## Wired handlers (10a-a + 10a-b)
 
-Four handlers wired:
   - `register_supply` (create-style; idempotency-wrapped)
-  - `mark_supply_available` (transition; bare)
-  - `get_supply` (query; bare)
-  - `list_supplies` (query; bare)
+  - `mark_supply_available` (transition)
+  - `degrade_supply` (transition)
+  - `mark_supply_unavailable` (transition)
+  - `mark_supply_recovering` (transition)
+  - `restore_supply` (transition)
+  - `get_supply` (query)
+  - `list_supplies` (query)
 
-The `mark_supply_available` handler is the only update-style
-transition in 10a-a. The `make_supply_update_handler` factory hoist
-(mirroring `_asset_update_handler`) is deferred until 10a-b's 4
-transition slices land — rule of three triggers there, not here.
+All five transition handlers are built via the
+`make_supply_update_handler` factory (hoisted in 10a-b at the
+rule-of-three trigger; mirrors `_asset_update_handler`).
 """
 
 from dataclasses import dataclass
@@ -37,10 +39,14 @@ from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.supply.features import (
+    degrade_supply,
     get_supply,
     list_supplies,
     mark_supply_available,
+    mark_supply_recovering,
+    mark_supply_unavailable,
     register_supply,
+    restore_supply,
 )
 
 _BC = "supply"
@@ -50,15 +56,20 @@ _BC = "supply"
 class SupplyHandlers:
     """The Supply BC's handler bundle, each closed over Kernel.
 
-    Phase 10a-a ships `register_supply` (create-style; idempotency-
-    wrapped), `mark_supply_available` (transition; longhand bare),
-    `get_supply` (query), and `list_supplies` (query). Phase 10a-b
-    adds 4 more transition handlers; the per-aggregate
-    `make_supply_update_handler` factory hoists at that point.
+    Five transition handlers (mark_available + degrade +
+    mark_unavailable + mark_recovering + restore) plus
+    register_supply (create-style; idempotency-wrapped) plus two
+    queries (get_supply, list_supplies). Every transition handler
+    flows through `make_supply_update_handler`, hoisted in 10a-b at
+    the rule-of-three trigger.
     """
 
     register_supply: register_supply.IdempotentHandler
     mark_supply_available: mark_supply_available.Handler
+    degrade_supply: degrade_supply.Handler
+    mark_supply_unavailable: mark_supply_unavailable.Handler
+    mark_supply_recovering: mark_supply_recovering.Handler
+    restore_supply: restore_supply.Handler
     get_supply: get_supply.Handler
     list_supplies: list_supplies.Handler
 
@@ -83,6 +94,26 @@ def wire_supply(deps: Kernel) -> SupplyHandlers:
         mark_supply_available=with_tracing(
             mark_supply_available.bind(deps),
             command_name="MarkSupplyAvailable",
+            bc=_BC,
+        ),
+        degrade_supply=with_tracing(
+            degrade_supply.bind(deps),
+            command_name="DegradeSupply",
+            bc=_BC,
+        ),
+        mark_supply_unavailable=with_tracing(
+            mark_supply_unavailable.bind(deps),
+            command_name="MarkSupplyUnavailable",
+            bc=_BC,
+        ),
+        mark_supply_recovering=with_tracing(
+            mark_supply_recovering.bind(deps),
+            command_name="MarkSupplyRecovering",
+            bc=_BC,
+        ),
+        restore_supply=with_tracing(
+            restore_supply.bind(deps),
+            command_name="RestoreSupply",
             bc=_BC,
         ),
         get_supply=with_tracing(

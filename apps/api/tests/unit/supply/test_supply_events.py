@@ -1,14 +1,19 @@
 """SupplyEvent serialization round-trips: to_payload + from_stored."""
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
 
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.supply.aggregates.supply import (
+    SupplyDegraded,
     SupplyMarkedAvailable,
+    SupplyMarkedRecovering,
+    SupplyMarkedUnavailable,
     SupplyRegistered,
+    SupplyRestored,
     event_type_name,
     from_stored,
     to_payload,
@@ -134,3 +139,79 @@ def test_supply_marked_available_round_trip_via_from_stored() -> None:
 def test_from_stored_raises_on_unknown_event_type() -> None:
     with pytest.raises(ValueError, match="Unknown SupplyEvent event_type"):
         from_stored(_stored("ImaginaryEvent", {"foo": "bar"}))
+
+
+# ---------- 10a-b transition events: round-trips ----------
+
+
+@pytest.mark.parametrize(
+    ("event_class", "expected_type_name"),
+    [
+        (SupplyDegraded, "SupplyDegraded"),
+        (SupplyMarkedUnavailable, "SupplyMarkedUnavailable"),
+        (SupplyMarkedRecovering, "SupplyMarkedRecovering"),
+        (SupplyRestored, "SupplyRestored"),
+    ],
+)
+@pytest.mark.unit
+def test_transition_event_type_name(event_class: Any, expected_type_name: str) -> None:
+    """All 4 new transition event classes report their own class name via
+    event_type_name (the discriminator written into StoredEvent.event_type)."""
+    event = event_class(
+        supply_id=_SUPPLY_ID,
+        from_status="x",
+        reason="r",
+        trigger="Operator",
+        occurred_at=_NOW,
+    )
+    assert event_type_name(event) == expected_type_name
+
+
+@pytest.mark.parametrize(
+    "event_class",
+    [SupplyDegraded, SupplyMarkedUnavailable, SupplyMarkedRecovering, SupplyRestored],
+)
+@pytest.mark.unit
+def test_transition_event_to_payload_carries_audit_triple(
+    event_class: Any,
+) -> None:
+    """All 4 new transition events share the same payload shape (`from_status`,
+    `reason`, `trigger`, `occurred_at`) — pin the serialization."""
+    event = event_class(
+        supply_id=_SUPPLY_ID,
+        from_status="Available",
+        reason="ops gesture",
+        trigger="Operator",
+        occurred_at=_NOW,
+    )
+    assert to_payload(event) == {
+        "supply_id": str(_SUPPLY_ID),
+        "from_status": "Available",
+        "reason": "ops gesture",
+        "trigger": "Operator",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.parametrize(
+    ("event_class", "event_type_str"),
+    [
+        (SupplyDegraded, "SupplyDegraded"),
+        (SupplyMarkedUnavailable, "SupplyMarkedUnavailable"),
+        (SupplyMarkedRecovering, "SupplyMarkedRecovering"),
+        (SupplyRestored, "SupplyRestored"),
+    ],
+)
+@pytest.mark.unit
+def test_transition_event_round_trip_via_from_stored(event_class: Any, event_type_str: str) -> None:
+    """Round-trip each new transition event class through to_payload + from_stored
+    and verify equality. Pins the per-event-type dispatch in `from_stored`."""
+    original = event_class(
+        supply_id=_SUPPLY_ID,
+        from_status="Available",
+        reason="ops gesture",
+        trigger="Operator",
+        occurred_at=_NOW,
+    )
+    rebuilt = from_stored(_stored(event_type_str, to_payload(original)))
+    assert rebuilt == original

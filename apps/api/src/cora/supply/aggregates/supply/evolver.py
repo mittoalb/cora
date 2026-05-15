@@ -4,11 +4,9 @@ Mirror of the other aggregate evolvers. The terminal `assert_never`
 case forces pyright (and the runtime) to error if a new event type
 is added to `SupplyEvent` without a matching match arm here.
 
-Status mapping per event type (10a-a):
-  - `SupplyRegistered`        -> UNKNOWN   (genesis; universal initial-state convention)
-  - `SupplyMarkedAvailable`   -> AVAILABLE (single-source: Unknown only)
-
-Phase 10a-b will add four arms:
+Status mapping per event type:
+  - `SupplyRegistered`        -> UNKNOWN     (genesis; universal initial-state convention)
+  - `SupplyMarkedAvailable`   -> AVAILABLE   (single-source: Unknown only)
   - `SupplyDegraded`          -> DEGRADED    (sources: Unknown, Available, Recovering)
   - `SupplyMarkedUnavailable` -> UNAVAILABLE (sources: Unknown, Available, Degraded, Recovering)
   - `SupplyMarkedRecovering`  -> RECOVERING  (single-source: Unavailable)
@@ -16,7 +14,9 @@ Phase 10a-b will add four arms:
 
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator. Same precedent as `CapabilityDefined ->
-DEFINED` / `SubjectMounted -> MOUNTED`.
+DEFINED` / `SubjectMounted -> MOUNTED`. Source-state guards are
+enforced at the decider, NOT here; the evolver trusts the event
+log (folded events have already passed their decider).
 
 Transition events applied to empty state raise ValueError: they can
 never appear before `SupplyRegistered` in a well-formed stream.
@@ -30,9 +30,13 @@ from typing import assert_never
 
 from cora.infrastructure.evolver import require_state
 from cora.supply.aggregates.supply.events import (
+    SupplyDegraded,
     SupplyEvent,
     SupplyMarkedAvailable,
+    SupplyMarkedRecovering,
+    SupplyMarkedUnavailable,
     SupplyRegistered,
+    SupplyRestored,
 )
 from cora.supply.aggregates.supply.state import (
     Supply,
@@ -59,14 +63,43 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
                 name=SupplyName(name),
                 status=SupplyStatus.UNKNOWN,
             )
-        case SupplyMarkedAvailable():
-            prior = require_state(state, "SupplyMarkedAvailable")
+        case SupplyMarkedAvailable() | SupplyRestored():
+            # Both events target Available; distinct audit semantics
+            # (first-observation vs recovery-ack) preserved on the event log.
+            prior = require_state(state, type(event).__name__)
             return Supply(
                 id=prior.id,
                 scope=prior.scope,
                 kind=prior.kind,
                 name=prior.name,
                 status=SupplyStatus.AVAILABLE,
+            )
+        case SupplyDegraded():
+            prior = require_state(state, "SupplyDegraded")
+            return Supply(
+                id=prior.id,
+                scope=prior.scope,
+                kind=prior.kind,
+                name=prior.name,
+                status=SupplyStatus.DEGRADED,
+            )
+        case SupplyMarkedUnavailable():
+            prior = require_state(state, "SupplyMarkedUnavailable")
+            return Supply(
+                id=prior.id,
+                scope=prior.scope,
+                kind=prior.kind,
+                name=prior.name,
+                status=SupplyStatus.UNAVAILABLE,
+            )
+        case SupplyMarkedRecovering():
+            prior = require_state(state, "SupplyMarkedRecovering")
+            return Supply(
+                id=prior.id,
+                scope=prior.scope,
+                kind=prior.kind,
+                name=prior.name,
+                status=SupplyStatus.RECOVERING,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

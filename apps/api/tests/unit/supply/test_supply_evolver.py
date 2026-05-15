@@ -7,9 +7,14 @@ import pytest
 
 from cora.supply.aggregates.supply import (
     Supply,
+    SupplyDegraded,
+    SupplyEvent,
     SupplyMarkedAvailable,
+    SupplyMarkedRecovering,
+    SupplyMarkedUnavailable,
     SupplyName,
     SupplyRegistered,
+    SupplyRestored,
     SupplyScope,
     SupplyStatus,
     evolve,
@@ -132,3 +137,174 @@ def test_evolver_returns_new_state_does_not_mutate_input() -> None:
     assert initial.status == SupplyStatus.UNKNOWN
     assert transitioned.status == SupplyStatus.AVAILABLE
     assert transitioned is not initial
+
+
+# ---------- 10a-b: 4 new transition arms ----------
+
+
+def _genesis_state() -> Supply:
+    """Quick helper to fold a SupplyRegistered into starting state."""
+    state = fold(
+        [
+            SupplyRegistered(
+                supply_id=_SUPPLY_ID,
+                scope="Beamline",
+                kind="LiquidNitrogen",
+                name="35-BM LN2",
+                occurred_at=_NOW,
+            )
+        ]
+    )
+    assert state is not None
+    return state
+
+
+@pytest.mark.parametrize(
+    ("event", "expected_status"),
+    [
+        (
+            SupplyDegraded(
+                supply_id=_SUPPLY_ID,
+                from_status="Available",
+                reason="half-current",
+                trigger="Operator",
+                occurred_at=_NOW,
+            ),
+            SupplyStatus.DEGRADED,
+        ),
+        (
+            SupplyMarkedUnavailable(
+                supply_id=_SUPPLY_ID,
+                from_status="Available",
+                reason="beam dump",
+                trigger="Operator",
+                occurred_at=_NOW,
+            ),
+            SupplyStatus.UNAVAILABLE,
+        ),
+        (
+            SupplyMarkedRecovering(
+                supply_id=_SUPPLY_ID,
+                from_status="Unavailable",
+                reason="beam returning",
+                trigger="Operator",
+                occurred_at=_NOW,
+            ),
+            SupplyStatus.RECOVERING,
+        ),
+        (
+            SupplyRestored(
+                supply_id=_SUPPLY_ID,
+                from_status="Recovering",
+                reason="ops confirms stable",
+                trigger="Operator",
+                occurred_at=_NOW,
+            ),
+            SupplyStatus.AVAILABLE,
+        ),
+    ],
+)
+@pytest.mark.unit
+def test_evolver_arms_for_each_transition_event_set_target_status(
+    event: SupplyEvent, expected_status: SupplyStatus
+) -> None:
+    """Pin per-event-type status mapping; the evolver does NOT enforce
+    source-state guards (that's the decider's job). Identity + address
+    preserved across the transition."""
+    prior = _genesis_state()
+    evolved = evolve(prior, event)
+    assert evolved.status == expected_status
+    assert evolved.id == _SUPPLY_ID
+    assert evolved.scope == SupplyScope.BEAMLINE
+    assert evolved.kind == "LiquidNitrogen"
+
+
+@pytest.mark.parametrize(
+    "event_type_name",
+    [
+        "SupplyDegraded",
+        "SupplyMarkedUnavailable",
+        "SupplyMarkedRecovering",
+        "SupplyRestored",
+    ],
+)
+@pytest.mark.unit
+def test_evolver_raises_on_transition_event_with_no_genesis(event_type_name: str) -> None:
+    """All 10a-b transition events also require prior state; otherwise
+    the stream is corrupt (transition before genesis)."""
+    event_classes = {
+        "SupplyDegraded": SupplyDegraded,
+        "SupplyMarkedUnavailable": SupplyMarkedUnavailable,
+        "SupplyMarkedRecovering": SupplyMarkedRecovering,
+        "SupplyRestored": SupplyRestored,
+    }
+    cls = event_classes[event_type_name]
+    with pytest.raises(ValueError, match=f"{event_type_name} cannot be applied to empty state"):
+        evolve(
+            None,
+            cls(
+                supply_id=_SUPPLY_ID,
+                from_status="x",
+                reason="r",
+                trigger="Operator",
+                occurred_at=_NOW,
+            ),
+        )
+
+
+@pytest.mark.unit
+def test_full_fsm_cycle_via_fold() -> None:
+    """Walk the full FSM via fold: register -> mark_available -> degrade ->
+    mark_unavailable -> mark_recovering -> restore. All 6 events accumulate
+    cleanly, identity preserved, terminal status is Available."""
+    state = fold(
+        [
+            SupplyRegistered(
+                supply_id=_SUPPLY_ID,
+                scope="Beamline",
+                kind="LiquidNitrogen",
+                name="35-BM LN2",
+                occurred_at=_NOW,
+            ),
+            SupplyMarkedAvailable(
+                supply_id=_SUPPLY_ID,
+                from_status="Unknown",
+                reason="walkdown",
+                trigger="Operator",
+                occurred_at=_NOW,
+            ),
+            SupplyDegraded(
+                supply_id=_SUPPLY_ID,
+                from_status="Available",
+                reason="half-current",
+                trigger="Operator",
+                occurred_at=_NOW,
+            ),
+            SupplyMarkedUnavailable(
+                supply_id=_SUPPLY_ID,
+                from_status="Degraded",
+                reason="full dump",
+                trigger="Operator",
+                occurred_at=_NOW,
+            ),
+            SupplyMarkedRecovering(
+                supply_id=_SUPPLY_ID,
+                from_status="Unavailable",
+                reason="beam returning",
+                trigger="Operator",
+                occurred_at=_NOW,
+            ),
+            SupplyRestored(
+                supply_id=_SUPPLY_ID,
+                from_status="Recovering",
+                reason="confirmed stable",
+                trigger="Operator",
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.status == SupplyStatus.AVAILABLE
+    assert state.id == _SUPPLY_ID
+    assert state.kind == "LiquidNitrogen"
+    assert state.name.value == "35-BM LN2"

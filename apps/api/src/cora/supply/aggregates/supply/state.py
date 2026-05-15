@@ -33,14 +33,15 @@ first-scrape, BACnet out_of_service, PackML STOPPED, PI Pt Created).
 The optimistic-Available default is an anti-pattern across all three
 research corpora.
 
-## Phase 10a-a scope
+## Phase 10a-a + 10a-b scope
 
 Minimal Supply: id + scope + kind + name + status (defaults Unknown
-implicitly via genesis evolver) + registered_at. Two slices ship in
-10a-a: `register_supply` (genesis -> Unknown) and
-`mark_supply_available` (Unknown -> Available, operator-asserted
-first observation). The four remaining transition slices (`degrade`,
-`mark_unavailable`, `mark_recovering`, `restore`) ship in 10a-b.
+implicitly via genesis evolver) + registered_at. 10a-a shipped
+`register_supply` (genesis -> Unknown) and `mark_supply_available`
+(Unknown -> Available, operator-asserted first observation). 10a-b
+closed the FSM with `degrade`, `mark_unavailable`, `mark_recovering`,
+and `restore` (the last is the recovery acknowledgement, distinct
+from `mark_supply_available`'s first-observation semantics).
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
 
@@ -280,6 +281,91 @@ class SupplyCannotMarkAvailableError(Exception):
             f"Supply {supply_id} cannot be marked Available: currently in status "
             f"{current_status.value}, mark_supply_available requires "
             f"{SupplyStatus.UNKNOWN.value}"
+        )
+        self.supply_id = supply_id
+        self.current_status = current_status
+
+
+class SupplyCannotDegradeError(Exception):
+    """Attempted `degrade_supply` from a disqualifying status (10a-b).
+
+    Multi-source guard: source set is `{Unknown, Available, Recovering}`.
+    Re-degrading an already-`Degraded` supply raises (strict-not-
+    idempotent). `Unavailable` cannot transition directly to `Degraded`
+    (must go via `mark_supply_recovering` first). Mirrors
+    `SupplyCannotMarkAvailableError` shape.
+    """
+
+    def __init__(self, supply_id: UUID, current_status: "SupplyStatus") -> None:
+        super().__init__(
+            f"Supply {supply_id} cannot be degraded: currently in status "
+            f"{current_status.value}, degrade_supply requires "
+            f"{SupplyStatus.UNKNOWN.value}, {SupplyStatus.AVAILABLE.value}, "
+            f"or {SupplyStatus.RECOVERING.value}"
+        )
+        self.supply_id = supply_id
+        self.current_status = current_status
+
+
+class SupplyCannotMarkUnavailableError(Exception):
+    """Attempted `mark_supply_unavailable` from a disqualifying status (10a-b).
+
+    Multi-source guard: source set is `{Unknown, Available, Degraded,
+    Recovering}` — the widest source set of any Supply transition.
+    Re-marking an already-`Unavailable` supply raises (strict-not-
+    idempotent).
+    """
+
+    def __init__(self, supply_id: UUID, current_status: "SupplyStatus") -> None:
+        super().__init__(
+            f"Supply {supply_id} cannot be marked Unavailable: currently in status "
+            f"{current_status.value}, mark_supply_unavailable requires "
+            f"{SupplyStatus.UNKNOWN.value}, {SupplyStatus.AVAILABLE.value}, "
+            f"{SupplyStatus.DEGRADED.value}, or {SupplyStatus.RECOVERING.value}"
+        )
+        self.supply_id = supply_id
+        self.current_status = current_status
+
+
+class SupplyCannotMarkRecoveringError(Exception):
+    """Attempted `mark_supply_recovering` from a disqualifying status (10a-b).
+
+    Single-source guard: source set is `{Unavailable}` only. Recovering
+    is a transient observation that the underlying resource may be
+    coming back; it has no meaning unless we were just in Unavailable.
+    Strict-not-idempotent.
+    """
+
+    def __init__(self, supply_id: UUID, current_status: "SupplyStatus") -> None:
+        super().__init__(
+            f"Supply {supply_id} cannot be marked Recovering: currently in status "
+            f"{current_status.value}, mark_supply_recovering requires "
+            f"{SupplyStatus.UNAVAILABLE.value}"
+        )
+        self.supply_id = supply_id
+        self.current_status = current_status
+
+
+class SupplyCannotRestoreError(Exception):
+    """Attempted `restore_supply` from a disqualifying status (10a-b).
+
+    Single-source guard: source set is `{Recovering}` only. Restore is
+    the operator-acknowledgement that the supply is fully back; it
+    only makes sense from `Recovering`. The `Unknown -> Available`
+    transition has distinct audit semantics (first-observation
+    declaration) and exits exclusively via `mark_supply_available`.
+    Strict-not-idempotent. Per the Phoebus latched-alarm precedent
+    and PackML CLEARING -> STOPPED -> RESETTING -> IDLE convention:
+    explicit operator gesture required for full recovery
+    (auto-timer-confirmed restore is deferred-with-trigger per Watch
+    item 1 in [[project_supply_design]]).
+    """
+
+    def __init__(self, supply_id: UUID, current_status: "SupplyStatus") -> None:
+        super().__init__(
+            f"Supply {supply_id} cannot be restored: currently in status "
+            f"{current_status.value}, restore_supply requires "
+            f"{SupplyStatus.RECOVERING.value}"
         )
         self.supply_id = supply_id
         self.current_status = current_status

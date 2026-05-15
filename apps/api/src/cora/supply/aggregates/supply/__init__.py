@@ -4,15 +4,20 @@ Vertical slices that operate on this aggregate live under
 `cora.supply.features.<verb>_supply/` and import from here for state
 and event types.
 
-Phase 10a-a public surface: enums + VOs + errors + events + evolver
-+ load_supply. Phase 10a-b adds 4 more transition events + 4 more
-errors when the degradation/recovery cycle ships.
+Public surface: enums + VOs + errors + events + evolver +
+load_supply. 10a-a shipped genesis + first transition;
+10a-b closed the FSM with 4 more transition events + 4 more errors
+covering the degradation/recovery cycle.
 """
 
 from cora.supply.aggregates.supply.events import (
+    SupplyDegraded,
     SupplyEvent,
     SupplyMarkedAvailable,
+    SupplyMarkedRecovering,
+    SupplyMarkedUnavailable,
     SupplyRegistered,
+    SupplyRestored,
     event_type_name,
     from_stored,
     to_payload,
@@ -28,7 +33,11 @@ from cora.supply.aggregates.supply.state import (
     InvalidSupplyReasonError,
     Supply,
     SupplyAlreadyExistsError,
+    SupplyCannotDegradeError,
     SupplyCannotMarkAvailableError,
+    SupplyCannotMarkRecoveringError,
+    SupplyCannotMarkUnavailableError,
+    SupplyCannotRestoreError,
     SupplyName,
     SupplyNotFoundError,
     SupplyReason,
@@ -46,13 +55,21 @@ __all__ = [
     "InvalidSupplyReasonError",
     "Supply",
     "SupplyAlreadyExistsError",
+    "SupplyCannotDegradeError",
     "SupplyCannotMarkAvailableError",
+    "SupplyCannotMarkRecoveringError",
+    "SupplyCannotMarkUnavailableError",
+    "SupplyCannotRestoreError",
+    "SupplyDegraded",
     "SupplyEvent",
     "SupplyMarkedAvailable",
+    "SupplyMarkedRecovering",
+    "SupplyMarkedUnavailable",
     "SupplyName",
     "SupplyNotFoundError",
     "SupplyReason",
     "SupplyRegistered",
+    "SupplyRestored",
     "SupplyScope",
     "SupplyStatus",
     "TriggerSource",

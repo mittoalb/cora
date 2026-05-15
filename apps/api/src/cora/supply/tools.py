@@ -11,10 +11,14 @@ from collections.abc import Callable
 
 from mcp.server.fastmcp import FastMCP
 
+from cora.supply.features.degrade_supply import tool as degrade_supply_tool
 from cora.supply.features.get_supply import tool as get_supply_tool
 from cora.supply.features.list_supplies import tool as list_supplies_tool
 from cora.supply.features.mark_supply_available import tool as mark_supply_available_tool
+from cora.supply.features.mark_supply_recovering import tool as mark_supply_recovering_tool
+from cora.supply.features.mark_supply_unavailable import tool as mark_supply_unavailable_tool
 from cora.supply.features.register_supply import tool as register_supply_tool
+from cora.supply.features.restore_supply import tool as restore_supply_tool
 from cora.supply.wire import SupplyHandlers
 
 
@@ -31,6 +35,22 @@ def register_supply_tools(
     mark_supply_available_tool.register(
         mcp,
         get_handler=lambda: get_handlers().mark_supply_available,
+    )
+    degrade_supply_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().degrade_supply,
+    )
+    mark_supply_unavailable_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().mark_supply_unavailable,
+    )
+    mark_supply_recovering_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().mark_supply_recovering,
+    )
+    restore_supply_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().restore_supply,
     )
     get_supply_tool.register(
         mcp,

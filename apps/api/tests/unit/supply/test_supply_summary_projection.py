@@ -64,6 +64,10 @@ def test_projection_metadata() -> None:
         {
             "SupplyRegistered",
             "SupplyMarkedAvailable",
+            "SupplyDegraded",
+            "SupplyMarkedUnavailable",
+            "SupplyMarkedRecovering",
+            "SupplyRestored",
         }
     )
 
@@ -76,7 +80,7 @@ def test_projection_does_not_subscribe_to_unrelated_events() -> None:
         "AssetRegistered",
         "CapabilityDefined",
         "RunStarted",
-        "SupplyDegraded",  # 10a-b subscribes to this
+        "SubjectMounted",
     ):
         assert foreign not in proj.subscribed_event_types
 
@@ -114,16 +118,32 @@ async def test_supply_registered_inserts_with_unknown_status_and_null_audit() ->
     assert args.args[5] == _NOW
 
 
+@pytest.mark.parametrize(
+    ("event_type", "expected_status"),
+    [
+        ("SupplyMarkedAvailable", "Available"),
+        ("SupplyDegraded", "Degraded"),
+        ("SupplyMarkedUnavailable", "Unavailable"),
+        ("SupplyMarkedRecovering", "Recovering"),
+        ("SupplyRestored", "Available"),
+    ],
+)
 @pytest.mark.unit
-async def test_supply_marked_available_updates_status_and_audit_triple() -> None:
+async def test_transition_events_share_parameterized_update_with_audit_triple(
+    event_type: str, expected_status: str
+) -> None:
+    """All 5 transition events (10a-a + 10a-b) use the parameterized
+    `_UPDATE_STATUS_SQL`; status comes from the per-event-type lookup.
+    Pins audit-triple binding (last_status_changed_at = $2,
+    last_status_reason = $3, last_trigger = $4, status = $5)."""
     proj = SupplySummaryProjection()
     conn = AsyncMock()
     event = _stored(
-        "SupplyMarkedAvailable",
+        event_type,
         {
             "supply_id": str(_SUPPLY_ID),
             "from_status": "Unknown",
-            "reason": "operator walkdown",
+            "reason": "operator gesture",
             "trigger": "Operator",
             "occurred_at": _NOW.isoformat(),
         },
@@ -136,11 +156,12 @@ async def test_supply_marked_available_updates_status_and_audit_triple() -> None
     assert args is not None
     sql = args.args[0]
     assert "UPDATE proj_supply_summary" in sql
-    assert "status = 'Available'" in sql
+    assert "SET status = $5" in sql  # parameterized, not literal per-status
     assert args.args[1] == _SUPPLY_ID
     assert args.args[2] == _NOW  # last_status_changed_at
-    assert args.args[3] == "operator walkdown"  # last_status_reason
+    assert args.args[3] == "operator gesture"  # last_status_reason
     assert args.args[4] == "Operator"  # last_trigger
+    assert args.args[5] == expected_status  # status (parameterized)
 
 
 @pytest.mark.unit

@@ -24,12 +24,12 @@ Equipment-style loop pattern:
     InvalidSupplyReason
   - 404 (load miss): SupplyNotFound
   - 409 (defensive guard for AlreadyExists): SupplyAlreadyExists
-  - 409 (transition guard): SupplyCannotMarkAvailable
+  - 409 (transition guard): SupplyCannot{MarkAvailable, Degrade,
+    MarkUnavailable, MarkRecovering, Restore}
 
 Adding a new aggregate (or a new transition error) becomes one tuple
-entry per family. When 10a-b's 4 transition errors land
-(SupplyCannot{Degrade,MarkUnavailable,MarkRecovering,Restore}Error),
-they get added to the cannot-transition tuple.
+entry per family. The cannot-transition tuple expanded from 1 to 5
+entries when 10a-b shipped the FSM-closure transitions.
 """
 
 from fastapi import FastAPI, Request, status
@@ -40,15 +40,23 @@ from cora.supply.aggregates.supply import (
     InvalidSupplyNameError,
     InvalidSupplyReasonError,
     SupplyAlreadyExistsError,
+    SupplyCannotDegradeError,
     SupplyCannotMarkAvailableError,
+    SupplyCannotMarkRecoveringError,
+    SupplyCannotMarkUnavailableError,
+    SupplyCannotRestoreError,
     SupplyNotFoundError,
 )
 from cora.supply.errors import UnauthorizedError
 from cora.supply.features import (
+    degrade_supply,
     get_supply,
     list_supplies,
     mark_supply_available,
+    mark_supply_recovering,
+    mark_supply_unavailable,
     register_supply,
+    restore_supply,
 )
 
 
@@ -103,10 +111,10 @@ async def _handle_already_exists(request: Request, exc: Exception) -> JSONRespon
 async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONResponse:
     """Shared 409 handler for state-transition guards.
 
-    Covers the `<X>Cannot<Verb>Error` family (Supply's
-    MarkAvailable in 10a-a; future Degrade / MarkUnavailable /
-    MarkRecovering / Restore in 10a-b). Same pattern as Subject's /
-    Equipment's `_handle_cannot_transition`.
+    Covers the `<X>Cannot<Verb>Error` family: Supply's MarkAvailable
+    (10a-a) and 10a-b's FSM-closure quartet (Degrade /
+    MarkUnavailable / MarkRecovering / Restore). Same pattern as
+    Subject's / Equipment's `_handle_cannot_transition`.
     """
     _ = request
     return JSONResponse(
@@ -119,6 +127,10 @@ def register_supply_routes(app: FastAPI) -> None:
     """Attach Supply slice routers and exception handlers to the FastAPI app."""
     app.include_router(register_supply.router)
     app.include_router(mark_supply_available.router)
+    app.include_router(degrade_supply.router)
+    app.include_router(mark_supply_unavailable.router)
+    app.include_router(mark_supply_recovering.router)
+    app.include_router(restore_supply.router)
     app.include_router(get_supply.router)
     app.include_router(list_supplies.router)
     for validation_cls in (
@@ -131,6 +143,12 @@ def register_supply_routes(app: FastAPI) -> None:
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (SupplyAlreadyExistsError,):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
-    for cannot_transition_cls in (SupplyCannotMarkAvailableError,):
+    for cannot_transition_cls in (
+        SupplyCannotMarkAvailableError,
+        SupplyCannotDegradeError,
+        SupplyCannotMarkUnavailableError,
+        SupplyCannotMarkRecoveringError,
+        SupplyCannotRestoreError,
+    ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
