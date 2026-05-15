@@ -6,23 +6,47 @@ writer pattern: a typed dataclass + per-category Postgres adapter
 alongside the owning aggregate, with a category-local `StepStore`
 Protocol (NOT a shared cross-BC port).
 
-## Polymorphic-with-discriminator + JSON payload
+## Storage shape: Path C in the cross-BC trichotomy
 
-Like RunReading, ProcedureStep is **polymorphic across kinds** via the
-`step_kind` discriminator. The three kinds (setpoint / action / check)
-are CORA's rename of ISA-106's canonical Command/Perform/Verify
-triplet. Unlike RunReading, the per-kind body shape DIVERGES (a
-setpoint has channel + target_value + units + ramp_rate; an action has
-action_name + params; a check has channel + passed + expected + actual
-+ tolerance), so the body lives in a JSON `payload` column rather than
-in typed columns.
+Per [[project_logbook_entry_storage]] §"The rule (the trichotomy)",
+ProcedureStep sits at **Path C** (polymorphic table with discriminator
+column + JSON-payload column):
 
-The 10c design memo locked this shape (mirror RunReading skeleton with
-JSON body) over typed-per-kind sibling tables for two reasons: keeps
-the Logbook + Entry pattern uniform across BC's, and lets per-kind
-operational vocabulary evolve without migrations. The watch item "step
-atom split" in [[project_operation_design]] sets the trigger for a
-future sibling-table refactor.
+  - **Path A** (typed sibling tables, one per kind) → ConduitTraversal,
+    DecisionReasoning. Pick when shape diverges AND per-kind volume /
+    queryability matter.
+  - **Path B** (polymorphic + typed value columns) → RunReading. Pick
+    when shape is uniform across kinds.
+  - **Path C** (polymorphic + JSON payload) → ProcedureStep. Pick when
+    shape diverges BUT per-kind volume is low / no per-kind read-side
+    projection is planned.
+
+ProcedureStep's body shape DIVERGES across kinds (setpoint =
+channel + target_value + units? + ramp_rate?; action = action_name +
+params; check = channel + passed + expected? + actual? + tolerance?),
+so typed columns would mean lots of mostly-NULL per-kind columns. But
+per-kind row volume at MVP scale is in the hundreds, and operator
+queries don't filter by kind alone, so 3 sibling tables would be
+overkill. JSON `payload` column with per-kind Pydantic validation at
+the API layer is the right shape.
+
+Standards precedent for Path C: OPC UA Part 10 §5.2.5-5.2.6 emits
+SEPARATE events per program state transition (each transition has
+its own audit event with transition-specific payload); Bluesky
+event-model uses separate documents per phase (RunStart / Descriptor
+/ Event / RunStop); 21 CFR Part 11 favors independent-action audit
+records; modern event-sourcing consensus is JSON-payload-with-
+discriminator over typed columns when per-kind shape evolves at code
+speed.
+
+## Logbook + Entry skeleton (shared with RunReading + DecisionReasoning + ConduitTraversal)
+
+The body-shape encoding diverges from RunReading, but the SKELETON is
+identical: lazy open-on-first-write envelope event, three timestamps,
+per-category `<EntryNoun>Store` port with InMemory + Postgres adapters,
+dedicated `entries_<aggregate>_<entry_noun_plural>` table, batch
+`Append<...>` slice. See [[project_logbook_entry_storage]] §"Naming
+family (cross-BC)" for the full shape.
 
 ## Three timestamps
 
