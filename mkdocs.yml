@@ -72,6 +72,8 @@ nav:
       - Scope: projects/35-bm/scope.md
       - Walk: projects/35-bm/walk.md
       - Capabilities: projects/35-bm/capabilities.md
+      - Routines:
+        - Rotation-axis alignment: projects/35-bm/routines/rotation_axis_alignment.md
   - Reference:
     - reference/index.md
     - Workflow: reference/workflow.md

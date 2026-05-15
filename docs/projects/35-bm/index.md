@@ -66,8 +66,8 @@ Every transition emits events. The full stream re-derives the deliverables. The 
 
     ---
 
-    The first concrete-domain Procedure. The `center` calibration routine in CORA terms.
+    First **routine page** — same form for every routine: gestures, acceptance check, pre-conditions, CORA encoding, open questions. Filled in for the `center` calibration.
 
-    [Read →](rotation_axis_alignment.md)
+    [Read →](routines/rotation_axis_alignment.md)
 
 </div>

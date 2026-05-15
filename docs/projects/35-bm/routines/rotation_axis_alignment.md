@@ -1,6 +1,12 @@
 # Rotation-axis alignment under CORA
 
-*The first concrete-domain Procedure. Hand-walks 2-BM's `center` routine into CORA's Procedure aggregate, surfacing the gaps between synthetic BC shapes and real beamline operations.*
+*Calibrates the rotation-axis pixel position on the detector. The `center` step in 35-BM's five-routine alignment chain, hand-walked into CORA's Procedure aggregate.*
+
+| Property | Value |
+| --- | --- |
+| Procedure `kind` | `rotation_axis_alignment` |
+| ISA-106 level | Operation (composes into a Run's Unit Procedure when re-run mid-scan) |
+| Paired pilot test | [`apps/api/tests/integration/test_35bm_rotation_axis_alignment_pilot.py`](../../../../apps/api/tests/integration/test_35bm_rotation_axis_alignment_pilot.py) |
 
 ## What this routine is
 
@@ -8,7 +14,7 @@ Rotation-axis alignment is the calibration step that finds the pixel-position of
 
 This page walks the **`center` routine** specifically. The other four are sibling Procedures with the same shape and a different `kind`.
 
-## The operator's gestures
+## Operator gestures
 
 A 0.5 mm tungsten-carbide sphere is mounted on the kinematic tip of the rotary stage. The operator iterates:
 
@@ -18,7 +24,27 @@ A 0.5 mm tungsten-carbide sphere is mounted on the kinematic tip of the rotary s
 4. If `|offset_px|` exceeds tolerance: nudge the `Sample_top_X` motor by `-offset_px / 2` (in motor units), and go back to step 1.
 5. Otherwise: the rotation axis is aligned. Write the calibrated pixel position to the `RotationCenter` PV. Done.
 
-Convergence typically takes 2-3 iterations starting from a few-pixel misalignment. Operators decide convergence by eye via the `tomostream` live centroid overlay, or by an off-line `tomopy.find_center_vo` reconstruction-quality metric. **Either way the success signal lives outside CORA**; CORA records the operator's Check + the evidence they cite for it.
+```mermaid
+flowchart LR
+    A[Rotate to 0°] --> B[Acquire frame]
+    B --> C[Rotate to 180°]
+    C --> D[Acquire frame]
+    D --> E{"|offset_px| ≤ tolerance?"}
+    E -- No --> F["Nudge Sample_top_X<br/>by -offset_px / 2"]
+    F --> A
+    E -- Yes --> G[Write RotationCenter PV]
+```
+
+Convergence typically takes 2-3 iterations starting from a few-pixel misalignment.
+
+## Acceptance check
+
+!!! success "The observable that says \"done\""
+    `|sphere_centroid_x_at_180 - sphere_centroid_x_at_0| / 2 <= tolerance_px`
+
+    `tolerance_px` is operator-set per beamtime, typically 1 px for a 1024 px-wide alignment FOV at 35-BM.
+
+The truth-source for that comparison lives outside CORA: operators eyeball convergence via the `tomostream` live centroid overlay, or run an off-line `tomopy.find_center_vo` reconstruction-quality metric and accept the result. CORA records the operator's final `Check` (`passed=True`, `actual`, `expected`, `tolerance`, plus an evidence payload naming the source) — it does not validate the claim itself. See Open question 3 below for whether the Check needs a typed `evidence_uri` linking to the off-line tool's artifact.
 
 ## Pre-conditions
 
@@ -31,11 +57,11 @@ Before `start_procedure` will accept the alignment Procedure, four target Assets
 | `Oryx_5MP_camera` | The detector. Captures alignment frames at 0° and 180°. |
 | `Scintillator_LuAG` | Converts X-rays to visible light for the camera. |
 
-The hexapod, sample-y, and the W-C calibration sphere itself are upstream / supporting; they're not on the Procedure's `target_asset_ids`. (Whether the calibration phantom should be a first-class `Subject` per Subject BC is an open question — see Gaps below.)
+The hexapod, sample-y, and the W-C calibration sphere itself are upstream / supporting; they're not on the Procedure's `target_asset_ids`. (Whether the calibration phantom should be a first-class `Subject` per Subject BC is itself an open question — see below.)
 
-## The Procedure in CORA terms
+## Procedure in CORA terms
 
-```
+```python
 register_procedure(
     name="35-BM rotation-axis alignment (vessel-A bakeout pre-scan)",
     kind="rotation_axis_alignment",
@@ -65,25 +91,61 @@ complete_procedure(procedure_id)
 
 The complete event-trail (Procedure stream + step logbook table + projection row) is the auditable record of "what was aligned, when, by whom, with what evidence." Today this lives only in operator notes + EPICS PV state at the moment of the next scan.
 
+## What CORA adds
+
+<div class="grid cards" markdown>
+
+-   :material-clipboard-text:{ .lg .middle } __Operator-readable record__
+
+    ---
+
+    Survives sessions, beamtimes, and operator turnover. The Procedure stream is the canonical record of what was aligned, when, by whom, with what evidence.
+
+-   :material-database-search:{ .lg .middle } __Cross-procedure search__
+
+    ---
+
+    `GET /procedures?kind=rotation_axis_alignment` lists every alignment at 35-BM. Filter by `target_asset_id` for "all alignments touching the Aerotech rotary stage."
+
+-   :material-history:{ .lg .middle } __Audit trail__
+
+    ---
+
+    Every setpoint, action, and check is a row in `entries_operation_procedure_steps`, queryable independently of operator notes.
+
+-   :material-puzzle:{ .lg .middle } __Composition with the platform__
+
+    ---
+
+    A Procedure with `parent_run_id` set IS a Phase-of-Run, so a re-calibration mid-Run becomes part of the Run's auditable history without operator effort.
+
+</div>
+
 ## Failure modes worth modeling
 
 What the operator handles today that CORA should eventually handle structurally:
 
-- **Sphere drifts out of FOV at 0° or 10°** during initial setup → operator re-mounts. Currently a pre-condition violation, no first-class CORA representation.
-- **Hexapod controller power-cycle quirk**: after a reboot the Y dial sometimes lands at 350 instead of zero. A documented `.. warning::` in the 2-BM operator wiki, currently operator tribal knowledge. Could land as an `AssetCondition.Degraded` with a recovery sub-procedure.
-- **DMM optimization landing on M2Y = 26.046** instead of the calculated 26.196. Operator accepts and updates an effective crystal-spacing assumption. The Procedure's `last_status_reason` field has the right shape for capturing this kind of corrective audit, but no slice in 10c emits it on a successful Complete.
-- **Parasitic axis coupling**: moving Sample Y detunes Sample top X by a few µm. A "successful alignment" has a half-life. Currently no representation for "this Procedure's outcome is valid only until the next sample change" — could land as a Procedure → Asset.condition write coupling, the cross-BC saga trigger documented in `[[project_operation_design]]`.
+| Failure mode | What operator does today | Where it could land in CORA |
+| --- | --- | --- |
+| Sphere drifts out of FOV at 0° or 10° during initial setup | Re-mounts the sphere | Pre-condition violation, no first-class representation yet |
+| Hexapod power-cycle quirk: Y dial lands at 350 instead of 0 after reboot | Tribal knowledge — `.. warning::` block in the 2-BM operator wiki | `AssetCondition.Degraded` plus a recovery sub-procedure |
+| DMM optimization lands on M2Y = 26.046 instead of the calculated 26.196 | Accepts the value, updates the effective crystal-spacing assumption | `last_status_reason` field shape fits, but no 10c slice emits it on Complete |
+| Parasitic axis coupling: moving Sample Y detunes Sample top X by a few µm | Treats successful alignments as having a half-life, re-aligns when needed | Procedure → Asset.condition write coupling; the cross-BC saga in `[[project_operation_design]]` |
 
-## What CORA gives you that scripts alone don't
-
-- **One operator-readable record** that survives sessions, beamtimes, and operator turnover.
-- **Cross-procedure search**: "show me all rotation-axis alignments at 35-BM in the last week" via `GET /procedures?kind=rotation_axis_alignment` (or filter by `target_asset_id` for "all alignments touching the Aerotech rotary stage").
-- **The audit trail**: every setpoint, action, and check is a row in `entries_operation_procedure_steps`, queryable independently of the operator's running notes.
-- **Composition with the rest of the platform**: a Procedure with `parent_run_id` set IS a Phase-of-Run, so an alignment that runs mid-Run for re-calibration becomes part of the Run's auditable history without operator effort.
-
-## Gaps surfaced by this routine (for design follow-up, not 10d code)
+## Open questions
 
 The pilot test exists primarily to surface these. Each becomes a watch item or future phase task.
+
+| # | Question | Current encoding | Watch item |
+| --- | --- | --- | --- |
+| 1 | Iteration loop has no first-class shape | `iteration` key in Check evidence payload | `iteration_started`/`iteration_ended` envelope events? |
+| 2 | Two-namesake-motor problem | `role` key on Setpoint payload | Context-dependent AssetPort identity? |
+| 3 | External-tool delegation for Check evidence | `source` key on Check payload | Typed `evidence_uri` field linking out? |
+| 4 | No discrete success boolean in PVs | `Check.passed: bool` + source + evidence | Future Decision BC `DecisionReasoning` integration |
+| 5 | The `kind` field | Free-form bare-str (Supply.kind iter-1 convention) | `ProcedureKind StrEnum` promotion when pilot settles |
+| 6 | Hexapod-quirk pre-condition | `.. warning::` blocks in operator wikis (untracked) | 11a `Hazard` cross-BC VO, or recovery sub-procedures |
+
+Detail follows.
 
 ### 1. Iteration loop has no first-class shape
 
@@ -109,12 +171,17 @@ We used `kind="rotation_axis_alignment"` here. The other four sibling routines w
 
 Tribal-knowledge pre-conditions (the Y-dial-350 quirk, the parasitic axis coupling, the M2Y crystal-spacing override) currently live as `.. warning::` blocks in operator wikis. Where should they live in our model? Two candidates: (a) a `Hazard` cross-BC value object on the Procedure (the planned 11a phase); (b) Recovery sub-procedures invoked on detected quirks. 11a is the canonical home for hazard semantics; the hexapod quirk is a strong concrete instance for that phase's design memo.
 
-## Source / cross-references
+## Sources and cross-references
+
+**Operator sources** (the world this routine comes from):
 
 - `xray-imaging/adjust` CLI — the automation tool currently used at 2-BM for the same routine
 - 2-BM operator docs `pre_apsu/user/item_016.rst` — original "Sample → Alignment" page
 - 2-BM ops docs `ops/item_050.rst` — sample motor stack reference
 - `decarlof/tomoscan` — operator-facing scan API (no dedicated alignment entry-point; alignment is collect-scan + off-line reconstruction)
-- [`project_operation_design`](../../../memory/project_operation_design.md) — Operation BC design memo with the watch items this page elaborates
-- [`project_logbook_entry_storage`](../../../memory/project_logbook_entry_storage.md) — Path-C trichotomy that the Setpoint/Action/Check + JSON-payload shape implements
-- [pilot integration test](../../../apps/api/tests/integration/test_35bm_rotation_axis_alignment_pilot.py) — the executable spec for this page
+
+**CORA references** (the design context this page slots into):
+
+- [`project_operation_design`](../../../../memory/project_operation_design.md) — Operation BC design memo with the watch items this page elaborates
+- [`project_logbook_entry_storage`](../../../../memory/project_logbook_entry_storage.md) — Path-C trichotomy that the Setpoint/Action/Check + JSON-payload shape implements
+- [pilot integration test](../../../../apps/api/tests/integration/test_35bm_rotation_axis_alignment_pilot.py) — the executable spec for this page
