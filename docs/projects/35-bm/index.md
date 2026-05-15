@@ -62,4 +62,12 @@ Every transition emits events. The full stream re-derives the deliverables. The 
 
     [Read →](capabilities.md)
 
+-   :material-crosshairs:{ .lg .middle } __Rotation-axis alignment__
+
+    ---
+
+    The first concrete-domain Procedure. The `center` calibration routine in CORA terms.
+
+    [Read →](rotation_axis_alignment.md)
+
 </div>
