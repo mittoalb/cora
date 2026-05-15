@@ -28,6 +28,7 @@ Layout:
     tools.py                  -- register_safety_tools(mcp, get_handlers=...)
 """
 
+from cora.safety._projections import register_safety_projections
 from cora.safety.errors import UnauthorizedError
 from cora.safety.routes import register_safety_routes
 from cora.safety.tools import register_safety_tools
@@ -36,6 +37,7 @@ from cora.safety.wire import SafetyHandlers, wire_safety
 __all__ = [
     "SafetyHandlers",
     "UnauthorizedError",
+    "register_safety_projections",
     "register_safety_routes",
     "register_safety_tools",
     "wire_safety",

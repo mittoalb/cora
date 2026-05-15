@@ -5,22 +5,39 @@ Phase 11a-a ships:
   - `get_clearance`      (read; fold-on-read)
 
 Phase 11a-b adds the FSM-closure transitions:
-  - `submit_clearance`             (Defined -> Submitted)
-  - `begin_review_clearance`       (Submitted -> UnderReview)
-  - `record_review_step_clearance` (UnderReview; appends reviewers tuple)
-  - `approve_clearance`            (UnderReview -> Approved)
-  - `reject_clearance`             (UnderReview -> Rejected)
-  - `activate_clearance`           (Approved -> Active)
-  - `list_clearances`              (read; cursor-paginated over the projection)
+  - `submit_clearance`               (Defined -> Submitted)
+  - `begin_review_clearance`         (Submitted -> UnderReview)
+  - `record_review_step_clearance`   (UnderReview; appends reviewers tuple)
+  - `approve_clearance`              (UnderReview -> Approved)
+  - `reject_clearance`               (UnderReview -> Rejected)
+  - `activate_clearance`             (Approved -> Active)
+  - `list_clearances`                (read; cursor-paginated over the projection)
 
 Phase 11a-c adds:
-  - `expire_clearance`             (Active -> Expired)
-  - `amend_clearance`              (Active -> Superseded; atomic child registration)
+  - `expire_clearance`               (Active -> Expired)
+  - `amend_clearance`                (Active -> Superseded; atomic child registration)
 """
 
-from cora.safety.features import get_clearance, register_clearance
+from cora.safety.features import (
+    activate_clearance,
+    approve_clearance,
+    begin_review_clearance,
+    get_clearance,
+    list_clearances,
+    record_review_step_clearance,
+    register_clearance,
+    reject_clearance,
+    submit_clearance,
+)
 
 __all__ = [
+    "activate_clearance",
+    "approve_clearance",
+    "begin_review_clearance",
     "get_clearance",
+    "list_clearances",
+    "record_review_step_clearance",
     "register_clearance",
+    "reject_clearance",
+    "submit_clearance",
 ]

@@ -1,0 +1,161 @@
+"""MCP tool for the `list_clearances` query slice."""
+
+from collections.abc import Callable
+from datetime import datetime
+from typing import Annotated
+from uuid import UUID
+
+from mcp.server.fastmcp import FastMCP
+from pydantic import BaseModel, Field
+
+from cora.infrastructure.observability import current_correlation_id
+from cora.safety._bootstrap import SYSTEM_PRINCIPAL_ID
+from cora.safety.aggregates.clearance import ClearanceKind, ClearanceStatus
+from cora.safety.aggregates.clearance.state import (
+    CLEARANCE_EXTERNAL_ID_MAX_LENGTH,
+    CLEARANCE_TITLE_MAX_LENGTH,
+)
+from cora.safety.features.list_clearances.handler import Handler
+from cora.safety.features.list_clearances.query import (
+    ClearanceKindFilter,
+    ClearanceStatusFilter,
+    ListClearances,
+    RiskBandFilter,
+)
+from cora.safety.hazard_classification import RiskBand
+
+
+class BindingsByKindOutput(BaseModel):
+    """Per-kind binding-id arrays surfaced on the list MCP tool output.
+
+    Mirrors `cora.safety.features.list_clearances.route.BindingsByKind`
+    shape exactly (4 named fields, no `additionalProperties`).
+    ExternalBinding refs are NOT surfaced (anti-corruption refs, not
+    projected; see tool description).
+    """
+
+    subject: list[UUID] = Field(default_factory=list[UUID])
+    asset: list[UUID] = Field(default_factory=list[UUID])
+    run: list[UUID] = Field(default_factory=list[UUID])
+    procedure: list[UUID] = Field(default_factory=list[UUID])
+
+
+class ClearanceSummaryItemOutput(BaseModel):
+    clearance_id: UUID
+    kind: ClearanceKind
+    facility_asset_id: UUID
+    title: str = Field(..., max_length=CLEARANCE_TITLE_MAX_LENGTH)
+    external_id: str | None = Field(default=None, max_length=CLEARANCE_EXTERNAL_ID_MAX_LENGTH)
+    status: ClearanceStatus
+    risk_band: RiskBand | None = None
+    bindings: BindingsByKindOutput
+    parent_clearance_id: UUID | None = None
+    registered_at: datetime
+    last_status_changed_at: datetime | None = None
+    last_status_reason: str | None = None
+    last_reviewed_by_actor_id: UUID | None = None
+    valid_from: datetime | None = None
+    valid_until: datetime | None = None
+    next_review_due_at: datetime | None = None
+
+
+class ListClearancesOutput(BaseModel):
+    """Structured output of the `list_clearances` MCP tool."""
+
+    items: list[ClearanceSummaryItemOutput]
+    next_cursor: str | None = None
+
+
+def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
+    """Register the `list_clearances` tool on the given MCP server."""
+
+    @mcp.tool(
+        name="list_clearances",
+        description=(
+            "List clearances with cursor pagination + 8 optional filters. "
+            "Filters: kind / status / risk_band / facility_asset_id + 4 "
+            "binding-id filters (binds_to_subject_id / binds_to_asset_id / "
+            "binds_to_run_id / binds_to_procedure_id). Returns sorted by "
+            "registered_at ASC. ExternalBinding refs (e.g., proposal / btr / "
+            "lab_visit / session) are NOT filterable here; the reviewers "
+            "chain is NOT in the response. Fetch get_clearance for both."
+        ),
+    )
+    async def list_clearances_tool(  # pyright: ignore[reportUnusedFunction]
+        cursor: Annotated[
+            str | None, Field(default=None, description="Opaque pagination cursor.")
+        ] = None,
+        limit: Annotated[
+            int, Field(default=50, ge=1, le=100, description="Page size (1-100).")
+        ] = 50,
+        kind: Annotated[
+            ClearanceKindFilter | None, Field(default=None, description="Form-type filter.")
+        ] = None,
+        status: Annotated[
+            ClearanceStatusFilter | None, Field(default=None, description="Status filter.")
+        ] = None,
+        risk_band: Annotated[
+            RiskBandFilter | None, Field(default=None, description="Risk-band filter.")
+        ] = None,
+        facility_asset_id: Annotated[
+            UUID | None, Field(default=None, description="Facility (Site Asset) filter.")
+        ] = None,
+        binds_to_subject_id: Annotated[
+            UUID | None, Field(default=None, description="Subject-binding filter.")
+        ] = None,
+        binds_to_asset_id: Annotated[
+            UUID | None, Field(default=None, description="Asset-binding filter.")
+        ] = None,
+        binds_to_run_id: Annotated[
+            UUID | None, Field(default=None, description="Run-binding filter.")
+        ] = None,
+        binds_to_procedure_id: Annotated[
+            UUID | None, Field(default=None, description="Procedure-binding filter.")
+        ] = None,
+    ) -> ListClearancesOutput:
+        handler = get_handler()
+        page = await handler(
+            ListClearances(
+                cursor=cursor,
+                limit=limit,
+                kind=kind,
+                status=status,
+                risk_band=risk_band,
+                facility_asset_id=facility_asset_id,
+                binds_to_subject_id=binds_to_subject_id,
+                binds_to_asset_id=binds_to_asset_id,
+                binds_to_run_id=binds_to_run_id,
+                binds_to_procedure_id=binds_to_procedure_id,
+            ),
+            principal_id=SYSTEM_PRINCIPAL_ID,
+            correlation_id=current_correlation_id(),
+        )
+        return ListClearancesOutput(
+            items=[
+                ClearanceSummaryItemOutput(
+                    clearance_id=item.clearance_id,
+                    kind=ClearanceKind(item.kind),
+                    facility_asset_id=item.facility_asset_id,
+                    title=item.title,
+                    external_id=item.external_id,
+                    status=ClearanceStatus(item.status),
+                    risk_band=RiskBand(item.risk_band) if item.risk_band is not None else None,
+                    bindings=BindingsByKindOutput(
+                        subject=item.subject_binding_ids,
+                        asset=item.asset_binding_ids,
+                        run=item.run_binding_ids,
+                        procedure=item.procedure_binding_ids,
+                    ),
+                    parent_clearance_id=item.parent_clearance_id,
+                    registered_at=item.registered_at,
+                    last_status_changed_at=item.last_status_changed_at,
+                    last_status_reason=item.last_status_reason,
+                    last_reviewed_by_actor_id=item.last_reviewed_by_actor_id,
+                    valid_from=item.valid_from,
+                    valid_until=item.valid_until,
+                    next_review_due_at=item.next_review_due_at,
+                )
+                for item in page.items
+            ],
+            next_cursor=page.next_cursor,
+        )

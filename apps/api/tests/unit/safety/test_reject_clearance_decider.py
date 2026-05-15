@@ -1,0 +1,124 @@
+"""Pure-decider tests for `reject_clearance` slice."""
+
+from datetime import UTC, datetime
+from uuid import uuid4
+
+import pytest
+
+from cora.safety.aggregates.clearance import (
+    Clearance,
+    ClearanceCannotRejectError,
+    ClearanceKind,
+    ClearanceNotFoundError,
+    ClearanceRejected,
+    ClearanceStatus,
+    ClearanceTitle,
+    InvalidClearanceRejectReasonError,
+    RunBinding,
+)
+from cora.safety.aggregates.clearance.state import (
+    CLEARANCE_REJECT_REASON_MAX_LENGTH,
+)
+from cora.safety.features import reject_clearance
+from cora.safety.features.reject_clearance import RejectClearance
+
+_NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
+
+
+def _clearance(status: ClearanceStatus = ClearanceStatus.UNDER_REVIEW) -> Clearance:
+    return Clearance(
+        id=uuid4(),
+        kind=ClearanceKind.ESAF,
+        facility_asset_id=uuid4(),
+        title=ClearanceTitle("Pilot"),
+        bindings=frozenset({RunBinding(run_id=uuid4())}),
+        status=status,
+    )
+
+
+@pytest.mark.unit
+def test_decide_emits_rejected_from_under_review() -> None:
+    state = _clearance(ClearanceStatus.UNDER_REVIEW)
+    actor = uuid4()
+    events = reject_clearance.decide(
+        state=state,
+        command=RejectClearance(
+            clearance_id=state.id,
+            rejecting_actor_id=actor,
+            reason="ESRB found insufficient PPE specification",
+        ),
+        now=_NOW,
+    )
+    assert events == [
+        ClearanceRejected(
+            clearance_id=state.id,
+            rejecting_actor_id=actor,
+            reason="ESRB found insufficient PPE specification",
+            occurred_at=_NOW,
+        )
+    ]
+
+
+@pytest.mark.unit
+def test_decide_trims_reason() -> None:
+    state = _clearance()
+    events = reject_clearance.decide(
+        state=state,
+        command=RejectClearance(
+            clearance_id=state.id,
+            rejecting_actor_id=uuid4(),
+            reason="  bad  ",
+        ),
+        now=_NOW,
+    )
+    assert events[0].reason == "bad"
+
+
+@pytest.mark.unit
+def test_decide_rejects_empty_reason() -> None:
+    state = _clearance()
+    with pytest.raises(InvalidClearanceRejectReasonError):
+        reject_clearance.decide(
+            state=state,
+            command=RejectClearance(
+                clearance_id=state.id, rejecting_actor_id=uuid4(), reason="   "
+            ),
+            now=_NOW,
+        )
+
+
+@pytest.mark.unit
+def test_decide_rejects_too_long_reason() -> None:
+    state = _clearance()
+    with pytest.raises(InvalidClearanceRejectReasonError):
+        reject_clearance.decide(
+            state=state,
+            command=RejectClearance(
+                clearance_id=state.id,
+                rejecting_actor_id=uuid4(),
+                reason="x" * (CLEARANCE_REJECT_REASON_MAX_LENGTH + 1),
+            ),
+            now=_NOW,
+        )
+
+
+@pytest.mark.unit
+def test_decide_rejects_when_state_none() -> None:
+    cid = uuid4()
+    with pytest.raises(ClearanceNotFoundError):
+        reject_clearance.decide(
+            state=None,
+            command=RejectClearance(clearance_id=cid, rejecting_actor_id=uuid4(), reason="x"),
+            now=_NOW,
+        )
+
+
+@pytest.mark.unit
+def test_decide_rejects_when_status_not_under_review() -> None:
+    state = _clearance(ClearanceStatus.DEFINED)
+    with pytest.raises(ClearanceCannotRejectError):
+        reject_clearance.decide(
+            state=state,
+            command=RejectClearance(clearance_id=state.id, rejecting_actor_id=uuid4(), reason="x"),
+            now=_NOW,
+        )

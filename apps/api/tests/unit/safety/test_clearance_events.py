@@ -306,6 +306,7 @@ def test_clearance_registered_round_trip_handles_optional_datetimes() -> None:
         occurred_at=_NOW,
     )
     rebuilt = from_stored(_stored("ClearanceRegistered", to_payload(original)))
+    assert isinstance(rebuilt, ClearanceRegistered)
     assert rebuilt.parent_clearance_id == parent
     assert rebuilt.valid_from is None
     assert rebuilt.valid_until is None

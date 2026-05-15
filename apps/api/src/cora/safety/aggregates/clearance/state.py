@@ -288,6 +288,57 @@ class InvalidClearanceDeclarationTargetError(ValueError):
         self.target = target
 
 
+class InvalidClearanceReviewerRoleError(ValueError):
+    """A reviewer role string is empty, whitespace-only, or too long."""
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Reviewer role must be 1-{CLEARANCE_REVIEWER_ROLE_MAX_LENGTH} chars "
+            f"after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+class InvalidClearanceReviewerNotesError(ValueError):
+    """A reviewer notes string exceeds the length cap."""
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Reviewer notes must be 0-{CLEARANCE_REVIEWER_NOTES_MAX_LENGTH} chars "
+            f"after trimming (got len: {len(value)})"
+        )
+        self.value = value
+
+
+class InvalidClearanceReviewStepIndexError(ValueError):
+    """The supplied step_index does not equal `len(state.reviewers)`.
+
+    Append-only contract: the next step must be at index = current count.
+    Out-of-order writes are rejected.
+    """
+
+    def __init__(self, expected: int, got: int) -> None:
+        super().__init__(
+            f"Reviewer step_index must equal len(reviewers); expected {expected}, got {got}"
+        )
+        self.expected = expected
+        self.got = got
+
+
+class InvalidClearanceRejectReasonError(ValueError):
+    """The supplied reject reason is empty, whitespace-only, or too long.
+
+    Mirrors RunAbortReason / SupplyReason precedent (1-500 chars after trim).
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Reject reason must be 1-{CLEARANCE_REJECT_REASON_MAX_LENGTH} chars "
+            f"after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
 class ClearanceAlreadyExistsError(Exception):
     """Attempted to register a clearance whose stream already has events."""
 
@@ -302,6 +353,100 @@ class ClearanceNotFoundError(Exception):
     def __init__(self, clearance_id: UUID) -> None:
         super().__init__(f"Clearance {clearance_id} not found")
         self.clearance_id = clearance_id
+
+
+class ClearanceCannotSubmitError(Exception):
+    """Attempted `submit_clearance` from a disqualifying status."""
+
+    def __init__(self, clearance_id: UUID, current_status: "ClearanceStatus") -> None:
+        super().__init__(
+            f"Clearance {clearance_id} cannot be submitted: currently in status "
+            f"{current_status.value}, submit_clearance requires {ClearanceStatus.DEFINED.value}"
+        )
+        self.clearance_id = clearance_id
+        self.current_status = current_status
+
+
+class ClearanceCannotBeginReviewError(Exception):
+    """Attempted `begin_review_clearance` from a disqualifying status."""
+
+    def __init__(self, clearance_id: UUID, current_status: "ClearanceStatus") -> None:
+        super().__init__(
+            f"Clearance {clearance_id} cannot begin review: currently in status "
+            f"{current_status.value}, begin_review_clearance requires "
+            f"{ClearanceStatus.SUBMITTED.value}"
+        )
+        self.clearance_id = clearance_id
+        self.current_status = current_status
+
+
+class ClearanceCannotRecordReviewStepError(Exception):
+    """Attempted `record_review_step_clearance` from a disqualifying status."""
+
+    def __init__(self, clearance_id: UUID, current_status: "ClearanceStatus") -> None:
+        super().__init__(
+            f"Clearance {clearance_id} cannot record review step: currently in status "
+            f"{current_status.value}, record_review_step_clearance requires "
+            f"{ClearanceStatus.UNDER_REVIEW.value}"
+        )
+        self.clearance_id = clearance_id
+        self.current_status = current_status
+
+
+class ClearanceCannotApproveError(Exception):
+    """Attempted `approve_clearance` from a disqualifying status OR with an
+    insufficient reviewer chain.
+
+    Two failure modes share this error class:
+      - current status is not UnderReview
+      - no reviewer step in the chain has decision == 'Approved'
+    """
+
+    def __init__(
+        self,
+        clearance_id: UUID,
+        *,
+        current_status: "ClearanceStatus | None" = None,
+        reason: str | None = None,
+    ) -> None:
+        if reason is not None:
+            super().__init__(f"Clearance {clearance_id} cannot be approved: {reason}")
+        else:
+            assert current_status is not None
+            super().__init__(
+                f"Clearance {clearance_id} cannot be approved: currently in status "
+                f"{current_status.value}, approve_clearance requires "
+                f"{ClearanceStatus.UNDER_REVIEW.value}"
+            )
+        self.clearance_id = clearance_id
+        self.current_status = current_status
+        self.reason = reason
+
+
+class ClearanceCannotRejectError(Exception):
+    """Attempted `reject_clearance` from a disqualifying status."""
+
+    def __init__(self, clearance_id: UUID, current_status: "ClearanceStatus") -> None:
+        super().__init__(
+            f"Clearance {clearance_id} cannot be rejected: currently in status "
+            f"{current_status.value}, reject_clearance requires "
+            f"{ClearanceStatus.UNDER_REVIEW.value}"
+        )
+        self.clearance_id = clearance_id
+        self.current_status = current_status
+
+
+class ClearanceCannotActivateError(Exception):
+    """Attempted `activate_clearance` from a disqualifying status."""
+
+    def __init__(self, clearance_id: UUID, current_status: "ClearanceStatus") -> None:
+        super().__init__(
+            f"Clearance {clearance_id} cannot be activated: currently in status "
+            f"{current_status.value}, activate_clearance requires "
+            f"{ClearanceStatus.APPROVED.value}"
+        )
+        self.clearance_id = clearance_id
+        self.current_status = current_status
 
 
 # ---------------------------------------------------------------------------

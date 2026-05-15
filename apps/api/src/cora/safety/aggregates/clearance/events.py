@@ -83,9 +83,104 @@ class ClearanceRegistered:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class ClearanceSubmitted:
+    """The clearance was submitted for review (`Defined -> Submitted`)."""
+
+    clearance_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class ClearanceUnderReview:
+    """The first reviewer picked up the clearance (`Submitted -> UnderReview`).
+
+    `first_reviewer_role` is the facility-vocabulary label for the first
+    step in the review chain (e.g., `BeamlineScientist`, `LocalContact`).
+    Captured for audit clarity; subsequent steps land via
+    `ClearanceReviewStepRecorded`.
+    """
+
+    clearance_id: UUID
+    first_reviewer_role: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class ClearanceReviewStepRecorded:
+    """One reviewer step appended to the chain (no status change).
+
+    Status stays `UnderReview` until terminal step decides Approved or
+    Rejected via the dedicated `approve_clearance` / `reject_clearance`
+    slices. The reviewers tuple grows by one ReviewerStep per event.
+    """
+
+    clearance_id: UUID
+    step_index: int
+    role: str
+    actor_id: UUID
+    decision: str
+    decided_at: datetime
+    notes: str | None
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class ClearanceApproved:
+    """All required reviewers approved (`UnderReview -> Approved`).
+
+    Optional `valid_from` / `valid_until` overrides defaults set at
+    register time; carried in payload for audit clarity.
+    """
+
+    clearance_id: UUID
+    approving_actor_id: UUID
+    valid_from: datetime | None
+    valid_until: datetime | None
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class ClearanceRejected:
+    """The clearance was rejected during review (`UnderReview -> Rejected`).
+
+    `reason` is operator-supplied free-form prose, 1-500 chars after trim
+    (mirrors RunAbortReason / SupplyReason / etc. precedent).
+    """
+
+    clearance_id: UUID
+    rejecting_actor_id: UUID
+    reason: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class ClearanceActivated:
+    """The clearance became effective (`Approved -> Active`).
+
+    Separate event from Approved to model APS ESAF "approved but not yet
+    effective" + DESY DOOR "approved but awaiting beamtime start". The
+    transition is the operator's gesture asserting the clearance is
+    in-force; gating logic checks `status == Active`.
+    """
+
+    clearance_id: UUID
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Clearance aggregate emits.
-# Phase 11a-a: just ClearanceRegistered. Phase 11a-b/c add the 9 FSM events.
-ClearanceEvent = ClearanceRegistered
+# Phase 11a-a: ClearanceRegistered (genesis).
+# Phase 11a-b: 6 FSM-closure events (Submit/UnderReview/RecordReviewStep/Approve/Reject/Activate).
+# Phase 11a-c will add: Expired / AmendmentInitiated / Superseded.
+ClearanceEvent = (
+    ClearanceRegistered
+    | ClearanceSubmitted
+    | ClearanceUnderReview
+    | ClearanceReviewStepRecorded
+    | ClearanceApproved
+    | ClearanceRejected
+    | ClearanceActivated
+)
 
 
 def event_type_name(event: ClearanceEvent) -> str:
@@ -300,6 +395,70 @@ def to_payload(event: ClearanceEvent) -> dict[str, Any]:
                 ),
                 "occurred_at": occurred_at.isoformat(),
             }
+        case ClearanceSubmitted(clearance_id=cid, occurred_at=occurred_at):
+            return {
+                "clearance_id": str(cid),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case ClearanceUnderReview(
+            clearance_id=cid, first_reviewer_role=role, occurred_at=occurred_at
+        ):
+            return {
+                "clearance_id": str(cid),
+                "first_reviewer_role": role,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case ClearanceReviewStepRecorded(
+            clearance_id=cid,
+            step_index=step_index,
+            role=role,
+            actor_id=actor_id,
+            decision=decision,
+            decided_at=decided_at,
+            notes=notes,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "clearance_id": str(cid),
+                "step_index": step_index,
+                "role": role,
+                "actor_id": str(actor_id),
+                "decision": decision,
+                "decided_at": decided_at.isoformat(),
+                "notes": notes,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case ClearanceApproved(
+            clearance_id=cid,
+            approving_actor_id=actor_id,
+            valid_from=valid_from,
+            valid_until=valid_until,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "clearance_id": str(cid),
+                "approving_actor_id": str(actor_id),
+                "valid_from": valid_from.isoformat() if valid_from is not None else None,
+                "valid_until": valid_until.isoformat() if valid_until is not None else None,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case ClearanceRejected(
+            clearance_id=cid,
+            rejecting_actor_id=actor_id,
+            reason=reason,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "clearance_id": str(cid),
+                "rejecting_actor_id": str(actor_id),
+                "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case ClearanceActivated(clearance_id=cid, occurred_at=occurred_at):
+            return {
+                "clearance_id": str(cid),
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -335,14 +494,68 @@ def from_stored(stored: StoredEvent) -> ClearanceEvent:
                 parent_clearance_id=(UUID(raw_parent) if raw_parent is not None else None),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "ClearanceSubmitted":
+            return ClearanceSubmitted(
+                clearance_id=UUID(payload["clearance_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "ClearanceUnderReview":
+            return ClearanceUnderReview(
+                clearance_id=UUID(payload["clearance_id"]),
+                first_reviewer_role=payload["first_reviewer_role"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "ClearanceReviewStepRecorded":
+            return ClearanceReviewStepRecorded(
+                clearance_id=UUID(payload["clearance_id"]),
+                step_index=payload["step_index"],
+                role=payload["role"],
+                actor_id=UUID(payload["actor_id"]),
+                decision=payload["decision"],
+                decided_at=datetime.fromisoformat(payload["decided_at"]),
+                notes=payload.get("notes"),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "ClearanceApproved":
+            raw_valid_from = payload.get("valid_from")
+            raw_valid_until = payload.get("valid_until")
+            return ClearanceApproved(
+                clearance_id=UUID(payload["clearance_id"]),
+                approving_actor_id=UUID(payload["approving_actor_id"]),
+                valid_from=(
+                    datetime.fromisoformat(raw_valid_from) if raw_valid_from is not None else None
+                ),
+                valid_until=(
+                    datetime.fromisoformat(raw_valid_until) if raw_valid_until is not None else None
+                ),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "ClearanceRejected":
+            return ClearanceRejected(
+                clearance_id=UUID(payload["clearance_id"]),
+                rejecting_actor_id=UUID(payload["rejecting_actor_id"]),
+                reason=payload["reason"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "ClearanceActivated":
+            return ClearanceActivated(
+                clearance_id=UUID(payload["clearance_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown ClearanceEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
 
 
 __all__ = [
+    "ClearanceActivated",
+    "ClearanceApproved",
     "ClearanceEvent",
     "ClearanceRegistered",
+    "ClearanceRejected",
+    "ClearanceReviewStepRecorded",
+    "ClearanceSubmitted",
+    "ClearanceUnderReview",
     "deserialize_binding",
     "deserialize_classification",
     "deserialize_declaration",

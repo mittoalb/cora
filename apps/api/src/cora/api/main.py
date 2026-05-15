@@ -98,6 +98,7 @@ from cora.run import (
 )
 from cora.safety import (
     SafetyHandlers,
+    register_safety_projections,
     register_safety_routes,
     register_safety_tools,
     wire_safety,
@@ -281,6 +282,7 @@ def create_app() -> FastAPI:
             register_decision_projections(registry, deps)
             register_supply_projections(registry, deps)
             register_operation_projections(registry, deps)
+            register_safety_projections(registry, deps)
             app.state.projections = registry
 
             try:

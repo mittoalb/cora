@@ -1,0 +1,52 @@
+"""The `ListClearances` query -- intent dataclass for this read slice.
+
+Mirrors `ListProcedures`: cursor pagination + optional kind / status /
+risk_band / facility_asset_id / binds_to_*_id filters. Each filter is
+optional; passing None means "don't filter on this dimension".
+
+`limit` defaults to 50 (capped at 100 in the route layer per the
+8e-1c convention). `cursor` is opaque base64-encoded
+`(registered_at, clearance_id)`.
+
+The 4 binds_to_* filters use UUID[] GIN indexes on the projection;
+each is matched against its corresponding binding-id array column
+(SubjectBinding -> subject_binding_ids, AssetBinding -> asset_binding_ids,
+RunBinding -> run_binding_ids, ProcedureBinding -> procedure_binding_ids).
+ExternalBinding refs are not filterable today; defer until consumer
+demands.
+"""
+
+from dataclasses import dataclass
+from typing import Literal
+from uuid import UUID
+
+ClearanceStatusFilter = Literal[
+    "Defined",
+    "Submitted",
+    "UnderReview",
+    "Approved",
+    "Active",
+    "Expired",
+    "Rejected",
+    "Superseded",
+]
+ClearanceKindFilter = Literal[
+    "ESAF", "SAF", "AForm", "DUO", "ESRA", "ERA", "PLHD", "DOOR", "BTR", "Form9"
+]
+RiskBandFilter = Literal["Green", "Yellow", "Red"]
+
+
+@dataclass(frozen=True)
+class ListClearances:
+    """List clearances with cursor pagination + multi-filter support."""
+
+    cursor: str | None = None
+    limit: int = 50
+    kind: ClearanceKindFilter | None = None
+    status: ClearanceStatusFilter | None = None
+    risk_band: RiskBandFilter | None = None
+    facility_asset_id: UUID | None = None
+    binds_to_subject_id: UUID | None = None
+    binds_to_asset_id: UUID | None = None
+    binds_to_run_id: UUID | None = None
+    binds_to_procedure_id: UUID | None = None
