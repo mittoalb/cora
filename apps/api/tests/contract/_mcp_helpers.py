@@ -47,7 +47,7 @@ def open_session(client: TestClient) -> dict[str, str]:
             "id": 1,
             "method": "initialize",
             "params": {
-                "protocolVersion": "2025-06-18",
+                "protocolVersion": "2025-11-25",
                 "capabilities": {},
                 "clientInfo": {"name": "contract-test", "version": "0.1"},
             },

@@ -32,7 +32,7 @@ def test_mcp_initialize_returns_server_info() -> None:
                 "id": 1,
                 "method": "initialize",
                 "params": {
-                    "protocolVersion": "2025-06-18",
+                    "protocolVersion": "2025-11-25",
                     "capabilities": {},
                     "clientInfo": {"name": "contract-test", "version": "0.1"},
                 },
