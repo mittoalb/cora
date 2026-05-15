@@ -1,0 +1,134 @@
+"""Unit tests for SupplySummaryProjection.
+
+Pins per-event-type apply() dispatch + idempotency for the 2
+subscribed Supply events. Postgres-side behavior is in the
+integration suite.
+"""
+
+from datetime import UTC, datetime
+from typing import Any
+from unittest.mock import AsyncMock
+from uuid import uuid4
+
+import pytest
+
+from cora.infrastructure.ports.event_store import StoredEvent
+from cora.supply.projections import SupplySummaryProjection
+
+_SUPPLY_ID = uuid4()
+_EVENT_ID = uuid4()
+_CORRELATION_ID = uuid4()
+_NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
+
+
+def _stored(event_type: str, payload: dict[str, Any]) -> StoredEvent:
+    return StoredEvent(
+        position=1,
+        event_id=_EVENT_ID,
+        stream_type="Supply",
+        stream_id=_SUPPLY_ID,
+        version=1,
+        event_type=event_type,
+        schema_version=1,
+        payload=payload,
+        correlation_id=_CORRELATION_ID,
+        causation_id=None,
+        occurred_at=_NOW,
+        recorded_at=_NOW,
+    )
+
+
+@pytest.mark.unit
+def test_projection_metadata() -> None:
+    proj = SupplySummaryProjection()
+    assert proj.name == "proj_supply_summary"
+    assert proj.subscribed_event_types == frozenset(
+        {
+            "SupplyRegistered",
+            "SupplyMarkedAvailable",
+        }
+    )
+
+
+@pytest.mark.unit
+def test_projection_does_not_subscribe_to_unrelated_events() -> None:
+    """Asset / Capability / Run events belong to other projections."""
+    proj = SupplySummaryProjection()
+    for foreign in (
+        "AssetRegistered",
+        "CapabilityDefined",
+        "RunStarted",
+        "SupplyDegraded",  # 10a-b subscribes to this
+    ):
+        assert foreign not in proj.subscribed_event_types
+
+
+@pytest.mark.unit
+async def test_supply_registered_inserts_with_unknown_status_and_null_audit() -> None:
+    proj = SupplySummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "SupplyRegistered",
+        {
+            "supply_id": str(_SUPPLY_ID),
+            "scope": "Beamline",
+            "kind": "LiquidNitrogen",
+            "name": "35-BM LN2",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    conn.execute.assert_awaited_once()
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "INSERT INTO proj_supply_summary" in sql
+    assert "ON CONFLICT (supply_id) DO NOTHING" in sql
+    assert "'Unknown'" in sql  # status literal
+    # Bound parameters: supply_id, scope, kind, name, registered_at
+    assert args.args[1] == _SUPPLY_ID
+    assert args.args[2] == "Beamline"
+    assert args.args[3] == "LiquidNitrogen"
+    assert args.args[4] == "35-BM LN2"
+    assert args.args[5] == _NOW
+
+
+@pytest.mark.unit
+async def test_supply_marked_available_updates_status_and_audit_triple() -> None:
+    proj = SupplySummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "SupplyMarkedAvailable",
+        {
+            "supply_id": str(_SUPPLY_ID),
+            "from_status": "Unknown",
+            "reason": "operator walkdown",
+            "trigger": "Operator",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    conn.execute.assert_awaited_once()
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "UPDATE proj_supply_summary" in sql
+    assert "status = 'Available'" in sql
+    assert args.args[1] == _SUPPLY_ID
+    assert args.args[2] == _NOW  # last_status_changed_at
+    assert args.args[3] == "operator walkdown"  # last_status_reason
+    assert args.args[4] == "Operator"  # last_trigger
+
+
+@pytest.mark.unit
+async def test_projection_ignores_unsubscribed_event_type() -> None:
+    """Foreign event types passed to apply() are no-ops (the worker should never
+    deliver them, but defensive guard ensures we don't crash on contamination)."""
+    proj = SupplySummaryProjection()
+    conn = AsyncMock()
+    await proj.apply(_stored("ImaginaryEvent", {}), conn)
+    conn.execute.assert_not_awaited()
