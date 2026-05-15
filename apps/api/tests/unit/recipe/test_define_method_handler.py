@@ -59,6 +59,9 @@ async def test_handler_appends_method_defined_event_to_store() -> None:
         "method_id": str(_NEW_ID),
         "name": "XRF Fly Mapping",
         "needs_capabilities": sorted([str(_CAP1), str(_CAP2)]),
+        # Phase 10b additive: empty list when MethodDefined has no
+        # needs_supplies. Pinned by test_method_needs_supplies.py.
+        "needs_supplies": [],
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.correlation_id == _CORRELATION_ID

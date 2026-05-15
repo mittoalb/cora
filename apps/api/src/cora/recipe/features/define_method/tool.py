@@ -15,7 +15,10 @@ from pydantic import BaseModel, Field
 
 from cora.infrastructure.observability import current_correlation_id
 from cora.recipe._bootstrap import SYSTEM_PRINCIPAL_ID
-from cora.recipe.aggregates.method import METHOD_NAME_MAX_LENGTH
+from cora.recipe.aggregates.method import (
+    METHOD_NAME_MAX_LENGTH,
+    METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
+)
 from cora.recipe.features.define_method.command import DefineMethod
 from cora.recipe.features.define_method.handler import IdempotentHandler
 
@@ -34,7 +37,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         description=(
             "Define a new abstract technique-class recipe (Method). "
             "needs_capabilities is a list of Capability ids the Method "
-            "requires; may be empty for purely procedural Methods."
+            "requires; may be empty for purely procedural Methods. "
+            "needs_supplies (Phase 10b) is a list of Supply.kind STRINGS "
+            "(for example 'PhotonBeam', 'LiquidNitrogen'); may be empty."
         ),
     )
     async def define_method_tool(  # pyright: ignore[reportUnusedFunction]
@@ -56,12 +61,32 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ],
+        needs_supplies: Annotated[
+            list[
+                Annotated[
+                    str,
+                    Field(
+                        min_length=1,
+                        max_length=METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
+                    ),
+                ]
+            ],
+            Field(
+                description=(
+                    "Supply.kind strings this Method requires (NOT Supply "
+                    "instance UUIDs). May be empty. Eventual-consistency: "
+                    "kinds are NOT verified against the Supply stream."
+                ),
+            ),
+        ]
+        | None = None,
     ) -> DefineMethodOutput:
         handler = get_handler()
         method_id = await handler(
             DefineMethod(
                 name=name,
                 needs_capabilities=frozenset(needs_capabilities),
+                needs_supplies=frozenset(needs_supplies or []),
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),

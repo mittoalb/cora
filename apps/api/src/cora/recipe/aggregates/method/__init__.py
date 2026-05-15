@@ -23,8 +23,10 @@ from cora.recipe.aggregates.method.parameters_validation import (
 from cora.recipe.aggregates.method.read import load_method
 from cora.recipe.aggregates.method.state import (
     METHOD_NAME_MAX_LENGTH,
+    METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
     METHOD_VERSION_TAG_MAX_LENGTH,
     InvalidMethodNameError,
+    InvalidMethodNeedsSuppliesError,
     InvalidMethodVersionTagError,
     Method,
     MethodAlreadyExistsError,
@@ -37,8 +39,10 @@ from cora.recipe.aggregates.method.state import (
 
 __all__ = [
     "METHOD_NAME_MAX_LENGTH",
+    "METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH",
     "METHOD_VERSION_TAG_MAX_LENGTH",
     "InvalidMethodNameError",
+    "InvalidMethodNeedsSuppliesError",
     "InvalidMethodParametersSchemaError",
     "InvalidMethodVersionTagError",
     "Method",

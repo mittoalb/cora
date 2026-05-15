@@ -73,6 +73,10 @@ def test_to_payload_serializes_method_defined_to_primitives() -> None:
         "method_id": str(method_id),
         "name": "XRF Fly Mapping",
         "needs_capabilities": [str(cap1)],
+        # Phase 10b additive: empty list when MethodDefined has no
+        # needs_supplies (default factory). Sorted lexically when
+        # populated; pinned by tests/unit/recipe/test_method_needs_supplies.py.
+        "needs_supplies": [],
         "occurred_at": _NOW.isoformat(),
     }
 

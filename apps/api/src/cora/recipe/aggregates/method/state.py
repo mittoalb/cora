@@ -76,6 +76,13 @@ from cora.infrastructure.bounded_text import validate_bounded_text
 
 METHOD_NAME_MAX_LENGTH = 200
 METHOD_VERSION_TAG_MAX_LENGTH = 50
+# Phase 10b: needs_supplies element bounds. Mirrors Supply.kind shape
+# (cora.supply.aggregates.supply.state.SUPPLY_KIND_MAX_LENGTH = 50)
+# so per-element validation in the Method decider stays consistent
+# with what Supply itself accepts at register_supply time. See
+# [[project_supply_design]] §"Phase 10b — Method.needs_supplies consumer"
+# for the design lock.
+METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH = 50
 
 
 class MethodStatus(StrEnum):
@@ -175,6 +182,34 @@ class MethodCannotDeprecateError(Exception):
         self.current_status = current_status
 
 
+class InvalidMethodNeedsSuppliesError(ValueError):
+    """One of the supplied needs_supplies kind strings is empty,
+    whitespace-only, or too long.
+
+    Phase 10b. Validated at the API boundary via Pydantic per-element
+    `min_length=1, max_length=50`, AND defensively at the decider via
+    this error so direct in-process callers (sagas, tests) get the
+    same protection. The diagnostic carries the offending element.
+
+    Per-element bound mirrors `InvalidSupplyKindError` from the Supply
+    BC (the kind is the abstract label; Method's needs_supplies
+    references kind values that Supply registrations carry). See
+    [[project_supply_design]] §"Phase 10b — Method.needs_supplies
+    consumer" for the design lock + asymmetry rationale (frozenset[str]
+    on Method vs frozenset[UUID] for needs_capabilities: Supply is
+    INSTANCE-aggregate per facility, sharing a `kind` label;
+    Capability is TYPE-aggregate, one global definition referenced
+    by UUID).
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Method needs_supplies kind must be 1-{METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH} "
+            f"chars after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
 class InvalidMethodVersionTagError(ValueError):
     """The supplied version tag is empty, whitespace-only, or too long.
 
@@ -252,3 +287,15 @@ class Method:
     status: MethodStatus = MethodStatus.DEFINED
     version: str | None = None
     parameters_schema: dict[str, Any] | None = field(default=None)
+    # Phase 10b: needs_supplies references Supply.kind STRINGS (not
+    # UUIDs). Asymmetric with needs_capabilities (frozenset[UUID]) by
+    # design: Capability is a TYPE registry (one global definition,
+    # referenced by UUID); Supply is an INSTANCE aggregate (multiple
+    # per facility, each with its own availability state, sharing a
+    # `kind` label). Methods are facility-portable so they reference
+    # the abstract kind, not a per-facility instance UUID. Defaults
+    # to empty frozenset (additive-state pattern; pre-10b
+    # MethodDefined-only streams fold cleanly via payload.get default).
+    # See [[project_supply_design]] §"Phase 10b — Method.needs_supplies
+    # consumer" for the full design lock.
+    needs_supplies: frozenset[str] = field(default_factory=frozenset[str])

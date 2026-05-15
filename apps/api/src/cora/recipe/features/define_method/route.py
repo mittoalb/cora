@@ -18,7 +18,10 @@ from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
 from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
-from cora.recipe.aggregates.method import METHOD_NAME_MAX_LENGTH
+from cora.recipe.aggregates.method import (
+    METHOD_NAME_MAX_LENGTH,
+    METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
+)
 from cora.recipe.features.define_method.command import DefineMethod
 from cora.recipe.features.define_method.handler import IdempotentHandler
 
@@ -30,6 +33,16 @@ class DefineMethodRequest(BaseModel):
     Methods that need no specific equipment capability). Eventual-
     consistency: each Capability id is NOT verified against the
     Capability stream; mismatch surfaces at Plan binding (6e).
+
+    `needs_supplies` (Phase 10b) is optional; defaults to `[]` for
+    backward-compat (pre-10b clients keep working). Each element is
+    a Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.
+    Asymmetric vs needs_capabilities by design — see
+    [[project_supply_design]] §"Phase 10b — Method.needs_supplies
+    consumer" for the rationale (Capability is TYPE registry,
+    Supply is INSTANCE aggregate per facility sharing a `kind` label).
+    Eventual-consistency: kind strings are NOT verified against the
+    Supply stream; mismatch surfaces at Plan binding (10c+).
     """
 
     name: str = Field(
@@ -45,6 +58,26 @@ class DefineMethodRequest(BaseModel):
             "Eventual-consistency: ids are NOT verified against the "
             "Capability stream at decide time; mismatch surfaces at "
             "Plan binding (Phase 6e)."
+        ),
+    )
+    needs_supplies: list[
+        Annotated[
+            str,
+            Field(
+                min_length=1,
+                max_length=METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
+            ),
+        ]
+    ] = Field(
+        default_factory=list,
+        description=(
+            "Supply.kind strings this Method requires. May be empty. "
+            "Each element is a kind label (for example 'PhotonBeam', "
+            "'LiquidNitrogen', 'ComputePool'), 1-50 chars. NOT Supply "
+            "instance UUIDs — Methods are facility-portable. Eventual-"
+            "consistency: kinds are NOT verified against the Supply "
+            "stream at decide time; mismatch surfaces at Plan binding "
+            "(10c+)."
         ),
     )
 
@@ -106,6 +139,7 @@ async def post_methods(
         DefineMethod(
             name=body.name,
             needs_capabilities=frozenset(body.needs_capabilities),
+            needs_supplies=frozenset(body.needs_supplies),
         ),
         principal_id=principal_id,
         correlation_id=cid,

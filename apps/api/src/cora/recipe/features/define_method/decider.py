@@ -24,7 +24,10 @@ procedural Methods like "Sample Cleaning").
 from datetime import datetime
 from uuid import UUID
 
+from cora.infrastructure.bounded_text import validate_bounded_text
 from cora.recipe.aggregates.method import (
+    METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
+    InvalidMethodNeedsSuppliesError,
     Method,
     MethodAlreadyExistsError,
     MethodDefined,
@@ -44,11 +47,25 @@ def decide(
     if state is not None:
         raise MethodAlreadyExistsError(state.id)
     name = MethodName(command.name)  # validates + trims; raises InvalidMethodNameError
+    # Phase 10b: defensive per-element validation for needs_supplies
+    # kind strings. Pydantic catches this at the API; this defensive
+    # pass protects direct in-process callers (sagas, tests) AND
+    # trims each kind so persisted bytes are deterministic. Bound
+    # mirrors Supply's own InvalidSupplyKindError shape.
+    trimmed_supplies: list[str] = []
+    for kind in command.needs_supplies:
+        trimmed = validate_bounded_text(
+            kind,
+            max_length=METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
+            error_class=InvalidMethodNeedsSuppliesError,
+        )
+        trimmed_supplies.append(trimmed)
     return [
         MethodDefined(
             method_id=new_id,
             name=name.value,
             needs_capabilities=list(command.needs_capabilities),
+            needs_supplies=trimmed_supplies,
             occurred_at=now,
         )
     ]

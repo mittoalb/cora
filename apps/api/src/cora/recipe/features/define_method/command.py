@@ -27,7 +27,16 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class DefineMethod:
-    """Define a new abstract technique-class recipe (Method)."""
+    """Define a new abstract technique-class recipe (Method).
+
+    `needs_supplies` (Phase 10b) is a frozenset of Supply.kind STRINGS
+    the Method requires (NOT Supply instance UUIDs). Methods are
+    facility-portable; the kind label resolves to a per-facility
+    Supply instance at Plan-bind time. Default empty frozenset
+    (sample-cleaning Methods need no supplies). Same hashability +
+    `_normalize_for_hash` story as needs_capabilities.
+    """
 
     name: str
     needs_capabilities: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    needs_supplies: frozenset[str] = field(default_factory=frozenset[str])

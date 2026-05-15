@@ -30,7 +30,7 @@ arm. Same precedent as `CapabilityDefined → DEFINED` /
 `SubjectMounted → MOUNTED`.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
@@ -43,15 +43,23 @@ class MethodDefined:
     """A new abstract technique-class recipe was defined.
 
     Status is implicit (`Defined`) — the evolver sets it.
+
     `needs_capabilities` carries the Capability ids the Method
     requires; eventual-consistency stance, no cross-aggregate
     verification.
+
+    `needs_supplies` (post-10b, additive evolution) carries Supply
+    KIND strings the Method requires — NOT Supply instance ids.
+    Pre-10b events fold via `payload.get("needs_supplies", [])`. The
+    list is sorted by string form in `to_payload` for persistence
+    determinism (matches needs_capabilities). Default empty list.
     """
 
     method_id: UUID
     name: str
     needs_capabilities: list[UUID]
     occurred_at: datetime
+    needs_supplies: list[str] = field(default_factory=list[str])
 
 
 @dataclass(frozen=True)
@@ -140,12 +148,17 @@ def to_payload(event: MethodEvent) -> dict[str, Any]:
             method_id=method_id,
             name=name,
             needs_capabilities=needs_capabilities,
+            needs_supplies=needs_supplies,
             occurred_at=occurred_at,
         ):
             return {
                 "method_id": str(method_id),
                 "name": name,
                 "needs_capabilities": sorted(str(c) for c in needs_capabilities),
+                # Phase 10b additive: kind strings sorted lexically for
+                # deterministic payload bytes (matches needs_capabilities
+                # convention; same idempotency-hash story).
+                "needs_supplies": sorted(needs_supplies),
                 "occurred_at": occurred_at.isoformat(),
             }
         case MethodVersioned(
@@ -191,6 +204,10 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
                 method_id=UUID(payload["method_id"]),
                 name=payload["name"],
                 needs_capabilities=[UUID(c) for c in payload["needs_capabilities"]],
+                # Phase 10b forward-compat: pre-10b MethodDefined
+                # payloads have no needs_supplies key; default to empty
+                # list. Additive-evolution pattern.
+                needs_supplies=list(payload.get("needs_supplies", [])),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "MethodVersioned":

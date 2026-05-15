@@ -53,6 +53,9 @@ async def test_define_method_persists_event_to_postgres_with_capabilities(
         "name": "XRF Fly Mapping",
         # Sorted by UUID string form (deterministic).
         "needs_capabilities": sorted([str(cap1), str(cap2)]),
+        # Phase 10b additive: empty list when MethodDefined has no
+        # needs_supplies. Pinned by tests/unit/recipe/test_method_needs_supplies.py.
+        "needs_supplies": [],
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.correlation_id == _CORRELATION_ID

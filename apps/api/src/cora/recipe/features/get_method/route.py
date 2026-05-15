@@ -31,6 +31,8 @@ class MethodResponse(BaseModel):
     Carries primitives, not domain VOs. Decouples the wire format
     from the domain model so the two can evolve independently.
     `needs_capabilities` is sorted by UUID string form.
+    `needs_supplies` (Phase 10b) is sorted lexically by kind string;
+    Supply.kind values (NOT instance UUIDs).
     `status` is the StrEnum's string value (Defined / Versioned /
     Deprecated). `version` is the operator-supplied label of the most
     recent version_method call (null until first version).
@@ -39,6 +41,7 @@ class MethodResponse(BaseModel):
     id: UUID
     name: str = Field(..., max_length=METHOD_NAME_MAX_LENGTH)
     needs_capabilities: list[UUID]
+    needs_supplies: list[str]
     status: str
     version: str | None
 
@@ -86,6 +89,7 @@ async def get_methods(
         id=method.id,
         name=method.name.value,
         needs_capabilities=sorted(method.needs_capabilities, key=str),
+        needs_supplies=sorted(method.needs_supplies),
         status=method.status.value,
         version=method.version,
     )

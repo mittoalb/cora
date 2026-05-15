@@ -18,14 +18,15 @@ def _define_method(
     *,
     name: str = "XRF Mapping",
     needs_capabilities: list[str] | None = None,
+    needs_supplies: list[str] | None = None,
 ) -> UUID:
-    response = client.post(
-        "/methods",
-        json={
-            "name": name,
-            "needs_capabilities": needs_capabilities if needs_capabilities is not None else [],
-        },
-    )
+    body: dict[str, object] = {
+        "name": name,
+        "needs_capabilities": needs_capabilities if needs_capabilities is not None else [],
+    }
+    if needs_supplies is not None:
+        body["needs_supplies"] = needs_supplies
+    response = client.post("/methods", json=body)
     assert response.status_code == 201, response.text
     return UUID(response.json()["method_id"])
 
@@ -62,6 +63,70 @@ def test_get_method_returns_empty_needs_capabilities_for_procedural_method() -> 
     assert response.status_code == 200
     body = response.json()
     assert body["needs_capabilities"] == []
+
+
+# ---------- Phase 10b: needs_supplies on response ----------
+
+
+@pytest.mark.contract
+def test_get_method_returns_needs_supplies_sorted_lexically() -> None:
+    """Phase 10b. Method.needs_supplies surfaces on the GET response
+    as a sorted list of Supply.kind strings."""
+    with TestClient(create_app()) as client:
+        method_id = _define_method(
+            client,
+            name="Tomography",
+            needs_supplies=["PhotonBeam", "LiquidNitrogen"],
+        )
+        response = client.get(f"/methods/{method_id}")
+
+    assert response.status_code == 200
+    body = response.json()
+    # Sorted lexically (deterministic ordering, mirrors needs_capabilities convention).
+    assert body["needs_supplies"] == ["LiquidNitrogen", "PhotonBeam"]
+
+
+@pytest.mark.contract
+def test_get_method_returns_empty_needs_supplies_when_unspecified() -> None:
+    """Backward-compat: omit needs_supplies in POST body, response
+    still includes the field as []. Pre-10b clients keep working."""
+    with TestClient(create_app()) as client:
+        method_id = _define_method(client, name="X", needs_capabilities=[])
+        response = client.get(f"/methods/{method_id}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["needs_supplies"] == []
+
+
+@pytest.mark.contract
+def test_define_method_returns_422_for_oversized_supply_kind() -> None:
+    """Pydantic per-element max_length=50 catches at the boundary."""
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/methods",
+            json={
+                "name": "X",
+                "needs_capabilities": [],
+                "needs_supplies": ["x" * 51],
+            },
+        )
+    assert response.status_code == 422
+
+
+@pytest.mark.contract
+def test_define_method_returns_422_for_empty_supply_kind() -> None:
+    """Pydantic per-element min_length=1 catches at the boundary."""
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/methods",
+            json={
+                "name": "X",
+                "needs_capabilities": [],
+                "needs_supplies": [""],
+            },
+        )
+    assert response.status_code == 422
 
 
 @pytest.mark.contract
