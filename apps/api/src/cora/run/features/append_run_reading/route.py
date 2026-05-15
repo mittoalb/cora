@@ -75,12 +75,13 @@ class RunReadingRequest(BaseModel):
             "SOSA phenomenonTime (ISO-8601 with timezone): when the sensor captured the value."
         ),
     )
-    sampling_procedure: Literal["baseline"] = Field(
+    sampling_procedure: Literal["baseline", "monitor"] = Field(
         ...,
         description=(
-            "SOSA-aligned discriminator. 6f-5b ships 'baseline' "
-            "(snapshot at run boundary). 6f-5c extends to 'monitor' "
-            "(sub-Hz time-series). Future-additive."
+            "SOSA-aligned discriminator. 'baseline' is a snapshot at "
+            "run boundary (start / end). 'monitor' is sub-Hz time-"
+            "series during the run (Bluesky monitor stream pattern). "
+            "Future values land additively (no migration)."
         ),
     )
     units: str | None = Field(

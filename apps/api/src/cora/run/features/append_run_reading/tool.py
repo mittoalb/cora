@@ -54,8 +54,14 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             Field(description="When the sensor captured the value (SOSA phenomenonTime)."),
         ],
         sampling_procedure: Annotated[
-            Literal["baseline"],
-            Field(description="SOSA-aligned discriminator (6f-5b ships 'baseline')."),
+            Literal["baseline", "monitor"],
+            Field(
+                description=(
+                    "SOSA-aligned discriminator. 'baseline' = snapshot "
+                    "at run boundary; 'monitor' = sub-Hz time-series "
+                    "during the run (Bluesky monitor stream)."
+                ),
+            ),
         ],
         units: Annotated[
             str | None,

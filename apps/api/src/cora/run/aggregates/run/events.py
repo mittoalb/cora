@@ -251,7 +251,9 @@ class RunReadingLogbookOpened:
     for downstream projections. Per
     [[project_logbook_entry_storage]], the schema lives on the event
     so projections can read entry shape uniformly without per-BC
-    adapters.
+    adapters. Discriminator values today: `baseline` (6f-5b, snapshot
+    at run boundary) + `monitor` (6f-5c, sub-Hz time-series during
+    the run); future-additive without schema migration.
 
     No `RunReadingLogbookClosed` event today: Run.status terminals
     (Completed | Aborted | Stopped | Truncated) are the implicit

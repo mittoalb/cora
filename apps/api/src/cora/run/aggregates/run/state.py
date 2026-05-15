@@ -127,10 +127,11 @@ not as additional values for the same kind."""
 # field on RunReading rows. Values are Bluesky-aligned operator vocabulary;
 # additions land as code edits, not migrations (table column is plain
 # TEXT, not a CHECK-constrained enum, per [[project_run_reading_design]]).
-# 6f-5b ships with the single value "baseline"; 6f-5c extends to include
-# "monitor". Future values ("primary", "triggered") land additively.
-SamplingProcedure = Literal["baseline"]
-SAMPLING_PROCEDURE_VALUES: frozenset[str] = frozenset({"baseline"})
+# 6f-5b shipped "baseline" (snapshot at run boundary). 6f-5c adds
+# "monitor" (sub-Hz time-series during run). Future values ("primary",
+# "triggered") land additively.
+SamplingProcedure = Literal["baseline", "monitor"]
+SAMPLING_PROCEDURE_VALUES: frozenset[str] = frozenset({"baseline", "monitor"})
 
 # Schema declaration for the reading logbook. Documentation-grade per
 # [[project_logbook_entry_storage]]: declares the entry-row column

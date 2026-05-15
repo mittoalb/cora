@@ -590,27 +590,137 @@ async def test_handler_preserves_distinct_sampled_at_per_entry() -> None:
     assert row_b.sampled_at != row_b.occurred_at
 
 
-# ---------- 'monitor' rejected at 6f-5b (post-gate-review P2) ----------
+# ---------- 'monitor' accepted at 6f-5c (sampling_procedure extension) ----------
 
 
 @pytest.mark.unit
-async def test_handler_rejects_monitor_sampling_procedure_at_6f5b() -> None:
-    """6f-5b ships only `baseline`; `monitor` lands in 6f-5c. Pinning
-    that the handler currently rejects `monitor` makes the 6f-5c
-    addition a deliberate, reviewable test edit."""
+async def test_handler_accepts_monitor_sampling_procedure() -> None:
+    """6f-5c extends the closed enum to admit 'monitor' alongside
+    'baseline'. Replaces the 6f-5b 'rejects-monitor' guard test;
+    monitor is now a first-class procedure value (Bluesky monitor
+    stream pattern: sub-Hz time-series during the run)."""
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
     reading_store = InMemoryReadingStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
-    with pytest.raises(InvalidSamplingProcedureError):
-        await append_run_reading.bind(deps, reading_store=reading_store)(
-            AppendRunReadings(
-                run_id=_RUN_ID,
-                entries=(_entry(sampling_procedure="monitor"),),
+    count = await append_run_reading.bind(deps, reading_store=reading_store)(
+        AppendRunReadings(
+            run_id=_RUN_ID,
+            entries=(_entry(sampling_procedure="monitor"),),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert count == 1
+    assert reading_store.all()[0].sampling_procedure == "monitor"
+
+
+# ---------- Polymorphic mixed-procedure (6f-5c — the design earns its keep) ----------
+
+
+@pytest.mark.unit
+async def test_handler_writes_baseline_and_monitor_to_same_run_logbook() -> None:
+    """The whole point of the polymorphic-with-discriminator design:
+    a single Run holds BOTH baseline and monitor readings, side-by-
+    side, in the same `entries_run_readings` table, sharing the same
+    reading_logbook_id. No table split, no separate slice, no
+    discriminator gymnastics — just rows that differ by the
+    `sampling_procedure` column.
+
+    Realistic scenario: Run start posts a baseline snapshot of all
+    channels; the DAQ adapter then streams monitor readings for
+    sample temperature throughout the Run; Run end posts another
+    baseline snapshot. All three writes hit the same logbook."""
+    event_store = InMemoryEventStore()
+    await _seed_run_started(event_store, _RUN_ID)
+    reading_store = InMemoryReadingStore()
+    deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
+
+    # Run-start baseline: temperature snapshot.
+    await append_run_reading.bind(deps, reading_store=reading_store)(
+        AppendRunReadings(
+            run_id=_RUN_ID,
+            entries=(
+                _entry(
+                    channel_name="T_sample",
+                    value=295.1,
+                    sampling_procedure="baseline",
+                ),
             ),
-            principal_id=_PRINCIPAL_ID,
-            correlation_id=_CORRELATION_ID,
-        )
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # Mid-run monitor stream: three samples drifting.
+    deps_monitor = build_deps(ids=[uuid4() for _ in range(4)], now=_NOW, event_store=event_store)
+    await append_run_reading.bind(deps_monitor, reading_store=reading_store)(
+        AppendRunReadings(
+            run_id=_RUN_ID,
+            entries=(
+                _entry(
+                    channel_name="T_sample",
+                    value=294.8,
+                    sampling_procedure="monitor",
+                    sampled_at=datetime(2026, 5, 14, 12, 0, 30, tzinfo=UTC),
+                ),
+                _entry(
+                    channel_name="T_sample",
+                    value=295.0,
+                    sampling_procedure="monitor",
+                    sampled_at=datetime(2026, 5, 14, 12, 1, 0, tzinfo=UTC),
+                ),
+                _entry(
+                    channel_name="T_sample",
+                    value=295.2,
+                    sampling_procedure="monitor",
+                    sampled_at=datetime(2026, 5, 14, 12, 1, 30, tzinfo=UTC),
+                ),
+            ),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # Run-end baseline: temperature snapshot again.
+    deps_end = build_deps(ids=[uuid4() for _ in range(2)], now=_NOW, event_store=event_store)
+    await append_run_reading.bind(deps_end, reading_store=reading_store)(
+        AppendRunReadings(
+            run_id=_RUN_ID,
+            entries=(
+                _entry(
+                    channel_name="T_sample",
+                    value=295.4,
+                    sampling_procedure="baseline",
+                ),
+            ),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    rows = reading_store.all()
+    assert len(rows) == 5
+
+    # All rows share the same logbook (no per-procedure split).
+    logbook_ids = {r.logbook_id for r in rows}
+    assert logbook_ids == {_LOGBOOK_ID}
+
+    # All rows share the same Run (no per-procedure aggregate split).
+    assert {r.run_id for r in rows} == {_RUN_ID}
+
+    # Procedure split: 2 baseline (start + end), 3 monitor (mid-run).
+    by_procedure: dict[str, list[float]] = {"baseline": [], "monitor": []}
+    for r in rows:
+        by_procedure[r.sampling_procedure].append(r.value)
+    assert sorted(by_procedure["baseline"]) == [295.1, 295.4]
+    assert sorted(by_procedure["monitor"]) == [294.8, 295.0, 295.2]
+
+    # The Run stream still has just one logbook-open event (lazy
+    # open survives across procedure kinds).
+    stored, version = await event_store.load("Run", _RUN_ID)
+    assert version == 2  # RunStarted + RunReadingLogbookOpened
+    assert [e.event_type for e in stored] == ["RunStarted", "RunReadingLogbookOpened"]
 
 
 # ---------- Wire surface ----------

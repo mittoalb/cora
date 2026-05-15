@@ -256,3 +256,120 @@ async def test_append_run_reading_second_call_skips_open_and_dedups(
     rows = await _read_readings_for_run(db_pool, run_id)
     assert len(rows) == 1
     assert rows[0]["value"] == pytest.approx(295.1)
+
+
+@pytest.mark.integration
+async def test_append_run_reading_polymorphic_baseline_and_monitor_coexist(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """6f-5c: a single Run holds BOTH baseline and monitor readings
+    in the same `entries_run_readings` table (the polymorphic-with-
+    discriminator design earns its keep). Verify the kind-filtered
+    index `entries_run_readings_run_procedure_sampled_idx` is
+    queryable via the SQL pattern the design memo prescribes for
+    'show me only baselines on Run X'."""
+    run_id = UUID("01900000-0000-7000-8000-0000006f5c01")
+    logbook_id = UUID("01900000-0000-7000-8000-0000006f5c02")
+    open_event_id = UUID("01900000-0000-7000-8000-0000006f5c03")
+    baseline_start_id = UUID("01900000-0000-7000-8000-0000006f5d01")
+    monitor_a_id = UUID("01900000-0000-7000-8000-0000006f5d02")
+    monitor_b_id = UUID("01900000-0000-7000-8000-0000006f5d03")
+    baseline_end_id = UUID("01900000-0000-7000-8000-0000006f5d04")
+
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[logbook_id, open_event_id],
+    )
+    reading_store = PostgresReadingStore(db_pool)
+
+    await _seed_run_started(deps.event_store, run_id)
+
+    # Run-start baseline + 2 monitor mid-run + Run-end baseline,
+    # all the same channel ("T_sample"), all the same Run.
+    sampled_start = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
+    sampled_a = datetime(2026, 5, 14, 12, 0, 30, tzinfo=UTC)
+    sampled_b = datetime(2026, 5, 14, 12, 1, 0, tzinfo=UTC)
+    sampled_end = datetime(2026, 5, 14, 12, 1, 30, tzinfo=UTC)
+    entries = (
+        RunReadingInput(
+            event_id=baseline_start_id,
+            channel_name="T_sample",
+            value=295.1,
+            sampled_at=sampled_start,
+            sampling_procedure="baseline",
+            units="K",
+        ),
+        RunReadingInput(
+            event_id=monitor_a_id,
+            channel_name="T_sample",
+            value=294.8,
+            sampled_at=sampled_a,
+            sampling_procedure="monitor",
+            units="K",
+        ),
+        RunReadingInput(
+            event_id=monitor_b_id,
+            channel_name="T_sample",
+            value=295.0,
+            sampled_at=sampled_b,
+            sampling_procedure="monitor",
+            units="K",
+        ),
+        RunReadingInput(
+            event_id=baseline_end_id,
+            channel_name="T_sample",
+            value=295.4,
+            sampled_at=sampled_end,
+            sampling_procedure="baseline",
+            units="K",
+        ),
+    )
+    count = await bind_append(deps, reading_store=reading_store)(
+        AppendRunReadings(run_id=run_id, entries=entries),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert count == 4
+
+    # All 4 rows present, sharing the same logbook_id.
+    rows = await _read_readings_for_run(db_pool, run_id)
+    assert len(rows) == 4
+    assert {r["logbook_id"] for r in rows} == {logbook_id}
+
+    # Kind-filtered SQL: "all baselines on Run X" via the
+    # entries_run_readings_run_procedure_sampled_idx index. The
+    # query shape is what the design memo prescribes for the
+    # polymorphic-with-discriminator read pattern.
+    async with db_pool.acquire() as conn:
+        baseline_rows = await conn.fetch(
+            """
+            SELECT event_id, value, sampled_at
+            FROM entries_run_readings
+            WHERE run_id = $1 AND sampling_procedure = $2
+            ORDER BY sampled_at
+            """,
+            run_id,
+            "baseline",
+        )
+        monitor_rows = await conn.fetch(
+            """
+            SELECT event_id, value, sampled_at
+            FROM entries_run_readings
+            WHERE run_id = $1 AND sampling_procedure = $2
+            ORDER BY sampled_at
+            """,
+            run_id,
+            "monitor",
+        )
+    assert len(baseline_rows) == 2
+    assert [r["value"] for r in baseline_rows] == pytest.approx([295.1, 295.4])
+    assert len(monitor_rows) == 2
+    assert [r["value"] for r in monitor_rows] == pytest.approx([294.8, 295.0])
+
+    # Run stream still has just one logbook-open event (lazy open
+    # survives across procedure kinds — proves the polymorphic
+    # design avoids per-kind logbook proliferation).
+    stored, version = await deps.event_store.load("Run", run_id)
+    assert version == 2
+    assert [s.event_type for s in stored] == ["RunStarted", "RunReadingLogbookOpened"]
