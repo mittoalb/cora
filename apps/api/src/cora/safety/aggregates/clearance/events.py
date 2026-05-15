@@ -34,6 +34,13 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.infrastructure.ports.event_store import StoredEvent
+from cora.safety.aggregates.clearance.hazard_classification import (
+    GHSPictogram,
+    HazardClassification,
+    NFPA704Rating,
+    RiskBand,
+    SchemeCode,
+)
 from cora.safety.aggregates.clearance.state import (
     AssetBinding,
     ClearanceBinding,
@@ -42,13 +49,6 @@ from cora.safety.aggregates.clearance.state import (
     ProcedureBinding,
     RunBinding,
     SubjectBinding,
-)
-from cora.safety.hazard_classification import (
-    GHSPictogram,
-    HazardClassification,
-    NFPA704Rating,
-    RiskBand,
-    SchemeCode,
 )
 
 

@@ -26,7 +26,7 @@ from cora.safety.aggregates.clearance.events import (
     serialize_classification,
     serialize_declaration,
 )
-from cora.safety.hazard_classification import (
+from cora.safety.aggregates.clearance.hazard_classification import (
     GHSPictogram,
     NFPA704Rating,
     RiskBand,

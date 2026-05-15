@@ -25,7 +25,7 @@ from cora.safety.aggregates.clearance import (
     RunBinding,
     SubjectBinding,
 )
-from cora.safety.hazard_classification import NFPA704Rating, RiskBand
+from cora.safety.aggregates.clearance.hazard_classification import NFPA704Rating, RiskBand
 
 # ---------- ClearanceTitle VO ----------
 

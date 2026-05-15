@@ -19,9 +19,9 @@ from cora.safety.aggregates.clearance import (
     RunBinding,
     SubjectBinding,
 )
+from cora.safety.aggregates.clearance.hazard_classification import RiskBand
 from cora.safety.features import register_clearance
 from cora.safety.features.register_clearance import RegisterClearance
-from cora.safety.hazard_classification import RiskBand
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 

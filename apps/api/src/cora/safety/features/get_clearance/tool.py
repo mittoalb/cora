@@ -31,9 +31,9 @@ from cora.safety.aggregates.clearance.events import (
     serialize_binding,
     serialize_declaration,
 )
+from cora.safety.aggregates.clearance.hazard_classification import RiskBand
 from cora.safety.features.get_clearance.handler import Handler
 from cora.safety.features.get_clearance.query import GetClearance
-from cora.safety.hazard_classification import RiskBand
 
 
 class ReviewerStepOutput(BaseModel):

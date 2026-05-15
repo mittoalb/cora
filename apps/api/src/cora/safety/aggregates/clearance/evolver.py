@@ -45,6 +45,7 @@ from cora.safety.aggregates.clearance.events import (
     deserialize_binding,
     deserialize_declaration,
 )
+from cora.safety.aggregates.clearance.hazard_classification import RiskBand
 from cora.safety.aggregates.clearance.state import (
     Clearance,
     ClearanceKind,
@@ -52,7 +53,6 @@ from cora.safety.aggregates.clearance.state import (
     ClearanceTitle,
     ReviewerStep,
 )
-from cora.safety.hazard_classification import RiskBand
 
 
 def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:

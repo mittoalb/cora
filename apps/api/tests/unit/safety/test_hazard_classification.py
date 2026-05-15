@@ -2,7 +2,7 @@
 
 import pytest
 
-from cora.safety.hazard_classification import (
+from cora.safety.aggregates.clearance.hazard_classification import (
     GHS_VALID_PICTOGRAMS,
     NFPA704_MAX_RATING,
     NFPA704_MIN_RATING,

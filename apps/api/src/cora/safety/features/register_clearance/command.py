@@ -35,7 +35,7 @@ from cora.safety.aggregates.clearance import (
     ClearanceKind,
     HazardDeclaration,
 )
-from cora.safety.hazard_classification import RiskBand
+from cora.safety.aggregates.clearance.hazard_classification import RiskBand
 
 
 @dataclass(frozen=True)

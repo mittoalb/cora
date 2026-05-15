@@ -18,7 +18,7 @@ Per [[project_safety_clearance_design]], the design locks:
   - Multi-step review chain via `reviewers: tuple[ReviewerStep, ...]`
     field (NOT additional FSM states)
   - Discriminated-union `HazardClassification` VO at
-    `cora.safety.hazard_classification`
+    `cora.safety.aggregates.clearance.hazard_classification`
 
 ## Phase 11a-a scope
 
@@ -76,7 +76,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import validate_bounded_text
-from cora.safety.hazard_classification import HazardClassification, RiskBand
+from cora.safety.aggregates.clearance.hazard_classification import HazardClassification, RiskBand
 
 CLEARANCE_TITLE_MAX_LENGTH = 200
 CLEARANCE_EXTERNAL_ID_MAX_LENGTH = 100
@@ -562,7 +562,7 @@ class HazardDeclaration:
     Each declaration scopes its claim to ONE of the Clearance's bindings
     (the target). `classifications` is the frozenset of typed
     `HazardClassification` VOs (NFPA704Rating / RiskBand / GHSPictogram /
-    SchemeCode -- see `cora.safety.hazard_classification`).
+    SchemeCode -- see `cora.safety.aggregates.clearance.hazard_classification`).
 
     `mitigations` is a frozenset of free-form ref strings (PPE codes,
     training cert refs, procedure IDs); typed mitigations are deferred

@@ -22,6 +22,7 @@ from cora.safety.aggregates.clearance import (
     ClearanceKind,
     SubjectBinding,
 )
+from cora.safety.aggregates.clearance.hazard_classification import RiskBand
 from cora.safety.features import (
     list_clearances,
     register_clearance,
@@ -30,7 +31,6 @@ from cora.safety.features import (
 from cora.safety.features.list_clearances import ListClearances
 from cora.safety.features.register_clearance import RegisterClearance
 from cora.safety.features.submit_clearance import SubmitClearance
-from cora.safety.hazard_classification import RiskBand
 from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)

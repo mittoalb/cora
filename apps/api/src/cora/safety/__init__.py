@@ -20,12 +20,12 @@ Safety BC has no projection at 11a-a (lands in 11a-b alongside the
 FSM-closure transitions and `list_clearances`).
 
 Layout:
-    aggregates/<aggregate>/   -- aggregate state, events union, evolver, read
-    features/<verb>_<noun>/   -- vertical slice: command/query + decider? + handler + route + tool
-    hazard_classification.py  -- shared kernel: HazardClassification discriminated union VO
-    wire.py                   -- SafetyHandlers bundle + wire_safety(deps)
-    routes.py                 -- register_safety_routes(app)
-    tools.py                  -- register_safety_tools(mcp, get_handlers=...)
+    aggregates/clearance/      -- state, events union, evolver, read
+    aggregates/clearance/      -- + hazard_classification VO (consumed by kernel + features)
+    features/<verb>_<noun>/    -- vertical slice: command/query + decider? + handler + route + tool
+    wire.py                    -- SafetyHandlers bundle + wire_safety(deps)
+    routes.py                  -- register_safety_routes(app)
+    tools.py                   -- register_safety_tools(mcp, get_handlers=...)
 """
 
 from cora.safety._projections import register_safety_projections

@@ -30,6 +30,7 @@ from pydantic import BaseModel, Field
 
 from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
 from cora.safety.aggregates.clearance import ClearanceKind, ClearanceStatus
+from cora.safety.aggregates.clearance.hazard_classification import RiskBand
 from cora.safety.aggregates.clearance.state import (
     CLEARANCE_EXTERNAL_ID_MAX_LENGTH,
     CLEARANCE_TITLE_MAX_LENGTH,
@@ -41,7 +42,6 @@ from cora.safety.features.list_clearances.query import (
     ListClearances,
     RiskBandFilter,
 )
-from cora.safety.hazard_classification import RiskBand
 
 
 class BindingsByKind(BaseModel):

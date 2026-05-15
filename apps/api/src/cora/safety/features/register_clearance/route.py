@@ -34,9 +34,7 @@ from cora.safety.aggregates.clearance import (
     RunBinding,
     SubjectBinding,
 )
-from cora.safety.features.register_clearance.command import RegisterClearance
-from cora.safety.features.register_clearance.handler import IdempotentHandler
-from cora.safety.hazard_classification import (
+from cora.safety.aggregates.clearance.hazard_classification import (
     GHS_VALID_PICTOGRAMS,
     NFPA704_MAX_RATING,
     NFPA704_MIN_RATING,
@@ -50,6 +48,8 @@ from cora.safety.hazard_classification import (
     RiskBand,
     SchemeCode,
 )
+from cora.safety.features.register_clearance.command import RegisterClearance
+from cora.safety.features.register_clearance.handler import IdempotentHandler
 
 # ---------------------------------------------------------------------------
 # Pydantic DTOs for the discriminated-union wire shapes

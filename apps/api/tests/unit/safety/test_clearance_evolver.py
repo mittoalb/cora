@@ -13,7 +13,7 @@ from cora.safety.aggregates.clearance import (
     evolve,
     fold,
 )
-from cora.safety.hazard_classification import RiskBand
+from cora.safety.aggregates.clearance.hazard_classification import RiskBand
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 _CLEARANCE_ID = UUID("01900000-0000-7000-8000-000000011002")

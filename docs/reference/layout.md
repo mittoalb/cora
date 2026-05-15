@@ -10,26 +10,37 @@ Two-axis: aggregates own data shape; features (vertical slices) own use cases.
 
 ```
 cora/<bc>/
-├── __init__.py             # re-exports public BC surface
-├── _bootstrap.py           # BC-internal constants
-├── errors.py               # BC-application-layer errors
-├── routes.py               # register_<bc>_routes(app)
-├── tools.py                # register_<bc>_tools(mcp, *, get_handlers)
-├── wire.py                 # <Bc>Handlers bundle + wire_<bc>(deps)
+├── __init__.py                       # re-exports public BC surface
+├── _bootstrap.py                     # BC-internal constants
+├── _projections.py                   # register_<bc>_projections(registry) entry point
+├── _<aggregate>_update_handler.py    # update-handler factory hoist (when n>=3 update slices share scaffolding)
+├── errors.py                         # BC-application-layer errors
+├── routes.py                         # register_<bc>_routes(app)
+├── tools.py                          # register_<bc>_tools(mcp, *, get_handlers)
+├── wire.py                           # <Bc>Handlers bundle + wire_<bc>(deps)
 ├── aggregates/
 │   └── <aggregate>/
-│       ├── state.py        # state + value objects + domain errors
-│       ├── events.py       # event classes + union + payload helpers
-│       ├── evolver.py      # evolve(state, event) + fold(events)
-│       └── read.py         # load_<aggregate> (fold-on-read)
+│       ├── state.py                  # state + value objects + domain errors
+│       ├── events.py                 # event classes + union + payload helpers
+│       ├── evolver.py                # evolve(state, event) + fold(events)
+│       ├── read.py                   # load_<aggregate> (fold-on-read)
+│       └── <vo_module>.py            # aggregate-internal VOs (e.g. settings_validation, hazard_classification)
+├── projections/
+│   └── <name>.py                     # read-side projection (consumed by list_* queries)
 └── features/
-    ├── <verb>_<aggregate>/ # one folder per COMMAND
+    ├── <verb>_<aggregate>/           # one folder per COMMAND
     │   ├── command.py
     │   ├── decider.py
     │   ├── handler.py
     │   ├── route.py
+    │   ├── tool.py
+    │   └── context.py                # OPTIONAL: cross-aggregate pre-load before pure decider
+    ├── append_<entry>/               # entry-append variant (no decider; handler writes via per-category port)
+    │   ├── command.py
+    │   ├── handler.py
+    │   ├── route.py
     │   └── tool.py
-    └── get_<aggregate>/    # one folder per QUERY (no decider)
+    └── get_<aggregate>/              # one folder per QUERY (no decider)
         ├── query.py
         ├── handler.py
         ├── route.py
@@ -39,6 +50,30 @@ cora/<bc>/
 Each slice's `__init__.py` re-exports its public surface so callers write `register_actor.bind(deps)`. Events live in the aggregate folder, not the slice: they're intrinsic facts about the aggregate's history.
 
 Pairs Modular Monolith (BCs as macro-modules) with Vertical Slice (slices as micro-units). Aggregates stay explicit so the domain doesn't fragment into use cases.
+
+### Three slice shapes
+
+The slice-contract fitness function ([apps/api/tests/architecture/test_slice_contract.py](../../apps/api/tests/architecture/test_slice_contract.py)) recognises three shapes:
+
+1. **Command slice**: `__init__, command, decider, handler, route, tool`. Default for state-changing operations that fold through a pure decider.
+2. **Query slice**: `__init__, query, handler, route, tool`. No decider; reads from the aggregate or a projection.
+3. **Entry-append slice** (`append_<entry>`): `__init__, command, handler, route, tool`. No decider; the handler writes directly to a typed entries store via a per-category port (`ReasoningStore`, `ReadingStore`, `StepStore`). Today: `decision/append_reasoning_entry`, `run/append_run_reading`, `operation/append_procedure_step`. New entry-append slices must be added to `_ENTRY_APPEND_SLICES` in the test.
+
+### Optional slice files
+
+- `context.py`: slice-local cross-aggregate pre-load. Used when a decider needs sibling-aggregate state (e.g. `start_run` pre-loads Asset, Method, Plan, Practice, Subject before calling the pure decider). Used by 7 slices today across `data`, `decision`, `recipe`, `run`, `subject`, `operation`. Lives in the slice folder, not the aggregate.
+
+### BC-root extras
+
+- `_projections.py`: composition-root entry point that registers the BC's projections with the projection registry. Mechanical and present in every BC that has a `projections/` directory.
+- `_<aggregate>_update_handler.py`: factory that hoists shared update-handler scaffolding when n>=3 update slices on the same aggregate share the pattern (per `project_update_handler_pattern.md`). Today: asset, subject, supply, procedure, clearance.
+- `authorize_factory.py` (trust BC only): exports `build_authorize`, injected into the kernel by the composition root in `cora/api/main.py`. No other BC imports it.
+
+### Aggregate-internal shared modules
+
+VOs and validation helpers consumed by the aggregate kernel **must live inside the aggregate folder**, not at the BC root. Tach treats `cora.<bc>.aggregates` and `cora.<bc>` as separate modules and the kernel cannot depend on the parent.
+
+Examples: `equipment/aggregates/asset/settings_validation.py`, `recipe/aggregates/plan/{parameters_validation,wires_validation}.py`, `safety/aggregates/clearance/hazard_classification.py`. Feature slices import them via the longer path (`from cora.<bc>.aggregates.<aggregate>.<module> import ...`); the layering cost is paid by the consumer, not the kernel.
 
 ## Imports
 

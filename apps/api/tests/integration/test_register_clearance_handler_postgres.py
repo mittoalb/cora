@@ -13,10 +13,10 @@ from cora.safety.aggregates.clearance import (
     SubjectBinding,
     load_clearance,
 )
+from cora.safety.aggregates.clearance.hazard_classification import RiskBand
 from cora.safety.features import get_clearance, register_clearance
 from cora.safety.features.get_clearance import GetClearance
 from cora.safety.features.register_clearance import RegisterClearance
-from cora.safety.hazard_classification import RiskBand
 from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)

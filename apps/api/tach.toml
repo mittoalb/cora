@@ -53,11 +53,19 @@ path = "cora.equipment.aggregates"
 depends_on = ["cora.infrastructure"]
 
 [[modules]]
+path = "cora.operation.aggregates"
+depends_on = ["cora.infrastructure"]
+
+[[modules]]
 path = "cora.recipe.aggregates"
 depends_on = ["cora.infrastructure", "cora.equipment.aggregates"]
 
 [[modules]]
 path = "cora.run.aggregates"
+depends_on = ["cora.infrastructure"]
+
+[[modules]]
+path = "cora.safety.aggregates"
 depends_on = ["cora.infrastructure"]
 
 [[modules]]
@@ -142,6 +150,25 @@ depends_on = [
     "cora.subject.aggregates",
 ]
 
+# Operation BC depends on its own aggregates plus Equipment aggregate
+# kernel for asset existence + lifecycle check at start_procedure time
+# (start_procedure context pre-loads the Asset before the pure decider).
+[[modules]]
+path = "cora.operation"
+depends_on = [
+    "cora.infrastructure",
+    "cora.operation.aggregates",
+    "cora.equipment.aggregates",
+]
+
+# Safety BC owns the Clearance aggregate (FSM authorising hazardous
+# work). No cross-BC kernel imports today: HazardClassification is a
+# self-contained discriminated-union VO, and facility_asset_id is a
+# bare identifier reference (no Asset load on the write path).
+[[modules]]
+path = "cora.safety"
+depends_on = ["cora.infrastructure", "cora.safety.aggregates"]
+
 # API entrypoint composes every BC.
 [[modules]]
 path = "cora.api"
@@ -151,8 +178,10 @@ depends_on = [
     "cora.data",
     "cora.decision",
     "cora.equipment",
+    "cora.operation",
     "cora.recipe",
     "cora.run",
+    "cora.safety",
     "cora.subject",
     "cora.supply",
     "cora.trust",

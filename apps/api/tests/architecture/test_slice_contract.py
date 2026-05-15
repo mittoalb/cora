@@ -1,7 +1,13 @@
 """Every vertical slice has its required files.
 
-Command slices need: __init__, command, decider, handler, route, tool.
-Query slices need:   __init__, query, handler, route, tool.
+Three slice shapes are recognised:
+
+  - Command slices need: __init__, command, decider, handler, route, tool.
+  - Query slices need:   __init__, query, handler, route, tool.
+  - Entry-append slices need: __init__, command, handler, route, tool
+    (no decider; the handler writes directly to a typed entries store
+    via a per-category port rather than emitting events through a
+    decider). Detected by membership in `_ENTRY_APPEND_SLICES`.
 
 A directory under `<bc>/features/` that has neither `command.py`
 nor `query.py` is treated as a stub (in-flight, not yet wired)
@@ -25,37 +31,26 @@ _COMMAND_SLICE_FILES: frozenset[str] = frozenset(
 _QUERY_SLICE_FILES: frozenset[str] = frozenset(
     {"__init__.py", "query.py", "handler.py", "route.py", "tool.py"}
 )
-
-# Slices currently in flight. Each entry MUST cite the phase that
-# will close it; reviewers should reject additions that don't.
-#
-# Architectural exemption: entry-appending slices (Phase 8c-b
-# precedent) write to a typed entries store rather than emitting
-# events through a decider, so they have no `decider.py`. The
-# slice contract doesn't yet have a separate file-set for this
-# shape; until it does, exempt these via WIP_SLICES.
-WIP_SLICES: frozenset[str] = frozenset(
+# Entry-append shape (Phase 8c-b precedent, hoisted from WIP_SLICES
+# at n=3). Identical to command-slice file-set minus `decider.py`:
+# the handler writes to a typed entries store via a per-category
+# port (ReasoningStore / ReadingStore / StepStore) rather than
+# folding events through a pure decider. New entry-append slices
+# must be added to `_ENTRY_APPEND_SLICES` below.
+_ENTRY_APPEND_SLICE_FILES: frozenset[str] = frozenset(
+    {"__init__.py", "command.py", "handler.py", "route.py", "tool.py"}
+)
+_ENTRY_APPEND_SLICES: frozenset[str] = frozenset(
     {
         "cora.decision.features.append_reasoning_entry",
-        # Phase 6f-5b: append_run_reading is the second entry-appending
-        # slice (after Decision's append_reasoning_entry). Same shape:
-        # writes to a typed entries store via the per-category
-        # ReadingStore port. Closes when the slice contract gains a
-        # first-class entry-shape file-set rule (no decider.py
-        # required; the architectural exemption is now n=3, justifying
-        # the new file-set classification — separate cleanup).
         "cora.run.features.append_run_reading",
-        # Phase 10c-b iter 2: append_procedure_step is the third
-        # entry-appending slice (after append_reasoning_entry and
-        # append_run_reading). Same entry-shape; writes to
-        # entries_operation_procedure_steps via the per-category
-        # StepStore port. With n=3 the rule-of-three has fired for the
-        # entry-shape file-set classification — separate cleanup pass
-        # will hoist a third file-set tuple and drop these from
-        # WIP_SLICES.
         "cora.operation.features.append_procedure_step",
     }
 )
+
+# Slices currently in flight. Each entry MUST cite the phase that
+# will close it; reviewers should reject additions that don't.
+WIP_SLICES: frozenset[str] = frozenset()
 
 
 def _qualified(slice_dir: Path) -> str:
@@ -94,7 +89,12 @@ def test_slice_has_required_files(slice_dir: Path) -> None:
         f"query (query.py), never both."
     )
 
-    required = _COMMAND_SLICE_FILES if has_command else _QUERY_SLICE_FILES
+    if qualified in _ENTRY_APPEND_SLICES:
+        required = _ENTRY_APPEND_SLICE_FILES
+    elif has_command:
+        required = _COMMAND_SLICE_FILES
+    else:
+        required = _QUERY_SLICE_FILES
     missing = required - files
     assert not missing, f"{qualified}: missing required files {sorted(missing)}"
 
@@ -107,3 +107,13 @@ def test_wip_slices_actually_exist() -> None:
         assert parts[0] == "cora", f"{qualified}: must start with 'cora.'"
         path = CORA_ROOT.joinpath(*parts[1:])
         assert path.is_dir(), f"WIP_SLICES entry {qualified} no longer exists; remove it"
+
+
+@pytest.mark.architecture
+def test_entry_append_slices_actually_exist() -> None:
+    """`_ENTRY_APPEND_SLICES` entries must point at real directories."""
+    for qualified in _ENTRY_APPEND_SLICES:
+        parts = qualified.split(".")
+        assert parts[0] == "cora", f"{qualified}: must start with 'cora.'"
+        path = CORA_ROOT.joinpath(*parts[1:])
+        assert path.is_dir(), f"_ENTRY_APPEND_SLICES entry {qualified} no longer exists; remove it"
