@@ -1,0 +1,225 @@
+"""Unit tests for ProcedureSummaryProjection.
+
+Pins per-event-type apply() dispatch + SQL arg ordering for the 6
+subscribed Procedure events. Postgres-side behavior (jsonb roundtrip
++ UUID[] GIN-index queries) is in the integration suite.
+"""
+
+from datetime import UTC, datetime
+from typing import Any
+from unittest.mock import AsyncMock
+from uuid import uuid4
+
+import pytest
+
+from cora.infrastructure.ports.event_store import StoredEvent
+from cora.operation.projections import ProcedureSummaryProjection
+
+_PROCEDURE_ID = uuid4()
+_EVENT_ID = uuid4()
+_CORRELATION_ID = uuid4()
+_NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
+
+
+def _stored(event_type: str, payload: dict[str, Any]) -> StoredEvent:
+    return StoredEvent(
+        position=1,
+        event_id=_EVENT_ID,
+        stream_type="Procedure",
+        stream_id=_PROCEDURE_ID,
+        version=1,
+        event_type=event_type,
+        schema_version=1,
+        payload=payload,
+        correlation_id=_CORRELATION_ID,
+        causation_id=None,
+        occurred_at=_NOW,
+        recorded_at=_NOW,
+    )
+
+
+@pytest.mark.unit
+def test_projection_metadata() -> None:
+    proj = ProcedureSummaryProjection()
+    assert proj.name == "proj_operation_procedure_summary"
+    assert proj.subscribed_event_types == frozenset(
+        {
+            "ProcedureRegistered",
+            "ProcedureStarted",
+            "ProcedureCompleted",
+            "ProcedureAborted",
+            "ProcedureTruncated",
+            "ProcedureStepsLogbookOpened",
+        }
+    )
+
+
+@pytest.mark.unit
+def test_projection_does_not_subscribe_to_unrelated_events() -> None:
+    proj = ProcedureSummaryProjection()
+    for foreign in ("AssetRegistered", "RunStarted", "SubjectMounted", "SupplyRegistered"):
+        assert foreign not in proj.subscribed_event_types
+
+
+@pytest.mark.unit
+async def test_procedure_registered_inserts_with_defined_status_and_null_audit() -> None:
+    proj = ProcedureSummaryProjection()
+    conn = AsyncMock()
+    asset_a, asset_b = uuid4(), uuid4()
+    parent_run = uuid4()
+    event = _stored(
+        "ProcedureRegistered",
+        {
+            "procedure_id": str(_PROCEDURE_ID),
+            "name": "Vessel-A bakeout",
+            "kind": "bakeout",
+            "target_asset_ids": [str(asset_a), str(asset_b)],
+            "parent_run_id": str(parent_run),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    conn.execute.assert_awaited_once()
+    args = conn.execute.call_args.args
+    assert args[1] == _PROCEDURE_ID
+    assert args[2] == "Vessel-A bakeout"
+    assert args[3] == "bakeout"
+    assert args[4] == [asset_a, asset_b]
+    assert args[5] == parent_run
+    assert args[6] == _NOW
+
+
+@pytest.mark.unit
+async def test_procedure_registered_handles_null_parent_run() -> None:
+    proj = ProcedureSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "ProcedureRegistered",
+        {
+            "procedure_id": str(_PROCEDURE_ID),
+            "name": "X",
+            "kind": "bakeout",
+            "target_asset_ids": [],
+            "parent_run_id": None,
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    args = conn.execute.call_args.args
+    assert args[4] == []
+    assert args[5] is None
+
+
+@pytest.mark.unit
+async def test_procedure_started_updates_status_to_running() -> None:
+    proj = ProcedureSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "ProcedureStarted",
+        {"procedure_id": str(_PROCEDURE_ID), "occurred_at": _NOW.isoformat()},
+    )
+    await proj.apply(event, conn)
+    sql = conn.execute.call_args.args[0]
+    assert "SET status = 'Running'" in sql
+    assert conn.execute.call_args.args[1] == _PROCEDURE_ID
+    assert conn.execute.call_args.args[2] == _NOW
+
+
+@pytest.mark.unit
+async def test_procedure_completed_updates_status_to_completed() -> None:
+    proj = ProcedureSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "ProcedureCompleted",
+        {"procedure_id": str(_PROCEDURE_ID), "occurred_at": _NOW.isoformat()},
+    )
+    await proj.apply(event, conn)
+    sql = conn.execute.call_args.args[0]
+    assert "SET status = 'Completed'" in sql
+
+
+@pytest.mark.unit
+async def test_procedure_aborted_updates_status_and_reason() -> None:
+    proj = ProcedureSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "ProcedureAborted",
+        {
+            "procedure_id": str(_PROCEDURE_ID),
+            "reason": "vacuum loss",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    sql = conn.execute.call_args.args[0]
+    assert "SET status = 'Aborted'" in sql
+    assert conn.execute.call_args.args[3] == "vacuum loss"
+
+
+@pytest.mark.unit
+async def test_procedure_truncated_updates_status_reason_and_interrupted_at() -> None:
+    proj = ProcedureSummaryProjection()
+    conn = AsyncMock()
+    interrupted_at = datetime(2026, 5, 14, 8, 0, 0, tzinfo=UTC)
+    event = _stored(
+        "ProcedureTruncated",
+        {
+            "procedure_id": str(_PROCEDURE_ID),
+            "reason": "weekend power loss",
+            "interrupted_at": interrupted_at.isoformat(),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    sql = conn.execute.call_args.args[0]
+    assert "SET status = 'Truncated'" in sql
+    assert conn.execute.call_args.args[3] == "weekend power loss"
+    assert conn.execute.call_args.args[4] == interrupted_at
+
+
+@pytest.mark.unit
+async def test_procedure_truncated_handles_null_interrupted_at() -> None:
+    proj = ProcedureSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "ProcedureTruncated",
+        {
+            "procedure_id": str(_PROCEDURE_ID),
+            "reason": "unknown",
+            "interrupted_at": None,
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    assert conn.execute.call_args.args[4] is None
+
+
+@pytest.mark.unit
+async def test_procedure_steps_logbook_opened_updates_logbook_id() -> None:
+    proj = ProcedureSummaryProjection()
+    conn = AsyncMock()
+    logbook_id = uuid4()
+    event = _stored(
+        "ProcedureStepsLogbookOpened",
+        {
+            "procedure_id": str(_PROCEDURE_ID),
+            "logbook_id": str(logbook_id),
+            "kind": "steps",
+            "schema": {"fields": {}, "description": ""},
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    sql = conn.execute.call_args.args[0]
+    assert "steps_logbook_id = $2" in sql
+    assert conn.execute.call_args.args[2] == logbook_id
+
+
+@pytest.mark.unit
+async def test_unsubscribed_event_type_is_no_op() -> None:
+    """Defensive guard: foreign event types in the dispatch are silently skipped."""
+    proj = ProcedureSummaryProjection()
+    conn = AsyncMock()
+    event = _stored("BogusEvent", {"procedure_id": str(_PROCEDURE_ID)})
+    await proj.apply(event, conn)
+    conn.execute.assert_not_awaited()

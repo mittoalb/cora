@@ -56,6 +56,7 @@ from cora.operation.features import (
     append_procedure_step,
     complete_procedure,
     get_procedure,
+    list_procedures,
     register_procedure,
     start_procedure,
     truncate_procedure,
@@ -136,6 +137,7 @@ def register_operation_routes(app: FastAPI) -> None:
     app.include_router(truncate_procedure.router)
     app.include_router(append_procedure_step.router)
     app.include_router(get_procedure.router)
+    app.include_router(list_procedures.router)
     for validation_cls in (
         InvalidProcedureNameError,
         InvalidProcedureKindError,

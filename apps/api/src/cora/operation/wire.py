@@ -19,7 +19,7 @@ Subject / Equipment / Recipe / Run / Data / Decision / Supply
 3. `with_tracing` -- OTel span around every handler call. Records
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
-## Wired handlers (10c-a + 10c-b iter 1 + iter 2 + 10c-c iter 1)
+## Wired handlers (10c-a + 10c-b iter 1 + iter 2 + 10c-c iter 1 + iter 2)
 
   - `register_procedure` (create-style; idempotency-wrapped)
   - `start_procedure` (transition; pre-loads target Assets)
@@ -27,7 +27,8 @@ Subject / Equipment / Recipe / Run / Data / Decision / Supply
   - `abort_procedure` (transition; via factory)
   - `truncate_procedure` (transition; via factory; partial-data terminal)
   - `append_procedure_step` (entry-shape; lazy-open + batch append)
-  - `get_procedure` (query)
+  - `get_procedure` (query; fold-on-read)
+  - `list_procedures` (query; reads from `proj_operation_procedure_summary`)
 
 ## make_procedure_update_handler factory (10c-c iter 1 hoist)
 
@@ -65,6 +66,7 @@ from cora.operation.features import (
     append_procedure_step,
     complete_procedure,
     get_procedure,
+    list_procedures,
     register_procedure,
     start_procedure,
     truncate_procedure,
@@ -90,6 +92,7 @@ class OperationHandlers:
     truncate_procedure: truncate_procedure.Handler
     append_procedure_step: append_procedure_step.Handler
     get_procedure: get_procedure.Handler
+    list_procedures: list_procedures.Handler
 
 
 def wire_operation(deps: Kernel) -> OperationHandlers:
@@ -140,6 +143,12 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
         get_procedure=with_tracing(
             get_procedure.bind(deps),
             command_name="GetProcedure",
+            bc=_BC,
+            kind="query",
+        ),
+        list_procedures=with_tracing(
+            list_procedures.bind(deps),
+            command_name="ListProcedures",
             bc=_BC,
             kind="query",
         ),

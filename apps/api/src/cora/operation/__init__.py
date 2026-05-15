@@ -31,6 +31,7 @@ Phase 10c-c adds projection + list_procedures + truncate_procedure
 (and Held/Resumed only if pilot needs surface).
 """
 
+from cora.operation._projections import register_operation_projections
 from cora.operation.errors import UnauthorizedError
 from cora.operation.routes import register_operation_routes
 from cora.operation.tools import register_operation_tools
@@ -39,6 +40,7 @@ from cora.operation.wire import OperationHandlers, wire_operation
 __all__ = [
     "OperationHandlers",
     "UnauthorizedError",
+    "register_operation_projections",
     "register_operation_routes",
     "register_operation_tools",
     "wire_operation",

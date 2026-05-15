@@ -77,6 +77,7 @@ from cora.infrastructure.projection import (
 )
 from cora.operation import (
     OperationHandlers,
+    register_operation_projections,
     register_operation_routes,
     register_operation_tools,
     wire_operation,
@@ -267,6 +268,7 @@ def create_app() -> FastAPI:
             register_data_projections(registry, deps)
             register_decision_projections(registry, deps)
             register_supply_projections(registry, deps)
+            register_operation_projections(registry, deps)
             app.state.projections = registry
 
             try:

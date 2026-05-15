@@ -26,7 +26,9 @@ this is the third update slice):
     mirroring RunTruncated from 6f-4; reason + optional interrupted_at)
 
 Phase 10c-c iter 2 adds the read side:
-  - projection + `list_procedures`
+  - projection (`proj_operation_procedure_summary`) + `list_procedures`
+    (cursor-paginated; status / kind / parent_run_id / target_asset_id
+    filters)
   - Held / Resumed only if pilot operator feedback surfaces a need
 """
 
@@ -35,6 +37,7 @@ from cora.operation.features import (
     append_procedure_step,
     complete_procedure,
     get_procedure,
+    list_procedures,
     register_procedure,
     start_procedure,
     truncate_procedure,
@@ -45,6 +48,7 @@ __all__ = [
     "append_procedure_step",
     "complete_procedure",
     "get_procedure",
+    "list_procedures",
     "register_procedure",
     "start_procedure",
     "truncate_procedure",
