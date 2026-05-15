@@ -65,6 +65,10 @@ path = "cora.subject.aggregates"
 depends_on = ["cora.infrastructure"]
 
 [[modules]]
+path = "cora.supply.aggregates"
+depends_on = ["cora.infrastructure"]
+
+[[modules]]
 path = "cora.trust.aggregates"
 depends_on = ["cora.infrastructure"]
 
@@ -113,6 +117,10 @@ depends_on = [
 ]
 
 [[modules]]
+path = "cora.supply"
+depends_on = ["cora.infrastructure", "cora.supply.aggregates"]
+
+[[modules]]
 path = "cora.trust"
 depends_on = ["cora.infrastructure", "cora.trust.aggregates"]
 
@@ -146,5 +154,6 @@ depends_on = [
     "cora.recipe",
     "cora.run",
     "cora.subject",
+    "cora.supply",
     "cora.trust",
 ]

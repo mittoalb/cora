@@ -28,5 +28,6 @@ BCS: tuple[str, ...] = (
     "recipe",
     "run",
     "subject",
+    "supply",
     "trust",
 )

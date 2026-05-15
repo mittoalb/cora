@@ -15,13 +15,14 @@ of Trust / Decision foundation BCs. Method.needs.supplies wire-up
 ships in 10b; physical-equipment binding (Supply -> Asset, mirrors
 4f Subject -> Asset) is deferred-with-trigger to a later sub-phase.
 
-Phase 10a-a ships the BC scaffold + `register_supply` (genesis ->
-Unknown) + `mark_supply_available` (Unknown -> Available, operator
-first observation) + `get_supply` + `list_supplies` + projection.
+Phase 10a-a ships the BC scaffold + 4 slices:
+  - register_supply (genesis -> Unknown)
+  - mark_supply_available (Unknown -> Available, operator first observation)
+  - get_supply (read; fold-on-read)
+  - list_supplies (read; cursor-paginated over the projection)
 
-Phase 10a-b adds the full degradation/recovery cycle: `degrade_supply`
-+ `mark_supply_unavailable` + `mark_supply_recovering` +
-`restore_supply`.
+Phase 10a-b adds the full degradation/recovery cycle: degrade_supply
++ mark_supply_unavailable + mark_supply_recovering + restore_supply.
 
 Layout:
     aggregates/<aggregate>/   -- aggregate state, events union, evolver, read
@@ -29,8 +30,21 @@ Layout:
     projections/<aggregate>.py -- read-side projection consumed by list_*
     wire.py                   -- SupplyHandlers bundle + wire_supply(deps)
     routes.py                 -- register_supply_routes(app)
-    tools.py                  -- register_supply_tools(mcp)
-
-Phase 10a-a leaves `wire.py` / `routes.py` / `tools.py` /
-`_projections.py` to land in iter 4 alongside the slice files.
+    tools.py                  -- register_supply_tools(mcp, get_handlers=...)
+    _projections.py           -- register_supply_projections(registry, deps)
 """
+
+from cora.supply._projections import register_supply_projections
+from cora.supply.errors import UnauthorizedError
+from cora.supply.routes import register_supply_routes
+from cora.supply.tools import register_supply_tools
+from cora.supply.wire import SupplyHandlers, wire_supply
+
+__all__ = [
+    "SupplyHandlers",
+    "UnauthorizedError",
+    "register_supply_projections",
+    "register_supply_routes",
+    "register_supply_tools",
+    "wire_supply",
+]

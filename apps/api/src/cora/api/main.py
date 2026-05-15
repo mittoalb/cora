@@ -96,6 +96,13 @@ from cora.subject import (
     register_subject_tools,
     wire_subject,
 )
+from cora.supply import (
+    SupplyHandlers,
+    register_supply_projections,
+    register_supply_routes,
+    register_supply_tools,
+    wire_supply,
+)
 from cora.trust import (
     TrustHandlers,
     build_authorize,
@@ -202,6 +209,10 @@ def create_app() -> FastAPI:
         handlers: DecisionHandlers = fastapi_app.state.decision
         return handlers
 
+    def _get_supply_handlers() -> SupplyHandlers:
+        handlers: SupplyHandlers = fastapi_app.state.supply
+        return handlers
+
     register_access_tools(mcp, get_handlers=_get_access_handlers)
     register_trust_tools(mcp, get_handlers=_get_trust_handlers)
     register_subject_tools(mcp, get_handlers=_get_subject_handlers)
@@ -210,6 +221,7 @@ def create_app() -> FastAPI:
     register_run_tools(mcp, get_handlers=_get_run_handlers)
     register_data_tools(mcp, get_handlers=_get_data_handlers)
     register_decision_tools(mcp, get_handlers=_get_decision_handlers)
+    register_supply_tools(mcp, get_handlers=_get_supply_handlers)
     mcp_app = mcp.streamable_http_app()
 
     @asynccontextmanager
@@ -227,6 +239,7 @@ def create_app() -> FastAPI:
             app.state.run = wire_run(deps)
             app.state.data = wire_data(deps)
             app.state.decision = wire_decision(deps)
+            app.state.supply = wire_supply(deps)
 
             # Phase-8e-1a: projection worker. Each BC that owns
             # projections exports a `register_<bc>_projections`
@@ -241,6 +254,7 @@ def create_app() -> FastAPI:
             register_run_projections(registry, deps)
             register_data_projections(registry, deps)
             register_decision_projections(registry, deps)
+            register_supply_projections(registry, deps)
             app.state.projections = registry
 
             try:
@@ -308,6 +322,7 @@ def create_app() -> FastAPI:
     register_run_routes(fastapi_app)
     register_data_routes(fastapi_app)
     register_decision_routes(fastapi_app)
+    register_supply_routes(fastapi_app)
     fastapi_app.mount("/mcp", mcp_app)
 
     @fastapi_app.get("/health")
