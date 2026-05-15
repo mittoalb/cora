@@ -19,14 +19,24 @@ Subject / Equipment / Recipe / Run / Data / Decision / Supply
 3. `with_tracing` -- OTel span around every handler call. Records
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
-## Wired handlers (10c-a + 10c-b iter 1 + iter 2)
+## Wired handlers (10c-a + 10c-b iter 1 + iter 2 + 10c-c iter 1)
 
   - `register_procedure` (create-style; idempotency-wrapped)
   - `start_procedure` (transition; pre-loads target Assets)
-  - `complete_procedure` (transition)
-  - `abort_procedure` (transition)
+  - `complete_procedure` (transition; via `make_procedure_update_handler` factory)
+  - `abort_procedure` (transition; via factory)
+  - `truncate_procedure` (transition; via factory; partial-data terminal)
   - `append_procedure_step` (entry-shape; lazy-open + batch append)
   - `get_procedure` (query)
+
+## make_procedure_update_handler factory (10c-c iter 1 hoist)
+
+`complete_procedure` + `abort_procedure` + `truncate_procedure` all
+use `cora.operation._procedure_update_handler.make_procedure_update_handler`
+under the hood. The factory landed at the rule-of-three trigger
+when truncate_procedure became the third update slice; mirrors
+`_supply_update_handler` (Supply BC's hoist at 10a-b after 5
+transitions) and Run BC's `_update_handler.make_run_update_handler`.
 
 ## BC-internal StepStore wiring (mirrors Run BC's ReadingStore at L9)
 
@@ -57,6 +67,7 @@ from cora.operation.features import (
     get_procedure,
     register_procedure,
     start_procedure,
+    truncate_procedure,
 )
 
 _BC = "operation"
@@ -76,6 +87,7 @@ class OperationHandlers:
     start_procedure: start_procedure.Handler
     complete_procedure: complete_procedure.Handler
     abort_procedure: abort_procedure.Handler
+    truncate_procedure: truncate_procedure.Handler
     append_procedure_step: append_procedure_step.Handler
     get_procedure: get_procedure.Handler
 
@@ -113,6 +125,11 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
         abort_procedure=with_tracing(
             abort_procedure.bind(deps),
             command_name="AbortProcedure",
+            bc=_BC,
+        ),
+        truncate_procedure=with_tracing(
+            truncate_procedure.bind(deps),
+            command_name="TruncateProcedure",
             bc=_BC,
         ),
         append_procedure_step=with_tracing(

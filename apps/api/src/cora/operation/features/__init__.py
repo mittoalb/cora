@@ -19,9 +19,13 @@ Phase 10c-b iter 2 added the per-step logbook slice:
     append_run_reading from 6f-5b, with lazy-open envelope event
     `ProcedureStepsLogbookOpened` on first append)
 
-Phase 10c-c adds:
+Phase 10c-c iter 1 adds the partial-data terminal (and triggers the
+`make_procedure_update_handler` factory hoist at rule-of-three since
+this is the third update slice):
   - `truncate_procedure` (Running -> Truncated; partial-data terminal
-    mirroring RunTruncated from 6f-4)
+    mirroring RunTruncated from 6f-4; reason + optional interrupted_at)
+
+Phase 10c-c iter 2 adds the read side:
   - projection + `list_procedures`
   - Held / Resumed only if pilot operator feedback surfaces a need
 """
@@ -33,6 +37,7 @@ from cora.operation.features import (
     get_procedure,
     register_procedure,
     start_procedure,
+    truncate_procedure,
 )
 
 __all__ = [
@@ -42,4 +47,5 @@ __all__ = [
     "get_procedure",
     "register_procedure",
     "start_procedure",
+    "truncate_procedure",
 ]

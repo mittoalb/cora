@@ -9,6 +9,7 @@ Status mapping per event type:
   - `ProcedureStarted`            -> RUNNING   (single-source genesis transition out of Defined)
   - `ProcedureCompleted`          -> COMPLETED (happy-path terminal)
   - `ProcedureAborted`            -> ABORTED   (emergency-exit terminal)
+  - `ProcedureTruncated`          -> TRUNCATED (partial-data terminal; mirrors RunTruncated)
   - `ProcedureStepsLogbookOpened` -> STATUS UNCHANGED (sets steps_logbook_id;
                                      lazy-open envelope event from
                                      append_procedure_step, orthogonal to lifecycle)
@@ -54,6 +55,7 @@ from cora.operation.aggregates.procedure.events import (
     ProcedureRegistered,
     ProcedureStarted,
     ProcedureStepsLogbookOpened,
+    ProcedureTruncated,
 )
 from cora.operation.aggregates.procedure.state import (
     Procedure,
@@ -112,6 +114,17 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 kind=prior.kind,
                 target_asset_ids=prior.target_asset_ids,
                 status=ProcedureStatus.ABORTED,
+                parent_run_id=prior.parent_run_id,
+                steps_logbook_id=prior.steps_logbook_id,
+            )
+        case ProcedureTruncated():
+            prior = require_state(state, "ProcedureTruncated")
+            return Procedure(
+                id=prior.id,
+                name=prior.name,
+                kind=prior.kind,
+                target_asset_ids=prior.target_asset_ids,
+                status=ProcedureStatus.TRUNCATED,
                 parent_run_id=prior.parent_run_id,
                 steps_logbook_id=prior.steps_logbook_id,
             )

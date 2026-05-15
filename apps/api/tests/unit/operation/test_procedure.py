@@ -1,5 +1,6 @@
 """ProcedureName VO + ProcedureStatus enum + Operation BC error class tests."""
 
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -8,11 +9,14 @@ from cora.operation.aggregates.procedure import (
     LOGBOOK_KIND_STEPS,
     PROCEDURE_ABORT_REASON_MAX_LENGTH,
     PROCEDURE_NAME_MAX_LENGTH,
+    PROCEDURE_TRUNCATE_REASON_MAX_LENGTH,
     STEP_KIND_VALUES,
     STEPS_LOGBOOK_SCHEMA,
     InvalidProcedureAbortReasonError,
+    InvalidProcedureInterruptedAtError,
     InvalidProcedureKindError,
     InvalidProcedureNameError,
+    InvalidProcedureTruncateReasonError,
     InvalidStepKindError,
     ProcedureAbortReason,
     ProcedureAlreadyExistsError,
@@ -20,10 +24,12 @@ from cora.operation.aggregates.procedure import (
     ProcedureCannotAbortError,
     ProcedureCannotCompleteError,
     ProcedureCannotStartError,
+    ProcedureCannotTruncateError,
     ProcedureName,
     ProcedureNotFoundError,
     ProcedureStatus,
     ProcedureStepsLogbookClosedError,
+    ProcedureTruncateReason,
 )
 
 # ---------- ProcedureName VO ----------
@@ -242,3 +248,65 @@ def test_procedure_steps_logbook_closed_error_carries_id_and_status() -> None:
     assert err.current_status is ProcedureStatus.COMPLETED
     assert "Completed" in str(err)
     assert "Running" in str(err)
+
+
+# ---------- 10c-c iter 1: ProcedureTruncateReason VO + truncate-related errors ----------
+
+
+_NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
+
+
+@pytest.mark.unit
+def test_procedure_truncate_reason_trims_whitespace() -> None:
+    assert ProcedureTruncateReason("  weekend power loss  ").value == "weekend power loss"
+
+
+@pytest.mark.unit
+def test_procedure_truncate_reason_rejects_empty() -> None:
+    with pytest.raises(InvalidProcedureTruncateReasonError):
+        ProcedureTruncateReason("")
+
+
+@pytest.mark.unit
+def test_procedure_truncate_reason_rejects_whitespace_only() -> None:
+    with pytest.raises(InvalidProcedureTruncateReasonError):
+        ProcedureTruncateReason("   ")
+
+
+@pytest.mark.unit
+def test_procedure_truncate_reason_accepts_max_length() -> None:
+    reason = "x" * PROCEDURE_TRUNCATE_REASON_MAX_LENGTH
+    assert ProcedureTruncateReason(reason).value == reason
+
+
+@pytest.mark.unit
+def test_procedure_truncate_reason_rejects_over_max_length() -> None:
+    with pytest.raises(InvalidProcedureTruncateReasonError):
+        ProcedureTruncateReason("x" * (PROCEDURE_TRUNCATE_REASON_MAX_LENGTH + 1))
+
+
+@pytest.mark.unit
+def test_invalid_procedure_truncate_reason_error_carries_value() -> None:
+    err = InvalidProcedureTruncateReasonError("")
+    assert err.value == ""
+    assert "1-500" in str(err)
+
+
+@pytest.mark.unit
+def test_procedure_cannot_truncate_error_carries_id_and_status() -> None:
+    procedure_id = uuid4()
+    err = ProcedureCannotTruncateError(procedure_id, current_status=ProcedureStatus.COMPLETED)
+    assert err.procedure_id == procedure_id
+    assert err.current_status is ProcedureStatus.COMPLETED
+    assert "Completed" in str(err)
+    assert "Running" in str(err)
+
+
+@pytest.mark.unit
+def test_invalid_procedure_interrupted_at_error_carries_timestamps() -> None:
+    future = _NOW + timedelta(hours=1)
+    err = InvalidProcedureInterruptedAtError(future, _NOW)
+    assert err.interrupted_at == future
+    assert err.now == _NOW
+    assert future.isoformat() in str(err)
+    assert "future" in str(err).lower()

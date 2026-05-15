@@ -95,15 +95,19 @@ the binding is the discriminator.
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import validate_bounded_text
 from cora.infrastructure.logbook import LogbookFieldSpec, LogbookSchema
 
+if TYPE_CHECKING:
+    from datetime import datetime
+
 PROCEDURE_NAME_MAX_LENGTH = 200
 PROCEDURE_KIND_MAX_LENGTH = 50
 PROCEDURE_ABORT_REASON_MAX_LENGTH = 500
+PROCEDURE_TRUNCATE_REASON_MAX_LENGTH = 500
 
 # Phase 10c-b: per-Procedure step logbook constants.
 LOGBOOK_KIND_STEPS = "steps"
@@ -338,6 +342,70 @@ class ProcedureCannotAbortError(Exception):
         self.current_status = current_status
 
 
+class ProcedureCannotTruncateError(Exception):
+    """Attempted to truncate a Procedure not in `Running`.
+
+    Single-source guard: `truncate_procedure` accepts only `Running`
+    today (Held/Resumed deferred to future iteration). Mirrors
+    `ProcedureCannotAbortError`'s source set: a Defined Procedure
+    hasn't started so there's no execution to truncate; terminal
+    Procedures are already closed (re-truncating a `Truncated`
+    Procedure raises, strict-not-idempotent). Distinct from Abort
+    at the lifecycle layer: Truncate is for Procedures that are
+    already de-facto over (interrupted by infrastructure failure,
+    operator returning Monday to mark a Friday-evening crash) and
+    are being closed retroactively. The system does not detect
+    de-facto-dead Procedures itself; operators must call truncate
+    explicitly. Mapped to HTTP 409.
+    """
+
+    def __init__(self, procedure_id: UUID, current_status: "ProcedureStatus") -> None:
+        super().__init__(
+            f"Procedure {procedure_id} cannot be truncated: currently in status "
+            f"{current_status.value}, truncate requires {ProcedureStatus.RUNNING.value}"
+        )
+        self.procedure_id = procedure_id
+        self.current_status = current_status
+
+
+class InvalidProcedureTruncateReasonError(ValueError):
+    """The supplied truncate reason is empty, whitespace-only, or too long.
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the decider via this error. Sibling of
+    `InvalidProcedureAbortReasonError`; same shape, distinct class for
+    BC-local HTTP-status registration. Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Procedure truncate reason must be 1-{PROCEDURE_TRUNCATE_REASON_MAX_LENGTH} chars "
+            f"after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+class InvalidProcedureInterruptedAtError(ValueError):
+    """The supplied truncate `interrupted_at` is in the future relative to `now`.
+
+    `interrupted_at` is the operator's best guess at when the actual
+    interruption happened, separate from `occurred_at` (when the
+    truncate command was processed). The two timestamps can be hours
+    or days apart for weekend / overnight interruptions, but
+    `interrupted_at` MUST not be later than `now`: you cannot have
+    been interrupted in the future. Validated defensively at the
+    decider; mirrors `InvalidRunInterruptedAtError`. Mapped to HTTP 400.
+    """
+
+    def __init__(self, interrupted_at: "datetime", now: "datetime") -> None:
+        super().__init__(
+            f"interrupted_at {interrupted_at.isoformat()} is in the future "
+            f"relative to now {now.isoformat()}"
+        )
+        self.interrupted_at = interrupted_at
+        self.now = now
+
+
 class InvalidStepKindError(ValueError):
     """The supplied step_kind is not in the allowed set.
 
@@ -419,6 +487,28 @@ class ProcedureName:
         )
         # Frozen dataclasses block normal assignment in __post_init__;
         # use object.__setattr__ to install the trimmed value.
+        object.__setattr__(self, "value", trimmed)
+
+
+@dataclass(frozen=True)
+class ProcedureTruncateReason:
+    """Free-form truncate reason. Trimmed; 1-500 chars.
+
+    Sibling of `ProcedureAbortReason`; same shape (trimmed +
+    bounded), distinct class for BC-local HTTP-status registration.
+    Mirrors Run BC's `RunTruncateReason`. The on-the-wire
+    representation in `ProcedureTruncated.reason` is `str` (post-
+    trim); the VO exists at decider-input time only.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_bounded_text(
+            self.value,
+            max_length=PROCEDURE_TRUNCATE_REASON_MAX_LENGTH,
+            error_class=InvalidProcedureTruncateReasonError,
+        )
         object.__setattr__(self, "value", trimmed)
 
 

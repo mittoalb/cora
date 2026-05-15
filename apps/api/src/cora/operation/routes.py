@@ -21,15 +21,14 @@ Five error families share the same response shape and get collapsed
 via the Trust / Equipment / Supply-style loop pattern:
 
   - 400 (validation): InvalidProcedureName, InvalidProcedureKind,
-    InvalidProcedureAbortReason, InvalidStepKind
+    InvalidProcedureAbortReason, InvalidProcedureTruncateReason,
+    InvalidProcedureInterruptedAt, InvalidStepKind
   - 404 (load miss): ProcedureNotFound
   - 409 (defensive guard for AlreadyExists): ProcedureAlreadyExists
   - 409 (transition guards): ProcedureCannotStart,
     ProcedureCannotComplete, ProcedureCannotAbort,
-    ProcedureAssetDecommissioned, ProcedureStepsLogbookClosed
-
-10c-c will append ProcedureCannotTruncate to the transition-guard
-tuple.
+    ProcedureCannotTruncate, ProcedureAssetDecommissioned,
+    ProcedureStepsLogbookClosed
 """
 
 from fastapi import FastAPI, Request, status
@@ -37,14 +36,17 @@ from fastapi.responses import JSONResponse
 
 from cora.operation.aggregates.procedure import (
     InvalidProcedureAbortReasonError,
+    InvalidProcedureInterruptedAtError,
     InvalidProcedureKindError,
     InvalidProcedureNameError,
+    InvalidProcedureTruncateReasonError,
     InvalidStepKindError,
     ProcedureAlreadyExistsError,
     ProcedureAssetDecommissionedError,
     ProcedureCannotAbortError,
     ProcedureCannotCompleteError,
     ProcedureCannotStartError,
+    ProcedureCannotTruncateError,
     ProcedureNotFoundError,
     ProcedureStepsLogbookClosedError,
 )
@@ -56,6 +58,7 @@ from cora.operation.features import (
     get_procedure,
     register_procedure,
     start_procedure,
+    truncate_procedure,
 )
 
 
@@ -111,9 +114,9 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
     """Shared 409 handler for every transition-guard error.
 
     Covers ProcedureCannotStart / ProcedureCannotComplete /
-    ProcedureCannotAbort (FSM source-state guards),
-    ProcedureAssetDecommissioned (cross-aggregate precondition guard
-    at start_procedure), AND ProcedureStepsLogbookClosed (logbook
+    ProcedureCannotAbort / ProcedureCannotTruncate (FSM source-state
+    guards), ProcedureAssetDecommissioned (cross-aggregate precondition
+    guard at start_procedure), AND ProcedureStepsLogbookClosed (logbook
     write guard for non-Running Procedures). All map to HTTP 409 +
     `{"detail": str(exc)}`.
     """
@@ -130,12 +133,15 @@ def register_operation_routes(app: FastAPI) -> None:
     app.include_router(start_procedure.router)
     app.include_router(complete_procedure.router)
     app.include_router(abort_procedure.router)
+    app.include_router(truncate_procedure.router)
     app.include_router(append_procedure_step.router)
     app.include_router(get_procedure.router)
     for validation_cls in (
         InvalidProcedureNameError,
         InvalidProcedureKindError,
         InvalidProcedureAbortReasonError,
+        InvalidProcedureTruncateReasonError,
+        InvalidProcedureInterruptedAtError,
         InvalidStepKindError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
@@ -147,6 +153,7 @@ def register_operation_routes(app: FastAPI) -> None:
         ProcedureCannotStartError,
         ProcedureCannotCompleteError,
         ProcedureCannotAbortError,
+        ProcedureCannotTruncateError,
         ProcedureAssetDecommissionedError,
         ProcedureStepsLogbookClosedError,
     ):

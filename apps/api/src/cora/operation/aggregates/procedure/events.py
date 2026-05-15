@@ -159,6 +159,41 @@ class ProcedureStepsLogbookOpened:
 
 
 @dataclass(frozen=True)
+class ProcedureTruncated:
+    """A Procedure reached its partial-data terminal (Running -> Truncated, 10c-c).
+
+    Cleanup terminal for a Procedure that became de-facto dead through
+    interruption (power loss, process crash, hardware fault, weekend
+    interruption) and is being closed retroactively by an operator.
+    The Procedure was already over before the operator could mark it;
+    truncation captures that fact.
+
+    `reason` is a free-form string (1-500 chars after trimming),
+    captured verbatim from the operator. Same shape and future-additive
+    structured-taxonomy posture as ProcedureAborted's reason.
+
+    `interrupted_at` is the operator's best guess at when the actual
+    interruption occurred (None when unknown). Distinct from
+    `occurred_at`, which is when the truncate command was processed.
+    The two timestamps can be hours or days apart for weekend /
+    overnight interruptions; the explicit field saves auditors from
+    parsing the free-text reason for a date.
+
+    Truncated vs Aborted (lifecycle-layer distinction): Aborted is an
+    emergency exit while the system is still responsive; Truncated is
+    a cleanup mechanism for known-dead Procedures. The system itself
+    does not detect de-facto-dead Procedures (separate liveness
+    concern, out of scope for 10c-c); operators must invoke truncate
+    explicitly. Mirrors `RunTruncated` from Run BC's 6f-4.
+    """
+
+    procedure_id: UUID
+    reason: str
+    interrupted_at: datetime | None
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
 class ProcedureAborted:
     """A Procedure reached its emergency-exit terminal (Running -> Aborted).
 
@@ -186,6 +221,7 @@ ProcedureEvent = (
     | ProcedureStarted
     | ProcedureCompleted
     | ProcedureAborted
+    | ProcedureTruncated
     | ProcedureStepsLogbookOpened
 )
 
@@ -234,6 +270,19 @@ def to_payload(event: ProcedureEvent) -> dict[str, Any]:
             return {
                 "procedure_id": str(procedure_id),
                 "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case ProcedureTruncated(
+            procedure_id=procedure_id,
+            reason=reason,
+            interrupted_at=interrupted_at,
+            occurred_at=occurred_at,
+        ):
+            interrupted_at_iso = interrupted_at.isoformat() if interrupted_at is not None else None
+            return {
+                "procedure_id": str(procedure_id),
+                "reason": reason,
+                "interrupted_at": interrupted_at_iso,
                 "occurred_at": occurred_at.isoformat(),
             }
         case ProcedureStepsLogbookOpened(
@@ -298,6 +347,18 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
                 reason=payload["reason"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "ProcedureTruncated":
+            raw_interrupted_at = payload["interrupted_at"]
+            return ProcedureTruncated(
+                procedure_id=UUID(payload["procedure_id"]),
+                reason=payload["reason"],
+                interrupted_at=(
+                    datetime.fromisoformat(raw_interrupted_at)
+                    if raw_interrupted_at is not None
+                    else None
+                ),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case "ProcedureStepsLogbookOpened":
             return ProcedureStepsLogbookOpened(
                 procedure_id=UUID(payload["procedure_id"]),
@@ -318,6 +379,7 @@ __all__ = [
     "ProcedureRegistered",
     "ProcedureStarted",
     "ProcedureStepsLogbookOpened",
+    "ProcedureTruncated",
     "event_type_name",
     "from_stored",
     "to_payload",

@@ -1,6 +1,6 @@
 """Procedure event (de)serialization + roundtrip tests."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -14,6 +14,7 @@ from cora.operation.aggregates.procedure import (
     ProcedureRegistered,
     ProcedureStarted,
     ProcedureStepsLogbookOpened,
+    ProcedureTruncated,
     event_type_name,
     from_stored,
     to_payload,
@@ -356,5 +357,100 @@ def test_procedure_steps_logbook_opened_round_trips() -> None:
         occurred_at=_NOW,
     )
     stored = _stored("ProcedureStepsLogbookOpened", to_payload(original))
+    rebuilt = from_stored(stored)
+    assert rebuilt == original
+
+
+# --- 10c-c iter 1: ProcedureTruncated (partial-data terminal) ---
+
+
+@pytest.mark.unit
+def test_event_type_name_for_procedure_truncated() -> None:
+    event = ProcedureTruncated(
+        procedure_id=uuid4(),
+        reason="weekend power loss",
+        interrupted_at=_NOW,
+        occurred_at=_NOW,
+    )
+    assert event_type_name(event) == "ProcedureTruncated"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_procedure_truncated_with_interrupted_at() -> None:
+    procedure_id = UUID("01900000-0000-7000-8000-00000000d001")
+    interrupted_at = _NOW - timedelta(hours=2)
+    event = ProcedureTruncated(
+        procedure_id=procedure_id,
+        reason="vacuum loss",
+        interrupted_at=interrupted_at,
+        occurred_at=_NOW,
+    )
+    assert to_payload(event) == {
+        "procedure_id": str(procedure_id),
+        "reason": "vacuum loss",
+        "interrupted_at": interrupted_at.isoformat(),
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_procedure_truncated_with_null_interrupted_at() -> None:
+    """interrupted_at is optional; None serializes as null."""
+    event = ProcedureTruncated(
+        procedure_id=uuid4(),
+        reason="unknown when crashed",
+        interrupted_at=None,
+        occurred_at=_NOW,
+    )
+    payload = to_payload(event)
+    assert payload["interrupted_at"] is None
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_procedure_truncated_with_interrupted_at() -> None:
+    procedure_id = uuid4()
+    interrupted_at = _NOW - timedelta(hours=3)
+    stored = _stored(
+        "ProcedureTruncated",
+        {
+            "procedure_id": str(procedure_id),
+            "reason": "hardware fault",
+            "interrupted_at": interrupted_at.isoformat(),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, ProcedureTruncated)
+    assert rebuilt.procedure_id == procedure_id
+    assert rebuilt.reason == "hardware fault"
+    assert rebuilt.interrupted_at == interrupted_at
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_procedure_truncated_with_null_interrupted_at() -> None:
+    procedure_id = uuid4()
+    stored = _stored(
+        "ProcedureTruncated",
+        {
+            "procedure_id": str(procedure_id),
+            "reason": "unknown",
+            "interrupted_at": None,
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, ProcedureTruncated)
+    assert rebuilt.interrupted_at is None
+
+
+@pytest.mark.unit
+def test_procedure_truncated_round_trips() -> None:
+    original = ProcedureTruncated(
+        procedure_id=uuid4(),
+        reason="weekend power loss",
+        interrupted_at=_NOW - timedelta(hours=12),
+        occurred_at=_NOW,
+    )
+    stored = _stored("ProcedureTruncated", to_payload(original))
     rebuilt = from_stored(stored)
     assert rebuilt == original

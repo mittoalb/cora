@@ -15,6 +15,7 @@ from cora.operation.aggregates.procedure import (
     ProcedureStarted,
     ProcedureStatus,
     ProcedureStepsLogbookOpened,
+    ProcedureTruncated,
     evolve,
     fold,
 )
@@ -436,5 +437,109 @@ def test_evolve_steps_logbook_opened_on_empty_state_raises() -> None:
                 kind="steps",
                 schema=STEPS_LOGBOOK_SCHEMA,
                 occurred_at=_NOW,
+            ),
+        )
+
+
+# --- 10c-c iter 1: ProcedureTruncated arm ---
+
+
+@pytest.mark.unit
+def test_evolve_procedure_truncated_sets_status_to_truncated() -> None:
+    prior = _defined()
+    started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
+    state = evolve(
+        started,
+        ProcedureTruncated(
+            procedure_id=prior.id,
+            reason="weekend power loss",
+            interrupted_at=None,
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.status is ProcedureStatus.TRUNCATED
+
+
+@pytest.mark.unit
+def test_evolve_procedure_truncated_preserves_all_fields() -> None:
+    asset = uuid4()
+    parent_run = uuid4()
+    prior = _defined(
+        name="35-BM rotation-axis alignment",
+        kind="alignment",
+        target_asset_ids=[asset],
+        parent_run_id=parent_run,
+    )
+    started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
+    state = evolve(
+        started,
+        ProcedureTruncated(
+            procedure_id=prior.id, reason="r", interrupted_at=None, occurred_at=_NOW
+        ),
+    )
+    assert state.id == prior.id
+    assert state.name == prior.name
+    assert state.kind == "alignment"
+    assert state.target_asset_ids == frozenset({asset})
+    assert state.parent_run_id == parent_run
+
+
+@pytest.mark.unit
+def test_evolve_procedure_truncated_preserves_steps_logbook_id() -> None:
+    """Critical-invariant extension: truncate must preserve steps_logbook_id."""
+    prior = _defined()
+    started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
+    logbook_id = uuid4()
+    after_open = evolve(
+        started,
+        ProcedureStepsLogbookOpened(
+            procedure_id=prior.id,
+            logbook_id=logbook_id,
+            kind="steps",
+            schema=STEPS_LOGBOOK_SCHEMA,
+            occurred_at=_NOW,
+        ),
+    )
+    state = evolve(
+        after_open,
+        ProcedureTruncated(
+            procedure_id=prior.id, reason="r", interrupted_at=None, occurred_at=_NOW
+        ),
+    )
+    assert state.steps_logbook_id == logbook_id
+
+
+@pytest.mark.unit
+def test_fold_truncated_path_yields_truncated() -> None:
+    pid = uuid4()
+    events = [
+        ProcedureRegistered(
+            procedure_id=pid,
+            name="X",
+            kind="bakeout",
+            target_asset_ids=[],
+            parent_run_id=None,
+            occurred_at=_NOW,
+        ),
+        ProcedureStarted(procedure_id=pid, occurred_at=_NOW),
+        ProcedureTruncated(
+            procedure_id=pid,
+            reason="weekend crash",
+            interrupted_at=_NOW,
+            occurred_at=_NOW,
+        ),
+    ]
+    state = fold(events)
+    assert state is not None
+    assert state.status is ProcedureStatus.TRUNCATED
+
+
+@pytest.mark.unit
+def test_evolve_procedure_truncated_on_empty_state_raises() -> None:
+    with pytest.raises(ValueError, match="ProcedureTruncated"):
+        evolve(
+            None,
+            ProcedureTruncated(
+                procedure_id=uuid4(), reason="x", interrupted_at=None, occurred_at=_NOW
             ),
         )
