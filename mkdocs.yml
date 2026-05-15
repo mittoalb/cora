@@ -74,6 +74,7 @@ nav:
       - Capabilities: projects/35-bm/capabilities.md
       - Routines:
         - Rotation-axis alignment: projects/35-bm/routines/rotation_axis_alignment.md
+  - Talks: talks.md
   - Reference:
     - reference/index.md
     - Workflow: reference/workflow.md

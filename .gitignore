@@ -72,5 +72,9 @@ logs/
 .claude/
 !.claude/CLAUDE.md
 
-# Presentations (slidev decks, local-only)
-/presentations/
+# Talks (slidev decks): track sources, ignore build artifacts.
+# Decks are built in CI by .github/workflows/docs.yml and mounted under
+# /talks/<slug>/ on the docs site.
+talks/*/node_modules/
+talks/*/dist/
+talks/*/*.pdf
