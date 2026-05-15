@@ -270,7 +270,13 @@ async def test_list_filters_by_target_asset_id_via_gin_index(
 
 @pytest.mark.integration
 async def test_list_paginates_with_cursor(db_pool: asyncpg.Pool) -> None:
-    """Keyset cursor returns disjoint pages."""
+    """Keyset cursor returns disjoint pages with no within-page duplicates.
+
+    Uses a unique `kind=` per test (sibling test_list_filters_by_kind proves
+    filters work) to scope the projection rows down to just the 3 this test
+    creates, avoiding cross-test pollution and allowing strict assertions.
+    """
+    unique_kind = f"pagination-test-{uuid4().hex}"
     ids_a = [uuid4() for _ in range(3)]
     deps = _build_deps(
         db_pool,
@@ -278,7 +284,7 @@ async def test_list_paginates_with_cursor(db_pool: asyncpg.Pool) -> None:
     )
     for i in range(3):
         await bind_register(deps)(
-            RegisterProcedure(name=f"P{i}", kind="bakeout"),
+            RegisterProcedure(name=f"P{i}", kind=unique_kind),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -286,20 +292,26 @@ async def test_list_paginates_with_cursor(db_pool: asyncpg.Pool) -> None:
 
     deps2 = _build_deps(db_pool, [])
     first_page = await bind_list(deps2)(
-        ListProcedures(limit=2),
+        ListProcedures(limit=2, kind=unique_kind),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    # Filter to just the 3 we created in case other tests left rows in the table.
-    seen_first = {item.procedure_id for item in first_page.items if item.procedure_id in set(ids_a)}
-    assert len(first_page.items) == 2 or first_page.next_cursor is None
-    if first_page.next_cursor:
-        second_page = await bind_list(deps2)(
-            ListProcedures(limit=2, cursor=first_page.next_cursor),
-            principal_id=_PRINCIPAL_ID,
-            correlation_id=_CORRELATION_ID,
-        )
-        seen_second = {
-            item.procedure_id for item in second_page.items if item.procedure_id in set(ids_a)
-        }
-        assert seen_first.isdisjoint(seen_second)
+    # Page 1 must be exactly 2 + signal there's a next page.
+    assert len(first_page.items) == 2
+    assert first_page.next_cursor is not None
+    # Within-page no-duplicates invariant.
+    seen_first = {item.procedure_id for item in first_page.items}
+    assert len(seen_first) == 2
+
+    second_page = await bind_list(deps2)(
+        ListProcedures(limit=2, kind=unique_kind, cursor=first_page.next_cursor),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    # Page 2 must contain the third row.
+    assert len(second_page.items) == 1
+    seen_second = {item.procedure_id for item in second_page.items}
+    # Disjoint pages.
+    assert seen_first.isdisjoint(seen_second)
+    # Together cover all 3 procedures.
+    assert seen_first | seen_second == set(ids_a)

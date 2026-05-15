@@ -81,6 +81,9 @@ async def test_procedure_registered_inserts_with_defined_status_and_null_audit()
     await proj.apply(event, conn)
     conn.execute.assert_awaited_once()
     args = conn.execute.call_args.args
+    # Pin the idempotency marker at the unit tier (mirrors the supply
+    # projection's ON CONFLICT assertion).
+    assert "ON CONFLICT (procedure_id) DO NOTHING" in args[0]
     assert args[1] == _PROCEDURE_ID
     assert args[2] == "Vessel-A bakeout"
     assert args[3] == "bakeout"
@@ -108,6 +111,13 @@ async def test_procedure_registered_handles_null_parent_run() -> None:
     args = conn.execute.call_args.args
     assert args[4] == []
     assert args[5] is None
+
+
+# NOTE: the 4 status-change UPDATE arms (Started/Completed/Aborted/Truncated)
+# use literal status strings in SQL today (per-event SQL constants in the
+# projection). When `_UPDATE_STATUS_SQL` parameterized hoist lands (trigger:
+# 5th status-change arm), flip these substring assertions to `"SET status = $5"`
+# in lockstep with the projection refactor.
 
 
 @pytest.mark.unit

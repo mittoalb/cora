@@ -171,7 +171,7 @@ def test_decide_rejects_non_running_status(status: ProcedureStatus) -> None:
 
 
 @pytest.mark.unit
-def test_decide_is_pure_same_inputs_same_outputs() -> None:
+def test_decide_is_pure_same_input_same_output() -> None:
     proc = _procedure()
     cmd = TruncateProcedure(procedure_id=proc.id, reason="weekend crash")
     first = truncate_procedure.decide(state=proc, command=cmd, now=_NOW)

@@ -150,7 +150,11 @@ class ProcedureSummaryProjection:
             return
 
         if event.event_type == "ProcedureTruncated":
-            raw_interrupted_at = event.payload.get("interrupted_at")
+            # Strict indexing matches the evolver's `from_stored` posture:
+            # interrupted_at is required-on-the-payload (None | datetime),
+            # not future-additive optional. Any pre-10c-c stream lacking
+            # the key is malformed, not legacy. Mirrors evolver fold.
+            raw_interrupted_at = event.payload["interrupted_at"]
             interrupted_at = (
                 datetime.fromisoformat(raw_interrupted_at)
                 if raw_interrupted_at is not None

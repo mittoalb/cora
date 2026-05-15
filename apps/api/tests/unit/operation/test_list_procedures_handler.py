@@ -12,14 +12,11 @@ import pytest
 from cora.operation.errors import UnauthorizedError
 from cora.operation.features import list_procedures
 from cora.operation.features.list_procedures import ListProcedures
+from tests.unit._helpers import build_deps as _build_deps_shared
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-
-# Module-level import of the shared in-memory deps builder; deferred
-# inline because tests/unit/_helpers is also imported by other modules.
-from tests.unit._helpers import build_deps as _build_deps_shared  # noqa: E402
 
 
 @pytest.mark.unit
