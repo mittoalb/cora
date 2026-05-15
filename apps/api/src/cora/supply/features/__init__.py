@@ -16,9 +16,16 @@ Phase 10b adds Method.needs.supplies wire-up (Recipe-side enrichment;
 no new slices in this BC).
 """
 
-from cora.supply.features import mark_supply_available, register_supply
+from cora.supply.features import (
+    get_supply,
+    list_supplies,
+    mark_supply_available,
+    register_supply,
+)
 
 __all__ = [
+    "get_supply",
+    "list_supplies",
     "mark_supply_available",
     "register_supply",
 ]
