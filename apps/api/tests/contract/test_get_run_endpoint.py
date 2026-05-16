@@ -67,6 +67,10 @@ def test_get_run_returns_200_with_running_status_for_sample_run() -> None:
         "override_parameters": {},
         "effective_parameters": {},
         "triggered_by": None,
+        # 6i-c additive response surface (Watch #17): campaign_id is
+        # None for standalone runs (no Campaign membership set at
+        # start time or via add_run_to_campaign).
+        "campaign_id": None,
     }
 
 

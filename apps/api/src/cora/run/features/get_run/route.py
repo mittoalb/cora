@@ -32,6 +32,12 @@ class RunResponse(BaseModel):
     time, and the resolved merge of Plan defaults + overrides that
     actually governed this Run. Both default `{}`. `triggered_by`
     captures what initiated the Run (None if unrecorded).
+
+    `campaign_id` (6i-c) is the Campaign this Run is a member of, set
+    either at start time (StartRun.campaign_id) or post-hoc via
+    add_run_to_campaign. None when the Run is standalone (not part of
+    any Campaign). Closes design-memo Watch #17 (per Caution-design
+    cross-BC consistency precedent).
     """
 
     id: UUID
@@ -43,6 +49,7 @@ class RunResponse(BaseModel):
     override_parameters: dict[str, Any] = Field(default_factory=dict)
     effective_parameters: dict[str, Any] = Field(default_factory=dict)
     triggered_by: str | None = None
+    campaign_id: UUID | None = None
 
 
 def _get_handler(request: Request) -> Handler:
@@ -94,4 +101,5 @@ async def get_runs(
         override_parameters=run.override_parameters,
         effective_parameters=run.effective_parameters,
         triggered_by=run.triggered_by,
+        campaign_id=run.campaign_id,
     )

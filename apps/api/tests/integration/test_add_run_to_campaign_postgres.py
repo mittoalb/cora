@@ -452,36 +452,24 @@ async def test_membership_chain_run_count_settles_at_two(
     assert row["run_count"] == 2
 
 
-# ---------- N5: concurrent-membership race (Watch #15; xfail skeleton) ----------
+# ---------- Concurrent membership: gather + forced ConcurrencyError (Watch #15) ----------
 
 
 @pytest.mark.integration
-@pytest.mark.xfail(
-    reason=(
-        "Watch #15 in project_campaign_design.md: concurrent membership-"
-        "mutation race test. Bundled with 11b-c-deferred concurrent-"
-        "supersede race test (Watch #14 in project_caution_design.md). "
-        "Pins the multi-stream OCC contract: asyncio.gather on two "
-        "add_run_to_campaign calls for the same Campaign + different "
-        "Runs must both succeed atomically; one Run + same Campaign "
-        "twice should ConcurrencyError. Skeleton kept so the deferral "
-        "is discoverable in `pytest --collect-only` output."
-    ),
-    strict=False,
-)
 async def test_concurrent_add_runs_to_same_campaign_settle_atomically(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Skeleton for the deferred concurrent-membership race test.
+    """asyncio.gather on two add_run_to_campaign calls for the same
+    Campaign + different Runs: under the shared-pool serialization
+    that asyncpg's per-connection acquire enforces, both succeed and
+    end up as members. Pins the happy-race path of the multi-stream
+    OCC contract.
 
-    Concrete shape per Watch #15: register a Campaign, then
-    `asyncio.gather([add_run_to_campaign(C, R1), add_run_to_campaign(C, R2)])`
-    against fresh Runs. The expected end-state is both Runs as
-    members + run_count == 2; the race itself exercises the multi-
-    stream OCC contract on `EventStore.append_streams`.
-
-    Implementation deferred per the watch item; this xfail skeleton
-    keeps the obligation visible in test-collection output.
+    Earlier shipped as `xfail strict=False` per Watch #15 deferral;
+    promoted to a real test in the Tier 2 cleanup once the XPASS
+    became the documented behavior. The forced-version-conflict
+    sibling test (`test_forced_concurrent_add_runs_raises_concurrency_error`)
+    pins the OCC failure path explicitly.
     """
     import asyncio
 
@@ -512,11 +500,6 @@ async def test_concurrent_add_runs_to_same_campaign_settle_atomically(
     for run_id in run_ids:
         await _seed_run_via_event_store(deps, run_id, event_id=uuid4())
 
-    # The actual gather race; without a real shared multi-stream OCC
-    # implementation under contention this often serializes cleanly in
-    # asyncio's event loop. Marked xfail strict=False so a green
-    # pass becomes an xpass signal that the race is now safely
-    # serialized (which would let us promote this to a real test).
     add = add_run_to_campaign.bind(deps)
     await asyncio.gather(
         add(
@@ -531,12 +514,158 @@ async def test_concurrent_add_runs_to_same_campaign_settle_atomically(
         ),
     )
 
-    # End-state assertion. Today this is expected to fail under the
-    # deferred concurrent-correctness gap; xfail strict=False makes
-    # the failure an EXPECTED FAIL (counted as passing) and lets a
-    # surprise green pass surface as XPASS for follow-up.
+    # End-state: both Runs landed as Campaign members. Single-pool
+    # asyncio serialization makes this the realistic semantic today;
+    # if a future change introduces true parallelism (multi-connection
+    # pool + worker processes), one call would ConcurrencyError on
+    # expected_version and require operator-side retry — the
+    # forced-conflict sibling test pins that path.
     campaign_events, _ = await deps.event_store.load("Campaign", campaign_id)
     member_run_ids = {
         UUID(e.payload["run_id"]) for e in campaign_events if e.event_type == "CampaignRunAdded"
     }
     assert member_run_ids == set(run_ids)
+
+
+@pytest.mark.integration
+async def test_forced_concurrent_add_runs_raises_concurrency_error(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Forces the OCC failure path the gather-race test cannot reliably
+    induce under shared-pool serialization. Bypasses the handler's
+    load step: pre-loads campaign + run versions ONCE, then constructs
+    two append_streams batches both claiming the same expected_version
+    on the Campaign stream. The second commit MUST raise
+    ConcurrencyError; the first commits cleanly.
+
+    This pins the multi-stream OCC invariant directly (Watch #15
+    primary obligation). Combined with the gather-race test above:
+    happy serialization path proven AND failure path proven.
+    """
+    from cora.campaign.aggregates.campaign import (
+        CampaignRunAdded,
+    )
+    from cora.campaign.aggregates.campaign import (
+        event_type_name as campaign_event_type_name,
+    )
+    from cora.campaign.aggregates.campaign import (
+        to_payload as campaign_to_payload,
+    )
+    from cora.infrastructure.event_envelope import to_new_event
+    from cora.infrastructure.ports.event_store import ConcurrencyError, StreamAppend
+    from cora.run.aggregates.run import (
+        RunCampaignAssigned,
+    )
+    from cora.run.aggregates.run import (
+        event_type_name as run_event_type_name,
+    )
+    from cora.run.aggregates.run import (
+        to_payload as run_to_payload,
+    )
+
+    campaign_id = uuid4()
+    run_a_id = uuid4()
+    run_b_id = uuid4()
+    lead = uuid4()
+
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[campaign_id] + [uuid4() for _ in range(10)],
+    )
+
+    await register_campaign.bind(deps)(
+        RegisterCampaign(
+            name="forced conflict",
+            intent=CampaignIntent.SERIES,
+            lead_actor_id=lead,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await start_campaign.bind(deps)(
+        StartCampaign(campaign_id=campaign_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await _seed_run_via_event_store(deps, run_a_id, event_id=uuid4())
+    await _seed_run_via_event_store(deps, run_b_id, event_id=uuid4())
+
+    # Load Campaign once; capture stale version that both batches will
+    # claim. This is the canonical "two operators read at the same
+    # version, both try to commit" pattern.
+    _, stale_campaign_version = await deps.event_store.load("Campaign", campaign_id)
+    _, run_a_version = await deps.event_store.load("Run", run_a_id)
+    _, run_b_version = await deps.event_store.load("Run", run_b_id)
+
+    def _build_batch(run_id: UUID, run_version: int) -> list[StreamAppend]:
+        campaign_event = CampaignRunAdded(
+            campaign_id=campaign_id,
+            run_id=run_id,
+            occurred_at=_NOW,
+        )
+        run_event = RunCampaignAssigned(
+            run_id=run_id,
+            campaign_id=campaign_id,
+            occurred_at=_NOW,
+        )
+        return [
+            StreamAppend(
+                stream_type="Campaign",
+                stream_id=campaign_id,
+                expected_version=stale_campaign_version,
+                events=[
+                    to_new_event(
+                        event_type=campaign_event_type_name(campaign_event),
+                        payload=campaign_to_payload(campaign_event),
+                        occurred_at=campaign_event.occurred_at,
+                        event_id=uuid4(),
+                        command_name="AddRunToCampaign",
+                        correlation_id=_CORRELATION_ID,
+                        principal_id=_PRINCIPAL_ID,
+                    )
+                ],
+            ),
+            StreamAppend(
+                stream_type="Run",
+                stream_id=run_id,
+                expected_version=run_version,
+                events=[
+                    to_new_event(
+                        event_type=run_event_type_name(run_event),
+                        payload=run_to_payload(run_event),
+                        occurred_at=run_event.occurred_at,
+                        event_id=uuid4(),
+                        command_name="AddRunToCampaign",
+                        correlation_id=_CORRELATION_ID,
+                        principal_id=_PRINCIPAL_ID,
+                    )
+                ],
+            ),
+        ]
+
+    # First commit: succeeds, bumps Campaign version stale -> stale+1.
+    await deps.event_store.append_streams(_build_batch(run_a_id, run_a_version))
+
+    # Second commit: still claims the original stale_campaign_version,
+    # which no longer matches Campaign's actual version. The multi-
+    # stream OCC contract MUST raise ConcurrencyError.
+    with pytest.raises(ConcurrencyError) as exc_info:
+        await deps.event_store.append_streams(_build_batch(run_b_id, run_b_version))
+
+    assert exc_info.value.stream_type == "Campaign"
+    assert exc_info.value.expected == stale_campaign_version
+    assert exc_info.value.actual == stale_campaign_version + 1
+
+    # End-state: only run_a landed as member (the failing batch rolled
+    # back atomically; Run B stream version is unchanged).
+    campaign_events, _ = await deps.event_store.load("Campaign", campaign_id)
+    member_run_ids = {
+        UUID(e.payload["run_id"]) for e in campaign_events if e.event_type == "CampaignRunAdded"
+    }
+    assert member_run_ids == {run_a_id}
+
+    _, post_run_b_version = await deps.event_store.load("Run", run_b_id)
+    assert post_run_b_version == run_b_version, (
+        "Failed batch must NOT have committed to Run B's stream (atomic rollback)"
+    )
