@@ -45,8 +45,8 @@ def test_mcp_define_policy_tool_returns_structured_policy_id() -> None:
                     "arguments": {
                         "name": "Beam-team",
                         "conduit_id": _CONDUIT,
-                        "permitted_principals": [_PRINCIPAL],
-                        "permitted_commands": ["RegisterActor"],
+                        "principals_permitted": [_PRINCIPAL],
+                        "commands_permitted": ["RegisterActor"],
                     },
                 },
             },
@@ -77,8 +77,8 @@ def test_mcp_define_policy_tool_returns_iserror_on_invalid_input() -> None:
                     "arguments": {
                         "name": "   ",
                         "conduit_id": _CONDUIT,
-                        "permitted_principals": [_PRINCIPAL],
-                        "permitted_commands": ["RegisterActor"],
+                        "principals_permitted": [_PRINCIPAL],
+                        "commands_permitted": ["RegisterActor"],
                     },
                 },
             },

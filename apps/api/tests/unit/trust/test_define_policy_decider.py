@@ -28,8 +28,8 @@ def test_decide_emits_policy_defined_when_stream_is_empty() -> None:
         command=DefinePolicy(
             name="Beam-team",
             conduit_id=conduit_id,
-            permitted_principals=frozenset({p1}),
-            permitted_commands=frozenset({"RegisterActor"}),
+            principals_permitted=frozenset({p1}),
+            commands_permitted=frozenset({"RegisterActor"}),
         ),
         now=_NOW,
         new_id=new_id,
@@ -40,8 +40,8 @@ def test_decide_emits_policy_defined_when_stream_is_empty() -> None:
     assert e.policy_id == new_id
     assert e.name == "Beam-team"
     assert e.conduit_id == conduit_id
-    assert set(e.permitted_principals) == {p1}
-    assert set(e.permitted_commands) == {"RegisterActor"}
+    assert set(e.principals_permitted) == {p1}
+    assert set(e.commands_permitted) == {"RegisterActor"}
     assert e.occurred_at == _NOW
 
 
@@ -52,8 +52,8 @@ def test_decide_trims_name_via_value_object() -> None:
         command=DefinePolicy(
             name="  Beam-team  ",
             conduit_id=uuid4(),
-            permitted_principals=frozenset({uuid4()}),
-            permitted_commands=frozenset({"RegisterActor"}),
+            principals_permitted=frozenset({uuid4()}),
+            commands_permitted=frozenset({"RegisterActor"}),
         ),
         now=_NOW,
         new_id=uuid4(),
@@ -69,8 +69,8 @@ def test_decide_rejects_invalid_name() -> None:
             command=DefinePolicy(
                 name="",
                 conduit_id=uuid4(),
-                permitted_principals=frozenset({uuid4()}),
-                permitted_commands=frozenset({"RegisterActor"}),
+                principals_permitted=frozenset({uuid4()}),
+                commands_permitted=frozenset({"RegisterActor"}),
             ),
             now=_NOW,
             new_id=uuid4(),
@@ -83,8 +83,8 @@ def test_decide_rejects_existing_state() -> None:
         id=uuid4(),
         name=PolicyName("Existing"),
         conduit_id=uuid4(),
-        permitted_principals=frozenset({uuid4()}),
-        permitted_commands=frozenset({"RegisterActor"}),
+        principals_permitted=frozenset({uuid4()}),
+        commands_permitted=frozenset({"RegisterActor"}),
     )
     with pytest.raises(PolicyAlreadyExistsError) as exc_info:
         define_policy.decide(
@@ -92,8 +92,8 @@ def test_decide_rejects_existing_state() -> None:
             command=DefinePolicy(
                 name="Other",
                 conduit_id=uuid4(),
-                permitted_principals=frozenset(),
-                permitted_commands=frozenset(),
+                principals_permitted=frozenset(),
+                commands_permitted=frozenset(),
             ),
             now=_NOW,
             new_id=uuid4(),
@@ -111,14 +111,14 @@ def test_decide_allows_empty_permission_sets() -> None:
         command=DefinePolicy(
             name="Locked",
             conduit_id=uuid4(),
-            permitted_principals=frozenset(),
-            permitted_commands=frozenset(),
+            principals_permitted=frozenset(),
+            commands_permitted=frozenset(),
         ),
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].permitted_principals == []
-    assert events[0].permitted_commands == []
+    assert events[0].principals_permitted == []
+    assert events[0].commands_permitted == []
 
 
 @pytest.mark.unit
@@ -132,8 +132,8 @@ def test_decide_does_not_validate_conduit_existence() -> None:
         command=DefinePolicy(
             name="Dangling",
             conduit_id=uuid4(),  # random — no corresponding Conduit events
-            permitted_principals=frozenset({uuid4()}),
-            permitted_commands=frozenset({"X"}),
+            principals_permitted=frozenset({uuid4()}),
+            commands_permitted=frozenset({"X"}),
         ),
         now=_NOW,
         new_id=uuid4(),
@@ -149,8 +149,8 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
     command = DefinePolicy(
         name="Beam-team",
         conduit_id=conduit,
-        permitted_principals=frozenset({p1}),
-        permitted_commands=frozenset({"RegisterActor"}),
+        principals_permitted=frozenset({p1}),
+        commands_permitted=frozenset({"RegisterActor"}),
     )
     first = define_policy.decide(state=None, command=command, now=_NOW, new_id=new_id)
     second = define_policy.decide(state=None, command=command, now=_NOW, new_id=new_id)

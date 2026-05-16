@@ -96,8 +96,8 @@ async def test_trust_authorize_allows_handler_call_for_permitted_principal(
         DefinePolicy(
             name="GateA-PermitDefineZone",
             conduit_id=_CONDUIT_ID,
-            permitted_principals=frozenset({_PERMITTED_PRINCIPAL}),
-            permitted_commands=frozenset({"DefineZone"}),
+            principals_permitted=frozenset({_PERMITTED_PRINCIPAL}),
+            commands_permitted=frozenset({"DefineZone"}),
         ),
         principal_id=_BOOTSTRAP_PRINCIPAL,
         correlation_id=_CORRELATION_ID,
@@ -135,8 +135,8 @@ async def test_trust_authorize_denies_handler_call_for_other_principal(
         DefinePolicy(
             name="GateA-DenyOthers",
             conduit_id=_CONDUIT_ID,
-            permitted_principals=frozenset({_PERMITTED_PRINCIPAL}),
-            permitted_commands=frozenset({"DefineZone"}),
+            principals_permitted=frozenset({_PERMITTED_PRINCIPAL}),
+            commands_permitted=frozenset({"DefineZone"}),
         ),
         principal_id=_BOOTSTRAP_PRINCIPAL,
         correlation_id=_CORRELATION_ID,
@@ -160,7 +160,7 @@ async def test_trust_authorize_denies_handler_call_when_command_not_permitted(
 ) -> None:
     """The principal IS in the permitted set, but the policy does not
     permit DefineZone (only RegisterActor). Pinned so a future
-    relaxation that ignores `permitted_commands` is caught — both
+    relaxation that ignores `commands_permitted` is caught — both
     dimensions of the policy must gate."""
     policy_id = UUID("01900000-0000-7000-8000-0000000b3001")
     policy_event_id = UUID("01900000-0000-7000-8000-0000000b30e1")
@@ -172,9 +172,9 @@ async def test_trust_authorize_denies_handler_call_when_command_not_permitted(
         DefinePolicy(
             name="GateA-WrongCommand",
             conduit_id=_CONDUIT_ID,
-            permitted_principals=frozenset({_PERMITTED_PRINCIPAL}),
+            principals_permitted=frozenset({_PERMITTED_PRINCIPAL}),
             # Note: DefineZone is NOT in this set.
-            permitted_commands=frozenset({"RegisterActor"}),
+            commands_permitted=frozenset({"RegisterActor"}),
         ),
         principal_id=_BOOTSTRAP_PRINCIPAL,
         correlation_id=_CORRELATION_ID,
@@ -246,8 +246,8 @@ async def test_trust_authorize_denies_when_policy_conduit_does_not_match_handler
         DefinePolicy(
             name="GateA-OtherConduit",
             conduit_id=other_conduit_id,
-            permitted_principals=frozenset({_PERMITTED_PRINCIPAL}),
-            permitted_commands=frozenset({"DefineZone"}),
+            principals_permitted=frozenset({_PERMITTED_PRINCIPAL}),
+            commands_permitted=frozenset({"DefineZone"}),
         ),
         principal_id=_BOOTSTRAP_PRINCIPAL,
         correlation_id=_CORRELATION_ID,

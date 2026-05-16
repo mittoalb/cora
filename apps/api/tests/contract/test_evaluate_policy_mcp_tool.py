@@ -26,8 +26,8 @@ def _define_policy_via_rest(client: TestClient) -> str:
         json={
             "name": "Beam-team",
             "conduit_id": _CONDUIT,
-            "permitted_principals": [_ALLOWED_PRINCIPAL],
-            "permitted_commands": ["RegisterActor"],
+            "principals_permitted": [_ALLOWED_PRINCIPAL],
+            "commands_permitted": ["RegisterActor"],
         },
     )
     assert response.status_code == 201

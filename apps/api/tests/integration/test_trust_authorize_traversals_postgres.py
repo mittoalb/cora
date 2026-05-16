@@ -124,8 +124,8 @@ async def test_trust_authorize_persists_traversals_against_postgres(
                 policy_id=policy_id,
                 name="Test-policy",
                 conduit_id=conduit_id,
-                permitted_principals=[_PRINCIPAL_ID],
-                permitted_commands=["RegisterActor"],
+                principals_permitted=[_PRINCIPAL_ID],
+                commands_permitted=["RegisterActor"],
                 occurred_at=_NOW,
             )
         ),
@@ -134,8 +134,8 @@ async def test_trust_authorize_persists_traversals_against_postgres(
                 policy_id=policy_id,
                 name="Test-policy",
                 conduit_id=conduit_id,
-                permitted_principals=[_PRINCIPAL_ID],
-                permitted_commands=["RegisterActor"],
+                principals_permitted=[_PRINCIPAL_ID],
+                commands_permitted=["RegisterActor"],
                 occurred_at=_NOW,
             )
         ),

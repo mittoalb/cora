@@ -11,8 +11,8 @@ Phase 3c keeps Policy minimal:
   - `conduit_id` — the single Conduit this policy governs (one
     policy per conduit in 3c; cross-policy resolution is 3e's
     `TrustAuthorize` problem)
-  - `permitted_principals: frozenset[UUID]` — explicit allow-list
-  - `permitted_commands: frozenset[str]` — command-name allow-list
+  - `principals_permitted: frozenset[UUID]` — explicit allow-list
+  - `commands_permitted: frozenset[str]` — command-name allow-list
     (matches the discriminator string used by the Authorize port and
     the `event_type_name` everywhere else)
 
@@ -25,13 +25,13 @@ BC-map) and modify/revoke slices defer to later sub-phases per the
 same additive-state pattern as Zone and Conduit.
 
 **No referential integrity at command time.** `conduit_id` and
-each entry in `permitted_principals` are stored as bare UUIDs
+each entry in `principals_permitted` are stored as bare UUIDs
 without verifying the referenced Conduits / Actors exist. Same
 event-sourcing posture as Conduit→Zone in 3b: typos produce
 "dangling" policies; downstream evaluation just denies because
 the conduit_id mismatch surfaces at evaluate-time.
 
-Empty `permitted_principals` or empty `permitted_commands` is
+Empty `principals_permitted` or empty `commands_permitted` is
 allowed and produces a deny-all policy by construction (every
 evaluation hits the "not in {empty}" branch). Useful for
 temporarily revoking access without deleting the policy.
@@ -94,8 +94,8 @@ class Policy:
     id: UUID
     name: PolicyName
     conduit_id: UUID
-    permitted_principals: frozenset[UUID]
-    permitted_commands: frozenset[str]
+    principals_permitted: frozenset[UUID]
+    commands_permitted: frozenset[str]
 
 
 def evaluate(
@@ -128,8 +128,8 @@ def evaluate(
         return Deny(
             reason=(f"Policy {policy.id} governs conduit {policy.conduit_id}, not {conduit_id}")
         )
-    if principal_id not in policy.permitted_principals:
+    if principal_id not in policy.principals_permitted:
         return Deny(reason=f"Principal {principal_id} not in policy {policy.id}'s permitted set")
-    if command_name not in policy.permitted_commands:
+    if command_name not in policy.commands_permitted:
         return Deny(reason=(f"Command {command_name!r} not in policy {policy.id}'s permitted set"))
     return Allow()

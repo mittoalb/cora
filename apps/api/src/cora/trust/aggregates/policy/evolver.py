@@ -23,16 +23,16 @@ def evolve(state: Policy | None, event: PolicyEvent) -> Policy:
             policy_id=policy_id,
             name=name,
             conduit_id=conduit_id,
-            permitted_principals=permitted_principals,
-            permitted_commands=permitted_commands,
+            principals_permitted=principals_permitted,
+            commands_permitted=commands_permitted,
         ):
             _ = state  # PolicyDefined is the genesis event; prior state ignored
             return Policy(
                 id=policy_id,
                 name=PolicyName(name),
                 conduit_id=conduit_id,
-                permitted_principals=frozenset(permitted_principals),
-                permitted_commands=frozenset(permitted_commands),
+                principals_permitted=frozenset(principals_permitted),
+                commands_permitted=frozenset(commands_permitted),
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

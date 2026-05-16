@@ -5,7 +5,7 @@ classes, discriminated union, `event_type_name`, `to_payload`,
 `from_stored`. The persistence-envelope construction (`NewEvent`)
 lives at `cora.infrastructure.event_envelope.to_new_event`.
 
-`PolicyDefined.permitted_principals` / `.permitted_commands` are
+`PolicyDefined.principals_permitted` / `.commands_permitted` are
 stored as `list[UUID]` / `list[str]` here (events carry primitives
 per CONTRIBUTING.md; lists JSON-serialize cleanly). The evolver
 converts them to `frozenset` when folding into Policy state, where
@@ -30,8 +30,8 @@ class PolicyDefined:
     policy_id: UUID
     name: str
     conduit_id: UUID
-    permitted_principals: list[UUID]
-    permitted_commands: list[str]
+    principals_permitted: list[UUID]
+    commands_permitted: list[str]
     occurred_at: datetime
 
 
@@ -57,16 +57,16 @@ def to_payload(event: PolicyEvent) -> dict[str, Any]:
             policy_id=policy_id,
             name=name,
             conduit_id=conduit_id,
-            permitted_principals=permitted_principals,
-            permitted_commands=permitted_commands,
+            principals_permitted=principals_permitted,
+            commands_permitted=commands_permitted,
             occurred_at=occurred_at,
         ):
             return {
                 "policy_id": str(policy_id),
                 "name": name,
                 "conduit_id": str(conduit_id),
-                "permitted_principals": sorted(str(p) for p in permitted_principals),
-                "permitted_commands": sorted(permitted_commands),
+                "principals_permitted": sorted(str(p) for p in principals_permitted),
+                "commands_permitted": sorted(commands_permitted),
                 "occurred_at": occurred_at.isoformat(),
             }
         case _:  # pragma: no cover  # exhaustiveness guard
@@ -82,8 +82,8 @@ def from_stored(stored: StoredEvent) -> PolicyEvent:
                 policy_id=UUID(payload["policy_id"]),
                 name=payload["name"],
                 conduit_id=UUID(payload["conduit_id"]),
-                permitted_principals=[UUID(p) for p in payload["permitted_principals"]],
-                permitted_commands=list(payload["permitted_commands"]),
+                principals_permitted=[UUID(p) for p in payload["principals_permitted"]],
+                commands_permitted=list(payload["commands_permitted"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case _:

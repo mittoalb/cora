@@ -4,7 +4,7 @@ Reads `proj_trust_policy_summary` directly via `deps.pool`. Single
 optional `conduit_id` filter plus cursor pagination, using the
 `$N::uuid IS NULL OR column = $N` declarative pattern.
 
-The list-typed `permitted_principals` and `permitted_commands`
+The list-typed `principals_permitted` and `commands_permitted`
 fields are NOT in the projection (and therefore not in the result
 row); a future `proj_trust_policy_principals` join projection will
 cover "list policies allowing Principal X" if that use case

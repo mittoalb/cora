@@ -24,8 +24,8 @@ def test_evolve_policy_defined_from_empty_state() -> None:
             policy_id=policy_id,
             name="Beam-team",
             conduit_id=conduit,
-            permitted_principals=[p1],
-            permitted_commands=["RegisterActor"],
+            principals_permitted=[p1],
+            commands_permitted=["RegisterActor"],
             occurred_at=_NOW,
         ),
     )
@@ -33,8 +33,8 @@ def test_evolve_policy_defined_from_empty_state() -> None:
         id=policy_id,
         name=PolicyName("Beam-team"),
         conduit_id=conduit,
-        permitted_principals=frozenset({p1}),
-        permitted_commands=frozenset({"RegisterActor"}),
+        principals_permitted=frozenset({p1}),
+        commands_permitted=frozenset({"RegisterActor"}),
     )
 
 
@@ -50,13 +50,13 @@ def test_evolve_converts_lists_to_frozensets() -> None:
             policy_id=policy_id,
             name="X",
             conduit_id=uuid4(),
-            permitted_principals=[p1, p2, p1],  # duplicate intentionally
-            permitted_commands=["A", "B", "A"],
+            principals_permitted=[p1, p2, p1],  # duplicate intentionally
+            commands_permitted=["A", "B", "A"],
             occurred_at=_NOW,
         ),
     )
-    assert state.permitted_principals == frozenset({p1, p2})
-    assert state.permitted_commands == frozenset({"A", "B"})
+    assert state.principals_permitted == frozenset({p1, p2})
+    assert state.commands_permitted == frozenset({"A", "B"})
 
 
 @pytest.mark.unit
@@ -74,8 +74,8 @@ def test_fold_single_policy_defined_returns_policy() -> None:
                 policy_id=policy_id,
                 name="Beam-team",
                 conduit_id=conduit,
-                permitted_principals=[],
-                permitted_commands=[],
+                principals_permitted=[],
+                commands_permitted=[],
                 occurred_at=_NOW,
             )
         ]
@@ -84,8 +84,8 @@ def test_fold_single_policy_defined_returns_policy() -> None:
         id=policy_id,
         name=PolicyName("Beam-team"),
         conduit_id=conduit,
-        permitted_principals=frozenset(),
-        permitted_commands=frozenset(),
+        principals_permitted=frozenset(),
+        commands_permitted=frozenset(),
     )
 
 
@@ -96,8 +96,8 @@ def test_fold_is_pure_same_input_same_output() -> None:
             policy_id=uuid4(),
             name="X",
             conduit_id=uuid4(),
-            permitted_principals=[uuid4()],
-            permitted_commands=["X"],
+            principals_permitted=[uuid4()],
+            commands_permitted=["X"],
             occurred_at=_NOW,
         )
     ]
@@ -113,8 +113,8 @@ def test_decider_and_evolver_round_trip() -> None:
     command = DefinePolicy(
         name="  Beam-team  ",  # whitespace exercises the VO trim
         conduit_id=conduit,
-        permitted_principals=frozenset({p1, p2}),
-        permitted_commands=frozenset({"RegisterActor", "DefineZone"}),
+        principals_permitted=frozenset({p1, p2}),
+        commands_permitted=frozenset({"RegisterActor", "DefineZone"}),
     )
 
     events = define_policy.decide(state=None, command=command, now=_NOW, new_id=new_id)
@@ -124,6 +124,6 @@ def test_decider_and_evolver_round_trip() -> None:
         id=new_id,
         name=PolicyName("Beam-team"),
         conduit_id=conduit,
-        permitted_principals=frozenset({p1, p2}),
-        permitted_commands=frozenset({"RegisterActor", "DefineZone"}),
+        principals_permitted=frozenset({p1, p2}),
+        commands_permitted=frozenset({"RegisterActor", "DefineZone"}),
     )

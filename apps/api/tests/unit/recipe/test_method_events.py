@@ -104,7 +104,7 @@ def test_to_payload_sorts_needs_capabilities_deterministically() -> None:
     regardless of input ordering. Critical for idempotency-key hashing
     (Stripe-style replay returns cached result only when bodies match
     byte-for-byte after canonical normalization). Locks the same
-    convention as Trust's PolicyDefined.permitted_principals sorting."""
+    convention as Trust's PolicyDefined.principals_permitted sorting."""
     c1 = UUID("01900000-0000-7000-8000-000000000111")
     c2 = UUID("01900000-0000-7000-8000-000000000222")
     c3 = UUID("01900000-0000-7000-8000-000000000333")

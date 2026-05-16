@@ -36,14 +36,14 @@ class DefinePolicyRequest(BaseModel):
         ...,
         description=("UUID of the Conduit this policy governs (not validated for existence)."),
     )
-    permitted_principals: list[UUID] = Field(
+    principals_permitted: list[UUID] = Field(
         ...,
         description=(
             "Principals (UUIDs) allowed to act via this conduit. "
             "Empty list yields a deny-all policy."
         ),
     )
-    permitted_commands: list[str] = Field(
+    commands_permitted: list[str] = Field(
         ...,
         description=(
             "Command names (e.g. 'RegisterActor', 'DefineZone') allowed via this "
@@ -109,8 +109,8 @@ async def post_policies(
         DefinePolicy(
             name=body.name,
             conduit_id=body.conduit_id,
-            permitted_principals=frozenset(body.permitted_principals),
-            permitted_commands=frozenset(body.permitted_commands),
+            principals_permitted=frozenset(body.principals_permitted),
+            commands_permitted=frozenset(body.commands_permitted),
         ),
         principal_id=principal_id,
         correlation_id=cid,

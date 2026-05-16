@@ -6,8 +6,8 @@ on the *resource* the caller is trying to touch. The classic
 failure mode is "principal P1 creates resource R; principal P2
 issues GET /resource/<R> and reads it".
 
-CORA's day-1 defense is the Trust BC's `permitted_principals` x
-`permitted_commands` policy: when `TrustAuthorize` is wired with
+CORA's day-1 defense is the Trust BC's `principals_permitted` x
+`commands_permitted` policy: when `TrustAuthorize` is wired with
 a real policy, every command is gated by `(principal_id,
 command_name)`. This test pins the load-bearing chain end-to-end
 across multiple BCs to prove the gating actually fires for cross-
@@ -17,7 +17,7 @@ exposure surface is reads).
 This test does NOT exercise per-resource ownership (ReBAC); see
 `memory/project_authz_future.md` for that planned phase. What it
 DOES prove today: a deployment that turns on TrustAuthorize and
-configures `permitted_principals` correctly cannot leak a P1
+configures `principals_permitted` correctly cannot leak a P1
 aggregate to a P2 read just because both are authenticated, even
 when both have valid X-Principal-Id headers.
 
@@ -54,7 +54,7 @@ def _seed_policy(
     *,
     policy_id: UUID,
     permitted_principal: UUID,
-    permitted_commands: frozenset[str],
+    commands_permitted: frozenset[str],
 ) -> None:
     """Seed a single PolicyDefined event into the running app's
     in-memory store. Same shape as `test_principal_header.py`'s
@@ -64,8 +64,8 @@ def _seed_policy(
         policy_id=policy_id,
         name="Bola-test-policy",
         conduit_id=UUID(int=0),
-        permitted_principals=[permitted_principal],
-        permitted_commands=list(permitted_commands),
+        principals_permitted=[permitted_principal],
+        commands_permitted=list(commands_permitted),
         occurred_at=datetime.now(tz=UTC),
     )
     new_event = to_new_event(
@@ -104,7 +104,7 @@ def bola_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, UUID
         cast("FastAPI", client.app),
         policy_id=policy_id,
         permitted_principal=p1,
-        permitted_commands=frozenset(
+        commands_permitted=frozenset(
             {
                 # Create-side
                 "RegisterActor",
@@ -270,7 +270,7 @@ def test_p2_cannot_call_list_actors_when_command_not_permitted(
 ) -> None:
     """List-endpoint BOLA defense at TODAY's granularity: the
     `ListActors` command is gated by Trust policy. P2 isn't in
-    `permitted_principals` so the command itself is denied with 403
+    `principals_permitted` so the command itself is denied with 403
     before the projection table is queried.
 
     This is the WEAKER assertion than per-row BOLA (P2 sees zero of

@@ -38,7 +38,7 @@ def _seed_policy(
     *,
     policy_id: UUID,
     permitted_principal: UUID,
-    permitted_commands: frozenset[str],
+    commands_permitted: frozenset[str],
 ) -> None:
     """Seed a single PolicyDefined event into the running app's
     in-memory store. Same shape as the BOLA contract test's helper."""
@@ -46,8 +46,8 @@ def _seed_policy(
         policy_id=policy_id,
         name="Plan-wire-authz-test-policy",
         conduit_id=UUID(int=0),
-        permitted_principals=[permitted_principal],
-        permitted_commands=list(permitted_commands),
+        principals_permitted=[permitted_principal],
+        commands_permitted=list(commands_permitted),
         occurred_at=datetime.now(tz=UTC),
     )
     new_event = to_new_event(
@@ -104,7 +104,7 @@ def wire_authz_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient
         cast("FastAPI", client.app),
         policy_id=policy_id,
         permitted_principal=p1,
-        permitted_commands=_PERMITTED_SETUP_COMMANDS,
+        commands_permitted=_PERMITTED_SETUP_COMMANDS,
     )
     try:
         yield client, p1, p2
@@ -178,7 +178,7 @@ def _setup_plan_with_two_wired_assets(client: TestClient, principal: UUID) -> di
 def test_p2_gets_403_when_adding_a_wire_to_p1s_plan(
     wire_authz_app: tuple[TestClient, UUID, UUID],
 ) -> None:
-    """Authz contract: P2 is not in `permitted_principals` for AddPlanWire,
+    """Authz contract: P2 is not in `principals_permitted` for AddPlanWire,
     so POST /plans/{id}/add_wire returns 403 before any decider logic
     runs. Pins the full route -> handler -> deps.authorize -> 403 stack."""
     client, p1, p2 = wire_authz_app
