@@ -48,8 +48,8 @@ async def _seed_policy(
         policy_id=policy_id,
         name="Test-policy",
         conduit_id=conduit_id,
-        principals_permitted=list(principals),
-        commands_permitted=list(commands),
+        permitted_principals=list(principals),
+        permitted_commands=list(commands),
         occurred_at=_NOW,
     )
     new_event = to_new_event(

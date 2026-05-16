@@ -25,8 +25,8 @@ def _command(name: str = "Beam-team") -> DefinePolicy:
     return DefinePolicy(
         name=name,
         conduit_id=_CONDUIT_ID,
-        principals_permitted=frozenset({_ALLOWED_PRINCIPAL}),
-        commands_permitted=frozenset({"RegisterActor"}),
+        permitted_principals=frozenset({_ALLOWED_PRINCIPAL}),
+        permitted_commands=frozenset({"RegisterActor"}),
     )
 
 
@@ -66,8 +66,8 @@ async def test_handler_appends_policy_defined_event_to_store() -> None:
         "policy_id": str(_NEW_ID),
         "name": "Beam-team",
         "conduit_id": str(_CONDUIT_ID),
-        "principals_permitted": [str(_ALLOWED_PRINCIPAL)],
-        "commands_permitted": ["RegisterActor"],
+        "permitted_principals": [str(_ALLOWED_PRINCIPAL)],
+        "permitted_commands": ["RegisterActor"],
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.correlation_id == _CORRELATION_ID

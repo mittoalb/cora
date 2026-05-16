@@ -81,8 +81,8 @@ def _policy(
         id=uuid4(),
         name=PolicyName("Test"),
         conduit_id=conduit_id,
-        principals_permitted=principals,
-        commands_permitted=commands,
+        permitted_principals=principals,
+        permitted_commands=commands,
     )
 
 
@@ -136,7 +136,7 @@ def test_evaluate_denies_when_command_not_permitted() -> None:
 
 
 @pytest.mark.unit
-def test_evaluate_denies_with_empty_principals_permitted() -> None:
+def test_evaluate_denies_with_empty_permitted_principals() -> None:
     """Empty allow-list policy denies every principal (deny-all-by-construction)."""
     result = evaluate(
         _policy(principals=frozenset()),
@@ -148,7 +148,7 @@ def test_evaluate_denies_with_empty_principals_permitted() -> None:
 
 
 @pytest.mark.unit
-def test_evaluate_denies_with_empty_commands_permitted() -> None:
+def test_evaluate_denies_with_empty_permitted_commands() -> None:
     result = evaluate(
         _policy(commands=frozenset()),
         principal_id=_PRINCIPAL_OK,

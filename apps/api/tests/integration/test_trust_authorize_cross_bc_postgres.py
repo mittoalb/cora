@@ -65,7 +65,7 @@ async def _seed_policy(
     *,
     policy_id: UUID,
     policy_event_id: UUID,
-    commands_permitted: frozenset[str],
+    permitted_commands: frozenset[str],
     name: str,
 ) -> None:
     """Helper: define a Trust policy via AllowAll-wired deps."""
@@ -74,8 +74,8 @@ async def _seed_policy(
         DefinePolicy(
             name=name,
             conduit_id=_CONDUIT_ID,
-            principals_permitted=frozenset({_PERMITTED_PRINCIPAL}),
-            commands_permitted=commands_permitted,
+            permitted_principals=frozenset({_PERMITTED_PRINCIPAL}),
+            permitted_commands=permitted_commands,
         ),
         principal_id=_BOOTSTRAP_PRINCIPAL,
         correlation_id=_CORRELATION_ID,
@@ -103,7 +103,7 @@ async def test_trust_policy_gates_subject_register_for_permitted_principal(
         db_pool,
         policy_id=policy_id,
         policy_event_id=policy_event_id,
-        commands_permitted=frozenset({"RegisterSubject"}),
+        permitted_commands=frozenset({"RegisterSubject"}),
         name="GateB-PermitRegisterSubject",
     )
 
@@ -136,7 +136,7 @@ async def test_trust_policy_gates_subject_register_denies_other_principal(
         db_pool,
         policy_id=policy_id,
         policy_event_id=policy_event_id,
-        commands_permitted=frozenset({"RegisterSubject"}),
+        permitted_commands=frozenset({"RegisterSubject"}),
         name="GateB-DenyOtherForSubject",
     )
 
@@ -172,7 +172,7 @@ async def test_trust_policy_gates_subject_update_style_command(
         db_pool,
         policy_id=policy_id,
         policy_event_id=policy_event_id,
-        commands_permitted=frozenset({"RegisterSubject", "MountSubject"}),
+        permitted_commands=frozenset({"RegisterSubject", "MountSubject"}),
         name="GateB-PermitRegisterAndMount",
     )
 
@@ -247,7 +247,7 @@ async def test_trust_policy_gates_access_handler_with_distinct_error_class(
         db_pool,
         policy_id=policy_id,
         policy_event_id=policy_event_id,
-        commands_permitted=frozenset({"RegisterActor"}),
+        permitted_commands=frozenset({"RegisterActor"}),
         name="GateB-PermitRegisterActorOnly",
     )
 
@@ -265,7 +265,7 @@ async def test_trust_policy_gates_access_handler_with_distinct_error_class(
         correlation_id=_CORRELATION_ID,
     )
 
-    # But cannot deactivate (DeactivateActor not in commands_permitted) —
+    # But cannot deactivate (DeactivateActor not in permitted_commands) —
     # raises ACCESS's UnauthorizedError, not Subject's.
     with pytest.raises(AccessUnauthorizedError) as exc_info:
         await handlers.deactivate_actor(
@@ -316,8 +316,8 @@ async def test_documented_bootstrap_workflow_produces_working_authz(
             name="GateB-BootstrapPolicy",
             conduit_id=_CONDUIT_ID,
             # Permissive enough to keep working post-restart.
-            principals_permitted=frozenset({_PERMITTED_PRINCIPAL}),
-            commands_permitted=frozenset({"RegisterSubject"}),
+            permitted_principals=frozenset({_PERMITTED_PRINCIPAL}),
+            permitted_commands=frozenset({"RegisterSubject"}),
         ),
         principal_id=_BOOTSTRAP_PRINCIPAL,
         correlation_id=_CORRELATION_ID,

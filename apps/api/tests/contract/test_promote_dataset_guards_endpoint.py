@@ -177,15 +177,15 @@ def _seed_policy(
     *,
     policy_id: UUID,
     permitted_principal: UUID,
-    commands_permitted: frozenset[str],
+    permitted_commands: frozenset[str],
 ) -> None:
     """Same shape as test_cross_principal_bola.py + test_plan_wire_authz_endpoint.py."""
     event = PolicyDefined(
         policy_id=policy_id,
         name="Promote-dataset-authz-test-policy",
         conduit_id=UUID(int=0),
-        principals_permitted=[permitted_principal],
-        commands_permitted=list(commands_permitted),
+        permitted_principals=[permitted_principal],
+        permitted_commands=list(permitted_commands),
         occurred_at=datetime.now(tz=UTC),
     )
     new_event = to_new_event(
@@ -231,7 +231,7 @@ def promote_authz_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestCli
         cast("FastAPI", client.app),
         policy_id=policy_id,
         permitted_principal=p1,
-        commands_permitted=_PERMITTED_SETUP_COMMANDS,
+        permitted_commands=_PERMITTED_SETUP_COMMANDS,
     )
     try:
         yield client, p1, p2
@@ -243,7 +243,7 @@ def promote_authz_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestCli
 def test_p2_gets_403_when_promoting_p1s_dataset(
     promote_authz_app: tuple[TestClient, UUID, UUID],
 ) -> None:
-    """Authz contract: P2 is not in `principals_permitted` for
+    """Authz contract: P2 is not in `permitted_principals` for
     PromoteDataset, so POST /datasets/{id}/promote returns 403 before
     any decider logic runs. Pins the full route → handler →
     deps.authorize → 403 stack for promote_dataset."""

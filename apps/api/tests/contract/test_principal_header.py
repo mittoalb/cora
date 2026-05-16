@@ -97,8 +97,8 @@ def _seed_policy_in_store(
     *,
     policy_id: UUID,
     conduit_id: UUID,
-    principals_permitted: frozenset[UUID],
-    commands_permitted: frozenset[str],
+    permitted_principals: frozenset[UUID],
+    permitted_commands: frozenset[str],
 ) -> None:
     """Seed a PolicyDefined event directly into the running app's
     in-memory store. Bypasses the API because TrustAuthorize is
@@ -109,8 +109,8 @@ def _seed_policy_in_store(
         policy_id=policy_id,
         name="Test-policy",
         conduit_id=conduit_id,
-        principals_permitted=list(principals_permitted),
-        commands_permitted=list(commands_permitted),
+        permitted_principals=list(permitted_principals),
+        permitted_commands=list(permitted_commands),
         occurred_at=datetime.now(tz=UTC),
     )
     new_event = to_new_event(
@@ -157,8 +157,8 @@ def trust_authorize_app(
         cast("FastAPI", client.app),
         policy_id=policy_id,
         conduit_id=conduit_id,
-        principals_permitted=frozenset({allowed_principal}),
-        commands_permitted=frozenset(
+        permitted_principals=frozenset({allowed_principal}),
+        permitted_commands=frozenset(
             {"RegisterActor", "DefineZone", "DefineConduit", "DefinePolicy"}
         ),
     )
@@ -188,7 +188,7 @@ def test_x_principal_id_not_in_policy_returns_403(
     trust_authorize_app: tuple[TestClient, UUID, UUID],
 ) -> None:
     """End-to-end Deny path: a different principal in the header
-    fails the policy's principals_permitted check → Deny → 403."""
+    fails the policy's permitted_principals check → Deny → 403."""
     client, _, _ = trust_authorize_app
     other_principal = UUID("01900000-0000-7000-8000-000000000a02")
     response = client.post(
@@ -204,7 +204,7 @@ def test_missing_x_principal_id_falls_back_to_system_and_is_denied(
     trust_authorize_app: tuple[TestClient, UUID, UUID],
 ) -> None:
     """No header → SYSTEM_PRINCIPAL_ID fallback → SYSTEM is NOT in
-    the principals_permitted → Deny → 403. Important production
+    the permitted_principals → Deny → 403. Important production
     guard: deployments without an auth proxy effectively run as
     SYSTEM, which (under a real policy) gets nothing."""
     client, _, _ = trust_authorize_app

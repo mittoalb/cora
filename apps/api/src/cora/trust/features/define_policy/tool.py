@@ -49,13 +49,13 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ],
-        principals_permitted: Annotated[
+        permitted_principals: Annotated[
             list[UUID],
             Field(
                 description=("Principals (UUIDs) allowed via this conduit. Empty -> deny-all."),
             ),
         ],
-        commands_permitted: Annotated[
+        permitted_commands: Annotated[
             list[str],
             Field(
                 description=("Command names allowed via this conduit. Empty -> deny-all."),
@@ -67,8 +67,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             DefinePolicy(
                 name=name,
                 conduit_id=conduit_id,
-                principals_permitted=frozenset(principals_permitted),
-                commands_permitted=frozenset(commands_permitted),
+                permitted_principals=frozenset(permitted_principals),
+                permitted_commands=frozenset(permitted_commands),
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
