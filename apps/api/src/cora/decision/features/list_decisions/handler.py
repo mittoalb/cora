@@ -1,13 +1,13 @@
 """Application handler for the `list_decisions` query slice.
 
-Reads `proj_decision_summary` directly via `deps.pool`. Three
+Reads `proj_decision_summary` via the cross-BC
+`infrastructure.list_query.make_list_query_handler` factory. Three
 optional filters (confidence_band + decision_rule + actor_id) plus
-cursor pagination, using the `$N::text IS NULL OR column = $N`
-declarative pattern.
+cursor pagination on `(created_at, decision_id)`.
 
 `confidence` (the raw float) flows through to the result row;
 `confidence_band` is returned in pre-computed string form (Low /
-Medium / High / Certain — or null when confidence was not set).
+Medium / High / Certain, or null when confidence was not set).
 
 BOLA: command-name gating only. Per-row scoping deferred until ReBAC.
 """
@@ -16,20 +16,13 @@ BOLA: command-name gating only. Per-row scoping deferred until ReBAC.
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID
 
 from cora.decision.errors import UnauthorizedError
 from cora.decision.features.list_decisions.query import ListDecisions
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.logging import get_logger
-from cora.infrastructure.ports import Deny
-from cora.infrastructure.projection import decode_cursor, encode_cursor
-
-_QUERY_NAME = "ListDecisions"
-_CONDUIT_DEFAULT_ID = UUID(int=0)
-
-_log = get_logger(__name__)
+from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
 
 
 @dataclass(frozen=True)
@@ -65,137 +58,55 @@ class Handler(Protocol):
     ) -> DecisionListPage: ...
 
 
-_LIST_NO_CURSOR_SQL = """
-SELECT decision_id, actor_id, decision_rule, parent_id,
-       confidence, confidence_band, created_at
-FROM proj_decision_summary
-WHERE ($2::text IS NULL OR confidence_band = $2)
-  AND ($3::text IS NULL OR decision_rule = $3)
-  AND ($4::uuid IS NULL OR actor_id = $4)
-ORDER BY created_at ASC, decision_id ASC
-LIMIT $1
-"""
+_SELECT_COLUMNS = (
+    "decision_id, actor_id, decision_rule, parent_id, confidence, confidence_band, created_at"
+)
 
-_LIST_WITH_CURSOR_SQL = """
-SELECT decision_id, actor_id, decision_rule, parent_id,
-       confidence, confidence_band, created_at
-FROM proj_decision_summary
-WHERE ($2::text IS NULL OR confidence_band = $2)
-  AND ($3::text IS NULL OR decision_rule = $3)
-  AND ($4::uuid IS NULL OR actor_id = $4)
-  AND (created_at, decision_id) > ($5, $6)
-ORDER BY created_at ASC, decision_id ASC
-LIMIT $1
-"""
+
+def _row_to_item(row: Any) -> DecisionSummaryItem:
+    return DecisionSummaryItem(
+        decision_id=row["decision_id"],
+        actor_id=row["actor_id"],
+        decision_rule=str(row["decision_rule"]) if row["decision_rule"] is not None else None,
+        parent_id=row["parent_id"],
+        confidence=row["confidence"],
+        confidence_band=(
+            str(row["confidence_band"]) if row["confidence_band"] is not None else None
+        ),
+        created_at=row["created_at"],
+    )
+
+
+def _log_fields(query: ListDecisions) -> dict[str, Any]:
+    return {
+        "confidence_band": query.confidence_band,
+        "decision_rule": query.decision_rule,
+        "actor_id": str(query.actor_id) if query.actor_id else None,
+    }
 
 
 def bind(deps: Kernel) -> Handler:
     """Build a list_decisions handler closed over the shared deps."""
-
-    async def handler(
-        query: ListDecisions,
-        *,
-        principal_id: UUID,
-        correlation_id: UUID,
-    ) -> DecisionListPage:
-        _log.info(
-            "list_decisions.start",
-            query_name=_QUERY_NAME,
-            principal_id=str(principal_id),
-            correlation_id=str(correlation_id),
-            limit=query.limit,
-            confidence_band=query.confidence_band,
-            decision_rule=query.decision_rule,
-            actor_id=str(query.actor_id) if query.actor_id else None,
-            has_cursor=query.cursor is not None,
-        )
-
-        decision = await deps.authorize(
-            principal_id=principal_id,
-            command_name=_QUERY_NAME,
-            conduit_id=_CONDUIT_DEFAULT_ID,
-        )
-        if isinstance(decision, Deny):
-            _log.info(
-                "list_decisions.denied",
-                query_name=_QUERY_NAME,
-                principal_id=str(principal_id),
-                correlation_id=str(correlation_id),
-                reason=decision.reason,
-            )
-            raise UnauthorizedError(decision.reason)
-
-        cursor_at: datetime | None = None
-        cursor_id: UUID | None = None
-        if query.cursor is not None:
-            cursor_at, cursor_id = decode_cursor(query.cursor)
-
-        if deps.pool is None:
-            _log.info(
-                "list_decisions.no_pool",
-                query_name=_QUERY_NAME,
-                principal_id=str(principal_id),
-                correlation_id=str(correlation_id),
-            )
-            return DecisionListPage(items=[], next_cursor=None)
-
-        async with deps.pool.acquire() as conn:
-            if cursor_at is None:
-                rows = await conn.fetch(
-                    _LIST_NO_CURSOR_SQL,
-                    query.limit + 1,
-                    query.confidence_band,
-                    query.decision_rule,
-                    query.actor_id,
-                )
-            else:
-                rows = await conn.fetch(
-                    _LIST_WITH_CURSOR_SQL,
-                    query.limit + 1,
-                    query.confidence_band,
-                    query.decision_rule,
-                    query.actor_id,
-                    cursor_at,
-                    cursor_id,
-                )
-
-        has_more = len(rows) > query.limit
-        kept = rows[: query.limit]
-        items = [
-            DecisionSummaryItem(
-                decision_id=row["decision_id"],
-                actor_id=row["actor_id"],
-                decision_rule=(
-                    str(row["decision_rule"]) if row["decision_rule"] is not None else None
-                ),
-                parent_id=row["parent_id"],
-                confidence=row["confidence"],
-                confidence_band=(
-                    str(row["confidence_band"]) if row["confidence_band"] is not None else None
-                ),
-                created_at=row["created_at"],
-            )
-            for row in kept
-        ]
-        next_cursor: str | None = None
-        if has_more and items:
-            last = items[-1]
-            next_cursor = encode_cursor(
-                created_at=last.created_at,
-                item_id=last.decision_id,
-            )
-
-        _log.info(
-            "list_decisions.success",
-            query_name=_QUERY_NAME,
-            principal_id=str(principal_id),
-            correlation_id=str(correlation_id),
-            returned=len(items),
-            has_next_page=next_cursor is not None,
-        )
-        return DecisionListPage(items=items, next_cursor=next_cursor)
-
-    return handler
+    return make_list_query_handler(
+        deps,
+        query_name="ListDecisions",
+        log_prefix="list_decisions",
+        unauthorized_error=UnauthorizedError,
+        table="proj_decision_summary",
+        select_columns=_SELECT_COLUMNS,
+        time_column="created_at",
+        id_column="decision_id",
+        filters=[
+            ScalarFilter(attr="confidence_band"),
+            ScalarFilter(attr="decision_rule"),
+            ScalarFilter(attr="actor_id"),
+        ],
+        row_to_item=_row_to_item,
+        item_cursor_at=lambda item: item.created_at,
+        item_cursor_id=lambda item: item.decision_id,
+        page_from=lambda items, next_cursor: DecisionListPage(items=items, next_cursor=next_cursor),
+        extract_log_fields=_log_fields,
+    )
 
 
 __all__ = [
