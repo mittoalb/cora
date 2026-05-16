@@ -41,6 +41,10 @@ path = "cora.access.aggregates"
 depends_on = ["cora.infrastructure"]
 
 [[modules]]
+path = "cora.campaign.aggregates"
+depends_on = ["cora.infrastructure"]
+
+[[modules]]
 path = "cora.caution.aggregates"
 depends_on = ["cora.infrastructure"]
 
@@ -182,12 +186,23 @@ depends_on = ["cora.infrastructure", "cora.safety.aggregates"]
 path = "cora.caution"
 depends_on = ["cora.infrastructure", "cora.caution.aggregates"]
 
+# Campaign BC owns the Campaign aggregate (operator-declared
+# coordinated container above Run; 5-state FSM
+# Planned -> Active <-> Held -> Closed | Abandoned). 6i-a is single-
+# aggregate scaffold + 7 single-aggregate slices (no cross-aggregate
+# membership slices yet; those land in 6i-c when Run aggregate gains
+# the additive `campaign_id` field).
+[[modules]]
+path = "cora.campaign"
+depends_on = ["cora.infrastructure", "cora.campaign.aggregates"]
+
 # API entrypoint composes every BC.
 [[modules]]
 path = "cora.api"
 depends_on = [
     "cora.infrastructure",
     "cora.access",
+    "cora.campaign",
     "cora.caution",
     "cora.data",
     "cora.decision",

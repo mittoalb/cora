@@ -1,0 +1,66 @@
+"""Contract tests for `POST /campaigns/{campaign_id}/resume`."""
+
+from uuid import uuid4
+
+import pytest
+from fastapi.testclient import TestClient
+
+from cora.api.main import create_app
+from cora.campaign.errors import UnauthorizedError
+from cora.campaign.features.resume_campaign.route import (
+    _get_handler as _get_resume_campaign_handler,  # pyright: ignore[reportPrivateUsage]
+)
+
+
+def _register_start_hold(client: TestClient) -> str:
+    response = client.post(
+        "/campaigns",
+        json={"name": "test", "intent": "InSitu", "lead_actor_id": str(uuid4())},
+    )
+    cid = str(response.json()["campaign_id"])
+    client.post(f"/campaigns/{cid}/start")
+    client.post(f"/campaigns/{cid}/hold", json={"reason": "beam down"})
+    return cid
+
+
+@pytest.mark.contract
+def test_post_resume_returns_204_on_held_campaign() -> None:
+    with TestClient(create_app()) as client:
+        cid = _register_start_hold(client)
+        response = client.post(f"/campaigns/{cid}/resume")
+    assert response.status_code == 204, response.text
+
+
+@pytest.mark.contract
+def test_post_resume_returns_404_when_campaign_absent() -> None:
+    with TestClient(create_app()) as client:
+        response = client.post(f"/campaigns/{uuid4()}/resume")
+    assert response.status_code == 404
+
+
+@pytest.mark.contract
+def test_post_resume_returns_409_on_active_campaign() -> None:
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/campaigns",
+            json={"name": "x", "intent": "InSitu", "lead_actor_id": str(uuid4())},
+        )
+        cid = str(response.json()["campaign_id"])
+        client.post(f"/campaigns/{cid}/start")
+        resumed = client.post(f"/campaigns/{cid}/resume")
+    assert resumed.status_code == 409
+
+
+@pytest.mark.contract
+def test_post_resume_returns_403_when_authorize_denies() -> None:
+    app = create_app()
+
+    async def fake_handler(*args: object, **kwargs: object) -> None:
+        _ = (args, kwargs)
+        raise UnauthorizedError("denied for test")
+
+    app.dependency_overrides[_get_resume_campaign_handler] = lambda: fake_handler
+    with TestClient(app) as client:
+        response = client.post(f"/campaigns/{uuid4()}/resume")
+    assert response.status_code == 403
+    assert response.json()["detail"] == "denied for test"

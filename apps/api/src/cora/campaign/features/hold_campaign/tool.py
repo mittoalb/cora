@@ -1,0 +1,51 @@
+"""MCP tool for the `hold_campaign` slice."""
+
+from collections.abc import Callable
+from typing import Annotated
+from uuid import UUID
+
+from mcp.server.fastmcp import FastMCP
+from pydantic import BaseModel, Field
+
+from cora.campaign._bootstrap import SYSTEM_PRINCIPAL_ID
+from cora.campaign.aggregates.campaign import CAMPAIGN_REASON_MAX_LENGTH
+from cora.campaign.features.hold_campaign.command import HoldCampaign
+from cora.campaign.features.hold_campaign.handler import Handler
+from cora.infrastructure.observability import current_correlation_id
+
+
+class HoldCampaignOutput(BaseModel):
+    """Structured output of the `hold_campaign` MCP tool."""
+
+    campaign_id: UUID
+
+
+def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
+    """Register the `hold_campaign` tool on the given MCP server."""
+
+    @mcp.tool(
+        name="hold_campaign",
+        description=(
+            "Hold an Active Campaign (Active -> Held). Single-source from "
+            "Active. Operator-supplied reason is REQUIRED (audit-log "
+            "breadcrumb). Held Campaigns still accept new member Runs."
+        ),
+    )
+    async def hold_campaign_tool(  # pyright: ignore[reportUnusedFunction]
+        campaign_id: Annotated[UUID, Field(description="Target Campaign's id.")],
+        reason: Annotated[
+            str,
+            Field(
+                min_length=1,
+                max_length=CAMPAIGN_REASON_MAX_LENGTH,
+                description=("Operator-supplied reason for the hold (audit-log breadcrumb)."),
+            ),
+        ],
+    ) -> HoldCampaignOutput:
+        handler = get_handler()
+        await handler(
+            HoldCampaign(campaign_id=campaign_id, reason=reason),
+            principal_id=SYSTEM_PRINCIPAL_ID,
+            correlation_id=current_correlation_id(),
+        )
+        return HoldCampaignOutput(campaign_id=campaign_id)

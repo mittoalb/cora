@@ -1,0 +1,366 @@
+"""Domain events emitted by the Campaign aggregate, plus the discriminated union.
+
+Mirrors the locked event-module shape: event classes, discriminated
+union, `event_type_name`, `to_payload`, `from_stored`, plus the
+`serialize_external_ref` / `deserialize_external_ref` helpers.
+
+Six events ship in 6i-a:
+
+  - `CampaignRegistered` -- genesis (Planned)
+  - `CampaignStarted`    -- transition (Planned -> Active)
+  - `CampaignHeld`       -- transition (Active -> Held); reason str
+  - `CampaignResumed`    -- transition (Held -> Active)
+  - `CampaignClosed`     -- transition (Active | Held -> Closed)
+  - `CampaignAbandoned`  -- transition (Planned | Active | Held ->
+                            Abandoned); reason str
+
+`CampaignRunAdded` / `CampaignRunRemoved` (and the Run-side
+`RunCampaignAssigned` / `RunCampaignUnassigned`) land in 6i-c when
+Run aggregate gains the additive `campaign_id` field. Cross-aggregate
+membership slices use `EventStore.append_streams` then.
+
+`tags` travels in the genesis payload as a sorted `list[str]` (sorted
+for deterministic payload bytes), reconstructed into
+`frozenset[CampaignTag]` by the evolver.
+
+`external_refs` travels as a sorted-by-(scheme, id) `list[{scheme, id}]`
+for the same deterministic-bytes reason.
+
+`subject_id`, `description`, `external_id` are nullable; encoded as
+None when absent. `from_stored` uses `.get(...)` for nullable keys
+so future migrations that add additional nullable fields stay
+forward-compat at replay time.
+
+`lead_actor_id` lives on the genesis payload (operator-asserted
+campaign lead; NOT the registering actor). The registering actor's
+id lives on the envelope's `principal_id`. Reason fields on Held /
+Abandoned events carry the operator's audit breadcrumb on the payload;
+the transitioning actor's id lives ONLY on the envelope per 11a-c-1
+cross-BC precedent.
+"""
+
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, assert_never
+from uuid import UUID
+
+from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.ports.event_store import StoredEvent
+
+# ---------------------------------------------------------------------------
+# ExternalRef serialize / deserialize (public cross-slice helpers)
+# ---------------------------------------------------------------------------
+
+
+def serialize_external_ref(ref: ExternalRef) -> dict[str, str]:
+    """Encode an ExternalRef to a JSON-friendly dict."""
+    return {"scheme": ref.scheme, "id": ref.id}
+
+
+def deserialize_external_ref(payload: dict[str, Any]) -> ExternalRef:
+    """Decode a JSON-friendly dict to an ExternalRef.
+
+    Wraps KeyError / TypeError as ValueError so callers don't see
+    leaked low-level exceptions when an event payload is malformed.
+    """
+    try:
+        return ExternalRef(scheme=payload["scheme"], id=payload["id"])
+    except (KeyError, TypeError, AttributeError) as exc:
+        msg = f"Malformed ExternalRef payload {payload!r}: {exc}"
+        raise ValueError(msg) from exc
+
+
+def _serialize_external_refs(refs: frozenset[ExternalRef]) -> list[dict[str, str]]:
+    """Sort + encode a frozenset of ExternalRef for deterministic bytes."""
+    return [serialize_external_ref(r) for r in sorted(refs, key=lambda r: (r.scheme, r.id))]
+
+
+# ---------------------------------------------------------------------------
+# Event classes
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CampaignRegistered:
+    """A new Campaign was registered.
+
+    Initial status implicitly `Planned` (event type IS the state-change
+    indicator; the genesis evolver hardcodes the mapping). `tags` is
+    `frozenset[str]` here (already-validated tag strings; payload-
+    friendly). The evolver reconstructs `frozenset[CampaignTag]` via
+    the VO constructor (which re-trims and re-length-checks, but
+    that's harmless on already-validated input).
+
+    `lead_actor_id` is the campaign PI / lead operator (operator-
+    asserted, may differ from envelope `principal_id`). `subject_id`
+    / `description` / `external_id` are optional. `external_refs` is
+    `frozenset[ExternalRef]`.
+    """
+
+    campaign_id: UUID
+    name: str
+    intent: str
+    lead_actor_id: UUID
+    subject_id: UUID | None
+    description: str | None
+    tags: frozenset[str]
+    external_refs: frozenset[ExternalRef]
+    external_id: str | None
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class CampaignStarted:
+    """A Planned Campaign was started (Planned -> Active).
+
+    Slim payload; no reason field. The starting actor's id lives ONLY
+    on the envelope per 11a-c-1 cross-BC precedent.
+    """
+
+    campaign_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class CampaignHeld:
+    """An Active Campaign was held (Active -> Held).
+
+    `reason: str` (1-500 chars) carries the operator's audit
+    breadcrumb. The transitioning actor's id lives ONLY on the
+    envelope.
+    """
+
+    campaign_id: UUID
+    reason: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class CampaignResumed:
+    """A Held Campaign was resumed (Held -> Active).
+
+    Slim payload. `last_status_reason` (set when the Campaign was
+    Held) is intentionally preserved across resume (audit
+    breadcrumb: "why was it held before the resume?" stays
+    readable). The transitioning actor's id lives ONLY on the
+    envelope.
+    """
+
+    campaign_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class CampaignClosed:
+    """A Campaign was closed (Active | Held -> Closed).
+
+    Normal-terminal; no reason field (mirrors Run `Completed`
+    semantic). The transitioning actor's id lives ONLY on the
+    envelope.
+    """
+
+    campaign_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class CampaignAbandoned:
+    """A Campaign was abandoned (Planned | Active | Held -> Abandoned).
+
+    Early-terminal with reason (REQUIRED, mirrors `RunAbortReason`).
+    The transitioning actor's id lives ONLY on the envelope.
+    """
+
+    campaign_id: UUID
+    reason: str
+    occurred_at: datetime
+
+
+# Discriminated union of every event the Campaign aggregate emits.
+CampaignEvent = (
+    CampaignRegistered
+    | CampaignStarted
+    | CampaignHeld
+    | CampaignResumed
+    | CampaignClosed
+    | CampaignAbandoned
+)
+
+
+def event_type_name(event: CampaignEvent) -> str:
+    """Discriminator string written into StoredEvent.event_type."""
+    return type(event).__name__
+
+
+def to_payload(event: CampaignEvent) -> dict[str, Any]:
+    """Serialise a Campaign event to a JSON-friendly dict for jsonb storage.
+
+    Primitives only: UUIDs become strings, datetimes become ISO-8601
+    strings, `tags` becomes a sorted list, `external_refs` becomes a
+    sorted list of `{scheme, id}` dicts (deterministic bytes for
+    byte-for-byte idempotency replay).
+    """
+    match event:
+        case CampaignRegistered(
+            campaign_id=campaign_id,
+            name=name,
+            intent=intent,
+            lead_actor_id=lead_actor_id,
+            subject_id=subject_id,
+            description=description,
+            tags=tags,
+            external_refs=external_refs,
+            external_id=external_id,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "campaign_id": str(campaign_id),
+                "name": name,
+                "intent": intent,
+                "lead_actor_id": str(lead_actor_id),
+                "subject_id": str(subject_id) if subject_id is not None else None,
+                "description": description,
+                "tags": sorted(tags),
+                "external_refs": _serialize_external_refs(external_refs),
+                "external_id": external_id,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case CampaignStarted(campaign_id=campaign_id, occurred_at=occurred_at):
+            return {
+                "campaign_id": str(campaign_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case CampaignHeld(
+            campaign_id=campaign_id,
+            reason=reason,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "campaign_id": str(campaign_id),
+                "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case CampaignResumed(campaign_id=campaign_id, occurred_at=occurred_at):
+            return {
+                "campaign_id": str(campaign_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case CampaignClosed(campaign_id=campaign_id, occurred_at=occurred_at):
+            return {
+                "campaign_id": str(campaign_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case CampaignAbandoned(
+            campaign_id=campaign_id,
+            reason=reason,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "campaign_id": str(campaign_id),
+                "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case _:  # pragma: no cover  # exhaustiveness guard
+            assert_never(event)
+
+
+def from_stored(stored: StoredEvent) -> CampaignEvent:
+    """Rebuild a Campaign event from a StoredEvent loaded from the event store.
+
+    Dispatches on `stored.event_type`; raises ValueError on unknown
+    discriminators so a stream contaminated with foreign event types
+    fails loud rather than being silently dropped by the evolver.
+
+    Each arm body is wrapped in a try/except that re-raises malformed
+    payloads as ValueError. Nullable fields use `payload.get(...)` so
+    future migrations that add new nullable fields stay forward-compat
+    at replay time.
+    """
+    payload = stored.payload
+    match stored.event_type:
+        case "CampaignRegistered":
+            try:
+                subject_id_raw = payload.get("subject_id")
+                external_id_raw = payload.get("external_id")
+                external_refs_raw = payload.get("external_refs", [])
+                return CampaignRegistered(
+                    campaign_id=UUID(payload["campaign_id"]),
+                    name=payload["name"],
+                    intent=payload["intent"],
+                    lead_actor_id=UUID(payload["lead_actor_id"]),
+                    subject_id=UUID(subject_id_raw) if subject_id_raw is not None else None,
+                    description=payload.get("description"),
+                    tags=frozenset(payload.get("tags", [])),
+                    external_refs=frozenset(deserialize_external_ref(r) for r in external_refs_raw),
+                    external_id=external_id_raw,
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CampaignRegistered payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
+        case "CampaignStarted":
+            try:
+                return CampaignStarted(
+                    campaign_id=UUID(payload["campaign_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CampaignStarted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
+        case "CampaignHeld":
+            try:
+                return CampaignHeld(
+                    campaign_id=UUID(payload["campaign_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CampaignHeld payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
+        case "CampaignResumed":
+            try:
+                return CampaignResumed(
+                    campaign_id=UUID(payload["campaign_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CampaignResumed payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
+        case "CampaignClosed":
+            try:
+                return CampaignClosed(
+                    campaign_id=UUID(payload["campaign_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CampaignClosed payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
+        case "CampaignAbandoned":
+            try:
+                return CampaignAbandoned(
+                    campaign_id=UUID(payload["campaign_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CampaignAbandoned payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
+        case _:
+            msg = f"Unknown CampaignEvent event_type: {stored.event_type!r}"
+            raise ValueError(msg)
+
+
+__all__ = [
+    "CampaignAbandoned",
+    "CampaignClosed",
+    "CampaignEvent",
+    "CampaignHeld",
+    "CampaignRegistered",
+    "CampaignResumed",
+    "CampaignStarted",
+    "deserialize_external_ref",
+    "event_type_name",
+    "from_stored",
+    "serialize_external_ref",
+    "to_payload",
+]

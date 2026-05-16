@@ -46,6 +46,12 @@ from cora.access import (
     wire_access,
 )
 from cora.api.middleware import BodySizeLimitMiddleware
+from cora.campaign import (
+    CampaignHandlers,
+    register_campaign_routes,
+    register_campaign_tools,
+    wire_campaign,
+)
 from cora.caution import (
     CautionHandlers,
     register_caution_projections,
@@ -248,6 +254,10 @@ def create_app() -> FastAPI:
         handlers: CautionHandlers = fastapi_app.state.caution
         return handlers
 
+    def _get_campaign_handlers() -> CampaignHandlers:
+        handlers: CampaignHandlers = fastapi_app.state.campaign
+        return handlers
+
     register_access_tools(mcp, get_handlers=_get_access_handlers)
     register_trust_tools(mcp, get_handlers=_get_trust_handlers)
     register_subject_tools(mcp, get_handlers=_get_subject_handlers)
@@ -260,6 +270,7 @@ def create_app() -> FastAPI:
     register_operation_tools(mcp, get_handlers=_get_operation_handlers)
     register_safety_tools(mcp, get_handlers=_get_safety_handlers)
     register_caution_tools(mcp, get_handlers=_get_caution_handlers)
+    register_campaign_tools(mcp, get_handlers=_get_campaign_handlers)
     mcp_app = mcp.streamable_http_app()
 
     @asynccontextmanager
@@ -285,6 +296,7 @@ def create_app() -> FastAPI:
             app.state.operation = wire_operation(deps)
             app.state.safety = wire_safety(deps)
             app.state.caution = wire_caution(deps)
+            app.state.campaign = wire_campaign(deps)
 
             # Phase-8e-1a: projection worker. Each BC that owns
             # projections exports a `register_<bc>_projections`
@@ -374,6 +386,7 @@ def create_app() -> FastAPI:
     register_operation_routes(fastapi_app)
     register_safety_routes(fastapi_app)
     register_caution_routes(fastapi_app)
+    register_campaign_routes(fastapi_app)
     fastapi_app.mount("/mcp", mcp_app)
 
     @fastapi_app.get("/health")

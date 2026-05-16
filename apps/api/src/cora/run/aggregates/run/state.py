@@ -104,6 +104,12 @@ from typing import Any, Literal
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.external_ref import (
+    EXTERNAL_REF_ID_MAX_LENGTH,
+    EXTERNAL_REF_SCHEME_MAX_LENGTH,
+    ExternalRef,
+    InvalidExternalRefError,
+)
 from cora.infrastructure.logbook import LogbookFieldSpec, LogbookSchema
 
 RUN_NAME_MAX_LENGTH = 200
@@ -111,12 +117,16 @@ RUN_ABORT_REASON_MAX_LENGTH = 500
 RUN_STOP_REASON_MAX_LENGTH = 500
 RUN_TRUNCATE_REASON_MAX_LENGTH = 500
 
-# Phase 11a-c-3: ExternalRef carries (scheme, id) pairs mirroring the
-# Safety BC's ExternalBinding shape exactly (proposal / btr / lab_visit /
-# session, etc.). Same bounded lengths so the round-trip with
-# `ExternalBinding`-keyed clearance coverage queries stays symmetric.
-RUN_EXTERNAL_REF_SCHEME_MAX_LENGTH = 50
-RUN_EXTERNAL_REF_ID_MAX_LENGTH = 200
+# Phase 11a-c-3 / Phase 6i-a hoist: ExternalRef carries (scheme, id) pairs
+# mirroring the Safety BC's ExternalBinding shape exactly (proposal /
+# btr / lab_visit / session / cycle / visit, etc.). Same bounded lengths
+# so the round-trip with `ExternalBinding`-keyed clearance coverage
+# queries stays symmetric. Phase 6i-a hoisted the VO + bounds to
+# `cora.infrastructure.external_ref`; the Run BC keeps the
+# `RUN_EXTERNAL_REF_*` names as aliases for backward-compat (existing
+# routes / tools / tests reference them).
+RUN_EXTERNAL_REF_SCHEME_MAX_LENGTH = EXTERNAL_REF_SCHEME_MAX_LENGTH
+RUN_EXTERNAL_REF_ID_MAX_LENGTH = EXTERNAL_REF_ID_MAX_LENGTH
 
 # Phase 6f-5b: RunReading polymorphic logbook constants.
 READING_CHANNEL_NAME_MAX_LENGTH = 255
@@ -333,22 +343,13 @@ class RunAssetDecommissionedError(Exception):
         self.asset_ids = asset_ids
 
 
-class InvalidRunExternalRefError(ValueError):
-    """An ExternalRef's scheme or id is empty, whitespace-only, or too long.
-
-    Mirrors Safety BC's `InvalidClearanceExternalBindingError` shape
-    (same field bounds) so the (scheme, id) pair round-trips cleanly
-    between Run.external_refs and Clearance.bindings.ExternalBinding.
-    """
-
-    def __init__(self, field_name: str, value: str, max_length: int) -> None:
-        super().__init__(
-            f"Run ExternalRef {field_name} must be 1-{max_length} chars "
-            f"after trimming (got: {value!r})"
-        )
-        self.field_name = field_name
-        self.value = value
-        self.max_length = max_length
+# Phase 6i-a hoist alias: `InvalidRunExternalRefError` is the cross-BC
+# `InvalidExternalRefError` from `cora.infrastructure.external_ref`.
+# Kept as a Run-scoped alias so the BC's routes / tools / re-exports
+# (which name the symbol `InvalidRunExternalRefError`) stay unchanged.
+# `isinstance(exc, InvalidRunExternalRefError)` and
+# `isinstance(exc, InvalidExternalRefError)` are now equivalent.
+InvalidRunExternalRefError = InvalidExternalRefError
 
 
 class RunRequiresActiveClearanceError(Exception):
@@ -864,31 +865,11 @@ class RunName:
         object.__setattr__(self, "value", trimmed)
 
 
-@dataclass(frozen=True)
-class ExternalRef:
-    """Anti-corruption ref to an upstream-deferred concept CORA does NOT model.
-
-    Same shape as Safety BC's `ExternalBinding(scheme, id)` so a Run's
-    `external_refs` round-trip cleanly against `Clearance.bindings` for
-    future ExternalBinding-based clearance coverage gating (deferred
-    per [[project_safety_clearance_design]] watch item; 11a-c-3 ships
-    the field only, gating uses typed Run/Subject/Asset bindings).
-
-    Common schemes: `proposal` / `btr` / `lab_visit` / `session`.
-    """
-
-    scheme: str
-    id: str
-
-    def __post_init__(self) -> None:
-        for attr_name, value, max_length in (
-            ("scheme", self.scheme, RUN_EXTERNAL_REF_SCHEME_MAX_LENGTH),
-            ("id", self.id, RUN_EXTERNAL_REF_ID_MAX_LENGTH),
-        ):
-            trimmed = value.strip()
-            if not trimmed or len(trimmed) > max_length:
-                raise InvalidRunExternalRefError(attr_name, value, max_length)
-            object.__setattr__(self, attr_name, trimmed)
+# Phase 6i-a hoist: `ExternalRef` lives at `cora.infrastructure.external_ref`.
+# The Run BC re-exports the typed VO here (via the top-of-file import
+# alongside `InvalidExternalRefError` / `EXTERNAL_REF_*` bounds) so
+# existing imports of `cora.run.aggregates.run.state.ExternalRef` keep
+# working without code edits at every call site.
 
 
 @dataclass(frozen=True)
