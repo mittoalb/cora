@@ -94,7 +94,7 @@ async def test_define_plan_persists_event_with_audit_snapshots_to_postgres(
         correlation_id=_CORRELATION_ID,
     )
     await define_method.bind(deps)(
-        DefineMethod(name="XRF Fly Scan Mapping", needs_capabilities=frozenset({cap_id})),
+        DefineMethod(name="XRF Fly Scan Mapping", needed_capabilities=frozenset({cap_id})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -134,7 +134,7 @@ async def test_define_plan_persists_event_with_audit_snapshots_to_postgres(
         "practice_id": str(practice_id),
         "asset_ids": [str(asset_id)],
         "method_id": str(method_id),
-        "method_needs_capabilities_snapshot": [str(cap_id)],
+        "method_needed_capabilities_snapshot": [str(cap_id)],
         "asset_capabilities_snapshot": {str(asset_id): [str(cap_id)]},
         "occurred_at": _NOW.isoformat(),
     }

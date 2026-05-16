@@ -70,13 +70,13 @@ def _practice(
 def _method(
     *,
     method_id: UUID | None = None,
-    needs_capabilities: frozenset[UUID] | None = None,
+    needed_capabilities: frozenset[UUID] | None = None,
     status: MethodStatus = MethodStatus.DEFINED,
 ) -> Method:
     return Method(
         id=method_id or uuid4(),
         name=MethodName("XRF Fly Scan Mapping"),
-        needs_capabilities=needs_capabilities if needs_capabilities is not None else frozenset(),
+        needed_capabilities=needed_capabilities if needed_capabilities is not None else frozenset(),
         status=status,
     )
 
@@ -120,7 +120,7 @@ def test_decide_emits_plan_defined_for_valid_binding() -> None:
     """All checks pass: bound Assets satisfy Method's capabilities,
     upstream is non-Deprecated, asset is non-Decommissioned."""
     cap = uuid4()
-    method = _method(needs_capabilities=frozenset({cap}))
+    method = _method(needed_capabilities=frozenset({cap}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
     asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
@@ -144,7 +144,7 @@ def test_decide_emits_plan_defined_for_valid_binding() -> None:
             practice_id=practice.id,
             asset_ids=[asset_id],
             method_id=method.id,
-            method_needs_capabilities_snapshot=[cap],
+            method_needed_capabilities_snapshot=[cap],
             asset_capabilities_snapshot={asset_id: [cap]},
             occurred_at=_NOW,
         )
@@ -183,7 +183,7 @@ def test_decide_captures_asset_capabilities_snapshot_at_bind_time() -> None:
     cap2 = uuid4()
     a1 = uuid4()
     a2 = uuid4()
-    method = _method(needs_capabilities=frozenset({cap1, cap2}))
+    method = _method(needed_capabilities=frozenset({cap1, cap2}))
     practice = _practice(method_id=method.id)
     assets = {
         a1: _asset(asset_id=a1, capabilities=frozenset({cap1})),
@@ -359,7 +359,7 @@ def test_decide_accepts_commissioned_lifecycle_for_bound_assets() -> None:
 def test_decide_raises_capabilities_not_satisfied_when_assets_missing_needed_capability() -> None:
     needed_cap = uuid4()
     different_cap = uuid4()
-    method = _method(needs_capabilities=frozenset({needed_cap}))
+    method = _method(needed_capabilities=frozenset({needed_cap}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
     asset = _asset(asset_id=asset_id, capabilities=frozenset({different_cap}))
@@ -382,7 +382,7 @@ def test_decide_uses_union_of_bound_assets_capabilities_for_satisfaction_check()
     distributed across multiple Assets binds successfully."""
     cap1 = uuid4()
     cap2 = uuid4()
-    method = _method(needs_capabilities=frozenset({cap1, cap2}))
+    method = _method(needed_capabilities=frozenset({cap1, cap2}))
     practice = _practice(method_id=method.id)
     a1 = uuid4()
     a2 = uuid4()
@@ -409,7 +409,7 @@ def test_decide_accepts_assets_with_extra_capabilities_beyond_method_needs() -> 
     the Method needs (extras are fine)."""
     needed = uuid4()
     extra = uuid4()
-    method = _method(needs_capabilities=frozenset({needed}))
+    method = _method(needed_capabilities=frozenset({needed}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
     asset = _asset(asset_id=asset_id, capabilities=frozenset({needed, extra}))
@@ -425,10 +425,10 @@ def test_decide_accepts_assets_with_extra_capabilities_beyond_method_needs() -> 
 
 
 @pytest.mark.unit
-def test_decide_accepts_method_with_empty_needs_capabilities() -> None:
+def test_decide_accepts_method_with_empty_needed_capabilities() -> None:
     """Procedural Methods (no equipment requirement) bind to any set
     of Assets without capability-check failure."""
-    method = _method(needs_capabilities=frozenset())
+    method = _method(needed_capabilities=frozenset())
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
     asset = _asset(asset_id=asset_id, capabilities=frozenset())

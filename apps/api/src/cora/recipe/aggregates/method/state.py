@@ -13,17 +13,17 @@ concrete Asset binding lives in `Plan` (6e).
 
 Minimal Method:
   - `id` + `name`
-  - `needs_capabilities: frozenset[UUID]` — the Capability ids this
+  - `needed_capabilities: frozenset[UUID]` — the Capability ids this
     Method requires. Composable: a "Fly Tomography" Method has
-    needs_capabilities = {Tomography_id, FlyScan_id}. At Plan
+    needed_capabilities = {Tomography_id, FlyScan_id}. At Plan
     binding time (6e), the operator picks an Asset whose
-    capabilities ⊇ method.needs_capabilities.
+    capabilities ⊇ method.needed_capabilities.
   - `status` (defaults `Defined`).
 
 `Versioned` and `Deprecated` transitions land in 6b. Description /
 owner / additional facets defer to 6c.
 
-## needs_capabilities — eventual-consistency stance
+## needed_capabilities — eventual-consistency stance
 
 The decider does NOT verify each Capability id refers to a real
 Capability stream in the event store. Same precedent as Trust's
@@ -33,7 +33,7 @@ mismatch will surface (Asset can't satisfy the requirement). For
 day-one ergonomics this is fine; structural validation can be
 layered on at the API boundary later if pilot demand emerges.
 
-Empty `needs_capabilities` is allowed (a Method that needs no
+Empty `needed_capabilities` is allowed (a Method that needs no
 specific equipment capability — rare but operationally valid for
 purely procedural Methods like "Sample Cleaning").
 
@@ -57,7 +57,7 @@ class. See the helper module's docstring for the design rationale.
 
 ## Frozensets in state, lists in payloads
 
-`needs_capabilities` is `frozenset[UUID]` in domain state
+`needed_capabilities` is `frozenset[UUID]` in domain state
 (deduplicated, hashable, set-membership in O(1) for Plan-binding
 checks) and `list[UUID]` in event payloads (JSON-friendly, sorted
 for determinism). Same precedent as Trust's Policy
@@ -76,11 +76,11 @@ from cora.infrastructure.bounded_text import validate_bounded_text
 
 METHOD_NAME_MAX_LENGTH = 200
 METHOD_VERSION_TAG_MAX_LENGTH = 50
-# Phase 10b: needs_supplies element bounds. Mirrors Supply.kind shape
+# Phase 10b: needed_supplies element bounds. Mirrors Supply.kind shape
 # (cora.supply.aggregates.supply.state.SUPPLY_KIND_MAX_LENGTH = 50)
 # so per-element validation in the Method decider stays consistent
 # with what Supply itself accepts at register_supply time. See
-# [[project_supply_design]] §"Phase 10b — Method.needs_supplies consumer"
+# [[project_supply_design]] §"Phase 10b — Method.needed_supplies consumer"
 # for the design lock.
 METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH = 50
 
@@ -182,8 +182,8 @@ class MethodCannotDeprecateError(Exception):
         self.current_status = current_status
 
 
-class InvalidMethodNeedsSuppliesError(ValueError):
-    """One of the supplied needs_supplies kind strings is empty,
+class InvalidMethodNeededSuppliesError(ValueError):
+    """One of the supplied needed_supplies kind strings is empty,
     whitespace-only, or too long.
 
     Phase 10b. Validated at the API boundary via Pydantic per-element
@@ -192,11 +192,11 @@ class InvalidMethodNeedsSuppliesError(ValueError):
     same protection. The diagnostic carries the offending element.
 
     Per-element bound mirrors `InvalidSupplyKindError` from the Supply
-    BC (the kind is the abstract label; Method's needs_supplies
+    BC (the kind is the abstract label; Method's needed_supplies
     references kind values that Supply registrations carry). See
-    [[project_supply_design]] §"Phase 10b — Method.needs_supplies
+    [[project_supply_design]] §"Phase 10b — Method.needed_supplies
     consumer" for the design lock + asymmetry rationale (frozenset[str]
-    on Method vs frozenset[UUID] for needs_capabilities: Supply is
+    on Method vs frozenset[UUID] for needed_capabilities: Supply is
     INSTANCE-aggregate per facility, sharing a `kind` label;
     Capability is TYPE-aggregate, one global definition referenced
     by UUID).
@@ -204,7 +204,7 @@ class InvalidMethodNeedsSuppliesError(ValueError):
 
     def __init__(self, value: str) -> None:
         super().__init__(
-            f"Method needs_supplies kind must be 1-{METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH} "
+            f"Method needed_supplies kind must be 1-{METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH} "
             f"chars after trimming (got: {value!r})"
         )
         self.value = value
@@ -254,7 +254,7 @@ class MethodName:
 class Method:
     """Aggregate root: an abstract technique-class recipe.
 
-    `needs_capabilities` is a frozenset of Capability ids the Method
+    `needed_capabilities` is a frozenset of Capability ids the Method
     requires. Eventual-consistency stance: existence is not verified
     at decide time; mismatch surfaces at Plan binding (6e).
 
@@ -283,12 +283,12 @@ class Method:
 
     id: UUID
     name: MethodName
-    needs_capabilities: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    needed_capabilities: frozenset[UUID] = field(default_factory=frozenset[UUID])
     status: MethodStatus = MethodStatus.DEFINED
     version: str | None = None
     parameters_schema: dict[str, Any] | None = field(default=None)
-    # Phase 10b: needs_supplies references Supply.kind STRINGS (not
-    # UUIDs). Asymmetric with needs_capabilities (frozenset[UUID]) by
+    # Phase 10b: needed_supplies references Supply.kind STRINGS (not
+    # UUIDs). Asymmetric with needed_capabilities (frozenset[UUID]) by
     # design: Capability is a TYPE registry (one global definition,
     # referenced by UUID); Supply is an INSTANCE aggregate (multiple
     # per facility, each with its own availability state, sharing a
@@ -296,6 +296,6 @@ class Method:
     # the abstract kind, not a per-facility instance UUID. Defaults
     # to empty frozenset (additive-state pattern; pre-10b
     # MethodDefined-only streams fold cleanly via payload.get default).
-    # See [[project_supply_design]] §"Phase 10b — Method.needs_supplies
+    # See [[project_supply_design]] §"Phase 10b — Method.needed_supplies
     # consumer" for the full design lock.
-    needs_supplies: frozenset[str] = field(default_factory=frozenset[str])
+    needed_supplies: frozenset[str] = field(default_factory=frozenset[str])

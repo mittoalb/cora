@@ -17,7 +17,7 @@ def _setup_plan(client: TestClient) -> str:
     Plan via the public API; return the plan_id as a string."""
     cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needs_capabilities": [cap_id]}
+        "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",

@@ -2,7 +2,7 @@
 
 Carries the caller-controlled inputs:
   - `name` — display name for the new Method (the technique class)
-  - `needs_capabilities` — frozenset of Capability ids the Method
+  - `needed_capabilities` — frozenset of Capability ids the Method
     requires (eventual-consistency stance: existence not verified
     at decide time, mismatch surfaces at Plan binding in 6e)
 
@@ -15,7 +15,7 @@ Status is implicit at definition (`Defined`) and not part of the
 command — see Method aggregate's `state.py` docstring for the
 enum-in-state, derived-from-event-type-in-evolver convention.
 
-`needs_capabilities` is `frozenset[UUID]` (not `list`) so the
+`needed_capabilities` is `frozenset[UUID]` (not `list`) so the
 command itself is hashable for `with_idempotency`'s SHA256 hash;
 the cross-BC `_normalize_for_hash` helper sorts frozensets for
 deterministic hashing across worker processes (locked in 3c).
@@ -29,14 +29,14 @@ from uuid import UUID
 class DefineMethod:
     """Define a new abstract technique-class recipe (Method).
 
-    `needs_supplies` (Phase 10b) is a frozenset of Supply.kind STRINGS
+    `needed_supplies` (Phase 10b) is a frozenset of Supply.kind STRINGS
     the Method requires (NOT Supply instance UUIDs). Methods are
     facility-portable; the kind label resolves to a per-facility
     Supply instance at Plan-bind time. Default empty frozenset
     (sample-cleaning Methods need no supplies). Same hashability +
-    `_normalize_for_hash` story as needs_capabilities.
+    `_normalize_for_hash` story as needed_capabilities.
     """
 
     name: str
-    needs_capabilities: frozenset[UUID] = field(default_factory=frozenset[UUID])
-    needs_supplies: frozenset[str] = field(default_factory=frozenset[str])
+    needed_capabilities: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    needed_supplies: frozenset[str] = field(default_factory=frozenset[str])

@@ -120,7 +120,7 @@ def _setup_plan_with_two_wired_assets(client: TestClient, principal: UUID) -> di
     ]
     method_id = client.post(
         "/methods",
-        json={"name": "Test Method", "needs_capabilities": [cap_id]},
+        json={"name": "Test Method", "needed_capabilities": [cap_id]},
         headers=h,
     ).json()["method_id"]
     practice_id = client.post(

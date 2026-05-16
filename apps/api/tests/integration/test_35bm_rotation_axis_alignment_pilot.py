@@ -362,7 +362,7 @@ async def test_35bm_rotation_axis_alignment_center_routine_end_to_end(
     await bind_define_method(deps)(
         DefineMethod(
             name="RotationAxisAlignment_center",
-            needs_capabilities=frozenset(
+            needed_capabilities=frozenset(
                 {
                     _CAP_ROTARY_STAGE_ID,
                     _CAP_LINEAR_STAGE_ID,

@@ -29,7 +29,7 @@ def _setup_chain(client: TestClient) -> tuple[str, str, str]:
     via the public API. Returns (practice_id, asset_id, capability_id)."""
     cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needs_capabilities": [cap_id]}
+        "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",
@@ -234,7 +234,7 @@ def test_post_plans_returns_409_when_method_is_deprecated() -> None:
     with TestClient(create_app()) as client:
         cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
         method_id = client.post(
-            "/methods", json={"name": "Test Method", "needs_capabilities": [cap_id]}
+            "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
         ).json()["method_id"]
         practice_id = client.post(
             "/practices",
@@ -295,7 +295,7 @@ def test_post_plans_returns_409_when_capabilities_not_satisfied() -> None:
         ]
         method_id = client.post(
             "/methods",
-            json={"name": "Test Method", "needs_capabilities": [needed_cap]},
+            json={"name": "Test Method", "needed_capabilities": [needed_cap]},
         ).json()["method_id"]
         practice_id = client.post(
             "/practices",

@@ -1,19 +1,19 @@
-"""Unit tests for Method.needs_supplies (Phase 10b).
+"""Unit tests for Method.needed_supplies (Phase 10b).
 
 Covers:
   - State default + frozenset shape
   - Decider per-element validation (whitespace-only, oversized, trims)
   - Decider accepts empty + populated
   - Event payload sorted lexically (deterministic hash)
-  - Event roundtrip preserves needs_supplies
-  - Pre-10b event payload (no needs_supplies key) folds via additive
+  - Event roundtrip preserves needed_supplies
+  - Pre-10b event payload (no needed_supplies key) folds via additive
     evolution to empty frozenset (forward-compat critical pin)
   - Evolver fold for MethodDefined sets the field
   - Each transition (Versioned, Deprecated, ParametersSchemaUpdated)
-    PRESERVES needs_supplies through (preserve-fields invariant)
+    PRESERVES needed_supplies through (preserve-fields invariant)
 
-Asymmetric-with-needs_capabilities design (str vs UUID) is exercised
-implicitly throughout — needs_supplies elements are kind STRINGS,
+Asymmetric-with-needed_capabilities design (str vs UUID) is exercised
+implicitly throughout — needed_supplies elements are kind STRINGS,
 never instance UUIDs.
 """
 
@@ -24,7 +24,7 @@ import pytest
 
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.recipe.aggregates.method import (
-    InvalidMethodNeedsSuppliesError,
+    InvalidMethodNeededSuppliesError,
     Method,
     MethodDefined,
     MethodDeprecated,
@@ -48,7 +48,7 @@ _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 
 
 @pytest.mark.unit
-def test_method_state_defaults_needs_supplies_to_empty_frozenset() -> None:
+def test_method_state_defaults_needed_supplies_to_empty_frozenset() -> None:
     """Pre-10b Methods (no payload key) and freshly-defined Methods
     that don't declare supplies both land at empty. The default-factory
     keeps state shape uniform."""
@@ -56,52 +56,52 @@ def test_method_state_defaults_needs_supplies_to_empty_frozenset() -> None:
         id=uuid4(),
         name=MethodName("X"),
     )
-    assert method.needs_supplies == frozenset()
+    assert method.needed_supplies == frozenset()
 
 
 @pytest.mark.unit
-def test_method_state_carries_supplied_needs_supplies() -> None:
+def test_method_state_carries_supplied_needed_supplies() -> None:
     method = Method(
         id=uuid4(),
         name=MethodName("Tomography"),
-        needs_supplies=frozenset({"PhotonBeam", "LiquidNitrogen"}),
+        needed_supplies=frozenset({"PhotonBeam", "LiquidNitrogen"}),
     )
-    assert method.needs_supplies == frozenset({"PhotonBeam", "LiquidNitrogen"})
+    assert method.needed_supplies == frozenset({"PhotonBeam", "LiquidNitrogen"})
 
 
 # ---------- Decider validation ----------
 
 
 @pytest.mark.unit
-def test_decider_accepts_empty_needs_supplies() -> None:
+def test_decider_accepts_empty_needed_supplies() -> None:
     """Sample-cleaning Method valid: no Capability AND no Supply
     requirement (purely procedural)."""
     events = define_method.decide(
         state=None,
         command=DefineMethod(
             name="Sample Cleaning",
-            needs_capabilities=frozenset(),
-            needs_supplies=frozenset(),
+            needed_capabilities=frozenset(),
+            needed_supplies=frozenset(),
         ),
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].needs_supplies == []
+    assert events[0].needed_supplies == []
 
 
 @pytest.mark.unit
-def test_decider_accepts_populated_needs_supplies() -> None:
+def test_decider_accepts_populated_needed_supplies() -> None:
     events = define_method.decide(
         state=None,
         command=DefineMethod(
             name="Tomography",
-            needs_capabilities=frozenset(),
-            needs_supplies=frozenset({"PhotonBeam", "LiquidNitrogen"}),
+            needed_capabilities=frozenset(),
+            needed_supplies=frozenset({"PhotonBeam", "LiquidNitrogen"}),
         ),
         now=_NOW,
         new_id=uuid4(),
     )
-    assert set(events[0].needs_supplies) == {"PhotonBeam", "LiquidNitrogen"}
+    assert set(events[0].needed_supplies) == {"PhotonBeam", "LiquidNitrogen"}
 
 
 @pytest.mark.unit
@@ -112,25 +112,25 @@ def test_decider_trims_each_kind_string() -> None:
         state=None,
         command=DefineMethod(
             name="X",
-            needs_capabilities=frozenset(),
-            needs_supplies=frozenset({"  PhotonBeam  ", "LiquidNitrogen"}),
+            needed_capabilities=frozenset(),
+            needed_supplies=frozenset({"  PhotonBeam  ", "LiquidNitrogen"}),
         ),
         now=_NOW,
         new_id=uuid4(),
     )
-    assert "PhotonBeam" in set(events[0].needs_supplies)
-    assert "  PhotonBeam  " not in set(events[0].needs_supplies)
+    assert "PhotonBeam" in set(events[0].needed_supplies)
+    assert "  PhotonBeam  " not in set(events[0].needed_supplies)
 
 
 @pytest.mark.unit
 def test_decider_rejects_whitespace_only_kind() -> None:
-    with pytest.raises(InvalidMethodNeedsSuppliesError):
+    with pytest.raises(InvalidMethodNeededSuppliesError):
         define_method.decide(
             state=None,
             command=DefineMethod(
                 name="X",
-                needs_capabilities=frozenset(),
-                needs_supplies=frozenset({"   "}),
+                needed_capabilities=frozenset(),
+                needed_supplies=frozenset({"   "}),
             ),
             now=_NOW,
             new_id=uuid4(),
@@ -139,13 +139,13 @@ def test_decider_rejects_whitespace_only_kind() -> None:
 
 @pytest.mark.unit
 def test_decider_rejects_empty_kind() -> None:
-    with pytest.raises(InvalidMethodNeedsSuppliesError):
+    with pytest.raises(InvalidMethodNeededSuppliesError):
         define_method.decide(
             state=None,
             command=DefineMethod(
                 name="X",
-                needs_capabilities=frozenset(),
-                needs_supplies=frozenset({""}),
+                needed_capabilities=frozenset(),
+                needed_supplies=frozenset({""}),
             ),
             now=_NOW,
             new_id=uuid4(),
@@ -155,13 +155,13 @@ def test_decider_rejects_empty_kind() -> None:
 @pytest.mark.unit
 def test_decider_rejects_oversized_kind() -> None:
     """Per-element bound is 50 chars (mirrors Supply.kind shape)."""
-    with pytest.raises(InvalidMethodNeedsSuppliesError):
+    with pytest.raises(InvalidMethodNeededSuppliesError):
         define_method.decide(
             state=None,
             command=DefineMethod(
                 name="X",
-                needs_capabilities=frozenset(),
-                needs_supplies=frozenset({"x" * 51}),
+                needed_capabilities=frozenset(),
+                needed_supplies=frozenset({"x" * 51}),
             ),
             now=_NOW,
             new_id=uuid4(),
@@ -175,89 +175,89 @@ def test_decider_accepts_max_length_kind() -> None:
         state=None,
         command=DefineMethod(
             name="X",
-            needs_capabilities=frozenset(),
-            needs_supplies=frozenset({boundary}),
+            needed_capabilities=frozenset(),
+            needed_supplies=frozenset({boundary}),
         ),
         now=_NOW,
         new_id=uuid4(),
     )
-    assert boundary in set(events[0].needs_supplies)
+    assert boundary in set(events[0].needed_supplies)
 
 
 # ---------- Event payload determinism ----------
 
 
 @pytest.mark.unit
-def test_to_payload_sorts_needs_supplies_lexically() -> None:
+def test_to_payload_sorts_needed_supplies_lexically() -> None:
     """Same logical kind set must serialize to the same payload bytes
     (idempotency-hash determinism). Sorting in to_payload is the
     contract."""
     event = MethodDefined(
         method_id=uuid4(),
         name="X",
-        needs_capabilities=[],
-        needs_supplies=["LiquidNitrogen", "PhotonBeam", "ComputePool"],
+        needed_capabilities=[],
+        needed_supplies=["LiquidNitrogen", "PhotonBeam", "ComputePool"],
         occurred_at=_NOW,
     )
     payload = to_payload(event)
-    assert payload["needs_supplies"] == ["ComputePool", "LiquidNitrogen", "PhotonBeam"]
+    assert payload["needed_supplies"] == ["ComputePool", "LiquidNitrogen", "PhotonBeam"]
 
 
 @pytest.mark.unit
-def test_event_round_trips_with_needs_supplies() -> None:
+def test_event_round_trips_with_needed_supplies() -> None:
     original = MethodDefined(
         method_id=uuid4(),
         name="Tomography",
-        needs_capabilities=[],
-        needs_supplies=["LiquidNitrogen", "PhotonBeam"],
+        needed_capabilities=[],
+        needed_supplies=["LiquidNitrogen", "PhotonBeam"],
         occurred_at=_NOW,
     )
     stored = _stored("MethodDefined", to_payload(original))
     rebuilt = from_stored(stored)
     assert isinstance(rebuilt, MethodDefined)
     # Sets equal (payload sorts; from_stored preserves payload order).
-    assert set(rebuilt.needs_supplies) == {"LiquidNitrogen", "PhotonBeam"}
+    assert set(rebuilt.needed_supplies) == {"LiquidNitrogen", "PhotonBeam"}
 
 
 # ---------- Pre-10b backward-compat (additive evolution) ----------
 
 
 @pytest.mark.unit
-def test_pre_10b_event_payload_folds_with_empty_needs_supplies() -> None:
+def test_pre_10b_event_payload_folds_with_empty_needed_supplies() -> None:
     """Critical forward-compat pin. Pre-10b MethodDefined payloads
-    have NO needs_supplies key. additive-evolution: from_stored uses
+    have NO needed_supplies key. additive-evolution: from_stored uses
     payload.get(..., default), so the rebuilt event carries empty
     list, and the evolver folds into empty frozenset."""
     pre_10b_payload: dict[str, object] = {
         "method_id": str(uuid4()),
         "name": "Pre-10b Method",
-        "needs_capabilities": [],
+        "needed_capabilities": [],
         "occurred_at": _NOW.isoformat(),
-        # No needs_supplies key — pre-10b payload shape.
+        # No needed_supplies key — pre-10b payload shape.
     }
     stored = _stored("MethodDefined", pre_10b_payload)
     rebuilt = from_stored(stored)
     assert isinstance(rebuilt, MethodDefined)
-    assert rebuilt.needs_supplies == []
+    assert rebuilt.needed_supplies == []
     state = evolve(None, rebuilt)
-    assert state.needs_supplies == frozenset()
+    assert state.needed_supplies == frozenset()
 
 
 # ---------- Evolver fold ----------
 
 
 @pytest.mark.unit
-def test_evolve_method_defined_sets_needs_supplies() -> None:
+def test_evolve_method_defined_sets_needed_supplies() -> None:
     method_id = uuid4()
     event = MethodDefined(
         method_id=method_id,
         name="Tomography",
-        needs_capabilities=[],
-        needs_supplies=["PhotonBeam", "LiquidNitrogen"],
+        needed_capabilities=[],
+        needed_supplies=["PhotonBeam", "LiquidNitrogen"],
         occurred_at=_NOW,
     )
     state = evolve(None, event)
-    assert state.needs_supplies == frozenset({"PhotonBeam", "LiquidNitrogen"})
+    assert state.needed_supplies == frozenset({"PhotonBeam", "LiquidNitrogen"})
 
 
 # ---------- Preserve-fields invariant per transition ----------
@@ -269,32 +269,32 @@ def _seed_state(supplies: frozenset[str]) -> Method:
         MethodDefined(
             method_id=uuid4(),
             name="Tomography",
-            needs_capabilities=[],
-            needs_supplies=list(supplies),
+            needed_capabilities=[],
+            needed_supplies=list(supplies),
             occurred_at=_NOW,
         ),
     )
 
 
 @pytest.mark.unit
-def test_evolve_method_versioned_preserves_needs_supplies() -> None:
+def test_evolve_method_versioned_preserves_needed_supplies() -> None:
     seed = _seed_state(frozenset({"PhotonBeam"}))
     after = evolve(seed, MethodVersioned(method_id=seed.id, version_tag="v2", occurred_at=_NOW))
-    assert after.needs_supplies == frozenset({"PhotonBeam"})
+    assert after.needed_supplies == frozenset({"PhotonBeam"})
     assert after.status is MethodStatus.VERSIONED
 
 
 @pytest.mark.unit
-def test_evolve_method_deprecated_preserves_needs_supplies() -> None:
+def test_evolve_method_deprecated_preserves_needed_supplies() -> None:
     seed = _seed_state(frozenset({"PhotonBeam", "LiquidNitrogen"}))
     after = evolve(seed, MethodDeprecated(method_id=seed.id, occurred_at=_NOW))
-    assert after.needs_supplies == frozenset({"PhotonBeam", "LiquidNitrogen"})
+    assert after.needed_supplies == frozenset({"PhotonBeam", "LiquidNitrogen"})
     assert after.status is MethodStatus.DEPRECATED
 
 
 @pytest.mark.unit
-def test_evolve_method_parameters_schema_updated_preserves_needs_supplies() -> None:
-    """Orthogonal-facet update must NOT wipe needs_supplies."""
+def test_evolve_method_parameters_schema_updated_preserves_needed_supplies() -> None:
+    """Orthogonal-facet update must NOT wipe needed_supplies."""
     seed = _seed_state(frozenset({"PhotonBeam"}))
     after = evolve(
         seed,
@@ -304,21 +304,21 @@ def test_evolve_method_parameters_schema_updated_preserves_needs_supplies() -> N
             occurred_at=_NOW,
         ),
     )
-    assert after.needs_supplies == frozenset({"PhotonBeam"})
+    assert after.needed_supplies == frozenset({"PhotonBeam"})
 
 
 @pytest.mark.unit
-def test_fold_full_lifecycle_preserves_needs_supplies() -> None:
+def test_fold_full_lifecycle_preserves_needed_supplies() -> None:
     """End-to-end: defined → versioned → schema-updated → deprecated.
-    needs_supplies survives the whole chain."""
+    needed_supplies survives the whole chain."""
     method_id = uuid4()
     state = fold(
         [
             MethodDefined(
                 method_id=method_id,
                 name="Tomography",
-                needs_capabilities=[],
-                needs_supplies=["PhotonBeam", "LiquidNitrogen"],
+                needed_capabilities=[],
+                needed_supplies=["PhotonBeam", "LiquidNitrogen"],
                 occurred_at=_NOW,
             ),
             MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW),
@@ -331,7 +331,7 @@ def test_fold_full_lifecycle_preserves_needs_supplies() -> None:
         ]
     )
     assert state is not None
-    assert state.needs_supplies == frozenset({"PhotonBeam", "LiquidNitrogen"})
+    assert state.needed_supplies == frozenset({"PhotonBeam", "LiquidNitrogen"})
     assert state.status is MethodStatus.DEPRECATED
 
 
@@ -365,8 +365,8 @@ def test_event_type_name_for_method_defined_unchanged() -> None:
     event = MethodDefined(
         method_id=uuid4(),
         name="X",
-        needs_capabilities=[],
-        needs_supplies=[],
+        needed_capabilities=[],
+        needed_supplies=[],
         occurred_at=_NOW,
     )
     assert event_type_name(event) == "MethodDefined"

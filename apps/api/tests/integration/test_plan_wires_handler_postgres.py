@@ -99,7 +99,7 @@ async def _seed_plan(
         practice_id=practice_id,
         asset_ids=asset_ids,
         method_id=method_id,
-        method_needs_capabilities_snapshot=[],
+        method_needed_capabilities_snapshot=[],
         asset_capabilities_snapshot={a: [] for a in asset_ids},
         occurred_at=_NOW,
     )

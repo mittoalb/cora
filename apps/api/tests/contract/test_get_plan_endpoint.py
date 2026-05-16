@@ -18,7 +18,7 @@ def _setup_full_plan(client: TestClient) -> tuple[str, str, str]:
     """Seed all upstream then create a Plan. Returns (plan_id, practice_id, asset_id)."""
     cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needs_capabilities": [cap_id]}
+        "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",
@@ -67,7 +67,7 @@ def test_get_plan_returns_sorted_asset_ids_for_deterministic_response() -> None:
         cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
         method_id = client.post(
             "/methods",
-            json={"name": "Test Method", "needs_capabilities": [cap_id]},
+            json={"name": "Test Method", "needed_capabilities": [cap_id]},
         ).json()["method_id"]
         practice_id = client.post(
             "/practices",
@@ -127,5 +127,5 @@ def test_get_plan_omits_audit_snapshots_from_response_per_slim_aggregate() -> No
 
     body = response.json()
     assert "method_id" not in body
-    assert "method_needs_capabilities_snapshot" not in body
+    assert "method_needed_capabilities_snapshot" not in body
     assert "asset_capabilities_snapshot" not in body

@@ -14,7 +14,7 @@ from cora.api.main import create_app
 
 
 def _define_method(client: TestClient, name: str = "XRF Mapping") -> UUID:
-    response = client.post("/methods", json={"name": name, "needs_capabilities": []})
+    response = client.post("/methods", json={"name": name, "needed_capabilities": []})
     assert response.status_code == 201
     return UUID(response.json()["method_id"])
 

@@ -115,13 +115,13 @@ async def _seed_method(
     store: InMemoryEventStore,
     method_id: UUID,
     *,
-    needs_capabilities: frozenset[UUID] = frozenset(),
+    needed_capabilities: frozenset[UUID] = frozenset(),
     deprecated: bool = False,
 ) -> None:
     event = MethodDefined(
         method_id=method_id,
         name="Test Method",
-        needs_capabilities=sorted(needs_capabilities, key=str),
+        needed_capabilities=sorted(needed_capabilities, key=str),
         occurred_at=_NOW,
     )
     await _append(
@@ -242,7 +242,7 @@ async def test_handler_returns_generated_plan_id() -> None:
     asset_id = uuid4()
     cap = uuid4()
     store = InMemoryEventStore()
-    await _seed_method(store, method_id, needs_capabilities=frozenset({cap}))
+    await _seed_method(store, method_id, needed_capabilities=frozenset({cap}))
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id, capabilities=frozenset({cap}))
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
@@ -267,7 +267,7 @@ async def test_handler_appends_plan_defined_event_to_store() -> None:
     asset_id = uuid4()
     cap = uuid4()
     store = InMemoryEventStore()
-    await _seed_method(store, method_id, needs_capabilities=frozenset({cap}))
+    await _seed_method(store, method_id, needed_capabilities=frozenset({cap}))
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id, capabilities=frozenset({cap}))
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
@@ -293,7 +293,7 @@ async def test_handler_appends_plan_defined_event_to_store() -> None:
     assert stored.payload["practice_id"] == str(practice_id)
     assert stored.payload["asset_ids"] == [str(asset_id)]
     assert stored.payload["method_id"] == str(method_id)
-    assert stored.payload["method_needs_capabilities_snapshot"] == [str(cap)]
+    assert stored.payload["method_needed_capabilities_snapshot"] == [str(cap)]
     assert stored.payload["asset_capabilities_snapshot"] == {str(asset_id): [str(cap)]}
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None
@@ -503,7 +503,7 @@ async def test_handler_propagates_capabilities_not_satisfied_error() -> None:
     practice_id = uuid4()
     asset_id = uuid4()
     store = InMemoryEventStore()
-    await _seed_method(store, method_id, needs_capabilities=frozenset({needed_cap}))
+    await _seed_method(store, method_id, needed_capabilities=frozenset({needed_cap}))
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id, capabilities=frozenset({different_cap}))
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)

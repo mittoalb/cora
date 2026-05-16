@@ -75,7 +75,7 @@ async def _seed_method_with_schema(
     define = MethodDefined(
         method_id=method_id,
         name="Phase-Contrast Micro-CT",
-        needs_capabilities=[],
+        needed_capabilities=[],
         occurred_at=_NOW,
     )
     events = [
@@ -119,7 +119,7 @@ async def _seed_plan(deps: Kernel, plan_id: UUID, method_id: UUID) -> None:
         practice_id=practice_id,
         asset_ids=[asset_id],
         method_id=method_id,
-        method_needs_capabilities_snapshot=[],
+        method_needed_capabilities_snapshot=[],
         asset_capabilities_snapshot={asset_id: []},
         occurred_at=_NOW,
     )

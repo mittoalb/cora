@@ -12,7 +12,7 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 def _setup_full_plan(client: TestClient) -> tuple[str, str, str]:
     cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needs_capabilities": [cap_id]}
+        "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",

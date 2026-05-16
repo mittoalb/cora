@@ -36,7 +36,7 @@ async def test_version_method_persists_event_and_round_trips_through_fold(
     )
 
     await define_method.bind(deps)(
-        DefineMethod(name="XRF Fly Mapping", needs_capabilities=frozenset()),
+        DefineMethod(name="XRF Fly Mapping", needed_capabilities=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

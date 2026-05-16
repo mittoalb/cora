@@ -36,7 +36,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             "instances. Validates at bind time that the Practice and "
             "its Method are not Deprecated, that no bound Asset is "
             "Decommissioned, and that the union of bound Assets' "
-            "capabilities covers the Method's needs_capabilities."
+            "capabilities covers the Method's needed_capabilities."
         ),
     )
     async def define_plan_tool(  # pyright: ignore[reportUnusedFunction]

@@ -36,9 +36,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         name="define_method",
         description=(
             "Define a new abstract technique-class recipe (Method). "
-            "needs_capabilities is a list of Capability ids the Method "
+            "needed_capabilities is a list of Capability ids the Method "
             "requires; may be empty for purely procedural Methods. "
-            "needs_supplies (Phase 10b) is a list of Supply.kind STRINGS "
+            "needed_supplies (Phase 10b) is a list of Supply.kind STRINGS "
             "(for example 'PhotonBeam', 'LiquidNitrogen'); may be empty."
         ),
     )
@@ -51,7 +51,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 description="Display name for the new method.",
             ),
         ],
-        needs_capabilities: Annotated[
+        needed_capabilities: Annotated[
             list[UUID],
             Field(
                 description=(
@@ -61,7 +61,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ],
-        needs_supplies: Annotated[
+        needed_supplies: Annotated[
             list[
                 Annotated[
                     str,
@@ -85,8 +85,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         method_id = await handler(
             DefineMethod(
                 name=name,
-                needs_capabilities=frozenset(needs_capabilities),
-                needs_supplies=frozenset(needs_supplies or []),
+                needed_capabilities=frozenset(needed_capabilities),
+                needed_supplies=frozenset(needed_supplies or []),
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),

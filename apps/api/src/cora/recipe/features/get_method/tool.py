@@ -27,8 +27,8 @@ class MethodOutput(BaseModel):
 
     id: UUID
     name: str = Field(..., max_length=METHOD_NAME_MAX_LENGTH)
-    needs_capabilities: list[UUID]
-    needs_supplies: list[str]
+    needed_capabilities: list[UUID]
+    needed_supplies: list[str]
     status: str
     version: str | None
 
@@ -58,8 +58,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         return MethodOutput(
             id=method.id,
             name=method.name.value,
-            needs_capabilities=sorted(method.needs_capabilities, key=str),
-            needs_supplies=sorted(method.needs_supplies),
+            needed_capabilities=sorted(method.needed_capabilities, key=str),
+            needed_supplies=sorted(method.needed_supplies),
             status=method.status.value,
             version=method.version,
         )

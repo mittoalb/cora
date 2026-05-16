@@ -31,7 +31,7 @@ async def test_get_method_loads_state_from_real_postgres(
     await define_method.bind(deps)(
         DefineMethod(
             name="XRF Fly Mapping",
-            needs_capabilities=frozenset({cap1, cap2}),
+            needed_capabilities=frozenset({cap1, cap2}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -46,5 +46,5 @@ async def test_get_method_loads_state_from_real_postgres(
     assert method is not None
     assert method.id == method_id
     assert method.name == MethodName("XRF Fly Mapping")
-    assert method.needs_capabilities == frozenset({cap1, cap2})
+    assert method.needed_capabilities == frozenset({cap1, cap2})
     assert method.status is MethodStatus.DEFINED

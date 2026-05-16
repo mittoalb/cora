@@ -18,7 +18,7 @@ def _setup_plan_with_one_wire(client: TestClient) -> dict[str, Any]:
     add one Wire connecting them. Returns plan_id, src/tgt asset ids."""
     cap_id = client.post("/capabilities", json={"name": "Trigger"}).json()["capability_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needs_capabilities": [cap_id]}
+        "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",

@@ -146,7 +146,7 @@ def test_decide_rejects_empty_name() -> None:
 @pytest.mark.unit
 def test_decide_does_not_validate_target_asset_existence() -> None:
     """Eventual-consistency stance per Trust Conduit zone refs (3b),
-    Asset parent refs (5b), and Method's needs_capabilities (6a)."""
+    Asset parent refs (5b), and Method's needed_capabilities (6a)."""
     fake_asset = uuid4()
     events = register_procedure.decide(
         state=None,

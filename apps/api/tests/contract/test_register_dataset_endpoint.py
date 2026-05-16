@@ -32,7 +32,7 @@ def _good_body(**overrides: object) -> dict[str, object]:
 def _start_run(client: TestClient) -> str:
     """Set up the full upstream chain and start a Run; return the run_id."""
     cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
-    method_id = client.post("/methods", json={"name": "M", "needs_capabilities": [cap_id]}).json()[
+    method_id = client.post("/methods", json={"name": "M", "needed_capabilities": [cap_id]}).json()[
         "method_id"
     ]
     practice_id = client.post(
