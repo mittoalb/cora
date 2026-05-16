@@ -425,6 +425,129 @@ body::before {
   display: contents;
 }
 
+/* ---- Labelled aside ----
+   Left teal rule + small uppercase kicker, ported from the talks deck
+   (border-l-2 / pl-5 / tracking-[0.22em]). Lighter than a Material
+   admonition; meant for short labelled lists where a heading anchor is
+   not wanted. Pair the wrapper with .cora-aside and the label paragraph
+   with .cora-kicker via attr_list. */
+.md-typeset .cora-aside {
+  border-left: 2px solid var(--md-primary-fg-color);
+  padding: 0.1rem 0 0.1rem 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.md-typeset .cora-aside--soft {
+  border-left-color: color-mix(in srgb, var(--md-primary-fg-color) 50%, transparent);
+}
+
+.md-typeset .cora-aside > .cora-kicker {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--md-primary-fg-color);
+  margin: 0 0 0.6rem 0;
+}
+
+.md-typeset .cora-aside ul,
+.md-typeset .cora-aside ol {
+  margin: 0;
+}
+
+.md-typeset .cora-aside li {
+  margin-bottom: 0.25rem;
+}
+
+.md-typeset .cora-aside li:last-child {
+  margin-bottom: 0;
+}
+
+/* Bolded lead in a list item reads as the "name" of the item; bump it
+   to the brand teal so the eye lands on the term before the description. */
+.md-typeset .cora-aside li > strong:first-child {
+  color: var(--md-primary-fg-color);
+  font-weight: 600;
+}
+
+/* ---- Right-rail TOC active accent ----
+   Tailwind's on-this-page pattern: a 2px brand-teal bar + weight bump on
+   the currently-scrolled section. toc-active.js sets .cora-toc-active on
+   the matching <a>; the bar is a left-positioned pseudo-element so the
+   text doesn't shift when the class flips on. */
+.md-nav--secondary .md-nav__link {
+  position: relative;
+  transition:
+    color 120ms ease,
+    font-weight 120ms ease;
+}
+
+.md-nav--secondary .md-nav__link.cora-toc-active {
+  color: var(--md-primary-fg-color);
+  font-weight: 500;
+}
+
+.md-nav--secondary .md-nav__link.cora-toc-active::before {
+  content: "";
+  position: absolute;
+  left: -0.75rem;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  width: 2px;
+  background: var(--md-primary-fg-color);
+  border-radius: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-nav--secondary .md-nav__link {
+    transition: none;
+  }
+}
+
+/* ---- Aside variants beyond --soft ----
+   Same teal monochrome family. Each variant prepends a small uppercase
+   tag to the .cora-kicker via ::before, so the wrapper only needs a
+   class swap. Pair every variant with a .cora-kicker label, otherwise
+   the tag has nowhere to render. */
+.md-typeset .cora-aside--locked > .cora-kicker::before,
+.md-typeset .cora-aside--deferred > .cora-kicker::before {
+  display: inline-block;
+  margin-right: 0.65em;
+  padding: 0.12em 0.5em;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  border-radius: 0.2rem;
+  vertical-align: 1px;
+}
+
+.md-typeset .cora-aside--locked > .cora-kicker::before {
+  content: "Locked";
+  background: var(--md-primary-fg-color);
+  color: #fff;
+}
+
+.md-typeset .cora-aside--deferred {
+  border-left-color: color-mix(in srgb, var(--md-default-fg-color) 30%, transparent);
+}
+
+.md-typeset .cora-aside--deferred > .cora-kicker {
+  color: var(--md-default-fg-color--light);
+}
+
+.md-typeset .cora-aside--deferred > .cora-kicker::before {
+  content: "Deferred";
+  background: transparent;
+  color: var(--md-default-fg-color--light);
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 30%, transparent);
+}
+
+/* In the deferred variant, mute the teal on bolded list leads so the
+   muted rule is consistent end-to-end. */
+.md-typeset .cora-aside--deferred li > strong:first-child {
+  color: var(--md-default-fg-color);
+}
+
 /* ---- Section reveal-on-scroll ----
    section-reveal.js adds .cora-revealed when an element scrolls into view.
    Pre-reveal state is opacity 0 + 8px down; revealed state animates back

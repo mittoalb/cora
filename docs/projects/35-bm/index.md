@@ -23,8 +23,12 @@ Every transition emits events. The full stream re-derives the deliverables. The 
 
 ## Why first
 
+<div class="cora-aside" markdown>
+
 - **Real operations.** Working facility, real users, real failure modes, real data scale.
 - **Known-good substrate.** TomoScan, TomoPy, mctOptics, Noise2Inverse360 are mature and open source. CORA schedules, audits, and governs them; it does not reimplement them.
+
+</div>
 
 ## Read
 

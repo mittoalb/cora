@@ -64,9 +64,13 @@ A new objective, scintillator, or energy at the same beamline produces a new Pra
 
 ## Does not
 
+<div class="cora-aside cora-aside--soft" markdown>
+
 - **Replace TomoPy.** Reconstruction algorithms stay in TomoPy. CORA wraps them as Run steps and captures parameters as events.
 - **Fully autonomous segmentation by default.** Segmentation is one of the interchangeable Decision ports. Autonomous is one option among manual, interactive, trained-model.
 - **Real-time control loop.** The kHz encoder feedback loop stays in the FPGA and Aerotech controller. CORA observes and orchestrates; it does not sit in the trigger path.
+
+</div>
 
 ## AI and autonomy
 
@@ -74,18 +78,26 @@ CORA's AI commitments are deliberately scoped: ports and audit, not specific int
 
 ### In scope
 
+<div class="cora-aside" markdown>
+
 - **Decision ports** at COR, ROI, segmentation, alignment. Every result carries `strategy_id`, `model_id`, inputs, output, and confidence as a first-class event. Replayable.
 - **Wrap what already works.** TomoPy COR variants, the existing probability-curve COR method, Locator-CT for ROI, Noise2Inverse360 for denoising, the rotation-axis alignment script. Nothing new is invented; what exists gets a uniform shape and an audit trail.
 - **Agents as principals.** An AI strategy runs under its own identity, with the same authz and audit shape as a human operator. No special path.
 - **Manual fallback always available** at every port. AI is one option among N, never the only option.
 
+</div>
+
 ### Not in scope
+
+<div class="cora-aside cora-aside--soft" markdown>
 
 - **No claim that AI outperforms manual** at any specific Decision. The port lets it be tested side by side; the pilot does not promise a winner.
 - **No fully unattended sample-in to volume-out.** That is the long horizon, not the pilot deliverable.
 - **No robot sample changing.** Hardware question, not CORA's scope.
 - **No LLM-driven proposal triage.** Possible later as a Decision strategy, not promised here.
 - **No per-experiment model retraining.** Approaches that need paired ground truth or per-deployment retraining do not survive contact with a production beamline.
+
+</div>
 
 ### Stress
 

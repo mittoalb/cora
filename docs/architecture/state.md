@@ -25,13 +25,21 @@ Subscribers route on `(stream type, event type)` and dedupe on event id.
 
 ## Invariants
 
+<div class="cora-aside" markdown>
+
 - **Append-only at the storage layer.** Immutability is enforced where state lives, not in application code; the application identity cannot mutate or remove existing events.
 - **Gap-free ordering for cursors.** Projection workers advance against committed transactions only; in-flight writes never appear ahead of older ones.
 - **Optimistic concurrency by version.** Writers assert the expected per-stream version on append; a mismatch fails the transaction. No advisory locks, no last-write-wins.
+
+</div>
 
 ## Read models
 
 Reads are not the inverse of writes. The write path goes through a decider and emits events; the read path projects off them, with no decider and no new events.
 
+<div class="cora-aside" markdown>
+
 - **Fold-on-read.** Single-aggregate read replays the aggregate's stream on every request. Cost grows with stream length; no snapshots yet.
 - **Projection workers.** List, filter, search. Background processes tail the store, maintain a per-projection denormalised table, and advance a bookmark. Per-projection logic plugs into a generic registry.
+
+</div>

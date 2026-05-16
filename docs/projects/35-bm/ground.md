@@ -28,9 +28,13 @@ Each Device is a candidate for a publication-quality persistent ID. The minting 
 
 ## Where ISA-95 strains
 
+<div class="cora-aside" markdown>
+
 - **Calibration as cross-Device entity.** A rotation-axis alignment is meaningful only when bound to a camera + lens. Calibration is a relationship across Devices; it needs its own aggregate.
 - **Compute resources.** Polaris and H100 systems are Run-time resources the Asset hierarchy doesn't model. Separate Resource concept in the equipment BC.
 - **Sub-assemblies.** The Optique Peter flattens into the parent Assembly today. Nested Assemblies may be needed.
+
+</div>
 
 ## Software
 

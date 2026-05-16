@@ -125,6 +125,7 @@ extra_javascript:
   - javascripts/nav-transition.js
   - javascripts/section-reveal.js
   - javascripts/nav-theme.js
+  - javascripts/toc-active.js
 
 plugins:
   - search

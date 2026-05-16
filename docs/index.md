@@ -12,11 +12,16 @@ Facilities run on stitched-together scripts, spreadsheets, tribal knowledge. Eac
 
 ## Approach
 
-Three commitments shape every choice.
+<div class="cora-aside" markdown>
+
+Three commitments shape every choice
+{: .cora-kicker }
 
 - **Vertical before horizontal.** Build deeply for one deployment. Generalize only when a real second use case forces it.
 - **Agents are principals, not features.** Same identity, authz, audit as humans. The authz model grows once, not per-surface.
 - **Everything is replayable.** Postgres event sourcing. Any decision, human or agent, reconstructable from events alone.
+
+</div>
 
 ## Recipe ladder
 
@@ -57,18 +62,22 @@ Built first for white-beam micro-CT at **APS beamline 35-BM** (Argonne). Greenfi
 
     Your beamline could be the next deployment after 35-BM.
 
-    [Read the contribution call →](contributing.md)
+    [Read the contribution call →](reference/contributing.md)
 
 -   __AI researcher__
 
     Agents-as-principals, ReBAC, decision strategies, DCB. Got a pattern to try on a real facility? CORA can be a substrate.
 
-    [Read the contribution call →](contributing.md)
+    [Read the contribution call →](reference/contributing.md)
 
 </div>
 
 ## About
 
+<div class="cora-aside" markdown>
+
 - **Solo project.** A research bet, not a startup, not a product.
 - **Code is agent-written; design is human.**
 - **Pre-1.0.** Foundation in place; bounded contexts grow from real APS use cases.
+
+</div>
