@@ -80,7 +80,7 @@ def _registered_payload(**overrides: object) -> dict[str, Any]:
 @pytest.mark.unit
 def test_projection_metadata() -> None:
     proj = CampaignSummaryProjection()
-    assert proj.name == "proj_recipe_campaign_summary"
+    assert proj.name == "proj_campaign_summary"
     assert proj.subscribed_event_types == frozenset(
         {
             "CampaignRegistered",
@@ -122,7 +122,7 @@ async def test_campaign_registered_inserts_with_planned_status_and_null_audit() 
     args = conn.execute.await_args
     assert args is not None
     sql = args.args[0]
-    assert "INSERT INTO proj_recipe_campaign_summary" in sql
+    assert "INSERT INTO proj_campaign_summary" in sql
     assert "ON CONFLICT (campaign_id) DO NOTHING" in sql
     assert "'Planned'" in sql  # status literal
     # Bound parameters (positional):
@@ -183,7 +183,7 @@ async def test_campaign_started_sets_status_active_and_started_at() -> None:
     args = conn.execute.await_args
     assert args is not None
     sql = args.args[0]
-    assert "UPDATE proj_recipe_campaign_summary" in sql
+    assert "UPDATE proj_campaign_summary" in sql
     assert "status = 'Active'" in sql
     assert "started_at = $2" in sql
     assert "last_status_changed_at = $2" in sql
@@ -210,7 +210,7 @@ async def test_campaign_held_sets_status_held_with_reason_and_audit_ts() -> None
     args = conn.execute.await_args
     assert args is not None
     sql = args.args[0]
-    assert "UPDATE proj_recipe_campaign_summary" in sql
+    assert "UPDATE proj_campaign_summary" in sql
     assert "status = 'Held'" in sql
     assert "last_status_reason = $2" in sql
     assert "last_status_changed_at = $3" in sql
@@ -238,7 +238,7 @@ async def test_campaign_resumed_sets_status_active_without_touching_reason() -> 
     args = conn.execute.await_args
     assert args is not None
     sql = args.args[0]
-    assert "UPDATE proj_recipe_campaign_summary" in sql
+    assert "UPDATE proj_campaign_summary" in sql
     assert "status = 'Active'" in sql
     assert "last_status_changed_at = $2" in sql
     # CRITICAL: the RESUME SQL must NOT mention `last_status_reason` -- it preserves
@@ -268,7 +268,7 @@ async def test_campaign_closed_sets_status_closed_and_audit_ts() -> None:
     args = conn.execute.await_args
     assert args is not None
     sql = args.args[0]
-    assert "UPDATE proj_recipe_campaign_summary" in sql
+    assert "UPDATE proj_campaign_summary" in sql
     assert "status = 'Closed'" in sql
     assert "last_status_changed_at = $2" in sql
     # Close is a NORMAL terminal; no reason field. The SQL must not mention reason.
@@ -296,7 +296,7 @@ async def test_campaign_abandoned_sets_status_abandoned_with_reason() -> None:
     args = conn.execute.await_args
     assert args is not None
     sql = args.args[0]
-    assert "UPDATE proj_recipe_campaign_summary" in sql
+    assert "UPDATE proj_campaign_summary" in sql
     assert "status = 'Abandoned'" in sql
     assert "last_status_reason = $2" in sql
     assert "last_status_changed_at = $3" in sql
@@ -334,7 +334,7 @@ async def test_campaign_run_added_increments_run_count() -> None:
     args = conn.execute.await_args
     assert args is not None
     sql = args.args[0]
-    assert "UPDATE proj_recipe_campaign_summary" in sql
+    assert "UPDATE proj_campaign_summary" in sql
     assert "run_count = run_count + 1" in sql
     assert args.args[1] == _CAMPAIGN_ID
 
@@ -360,6 +360,36 @@ async def test_campaign_run_removed_decrements_run_count() -> None:
     args = conn.execute.await_args
     assert args is not None
     sql = args.args[0]
-    assert "UPDATE proj_recipe_campaign_summary" in sql
+    assert "UPDATE proj_campaign_summary" in sql
     assert "run_count = run_count - 1" in sql
     assert args.args[1] == _CAMPAIGN_ID
+
+
+@pytest.mark.unit
+async def test_campaign_run_removed_sql_includes_floor_guard() -> None:
+    """N12 gate-review nit: the decrement SQL must include a
+    `run_count > 0` predicate so a duplicate / replayed
+    CampaignRunRemoved cannot underflow the read model to a negative
+    count. Pure SQL-shape assertion -- the projection worker would
+    apply this against real PG and the predicate filters out the
+    bad row noop instead of materializing a negative count.
+    """
+    proj = CampaignSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "CampaignRunRemoved",
+        {
+            "campaign_id": str(_CAMPAIGN_ID),
+            "run_id": str(uuid4()),
+            "reason": "floor-guard test",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    conn.execute.assert_awaited_once()
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "run_count > 0" in sql

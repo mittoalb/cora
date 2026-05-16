@@ -106,7 +106,7 @@ async def test_register_inserts_planned_with_null_audit_columns(db_pool: asyncpg
             "SELECT name, intent, status, lead_actor_id, subject_id, "
             "description, tags, external_id, run_count, registered_at, "
             "started_at, last_status_changed_at, last_status_reason "
-            "FROM proj_recipe_campaign_summary WHERE campaign_id = $1",
+            "FROM proj_campaign_summary WHERE campaign_id = $1",
             campaign_id,
         )
     assert row is not None
@@ -146,7 +146,7 @@ async def test_start_flips_status_active_and_sets_started_at(db_pool: asyncpg.Po
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT status, started_at, last_status_changed_at, last_status_reason "
-            "FROM proj_recipe_campaign_summary WHERE campaign_id = $1",
+            "FROM proj_campaign_summary WHERE campaign_id = $1",
             campaign_id,
         )
     assert row is not None
@@ -183,7 +183,7 @@ async def test_hold_sets_status_held_with_reason_and_audit_ts(db_pool: asyncpg.P
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT status, started_at, last_status_changed_at, last_status_reason "
-            "FROM proj_recipe_campaign_summary WHERE campaign_id = $1",
+            "FROM proj_campaign_summary WHERE campaign_id = $1",
             campaign_id,
         )
     assert row is not None
@@ -229,7 +229,7 @@ async def test_resume_preserves_reason_and_started_at(db_pool: asyncpg.Pool) -> 
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT status, started_at, last_status_changed_at, last_status_reason "
-            "FROM proj_recipe_campaign_summary WHERE campaign_id = $1",
+            "FROM proj_campaign_summary WHERE campaign_id = $1",
             campaign_id,
         )
     assert row is not None
@@ -266,7 +266,7 @@ async def test_close_flips_status_closed(db_pool: asyncpg.Pool) -> None:
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT status, started_at, last_status_changed_at "
-            "FROM proj_recipe_campaign_summary WHERE campaign_id = $1",
+            "FROM proj_campaign_summary WHERE campaign_id = $1",
             campaign_id,
         )
     assert row is not None
@@ -302,7 +302,7 @@ async def test_abandon_from_planned_flips_status_abandoned_with_reason(
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT status, started_at, last_status_changed_at, last_status_reason "
-            "FROM proj_recipe_campaign_summary WHERE campaign_id = $1",
+            "FROM proj_campaign_summary WHERE campaign_id = $1",
             campaign_id,
         )
     assert row is not None

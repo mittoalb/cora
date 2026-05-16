@@ -1,5 +1,5 @@
 """CampaignSummaryProjection: folds the Campaign aggregate's events into
-the `proj_recipe_campaign_summary` read model that backs
+the `proj_campaign_summary` read model that backs
 `GET /campaigns`.
 
 Subscribed events:
@@ -85,7 +85,7 @@ from cora.infrastructure.ports.event_store import StoredEvent
 from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_CAMPAIGN_SQL = """
-INSERT INTO proj_recipe_campaign_summary
+INSERT INTO proj_campaign_summary
     (campaign_id, name, intent, status, lead_actor_id, subject_id,
      description, tags, external_id, run_count, registered_at,
      started_at, last_status_changed_at, last_status_reason)
@@ -96,7 +96,7 @@ ON CONFLICT (campaign_id) DO NOTHING
 """
 
 _UPDATE_STARTED_SQL = """
-UPDATE proj_recipe_campaign_summary
+UPDATE proj_campaign_summary
 SET status = 'Active',
     started_at = $2,
     last_status_changed_at = $2,
@@ -105,7 +105,7 @@ WHERE campaign_id = $1
 """
 
 _UPDATE_HELD_SQL = """
-UPDATE proj_recipe_campaign_summary
+UPDATE proj_campaign_summary
 SET status = 'Held',
     last_status_reason = $2,
     last_status_changed_at = $3,
@@ -114,7 +114,7 @@ WHERE campaign_id = $1
 """
 
 _UPDATE_RESUMED_SQL = """
-UPDATE proj_recipe_campaign_summary
+UPDATE proj_campaign_summary
 SET status = 'Active',
     last_status_changed_at = $2,
     updated_at = now()
@@ -122,7 +122,7 @@ WHERE campaign_id = $1
 """
 
 _UPDATE_CLOSED_SQL = """
-UPDATE proj_recipe_campaign_summary
+UPDATE proj_campaign_summary
 SET status = 'Closed',
     last_status_changed_at = $2,
     updated_at = now()
@@ -130,7 +130,7 @@ WHERE campaign_id = $1
 """
 
 _UPDATE_ABANDONED_SQL = """
-UPDATE proj_recipe_campaign_summary
+UPDATE proj_campaign_summary
 SET status = 'Abandoned',
     last_status_reason = $2,
     last_status_changed_at = $3,
@@ -139,24 +139,35 @@ WHERE campaign_id = $1
 """
 
 _UPDATE_RUN_ADDED_SQL = """
-UPDATE proj_recipe_campaign_summary
+UPDATE proj_campaign_summary
 SET run_count = run_count + 1,
     updated_at = now()
 WHERE campaign_id = $1
 """
 
+# N12 gate-review nit: defensive floor guard on the decrement. The
+# `run_count > 0` predicate in the WHERE clause prevents an underflow
+# from ever materializing as a negative count even if a duplicate
+# CampaignRunRemoved arrives (worker re-delivery, replay) or the
+# event-side decider's idempotency invariant ever slips. A negative
+# run_count would be a silent integrity bug on the read model; the
+# guard turns it into a no-op decrement instead. Preferred over a
+# table-level CHECK (run_count >= 0) constraint because (a) no new
+# migration is needed and (b) a CHECK violation would block the
+# projection worker on the bad event forever.
 _UPDATE_RUN_REMOVED_SQL = """
-UPDATE proj_recipe_campaign_summary
+UPDATE proj_campaign_summary
 SET run_count = run_count - 1,
     updated_at = now()
 WHERE campaign_id = $1
+  AND run_count > 0
 """
 
 
 class CampaignSummaryProjection:
-    """Maintains the `proj_recipe_campaign_summary` read model."""
+    """Maintains the `proj_campaign_summary` read model."""
 
-    name = "proj_recipe_campaign_summary"
+    name = "proj_campaign_summary"
     subscribed_event_types = frozenset(
         {
             "CampaignRegistered",

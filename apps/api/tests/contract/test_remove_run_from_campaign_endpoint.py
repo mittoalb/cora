@@ -135,6 +135,31 @@ def test_post_remove_run_returns_422_when_reason_missing() -> None:
 
 
 @pytest.mark.contract
+def test_post_remove_run_returns_409_when_campaign_closed() -> None:
+    """Pins NO CASCADE + terminal-frozen-membership: a Run added while
+    Active stays a member after Campaign is Closed (NO CASCADE per GLP
+    / ISO 17025 / 21 CFR §11.10(e) per-Run audit independence), but
+    remove_run_from_campaign refuses to mutate a Closed Campaign's
+    membership (terminal-frozen). Phase 6i-c.
+    """
+    app = create_app()
+    with TestClient(app) as client:
+        cid = _register_and_start_campaign(client)
+        run_id = _add_member(client, app, cid)
+        # Active -> Closed; close succeeds even with a member Run
+        # (NO CASCADE: Campaign state changes never touch Run state).
+        close = client.post(f"/campaigns/{cid}/close")
+        assert close.status_code == 204
+        # Now attempt to remove the member Run; Campaign is terminal,
+        # membership-mutation is frozen.
+        response = client.post(
+            f"/campaigns/{cid}/runs/{run_id}/remove",
+            json={"reason": "post-close attempt"},
+        )
+    assert response.status_code == 409, response.text
+
+
+@pytest.mark.contract
 def test_post_remove_run_returns_403_when_authorize_denies() -> None:
     app = create_app()
 

@@ -1,5 +1,5 @@
 """The `list_campaigns` query slice. Cursor-paginated; backed by
-`proj_recipe_campaign_summary`."""
+`proj_campaign_summary`."""
 
 from cora.campaign.features.list_campaigns.handler import (
     CampaignListPage,

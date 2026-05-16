@@ -1,6 +1,6 @@
 """Application handler for the `list_campaigns` query slice.
 
-Reads `proj_recipe_campaign_summary` directly via `deps.pool`. Five
+Reads `proj_campaign_summary` directly via `deps.pool`. Five
 optional filters (status / intent / lead_actor_id / subject_id /
 tag), each via the declarative `$N::<type> IS NULL OR <column> = $N`
 pattern (tag uses `$N = ANY(tags)` to leverage the per-column GIN
@@ -118,7 +118,7 @@ WHERE ($2::text[] IS NULL OR status = ANY($2::text[]))
 
 _LIST_NO_CURSOR_SQL = (
     _SELECT_COLUMNS
-    + "FROM proj_recipe_campaign_summary\n"
+    + "FROM proj_campaign_summary\n"
     + _FILTER_CLAUSE
     + "ORDER BY registered_at ASC, campaign_id ASC\n"
     + "LIMIT $1"
@@ -126,7 +126,7 @@ _LIST_NO_CURSOR_SQL = (
 
 _LIST_WITH_CURSOR_SQL = (
     _SELECT_COLUMNS
-    + "FROM proj_recipe_campaign_summary\n"
+    + "FROM proj_campaign_summary\n"
     + _FILTER_CLAUSE
     + "  AND (registered_at, campaign_id) > ($7, $8)\n"
     + "ORDER BY registered_at ASC, campaign_id ASC\n"

@@ -144,7 +144,7 @@ def test_decide_passes_when_at_least_one_active_clearance_covers() -> None:
             _ref("Superseded"),
         )
     )
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(
             name="Run",
@@ -158,7 +158,7 @@ def test_decide_passes_when_at_least_one_active_clearance_covers() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert len(events) == 1
+    assert len(decision.run_events) == 1
 
 
 @pytest.mark.unit

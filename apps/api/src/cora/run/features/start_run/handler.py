@@ -47,7 +47,6 @@ from cora.campaign.aggregates.campaign import (
 from cora.campaign.aggregates.campaign import (
     to_payload as campaign_to_payload,
 )
-from cora.campaign.aggregates.campaign.events import CampaignRunAdded
 from cora.equipment.aggregates.asset import Asset, AssetNotFoundError, load_asset
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.json_merge_patch import merge_patch
@@ -242,7 +241,7 @@ def bind(deps: Kernel) -> Handler:
         # Method's parameters_schema by the decider.
         effective_parameters = merge_patch(plan.default_parameters, command.override_parameters)
 
-        domain_events = decide(
+        decision = decide(
             state=None,
             command=command,
             context=context,
@@ -264,15 +263,17 @@ def bind(deps: Kernel) -> Handler:
                 causation_id=causation_id,
                 principal_id=principal_id,
             )
-            for event in domain_events
+            for event in decision.run_events
         ]
 
-        if command.campaign_id is not None:
-            # Phase 6i-c: cross-aggregate atomic write. Run stream gets
-            # RunStarted (carrying campaign_id on its payload); Campaign
-            # stream gets CampaignRunAdded. Both commit together via
-            # EventStore.append_streams (single Postgres tx) or roll back
-            # together on ConcurrencyError.
+        if decision.campaign_events:
+            # Phase 6i-c: cross-aggregate atomic write. The decider built
+            # both event lists (FCIS: cross-aggregate event construction
+            # belongs in the pure decider per the amend_clearance
+            # precedent + N9 gate-review nit). Handler routes them to
+            # EventStore.append_streams as a single atomic batch:
+            # commit together or roll back together on ConcurrencyError.
+            assert command.campaign_id is not None  # decider invariant
             campaign_membership_events = [
                 to_new_event(
                     event_type=campaign_event_type_name(event),
@@ -284,13 +285,7 @@ def bind(deps: Kernel) -> Handler:
                     causation_id=causation_id,
                     principal_id=principal_id,
                 )
-                for event in (
-                    CampaignRunAdded(
-                        campaign_id=command.campaign_id,
-                        run_id=new_id,
-                        occurred_at=now,
-                    ),
-                )
+                for event in decision.campaign_events
             ]
             await deps.event_store.append_streams(
                 [

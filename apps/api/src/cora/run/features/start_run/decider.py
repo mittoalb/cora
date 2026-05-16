@@ -69,11 +69,13 @@ fundamental issues surface first:
     facet not shipped). Documented as 6c-deferred enrichment.
 """
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
 from cora.campaign.aggregates.campaign import CampaignStatus
+from cora.campaign.aggregates.campaign.events import CampaignRunAdded
 from cora.equipment.aggregates.asset import AssetLifecycle
 from cora.recipe.aggregates.plan import PlanStatus, validate_wire_endpoints
 from cora.run.aggregates.run import (
@@ -107,6 +109,25 @@ _CAMPAIGN_MEMBERSHIP_ELIGIBLE_STATUSES: tuple[CampaignStatus, ...] = (
 )
 
 
+@dataclass(frozen=True)
+class RunStartEvents:
+    """The events emitted by a successful `start_run` decision.
+
+    Run-side `run_events` is always non-empty (one `RunStarted`).
+    Campaign-side `campaign_events` is non-empty only when the command
+    supplied `campaign_id`: a single `CampaignRunAdded` mirrors the
+    membership write the handler hands to `EventStore.append_streams`.
+    Empty otherwise; the handler routes single-stream via `append`.
+
+    Mirrors `amend_clearance`'s `AmendmentEvents`: the decider owns
+    cross-aggregate event construction (FCIS), the handler owns I/O
+    routing. Phase 6i gate-review N9.
+    """
+
+    run_events: list[RunStarted]
+    campaign_events: list[CampaignRunAdded]
+
+
 def decide(
     state: Run | None,
     command: StartRun,
@@ -117,7 +138,7 @@ def decide(
     method_parameters_schema: dict[str, Any] | None,
     now: datetime,
     new_id: UUID,
-) -> list[RunStarted]:
+) -> RunStartEvents:
     """Decide the events produced by starting a new run.
 
     `needed_capabilities_snapshot` is the Method's needed_capabilities
@@ -258,7 +279,7 @@ def decide(
         for caution in context.active_cautions
     )
 
-    return [
+    run_events: list[RunStarted] = [
         RunStarted(
             run_id=new_id,
             name=name.value,
@@ -276,3 +297,20 @@ def decide(
             occurred_at=now,
         )
     ]
+
+    # Phase 6i-c FCIS: when campaign_id is set, the decider also emits
+    # the inverse `CampaignRunAdded` event for the Campaign stream. The
+    # handler hands both lists to `EventStore.append_streams` as a
+    # single atomic batch. When campaign_id is None, this list is empty
+    # and the handler routes single-stream via `append`.
+    campaign_events: list[CampaignRunAdded] = []
+    if command.campaign_id is not None:
+        campaign_events.append(
+            CampaignRunAdded(
+                campaign_id=command.campaign_id,
+                run_id=new_id,
+                occurred_at=now,
+            )
+        )
+
+    return RunStartEvents(run_events=run_events, campaign_events=campaign_events)

@@ -229,7 +229,7 @@ async def test_start_run_with_campaign_writes_both_streams_atomically(
     await _drain(db_pool)
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT run_count FROM proj_recipe_campaign_summary WHERE campaign_id = $1",
+            "SELECT run_count FROM proj_campaign_summary WHERE campaign_id = $1",
             campaign_id,
         )
     assert row is not None

@@ -140,7 +140,7 @@ def test_decide_emits_run_started_for_valid_sample_run() -> None:
         referencing_clearances=_active_clearance_stub(),
     )
     new_id = uuid4()
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
@@ -150,7 +150,7 @@ def test_decide_emits_run_started_for_valid_sample_run() -> None:
         now=_NOW,
         new_id=new_id,
     )
-    assert events == [
+    assert decision.run_events == [
         RunStarted(
             run_id=new_id,
             name="Run",
@@ -176,7 +176,7 @@ def test_decide_emits_run_started_for_dark_field_run_without_subject() -> None:
         referencing_clearances=_active_clearance_stub(),
     )
     new_id = uuid4()
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(name="Dark field", plan_id=plan.id, subject_id=None),
         context=context,
@@ -186,7 +186,7 @@ def test_decide_emits_run_started_for_dark_field_run_without_subject() -> None:
         now=_NOW,
         new_id=new_id,
     )
-    assert events == [
+    assert decision.run_events == [
         RunStarted(
             run_id=new_id,
             name="Dark field",
@@ -211,7 +211,7 @@ def test_decide_accepts_subject_in_measured_state() -> None:
         assets={asset_id: asset},
         referencing_clearances=_active_clearance_stub(),
     )
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(name="Re-measurement", plan_id=plan.id, subject_id=subject.id),
         context=context,
@@ -221,7 +221,7 @@ def test_decide_accepts_subject_in_measured_state() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert len(events) == 1
+    assert len(decision.run_events) == 1
 
 
 @pytest.mark.unit
@@ -237,7 +237,7 @@ def test_decide_trims_run_name_via_value_object() -> None:
         assets={asset_id: asset},
         referencing_clearances=_active_clearance_stub(),
     )
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(name="  Run  ", plan_id=plan.id, subject_id=subject.id),
         context=context,
@@ -247,7 +247,7 @@ def test_decide_trims_run_name_via_value_object() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].name == "Run"
+    assert decision.run_events[0].name == "Run"
 
 
 # ---------- Validation: state pre-existing ----------
@@ -369,7 +369,7 @@ def test_decide_skips_subject_check_when_subject_id_is_none() -> None:
         assets={asset_id: asset},
         referencing_clearances=_active_clearance_stub(),
     )
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(name="Dark field", plan_id=plan.id, subject_id=None),
         context=context,
@@ -379,7 +379,7 @@ def test_decide_skips_subject_check_when_subject_id_is_none() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert len(events) == 1
+    assert len(decision.run_events) == 1
 
 
 # ---------- Validation: decommissioned asset ----------
@@ -458,7 +458,7 @@ def test_decide_uses_union_of_bound_assets_capabilities_for_satisfaction() -> No
     context = RunStartContext(
         plan=plan, subject=None, assets=assets, referencing_clearances=_active_clearance_stub()
     )
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(name="X", plan_id=plan.id, subject_id=None),
         context=context,
@@ -468,7 +468,7 @@ def test_decide_uses_union_of_bound_assets_capabilities_for_satisfaction() -> No
         now=_NOW,
         new_id=uuid4(),
     )
-    assert len(events) == 1
+    assert len(decision.run_events) == 1
 
 
 # ---------- Validation: name ----------
@@ -570,7 +570,7 @@ def test_decide_emits_run_started_with_6gc_parameter_fields() -> None:
     overrides: dict[str, Any] = {"energy_kev": 12.0}
     effective: dict[str, Any] = {"energy_kev": 12.0}
 
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(
             name="Run",
@@ -586,8 +586,8 @@ def test_decide_emits_run_started_with_6gc_parameter_fields() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert len(events) == 1
-    started = events[0]
+    assert len(decision.run_events) == 1
+    started = decision.run_events[0]
     assert started.override_parameters == overrides
     assert started.effective_parameters == effective
     assert started.triggered_by == "operator:opid:5"
@@ -671,7 +671,7 @@ def test_decide_accepts_no_schema_when_effective_is_empty() -> None:
         referencing_clearances=_active_clearance_stub(),
     )
 
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
@@ -681,8 +681,8 @@ def test_decide_accepts_no_schema_when_effective_is_empty() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert len(events) == 1
-    assert events[0].effective_parameters == {}
+    assert len(decision.run_events) == 1
+    assert decision.run_events[0].effective_parameters == {}
 
 
 # ---------- Phase 6h: Plan.wires re-validation at Run start ----------
@@ -741,7 +741,7 @@ def test_decide_passes_when_plan_wires_endpoints_still_valid() -> None:
         assets={src_id: src_asset, tgt_id: tgt_asset},
         referencing_clearances=_active_clearance_stub(),
     )
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=_subject().id),
         context=context,
@@ -751,7 +751,7 @@ def test_decide_passes_when_plan_wires_endpoints_still_valid() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert len(events) == 1
+    assert len(decision.run_events) == 1
 
 
 @pytest.mark.unit
@@ -1114,7 +1114,7 @@ def test_decide_embeds_empty_acknowledged_cautions_when_context_has_none() -> No
         referencing_clearances=_active_clearance_stub(),
         active_cautions=(),
     )
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
@@ -1124,8 +1124,8 @@ def test_decide_embeds_empty_acknowledged_cautions_when_context_has_none() -> No
         now=_NOW,
         new_id=uuid4(),
     )
-    assert len(events) == 1
-    assert events[0].acknowledged_cautions == ()
+    assert len(decision.run_events) == 1
+    assert decision.run_events[0].acknowledged_cautions == ()
 
 
 @pytest.mark.unit
@@ -1147,7 +1147,7 @@ def test_decide_embeds_snapshot_in_run_started_payload() -> None:
         referencing_clearances=_active_clearance_stub(),
         active_cautions=(caution,),
     )
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
@@ -1157,8 +1157,8 @@ def test_decide_embeds_snapshot_in_run_started_payload() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert len(events) == 1
-    ack_tuple = events[0].acknowledged_cautions
+    assert len(decision.run_events) == 1
+    ack_tuple = decision.run_events[0].acknowledged_cautions
     assert len(ack_tuple) == 1
     ack = ack_tuple[0]
     assert ack.caution_id == caution.caution_id
@@ -1195,7 +1195,7 @@ def test_decide_does_not_gate_on_active_cautions() -> None:
         referencing_clearances=_active_clearance_stub(),
         active_cautions=many_cautions,
     )
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
@@ -1205,8 +1205,8 @@ def test_decide_does_not_gate_on_active_cautions() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert len(events) == 1
-    assert len(events[0].acknowledged_cautions) == 4
+    assert len(decision.run_events) == 1
+    assert len(decision.run_events[0].acknowledged_cautions) == 4
 
 
 @pytest.mark.unit
@@ -1230,7 +1230,7 @@ def test_decide_threads_warning_severity_caution_through_to_event() -> None:
         referencing_clearances=_active_clearance_stub(),
         active_cautions=(warning,),
     )
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
@@ -1240,8 +1240,9 @@ def test_decide_threads_warning_severity_caution_through_to_event() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].acknowledged_cautions[0].severity == "Warning"
-    assert events[0].acknowledged_cautions[0].text_excerpt.startswith("bearing degraded")
+    ack = decision.run_events[0].acknowledged_cautions[0]
+    assert ack.severity == "Warning"
+    assert ack.text_excerpt.startswith("bearing degraded")
 
 
 # ---------- Phase 6i-c: campaign-membership gating + embed ----------
@@ -1296,7 +1297,7 @@ def test_decide_embeds_campaign_id_for_membership_eligible_status(
         referencing_clearances=_active_clearance_stub(),
         campaign=campaign,
     )
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(
             name="Run",
@@ -1311,7 +1312,7 @@ def test_decide_embeds_campaign_id_for_membership_eligible_status(
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].campaign_id == campaign.id
+    assert decision.run_events[0].campaign_id == campaign.id
 
 
 @pytest.mark.unit
@@ -1374,7 +1375,7 @@ def test_decide_no_campaign_id_passes_through_normally() -> None:
         referencing_clearances=_active_clearance_stub(),
         campaign=None,
     )
-    events = start_run.decide(
+    decision = start_run.decide(
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
@@ -1384,4 +1385,54 @@ def test_decide_no_campaign_id_passes_through_normally() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].campaign_id is None
+    assert decision.run_events[0].campaign_id is None
+    # FCIS pin (N9): no campaign_id -> empty campaign_events list, so the
+    # handler routes via single-stream `append` not `append_streams`.
+    assert decision.campaign_events == []
+
+
+@pytest.mark.unit
+def test_decide_emits_campaign_run_added_when_campaign_supplied() -> None:
+    """Phase 6i-c FCIS (N9): cross-aggregate event construction lives
+    in the decider, not the handler. With a membership-eligible
+    Campaign supplied, the decider returns BOTH a RunStarted on
+    `run_events` AND a CampaignRunAdded on `campaign_events` so the
+    handler can hand both to `EventStore.append_streams` without
+    duplicating event-construction logic. Mirrors amend_clearance's
+    AmendmentEvents shape.
+    """
+    from cora.campaign.aggregates.campaign import CampaignStatus
+    from cora.campaign.aggregates.campaign.events import CampaignRunAdded
+
+    campaign = _campaign(CampaignStatus.ACTIVE)
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
+    subject = _subject()
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+        campaign=campaign,
+    )
+    new_id = uuid4()
+    decision = start_run.decide(
+        state=None,
+        command=StartRun(
+            name="Run",
+            plan_id=plan.id,
+            subject_id=subject.id,
+            campaign_id=campaign.id,
+        ),
+        context=context,
+        needed_capabilities_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
+        now=_NOW,
+        new_id=new_id,
+    )
+    assert decision.campaign_events == [
+        CampaignRunAdded(campaign_id=campaign.id, run_id=new_id, occurred_at=_NOW)
+    ]

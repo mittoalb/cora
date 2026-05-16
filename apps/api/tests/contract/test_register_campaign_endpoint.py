@@ -86,6 +86,41 @@ def test_post_campaigns_rejects_missing_required_fields_with_422() -> None:
 
 
 @pytest.mark.contract
+def test_post_campaigns_rejects_missing_lead_actor_id_with_422() -> None:
+    """Pins lead_actor_id REQUIRED at the wire (LIMS Study Director
+    precedent; per design memo Locks §lead_actor_id REQUIRED at register).
+    """
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/campaigns",
+            json={"name": "x", "intent": "InSitu"},  # lead_actor_id omitted
+        )
+    assert response.status_code == 422
+    body = response.json()
+    # Pydantic's missing-field detail mentions lead_actor_id.
+    assert "lead_actor_id" in str(body).lower()
+
+
+@pytest.mark.contract
+def test_post_campaigns_rejects_external_ref_with_empty_scheme_with_400() -> None:
+    """Per ExternalRef VO: scheme is bounded-text 1-50 chars after trim.
+
+    Pydantic's `min_length=1` on the DTO catches the empty case at
+    422 BEFORE the domain VO ever runs. We assert 422 (the wire-level
+    boundary) and that the response body mentions the `scheme` field.
+    """
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/campaigns",
+            json=_body(external_refs=[{"scheme": "", "id": "abc"}]),
+        )
+    # Pydantic catches the empty scheme at 422 via the DTO's min_length.
+    assert response.status_code == 422
+    body = response.json()
+    assert "scheme" in str(body).lower()
+
+
+@pytest.mark.contract
 def test_post_campaigns_rejects_too_long_name_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post(

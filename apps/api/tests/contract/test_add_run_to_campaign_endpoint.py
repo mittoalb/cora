@@ -136,6 +136,44 @@ def test_post_add_run_returns_409_when_assigned_to_different_campaign() -> None:
 
 
 @pytest.mark.contract
+def test_post_add_run_returns_409_when_campaign_closed() -> None:
+    """Pins terminal-frozen-membership at the Closed terminal explicitly.
+
+    Sibling to `test_post_add_run_returns_409_when_campaign_terminal`
+    which already covers the same path via the same Active->Closed
+    transition; this test exists to anchor the per-terminal naming
+    pattern used by the cross-BC test convention (the Abandoned
+    sibling lives below).
+    """
+    app = create_app()
+    with TestClient(app) as client:
+        cid = _register_and_start_campaign(client)
+        close = client.post(f"/campaigns/{cid}/close")
+        assert close.status_code == 204
+        run_id = uuid4()
+        _seed_run(app, run_id)
+        response = client.post(f"/campaigns/{cid}/runs/{run_id}")
+    assert response.status_code == 409, response.text
+
+
+@pytest.mark.contract
+def test_post_add_run_returns_409_when_campaign_abandoned() -> None:
+    """Same terminal-frozen-membership pin, Abandoned terminal."""
+    app = create_app()
+    with TestClient(app) as client:
+        cid = _register_and_start_campaign(client)
+        abandon = client.post(
+            f"/campaigns/{cid}/abandon",
+            json={"reason": "test-abandon"},
+        )
+        assert abandon.status_code == 204
+        run_id = uuid4()
+        _seed_run(app, run_id)
+        response = client.post(f"/campaigns/{cid}/runs/{run_id}")
+    assert response.status_code == 409, response.text
+
+
+@pytest.mark.contract
 def test_post_add_run_returns_403_when_authorize_denies() -> None:
     app = create_app()
 

@@ -1,16 +1,17 @@
 -- Phase 6i-b: Campaign BC's first projection -- campaign summary read model.
 --
 -- Folds the Campaign aggregate's lifecycle events into the
--- `proj_recipe_campaign_summary` read model used by the
+-- `proj_campaign_summary` read model used by the
 -- `list_campaigns` slice for `GET /campaigns` keyset-paginated list
 -- endpoint with optional status / intent / lead_actor_id /
 -- subject_id / tag filters.
 --
--- Table-name prefix `proj_recipe_` mirrors the BC-map Track-A
--- convention: Campaign BC is sibling-to-Recipe in Track A. The other
--- Track-A projections (proj_recipe_method_summary,
--- proj_recipe_practice_summary, proj_recipe_plan_summary) use the
--- same prefix.
+-- Table name `proj_campaign_summary` follows the cross-BC
+-- per-aggregate projection convention `proj_<bc>_<aggregate>_summary`
+-- (Caution: proj_caution_summary, Supply: proj_supply_summary).
+-- Campaign is a NEW BC sibling-to-Recipe per the BC map and the
+-- design memo, NOT a fifth aggregate inside Recipe; the projection
+-- name reflects the owning BC.
 --
 -- Subscribed events:
 --   - CampaignRegistered -> INSERT (status='Planned', started_at=NULL,
@@ -74,7 +75,7 @@
 --
 -- Mutable read model. cora_app gets full DML.
 
-CREATE TABLE proj_recipe_campaign_summary (
+CREATE TABLE proj_campaign_summary (
     campaign_id              UUID        PRIMARY KEY,
     name                     TEXT        NOT NULL,
     intent                   TEXT        NOT NULL CHECK (
@@ -98,33 +99,33 @@ CREATE TABLE proj_recipe_campaign_summary (
 );
 
 -- Keyset pagination on `(registered_at, campaign_id)`.
-CREATE INDEX proj_recipe_campaign_summary_keyset_idx
-    ON proj_recipe_campaign_summary (registered_at, campaign_id);
+CREATE INDEX proj_campaign_summary_keyset_idx
+    ON proj_campaign_summary (registered_at, campaign_id);
 
 -- "Campaigns I lead" filter (PI / lead-operator dashboard).
-CREATE INDEX proj_recipe_campaign_summary_lead_actor_idx
-    ON proj_recipe_campaign_summary (lead_actor_id);
+CREATE INDEX proj_campaign_summary_lead_actor_idx
+    ON proj_campaign_summary (lead_actor_id);
 
 -- "Campaigns for this subject" filter (loose subject ref; LOOSE
 -- policy per design memo, but the read-side filter is useful even
 -- when not aggregate-enforced).
-CREATE INDEX proj_recipe_campaign_summary_subject_idx
-    ON proj_recipe_campaign_summary (subject_id);
+CREATE INDEX proj_campaign_summary_subject_idx
+    ON proj_campaign_summary (subject_id);
 
 -- GIN index for `$N = ANY(tags)` filter on list_campaigns.
-CREATE INDEX proj_recipe_campaign_summary_tags_gin_idx
-    ON proj_recipe_campaign_summary USING GIN (tags);
+CREATE INDEX proj_campaign_summary_tags_gin_idx
+    ON proj_campaign_summary USING GIN (tags);
 
 -- Partial index for the default "open campaigns" filter
 -- (status IN {Planned, Active, Held}). Closed + Abandoned are
 -- excluded from the default list view per design memo.
-CREATE INDEX proj_recipe_campaign_summary_open_idx
-    ON proj_recipe_campaign_summary (status)
+CREATE INDEX proj_campaign_summary_open_idx
+    ON proj_campaign_summary (status)
     WHERE status IN ('Planned', 'Active', 'Held');
 
 GRANT SELECT, INSERT, UPDATE, DELETE
-    ON proj_recipe_campaign_summary TO cora_app;
+    ON proj_campaign_summary TO cora_app;
 
 INSERT INTO projection_bookmarks (name)
-VALUES ('proj_recipe_campaign_summary')
+VALUES ('proj_campaign_summary')
 ON CONFLICT DO NOTHING;

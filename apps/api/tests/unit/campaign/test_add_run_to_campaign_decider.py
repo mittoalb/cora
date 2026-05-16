@@ -140,6 +140,45 @@ def test_add_run_rejects_run_assigned_to_different_campaign() -> None:
     assert exc.value.new_campaign_id == _CAMPAIGN_ID
 
 
+# ---------- LOOSE Subject coherence (N4 gate-review nit) ----------
+
+
+@pytest.mark.unit
+def test_decider_accepts_run_with_different_subject_than_campaign() -> None:
+    """Pin the LOOSE Subject coherence anti-hook.
+
+    Per `[[project_campaign_design]]` and the BC's design memo
+    Anti-hooks section: `subject_id` on Campaign is INFORMATIONAL,
+    NOT enforced as a member-Run invariant. ProposalBlock /
+    ParameterSweep-across-samples / MultiModal use cases all require
+    multi-Subject Campaigns. The decider does NOT compare
+    Campaign.subject_id against Run.subject_id (today or ever
+    without an explicit policy change per Watch item #3).
+    """
+    subject_a = UUID("01900000-0000-7000-8000-00000000a001")
+    subject_b = UUID("01900000-0000-7000-8000-00000000a002")
+
+    campaign = Campaign(
+        id=_CAMPAIGN_ID,
+        name=CampaignName("multi-subject sweep"),
+        intent=CampaignIntent.PROPOSAL_BLOCK,
+        lead_actor_id=_LEAD,
+        subject_id=subject_a,
+        status=CampaignStatus.ACTIVE,
+    )
+    run = Run(
+        id=_RUN_ID,
+        name=RunName("subject-B member"),
+        plan_id=_PLAN,
+        subject_id=subject_b,
+        status=RunStatus.RUNNING,
+    )
+
+    events = decide(state=campaign, command=_cmd(), context=_context(campaign, run), now=_NOW)
+    assert len(events.campaign_events) == 1
+    assert len(events.run_events) == 1
+
+
 @pytest.mark.unit
 def test_add_run_accepts_run_already_assigned_to_same_campaign() -> None:
     """Run.campaign_id equal to the target Campaign means the Run was

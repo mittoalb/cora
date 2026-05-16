@@ -1,4 +1,4 @@
-h1:d8RDOC//r6f1hA6Ip/j+Cg3qu/A5vwaOTWu5Ecf9Irw=
+h1:paqG6Wsoa4HUB1oNpPUp9wNMm2mTFCv9wY3AhO+yPgU=
 20260509120000_init_events.sql h1:GmgCZKfaqXu1m96/cKAks2vhaLWTdEaHTLkFtUo9FXg=
 20260509170000_init_idempotency.sql h1:Nbu8DIE4Sv1WiHw3G22+tYffPhKc5Jryw3PMK8wB2zY=
 20260510010000_add_event_id.sql h1:RbtYP6uMnOB20zhJ9dNXUi4YVqbmlEzf562pmygnRW8=
@@ -38,4 +38,4 @@ h1:d8RDOC//r6f1hA6Ip/j+Cg3qu/A5vwaOTWu5Ecf9Irw=
 20260516000000_init_proj_safety_clearance_summary.sql h1:evKAiP6d3ChGGLgHxqtu+/42a9w9Xl+e88jsFf2O7hk=
 20260516120000_add_proj_safety_clearance_external_id_unique.sql h1:VRIhNJJZQ/GqrVitV+vpNZz5tDmQ5wVtzkpr00kW0yE=
 20260517100000_init_proj_caution_summary.sql h1:ye8m3Ue8ieKEkqoDRMn04L9zp2QnLRvPbALmj+mO3w8=
-20260517110000_init_proj_recipe_campaign_summary.sql h1:dgWsg6PBgjnTjQeFFYzm0xO4OdouOwnf6KOtWtN278k=
+20260517110000_init_proj_campaign_summary.sql h1:V78Uyak30v7uf/ImGxrZHscFr9daBF8d5ftPr/8gPP8=

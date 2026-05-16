@@ -1,5 +1,5 @@
 """The `ListCampaigns` query: intent dataclass for keyset-paginated
-list of campaigns from the `proj_recipe_campaign_summary` projection.
+list of campaigns from the `proj_campaign_summary` projection.
 
 Five optional filters (status / intent / lead_actor_id / subject_id /
 tag). The default behavior (no status passed) returns OPEN campaigns

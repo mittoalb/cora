@@ -6,7 +6,7 @@ inverse path: pre-add a Run to a Campaign, then remove it. Asserts:
   - Campaign's run_ids loses the run_id.
   - Run.campaign_id clears back to None.
   - Both stream version cursors advance in a single transaction.
-  - proj_recipe_campaign_summary.run_count decrements after drain.
+  - proj_campaign_summary.run_count decrements after drain.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportUnknownParameterType=false, reportMissingParameterType=false
@@ -208,7 +208,7 @@ async def test_remove_run_decrements_run_count_after_drain(
 
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT run_count FROM proj_recipe_campaign_summary WHERE campaign_id = $1",
+            "SELECT run_count FROM proj_campaign_summary WHERE campaign_id = $1",
             campaign_id,
         )
     assert row is not None
