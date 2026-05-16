@@ -103,6 +103,7 @@ from cora.safety import (
     register_safety_tools,
     wire_safety,
 )
+from cora.safety.adapters import PostgresClearanceLookup
 from cora.subject import (
     SubjectHandlers,
     register_subject_projections,
@@ -253,7 +254,10 @@ def create_app() -> FastAPI:
         # MCP session manager first (per python-sdk#1367), then our
         # shared deps inside it so both surfaces share one wiring.
         async with mcp_app.router.lifespan_context(app):
-            deps, teardown = await build_kernel(authorize_factory=build_authorize)
+            deps, teardown = await build_kernel(
+                authorize_factory=build_authorize,
+                clearance_lookup_factory=PostgresClearanceLookup,
+            )
             app.state.deps = deps
             app.state.access = wire_access(deps)
             app.state.trust = wire_trust(deps)

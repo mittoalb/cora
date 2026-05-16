@@ -69,7 +69,7 @@ from cora.run.aggregates.run.events import (
     RunStopped,
     RunTruncated,
 )
-from cora.run.aggregates.run.state import Run, RunName, RunStatus
+from cora.run.aggregates.run.state import ExternalRef, Run, RunName, RunStatus
 
 
 def evolve(state: Run | None, event: RunEvent) -> Run:
@@ -84,6 +84,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
             override_parameters=override_parameters,
             effective_parameters=effective_parameters,
             triggered_by=triggered_by,
+            external_refs=external_refs,
         ):
             _ = state  # RunStarted is the genesis event; prior state ignored.
             return Run(
@@ -97,6 +98,9 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 effective_parameters=effective_parameters,
                 triggered_by=triggered_by,
                 reading_logbook_id=None,
+                external_refs=frozenset(
+                    ExternalRef(scheme=ref["scheme"], id=ref["id"]) for ref in external_refs
+                ),
             )
         case RunHeld():
             prior = require_state(state, "RunHeld")
@@ -111,6 +115,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 effective_parameters=prior.effective_parameters,
                 triggered_by=prior.triggered_by,
                 reading_logbook_id=prior.reading_logbook_id,
+                external_refs=prior.external_refs,
             )
         case RunResumed():
             prior = require_state(state, "RunResumed")
@@ -125,6 +130,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 effective_parameters=prior.effective_parameters,
                 triggered_by=prior.triggered_by,
                 reading_logbook_id=prior.reading_logbook_id,
+                external_refs=prior.external_refs,
             )
         case RunCompleted():
             prior = require_state(state, "RunCompleted")
@@ -139,6 +145,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 effective_parameters=prior.effective_parameters,
                 triggered_by=prior.triggered_by,
                 reading_logbook_id=prior.reading_logbook_id,
+                external_refs=prior.external_refs,
             )
         case RunAborted():
             prior = require_state(state, "RunAborted")
@@ -153,6 +160,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 effective_parameters=prior.effective_parameters,
                 triggered_by=prior.triggered_by,
                 reading_logbook_id=prior.reading_logbook_id,
+                external_refs=prior.external_refs,
             )
         case RunStopped():
             prior = require_state(state, "RunStopped")
@@ -167,6 +175,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 effective_parameters=prior.effective_parameters,
                 triggered_by=prior.triggered_by,
                 reading_logbook_id=prior.reading_logbook_id,
+                external_refs=prior.external_refs,
             )
         case RunTruncated():
             prior = require_state(state, "RunTruncated")
@@ -181,6 +190,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 effective_parameters=prior.effective_parameters,
                 triggered_by=prior.triggered_by,
                 reading_logbook_id=prior.reading_logbook_id,
+                external_refs=prior.external_refs,
             )
         case RunReadingLogbookOpened(logbook_id=logbook_id):
             # Lazy open-on-first-write (Phase 6f-5b): preserve all
@@ -198,6 +208,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 effective_parameters=prior.effective_parameters,
                 triggered_by=prior.triggered_by,
                 reading_logbook_id=logbook_id,
+                external_refs=prior.external_refs,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

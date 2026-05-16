@@ -26,12 +26,14 @@ InvalidRunInterruptedAtError).
     InvalidRunStopReasonError, InvalidRunTruncateReasonError,
     InvalidRunInterruptedAtError, InvalidRunParametersError,
     InvalidChannelNameError, InvalidReadingValueError,
-    InvalidSamplingProcedureError
+    InvalidSamplingProcedureError, InvalidRunExternalRefError
   - 404 (load miss): RunNotFoundError
   - 409 (defensive guard for AlreadyExists): RunAlreadyExistsError
   - 409 (Run-start binding-state guards): PlanDeprecatedError,
     SubjectNotMountableError, RunAssetDecommissionedError,
     RunCapabilitiesNotSatisfiedError
+  - 409 (Run-start safety-clearance gate, 11a-c-3):
+    RunRequiresActiveClearanceError, RunClearanceCoverageMismatchError
   - 409 (Run transition guards, 6f-2): RunCannotCompleteError,
     RunCannotAbortError
   - 409 (Run transition guards, 6f-3): RunCannotHoldError,
@@ -47,6 +49,7 @@ from cora.run.aggregates.run import (
     InvalidChannelNameError,
     InvalidReadingValueError,
     InvalidRunAbortReasonError,
+    InvalidRunExternalRefError,
     InvalidRunInterruptedAtError,
     InvalidRunNameError,
     InvalidRunParametersError,
@@ -63,8 +66,10 @@ from cora.run.aggregates.run import (
     RunCannotStopError,
     RunCannotTruncateError,
     RunCapabilitiesNotSatisfiedError,
+    RunClearanceCoverageMismatchError,
     RunNotFoundError,
     RunReadingLogbookClosedError,
+    RunRequiresActiveClearanceError,
     SubjectNotMountableError,
 )
 from cora.run.errors import UnauthorizedError
@@ -161,6 +166,8 @@ def register_run_routes(app: FastAPI) -> None:
         InvalidChannelNameError,
         InvalidReadingValueError,
         InvalidSamplingProcedureError,
+        # ExternalRef validation guard (11a-c-3).
+        InvalidRunExternalRefError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (RunNotFoundError,):
@@ -173,6 +180,9 @@ def register_run_routes(app: FastAPI) -> None:
         SubjectNotMountableError,
         RunAssetDecommissionedError,
         RunCapabilitiesNotSatisfiedError,
+        # Run-start safety-clearance gate (11a-c-3).
+        RunRequiresActiveClearanceError,
+        RunClearanceCoverageMismatchError,
         # Run transition guards (6f-2).
         RunCannotCompleteError,
         RunCannotAbortError,

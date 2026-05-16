@@ -111,6 +111,13 @@ RUN_ABORT_REASON_MAX_LENGTH = 500
 RUN_STOP_REASON_MAX_LENGTH = 500
 RUN_TRUNCATE_REASON_MAX_LENGTH = 500
 
+# Phase 11a-c-3: ExternalRef carries (scheme, id) pairs mirroring the
+# Safety BC's ExternalBinding shape exactly (proposal / btr / lab_visit /
+# session, etc.). Same bounded lengths so the round-trip with
+# `ExternalBinding`-keyed clearance coverage queries stays symmetric.
+RUN_EXTERNAL_REF_SCHEME_MAX_LENGTH = 50
+RUN_EXTERNAL_REF_ID_MAX_LENGTH = 200
+
 # Phase 6f-5b: RunReading polymorphic logbook constants.
 READING_CHANNEL_NAME_MAX_LENGTH = 255
 READING_UNITS_MAX_LENGTH = 64
@@ -324,6 +331,69 @@ class RunAssetDecommissionedError(Exception):
             f"Decommissioned: {[str(a) for a in asset_ids]}"
         )
         self.asset_ids = asset_ids
+
+
+class InvalidRunExternalRefError(ValueError):
+    """An ExternalRef's scheme or id is empty, whitespace-only, or too long.
+
+    Mirrors Safety BC's `InvalidClearanceExternalBindingError` shape
+    (same field bounds) so the (scheme, id) pair round-trips cleanly
+    between Run.external_refs and Clearance.bindings.ExternalBinding.
+    """
+
+    def __init__(self, field_name: str, value: str, max_length: int) -> None:
+        super().__init__(
+            f"Run ExternalRef {field_name} must be 1-{max_length} chars "
+            f"after trimming (got: {value!r})"
+        )
+        self.field_name = field_name
+        self.value = value
+        self.max_length = max_length
+
+
+class RunRequiresActiveClearanceError(Exception):
+    """No Safety clearance references this Run's scope at all.
+
+    Phase 11a-c-3 cross-BC gate: `start_run` requires at least ONE
+    Active Safety Clearance whose bindings cover the Run's
+    `(run_id, subject_id, asset_ids)`. This error fires when ZERO
+    clearances reference any of these — operator must
+    `register_clearance` + walk it to Active first.
+
+    Distinct from `RunClearanceCoverageMismatchError`, which fires
+    when clearances DO reference the Run's scope but none are in
+    Active status. Two errors so operator-facing messaging can
+    distinguish "no clearance" vs "clearance exists but inactive".
+    """
+
+    def __init__(self, run_id: UUID) -> None:
+        super().__init__(
+            f"Run {run_id} cannot start: no Safety clearance references this "
+            f"Run / its Subject / its bound Assets. Register and activate a "
+            f"clearance with a matching binding before starting the run."
+        )
+        self.run_id = run_id
+
+
+class RunClearanceCoverageMismatchError(Exception):
+    """Clearances reference this Run's scope but none are Active.
+
+    Phase 11a-c-3 cross-BC gate: clearances exist referencing the Run's
+    `(run_id, subject_id, asset_ids)` but their statuses are all
+    non-Active (Defined / Submitted / UnderReview / Approved / Expired
+    / Rejected / Superseded). Operator must walk a referencing
+    clearance to Active (or amend a Superseded one) before starting
+    the run.
+    """
+
+    def __init__(self, run_id: UUID, *, referencing_clearance_count: int) -> None:
+        super().__init__(
+            f"Run {run_id} cannot start: {referencing_clearance_count} "
+            f"clearance(s) reference this Run's scope but none are Active. "
+            f"Walk one to Active (or amend a Superseded one) before starting."
+        )
+        self.run_id = run_id
+        self.referencing_clearance_count = referencing_clearance_count
 
 
 class RunCapabilitiesNotSatisfiedError(Exception):
@@ -795,6 +865,33 @@ class RunName:
 
 
 @dataclass(frozen=True)
+class ExternalRef:
+    """Anti-corruption ref to an upstream-deferred concept CORA does NOT model.
+
+    Same shape as Safety BC's `ExternalBinding(scheme, id)` so a Run's
+    `external_refs` round-trip cleanly against `Clearance.bindings` for
+    future ExternalBinding-based clearance coverage gating (deferred
+    per [[project_safety_clearance_design]] watch item; 11a-c-3 ships
+    the field only, gating uses typed Run/Subject/Asset bindings).
+
+    Common schemes: `proposal` / `btr` / `lab_visit` / `session`.
+    """
+
+    scheme: str
+    id: str
+
+    def __post_init__(self) -> None:
+        for attr_name, value, max_length in (
+            ("scheme", self.scheme, RUN_EXTERNAL_REF_SCHEME_MAX_LENGTH),
+            ("id", self.id, RUN_EXTERNAL_REF_ID_MAX_LENGTH),
+        ):
+            trimmed = value.strip()
+            if not trimmed or len(trimmed) > max_length:
+                raise InvalidRunExternalRefError(attr_name, value, max_length)
+            object.__setattr__(self, attr_name, trimmed)
+
+
+@dataclass(frozen=True)
 class Run:
     """Aggregate root: one execution instance.
 
@@ -841,6 +938,15 @@ class Run:
     # cleanly with this default. See [[project_run_reading_design]]
     # for the lazy-open rationale.
     reading_logbook_id: UUID | None = None
+    # Phase 11a-c-3: anti-corruption refs to upstream-deferred concepts
+    # CORA does NOT model as aggregates (proposal / btr / lab_visit /
+    # session). Mirrors Safety BC's ExternalBinding shape. Populated at
+    # register time from StartRun.external_refs; legacy pre-11a-c-3 Runs
+    # fold cleanly via `payload.get("external_refs", [])`. ExternalBinding-
+    # based clearance coverage gating is deferred per
+    # [[project_safety_clearance_design]] watch item; for 11a-c-3 the
+    # field is forward-compat only (gate uses Run/Subject/Asset bindings).
+    external_refs: frozenset["ExternalRef"] = field(default_factory=frozenset["ExternalRef"])
 
 
 class InvalidRunParametersError(ValueError):

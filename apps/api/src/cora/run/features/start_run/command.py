@@ -39,10 +39,18 @@ from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
+from cora.run.aggregates.run import ExternalRef
+
 
 @dataclass(frozen=True)
 class StartRun:
-    """Start a new Run: bind a Plan + (optional) Subject."""
+    """Start a new Run: bind a Plan + (optional) Subject.
+
+    Phase 11a-c-3 added optional `external_refs` (anti-corruption refs
+    to upstream-deferred concepts like proposal / btr / lab_visit /
+    session). Forward-compat additive field; legacy callers omitting
+    it get an empty frozenset.
+    """
 
     name: str
     plan_id: UUID
@@ -50,3 +58,4 @@ class StartRun:
     raid: str | None = None
     override_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     triggered_by: str | None = None
+    external_refs: frozenset[ExternalRef] = field(default_factory=frozenset[ExternalRef])

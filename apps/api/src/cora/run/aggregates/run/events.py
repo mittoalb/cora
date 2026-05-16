@@ -135,6 +135,12 @@ class RunStarted:
     override_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     effective_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     triggered_by: str | None = None
+    # Phase 11a-c-3: anti-corruption refs to upstream-deferred concepts
+    # (proposal / btr / lab_visit / session). Each entry is a dict
+    # `{"scheme": str, "id": str}` mirroring Safety BC's ExternalBinding
+    # wire shape. Defaults to () for legacy pre-11a-c-3 streams; the
+    # evolver reconstructs typed `ExternalRef` VOs.
+    external_refs: tuple[dict[str, Any], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -341,6 +347,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
             override_parameters=override_parameters,
             effective_parameters=effective_parameters,
             triggered_by=triggered_by,
+            external_refs=external_refs,
             occurred_at=occurred_at,
         ):
             return {
@@ -352,6 +359,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "override_parameters": override_parameters,
                 "effective_parameters": effective_parameters,
                 "triggered_by": triggered_by,
+                "external_refs": list(external_refs),
                 "occurred_at": occurred_at.isoformat(),
             }
         case RunHeld(run_id=run_id, occurred_at=occurred_at):
@@ -437,6 +445,7 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 override_parameters=payload.get("override_parameters", {}),
                 effective_parameters=payload.get("effective_parameters", {}),
                 triggered_by=payload.get("triggered_by"),
+                external_refs=tuple(payload.get("external_refs", [])),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "RunHeld":

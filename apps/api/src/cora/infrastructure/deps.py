@@ -49,7 +49,9 @@ from cora.infrastructure.logging import configure_logging
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
+    AlwaysCoveredClearanceLookup,
     Authorize,
+    ClearanceLookup,
     Clock,
     EventStore,
     IdempotencyStore,
@@ -90,6 +92,7 @@ def make_postgres_kernel(
     authorize: Authorize,
     event_store: EventStore | None = None,
     idempotency_store: IdempotencyStore | None = None,
+    clearance_lookup: ClearanceLookup | None = None,
 ) -> Kernel:
     """Postgres-backed Kernel primitive.
 
@@ -106,6 +109,12 @@ def make_postgres_kernel(
     test convenience. Production passes the prebuilt instances so
     they're shared with the authorize_factory (chicken-and-egg:
     `authorize` needs `event_store` before the Kernel is constructed).
+
+    `clearance_lookup` defaults to `AlwaysCoveredClearanceLookup` (the
+    test-bypass stub) so existing Run integration tests don't have to
+    seed real clearances. Production's `build_kernel` injects the real
+    `PostgresClearanceLookup` via the `clearance_lookup_factory`
+    argument; gate-specific tests override here explicitly.
     """
     return Kernel(
         settings=settings,
@@ -115,6 +124,9 @@ def make_postgres_kernel(
         event_store=event_store if event_store is not None else PostgresEventStore(pool),
         idempotency_store=(
             idempotency_store if idempotency_store is not None else PostgresIdempotencyStore(pool)
+        ),
+        clearance_lookup=(
+            clearance_lookup if clearance_lookup is not None else AlwaysCoveredClearanceLookup()
         ),
         pool=pool,
     )
@@ -128,6 +140,7 @@ def make_inmemory_kernel(
     authorize: Authorize,
     event_store: EventStore | None = None,
     idempotency_store: IdempotencyStore | None = None,
+    clearance_lookup: ClearanceLookup | None = None,
     pool: object | None = None,
 ) -> Kernel:
     """In-memory Kernel primitive.
@@ -142,6 +155,12 @@ def make_inmemory_kernel(
     exercise the "pool present" branch of the lifespan task without
     standing up a real Postgres connection. Production callers (and
     every other test) leave it as the default `None`.
+
+    `clearance_lookup` defaults to `AlwaysCoveredClearanceLookup` (the
+    test-bypass stub) because the in-memory kernel has no projection
+    worker running and no `proj_safety_clearance_summary` table. Gate-
+    specific tests can override with a custom adapter built around an
+    InMemory event store walk.
     """
     return Kernel(
         settings=settings,
@@ -152,11 +171,38 @@ def make_inmemory_kernel(
         idempotency_store=(
             idempotency_store if idempotency_store is not None else InMemoryIdempotencyStore()
         ),
+        clearance_lookup=(
+            clearance_lookup if clearance_lookup is not None else AlwaysCoveredClearanceLookup()
+        ),
         pool=pool,  # type: ignore[arg-type]
     )
 
 
-async def build_kernel(*, authorize_factory: AuthorizeFactory) -> tuple[Kernel, Teardown]:
+class ClearanceLookupFactory(Protocol):
+    """Builds the production ClearanceLookup port for the Kernel.
+
+    Phase 11a-c-3: Safety BC's `cora.safety.adapters.PostgresClearanceLookup`
+    is the production factory; `cora.api.main` binds it. Same factory-
+    injection shape as `AuthorizeFactory` so `cora.infrastructure.deps`
+    doesn't import from any BC (tach module rule:
+    `cora.infrastructure depends_on = []`).
+
+    `pool` is `None` only when `app_env=test`; the production factory
+    requires a real pool. Test mode falls back to
+    `AlwaysCoveredClearanceLookup` automatically.
+    """
+
+    def __call__(
+        self,
+        pool: asyncpg.Pool,
+    ) -> ClearanceLookup: ...
+
+
+async def build_kernel(
+    *,
+    authorize_factory: AuthorizeFactory,
+    clearance_lookup_factory: ClearanceLookupFactory | None = None,
+) -> tuple[Kernel, Teardown]:
     """Construct the kernel. Called once from the FastAPI lifespan."""
     settings = Settings()  # type: ignore[call-arg]  # Pydantic loads from env
     configure_logging(settings.log_level)
@@ -197,6 +243,11 @@ async def build_kernel(*, authorize_factory: AuthorizeFactory) -> tuple[Kernel, 
         clock=clock,
         id_generator=id_generator,
     )
+    clearance_lookup: ClearanceLookup = (
+        clearance_lookup_factory(pool)
+        if clearance_lookup_factory is not None
+        else AlwaysCoveredClearanceLookup()
+    )
     kernel = make_postgres_kernel(
         pool,
         settings=settings,
@@ -205,6 +256,7 @@ async def build_kernel(*, authorize_factory: AuthorizeFactory) -> tuple[Kernel, 
         authorize=authorize,
         event_store=pg_event_store,
         idempotency_store=pg_idempotency_store,
+        clearance_lookup=clearance_lookup,
     )
     return kernel, _make_pool_teardown(pool)
 
@@ -222,6 +274,7 @@ def _make_pool_teardown(pool: asyncpg.Pool) -> Teardown:
 
 __all__ = [
     "AuthorizeFactory",
+    "ClearanceLookupFactory",
     "build_kernel",
     "make_inmemory_kernel",
     "make_postgres_kernel",

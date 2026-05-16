@@ -172,6 +172,10 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
         "override_parameters": {},
         "effective_parameters": {},
         "triggered_by": None,
+        # 11a-c-3 additive payload field for ExternalRef-based clearance
+        # coverage. Defaults to [] when omitted; forward-compat via
+        # `payload.get("external_refs", [])`.
+        "external_refs": [],
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.event_id == run_event_id

@@ -12,6 +12,11 @@ from cora.infrastructure.ports.authorize import (
     AuthzResult,
     Deny,
 )
+from cora.infrastructure.ports.clearance_lookup import (
+    AlwaysCoveredClearanceLookup,
+    ClearanceLookup,
+    ClearanceReference,
+)
 from cora.infrastructure.ports.clock import Clock, FrozenClock, SystemClock
 from cora.infrastructure.ports.event_publisher import EventPublisher
 from cora.infrastructure.ports.event_store import (
@@ -41,6 +46,7 @@ from cora.infrastructure.ports.idempotency import (
 __all__ = [
     "Allow",
     "AllowAllAuthorize",
+    "AlwaysCoveredClearanceLookup",
     "Authorize",
     "AuthzResult",
     "CachedError",
@@ -48,6 +54,8 @@ __all__ = [
     "CachedSuccess",
     "ClaimOutcome",
     "Claimed",
+    "ClearanceLookup",
+    "ClearanceReference",
     "Clock",
     "ConcurrencyError",
     "Deny",

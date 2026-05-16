@@ -162,9 +162,30 @@ def bind(deps: Kernel) -> Handler:
             if subject is None:
                 raise SubjectNotFoundError(command.subject_id)
 
-        context = RunStartContext(plan=plan, subject=subject, assets=assets)
-
+        # Allocate the new Run id BEFORE the clearance lookup so the
+        # Safety projection query can match Clearances bound to this
+        # specific Run id (RunBinding coverage). The same id flows
+        # into the decider + the genesis event.
         new_id = deps.id_generator.new_id()
+
+        # Phase 11a-c-3 cross-BC clearance gate: query Safety's
+        # clearance projection for every clearance whose bindings
+        # reference this Run's scope. Decider partitions on Active.
+        referencing_clearances = tuple(
+            await deps.clearance_lookup.find_referencing_run(
+                run_id=new_id,
+                subject_id=command.subject_id,
+                asset_ids=plan.asset_ids,
+            )
+        )
+
+        context = RunStartContext(
+            plan=plan,
+            subject=subject,
+            assets=assets,
+            referencing_clearances=referencing_clearances,
+        )
+
         now = deps.clock.now()
 
         # 6g-c: resolve effective_parameters by merging Plan defaults

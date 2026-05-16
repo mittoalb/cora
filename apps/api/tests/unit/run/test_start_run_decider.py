@@ -28,6 +28,7 @@ from cora.equipment.aggregates.asset import (
     AssetPort,
     PortDirection,
 )
+from cora.infrastructure.ports.clearance_lookup import ClearanceReference
 from cora.recipe.aggregates.plan import (
     Plan,
     PlanName,
@@ -56,6 +57,25 @@ from cora.run.features.start_run import RunStartContext, StartRun
 from cora.subject.aggregates.subject import Subject, SubjectName, SubjectStatus
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
+
+
+def _active_clearance_stub() -> tuple[ClearanceReference, ...]:
+    """One-element tuple with a synthetic Active clearance.
+
+    Default for decider tests that don't exercise the 11a-c-3
+    cross-BC clearance gate (mirrors
+    `tests.integration._helpers.build_postgres_deps`'s default
+    `AlwaysCoveredClearanceLookup`). Gate-specific tests pass `()`
+    or non-Active statuses to exercise the new error paths.
+    """
+    return (
+        ClearanceReference(
+            clearance_id=UUID(int=0),
+            status="Active",
+            kind="ESAF",
+            facility_asset_id=UUID(int=0),
+        ),
+    )
 
 
 def _plan(
@@ -112,7 +132,12 @@ def test_decide_emits_run_started_for_valid_sample_run() -> None:
     plan = _plan(asset_ids=frozenset({asset_id}))
     asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
     subject = _subject()
-    context = RunStartContext(plan=plan, subject=subject, assets={asset_id: asset})
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
     new_id = uuid4()
     events = start_run.decide(
         state=None,
@@ -143,7 +168,12 @@ def test_decide_emits_run_started_for_dark_field_run_without_subject() -> None:
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
     asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
-    context = RunStartContext(plan=plan, subject=None, assets={asset_id: asset})
+    context = RunStartContext(
+        plan=plan,
+        subject=None,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
     new_id = uuid4()
     events = start_run.decide(
         state=None,
@@ -174,7 +204,12 @@ def test_decide_accepts_subject_in_measured_state() -> None:
     plan = _plan(asset_ids=frozenset({asset_id}))
     asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
     subject = _subject(status=SubjectStatus.MEASURED)
-    context = RunStartContext(plan=plan, subject=subject, assets={asset_id: asset})
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
     events = start_run.decide(
         state=None,
         command=StartRun(name="Re-measurement", plan_id=plan.id, subject_id=subject.id),
@@ -195,7 +230,12 @@ def test_decide_trims_run_name_via_value_object() -> None:
     plan = _plan(asset_ids=frozenset({asset_id}))
     asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
     subject = _subject()
-    context = RunStartContext(plan=plan, subject=subject, assets={asset_id: asset})
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
     events = start_run.decide(
         state=None,
         command=StartRun(name="  Run  ", plan_id=plan.id, subject_id=subject.id),
@@ -225,7 +265,12 @@ def test_decide_raises_run_already_exists_when_state_is_not_none() -> None:
     plan = _plan()
     asset_id = next(iter(plan.asset_ids))
     asset = _asset(asset_id=asset_id)
-    context = RunStartContext(plan=plan, subject=None, assets={asset_id: asset})
+    context = RunStartContext(
+        plan=plan,
+        subject=None,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
     with pytest.raises(RunAlreadyExistsError) as exc_info:
         start_run.decide(
             state=state,
@@ -248,7 +293,12 @@ def test_decide_raises_plan_deprecated_when_plan_is_deprecated() -> None:
     plan = _plan(status=PlanStatus.DEPRECATED)
     asset_id = next(iter(plan.asset_ids))
     asset = _asset(asset_id=asset_id)
-    context = RunStartContext(plan=plan, subject=None, assets={asset_id: asset})
+    context = RunStartContext(
+        plan=plan,
+        subject=None,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
     with pytest.raises(PlanDeprecatedError) as exc_info:
         start_run.decide(
             state=None,
@@ -284,7 +334,12 @@ def test_decide_raises_subject_not_mountable_for_disallowed_subject_states(
     asset_id = next(iter(plan.asset_ids))
     asset = _asset(asset_id=asset_id)
     subject = _subject(status=bad_status)
-    context = RunStartContext(plan=plan, subject=subject, assets={asset_id: asset})
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
     with pytest.raises(SubjectNotMountableError) as exc_info:
         start_run.decide(
             state=None,
@@ -307,7 +362,12 @@ def test_decide_skips_subject_check_when_subject_id_is_none() -> None:
     plan = _plan()
     asset_id = next(iter(plan.asset_ids))
     asset = _asset(asset_id=asset_id)
-    context = RunStartContext(plan=plan, subject=None, assets={asset_id: asset})
+    context = RunStartContext(
+        plan=plan,
+        subject=None,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
     events = start_run.decide(
         state=None,
         command=StartRun(name="Dark field", plan_id=plan.id, subject_id=None),
@@ -333,7 +393,9 @@ def test_decide_raises_asset_decommissioned_when_any_bound_asset_decommissioned(
         a1: _asset(asset_id=a1, lifecycle=AssetLifecycle.ACTIVE),
         a2: _asset(asset_id=a2, lifecycle=AssetLifecycle.DECOMMISSIONED),
     }
-    context = RunStartContext(plan=plan, subject=None, assets=assets)
+    context = RunStartContext(
+        plan=plan, subject=None, assets=assets, referencing_clearances=_active_clearance_stub()
+    )
     with pytest.raises(RunAssetDecommissionedError) as exc_info:
         start_run.decide(
             state=None,
@@ -360,7 +422,12 @@ def test_decide_raises_capabilities_not_satisfied_when_assets_drifted() -> None:
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
     asset = _asset(asset_id=asset_id, capabilities=frozenset({different_cap}))
-    context = RunStartContext(plan=plan, subject=None, assets={asset_id: asset})
+    context = RunStartContext(
+        plan=plan,
+        subject=None,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
     with pytest.raises(RunCapabilitiesNotSatisfiedError) as exc_info:
         start_run.decide(
             state=None,
@@ -387,7 +454,9 @@ def test_decide_uses_union_of_bound_assets_capabilities_for_satisfaction() -> No
         a1: _asset(asset_id=a1, capabilities=frozenset({cap1})),
         a2: _asset(asset_id=a2, capabilities=frozenset({cap2})),
     }
-    context = RunStartContext(plan=plan, subject=None, assets=assets)
+    context = RunStartContext(
+        plan=plan, subject=None, assets=assets, referencing_clearances=_active_clearance_stub()
+    )
     events = start_run.decide(
         state=None,
         command=StartRun(name="X", plan_id=plan.id, subject_id=None),
@@ -409,7 +478,12 @@ def test_decide_raises_invalid_run_name_for_whitespace_only() -> None:
     plan = _plan()
     asset_id = next(iter(plan.asset_ids))
     asset = _asset(asset_id=asset_id)
-    context = RunStartContext(plan=plan, subject=None, assets={asset_id: asset})
+    context = RunStartContext(
+        plan=plan,
+        subject=None,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
     with pytest.raises(InvalidRunNameError):
         start_run.decide(
             state=None,
@@ -431,7 +505,12 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
     plan = _plan()
     asset_id = next(iter(plan.asset_ids))
     asset = _asset(asset_id=asset_id)
-    context = RunStartContext(plan=plan, subject=None, assets={asset_id: asset})
+    context = RunStartContext(
+        plan=plan,
+        subject=None,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
     new_id = uuid4()
     cmd = StartRun(name="X", plan_id=plan.id, subject_id=None)
     first = start_run.decide(
@@ -481,7 +560,12 @@ def test_decide_emits_run_started_with_6gc_parameter_fields() -> None:
     plan = _plan(asset_ids=frozenset({asset_id}))
     asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
     subject = _subject()
-    context = RunStartContext(plan=plan, subject=subject, assets={asset_id: asset})
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
     overrides: dict[str, Any] = {"energy_kev": 12.0}
     effective: dict[str, Any] = {"energy_kev": 12.0}
 
@@ -517,7 +601,12 @@ def test_decide_raises_invalid_run_parameters_on_post_merge_violation() -> None:
     plan = _plan(asset_ids=frozenset({asset_id}))
     asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
     subject = _subject()
-    context = RunStartContext(plan=plan, subject=subject, assets={asset_id: asset})
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
 
     with pytest.raises(InvalidRunParametersError):
         start_run.decide(
@@ -543,7 +632,12 @@ def test_decide_strict_when_method_schema_is_none_with_non_empty_effective() -> 
     plan = _plan(asset_ids=frozenset({asset_id}))
     asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
     subject = _subject()
-    context = RunStartContext(plan=plan, subject=subject, assets={asset_id: asset})
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
 
     with pytest.raises(InvalidRunParametersError) as exc_info:
         start_run.decide(
@@ -569,7 +663,12 @@ def test_decide_accepts_no_schema_when_effective_is_empty() -> None:
     plan = _plan(asset_ids=frozenset({asset_id}))
     asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
     subject = _subject()
-    context = RunStartContext(plan=plan, subject=subject, assets={asset_id: asset})
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
 
     events = start_run.decide(
         state=None,
@@ -639,6 +738,7 @@ def test_decide_passes_when_plan_wires_endpoints_still_valid() -> None:
         plan=plan,
         subject=_subject(),
         assets={src_id: src_asset, tgt_id: tgt_asset},
+        referencing_clearances=_active_clearance_stub(),
     )
     events = start_run.decide(
         state=None,
@@ -705,6 +805,7 @@ def test_decide_rejects_when_plan_wire_references_removed_port() -> None:
         plan=plan,
         subject=_subject(),
         assets={src_id: src_asset, tgt_id: tgt_asset},
+        referencing_clearances=_active_clearance_stub(),
     )
     with pytest.raises(PlanWirePortNotFoundError):
         start_run.decide(
@@ -790,6 +891,7 @@ def test_decide_rejects_when_plan_wire_references_unbound_asset_at_run_start() -
         plan=plan,
         subject=_subject(),
         assets={src_id: src_asset, tgt_id: tgt_asset},
+        referencing_clearances=_active_clearance_stub(),
     )
     with pytest.raises(PlanWireAssetNotBoundError) as exc_info:
         start_run.decide(
@@ -829,6 +931,7 @@ def test_decide_rejects_when_plan_wire_target_port_direction_flipped() -> None:
         plan=plan,
         subject=_subject(),
         assets={src_id: src_asset, tgt_id: tgt_asset},
+        referencing_clearances=_active_clearance_stub(),
     )
     with pytest.raises(PlanWireDirectionMismatchError):
         start_run.decide(
@@ -865,6 +968,7 @@ def test_decide_rejects_when_plan_wire_signal_type_changed() -> None:
         plan=plan,
         subject=_subject(),
         assets={src_id: src_asset, tgt_id: tgt_asset},
+        referencing_clearances=_active_clearance_stub(),
     )
     with pytest.raises(PlanWireSignalTypeMismatchError) as exc_info:
         start_run.decide(
@@ -953,6 +1057,7 @@ def test_decide_revalidation_fails_fast_on_first_invalid_wire_in_a_set() -> None
         plan=plan,
         subject=_subject(),
         assets={src_id: src_asset, tgt_id_1: tgt_asset_1, tgt_id_2: tgt_asset_2},
+        referencing_clearances=_active_clearance_stub(),
     )
     with pytest.raises(PlanWirePortNotFoundError) as exc_info:
         start_run.decide(

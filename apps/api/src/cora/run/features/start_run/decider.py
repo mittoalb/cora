@@ -81,7 +81,9 @@ from cora.run.aggregates.run import (
     RunAlreadyExistsError,
     RunAssetDecommissionedError,
     RunCapabilitiesNotSatisfiedError,
+    RunClearanceCoverageMismatchError,
     RunName,
+    RunRequiresActiveClearanceError,
     RunStarted,
     SubjectNotMountableError,
     validate_effective_parameters_against_method_schema,
@@ -126,6 +128,25 @@ def decide(
     """
     if state is not None:
         raise RunAlreadyExistsError(state.id)
+
+    # Phase 11a-c-3 cross-BC clearance gate: at least one Safety
+    # Clearance must be Active AND reference this Run's scope. The
+    # handler pre-loaded every clearance whose bindings reference
+    # the Run/Subject/Asset ids via deps.clearance_lookup. Partition
+    # on status == "Active" to distinguish "no clearance at all"
+    # (RunRequiresActiveClearanceError) from "clearance exists but
+    # none Active" (RunClearanceCoverageMismatchError). Modern DDD
+    # consensus (Khononov / Dudycz / Herberto Graca 2024-2025): cross-
+    # context gating queries a replicated read model (here:
+    # proj_safety_clearance_summary), not the upstream aggregate.
+    if not context.referencing_clearances:
+        raise RunRequiresActiveClearanceError(new_id)
+    active_clearances = [c for c in context.referencing_clearances if c.status == "Active"]
+    if not active_clearances:
+        raise RunClearanceCoverageMismatchError(
+            new_id,
+            referencing_clearance_count=len(context.referencing_clearances),
+        )
 
     if context.plan.status is PlanStatus.DEPRECATED:
         raise PlanDeprecatedError(context.plan.id)
@@ -193,6 +214,9 @@ def decide(
             override_parameters=command.override_parameters,
             effective_parameters=effective_parameters,
             triggered_by=command.triggered_by,
+            external_refs=tuple(
+                {"scheme": ref.scheme, "id": ref.id} for ref in command.external_refs
+            ),
             occurred_at=now,
         )
     ]

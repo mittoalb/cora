@@ -24,6 +24,14 @@ Slice-local module by design: only `start_run` uses it today.
     Decider rejects if any is Decommissioned, and re-validates
     capability superset against current Asset state (drift since
     Plan-bind is real; Run is the last gate).
+  - `referencing_clearances` (Phase 11a-c-3): every Safety clearance
+    whose bindings reference this Run's scope (run_id, subject_id,
+    asset_ids), regardless of status. Loaded by the handler via
+    `deps.clearance_lookup.find_referencing_run(...)` against the
+    `proj_safety_clearance_summary` projection. Decider partitions
+    on `status == "Active"` to distinguish "no clearance at all"
+    (`RunRequiresActiveClearanceError`) from "clearance exists but
+    none Active" (`RunClearanceCoverageMismatchError`).
 
 Naming: `assets` (not `bound_assets`) matches `PlanBindingContext`
 precedent. The "bound" qualifier was meaningful at Plan-bind time
@@ -35,6 +43,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from cora.equipment.aggregates.asset import Asset
+from cora.infrastructure.ports.clearance_lookup import ClearanceReference
 from cora.recipe.aggregates.plan import Plan
 from cora.subject.aggregates.subject import Subject
 
@@ -45,8 +54,12 @@ class RunStartContext:
 
     `subject` is None when the Run has no Subject (calibration /
     dark-field run). `assets` is loaded from `plan.asset_ids`.
+    `referencing_clearances` carries every Safety clearance that
+    references the Run's scope (Run/Subject/Asset bindings) at any
+    status; the decider applies the Active-coverage check.
     """
 
     plan: Plan
     subject: Subject | None
     assets: dict[UUID, Asset]
+    referencing_clearances: tuple[ClearanceReference, ...]

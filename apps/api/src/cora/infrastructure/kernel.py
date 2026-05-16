@@ -36,6 +36,7 @@ import asyncpg
 from cora.infrastructure.config import Settings
 from cora.infrastructure.ports import (
     Authorize,
+    ClearanceLookup,
     Clock,
     EventStore,
     IdempotencyStore,
@@ -52,6 +53,17 @@ class Kernel:
     adapters (entry stores, projections, etc.) construct them in
     their own `wire_<bc>(deps)` from this pool, keeping BC-specific
     stores out of the kernel.
+
+    `clearance_lookup` (Phase 11a-c-3): cross-BC port consumed by
+    Run BC's `start_run` handler to gate Run.start on the presence
+    of an Active Safety Clearance covering the Run's scope. Safety
+    BC ships `PostgresClearanceLookup` as the production adapter
+    (reads `proj_safety_clearance_summary`). Test environments
+    default to `AlwaysCoveredClearanceLookup` (synthetic Active
+    clearance bypass) so existing Run tests don't have to seed
+    real clearances; gate-specific tests override with the real
+    adapter explicitly. Mirrors the `Authorize` / `AllowAllAuthorize`
+    test-default pattern.
     """
 
     settings: Settings
@@ -60,6 +72,7 @@ class Kernel:
     authorize: Authorize
     event_store: EventStore
     idempotency_store: IdempotencyStore
+    clearance_lookup: ClearanceLookup
     pool: asyncpg.Pool | None = None
 
 
