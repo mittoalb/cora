@@ -1,0 +1,47 @@
+"""Caution bounded context.
+
+Owns operator-authored tribal-knowledge cautions in CORA:
+
+  - `Caution` aggregate (11b-a): an operator-authored note attached
+    to an Asset or a Procedure (the hexapod-stalls-below-0.5mm/s
+    family). 3-state lightweight FSM (Active -> Superseded | Retired);
+    supersession IS the edit path via cross-aggregate atomic write
+    (mirrors Safety BC's `amend_clearance`).
+
+Distinct BC from Safety per [[project_caution_design]]: audience
+separation (operator vocabulary vs ESH-officer vocabulary) and
+lifecycle weight asymmetry (3-state lightweight vs 8-state formal
+FSM) both forbid co-tenancy.
+
+Phase 11b-a ships the BC scaffold + 4 slices:
+  - register_caution   (genesis -> Active)
+  - supersede_caution  (cross-aggregate; parent Active -> Superseded,
+                        new child genesis with parent_caution_id)
+  - retire_caution     (Active -> Retired)
+  - get_caution        (read; fold-on-read)
+
+Phase 11b-b adds the projection + `list_cautions` slice.
+Phase 11b-c adds Run.start non-blocking integration via the
+`CautionLookup` port (mirrors `ClearanceLookup`).
+
+Layout:
+    aggregates/<aggregate>/   -- aggregate state, events union, evolver, read
+    features/<verb>_<noun>/   -- vertical slice: command/query + decider? + handler + route + tool
+    wire.py                   -- CautionHandlers bundle + wire_caution(deps)
+    routes.py                 -- register_caution_routes(app)
+    tools.py                  -- register_caution_tools(mcp, get_handlers=...)
+    _caution_dtos.py          -- BC-private shared Pydantic discriminated TargetDTO
+"""
+
+from cora.caution.errors import UnauthorizedError
+from cora.caution.routes import register_caution_routes
+from cora.caution.tools import register_caution_tools
+from cora.caution.wire import CautionHandlers, wire_caution
+
+__all__ = [
+    "CautionHandlers",
+    "UnauthorizedError",
+    "register_caution_routes",
+    "register_caution_tools",
+    "wire_caution",
+]

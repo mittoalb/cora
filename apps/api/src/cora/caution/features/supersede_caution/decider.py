@@ -1,0 +1,119 @@
+"""Pure decider for the `SupersedeCaution` command.
+
+Cross-aggregate transition: parent goes `Active -> Superseded` while a
+new child caution is registered with `parent_caution_id=<parent>`.
+Both event streams are written atomically by the handler via
+`EventStore.append_streams`; the decider returns BOTH event lists
+typed as `SupersessionEvents` so the handler doesn't need to guess
+which stream gets which event. Mirrors Safety's `amend_clearance`
+decider exactly.
+
+## Validation
+
+  - Parent state must be Active -> `CautionCannotSupersedeError`
+  - Child fields validated identically to `register_caution` decider
+    (text/workaround/tags via VOs; expires_at strictly future).
+  - Child `target` MUST equal parent `target` ->
+    `InvalidCautionSupersedeTargetError`. Supersession preserves
+    target.
+
+The superseding actor's id lives on the envelope; the decider neither
+reads nor writes it. The child's `author_actor_id` IS carried on the
+genesis event payload (denorm convenience).
+"""
+
+from dataclasses import dataclass
+from datetime import datetime
+from uuid import UUID
+
+from cora.caution.aggregates.caution import (
+    Caution,
+    CautionCannotSupersedeError,
+    CautionRegistered,
+    CautionStatus,
+    CautionSuperseded,
+    CautionTag,
+    CautionText,
+    CautionWorkaround,
+    InvalidCautionExpiresAtError,
+    InvalidCautionSupersedeTargetError,
+)
+from cora.caution.features.supersede_caution.command import SupersedeCaution
+from cora.caution.features.supersede_caution.context import CautionSupersessionContext
+
+_SUPERSEDABLE_STATUSES: tuple[CautionStatus, ...] = (CautionStatus.Active,)
+
+
+@dataclass(frozen=True)
+class SupersessionEvents:
+    """The two event lists produced by a supersession, one per stream.
+
+    `parent_events`: appended to the parent caution's stream.
+    `child_events`: appended to the (new) child caution's stream.
+
+    Both lists are non-empty under normal operation; the handler hands
+    them to `EventStore.append_streams` as a single atomic batch.
+    """
+
+    parent_events: list[CautionSuperseded]
+    child_events: list[CautionRegistered]
+
+
+def decide(
+    state: Caution | None,
+    command: SupersedeCaution,
+    *,
+    context: CautionSupersessionContext,
+    now: datetime,
+    new_id: UUID,
+) -> SupersessionEvents:
+    """Decide the parent+child events produced by superseding an Active caution.
+
+    `state` is conceptually the child's prior state (always None
+    because the child is being created here). The parent's state lives
+    in `context.parent`.
+    """
+    _ = state  # The child is genesis; this slice never sees a prior child state.
+
+    parent = context.parent
+    if parent.status not in _SUPERSEDABLE_STATUSES:
+        raise CautionCannotSupersedeError(parent.id, parent.status)
+
+    # ---- Validate the child's fields (mirrors register_caution decider) ----
+
+    text = CautionText(command.text)
+    workaround = CautionWorkaround(command.workaround)
+    tags = frozenset(CautionTag(t) for t in command.tags)
+
+    if command.expires_at is not None and command.expires_at <= now:
+        raise InvalidCautionExpiresAtError("expires_at must be in the future")
+
+    if command.target != parent.target:
+        raise InvalidCautionSupersedeTargetError(
+            "supersede preserves target; start a new caution to retarget"
+        )
+
+    parent_events = [
+        CautionSuperseded(
+            caution_id=parent.id,
+            by_caution_id=new_id,
+            occurred_at=now,
+        )
+    ]
+    child_events = [
+        CautionRegistered(
+            caution_id=new_id,
+            target=command.target,
+            category=command.category.value,
+            severity=command.severity.value,
+            text=text.value,
+            workaround=workaround.value,
+            tags=frozenset(t.value for t in tags),
+            author_actor_id=command.author_actor_id,
+            expires_at=command.expires_at,
+            propagate_to_children=command.propagate_to_children,
+            parent_caution_id=parent.id,
+            occurred_at=now,
+        )
+    ]
+    return SupersessionEvents(parent_events=parent_events, child_events=child_events)

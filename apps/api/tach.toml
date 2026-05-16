@@ -41,6 +41,10 @@ path = "cora.access.aggregates"
 depends_on = ["cora.infrastructure"]
 
 [[modules]]
+path = "cora.caution.aggregates"
+depends_on = ["cora.infrastructure"]
+
+[[modules]]
 path = "cora.data.aggregates"
 depends_on = ["cora.infrastructure"]
 
@@ -169,12 +173,22 @@ depends_on = [
 path = "cora.safety"
 depends_on = ["cora.infrastructure", "cora.safety.aggregates"]
 
+# Caution BC owns the Caution aggregate (operator-authored tribal-
+# knowledge notes; 3-state FSM). Day-1 lock: target ids are bare UUID
+# references (Asset / Procedure) with NO cross-BC kernel loads on the
+# write path (eventual-consistency stance per Trust Conduit refs +
+# Asset parent refs + Procedure target Asset refs precedent).
+[[modules]]
+path = "cora.caution"
+depends_on = ["cora.infrastructure", "cora.caution.aggregates"]
+
 # API entrypoint composes every BC.
 [[modules]]
 path = "cora.api"
 depends_on = [
     "cora.infrastructure",
     "cora.access",
+    "cora.caution",
     "cora.data",
     "cora.decision",
     "cora.equipment",

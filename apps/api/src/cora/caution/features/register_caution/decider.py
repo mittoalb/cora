@@ -1,0 +1,81 @@
+"""Pure decider for the `RegisterCaution` command.
+
+Pure function: given the current Caution state (None for a fresh
+stream) and a `RegisterCaution` command, returns the events to
+append. No I/O, no awaits, no side effects.
+
+`now` and `new_id` are injected by the application handler from the
+Clock and IdGenerator ports (the non-determinism principle:
+capture, don't recompute).
+
+## Validation
+
+  - State must be None (genesis-only) -> `CautionAlreadyExistsError`
+  - `text` wrapped via `CautionText(...)`; 1-2000 chars after trim ->
+    `InvalidCautionTextError`
+  - `workaround` wrapped via `CautionWorkaround(...)`; 1-2000 chars
+    after trim -> `InvalidCautionWorkaroundError`. REQUIRED (corpus's
+    strongest convergence; see Anti-hooks in the design memo).
+  - Each `tag` wrapped via `CautionTag(...)`; 1-50 chars after trim
+    -> `InvalidCautionTagError`. Empty tags-set IS allowed (the closed
+    `category` enum carries the discriminator weight).
+  - `expires_at <= now` if provided -> `InvalidCautionExpiresAtError`.
+    Past-dated cautions can never warn anyone.
+
+Initial status is implicit `Active` (event type IS the state-change
+indicator; the genesis evolver hardcodes the mapping). The single
+emitted event is `CautionRegistered` with `parent_caution_id=None`
+(top-level register; supersession-child genesis is emitted by the
+`supersede_caution` decider with `parent_caution_id` set).
+"""
+
+from datetime import datetime
+from uuid import UUID
+
+from cora.caution.aggregates.caution import (
+    Caution,
+    CautionAlreadyExistsError,
+    CautionRegistered,
+    CautionTag,
+    CautionText,
+    CautionWorkaround,
+    InvalidCautionExpiresAtError,
+)
+from cora.caution.features.register_caution.command import RegisterCaution
+
+
+def decide(
+    state: Caution | None,
+    command: RegisterCaution,
+    *,
+    now: datetime,
+    new_id: UUID,
+) -> list[CautionRegistered]:
+    """Decide the events produced by registering a new caution."""
+    if state is not None:
+        raise CautionAlreadyExistsError(state.id)
+
+    # Validate + trim body via VOs.
+    text = CautionText(command.text)
+    workaround = CautionWorkaround(command.workaround)
+    tags = frozenset(CautionTag(t) for t in command.tags)
+
+    if command.expires_at is not None and command.expires_at <= now:
+        raise InvalidCautionExpiresAtError("expires_at must be in the future")
+
+    return [
+        CautionRegistered(
+            caution_id=new_id,
+            target=command.target,
+            category=command.category.value,
+            severity=command.severity.value,
+            text=text.value,
+            workaround=workaround.value,
+            tags=frozenset(t.value for t in tags),
+            author_actor_id=command.author_actor_id,
+            expires_at=command.expires_at,
+            propagate_to_children=command.propagate_to_children,
+            parent_caution_id=None,
+            occurred_at=now,
+        )
+    ]
