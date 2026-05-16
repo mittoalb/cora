@@ -1,8 +1,10 @@
 """The `ApproveClearance` command -- intent dataclass for this slice.
 
-`approving_actor_id` is filled by the route layer from the request's
-authenticated principal. Folded into Clearance state as
-`last_reviewed_by_actor_id`.
+The approving actor's identity is captured via `principal_id` on the
+envelope (`StoredEvent.principal_id`) per cross-BC `RunAborted` /
+`ProcedureAborted` precedent. No `approving_actor_id` field on the
+command or the event payload; the envelope is the single source of
+truth for "who triggered this transition".
 
 Optional `valid_from` / `valid_until` overrides defaults set at
 register time. Approving carries the chance to set/refine the
@@ -19,6 +21,5 @@ class ApproveClearance:
     """Approve an UnderReview clearance (`UnderReview -> Approved`)."""
 
     clearance_id: UUID
-    approving_actor_id: UUID
     valid_from: datetime | None = None
     valid_until: datetime | None = None

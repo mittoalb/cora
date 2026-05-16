@@ -7,11 +7,11 @@ added to `ClearanceEvent` without a matching match arm here.
 Status mapping per event type:
   - `ClearanceRegistered`         -> DEFINED       (genesis)
   - `ClearanceSubmitted`          -> SUBMITTED
-  - `ClearanceReviewStarted`        -> UNDER_REVIEW
+  - `ClearanceReviewStarted`      -> UNDER_REVIEW
   - `ClearanceReviewStepAppended` -> (no status change; appends review_steps tuple)
-  - `ClearanceApproved`           -> APPROVED (sets valid_from / valid_until /
-                                     last_reviewed_by_actor_id)
-  - `ClearanceRejected`           -> REJECTED (sets last_reviewed_by_actor_id)
+  - `ClearanceApproved`           -> APPROVED (sets valid_from / valid_until
+                                     overrides if explicit values provided)
+  - `ClearanceRejected`           -> REJECTED
   - `ClearanceActivated`          -> ACTIVE
 
 Phase 11a-c will add:
@@ -30,7 +30,6 @@ post-7e at the 11th identical-copy site).
 from collections.abc import Sequence
 from datetime import datetime  # noqa: TC003  (used in inline type hints inside helpers)
 from typing import assert_never
-from uuid import UUID  # noqa: TC003
 
 from cora.infrastructure.evolver import require_state
 from cora.safety.aggregates.clearance.events import (
@@ -87,7 +86,6 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
                 valid_from=valid_from,
                 valid_until=valid_until,
                 next_review_due_at=None,
-                last_reviewed_by_actor_id=None,
             )
         case ClearanceSubmitted():
             prior = require_state(state, "ClearanceSubmitted")
@@ -114,24 +112,18 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
             )
             return _replace_review_steps(prior, (*prior.review_steps, new_step))
         case ClearanceApproved(
-            approving_actor_id=actor_id,
             valid_from=valid_from,
             valid_until=valid_until,
         ):
             prior = require_state(state, "ClearanceApproved")
             return _replace_approved(
                 prior,
-                approving_actor_id=actor_id,
                 valid_from=valid_from,
                 valid_until=valid_until,
             )
-        case ClearanceRejected(rejecting_actor_id=actor_id):
+        case ClearanceRejected():
             prior = require_state(state, "ClearanceRejected")
-            return _replace_status(
-                prior,
-                ClearanceStatus.REJECTED,
-                last_reviewed_by_actor_id=actor_id,
-            )
+            return _replace_status(prior, ClearanceStatus.REJECTED)
         case ClearanceActivated():
             prior = require_state(state, "ClearanceActivated")
             return _replace_status(prior, ClearanceStatus.ACTIVE)
@@ -139,12 +131,7 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
             assert_never(event)
 
 
-def _replace_status(
-    prior: Clearance,
-    new_status: ClearanceStatus,
-    *,
-    last_reviewed_by_actor_id: "UUID | None" = None,
-) -> Clearance:
+def _replace_status(prior: Clearance, new_status: ClearanceStatus) -> Clearance:
     """Return a new Clearance with `status` updated; identity + most fields preserved."""
     return Clearance(
         id=prior.id,
@@ -161,11 +148,6 @@ def _replace_status(
         valid_from=prior.valid_from,
         valid_until=prior.valid_until,
         next_review_due_at=prior.next_review_due_at,
-        last_reviewed_by_actor_id=(
-            last_reviewed_by_actor_id
-            if last_reviewed_by_actor_id is not None
-            else prior.last_reviewed_by_actor_id
-        ),
     )
 
 
@@ -186,20 +168,17 @@ def _replace_review_steps(prior: Clearance, new_review_steps: tuple[ReviewStep, 
         valid_from=prior.valid_from,
         valid_until=prior.valid_until,
         next_review_due_at=prior.next_review_due_at,
-        last_reviewed_by_actor_id=prior.last_reviewed_by_actor_id,
     )
 
 
 def _replace_approved(
     prior: Clearance,
     *,
-    approving_actor_id: "UUID",
     valid_from: "datetime | None",
     valid_until: "datetime | None",
 ) -> Clearance:
     """Return a new Clearance after Approved transition: status APPROVED,
-    valid_from / valid_until overwritten if explicit values provided,
-    last_reviewed_by_actor_id set to the approving actor."""
+    valid_from / valid_until overwritten if explicit values provided."""
     return Clearance(
         id=prior.id,
         kind=prior.kind,
@@ -215,7 +194,6 @@ def _replace_approved(
         valid_from=valid_from if valid_from is not None else prior.valid_from,
         valid_until=valid_until if valid_until is not None else prior.valid_until,
         next_review_due_at=prior.next_review_due_at,
-        last_reviewed_by_actor_id=approving_actor_id,
     )
 
 

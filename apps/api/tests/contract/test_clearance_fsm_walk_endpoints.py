@@ -73,7 +73,9 @@ def test_full_fsm_walk_to_active_via_rest() -> None:
         assert r.status_code == 204
         body = client.get(f"/clearances/{cid}").json()
         assert body["status"] == "Approved"
-        assert body["last_reviewed_by_actor_id"] is not None  # set from principal
+        # GET response no longer surfaces last_reviewed_by_actor_id (aggregate
+        # drops the field per #19 cleanup); list_clearances still does via the
+        # projection's envelope-sourced denorm column.
 
         # Approved -> Active
         r = client.post(f"/clearances/{cid}/activate")
@@ -139,6 +141,65 @@ def test_append_clearance_review_step_rejects_wrong_step_index_with_400() -> Non
 
 
 @pytest.mark.contract
+def test_append_clearance_review_step_rejects_future_decided_at_with_400() -> None:
+    """`decided_at > now` trips the chain time invariant."""
+    with TestClient(create_app()) as client:
+        cid = _register(client)
+        client.post(f"/clearances/{cid}/submit")
+        client.post(
+            f"/clearances/{cid}/start_review",
+            json={"first_reviewer_role": "ESH"},
+        )
+        response = client.post(
+            f"/clearances/{cid}/review_steps",
+            json={
+                "step_index": 0,
+                "role": "ESH",
+                "decision": "Approved",
+                "decided_at": "2099-01-01T00:00:00+00:00",
+            },
+        )
+    assert response.status_code == 400
+    assert "future-dated" in response.json()["detail"]
+
+
+@pytest.mark.contract
+def test_append_clearance_review_step_rejects_non_monotonic_decided_at_with_400() -> None:
+    """Second step's `decided_at` strictly less than prior step's trips
+    chain monotonicity."""
+    with TestClient(create_app()) as client:
+        cid = _register(client)
+        client.post(f"/clearances/{cid}/submit")
+        client.post(
+            f"/clearances/{cid}/start_review",
+            json={"first_reviewer_role": "ESH"},
+        )
+        # First step: a recent timestamp
+        first = client.post(
+            f"/clearances/{cid}/review_steps",
+            json={
+                "step_index": 0,
+                "role": "ESH",
+                "decision": "Approved",
+                "decided_at": "2026-05-15T12:00:00+00:00",
+            },
+        )
+        assert first.status_code == 204
+        # Second step: an earlier timestamp (monotonicity violation)
+        response = client.post(
+            f"/clearances/{cid}/review_steps",
+            json={
+                "step_index": 1,
+                "role": "BeamlineScientist",
+                "decision": "Approved",
+                "decided_at": "2026-05-15T11:00:00+00:00",
+            },
+        )
+    assert response.status_code == 400
+    assert "chain monotonicity" in response.json()["detail"]
+
+
+@pytest.mark.contract
 def test_approve_rejects_when_no_approving_review_step() -> None:
     with TestClient(create_app()) as client:
         cid = _register(client)
@@ -160,7 +221,7 @@ def test_approve_rejects_when_no_approving_review_step() -> None:
         # Now approve with no Approved step in chain
         response = client.post(f"/clearances/{cid}/approve", json={})
     assert response.status_code == 409
-    assert "no approving" in response.json()["detail"].lower()
+    assert "terminal review step" in response.json()["detail"].lower()
 
 
 @pytest.mark.contract

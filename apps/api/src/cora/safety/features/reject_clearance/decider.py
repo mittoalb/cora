@@ -4,10 +4,10 @@ Single-source transition: `UnderReview -> Rejected`. Strict-not-
 idempotent. Terminal-bad: rejected clearances cannot be revived; a
 new Clearance must be registered if the operator wants to retry.
 
-The rejecting actor's id is captured from the handler's `principal_id`
-(injected by the cross-BC update-handler factory). That keeps the
-audit truth single-sourced (the principal calling the slice IS the
-rejecting reviewer).
+The rejecting actor's identity lives on the event envelope
+(`StoredEvent.principal_id`), not on the command/event payload, per
+cross-BC `RunAborted` / `ProcedureAborted` precedent. The projection
+reads the envelope at apply time.
 
 ## Validation
 
@@ -33,6 +33,8 @@ from cora.safety.aggregates.clearance.state import (
 )
 from cora.safety.features.reject_clearance.command import RejectClearance
 
+_REJECTABLE_STATUSES: tuple[ClearanceStatus, ...] = (ClearanceStatus.UNDER_REVIEW,)
+
 
 def decide(
     state: Clearance | None,
@@ -43,7 +45,7 @@ def decide(
     """Decide the events produced by rejecting an UnderReview clearance."""
     if state is None:
         raise ClearanceNotFoundError(command.clearance_id)
-    if state.status is not ClearanceStatus.UNDER_REVIEW:
+    if state.status not in _REJECTABLE_STATUSES:
         raise ClearanceCannotRejectError(state.id, state.status)
 
     reason = validate_bounded_text(
@@ -55,7 +57,6 @@ def decide(
     return [
         ClearanceRejected(
             clearance_id=state.id,
-            rejecting_actor_id=command.rejecting_actor_id,
             reason=reason,
             occurred_at=now,
         )

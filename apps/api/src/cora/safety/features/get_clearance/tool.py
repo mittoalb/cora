@@ -62,7 +62,6 @@ class ClearanceOutput(BaseModel):
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     next_review_due_at: datetime | None = None
-    last_reviewed_by_actor_id: UUID | None = None
 
 
 def _review_step_to_output(step: ReviewStep) -> ReviewStepOutput:
@@ -92,7 +91,6 @@ def _clearance_to_output(clearance: Clearance) -> ClearanceOutput:
         valid_from=clearance.valid_from,
         valid_until=clearance.valid_until,
         next_review_due_at=clearance.next_review_due_at,
-        last_reviewed_by_actor_id=clearance.last_reviewed_by_actor_id,
     )
 
 

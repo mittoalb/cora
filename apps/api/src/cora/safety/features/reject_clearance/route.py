@@ -1,9 +1,10 @@
 """HTTP route for the `reject_clearance` slice.
 
 Action endpoint at `POST /clearances/{clearance_id}/reject`. Body
-carries `reason`. The rejecting-actor id is filled from the request's
-authenticated principal (NOT from the body) per cross-BC convention.
-204 No Content on success.
+carries `reason`. The rejecting-actor id is captured from the
+request's authenticated principal via the event envelope
+(`StoredEvent.principal_id`); no actor field appears on the command
+or event payload. 204 No Content on success.
 """
 
 from typing import Annotated
@@ -84,7 +85,6 @@ async def post_clearances_reject(
     await handler(
         RejectClearance(
             clearance_id=clearance_id,
-            rejecting_actor_id=principal_id,
             reason=body.reason,
         ),
         principal_id=principal_id,

@@ -256,7 +256,6 @@ def test_clearance_optional_fields_default_to_none_or_empty() -> None:
     assert c.valid_from is None
     assert c.valid_until is None
     assert c.next_review_due_at is None
-    assert c.last_reviewed_by_actor_id is None
 
 
 # ---------- Enum locks ----------

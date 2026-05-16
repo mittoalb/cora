@@ -6,18 +6,26 @@ Subscribed events:
   - ClearanceRegistered          -> INSERT (status='Defined', last_status_*=NULL,
                                             last_reviewed_by_actor_id=NULL)
   - ClearanceSubmitted           -> UPDATE status='Submitted'   + status-change ts
-  - ClearanceReviewStarted         -> UPDATE status='UnderReview' + status-change ts
+  - ClearanceReviewStarted       -> UPDATE status='UnderReview' + status-change ts
   - ClearanceReviewStepAppended  -> NO-OP (review_steps chain lives on aggregate
                                            stream only; not surfaced in list view)
   - ClearanceApproved            -> UPDATE status='Approved'
                                           + status-change ts
-                                          + last_reviewed_by_actor_id
+                                          + last_reviewed_by_actor_id (read from
+                                            StoredEvent.principal_id envelope)
                                           + valid_from / valid_until (if provided)
   - ClearanceRejected            -> UPDATE status='Rejected'
                                           + status-change ts
                                           + last_status_reason
-                                          + last_reviewed_by_actor_id
+                                          + last_reviewed_by_actor_id (read from
+                                            StoredEvent.principal_id envelope)
   - ClearanceActivated           -> UPDATE status='Active'     + status-change ts
+
+The Approved/Rejected arms denormalize `last_reviewed_by_actor_id`
+from the event envelope (`StoredEvent.principal_id`) rather than the
+payload. The aggregate state itself no longer carries
+`last_reviewed_by_actor_id` (per actor-id-duplication cleanup in
+11a-c-1); the projection column remains for list-view queries.
 
 11a-c will add `ClearanceExpired` and `ClearanceSuperseded` arms; the
 status CHECK constraint already accommodates them (locked 8-value day-1).
@@ -201,7 +209,7 @@ class ClearanceSummaryProjection:
                 _UPDATE_APPROVED_SQL,
                 UUID(payload["clearance_id"]),
                 datetime.fromisoformat(payload["occurred_at"]),
-                UUID(payload["approving_actor_id"]),
+                event.principal_id,
                 datetime.fromisoformat(raw_valid_from) if raw_valid_from is not None else None,
                 datetime.fromisoformat(raw_valid_until) if raw_valid_until is not None else None,
             )
@@ -214,7 +222,7 @@ class ClearanceSummaryProjection:
                 UUID(payload["clearance_id"]),
                 datetime.fromisoformat(payload["occurred_at"]),
                 payload["reason"],
-                UUID(payload["rejecting_actor_id"]),
+                event.principal_id,
             )
             return
 

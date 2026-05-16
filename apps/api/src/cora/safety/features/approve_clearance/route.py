@@ -2,8 +2,10 @@
 
 Action endpoint at `POST /clearances/{clearance_id}/approve`. Body
 optionally carries `valid_from` / `valid_until` to refine the
-validity window. The approving-actor id is filled from the request's
-authenticated principal. 204 No Content on success.
+validity window. The approving-actor id is captured from the request's
+authenticated principal via the event envelope (`StoredEvent.
+principal_id`); no actor field appears on the command or event
+payload. 204 No Content on success.
 """
 
 from datetime import datetime
@@ -50,8 +52,8 @@ router = APIRouter(tags=["safety"])
             "model": ErrorResponse,
             "description": (
                 "Domain invariant violated (inverted or zero-duration validity "
-                "window). The 'no approving reviewer step recorded' case "
-                "returns 409, not 400 (see ClearanceCannotApproveError)."
+                "window). The 'terminal review step not Approved' case returns "
+                "409, not 400 (see ClearanceCannotApproveError)."
             ),
         },
         status.HTTP_403_FORBIDDEN: {
@@ -66,8 +68,8 @@ router = APIRouter(tags=["safety"])
             "model": ErrorResponse,
             "description": (
                 "Clearance is not in UnderReview status (approve_clearance "
-                "is single-source from UnderReview only), OR no reviewer "
-                "step in the chain has decision='Approved'."
+                "is single-source from UnderReview only), OR the terminal "
+                "review step does not have decision='Approved'."
             ),
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -86,7 +88,6 @@ async def post_clearances_approve(
     await handler(
         ApproveClearance(
             clearance_id=clearance_id,
-            approving_actor_id=principal_id,
             valid_from=body.valid_from,
             valid_until=body.valid_until,
         ),

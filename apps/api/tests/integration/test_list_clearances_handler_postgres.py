@@ -238,7 +238,6 @@ async def test_approved_with_validity_window_overrides_updates_projection(
     await approve_bind(deps)(
         ApproveClearance(
             clearance_id=cid,
-            approving_actor_id=_PRINCIPAL_ID,
             valid_from=valid_from,
             valid_until=valid_until,
         ),

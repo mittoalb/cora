@@ -80,7 +80,9 @@ router = APIRouter(tags=["safety"])
             "model": ErrorResponse,
             "description": (
                 "Domain invariant violated (whitespace-only role / oversized "
-                "notes / wrong step_index for append-only contract)."
+                "notes / wrong step_index for append-only contract / "
+                "future-dated decided_at / decided_at less than prior step's "
+                "decided_at for chain monotonicity)."
             ),
         },
         status.HTTP_403_FORBIDDEN: {

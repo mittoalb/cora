@@ -27,8 +27,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         name="approve_clearance",
         description=(
             "Approve an UnderReview clearance (UnderReview -> Approved). "
-            "Requires at least one reviewer step with decision='Approved' "
-            "in the chain. Optionally refines the validity window. "
+            "Requires the terminal (last) review step to have "
+            "decision='Approved'. Optionally refines the validity window. "
             "Single-source: requires 'UnderReview' status."
         ),
     )
@@ -47,12 +47,12 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         # TODO(MCP-auth): when MCP principal extraction lands (SEP-986),
         # swap SYSTEM_PRINCIPAL_ID for the real authenticated principal.
         # Until then, MCP-issued approvals record SYSTEM as the approving
-        # actor in the event payload, which is correct for unattended
-        # automation flows but wrong for human-mediated MCP calls.
+        # actor in the event envelope (StoredEvent.principal_id), which is
+        # correct for unattended automation flows but wrong for human-
+        # mediated MCP calls.
         await handler(
             ApproveClearance(
                 clearance_id=clearance_id,
-                approving_actor_id=SYSTEM_PRINCIPAL_ID,
                 valid_from=valid_from,
                 valid_until=valid_until,
             ),

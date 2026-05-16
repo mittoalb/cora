@@ -23,12 +23,22 @@ from cora.safety.features.approve_clearance import ApproveClearance
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 
 
-def _approving_step() -> ReviewStep:
+def _approving_step(step_index: int = 0) -> ReviewStep:
     return ReviewStep(
-        step_index=0,
+        step_index=step_index,
         role="ESH",
         actor_id=uuid4(),
         decision="Approved",
+        decided_at=_NOW,
+    )
+
+
+def _rejected_step(step_index: int = 0) -> ReviewStep:
+    return ReviewStep(
+        step_index=step_index,
+        role="ESH",
+        actor_id=uuid4(),
+        decision="Rejected",
         decided_at=_NOW,
     )
 
@@ -50,18 +60,16 @@ def _clearance(
 
 
 @pytest.mark.unit
-def test_decide_emits_approved_when_chain_has_approving_step() -> None:
+def test_decide_emits_approved_when_terminal_step_approved() -> None:
     state = _clearance(review_steps=(_approving_step(),))
-    actor = uuid4()
     events = approve_clearance.decide(
         state=state,
-        command=ApproveClearance(clearance_id=state.id, approving_actor_id=actor),
+        command=ApproveClearance(clearance_id=state.id),
         now=_NOW,
     )
     assert events == [
         ClearanceApproved(
             clearance_id=state.id,
-            approving_actor_id=actor,
             valid_from=None,
             valid_until=None,
             occurred_at=_NOW,
@@ -78,7 +86,6 @@ def test_decide_carries_validity_window_when_provided() -> None:
         state=state,
         command=ApproveClearance(
             clearance_id=state.id,
-            approving_actor_id=uuid4(),
             valid_from=valid_from,
             valid_until=valid_until,
         ),
@@ -89,7 +96,8 @@ def test_decide_carries_validity_window_when_provided() -> None:
 
 
 @pytest.mark.unit
-def test_decide_rejects_when_chain_has_no_approving_step() -> None:
+def test_decide_rejects_when_terminal_step_not_approved() -> None:
+    """[RequestedChanges] chain: terminal step is not Approved -> 409."""
     rejected_step = ReviewStep(
         step_index=0,
         role="ESH",
@@ -98,21 +106,60 @@ def test_decide_rejects_when_chain_has_no_approving_step() -> None:
         decided_at=_NOW,
     )
     state = _clearance(review_steps=(rejected_step,))
-    with pytest.raises(ClearanceCannotApproveError, match="no approving"):
+    with pytest.raises(ClearanceCannotApproveError, match="terminal review step"):
         approve_clearance.decide(
             state=state,
-            command=ApproveClearance(clearance_id=state.id, approving_actor_id=uuid4()),
+            command=ApproveClearance(clearance_id=state.id),
             now=_NOW,
         )
 
 
 @pytest.mark.unit
-def test_decide_rejects_when_chain_empty() -> None:
-    state = _clearance(review_steps=())
-    with pytest.raises(ClearanceCannotApproveError, match="no approving"):
+def test_decide_rejects_chain_with_approved_then_rejected() -> None:
+    """Terminal-step semantic (#20): a downstream reviewer's Rejected vetoes
+    the chain even if an earlier step was Approved. DESY DOOR shape."""
+    chain = (_approving_step(step_index=0), _rejected_step(step_index=1))
+    state = _clearance(review_steps=chain)
+    with pytest.raises(ClearanceCannotApproveError, match="terminal review step"):
         approve_clearance.decide(
             state=state,
-            command=ApproveClearance(clearance_id=state.id, approving_actor_id=uuid4()),
+            command=ApproveClearance(clearance_id=state.id),
+            now=_NOW,
+        )
+
+
+@pytest.mark.unit
+def test_decide_emits_approved_for_rejected_then_approved_chain() -> None:
+    """Inverse of the [Approved, Rejected] veto case: a [Rejected, Approved]
+    chain SUCCEEDS because only the terminal step matters under the
+    "terminal step wins" semantic. Locks the asymmetry: an early Rejected
+    does NOT veto subsequent reapproval (mirrors a re-review flow where
+    the operator addressed the rejection and the next reviewer approved).
+    """
+    chain = (_rejected_step(step_index=0), _approving_step(step_index=1))
+    state = _clearance(review_steps=chain)
+    events = approve_clearance.decide(
+        state=state,
+        command=ApproveClearance(clearance_id=state.id),
+        now=_NOW,
+    )
+    assert events == [
+        ClearanceApproved(
+            clearance_id=state.id,
+            valid_from=None,
+            valid_until=None,
+            occurred_at=_NOW,
+        )
+    ]
+
+
+@pytest.mark.unit
+def test_decide_rejects_when_chain_empty() -> None:
+    state = _clearance(review_steps=())
+    with pytest.raises(ClearanceCannotApproveError, match="terminal review step"):
+        approve_clearance.decide(
+            state=state,
+            command=ApproveClearance(clearance_id=state.id),
             now=_NOW,
         )
 
@@ -125,7 +172,6 @@ def test_decide_rejects_inverted_validity_window() -> None:
             state=state,
             command=ApproveClearance(
                 clearance_id=state.id,
-                approving_actor_id=uuid4(),
                 valid_from=datetime(2026, 6, 15, tzinfo=UTC),
                 valid_until=datetime(2026, 5, 15, tzinfo=UTC),
             ),
@@ -139,7 +185,7 @@ def test_decide_rejects_when_state_none() -> None:
     with pytest.raises(ClearanceNotFoundError):
         approve_clearance.decide(
             state=None,
-            command=ApproveClearance(clearance_id=cid, approving_actor_id=uuid4()),
+            command=ApproveClearance(clearance_id=cid),
             now=_NOW,
         )
 
@@ -150,6 +196,6 @@ def test_decide_rejects_when_status_not_under_review() -> None:
     with pytest.raises(ClearanceCannotApproveError):
         approve_clearance.decide(
             state=state,
-            command=ApproveClearance(clearance_id=state.id, approving_actor_id=uuid4()),
+            command=ApproveClearance(clearance_id=state.id),
             now=_NOW,
         )

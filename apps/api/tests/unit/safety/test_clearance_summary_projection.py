@@ -110,7 +110,12 @@ class _RecordingConn:
         self.calls.append((sql, args))
 
 
-def _stored(event_type: str, payload: dict[str, Any]) -> StoredEvent:
+def _stored(
+    event_type: str,
+    payload: dict[str, Any],
+    *,
+    principal_id: UUID | None = None,
+) -> StoredEvent:
     return StoredEvent(
         position=1,
         event_id=uuid4(),
@@ -124,6 +129,7 @@ def _stored(event_type: str, payload: dict[str, Any]) -> StoredEvent:
         causation_id=None,
         occurred_at=_NOW,
         recorded_at=_NOW,
+        principal_id=principal_id,
     )
 
 
@@ -212,7 +218,8 @@ async def test_apply_unsubscribed_event_type_is_silently_ignored() -> None:
 @pytest.mark.unit
 async def test_apply_clearance_approved_includes_validity_window_overrides() -> None:
     """Approved emits UPDATE with status + last_status_changed_at +
-    last_reviewed_by_actor_id + COALESCE(valid_from, valid_until)."""
+    last_reviewed_by_actor_id (read from envelope) + COALESCE(valid_from,
+    valid_until)."""
     proj = ClearanceSummaryProjection()
     conn = _RecordingConn()
     cid = uuid4()
@@ -224,11 +231,11 @@ async def test_apply_clearance_approved_includes_validity_window_overrides() -> 
             "ClearanceApproved",
             {
                 "clearance_id": str(cid),
-                "approving_actor_id": str(actor),
                 "valid_from": valid_from.isoformat(),
                 "valid_until": valid_until.isoformat(),
                 "occurred_at": _NOW.isoformat(),
             },
+            principal_id=actor,
         ),
         conn,  # type: ignore[arg-type]
     )
@@ -241,7 +248,8 @@ async def test_apply_clearance_approved_includes_validity_window_overrides() -> 
 
 
 @pytest.mark.unit
-async def test_apply_clearance_rejected_includes_reason_and_actor() -> None:
+async def test_apply_clearance_rejected_includes_reason_and_actor_from_envelope() -> None:
+    """Rejected emits UPDATE; rejecting actor read from envelope (not payload)."""
     proj = ClearanceSummaryProjection()
     conn = _RecordingConn()
     cid = uuid4()
@@ -251,10 +259,10 @@ async def test_apply_clearance_rejected_includes_reason_and_actor() -> None:
             "ClearanceRejected",
             {
                 "clearance_id": str(cid),
-                "rejecting_actor_id": str(actor),
                 "reason": "ESRB found insufficient PPE specification",
                 "occurred_at": _NOW.isoformat(),
             },
+            principal_id=actor,
         ),
         conn,  # type: ignore[arg-type]
     )

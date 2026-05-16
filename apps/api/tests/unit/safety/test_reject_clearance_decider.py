@@ -39,12 +39,10 @@ def _clearance(status: ClearanceStatus = ClearanceStatus.UNDER_REVIEW) -> Cleara
 @pytest.mark.unit
 def test_decide_emits_rejected_from_under_review() -> None:
     state = _clearance(ClearanceStatus.UNDER_REVIEW)
-    actor = uuid4()
     events = reject_clearance.decide(
         state=state,
         command=RejectClearance(
             clearance_id=state.id,
-            rejecting_actor_id=actor,
             reason="ESRB found insufficient PPE specification",
         ),
         now=_NOW,
@@ -52,7 +50,6 @@ def test_decide_emits_rejected_from_under_review() -> None:
     assert events == [
         ClearanceRejected(
             clearance_id=state.id,
-            rejecting_actor_id=actor,
             reason="ESRB found insufficient PPE specification",
             occurred_at=_NOW,
         )
@@ -66,7 +63,6 @@ def test_decide_trims_reason() -> None:
         state=state,
         command=RejectClearance(
             clearance_id=state.id,
-            rejecting_actor_id=uuid4(),
             reason="  bad  ",
         ),
         now=_NOW,
@@ -80,9 +76,7 @@ def test_decide_rejects_empty_reason() -> None:
     with pytest.raises(InvalidClearanceRejectReasonError):
         reject_clearance.decide(
             state=state,
-            command=RejectClearance(
-                clearance_id=state.id, rejecting_actor_id=uuid4(), reason="   "
-            ),
+            command=RejectClearance(clearance_id=state.id, reason="   "),
             now=_NOW,
         )
 
@@ -95,7 +89,6 @@ def test_decide_rejects_too_long_reason() -> None:
             state=state,
             command=RejectClearance(
                 clearance_id=state.id,
-                rejecting_actor_id=uuid4(),
                 reason="x" * (CLEARANCE_REJECT_REASON_MAX_LENGTH + 1),
             ),
             now=_NOW,
@@ -108,7 +101,7 @@ def test_decide_rejects_when_state_none() -> None:
     with pytest.raises(ClearanceNotFoundError):
         reject_clearance.decide(
             state=None,
-            command=RejectClearance(clearance_id=cid, rejecting_actor_id=uuid4(), reason="x"),
+            command=RejectClearance(clearance_id=cid, reason="x"),
             now=_NOW,
         )
 
@@ -119,6 +112,6 @@ def test_decide_rejects_when_status_not_under_review() -> None:
     with pytest.raises(ClearanceCannotRejectError):
         reject_clearance.decide(
             state=state,
-            command=RejectClearance(clearance_id=state.id, rejecting_actor_id=uuid4(), reason="x"),
+            command=RejectClearance(clearance_id=state.id, reason="x"),
             now=_NOW,
         )

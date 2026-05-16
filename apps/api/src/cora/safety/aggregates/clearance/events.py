@@ -131,10 +131,14 @@ class ClearanceApproved:
 
     Optional `valid_from` / `valid_until` overrides defaults set at
     register time; carried in payload for audit clarity.
+
+    Approving actor's identity lives on the envelope (`StoredEvent.
+    principal_id`), not the payload, per cross-BC `RunAborted` /
+    `ProcedureAborted` precedent. The projection reads the envelope
+    at apply time to populate `last_reviewed_by_actor_id`.
     """
 
     clearance_id: UUID
-    approving_actor_id: UUID
     valid_from: datetime | None
     valid_until: datetime | None
     occurred_at: datetime
@@ -146,10 +150,12 @@ class ClearanceRejected:
 
     `reason` is operator-supplied free-form prose, 1-500 chars after trim
     (mirrors RunAbortReason / SupplyReason / etc. precedent).
+
+    Rejecting actor's identity lives on the envelope (`StoredEvent.
+    principal_id`), not the payload.
     """
 
     clearance_id: UUID
-    rejecting_actor_id: UUID
     reason: str
     occurred_at: datetime
 
@@ -430,27 +436,23 @@ def to_payload(event: ClearanceEvent) -> dict[str, Any]:
             }
         case ClearanceApproved(
             clearance_id=cid,
-            approving_actor_id=actor_id,
             valid_from=valid_from,
             valid_until=valid_until,
             occurred_at=occurred_at,
         ):
             return {
                 "clearance_id": str(cid),
-                "approving_actor_id": str(actor_id),
                 "valid_from": valid_from.isoformat() if valid_from is not None else None,
                 "valid_until": valid_until.isoformat() if valid_until is not None else None,
                 "occurred_at": occurred_at.isoformat(),
             }
         case ClearanceRejected(
             clearance_id=cid,
-            rejecting_actor_id=actor_id,
             reason=reason,
             occurred_at=occurred_at,
         ):
             return {
                 "clearance_id": str(cid),
-                "rejecting_actor_id": str(actor_id),
                 "reason": reason,
                 "occurred_at": occurred_at.isoformat(),
             }
@@ -521,7 +523,6 @@ def from_stored(stored: StoredEvent) -> ClearanceEvent:
             raw_valid_until = payload.get("valid_until")
             return ClearanceApproved(
                 clearance_id=UUID(payload["clearance_id"]),
-                approving_actor_id=UUID(payload["approving_actor_id"]),
                 valid_from=(
                     datetime.fromisoformat(raw_valid_from) if raw_valid_from is not None else None
                 ),
@@ -533,7 +534,6 @@ def from_stored(stored: StoredEvent) -> ClearanceEvent:
         case "ClearanceRejected":
             return ClearanceRejected(
                 clearance_id=UUID(payload["clearance_id"]),
-                rejecting_actor_id=UUID(payload["rejecting_actor_id"]),
                 reason=payload["reason"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )

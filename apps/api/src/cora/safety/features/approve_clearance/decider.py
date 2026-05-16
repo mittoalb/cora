@@ -3,12 +3,13 @@
 Single-source transition: `UnderReview -> Approved`. Strict-not-
 idempotent.
 
-Approval requires that at least ONE step in the review_steps chain has
-`decision == 'Approved'`. The `append_clearance_review_step` slice
-populates the chain step-by-step; this slice's invariant ensures we
-don't approve based on an empty or all-rejected chain. Per the
-design memo's "approve_clearance decider" §"review_steps must have one
-Approved step" rejection.
+Approval requires that the TERMINAL (last) step in the review chain
+has `decision == 'Approved'`. The `append_clearance_review_step`
+slice populates the chain step-by-step; this slice's invariant
+ensures the most recent reviewer's decision was Approved. An
+[Approved, Rejected] chain refuses approve even though it contains an
+Approved step somewhere, modelling facilities like DESY DOOR where
+any reviewer downstream can veto.
 
 Optional `valid_from` / `valid_until` override defaults set at
 register time. Validity-window invariant (valid_from < valid_until
@@ -19,7 +20,7 @@ register: zero-duration windows can never be active.
 
   - State must not be None -> `ClearanceNotFoundError`
   - Current status must be `UnderReview` -> `ClearanceCannotApproveError`
-  - At least one reviewer step has decision='Approved' ->
+  - Terminal review step has decision='Approved' ->
     `ClearanceCannotApproveError(reason=...)`
   - `valid_from >= valid_until` (when both provided) ->
     `InvalidClearanceValidityWindowError`
@@ -37,6 +38,8 @@ from cora.safety.aggregates.clearance import (
 )
 from cora.safety.features.approve_clearance.command import ApproveClearance
 
+_APPROVABLE_STATUSES: tuple[ClearanceStatus, ...] = (ClearanceStatus.UNDER_REVIEW,)
+
 
 def decide(
     state: Clearance | None,
@@ -47,11 +50,14 @@ def decide(
     """Decide the events produced by approving an UnderReview clearance."""
     if state is None:
         raise ClearanceNotFoundError(command.clearance_id)
-    if state.status is not ClearanceStatus.UNDER_REVIEW:
+    if state.status not in _APPROVABLE_STATUSES:
         raise ClearanceCannotApproveError(state.id, current_status=state.status)
 
-    if not any(step.decision == "Approved" for step in state.review_steps):
-        raise ClearanceCannotApproveError(state.id, reason="no approving reviewer step recorded")
+    if not state.review_steps or state.review_steps[-1].decision != "Approved":
+        raise ClearanceCannotApproveError(
+            state.id,
+            reason="terminal review step has no decision='Approved'",
+        )
 
     if (
         command.valid_from is not None
@@ -63,7 +69,6 @@ def decide(
     return [
         ClearanceApproved(
             clearance_id=state.id,
-            approving_actor_id=command.approving_actor_id,
             valid_from=command.valid_from,
             valid_until=command.valid_until,
             occurred_at=now,

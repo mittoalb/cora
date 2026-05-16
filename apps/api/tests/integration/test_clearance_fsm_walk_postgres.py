@@ -99,16 +99,14 @@ async def test_full_fsm_walk_to_active_postgres(db_pool: asyncpg.Pool) -> None:
     assert state.review_steps[0].decision == "Approved"
 
     # UnderReview -> Approved
-    approving_actor = uuid4()
     await approve_clearance.bind(deps)(
-        ApproveClearance(clearance_id=cid, approving_actor_id=approving_actor),
+        ApproveClearance(clearance_id=cid),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     state = await load_clearance(deps.event_store, cid)
     assert state is not None
     assert state.status == ClearanceStatus.APPROVED
-    assert state.last_reviewed_by_actor_id == approving_actor
 
     # Approved -> Active
     await activate_clearance.bind(deps)(
@@ -148,11 +146,9 @@ async def test_full_fsm_walk_to_rejected_postgres(db_pool: asyncpg.Pool) -> None
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    rejecting_actor = uuid4()
     await reject_clearance.bind(deps)(
         RejectClearance(
             clearance_id=cid,
-            rejecting_actor_id=rejecting_actor,
             reason="ESRB found insufficient PPE specification",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -161,4 +157,3 @@ async def test_full_fsm_walk_to_rejected_postgres(db_pool: asyncpg.Pool) -> None
     state = await load_clearance(deps.event_store, cid)
     assert state is not None
     assert state.status == ClearanceStatus.REJECTED
-    assert state.last_reviewed_by_actor_id == rejecting_actor

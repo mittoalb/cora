@@ -30,6 +30,7 @@ from cora.safety.aggregates.clearance import (
     InvalidClearanceRejectReasonError,
     InvalidClearanceReviewerNotesError,
     InvalidClearanceReviewerRoleError,
+    InvalidClearanceReviewStepDecidedAtError,
     InvalidClearanceReviewStepIndexError,
     InvalidClearanceTitleError,
     InvalidClearanceValidityWindowError,
@@ -123,6 +124,7 @@ def register_safety_routes(app: FastAPI) -> None:
         InvalidClearanceExternalIdError,
         InvalidClearanceReviewerRoleError,
         InvalidClearanceReviewerNotesError,
+        InvalidClearanceReviewStepDecidedAtError,
         InvalidClearanceReviewStepIndexError,
         InvalidClearanceRejectReasonError,
     ):

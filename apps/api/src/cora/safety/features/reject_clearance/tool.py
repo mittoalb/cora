@@ -49,12 +49,12 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         # TODO(MCP-auth): when MCP principal extraction lands (SEP-986),
         # swap SYSTEM_PRINCIPAL_ID for the real authenticated principal.
         # Until then, MCP-issued rejections record SYSTEM as the rejecting
-        # actor in the event payload, which is correct for unattended
-        # automation flows but wrong for human-mediated MCP calls.
+        # actor in the event envelope (StoredEvent.principal_id), which is
+        # correct for unattended automation flows but wrong for human-
+        # mediated MCP calls.
         await handler(
             RejectClearance(
                 clearance_id=clearance_id,
-                rejecting_actor_id=SYSTEM_PRINCIPAL_ID,
                 reason=reason,
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,

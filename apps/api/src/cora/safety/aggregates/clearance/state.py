@@ -325,6 +325,22 @@ class InvalidClearanceReviewStepIndexError(ValueError):
         self.got = got
 
 
+class InvalidClearanceReviewStepDecidedAtError(ValueError):
+    """A reviewer step's `decided_at` violates the chain time invariants.
+
+    Two failure modes share this error class:
+      - `decided_at` strictly greater than `now` (future-dated, defensive
+        guard mirroring `truncate_run` / `truncate_procedure` precedent)
+      - `decided_at` strictly less than the prior step's `decided_at`
+        (chain monotonicity: reviewers decide in order)
+    """
+
+    def __init__(self, decided_at: datetime, reason: str) -> None:
+        super().__init__(f"Reviewer decided_at={decided_at.isoformat()} invalid: {reason}")
+        self.decided_at = decided_at
+        self.reason = reason
+
+
 class InvalidClearanceRejectReasonError(ValueError):
     """The supplied reject reason is empty, whitespace-only, or too long.
 
@@ -399,7 +415,9 @@ class ClearanceCannotApproveError(Exception):
 
     Two failure modes share this error class:
       - current status is not UnderReview
-      - no reviewer step in the chain has decision == 'Approved'
+      - the terminal (last) step in the chain does not have
+        decision == 'Approved'; an [Approved, Rejected] chain refuses
+        approve even though it contains an Approved step somewhere
     """
 
     def __init__(
@@ -666,4 +684,3 @@ class Clearance:
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     next_review_due_at: datetime | None = None
-    last_reviewed_by_actor_id: UUID | None = None

@@ -29,6 +29,8 @@ from cora.safety.aggregates.clearance.state import (
 )
 from cora.safety.features.start_review_clearance.command import StartReviewClearance
 
+_REVIEW_STARTABLE_STATUSES: tuple[ClearanceStatus, ...] = (ClearanceStatus.SUBMITTED,)
+
 
 def decide(
     state: Clearance | None,
@@ -36,10 +38,10 @@ def decide(
     *,
     now: datetime,
 ) -> list[ClearanceReviewStarted]:
-    """Decide the events produced by beginning review on a Submitted clearance."""
+    """Decide the events produced by starting review on a Submitted clearance."""
     if state is None:
         raise ClearanceNotFoundError(command.clearance_id)
-    if state.status is not ClearanceStatus.SUBMITTED:
+    if state.status not in _REVIEW_STARTABLE_STATUSES:
         raise ClearanceCannotStartReviewError(state.id, state.status)
 
     role = validate_bounded_text(

@@ -8,7 +8,13 @@ import pytest
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.safety.aggregates.clearance import (
     AssetBinding,
+    ClearanceActivated,
+    ClearanceApproved,
     ClearanceRegistered,
+    ClearanceRejected,
+    ClearanceReviewStarted,
+    ClearanceReviewStepAppended,
+    ClearanceSubmitted,
     ExternalBinding,
     HazardDeclaration,
     ProcedureBinding,
@@ -310,3 +316,147 @@ def test_clearance_registered_round_trip_handles_optional_datetimes() -> None:
     assert rebuilt.parent_clearance_id == parent
     assert rebuilt.valid_from is None
     assert rebuilt.valid_until is None
+
+
+# ---------- 6 FSM-closure event round-trips (11a-b) ----------
+#
+# These pin the wire shape of each FSM-closure event. Two of them
+# (ClearanceApproved, ClearanceRejected) had their payload shape just
+# changed: the approving/rejecting actor's identity moved from the
+# payload to the envelope (StoredEvent.principal_id) per cross-BC
+# precedent. The negative assertions below pin the field's absence so
+# a regression that re-adds it is caught immediately.
+
+
+@pytest.mark.unit
+def test_clearance_submitted_round_trip() -> None:
+    original = ClearanceSubmitted(clearance_id=_CLEARANCE_ID, occurred_at=_NOW)
+    payload = to_payload(original)
+    assert payload == {"clearance_id": str(_CLEARANCE_ID), "occurred_at": _NOW.isoformat()}
+    assert from_stored(_stored("ClearanceSubmitted", payload)) == original
+    assert event_type_name(original) == "ClearanceSubmitted"
+
+
+@pytest.mark.unit
+def test_clearance_review_started_round_trip() -> None:
+    original = ClearanceReviewStarted(
+        clearance_id=_CLEARANCE_ID,
+        first_reviewer_role="BeamlineScientist",
+        occurred_at=_NOW,
+    )
+    payload = to_payload(original)
+    assert payload["first_reviewer_role"] == "BeamlineScientist"
+    assert from_stored(_stored("ClearanceReviewStarted", payload)) == original
+    assert event_type_name(original) == "ClearanceReviewStarted"
+
+
+@pytest.mark.unit
+def test_clearance_review_step_appended_round_trip() -> None:
+    actor_id = uuid4()
+    original = ClearanceReviewStepAppended(
+        clearance_id=_CLEARANCE_ID,
+        step_index=2,
+        role="ESH",
+        actor_id=actor_id,
+        decision="Approved",
+        decided_at=_NOW,
+        notes="LGTM",
+        occurred_at=_NOW,
+    )
+    payload = to_payload(original)
+    assert payload["step_index"] == 2
+    assert payload["actor_id"] == str(actor_id)
+    assert payload["decision"] == "Approved"
+    assert payload["decided_at"] == _NOW.isoformat()
+    assert from_stored(_stored("ClearanceReviewStepAppended", payload)) == original
+
+
+@pytest.mark.unit
+def test_clearance_review_step_appended_round_trip_handles_none_notes() -> None:
+    original = ClearanceReviewStepAppended(
+        clearance_id=_CLEARANCE_ID,
+        step_index=0,
+        role="LocalContact",
+        actor_id=uuid4(),
+        decision="RequestedChanges",
+        decided_at=_NOW,
+        notes=None,
+        occurred_at=_NOW,
+    )
+    rebuilt = from_stored(_stored("ClearanceReviewStepAppended", to_payload(original)))
+    assert isinstance(rebuilt, ClearanceReviewStepAppended)
+    assert rebuilt.notes is None
+
+
+@pytest.mark.unit
+def test_clearance_approved_round_trip_drops_approving_actor_id_from_payload() -> None:
+    """Approving actor lives on `StoredEvent.principal_id`, NOT the payload.
+
+    Pins the payload-shape change: `approving_actor_id` was removed from
+    `ClearanceApproved` per cross-BC `RunAborted` / `ProcedureAborted`
+    precedent. A regression that re-adds the key would land here.
+    """
+    original = ClearanceApproved(
+        clearance_id=_CLEARANCE_ID,
+        valid_from=None,
+        valid_until=None,
+        occurred_at=_NOW,
+    )
+    payload = to_payload(original)
+    assert "approving_actor_id" not in payload
+    assert payload == {
+        "clearance_id": str(_CLEARANCE_ID),
+        "valid_from": None,
+        "valid_until": None,
+        "occurred_at": _NOW.isoformat(),
+    }
+    assert from_stored(_stored("ClearanceApproved", payload)) == original
+    assert event_type_name(original) == "ClearanceApproved"
+
+
+@pytest.mark.unit
+def test_clearance_approved_round_trip_carries_validity_window() -> None:
+    valid_from = datetime(2026, 6, 1, tzinfo=UTC)
+    valid_until = datetime(2026, 9, 1, tzinfo=UTC)
+    original = ClearanceApproved(
+        clearance_id=_CLEARANCE_ID,
+        valid_from=valid_from,
+        valid_until=valid_until,
+        occurred_at=_NOW,
+    )
+    rebuilt = from_stored(_stored("ClearanceApproved", to_payload(original)))
+    assert isinstance(rebuilt, ClearanceApproved)
+    assert rebuilt.valid_from == valid_from
+    assert rebuilt.valid_until == valid_until
+
+
+@pytest.mark.unit
+def test_clearance_rejected_round_trip_drops_rejecting_actor_id_from_payload() -> None:
+    """Rejecting actor lives on `StoredEvent.principal_id`, NOT the payload.
+
+    Pins the payload-shape change: `rejecting_actor_id` was removed from
+    `ClearanceRejected` per the same precedent as ClearanceApproved.
+    """
+    original = ClearanceRejected(
+        clearance_id=_CLEARANCE_ID,
+        reason="ESRB found insufficient PPE specification",
+        occurred_at=_NOW,
+    )
+    payload = to_payload(original)
+    assert "rejecting_actor_id" not in payload
+    assert payload == {
+        "clearance_id": str(_CLEARANCE_ID),
+        "reason": "ESRB found insufficient PPE specification",
+        "occurred_at": _NOW.isoformat(),
+    }
+    assert from_stored(_stored("ClearanceRejected", payload)) == original
+    assert event_type_name(original) == "ClearanceRejected"
+
+
+@pytest.mark.unit
+def test_clearance_activated_round_trip() -> None:
+    original = ClearanceActivated(clearance_id=_CLEARANCE_ID, occurred_at=_NOW)
+    payload = to_payload(original)
+    assert payload == {"clearance_id": str(_CLEARANCE_ID), "occurred_at": _NOW.isoformat()}
+    assert from_stored(_stored("ClearanceActivated", payload)) == original
+    assert event_type_name(original) == "ClearanceActivated"

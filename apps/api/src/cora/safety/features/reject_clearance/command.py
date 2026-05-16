@@ -4,6 +4,12 @@
 for audit clarity (e.g., "ESRB found insufficient PPE specification",
 "chemical inventory exceeds beamline limit"). Mirrors RunAbortReason
 1-500 char shape.
+
+The rejecting actor's identity lives on the event envelope
+(`StoredEvent.principal_id`), not on the command/event payload. The
+projection reads the envelope at apply time. No `rejecting_actor_id`
+field on the command, per cross-BC `RunAborted` / `ProcedureAborted`
+precedent.
 """
 
 from dataclasses import dataclass
@@ -12,14 +18,7 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class RejectClearance:
-    """Reject an UnderReview clearance (`UnderReview -> Rejected`).
-
-    `rejecting_actor_id` is filled by the route layer from the request's
-    authenticated principal. The decider trusts this field; cross-BC
-    Authorize gating happens at the handler-level pre-decide step.
-    Folded into Clearance state as `last_reviewed_by_actor_id`.
-    """
+    """Reject an UnderReview clearance (`UnderReview -> Rejected`)."""
 
     clearance_id: UUID
-    rejecting_actor_id: UUID
     reason: str

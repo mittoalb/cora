@@ -19,6 +19,8 @@ from cora.safety.aggregates.clearance import (
 )
 from cora.safety.features.activate_clearance.command import ActivateClearance
 
+_ACTIVATABLE_STATUSES: tuple[ClearanceStatus, ...] = (ClearanceStatus.APPROVED,)
+
 
 def decide(
     state: Clearance | None,
@@ -29,7 +31,7 @@ def decide(
     """Decide the events produced by activating an Approved clearance."""
     if state is None:
         raise ClearanceNotFoundError(command.clearance_id)
-    if state.status is not ClearanceStatus.APPROVED:
+    if state.status not in _ACTIVATABLE_STATUSES:
         raise ClearanceCannotActivateError(state.id, state.status)
 
     return [ClearanceActivated(clearance_id=state.id, occurred_at=now)]

@@ -15,6 +15,7 @@ from cora.safety.aggregates.clearance import (
     ClearanceTitle,
     InvalidClearanceReviewerNotesError,
     InvalidClearanceReviewerRoleError,
+    InvalidClearanceReviewStepDecidedAtError,
     InvalidClearanceReviewStepIndexError,
     ReviewStep,
     RunBinding,
@@ -210,3 +211,98 @@ def test_decide_rejects_when_status_not_under_review() -> None:
             ),
             now=_NOW,
         )
+
+
+@pytest.mark.unit
+def test_decide_rejects_future_dated_decided_at() -> None:
+    """#21: decided_at strictly greater than now is refused."""
+    state = _clearance()
+    future = datetime(2026, 5, 15, 13, 0, 0, tzinfo=UTC)  # 1h after _NOW
+    with pytest.raises(InvalidClearanceReviewStepDecidedAtError, match="future-dated"):
+        append_clearance_review_step.decide(
+            state=state,
+            command=AppendClearanceReviewStep(
+                clearance_id=state.id,
+                step_index=0,
+                role="ESH",
+                actor_id=uuid4(),
+                decision="Approved",
+                decided_at=future,
+            ),
+            now=_NOW,
+        )
+
+
+@pytest.mark.unit
+def test_decide_accepts_decided_at_equal_to_now() -> None:
+    """#21: boundary value (decided_at == now) accepted; only strictly greater fails."""
+    state = _clearance()
+    events = append_clearance_review_step.decide(
+        state=state,
+        command=AppendClearanceReviewStep(
+            clearance_id=state.id,
+            step_index=0,
+            role="ESH",
+            actor_id=uuid4(),
+            decision="Approved",
+            decided_at=_NOW,
+        ),
+        now=_NOW,
+    )
+    assert events[0].decided_at == _NOW
+
+
+@pytest.mark.unit
+def test_decide_rejects_decided_at_earlier_than_prior_step() -> None:
+    """#21: chain monotonicity - step N+1's decided_at must be >= step N's."""
+    prior_decided = datetime(2026, 5, 15, 11, 30, 0, tzinfo=UTC)
+    earlier = datetime(2026, 5, 15, 11, 0, 0, tzinfo=UTC)  # 30min before prior
+    prior = ReviewStep(
+        step_index=0,
+        role="BeamlineScientist",
+        actor_id=uuid4(),
+        decision="Approved",
+        decided_at=prior_decided,
+    )
+    state = _clearance(review_steps=(prior,))
+    with pytest.raises(InvalidClearanceReviewStepDecidedAtError, match="monotonicity"):
+        append_clearance_review_step.decide(
+            state=state,
+            command=AppendClearanceReviewStep(
+                clearance_id=state.id,
+                step_index=1,
+                role="ESH",
+                actor_id=uuid4(),
+                decision="Approved",
+                decided_at=earlier,
+            ),
+            now=_NOW,
+        )
+
+
+@pytest.mark.unit
+def test_decide_accepts_decided_at_equal_to_prior_step() -> None:
+    """#21: monotonicity is non-strict; equal timestamps are allowed
+    (a reviewer can record their decision at the same instant as the prior)."""
+    prior_decided = datetime(2026, 5, 15, 11, 30, 0, tzinfo=UTC)
+    prior = ReviewStep(
+        step_index=0,
+        role="BeamlineScientist",
+        actor_id=uuid4(),
+        decision="Approved",
+        decided_at=prior_decided,
+    )
+    state = _clearance(review_steps=(prior,))
+    events = append_clearance_review_step.decide(
+        state=state,
+        command=AppendClearanceReviewStep(
+            clearance_id=state.id,
+            step_index=1,
+            role="ESH",
+            actor_id=uuid4(),
+            decision="Approved",
+            decided_at=prior_decided,
+        ),
+        now=_NOW,
+    )
+    assert events[0].decided_at == prior_decided

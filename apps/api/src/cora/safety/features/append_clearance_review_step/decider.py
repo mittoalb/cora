@@ -9,6 +9,12 @@ Append-only-into-tuple, no status change.
     `ClearanceCannotAppendReviewStepError`
   - `step_index` must equal `len(state.review_steps)` ->
     `InvalidClearanceReviewStepIndexError`
+  - `decided_at` must not be in the future relative to `now` (defensive
+    guard mirroring `truncate_run` / `truncate_procedure` precedent) ->
+    `InvalidClearanceReviewStepDecidedAtError`
+  - `decided_at` must be >= the prior step's `decided_at` if a prior
+    step exists (chain monotonicity: reviewers decide in order) ->
+    `InvalidClearanceReviewStepDecidedAtError`
   - `role` validated 1-50 chars after trim ->
     `InvalidClearanceReviewerRoleError`
   - `notes` validated 0-2000 chars after trim ->
@@ -29,6 +35,7 @@ from cora.safety.aggregates.clearance import (
     ClearanceStatus,
     InvalidClearanceReviewerNotesError,
     InvalidClearanceReviewerRoleError,
+    InvalidClearanceReviewStepDecidedAtError,
     InvalidClearanceReviewStepIndexError,
 )
 from cora.safety.aggregates.clearance.state import (
@@ -38,6 +45,8 @@ from cora.safety.aggregates.clearance.state import (
 from cora.safety.features.append_clearance_review_step.command import (
     AppendClearanceReviewStep,
 )
+
+_REVIEW_STEP_APPENDABLE_STATUSES: tuple[ClearanceStatus, ...] = (ClearanceStatus.UNDER_REVIEW,)
 
 
 def decide(
@@ -49,12 +58,26 @@ def decide(
     """Decide the events produced by appending one reviewer step."""
     if state is None:
         raise ClearanceNotFoundError(command.clearance_id)
-    if state.status is not ClearanceStatus.UNDER_REVIEW:
+    if state.status not in _REVIEW_STEP_APPENDABLE_STATUSES:
         raise ClearanceCannotAppendReviewStepError(state.id, state.status)
 
     expected = len(state.review_steps)
     if command.step_index != expected:
         raise InvalidClearanceReviewStepIndexError(expected=expected, got=command.step_index)
+
+    if command.decided_at > now:
+        raise InvalidClearanceReviewStepDecidedAtError(
+            command.decided_at,
+            reason=f"future-dated relative to now={now.isoformat()}",
+        )
+    if state.review_steps and command.decided_at < state.review_steps[-1].decided_at:
+        raise InvalidClearanceReviewStepDecidedAtError(
+            command.decided_at,
+            reason=(
+                f"chain monotonicity violated: prior step decided_at="
+                f"{state.review_steps[-1].decided_at.isoformat()}"
+            ),
+        )
 
     role = validate_bounded_text(
         command.role,
