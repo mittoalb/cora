@@ -352,6 +352,57 @@ class RunAssetDecommissionedError(Exception):
 InvalidRunExternalRefError = InvalidExternalRefError
 
 
+class RunCannotJoinCampaignError(Exception):
+    """Attempted to start a Run against a Campaign in a non-membership-eligible status.
+
+    Phase 6i-c cross-BC gate: when `StartRun.campaign_id` is provided
+    the handler pre-loads the Campaign and the decider verifies its
+    status is in `{Planned, Active, Held}` (the membership-eligible
+    set). Closed and Abandoned Campaigns refuse new members
+    (membership locked at terminal per the design memo lock).
+
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, run_id: UUID, campaign_id: UUID, campaign_status: str) -> None:
+        super().__init__(
+            f"Run {run_id} cannot join Campaign {campaign_id}: Campaign is in "
+            f"status {campaign_status}; membership requires Planned, Active, "
+            f"or Held."
+        )
+        self.run_id = run_id
+        self.campaign_id = campaign_id
+        self.campaign_status = campaign_status
+
+
+class RunAlreadyAssignedToCampaignError(Exception):
+    """Attempted to add a Run already assigned to a (different) Campaign.
+
+    Phase 6i-c invariant: a Run participates in at most one Campaign
+    at a time. The cross-aggregate `add_run_to_campaign` slice refuses
+    when the loaded Run already carries a non-None `campaign_id` that
+    differs from the requested target Campaign. Removing the Run from
+    its current Campaign first is the operator's remediation path.
+
+    Mapped to HTTP 409.
+    """
+
+    def __init__(
+        self,
+        run_id: UUID,
+        existing_campaign_id: UUID,
+        new_campaign_id: UUID,
+    ) -> None:
+        super().__init__(
+            f"Run {run_id} is already assigned to Campaign "
+            f"{existing_campaign_id}; cannot add to Campaign {new_campaign_id} "
+            f"without first removing from the current Campaign."
+        )
+        self.run_id = run_id
+        self.existing_campaign_id = existing_campaign_id
+        self.new_campaign_id = new_campaign_id
+
+
 class RunRequiresActiveClearanceError(Exception):
     """No Safety clearance references this Run's scope at all.
 
@@ -928,6 +979,16 @@ class Run:
     # [[project_safety_clearance_design]] watch item; for 11a-c-3 the
     # field is forward-compat only (gate uses Run/Subject/Asset bindings).
     external_refs: frozenset["ExternalRef"] = field(default_factory=frozenset["ExternalRef"])
+    # Phase 6i-c: optional Campaign membership. None means the Run is
+    # standalone (not part of any Campaign). Set on RunStarted (when
+    # `StartRun.campaign_id` was provided) or via the post-hoc
+    # `add_run_to_campaign` slice (RunCampaignAssigned event); cleared
+    # by `remove_run_from_campaign` (RunCampaignUnassigned event). One
+    # Campaign per Run invariant: never N (per
+    # [[project_campaign_design]] lock). Forward-compat additive field;
+    # legacy pre-6i-c streams fold via `payload.get("campaign_id")`
+    # returning None.
+    campaign_id: UUID | None = None
 
 
 class InvalidRunParametersError(ValueError):

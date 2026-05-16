@@ -320,6 +320,88 @@ class CampaignCannotAbandonError(Exception):
         self.current_status = current_status
 
 
+class CampaignCannotAddRunError(Exception):
+    """Attempted `add_run_to_campaign` from a disqualifying status.
+
+    Multi-source guard: source set is `{Planned, Active, Held}`. Terminal
+    Campaigns (Closed / Abandoned) refuse new members per the design memo
+    membership lock. Phase 6i-c cross-aggregate slice.
+    """
+
+    def __init__(self, campaign_id: UUID, current_status: "CampaignStatus") -> None:
+        super().__init__(
+            f"Campaign {campaign_id} cannot add a Run: currently in status "
+            f"{current_status.value}, add_run_to_campaign requires one of "
+            f"{CampaignStatus.PLANNED.value} | {CampaignStatus.ACTIVE.value} | "
+            f"{CampaignStatus.HELD.value}"
+        )
+        self.campaign_id = campaign_id
+        self.current_status = current_status
+
+
+class CampaignRunAlreadyMemberError(Exception):
+    """Attempted to add a Run already in the Campaign's run_ids set.
+
+    Membership idempotency violation: `add_run_to_campaign` rejects when
+    the Run is already a member of THIS Campaign. (A Run already member
+    of a DIFFERENT Campaign raises `RunAlreadyAssignedToCampaignError`
+    from the Run BC instead.) Phase 6i-c.
+    """
+
+    def __init__(self, campaign_id: UUID, run_id: UUID) -> None:
+        super().__init__(f"Run {run_id} is already a member of Campaign {campaign_id}.")
+        self.campaign_id = campaign_id
+        self.run_id = run_id
+
+
+class CampaignCannotRemoveRunError(Exception):
+    """Attempted `remove_run_from_campaign` from a disqualifying status.
+
+    Multi-source guard: source set is `{Planned, Active, Held}`. Terminal
+    Campaigns refuse membership mutation (membership frozen at Closed /
+    Abandoned per the design memo lock). Phase 6i-c.
+    """
+
+    def __init__(self, campaign_id: UUID, current_status: "CampaignStatus") -> None:
+        super().__init__(
+            f"Campaign {campaign_id} cannot remove a Run: currently in status "
+            f"{current_status.value}, remove_run_from_campaign requires one of "
+            f"{CampaignStatus.PLANNED.value} | {CampaignStatus.ACTIVE.value} | "
+            f"{CampaignStatus.HELD.value}"
+        )
+        self.campaign_id = campaign_id
+        self.current_status = current_status
+
+
+class CampaignRunNotMemberError(Exception):
+    """Attempted to remove a Run that is not in the Campaign's run_ids set.
+
+    `remove_run_from_campaign` rejects when the supplied run_id is not
+    a current member. Phase 6i-c.
+    """
+
+    def __init__(self, campaign_id: UUID, run_id: UUID) -> None:
+        super().__init__(f"Run {run_id} is not a member of Campaign {campaign_id}.")
+        self.campaign_id = campaign_id
+        self.run_id = run_id
+
+
+class InvalidCampaignRunRemoveReasonError(ValueError):
+    """The supplied remove-run reason is empty, whitespace-only, or too long.
+
+    Bare-str validated at the `remove_run_from_campaign` decider. REQUIRED
+    on the remove path: an operator must say WHY they ungroup a Run
+    (ungrouping is meaningful). Phase 6i-c.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Campaign run remove reason must be 1-{CAMPAIGN_REASON_MAX_LENGTH} chars "
+            f"after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
 # ---------------------------------------------------------------------------
 # Bounded-text value objects (17th, 18th, 19th instances of the pattern)
 # ---------------------------------------------------------------------------

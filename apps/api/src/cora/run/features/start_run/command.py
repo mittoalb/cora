@@ -50,6 +50,14 @@ class StartRun:
     to upstream-deferred concepts like proposal / btr / lab_visit /
     session). Forward-compat additive field; legacy callers omitting
     it get an empty frozenset.
+
+    Phase 6i-c added optional `campaign_id`: when supplied, the handler
+    pre-loads the Campaign, the decider verifies it's in `{Planned,
+    Active, Held}` (else `RunCannotJoinCampaignError`), and the
+    cross-aggregate atomic write via `EventStore.append_streams`
+    persists `RunStarted` (carrying `campaign_id` on its payload) on
+    the Run stream AND `CampaignRunAdded` on the Campaign stream.
+    When omitted, behaviour is unchanged (single-stream Run write).
     """
 
     name: str
@@ -59,3 +67,4 @@ class StartRun:
     override_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     triggered_by: str | None = None
     external_refs: frozenset[ExternalRef] = field(default_factory=frozenset[ExternalRef])
+    campaign_id: UUID | None = None

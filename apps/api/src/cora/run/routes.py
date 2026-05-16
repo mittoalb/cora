@@ -57,11 +57,13 @@ from cora.run.aggregates.run import (
     InvalidRunTruncateReasonError,
     InvalidSamplingProcedureError,
     PlanDeprecatedError,
+    RunAlreadyAssignedToCampaignError,
     RunAlreadyExistsError,
     RunAssetDecommissionedError,
     RunCannotAbortError,
     RunCannotCompleteError,
     RunCannotHoldError,
+    RunCannotJoinCampaignError,
     RunCannotResumeError,
     RunCannotStopError,
     RunCannotTruncateError,
@@ -183,6 +185,10 @@ def register_run_routes(app: FastAPI) -> None:
         # Run-start safety-clearance gate (11a-c-3).
         RunRequiresActiveClearanceError,
         RunClearanceCoverageMismatchError,
+        # Run-start campaign-membership gate (6i-c).
+        RunCannotJoinCampaignError,
+        # Run-side campaign-membership invariant (6i-c).
+        RunAlreadyAssignedToCampaignError,
         # Run transition guards (6f-2).
         RunCannotCompleteError,
         RunCannotAbortError,

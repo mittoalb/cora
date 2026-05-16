@@ -37,12 +37,24 @@ BCs ship.
 from typing import Protocol
 from uuid import UUID
 
+from cora.campaign.aggregates.campaign import (
+    CampaignNotFoundError,
+    load_campaign,
+)
+from cora.campaign.aggregates.campaign import (
+    event_type_name as campaign_event_type_name,
+)
+from cora.campaign.aggregates.campaign import (
+    to_payload as campaign_to_payload,
+)
+from cora.campaign.aggregates.campaign.events import CampaignRunAdded
 from cora.equipment.aggregates.asset import Asset, AssetNotFoundError, load_asset
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.json_merge_patch import merge_patch
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
+from cora.infrastructure.ports.event_store import StreamAppend
 from cora.recipe.aggregates.method import MethodNotFoundError, load_method
 from cora.recipe.aggregates.plan import PlanNotFoundError, load_plan
 from cora.recipe.aggregates.practice import PracticeNotFoundError, load_practice
@@ -54,6 +66,7 @@ from cora.run.features.start_run.decider import decide
 from cora.subject.aggregates.subject import SubjectNotFoundError, load_subject
 
 _STREAM_TYPE = "Run"
+_CAMPAIGN_STREAM_TYPE = "Campaign"
 _COMMAND_NAME = "StartRun"
 _CONDUIT_DEFAULT_ID = UUID(int=0)
 
@@ -162,6 +175,22 @@ def bind(deps: Kernel) -> Handler:
             if subject is None:
                 raise SubjectNotFoundError(command.subject_id)
 
+        # Phase 6i-c: if the caller wants the Run to land as a Campaign
+        # member at start time, pre-load the Campaign + its stream
+        # version. The decider gates on Campaign status; the handler
+        # writes the inverse CampaignRunAdded event to the Campaign
+        # stream atomically with RunStarted on the Run stream via
+        # EventStore.append_streams.
+        campaign = None
+        campaign_version = 0
+        if command.campaign_id is not None:
+            campaign = await load_campaign(deps.event_store, command.campaign_id)
+            if campaign is None:
+                raise CampaignNotFoundError(command.campaign_id)
+            _, campaign_version = await deps.event_store.load(
+                _CAMPAIGN_STREAM_TYPE, command.campaign_id
+            )
+
         # Allocate the new Run id BEFORE the clearance lookup so the
         # Safety projection query can match Clearances bound to this
         # specific Run id (RunBinding coverage). The same id flows
@@ -202,6 +231,7 @@ def bind(deps: Kernel) -> Handler:
             assets=assets,
             referencing_clearances=referencing_clearances,
             active_cautions=active_cautions,
+            campaign=campaign,
         )
 
         now = deps.clock.now()
@@ -236,12 +266,55 @@ def bind(deps: Kernel) -> Handler:
             )
             for event in domain_events
         ]
-        await deps.event_store.append(
-            stream_type=_STREAM_TYPE,
-            stream_id=new_id,
-            expected_version=0,
-            events=new_events,
-        )
+
+        if command.campaign_id is not None:
+            # Phase 6i-c: cross-aggregate atomic write. Run stream gets
+            # RunStarted (carrying campaign_id on its payload); Campaign
+            # stream gets CampaignRunAdded. Both commit together via
+            # EventStore.append_streams (single Postgres tx) or roll back
+            # together on ConcurrencyError.
+            campaign_membership_events = [
+                to_new_event(
+                    event_type=campaign_event_type_name(event),
+                    payload=campaign_to_payload(event),
+                    occurred_at=event.occurred_at,
+                    event_id=deps.id_generator.new_id(),
+                    command_name=_COMMAND_NAME,
+                    correlation_id=correlation_id,
+                    causation_id=causation_id,
+                    principal_id=principal_id,
+                )
+                for event in (
+                    CampaignRunAdded(
+                        campaign_id=command.campaign_id,
+                        run_id=new_id,
+                        occurred_at=now,
+                    ),
+                )
+            ]
+            await deps.event_store.append_streams(
+                [
+                    StreamAppend(
+                        stream_type=_STREAM_TYPE,
+                        stream_id=new_id,
+                        expected_version=0,
+                        events=new_events,
+                    ),
+                    StreamAppend(
+                        stream_type=_CAMPAIGN_STREAM_TYPE,
+                        stream_id=command.campaign_id,
+                        expected_version=campaign_version,
+                        events=campaign_membership_events,
+                    ),
+                ]
+            )
+        else:
+            await deps.event_store.append(
+                stream_type=_STREAM_TYPE,
+                stream_id=new_id,
+                expected_version=0,
+                events=new_events,
+            )
 
         _log.info(
             "start_run.success",
@@ -255,6 +328,7 @@ def bind(deps: Kernel) -> Handler:
             effective_key_count=len(effective_parameters),
             schema_present=method.parameters_schema is not None,
             triggered_by=command.triggered_by,
+            campaign_id=str(command.campaign_id) if command.campaign_id is not None else None,
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             causation_id=str(causation_id) if causation_id is not None else None,

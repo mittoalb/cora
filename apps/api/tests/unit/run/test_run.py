@@ -316,3 +316,52 @@ def test_run_stop_reason_is_frozen() -> None:
     reason = RunStopReason("operator stop")
     with pytest.raises(AttributeError):
         reason.value = "Other"  # type: ignore[misc]
+
+
+# ---------- Phase 6i-c: Campaign-membership error classes ----------
+
+
+@pytest.mark.unit
+def test_run_cannot_join_campaign_error_carries_attrs() -> None:
+    """RunCannotJoinCampaignError preserves run_id, campaign_id, and
+    campaign_status for the BC's 409 exception handler + log
+    aggregation."""
+    from uuid import uuid4
+
+    from cora.run.aggregates.run import RunCannotJoinCampaignError
+
+    run_id = uuid4()
+    campaign_id = uuid4()
+    err = RunCannotJoinCampaignError(
+        run_id=run_id,
+        campaign_id=campaign_id,
+        campaign_status="Closed",
+    )
+    assert err.run_id == run_id
+    assert err.campaign_id == campaign_id
+    assert err.campaign_status == "Closed"
+    assert str(campaign_id) in str(err)
+    assert "Closed" in str(err)
+
+
+@pytest.mark.unit
+def test_run_already_assigned_to_campaign_error_carries_attrs() -> None:
+    """RunAlreadyAssignedToCampaignError carries both existing + new
+    campaign ids for operator-facing remediation messages."""
+    from uuid import uuid4
+
+    from cora.run.aggregates.run import RunAlreadyAssignedToCampaignError
+
+    run_id = uuid4()
+    existing = uuid4()
+    new = uuid4()
+    err = RunAlreadyAssignedToCampaignError(
+        run_id=run_id,
+        existing_campaign_id=existing,
+        new_campaign_id=new,
+    )
+    assert err.run_id == run_id
+    assert err.existing_campaign_id == existing
+    assert err.new_campaign_id == new
+    assert str(existing) in str(err)
+    assert str(new) in str(err)

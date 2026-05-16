@@ -4,7 +4,7 @@ Mirror of the other aggregate evolvers. The terminal `assert_never`
 case forces pyright (and the runtime) to error if a new event type
 is added to `CampaignEvent` without a matching match arm here.
 
-Status mapping per event type (6 arms; 6i-a):
+Status mapping per event type (8 arms across 6i-a + 6i-c):
 
   - `CampaignRegistered` -> PLANNED   (genesis; status implicit)
   - `CampaignStarted`    -> ACTIVE    (single-source: Planned only)
@@ -17,6 +17,11 @@ Status mapping per event type (6 arms; 6i-a):
   - `CampaignClosed`     -> CLOSED    (multi-source: Active | Held)
   - `CampaignAbandoned`  -> ABANDONED (multi-source: Planned | Active |
                               Held; sets `last_status_reason`)
+  - `CampaignRunAdded`   -> status preserved; unions run_id into run_ids
+                              (Phase 6i-c; membership mutation)
+  - `CampaignRunRemoved` -> status preserved; removes run_id from run_ids
+                              (Phase 6i-c; reason on event is per-
+                              membership audit, NOT last_status_reason)
 
 Source-state guards live at the decider, NOT here; the evolver trusts
 the event log (folded events have already passed their decider).
@@ -24,9 +29,9 @@ the event log (folded events have already passed their decider).
 Transition events applied to empty state raise `ValueError` via the
 shared `require_state` helper at `cora.infrastructure.evolver`.
 
-`run_ids` stays empty across all 6 arms in 6i-a (no membership events
-yet). In 6i-c the new `CampaignRunAdded` / `CampaignRunRemoved` arms
-will mutate it; existing arms thread the field through unchanged.
+Membership mutation arms (Phase 6i-c) preserve `status` and
+`last_status_reason` (membership mutations are NOT status transitions
+per design memo lock).
 """
 
 from collections.abc import Sequence
@@ -39,6 +44,8 @@ from cora.campaign.aggregates.campaign.events import (
     CampaignHeld,
     CampaignRegistered,
     CampaignResumed,
+    CampaignRunAdded,
+    CampaignRunRemoved,
     CampaignStarted,
 )
 from cora.campaign.aggregates.campaign.state import (
@@ -158,6 +165,51 @@ def evolve(state: Campaign | None, event: CampaignEvent) -> Campaign:
                 run_ids=prior.run_ids,
                 status=CampaignStatus.ABANDONED,
                 last_status_reason=reason,
+            )
+        case CampaignRunAdded(run_id=run_id):
+            # Phase 6i-c: membership add. Idempotency invariant is
+            # enforced at the decider; the evolver trusts the event log
+            # and unions the run_id into state.run_ids. Status NOT
+            # touched -- membership is orthogonal to lifecycle.
+            # last_status_reason preserved (membership mutations are
+            # NOT status transitions per design memo lock).
+            prior = require_state(state, "CampaignRunAdded")
+            return Campaign(
+                id=prior.id,
+                name=prior.name,
+                intent=prior.intent,
+                lead_actor_id=prior.lead_actor_id,
+                subject_id=prior.subject_id,
+                description=prior.description,
+                tags=prior.tags,
+                external_refs=prior.external_refs,
+                external_id=prior.external_id,
+                run_ids=prior.run_ids | {run_id},
+                status=prior.status,
+                last_status_reason=prior.last_status_reason,
+            )
+        case CampaignRunRemoved(run_id=run_id):
+            # Phase 6i-c: membership remove. Per design memo lock, the
+            # `reason` on CampaignRunRemoved is a per-membership audit
+            # breadcrumb (lives on the event payload only); it does NOT
+            # populate last_status_reason (that field is for status
+            # transitions only). The evolver removes the run_id from
+            # state.run_ids and leaves status / last_status_reason
+            # alone.
+            prior = require_state(state, "CampaignRunRemoved")
+            return Campaign(
+                id=prior.id,
+                name=prior.name,
+                intent=prior.intent,
+                lead_actor_id=prior.lead_actor_id,
+                subject_id=prior.subject_id,
+                description=prior.description,
+                tags=prior.tags,
+                external_refs=prior.external_refs,
+                external_id=prior.external_id,
+                run_ids=prior.run_ids - {run_id},
+                status=prior.status,
+                last_status_reason=prior.last_status_reason,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

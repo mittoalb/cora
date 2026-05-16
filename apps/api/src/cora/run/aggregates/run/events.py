@@ -183,6 +183,58 @@ class RunStarted:
     # forward-compat via `payload.get("acknowledged_cautions", [])` in
     # `from_stored`.
     acknowledged_cautions: tuple[CautionAcknowledgement, ...] = ()
+    # Phase 6i-c: optional Campaign membership stamped at Run-start.
+    # None when the Run is standalone or when membership is established
+    # post-hoc (via `add_run_to_campaign` → RunCampaignAssigned). When
+    # `StartRun.campaign_id` is provided the handler atomically writes
+    # this event AND `CampaignRunAdded` to the Campaign stream via
+    # `EventStore.append_streams` (mirrors 11a-c-2 amend_clearance
+    # shape). Forward-compat via `payload.get("campaign_id")` returning
+    # None for legacy pre-6i-c streams.
+    campaign_id: UUID | None = None
+
+
+@dataclass(frozen=True)
+class RunCampaignAssigned:
+    """A Run was added to a Campaign post-hoc (Phase 6i-c).
+
+    Written by the cross-aggregate `add_run_to_campaign` slice on the
+    Campaign BC, atomically alongside `CampaignRunAdded` on the
+    Campaign's stream (via `EventStore.append_streams`). Distinct from
+    `RunStarted.campaign_id`, which covers the at-start membership
+    path. Splitting the two paths keeps the evolver's state-derivation
+    clean: RunStarted is the genesis arm; RunCampaignAssigned is a
+    post-genesis transition that requires prior state.
+
+    Invariants enforced at the cross-aggregate decider (NOT here at
+    the event layer): the Run's prior `campaign_id` must be None (one-
+    Campaign-per-Run lock). The evolver trusts the event log and
+    simply sets `campaign_id = event.campaign_id`.
+    """
+
+    run_id: UUID
+    campaign_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class RunCampaignUnassigned:
+    """A Run was removed from its Campaign (Phase 6i-c).
+
+    Written by the cross-aggregate `remove_run_from_campaign` slice on
+    the Campaign BC, atomically alongside `CampaignRunRemoved` on the
+    Campaign's stream. The `reason` carries the operator's audit
+    breadcrumb (REQUIRED at the slice, 1-500 chars after trim);
+    ungrouping is a meaningful operator action.
+
+    The evolver clears `campaign_id` back to None; the prior
+    `campaign_id` is on the event payload for audit-replay queries.
+    """
+
+    run_id: UUID
+    campaign_id: UUID
+    reason: str
+    occurred_at: datetime
 
 
 @dataclass(frozen=True)
@@ -364,6 +416,8 @@ RunEvent = (
     | RunStopped
     | RunTruncated
     | RunReadingLogbookOpened
+    | RunCampaignAssigned
+    | RunCampaignUnassigned
 )
 
 
@@ -391,6 +445,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
             triggered_by=triggered_by,
             external_refs=external_refs,
             acknowledged_cautions=acknowledged_cautions,
+            campaign_id=campaign_id,
             occurred_at=occurred_at,
         ):
             return {
@@ -415,6 +470,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                     }
                     for ack in acknowledged_cautions
                 ],
+                "campaign_id": str(campaign_id) if campaign_id is not None else None,
                 "occurred_at": occurred_at.isoformat(),
             }
         case RunHeld(run_id=run_id, occurred_at=occurred_at):
@@ -471,6 +527,28 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "schema": schema.to_dict(),
                 "occurred_at": occurred_at.isoformat(),
             }
+        case RunCampaignAssigned(
+            run_id=run_id,
+            campaign_id=campaign_id,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "run_id": str(run_id),
+                "campaign_id": str(campaign_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case RunCampaignUnassigned(
+            run_id=run_id,
+            campaign_id=campaign_id,
+            reason=reason,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "run_id": str(run_id),
+                "campaign_id": str(campaign_id),
+                "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -493,6 +571,7 @@ def from_stored(stored: StoredEvent) -> RunEvent:
             # the field's default when the key isn't in the jsonb
             # payload, so pre-additive streams replay without an
             # upcaster.
+            raw_campaign_id = payload.get("campaign_id")
             return RunStarted(
                 run_id=UUID(payload["run_id"]),
                 name=payload["name"],
@@ -515,6 +594,7 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                     )
                     for ack in payload.get("acknowledged_cautions", [])
                 ),
+                campaign_id=UUID(raw_campaign_id) if raw_campaign_id is not None else None,
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "RunHeld":
@@ -564,6 +644,19 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 schema=LogbookSchema.from_dict(payload["schema"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "RunCampaignAssigned":
+            return RunCampaignAssigned(
+                run_id=UUID(payload["run_id"]),
+                campaign_id=UUID(payload["campaign_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "RunCampaignUnassigned":
+            return RunCampaignUnassigned(
+                run_id=UUID(payload["run_id"]),
+                campaign_id=UUID(payload["campaign_id"]),
+                reason=payload["reason"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown RunEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -572,6 +665,8 @@ def from_stored(stored: StoredEvent) -> RunEvent:
 __all__ = [
     "CautionAcknowledgement",
     "RunAborted",
+    "RunCampaignAssigned",
+    "RunCampaignUnassigned",
     "RunCompleted",
     "RunEvent",
     "RunHeld",

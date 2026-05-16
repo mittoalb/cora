@@ -73,6 +73,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from cora.campaign.aggregates.campaign import CampaignStatus
 from cora.equipment.aggregates.asset import AssetLifecycle
 from cora.recipe.aggregates.plan import PlanStatus, validate_wire_endpoints
 from cora.run.aggregates.run import (
@@ -81,6 +82,7 @@ from cora.run.aggregates.run import (
     Run,
     RunAlreadyExistsError,
     RunAssetDecommissionedError,
+    RunCannotJoinCampaignError,
     RunCapabilitiesNotSatisfiedError,
     RunClearanceCoverageMismatchError,
     RunName,
@@ -96,6 +98,12 @@ from cora.subject.aggregates.subject import SubjectStatus
 _SUBJECT_RUNNABLE_STATUSES: tuple[SubjectStatus, ...] = (
     SubjectStatus.MOUNTED,
     SubjectStatus.MEASURED,
+)
+
+_CAMPAIGN_MEMBERSHIP_ELIGIBLE_STATUSES: tuple[CampaignStatus, ...] = (
+    CampaignStatus.PLANNED,
+    CampaignStatus.ACTIVE,
+    CampaignStatus.HELD,
 )
 
 
@@ -204,6 +212,29 @@ def decide(
             assets_by_id=context.assets,
         )
 
+    # Phase 6i-c: if the caller supplied campaign_id, the handler pre-
+    # loaded the Campaign into the context. Verify the Campaign is in a
+    # membership-eligible status (Planned / Active / Held); reject
+    # terminal Campaigns (Closed / Abandoned) per the design memo
+    # membership lock. The handler atomically writes the inverse
+    # CampaignRunAdded event to the Campaign stream via
+    # EventStore.append_streams.
+    if command.campaign_id is not None:
+        if context.campaign is None:
+            # Defensive: the handler raises CampaignNotFoundError before
+            # reaching the decider when the load returns None.
+            raise RunCannotJoinCampaignError(
+                run_id=new_id,
+                campaign_id=command.campaign_id,
+                campaign_status="<not found>",
+            )
+        if context.campaign.status not in _CAMPAIGN_MEMBERSHIP_ELIGIBLE_STATUSES:
+            raise RunCannotJoinCampaignError(
+                run_id=new_id,
+                campaign_id=command.campaign_id,
+                campaign_status=context.campaign.status.value,
+            )
+
     name = RunName(command.name)  # validates + trims; raises InvalidRunNameError
 
     # Phase 11b-c: build the acknowledged_cautions snapshot for the
@@ -241,6 +272,7 @@ def decide(
                 {"scheme": ref.scheme, "id": ref.id} for ref in command.external_refs
             ),
             acknowledged_cautions=acknowledged_cautions,
+            campaign_id=command.campaign_id,
             occurred_at=now,
         )
     ]

@@ -1242,3 +1242,146 @@ def test_decide_threads_warning_severity_caution_through_to_event() -> None:
     )
     assert events[0].acknowledged_cautions[0].severity == "Warning"
     assert events[0].acknowledged_cautions[0].text_excerpt.startswith("bearing degraded")
+
+
+# ---------- Phase 6i-c: campaign-membership gating + embed ----------
+
+from cora.campaign.aggregates.campaign import (  # noqa: E402
+    Campaign as _Campaign,
+)
+from cora.campaign.aggregates.campaign import (  # noqa: E402
+    CampaignIntent as _CampaignIntent,
+)
+from cora.campaign.aggregates.campaign import (  # noqa: E402
+    CampaignName as _CampaignName,
+)
+from cora.campaign.aggregates.campaign import (  # noqa: E402
+    CampaignStatus as _CampaignStatus,
+)
+
+
+def _campaign(status: _CampaignStatus) -> _Campaign:
+    return _Campaign(
+        id=uuid4(),
+        name=_CampaignName("test"),
+        intent=_CampaignIntent.IN_SITU,
+        lead_actor_id=uuid4(),
+        status=status,
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "campaign_status_name",
+    ["PLANNED", "ACTIVE", "HELD"],
+)
+def test_decide_embeds_campaign_id_for_membership_eligible_status(
+    campaign_status_name: str,
+) -> None:
+    """Phase 6i-c: when campaign supplied and in a membership-eligible
+    status, decider embeds campaign_id on RunStarted."""
+    from cora.campaign.aggregates.campaign import CampaignStatus
+
+    status = CampaignStatus[campaign_status_name]
+    campaign = _campaign(status)
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
+    subject = _subject()
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+        campaign=campaign,
+    )
+    events = start_run.decide(
+        state=None,
+        command=StartRun(
+            name="Run",
+            plan_id=plan.id,
+            subject_id=subject.id,
+            campaign_id=campaign.id,
+        ),
+        context=context,
+        needed_capabilities_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].campaign_id == campaign.id
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "campaign_status_name",
+    ["CLOSED", "ABANDONED"],
+)
+def test_decide_rejects_terminal_campaign(campaign_status_name: str) -> None:
+    """Phase 6i-c: terminal Campaigns refuse new at-start membership."""
+    from cora.campaign.aggregates.campaign import CampaignStatus
+    from cora.run.aggregates.run import RunCannotJoinCampaignError
+
+    status = CampaignStatus[campaign_status_name]
+    campaign = _campaign(status)
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
+    subject = _subject()
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+        campaign=campaign,
+    )
+    with pytest.raises(RunCannotJoinCampaignError) as exc:
+        start_run.decide(
+            state=None,
+            command=StartRun(
+                name="Run",
+                plan_id=plan.id,
+                subject_id=subject.id,
+                campaign_id=campaign.id,
+            ),
+            context=context,
+            needed_capabilities_snapshot=frozenset({cap}),
+            effective_parameters={},
+            method_parameters_schema=None,
+            now=_NOW,
+            new_id=uuid4(),
+        )
+    assert exc.value.campaign_status == status.value
+
+
+@pytest.mark.unit
+def test_decide_no_campaign_id_passes_through_normally() -> None:
+    """Phase 6i-c: StartRun.campaign_id=None bypasses the membership
+    gate entirely (existing behaviour preserved). campaign_id=None on
+    the resulting RunStarted event."""
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
+    subject = _subject()
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+        campaign=None,
+    )
+    events = start_run.decide(
+        state=None,
+        command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
+        context=context,
+        needed_capabilities_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].campaign_id is None

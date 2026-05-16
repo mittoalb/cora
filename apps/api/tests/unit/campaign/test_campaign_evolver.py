@@ -279,3 +279,134 @@ def test_fold_preserves_run_ids_empty_through_lifecycle() -> None:
     )
     assert state is not None
     assert state.run_ids == frozenset()
+
+
+# ---------- Phase 6i-c: CampaignRunAdded / CampaignRunRemoved arms ----------
+
+
+@pytest.mark.unit
+def test_run_added_unions_run_id_into_run_ids() -> None:
+    from cora.campaign.aggregates.campaign import CampaignRunAdded
+
+    run_id = UUID("01900000-0000-7000-8000-0000000000aa")
+    state = fold(
+        [
+            _registered(),
+            CampaignStarted(campaign_id=_CAMPAIGN_ID, occurred_at=_NOW),
+            CampaignRunAdded(campaign_id=_CAMPAIGN_ID, run_id=run_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.run_ids == frozenset({run_id})
+    # Status preserved -- membership is orthogonal to lifecycle.
+    assert state.status == CampaignStatus.ACTIVE
+
+
+@pytest.mark.unit
+def test_run_added_preserves_last_status_reason() -> None:
+    """Membership mutations are NOT status transitions per design memo
+    lock. last_status_reason must survive the run_ids mutation."""
+    from cora.campaign.aggregates.campaign import CampaignRunAdded
+
+    run_id = UUID("01900000-0000-7000-8000-0000000000ab")
+    state = fold(
+        [
+            _registered(),
+            CampaignStarted(campaign_id=_CAMPAIGN_ID, occurred_at=_NOW),
+            CampaignHeld(
+                campaign_id=_CAMPAIGN_ID,
+                reason="beam interruption",
+                occurred_at=_NOW,
+            ),
+            CampaignRunAdded(campaign_id=_CAMPAIGN_ID, run_id=run_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.last_status_reason == "beam interruption"
+    assert state.status == CampaignStatus.HELD
+
+
+@pytest.mark.unit
+def test_run_added_on_empty_state_raises() -> None:
+    from cora.campaign.aggregates.campaign import CampaignRunAdded
+
+    with pytest.raises(ValueError):
+        evolve(
+            None,
+            CampaignRunAdded(
+                campaign_id=_CAMPAIGN_ID,
+                run_id=UUID("01900000-0000-7000-8000-0000000000ac"),
+                occurred_at=_NOW,
+            ),
+        )
+
+
+@pytest.mark.unit
+def test_run_removed_removes_run_id_from_run_ids() -> None:
+    from cora.campaign.aggregates.campaign import CampaignRunAdded, CampaignRunRemoved
+
+    run_id = UUID("01900000-0000-7000-8000-0000000000ad")
+    state = fold(
+        [
+            _registered(),
+            CampaignStarted(campaign_id=_CAMPAIGN_ID, occurred_at=_NOW),
+            CampaignRunAdded(campaign_id=_CAMPAIGN_ID, run_id=run_id, occurred_at=_NOW),
+            CampaignRunRemoved(
+                campaign_id=_CAMPAIGN_ID,
+                run_id=run_id,
+                reason="reassigned",
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.run_ids == frozenset()
+    assert state.status == CampaignStatus.ACTIVE
+
+
+@pytest.mark.unit
+def test_run_removed_does_not_update_last_status_reason() -> None:
+    """Design memo lock: CampaignRunRemoved.reason is per-membership
+    audit (event payload only). It does NOT populate
+    last_status_reason (that field is for status transitions only)."""
+    from cora.campaign.aggregates.campaign import CampaignRunAdded, CampaignRunRemoved
+
+    run_id = UUID("01900000-0000-7000-8000-0000000000ae")
+    state = fold(
+        [
+            _registered(),
+            CampaignStarted(campaign_id=_CAMPAIGN_ID, occurred_at=_NOW),
+            CampaignHeld(
+                campaign_id=_CAMPAIGN_ID,
+                reason="beam interruption",
+                occurred_at=_NOW,
+            ),
+            CampaignRunAdded(campaign_id=_CAMPAIGN_ID, run_id=run_id, occurred_at=_NOW),
+            CampaignRunRemoved(
+                campaign_id=_CAMPAIGN_ID,
+                run_id=run_id,
+                reason="reassigned",
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    # last_status_reason still carries the Held event's reason, NOT
+    # the remove's reason.
+    assert state.last_status_reason == "beam interruption"
+
+
+@pytest.mark.unit
+def test_run_removed_on_empty_state_raises() -> None:
+    from cora.campaign.aggregates.campaign import CampaignRunRemoved
+
+    with pytest.raises(ValueError):
+        evolve(
+            None,
+            CampaignRunRemoved(
+                campaign_id=_CAMPAIGN_ID,
+                run_id=UUID("01900000-0000-7000-8000-0000000000af"),
+                reason="x",
+                occurred_at=_NOW,
+            ),
+        )

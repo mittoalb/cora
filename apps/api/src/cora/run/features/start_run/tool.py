@@ -98,6 +98,19 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ] = None,
+        campaign_id: Annotated[
+            UUID | None,
+            Field(
+                default=None,
+                description=(
+                    "Optional Campaign id this Run joins at start time. When "
+                    "provided, the handler atomically writes RunStarted "
+                    "(carrying campaign_id) on the Run stream AND "
+                    "CampaignRunAdded on the Campaign stream. The Campaign "
+                    "must be in Planned, Active, or Held. Phase 6i-c."
+                ),
+            ),
+        ] = None,
     ) -> StartRunOutput:
         handler = get_handler()
         run_id = await handler(
@@ -108,6 +121,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 raid=raid,
                 override_parameters=override_parameters if override_parameters else {},
                 triggered_by=triggered_by,
+                campaign_id=campaign_id,
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),

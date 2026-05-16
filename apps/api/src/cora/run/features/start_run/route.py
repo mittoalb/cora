@@ -84,6 +84,20 @@ class StartRunRequest(BaseModel):
             "Optional. Phase 6g-c."
         ),
     )
+    campaign_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Optional Campaign id this Run joins at start time. When "
+            "provided, the handler pre-loads the Campaign (404 if "
+            "missing), verifies it is in Planned, Active, or Held "
+            "(409 RunCannotJoinCampaign otherwise), and atomically "
+            "writes both `RunStarted` (carrying campaign_id) on the "
+            "Run stream AND `CampaignRunAdded` on the Campaign stream "
+            "via `EventStore.append_streams`. Omit (or null) for a "
+            "standalone Run; membership can also be added post-hoc "
+            "via `POST /campaigns/{id}/runs/{run_id}`. Phase 6i-c."
+        ),
+    )
 
 
 class StartRunResponse(BaseModel):
@@ -117,7 +131,8 @@ router = APIRouter(tags=["run"])
             "model": ErrorResponse,
             "description": (
                 "Referenced Plan, Practice (via Plan), Method (via "
-                "Practice), Asset (via Plan), or Subject does not exist."
+                "Practice), Asset (via Plan), Subject, or (Phase 6i-c) "
+                "Campaign (when campaign_id supplied) does not exist."
             ),
         },
         status.HTTP_409_CONFLICT: {
@@ -125,8 +140,10 @@ router = APIRouter(tags=["run"])
             "description": (
                 "Run-start rejected: Plan is Deprecated, Subject is not "
                 "in Mounted or Measured, a bound Asset is Decommissioned, "
-                "or the bound Assets' current capabilities don't cover "
-                "the Method's needed_capabilities."
+                "the bound Assets' current capabilities don't cover "
+                "the Method's needed_capabilities, OR (Phase 6i-c) the "
+                "supplied Campaign is in a terminal status (Closed / "
+                "Abandoned) and refuses new members."
             ),
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -163,6 +180,7 @@ async def post_runs(
             raid=body.raid,
             override_parameters=body.override_parameters,
             triggered_by=body.triggered_by,
+            campaign_id=body.campaign_id,
         ),
         principal_id=principal_id,
         correlation_id=cid,

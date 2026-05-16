@@ -12,22 +12,26 @@ backed list). Phase 6i-c adds the cross-aggregate membership slices.
 
 from cora.campaign.features import (
     abandon_campaign,
+    add_run_to_campaign,
     close_campaign,
     get_campaign,
     hold_campaign,
     list_campaigns,
     register_campaign,
+    remove_run_from_campaign,
     resume_campaign,
     start_campaign,
 )
 
 __all__ = [
     "abandon_campaign",
+    "add_run_to_campaign",
     "close_campaign",
     "get_campaign",
     "hold_campaign",
     "list_campaigns",
     "register_campaign",
+    "remove_run_from_campaign",
     "resume_campaign",
     "start_campaign",
 ]

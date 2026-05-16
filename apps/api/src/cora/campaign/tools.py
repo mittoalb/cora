@@ -12,11 +12,13 @@ from collections.abc import Callable
 from mcp.server.fastmcp import FastMCP
 
 from cora.campaign.features.abandon_campaign import tool as abandon_campaign_tool
+from cora.campaign.features.add_run_to_campaign import tool as add_run_to_campaign_tool
 from cora.campaign.features.close_campaign import tool as close_campaign_tool
 from cora.campaign.features.get_campaign import tool as get_campaign_tool
 from cora.campaign.features.hold_campaign import tool as hold_campaign_tool
 from cora.campaign.features.list_campaigns import tool as list_campaigns_tool
 from cora.campaign.features.register_campaign import tool as register_campaign_tool
+from cora.campaign.features.remove_run_from_campaign import tool as remove_run_from_campaign_tool
 from cora.campaign.features.resume_campaign import tool as resume_campaign_tool
 from cora.campaign.features.start_campaign import tool as start_campaign_tool
 from cora.campaign.wire import CampaignHandlers
@@ -51,6 +53,14 @@ def register_campaign_tools(
     abandon_campaign_tool.register(
         mcp,
         get_handler=lambda: get_handlers().abandon_campaign,
+    )
+    add_run_to_campaign_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().add_run_to_campaign,
+    )
+    remove_run_from_campaign_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().remove_run_from_campaign,
     )
     get_campaign_tool.register(
         mcp,

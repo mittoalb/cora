@@ -669,3 +669,201 @@ def test_wire_run_returns_handlers_bundle() -> None:
     assert isinstance(handlers, RunHandlers)
     assert callable(handlers.start_run)
     assert callable(handlers.get_run)
+
+
+# ---------- Phase 6i-c: start_run with campaign_id ----------
+
+
+async def _seed_campaign_active(
+    store: InMemoryEventStore, campaign_id: UUID, lead_actor_id: UUID
+) -> None:
+    """Seed Campaign in Active status (Registered + Started)."""
+    from cora.campaign.aggregates.campaign.events import (
+        CampaignRegistered,
+        CampaignStarted,
+    )
+    from cora.campaign.aggregates.campaign.events import (
+        event_type_name as campaign_event_type_name,
+    )
+    from cora.campaign.aggregates.campaign.events import (
+        to_payload as campaign_to_payload,
+    )
+
+    events: list[tuple[object, str]] = [
+        (
+            CampaignRegistered(
+                campaign_id=campaign_id,
+                name="test",
+                intent="InSitu",
+                lead_actor_id=lead_actor_id,
+                subject_id=None,
+                description=None,
+                tags=frozenset(),
+                external_refs=frozenset(),
+                external_id=None,
+                occurred_at=_NOW,
+            ),
+            "RegisterCampaign",
+        ),
+        (CampaignStarted(campaign_id=campaign_id, occurred_at=_NOW), "StartCampaign"),
+    ]
+    for idx, (event, command_name) in enumerate(events):
+        await _append(
+            store,
+            stream_type="Campaign",
+            stream_id=campaign_id,
+            expected_version=idx,
+            event_type=campaign_event_type_name(event),  # type: ignore[arg-type]
+            payload=campaign_to_payload(event),  # type: ignore[arg-type]
+            command_name=command_name,
+        )
+
+
+async def _seed_campaign_closed(
+    store: InMemoryEventStore, campaign_id: UUID, lead_actor_id: UUID
+) -> None:
+    """Seed Campaign in Closed terminal status."""
+    from cora.campaign.aggregates.campaign.events import CampaignClosed
+    from cora.campaign.aggregates.campaign.events import (
+        event_type_name as campaign_event_type_name,
+    )
+    from cora.campaign.aggregates.campaign.events import (
+        to_payload as campaign_to_payload,
+    )
+
+    await _seed_campaign_active(store, campaign_id, lead_actor_id)
+    event = CampaignClosed(campaign_id=campaign_id, occurred_at=_NOW)
+    await _append(
+        store,
+        stream_type="Campaign",
+        stream_id=campaign_id,
+        expected_version=2,
+        event_type=campaign_event_type_name(event),  # type: ignore[arg-type]
+        payload=campaign_to_payload(event),  # type: ignore[arg-type]
+        command_name="CloseCampaign",
+    )
+
+
+@pytest.mark.unit
+async def test_handler_with_campaign_writes_both_streams_atomically() -> None:
+    """Phase 6i-c: when StartRun.campaign_id provided, the handler
+    writes RunStarted (with campaign_id) on the Run stream AND
+    CampaignRunAdded on the Campaign stream via append_streams."""
+    from cora.campaign.aggregates.campaign import fold as campaign_fold
+    from cora.campaign.aggregates.campaign import from_stored as campaign_from_stored
+
+    store = InMemoryEventStore()
+    _, _, _, _, plan_id, subject_id = await _seed_full_chain(store)
+    campaign_id = uuid4()
+    lead = uuid4()
+    await _seed_campaign_active(store, campaign_id, lead)
+
+    deps = build_deps(
+        ids=[_NEW_ID, _EVENT_ID, uuid4()],  # run-id + 2 event-ids
+        now=_NOW,
+        event_store=store,
+    )
+    handler = start_run.bind(deps)
+
+    result = await handler(
+        StartRun(
+            name="Member",
+            plan_id=plan_id,
+            subject_id=subject_id,
+            campaign_id=campaign_id,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert result == _NEW_ID
+
+    # Run stream: RunStarted with campaign_id on payload.
+    run_events, run_version = await store.load("Run", _NEW_ID)
+    assert run_version == 1
+    assert run_events[0].event_type == "RunStarted"
+    assert run_events[0].payload["campaign_id"] == str(campaign_id)
+
+    # Campaign stream: 2 seed events + the membership-add event.
+    campaign_stored, campaign_version = await store.load("Campaign", campaign_id)
+    assert campaign_version == 3
+    assert campaign_stored[-1].event_type == "CampaignRunAdded"
+    assert campaign_stored[-1].payload["run_id"] == str(_NEW_ID)
+    state = campaign_fold([campaign_from_stored(s) for s in campaign_stored])
+    assert state is not None
+    assert _NEW_ID in state.run_ids
+
+
+@pytest.mark.unit
+async def test_handler_raises_campaign_not_found_when_campaign_missing() -> None:
+    from cora.campaign.aggregates.campaign import CampaignNotFoundError
+
+    store = InMemoryEventStore()
+    _, _, _, _, plan_id, subject_id = await _seed_full_chain(store)
+    bogus_campaign_id = uuid4()
+
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    handler = start_run.bind(deps)
+
+    with pytest.raises(CampaignNotFoundError):
+        await handler(
+            StartRun(
+                name="Run",
+                plan_id=plan_id,
+                subject_id=subject_id,
+                campaign_id=bogus_campaign_id,
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+@pytest.mark.unit
+async def test_handler_raises_cannot_join_for_terminal_campaign() -> None:
+    """Phase 6i-c: starting a Run into a Closed Campaign raises 409
+    RunCannotJoinCampaignError."""
+    from cora.run.aggregates.run import RunCannotJoinCampaignError
+
+    store = InMemoryEventStore()
+    _, _, _, _, plan_id, subject_id = await _seed_full_chain(store)
+    campaign_id = uuid4()
+    await _seed_campaign_closed(store, campaign_id, uuid4())
+
+    deps = build_deps(
+        ids=[_NEW_ID, _EVENT_ID, uuid4()],
+        now=_NOW,
+        event_store=store,
+    )
+    handler = start_run.bind(deps)
+
+    with pytest.raises(RunCannotJoinCampaignError) as exc:
+        await handler(
+            StartRun(
+                name="Run",
+                plan_id=plan_id,
+                subject_id=subject_id,
+                campaign_id=campaign_id,
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert exc.value.campaign_status == "Closed"
+
+
+@pytest.mark.unit
+async def test_handler_without_campaign_id_uses_single_stream_append() -> None:
+    """Phase 6i-c: backward-compat path. No campaign_id means the
+    handler writes only the Run stream (single-stream append)."""
+    store = InMemoryEventStore()
+    _, _, _, _, plan_id, subject_id = await _seed_full_chain(store)
+
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    handler = start_run.bind(deps)
+
+    result = await handler(
+        StartRun(name="Standalone", plan_id=plan_id, subject_id=subject_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert result == _NEW_ID
+    run_events, _ = await store.load("Run", _NEW_ID)
+    assert run_events[0].payload.get("campaign_id") is None

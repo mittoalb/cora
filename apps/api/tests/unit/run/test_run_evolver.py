@@ -615,3 +615,170 @@ def test_legacy_pre_6f5b_stream_folds_with_none_reading_logbook_id() -> None:
     assert state is not None
     assert state.reading_logbook_id is None
     assert state.status is RunStatus.COMPLETED
+
+
+# ---------- Phase 6i-c: campaign_id field + RunCampaignAssigned/Unassigned arms ----------
+
+
+@pytest.mark.unit
+def test_run_started_genesis_seeds_campaign_id_from_event() -> None:
+    """RunStarted carries campaign_id when StartRun.campaign_id was
+    supplied. Evolver passes it through to Run.campaign_id."""
+    run_id = uuid4()
+    campaign_id = uuid4()
+    state = evolve(
+        None,
+        RunStarted(
+            run_id=run_id,
+            name="campaign-bound run",
+            plan_id=uuid4(),
+            subject_id=None,
+            occurred_at=_NOW,
+            campaign_id=campaign_id,
+        ),
+    )
+    assert state.campaign_id == campaign_id
+
+
+@pytest.mark.unit
+def test_run_started_default_campaign_id_is_none() -> None:
+    """Standalone Runs (no StartRun.campaign_id) fold with
+    campaign_id=None."""
+    state = evolve(None, _run_started())
+    assert state.campaign_id is None
+
+
+@pytest.mark.unit
+def test_run_campaign_assigned_sets_campaign_id() -> None:
+    """Phase 6i-c: post-hoc add_run_to_campaign writes
+    RunCampaignAssigned to the Run stream. Evolver sets campaign_id."""
+    from cora.run.aggregates.run.events import RunCampaignAssigned
+
+    run_id = uuid4()
+    campaign_id = uuid4()
+    state = fold(
+        [
+            _run_started(run_id=run_id),
+            RunCampaignAssigned(
+                run_id=run_id,
+                campaign_id=campaign_id,
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.campaign_id == campaign_id
+    # Status preserved (membership orthogonal to lifecycle).
+    assert state.status is RunStatus.RUNNING
+
+
+@pytest.mark.unit
+def test_run_campaign_assigned_on_empty_state_raises() -> None:
+    """RunCampaignAssigned requires prior state (Run must have been
+    started first; the slice's decider enforces this)."""
+    from cora.run.aggregates.run.events import RunCampaignAssigned
+
+    with pytest.raises(ValueError):
+        evolve(
+            None,
+            RunCampaignAssigned(
+                run_id=uuid4(),
+                campaign_id=uuid4(),
+                occurred_at=_NOW,
+            ),
+        )
+
+
+@pytest.mark.unit
+def test_run_campaign_unassigned_clears_campaign_id() -> None:
+    """Phase 6i-c: remove_run_from_campaign writes
+    RunCampaignUnassigned. Evolver clears campaign_id back to None."""
+    from cora.run.aggregates.run.events import (
+        RunCampaignAssigned,
+        RunCampaignUnassigned,
+    )
+
+    run_id = uuid4()
+    campaign_id = uuid4()
+    state = fold(
+        [
+            _run_started(run_id=run_id),
+            RunCampaignAssigned(
+                run_id=run_id,
+                campaign_id=campaign_id,
+                occurred_at=_NOW,
+            ),
+            RunCampaignUnassigned(
+                run_id=run_id,
+                campaign_id=campaign_id,
+                reason="removed",
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.campaign_id is None
+
+
+@pytest.mark.unit
+def test_run_campaign_unassigned_on_empty_state_raises() -> None:
+    from cora.run.aggregates.run.events import RunCampaignUnassigned
+
+    with pytest.raises(ValueError):
+        evolve(
+            None,
+            RunCampaignUnassigned(
+                run_id=uuid4(),
+                campaign_id=uuid4(),
+                reason="x",
+                occurred_at=_NOW,
+            ),
+        )
+
+
+@pytest.mark.unit
+def test_campaign_id_survives_lifecycle_transitions() -> None:
+    """Membership survives Run lifecycle transitions: held -> running
+    -> completed keeps the campaign_id intact."""
+    run_id = uuid4()
+    campaign_id = uuid4()
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="r",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+                campaign_id=campaign_id,
+            ),
+            RunHeld(run_id=run_id, occurred_at=_NOW),
+            RunResumed(run_id=run_id, occurred_at=_NOW),
+            RunCompleted(run_id=run_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.campaign_id == campaign_id
+    assert state.status is RunStatus.COMPLETED
+
+
+@pytest.mark.unit
+def test_legacy_pre_6i_c_stream_folds_with_none_campaign_id() -> None:
+    """Pre-6i-c Runs have no campaign_id on RunStarted (default None).
+    They MUST fold cleanly without membership — additive backward-
+    compat contract mirrors the reading_logbook_id pattern."""
+    run_id = uuid4()
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="Pre-6i-c Run",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+            ),
+            RunCompleted(run_id=run_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.campaign_id is None

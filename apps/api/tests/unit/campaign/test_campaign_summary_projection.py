@@ -89,6 +89,9 @@ def test_projection_metadata() -> None:
             "CampaignResumed",
             "CampaignClosed",
             "CampaignAbandoned",
+            # Phase 6i-c membership arms.
+            "CampaignRunAdded",
+            "CampaignRunRemoved",
         }
     )
 
@@ -102,8 +105,6 @@ def test_projection_does_not_subscribe_to_unrelated_events() -> None:
         "SupplyRegistered",
         "ClearanceRegistered",
         "RunStarted",
-        "CampaignRunAdded",  # 6i-c
-        "CampaignRunRemoved",  # 6i-c
     ):
         assert foreign not in proj.subscribed_event_types
 
@@ -314,10 +315,51 @@ async def test_projection_ignores_unsubscribed_event_type() -> None:
 
 
 @pytest.mark.unit
-async def test_projection_ignores_membership_events_until_6i_c() -> None:
-    """CampaignRunAdded / Removed are out of 6i-b scope (land in 6i-c)."""
+async def test_campaign_run_added_increments_run_count() -> None:
+    """Phase 6i-c: CampaignRunAdded bumps run_count by one."""
     proj = CampaignSummaryProjection()
     conn = AsyncMock()
-    await proj.apply(_stored("CampaignRunAdded", {}), conn)
-    await proj.apply(_stored("CampaignRunRemoved", {}), conn)
-    conn.execute.assert_not_awaited()
+    event = _stored(
+        "CampaignRunAdded",
+        {
+            "campaign_id": str(_CAMPAIGN_ID),
+            "run_id": str(uuid4()),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    conn.execute.assert_awaited_once()
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "UPDATE proj_recipe_campaign_summary" in sql
+    assert "run_count = run_count + 1" in sql
+    assert args.args[1] == _CAMPAIGN_ID
+
+
+@pytest.mark.unit
+async def test_campaign_run_removed_decrements_run_count() -> None:
+    """Phase 6i-c: CampaignRunRemoved drops run_count by one."""
+    proj = CampaignSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "CampaignRunRemoved",
+        {
+            "campaign_id": str(_CAMPAIGN_ID),
+            "run_id": str(uuid4()),
+            "reason": "operator removed",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    conn.execute.assert_awaited_once()
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "UPDATE proj_recipe_campaign_summary" in sql
+    assert "run_count = run_count - 1" in sql
+    assert args.args[1] == _CAMPAIGN_ID

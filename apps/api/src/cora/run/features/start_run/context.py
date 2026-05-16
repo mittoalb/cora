@@ -52,6 +52,7 @@ anything new.
 from dataclasses import dataclass
 from uuid import UUID
 
+from cora.campaign.aggregates.campaign import Campaign
 from cora.equipment.aggregates.asset import Asset
 from cora.infrastructure.ports.caution_lookup import CautionReference
 from cora.infrastructure.ports.clearance_lookup import ClearanceReference
@@ -71,6 +72,14 @@ class RunStartContext:
     `active_cautions` carries every Active Caution attached to the
     Run's scope; the decider does NOT gate on this field, only
     embeds it on the `RunStarted` event payload (Phase 11b-c).
+
+    `campaign` (Phase 6i-c) is None unless `StartRun.campaign_id` was
+    provided. When non-None the decider gates on `campaign.status`
+    being in `{Planned, Active, Held}` (else
+    `RunCannotJoinCampaignError`) and embeds the campaign_id on the
+    `RunStarted` event payload. The handler additionally writes the
+    inverse `CampaignRunAdded` event to the Campaign stream atomically
+    via `EventStore.append_streams`.
     """
 
     plan: Plan
@@ -78,3 +87,4 @@ class RunStartContext:
     assets: dict[UUID, Asset]
     referencing_clearances: tuple[ClearanceReference, ...]
     active_cautions: tuple[CautionReference, ...] = ()
+    campaign: Campaign | None = None

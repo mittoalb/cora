@@ -89,6 +89,10 @@ def test_to_payload_serializes_run_started_with_subject_to_primitives() -> None:
         # event). Defaults to [] when omitted; forward-compat via
         # `payload.get("acknowledged_cautions", [])`.
         "acknowledged_cautions": [],
+        # 6i-c additive payload field for optional Campaign membership
+        # at start time. None when StartRun.campaign_id was not
+        # provided; forward-compat via `payload.get("campaign_id")`.
+        "campaign_id": None,
         "occurred_at": _NOW.isoformat(),
     }
 
@@ -721,4 +725,102 @@ def test_run_reading_logbook_opened_round_trips() -> None:
         occurred_at=_NOW,
     )
     stored = _stored("RunReadingLogbookOpened", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- Phase 6i-c: campaign_id additive on RunStarted + 2 new events ----------
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_run_started_with_campaign_id() -> None:
+    """Phase 6i-c: when StartRun supplied campaign_id, the event payload
+    includes it as a string. Verified end-to-end via the canonical
+    to_payload arm."""
+    run_id = uuid4()
+    plan_id = uuid4()
+    campaign_id = uuid4()
+    event = RunStarted(
+        run_id=run_id,
+        name="campaign-bound run",
+        plan_id=plan_id,
+        subject_id=None,
+        occurred_at=_NOW,
+        campaign_id=campaign_id,
+    )
+    payload = to_payload(event)
+    assert payload["campaign_id"] == str(campaign_id)
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_started_without_campaign_id_as_none() -> None:
+    """Forward-compat: pre-6i-c events have no campaign_id key.
+    from_stored returns None for those, keeping older streams replayable.
+    Mirrors the raid / external_refs / acknowledged_cautions forward-
+    compat pattern."""
+    run_id = uuid4()
+    plan_id = uuid4()
+    stored = _stored(
+        "RunStarted",
+        {
+            "run_id": str(run_id),
+            "name": "Pre-6i-c run",
+            "plan_id": str(plan_id),
+            "subject_id": None,
+            "occurred_at": _NOW.isoformat(),
+            # NOTE: no "campaign_id" key — pre-6i-c shape.
+        },
+    )
+    event = from_stored(stored)
+    assert isinstance(event, RunStarted)
+    assert event.campaign_id is None
+
+
+@pytest.mark.unit
+def test_run_started_campaign_id_round_trips() -> None:
+    """RunStarted with campaign_id round-trips through to_payload +
+    from_stored without loss."""
+    campaign_id = uuid4()
+    original = RunStarted(
+        run_id=uuid4(),
+        name="Run",
+        plan_id=uuid4(),
+        subject_id=None,
+        occurred_at=_NOW,
+        campaign_id=campaign_id,
+    )
+    stored = _stored("RunStarted", to_payload(original))
+    rebuilt = from_stored(stored)
+    assert rebuilt == original
+
+
+@pytest.mark.unit
+def test_run_campaign_assigned_round_trips() -> None:
+    """Phase 6i-c: RunCampaignAssigned (post-hoc membership-assign
+    event written by add_run_to_campaign) round-trips through the
+    codec."""
+    from cora.run.aggregates.run.events import RunCampaignAssigned
+
+    original = RunCampaignAssigned(
+        run_id=uuid4(),
+        campaign_id=uuid4(),
+        occurred_at=_NOW,
+    )
+    stored = _stored("RunCampaignAssigned", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_run_campaign_unassigned_round_trips_with_reason() -> None:
+    """Phase 6i-c: RunCampaignUnassigned (post-hoc membership-remove
+    event written by remove_run_from_campaign) round-trips with the
+    operator-supplied reason."""
+    from cora.run.aggregates.run.events import RunCampaignUnassigned
+
+    original = RunCampaignUnassigned(
+        run_id=uuid4(),
+        campaign_id=uuid4(),
+        reason="moved to a follow-on study",
+        occurred_at=_NOW,
+    )
+    stored = _stored("RunCampaignUnassigned", to_payload(original))
     assert from_stored(stored) == original

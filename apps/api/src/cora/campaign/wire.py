@@ -32,11 +32,13 @@ from uuid import UUID
 
 from cora.campaign.features import (
     abandon_campaign,
+    add_run_to_campaign,
     close_campaign,
     get_campaign,
     hold_campaign,
     list_campaigns,
     register_campaign,
+    remove_run_from_campaign,
     resume_campaign,
     start_campaign,
 )
@@ -57,6 +59,8 @@ class CampaignHandlers:
     resume_campaign: resume_campaign.Handler
     close_campaign: close_campaign.Handler
     abandon_campaign: abandon_campaign.Handler
+    add_run_to_campaign: add_run_to_campaign.Handler
+    remove_run_from_campaign: remove_run_from_campaign.Handler
     get_campaign: get_campaign.Handler
     list_campaigns: list_campaigns.Handler
 
@@ -101,6 +105,16 @@ def wire_campaign(deps: Kernel) -> CampaignHandlers:
         abandon_campaign=with_tracing(
             abandon_campaign.bind(deps),
             command_name="AbandonCampaign",
+            bc=_BC,
+        ),
+        add_run_to_campaign=with_tracing(
+            add_run_to_campaign.bind(deps),
+            command_name="AddRunToCampaign",
+            bc=_BC,
+        ),
+        remove_run_from_campaign=with_tracing(
+            remove_run_from_campaign.bind(deps),
+            command_name="RemoveRunFromCampaign",
             bc=_BC,
         ),
         get_campaign=with_tracing(

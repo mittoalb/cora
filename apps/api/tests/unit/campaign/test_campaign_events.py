@@ -292,3 +292,49 @@ def test_from_stored_rejects_unknown_event_type() -> None:
 def test_event_type_name_matches_class_name() -> None:
     event = CampaignStarted(campaign_id=_CAMPAIGN_ID, occurred_at=_NOW)
     assert event_type_name(event) == "CampaignStarted"
+
+
+# ---------- Phase 6i-c: CampaignRunAdded / CampaignRunRemoved ----------
+
+
+@pytest.mark.unit
+def test_campaign_run_added_round_trips() -> None:
+    from uuid import uuid4
+
+    from cora.campaign.aggregates.campaign import CampaignRunAdded
+
+    original = CampaignRunAdded(
+        campaign_id=_CAMPAIGN_ID,
+        run_id=uuid4(),
+        occurred_at=_NOW,
+    )
+    stored = _stored("CampaignRunAdded", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_campaign_run_removed_round_trips_with_reason() -> None:
+    from uuid import uuid4
+
+    from cora.campaign.aggregates.campaign import CampaignRunRemoved
+
+    original = CampaignRunRemoved(
+        campaign_id=_CAMPAIGN_ID,
+        run_id=uuid4(),
+        reason="moved to follow-on campaign",
+        occurred_at=_NOW,
+    )
+    stored = _stored("CampaignRunRemoved", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_from_stored_rejects_malformed_campaign_run_added_payload() -> None:
+    with pytest.raises(ValueError, match="Malformed CampaignRunAdded payload"):
+        from_stored(_stored("CampaignRunAdded", {}))
+
+
+@pytest.mark.unit
+def test_from_stored_rejects_malformed_campaign_run_removed_payload() -> None:
+    with pytest.raises(ValueError, match="Malformed CampaignRunRemoved payload"):
+        from_stored(_stored("CampaignRunRemoved", {}))

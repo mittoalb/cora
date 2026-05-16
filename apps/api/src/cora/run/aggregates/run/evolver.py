@@ -5,14 +5,16 @@ case forces pyright (and the runtime) to error if a new event type
 is added to `RunEvent` without a matching match arm here.
 
 Status mapping per event type:
-  - `RunStarted`   -> RUNNING   (genesis; the start-event puts the
-                                 Run into the active steady-state)
-  - `RunHeld`      -> HELD      (pause)
-  - `RunResumed`   -> RUNNING   (un-pause; back to the active steady-state)
-  - `RunCompleted` -> COMPLETED (happy-path terminal)
-  - `RunAborted`   -> ABORTED   (emergency-exit terminal)
-  - `RunStopped`   -> STOPPED   (controlled-exit terminal)
-  - `RunTruncated` -> TRUNCATED (partial-data terminal)
+  - `RunStarted`            -> RUNNING   (genesis; the start-event puts the
+                                          Run into the active steady-state)
+  - `RunHeld`               -> HELD      (pause)
+  - `RunResumed`            -> RUNNING   (un-pause; back to the active steady-state)
+  - `RunCompleted`          -> COMPLETED (happy-path terminal)
+  - `RunAborted`            -> ABORTED   (emergency-exit terminal)
+  - `RunStopped`            -> STOPPED   (controlled-exit terminal)
+  - `RunTruncated`          -> TRUNCATED (partial-data terminal)
+  - `RunCampaignAssigned`   -> status preserved; sets campaign_id (Phase 6i-c)
+  - `RunCampaignUnassigned` -> status preserved; clears campaign_id (Phase 6i-c)
 
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
@@ -28,17 +30,25 @@ principle, gate-review 6f-3 L9 lock).
 
 **Critical invariant**: every transition arm MUST carry `id`,
 `name`, `plan_id`, `subject_id`, `raid`, `override_parameters`,
-`effective_parameters`, `triggered_by`, AND `reading_logbook_id`
-through from prior state. Constructing `Run(id=..., name=...,
-plan_id=..., subject_id=..., status=...)` without explicitly
-passing the additive fields would silently WIPE them to defaults
-(empty dict / None). Pinned by the per-transition preserve-fields
-tests.
+`effective_parameters`, `triggered_by`, `reading_logbook_id`,
+`external_refs`, AND `campaign_id` through from prior state.
+Constructing `Run(id=..., name=..., plan_id=..., subject_id=...,
+status=...)` without explicitly passing the additive fields would
+silently WIPE them to defaults (empty dict / None / empty frozenset).
+Pinned by the per-transition preserve-fields tests.
 
 `reading_logbook_id` (Phase 6f-5b) is set by the
 `RunReadingLogbookOpened` arm (lazy open-on-first-write triggered
 by `append_run_reading`); all other arms preserve whatever prior
 state held. Pre-6f-5b streams fold with `reading_logbook_id=None`.
+
+`campaign_id` (Phase 6i-c) is set at genesis from `RunStarted.
+campaign_id` (None when StartRun.campaign_id was not provided), set
+to `event.campaign_id` by the `RunCampaignAssigned` arm, and cleared
+to None by the `RunCampaignUnassigned` arm. All other arms preserve
+prior state's campaign_id (membership survives lifecycle transitions
+like running → held → completed). Pre-6i-c streams fold with
+`campaign_id=None` (forward-compat via payload.get in from_stored).
 
 This evolver previously used `dataclasses.replace(state,
 status=...)` for the transition arms (terse, but no field-add
@@ -60,6 +70,8 @@ from typing import assert_never
 from cora.infrastructure.evolver import require_state
 from cora.run.aggregates.run.events import (
     RunAborted,
+    RunCampaignAssigned,
+    RunCampaignUnassigned,
     RunCompleted,
     RunEvent,
     RunHeld,
@@ -85,6 +97,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
             effective_parameters=effective_parameters,
             triggered_by=triggered_by,
             external_refs=external_refs,
+            campaign_id=campaign_id,
         ):
             _ = state  # RunStarted is the genesis event; prior state ignored.
             return Run(
@@ -101,6 +114,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 external_refs=frozenset(
                     ExternalRef(scheme=ref["scheme"], id=ref["id"]) for ref in external_refs
                 ),
+                campaign_id=campaign_id,
             )
         case RunHeld():
             prior = require_state(state, "RunHeld")
@@ -116,6 +130,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 triggered_by=prior.triggered_by,
                 reading_logbook_id=prior.reading_logbook_id,
                 external_refs=prior.external_refs,
+                campaign_id=prior.campaign_id,
             )
         case RunResumed():
             prior = require_state(state, "RunResumed")
@@ -131,6 +146,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 triggered_by=prior.triggered_by,
                 reading_logbook_id=prior.reading_logbook_id,
                 external_refs=prior.external_refs,
+                campaign_id=prior.campaign_id,
             )
         case RunCompleted():
             prior = require_state(state, "RunCompleted")
@@ -146,6 +162,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 triggered_by=prior.triggered_by,
                 reading_logbook_id=prior.reading_logbook_id,
                 external_refs=prior.external_refs,
+                campaign_id=prior.campaign_id,
             )
         case RunAborted():
             prior = require_state(state, "RunAborted")
@@ -161,6 +178,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 triggered_by=prior.triggered_by,
                 reading_logbook_id=prior.reading_logbook_id,
                 external_refs=prior.external_refs,
+                campaign_id=prior.campaign_id,
             )
         case RunStopped():
             prior = require_state(state, "RunStopped")
@@ -176,6 +194,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 triggered_by=prior.triggered_by,
                 reading_logbook_id=prior.reading_logbook_id,
                 external_refs=prior.external_refs,
+                campaign_id=prior.campaign_id,
             )
         case RunTruncated():
             prior = require_state(state, "RunTruncated")
@@ -191,6 +210,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 triggered_by=prior.triggered_by,
                 reading_logbook_id=prior.reading_logbook_id,
                 external_refs=prior.external_refs,
+                campaign_id=prior.campaign_id,
             )
         case RunReadingLogbookOpened(logbook_id=logbook_id):
             # Lazy open-on-first-write (Phase 6f-5b): preserve all
@@ -209,6 +229,49 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 triggered_by=prior.triggered_by,
                 reading_logbook_id=logbook_id,
                 external_refs=prior.external_refs,
+                campaign_id=prior.campaign_id,
+            )
+        case RunCampaignAssigned(campaign_id=campaign_id):
+            # Phase 6i-c: post-hoc membership assignment from
+            # `add_run_to_campaign` slice. One-Campaign-per-Run invariant
+            # is enforced at the decider (prior campaign_id must be
+            # None); the evolver trusts the event log. Status NOT
+            # touched -- membership is orthogonal to lifecycle.
+            prior = require_state(state, "RunCampaignAssigned")
+            return Run(
+                id=prior.id,
+                name=prior.name,
+                plan_id=prior.plan_id,
+                subject_id=prior.subject_id,
+                raid=prior.raid,
+                status=prior.status,
+                override_parameters=prior.override_parameters,
+                effective_parameters=prior.effective_parameters,
+                triggered_by=prior.triggered_by,
+                reading_logbook_id=prior.reading_logbook_id,
+                external_refs=prior.external_refs,
+                campaign_id=campaign_id,
+            )
+        case RunCampaignUnassigned():
+            # Phase 6i-c: post-hoc membership removal from
+            # `remove_run_from_campaign` slice. Clears campaign_id back
+            # to None. The decider enforces that the prior campaign_id
+            # matches the event's campaign_id; the evolver trusts the
+            # event log. Status NOT touched.
+            prior = require_state(state, "RunCampaignUnassigned")
+            return Run(
+                id=prior.id,
+                name=prior.name,
+                plan_id=prior.plan_id,
+                subject_id=prior.subject_id,
+                raid=prior.raid,
+                status=prior.status,
+                override_parameters=prior.override_parameters,
+                effective_parameters=prior.effective_parameters,
+                triggered_by=prior.triggered_by,
+                reading_logbook_id=prior.reading_logbook_id,
+                external_refs=prior.external_refs,
+                campaign_id=None,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

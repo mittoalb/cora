@@ -34,26 +34,33 @@ from fastapi.responses import JSONResponse
 from cora.campaign.aggregates.campaign import (
     CampaignAlreadyExistsError,
     CampaignCannotAbandonError,
+    CampaignCannotAddRunError,
     CampaignCannotCloseError,
     CampaignCannotHoldError,
+    CampaignCannotRemoveRunError,
     CampaignCannotResumeError,
     CampaignCannotStartError,
     CampaignNotFoundError,
+    CampaignRunAlreadyMemberError,
+    CampaignRunNotMemberError,
     InvalidCampaignAbandonReasonError,
     InvalidCampaignDescriptionError,
     InvalidCampaignExternalIdError,
     InvalidCampaignHoldReasonError,
     InvalidCampaignNameError,
+    InvalidCampaignRunRemoveReasonError,
     InvalidCampaignTagError,
 )
 from cora.campaign.errors import UnauthorizedError
 from cora.campaign.features import (
     abandon_campaign,
+    add_run_to_campaign,
     close_campaign,
     get_campaign,
     hold_campaign,
     list_campaigns,
     register_campaign,
+    remove_run_from_campaign,
     resume_campaign,
     start_campaign,
 )
@@ -122,6 +129,8 @@ def register_campaign_routes(app: FastAPI) -> None:
     app.include_router(resume_campaign.router)
     app.include_router(close_campaign.router)
     app.include_router(abandon_campaign.router)
+    app.include_router(add_run_to_campaign.router)
+    app.include_router(remove_run_from_campaign.router)
     app.include_router(get_campaign.router)
     app.include_router(list_campaigns.router)
     for validation_cls in (
@@ -131,6 +140,8 @@ def register_campaign_routes(app: FastAPI) -> None:
         InvalidCampaignHoldReasonError,
         InvalidCampaignAbandonReasonError,
         InvalidCampaignExternalIdError,
+        # Phase 6i-c membership-mutation validation guard.
+        InvalidCampaignRunRemoveReasonError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (CampaignNotFoundError,):
@@ -143,6 +154,11 @@ def register_campaign_routes(app: FastAPI) -> None:
         CampaignCannotResumeError,
         CampaignCannotCloseError,
         CampaignCannotAbandonError,
+        # Phase 6i-c membership-mutation guards (Campaign-side).
+        CampaignCannotAddRunError,
+        CampaignCannotRemoveRunError,
+        CampaignRunAlreadyMemberError,
+        CampaignRunNotMemberError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

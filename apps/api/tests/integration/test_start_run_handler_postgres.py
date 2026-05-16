@@ -176,6 +176,16 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
         # coverage. Defaults to [] when omitted; forward-compat via
         # `payload.get("external_refs", [])`.
         "external_refs": [],
+        # 11b-c additive payload field for non-blocking CautionLookup at
+        # Run.start (operator-acknowledged caution ids surfaced as a
+        # banner; empty by default when no cautions covered the Run's
+        # targets at start time). Forward-compat via
+        # `payload.get("acknowledged_cautions", [])`.
+        "acknowledged_cautions": [],
+        # 6i-c additive payload field for optional Campaign membership
+        # at start time. None when StartRun.campaign_id was not
+        # provided; forward-compat via `payload.get("campaign_id")`.
+        "campaign_id": None,
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.event_id == run_event_id

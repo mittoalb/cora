@@ -4,7 +4,7 @@ Mirrors the locked event-module shape: event classes, discriminated
 union, `event_type_name`, `to_payload`, `from_stored`, plus the
 `serialize_external_ref` / `deserialize_external_ref` helpers.
 
-Six events ship in 6i-a:
+Six events shipped in 6i-a:
 
   - `CampaignRegistered` -- genesis (Planned)
   - `CampaignStarted`    -- transition (Planned -> Active)
@@ -14,10 +14,17 @@ Six events ship in 6i-a:
   - `CampaignAbandoned`  -- transition (Planned | Active | Held ->
                             Abandoned); reason str
 
-`CampaignRunAdded` / `CampaignRunRemoved` (and the Run-side
-`RunCampaignAssigned` / `RunCampaignUnassigned`) land in 6i-c when
-Run aggregate gains the additive `campaign_id` field. Cross-aggregate
-membership slices use `EventStore.append_streams` then.
+Two events added in 6i-c (cross-aggregate membership):
+
+  - `CampaignRunAdded`   -- run_id unioned into state.run_ids; written
+                            atomically with `RunCampaignAssigned` (or
+                            `RunStarted` on the at-start path) via
+                            `EventStore.append_streams`
+  - `CampaignRunRemoved` -- run_id removed from state.run_ids; written
+                            atomically with `RunCampaignUnassigned`;
+                            `reason: str` REQUIRED on the payload as
+                            per-membership audit breadcrumb (NOT
+                            populated onto `last_status_reason`)
 
 `tags` travels in the genesis payload as a sorted `list[str]` (sorted
 for deterministic payload bytes), reconstructed into
@@ -176,6 +183,51 @@ class CampaignAbandoned:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class CampaignRunAdded:
+    """A Run was added to this Campaign (Phase 6i-c).
+
+    Written to the Campaign's stream by the cross-aggregate
+    `add_run_to_campaign` slice, atomically alongside
+    `RunCampaignAssigned` on the Run's stream (via
+    `EventStore.append_streams`). Also written by `start_run` when
+    `StartRun.campaign_id` is provided (atomic with `RunStarted` on
+    the Run stream).
+
+    The transitioning actor's id lives ONLY on the envelope per the
+    11a-c-1 cross-BC precedent. Membership idempotency is enforced at
+    the decider; the evolver simply unions the run_id into
+    `state.run_ids`.
+    """
+
+    campaign_id: UUID
+    run_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class CampaignRunRemoved:
+    """A Run was removed from this Campaign (Phase 6i-c).
+
+    Written to the Campaign's stream by the cross-aggregate
+    `remove_run_from_campaign` slice, atomically alongside
+    `RunCampaignUnassigned` on the Run's stream.
+
+    `reason: str` (1-500 chars after trim) is REQUIRED per design memo:
+    an operator must say WHY they remove a Run from a Campaign
+    (ungrouping is meaningful). The reason is a per-membership audit
+    breadcrumb, NOT an aggregate-state mutation: the design memo
+    explicitly notes `last_status_reason` is for status-transitions
+    only and is NOT updated by remove. The evolver removes the run_id
+    from `state.run_ids` and leaves `last_status_reason` alone.
+    """
+
+    campaign_id: UUID
+    run_id: UUID
+    reason: str
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Campaign aggregate emits.
 CampaignEvent = (
     CampaignRegistered
@@ -184,6 +236,8 @@ CampaignEvent = (
     | CampaignResumed
     | CampaignClosed
     | CampaignAbandoned
+    | CampaignRunAdded
+    | CampaignRunRemoved
 )
 
 
@@ -257,6 +311,28 @@ def to_payload(event: CampaignEvent) -> dict[str, Any]:
         ):
             return {
                 "campaign_id": str(campaign_id),
+                "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case CampaignRunAdded(
+            campaign_id=campaign_id,
+            run_id=run_id,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "campaign_id": str(campaign_id),
+                "run_id": str(run_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case CampaignRunRemoved(
+            campaign_id=campaign_id,
+            run_id=run_id,
+            reason=reason,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "campaign_id": str(campaign_id),
+                "run_id": str(run_id),
                 "reason": reason,
                 "occurred_at": occurred_at.isoformat(),
             }
@@ -345,6 +421,27 @@ def from_stored(stored: StoredEvent) -> CampaignEvent:
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed CampaignAbandoned payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
+        case "CampaignRunAdded":
+            try:
+                return CampaignRunAdded(
+                    campaign_id=UUID(payload["campaign_id"]),
+                    run_id=UUID(payload["run_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CampaignRunAdded payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
+        case "CampaignRunRemoved":
+            try:
+                return CampaignRunRemoved(
+                    campaign_id=UUID(payload["campaign_id"]),
+                    run_id=UUID(payload["run_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CampaignRunRemoved payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown CampaignEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -357,6 +454,8 @@ __all__ = [
     "CampaignHeld",
     "CampaignRegistered",
     "CampaignResumed",
+    "CampaignRunAdded",
+    "CampaignRunRemoved",
     "CampaignStarted",
     "deserialize_external_ref",
     "event_type_name",

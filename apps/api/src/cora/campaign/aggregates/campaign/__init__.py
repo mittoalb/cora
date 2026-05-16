@@ -6,8 +6,8 @@ Vertical slices that operate on this aggregate live under
 state and event types.
 
 Public surface: enums + VOs + errors + events + evolver +
-load_campaign. 6i-a ships the foundation (register + get + 5 FSM
-transitions: start / hold / resume / close / abandon); 6i-b adds
+load_campaign. 6i-a shipped the foundation (register + get + 5 FSM
+transitions: start / hold / resume / close / abandon); 6i-b added
 the projection + list slice; 6i-c adds the cross-aggregate
 membership slices (add_run / remove_run) plus Run aggregate
 evolution (additive `campaign_id` field).
@@ -20,6 +20,8 @@ from cora.campaign.aggregates.campaign.events import (
     CampaignHeld,
     CampaignRegistered,
     CampaignResumed,
+    CampaignRunAdded,
+    CampaignRunRemoved,
     CampaignStarted,
     deserialize_external_ref,
     event_type_name,
@@ -38,14 +40,18 @@ from cora.campaign.aggregates.campaign.state import (
     Campaign,
     CampaignAlreadyExistsError,
     CampaignCannotAbandonError,
+    CampaignCannotAddRunError,
     CampaignCannotCloseError,
     CampaignCannotHoldError,
+    CampaignCannotRemoveRunError,
     CampaignCannotResumeError,
     CampaignCannotStartError,
     CampaignDescription,
     CampaignIntent,
     CampaignName,
     CampaignNotFoundError,
+    CampaignRunAlreadyMemberError,
+    CampaignRunNotMemberError,
     CampaignStatus,
     CampaignTag,
     InvalidCampaignAbandonReasonError,
@@ -53,6 +59,7 @@ from cora.campaign.aggregates.campaign.state import (
     InvalidCampaignExternalIdError,
     InvalidCampaignHoldReasonError,
     InvalidCampaignNameError,
+    InvalidCampaignRunRemoveReasonError,
     InvalidCampaignTagError,
 )
 
@@ -66,8 +73,10 @@ __all__ = [
     "CampaignAbandoned",
     "CampaignAlreadyExistsError",
     "CampaignCannotAbandonError",
+    "CampaignCannotAddRunError",
     "CampaignCannotCloseError",
     "CampaignCannotHoldError",
+    "CampaignCannotRemoveRunError",
     "CampaignCannotResumeError",
     "CampaignCannotStartError",
     "CampaignClosed",
@@ -79,6 +88,10 @@ __all__ = [
     "CampaignNotFoundError",
     "CampaignRegistered",
     "CampaignResumed",
+    "CampaignRunAdded",
+    "CampaignRunAlreadyMemberError",
+    "CampaignRunNotMemberError",
+    "CampaignRunRemoved",
     "CampaignStarted",
     "CampaignStatus",
     "CampaignTag",
@@ -87,6 +100,7 @@ __all__ = [
     "InvalidCampaignExternalIdError",
     "InvalidCampaignHoldReasonError",
     "InvalidCampaignNameError",
+    "InvalidCampaignRunRemoveReasonError",
     "InvalidCampaignTagError",
     "deserialize_external_ref",
     "event_type_name",

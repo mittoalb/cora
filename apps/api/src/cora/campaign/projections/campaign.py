@@ -59,11 +59,21 @@ resume" stays readable after the resume lands.
 
 ## run_count
 
-Day-1 (6i-b) `run_count` stays at 0 because CampaignRunAdded /
-CampaignRunRemoved events are not yet subscribed (those land in 6i-c
-with the Run aggregate evolution). The column is present on the table
-to keep the 6i-c migration additive (no schema change needed when the
-membership events land).
+`run_count` is denormalized from the Campaign aggregate's
+`run_ids: frozenset[UUID]` (full set lives on the aggregate stream;
+`get_campaign` returns the full set from aggregate state). Maintained
+by 6i-c arms:
+
+  - CampaignRunAdded   -> run_count = run_count + 1
+  - CampaignRunRemoved -> run_count = run_count - 1
+
+The events are written by the cross-aggregate `add_run_to_campaign` /
+`remove_run_from_campaign` slices (and by `start_run` when
+`StartRun.campaign_id` is provided -- atomic with `RunStarted` via
+`EventStore.append_streams`). Out-of-order processing is not a concern:
+the worker processes events in (transaction_id, position) order, so
+`CampaignRunAdded` cannot arrive before its parent
+`CampaignRegistered` for the same campaign_id.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -128,6 +138,20 @@ SET status = 'Abandoned',
 WHERE campaign_id = $1
 """
 
+_UPDATE_RUN_ADDED_SQL = """
+UPDATE proj_recipe_campaign_summary
+SET run_count = run_count + 1,
+    updated_at = now()
+WHERE campaign_id = $1
+"""
+
+_UPDATE_RUN_REMOVED_SQL = """
+UPDATE proj_recipe_campaign_summary
+SET run_count = run_count - 1,
+    updated_at = now()
+WHERE campaign_id = $1
+"""
+
 
 class CampaignSummaryProjection:
     """Maintains the `proj_recipe_campaign_summary` read model."""
@@ -141,6 +165,9 @@ class CampaignSummaryProjection:
             "CampaignResumed",
             "CampaignClosed",
             "CampaignAbandoned",
+            # Phase 6i-c: membership arms maintain run_count denormalization.
+            "CampaignRunAdded",
+            "CampaignRunRemoved",
         }
     )
 
@@ -211,6 +238,26 @@ class CampaignSummaryProjection:
                 UUID(event.payload["campaign_id"]),
                 event.payload["reason"],
                 datetime.fromisoformat(event.payload["occurred_at"]),
+            )
+            return
+
+        if event.event_type == "CampaignRunAdded":
+            # Phase 6i-c: membership add. Increments run_count denorm.
+            # Status / last_status_reason unchanged (membership mutations
+            # are NOT status transitions per design memo lock).
+            await conn.execute(
+                _UPDATE_RUN_ADDED_SQL,
+                UUID(event.payload["campaign_id"]),
+            )
+            return
+
+        if event.event_type == "CampaignRunRemoved":
+            # Phase 6i-c: membership remove. Decrements run_count denorm.
+            # `reason` lives only on the event payload (per-membership
+            # audit breadcrumb); does NOT update last_status_reason.
+            await conn.execute(
+                _UPDATE_RUN_REMOVED_SQL,
+                UUID(event.payload["campaign_id"]),
             )
             return
 
