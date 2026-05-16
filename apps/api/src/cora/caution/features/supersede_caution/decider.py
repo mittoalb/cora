@@ -41,7 +41,7 @@ from cora.caution.aggregates.caution import (
 from cora.caution.features.supersede_caution.command import SupersedeCaution
 from cora.caution.features.supersede_caution.context import CautionSupersessionContext
 
-_SUPERSEDABLE_STATUSES: tuple[CautionStatus, ...] = (CautionStatus.Active,)
+_SUPERSEDABLE_STATUSES: tuple[CautionStatus, ...] = (CautionStatus.ACTIVE,)
 
 
 @dataclass(frozen=True)
@@ -66,12 +66,17 @@ def decide(
     context: CautionSupersessionContext,
     now: datetime,
     new_id: UUID,
+    author_actor_id: UUID,
 ) -> SupersessionEvents:
     """Decide the parent+child events produced by superseding an Active caution.
 
     `state` is conceptually the child's prior state (always None
     because the child is being created here). The parent's state lives
     in `context.parent`.
+
+    `author_actor_id` is handler-injected from the request envelope's
+    `principal_id`; the command surface omits it (mirroring
+    `register_caution`) so callers cannot spoof a different author.
     """
     _ = state  # The child is genesis; this slice never sees a prior child state.
 
@@ -109,7 +114,7 @@ def decide(
             text=text.value,
             workaround=workaround.value,
             tags=frozenset(t.value for t in tags),
-            author_actor_id=command.author_actor_id,
+            author_actor_id=author_actor_id,
             expires_at=command.expires_at,
             propagate_to_children=command.propagate_to_children,
             parent_caution_id=parent.id,

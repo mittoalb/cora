@@ -256,42 +256,66 @@ def from_stored(stored: StoredEvent) -> CautionEvent:
     Dispatches on `stored.event_type`; raises ValueError on unknown
     discriminators so a stream contaminated with foreign event types
     fails loud rather than silently being dropped by the evolver.
+
+    Each arm body is wrapped in a try/except that re-raises malformed
+    payloads as ValueError; mirrors Safety's `deserialize_binding`
+    defensive shape (the outer `deserialize_target` already does this
+    for the polymorphic target subfield, but the arm-level wrap catches
+    every other malformed field too).
+
+    Nullable / defaulted fields (`expires_at`, `parent_caution_id`,
+    `propagate_to_children`) use `payload.get(...)` so future migrations
+    that add new nullable fields remain forward-compat at replay time.
     """
     payload = stored.payload
     match stored.event_type:
         case "CautionRegistered":
-            expires_at_raw = payload["expires_at"]
-            parent_caution_id_raw = payload["parent_caution_id"]
-            return CautionRegistered(
-                caution_id=UUID(payload["caution_id"]),
-                target=deserialize_target(payload["target"]),
-                category=payload["category"],
-                severity=payload["severity"],
-                text=payload["text"],
-                workaround=payload["workaround"],
-                tags=frozenset(payload["tags"]),
-                author_actor_id=UUID(payload["author_actor_id"]),
-                expires_at=(
-                    datetime.fromisoformat(expires_at_raw) if expires_at_raw is not None else None
-                ),
-                propagate_to_children=payload["propagate_to_children"],
-                parent_caution_id=(
-                    UUID(parent_caution_id_raw) if parent_caution_id_raw is not None else None
-                ),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                expires_at_raw = payload.get("expires_at")
+                parent_caution_id_raw = payload.get("parent_caution_id")
+                return CautionRegistered(
+                    caution_id=UUID(payload["caution_id"]),
+                    target=deserialize_target(payload["target"]),
+                    category=payload["category"],
+                    severity=payload["severity"],
+                    text=payload["text"],
+                    workaround=payload["workaround"],
+                    tags=frozenset(payload["tags"]),
+                    author_actor_id=UUID(payload["author_actor_id"]),
+                    expires_at=(
+                        datetime.fromisoformat(expires_at_raw)
+                        if expires_at_raw is not None
+                        else None
+                    ),
+                    propagate_to_children=payload.get("propagate_to_children", False),
+                    parent_caution_id=(
+                        UUID(parent_caution_id_raw) if parent_caution_id_raw is not None else None
+                    ),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CautionRegistered payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "CautionSuperseded":
-            return CautionSuperseded(
-                caution_id=UUID(payload["caution_id"]),
-                by_caution_id=UUID(payload["by_caution_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return CautionSuperseded(
+                    caution_id=UUID(payload["caution_id"]),
+                    by_caution_id=UUID(payload["by_caution_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CautionSuperseded payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "CautionRetired":
-            return CautionRetired(
-                caution_id=UUID(payload["caution_id"]),
-                reason=payload["reason"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return CautionRetired(
+                    caution_id=UUID(payload["caution_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CautionRetired payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown CautionEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

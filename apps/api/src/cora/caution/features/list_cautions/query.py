@@ -1,5 +1,5 @@
 """The `ListCautions` query: intent dataclass for keyset-paginated
-list of cautions from the `proj_caution_active` projection.
+list of cautions from the `proj_caution_summary` projection.
 
 Eight optional filters (target_kind / target_id / category / severity /
 min_severity / status / tag / author_actor_id). The default behavior

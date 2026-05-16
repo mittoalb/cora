@@ -178,7 +178,7 @@ def make_inmemory_kernel(
 
     `caution_lookup` defaults to `AlwaysQuietCautionLookup` (returns
     `[]`) for the same reason: no projection worker, no
-    `proj_caution_active` table. Snapshot-specific tests can override
+    `proj_caution_summary` table. Snapshot-specific tests can override
     with a custom adapter or a fake that returns seeded references.
     """
     return Kernel(

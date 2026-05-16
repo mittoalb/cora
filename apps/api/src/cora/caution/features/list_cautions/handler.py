@@ -1,6 +1,6 @@
 """Application handler for the `list_cautions` query slice.
 
-Reads `proj_caution_active` directly via `deps.pool`. Eight optional
+Reads `proj_caution_summary` directly via `deps.pool`. Eight optional
 filters (target_kind / target_id / category / severity / min_severity /
 status / tag / author_actor_id), each via the declarative
 `$N::<type> IS NULL OR <column> = $N` pattern (tag uses
@@ -143,7 +143,7 @@ WHERE ($2::text IS NULL OR target_kind = $2)
 
 _LIST_NO_CURSOR_SQL = (
     _SELECT_COLUMNS
-    + "FROM proj_caution_active\n"
+    + "FROM proj_caution_summary\n"
     + _FILTER_CLAUSE
     + "ORDER BY registered_at ASC, caution_id ASC\n"
     + "LIMIT $1"
@@ -151,7 +151,7 @@ _LIST_NO_CURSOR_SQL = (
 
 _LIST_WITH_CURSOR_SQL = (
     _SELECT_COLUMNS
-    + "FROM proj_caution_active\n"
+    + "FROM proj_caution_summary\n"
     + _FILTER_CLAUSE
     + "  AND (registered_at, caution_id) > ($10, $11)\n"
     + "ORDER BY registered_at ASC, caution_id ASC\n"

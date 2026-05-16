@@ -73,7 +73,7 @@ def evolve(state: Caution | None, event: CautionEvent) -> Caution:
                 tags=frozenset(CautionTag(t) for t in tags),
                 expires_at=expires_at,
                 propagate_to_children=propagate_to_children,
-                status=CautionStatus.Active,
+                status=CautionStatus.ACTIVE,
                 parent_caution_id=parent_caution_id,
             )
         case CautionSuperseded(by_caution_id=by_caution_id):
@@ -89,7 +89,7 @@ def evolve(state: Caution | None, event: CautionEvent) -> Caution:
                 tags=prior.tags,
                 expires_at=prior.expires_at,
                 propagate_to_children=prior.propagate_to_children,
-                status=CautionStatus.Superseded,
+                status=CautionStatus.SUPERSEDED,
                 parent_caution_id=prior.parent_caution_id,
                 superseded_by_caution_id=by_caution_id,
                 retired_reason=prior.retired_reason,
@@ -107,7 +107,7 @@ def evolve(state: Caution | None, event: CautionEvent) -> Caution:
                 tags=prior.tags,
                 expires_at=prior.expires_at,
                 propagate_to_children=prior.propagate_to_children,
-                status=CautionStatus.Retired,
+                status=CautionStatus.RETIRED,
                 parent_caution_id=prior.parent_caution_id,
                 superseded_by_caution_id=prior.superseded_by_caution_id,
                 retired_reason=CautionRetireReason(reason),

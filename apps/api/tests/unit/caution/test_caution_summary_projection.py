@@ -1,4 +1,4 @@
-"""Unit tests for CautionActiveProjection.
+"""Unit tests for CautionSummaryProjection.
 
 Pins per-event-type apply() dispatch for the 3 subscribed Caution
 events. Postgres-side behavior (CHECK constraints, GIN index round-
@@ -12,7 +12,7 @@ from uuid import uuid4
 
 import pytest
 
-from cora.caution.projections import CautionActiveProjection
+from cora.caution.projections import CautionSummaryProjection
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -84,8 +84,8 @@ def _registered_payload(**overrides: object) -> dict[str, Any]:
 
 @pytest.mark.unit
 def test_projection_metadata() -> None:
-    proj = CautionActiveProjection()
-    assert proj.name == "proj_caution_active"
+    proj = CautionSummaryProjection()
+    assert proj.name == "proj_caution_summary"
     assert proj.subscribed_event_types == frozenset(
         {
             "CautionRegistered",
@@ -98,7 +98,7 @@ def test_projection_metadata() -> None:
 @pytest.mark.unit
 def test_projection_does_not_subscribe_to_unrelated_events() -> None:
     """Foreign event types belong to other projections."""
-    proj = CautionActiveProjection()
+    proj = CautionSummaryProjection()
     for foreign in (
         "AssetRegistered",
         "SupplyRegistered",
@@ -110,7 +110,7 @@ def test_projection_does_not_subscribe_to_unrelated_events() -> None:
 
 @pytest.mark.unit
 async def test_caution_registered_inserts_with_active_status_and_null_audit() -> None:
-    proj = CautionActiveProjection()
+    proj = CautionSummaryProjection()
     conn = _conn_with_savepoint()
     event = _stored("CautionRegistered", _registered_payload())
 
@@ -121,7 +121,7 @@ async def test_caution_registered_inserts_with_active_status_and_null_audit() ->
     args = conn.execute.await_args
     assert args is not None
     sql = args.args[0]
-    assert "INSERT INTO proj_caution_active" in sql
+    assert "INSERT INTO proj_caution_summary" in sql
     assert "ON CONFLICT (caution_id) DO NOTHING" in sql
     assert "'Active'" in sql  # status literal
     # Bound parameters (positional):
@@ -146,7 +146,7 @@ async def test_caution_registered_inserts_with_active_status_and_null_audit() ->
 
 @pytest.mark.unit
 async def test_caution_registered_with_procedure_target_and_expires_at() -> None:
-    proj = CautionActiveProjection()
+    proj = CautionSummaryProjection()
     conn = _conn_with_savepoint()
     expires = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
     event = _stored(
@@ -175,7 +175,7 @@ async def test_caution_registered_with_procedure_target_and_expires_at() -> None
 @pytest.mark.unit
 async def test_caution_registered_supersession_child_carries_parent_caution_id() -> None:
     """Supersession child genesis has parent_caution_id set to the parent's UUID."""
-    proj = CautionActiveProjection()
+    proj = CautionSummaryProjection()
     conn = _conn_with_savepoint()
     event = _stored(
         "CautionRegistered",
@@ -191,7 +191,7 @@ async def test_caution_registered_supersession_child_carries_parent_caution_id()
 
 @pytest.mark.unit
 async def test_caution_superseded_updates_status_and_links_child() -> None:
-    proj = CautionActiveProjection()
+    proj = CautionSummaryProjection()
     conn = AsyncMock()
     event = _stored(
         "CautionSuperseded",
@@ -208,7 +208,7 @@ async def test_caution_superseded_updates_status_and_links_child() -> None:
     args = conn.execute.await_args
     assert args is not None
     sql = args.args[0]
-    assert "UPDATE proj_caution_active" in sql
+    assert "UPDATE proj_caution_summary" in sql
     assert "status = 'Superseded'" in sql
     assert "superseded_by_caution_id = $2" in sql
     assert args.args[1] == _CAUTION_ID
@@ -218,7 +218,7 @@ async def test_caution_superseded_updates_status_and_links_child() -> None:
 
 @pytest.mark.unit
 async def test_caution_retired_updates_status_and_reason() -> None:
-    proj = CautionActiveProjection()
+    proj = CautionSummaryProjection()
     conn = AsyncMock()
     event = _stored(
         "CautionRetired",
@@ -235,7 +235,7 @@ async def test_caution_retired_updates_status_and_reason() -> None:
     args = conn.execute.await_args
     assert args is not None
     sql = args.args[0]
-    assert "UPDATE proj_caution_active" in sql
+    assert "UPDATE proj_caution_summary" in sql
     assert "status = 'Retired'" in sql
     assert "retired_reason = $2" in sql
     assert args.args[1] == _CAUTION_ID
@@ -247,7 +247,7 @@ async def test_caution_retired_updates_status_and_reason() -> None:
 async def test_projection_ignores_unsubscribed_event_type() -> None:
     """Foreign event types passed to apply() are no-ops (the worker should never
     deliver them, but defensive guard ensures we don't crash on contamination)."""
-    proj = CautionActiveProjection()
+    proj = CautionSummaryProjection()
     conn = AsyncMock()
     await proj.apply(_stored("ImaginaryEvent", {}), conn)
     conn.execute.assert_not_awaited()

@@ -1,10 +1,14 @@
--- Phase 11b-b: Caution BC's first projection -- active cautions read model.
+-- Phase 11b-b: Caution BC's first projection -- caution summary read model.
 --
 -- Folds the Caution aggregate's lifecycle events into the
--- `proj_caution_active` read model used by the `list_cautions` slice
+-- `proj_caution_summary` read model used by the `list_cautions` slice
 -- for `GET /cautions` keyset-paginated list endpoint with optional
 -- target_kind / target_id / category / severity / min_severity / status /
 -- tag / author_actor_id filters.
+--
+-- Naming: the table contains rows for every lifecycle state (Active,
+-- Superseded, Retired); the partial `..._target_active_idx` carries
+-- the "Active hot-path" intent at the index layer.
 --
 -- Subscribed events:
 --   - CautionRegistered  -> INSERT (status='Active', last_status_changed_at=NULL,
@@ -59,7 +63,7 @@
 --
 -- Mutable read model. cora_app gets full DML.
 
-CREATE TABLE proj_caution_active (
+CREATE TABLE proj_caution_summary (
     caution_id                UUID        PRIMARY KEY,
     target_kind               TEXT        NOT NULL CHECK (
         target_kind IN ('Asset', 'Procedure')
@@ -94,26 +98,27 @@ CREATE TABLE proj_caution_active (
 );
 
 -- Keyset pagination on `(registered_at, caution_id)`.
-CREATE INDEX proj_caution_active_keyset_idx
-    ON proj_caution_active (registered_at, caution_id);
+CREATE INDEX proj_caution_summary_keyset_idx
+    ON proj_caution_summary (registered_at, caution_id);
 
 -- Hot-path partial index for "all Active cautions on this target"
 -- (Run.start banner lookup in 11b-c, plus list_cautions default scope).
-CREATE INDEX proj_caution_active_target_active_idx
-    ON proj_caution_active (target_kind, target_id)
+-- Keeps the "_target_active" name as the partial-filter signal.
+CREATE INDEX proj_caution_summary_target_active_idx
+    ON proj_caution_summary (target_kind, target_id)
     WHERE status = 'Active';
 
 -- GIN index for `$N = ANY(tags)` filter on list_cautions.
-CREATE INDEX proj_caution_active_tags_gin_idx
-    ON proj_caution_active USING GIN (tags);
+CREATE INDEX proj_caution_summary_tags_gin_idx
+    ON proj_caution_summary USING GIN (tags);
 
 -- "Cautions I authored" filter (operator dashboard).
-CREATE INDEX proj_caution_active_author_idx
-    ON proj_caution_active (author_actor_id);
+CREATE INDEX proj_caution_summary_author_idx
+    ON proj_caution_summary (author_actor_id);
 
 GRANT SELECT, INSERT, UPDATE, DELETE
-    ON proj_caution_active TO cora_app;
+    ON proj_caution_summary TO cora_app;
 
 INSERT INTO projection_bookmarks (name)
-VALUES ('proj_caution_active')
+VALUES ('proj_caution_summary')
 ON CONFLICT DO NOTHING;

@@ -73,7 +73,6 @@ from tests.unit.subject._asset_helper import seed_active_asset
 _NOW = datetime(2026, 5, 17, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-00000000e001")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-00000000e002")
-_AUTHOR_ID = UUID("01900000-0000-7000-8000-00000000e003")
 
 
 async def _seed_upstream_chain(
@@ -218,17 +217,16 @@ async def _seed_active_caution_on_asset(
     deps: Kernel,
     *,
     asset_id: UUID,
-    severity: CautionSeverity = CautionSeverity.Caution,
+    severity: CautionSeverity = CautionSeverity.CAUTION,
     text: str = "hexapod stalls below 0.5 mm/s",
 ) -> UUID:
     return await register_caution.bind(deps)(
         RegisterCaution(
             target=AssetTarget(asset_id=asset_id),
-            category=CautionCategory.Wear,
+            category=CautionCategory.WEAR,
             severity=severity,
             text=text,
             workaround="run at 0.6 mm/s",
-            author_actor_id=_AUTHOR_ID,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -310,7 +308,7 @@ async def test_run_start_excludes_retired_caution_from_snapshot(
     await _walk_clearance_to_active(deps, subject_id)
     retired_id = await _seed_active_caution_on_asset(deps, asset_id=asset_id)
     await retire_caution.bind(deps)(
-        RetireCaution(caution_id=retired_id, reason=CautionRetireReason.Resolved),
+        RetireCaution(caution_id=retired_id, reason=CautionRetireReason.RESOLVED),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

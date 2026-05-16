@@ -1,4 +1,4 @@
-"""End-to-end: `list_cautions` handler + CautionActiveProjection against
+"""End-to-end: `list_cautions` handler + CautionSummaryProjection against
 real Postgres.
 
 Pins:
@@ -51,7 +51,6 @@ _NOW = datetime(2026, 5, 17, 12, 0, 0, tzinfo=UTC)
 _LATER = datetime(2026, 5, 17, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-_AUTHOR_ID = UUID("01900000-0000-7000-8000-00000000a001")
 
 
 def _build_deps(pool: asyncpg.Pool, ids: list[UUID], now: datetime = _NOW) -> Kernel:
@@ -68,8 +67,8 @@ def _register_command(
     target_asset_id: UUID,
     *,
     text: str = "hexapod stalls below 0.5 mm/s",
-    category: CautionCategory = CautionCategory.Wear,
-    severity: CautionSeverity = CautionSeverity.Caution,
+    category: CautionCategory = CautionCategory.WEAR,
+    severity: CautionSeverity = CautionSeverity.CAUTION,
     tags: frozenset[str] = frozenset(),
     propagate_to_children: bool = False,
 ) -> RegisterCaution:
@@ -79,7 +78,6 @@ def _register_command(
         severity=severity,
         text=text,
         workaround="run at 0.6 mm/s",
-        author_actor_id=_AUTHOR_ID,
         tags=tags,
         propagate_to_children=propagate_to_children,
     )
@@ -104,7 +102,7 @@ async def test_register_inserts_active_with_null_audit_columns(db_pool: asyncpg.
             "last_status_changed_at, parent_caution_id, "
             "superseded_by_caution_id, retired_reason, "
             "propagate_to_children, tags "
-            "FROM proj_caution_active WHERE caution_id = $1",
+            "FROM proj_caution_summary WHERE caution_id = $1",
             caution_id,
         )
     assert row is not None
@@ -135,7 +133,7 @@ async def test_retire_updates_status_reason_and_audit_ts(db_pool: asyncpg.Pool) 
     )
     later_deps = _build_deps(db_pool, [uuid4()], now=_LATER)
     await retire_caution.bind(later_deps)(
-        RetireCaution(caution_id=caution_id, reason=CautionRetireReason.Resolved),
+        RetireCaution(caution_id=caution_id, reason=CautionRetireReason.RESOLVED),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -144,7 +142,7 @@ async def test_retire_updates_status_reason_and_audit_ts(db_pool: asyncpg.Pool) 
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT status, retired_reason, last_status_changed_at "
-            "FROM proj_caution_active WHERE caution_id = $1",
+            "FROM proj_caution_summary WHERE caution_id = $1",
             caution_id,
         )
     assert row is not None
@@ -174,11 +172,10 @@ async def test_supersede_updates_parent_row_and_inserts_child_with_parent_link(
         SupersedeCaution(
             parent_caution_id=parent_id,
             target=AssetTarget(asset_id=asset_id),
-            category=CautionCategory.Wear,
-            severity=CautionSeverity.Warning,
+            category=CautionCategory.WEAR,
+            severity=CautionSeverity.WARNING,
             text="hexapod stalls below 0.7 mm/s after recalibration",
             workaround="run at 0.8 mm/s",
-            author_actor_id=_AUTHOR_ID,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -188,12 +185,12 @@ async def test_supersede_updates_parent_row_and_inserts_child_with_parent_link(
     async with db_pool.acquire() as conn:
         parent_row = await conn.fetchrow(
             "SELECT status, superseded_by_caution_id, last_status_changed_at "
-            "FROM proj_caution_active WHERE caution_id = $1",
+            "FROM proj_caution_summary WHERE caution_id = $1",
             parent_id,
         )
         child_row = await conn.fetchrow(
             "SELECT status, parent_caution_id, severity "
-            "FROM proj_caution_active WHERE caution_id = $1",
+            "FROM proj_caution_summary WHERE caution_id = $1",
             child_id,
         )
 
@@ -227,7 +224,7 @@ async def test_list_returns_only_active_by_default(db_pool: asyncpg.Pool) -> Non
 
     retire_deps = _build_deps(db_pool, [uuid4()], now=_LATER)
     await retire_caution.bind(retire_deps)(
-        RetireCaution(caution_id=retired_id, reason=CautionRetireReason.Resolved),
+        RetireCaution(caution_id=retired_id, reason=CautionRetireReason.RESOLVED),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -237,11 +234,10 @@ async def test_list_returns_only_active_by_default(db_pool: asyncpg.Pool) -> Non
         SupersedeCaution(
             parent_caution_id=parent_id,
             target=AssetTarget(asset_id=asset_id),
-            category=CautionCategory.Wear,
-            severity=CautionSeverity.Caution,
+            category=CautionCategory.WEAR,
+            severity=CautionSeverity.CAUTION,
             text="revised supersession child",
             workaround="run slower still",
-            author_actor_id=_AUTHOR_ID,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -280,7 +276,7 @@ async def test_list_status_all_returns_every_caution_row(db_pool: asyncpg.Pool) 
 
     retire_deps = _build_deps(db_pool, [uuid4()], now=_LATER)
     await retire_caution.bind(retire_deps)(
-        RetireCaution(caution_id=retired_id, reason=CautionRetireReason.WrongTarget),
+        RetireCaution(caution_id=retired_id, reason=CautionRetireReason.WRONG_TARGET),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -317,11 +313,10 @@ async def test_list_filters_by_target_kind_and_target_id(db_pool: asyncpg.Pool) 
         await register_caution.bind(deps)(
             RegisterCaution(
                 target=target,
-                category=CautionCategory.Wear,
-                severity=CautionSeverity.Caution,
+                category=CautionCategory.WEAR,
+                severity=CautionSeverity.CAUTION,
                 text=f"caution for {cid}",
                 workaround="see notes",
-                author_actor_id=_AUTHOR_ID,
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
@@ -371,14 +366,14 @@ async def test_list_filters_by_category_severity_min_severity_author_and_tag(
 
     # 3 cautions across the severity ladder + distinct categories + tags.
     seeded: list[tuple[UUID, CautionCategory, CautionSeverity, frozenset[str]]] = [
-        (notice_id, CautionCategory.Wear, CautionSeverity.Notice, frozenset({"alpha"})),
+        (notice_id, CautionCategory.WEAR, CautionSeverity.NOTICE, frozenset({"alpha"})),
         (
             caution_id,
-            CautionCategory.Calibration,
-            CautionSeverity.Caution,
+            CautionCategory.CALIBRATION,
+            CautionSeverity.CAUTION,
             frozenset({"beta", "hexapod"}),
         ),
-        (warning_id, CautionCategory.Wiring, CautionSeverity.Warning, frozenset({"gamma"})),
+        (warning_id, CautionCategory.WIRING, CautionSeverity.WARNING, frozenset({"gamma"})),
     ]
     for cid, cat, sev, tags in seeded:
         deps = _build_deps(db_pool, [cid, uuid4()])
@@ -434,9 +429,10 @@ async def test_list_filters_by_category_severity_min_severity_author_and_tag(
     )
     assert {it.caution_id for it in page.items} == {caution_id}
 
-    # author_actor_id=_AUTHOR_ID -> all 3 rows (they share an author).
+    # author_actor_id=<principal> -> all 3 rows (handler derives the
+    # author from the request envelope's principal_id).
     page = await list_cautions.bind(list_deps)(
-        ListCautions(author_actor_id=_AUTHOR_ID),
+        ListCautions(author_actor_id=_PRINCIPAL_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

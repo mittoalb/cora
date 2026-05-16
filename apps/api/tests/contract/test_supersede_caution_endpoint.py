@@ -1,11 +1,15 @@
 """Contract tests for `POST /cautions/{parent_caution_id}/supersede`."""
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from cora.caution.errors import UnauthorizedError
+from cora.caution.features.supersede_caution.route import (
+    _get_handler as _get_supersede_caution_handler,  # pyright: ignore[reportPrivateUsage]
+)
 
 
 def _register_body(asset_id: str, **overrides: object) -> dict[str, object]:
@@ -15,7 +19,6 @@ def _register_body(asset_id: str, **overrides: object) -> dict[str, object]:
         "severity": "Caution",
         "text": "original",
         "workaround": "original workaround",
-        "author_actor_id": str(uuid4()),
     }
     base.update(overrides)
     return base
@@ -28,7 +31,6 @@ def _supersede_body(asset_id: str, **overrides: object) -> dict[str, object]:
         "severity": "Caution",
         "text": "updated text",
         "workaround": "updated workaround",
-        "author_actor_id": str(uuid4()),
     }
     base.update(overrides)
     return base
@@ -105,3 +107,21 @@ def test_post_supersede_returns_400_when_workaround_blank() -> None:
         body["workaround"] = "    "
         response = client.post(f"/cautions/{parent_id}/supersede", json=body)
     assert response.status_code == 400
+
+
+@pytest.mark.contract
+def test_post_supersede_returns_403_when_authorize_denies() -> None:
+    app = create_app()
+
+    async def fake_handler(*args: object, **kwargs: object) -> UUID:
+        _ = (args, kwargs)
+        raise UnauthorizedError("denied for test")
+
+    app.dependency_overrides[_get_supersede_caution_handler] = lambda: fake_handler
+    with TestClient(app) as client:
+        response = client.post(
+            f"/cautions/{uuid4()}/supersede",
+            json=_supersede_body(str(uuid4())),
+        )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "denied for test"

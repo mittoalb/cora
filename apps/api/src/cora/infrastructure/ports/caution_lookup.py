@@ -14,7 +14,7 @@ aggregate.
 
 This is the third cross-BC port (after `Authorize` and
 `ClearanceLookup`): one implementor (Caution BC ships
-`PostgresCautionLookup` reading `proj_caution_active`), many consumers
+`PostgresCautionLookup` reading `proj_caution_summary`), many consumers
 (Run today; possibly Procedure / Operation later). Lives in
 `cora.infrastructure.ports` per the existing pattern (`Authorize`,
 `ClearanceLookup`, `EventStore`, `IdempotencyStore`, `Clock`,
@@ -30,7 +30,7 @@ projection's columns to this shape.
 Per Khononov / Cockburn / Herberto Graça: cross-BC integration at
 command time should go through a port that the consumer shapes,
 with the implementor providing the adapter. Replicated read models
-(here: `proj_caution_active`) are the modern recommendation over
+(here: `proj_caution_summary`) are the modern recommendation over
 synchronous calls to the upstream aggregate, because the projection
 is already a denormalized cross-stream view.
 
@@ -56,13 +56,22 @@ severity, count, or category.
 """
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
 from uuid import UUID
+
+# Local Literal mirroring `CautionSeverity` string values. Defined here
+# (not imported from `cora.caution.aggregates.caution`) because tach
+# forbids `cora.infrastructure -> cora.caution.aggregates`: the
+# infrastructure layer depends on nothing in the cora package. The
+# typing wins (callers get a checked enum-shaped set; indexing the
+# adapter's ordinal map raises KeyError instead of silently defaulting
+# on an unknown string) are the same as a typed enum import.
+MinSeverity = Literal["Notice", "Caution", "Warning"]
 
 
 @dataclass(frozen=True)
 class CautionReference:
-    """Summary row from `proj_caution_active` for the Run.start non-blocking banner.
+    """Summary row from `proj_caution_summary` for the Run.start non-blocking banner.
 
     Carries the minimal columns the start_run handler embeds in the
     `RunStarted.acknowledged_cautions` payload tuple. Loaded by the
@@ -96,7 +105,7 @@ class CautionLookup(Protocol):
         *,
         asset_ids: frozenset[UUID],
         procedure_ids: frozenset[UUID],
-        min_severity: str = "Caution",
+        min_severity: MinSeverity = "Caution",
     ) -> list[CautionReference]:
         """Return every Active caution whose target references the Run's scope.
 
@@ -144,7 +153,7 @@ class AlwaysQuietCautionLookup:
         *,
         asset_ids: frozenset[UUID],
         procedure_ids: frozenset[UUID],
-        min_severity: str = "Caution",
+        min_severity: MinSeverity = "Caution",
     ) -> list[CautionReference]:
         _ = asset_ids  # unused (stub never surfaces any cautions)
         _ = procedure_ids  # unused

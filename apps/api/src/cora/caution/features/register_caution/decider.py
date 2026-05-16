@@ -50,8 +50,15 @@ def decide(
     *,
     now: datetime,
     new_id: UUID,
+    author_actor_id: UUID,
 ) -> list[CautionRegistered]:
-    """Decide the events produced by registering a new caution."""
+    """Decide the events produced by registering a new caution.
+
+    `author_actor_id` is handler-injected from the request envelope's
+    `principal_id` (not on the command). At register time author and
+    principal are equal by construction; the command surface omits the
+    field so callers cannot spoof a different author.
+    """
     if state is not None:
         raise CautionAlreadyExistsError(state.id)
 
@@ -72,7 +79,7 @@ def decide(
             text=text.value,
             workaround=workaround.value,
             tags=frozenset(t.value for t in tags),
-            author_actor_id=command.author_actor_id,
+            author_actor_id=author_actor_id,
             expires_at=command.expires_at,
             propagate_to_children=command.propagate_to_children,
             parent_caution_id=None,

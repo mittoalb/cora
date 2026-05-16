@@ -42,7 +42,6 @@ class SupersedeCautionRequest(BaseModel):
     severity: CautionSeverity
     text: str = Field(..., min_length=1, max_length=CAUTION_TEXT_MAX_LENGTH)
     workaround: str = Field(..., min_length=1, max_length=CAUTION_WORKAROUND_MAX_LENGTH)
-    author_actor_id: UUID
     tags: list[str] = Field(default_factory=list)
     expires_at: datetime | None = Field(default=None)
     propagate_to_children: bool = Field(default=False)
@@ -65,7 +64,6 @@ def _command_from_request(
         severity=body.severity,
         text=body.text,
         workaround=body.workaround,
-        author_actor_id=body.author_actor_id,
         tags=frozenset(body.tags),
         expires_at=body.expires_at,
         propagate_to_children=body.propagate_to_children,

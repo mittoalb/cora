@@ -87,10 +87,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 description="REQUIRED. What does the operator do about it?",
             ),
         ],
-        author_actor_id: Annotated[
-            UUID,
-            Field(description="The Actor who authored this caution."),
-        ],
         tags: Annotated[
             list[str] | None,
             Field(
@@ -116,7 +112,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 severity=severity,
                 text=text,
                 workaround=workaround,
-                author_actor_id=author_actor_id,
                 tags=frozenset(tags or []),
                 expires_at=expires_at,
                 propagate_to_children=propagate_to_children,

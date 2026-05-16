@@ -91,9 +91,9 @@ class CautionStatus(StrEnum):
     Anti-hooks.
     """
 
-    Active = "Active"
-    Superseded = "Superseded"
-    Retired = "Retired"
+    ACTIVE = "Active"
+    SUPERSEDED = "Superseded"
+    RETIRED = "Retired"
 
 
 class CautionSeverity(StrEnum):
@@ -109,9 +109,9 @@ class CautionSeverity(StrEnum):
                       but hasn't formalised
     """
 
-    Notice = "Notice"
-    Caution = "Caution"
-    Warning = "Warning"
+    NOTICE = "Notice"
+    CAUTION = "Caution"
+    WARNING = "Warning"
 
 
 class CautionCategory(StrEnum):
@@ -124,12 +124,12 @@ class CautionCategory(StrEnum):
     (additive StrEnum); pruning is expensive.
     """
 
-    Wear = "Wear"
-    Calibration = "Calibration"
-    Wiring = "Wiring"
-    OperationalWindow = "OperationalWindow"
-    InterlockQuirk = "InterlockQuirk"
-    ProcedureGotcha = "ProcedureGotcha"
+    WEAR = "Wear"
+    CALIBRATION = "Calibration"
+    WIRING = "Wiring"
+    OPERATIONAL_WINDOW = "OperationalWindow"
+    INTERLOCK_QUIRK = "InterlockQuirk"
+    PROCEDURE_GOTCHA = "ProcedureGotcha"
 
 
 class CautionRetireReason(StrEnum):
@@ -141,9 +141,9 @@ class CautionRetireReason(StrEnum):
     small mental list.
     """
 
-    Resolved = "Resolved"
-    NoLongerApplies = "NoLongerApplies"
-    WrongTarget = "WrongTarget"
+    RESOLVED = "Resolved"
+    NO_LONGER_APPLIES = "NoLongerApplies"
+    WRONG_TARGET = "WrongTarget"
 
 
 # ---------------------------------------------------------------------------
@@ -255,7 +255,7 @@ class CautionCannotSupersedeError(Exception):
         super().__init__(
             f"Caution {caution_id} cannot be superseded: currently in status "
             f"{current_status.value}, supersede_caution requires "
-            f"{CautionStatus.Active.value}"
+            f"{CautionStatus.ACTIVE.value}"
         )
         self.caution_id = caution_id
         self.current_status = current_status
@@ -273,7 +273,7 @@ class CautionCannotRetireError(Exception):
         super().__init__(
             f"Caution {caution_id} cannot be retired: currently in status "
             f"{current_status.value}, retire_caution requires "
-            f"{CautionStatus.Active.value}"
+            f"{CautionStatus.ACTIVE.value}"
         )
         self.caution_id = caution_id
         self.current_status = current_status
@@ -435,7 +435,7 @@ class Caution:
     tags: frozenset[CautionTag] = field(default_factory=frozenset[CautionTag])
     expires_at: datetime | None = None
     propagate_to_children: bool = False
-    status: CautionStatus = CautionStatus.Active
+    status: CautionStatus = CautionStatus.ACTIVE
     parent_caution_id: UUID | None = None
     superseded_by_caution_id: UUID | None = None
     retired_reason: CautionRetireReason | None = None

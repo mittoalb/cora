@@ -74,7 +74,7 @@ async def test_handler_returns_caution_on_hit() -> None:
     )
     assert caution is not None
     assert caution.id == _CAUTION_ID
-    assert caution.status == CautionStatus.Active
+    assert caution.status == CautionStatus.ACTIVE
     assert caution.target == AssetTarget(asset_id=_ASSET_ID)
     assert caution.text.value == "hexapod stalls"
     assert caution.workaround.value == "run slower"

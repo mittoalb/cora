@@ -2,15 +2,21 @@
 
 Carries the caller-controlled fields: the polymorphic `target` (Asset
 or Procedure), the classification (`category` + `severity`), the
-body (`text` + `workaround`), the operator's actor id, optional `tags`
-(empty set allowed), optional `expires_at`, and the hierarchy-
-propagation opt-in flag.
+body (`text` + `workaround`), optional `tags` (empty set allowed),
+optional `expires_at`, and the hierarchy-propagation opt-in flag.
+
+`author_actor_id` is intentionally NOT on the command: the handler
+derives it from the authenticated `principal_id` envelope and passes
+it as a keyword-only argument to the decider. The design memo says
+"at register time they are equal"; enforcing that by construction
+removes the API-surface route for a caller to spoof authorship by
+supplying any UUID.
 
 Server-side concerns (new aggregate id, wall-clock timestamp,
-correlation id, per-event ids) are injected by the handler from
-infrastructure ports, matching the cross-BC create-style command
-shape locked in Access / Trust / Subject / Equipment / Supply /
-Safety.
+correlation id, per-event ids, author_actor_id) are injected by the
+handler from infrastructure ports / the request envelope, matching
+the cross-BC create-style command shape locked in Access / Trust /
+Subject / Equipment / Supply / Safety.
 
 `target` is typed as `CautionTarget` (the day-1 discriminated union
 of `AssetTarget` + `ProcedureTarget`) so callers cannot pass an
@@ -30,7 +36,6 @@ handler-injected `now`, not `datetime.now()`.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from uuid import UUID
 
 from cora.caution.aggregates.caution import (
     CautionCategory,
@@ -48,7 +53,6 @@ class RegisterCaution:
     severity: CautionSeverity
     text: str
     workaround: str
-    author_actor_id: UUID
     tags: frozenset[str] = field(default_factory=frozenset[str])
     expires_at: datetime | None = None
     propagate_to_children: bool = False

@@ -70,10 +70,6 @@ class RegisterCautionRequest(BaseModel):
             "all mandate it). Trimmed at the domain layer."
         ),
     )
-    author_actor_id: UUID = Field(
-        ...,
-        description="The Actor who authored this caution.",
-    )
     tags: list[str] = Field(
         default_factory=list,
         description=(
@@ -168,7 +164,6 @@ async def post_cautions(
             severity=body.severity,
             text=body.text,
             workaround=body.workaround,
-            author_actor_id=body.author_actor_id,
             tags=frozenset(body.tags),
             expires_at=body.expires_at,
             propagate_to_children=body.propagate_to_children,

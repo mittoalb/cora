@@ -15,7 +15,6 @@ def _body(**overrides: object) -> dict[str, object]:
         "severity": "Caution",
         "text": "hexapod stalls",
         "workaround": "run slower",
-        "author_actor_id": str(uuid4()),
     }
     base.update(overrides)
     return base

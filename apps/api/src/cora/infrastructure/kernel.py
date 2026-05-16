@@ -70,7 +70,7 @@ class Kernel:
     BC's `start_run` handler to snapshot operator-authored cautions
     onto the `RunStarted` event payload. Caution BC ships
     `PostgresCautionLookup` as the production adapter (reads
-    `proj_caution_active`). Test environments default to
+    `proj_caution_summary`). Test environments default to
     `AlwaysQuietCautionLookup` (returns `[]`) so existing Run tests
     don't have to seed cautions; snapshot-specific tests override
     with the real adapter explicitly. NON-BLOCKING by construction

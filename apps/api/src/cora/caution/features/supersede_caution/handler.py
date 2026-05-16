@@ -132,6 +132,7 @@ def bind(deps: Kernel) -> Handler:
             context=context,
             now=now,
             new_id=new_id,
+            author_actor_id=principal_id,
         )
 
         parent_new_events = [

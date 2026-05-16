@@ -19,7 +19,6 @@ def _register_body(asset_id: str) -> dict[str, object]:
         "severity": "Caution",
         "text": "original",
         "workaround": "original workaround",
-        "author_actor_id": str(uuid4()),
     }
 
 
@@ -30,7 +29,6 @@ def _supersede_body(asset_id: str, **overrides: object) -> dict[str, object]:
         "severity": "Caution",
         "text": "amended",
         "workaround": "amended workaround",
-        "author_actor_id": str(uuid4()),
     }
     base.update(overrides)
     return base

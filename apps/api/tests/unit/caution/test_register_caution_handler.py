@@ -23,7 +23,6 @@ _NEW_ID = UUID("01900000-0000-7000-8000-00000000f001")
 _EVENT_ID = UUID("01900000-0000-7000-8000-00000000f002")
 _ASSET_ID = UUID("01900000-0000-7000-8000-00000000f003")
 _PROCEDURE_ID = UUID("01900000-0000-7000-8000-00000000f004")
-_AUTHOR_ID = UUID("01900000-0000-7000-8000-00000000f005")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
@@ -44,11 +43,10 @@ def _build_deps(
 def _command(**overrides: object) -> RegisterCaution:
     base: dict[str, object] = {
         "target": AssetTarget(asset_id=_ASSET_ID),
-        "category": CautionCategory.Wear,
-        "severity": CautionSeverity.Caution,
+        "category": CautionCategory.WEAR,
+        "severity": CautionSeverity.CAUTION,
         "text": "hexapod stalls below 0.5 mm/s",
         "workaround": "run at 0.6 mm/s",
-        "author_actor_id": _AUTHOR_ID,
     }
     base.update(overrides)
     return RegisterCaution(**base)  # type: ignore[arg-type]
@@ -87,7 +85,9 @@ async def test_handler_appends_caution_registered_event_to_store() -> None:
     assert stored.payload["severity"] == "Caution"
     assert stored.payload["text"] == "hexapod stalls below 0.5 mm/s"
     assert stored.payload["workaround"] == "run at 0.6 mm/s"
-    assert stored.payload["author_actor_id"] == str(_AUTHOR_ID)
+    # Handler derives author_actor_id from the request envelope's principal_id;
+    # the command surface no longer carries an author field.
+    assert stored.payload["author_actor_id"] == str(_PRINCIPAL_ID)
     assert stored.payload["propagate_to_children"] is False
     assert stored.payload["parent_caution_id"] is None
     assert stored.correlation_id == _CORRELATION_ID

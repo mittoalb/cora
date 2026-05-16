@@ -6,6 +6,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from cora.caution.errors import UnauthorizedError
+from cora.caution.features.get_caution.route import (
+    _get_handler as _get_get_caution_handler,  # pyright: ignore[reportPrivateUsage]
+)
 
 
 def _seed(client: TestClient, **overrides: object) -> tuple[str, dict[str, object]]:
@@ -16,7 +20,6 @@ def _seed(client: TestClient, **overrides: object) -> tuple[str, dict[str, objec
         "severity": "Caution",
         "text": "hexapod stalls below 0.5 mm/s",
         "workaround": "run at 0.6 mm/s",
-        "author_actor_id": str(uuid4()),
         "tags": ["motion", "low-speed"],
     }
     body.update(overrides)
@@ -87,7 +90,6 @@ def test_get_cautions_reflects_superseded_state_after_supersede() -> None:
                 "severity": "Caution",
                 "text": "orig",
                 "workaround": "orig",
-                "author_actor_id": str(uuid4()),
             },
         )
         parent_id = register.json()["caution_id"]
@@ -99,7 +101,6 @@ def test_get_cautions_reflects_superseded_state_after_supersede() -> None:
                 "severity": "Caution",
                 "text": "amended",
                 "workaround": "amended workaround",
-                "author_actor_id": str(uuid4()),
             },
         )
         child_id = supersede.json()["caution_id"]
@@ -114,3 +115,18 @@ def test_get_cautions_reflects_superseded_state_after_supersede() -> None:
     child = child_response.json()
     assert child["status"] == "Active"
     assert child["parent_caution_id"] == parent_id
+
+
+@pytest.mark.contract
+def test_get_cautions_returns_403_when_authorize_denies() -> None:
+    app = create_app()
+
+    async def fake_handler(*args: object, **kwargs: object) -> None:
+        _ = (args, kwargs)
+        raise UnauthorizedError("denied for test")
+
+    app.dependency_overrides[_get_get_caution_handler] = lambda: fake_handler
+    with TestClient(app) as client:
+        response = client.get(f"/cautions/{uuid4()}")
+    assert response.status_code == 403
+    assert response.json()["detail"] == "denied for test"

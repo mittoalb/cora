@@ -37,7 +37,6 @@ _NOW = datetime(2026, 5, 17, 12, 0, 0, tzinfo=UTC)
 _LATER = datetime(2026, 5, 17, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-00000000d001")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-00000000d002")
-_AUTHOR_ID = UUID("01900000-0000-7000-8000-00000000d003")
 
 
 async def _drain(db_pool: asyncpg.Pool) -> None:
@@ -52,8 +51,8 @@ def _register_command(
     target_procedure_id: UUID | None = None,
     text: str = "hexapod stalls below 0.5 mm/s",
     workaround: str = "run at 0.6 mm/s",
-    category: CautionCategory = CautionCategory.Wear,
-    severity: CautionSeverity = CautionSeverity.Caution,
+    category: CautionCategory = CautionCategory.WEAR,
+    severity: CautionSeverity = CautionSeverity.CAUTION,
 ) -> RegisterCaution:
     if target_asset_id is not None:
         target = AssetTarget(asset_id=target_asset_id)
@@ -67,7 +66,6 @@ def _register_command(
         severity=severity,
         text=text,
         workaround=workaround,
-        author_actor_id=_AUTHOR_ID,
     )
 
 
@@ -121,7 +119,7 @@ async def test_notice_severity_filtered_out_by_default_threshold(
     asset_id = uuid4()
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[notice_id, uuid4()])
     await register_caution.bind(deps)(
-        _register_command(target_asset_id=asset_id, severity=CautionSeverity.Notice),
+        _register_command(target_asset_id=asset_id, severity=CautionSeverity.NOTICE),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -162,7 +160,7 @@ async def test_retired_and_superseded_cautions_never_returned(
     )
     deps_r_later = build_postgres_deps(db_pool, now=_LATER, ids=[uuid4()])
     await retire_caution.bind(deps_r_later)(
-        RetireCaution(caution_id=retired_id, reason=CautionRetireReason.Resolved),
+        RetireCaution(caution_id=retired_id, reason=CautionRetireReason.RESOLVED),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -180,11 +178,10 @@ async def test_retired_and_superseded_cautions_never_returned(
         SupersedeCaution(
             parent_caution_id=parent_id,
             target=AssetTarget(asset_id=asset_id),
-            category=CautionCategory.Wear,
-            severity=CautionSeverity.Warning,
+            category=CautionCategory.WEAR,
+            severity=CautionSeverity.WARNING,
             text="recalibrated; tighter limit",
             workaround="run at 0.7 mm/s",
-            author_actor_id=_AUTHOR_ID,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -279,9 +276,9 @@ async def test_sort_order_warning_before_caution_before_notice(
     warning_id = uuid4()
 
     for cid, sev in (
-        (notice_id, CautionSeverity.Notice),
-        (caution_only_id, CautionSeverity.Caution),
-        (warning_id, CautionSeverity.Warning),
+        (notice_id, CautionSeverity.NOTICE),
+        (caution_only_id, CautionSeverity.CAUTION),
+        (warning_id, CautionSeverity.WARNING),
     ):
         deps = build_postgres_deps(db_pool, now=_NOW, ids=[cid, uuid4()])
         await register_caution.bind(deps)(

@@ -84,7 +84,7 @@ async def test_handler_appends_retired_event_on_active_state() -> None:
     deps = _build_deps(event_store=store)
     handler = retire_caution.bind(deps)
     await handler(
-        RetireCaution(caution_id=_CAUTION_ID, reason=CautionRetireReason.Resolved),
+        RetireCaution(caution_id=_CAUTION_ID, reason=CautionRetireReason.RESOLVED),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -103,7 +103,7 @@ async def test_handler_raises_not_found_on_empty_stream() -> None:
     missing = uuid4()
     with pytest.raises(CautionNotFoundError) as exc_info:
         await handler(
-            RetireCaution(caution_id=missing, reason=CautionRetireReason.Resolved),
+            RetireCaution(caution_id=missing, reason=CautionRetireReason.RESOLVED),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -118,7 +118,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     handler = retire_caution.bind(deps)
     with pytest.raises(UnauthorizedError):
         await handler(
-            RetireCaution(caution_id=_CAUTION_ID, reason=CautionRetireReason.Resolved),
+            RetireCaution(caution_id=_CAUTION_ID, reason=CautionRetireReason.RESOLVED),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -132,7 +132,7 @@ async def test_handler_does_not_append_when_denied() -> None:
     handler = retire_caution.bind(deps)
     with pytest.raises(UnauthorizedError):
         await handler(
-            RetireCaution(caution_id=_CAUTION_ID, reason=CautionRetireReason.Resolved),
+            RetireCaution(caution_id=_CAUTION_ID, reason=CautionRetireReason.RESOLVED),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )

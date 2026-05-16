@@ -109,6 +109,7 @@ def bind(deps: Kernel) -> Handler:
             command=command,
             now=now,
             new_id=new_id,
+            author_actor_id=principal_id,
         )
 
         new_events = [

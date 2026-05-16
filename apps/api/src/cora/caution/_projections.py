@@ -3,10 +3,10 @@
 The composition root (`cora.api.main`) calls
 `register_caution_projections(registry, deps)` during the FastAPI
 lifespan to populate the worker's registry. Caution is a single-
-aggregate BC: today only `CautionActiveProjection` exists.
+aggregate BC: today only `CautionSummaryProjection` exists.
 """
 
-from cora.caution.projections import CautionActiveProjection
+from cora.caution.projections import CautionSummaryProjection
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry
 
@@ -17,7 +17,7 @@ def register_caution_projections(
 ) -> None:
     """Register every Caution-owned projection on the worker registry."""
     _ = deps
-    registry.register(CautionActiveProjection())
+    registry.register(CautionSummaryProjection())
 
 
 __all__ = ["register_caution_projections"]

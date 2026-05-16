@@ -1,5 +1,5 @@
-"""CautionActiveProjection: folds the Caution aggregate's events into
-the `proj_caution_active` read model that backs `GET /cautions`.
+"""CautionSummaryProjection: folds the Caution aggregate's events into
+the `proj_caution_summary` read model that backs `GET /cautions`.
 
 Subscribed events:
   - CautionRegistered  -> INSERT (status='Active', last_status_changed_at=NULL,
@@ -63,7 +63,7 @@ from cora.infrastructure.ports.event_store import StoredEvent
 from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_CAUTION_SQL = """
-INSERT INTO proj_caution_active
+INSERT INTO proj_caution_summary
     (caution_id, target_kind, target_id, category, severity, text, workaround,
      author_actor_id, tags, expires_at, propagate_to_children,
      status, parent_caution_id, superseded_by_caution_id, retired_reason,
@@ -76,7 +76,7 @@ ON CONFLICT (caution_id) DO NOTHING
 """
 
 _UPDATE_SUPERSEDED_SQL = """
-UPDATE proj_caution_active
+UPDATE proj_caution_summary
 SET status = 'Superseded',
     superseded_by_caution_id = $2,
     last_status_changed_at = $3,
@@ -85,7 +85,7 @@ WHERE caution_id = $1
 """
 
 _UPDATE_RETIRED_SQL = """
-UPDATE proj_caution_active
+UPDATE proj_caution_summary
 SET status = 'Retired',
     retired_reason = $2,
     last_status_changed_at = $3,
@@ -94,10 +94,10 @@ WHERE caution_id = $1
 """
 
 
-class CautionActiveProjection:
-    """Maintains the `proj_caution_active` read model."""
+class CautionSummaryProjection:
+    """Maintains the `proj_caution_summary` read model."""
 
-    name = "proj_caution_active"
+    name = "proj_caution_summary"
     subscribed_event_types = frozenset(
         {
             "CautionRegistered",
@@ -166,4 +166,4 @@ class CautionActiveProjection:
         return
 
 
-__all__ = ["CautionActiveProjection"]
+__all__ = ["CautionSummaryProjection"]

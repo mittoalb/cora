@@ -1,5 +1,5 @@
 """The `list_cautions` query slice. Cursor-paginated; backed by
-`proj_caution_active`."""
+`proj_caution_summary`."""
 
 from cora.caution.features.list_cautions.handler import (
     CautionListPage,

@@ -23,7 +23,7 @@ from cora.caution.aggregates.caution import (
 )
 from cora.caution.features.retire_caution.command import RetireCaution
 
-_RETIRABLE_STATUSES: tuple[CautionStatus, ...] = (CautionStatus.Active,)
+_RETIRABLE_STATUSES: tuple[CautionStatus, ...] = (CautionStatus.ACTIVE,)
 
 
 def decide(

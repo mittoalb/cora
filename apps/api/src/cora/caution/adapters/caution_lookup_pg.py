@@ -1,4 +1,4 @@
-"""Postgres adapter implementing `CautionLookup` over `proj_caution_active`.
+"""Postgres adapter implementing `CautionLookup` over `proj_caution_summary`.
 
 Consumed by Run BC's `start_run` handler (Phase 11b-c) via the
 `Kernel.caution_lookup` port. Reads the projection's
@@ -11,7 +11,7 @@ Active caution whose target references the Run's scope
 Per modern DDD guidance (Khononov 2021, Herberto Graça 2017,
 Dudycz 2024): cross-BC integration at command time should go
 through a replicated read model, NOT a synchronous call to the
-upstream aggregate. CORA's `proj_caution_active` is exactly that:
+upstream aggregate. CORA's `proj_caution_summary` is exactly that:
 a denormalized cross-stream view maintained by the projection
 worker. The lookup adapter reads it directly via the shared
 asyncpg pool.
@@ -21,7 +21,7 @@ asyncpg pool.
 Single SELECT with three filters: target match (Asset OR Procedure),
 status=Active, and a severity-ordinal threshold computed Python-side
 from `min_severity` (Notice->0 / Caution->1 / Warning->2). The
-projection's `proj_caution_active_target_active_idx` partial index
+projection's `proj_caution_summary_target_active_idx` partial index
 on `(target_kind, target_id) WHERE status = 'Active'` covers the hot
 path.
 
@@ -53,7 +53,7 @@ from uuid import UUID
 
 import asyncpg
 
-from cora.infrastructure.ports.caution_lookup import CautionReference
+from cora.infrastructure.ports.caution_lookup import CautionReference, MinSeverity
 
 _FIND_ACTIVE_FOR_RUN_SQL = """
 SELECT caution_id,
@@ -63,7 +63,7 @@ SELECT caution_id,
        severity,
        LEFT(text, 200)       AS text_excerpt,
        LEFT(workaround, 200) AS workaround_excerpt
-FROM proj_caution_active
+FROM proj_caution_summary
 WHERE status = 'Active'
   AND (
     (target_kind = 'Asset'     AND target_id = ANY($1::uuid[]))
@@ -102,13 +102,14 @@ class PostgresCautionLookup:
         *,
         asset_ids: frozenset[UUID],
         procedure_ids: frozenset[UUID],
-        min_severity: str = "Caution",
+        min_severity: MinSeverity = "Caution",
     ) -> list[CautionReference]:
         # Resolve the severity threshold to an ordinal Python-side so
         # the SQL stays a single SELECT with a CASE-on-severity in the
-        # WHERE clause. Unknown values default to the conservative
-        # `Caution` threshold (matches the Run.start banner default).
-        threshold = _SEVERITY_ORDINAL.get(min_severity, _SEVERITY_ORDINAL["Caution"])
+        # WHERE clause. Direct indexing fails loud on an unknown value;
+        # the port's `MinSeverity` Literal constrains callers at type
+        # time, so a KeyError here means the caller bypassed typing.
+        threshold = _SEVERITY_ORDINAL[min_severity]
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(
                 _FIND_ACTIVE_FOR_RUN_SQL,

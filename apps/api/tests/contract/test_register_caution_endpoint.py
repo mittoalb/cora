@@ -24,7 +24,6 @@ def _body(**overrides: object) -> dict[str, object]:
         "severity": "Caution",
         "text": "hexapod stalls below 0.5 mm/s",
         "workaround": "run at 0.6 mm/s",
-        "author_actor_id": str(uuid4()),
     }
     base.update(overrides)
     return base
@@ -38,6 +37,21 @@ def test_post_cautions_returns_201_with_caution_id_for_asset_target() -> None:
     body = response.json()
     assert "caution_id" in body
     UUID(body["caution_id"])
+
+
+@pytest.mark.contract
+def test_post_cautions_derives_author_actor_id_from_request_principal() -> None:
+    """Author identity is derived from the request envelope's principal_id
+    by the handler (no spoofing path at the API surface)."""
+    from cora.infrastructure.routing import SYSTEM_PRINCIPAL_ID
+
+    with TestClient(create_app()) as client:
+        register = client.post("/cautions", json=_body())
+        assert register.status_code == 201, register.text
+        cid = register.json()["caution_id"]
+        get_response = client.get(f"/cautions/{cid}")
+    assert get_response.status_code == 200
+    assert get_response.json()["author_actor_id"] == str(SYSTEM_PRINCIPAL_ID)
 
 
 @pytest.mark.contract
@@ -104,7 +118,6 @@ def test_post_cautions_rejects_missing_required_fields_with_422() -> None:
                 "target": {"kind": "Asset", "id": str(uuid4())},
                 "category": "Wear",
                 "severity": "Caution",
-                "author_actor_id": str(uuid4()),
                 # text + workaround missing
             },
         )

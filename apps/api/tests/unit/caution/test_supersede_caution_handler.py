@@ -89,11 +89,10 @@ def _command() -> SupersedeCaution:
     return SupersedeCaution(
         parent_caution_id=_PARENT_ID,
         target=AssetTarget(asset_id=_ASSET_ID),
-        category=CautionCategory.Wear,
-        severity=CautionSeverity.Caution,
+        category=CautionCategory.WEAR,
+        severity=CautionSeverity.CAUTION,
         text="updated text",
         workaround="updated workaround",
-        author_actor_id=_AUTHOR_ID,
     )
 
 

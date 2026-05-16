@@ -161,7 +161,7 @@ def test_caution_status_has_three_locked_values() -> None:
 
 @pytest.mark.unit
 def test_caution_status_active_is_initial() -> None:
-    assert CautionStatus.Active.value == "Active"
+    assert CautionStatus.ACTIVE.value == "Active"
 
 
 # ---------- CautionSeverity enum (3 values, ANSI Z535 downshifted) ----------
@@ -238,8 +238,8 @@ def _minimal_caution() -> Caution:
     return Caution(
         id=uuid4(),
         target=AssetTarget(asset_id=uuid4()),
-        category=CautionCategory.Wear,
-        severity=CautionSeverity.Caution,
+        category=CautionCategory.WEAR,
+        severity=CautionSeverity.CAUTION,
         text=CautionText("hexapod stalls below 0.5 mm/s"),
         workaround=CautionWorkaround("run at 0.6 mm/s"),
         author_actor_id=uuid4(),
@@ -250,14 +250,14 @@ def _minimal_caution() -> Caution:
 def test_caution_aggregate_is_frozen() -> None:
     caution = _minimal_caution()
     with pytest.raises(AttributeError):
-        caution.status = CautionStatus.Retired  # type: ignore[misc]
+        caution.status = CautionStatus.RETIRED  # type: ignore[misc]
 
 
 @pytest.mark.unit
 def test_caution_status_defaults_to_active_at_construction() -> None:
     """The dataclass default mirrors the genesis-evolver-sets-Active convention."""
     caution = _minimal_caution()
-    assert caution.status == CautionStatus.Active
+    assert caution.status == CautionStatus.ACTIVE
 
 
 @pytest.mark.unit

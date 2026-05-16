@@ -64,15 +64,15 @@ def test_fold_genesis_lands_in_active() -> None:
     assert state == Caution(
         id=_CAUTION_ID,
         target=AssetTarget(asset_id=_ASSET_ID),
-        category=CautionCategory.Wear,
-        severity=CautionSeverity.Caution,
+        category=CautionCategory.WEAR,
+        severity=CautionSeverity.CAUTION,
         text=CautionText("hexapod stalls below 0.5 mm/s"),
         workaround=CautionWorkaround("run at 0.6 mm/s"),
         author_actor_id=_AUTHOR_ID,
         tags=frozenset({CautionTag("low-speed-stall")}),
         expires_at=None,
         propagate_to_children=False,
-        status=CautionStatus.Active,
+        status=CautionStatus.ACTIVE,
         parent_caution_id=None,
     )
 
@@ -90,7 +90,7 @@ def test_fold_genesis_with_parent_caution_id() -> None:
     state = fold([_genesis(parent_caution_id=parent_id)])
     assert state is not None
     assert state.parent_caution_id == parent_id
-    assert state.status == CautionStatus.Active
+    assert state.status == CautionStatus.ACTIVE
 
 
 # ---------- supersede arm ----------
@@ -110,7 +110,7 @@ def test_fold_genesis_then_superseded_transitions_to_superseded() -> None:
         ]
     )
     assert state is not None
-    assert state.status == CautionStatus.Superseded
+    assert state.status == CautionStatus.SUPERSEDED
     assert state.superseded_by_caution_id == child_id
     # Identity + target preserved.
     assert state.id == _CAUTION_ID
@@ -134,7 +134,7 @@ def test_fold_genesis_then_retired_transitions_to_retired(reason: str) -> None:
         ]
     )
     assert state is not None
-    assert state.status == CautionStatus.Retired
+    assert state.status == CautionStatus.RETIRED
     assert state.retired_reason is not None
     assert state.retired_reason.value == reason
 
@@ -183,6 +183,6 @@ def test_evolver_returns_new_state_does_not_mutate_input() -> None:
             occurred_at=_NOW,
         ),
     )
-    assert initial.status == CautionStatus.Active
-    assert transitioned.status == CautionStatus.Retired
+    assert initial.status == CautionStatus.ACTIVE
+    assert transitioned.status == CautionStatus.RETIRED
     assert transitioned is not initial
