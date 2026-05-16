@@ -40,6 +40,7 @@ Layout:
     tools.py                  -- register_campaign_tools(mcp, get_handlers=...)
 """
 
+from cora.campaign._projections import register_campaign_projections
 from cora.campaign.errors import UnauthorizedError
 from cora.campaign.routes import register_campaign_routes
 from cora.campaign.tools import register_campaign_tools
@@ -48,6 +49,7 @@ from cora.campaign.wire import CampaignHandlers, wire_campaign
 __all__ = [
     "CampaignHandlers",
     "UnauthorizedError",
+    "register_campaign_projections",
     "register_campaign_routes",
     "register_campaign_tools",
     "wire_campaign",

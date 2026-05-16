@@ -48,6 +48,7 @@ from cora.access import (
 from cora.api.middleware import BodySizeLimitMiddleware
 from cora.campaign import (
     CampaignHandlers,
+    register_campaign_projections,
     register_campaign_routes,
     register_campaign_tools,
     wire_campaign,
@@ -315,6 +316,7 @@ def create_app() -> FastAPI:
             register_operation_projections(registry, deps)
             register_safety_projections(registry, deps)
             register_caution_projections(registry, deps)
+            register_campaign_projections(registry, deps)
             app.state.projections = registry
 
             try:

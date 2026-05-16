@@ -52,6 +52,7 @@ from cora.campaign.features import (
     close_campaign,
     get_campaign,
     hold_campaign,
+    list_campaigns,
     register_campaign,
     resume_campaign,
     start_campaign,
@@ -122,6 +123,7 @@ def register_campaign_routes(app: FastAPI) -> None:
     app.include_router(close_campaign.router)
     app.include_router(abandon_campaign.router)
     app.include_router(get_campaign.router)
+    app.include_router(list_campaigns.router)
     for validation_cls in (
         InvalidCampaignNameError,
         InvalidCampaignDescriptionError,

@@ -15,7 +15,7 @@ Subject / Equipment / Supply / Safety / Caution:
      misses both attribute to the tracing span.
   3. `with_tracing` -- OTel span around every handler call.
 
-## Wired handlers (6i-a)
+## Wired handlers (6i-a + 6i-b)
 
   - `register_campaign` (create-style; idempotency-wrapped)
   - `start_campaign`    (transition; no idempotency wrap)
@@ -23,7 +23,8 @@ Subject / Equipment / Supply / Safety / Caution:
   - `resume_campaign`   (transition; no idempotency wrap)
   - `close_campaign`    (transition; no idempotency wrap)
   - `abandon_campaign`  (transition; no idempotency wrap)
-  - `get_campaign`      (query)
+  - `get_campaign`      (query; fold-on-read)
+  - `list_campaigns`    (query; projection-backed; 6i-b)
 """
 
 from dataclasses import dataclass
@@ -34,6 +35,7 @@ from cora.campaign.features import (
     close_campaign,
     get_campaign,
     hold_campaign,
+    list_campaigns,
     register_campaign,
     resume_campaign,
     start_campaign,
@@ -56,6 +58,7 @@ class CampaignHandlers:
     close_campaign: close_campaign.Handler
     abandon_campaign: abandon_campaign.Handler
     get_campaign: get_campaign.Handler
+    list_campaigns: list_campaigns.Handler
 
 
 def wire_campaign(deps: Kernel) -> CampaignHandlers:
@@ -103,6 +106,12 @@ def wire_campaign(deps: Kernel) -> CampaignHandlers:
         get_campaign=with_tracing(
             get_campaign.bind(deps),
             command_name="GetCampaign",
+            bc=_BC,
+            kind="query",
+        ),
+        list_campaigns=with_tracing(
+            list_campaigns.bind(deps),
+            command_name="ListCampaigns",
             bc=_BC,
             kind="query",
         ),

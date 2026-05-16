@@ -15,6 +15,7 @@ from cora.campaign.features.abandon_campaign import tool as abandon_campaign_too
 from cora.campaign.features.close_campaign import tool as close_campaign_tool
 from cora.campaign.features.get_campaign import tool as get_campaign_tool
 from cora.campaign.features.hold_campaign import tool as hold_campaign_tool
+from cora.campaign.features.list_campaigns import tool as list_campaigns_tool
 from cora.campaign.features.register_campaign import tool as register_campaign_tool
 from cora.campaign.features.resume_campaign import tool as resume_campaign_tool
 from cora.campaign.features.start_campaign import tool as start_campaign_tool
@@ -54,4 +55,8 @@ def register_campaign_tools(
     get_campaign_tool.register(
         mcp,
         get_handler=lambda: get_handlers().get_campaign,
+    )
+    list_campaigns_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().list_campaigns,
     )
