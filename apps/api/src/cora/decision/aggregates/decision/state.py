@@ -346,7 +346,7 @@ class DecisionNotFoundError(Exception):
         self.decision_id = decision_id
 
 
-class DeciderActorNotFoundError(Exception):
+class DeciderActorMissingError(Exception):
     """The Actor referenced by `actor_id` does not exist.
 
     Cross-aggregate validation at registration: the handler pre-
@@ -361,7 +361,7 @@ class DeciderActorNotFoundError(Exception):
         self.actor_id = actor_id
 
 
-class ParentDecisionNotFoundError(Exception):
+class ParentDecisionMissingError(Exception):
     """The parent Decision referenced by `parent_id` does not exist.
 
     Cross-aggregate validation at registration: when `parent_id` is

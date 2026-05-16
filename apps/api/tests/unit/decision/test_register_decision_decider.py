@@ -20,7 +20,7 @@ from cora.decision.aggregates.decision import (
     InvalidDecisionInputsError,
     InvalidDecisionReasoningError,
     InvalidDecisionRuleError,
-    ParentDecisionNotFoundError,
+    ParentDecisionMissingError,
 )
 from cora.decision.errors import OverrideKindRequiresParentError
 from cora.decision.features import register_decision
@@ -339,7 +339,7 @@ def test_decide_raises_when_parent_id_set_but_context_missing() -> None:
     """Defensive: if handler skipped its load, decider raises."""
     parent_id = uuid4()
     cmd = _good_command(parent_id=parent_id)
-    with pytest.raises(ParentDecisionNotFoundError):
+    with pytest.raises(ParentDecisionMissingError):
         register_decision.decide(
             state=None,
             command=cmd,

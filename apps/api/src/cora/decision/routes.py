@@ -7,7 +7,7 @@ errors to HTTP status codes.
   - 400 (validation): Invalid<X>...Error family + OverrideKindRequiresParentError
   - 404: DecisionNotFoundError
   - 409 (defensive AlreadyExists): DecisionAlreadyExistsError
-  - 409 (cross-aggregate refs): DeciderActorNotFoundError, ParentDecisionNotFoundError
+  - 409 (cross-aggregate refs): DeciderActorMissingError, ParentDecisionMissingError
 
 ## Cross-BC infra errors NOT registered here
 
@@ -23,7 +23,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from cora.decision.aggregates.decision import (
-    DeciderActorNotFoundError,
+    DeciderActorMissingError,
     DecisionAlreadyExistsError,
     DecisionLogbookAlreadyOpenError,
     DecisionLogbookNotOpenError,
@@ -36,7 +36,7 @@ from cora.decision.aggregates.decision import (
     InvalidDecisionReasoningError,
     InvalidDecisionRuleError,
     InvalidReasoningSignatureError,
-    ParentDecisionNotFoundError,
+    ParentDecisionMissingError,
 )
 from cora.decision.errors import OverrideKindRequiresParentError, UnauthorizedError
 from cora.decision.features import (
@@ -111,7 +111,7 @@ def register_decision_routes(app: FastAPI) -> None:
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (DecisionAlreadyExistsError,):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
-    for cross_agg_cls in (DeciderActorNotFoundError, ParentDecisionNotFoundError):
+    for cross_agg_cls in (DeciderActorMissingError, ParentDecisionMissingError):
         app.add_exception_handler(cross_agg_cls, _handle_cross_agg_conflict)
     # Logbook-state transition guards (at-most-one-open + close-only-when-open
     # invariants from the Decision logbook aggregate); 409 shape mirrors the

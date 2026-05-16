@@ -10,13 +10,13 @@ from 6f-1 (documented in CONTRIBUTING.md).
 
   1. If `command.producing_run_id is not None`:
      `load_run(producing_run_id)` → if None,
-     `ProducingRunNotFoundError` (Data-BC error → 409)
+     `ProducingRunMissingError` (Data-BC error → 409)
   2. If `command.subject_id is not None`:
      `load_subject(subject_id)` → if None,
-     `LinkedSubjectNotFoundError` (Data-BC error → 409)
+     `LinkedSubjectMissingError` (Data-BC error → 409)
   3. For each id in `command.derived_from`:
      `load_dataset(id)` → collect missing ids, raise
-     `DerivedFromDatasetsNotFoundError(missing)` if any
+     `DerivedFromDatasetsMissingError(missing)` if any
 
 Loads run sequentially; could be optimized to async-gather later
 but not the bottleneck at MVP scale.
@@ -34,9 +34,9 @@ from uuid import UUID
 
 from cora.data.aggregates.dataset import (
     Dataset,
-    DerivedFromDatasetsNotFoundError,
-    LinkedSubjectNotFoundError,
-    ProducingRunNotFoundError,
+    DerivedFromDatasetsMissingError,
+    LinkedSubjectMissingError,
+    ProducingRunMissingError,
     event_type_name,
     load_dataset,
     to_payload,
@@ -137,13 +137,13 @@ def bind(deps: Kernel) -> Handler:
         if command.producing_run_id is not None:
             producing_run = await load_run(deps.event_store, command.producing_run_id)
             if producing_run is None:
-                raise ProducingRunNotFoundError(command.producing_run_id)
+                raise ProducingRunMissingError(command.producing_run_id)
 
         subject = None
         if command.subject_id is not None:
             subject = await load_subject(deps.event_store, command.subject_id)
             if subject is None:
-                raise LinkedSubjectNotFoundError(command.subject_id)
+                raise LinkedSubjectMissingError(command.subject_id)
 
         derived_from_loaded: dict[UUID, Dataset] = {}
         missing_derived: list[UUID] = []
@@ -154,7 +154,7 @@ def bind(deps: Kernel) -> Handler:
             else:
                 derived_from_loaded[derived_id] = loaded
         if missing_derived:
-            raise DerivedFromDatasetsNotFoundError(missing_derived)
+            raise DerivedFromDatasetsMissingError(missing_derived)
 
         context = DatasetRegistrationContext(
             producing_run=producing_run,

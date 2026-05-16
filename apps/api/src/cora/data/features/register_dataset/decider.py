@@ -15,7 +15,7 @@ status check for derived_from sources. The decider trusts the
 handler's loads. Specifically:
 
   - If `command.producing_run_id` is set, `context.producing_run`
-    must be non-None (handler raises `ProducingRunNotFoundError`
+    must be non-None (handler raises `ProducingRunMissingError`
     upstream if the Run doesn't exist; this branch validates the
     handler's contract was honoured).
   - If `command.subject_id` is set, `context.subject` must be
@@ -53,9 +53,9 @@ from cora.data.aggregates.dataset import (
     DatasetStatus,
     DatasetUri,
     DerivedFromDatasetsDiscardedError,
-    DerivedFromDatasetsNotFoundError,
-    LinkedSubjectNotFoundError,
-    ProducingRunNotFoundError,
+    DerivedFromDatasetsMissingError,
+    LinkedSubjectMissingError,
+    ProducingRunMissingError,
     validate_byte_size,
     validate_derived_from,
 )
@@ -97,15 +97,15 @@ def decide(
     # the not-found error before we get here; these branches are
     # the decider-level statement of the contract.
     if command.producing_run_id is not None and context.producing_run is None:
-        raise ProducingRunNotFoundError(command.producing_run_id)
+        raise ProducingRunMissingError(command.producing_run_id)
     if command.subject_id is not None and context.subject is None:
-        raise LinkedSubjectNotFoundError(command.subject_id)
+        raise LinkedSubjectMissingError(command.subject_id)
     missing_derived = sorted(
         (d for d in derived_from if d not in context.derived_from),
         key=str,
     )
     if missing_derived:
-        raise DerivedFromDatasetsNotFoundError(missing_derived)
+        raise DerivedFromDatasetsMissingError(missing_derived)
     # context.derived_from is built ONLY from command.derived_from
     # (see register_dataset/handler.py); every key here is in
     # derived_from by construction. We don't re-filter on `d in

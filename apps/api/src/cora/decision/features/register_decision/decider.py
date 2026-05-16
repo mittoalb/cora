@@ -11,14 +11,14 @@ the Clock and IdGenerator ports.
 ## Cross-aggregate validation (gate-review Q2 lock B)
 
 Existence-only checks; the decider trusts the handler's loads.
-The handler raises `DeciderActorNotFoundError` upstream if the
+The handler raises `DeciderActorMissingError` upstream if the
 Actor doesn't exist (and `context.actor: Actor` is non-Optional
 to make the contract explicit at the type boundary). The decider
 checks only the parent-Decision branch because parent_id is
 conditional:
 
   - If `command.parent_id` is set, `context.parent` must be
-    non-None (handler raises `ParentDecisionNotFoundError`
+    non-None (handler raises `ParentDecisionMissingError`
     upstream; this branch is the decider-level statement of the
     contract for the conditional case).
 
@@ -50,7 +50,7 @@ from cora.decision.aggregates.decision import (
     DecisionContext,
     DecisionRegistered,
     DecisionRule,
-    ParentDecisionNotFoundError,
+    ParentDecisionMissingError,
     validate_alternatives,
     validate_confidence,
     validate_decision_inputs,
@@ -74,11 +74,11 @@ def decide(
     if state is not None:
         raise DecisionAlreadyExistsError(state.id)
 
-    # Cross-agg parent guard (handler raises ParentDecisionNotFoundError
+    # Cross-agg parent guard (handler raises ParentDecisionMissingError
     # upstream; this branch is the decider-level statement of contract
     # for the conditional case).
     if command.parent_id is not None and context.parent is None:
-        raise ParentDecisionNotFoundError(command.parent_id)
+        raise ParentDecisionMissingError(command.parent_id)
 
     # override_kind / parent_id consistency.
     if command.override_kind is not None and command.parent_id is None:

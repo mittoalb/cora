@@ -30,8 +30,8 @@ other BC.
     when the target stream is empty; also surfaced by get_dataset's
     route HTTPException pathway).
   - 409 (defensive AlreadyExists): DatasetAlreadyExistsError
-  - 409 (cross-aggregate refs): ProducingRunNotFoundError,
-    LinkedSubjectNotFoundError, DerivedFromDatasetsNotFoundError,
+  - 409 (cross-aggregate refs): ProducingRunMissingError,
+    LinkedSubjectMissingError, DerivedFromDatasetsMissingError,
     DerivedFromDatasetsDiscardedError (7b)
   - 409 (Dataset transition guards, 7b + 7e): DatasetCannotDiscardError,
     DatasetCannotPromoteError, DatasetAlreadyPromotedError
@@ -48,7 +48,7 @@ from cora.data.aggregates.dataset import (
     DatasetCannotPromoteError,
     DatasetNotFoundError,
     DerivedFromDatasetsDiscardedError,
-    DerivedFromDatasetsNotFoundError,
+    DerivedFromDatasetsMissingError,
     InvalidDatasetByteSizeError,
     InvalidDatasetChecksumError,
     InvalidDatasetDiscardReasonError,
@@ -57,8 +57,8 @@ from cora.data.aggregates.dataset import (
     InvalidDatasetUriError,
     InvalidDerivedFromError,
     InvalidPromotionReasonError,
-    LinkedSubjectNotFoundError,
-    ProducingRunNotFoundError,
+    LinkedSubjectMissingError,
+    ProducingRunMissingError,
 )
 from cora.data.errors import UnauthorizedError
 from cora.data.features import (
@@ -111,8 +111,8 @@ async def _handle_cross_agg_conflict(request: Request, exc: Exception) -> JSONRe
 
     `register_dataset` accepts optional refs to a Run, a Subject, and
     a set of upstream Datasets. If any referenced aggregate doesn't
-    exist, the handler raises one of (ProducingRunNotFoundError,
-    LinkedSubjectNotFoundError, DerivedFromDatasetsNotFoundError).
+    exist, the handler raises one of (ProducingRunMissingError,
+    LinkedSubjectMissingError, DerivedFromDatasetsMissingError).
     7b adds DerivedFromDatasetsDiscardedError when one of the
     referenced lineage sources is in Discarded status. All map to
     409 because they signal a logical conflict (well-formed request,
@@ -166,9 +166,9 @@ def register_data_routes(app: FastAPI) -> None:
     for already_exists_cls in (DatasetAlreadyExistsError,):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cross_agg_cls in (
-        ProducingRunNotFoundError,
-        LinkedSubjectNotFoundError,
-        DerivedFromDatasetsNotFoundError,
+        ProducingRunMissingError,
+        LinkedSubjectMissingError,
+        DerivedFromDatasetsMissingError,
         DerivedFromDatasetsDiscardedError,
     ):
         app.add_exception_handler(cross_agg_cls, _handle_cross_agg_conflict)

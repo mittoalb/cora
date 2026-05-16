@@ -13,9 +13,9 @@ import pytest
 from cora.data import DataHandlers, UnauthorizedError, wire_data
 from cora.data.aggregates.dataset import (
     DATASET_CHECKSUM_SHA256_HEX_LENGTH,
-    DerivedFromDatasetsNotFoundError,
-    LinkedSubjectNotFoundError,
-    ProducingRunNotFoundError,
+    DerivedFromDatasetsMissingError,
+    LinkedSubjectMissingError,
+    ProducingRunMissingError,
 )
 from cora.data.aggregates.dataset.events import (
     DatasetRegistered,
@@ -216,7 +216,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 async def test_handler_raises_producing_run_not_found_when_run_does_not_exist() -> None:
     deps = build_deps(ids=[_DATASET_ID, _REG_EVENT_ID], now=_NOW)
     missing_run = uuid4()
-    with pytest.raises(ProducingRunNotFoundError) as exc_info:
+    with pytest.raises(ProducingRunMissingError) as exc_info:
         await register_dataset.bind(deps)(
             _good_command(producing_run_id=missing_run),
             principal_id=_PRINCIPAL_ID,
@@ -244,7 +244,7 @@ async def test_handler_loads_existing_run_and_appends_with_link() -> None:
 async def test_handler_raises_linked_subject_not_found_when_subject_missing() -> None:
     deps = build_deps(ids=[_DATASET_ID, _REG_EVENT_ID], now=_NOW)
     missing_subject = uuid4()
-    with pytest.raises(LinkedSubjectNotFoundError) as exc_info:
+    with pytest.raises(LinkedSubjectMissingError) as exc_info:
         await register_dataset.bind(deps)(
             _good_command(subject_id=missing_subject),
             principal_id=_PRINCIPAL_ID,
@@ -276,7 +276,7 @@ async def test_handler_raises_derived_from_not_found_collecting_all_missing() ->
     missing_b = uuid4()
     await _seed_dataset(store, existing_id)
     deps = build_deps(ids=[_DATASET_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
-    with pytest.raises(DerivedFromDatasetsNotFoundError) as exc_info:
+    with pytest.raises(DerivedFromDatasetsMissingError) as exc_info:
         await register_dataset.bind(deps)(
             _good_command(derived_from=frozenset({existing_id, missing_a, missing_b})),
             principal_id=_PRINCIPAL_ID,

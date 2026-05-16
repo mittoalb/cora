@@ -15,7 +15,7 @@ from cora.decision.aggregates.decision import (
     DECISION_REASONING_MAX_LENGTH,
     DECISION_REASONING_SIGNATURE_MAX_LENGTH,
     DECISION_RULE_MAX_LENGTH,
-    DeciderActorNotFoundError,
+    DeciderActorMissingError,
     Decision,
     DecisionAlreadyExistsError,
     DecisionChoice,
@@ -31,7 +31,7 @@ from cora.decision.aggregates.decision import (
     InvalidDecisionReasoningError,
     InvalidDecisionRuleError,
     InvalidReasoningSignatureError,
-    ParentDecisionNotFoundError,
+    ParentDecisionMissingError,
     validate_alternatives,
     validate_confidence,
     validate_decision_inputs,
@@ -346,17 +346,17 @@ def test_decision_not_found_error_carries_decision_id() -> None:
 
 
 @pytest.mark.unit
-def test_decider_actor_not_found_error_carries_actor_id() -> None:
+def test_decider_actor_missing_error_carries_actor_id() -> None:
     actor_id = uuid4()
-    err = DeciderActorNotFoundError(actor_id)
+    err = DeciderActorMissingError(actor_id)
     assert err.actor_id == actor_id
     assert str(actor_id) in str(err)
 
 
 @pytest.mark.unit
-def test_parent_decision_not_found_error_carries_parent_id() -> None:
+def test_parent_decision_missing_error_carries_parent_id() -> None:
     parent_id = uuid4()
-    err = ParentDecisionNotFoundError(parent_id)
+    err = ParentDecisionMissingError(parent_id)
     assert err.parent_id == parent_id
     assert str(parent_id) in str(err)
 
