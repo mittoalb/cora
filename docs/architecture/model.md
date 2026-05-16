@@ -21,7 +21,8 @@ CORA is a set of bounded contexts (BCs). Each owns its model, language, and API 
 | `supply` | Continuous resources (beam, power, cooling, LN2) | Active |
 | `operation` | Episodic procedures (bakeout, calibration) | Active |
 | `safety` | Clearances, hazard classifications, approval chains | Active |
-| `campaign` | Multi-Run studies (in-situ, operando, screening) | Planned |
+| `caution` | Operator tribal-knowledge cautions (workarounds, quirks) | Active |
+| `campaign` | Multi-Run studies (in-situ, operando, screening) | Active |
 | `strategy` | Decision-making policies (mode, thresholds, fallbacks) | Planned |
 | `budget` | Resource allocation (limits, circuit breakers) | Planned |
 

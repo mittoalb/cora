@@ -652,7 +652,7 @@ The CORA card, opened up. Three layers, each with a single job.
 </div>
 
 <div class="mt-6 text-center text-sm font-semibold bg-[#0A7E8C]/10 p-3 rounded-lg border border-[#0A7E8C]/20">
-Today: <span class="text-[#0A7E8C]">11 bounded contexts · 16 aggregates · 5,664 passing tests · pyright 0/0/0 strict · forward-only migrations</span>
+Today: <span class="text-[#0A7E8C]">13 bounded contexts · 18 aggregates · 6,613 passing tests · pyright 0/0/0 strict · forward-only migrations</span>
 </div>
 
 <div class="mt-4 text-sm opacity-80">
@@ -683,7 +683,7 @@ Architecture stable. Pilot in flight. Honest about both.
 <div class="flex flex-col gap-5">
 
 <div class="border-l-2 border-[#0A7E8C]/50 pl-5">
-  <div class="text-[11px] font-medium uppercase tracking-[0.22em] text-[#0A7E8C] mb-3">Built and stable · 11 bounded contexts</div>
+  <div class="text-[11px] font-medium uppercase tracking-[0.22em] text-[#0A7E8C] mb-3">Built and stable · 13 bounded contexts</div>
   <div class="space-y-1 text-xs">
     <div><span class="font-semibold text-[#0A7E8C]">Access</span> <span class="opacity-75">· actor identity (register, deactivate)</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Trust</span> <span class="opacity-75">· zones, conduits, policies</span></div>
@@ -691,18 +691,19 @@ Architecture stable. Pilot in flight. Honest about both.
     <div><span class="font-semibold text-[#0A7E8C]">Recipe</span> <span class="opacity-75">· Method → Practice → Plan → Run → Dataset</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Subject</span> <span class="opacity-75">· sample identity across stations</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Run</span> <span class="opacity-75">· execution, readings, procedure</span></div>
+    <div><span class="font-semibold text-[#0A7E8C]">Campaign</span> <span class="opacity-75">· multi-run studies (in-situ, operando, sweeps)</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Data</span> <span class="opacity-75">· datasets with lineage and intent</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Decision</span> <span class="opacity-75">· proposals, approvals, reasoning refs</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Supply</span> <span class="opacity-75">· reagents and consumables state</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Operation</span> <span class="opacity-75">· procedure execution (ISA-106 lens)</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Safety</span> <span class="opacity-75">· clearances, hazard classifications, approval chains</span></div>
+    <div><span class="font-semibold text-[#0A7E8C]">Caution</span> <span class="opacity-75">· operator tribal-knowledge cautions and workarounds</span></div>
   </div>
 </div>
 
 <div class="border-l-2 border-[#0A7E8C]/25 pl-5 opacity-75">
-  <div class="text-[11px] font-medium uppercase tracking-[0.22em] text-[#0A7E8C]/80 mb-3">Designed, next · 3 more in scope</div>
+  <div class="text-[11px] font-medium uppercase tracking-[0.22em] text-[#0A7E8C]/80 mb-3">Designed, next · 2 more in scope</div>
   <div class="space-y-1 text-xs italic">
-    <div><span class="font-semibold not-italic">Campaign</span> <span class="opacity-75">· multi-run orchestration across visits</span></div>
     <div><span class="font-semibold not-italic">Strategy</span> <span class="opacity-75">· decision modes (human / AI / hybrid) for workflows</span></div>
     <div><span class="font-semibold not-italic">Budget</span> <span class="opacity-75">· allocation tracking (hours, storage, USD, tokens) with limits</span></div>
   </div>
@@ -813,7 +814,7 @@ CORA is one honest attempt at that layer: <span class="font-semibold">event-sour
 <div class="flex gap-4">
 <div class="text-3xl font-bold text-[#0A7E8C] flex-shrink-0 w-10">3</div>
 <div>
-It exists today: <span class="font-semibold">11 bounded contexts, 5,664 tests, APS 35-BM pilot in progress.</span> Looking for collaborators who care about the same problem, including this room.
+It exists today: <span class="font-semibold">13 bounded contexts, 6,613 tests, APS 35-BM pilot in progress.</span> Looking for collaborators who care about the same problem, including this room.
 </div>
 </div>
 

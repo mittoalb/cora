@@ -79,7 +79,7 @@ curl -X POST http://localhost:8000/actors \
 # -> 201 {"actor_id": "01900000-..."}
 ```
 
-**MCP** (Model Context Protocol, the agent surface). Streamable HTTP transport mounted at `/mcp`. Point an MCP-aware client (Claude Code, etc.) at `http://localhost:8000/mcp` and tools across every scaffolded BC (`access`, `data`, `decision`, `equipment`, `operation`, `recipe`, `run`, `subject`, `supply`, `trust`) appear in the client.
+**MCP** (Model Context Protocol, the agent surface). Streamable HTTP transport mounted at `/mcp`. Point an MCP-aware client (Claude Code, etc.) at `http://localhost:8000/mcp` and tools across every scaffolded BC (`access`, `campaign`, `caution`, `data`, `decision`, `equipment`, `operation`, `recipe`, `run`, `safety`, `subject`, `supply`, `trust`) appear in the client.
 
 Wire-level: JSON-RPC over POSTs, handshake is `initialize` (protocol version `2025-11-25`) → `notifications/initialized` → `tools/*`, with `mcp-session-id` propagated from the initialize response headers. Example listing tools by hand:
 
@@ -127,7 +127,7 @@ cora/
 └── README.md
 ```
 
-- **`<bc>/`** is one of 10 bounded contexts scaffolded today: `access`, `data`, `decision`, `equipment`, `operation`, `recipe`, `run`, `subject`, `supply`, `trust`. Each follows the same `aggregates/` + `features/` shape (see [docs/reference/](docs/reference/index.md)).
+- **`<bc>/`** is one of 13 bounded contexts scaffolded today: `access`, `campaign`, `caution`, `data`, `decision`, `equipment`, `operation`, `recipe`, `run`, `safety`, `subject`, `supply`, `trust`. Each follows the same `aggregates/` + `features/` shape (see [docs/reference/](docs/reference/index.md)).
 - **`tests/`** mirrors `src/` and splits by category: `unit/` (pure), `integration/` (real Postgres), `contract/` (REST and MCP schema), `architecture/` (fitness checks), `e2e/` (full surface-to-store flows).
 - **Planned but not yet on disk:** `apps/web` (frontend), `apps/workers` (background processors and agents), `packages/` (shared libs).
 
