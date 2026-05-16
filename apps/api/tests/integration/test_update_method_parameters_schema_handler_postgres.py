@@ -69,7 +69,7 @@ async def test_update_method_parameters_schema_round_trips_through_event_store_a
     deps = _build_deps(db_pool, [method_id, uuid4(), uuid4()])  # method_id + 2 event_ids
 
     await define_method.bind(deps)(
-        DefineMethod(name="Phase-Contrast Micro-CT", capabilities_needed=frozenset()),
+        DefineMethod(name="Phase-Contrast Micro-CT", needs_capabilities=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -108,7 +108,7 @@ async def test_clearing_schema_flips_projection_present_back_to_false(
     )
 
     await define_method.bind(deps)(
-        DefineMethod(name="Phase-Contrast Micro-CT", capabilities_needed=frozenset()),
+        DefineMethod(name="Phase-Contrast Micro-CT", needs_capabilities=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -146,7 +146,7 @@ async def test_no_op_on_unchanged_schema_does_not_emit_event(
     deps = _build_deps(db_pool, [method_id, uuid4(), uuid4()])
 
     await define_method.bind(deps)(
-        DefineMethod(name="Phase-Contrast Micro-CT", capabilities_needed=frozenset()),
+        DefineMethod(name="Phase-Contrast Micro-CT", needs_capabilities=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

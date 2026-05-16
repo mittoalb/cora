@@ -19,7 +19,7 @@ _DRAFT = "https://json-schema.org/draft/2020-12/schema"
 def _define_method(client: TestClient, name: str = "XRF Mapping") -> UUID:
     response = client.post(
         "/methods",
-        json={"name": name, "capabilities_needed": []},
+        json={"name": name, "needs_capabilities": []},
     )
     assert response.status_code == 201, response.text
     return UUID(response.json()["method_id"])

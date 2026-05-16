@@ -6,7 +6,7 @@ to 404 via HTTPException (idiomatic in routes; the BC's
 exception-handler infrastructure stays focused on domain /
 application errors raised deeper in the stack).
 
-`capabilities_needed` serializes as a list of UUIDs in the response
+`needs_capabilities` serializes as a list of UUIDs in the response
 (JSON arrays don't have set semantics). The list is sorted by
 string form for determinism — same logical capability set, same
 response bytes (helps test reproducibility and any future ETag-
@@ -30,8 +30,8 @@ class MethodResponse(BaseModel):
 
     Carries primitives, not domain VOs. Decouples the wire format
     from the domain model so the two can evolve independently.
-    `capabilities_needed` is sorted by UUID string form.
-    `supplies_needed` (Phase 10b) is sorted lexically by kind string;
+    `needs_capabilities` is sorted by UUID string form.
+    `needs_supplies` (Phase 10b) is sorted lexically by kind string;
     Supply.kind values (NOT instance UUIDs).
     `status` is the StrEnum's string value (Defined / Versioned /
     Deprecated). `version` is the operator-supplied label of the most
@@ -40,8 +40,8 @@ class MethodResponse(BaseModel):
 
     id: UUID
     name: str = Field(..., max_length=METHOD_NAME_MAX_LENGTH)
-    capabilities_needed: list[UUID]
-    supplies_needed: list[str]
+    needs_capabilities: list[UUID]
+    needs_supplies: list[str]
     status: str
     version: str | None
 
@@ -88,8 +88,8 @@ async def get_methods(
     return MethodResponse(
         id=method.id,
         name=method.name.value,
-        capabilities_needed=sorted(method.capabilities_needed, key=str),
-        supplies_needed=sorted(method.supplies_needed),
+        needs_capabilities=sorted(method.needs_capabilities, key=str),
+        needs_supplies=sorted(method.needs_supplies),
         status=method.status.value,
         version=method.version,
     )

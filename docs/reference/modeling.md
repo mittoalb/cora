@@ -58,12 +58,12 @@ Default to **flat fields** until ≥3 members of a group exist. Then hoist into 
 # 1 member: flat
 @dataclass(frozen=True)
 class Method:
-    capabilities_needed: frozenset[UUID]
+    needs_capabilities: frozenset[UUID]
 
 # 2 members: still flat
 @dataclass(frozen=True)
 class Method:
-    capabilities_needed: frozenset[UUID]
+    needs_capabilities: frozenset[UUID]
     needs_safety_quals: frozenset[UUID]
 
 # 3+ members: hoist

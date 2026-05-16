@@ -14,7 +14,7 @@ def _setup_chain_via_rest(client: TestClient) -> tuple[str, str]:
     MCP define_plan call has valid upstream to bind."""
     cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "capabilities_needed": [cap_id]}
+        "/methods", json={"name": "Test Method", "needs_capabilities": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",

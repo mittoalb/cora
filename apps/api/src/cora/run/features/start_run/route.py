@@ -126,7 +126,7 @@ router = APIRouter(tags=["run"])
                 "Run-start rejected: Plan is Deprecated, Subject is not "
                 "in Mounted or Measured, a bound Asset is Decommissioned, "
                 "or the bound Assets' current capabilities don't cover "
-                "the Method's capabilities_needed."
+                "the Method's needs_capabilities."
             ),
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {

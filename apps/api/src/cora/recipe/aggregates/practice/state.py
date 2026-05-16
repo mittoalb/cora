@@ -19,7 +19,7 @@ Minimal Practice:
   - `id` + `name`
   - `method_id: UUID` — the Method this Practice adapts (eventual-
     consistency stance: existence is NOT verified at decide time;
-    same precedent as Method.capabilities_needed and Trust 3b)
+    same precedent as Method.needs_capabilities and Trust 3b)
   - `site_id: UUID` — the Site-level Asset this Practice belongs to
     (institutional ownership; eventual-consistency: not verified)
   - `status: PracticeStatus` (Defined initially; Versioned /
@@ -30,7 +30,7 @@ Additional facets defer to a 6d-3 equivalent if pilot demand
 emerges:
   - `additional_capabilities: frozenset[CapabilityId]` (facility-
     specific Capability requirements that go beyond Method's
-    capabilities_needed — for example a facility that always pairs
+    needs_capabilities — for example a facility that always pairs
     Tomography with FlyScan)
   - `default_parameters` (parameter envelope dict)
   - `safety_overlay` (free-text or structured operator instructions)
@@ -48,7 +48,7 @@ generalize.
 ## Eventual-consistency stance for cross-aggregate refs
 
 Same precedent as everywhere else (Trust Conduit zone refs in 3b,
-Method capabilities_needed in 6a, Asset.capabilities entries in
+Method needs_capabilities in 6a, Asset.capabilities entries in
 5f-1): the decider does NOT verify `method_id` refers to a real
 Method or `site_id` refers to a real Site-level Asset. Typos
 produce "dangling" Practices; downstream Plan binding (6e) is where

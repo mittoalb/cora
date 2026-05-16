@@ -45,7 +45,7 @@ def _setup_run_chain(
     Returns (plan_id, subject_id)."""
     cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "capabilities_needed": [cap_id]}
+        "/methods", json={"name": "Test Method", "needs_capabilities": [cap_id]}
     ).json()["method_id"]
     if method_schema is not None:
         r = client.post(

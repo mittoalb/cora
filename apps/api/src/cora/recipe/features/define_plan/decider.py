@@ -29,7 +29,7 @@ fundamental issues surface first:
 4. Method must not be Deprecated. Raises `MethodDeprecatedError`.
 5. No bound Asset may be Decommissioned. Raises
    `AssetDecommissionedError` carrying the offending asset_ids.
-6. `union(asset.capabilities) ⊇ method.capabilities_needed`. Raises
+6. `union(asset.capabilities) ⊇ method.needs_capabilities`. Raises
    `PlanCapabilitiesNotSatisfiedError` with the missing capability
    ids. Per gate-review Q3: bound-Asset-only check (no hierarchy
    traversal); operators model capabilities at whichever
@@ -105,7 +105,7 @@ def decide(
     union_capabilities: frozenset[UUID] = frozenset(
         cap for asset in context.assets.values() for cap in asset.capabilities
     )
-    missing = context.method.capabilities_needed - union_capabilities
+    missing = context.method.needs_capabilities - union_capabilities
     if missing:
         raise PlanCapabilitiesNotSatisfiedError(missing)
 
@@ -117,7 +117,7 @@ def decide(
             practice_id=command.practice_id,
             asset_ids=sorted(command.asset_ids, key=str),
             method_id=context.method.id,
-            method_capabilities_needed_snapshot=sorted(context.method.capabilities_needed, key=str),
+            method_needs_capabilities_snapshot=sorted(context.method.needs_capabilities, key=str),
             asset_capabilities_snapshot={
                 asset_id: sorted(context.assets[asset_id].capabilities, key=str)
                 for asset_id in sorted(context.assets.keys(), key=str)

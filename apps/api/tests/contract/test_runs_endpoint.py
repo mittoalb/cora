@@ -26,7 +26,7 @@ def _setup_full_chain(client: TestClient) -> tuple[str, str]:
     Plan + Subject (Mounted) via the public API. Returns (plan_id, subject_id)."""
     cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "capabilities_needed": [cap_id]}
+        "/methods", json={"name": "Test Method", "needs_capabilities": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",
@@ -257,7 +257,7 @@ def test_post_runs_returns_409_when_asset_decommissioned_after_plan_bind() -> No
         # Build chain manually so we have asset_id handle.
         cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
         method_id = client.post(
-            "/methods", json={"name": "M", "capabilities_needed": [cap_id]}
+            "/methods", json={"name": "M", "needs_capabilities": [cap_id]}
         ).json()["method_id"]
         practice_id = client.post(
             "/practices",
@@ -284,7 +284,7 @@ def test_post_runs_returns_409_when_asset_capabilities_drifted_off() -> None:
     with TestClient(create_app()) as client:
         cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
         method_id = client.post(
-            "/methods", json={"name": "M", "capabilities_needed": [cap_id]}
+            "/methods", json={"name": "M", "needs_capabilities": [cap_id]}
         ).json()["method_id"]
         practice_id = client.post(
             "/practices",

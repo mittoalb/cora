@@ -69,7 +69,7 @@ async def test_method_defined_inserts_with_defined_status_and_null_version() -> 
         {
             "method_id": str(_METHOD_ID),
             "name": "Continuous Rotation Tomography",
-            "capabilities_needed": [str(uuid4())],
+            "needs_capabilities": [str(uuid4())],
             "occurred_at": _NOW.isoformat(),
         },
     )

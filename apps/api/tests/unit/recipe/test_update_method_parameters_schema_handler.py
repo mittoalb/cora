@@ -42,7 +42,7 @@ def _valid_schema(min_val: int = 5) -> dict[str, Any]:
 
 async def _define_method_helper(deps: Kernel) -> UUID:
     return await define_method.bind(deps)(
-        DefineMethod(name="XRF Mapping", capabilities_needed=frozenset()),
+        DefineMethod(name="XRF Mapping", needs_capabilities=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

@@ -20,7 +20,7 @@ def _define_method_via_tool(
             "method": "tools/call",
             "params": {
                 "name": "define_method",
-                "arguments": {"name": name, "capabilities_needed": []},
+                "arguments": {"name": name, "needs_capabilities": []},
             },
         },
         headers=headers,

@@ -7,7 +7,7 @@ No I/O, no awaits, no side effects.
 `now` and `new_id` are injected by the application handler from the
 Clock and IdGenerator ports.
 
-## Eventual-consistency stance for capabilities_needed
+## Eventual-consistency stance for needs_capabilities
 
 The decider does NOT verify each Capability id refers to a real
 Capability stream in the event store. Same precedent as Trust's
@@ -16,7 +16,7 @@ Conduit zone refs (3b) and Asset parent refs (5b). Typos produce
 validation can be layered at the API boundary if pilot demand
 emerges.
 
-Empty `capabilities_needed` is allowed (a Method that needs no
+Empty `needs_capabilities` is allowed (a Method that needs no
 specific equipment capability — operationally valid for purely
 procedural Methods like "Sample Cleaning").
 """
@@ -27,7 +27,7 @@ from uuid import UUID
 from cora.infrastructure.bounded_text import validate_bounded_text
 from cora.recipe.aggregates.method import (
     METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
-    InvalidMethodSuppliesNeededError,
+    InvalidMethodNeedsSuppliesError,
     Method,
     MethodAlreadyExistsError,
     MethodDefined,
@@ -47,25 +47,25 @@ def decide(
     if state is not None:
         raise MethodAlreadyExistsError(state.id)
     name = MethodName(command.name)  # validates + trims; raises InvalidMethodNameError
-    # Phase 10b: defensive per-element validation for supplies_needed
+    # Phase 10b: defensive per-element validation for needs_supplies
     # kind strings. Pydantic catches this at the API; this defensive
     # pass protects direct in-process callers (sagas, tests) AND
     # trims each kind so persisted bytes are deterministic. Bound
     # mirrors Supply's own InvalidSupplyKindError shape.
     trimmed_supplies: list[str] = []
-    for kind in command.supplies_needed:
+    for kind in command.needs_supplies:
         trimmed = validate_bounded_text(
             kind,
             max_length=METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
-            error_class=InvalidMethodSuppliesNeededError,
+            error_class=InvalidMethodNeedsSuppliesError,
         )
         trimmed_supplies.append(trimmed)
     return [
         MethodDefined(
             method_id=new_id,
             name=name.value,
-            capabilities_needed=list(command.capabilities_needed),
-            supplies_needed=trimmed_supplies,
+            needs_capabilities=list(command.needs_capabilities),
+            needs_supplies=trimmed_supplies,
             occurred_at=now,
         )
     ]

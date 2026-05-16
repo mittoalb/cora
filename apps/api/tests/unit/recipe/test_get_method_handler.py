@@ -2,7 +2,7 @@
 
 Mirrors `test_get_capability_handler.py`. Round-trips through the
 write side (define → get) verify fold-on-read returns the registered
-Method with the right capabilities_needed frozenset.
+Method with the right needs_capabilities frozenset.
 """
 
 from datetime import UTC, datetime
@@ -39,7 +39,7 @@ async def test_handler_returns_method_for_known_id() -> None:
     """Round-trip: define + get."""
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
     await define_method.bind(deps)(
-        DefineMethod(name="XRF Fly Mapping", capabilities_needed=frozenset({_CAP1, _CAP2})),
+        DefineMethod(name="XRF Fly Mapping", needs_capabilities=frozenset({_CAP1, _CAP2})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -54,18 +54,18 @@ async def test_handler_returns_method_for_known_id() -> None:
     assert method == Method(
         id=_NEW_ID,
         name=MethodName("XRF Fly Mapping"),
-        capabilities_needed=frozenset({_CAP1, _CAP2}),
+        needs_capabilities=frozenset({_CAP1, _CAP2}),
         status=MethodStatus.DEFINED,
     )
 
 
 @pytest.mark.unit
-async def test_handler_returns_method_with_empty_capabilities_needed() -> None:
+async def test_handler_returns_method_with_empty_needs_capabilities() -> None:
     """Procedural Methods (no equipment requirement) round-trip
     through fold-on-read with empty frozenset preserved."""
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
     await define_method.bind(deps)(
-        DefineMethod(name="Sample Cleaning", capabilities_needed=frozenset()),
+        DefineMethod(name="Sample Cleaning", needs_capabilities=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -78,7 +78,7 @@ async def test_handler_returns_method_with_empty_capabilities_needed() -> None:
     )
 
     assert method is not None
-    assert method.capabilities_needed == frozenset()
+    assert method.needs_capabilities == frozenset()
 
 
 @pytest.mark.unit

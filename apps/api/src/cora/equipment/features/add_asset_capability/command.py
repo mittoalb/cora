@@ -8,7 +8,7 @@ asset; remove when retiring one.
 `asset_id` is the **target** Asset aggregate. `capability_id` is the
 Capability being added; the decider does NOT verify it refers to a
 real Capability stream (eventual-consistency stance, same precedent
-as Asset parent refs in 5b and Method.capabilities_needed in 6a).
+as Asset parent refs in 5b and Method.needs_capabilities in 6a).
 """
 
 from dataclasses import dataclass

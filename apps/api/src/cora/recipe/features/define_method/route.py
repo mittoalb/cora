@@ -4,7 +4,7 @@ Pydantic request/response schemas + APIRouter for `POST /methods`.
 The slice's BC-level wiring (`cora.recipe.routes.register_recipe_routes`)
 includes this router on the FastAPI app.
 
-`capabilities_needed` accepts a list of UUIDs at the API boundary
+`needs_capabilities` accepts a list of UUIDs at the API boundary
 (JSON arrays don't have set semantics); the handler converts to
 frozenset before threading into the command. Empty list is allowed
 (maps to empty frozenset, which the decider permits — operationally
@@ -29,16 +29,16 @@ from cora.recipe.features.define_method.handler import IdempotentHandler
 class DefineMethodRequest(BaseModel):
     """Body for `POST /methods`.
 
-    `capabilities_needed` is required (use `[]` for procedural
+    `needs_capabilities` is required (use `[]` for procedural
     Methods that need no specific equipment capability). Eventual-
     consistency: each Capability id is NOT verified against the
     Capability stream; mismatch surfaces at Plan binding (6e).
 
-    `supplies_needed` (Phase 10b) is optional; defaults to `[]` for
+    `needs_supplies` (Phase 10b) is optional; defaults to `[]` for
     backward-compat (pre-10b clients keep working). Each element is
     a Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.
-    Asymmetric vs capabilities_needed by design — see
-    [[project_supply_design]] §"Phase 10b — Method.supplies_needed
+    Asymmetric vs needs_capabilities by design — see
+    [[project_supply_design]] §"Phase 10b — Method.needs_supplies
     consumer" for the rationale (Capability is TYPE registry,
     Supply is INSTANCE aggregate per facility sharing a `kind` label).
     Eventual-consistency: kind strings are NOT verified against the
@@ -51,7 +51,7 @@ class DefineMethodRequest(BaseModel):
         max_length=METHOD_NAME_MAX_LENGTH,
         description="Display name for the new method.",
     )
-    capabilities_needed: list[UUID] = Field(
+    needs_capabilities: list[UUID] = Field(
         ...,
         description=(
             "Capability ids this Method requires. May be empty. "
@@ -60,7 +60,7 @@ class DefineMethodRequest(BaseModel):
             "Plan binding (Phase 6e)."
         ),
     )
-    supplies_needed: list[
+    needs_supplies: list[
         Annotated[
             str,
             Field(
@@ -138,8 +138,8 @@ async def post_methods(
     method_id = await handler(
         DefineMethod(
             name=body.name,
-            capabilities_needed=frozenset(body.capabilities_needed),
-            supplies_needed=frozenset(body.supplies_needed),
+            needs_capabilities=frozenset(body.needs_capabilities),
+            needs_supplies=frozenset(body.needs_supplies),
         ),
         principal_id=principal_id,
         correlation_id=cid,

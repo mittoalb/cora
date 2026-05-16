@@ -15,7 +15,7 @@ from cora.api.main import create_app
 def _setup_plan(client: TestClient) -> str:
     cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "capabilities_needed": [cap_id]}
+        "/methods", json={"name": "Test Method", "needs_capabilities": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",

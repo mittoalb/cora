@@ -2,7 +2,7 @@
 
 Plan event payloads are richer than Method / Practice / Capability
 because of the audit snapshots (gate-review Q4): `method_id`,
-`method_capabilities_needed_snapshot`, and `asset_capabilities_snapshot`.
+`method_needs_capabilities_snapshot`, and `asset_capabilities_snapshot`.
 These tests pin the deterministic-ordering invariants required for
 idempotency-key hashing.
 """
@@ -58,7 +58,7 @@ def test_event_type_name_returns_class_name() -> None:
         practice_id=uuid4(),
         asset_ids=[],
         method_id=uuid4(),
-        method_capabilities_needed_snapshot=[],
+        method_needs_capabilities_snapshot=[],
         asset_capabilities_snapshot={},
         occurred_at=_NOW,
     )
@@ -78,7 +78,7 @@ def test_to_payload_serializes_plan_defined_to_primitives() -> None:
         practice_id=practice_id,
         asset_ids=[asset_id],
         method_id=method_id,
-        method_capabilities_needed_snapshot=[cap_id],
+        method_needs_capabilities_snapshot=[cap_id],
         asset_capabilities_snapshot={asset_id: [cap_id]},
         occurred_at=_NOW,
     )
@@ -88,7 +88,7 @@ def test_to_payload_serializes_plan_defined_to_primitives() -> None:
         "practice_id": str(practice_id),
         "asset_ids": [str(asset_id)],
         "method_id": str(method_id),
-        "method_capabilities_needed_snapshot": [str(cap_id)],
+        "method_needs_capabilities_snapshot": [str(cap_id)],
         "asset_capabilities_snapshot": {str(asset_id): [str(cap_id)]},
         "occurred_at": _NOW.isoformat(),
     }
@@ -106,7 +106,7 @@ def test_to_payload_sorts_asset_ids_for_determinism() -> None:
         practice_id=uuid4(),
         asset_ids=[a1, a2, a3],
         method_id=uuid4(),
-        method_capabilities_needed_snapshot=[],
+        method_needs_capabilities_snapshot=[],
         asset_capabilities_snapshot={},
         occurred_at=_NOW,
     )
@@ -116,7 +116,7 @@ def test_to_payload_sorts_asset_ids_for_determinism() -> None:
         practice_id=forward.practice_id,
         asset_ids=[a3, a2, a1],
         method_id=forward.method_id,
-        method_capabilities_needed_snapshot=[],
+        method_needs_capabilities_snapshot=[],
         asset_capabilities_snapshot={},
         occurred_at=_NOW,
     )
@@ -125,7 +125,7 @@ def test_to_payload_sorts_asset_ids_for_determinism() -> None:
 
 
 @pytest.mark.unit
-def test_to_payload_sorts_method_capabilities_needed_snapshot_for_determinism() -> None:
+def test_to_payload_sorts_method_needs_capabilities_snapshot_for_determinism() -> None:
     c1 = uuid4()
     c2 = uuid4()
     forward = PlanDefined(
@@ -134,7 +134,7 @@ def test_to_payload_sorts_method_capabilities_needed_snapshot_for_determinism() 
         practice_id=uuid4(),
         asset_ids=[],
         method_id=uuid4(),
-        method_capabilities_needed_snapshot=[c1, c2],
+        method_needs_capabilities_snapshot=[c1, c2],
         asset_capabilities_snapshot={},
         occurred_at=_NOW,
     )
@@ -144,13 +144,13 @@ def test_to_payload_sorts_method_capabilities_needed_snapshot_for_determinism() 
         practice_id=forward.practice_id,
         asset_ids=[],
         method_id=forward.method_id,
-        method_capabilities_needed_snapshot=[c2, c1],
+        method_needs_capabilities_snapshot=[c2, c1],
         asset_capabilities_snapshot={},
         occurred_at=_NOW,
     )
     assert (
-        to_payload(forward)["method_capabilities_needed_snapshot"]
-        == to_payload(reverse)["method_capabilities_needed_snapshot"]
+        to_payload(forward)["method_needs_capabilities_snapshot"]
+        == to_payload(reverse)["method_needs_capabilities_snapshot"]
     )
 
 
@@ -172,7 +172,7 @@ def test_to_payload_sorts_asset_capabilities_snapshot_keys_and_values() -> None:
         practice_id=uuid4(),
         asset_ids=[],
         method_id=uuid4(),
-        method_capabilities_needed_snapshot=[],
+        method_needs_capabilities_snapshot=[],
         asset_capabilities_snapshot=snapshot_unsorted,
         occurred_at=_NOW,
     )
@@ -201,7 +201,7 @@ def test_from_stored_rebuilds_plan_defined() -> None:
             "practice_id": str(practice_id),
             "asset_ids": [str(asset_id)],
             "method_id": str(method_id),
-            "method_capabilities_needed_snapshot": [str(cap_id)],
+            "method_needs_capabilities_snapshot": [str(cap_id)],
             "asset_capabilities_snapshot": {str(asset_id): [str(cap_id)]},
             "occurred_at": _NOW.isoformat(),
         },
@@ -213,7 +213,7 @@ def test_from_stored_rebuilds_plan_defined() -> None:
         practice_id=practice_id,
         asset_ids=[asset_id],
         method_id=method_id,
-        method_capabilities_needed_snapshot=[cap_id],
+        method_needs_capabilities_snapshot=[cap_id],
         asset_capabilities_snapshot={asset_id: [cap_id]},
         occurred_at=_NOW,
     )
@@ -230,7 +230,7 @@ def test_to_payload_then_from_stored_round_trips() -> None:
         practice_id=uuid4(),
         asset_ids=[asset_id],
         method_id=uuid4(),
-        method_capabilities_needed_snapshot=[cap_id],
+        method_needs_capabilities_snapshot=[cap_id],
         asset_capabilities_snapshot={asset_id: [cap_id]},
         occurred_at=_NOW,
     )

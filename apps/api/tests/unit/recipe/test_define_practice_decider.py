@@ -60,7 +60,7 @@ def test_decide_trims_name_via_value_object() -> None:
 def test_decide_does_not_validate_method_or_site_existence() -> None:
     """Eventual-consistency stance: decider does NOT verify that
     method_id or site_id refer to real aggregate streams. Same
-    precedent as Conduit zone refs (3b), Method.capabilities_needed
+    precedent as Conduit zone refs (3b), Method.needs_capabilities
     (6a), Asset.capabilities entries (5f-1)."""
     bogus_method = uuid4()
     bogus_site = uuid4()
