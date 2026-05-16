@@ -1,27 +1,53 @@
 """HTTP route for the `list_cautions` query slice.
 
-`GET /cautions` accepts these optional query params: `cursor`, `limit`,
-`target_kind`, `target_id`, `category`, `severity`, `min_severity`,
-`status`, `tag`, `author_actor_id`. Returns
-`{"items": [...], "next_cursor": "..." | null}`.
+`GET /cautions` accepts these optional query params: `cursor`,
+`limit`, `target_kind`, `target_id`, `category`, `severity` (one
+or more; multi-value), `min_severity` (Notice<Caution<Warning
+ladder convenience), `status` (one or more; multi-value; plus the
+`all` sentinel that disables the filter), `tag`, `author_actor_id`.
 
-**Default behavior is `status=Active`.** Pass `status=all` to include
-Superseded + Retired (per the design memo: Retired and Superseded
-cautions never appear by default). Pass an exact status value to
-narrow further.
+## Status default + 'all' sentinel
 
-**propagate_to_children is hint-only.** The flag rides through each
-row unchanged; the endpoint does NOT walk Asset.parent_id chains to
-return cautions inherited from parent assets. Watch item #8 reserves
-that for either a denorm projection or a query-time join when a
-consumer asks.
+Omitted `status` defaults to `[Active]` so operators don't see
+retired or superseded cautions cluttering the list. Pass
+`?status=all` to opt into the full set (Active + Superseded +
+Retired). Pass one or more explicit values (`?status=Active&status=Superseded`)
+to narrow.
+
+`all` and explicit status values cannot be combined in the same
+request; doing so returns 422.
+
+## Severity translation
+
+The route accepts two ways to filter on severity:
+
+  - `?severity=Caution&severity=Warning` — multi-value, exact match
+    against the candidate set.
+  - `?min_severity=Caution` — ladder convenience that expands to
+    `[Caution, Warning]` server-side per the Notice<Caution<Warning
+    ordering.
+
+These two cannot be combined; doing so returns 422 (the old
+single-string SQL silently returned the intersection, which was
+always empty for conflicting inputs).
+
+The application handler sees only the canonical `severities`
+list; both UX shapes converge to the same internal contract per
+the `cora.infrastructure.list_query` growth-rule discipline.
+
+## propagate_to_children is hint-only
+
+The flag rides through each row unchanged; the endpoint does NOT
+walk Asset.parent_id chains to return cautions inherited from
+parent assets. Watch item #8 reserves that for either a denorm
+projection or a query-time join when a consumer asks.
 """
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 
 from cora.caution._caution_dtos import (
@@ -47,6 +73,82 @@ from cora.caution.features.list_cautions.query import (
     ListCautions,
 )
 from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+
+# Route-surface type: real status values plus the 'all' sentinel that
+# translates to "no filter" at this layer. The query dataclass +
+# application handler never see 'all' (per the growth-rule discipline
+# documented on `cora.infrastructure.list_query`).
+_RouteStatusParam = Literal["Active", "Superseded", "Retired", "all"]
+
+# Notice<Caution<Warning ladder. min_severity='Caution' expands to
+# the suffix [Caution, Warning]; the canonical handler-facing
+# `severities` list is the result.
+_SEVERITY_LADDER: dict[CautionSeverityFilter, list[CautionSeverityFilter]] = {
+    "Notice": ["Notice", "Caution", "Warning"],
+    "Caution": ["Caution", "Warning"],
+    "Warning": ["Warning"],
+}
+
+
+def _resolve_severities(
+    severity: list[CautionSeverityFilter] | None,
+    min_severity: CautionSeverityFilter | None,
+) -> list[CautionSeverityFilter] | None:
+    """Translate user-facing severity inputs into the canonical list.
+
+    Raises 422 when both `severity` (multi-value exact) and
+    `min_severity` (ladder convenience) are passed: the old SQL
+    silently returned the intersection (empty for conflicting
+    inputs), which was a latent bug.
+    """
+    has_severity = severity is not None and len(severity) > 0
+    has_min = min_severity is not None
+    if has_severity and has_min:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=(
+                "Pass either `severity` (one or more exact values) or "
+                "`min_severity` (Notice<Caution<Warning ladder), not both."
+            ),
+        )
+    if has_severity:
+        return severity
+    if has_min:
+        # mypy/pyright: min_severity is not None here.
+        assert min_severity is not None
+        return list(_SEVERITY_LADDER[min_severity])
+    return None
+
+
+def _resolve_statuses(
+    status_params: list[_RouteStatusParam] | None,
+) -> list[CautionStatusFilter] | None:
+    """Translate user-facing status inputs into the canonical list.
+
+    None (omitted) -> default ['Active'] (operator UX: hide retired
+    + superseded).
+
+    Exactly ['all'] -> None (disable the filter; show every status).
+    'all' mixed with real values raises 422 (ambiguous).
+
+    Otherwise -> the explicit list (after validating no 'all' sneaked
+    in alongside real values).
+    """
+    if status_params is None or len(status_params) == 0:
+        return ["Active"]
+    has_all = "all" in status_params
+    if has_all and len(status_params) > 1:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=(
+                "Pass either `status=all` (disable filter) or one or "
+                "more explicit status values, not both."
+            ),
+        )
+    if has_all:
+        return None
+    # All remaining entries are real CautionStatusFilter values.
+    return [v for v in status_params if v != "all"]
 
 
 def _target_dto_from_row(target_kind: str, target_id: UUID) -> TargetDTO:
@@ -104,14 +206,14 @@ router = APIRouter(tags=["caution"])
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": (
                 "Query parameters failed validation OR `cursor` was "
-                "malformed (corrupt base64, missing separator, bad "
-                "timestamp / UUID)."
+                "malformed OR `severity` and `min_severity` were both "
+                "passed OR `status=all` was mixed with explicit status values."
             ),
         },
     },
     summary=(
         "List cautions with cursor pagination + target / category / severity / "
-        "min_severity / status / tag / author filters. Defaults to status=Active; "
+        "min_severity / status / tag / author filters. Defaults to status=[Active]; "
         "pass status=all for the full set. propagate_to_children is hint-only "
         "(no Asset hierarchy walk)."
     ),
@@ -141,26 +243,36 @@ async def list_cautions(
         Query(description="Optional category filter (one of the 6 CautionCategory values)."),
     ] = None,
     severity: Annotated[
-        CautionSeverityFilter | None,
-        Query(description="Optional exact severity filter (Notice / Caution / Warning)."),
+        list[CautionSeverityFilter] | None,
+        Query(
+            description=(
+                "Optional exact severity filter; multi-value. "
+                "Pass once for a single value, repeat for any-of "
+                "(`?severity=Caution&severity=Warning`). Cannot be "
+                "combined with `min_severity`."
+            ),
+        ),
     ] = None,
     min_severity: Annotated[
         CautionSeverityFilter | None,
         Query(
             description=(
-                "Optional severity-threshold filter; returns cautions with "
-                "severity >= the threshold (Notice<Caution<Warning)."
+                "Optional severity-threshold filter; expands to the "
+                "matching suffix of the Notice<Caution<Warning ladder. "
+                "Cannot be combined with `severity`."
             ),
         ),
     ] = None,
-    status_filter: Annotated[
-        CautionStatusFilter | None,
+    status_params: Annotated[
+        list[_RouteStatusParam] | None,
         Query(
             alias="status",
             description=(
-                "Optional status filter; omit to default to 'Active' (hides "
-                "Superseded + Retired). Pass 'all' to include every status, or "
-                "an exact value (Active / Superseded / Retired) to narrow."
+                "Optional status filter; multi-value. Omit to default "
+                "to `[Active]` (hides Superseded + Retired). Pass "
+                "`all` alone to include every status, or one or more "
+                "explicit values to narrow. `all` cannot be mixed with "
+                "explicit values."
             ),
         ),
     ] = None,
@@ -179,6 +291,8 @@ async def list_cautions(
         Query(description="Optional author filter ('cautions I authored')."),
     ] = None,
 ) -> CautionListPageResponse:
+    severities = _resolve_severities(severity, min_severity)
+    statuses = _resolve_statuses(status_params)
     page = await handler(
         ListCautions(
             cursor=cursor,
@@ -186,9 +300,8 @@ async def list_cautions(
             target_kind=target_kind,
             target_id=target_id,
             category=category,
-            severity=severity,
-            min_severity=min_severity,
-            status=status_filter,
+            severities=severities,
+            statuses=statuses,
             tag=tag,
             author_actor_id=author_actor_id,
         ),

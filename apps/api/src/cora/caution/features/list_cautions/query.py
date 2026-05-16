@@ -1,22 +1,27 @@
 """The `ListCautions` query: intent dataclass for keyset-paginated
 list of cautions from the `proj_caution_summary` projection.
 
-Eight optional filters (target_kind / target_id / category / severity /
-min_severity / status / tag / author_actor_id). The default behavior
-(no status passed) returns Active cautions only, matching the design
-memo's "default `status=Active` if omitted, `status=all` to include
-Superseded+Retired".
+Seven optional filters in canonical form:
 
-`min_severity` (Notice / Caution / Warning) returns cautions whose
-severity is >= the threshold. Mapped to an integer ordinal in the
-handler before binding so the SQL CASE expression can do a numeric
-comparison.
+  - target_kind / target_id / category / tag / author_actor_id
+    (single-value, exact-match)
+  - severities (list of acceptable severity values; None == no filter)
+  - statuses (list of acceptable status values; None == no filter)
 
-`tag` filters cautions whose `tags` array contains the given value
-(GIN index on the projection).
+User-facing UX (`min_severity` ladder, status default-to-Active,
+`status='all'` opt-in) lives at the route/MCP-tool boundary, NOT
+in this dataclass. The route translates user input into the
+canonical list-typed `severities` / `statuses` fields before
+constructing the query.
 
-Cursor encodes `(registered_at, caution_id)`. `registered_at` is set
-once at CautionRegistered (immutable), so it's a stable keyset key.
+The query dataclass is the canonical internal contract: anything
+constructing `ListCautions(...)` directly (tests, internal code)
+sees a uniform "None means no filter" semantic for every field,
+matching every other list-query slice in the codebase.
+
+Cursor encodes `(registered_at, caution_id)`. `registered_at` is
+set once at CautionRegistered (immutable), so it's a stable keyset
+key.
 """
 
 from dataclasses import dataclass
@@ -36,15 +41,7 @@ CautionCategoryFilter = Literal[
 
 CautionSeverityFilter = Literal["Notice", "Caution", "Warning"]
 
-# Status carries the "all" sentinel in addition to the three real statuses.
-# Handler default (None -> Active) and "all" (no filter) are mapped in
-# Python before binding.
-CautionStatusFilter = Literal[
-    "Active",
-    "Superseded",
-    "Retired",
-    "all",
-]
+CautionStatusFilter = Literal["Active", "Superseded", "Retired"]
 
 
 @dataclass(frozen=True)
@@ -66,18 +63,23 @@ class ListCautions:
     category: CautionCategoryFilter | None = None
     """Optional category filter (one of the 6 CautionCategory values)."""
 
-    severity: CautionSeverityFilter | None = None
-    """Optional exact-severity filter (Notice / Caution / Warning)."""
+    severities: list[CautionSeverityFilter] | None = None
+    """Optional set of acceptable severity values; None == no filter,
+    empty list also treated as no filter by the factory.
 
-    min_severity: CautionSeverityFilter | None = None
-    """Optional threshold filter; returns severity >= threshold."""
+    Route translates user-facing `severity` (singleton) and
+    `min_severity` (Notice<Caution<Warning ladder) into a single
+    list, returning 422 on conflicting inputs."""
 
-    status: CautionStatusFilter | None = None
-    """Optional status filter; None defaults to 'Active' in the handler.
+    statuses: list[CautionStatusFilter] | None = None
+    """Optional set of acceptable status values; None == no filter,
+    empty list also treated as no filter by the factory.
 
-    Pass 'all' to disable status filtering (returns Active + Superseded
-    + Retired); pass an exact value to filter to that status only.
-    """
+    Route applies the operator-UX default ([Active]) when the
+    request omits the status param; the user opts into the full
+    history by passing every status explicitly OR by passing the
+    route-level `?status=all` sentinel which the route translates
+    to None here."""
 
     tag: str | None = None
     """Optional tag filter; matches any caution whose `tags` array contains this value."""

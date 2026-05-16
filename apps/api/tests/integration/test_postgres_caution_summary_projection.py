@@ -245,12 +245,16 @@ async def test_list_returns_only_active_by_default(db_pool: asyncpg.Pool) -> Non
     await _drain(db_pool)
 
     list_deps = _build_deps(db_pool, [])
+    # Phase 2 cleanup: the 'Active default' lives at the route + MCP-tool
+    # boundary now, not in the handler. To exercise the canonical shape
+    # this test pins the same operator-facing behavior by passing
+    # statuses=['Active'] explicitly.
     page = await list_cautions.bind(list_deps)(
-        ListCautions(),
+        ListCautions(statuses=["Active"]),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    # Active default hides the retired one + the superseded parent;
+    # statuses=['Active'] hides the retired one + the superseded parent;
     # active_id + child_id remain Active.
     active_ids = {item.caution_id for item in page.items}
     assert active_id in active_ids
@@ -261,7 +265,9 @@ async def test_list_returns_only_active_by_default(db_pool: asyncpg.Pool) -> Non
 
 @pytest.mark.integration
 async def test_list_status_all_returns_every_caution_row(db_pool: asyncpg.Pool) -> None:
-    """Passing `status='all'` disables the status filter."""
+    """Passing `statuses=None` (the canonical 'no status filter') returns
+    every row. Route-layer translates user-facing `?status=all` to this
+    None per the Phase 2 cleanup."""
     asset_id = uuid4()
     active_id = uuid4()
     retired_id = uuid4()
@@ -284,7 +290,7 @@ async def test_list_status_all_returns_every_caution_row(db_pool: asyncpg.Pool) 
 
     list_deps = _build_deps(db_pool, [])
     page = await list_cautions.bind(list_deps)(
-        ListCautions(status="all"),
+        ListCautions(statuses=None),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -357,8 +363,11 @@ async def test_list_filters_by_target_kind_and_target_id(db_pool: asyncpg.Pool) 
 async def test_list_filters_by_category_severity_min_severity_author_and_tag(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Per-column filters all narrow correctly; min_severity is the
-    ordinal-threshold variant."""
+    """Per-column filters all narrow correctly. Phase 2 cleanup: the route's
+    `min_severity` UX ladder expands to the canonical `severities` list
+    BEFORE reaching the handler; this test pins the post-expansion shape
+    (severities=['Caution', 'Warning'] is what the route emits when the
+    user passes `?min_severity=Caution`)."""
     asset_id = uuid4()
     notice_id = uuid4()
     caution_id = uuid4()
@@ -395,27 +404,31 @@ async def test_list_filters_by_category_severity_min_severity_author_and_tag(
     assert len(page.items) == 1
     assert page.items[0].caution_id == warning_id
 
-    # severity=Caution -> 1 row (exact match).
+    # severities=['Caution'] -> 1 row (exact match; this is what the route
+    # emits for `?severity=Caution`).
     page = await list_cautions.bind(list_deps)(
-        ListCautions(severity="Caution"),
+        ListCautions(severities=["Caution"]),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     assert len(page.items) == 1
     assert page.items[0].caution_id == caution_id
 
-    # min_severity=Caution -> 2 rows (Caution + Warning, not Notice).
+    # severities=['Caution', 'Warning'] -> 2 rows. This is what the route
+    # emits for `?min_severity=Caution` after expanding the ladder suffix.
     page = await list_cautions.bind(list_deps)(
-        ListCautions(min_severity="Caution"),
+        ListCautions(severities=["Caution", "Warning"]),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     returned = {it.caution_id for it in page.items}
     assert returned == {caution_id, warning_id}
 
-    # min_severity=Warning -> 1 row (Warning only).
+    # severities=['Warning'] -> 1 row. Equivalent to either `?severity=Warning`
+    # or `?min_severity=Warning` after the route's ladder expansion (the
+    # ladder's tail element is just the single value).
     page = await list_cautions.bind(list_deps)(
-        ListCautions(min_severity="Warning"),
+        ListCautions(severities=["Warning"]),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

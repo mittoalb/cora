@@ -1,8 +1,20 @@
-"""MCP tool for the `list_cautions` query slice."""
+"""MCP tool for the `list_cautions` query slice.
+
+Mirrors the REST route's behavior including the `status=[Active]`
+default and the `min_severity` ladder convenience. The defaults
+MUST match the REST surface; agents and operators see the same
+filtered view so a bug surfaced in one client surfaces in the other.
+
+User-facing translation (status default, status='all' sentinel,
+severity vs min_severity exclusivity) lives here at the tool
+boundary; the application handler sees only canonical list-typed
+filters per the `cora.infrastructure.list_query` growth-rule
+discipline.
+"""
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from mcp.server.fastmcp import FastMCP
@@ -32,6 +44,68 @@ from cora.caution.features.list_cautions.query import (
     ListCautions,
 )
 from cora.infrastructure.observability import current_correlation_id
+
+# Tool-surface type for status, matching the route's `_RouteStatusParam`
+# semantics: real values plus the 'all' sentinel.
+_ToolStatusParam = Literal["Active", "Superseded", "Retired", "all"]
+
+# Same ladder as the route. Kept duplicated rather than imported from
+# route.py to avoid coupling tool layer to route layer (both depend on
+# the same domain ladder, neither depends on the other).
+_SEVERITY_LADDER: dict[CautionSeverityFilter, list[CautionSeverityFilter]] = {
+    "Notice": ["Notice", "Caution", "Warning"],
+    "Caution": ["Caution", "Warning"],
+    "Warning": ["Warning"],
+}
+
+
+class _ListCautionsInputError(ValueError):
+    """Raised when caller passes conflicting filter inputs (severity +
+    min_severity together, or 'all' mixed with explicit status values).
+
+    MCP runtime surfaces ValueError as a tool error, parallel to the
+    REST route's HTTPException(422).
+    """
+
+
+def _resolve_severities(
+    severity: list[CautionSeverityFilter] | None,
+    min_severity: CautionSeverityFilter | None,
+) -> list[CautionSeverityFilter] | None:
+    """Mirror of `route._resolve_severities`. See route docstring."""
+    has_severity = severity is not None and len(severity) > 0
+    has_min = min_severity is not None
+    if has_severity and has_min:
+        raise _ListCautionsInputError(
+            "Pass either `severity` (one or more exact values) or "
+            "`min_severity` (Notice<Caution<Warning ladder), not both."
+        )
+    if has_severity:
+        return severity
+    if has_min:
+        assert min_severity is not None
+        return list(_SEVERITY_LADDER[min_severity])
+    return None
+
+
+def _resolve_statuses(
+    status_params: list[_ToolStatusParam] | None,
+) -> list[CautionStatusFilter] | None:
+    """Mirror of `route._resolve_statuses`. See route docstring.
+
+    Default (None or empty) -> ['Active'], same as the REST route.
+    """
+    if status_params is None or len(status_params) == 0:
+        return ["Active"]
+    has_all = "all" in status_params
+    if has_all and len(status_params) > 1:
+        raise _ListCautionsInputError(
+            "Pass either `status=all` (disable filter) or one or "
+            "more explicit status values, not both."
+        )
+    if has_all:
+        return None
+    return [v for v in status_params if v != "all"]
 
 
 def _target_dto_from_row(target_kind: str, target_id: UUID) -> TargetDTO:
@@ -74,12 +148,13 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         description=(
             "Cursor-paginated list of cautions. Optional filters: "
             "`target_kind` (Asset / Procedure), `target_id`, `category` "
-            "(one of the 6 CautionCategory values), `severity` (Notice / "
-            "Caution / Warning), `min_severity` (threshold; >= "
-            "Notice<Caution<Warning), `status` (defaults to 'Active'; "
-            "pass 'all' to include Superseded + Retired), `tag` (exact "
-            "match in the tags array), `author_actor_id`. Pass `cursor` "
-            "from a previous page's `next_cursor` to fetch the next page."
+            "(one of the 6 CautionCategory values), `severity` (one or "
+            "more exact values), `min_severity` (Notice<Caution<Warning "
+            "ladder; cannot be combined with severity), `status` (one or "
+            "more values; defaults to ['Active']; pass ['all'] to "
+            "include every status), `tag` (exact match in the tags "
+            "array), `author_actor_id`. Pass `cursor` from a previous "
+            "page's `next_cursor` to fetch the next page."
         ),
     )
     async def list_cautions_tool(  # pyright: ignore[reportUnusedFunction]
@@ -104,24 +179,31 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             Field(description="Optional category filter; omit to list all."),
         ] = None,
         severity: Annotated[
-            CautionSeverityFilter | None,
-            Field(description="Optional exact severity filter."),
+            list[CautionSeverityFilter] | None,
+            Field(
+                description=(
+                    "Optional exact severity filter; multi-value. "
+                    "Cannot be combined with `min_severity`."
+                ),
+            ),
         ] = None,
         min_severity: Annotated[
             CautionSeverityFilter | None,
             Field(
                 description=(
-                    "Optional severity-threshold filter; returns cautions with "
-                    "severity >= the threshold."
+                    "Optional severity-threshold filter; expands to the "
+                    "matching suffix of the Notice<Caution<Warning "
+                    "ladder. Cannot be combined with `severity`."
                 ),
             ),
         ] = None,
         status: Annotated[
-            CautionStatusFilter | None,
+            list[_ToolStatusParam] | None,
             Field(
                 description=(
-                    "Optional status filter; defaults to 'Active'. Pass 'all' "
-                    "to include every status."
+                    "Optional status filter; multi-value; defaults to "
+                    "['Active']. Pass ['all'] alone to include every "
+                    "status."
                 ),
             ),
         ] = None,
@@ -138,6 +220,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             Field(description="Optional author filter."),
         ] = None,
     ) -> CautionListOutput:
+        severities = _resolve_severities(severity, min_severity)
+        statuses = _resolve_statuses(status)
         handler = get_handler()
         page = await handler(
             ListCautions(
@@ -146,9 +230,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 target_kind=target_kind,
                 target_id=target_id,
                 category=category,
-                severity=severity,
-                min_severity=min_severity,
-                status=status,
+                severities=severities,
+                statuses=statuses,
                 tag=tag,
                 author_actor_id=author_actor_id,
             ),

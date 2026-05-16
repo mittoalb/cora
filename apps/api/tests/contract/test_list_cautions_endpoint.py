@@ -83,10 +83,51 @@ def test_get_cautions_accepts_each_status_including_all_sentinel(
     client: TestClient, status_value: str
 ) -> None:
     """Three concrete statuses + 'all' sentinel; design memo: default is Active,
-    'all' to include Superseded + Retired."""
+    'all' to include Superseded + Retired. The route translates 'all' to None
+    (no filter) and routes the rest as a single-element list."""
     with client:
         response = client.get(f"/cautions?status={status_value}")
     assert response.status_code == 200
+
+
+@pytest.mark.contract
+def test_get_cautions_accepts_multi_value_severity(client: TestClient) -> None:
+    """`?severity=Caution&severity=Warning` is the multi-value any-of shape;
+    the route forwards it as the canonical `severities` list."""
+    with client:
+        response = client.get("/cautions?severity=Caution&severity=Warning")
+    assert response.status_code == 200
+
+
+@pytest.mark.contract
+def test_get_cautions_accepts_multi_value_status(client: TestClient) -> None:
+    """`?status=Active&status=Superseded` narrows to those two statuses;
+    distinct from the `?status=all` sentinel that disables the filter."""
+    with client:
+        response = client.get("/cautions?status=Active&status=Superseded")
+    assert response.status_code == 200
+
+
+@pytest.mark.contract
+def test_get_cautions_rejects_severity_and_min_severity_together_with_422(
+    client: TestClient,
+) -> None:
+    """Conflict guard: the old single-string SQL silently returned the empty
+    intersection. The route now 422s."""
+    with client:
+        response = client.get("/cautions?severity=Caution&min_severity=Warning")
+    assert response.status_code == 422
+
+
+@pytest.mark.contract
+def test_get_cautions_rejects_status_all_mixed_with_explicit_with_422(
+    client: TestClient,
+) -> None:
+    """`?status=all&status=Active` is ambiguous (disable filter OR narrow?);
+    the route 422s rather than guessing."""
+    with client:
+        response = client.get("/cautions?status=all&status=Active")
+    assert response.status_code == 422
 
 
 @pytest.mark.contract
