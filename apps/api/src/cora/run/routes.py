@@ -40,6 +40,9 @@ InvalidRunInterruptedAtError).
     RunCannotResumeError, RunCannotStopError
   - 409 (Run transition guards, 6f-4): RunCannotTruncateError
   - 409 (reading logbook guard, 6f-5b): RunReadingLogbookClosedError
+  - 400 (Run adjust validation guards, 6j): InvalidRunAdjustmentPatchError,
+    InvalidRunAdjustmentSchemaError, InvalidRunAdjustReasonError
+  - 409 (Run adjust transition guard, 6j): RunCannotAdjustError
 """
 
 from fastapi import FastAPI, Request, status
@@ -49,6 +52,9 @@ from cora.run.aggregates.run import (
     InvalidChannelNameError,
     InvalidReadingValueError,
     InvalidRunAbortReasonError,
+    InvalidRunAdjustmentPatchError,
+    InvalidRunAdjustmentSchemaError,
+    InvalidRunAdjustReasonError,
     InvalidRunExternalRefError,
     InvalidRunInterruptedAtError,
     InvalidRunNameError,
@@ -61,6 +67,7 @@ from cora.run.aggregates.run import (
     RunAlreadyExistsError,
     RunAssetDecommissionedError,
     RunCannotAbortError,
+    RunCannotAdjustError,
     RunCannotCompleteError,
     RunCannotHoldError,
     RunCannotJoinCampaignError,
@@ -77,6 +84,7 @@ from cora.run.aggregates.run import (
 from cora.run.errors import UnauthorizedError
 from cora.run.features import (
     abort_run,
+    adjust_run,
     append_run_reading,
     complete_run,
     get_run,
@@ -154,6 +162,7 @@ def register_run_routes(app: FastAPI) -> None:
     app.include_router(resume_run.router)
     app.include_router(stop_run.router)
     app.include_router(truncate_run.router)
+    app.include_router(adjust_run.router)
     app.include_router(append_run_reading.router)
     app.include_router(get_run.router)
     app.include_router(list_runs.router)
@@ -170,6 +179,10 @@ def register_run_routes(app: FastAPI) -> None:
         InvalidSamplingProcedureError,
         # ExternalRef validation guard (11a-c-3).
         InvalidRunExternalRefError,
+        # Adjust validation guards (6j).
+        InvalidRunAdjustmentPatchError,
+        InvalidRunAdjustmentSchemaError,
+        InvalidRunAdjustReasonError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (RunNotFoundError,):
@@ -200,6 +213,8 @@ def register_run_routes(app: FastAPI) -> None:
         RunCannotTruncateError,
         # Reading logbook closed (6f-5b): Run is in a terminal status.
         RunReadingLogbookClosedError,
+        # Run adjust transition guard (6j).
+        RunCannotAdjustError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

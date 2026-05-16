@@ -782,3 +782,202 @@ def test_legacy_pre_6i_c_stream_folds_with_none_campaign_id() -> None:
     )
     assert state is not None
     assert state.campaign_id is None
+
+
+# ---------- Phase 6j: RunAdjusted arm + new state fields ----------
+
+
+@pytest.mark.unit
+def test_run_started_defaults_last_adjusted_and_count() -> None:
+    """6j: genesis state defaults last_adjusted_at=None, adjustment_count=0."""
+    state = evolve(None, _run_started())
+    assert state.last_adjusted_at is None
+    assert state.adjustment_count == 0
+
+
+@pytest.mark.unit
+def test_run_adjusted_mutates_effective_and_stamps_denorm() -> None:
+    """6j: RunAdjusted replaces effective_parameters with the event's
+    post-merge snapshot; sets last_adjusted_at; increments count."""
+    from cora.run.aggregates.run.events import RunAdjusted
+
+    run_id = uuid4()
+    started = RunStarted(
+        run_id=run_id,
+        name="Run",
+        plan_id=uuid4(),
+        subject_id=None,
+        occurred_at=_NOW,
+        effective_parameters={"energy_kev": 10.0},
+    )
+    later = datetime(2026, 5, 14, 13, 0, 0, tzinfo=UTC)
+    state = fold(
+        [
+            started,
+            RunAdjusted(
+                run_id=run_id,
+                parameter_patch={"energy_kev": 12.0},
+                effective_parameters={"energy_kev": 12.0},
+                reason="x",
+                occurred_at=later,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.effective_parameters == {"energy_kev": 12.0}
+    assert state.last_adjusted_at == later
+    assert state.adjustment_count == 1
+    # Status preserved (steering orthogonal to lifecycle).
+    assert state.status is RunStatus.RUNNING
+
+
+@pytest.mark.unit
+def test_two_run_adjusted_events_increment_count_cumulatively() -> None:
+    from cora.run.aggregates.run.events import RunAdjusted
+
+    run_id = uuid4()
+    started = RunStarted(
+        run_id=run_id,
+        name="Run",
+        plan_id=uuid4(),
+        subject_id=None,
+        occurred_at=_NOW,
+        effective_parameters={"a": 1},
+    )
+    state = fold(
+        [
+            started,
+            RunAdjusted(
+                run_id=run_id,
+                parameter_patch={"a": 2},
+                effective_parameters={"a": 2},
+                reason="first",
+                occurred_at=_NOW,
+            ),
+            RunAdjusted(
+                run_id=run_id,
+                parameter_patch={"b": 3},
+                effective_parameters={"a": 2, "b": 3},
+                reason="second",
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.adjustment_count == 2
+    assert state.effective_parameters == {"a": 2, "b": 3}
+
+
+@pytest.mark.unit
+def test_run_adjusted_on_empty_state_raises() -> None:
+    from cora.run.aggregates.run.events import RunAdjusted
+
+    with pytest.raises(ValueError, match="RunAdjusted"):
+        evolve(
+            None,
+            RunAdjusted(
+                run_id=uuid4(),
+                parameter_patch={"x": 1},
+                effective_parameters={"x": 1},
+                reason="x",
+                occurred_at=_NOW,
+            ),
+        )
+
+
+@pytest.mark.unit
+def test_held_then_resumed_preserves_adjustment_denorm() -> None:
+    """6j: Hold ⇄ Resume cycles preserve last_adjusted_at +
+    adjustment_count (orthogonal to lifecycle)."""
+    from cora.run.aggregates.run.events import RunAdjusted
+
+    run_id = uuid4()
+    started = RunStarted(
+        run_id=run_id,
+        name="Run",
+        plan_id=uuid4(),
+        subject_id=None,
+        occurred_at=_NOW,
+        effective_parameters={"a": 1},
+    )
+    adjusted_at = datetime(2026, 5, 14, 13, 0, 0, tzinfo=UTC)
+    state = fold(
+        [
+            started,
+            RunAdjusted(
+                run_id=run_id,
+                parameter_patch={"a": 2},
+                effective_parameters={"a": 2},
+                reason="first",
+                occurred_at=adjusted_at,
+            ),
+            RunHeld(run_id=run_id, occurred_at=_NOW),
+            RunResumed(run_id=run_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.last_adjusted_at == adjusted_at
+    assert state.adjustment_count == 1
+    assert state.effective_parameters == {"a": 2}
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "terminal_factory",
+    [_make_completed, _make_aborted, _make_stopped, _make_truncated],
+)
+def test_each_terminal_preserves_adjustment_denorm(
+    terminal_factory: _TerminalFactory,
+) -> None:
+    """6j critical preserve-fields invariant: every terminal arm carries
+    last_adjusted_at + adjustment_count through. A regression that wiped
+    them would lose the "last steered before close" audit anchor."""
+    from cora.run.aggregates.run.events import RunAdjusted
+
+    run_id = uuid4()
+    adjusted_at = datetime(2026, 5, 14, 13, 0, 0, tzinfo=UTC)
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="Run",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+            ),
+            RunAdjusted(
+                run_id=run_id,
+                parameter_patch={"a": 1},
+                effective_parameters={"a": 1},
+                reason="adjust",
+                occurred_at=adjusted_at,
+            ),
+            terminal_factory(run_id),
+        ]
+    )
+    assert state is not None
+    assert state.last_adjusted_at == adjusted_at
+    assert state.adjustment_count == 1
+
+
+@pytest.mark.unit
+def test_legacy_pre_6j_stream_folds_with_default_adjustment_fields() -> None:
+    """Pre-6j Runs have no RunAdjusted event in the stream. They MUST
+    fold cleanly with last_adjusted_at=None + adjustment_count=0 —
+    additive backward-compat contract."""
+    run_id = uuid4()
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="Pre-6j Run",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+            ),
+            RunCompleted(run_id=run_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.last_adjusted_at is None
+    assert state.adjustment_count == 0

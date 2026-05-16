@@ -365,3 +365,61 @@ def test_run_already_assigned_to_campaign_error_carries_attrs() -> None:
     assert err.new_campaign_id == new
     assert str(existing) in str(err)
     assert str(new) in str(err)
+
+
+# ---------- Phase 6j: adjust_run state field defaults + error classes ----------
+
+
+@pytest.mark.unit
+def test_run_dataclass_defaults_for_6j_adjustment_fields() -> None:
+    """Phase 6j: last_adjusted_at + adjustment_count have safe defaults
+    so legacy pre-6j streams fold cleanly."""
+    from cora.run.aggregates.run import Run, RunName
+
+    run = Run(
+        id=uuid4(),
+        name=RunName("R"),
+        plan_id=uuid4(),
+        subject_id=None,
+    )
+    assert run.last_adjusted_at is None
+    assert run.adjustment_count == 0
+
+
+@pytest.mark.unit
+def test_run_cannot_adjust_error_carries_attrs() -> None:
+    from cora.run.aggregates.run import RunCannotAdjustError
+
+    run_id = uuid4()
+    err = RunCannotAdjustError(run_id=run_id, current_status=RunStatus.COMPLETED)
+    assert err.run_id == run_id
+    assert err.current_status is RunStatus.COMPLETED
+    assert "Completed" in str(err)
+    assert str(run_id) in str(err)
+
+
+@pytest.mark.unit
+def test_invalid_run_adjustment_patch_error_carries_reason() -> None:
+    from cora.run.aggregates.run import InvalidRunAdjustmentPatchError
+
+    err = InvalidRunAdjustmentPatchError("must contain at least one change")
+    assert err.reason == "must contain at least one change"
+    assert "must contain at least one change" in str(err)
+
+
+@pytest.mark.unit
+def test_invalid_run_adjustment_schema_error_carries_detail() -> None:
+    from cora.run.aggregates.run import InvalidRunAdjustmentSchemaError
+
+    err = InvalidRunAdjustmentSchemaError("energy_kev: below minimum")
+    assert err.detail == "energy_kev: below minimum"
+    assert "energy_kev" in str(err)
+
+
+@pytest.mark.unit
+def test_invalid_run_adjust_reason_error_carries_value() -> None:
+    from cora.run.aggregates.run import InvalidRunAdjustReasonError
+
+    err = InvalidRunAdjustReasonError("   ")
+    assert err.value == "   "
+    assert "1-500" in str(err)

@@ -824,3 +824,105 @@ def test_run_campaign_unassigned_round_trips_with_reason() -> None:
     )
     stored = _stored("RunCampaignUnassigned", to_payload(original))
     assert from_stored(stored) == original
+
+
+# ---------- Phase 6j: RunAdjusted codec ----------
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_run_adjusted_with_decision_id() -> None:
+    """6j: RunAdjusted payload carries patch, snapshot, reason,
+    decided_by_decision_id (as str), occurred_at."""
+    from cora.run.aggregates.run.events import RunAdjusted
+
+    run_id = uuid4()
+    decision_id = uuid4()
+    event = RunAdjusted(
+        run_id=run_id,
+        parameter_patch={"energy_kev": 12.0},
+        effective_parameters={"energy_kev": 12.0, "exposure_ms": 100},
+        reason="re-center on ROI",
+        decided_by_decision_id=decision_id,
+        occurred_at=_NOW,
+    )
+    payload = to_payload(event)
+    assert payload == {
+        "run_id": str(run_id),
+        "parameter_patch": {"energy_kev": 12.0},
+        "effective_parameters": {"energy_kev": 12.0, "exposure_ms": 100},
+        "reason": "re-center on ROI",
+        "decided_by_decision_id": str(decision_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_run_adjusted_without_decision_id_as_null() -> None:
+    """6j: decided_by_decision_id=None serializes as JSON null
+    (operator-recorded ad-hoc adjustment without a Decision citation)."""
+    from cora.run.aggregates.run.events import RunAdjusted
+
+    event = RunAdjusted(
+        run_id=uuid4(),
+        parameter_patch={"a": 1},
+        effective_parameters={"a": 1},
+        reason="x",
+        occurred_at=_NOW,
+    )
+    assert to_payload(event)["decided_by_decision_id"] is None
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_adjusted_with_decision_id() -> None:
+    from cora.run.aggregates.run.events import RunAdjusted
+
+    original = RunAdjusted(
+        run_id=uuid4(),
+        parameter_patch={"energy_kev": 12.0},
+        effective_parameters={"energy_kev": 12.0, "exposure_ms": 100},
+        reason="agent steering iteration 5",
+        decided_by_decision_id=uuid4(),
+        occurred_at=_NOW,
+    )
+    stored = _stored("RunAdjusted", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_adjusted_without_decision_id() -> None:
+    from cora.run.aggregates.run.events import RunAdjusted
+
+    original = RunAdjusted(
+        run_id=uuid4(),
+        parameter_patch={"a": 1},
+        effective_parameters={"a": 1},
+        reason="x",
+        decided_by_decision_id=None,
+        occurred_at=_NOW,
+    )
+    stored = _stored("RunAdjusted", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_adjusted_with_missing_decision_key_as_none() -> None:
+    """Forward-compat: a stored RunAdjusted payload that pre-dates the
+    optional `decided_by_decision_id` field (or that simply omits it)
+    folds with decided_by_decision_id=None via `payload.get`."""
+    from cora.run.aggregates.run.events import RunAdjusted
+
+    run_id = uuid4()
+    stored = _stored(
+        "RunAdjusted",
+        {
+            "run_id": str(run_id),
+            "parameter_patch": {"a": 1},
+            "effective_parameters": {"a": 1},
+            "reason": "x",
+            # NOTE: no decided_by_decision_id key
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    event = from_stored(stored)
+    assert isinstance(event, RunAdjusted)
+    assert event.decided_by_decision_id is None

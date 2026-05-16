@@ -13,6 +13,9 @@ Status mapping per event type:
   - `RunAborted`            -> ABORTED   (emergency-exit terminal)
   - `RunStopped`            -> STOPPED   (controlled-exit terminal)
   - `RunTruncated`          -> TRUNCATED (partial-data terminal)
+  - `RunAdjusted`           -> status preserved; mutates effective_parameters
+                                          + last_adjusted_at + adjustment_count
+                                          (Phase 6j)
   - `RunCampaignAssigned`   -> status preserved; sets campaign_id (Phase 6i-c)
   - `RunCampaignUnassigned` -> status preserved; clears campaign_id (Phase 6i-c)
 
@@ -31,11 +34,12 @@ principle, gate-review 6f-3 L9 lock).
 **Critical invariant**: every transition arm MUST carry `id`,
 `name`, `plan_id`, `subject_id`, `raid`, `override_parameters`,
 `effective_parameters`, `triggered_by`, `reading_logbook_id`,
-`external_refs`, AND `campaign_id` through from prior state.
+`external_refs`, `campaign_id`, `last_adjusted_at`, AND
+`adjustment_count` through from prior state.
 Constructing `Run(id=..., name=..., plan_id=..., subject_id=...,
 status=...)` without explicitly passing the additive fields would
-silently WIPE them to defaults (empty dict / None / empty frozenset).
-Pinned by the per-transition preserve-fields tests.
+silently WIPE them to defaults (empty dict / None / empty frozenset
+/ 0). Pinned by the per-transition preserve-fields tests.
 
 `reading_logbook_id` (Phase 6f-5b) is set by the
 `RunReadingLogbookOpened` arm (lazy open-on-first-write triggered
@@ -49,6 +53,14 @@ to None by the `RunCampaignUnassigned` arm. All other arms preserve
 prior state's campaign_id (membership survives lifecycle transitions
 like running → held → completed). Pre-6i-c streams fold with
 `campaign_id=None` (forward-compat via payload.get in from_stored).
+
+`last_adjusted_at` and `adjustment_count` (Phase 6j) start at None / 0
+at genesis. The `RunAdjusted` arm replaces `effective_parameters`,
+stamps `last_adjusted_at = event.occurred_at`, and increments
+`adjustment_count`. All other arms preserve prior state's values:
+mid-flight adjustments survive Hold ⇄ Resume cycles and the terminal
+transitions stamp the closing effective set (the last value steered
+before the Run ended). Pre-6j streams fold with the safe defaults.
 
 This evolver previously used `dataclasses.replace(state,
 status=...)` for the transition arms (terse, but no field-add
@@ -70,6 +82,7 @@ from typing import assert_never
 from cora.infrastructure.evolver import require_state
 from cora.run.aggregates.run.events import (
     RunAborted,
+    RunAdjusted,
     RunCampaignAssigned,
     RunCampaignUnassigned,
     RunCompleted,
@@ -115,6 +128,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                     ExternalRef(scheme=ref["scheme"], id=ref["id"]) for ref in external_refs
                 ),
                 campaign_id=campaign_id,
+                last_adjusted_at=None,
+                adjustment_count=0,
             )
         case RunHeld():
             prior = require_state(state, "RunHeld")
@@ -131,6 +146,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 reading_logbook_id=prior.reading_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
+                last_adjusted_at=prior.last_adjusted_at,
+                adjustment_count=prior.adjustment_count,
             )
         case RunResumed():
             prior = require_state(state, "RunResumed")
@@ -147,6 +164,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 reading_logbook_id=prior.reading_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
+                last_adjusted_at=prior.last_adjusted_at,
+                adjustment_count=prior.adjustment_count,
             )
         case RunCompleted():
             prior = require_state(state, "RunCompleted")
@@ -163,6 +182,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 reading_logbook_id=prior.reading_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
+                last_adjusted_at=prior.last_adjusted_at,
+                adjustment_count=prior.adjustment_count,
             )
         case RunAborted():
             prior = require_state(state, "RunAborted")
@@ -179,6 +200,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 reading_logbook_id=prior.reading_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
+                last_adjusted_at=prior.last_adjusted_at,
+                adjustment_count=prior.adjustment_count,
             )
         case RunStopped():
             prior = require_state(state, "RunStopped")
@@ -195,6 +218,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 reading_logbook_id=prior.reading_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
+                last_adjusted_at=prior.last_adjusted_at,
+                adjustment_count=prior.adjustment_count,
             )
         case RunTruncated():
             prior = require_state(state, "RunTruncated")
@@ -211,6 +236,34 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 reading_logbook_id=prior.reading_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
+                last_adjusted_at=prior.last_adjusted_at,
+                adjustment_count=prior.adjustment_count,
+            )
+        case RunAdjusted(
+            effective_parameters=effective_parameters,
+            occurred_at=adjusted_at,
+        ):
+            # Phase 6j: mid-flight steering. Status NOT touched
+            # (membership-orthogonal pattern, same as the logbook +
+            # campaign arms). Replace effective_parameters with the
+            # post-merge snapshot from the event payload; stamp
+            # last_adjusted_at; increment adjustment_count.
+            prior = require_state(state, "RunAdjusted")
+            return Run(
+                id=prior.id,
+                name=prior.name,
+                plan_id=prior.plan_id,
+                subject_id=prior.subject_id,
+                raid=prior.raid,
+                status=prior.status,
+                override_parameters=prior.override_parameters,
+                effective_parameters=effective_parameters,
+                triggered_by=prior.triggered_by,
+                reading_logbook_id=prior.reading_logbook_id,
+                external_refs=prior.external_refs,
+                campaign_id=prior.campaign_id,
+                last_adjusted_at=adjusted_at,
+                adjustment_count=prior.adjustment_count + 1,
             )
         case RunReadingLogbookOpened(logbook_id=logbook_id):
             # Lazy open-on-first-write (Phase 6f-5b): preserve all
@@ -230,6 +283,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 reading_logbook_id=logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
+                last_adjusted_at=prior.last_adjusted_at,
+                adjustment_count=prior.adjustment_count,
             )
         case RunCampaignAssigned(campaign_id=campaign_id):
             # Phase 6i-c: post-hoc membership assignment from
@@ -251,6 +306,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 reading_logbook_id=prior.reading_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=campaign_id,
+                last_adjusted_at=prior.last_adjusted_at,
+                adjustment_count=prior.adjustment_count,
             )
         case RunCampaignUnassigned():
             # Phase 6i-c: post-hoc membership removal from
@@ -272,6 +329,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 reading_logbook_id=prior.reading_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=None,
+                last_adjusted_at=prior.last_adjusted_at,
+                adjustment_count=prior.adjustment_count,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

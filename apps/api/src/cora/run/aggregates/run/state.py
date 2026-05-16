@@ -116,6 +116,11 @@ RUN_NAME_MAX_LENGTH = 200
 RUN_ABORT_REASON_MAX_LENGTH = 500
 RUN_STOP_REASON_MAX_LENGTH = 500
 RUN_TRUNCATE_REASON_MAX_LENGTH = 500
+# Phase 6j: mid-flight steering reason bound. Mirrors the abort /
+# stop / truncate / clearance-reject reason convention (1-500 chars
+# after trim). Future-additive structured taxonomy parked behind the
+# same triggers as RunAbortReason.
+RUN_ADJUST_REASON_MAX_LENGTH = 500
 
 # Phase 11a-c-3 / Phase 6i-a hoist: ExternalRef carries (scheme, id) pairs
 # mirroring the Safety BC's ExternalBinding shape exactly (proposal /
@@ -989,6 +994,15 @@ class Run:
     # legacy pre-6i-c streams fold via `payload.get("campaign_id")`
     # returning None.
     campaign_id: UUID | None = None
+    # Phase 6j: mid-flight parameter steering denorm. `last_adjusted_at`
+    # carries the occurred_at of the most recent `RunAdjusted` event;
+    # `adjustment_count` is the cumulative count of accepted adjust
+    # operations. Defaults to None / 0 so legacy pre-6j streams fold
+    # cleanly (forward-compat additive-state pattern, mirrors
+    # reading_logbook_id / campaign_id precedent). Per-adjustment audit
+    # history lives on the event log; aggregate state stays slim.
+    last_adjusted_at: datetime | None = None
+    adjustment_count: int = 0
 
 
 class InvalidRunParametersError(ValueError):
@@ -1008,3 +1022,82 @@ class InvalidRunParametersError(ValueError):
     def __init__(self, reason: str) -> None:
         super().__init__(f"Invalid Run parameters: {reason}")
         self.reason = reason
+
+
+class RunCannotAdjustError(Exception):
+    """Attempted to adjust a Run not in `Running` or `Held` (Phase 6j).
+
+    Multi-source guard: `adjust_run` accepts `Running | Held`. Idle /
+    Starting use `override_parameters` at start time; terminal states
+    (Completed / Aborted / Stopped / Truncated) are by definition
+    frozen.
+
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, run_id: UUID, current_status: "RunStatus") -> None:
+        super().__init__(
+            f"Run {run_id} cannot be adjusted: currently in status "
+            f"{current_status.value}, adjust requires "
+            f"{RunStatus.RUNNING.value} or {RunStatus.HELD.value}"
+        )
+        self.run_id = run_id
+        self.current_status = current_status
+
+
+class InvalidRunAdjustmentPatchError(ValueError):
+    """The supplied `parameter_patch` is empty or otherwise unusable
+    (Phase 6j).
+
+    Empty patches are rejected at the decider so the audit log never
+    carries a no-op "operator adjusted with no change" entry. The API
+    boundary validates the dict shape via Pydantic; this error class
+    catches the semantic (non-empty) check.
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Invalid run adjustment patch: {reason}")
+        self.reason = reason
+
+
+class InvalidRunAdjustmentSchemaError(ValueError):
+    """The post-merge `effective_parameters` failed validation against
+    the owning Method's `parameters_schema` (Phase 6j).
+
+    Sibling of `InvalidRunParametersError` (Phase 6g-c, raised by
+    start_run). Kept as a distinct error class so API responses
+    unambiguously identify the adjust path. STRICT-by-default per
+    5g-c cross-BC anchor: when Method.parameters_schema is None the
+    decider skips validation (an adjustment to a schemaless Method
+    is operator-responsibility territory).
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(f"Invalid run adjustment after merge: {detail}")
+        self.detail = detail
+
+
+class InvalidRunAdjustReasonError(ValueError):
+    """The supplied adjust reason is empty, whitespace-only, or too long
+    (Phase 6j).
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the decider so direct in-process callers
+    (sagas, tests) get the same protection. Sibling of
+    `InvalidRunAbortReasonError` / `InvalidRunStopReasonError` /
+    `InvalidRunTruncateReasonError`; distinct class so API responses
+    unambiguously identify the adjust path.
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Run adjust reason must be 1-{RUN_ADJUST_REASON_MAX_LENGTH} chars after "
+            f"trimming (got: {value!r})"
+        )
+        self.value = value

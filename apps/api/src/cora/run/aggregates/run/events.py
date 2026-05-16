@@ -372,6 +372,51 @@ class RunReadingLogbookOpened:
 
 
 @dataclass(frozen=True)
+class RunAdjusted:
+    """A Run had its effective parameters steered mid-flight (Phase 6j).
+
+    Payload carries BOTH the patch (operator intent / audit) AND the
+    post-merge `effective_parameters` snapshot (replay efficiency).
+    Mirrors `RunStarted.effective_parameters` precedent: every event
+    that updates the resolved parameter set carries the resolved set
+    so projections / read endpoints do not have to fold prior
+    RunAdjusted events to surface the current value.
+
+    `reason` is a free-form string (1-500 chars after trimming),
+    captured verbatim. Mirrors RunAbortReason / RunStopReason /
+    RunTruncateReason shape; same future-additive structured-taxonomy
+    posture (the three documented re-evaluation triggers carry over).
+
+    `decided_by_decision_id` (optional) is the domain-meaningful
+    Decision-causation link to the Decision BC record that justified
+    this adjustment. Maps to `prov:wasInformedBy` at the future PROV-O
+    export adapter (same export contract used by `Decision.parent_id`).
+    Distinct from the technical envelope `causation_id` (previous-
+    message chain). The link is OPTIONAL: operators can record ad-hoc
+    adjustments without a Decision; not every steering action needs
+    formal justification at MVP. No existence check at decider per the
+    cross-BC eventual-consistency stance (Trust.Conduit / Asset parent /
+    Procedure target / Campaign lead_actor precedent). Forward-compat
+    via `payload.get("decided_by_decision_id")` returning None for
+    legacy / omitted entries.
+
+    Source-state guard `{Running, Held}` applied at the decider. The
+    Run identity / Subject / Plan / Method / Asset binding /
+    `triggered_by` / `external_refs` / `campaign_id` are NOT touched
+    by adjust: they remain the audit identity of the scientific
+    activity. Operators wanting to change those force abort + restart
+    per the design lock.
+    """
+
+    run_id: UUID
+    parameter_patch: dict[str, Any]
+    effective_parameters: dict[str, Any]
+    reason: str
+    occurred_at: datetime
+    decided_by_decision_id: UUID | None = None
+
+
+@dataclass(frozen=True)
 class RunTruncated:
     """A Run reached its partial-data terminal (Running | Held → Truncated).
 
@@ -415,6 +460,7 @@ RunEvent = (
     | RunAborted
     | RunStopped
     | RunTruncated
+    | RunAdjusted
     | RunReadingLogbookOpened
     | RunCampaignAssigned
     | RunCampaignUnassigned
@@ -511,6 +557,24 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "run_id": str(run_id),
                 "reason": reason,
                 "interrupted_at": interrupted_at_iso,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case RunAdjusted(
+            run_id=run_id,
+            parameter_patch=parameter_patch,
+            effective_parameters=effective_parameters,
+            reason=reason,
+            decided_by_decision_id=decided_by_decision_id,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "run_id": str(run_id),
+                "parameter_patch": parameter_patch,
+                "effective_parameters": effective_parameters,
+                "reason": reason,
+                "decided_by_decision_id": (
+                    str(decided_by_decision_id) if decided_by_decision_id is not None else None
+                ),
                 "occurred_at": occurred_at.isoformat(),
             }
         case RunReadingLogbookOpened(
@@ -636,6 +700,23 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 ),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "RunAdjusted":
+            # Phase 6j: `decided_by_decision_id` is optional on the
+            # event payload. Forward-compat additive: synthetic / future
+            # callers omitting the key (None semantically) deserialize
+            # as decided_by_decision_id=None. `parameter_patch` and
+            # `effective_parameters` are always carried (never optional).
+            raw_decision_id = payload.get("decided_by_decision_id")
+            return RunAdjusted(
+                run_id=UUID(payload["run_id"]),
+                parameter_patch=payload["parameter_patch"],
+                effective_parameters=payload["effective_parameters"],
+                reason=payload["reason"],
+                decided_by_decision_id=(
+                    UUID(raw_decision_id) if raw_decision_id is not None else None
+                ),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case "RunReadingLogbookOpened":
             return RunReadingLogbookOpened(
                 run_id=UUID(payload["run_id"]),
@@ -665,6 +746,7 @@ def from_stored(stored: StoredEvent) -> RunEvent:
 __all__ = [
     "CautionAcknowledgement",
     "RunAborted",
+    "RunAdjusted",
     "RunCampaignAssigned",
     "RunCampaignUnassigned",
     "RunCompleted",

@@ -30,6 +30,14 @@ open-on-first-write). Not idempotency-wrapped: natural idempotence
 via the at-most-one-open-logbook invariant + entry-store PK
 (mirrors 8c-b's `append_reasoning_entry`).
 
+Phase 6j adds `adjust_run` (mid-flight parameter steering for in-progress
+Runs). Idempotency-wrapped per the create-style retry-safe convention
+(operator retries on flaky network must NOT double-apply patches; same
+logic as `amend_clearance` + `add_run_to_campaign`). The handler is
+longhand (not the update-handler factory) because it cross-loads Plan
+→ Practice → Method to surface the Method's parameters_schema for
+merged-result validation.
+
 ## BC-internal ReadingStore wiring (mirrors Decision BC's L9 pattern)
 
 The 6f-5b `append_run_reading` slice needs a `ReadingStore` adapter.
@@ -53,6 +61,7 @@ from cora.run.aggregates.run import (
 )
 from cora.run.features import (
     abort_run,
+    adjust_run,
     append_run_reading,
     complete_run,
     get_run,
@@ -67,6 +76,22 @@ from cora.run.features import (
 _BC = "run"
 
 
+def _noop_serialize(_: None) -> None:
+    """Codec for None-returning idempotency-wrapped handlers (adjust_run).
+
+    `with_idempotency` requires a serialize_result + deserialize_result
+    pair; for handlers that return None there is no payload to round-trip.
+    The pair stays symmetric (serializes None to None; deserializes None
+    to None) so the cache hit replays "success with None".
+    """
+    return None
+
+
+def _noop_deserialize(_: object) -> None:
+    """Inverse of `_noop_serialize`."""
+    return None
+
+
 @dataclass(frozen=True)
 class RunHandlers:
     """The Run BC's handler bundle, each closed over Kernel."""
@@ -78,6 +103,7 @@ class RunHandlers:
     resume_run: resume_run.Handler
     stop_run: stop_run.Handler
     truncate_run: truncate_run.Handler
+    adjust_run: adjust_run.IdempotentHandler
     append_run_reading: append_run_reading.Handler
     get_run: get_run.Handler
     list_runs: list_runs.Handler
@@ -131,6 +157,21 @@ def wire_run(deps: Kernel) -> RunHandlers:
         truncate_run=with_tracing(
             truncate_run.bind(deps),
             command_name="TruncateRun",
+            bc=_BC,
+        ),
+        adjust_run=with_tracing(
+            with_idempotency(
+                adjust_run.bind(deps),
+                deps.idempotency_store,
+                command_name="AdjustRun",
+                # Handler returns None (204-on-success). No payload to
+                # cache; the cache hit replays "success with None"
+                # via the no-op codecs.
+                serialize_result=_noop_serialize,
+                deserialize_result=_noop_deserialize,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="AdjustRun",
             bc=_BC,
         ),
         append_run_reading=with_tracing(

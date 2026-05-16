@@ -8,4 +8,6 @@ Slices ship per state transition / aggregate operation:
   - 6f-5b: append_run_reading (polymorphic sensor / motor reading
     logbook with SOSA `sampling_procedure` discriminator; lazy
     open-on-first-write)
+  - 6j: adjust_run (mid-flight parameter steering; idempotency-wrapped;
+    closes the autonomous-CT closed-loop steering gap)
 """

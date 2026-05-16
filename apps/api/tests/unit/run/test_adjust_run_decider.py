@@ -1,0 +1,276 @@
+"""Unit tests for the `adjust_run` slice's pure decider (Phase 6j).
+
+Mid-flight parameter steering for in-progress Runs (Running | Held).
+The decider validates source-state, patch shape, merged-result-against-
+schema, reason length; returns `[RunAdjusted(...)]`.
+"""
+
+from datetime import UTC, datetime
+from typing import Any
+from uuid import UUID, uuid4
+
+import pytest
+
+from cora.run.aggregates.run import (
+    InvalidRunAdjustmentPatchError,
+    InvalidRunAdjustmentSchemaError,
+    InvalidRunAdjustReasonError,
+    Run,
+    RunCannotAdjustError,
+    RunName,
+    RunNotFoundError,
+    RunStatus,
+)
+from cora.run.features.adjust_run import RunAdjustContext, decide
+from cora.run.features.adjust_run.command import AdjustRun
+
+_NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
+_DRAFT = "https://json-schema.org/draft/2020-12/schema"
+
+
+def _run(
+    *,
+    run_id: UUID | None = None,
+    status: RunStatus = RunStatus.RUNNING,
+    effective: dict[str, Any] | None = None,
+) -> Run:
+    return Run(
+        id=run_id or uuid4(),
+        name=RunName("Run"),
+        plan_id=uuid4(),
+        subject_id=uuid4(),
+        status=status,
+        effective_parameters=effective or {},
+    )
+
+
+def _energy_schema() -> dict[str, Any]:
+    return {
+        "$schema": _DRAFT,
+        "type": "object",
+        "properties": {
+            "energy_kev": {"type": "number", "minimum": 5, "maximum": 50},
+            "exposure_ms": {"type": "number", "minimum": 1},
+        },
+    }
+
+
+# ---------- Happy paths ----------
+
+
+@pytest.mark.unit
+def test_decide_emits_run_adjusted_for_valid_patch_against_schema() -> None:
+    state = _run(effective={"energy_kev": 10.0, "exposure_ms": 100})
+    cmd = AdjustRun(
+        run_id=state.id,
+        parameter_patch={"energy_kev": 12.0},
+        reason="narrow ROI",
+    )
+    ctx = RunAdjustContext(run=state, method_parameters_schema=_energy_schema())
+
+    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+
+    assert len(events) == 1
+    event = events[0]
+    assert event.run_id == state.id
+    assert event.parameter_patch == {"energy_kev": 12.0}
+    assert event.effective_parameters == {"energy_kev": 12.0, "exposure_ms": 100}
+    assert event.reason == "narrow ROI"
+    assert event.decided_by_decision_id is None
+    assert event.occurred_at == _NOW
+
+
+@pytest.mark.unit
+def test_decide_threads_decision_id_through_to_event() -> None:
+    state = _run(effective={"energy_kev": 10.0})
+    decision_id = uuid4()
+    cmd = AdjustRun(
+        run_id=state.id,
+        parameter_patch={"energy_kev": 12.0},
+        reason="agent decided",
+        decided_by_decision_id=decision_id,
+    )
+    ctx = RunAdjustContext(run=state, method_parameters_schema=_energy_schema())
+
+    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    assert events[0].decided_by_decision_id == decision_id
+
+
+@pytest.mark.unit
+def test_decide_accepts_held_state() -> None:
+    """Multi-source guard accepts Held in addition to Running."""
+    state = _run(status=RunStatus.HELD, effective={"energy_kev": 10.0})
+    cmd = AdjustRun(
+        run_id=state.id,
+        parameter_patch={"energy_kev": 12.0},
+        reason="adjust during pause",
+    )
+    ctx = RunAdjustContext(run=state, method_parameters_schema=None)
+
+    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    assert len(events) == 1
+
+
+@pytest.mark.unit
+def test_decide_skips_schema_validation_when_schemaless() -> None:
+    """STRICT-by-default per 5g-c is RELAXED for adjust on schemaless
+    Methods: operator-responsibility territory (per design memo)."""
+    state = _run(effective={})
+    cmd = AdjustRun(
+        run_id=state.id,
+        parameter_patch={"undeclared_key": "any value"},
+        reason="agent steering",
+    )
+    ctx = RunAdjustContext(run=state, method_parameters_schema=None)
+
+    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    assert events[0].effective_parameters == {"undeclared_key": "any value"}
+
+
+@pytest.mark.unit
+def test_decide_preserves_prior_keys_untouched_by_patch() -> None:
+    """RFC 7396 merge semantics: keys not in patch survive verbatim."""
+    state = _run(effective={"energy_kev": 10.0, "exposure_ms": 100, "rotation_deg": 180.0})
+    cmd = AdjustRun(
+        run_id=state.id,
+        parameter_patch={"energy_kev": 12.0},
+        reason="re-energize only",
+    )
+    ctx = RunAdjustContext(run=state, method_parameters_schema=None)
+
+    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    merged = events[0].effective_parameters
+    assert merged == {"energy_kev": 12.0, "exposure_ms": 100, "rotation_deg": 180.0}
+
+
+@pytest.mark.unit
+def test_decide_clears_key_when_patch_value_is_null() -> None:
+    """RFC 7396 semantic: null in patch deletes the key."""
+    state = _run(effective={"energy_kev": 10.0, "exposure_ms": 100})
+    cmd = AdjustRun(
+        run_id=state.id,
+        parameter_patch={"exposure_ms": None},
+        reason="drop exposure override",
+    )
+    ctx = RunAdjustContext(run=state, method_parameters_schema=None)
+
+    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    assert events[0].effective_parameters == {"energy_kev": 10.0}
+
+
+# ---------- Source-state guard ----------
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "bad_status",
+    [
+        RunStatus.COMPLETED,
+        RunStatus.ABORTED,
+        RunStatus.STOPPED,
+        RunStatus.TRUNCATED,
+    ],
+)
+def test_decide_raises_cannot_adjust_for_terminal_states(
+    bad_status: RunStatus,
+) -> None:
+    state = _run(status=bad_status, effective={"energy_kev": 10.0})
+    cmd = AdjustRun(
+        run_id=state.id,
+        parameter_patch={"energy_kev": 12.0},
+        reason="x",
+    )
+    ctx = RunAdjustContext(run=state, method_parameters_schema=None)
+
+    with pytest.raises(RunCannotAdjustError) as exc_info:
+        decide(state=state, command=cmd, context=ctx, now=_NOW)
+    assert exc_info.value.run_id == state.id
+    assert exc_info.value.current_status is bad_status
+
+
+# ---------- Rejections ----------
+
+
+@pytest.mark.unit
+def test_decide_raises_run_not_found_when_state_is_none() -> None:
+    cmd = AdjustRun(
+        run_id=uuid4(),
+        parameter_patch={"energy_kev": 12.0},
+        reason="x",
+    )
+    placeholder = _run()
+    ctx = RunAdjustContext(run=placeholder, method_parameters_schema=None)
+
+    with pytest.raises(RunNotFoundError) as exc_info:
+        decide(state=None, command=cmd, context=ctx, now=_NOW)
+    assert exc_info.value.run_id == cmd.run_id
+
+
+@pytest.mark.unit
+def test_decide_raises_invalid_patch_for_empty_patch() -> None:
+    state = _run(effective={"energy_kev": 10.0})
+    cmd = AdjustRun(
+        run_id=state.id,
+        parameter_patch={},
+        reason="x",
+    )
+    ctx = RunAdjustContext(run=state, method_parameters_schema=None)
+
+    with pytest.raises(InvalidRunAdjustmentPatchError):
+        decide(state=state, command=cmd, context=ctx, now=_NOW)
+
+
+@pytest.mark.unit
+def test_decide_raises_invalid_schema_for_post_merge_violation() -> None:
+    state = _run(effective={"energy_kev": 10.0})
+    cmd = AdjustRun(
+        run_id=state.id,
+        parameter_patch={"energy_kev": 1.0},  # below minimum=5
+        reason="x",
+    )
+    ctx = RunAdjustContext(run=state, method_parameters_schema=_energy_schema())
+
+    with pytest.raises(InvalidRunAdjustmentSchemaError):
+        decide(state=state, command=cmd, context=ctx, now=_NOW)
+
+
+@pytest.mark.unit
+def test_decide_raises_invalid_reason_for_whitespace_only() -> None:
+    state = _run(effective={"energy_kev": 10.0})
+    cmd = AdjustRun(
+        run_id=state.id,
+        parameter_patch={"energy_kev": 12.0},
+        reason="   ",
+    )
+    ctx = RunAdjustContext(run=state, method_parameters_schema=None)
+
+    with pytest.raises(InvalidRunAdjustReasonError):
+        decide(state=state, command=cmd, context=ctx, now=_NOW)
+
+
+@pytest.mark.unit
+def test_decide_raises_invalid_reason_for_too_long() -> None:
+    state = _run(effective={"energy_kev": 10.0})
+    cmd = AdjustRun(
+        run_id=state.id,
+        parameter_patch={"energy_kev": 12.0},
+        reason="x" * 501,
+    )
+    ctx = RunAdjustContext(run=state, method_parameters_schema=None)
+
+    with pytest.raises(InvalidRunAdjustReasonError):
+        decide(state=state, command=cmd, context=ctx, now=_NOW)
+
+
+@pytest.mark.unit
+def test_decide_trims_reason_before_event_emission() -> None:
+    state = _run(effective={})
+    cmd = AdjustRun(
+        run_id=state.id,
+        parameter_patch={"a": 1},
+        reason="  re-centering  ",
+    )
+    ctx = RunAdjustContext(run=state, method_parameters_schema=None)
+
+    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    assert events[0].reason == "re-centering"
