@@ -68,7 +68,7 @@ async def test_handler_accepts_well_formed_cursor() -> None:
 async def test_handler_accepts_combined_filters() -> None:
     handler = bind(build_deps())
     page = await handler(
-        ListRuns(status="Running", plan_id=uuid4()),
+        ListRuns(status="Running", plan_id=uuid4(), campaign_id=uuid4()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

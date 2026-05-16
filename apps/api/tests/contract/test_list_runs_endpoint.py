@@ -55,6 +55,31 @@ def test_get_runs_combines_status_and_plan_filter(client: TestClient) -> None:
 
 
 @pytest.mark.contract
+def test_get_runs_accepts_campaign_id_filter(client: TestClient) -> None:
+    """Phase 6i-c: `?campaign_id=<uuid>` narrows to Runs that are
+    members of the given Campaign."""
+    with client:
+        response = client.get(f"/runs?campaign_id={uuid.uuid4()}")
+    assert response.status_code == 200
+
+
+@pytest.mark.contract
+def test_get_runs_rejects_invalid_campaign_id_with_422(client: TestClient) -> None:
+    with client:
+        response = client.get("/runs?campaign_id=not-a-uuid")
+    assert response.status_code == 422
+
+
+@pytest.mark.contract
+def test_get_runs_combines_all_three_filters(client: TestClient) -> None:
+    with client:
+        response = client.get(
+            f"/runs?status=Running&plan_id={uuid.uuid4()}&campaign_id={uuid.uuid4()}"
+        )
+    assert response.status_code == 200
+
+
+@pytest.mark.contract
 def test_get_runs_rejects_invalid_cursor_with_422(client: TestClient) -> None:
     with client:
         response = client.get("/runs?cursor=this-is-not-a-valid-cursor")

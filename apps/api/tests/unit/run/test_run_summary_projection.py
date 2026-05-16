@@ -1,7 +1,8 @@
 """Unit tests for RunSummaryProjection.
 
-Pins per-event-type apply() dispatch + idempotency for the 7
-subscribed Run events. Postgres-side behavior is in the integration
+Pins per-event-type apply() dispatch + idempotency for the 9
+subscribed Run events (7 lifecycle + 2 cross-aggregate membership
+events from Phase 6i-c). Postgres-side behavior is in the integration
 suite.
 """
 
@@ -18,6 +19,7 @@ from cora.run.projections import RunSummaryProjection
 _RUN_ID = uuid4()
 _PLAN_ID = uuid4()
 _SUBJECT_ID = uuid4()
+_CAMPAIGN_ID = uuid4()
 _EVENT_ID = uuid4()
 _CORRELATION_ID = uuid4()
 _NOW = datetime(2026, 5, 13, 14, 0, 0, tzinfo=UTC)
@@ -53,6 +55,8 @@ def test_projection_metadata() -> None:
             "RunAborted",
             "RunStopped",
             "RunTruncated",
+            "RunCampaignAssigned",
+            "RunCampaignUnassigned",
         }
     )
 
@@ -93,6 +97,9 @@ async def test_run_started_inserts_with_running_status_and_genesis_refs() -> Non
     # 6g-c: override_parameters_present defaults FALSE for legacy
     # payloads (no override_parameters key in pre-6g-c events).
     assert args.args[7] is False
+    # 6i-c follow-up: campaign_id defaults None for payloads without
+    # the key (pre-6i-c streams or standalone Runs).
+    assert args.args[8] is None
 
 
 @pytest.mark.unit
@@ -204,6 +211,83 @@ async def test_lifecycle_transition_updates_status(event_type: str, expected_sta
     assert "SET status = $2" in sql
     assert args.args[1] == _RUN_ID
     assert args.args[2] == expected_status
+
+
+@pytest.mark.unit
+async def test_run_started_with_campaign_id_inserts_with_membership() -> None:
+    """Phase 6i-c: when StartRun.campaign_id is set, the at-start
+    membership lands on the projection row via the RunStarted
+    payload's campaign_id field."""
+    proj = RunSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "RunStarted",
+        {
+            "run_id": str(_RUN_ID),
+            "name": "Run-in-campaign",
+            "plan_id": str(_PLAN_ID),
+            "subject_id": None,
+            "raid": None,
+            "campaign_id": str(_CAMPAIGN_ID),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[8] == _CAMPAIGN_ID
+
+
+@pytest.mark.unit
+async def test_run_campaign_assigned_updates_campaign_id() -> None:
+    """Phase 6i-c: post-hoc add_run_to_campaign writes
+    RunCampaignAssigned to the Run stream; the projection sets the
+    campaign_id column to the event's campaign_id."""
+    proj = RunSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "RunCampaignAssigned",
+        {
+            "run_id": str(_RUN_ID),
+            "campaign_id": str(_CAMPAIGN_ID),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "UPDATE proj_run_summary" in sql
+    assert "SET campaign_id = $2" in sql
+    assert args.args[1] == _RUN_ID
+    assert args.args[2] == _CAMPAIGN_ID
+
+
+@pytest.mark.unit
+async def test_run_campaign_unassigned_clears_campaign_id_to_null() -> None:
+    """Phase 6i-c: remove_run_from_campaign writes
+    RunCampaignUnassigned to the Run stream; the projection clears
+    campaign_id to NULL (the prior campaign_id stays on the event
+    payload for audit-replay, not in the read model)."""
+    proj = RunSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "RunCampaignUnassigned",
+        {
+            "run_id": str(_RUN_ID),
+            "campaign_id": str(_CAMPAIGN_ID),
+            "reason": "wrong campaign at start",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "UPDATE proj_run_summary" in sql
+    assert "SET campaign_id = $2" in sql
+    assert args.args[1] == _RUN_ID
+    assert args.args[2] is None
 
 
 @pytest.mark.unit

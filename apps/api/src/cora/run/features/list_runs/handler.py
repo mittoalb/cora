@@ -39,6 +39,13 @@ class RunSummaryItem:
     on legacy rows + on Runs started with no overrides. The full
     overrides + effective_parameters dicts live on the event;
     `get_run` surfaces them on demand.
+
+    `campaign_id` (Phase 6i-c, Campaign Watch #10) is the Campaign
+    this Run is a member of (at-start via `RunStarted.campaign_id`,
+    or post-hoc via `RunCampaignAssigned`). NULL for standalone Runs
+    and for Runs whose membership was removed via
+    `RunCampaignUnassigned`. Surfaces the `?campaign_id=` filter on
+    `list_runs`.
     """
 
     run_id: UUID
@@ -49,6 +56,7 @@ class RunSummaryItem:
     status: str
     created_at: datetime
     override_parameters_present: bool
+    campaign_id: UUID | None
 
 
 @dataclass(frozen=True)
@@ -72,7 +80,8 @@ class Handler(Protocol):
 
 
 _SELECT_COLUMNS = (
-    "run_id, name, plan_id, subject_id, raid, status, created_at, override_parameters_present"
+    "run_id, name, plan_id, subject_id, raid, status, created_at, "
+    "override_parameters_present, campaign_id"
 )
 
 
@@ -86,6 +95,7 @@ def _row_to_item(row: Any) -> RunSummaryItem:
         status=str(row["status"]),
         created_at=row["created_at"],
         override_parameters_present=bool(row["override_parameters_present"]),
+        campaign_id=row["campaign_id"],
     )
 
 
@@ -93,6 +103,7 @@ def _log_fields(query: ListRuns) -> dict[str, Any]:
     return {
         "status": query.status,
         "plan_id": str(query.plan_id) if query.plan_id else None,
+        "campaign_id": str(query.campaign_id) if query.campaign_id else None,
     }
 
 
@@ -110,6 +121,7 @@ def bind(deps: Kernel) -> Handler:
         filters=[
             ScalarFilter(attr="status"),
             ScalarFilter(attr="plan_id"),
+            ScalarFilter(attr="campaign_id"),
         ],
         row_to_item=_row_to_item,
         item_cursor_at=lambda item: item.created_at,

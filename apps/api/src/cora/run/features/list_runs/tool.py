@@ -33,6 +33,13 @@ class RunSummaryRow(BaseModel):
             "effective_parameters dicts are loaded on demand via `get_run`."
         ),
     )
+    campaign_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Campaign this Run is a member of (at-start or post-hoc). "
+            "NULL for standalone Runs. Phase 6i-c."
+        ),
+    )
 
 
 class RunListOutput(BaseModel):
@@ -52,8 +59,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "execution instances). Optional `status` filter accepts: "
             "Running, Held, Completed, Aborted, Stopped, Truncated. "
             "Optional `plan_id` filter narrows to Runs bound to one "
-            "Plan. Pass `cursor` from a previous page's `next_cursor` "
-            "to fetch the next page."
+            "Plan. Optional `campaign_id` filter narrows to Runs that "
+            "are members of one Campaign. Pass `cursor` from a previous "
+            "page's `next_cursor` to fetch the next page."
         ),
     )
     async def list_runs_tool(  # pyright: ignore[reportUnusedFunction]
@@ -73,10 +81,20 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             UUID | None,
             Field(description="Optional Plan-id filter."),
         ] = None,
+        campaign_id: Annotated[
+            UUID | None,
+            Field(description="Optional Campaign-id filter (Phase 6i-c)."),
+        ] = None,
     ) -> RunListOutput:
         handler = get_handler()
         page = await handler(
-            ListRuns(cursor=cursor, limit=limit, status=status, plan_id=plan_id),
+            ListRuns(
+                cursor=cursor,
+                limit=limit,
+                status=status,
+                plan_id=plan_id,
+                campaign_id=campaign_id,
+            ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
         )
@@ -91,6 +109,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                     status=item.status,  # type: ignore[arg-type]
                     created_at=item.created_at,
                     override_parameters_present=item.override_parameters_present,
+                    campaign_id=item.campaign_id,
                 )
                 for item in page.items
             ],

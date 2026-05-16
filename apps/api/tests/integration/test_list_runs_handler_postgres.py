@@ -129,7 +129,11 @@ def _chain_ids() -> list[UUID]:
 async def test_run_started_inserts_with_running_status_and_plan_ref(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Sanity: RunStarted lands as Running with plan_id surfaced."""
+    """Sanity: RunStarted lands as Running with plan_id surfaced.
+
+    Also pins (Phase 6i-c follow-up) that a standalone Run (no
+    `StartRun.campaign_id`) lands with `campaign_id IS NULL`.
+    """
     run_id = uuid4()
     deps = _build_deps(db_pool, [*_chain_ids(), run_id, uuid4()])
     plan_id = await _seed_plan(deps)
@@ -142,7 +146,7 @@ async def test_run_started_inserts_with_running_status_and_plan_ref(
 
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT name, plan_id, subject_id, raid, status "
+            "SELECT name, plan_id, subject_id, raid, status, campaign_id "
             "FROM proj_run_summary WHERE run_id = $1",
             run_id,
         )
@@ -152,6 +156,7 @@ async def test_run_started_inserts_with_running_status_and_plan_ref(
     assert row["subject_id"] is None
     assert row["raid"] is None
     assert row["status"] == "Running"
+    assert row["campaign_id"] is None
 
 
 @pytest.mark.integration
@@ -332,4 +337,90 @@ async def test_empty_table_returns_empty_page(db_pool: asyncpg.Pool) -> None:
         correlation_id=_CORRELATION_ID,
     )
     assert page.items == []
+
+
+@pytest.mark.integration
+async def test_campaign_id_filter_narrows_results(db_pool: asyncpg.Pool) -> None:
+    """Phase 6i-c follow-up (Campaign Watch #10): `?campaign_id=`
+    end-to-end through real PG.
+
+    Seeds two Runs against different Plans, then registers a Campaign
+    and assigns one Run to it via `add_run_to_campaign`. Filtering
+    `list_runs?campaign_id=<id>` returns only the member; the
+    standalone Run is excluded.
+    """
+    from cora.campaign.aggregates.campaign import CampaignIntent
+    from cora.campaign.features.add_run_to_campaign import AddRunToCampaign
+    from cora.campaign.features.add_run_to_campaign import bind as bind_add_run
+    from cora.campaign.features.register_campaign import RegisterCampaign
+    from cora.campaign.features.register_campaign import bind as bind_register_campaign
+
+    # Member Run.
+    run_member = uuid4()
+    deps_member = _build_deps(db_pool, [*_chain_ids(), run_member, uuid4()])
+    plan_member = await _seed_plan(deps_member)
+    await bind_start(deps_member)(
+        StartRun(name="campaign-member-run", plan_id=plan_member, subject_id=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # Standalone Run (no Campaign).
+    run_standalone = uuid4()
+    deps_standalone = _build_deps(db_pool, [*_chain_ids(), run_standalone, uuid4()])
+    plan_standalone = await _seed_plan(deps_standalone)
+    await bind_start(deps_standalone)(
+        StartRun(name="standalone-run", plan_id=plan_standalone, subject_id=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # Register a Campaign and add the member Run to it.
+    campaign_id = uuid4()
+    lead_actor_id = uuid4()
+    deps_campaign = _build_deps(db_pool, [campaign_id, uuid4()])
+    await bind_register_campaign(deps_campaign)(
+        RegisterCampaign(
+            name="in-situ heating series",
+            intent=CampaignIntent.SERIES,
+            lead_actor_id=lead_actor_id,
+            subject_id=None,
+            description=None,
+            tags=frozenset(),
+            external_refs=frozenset(),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    # add_run_to_campaign consumes 2 event IDs (one per stream:
+    # CampaignRunAdded on the Campaign stream + RunCampaignAssigned
+    # on the Run stream, atomic via append_streams).
+    deps_add = _build_deps(db_pool, [uuid4(), uuid4()])
+    await bind_add_run(deps_add)(
+        AddRunToCampaign(campaign_id=campaign_id, run_id=run_member),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # Need to also drain the Campaign BC projections (post-hoc
+    # add_run_to_campaign writes to BOTH streams; the Run-side
+    # RunCampaignAssigned is what proj_run_summary subscribes to).
+    from cora.campaign._projections import register_campaign_projections
+
+    registry = ProjectionRegistry()
+    register_equipment_projections(registry)
+    register_recipe_projections(registry)
+    register_run_projections(registry)
+    register_campaign_projections(registry)
+    await drain_projections(db_pool, registry, deadline_seconds=2.0)
+
+    handler = bind_list(deps_member)
+    page = await handler(
+        ListRuns(campaign_id=campaign_id, limit=10),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert len(page.items) == 1
+    assert page.items[0].run_id == run_member
+    assert page.items[0].campaign_id == campaign_id
     assert page.next_cursor is None

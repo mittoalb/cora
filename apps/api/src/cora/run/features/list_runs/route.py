@@ -38,6 +38,15 @@ class RunSummaryDTO(BaseModel):
             "dicts are loaded on demand via `get_run`."
         ),
     )
+    campaign_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Campaign this Run is a member of. Set at start time "
+            "(StartRun.campaign_id) or post-hoc "
+            "(add_run_to_campaign). NULL for standalone Runs. "
+            "Phase 6i-c."
+        ),
+    )
 
 
 class RunListResponse(BaseModel):
@@ -72,7 +81,7 @@ router = APIRouter(tags=["run"])
             ),
         },
     },
-    summary="List runs with cursor pagination + status/plan_id filters",
+    summary="List runs with cursor pagination + status/plan_id/campaign_id filters",
 )
 async def list_runs(
     handler: Annotated[Handler, Depends(_get_handler)],
@@ -100,6 +109,15 @@ async def list_runs(
         UUID | None,
         Query(description="Optional Plan-id filter."),
     ] = None,
+    campaign_id: Annotated[
+        UUID | None,
+        Query(
+            description=(
+                "Optional Campaign-id filter: returns Runs that are "
+                "members of the given Campaign. Phase 6i-c."
+            ),
+        ),
+    ] = None,
 ) -> RunListResponse:
     page = await handler(
         ListRuns(
@@ -107,6 +125,7 @@ async def list_runs(
             limit=limit,
             status=status_filter,
             plan_id=plan_id,
+            campaign_id=campaign_id,
         ),
         principal_id=principal_id,
         correlation_id=cid,
@@ -122,6 +141,7 @@ async def list_runs(
                 status=item.status,  # type: ignore[arg-type]
                 created_at=item.created_at,
                 override_parameters_present=item.override_parameters_present,
+                campaign_id=item.campaign_id,
             )
             for item in page.items
         ],
