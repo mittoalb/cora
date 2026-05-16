@@ -72,7 +72,7 @@ async def _drain(db_pool: asyncpg.Pool) -> None:
 def _register_command(
     *,
     name: str = "operando battery week of 2026-05-17",
-    intent: CampaignIntent = CampaignIntent.OPERANDO,
+    intent: CampaignIntent = CampaignIntent.SERIES,
     lead_actor_id: UUID = _LEAD_ACTOR_ID,
     subject_id: UUID | None = None,
     description: str | None = None,
@@ -111,7 +111,7 @@ async def test_register_inserts_planned_with_null_audit_columns(db_pool: asyncpg
         )
     assert row is not None
     assert row["name"] == "operando battery week of 2026-05-17"
-    assert row["intent"] == "Operando"
+    assert row["intent"] == "Series"
     assert row["status"] == "Planned"
     assert row["lead_actor_id"] == _LEAD_ACTOR_ID
     assert row["subject_id"] is None
@@ -444,18 +444,18 @@ async def test_list_filters_by_intent_lead_actor_subject_and_tag(
     sweep_with_subject_id = uuid4()
 
     seeded: list[tuple[UUID, CampaignIntent, UUID, UUID | None, frozenset[str]]] = [
-        (in_situ_a_id, CampaignIntent.IN_SITU, lead_a, None, frozenset({"alpha"})),
+        (in_situ_a_id, CampaignIntent.COORDINATED, lead_a, None, frozenset({"alpha"})),
         (
             operando_a_id,
-            CampaignIntent.OPERANDO,
+            CampaignIntent.SERIES,
             lead_a,
             None,
             frozenset({"beta", "hexapod"}),
         ),
-        (operando_b_id, CampaignIntent.OPERANDO, lead_b, None, frozenset({"gamma"})),
+        (operando_b_id, CampaignIntent.SERIES, lead_b, None, frozenset({"gamma"})),
         (
             sweep_with_subject_id,
-            CampaignIntent.PARAMETER_SWEEP,
+            CampaignIntent.SWEEP,
             lead_a,
             subject_x,
             frozenset(),
@@ -472,9 +472,9 @@ async def test_list_filters_by_intent_lead_actor_subject_and_tag(
 
     list_deps = _build_deps(db_pool, [])
 
-    # intent=Operando -> 2 rows.
+    # intent=Series -> 2 rows.
     page = await list_campaigns.bind(list_deps)(
-        ListCampaigns(intent="Operando"),
+        ListCampaigns(intent="Series"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

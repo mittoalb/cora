@@ -88,7 +88,7 @@ def test_campaign_registered_round_trip_minimal() -> None:
     event = CampaignRegistered(
         campaign_id=_CAMPAIGN_ID,
         name="basic",
-        intent="InSitu",
+        intent="Series",
         lead_actor_id=_LEAD_ACTOR_ID,
         subject_id=None,
         description=None,
@@ -114,7 +114,7 @@ def test_campaign_registered_round_trip_full() -> None:
     event = CampaignRegistered(
         campaign_id=_CAMPAIGN_ID,
         name="In-situ heating",
-        intent="Operando",
+        intent="Series",
         lead_actor_id=_LEAD_ACTOR_ID,
         subject_id=_SUBJECT_ID,
         description="long-form description",
@@ -140,7 +140,7 @@ def test_campaign_registered_serializes_subject_none_as_none() -> None:
     event = CampaignRegistered(
         campaign_id=_CAMPAIGN_ID,
         name="x",
-        intent="InSitu",
+        intent="Series",
         lead_actor_id=_LEAD_ACTOR_ID,
         subject_id=None,
         description=None,
@@ -161,7 +161,7 @@ def test_campaign_registered_from_stored_uses_get_for_nullable_keys() -> None:
     payload: dict[str, Any] = {
         "campaign_id": str(_CAMPAIGN_ID),
         "name": "min",
-        "intent": "InSitu",
+        "intent": "Series",
         "lead_actor_id": str(_LEAD_ACTOR_ID),
         # subject_id, description, external_id, external_refs all omitted
         "tags": [],

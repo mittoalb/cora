@@ -62,8 +62,9 @@ class RegisterCampaignRequest(BaseModel):
     intent: CampaignIntent = Field(
         ...,
         description=(
-            "Closed scientific-grouping vocabulary: InSitu, Operando, "
-            "ParameterSweep, MultiModal, ProposalBlock."
+            "Closed intent-shape vocabulary: Series, Sweep, Coordinated, "
+            "Block. Describes what KIND of coordination the Campaign carries, "
+            "not the scientific technique (technique tagging lives on tags)."
         ),
     )
     lead_actor_id: UUID = Field(
@@ -79,7 +80,7 @@ class RegisterCampaignRequest(BaseModel):
         description=(
             "Optional informational Subject reference. LOOSE policy: NOT "
             "enforced as a member-Run invariant. Multi-Subject Campaigns "
-            "(ProposalBlock, ParameterSweep) are legitimate."
+            "(Block, Sweep) are legitimate."
         ),
     )
     description: str | None = Field(

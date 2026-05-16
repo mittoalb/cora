@@ -25,7 +25,7 @@ _NOW = datetime(2026, 5, 17, 12, 0, 0, tzinfo=UTC)
 def _seed_active_campaign(client: TestClient) -> str:
     response = client.post(
         "/campaigns",
-        json={"name": "test", "intent": "InSitu", "lead_actor_id": str(uuid4())},
+        json={"name": "test", "intent": "Series", "lead_actor_id": str(uuid4())},
     )
     cid = str(response.json()["campaign_id"])
     client.post(f"/campaigns/{cid}/start")

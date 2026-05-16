@@ -29,7 +29,7 @@ _SUBJECT_ID = UUID("01900000-0000-7000-8000-00000000d003")
 def _command(**overrides: object) -> RegisterCampaign:
     base: dict[str, object] = {
         "name": "In-situ heating series #42",
-        "intent": CampaignIntent.IN_SITU,
+        "intent": CampaignIntent.SERIES,
         "lead_actor_id": _LEAD_ACTOR_ID,
     }
     base.update(overrides)
@@ -47,7 +47,7 @@ def test_decider_emits_registered_event_for_minimal_command() -> None:
     assert isinstance(event, CampaignRegistered)
     assert event.campaign_id == _NEW_ID
     assert event.name == "In-situ heating series #42"
-    assert event.intent == "InSitu"
+    assert event.intent == "Series"
     assert event.lead_actor_id == _LEAD_ACTOR_ID
     assert event.subject_id is None
     assert event.description is None
@@ -154,7 +154,7 @@ def test_decider_rejects_when_campaign_already_exists() -> None:
     existing = Campaign(
         id=_NEW_ID,
         name=CampaignName("existing"),
-        intent=CampaignIntent.IN_SITU,
+        intent=CampaignIntent.SERIES,
         lead_actor_id=_LEAD_ACTOR_ID,
     )
     with pytest.raises(CampaignAlreadyExistsError) as exc_info:

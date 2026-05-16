@@ -109,7 +109,7 @@ async def test_remove_run_from_campaign_writes_both_streams_atomically(
     await register_campaign.bind(deps)(
         RegisterCampaign(
             name="remove test",
-            intent=CampaignIntent.IN_SITU,
+            intent=CampaignIntent.SERIES,
             lead_actor_id=lead,
         ),
         principal_id=_PRINCIPAL_ID,
@@ -177,7 +177,7 @@ async def test_remove_run_decrements_run_count_after_drain(
     await register_campaign.bind(deps)(
         RegisterCampaign(
             name="remove + projection",
-            intent=CampaignIntent.OPERANDO,
+            intent=CampaignIntent.SERIES,
             lead_actor_id=lead,
         ),
         principal_id=_PRINCIPAL_ID,

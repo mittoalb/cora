@@ -176,7 +176,7 @@ async def test_start_run_with_campaign_writes_both_streams_atomically(
     await register_campaign.bind(deps)(
         RegisterCampaign(
             name="campaign-at-start",
-            intent=CampaignIntent.IN_SITU,
+            intent=CampaignIntent.SERIES,
             lead_actor_id=lead_actor_id,
         ),
         principal_id=_PRINCIPAL_ID,

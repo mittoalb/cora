@@ -64,7 +64,7 @@ def _registered_payload(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
         "campaign_id": str(_CAMPAIGN_ID),
         "name": "operando battery, week of 2026-05-17",
-        "intent": "Operando",
+        "intent": "Series",
         "lead_actor_id": str(_LEAD_ACTOR_ID),
         "subject_id": None,
         "description": None,
@@ -131,7 +131,7 @@ async def test_campaign_registered_inserts_with_planned_status_and_null_audit() 
     #   $9 registered_at
     assert args.args[1] == _CAMPAIGN_ID
     assert args.args[2] == "operando battery, week of 2026-05-17"
-    assert args.args[3] == "Operando"
+    assert args.args[3] == "Series"
     assert args.args[4] == _LEAD_ACTOR_ID
     assert args.args[5] is None  # subject_id
     assert args.args[6] is None  # description

@@ -15,7 +15,7 @@ from cora.campaign.features.resume_campaign.route import (
 def _register_start_hold(client: TestClient) -> str:
     response = client.post(
         "/campaigns",
-        json={"name": "test", "intent": "InSitu", "lead_actor_id": str(uuid4())},
+        json={"name": "test", "intent": "Series", "lead_actor_id": str(uuid4())},
     )
     cid = str(response.json()["campaign_id"])
     client.post(f"/campaigns/{cid}/start")
@@ -43,7 +43,7 @@ def test_post_resume_returns_409_on_active_campaign() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/campaigns",
-            json={"name": "x", "intent": "InSitu", "lead_actor_id": str(uuid4())},
+            json={"name": "x", "intent": "Series", "lead_actor_id": str(uuid4())},
         )
         cid = str(response.json()["campaign_id"])
         client.post(f"/campaigns/{cid}/start")

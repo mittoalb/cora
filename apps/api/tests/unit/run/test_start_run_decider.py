@@ -1265,7 +1265,7 @@ def _campaign(status: _CampaignStatus) -> _Campaign:
     return _Campaign(
         id=uuid4(),
         name=_CampaignName("test"),
-        intent=_CampaignIntent.IN_SITU,
+        intent=_CampaignIntent.SERIES,
         lead_actor_id=uuid4(),
         status=status,
     )

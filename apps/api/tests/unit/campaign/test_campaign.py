@@ -67,18 +67,17 @@ def test_campaign_status_has_exactly_five_members() -> None:
 
 @pytest.mark.unit
 def test_campaign_intent_values_locked() -> None:
-    """5 closed values day-1 per corpus convergence."""
-    assert CampaignIntent.IN_SITU.value == "InSitu"
-    assert CampaignIntent.OPERANDO.value == "Operando"
-    assert CampaignIntent.PARAMETER_SWEEP.value == "ParameterSweep"
-    assert CampaignIntent.MULTI_MODAL.value == "MultiModal"
-    assert CampaignIntent.PROPOSAL_BLOCK.value == "ProposalBlock"
+    """4 closed intent-shape values day-1; technique-tagging lives on tags."""
+    assert CampaignIntent.SERIES.value == "Series"
+    assert CampaignIntent.SWEEP.value == "Sweep"
+    assert CampaignIntent.COORDINATED.value == "Coordinated"
+    assert CampaignIntent.BLOCK.value == "Block"
 
 
 @pytest.mark.unit
-def test_campaign_intent_has_exactly_five_members() -> None:
-    """Replication / Longitudinal rejected day-1."""
-    assert len(list(CampaignIntent)) == 5
+def test_campaign_intent_has_exactly_four_members() -> None:
+    """Shape (Series/Sweep/Coordinated/Block) vs purpose-tag separation."""
+    assert len(list(CampaignIntent)) == 4
 
 
 # ---------- CampaignName VO ----------
@@ -214,12 +213,12 @@ def test_campaign_dataclass_defaults_match_design_memo() -> None:
     campaign = Campaign(
         id=_CAMPAIGN_ID,
         name=CampaignName("test"),
-        intent=CampaignIntent.IN_SITU,
+        intent=CampaignIntent.SERIES,
         lead_actor_id=_LEAD_ACTOR_ID,
     )
     assert campaign.id == _CAMPAIGN_ID
     assert campaign.name.value == "test"
-    assert campaign.intent == CampaignIntent.IN_SITU
+    assert campaign.intent == CampaignIntent.SERIES
     assert campaign.lead_actor_id == _LEAD_ACTOR_ID
     assert campaign.subject_id is None
     assert campaign.description is None
@@ -236,7 +235,7 @@ def test_campaign_is_frozen() -> None:
     campaign = Campaign(
         id=_CAMPAIGN_ID,
         name=CampaignName("test"),
-        intent=CampaignIntent.IN_SITU,
+        intent=CampaignIntent.SERIES,
         lead_actor_id=_LEAD_ACTOR_ID,
     )
     with pytest.raises(AttributeError):

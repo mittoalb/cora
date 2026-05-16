@@ -32,7 +32,7 @@ def _register_and_start_campaign(client: TestClient) -> str:
         "/campaigns",
         json={
             "name": "membership-test",
-            "intent": "InSitu",
+            "intent": "Series",
             "lead_actor_id": str(uuid4()),
         },
     )

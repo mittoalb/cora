@@ -79,8 +79,7 @@ CREATE TABLE proj_campaign_summary (
     campaign_id              UUID        PRIMARY KEY,
     name                     TEXT        NOT NULL,
     intent                   TEXT        NOT NULL CHECK (
-        intent IN ('InSitu', 'Operando', 'ParameterSweep',
-                   'MultiModal', 'ProposalBlock')
+        intent IN ('Series', 'Sweep', 'Coordinated', 'Block')
     ),
     status                   TEXT        NOT NULL CHECK (
         status IN ('Planned', 'Active', 'Held', 'Closed', 'Abandoned')

@@ -11,7 +11,7 @@ from cora.api.main import create_app
 def _body(**overrides: object) -> dict[str, object]:
     base: dict[str, object] = {
         "name": "test",
-        "intent": "InSitu",
+        "intent": "Series",
         "lead_actor_id": str(uuid4()),
     }
     base.update(overrides)

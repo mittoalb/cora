@@ -145,7 +145,7 @@ async def test_add_run_to_campaign_writes_both_streams_atomically(
     await register_campaign.bind(deps)(
         RegisterCampaign(
             name="test campaign",
-            intent=CampaignIntent.IN_SITU,
+            intent=CampaignIntent.SERIES,
             lead_actor_id=lead,
         ),
         principal_id=_PRINCIPAL_ID,
@@ -209,7 +209,7 @@ async def test_add_run_to_campaign_bumps_run_count_after_drain(
     await register_campaign.bind(deps)(
         RegisterCampaign(
             name="run-count test",
-            intent=CampaignIntent.OPERANDO,
+            intent=CampaignIntent.SERIES,
             lead_actor_id=lead,
         ),
         principal_id=_PRINCIPAL_ID,
@@ -276,7 +276,7 @@ async def test_campaign_state_change_does_not_cascade_to_member_run(
     await register_campaign.bind(deps)(
         RegisterCampaign(
             name="no-cascade test",
-            intent=CampaignIntent.IN_SITU,
+            intent=CampaignIntent.SERIES,
             lead_actor_id=lead,
         ),
         principal_id=_PRINCIPAL_ID,
@@ -349,7 +349,7 @@ async def test_campaign_hold_does_not_cascade_to_member_run(
     await register_campaign.bind(deps)(
         RegisterCampaign(
             name="no-cascade-hold test",
-            intent=CampaignIntent.IN_SITU,
+            intent=CampaignIntent.SERIES,
             lead_actor_id=lead,
         ),
         principal_id=_PRINCIPAL_ID,
@@ -410,7 +410,7 @@ async def test_membership_chain_run_count_settles_at_two(
     await register_campaign.bind(deps)(
         RegisterCampaign(
             name="membership chain",
-            intent=CampaignIntent.PROPOSAL_BLOCK,
+            intent=CampaignIntent.BLOCK,
             lead_actor_id=lead,
         ),
         principal_id=_PRINCIPAL_ID,
@@ -498,7 +498,7 @@ async def test_concurrent_add_runs_to_same_campaign_settle_atomically(
     await register_campaign.bind(deps)(
         RegisterCampaign(
             name="concurrent race",
-            intent=CampaignIntent.IN_SITU,
+            intent=CampaignIntent.SERIES,
             lead_actor_id=lead,
         ),
         principal_id=_PRINCIPAL_ID,

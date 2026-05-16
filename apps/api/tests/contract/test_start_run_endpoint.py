@@ -55,7 +55,7 @@ def _setup_chain(client: TestClient) -> tuple[str, str]:
     return plan_id, subject_id
 
 
-def _register_campaign(client: TestClient, *, intent: str = "InSitu") -> str:
+def _register_campaign(client: TestClient, *, intent: str = "Series") -> str:
     response = client.post(
         "/campaigns",
         json={"name": "campaign-for-start-run", "intent": intent, "lead_actor_id": str(uuid4())},

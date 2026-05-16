@@ -46,9 +46,11 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         description=(
             "Register a new Campaign (lands in 'Planned' status). A Campaign "
             "is the operator-declared coordinated container above Run "
-            "(in-situ heating series, operando battery measurement, "
-            "parametric sweep, multi-modal acquisition, proposal block). "
-            "Closed intent vocabulary; free tags; optional external refs "
+            "(series of measurements over time, parametric sweep, "
+            "coordinated multi-modal or multi-Subject acquisition, "
+            "scheduling block). Closed intent-shape vocabulary "
+            "(Series / Sweep / Coordinated / Block); free tags carry "
+            "scientific-technique vocabulary; optional external refs "
             "(proposal/btr/visit/cycle)."
         ),
     )
@@ -63,7 +65,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         ],
         intent: Annotated[
             CampaignIntent,
-            Field(description="Closed scientific-grouping vocabulary."),
+            Field(description="Closed intent-shape vocabulary (Series/Sweep/Coordinated/Block)."),
         ],
         lead_actor_id: Annotated[
             UUID,

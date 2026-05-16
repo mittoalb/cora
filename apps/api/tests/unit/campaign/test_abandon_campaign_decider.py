@@ -29,7 +29,7 @@ def _campaign(status: CampaignStatus) -> Campaign:
     return Campaign(
         id=_CAMPAIGN_ID,
         name=CampaignName("test"),
-        intent=CampaignIntent.IN_SITU,
+        intent=CampaignIntent.SERIES,
         lead_actor_id=_LEAD,
         status=status,
     )

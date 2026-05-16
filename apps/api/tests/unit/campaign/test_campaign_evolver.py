@@ -33,7 +33,7 @@ def _registered() -> CampaignRegistered:
     return CampaignRegistered(
         campaign_id=_CAMPAIGN_ID,
         name="In-situ heating",
-        intent="InSitu",
+        intent="Series",
         lead_actor_id=_LEAD_ACTOR_ID,
         subject_id=_SUBJECT_ID,
         description="long-form description",
@@ -52,7 +52,7 @@ def test_registered_creates_planned_campaign() -> None:
     state = evolve(None, _registered())
     assert state.id == _CAMPAIGN_ID
     assert state.name == CampaignName("In-situ heating")
-    assert state.intent == CampaignIntent.IN_SITU
+    assert state.intent == CampaignIntent.SERIES
     assert state.lead_actor_id == _LEAD_ACTOR_ID
     assert state.subject_id == _SUBJECT_ID
     assert state.description == CampaignDescription("long-form description")
@@ -69,7 +69,7 @@ def test_registered_with_no_description_yields_none() -> None:
     event = CampaignRegistered(
         campaign_id=_CAMPAIGN_ID,
         name="x",
-        intent="InSitu",
+        intent="Series",
         lead_actor_id=_LEAD_ACTOR_ID,
         subject_id=None,
         description=None,
@@ -88,12 +88,12 @@ def test_registered_overrides_prior_state() -> None:
     prior = Campaign(
         id=UUID(int=99),
         name=CampaignName("stale"),
-        intent=CampaignIntent.OPERANDO,
+        intent=CampaignIntent.SWEEP,
         lead_actor_id=UUID(int=11),
     )
     state = evolve(prior, _registered())
     assert state.id == _CAMPAIGN_ID
-    assert state.intent == CampaignIntent.IN_SITU
+    assert state.intent == CampaignIntent.SERIES
 
 
 # ---------- CampaignStarted ----------

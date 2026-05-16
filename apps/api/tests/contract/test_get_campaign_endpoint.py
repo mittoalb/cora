@@ -15,7 +15,7 @@ from cora.campaign.features.get_campaign.route import (
 def _seed(client: TestClient, **overrides: object) -> tuple[str, dict[str, object]]:
     body: dict[str, object] = {
         "name": "In-situ heating",
-        "intent": "InSitu",
+        "intent": "Series",
         "lead_actor_id": str(uuid4()),
         "tags": ["battery", "heating"],
     }
@@ -34,7 +34,7 @@ def test_get_campaigns_returns_200_with_full_state() -> None:
     body = response.json()
     assert body["id"] == cid
     assert body["name"] == "In-situ heating"
-    assert body["intent"] == "InSitu"
+    assert body["intent"] == "Series"
     assert body["lead_actor_id"] == seeded["lead_actor_id"]
     assert body["subject_id"] is None
     assert body["description"] is None

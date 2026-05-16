@@ -61,7 +61,7 @@ async def test_handler_passes_through_filters() -> None:
     page = await handler(
         ListCampaigns(
             status="all",
-            intent="Operando",
+            intent="Series",
             lead_actor_id=_LEAD_ACTOR_ID,
             subject_id=_SUBJECT_ID,
             tag="hexapod",
@@ -151,7 +151,7 @@ def _row(**overrides: Any) -> dict[str, Any]:
     base: dict[str, Any] = {
         "campaign_id": _CAMPAIGN_ID,
         "name": "operando battery",
-        "intent": "Operando",
+        "intent": "Series",
         "status": "Active",
         "lead_actor_id": _LEAD_ACTOR_ID,
         "subject_id": _SUBJECT_ID,
@@ -186,7 +186,7 @@ async def test_handler_filter_binds_map_one_to_one_with_sql_positions() -> None:
     await handler(
         ListCampaigns(
             status="Active",
-            intent="Operando",
+            intent="Series",
             lead_actor_id=_LEAD_ACTOR_ID,
             subject_id=_SUBJECT_ID,
             tag="hexapod",
@@ -201,7 +201,7 @@ async def test_handler_filter_binds_map_one_to_one_with_sql_positions() -> None:
     # limit + 1 keyset overfetch
     assert args[0] == 6
     assert args[1] == ["Active"]  # status_array
-    assert args[2] == "Operando"
+    assert args[2] == "Series"
     assert args[3] == _LEAD_ACTOR_ID
     assert args[4] == _SUBJECT_ID
     assert args[5] == "hexapod"
@@ -305,7 +305,7 @@ async def test_handler_row_mapping_round_trips_every_column() -> None:
     last_changed = datetime(2026, 5, 17, 15, 0, 0, tzinfo=UTC)
     row = _row(
         name="parameter sweep, T_K",
-        intent="ParameterSweep",
+        intent="Sweep",
         status="Held",
         description="three-axis sweep",
         tags=["alpha", "beta"],
@@ -325,7 +325,7 @@ async def test_handler_row_mapping_round_trips_every_column() -> None:
     assert len(page.items) == 1
     item = page.items[0]
     assert item.name == "parameter sweep, T_K"
-    assert item.intent == "ParameterSweep"
+    assert item.intent == "Sweep"
     assert item.status == "Held"
     assert item.description == "three-axis sweep"
     assert item.tags == ["alpha", "beta"]

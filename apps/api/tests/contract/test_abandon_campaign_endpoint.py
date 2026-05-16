@@ -15,7 +15,7 @@ from cora.campaign.features.abandon_campaign.route import (
 def _register(client: TestClient) -> str:
     response = client.post(
         "/campaigns",
-        json={"name": "test", "intent": "InSitu", "lead_actor_id": str(uuid4())},
+        json={"name": "test", "intent": "Series", "lead_actor_id": str(uuid4())},
     )
     return str(response.json()["campaign_id"])
 

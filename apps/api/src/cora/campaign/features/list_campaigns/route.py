@@ -117,7 +117,7 @@ async def list_campaigns(
     ] = None,
     intent: Annotated[
         CampaignIntentFilter | None,
-        Query(description="Optional intent filter (one of the 5 CampaignIntent values)."),
+        Query(description="Optional intent filter (one of the 4 CampaignIntent values)."),
     ] = None,
     lead_actor_id: Annotated[
         UUID | None,

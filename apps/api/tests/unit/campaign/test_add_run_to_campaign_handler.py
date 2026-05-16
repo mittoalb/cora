@@ -67,7 +67,7 @@ async def _seed_campaign(store: InMemoryEventStore) -> None:
             CampaignRegistered(
                 campaign_id=_CAMPAIGN_ID,
                 name="campaign",
-                intent="InSitu",
+                intent="Series",
                 lead_actor_id=_LEAD,
                 subject_id=None,
                 description=None,

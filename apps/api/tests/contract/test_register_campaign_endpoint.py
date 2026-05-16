@@ -20,7 +20,7 @@ from cora.campaign.features.register_campaign.route import (
 def _body(**overrides: object) -> dict[str, object]:
     base: dict[str, object] = {
         "name": "In-situ heating series #42",
-        "intent": "InSitu",
+        "intent": "Series",
         "lead_actor_id": str(uuid4()),
     }
     base.update(overrides)
@@ -40,7 +40,7 @@ def test_post_campaigns_returns_201_with_campaign_id() -> None:
 @pytest.mark.contract
 @pytest.mark.parametrize(
     "intent",
-    ["InSitu", "Operando", "ParameterSweep", "MultiModal", "ProposalBlock"],
+    ["Series", "Sweep", "Coordinated", "Block"],
 )
 def test_post_campaigns_accepts_each_intent(intent: str) -> None:
     with TestClient(create_app()) as client:
@@ -80,7 +80,7 @@ def test_post_campaigns_rejects_missing_required_fields_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/campaigns",
-            json={"intent": "InSitu"},  # name + lead_actor_id missing
+            json={"intent": "Series"},  # name + lead_actor_id missing
         )
     assert response.status_code == 422
 
@@ -93,7 +93,7 @@ def test_post_campaigns_rejects_missing_lead_actor_id_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/campaigns",
-            json={"name": "x", "intent": "InSitu"},  # lead_actor_id omitted
+            json={"name": "x", "intent": "Series"},  # lead_actor_id omitted
         )
     assert response.status_code == 422
     body = response.json()

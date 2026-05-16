@@ -1,9 +1,10 @@
 """Campaign aggregate state, VOs, enums, and domain errors.
 
 `Campaign` is the operator-declared coordinated container above Run:
-an in-situ heating series, an operando battery measurement, a
-parametric sweep, a multi-modal acquisition coordination, or a
-proposal-block scheduling envelope. It is distinct from Recipe BC
+a series of measurements over time on shared resources, a parametric
+sweep, a coordinated multi-modal or multi-Subject acquisition, or a
+scheduling block (proposal / beamtime / cycle). It is distinct from
+Recipe BC
 (pre-execution template ladder; design surface for recipe authors)
 by audience-and-vocabulary separation: Campaign is a post-execution
 coordination layer (study surface for operators / PIs after Plans
@@ -36,15 +37,16 @@ bare `str` validated 1-500 chars at the decider, mirroring
 precedent (free-form audit breadcrumb, no shared semantics across
 slices that would justify a typed VO).
 
-## Intent enum (5 values closed) + free tags
+## Intent enum (4 values closed) + free tags
 
-`CampaignIntent` is closed at 5 values derived from the 3-corpus
-research (synchrotron + enterprise LIMS / MES + standards): InSitu /
-Operando / ParameterSweep / MultiModal / ProposalBlock. Free
-`tags: frozenset[CampaignTag]` absorbs facility-specific drift
-without fragmenting the closed enum. Day-1 lock is intentionally
-narrow: adding intents is cheap (additive StrEnum), pruning is
-expensive.
+`CampaignIntent` is closed at 4 abstract intent-shape values: Series /
+Sweep / Coordinated / Block. It describes what KIND of coordination
+the Campaign carries, NOT the scientific technique. Technique-specific
+tagging (in-situ, operando, tomography, EDD, etc.) lives on the free
+`tags: frozenset[CampaignTag]` field. Closed enum + free tags yields
+a reportable shape vocabulary alongside a flexible domain-vocabulary
+surface. Day-1 lock is intentionally narrow: adding intents is cheap
+(additive StrEnum), pruning is expensive.
 
 ## ExternalRef (anti-corruption for proposal / btr / visit / cycle)
 
@@ -102,25 +104,28 @@ class CampaignStatus(StrEnum):
 
 
 class CampaignIntent(StrEnum):
-    """Closed scientific-grouping vocabulary; tags absorb facility-specific drift.
+    """Intent-shape vocabulary; what KIND of coordination this Campaign carries.
 
-    Five values derived from the 3-corpus research (synchrotron +
-    enterprise LIMS / MES + standards). `Replication` and
-    `Longitudinal` rejected day-1 (corpora mention but rarely first-
-    class); they can be added additively when usage data demands.
+    Four abstract shape categories: what the operator is coordinating,
+    not the scientific technique. Technique-specific tagging (in-situ,
+    operando, tomography, EDD, etc.) goes on the free
+    `tags: frozenset[CampaignTag]` field. Closed enum + free tags
+    yields a reportable shape vocabulary plus a flexible domain-
+    vocabulary surface.
 
-      - `InSitu`         -- sample mounted, multiple measurements
-      - `Operando`       -- system under operation during measurement
-      - `ParameterSweep` -- axes swept across runs
-      - `MultiModal`     -- same Subject under multiple Methods
-      - `ProposalBlock`  -- scheduling envelope for one beamtime
+      - `Series`      -- multiple measurements coordinated over time on
+                         shared resources
+      - `Sweep`       -- parametric exploration (axes swept across runs)
+      - `Coordinated` -- multi-modal or multi-Subject coordinated
+                         acquisition
+      - `Block`       -- scheduling envelope (proposal / beamtime block /
+                         cycle)
     """
 
-    IN_SITU = "InSitu"
-    OPERANDO = "Operando"
-    PARAMETER_SWEEP = "ParameterSweep"
-    MULTI_MODAL = "MultiModal"
-    PROPOSAL_BLOCK = "ProposalBlock"
+    SERIES = "Series"
+    SWEEP = "Sweep"
+    COORDINATED = "Coordinated"
+    BLOCK = "Block"
 
 
 # ---------------------------------------------------------------------------
@@ -482,9 +487,9 @@ class Campaign:
     PI) may differ from the campaign lead. Per design memo lock.
 
     `subject_id: UUID | None` is INFORMATIONAL (LOOSE policy day-1):
-    ProposalBlock and ParameterSweep-across-samples use cases need
-    multi-Subject Campaigns. Aggregate does NOT enforce coherence
-    against member Run subjects (anti-hook).
+    Block and Sweep-across-samples use cases need multi-Subject
+    Campaigns. Aggregate does NOT enforce coherence against member
+    Run subjects (anti-hook).
 
     `run_ids: frozenset[UUID]` is the bidirectional composition set.
     Day-1 (6i-a) it stays empty; the evolver does NOT mutate it.

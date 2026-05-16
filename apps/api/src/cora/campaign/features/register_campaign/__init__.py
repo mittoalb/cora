@@ -7,7 +7,7 @@ command slices:
 
     cmd = register_campaign.RegisterCampaign(
         name="In-situ heating series #42",
-        intent=CampaignIntent.IN_SITU,
+        intent=CampaignIntent.SERIES,
         lead_actor_id=UUID("..."),
         ...,
     )

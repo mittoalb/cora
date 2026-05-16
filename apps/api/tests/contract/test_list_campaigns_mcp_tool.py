@@ -56,7 +56,7 @@ def test_mcp_list_campaigns_tool_accepts_combined_filters() -> None:
                     "name": "list_campaigns",
                     "arguments": {
                         "status": "all",
-                        "intent": "Operando",
+                        "intent": "Series",
                         "tag": "hexapod",
                         "limit": 25,
                     },

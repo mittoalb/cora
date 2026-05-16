@@ -12,7 +12,7 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 def _seed_planned_via_rest(client: TestClient) -> str:
     response = client.post(
         "/campaigns",
-        json={"name": "test", "intent": "InSitu", "lead_actor_id": str(uuid4())},
+        json={"name": "test", "intent": "Series", "lead_actor_id": str(uuid4())},
     )
     return str(response.json()["campaign_id"])
 

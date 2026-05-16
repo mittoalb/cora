@@ -42,7 +42,7 @@ def _campaign(status: CampaignStatus, run_ids: frozenset[UUID] | None = None) ->
     return Campaign(
         id=_CAMPAIGN_ID,
         name=CampaignName("test"),
-        intent=CampaignIntent.IN_SITU,
+        intent=CampaignIntent.SERIES,
         lead_actor_id=_LEAD,
         status=status,
         run_ids=run_ids if run_ids is not None else frozenset({_RUN_ID}),

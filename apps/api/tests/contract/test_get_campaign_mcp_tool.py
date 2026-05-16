@@ -14,7 +14,7 @@ def _seed_via_rest(client: TestClient) -> str:
         "/campaigns",
         json={
             "name": "test",
-            "intent": "InSitu",
+            "intent": "Series",
             "lead_actor_id": str(uuid4()),
         },
     )

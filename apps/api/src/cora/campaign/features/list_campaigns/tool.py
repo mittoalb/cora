@@ -57,7 +57,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "Cursor-paginated list of campaigns. Optional filters: "
             "`status` (defaults to OPEN set Planned+Active+Held; pass "
             "'all' to include Closed + Abandoned, or an exact value), "
-            "`intent` (one of the 5 CampaignIntent values), "
+            "`intent` (one of the 4 CampaignIntent values), "
             "`lead_actor_id`, `subject_id`, `tag` (exact match in the "
             "tags array). Pass `cursor` from a previous page's "
             "`next_cursor` to fetch the next page."

@@ -31,7 +31,7 @@ async def _seed(store: InMemoryEventStore) -> None:
     genesis = CampaignRegistered(
         campaign_id=_CAMPAIGN_ID,
         name="In-situ heating",
-        intent="InSitu",
+        intent="Series",
         lead_actor_id=_LEAD_ACTOR_ID,
         subject_id=None,
         description=None,
@@ -72,7 +72,7 @@ async def test_handler_returns_campaign_on_hit() -> None:
     assert campaign is not None
     assert campaign.id == _CAMPAIGN_ID
     assert campaign.status == CampaignStatus.PLANNED
-    assert campaign.intent == CampaignIntent.IN_SITU
+    assert campaign.intent == CampaignIntent.SERIES
     assert campaign.lead_actor_id == _LEAD_ACTOR_ID
     assert campaign.name.value == "In-situ heating"
 

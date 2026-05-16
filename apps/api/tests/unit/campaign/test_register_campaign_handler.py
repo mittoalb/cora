@@ -38,7 +38,7 @@ def _build_deps(
 def _command(**overrides: object) -> RegisterCampaign:
     base: dict[str, object] = {
         "name": "In-situ heating series",
-        "intent": CampaignIntent.IN_SITU,
+        "intent": CampaignIntent.SERIES,
         "lead_actor_id": _LEAD_ACTOR_ID,
     }
     base.update(overrides)
@@ -74,7 +74,7 @@ async def test_handler_appends_campaign_registered_event_to_store() -> None:
     assert stored.event_type == "CampaignRegistered"
     assert stored.payload["campaign_id"] == str(_NEW_ID)
     assert stored.payload["name"] == "In-situ heating series"
-    assert stored.payload["intent"] == "InSitu"
+    assert stored.payload["intent"] == "Series"
     assert stored.payload["lead_actor_id"] == str(_LEAD_ACTOR_ID)
     assert stored.payload["subject_id"] is None
     assert stored.payload["description"] is None

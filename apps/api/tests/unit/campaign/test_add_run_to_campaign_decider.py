@@ -42,7 +42,7 @@ def _campaign(status: CampaignStatus, run_ids: frozenset[UUID] | None = None) ->
     return Campaign(
         id=_CAMPAIGN_ID,
         name=CampaignName("test"),
-        intent=CampaignIntent.IN_SITU,
+        intent=CampaignIntent.SERIES,
         lead_actor_id=_LEAD,
         status=status,
         run_ids=run_ids or frozenset(),
@@ -149,8 +149,8 @@ def test_decider_accepts_run_with_different_subject_than_campaign() -> None:
 
     Per `[[project_campaign_design]]` and the BC's design memo
     Anti-hooks section: `subject_id` on Campaign is INFORMATIONAL,
-    NOT enforced as a member-Run invariant. ProposalBlock /
-    ParameterSweep-across-samples / MultiModal use cases all require
+    NOT enforced as a member-Run invariant. Block /
+    Sweep-across-samples / Coordinated use cases all require
     multi-Subject Campaigns. The decider does NOT compare
     Campaign.subject_id against Run.subject_id (today or ever
     without an explicit policy change per Watch item #3).
@@ -161,7 +161,7 @@ def test_decider_accepts_run_with_different_subject_than_campaign() -> None:
     campaign = Campaign(
         id=_CAMPAIGN_ID,
         name=CampaignName("multi-subject sweep"),
-        intent=CampaignIntent.PROPOSAL_BLOCK,
+        intent=CampaignIntent.BLOCK,
         lead_actor_id=_LEAD,
         subject_id=subject_a,
         status=CampaignStatus.ACTIVE,

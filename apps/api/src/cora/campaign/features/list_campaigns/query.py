@@ -27,11 +27,10 @@ from typing import Literal
 from uuid import UUID
 
 CampaignIntentFilter = Literal[
-    "InSitu",
-    "Operando",
-    "ParameterSweep",
-    "MultiModal",
-    "ProposalBlock",
+    "Series",
+    "Sweep",
+    "Coordinated",
+    "Block",
 ]
 
 # Status carries the "all" sentinel in addition to the five real statuses.
@@ -67,7 +66,7 @@ class ListCampaigns:
     """
 
     intent: CampaignIntentFilter | None = None
-    """Optional intent filter (one of the 5 CampaignIntent values)."""
+    """Optional intent filter (one of the 4 CampaignIntent values)."""
 
     lead_actor_id: UUID | None = None
     """Optional lead-actor filter ('campaigns I lead')."""

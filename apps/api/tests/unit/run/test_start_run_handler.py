@@ -694,7 +694,7 @@ async def _seed_campaign_active(
             CampaignRegistered(
                 campaign_id=campaign_id,
                 name="test",
-                intent="InSitu",
+                intent="Series",
                 lead_actor_id=lead_actor_id,
                 subject_id=None,
                 description=None,

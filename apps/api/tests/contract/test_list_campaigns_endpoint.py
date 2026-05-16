@@ -51,7 +51,7 @@ def test_get_campaigns_accepts_each_status_including_all_sentinel(
 @pytest.mark.contract
 @pytest.mark.parametrize(
     "intent_value",
-    ["InSitu", "Operando", "ParameterSweep", "MultiModal", "ProposalBlock"],
+    ["Series", "Sweep", "Coordinated", "Block"],
 )
 def test_get_campaigns_accepts_each_intent(client: TestClient, intent_value: str) -> None:
     with client:
@@ -85,7 +85,7 @@ def test_get_campaigns_accepts_tag_filter(client: TestClient) -> None:
 @pytest.mark.contract
 def test_get_campaigns_accepts_combined_filters(client: TestClient) -> None:
     with client:
-        response = client.get("/campaigns?status=Active&intent=Operando&tag=hexapod")
+        response = client.get("/campaigns?status=Active&intent=Series&tag=hexapod")
     assert response.status_code == 200
 
 

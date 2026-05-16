@@ -12,7 +12,7 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 def _args(**overrides: object) -> dict[str, object]:
     base: dict[str, object] = {
         "name": "test",
-        "intent": "InSitu",
+        "intent": "Series",
         "lead_actor_id": str(uuid4()),
     }
     base.update(overrides)

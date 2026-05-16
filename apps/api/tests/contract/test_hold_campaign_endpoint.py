@@ -17,7 +17,7 @@ def _register_and_start(client: TestClient) -> str:
         "/campaigns",
         json={
             "name": "test",
-            "intent": "InSitu",
+            "intent": "Series",
             "lead_actor_id": str(uuid4()),
         },
     )
@@ -52,7 +52,7 @@ def test_post_hold_returns_409_when_campaign_is_planned() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/campaigns",
-            json={"name": "x", "intent": "InSitu", "lead_actor_id": str(uuid4())},
+            json={"name": "x", "intent": "Series", "lead_actor_id": str(uuid4())},
         )
         cid = str(response.json()["campaign_id"])
         held = client.post(f"/campaigns/{cid}/hold", json={"reason": "r"})
