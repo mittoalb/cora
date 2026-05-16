@@ -29,6 +29,25 @@ queries. Deferred to projection-worker era when the
 parent-tree-as-projection becomes available; documented as a known
 gap.
 
+## Active-Run gate deferred (BC-map watch item)
+
+This decider does NOT verify that the Asset is free of active Run
+membership. Operators MUST avoid relocating Assets that are bound
+to a Running or Held Run via Plan.asset_ids — doing so silently
+leaves the Run's bind-time snapshot stale (the Asset moved out
+from under it) and can corrupt the Run's audit story.
+
+The enforcement gate is deferred per Track-A audit (2026-05-16):
+the principled cross-BC adapter would be an `AssetActiveRunLookup`
+port over `proj_run_summary` joined with the Plan's asset_ids
+denorm (mirrors `ClearanceLookup` / `CautionLookup` from 11a-c-3
+and 11b-c). Ship when the first concrete incident OR pilot
+operator request fires the trigger.
+
+Until then: relocation during an active Run is the operator's
+responsibility to avoid (UI guidance + operator-guide note carry
+the burden).
+
 ## Eventual-consistency stance for the target ref
 
 Same as `register_asset`: the decider does NOT verify the target
