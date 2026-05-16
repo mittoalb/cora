@@ -180,23 +180,23 @@ async def test_approved_with_validity_window_overrides_updates_projection(
     tier; the unit test pins the SQL shape, this test pins the actual
     PG write.
     """
+    from cora.safety.features.append_clearance_review_step import (
+        AppendClearanceReviewStep,
+    )
+    from cora.safety.features.append_clearance_review_step import (
+        bind as append_review_step_bind,
+    )
     from cora.safety.features.approve_clearance import (
         ApproveClearance,
     )
     from cora.safety.features.approve_clearance import (
         bind as approve_bind,
     )
-    from cora.safety.features.begin_review_clearance import (
-        BeginReviewClearance,
+    from cora.safety.features.start_review_clearance import (
+        StartReviewClearance,
     )
-    from cora.safety.features.begin_review_clearance import (
-        bind as begin_review_bind,
-    )
-    from cora.safety.features.record_review_step_clearance import (
-        RecordReviewStepClearance,
-    )
-    from cora.safety.features.record_review_step_clearance import (
-        bind as record_review_step_bind,
+    from cora.safety.features.start_review_clearance import (
+        bind as start_review_bind,
     )
 
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(20)])
@@ -218,13 +218,13 @@ async def test_approved_with_validity_window_overrides_updates_projection(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await begin_review_bind(deps)(
-        BeginReviewClearance(clearance_id=cid, first_reviewer_role="ESH"),
+    await start_review_bind(deps)(
+        StartReviewClearance(clearance_id=cid, first_reviewer_role="ESH"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await record_review_step_bind(deps)(
-        RecordReviewStepClearance(
+    await append_review_step_bind(deps)(
+        AppendClearanceReviewStep(
             clearance_id=cid,
             step_index=0,
             role="ESH",

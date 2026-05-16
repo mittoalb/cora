@@ -5,7 +5,7 @@
 None to 404 via HTTPException (idiomatic in routes).
 
 The response uses `dict[str, Any]` for the polymorphic `bindings`,
-`declarations`, and `reviewers` fields. Each item in those lists is a
+`declarations`, and `review_steps` fields. Each item in those lists is a
 JSON object whose `kind` discriminator selects the variant shape; the
 serialization helpers from `cora.safety.aggregates.clearance.events`
 produce the exact same shape used in the event payloads, so the wire
@@ -26,7 +26,7 @@ from cora.safety.aggregates.clearance import (
     Clearance,
     ClearanceKind,
     ClearanceStatus,
-    ReviewerStep,
+    ReviewStep,
 )
 from cora.safety.aggregates.clearance.events import (
     serialize_binding,
@@ -37,7 +37,7 @@ from cora.safety.features.get_clearance.handler import Handler
 from cora.safety.features.get_clearance.query import GetClearance
 
 
-class ReviewerStepResponse(BaseModel):
+class ReviewStepResponse(BaseModel):
     """One step in the reviewer chain on the wire."""
 
     step_index: int
@@ -68,7 +68,7 @@ class ClearanceResponse(BaseModel):
     bindings: list[dict[str, Any]]
     declarations: list[dict[str, Any]]
     risk_band: RiskBand | None = None
-    reviewers: list[ReviewerStepResponse]
+    review_steps: list[ReviewStepResponse]
     status: ClearanceStatus
     external_id: str | None = Field(default=None, max_length=CLEARANCE_EXTERNAL_ID_MAX_LENGTH)
     parent_clearance_id: UUID | None = None
@@ -78,8 +78,8 @@ class ClearanceResponse(BaseModel):
     last_reviewed_by_actor_id: UUID | None = None
 
 
-def _reviewer_step_to_response(step: ReviewerStep) -> ReviewerStepResponse:
-    return ReviewerStepResponse(
+def _review_step_to_response(step: ReviewStep) -> ReviewStepResponse:
+    return ReviewStepResponse(
         step_index=step.step_index,
         role=step.role,
         actor_id=step.actor_id,
@@ -98,7 +98,7 @@ def _clearance_to_response(clearance: Clearance) -> ClearanceResponse:
         bindings=[serialize_binding(b) for b in clearance.bindings],
         declarations=[serialize_declaration(d) for d in clearance.declarations],
         risk_band=clearance.risk_band,
-        reviewers=[_reviewer_step_to_response(r) for r in clearance.reviewers],
+        review_steps=[_review_step_to_response(r) for r in clearance.review_steps],
         status=clearance.status,
         external_id=clearance.external_id,
         parent_clearance_id=clearance.parent_clearance_id,

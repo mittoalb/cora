@@ -5,15 +5,15 @@ from collections.abc import Callable
 from mcp.server.fastmcp import FastMCP
 
 from cora.safety.features.activate_clearance import tool as activate_clearance_tool
+from cora.safety.features.append_clearance_review_step import (
+    tool as append_clearance_review_step_tool,
+)
 from cora.safety.features.approve_clearance import tool as approve_clearance_tool
-from cora.safety.features.begin_review_clearance import tool as begin_review_clearance_tool
 from cora.safety.features.get_clearance import tool as get_clearance_tool
 from cora.safety.features.list_clearances import tool as list_clearances_tool
-from cora.safety.features.record_review_step_clearance import (
-    tool as record_review_step_clearance_tool,
-)
 from cora.safety.features.register_clearance import tool as register_clearance_tool
 from cora.safety.features.reject_clearance import tool as reject_clearance_tool
+from cora.safety.features.start_review_clearance import tool as start_review_clearance_tool
 from cora.safety.features.submit_clearance import tool as submit_clearance_tool
 from cora.safety.wire import SafetyHandlers
 
@@ -40,13 +40,13 @@ def register_safety_tools(
         mcp,
         get_handler=lambda: get_handlers().submit_clearance,
     )
-    begin_review_clearance_tool.register(
+    start_review_clearance_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().begin_review_clearance,
+        get_handler=lambda: get_handlers().start_review_clearance,
     )
-    record_review_step_clearance_tool.register(
+    append_clearance_review_step_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().record_review_step_clearance,
+        get_handler=lambda: get_handlers().append_clearance_review_step,
     )
     approve_clearance_tool.register(
         mcp,

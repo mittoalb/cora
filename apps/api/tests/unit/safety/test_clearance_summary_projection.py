@@ -3,7 +3,7 @@
 Covers:
   - `split_binding_ids` helper (5-arm binding split into 4 typed lists)
   - `apply()` dispatch for each event type (using a recording fake conn)
-  - `ClearanceReviewStepRecorded` is subscribed-but-no-op (no SQL emitted)
+  - `ClearanceReviewStepAppended` is subscribed-but-no-op (no SQL emitted)
   - Unsubscribed event types are silently ignored (defensive)
   - subscribed_event_types matches the 7 events the projection cares about
 """
@@ -82,8 +82,8 @@ def test_subscribed_event_types_covers_all_7_clearance_events() -> None:
         {
             "ClearanceRegistered",
             "ClearanceSubmitted",
-            "ClearanceUnderReview",
-            "ClearanceReviewStepRecorded",
+            "ClearanceReviewStarted",
+            "ClearanceReviewStepAppended",
             "ClearanceApproved",
             "ClearanceRejected",
             "ClearanceActivated",
@@ -175,7 +175,7 @@ async def test_apply_clearance_review_step_recorded_is_no_op() -> None:
     conn = _RecordingConn()
     await proj.apply(
         _stored(
-            "ClearanceReviewStepRecorded",
+            "ClearanceReviewStepAppended",
             {
                 "clearance_id": str(uuid4()),
                 "step_index": 0,

@@ -6,8 +6,8 @@ Phase 11a-a ships:
 
 Phase 11a-b adds the FSM-closure transitions:
   - `submit_clearance`               (Defined -> Submitted)
-  - `begin_review_clearance`         (Submitted -> UnderReview)
-  - `record_review_step_clearance`   (UnderReview; appends reviewers tuple)
+  - `start_review_clearance`         (Submitted -> UnderReview)
+  - `append_clearance_review_step`   (UnderReview; appends review_steps tuple)
   - `approve_clearance`              (UnderReview -> Approved)
   - `reject_clearance`               (UnderReview -> Rejected)
   - `activate_clearance`             (Approved -> Active)
@@ -20,24 +20,24 @@ Phase 11a-c adds:
 
 from cora.safety.features import (
     activate_clearance,
+    append_clearance_review_step,
     approve_clearance,
-    begin_review_clearance,
     get_clearance,
     list_clearances,
-    record_review_step_clearance,
     register_clearance,
     reject_clearance,
+    start_review_clearance,
     submit_clearance,
 )
 
 __all__ = [
     "activate_clearance",
+    "append_clearance_review_step",
     "approve_clearance",
-    "begin_review_clearance",
     "get_clearance",
     "list_clearances",
-    "record_review_step_clearance",
     "register_clearance",
     "reject_clearance",
+    "start_review_clearance",
     "submit_clearance",
 ]

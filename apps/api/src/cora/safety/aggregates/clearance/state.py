@@ -15,7 +15,7 @@ Per [[project_safety_clearance_design]], the design locks:
     Asset / Run / Procedure + ExternalBinding(scheme, id) for
     upstream-deferred refs (Proposal / BTR / LabVisit / Session per
     BC-map line 111 anti-corruption pattern)
-  - Multi-step review chain via `reviewers: tuple[ReviewerStep, ...]`
+  - Multi-step review chain via `review_steps: tuple[ReviewStep, ...]`
     field (NOT additional FSM states)
   - Discriminated-union `HazardClassification` VO at
     `cora.safety.aggregates.clearance.hazard_classification`
@@ -23,7 +23,7 @@ Per [[project_safety_clearance_design]], the design locks:
 ## Phase 11a-a scope
 
 State + ClearanceStatus / ClearanceKind StrEnums + ClearanceTitle VO +
-ClearanceBinding union + HazardDeclaration + ReviewerStep + 7 errors.
+ClearanceBinding union + HazardDeclaration + ReviewStep + 7 errors.
 Genesis decider only (`register_clearance`); transition slices land in
 11a-b.
 
@@ -58,7 +58,7 @@ Per the cross-facility portability research: DESY DOOR has a 3-step
 review chain (Local Contact -> Beamline Sci+Coordinator -> Safety
 Group); NSLS-II has ERC-mediated changes; APS has dual gating
 (beamline + ESRB). All fit one `UnderReview` FSM state with each
-reviewer step appended to the `reviewers: tuple[ReviewerStep, ...]`
+reviewer step appended to the `review_steps: tuple[ReviewStep, ...]`
 tuple. The FSM stays clean (8 states); the chain length varies per
 facility. This keeps the FSM legible and the audit chain expressive.
 
@@ -111,7 +111,7 @@ class ClearanceStatus(StrEnum):
 
     Compresses the union of all 9 surveyed facility-form lifecycles per
     the cross-facility portability research (v3 pass). Multi-step review
-    rolls up into UnderReview + the `reviewers: tuple[...]` field; no
+    rolls up into UnderReview + the `review_steps: tuple[...]` field; no
     facility introduces states outside this set.
     """
 
@@ -311,7 +311,7 @@ class InvalidClearanceReviewerNotesError(ValueError):
 
 
 class InvalidClearanceReviewStepIndexError(ValueError):
-    """The supplied step_index does not equal `len(state.reviewers)`.
+    """The supplied step_index does not equal `len(state.review_steps)`.
 
     Append-only contract: the next step must be at index = current count.
     Out-of-order writes are rejected.
@@ -319,7 +319,7 @@ class InvalidClearanceReviewStepIndexError(ValueError):
 
     def __init__(self, expected: int, got: int) -> None:
         super().__init__(
-            f"Reviewer step_index must equal len(reviewers); expected {expected}, got {got}"
+            f"Reviewer step_index must equal len(review_steps); expected {expected}, got {got}"
         )
         self.expected = expected
         self.got = got
@@ -367,26 +367,26 @@ class ClearanceCannotSubmitError(Exception):
         self.current_status = current_status
 
 
-class ClearanceCannotBeginReviewError(Exception):
-    """Attempted `begin_review_clearance` from a disqualifying status."""
+class ClearanceCannotStartReviewError(Exception):
+    """Attempted `start_review_clearance` from a disqualifying status."""
 
     def __init__(self, clearance_id: UUID, current_status: "ClearanceStatus") -> None:
         super().__init__(
-            f"Clearance {clearance_id} cannot begin review: currently in status "
-            f"{current_status.value}, begin_review_clearance requires "
+            f"Clearance {clearance_id} cannot start review: currently in status "
+            f"{current_status.value}, start_review_clearance requires "
             f"{ClearanceStatus.SUBMITTED.value}"
         )
         self.clearance_id = clearance_id
         self.current_status = current_status
 
 
-class ClearanceCannotRecordReviewStepError(Exception):
-    """Attempted `record_review_step_clearance` from a disqualifying status."""
+class ClearanceCannotAppendReviewStepError(Exception):
+    """Attempted `append_clearance_review_step` from a disqualifying status."""
 
     def __init__(self, clearance_id: UUID, current_status: "ClearanceStatus") -> None:
         super().__init__(
-            f"Clearance {clearance_id} cannot record review step: currently in status "
-            f"{current_status.value}, record_review_step_clearance requires "
+            f"Clearance {clearance_id} cannot append review step: currently in status "
+            f"{current_status.value}, append_clearance_review_step requires "
             f"{ClearanceStatus.UNDER_REVIEW.value}"
         )
         self.clearance_id = clearance_id
@@ -592,12 +592,12 @@ class HazardDeclaration:
 
 
 # ---------------------------------------------------------------------------
-# ReviewerStep: one step in the multi-step review chain
+# ReviewStep: one step in the multi-step review chain
 # ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
-class ReviewerStep:
+class ReviewStep:
     """One step in the Clearance's review chain.
 
     Per the cross-facility portability research, multi-step chains are
@@ -607,7 +607,7 @@ class ReviewerStep:
     chain length vary per facility.
 
     `step_index` is 0-based and append-only (decider enforces
-    `step_index == len(state.reviewers)`); `role` is free-form
+    `step_index == len(state.review_steps)`); `role` is free-form
     facility-vocabulary (`BeamlineScientist` / `Coordinator` / `ESH` /
     `ESRB` / `LocalContact`); `decision` is one of `Approved` /
     `Rejected` / `RequestedChanges` (validated at API boundary).
@@ -634,7 +634,7 @@ class Clearance:
     typed kind + title + bindings + declarations + risk_band +
     review chain + status + lazy parent / validity / review-cycle
     timestamps. Per-step audit metadata (decided_at, role, decision)
-    lives on ReviewerStep tuple entries.
+    lives on ReviewStep tuple entries.
 
     Per the cross-facility portability research, this single aggregate
     shape is portable across all 9 surveyed facilities (split-form
@@ -659,7 +659,7 @@ class Clearance:
     bindings: frozenset[ClearanceBinding]
     declarations: frozenset[HazardDeclaration] = field(default_factory=frozenset[HazardDeclaration])
     risk_band: RiskBand | None = None
-    reviewers: tuple[ReviewerStep, ...] = ()
+    review_steps: tuple[ReviewStep, ...] = ()
     status: ClearanceStatus = ClearanceStatus.DEFINED
     external_id: str | None = None
     parent_clearance_id: UUID | None = None

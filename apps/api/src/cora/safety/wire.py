@@ -20,8 +20,8 @@ Cross-cutting decorators applied here mirror Access / Trust / Subject
 
 11a-b:
   - `submit_clearance`              (transition; uses make_clearance_update_handler)
-  - `begin_review_clearance`        (transition)
-  - `record_review_step_clearance`  (transition)
+  - `start_review_clearance`        (transition)
+  - `append_clearance_review_step`  (transition)
   - `approve_clearance`             (transition)
   - `reject_clearance`              (transition)
   - `activate_clearance`            (transition)
@@ -38,13 +38,13 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.safety.features import (
     activate_clearance,
+    append_clearance_review_step,
     approve_clearance,
-    begin_review_clearance,
     get_clearance,
     list_clearances,
-    record_review_step_clearance,
     register_clearance,
     reject_clearance,
+    start_review_clearance,
     submit_clearance,
 )
 
@@ -59,8 +59,8 @@ class SafetyHandlers:
     get_clearance: get_clearance.Handler
     list_clearances: list_clearances.Handler
     submit_clearance: submit_clearance.Handler
-    begin_review_clearance: begin_review_clearance.Handler
-    record_review_step_clearance: record_review_step_clearance.Handler
+    start_review_clearance: start_review_clearance.Handler
+    append_clearance_review_step: append_clearance_review_step.Handler
     approve_clearance: approve_clearance.Handler
     reject_clearance: reject_clearance.Handler
     activate_clearance: activate_clearance.Handler
@@ -98,14 +98,14 @@ def wire_safety(deps: Kernel) -> SafetyHandlers:
             command_name="SubmitClearance",
             bc=_BC,
         ),
-        begin_review_clearance=with_tracing(
-            begin_review_clearance.bind(deps),
-            command_name="BeginReviewClearance",
+        start_review_clearance=with_tracing(
+            start_review_clearance.bind(deps),
+            command_name="StartReviewClearance",
             bc=_BC,
         ),
-        record_review_step_clearance=with_tracing(
-            record_review_step_clearance.bind(deps),
-            command_name="RecordReviewStepClearance",
+        append_clearance_review_step=with_tracing(
+            append_clearance_review_step.bind(deps),
+            command_name="AppendClearanceReviewStep",
             bc=_BC,
         ),
         approve_clearance=with_tracing(

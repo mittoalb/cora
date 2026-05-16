@@ -1,4 +1,4 @@
-"""Pure decider for the `RecordReviewStepClearance` command.
+"""Pure decider for the `AppendClearanceReviewStep` command.
 
 Append-only-into-tuple, no status change.
 
@@ -6,8 +6,8 @@ Append-only-into-tuple, no status change.
 
   - State must not be None -> `ClearanceNotFoundError`
   - Current status must be `UnderReview` ->
-    `ClearanceCannotRecordReviewStepError`
-  - `step_index` must equal `len(state.reviewers)` ->
+    `ClearanceCannotAppendReviewStepError`
+  - `step_index` must equal `len(state.review_steps)` ->
     `InvalidClearanceReviewStepIndexError`
   - `role` validated 1-50 chars after trim ->
     `InvalidClearanceReviewerRoleError`
@@ -23,9 +23,9 @@ from datetime import datetime
 from cora.infrastructure.bounded_text import validate_bounded_text
 from cora.safety.aggregates.clearance import (
     Clearance,
-    ClearanceCannotRecordReviewStepError,
+    ClearanceCannotAppendReviewStepError,
     ClearanceNotFoundError,
-    ClearanceReviewStepRecorded,
+    ClearanceReviewStepAppended,
     ClearanceStatus,
     InvalidClearanceReviewerNotesError,
     InvalidClearanceReviewerRoleError,
@@ -35,24 +35,24 @@ from cora.safety.aggregates.clearance.state import (
     CLEARANCE_REVIEWER_NOTES_MAX_LENGTH,
     CLEARANCE_REVIEWER_ROLE_MAX_LENGTH,
 )
-from cora.safety.features.record_review_step_clearance.command import (
-    RecordReviewStepClearance,
+from cora.safety.features.append_clearance_review_step.command import (
+    AppendClearanceReviewStep,
 )
 
 
 def decide(
     state: Clearance | None,
-    command: RecordReviewStepClearance,
+    command: AppendClearanceReviewStep,
     *,
     now: datetime,
-) -> list[ClearanceReviewStepRecorded]:
+) -> list[ClearanceReviewStepAppended]:
     """Decide the events produced by appending one reviewer step."""
     if state is None:
         raise ClearanceNotFoundError(command.clearance_id)
     if state.status is not ClearanceStatus.UNDER_REVIEW:
-        raise ClearanceCannotRecordReviewStepError(state.id, state.status)
+        raise ClearanceCannotAppendReviewStepError(state.id, state.status)
 
-    expected = len(state.reviewers)
+    expected = len(state.review_steps)
     if command.step_index != expected:
         raise InvalidClearanceReviewStepIndexError(expected=expected, got=command.step_index)
 
@@ -72,7 +72,7 @@ def decide(
         notes = trimmed_notes if trimmed_notes else None
 
     return [
-        ClearanceReviewStepRecorded(
+        ClearanceReviewStepAppended(
             clearance_id=state.id,
             step_index=command.step_index,
             role=role,

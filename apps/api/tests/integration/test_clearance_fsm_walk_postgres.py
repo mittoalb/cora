@@ -20,19 +20,19 @@ from cora.safety.aggregates.clearance import (
 )
 from cora.safety.features import (
     activate_clearance,
+    append_clearance_review_step,
     approve_clearance,
-    begin_review_clearance,
-    record_review_step_clearance,
     register_clearance,
     reject_clearance,
+    start_review_clearance,
     submit_clearance,
 )
 from cora.safety.features.activate_clearance import ActivateClearance
+from cora.safety.features.append_clearance_review_step import AppendClearanceReviewStep
 from cora.safety.features.approve_clearance import ApproveClearance
-from cora.safety.features.begin_review_clearance import BeginReviewClearance
-from cora.safety.features.record_review_step_clearance import RecordReviewStepClearance
 from cora.safety.features.register_clearance import RegisterClearance
 from cora.safety.features.reject_clearance import RejectClearance
+from cora.safety.features.start_review_clearance import StartReviewClearance
 from cora.safety.features.submit_clearance import SubmitClearance
 from tests.integration._helpers import build_postgres_deps
 
@@ -69,8 +69,8 @@ async def test_full_fsm_walk_to_active_postgres(db_pool: asyncpg.Pool) -> None:
     assert state.status == ClearanceStatus.SUBMITTED
 
     # Submitted -> UnderReview
-    await begin_review_clearance.bind(deps)(
-        BeginReviewClearance(clearance_id=cid, first_reviewer_role="BeamlineScientist"),
+    await start_review_clearance.bind(deps)(
+        StartReviewClearance(clearance_id=cid, first_reviewer_role="BeamlineScientist"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -79,8 +79,8 @@ async def test_full_fsm_walk_to_active_postgres(db_pool: asyncpg.Pool) -> None:
     assert state.status == ClearanceStatus.UNDER_REVIEW
 
     # Append one Approved review step
-    await record_review_step_clearance.bind(deps)(
-        RecordReviewStepClearance(
+    await append_clearance_review_step.bind(deps)(
+        AppendClearanceReviewStep(
             clearance_id=cid,
             step_index=0,
             role="BeamlineScientist",
@@ -95,8 +95,8 @@ async def test_full_fsm_walk_to_active_postgres(db_pool: asyncpg.Pool) -> None:
     state = await load_clearance(deps.event_store, cid)
     assert state is not None
     assert state.status == ClearanceStatus.UNDER_REVIEW
-    assert len(state.reviewers) == 1
-    assert state.reviewers[0].decision == "Approved"
+    assert len(state.review_steps) == 1
+    assert state.review_steps[0].decision == "Approved"
 
     # UnderReview -> Approved
     approving_actor = uuid4()
@@ -143,8 +143,8 @@ async def test_full_fsm_walk_to_rejected_postgres(db_pool: asyncpg.Pool) -> None
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await begin_review_clearance.bind(deps)(
-        BeginReviewClearance(clearance_id=cid, first_reviewer_role="ESH"),
+    await start_review_clearance.bind(deps)(
+        StartReviewClearance(clearance_id=cid, first_reviewer_role="ESH"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

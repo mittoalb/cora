@@ -1,4 +1,4 @@
-"""Pure-decider tests for `record_review_step_clearance` slice."""
+"""Pure-decider tests for `append_clearance_review_step` slice."""
 
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -7,23 +7,23 @@ import pytest
 
 from cora.safety.aggregates.clearance import (
     Clearance,
-    ClearanceCannotRecordReviewStepError,
+    ClearanceCannotAppendReviewStepError,
     ClearanceKind,
     ClearanceNotFoundError,
-    ClearanceReviewStepRecorded,
+    ClearanceReviewStepAppended,
     ClearanceStatus,
     ClearanceTitle,
     InvalidClearanceReviewerNotesError,
     InvalidClearanceReviewerRoleError,
     InvalidClearanceReviewStepIndexError,
-    ReviewerStep,
+    ReviewStep,
     RunBinding,
 )
 from cora.safety.aggregates.clearance.state import (
     CLEARANCE_REVIEWER_NOTES_MAX_LENGTH,
 )
-from cora.safety.features import record_review_step_clearance
-from cora.safety.features.record_review_step_clearance import RecordReviewStepClearance
+from cora.safety.features import append_clearance_review_step
+from cora.safety.features.append_clearance_review_step import AppendClearanceReviewStep
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 _DECIDED = datetime(2026, 5, 15, 11, 0, 0, tzinfo=UTC)
@@ -32,7 +32,7 @@ _DECIDED = datetime(2026, 5, 15, 11, 0, 0, tzinfo=UTC)
 def _clearance(
     *,
     status: ClearanceStatus = ClearanceStatus.UNDER_REVIEW,
-    reviewers: tuple[ReviewerStep, ...] = (),
+    review_steps: tuple[ReviewStep, ...] = (),
 ) -> Clearance:
     return Clearance(
         id=uuid4(),
@@ -40,7 +40,7 @@ def _clearance(
         facility_asset_id=uuid4(),
         title=ClearanceTitle("Pilot"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),
-        reviewers=reviewers,
+        review_steps=review_steps,
         status=status,
     )
 
@@ -49,9 +49,9 @@ def _clearance(
 def test_decide_emits_review_step_recorded_at_index_zero() -> None:
     state = _clearance()
     actor = uuid4()
-    events = record_review_step_clearance.decide(
+    events = append_clearance_review_step.decide(
         state=state,
-        command=RecordReviewStepClearance(
+        command=AppendClearanceReviewStep(
             clearance_id=state.id,
             step_index=0,
             role="BeamlineScientist",
@@ -63,7 +63,7 @@ def test_decide_emits_review_step_recorded_at_index_zero() -> None:
         now=_NOW,
     )
     assert events == [
-        ClearanceReviewStepRecorded(
+        ClearanceReviewStepAppended(
             clearance_id=state.id,
             step_index=0,
             role="BeamlineScientist",
@@ -78,18 +78,18 @@ def test_decide_emits_review_step_recorded_at_index_zero() -> None:
 
 @pytest.mark.unit
 def test_decide_appends_at_correct_index_when_chain_has_prior_steps() -> None:
-    prior = ReviewerStep(
+    prior = ReviewStep(
         step_index=0,
         role="BeamlineScientist",
         actor_id=uuid4(),
         decision="Approved",
         decided_at=_DECIDED,
     )
-    state = _clearance(reviewers=(prior,))
+    state = _clearance(review_steps=(prior,))
     actor = uuid4()
-    events = record_review_step_clearance.decide(
+    events = append_clearance_review_step.decide(
         state=state,
-        command=RecordReviewStepClearance(
+        command=AppendClearanceReviewStep(
             clearance_id=state.id,
             step_index=1,
             role="ESH",
@@ -106,11 +106,11 @@ def test_decide_appends_at_correct_index_when_chain_has_prior_steps() -> None:
 def test_decide_rejects_wrong_step_index() -> None:
     state = _clearance()
     with pytest.raises(InvalidClearanceReviewStepIndexError):
-        record_review_step_clearance.decide(
+        append_clearance_review_step.decide(
             state=state,
-            command=RecordReviewStepClearance(
+            command=AppendClearanceReviewStep(
                 clearance_id=state.id,
-                step_index=1,  # state has 0 reviewers; expected index 0
+                step_index=1,  # state has 0 review_steps; expected index 0
                 role="x",
                 actor_id=uuid4(),
                 decision="Approved",
@@ -124,9 +124,9 @@ def test_decide_rejects_wrong_step_index() -> None:
 def test_decide_rejects_empty_role() -> None:
     state = _clearance()
     with pytest.raises(InvalidClearanceReviewerRoleError):
-        record_review_step_clearance.decide(
+        append_clearance_review_step.decide(
             state=state,
-            command=RecordReviewStepClearance(
+            command=AppendClearanceReviewStep(
                 clearance_id=state.id,
                 step_index=0,
                 role="   ",
@@ -142,9 +142,9 @@ def test_decide_rejects_empty_role() -> None:
 def test_decide_rejects_oversized_notes() -> None:
     state = _clearance()
     with pytest.raises(InvalidClearanceReviewerNotesError):
-        record_review_step_clearance.decide(
+        append_clearance_review_step.decide(
             state=state,
-            command=RecordReviewStepClearance(
+            command=AppendClearanceReviewStep(
                 clearance_id=state.id,
                 step_index=0,
                 role="x",
@@ -160,9 +160,9 @@ def test_decide_rejects_oversized_notes() -> None:
 @pytest.mark.unit
 def test_decide_normalizes_whitespace_only_notes_to_none() -> None:
     state = _clearance()
-    events = record_review_step_clearance.decide(
+    events = append_clearance_review_step.decide(
         state=state,
-        command=RecordReviewStepClearance(
+        command=AppendClearanceReviewStep(
             clearance_id=state.id,
             step_index=0,
             role="x",
@@ -180,9 +180,9 @@ def test_decide_normalizes_whitespace_only_notes_to_none() -> None:
 def test_decide_rejects_when_state_none() -> None:
     cid = uuid4()
     with pytest.raises(ClearanceNotFoundError):
-        record_review_step_clearance.decide(
+        append_clearance_review_step.decide(
             state=None,
-            command=RecordReviewStepClearance(
+            command=AppendClearanceReviewStep(
                 clearance_id=cid,
                 step_index=0,
                 role="x",
@@ -197,10 +197,10 @@ def test_decide_rejects_when_state_none() -> None:
 @pytest.mark.unit
 def test_decide_rejects_when_status_not_under_review() -> None:
     state = _clearance(status=ClearanceStatus.SUBMITTED)
-    with pytest.raises(ClearanceCannotRecordReviewStepError):
-        record_review_step_clearance.decide(
+    with pytest.raises(ClearanceCannotAppendReviewStepError):
+        append_clearance_review_step.decide(
             state=state,
-            command=RecordReviewStepClearance(
+            command=AppendClearanceReviewStep(
                 clearance_id=state.id,
                 step_index=0,
                 role="x",

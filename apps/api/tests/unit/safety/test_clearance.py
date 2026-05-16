@@ -1,4 +1,4 @@
-"""ClearanceTitle VO + ClearanceBinding + HazardDeclaration + ReviewerStep + Clearance + enums."""
+"""ClearanceTitle VO + ClearanceBinding + HazardDeclaration + ReviewStep + Clearance + enums."""
 
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -21,7 +21,7 @@ from cora.safety.aggregates.clearance import (
     InvalidClearanceMitigationRefError,
     InvalidClearanceTitleError,
     ProcedureBinding,
-    ReviewerStep,
+    ReviewStep,
     RunBinding,
     SubjectBinding,
 )
@@ -189,14 +189,14 @@ def test_hazard_declaration_normalizes_whitespace_only_notes_to_none() -> None:
     assert d.notes is None
 
 
-# ---------- ReviewerStep ----------
+# ---------- ReviewStep ----------
 
 
 @pytest.mark.unit
 def test_reviewer_step_carries_all_fields() -> None:
     actor = uuid4()
     now = datetime(2026, 5, 15, 10, 0, 0, tzinfo=UTC)
-    step = ReviewerStep(
+    step = ReviewStep(
         step_index=0,
         role="BeamlineScientist",
         actor_id=actor,
@@ -250,7 +250,7 @@ def test_clearance_optional_fields_default_to_none_or_empty() -> None:
     )
     assert c.declarations == frozenset()
     assert c.risk_band is None
-    assert c.reviewers == ()
+    assert c.review_steps == ()
     assert c.external_id is None
     assert c.parent_clearance_id is None
     assert c.valid_from is None

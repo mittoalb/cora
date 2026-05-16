@@ -6,8 +6,8 @@ Subscribed events:
   - ClearanceRegistered          -> INSERT (status='Defined', last_status_*=NULL,
                                             last_reviewed_by_actor_id=NULL)
   - ClearanceSubmitted           -> UPDATE status='Submitted'   + status-change ts
-  - ClearanceUnderReview         -> UPDATE status='UnderReview' + status-change ts
-  - ClearanceReviewStepRecorded  -> NO-OP (reviewers chain lives on aggregate
+  - ClearanceReviewStarted         -> UPDATE status='UnderReview' + status-change ts
+  - ClearanceReviewStepAppended  -> NO-OP (review_steps chain lives on aggregate
                                            stream only; not surfaced in list view)
   - ClearanceApproved            -> UPDATE status='Approved'
                                           + status-change ts
@@ -22,11 +22,11 @@ Subscribed events:
 11a-c will add `ClearanceExpired` and `ClearanceSuperseded` arms; the
 status CHECK constraint already accommodates them (locked 8-value day-1).
 
-The projection deliberately subscribes to ClearanceReviewStepRecorded
+The projection deliberately subscribes to ClearanceReviewStepAppended
 but emits no SQL: that keeps the worker's subscription set complete
 (per the architecture invariant that subscribed_event_types lists
 every event the consumer cares about, even no-op cases) without
-denormalizing the reviewers chain into the projection. Operators that
+denormalizing the review_steps chain into the projection. Operators that
 need the chain fetch the aggregate via `get_clearance`.
 """
 
@@ -137,8 +137,8 @@ class ClearanceSummaryProjection:
         {
             "ClearanceRegistered",
             "ClearanceSubmitted",
-            "ClearanceUnderReview",
-            "ClearanceReviewStepRecorded",
+            "ClearanceReviewStarted",
+            "ClearanceReviewStepAppended",
             "ClearanceApproved",
             "ClearanceRejected",
             "ClearanceActivated",
@@ -185,7 +185,7 @@ class ClearanceSummaryProjection:
             )
             return
 
-        if event.event_type == "ClearanceUnderReview":
+        if event.event_type == "ClearanceReviewStarted":
             await conn.execute(
                 _UPDATE_UNDER_REVIEW_SQL,
                 UUID(event.payload["clearance_id"]),
@@ -226,7 +226,7 @@ class ClearanceSummaryProjection:
             )
             return
 
-        if event.event_type == "ClearanceReviewStepRecorded":
+        if event.event_type == "ClearanceReviewStepAppended":
             # No projection update: reviewer chain lives on aggregate stream
             # only. Subscribed-but-no-op keeps the worker's set complete
             # without denormalizing the chain.

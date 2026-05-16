@@ -1,13 +1,13 @@
-"""HTTP route for the `record_review_step_clearance` slice.
+"""HTTP route for the `append_clearance_review_step` slice.
 
 Action endpoint at `POST /clearances/{clearance_id}/review_steps`.
-Body carries one ReviewerStep's worth of data. The reviewing-actor id
+Body carries one ReviewStep's worth of data. The reviewing-actor id
 is filled from the request's authenticated principal. 204 on success.
 
 `step_index` is REQUIRED in the body so callers explicitly assert
 which position in the chain they are appending to (idempotency-friendly:
 re-issuing the same step_index detects out-of-order writes via the
-decider's `step_index == len(state.reviewers)` invariant).
+decider's `step_index == len(state.review_steps)` invariant).
 """
 
 from datetime import datetime
@@ -22,20 +22,20 @@ from cora.safety.aggregates.clearance.state import (
     CLEARANCE_REVIEWER_NOTES_MAX_LENGTH,
     CLEARANCE_REVIEWER_ROLE_MAX_LENGTH,
 )
-from cora.safety.features.record_review_step_clearance.command import (
-    RecordReviewStepClearance,
+from cora.safety.features.append_clearance_review_step.command import (
+    AppendClearanceReviewStep,
 )
-from cora.safety.features.record_review_step_clearance.handler import Handler
+from cora.safety.features.append_clearance_review_step.handler import Handler
 
 
-class RecordReviewStepClearanceRequest(BaseModel):
+class AppendClearanceReviewStepRequest(BaseModel):
     """Body for `POST /clearances/{clearance_id}/review_steps`."""
 
     step_index: int = Field(
         ...,
         ge=0,
         description=(
-            "0-based step index. MUST equal `len(reviewers)` at append time "
+            "0-based step index. MUST equal `len(review_steps)` at append time "
             "(append-only contract); out-of-order writes return 400."
         ),
     )
@@ -65,7 +65,7 @@ class RecordReviewStepClearanceRequest(BaseModel):
 
 
 def _get_handler(request: Request) -> Handler:
-    handler: Handler = request.app.state.safety.record_review_step_clearance
+    handler: Handler = request.app.state.safety.append_clearance_review_step
     return handler
 
 
@@ -95,7 +95,7 @@ router = APIRouter(tags=["safety"])
             "model": ErrorResponse,
             "description": (
                 "Clearance is not in UnderReview status "
-                "(record_review_step is single-source from UnderReview only)."
+                "(append_clearance_review_step is single-source from UnderReview only)."
             ),
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -110,13 +110,13 @@ router = APIRouter(tags=["safety"])
 )
 async def post_clearances_review_steps(
     clearance_id: Annotated[UUID, Path(description="Target clearance's id.")],
-    body: RecordReviewStepClearanceRequest,
+    body: AppendClearanceReviewStepRequest,
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
 ) -> None:
     await handler(
-        RecordReviewStepClearance(
+        AppendClearanceReviewStep(
             clearance_id=clearance_id,
             step_index=body.step_index,
             role=body.role,

@@ -38,7 +38,7 @@ def test_get_clearances_returns_200_with_full_state() -> None:
     assert body["risk_band"] == "Yellow"
     assert body["external_id"] == "ESAF-12345"
     assert body["status"] == "Defined"
-    assert body["reviewers"] == []
+    assert body["review_steps"] == []
     assert body["parent_clearance_id"] is None
 
 

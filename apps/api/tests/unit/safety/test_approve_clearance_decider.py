@@ -14,7 +14,7 @@ from cora.safety.aggregates.clearance import (
     ClearanceStatus,
     ClearanceTitle,
     InvalidClearanceValidityWindowError,
-    ReviewerStep,
+    ReviewStep,
     RunBinding,
 )
 from cora.safety.features import approve_clearance
@@ -23,8 +23,8 @@ from cora.safety.features.approve_clearance import ApproveClearance
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 
 
-def _approving_step() -> ReviewerStep:
-    return ReviewerStep(
+def _approving_step() -> ReviewStep:
+    return ReviewStep(
         step_index=0,
         role="ESH",
         actor_id=uuid4(),
@@ -36,7 +36,7 @@ def _approving_step() -> ReviewerStep:
 def _clearance(
     *,
     status: ClearanceStatus = ClearanceStatus.UNDER_REVIEW,
-    reviewers: tuple[ReviewerStep, ...] = (),
+    review_steps: tuple[ReviewStep, ...] = (),
 ) -> Clearance:
     return Clearance(
         id=uuid4(),
@@ -44,14 +44,14 @@ def _clearance(
         facility_asset_id=uuid4(),
         title=ClearanceTitle("Pilot"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),
-        reviewers=reviewers,
+        review_steps=review_steps,
         status=status,
     )
 
 
 @pytest.mark.unit
 def test_decide_emits_approved_when_chain_has_approving_step() -> None:
-    state = _clearance(reviewers=(_approving_step(),))
+    state = _clearance(review_steps=(_approving_step(),))
     actor = uuid4()
     events = approve_clearance.decide(
         state=state,
@@ -71,7 +71,7 @@ def test_decide_emits_approved_when_chain_has_approving_step() -> None:
 
 @pytest.mark.unit
 def test_decide_carries_validity_window_when_provided() -> None:
-    state = _clearance(reviewers=(_approving_step(),))
+    state = _clearance(review_steps=(_approving_step(),))
     valid_from = datetime(2026, 5, 16, tzinfo=UTC)
     valid_until = datetime(2026, 6, 15, tzinfo=UTC)
     events = approve_clearance.decide(
@@ -90,14 +90,14 @@ def test_decide_carries_validity_window_when_provided() -> None:
 
 @pytest.mark.unit
 def test_decide_rejects_when_chain_has_no_approving_step() -> None:
-    rejected_step = ReviewerStep(
+    rejected_step = ReviewStep(
         step_index=0,
         role="ESH",
         actor_id=uuid4(),
         decision="RequestedChanges",
         decided_at=_NOW,
     )
-    state = _clearance(reviewers=(rejected_step,))
+    state = _clearance(review_steps=(rejected_step,))
     with pytest.raises(ClearanceCannotApproveError, match="no approving"):
         approve_clearance.decide(
             state=state,
@@ -108,7 +108,7 @@ def test_decide_rejects_when_chain_has_no_approving_step() -> None:
 
 @pytest.mark.unit
 def test_decide_rejects_when_chain_empty() -> None:
-    state = _clearance(reviewers=())
+    state = _clearance(review_steps=())
     with pytest.raises(ClearanceCannotApproveError, match="no approving"):
         approve_clearance.decide(
             state=state,
@@ -119,7 +119,7 @@ def test_decide_rejects_when_chain_empty() -> None:
 
 @pytest.mark.unit
 def test_decide_rejects_inverted_validity_window() -> None:
-    state = _clearance(reviewers=(_approving_step(),))
+    state = _clearance(review_steps=(_approving_step(),))
     with pytest.raises(InvalidClearanceValidityWindowError):
         approve_clearance.decide(
             state=state,
@@ -146,7 +146,7 @@ def test_decide_rejects_when_state_none() -> None:
 
 @pytest.mark.unit
 def test_decide_rejects_when_status_not_under_review() -> None:
-    state = _clearance(status=ClearanceStatus.SUBMITTED, reviewers=(_approving_step(),))
+    state = _clearance(status=ClearanceStatus.SUBMITTED, review_steps=(_approving_step(),))
     with pytest.raises(ClearanceCannotApproveError):
         approve_clearance.decide(
             state=state,

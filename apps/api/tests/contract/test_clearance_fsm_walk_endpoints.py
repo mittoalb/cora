@@ -4,7 +4,7 @@ Walks `Defined -> Submitted -> UnderReview -> Approved -> Active`
 through the 6 transition endpoints and pins:
   - 204 status on every successful transition
   - GET endpoint reflects each new status after every transition
-  - reviewers chain grows by one per record_review_step call
+  - review_steps chain grows by one per append_clearance_review_step call
   - 409 on any out-of-FSM transition attempt
 
 Plus a parallel walk that ends in Rejected to cover the terminal-bad path.
@@ -45,7 +45,7 @@ def test_full_fsm_walk_to_active_via_rest() -> None:
 
         # Submitted -> UnderReview
         r = client.post(
-            f"/clearances/{cid}/begin_review",
+            f"/clearances/{cid}/start_review",
             json={"first_reviewer_role": "BeamlineScientist"},
         )
         assert r.status_code == 204
@@ -65,8 +65,8 @@ def test_full_fsm_walk_to_active_via_rest() -> None:
         assert r.status_code == 204
         body = client.get(f"/clearances/{cid}").json()
         assert body["status"] == "UnderReview"  # status unchanged
-        assert len(body["reviewers"]) == 1
-        assert body["reviewers"][0]["decision"] == "Approved"
+        assert len(body["review_steps"]) == 1
+        assert body["review_steps"][0]["decision"] == "Approved"
 
         # UnderReview -> Approved
         r = client.post(f"/clearances/{cid}/approve", json={})
@@ -87,7 +87,7 @@ def test_full_fsm_walk_to_rejected_via_rest() -> None:
         cid = _register(client)
         client.post(f"/clearances/{cid}/submit")
         client.post(
-            f"/clearances/{cid}/begin_review",
+            f"/clearances/{cid}/start_review",
             json={"first_reviewer_role": "ESH"},
         )
         # No need for an approving step; reject_clearance has no chain invariant.
@@ -117,15 +117,15 @@ def test_submit_returns_409_when_not_in_defined() -> None:
 
 
 @pytest.mark.contract
-def test_record_review_step_rejects_wrong_step_index_with_400() -> None:
+def test_append_clearance_review_step_rejects_wrong_step_index_with_400() -> None:
     with TestClient(create_app()) as client:
         cid = _register(client)
         client.post(f"/clearances/{cid}/submit")
         client.post(
-            f"/clearances/{cid}/begin_review",
+            f"/clearances/{cid}/start_review",
             json={"first_reviewer_role": "BeamlineScientist"},
         )
-        # Submit step_index=5 when state has 0 reviewers
+        # Submit step_index=5 when state has 0 review_steps
         response = client.post(
             f"/clearances/{cid}/review_steps",
             json={
@@ -144,7 +144,7 @@ def test_approve_rejects_when_no_approving_review_step() -> None:
         cid = _register(client)
         client.post(f"/clearances/{cid}/submit")
         client.post(
-            f"/clearances/{cid}/begin_review",
+            f"/clearances/{cid}/start_review",
             json={"first_reviewer_role": "ESH"},
         )
         # Add a RequestedChanges step (NOT Approved)
@@ -169,7 +169,7 @@ def test_approve_accepts_validity_window_overrides() -> None:
         cid = _register(client)
         client.post(f"/clearances/{cid}/submit")
         client.post(
-            f"/clearances/{cid}/begin_review",
+            f"/clearances/{cid}/start_review",
             json={"first_reviewer_role": "ESH"},
         )
         client.post(
@@ -212,10 +212,10 @@ def test_activate_returns_409_when_not_approved() -> None:
         [("submit", None)],
     ],
 )
-def test_record_review_step_returns_409_when_not_under_review(
+def test_append_clearance_review_step_returns_409_when_not_under_review(
     intermediate_action: list[tuple[str, dict[str, object] | None]],
 ) -> None:
-    """record_review_step is single-source from UnderReview; any other status returns 409."""
+    """append_clearance_review_step is single-source from UnderReview; other status -> 409."""
     with TestClient(create_app()) as client:
         cid = _register(client)
         for verb, body in intermediate_action:
@@ -230,16 +230,16 @@ def test_record_review_step_returns_409_when_not_under_review(
             },
         )
     assert response.status_code == 409
-    assert "cannot record review step" in response.json()["detail"].lower()
+    assert "cannot append review step" in response.json()["detail"].lower()
 
 
 @pytest.mark.contract
-def test_record_review_step_returns_409_when_in_approved_status() -> None:
+def test_append_clearance_review_step_returns_409_when_in_approved_status() -> None:
     """A fully-approved clearance can't accept more review steps."""
     with TestClient(create_app()) as client:
         cid = _register(client)
         client.post(f"/clearances/{cid}/submit")
-        client.post(f"/clearances/{cid}/begin_review", json={"first_reviewer_role": "ESH"})
+        client.post(f"/clearances/{cid}/start_review", json={"first_reviewer_role": "ESH"})
         client.post(
             f"/clearances/{cid}/review_steps",
             json={
@@ -275,7 +275,7 @@ def test_three_step_chain_walk_succeeds() -> None:
         cid = _register(client)
         client.post(f"/clearances/{cid}/submit")
         client.post(
-            f"/clearances/{cid}/begin_review",
+            f"/clearances/{cid}/start_review",
             json={"first_reviewer_role": "LocalContact"},
         )
 
@@ -295,8 +295,8 @@ def test_three_step_chain_walk_succeeds() -> None:
             assert r.status_code == 204, f"step {step_index} failed: {r.text}"
 
         body = client.get(f"/clearances/{cid}").json()
-        assert len(body["reviewers"]) == 3
-        assert [r["role"] for r in body["reviewers"]] == [
+        assert len(body["review_steps"]) == 3
+        assert [r["role"] for r in body["review_steps"]] == [
             "LocalContact",
             "BeamlineSci+Coordinator",
             "SafetyGroup",

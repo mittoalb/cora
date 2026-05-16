@@ -7,8 +7,8 @@ added to `ClearanceEvent` without a matching match arm here.
 Status mapping per event type:
   - `ClearanceRegistered`         -> DEFINED       (genesis)
   - `ClearanceSubmitted`          -> SUBMITTED
-  - `ClearanceUnderReview`        -> UNDER_REVIEW
-  - `ClearanceReviewStepRecorded` -> (no status change; appends reviewers tuple)
+  - `ClearanceReviewStarted`        -> UNDER_REVIEW
+  - `ClearanceReviewStepAppended` -> (no status change; appends review_steps tuple)
   - `ClearanceApproved`           -> APPROVED (sets valid_from / valid_until /
                                      last_reviewed_by_actor_id)
   - `ClearanceRejected`           -> REJECTED (sets last_reviewed_by_actor_id)
@@ -39,9 +39,9 @@ from cora.safety.aggregates.clearance.events import (
     ClearanceEvent,
     ClearanceRegistered,
     ClearanceRejected,
-    ClearanceReviewStepRecorded,
+    ClearanceReviewStarted,
+    ClearanceReviewStepAppended,
     ClearanceSubmitted,
-    ClearanceUnderReview,
     deserialize_binding,
     deserialize_declaration,
 )
@@ -51,7 +51,7 @@ from cora.safety.aggregates.clearance.state import (
     ClearanceKind,
     ClearanceStatus,
     ClearanceTitle,
-    ReviewerStep,
+    ReviewStep,
 )
 
 
@@ -80,7 +80,7 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
                 bindings=frozenset(deserialize_binding(b) for b in bindings),
                 declarations=frozenset(deserialize_declaration(d) for d in declarations),
                 risk_band=RiskBand(risk_band) if risk_band is not None else None,
-                reviewers=(),
+                review_steps=(),
                 status=ClearanceStatus.DEFINED,
                 external_id=external_id,
                 parent_clearance_id=parent_clearance_id,
@@ -92,10 +92,10 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
         case ClearanceSubmitted():
             prior = require_state(state, "ClearanceSubmitted")
             return _replace_status(prior, ClearanceStatus.SUBMITTED)
-        case ClearanceUnderReview():
-            prior = require_state(state, "ClearanceUnderReview")
+        case ClearanceReviewStarted():
+            prior = require_state(state, "ClearanceReviewStarted")
             return _replace_status(prior, ClearanceStatus.UNDER_REVIEW)
-        case ClearanceReviewStepRecorded(
+        case ClearanceReviewStepAppended(
             step_index=step_index,
             role=role,
             actor_id=actor_id,
@@ -103,8 +103,8 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
             decided_at=decided_at,
             notes=notes,
         ):
-            prior = require_state(state, "ClearanceReviewStepRecorded")
-            new_step = ReviewerStep(
+            prior = require_state(state, "ClearanceReviewStepAppended")
+            new_step = ReviewStep(
                 step_index=step_index,
                 role=role,
                 actor_id=actor_id,
@@ -112,7 +112,7 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
                 decided_at=decided_at,
                 notes=notes,
             )
-            return _replace_reviewers(prior, (*prior.reviewers, new_step))
+            return _replace_review_steps(prior, (*prior.review_steps, new_step))
         case ClearanceApproved(
             approving_actor_id=actor_id,
             valid_from=valid_from,
@@ -154,7 +154,7 @@ def _replace_status(
         bindings=prior.bindings,
         declarations=prior.declarations,
         risk_band=prior.risk_band,
-        reviewers=prior.reviewers,
+        review_steps=prior.review_steps,
         status=new_status,
         external_id=prior.external_id,
         parent_clearance_id=prior.parent_clearance_id,
@@ -169,8 +169,8 @@ def _replace_status(
     )
 
 
-def _replace_reviewers(prior: Clearance, new_reviewers: tuple[ReviewerStep, ...]) -> Clearance:
-    """Return a new Clearance with `reviewers` updated; status preserved."""
+def _replace_review_steps(prior: Clearance, new_review_steps: tuple[ReviewStep, ...]) -> Clearance:
+    """Return a new Clearance with `review_steps` updated; status preserved."""
     return Clearance(
         id=prior.id,
         kind=prior.kind,
@@ -179,7 +179,7 @@ def _replace_reviewers(prior: Clearance, new_reviewers: tuple[ReviewerStep, ...]
         bindings=prior.bindings,
         declarations=prior.declarations,
         risk_band=prior.risk_band,
-        reviewers=new_reviewers,
+        review_steps=new_review_steps,
         status=prior.status,
         external_id=prior.external_id,
         parent_clearance_id=prior.parent_clearance_id,
@@ -208,7 +208,7 @@ def _replace_approved(
         bindings=prior.bindings,
         declarations=prior.declarations,
         risk_band=prior.risk_band,
-        reviewers=prior.reviewers,
+        review_steps=prior.review_steps,
         status=ClearanceStatus.APPROVED,
         external_id=prior.external_id,
         parent_clearance_id=prior.parent_clearance_id,

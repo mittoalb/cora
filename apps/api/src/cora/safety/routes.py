@@ -15,10 +15,10 @@ from fastapi.responses import JSONResponse
 from cora.safety.aggregates.clearance import (
     ClearanceAlreadyExistsError,
     ClearanceCannotActivateError,
+    ClearanceCannotAppendReviewStepError,
     ClearanceCannotApproveError,
-    ClearanceCannotBeginReviewError,
-    ClearanceCannotRecordReviewStepError,
     ClearanceCannotRejectError,
+    ClearanceCannotStartReviewError,
     ClearanceCannotSubmitError,
     ClearanceNotFoundError,
     InvalidClearanceBindingsError,
@@ -37,13 +37,13 @@ from cora.safety.aggregates.clearance import (
 from cora.safety.errors import UnauthorizedError
 from cora.safety.features import (
     activate_clearance,
+    append_clearance_review_step,
     approve_clearance,
-    begin_review_clearance,
     get_clearance,
     list_clearances,
-    record_review_step_clearance,
     register_clearance,
     reject_clearance,
+    start_review_clearance,
     submit_clearance,
 )
 
@@ -88,7 +88,7 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
     """Shared 409 handler for state-transition guards.
 
     Covers the `Clearance.Cannot<Verb>Error` family: 11a-b's FSM-closure
-    sextet (Submit / BeginReview / RecordReviewStep / Approve / Reject /
+    sextet (Submit / StartReview / AppendReviewStep / Approve / Reject /
     Activate). Same pattern as Supply / Operation `_handle_cannot_transition`.
     """
     _ = request
@@ -105,8 +105,8 @@ def register_safety_routes(app: FastAPI) -> None:
     app.include_router(get_clearance.router)
     # 11a-b transition slices
     app.include_router(submit_clearance.router)
-    app.include_router(begin_review_clearance.router)
-    app.include_router(record_review_step_clearance.router)
+    app.include_router(start_review_clearance.router)
+    app.include_router(append_clearance_review_step.router)
     app.include_router(approve_clearance.router)
     app.include_router(reject_clearance.router)
     app.include_router(activate_clearance.router)
@@ -133,8 +133,8 @@ def register_safety_routes(app: FastAPI) -> None:
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
         ClearanceCannotSubmitError,
-        ClearanceCannotBeginReviewError,
-        ClearanceCannotRecordReviewStepError,
+        ClearanceCannotStartReviewError,
+        ClearanceCannotAppendReviewStepError,
         ClearanceCannotApproveError,
         ClearanceCannotRejectError,
         ClearanceCannotActivateError,

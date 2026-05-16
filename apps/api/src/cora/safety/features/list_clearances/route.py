@@ -16,7 +16,7 @@ Fetch by id via `get_clearance` when ExternalBinding inspection is
 required.
 
 **Reviewers chain is NOT in the response** (`last_reviewed_by_actor_id`
-is the only reviewer field surfaced; the full reviewers tuple lives on
+is the only reviewer field surfaced; the full review_steps tuple lives on
 the aggregate stream). Fetch by id via `get_clearance` when the chain
 is needed.
 """
@@ -112,7 +112,7 @@ router = APIRouter(tags=["safety"])
     summary=(
         "List clearances with cursor pagination + kind / status / risk_band / "
         "facility_asset_id / binds_to_*_id filters. ExternalBinding refs "
-        "not filterable; reviewers chain not surfaced (fetch get_clearance "
+        "not filterable; review_steps chain not surfaced (fetch get_clearance "
         "for both)."
     ),
 )

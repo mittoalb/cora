@@ -1,6 +1,6 @@
-"""The `RecordReviewStepClearance` command -- intent dataclass for this slice.
+"""The `AppendClearanceReviewStep` command -- intent dataclass for this slice.
 
-Appends ONE step to the Clearance's `reviewers` tuple. Status stays
+Appends ONE step to the Clearance's `review_steps` tuple. Status stays
 UnderReview; the chain grows by one. The terminal Approved/Rejected
 transitions land via the dedicated `approve_clearance` /
 `reject_clearance` slices once the chain is complete.
@@ -11,7 +11,7 @@ the reviewer for this step). `decided_at` is operator-supplied (the
 reviewer captures when they made the decision; may differ from
 `occurred_at` which is when the slice was called).
 
-`step_index` is enforced equal to `len(state.reviewers)` at the
+`step_index` is enforced equal to `len(state.review_steps)` at the
 decider per the append-only contract; out-of-order writes are
 rejected.
 
@@ -27,7 +27,7 @@ from uuid import UUID
 
 
 @dataclass(frozen=True)
-class RecordReviewStepClearance:
+class AppendClearanceReviewStep:
     """Append one reviewer step to an UnderReview clearance's chain."""
 
     clearance_id: UUID

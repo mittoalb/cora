@@ -1,6 +1,6 @@
-"""HTTP route for the `begin_review_clearance` slice.
+"""HTTP route for the `start_review_clearance` slice.
 
-Action endpoint at `POST /clearances/{clearance_id}/begin_review`.
+Action endpoint at `POST /clearances/{clearance_id}/start_review`.
 Body carries `first_reviewer_role`. 204 No Content on success.
 """
 
@@ -14,12 +14,12 @@ from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_p
 from cora.safety.aggregates.clearance.state import (
     CLEARANCE_REVIEWER_ROLE_MAX_LENGTH,
 )
-from cora.safety.features.begin_review_clearance.command import BeginReviewClearance
-from cora.safety.features.begin_review_clearance.handler import Handler
+from cora.safety.features.start_review_clearance.command import StartReviewClearance
+from cora.safety.features.start_review_clearance.handler import Handler
 
 
-class BeginReviewClearanceRequest(BaseModel):
-    """Body for `POST /clearances/{clearance_id}/begin_review`."""
+class StartReviewClearanceRequest(BaseModel):
+    """Body for `POST /clearances/{clearance_id}/start_review`."""
 
     first_reviewer_role: str = Field(
         ...,
@@ -33,7 +33,7 @@ class BeginReviewClearanceRequest(BaseModel):
 
 
 def _get_handler(request: Request) -> Handler:
-    handler: Handler = request.app.state.safety.begin_review_clearance
+    handler: Handler = request.app.state.safety.start_review_clearance
     return handler
 
 
@@ -41,7 +41,7 @@ router = APIRouter(tags=["safety"])
 
 
 @router.post(
-    "/clearances/{clearance_id}/begin_review",
+    "/clearances/{clearance_id}/start_review",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_400_BAD_REQUEST: {
@@ -59,7 +59,7 @@ router = APIRouter(tags=["safety"])
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
             "description": (
-                "Clearance is not in Submitted status (begin_review_clearance "
+                "Clearance is not in Submitted status (start_review_clearance "
                 "is single-source from Submitted only)."
             ),
         },
@@ -70,17 +70,17 @@ router = APIRouter(tags=["safety"])
             ),
         },
     },
-    summary="Begin reviewing a Submitted clearance (Submitted -> UnderReview)",
+    summary="Start reviewing a Submitted clearance (Submitted -> UnderReview)",
 )
-async def post_clearances_begin_review(
+async def post_clearances_start_review(
     clearance_id: Annotated[UUID, Path(description="Target clearance's id.")],
-    body: BeginReviewClearanceRequest,
+    body: StartReviewClearanceRequest,
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
 ) -> None:
     await handler(
-        BeginReviewClearance(
+        StartReviewClearance(
             clearance_id=clearance_id,
             first_reviewer_role=body.first_reviewer_role,
         ),

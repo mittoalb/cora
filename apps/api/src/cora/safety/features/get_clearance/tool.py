@@ -5,7 +5,7 @@ On miss raises `ValueError` so FastMCP wraps the response as
 `isError: true` with a clear diagnostic.
 
 Same response shape as the REST route: polymorphic `bindings`,
-`declarations`, `reviewers` carry JSON dicts whose `kind` discriminator
+`declarations`, `review_steps` carry JSON dicts whose `kind` discriminator
 selects the variant shape.
 """
 
@@ -25,7 +25,7 @@ from cora.safety.aggregates.clearance import (
     Clearance,
     ClearanceKind,
     ClearanceStatus,
-    ReviewerStep,
+    ReviewStep,
 )
 from cora.safety.aggregates.clearance.events import (
     serialize_binding,
@@ -36,7 +36,7 @@ from cora.safety.features.get_clearance.handler import Handler
 from cora.safety.features.get_clearance.query import GetClearance
 
 
-class ReviewerStepOutput(BaseModel):
+class ReviewStepOutput(BaseModel):
     step_index: int
     role: str
     actor_id: UUID
@@ -55,7 +55,7 @@ class ClearanceOutput(BaseModel):
     bindings: list[dict[str, Any]]
     declarations: list[dict[str, Any]]
     risk_band: RiskBand | None = None
-    reviewers: list[ReviewerStepOutput]
+    review_steps: list[ReviewStepOutput]
     status: ClearanceStatus
     external_id: str | None = Field(default=None, max_length=CLEARANCE_EXTERNAL_ID_MAX_LENGTH)
     parent_clearance_id: UUID | None = None
@@ -65,8 +65,8 @@ class ClearanceOutput(BaseModel):
     last_reviewed_by_actor_id: UUID | None = None
 
 
-def _reviewer_step_to_output(step: ReviewerStep) -> ReviewerStepOutput:
-    return ReviewerStepOutput(
+def _review_step_to_output(step: ReviewStep) -> ReviewStepOutput:
+    return ReviewStepOutput(
         step_index=step.step_index,
         role=step.role,
         actor_id=step.actor_id,
@@ -85,7 +85,7 @@ def _clearance_to_output(clearance: Clearance) -> ClearanceOutput:
         bindings=[serialize_binding(b) for b in clearance.bindings],
         declarations=[serialize_declaration(d) for d in clearance.declarations],
         risk_band=clearance.risk_band,
-        reviewers=[_reviewer_step_to_output(r) for r in clearance.reviewers],
+        review_steps=[_review_step_to_output(r) for r in clearance.review_steps],
         status=clearance.status,
         external_id=clearance.external_id,
         parent_clearance_id=clearance.parent_clearance_id,
@@ -105,7 +105,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "Look up a safety-form clearance by id. Returns kind, title, "
             "bindings, declarations, risk_band, reviewer chain, current FSM "
             "status, and validity window. Polymorphic fields (bindings, "
-            "declarations, reviewers) carry JSON objects with a `kind` "
+            "declarations, review_steps) carry JSON objects with a `kind` "
             "discriminator."
         ),
     )

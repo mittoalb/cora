@@ -77,7 +77,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "binding-id filters (binds_to_subject_id / binds_to_asset_id / "
             "binds_to_run_id / binds_to_procedure_id). Returns sorted by "
             "registered_at ASC. ExternalBinding refs (e.g., proposal / btr / "
-            "lab_visit / session) are NOT filterable here; the reviewers "
+            "lab_visit / session) are NOT filterable here; the review_steps "
             "chain is NOT in the response. Fetch get_clearance for both."
         ),
     )

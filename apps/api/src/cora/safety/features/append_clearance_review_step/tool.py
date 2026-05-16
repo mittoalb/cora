@@ -1,4 +1,4 @@
-"""MCP tool for the `record_review_step_clearance` slice."""
+"""MCP tool for the `append_clearance_review_step` slice."""
 
 from collections.abc import Callable
 from datetime import datetime
@@ -14,37 +14,37 @@ from cora.safety.aggregates.clearance.state import (
     CLEARANCE_REVIEWER_NOTES_MAX_LENGTH,
     CLEARANCE_REVIEWER_ROLE_MAX_LENGTH,
 )
-from cora.safety.features.record_review_step_clearance.command import (
-    RecordReviewStepClearance,
+from cora.safety.features.append_clearance_review_step.command import (
+    AppendClearanceReviewStep,
 )
-from cora.safety.features.record_review_step_clearance.handler import Handler
+from cora.safety.features.append_clearance_review_step.handler import Handler
 
 
-class RecordReviewStepClearanceOutput(BaseModel):
-    """Structured output of the `record_review_step_clearance` MCP tool."""
+class AppendClearanceReviewStepOutput(BaseModel):
+    """Structured output of the `append_clearance_review_step` MCP tool."""
 
     clearance_id: UUID
     step_index: int
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
-    """Register the `record_review_step_clearance` tool on the given MCP server."""
+    """Register the `append_clearance_review_step` tool on the given MCP server."""
 
     @mcp.tool(
-        name="record_review_step_clearance",
+        name="append_clearance_review_step",
         description=(
             "Append one reviewer step to an UnderReview clearance's chain. "
             "Status stays UnderReview; the chain grows by one. Terminal "
             "Approved/Rejected transitions land via 'approve_clearance' / "
             "'reject_clearance' once the chain is complete. step_index must "
-            "equal len(reviewers) at append time (append-only contract)."
+            "equal len(review_steps) at append time (append-only contract)."
         ),
     )
-    async def record_review_step_clearance_tool(  # pyright: ignore[reportUnusedFunction]
+    async def append_clearance_review_step_tool(  # pyright: ignore[reportUnusedFunction]
         clearance_id: Annotated[UUID, Field(description="Target clearance's id.")],
         step_index: Annotated[
             int,
-            Field(ge=0, description="0-based step index; must equal len(reviewers)."),
+            Field(ge=0, description="0-based step index; must equal len(review_steps)."),
         ],
         role: Annotated[
             str,
@@ -70,7 +70,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 description="Optional reviewer notes.",
             ),
         ] = None,
-    ) -> RecordReviewStepClearanceOutput:
+    ) -> AppendClearanceReviewStepOutput:
         handler = get_handler()
         # TODO(MCP-auth): when MCP principal extraction lands (SEP-986),
         # swap SYSTEM_PRINCIPAL_ID for the real authenticated principal.
@@ -78,7 +78,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         # reviewer's actor_id in the chain entry, which is correct for
         # unattended automation flows but wrong for human-mediated MCP calls.
         await handler(
-            RecordReviewStepClearance(
+            AppendClearanceReviewStep(
                 clearance_id=clearance_id,
                 step_index=step_index,
                 role=role,
@@ -90,4 +90,4 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
         )
-        return RecordReviewStepClearanceOutput(clearance_id=clearance_id, step_index=step_index)
+        return AppendClearanceReviewStepOutput(clearance_id=clearance_id, step_index=step_index)

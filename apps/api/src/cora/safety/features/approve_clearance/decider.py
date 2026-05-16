@@ -3,11 +3,11 @@
 Single-source transition: `UnderReview -> Approved`. Strict-not-
 idempotent.
 
-Approval requires that at least ONE step in the reviewers chain has
-`decision == 'Approved'`. The `record_review_step_clearance` slice
+Approval requires that at least ONE step in the review_steps chain has
+`decision == 'Approved'`. The `append_clearance_review_step` slice
 populates the chain step-by-step; this slice's invariant ensures we
 don't approve based on an empty or all-rejected chain. Per the
-design memo's "approve_clearance decider" §"reviewers must have one
+design memo's "approve_clearance decider" §"review_steps must have one
 Approved step" rejection.
 
 Optional `valid_from` / `valid_until` override defaults set at
@@ -50,7 +50,7 @@ def decide(
     if state.status is not ClearanceStatus.UNDER_REVIEW:
         raise ClearanceCannotApproveError(state.id, current_status=state.status)
 
-    if not any(step.decision == "Approved" for step in state.reviewers):
+    if not any(step.decision == "Approved" for step in state.review_steps):
         raise ClearanceCannotApproveError(state.id, reason="no approving reviewer step recorded")
 
     if (

@@ -9,7 +9,7 @@ cross-BC `cora.infrastructure.update_handler.make_update_handler`.
 11a-a shipped no update-style handlers (only the create-style
 `register_clearance` and the read-side `get_clearance`). 11a-b adds
 six update-style transition handlers (`submit_clearance` /
-`begin_review_clearance` / `record_review_step_clearance` /
+`start_review_clearance` / `append_clearance_review_step` /
 `approve_clearance` / `reject_clearance` / `activate_clearance`).
 Six identical longhand bodies = clear rule-of-three signal; this
 factory hoists the shared scaffolding so each slice's handler.py

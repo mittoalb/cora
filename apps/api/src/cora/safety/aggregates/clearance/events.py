@@ -1,8 +1,8 @@
 """Domain events emitted by the Clearance aggregate, plus the discriminated union.
 
 Phase 11a-a ships only `ClearanceRegistered` (genesis -> Defined).
-Phase 11a-b adds the 6 FSM-closure events (Submitted / UnderReview /
-ReviewStepRecorded / Approved / Rejected / Activated). Phase 11a-c
+Phase 11a-b adds the 6 FSM-closure events (Submitted / ReviewStarted /
+ReviewStepAppended / Approved / Rejected / Activated). Phase 11a-c
 adds the 3 terminal/amendment events (Expired / AmendmentInitiated /
 Superseded). Per the per-sub-phase event-introduction precedent
 (Supply 10a-a/b, Operation 10c-a/b/c).
@@ -92,13 +92,13 @@ class ClearanceSubmitted:
 
 
 @dataclass(frozen=True)
-class ClearanceUnderReview:
+class ClearanceReviewStarted:
     """The first reviewer picked up the clearance (`Submitted -> UnderReview`).
 
     `first_reviewer_role` is the facility-vocabulary label for the first
     step in the review chain (e.g., `BeamlineScientist`, `LocalContact`).
     Captured for audit clarity; subsequent steps land via
-    `ClearanceReviewStepRecorded`.
+    `ClearanceReviewStepAppended`.
     """
 
     clearance_id: UUID
@@ -107,12 +107,12 @@ class ClearanceUnderReview:
 
 
 @dataclass(frozen=True)
-class ClearanceReviewStepRecorded:
+class ClearanceReviewStepAppended:
     """One reviewer step appended to the chain (no status change).
 
     Status stays `UnderReview` until terminal step decides Approved or
     Rejected via the dedicated `approve_clearance` / `reject_clearance`
-    slices. The reviewers tuple grows by one ReviewerStep per event.
+    slices. The review_steps tuple grows by one ReviewStep per event.
     """
 
     clearance_id: UUID
@@ -170,13 +170,13 @@ class ClearanceActivated:
 
 # Discriminated union of every event the Clearance aggregate emits.
 # Phase 11a-a: ClearanceRegistered (genesis).
-# Phase 11a-b: 6 FSM-closure events (Submit/UnderReview/RecordReviewStep/Approve/Reject/Activate).
+# Phase 11a-b: 6 FSM-closure events (Submit/StartReview/AppendReviewStep/Approve/Reject/Activate).
 # Phase 11a-c will add: Expired / AmendmentInitiated / Superseded.
 ClearanceEvent = (
     ClearanceRegistered
     | ClearanceSubmitted
-    | ClearanceUnderReview
-    | ClearanceReviewStepRecorded
+    | ClearanceReviewStarted
+    | ClearanceReviewStepAppended
     | ClearanceApproved
     | ClearanceRejected
     | ClearanceActivated
@@ -400,7 +400,7 @@ def to_payload(event: ClearanceEvent) -> dict[str, Any]:
                 "clearance_id": str(cid),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case ClearanceUnderReview(
+        case ClearanceReviewStarted(
             clearance_id=cid, first_reviewer_role=role, occurred_at=occurred_at
         ):
             return {
@@ -408,7 +408,7 @@ def to_payload(event: ClearanceEvent) -> dict[str, Any]:
                 "first_reviewer_role": role,
                 "occurred_at": occurred_at.isoformat(),
             }
-        case ClearanceReviewStepRecorded(
+        case ClearanceReviewStepAppended(
             clearance_id=cid,
             step_index=step_index,
             role=role,
@@ -499,14 +499,14 @@ def from_stored(stored: StoredEvent) -> ClearanceEvent:
                 clearance_id=UUID(payload["clearance_id"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
-        case "ClearanceUnderReview":
-            return ClearanceUnderReview(
+        case "ClearanceReviewStarted":
+            return ClearanceReviewStarted(
                 clearance_id=UUID(payload["clearance_id"]),
                 first_reviewer_role=payload["first_reviewer_role"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
-        case "ClearanceReviewStepRecorded":
-            return ClearanceReviewStepRecorded(
+        case "ClearanceReviewStepAppended":
+            return ClearanceReviewStepAppended(
                 clearance_id=UUID(payload["clearance_id"]),
                 step_index=payload["step_index"],
                 role=payload["role"],
@@ -553,9 +553,9 @@ __all__ = [
     "ClearanceEvent",
     "ClearanceRegistered",
     "ClearanceRejected",
-    "ClearanceReviewStepRecorded",
+    "ClearanceReviewStarted",
+    "ClearanceReviewStepAppended",
     "ClearanceSubmitted",
-    "ClearanceUnderReview",
     "deserialize_binding",
     "deserialize_classification",
     "deserialize_declaration",
