@@ -34,6 +34,7 @@ from cora.infrastructure.ports.event_store import (
     ConcurrencyError,
     NewEvent,
     StoredEvent,
+    StreamAppend,
 )
 
 _LOAD_SQL = """
@@ -94,45 +95,80 @@ class PostgresEventStore:
     ) -> int:
         if not events:
             return expected_version
+        result = await self.append_streams(
+            [
+                StreamAppend(
+                    stream_type=stream_type,
+                    stream_id=stream_id,
+                    expected_version=expected_version,
+                    events=events,
+                )
+            ]
+        )
+        return result[stream_id]
 
+    async def append_streams(
+        self,
+        streams: list[StreamAppend],
+    ) -> dict[UUID, int]:
+        # Filter out empty-events StreamAppend entries (no-op rows still
+        # report their expected_version so callers get a complete dict).
+        non_empty = [s for s in streams if s.events]
+        if not non_empty:
+            return {s.stream_id: s.expected_version for s in streams}
+
+        new_versions: dict[UUID, int] = {
+            s.stream_id: s.expected_version for s in streams if not s.events
+        }
         try:
             async with self._pool.acquire() as conn, conn.transaction():
-                next_version = expected_version
-                for event in events:
-                    next_version += 1
-                    await conn.execute(
-                        _APPEND_SQL,
-                        event.event_id,
-                        stream_type,
-                        stream_id,
-                        next_version,
-                        event.event_type,
-                        event.schema_version,
-                        event.payload,
-                        event.metadata,
-                        event.correlation_id,
-                        event.causation_id,
-                        event.occurred_at,
-                        event.principal_id,
-                    )
-                return next_version
+                for stream in non_empty:
+                    next_version = stream.expected_version
+                    for event in stream.events:
+                        next_version += 1
+                        await conn.execute(
+                            _APPEND_SQL,
+                            event.event_id,
+                            stream.stream_type,
+                            stream.stream_id,
+                            next_version,
+                            event.event_type,
+                            event.schema_version,
+                            event.payload,
+                            event.metadata,
+                            event.correlation_id,
+                            event.causation_id,
+                            event.occurred_at,
+                            event.principal_id,
+                        )
+                    new_versions[stream.stream_id] = next_version
+                return new_versions
         except asyncpg.UniqueViolationError as exc:
-            # The events table has two unique constraints. Map the
-            # stream-version one to ConcurrencyError (expected, retry-able);
-            # any other one (today: events_event_id_unique) is a producer
-            # bug — re-raise unchanged so it surfaces loudly.
+            # Stream-version constraint -> retry-able ConcurrencyError.
+            # Any other constraint (today: events_event_id_unique) is a
+            # producer bug; re-raise unchanged. Whole batch rolled back.
             if getattr(exc, "constraint_name", None) != _STREAM_VERSION_CONSTRAINT:
                 raise
-            # Transaction is rolled back; read the actual version on a fresh
-            # connection so the caller can decide whether to retry.
+            # The exception's detail string carries the conflicting row;
+            # we re-query each stream's current version to find the
+            # offender. asyncpg exposes the original key via `exc.detail`
+            # but parsing is fragile; do a per-stream lookup instead.
             async with self._pool.acquire() as fresh:
-                actual = await fresh.fetchval(_CURRENT_VERSION_SQL, stream_type, stream_id)
-            raise ConcurrencyError(
-                stream_type=stream_type,
-                stream_id=stream_id,
-                expected=expected_version,
-                actual=int(actual or 0),
-            ) from exc
+                for stream in non_empty:
+                    actual = await fresh.fetchval(
+                        _CURRENT_VERSION_SQL, stream.stream_type, stream.stream_id
+                    )
+                    actual_int = int(actual or 0)
+                    if actual_int != stream.expected_version:
+                        raise ConcurrencyError(
+                            stream_type=stream.stream_type,
+                            stream_id=stream.stream_id,
+                            expected=stream.expected_version,
+                            actual=actual_int,
+                        ) from exc
+            # Defensive: a stream-version UniqueViolation must map to a
+            # mismatch somewhere; re-raise if we somehow can't pin it.
+            raise
 
 
 def _row_to_event(row: Any) -> StoredEvent:

@@ -467,6 +467,47 @@ class ClearanceCannotActivateError(Exception):
         self.current_status = current_status
 
 
+class ClearanceCannotExpireError(Exception):
+    """Attempted `expire_clearance` from a disqualifying status."""
+
+    def __init__(self, clearance_id: UUID, current_status: "ClearanceStatus") -> None:
+        super().__init__(
+            f"Clearance {clearance_id} cannot be expired: currently in status "
+            f"{current_status.value}, expire_clearance requires "
+            f"{ClearanceStatus.ACTIVE.value}"
+        )
+        self.clearance_id = clearance_id
+        self.current_status = current_status
+
+
+class ClearanceCannotAmendError(Exception):
+    """Attempted `amend_clearance` on a parent in a disqualifying status."""
+
+    def __init__(self, parent_clearance_id: UUID, current_status: "ClearanceStatus") -> None:
+        super().__init__(
+            f"Clearance {parent_clearance_id} cannot be amended: currently in "
+            f"status {current_status.value}, amend_clearance requires "
+            f"{ClearanceStatus.ACTIVE.value}"
+        )
+        self.parent_clearance_id = parent_clearance_id
+        self.current_status = current_status
+
+
+class InvalidClearanceExpireReasonError(ValueError):
+    """The supplied expire reason is empty, whitespace-only, or too long.
+
+    Mirrors RunAbortReason / ClearanceRejectReason precedent (1-500
+    chars after trim).
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Expire reason must be 1-{CLEARANCE_EXPIRE_REASON_MAX_LENGTH} chars "
+            f"after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
 # ---------------------------------------------------------------------------
 # Value objects
 # ---------------------------------------------------------------------------

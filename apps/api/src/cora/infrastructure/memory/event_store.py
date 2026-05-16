@@ -21,6 +21,7 @@ from cora.infrastructure.ports.event_store import (
     ConcurrencyError,
     NewEvent,
     StoredEvent,
+    StreamAppend,
 )
 
 
@@ -58,54 +59,88 @@ class InMemoryEventStore:
     ) -> int:
         if not events:
             return expected_version
-
-        key = (stream_type, stream_id)
-        with self._lock:
-            existing = self._streams.get(key)
-            actual = existing[-1].version if existing else 0
-            if actual != expected_version:
-                raise ConcurrencyError(
+        result = await self.append_streams(
+            [
+                StreamAppend(
                     stream_type=stream_type,
                     stream_id=stream_id,
-                    expected=expected_version,
-                    actual=actual,
+                    expected_version=expected_version,
+                    events=events,
                 )
-            # Mirror Postgres's UNIQUE(event_id) constraint. Detect both
-            # in-batch duplicates and collisions with already-stored ids
-            # before mutating, so a partial batch never lands.
-            new_ids = [e.event_id for e in events]
-            if len(set(new_ids)) != len(new_ids):
-                msg = "Duplicate event_id within a single append batch"
+            ]
+        )
+        return result[stream_id]
+
+    async def append_streams(
+        self,
+        streams: list[StreamAppend],
+    ) -> dict[UUID, int]:
+        non_empty = [s for s in streams if s.events]
+        if not non_empty:
+            return {s.stream_id: s.expected_version for s in streams}
+
+        with self._lock:
+            # Pre-validate ALL streams' expected_version + event_id
+            # uniqueness BEFORE mutating any state. All-or-nothing.
+            for stream in non_empty:
+                key = (stream.stream_type, stream.stream_id)
+                existing = self._streams.get(key)
+                actual = existing[-1].version if existing else 0
+                if actual != stream.expected_version:
+                    raise ConcurrencyError(
+                        stream_type=stream.stream_type,
+                        stream_id=stream.stream_id,
+                        expected=stream.expected_version,
+                        actual=actual,
+                    )
+
+            # event_id uniqueness across the entire multi-stream batch +
+            # against already-stored ids.
+            all_new_ids: list[UUID] = [
+                event.event_id for stream in non_empty for event in stream.events
+            ]
+            if len(set(all_new_ids)) != len(all_new_ids):
+                msg = "Duplicate event_id within a single append_streams batch"
                 raise ValueError(msg)
-            collisions = self._event_ids.intersection(new_ids)
+            collisions = self._event_ids.intersection(all_new_ids)
             if collisions:
                 msg = f"event_id already exists: {sorted(str(i) for i in collisions)}"
                 raise ValueError(msg)
-            if existing is None:
-                existing = []
-                self._streams[key] = existing
+
+            # Mutate state. All streams share the same fake xid8 to
+            # mirror Postgres's "one transaction = one xid8" semantic.
             now = datetime.now(tz=UTC)
             tx_id = next(self._transaction_id)
-            next_version = expected_version
-            for event in events:
-                next_version += 1
-                stored = StoredEvent(
-                    position=next(self._position),
-                    event_id=event.event_id,
-                    stream_type=stream_type,
-                    stream_id=stream_id,
-                    version=next_version,
-                    event_type=event.event_type,
-                    schema_version=event.schema_version,
-                    payload=deepcopy(event.payload),
-                    metadata=deepcopy(event.metadata),
-                    correlation_id=event.correlation_id,
-                    causation_id=event.causation_id,
-                    occurred_at=event.occurred_at,
-                    recorded_at=now,
-                    transaction_id=tx_id,
-                    principal_id=event.principal_id,
-                )
-                existing.append(stored)
-                self._event_ids.add(event.event_id)
-            return next_version
+            new_versions: dict[UUID, int] = {
+                s.stream_id: s.expected_version for s in streams if not s.events
+            }
+            for stream in non_empty:
+                key = (stream.stream_type, stream.stream_id)
+                existing = self._streams.get(key)
+                if existing is None:
+                    existing = []
+                    self._streams[key] = existing
+                next_version = stream.expected_version
+                for event in stream.events:
+                    next_version += 1
+                    stored = StoredEvent(
+                        position=next(self._position),
+                        event_id=event.event_id,
+                        stream_type=stream.stream_type,
+                        stream_id=stream.stream_id,
+                        version=next_version,
+                        event_type=event.event_type,
+                        schema_version=event.schema_version,
+                        payload=deepcopy(event.payload),
+                        metadata=deepcopy(event.metadata),
+                        correlation_id=event.correlation_id,
+                        causation_id=event.causation_id,
+                        occurred_at=event.occurred_at,
+                        recorded_at=now,
+                        transaction_id=tx_id,
+                        principal_id=event.principal_id,
+                    )
+                    existing.append(stored)
+                    self._event_ids.add(event.event_id)
+                new_versions[stream.stream_id] = next_version
+            return new_versions

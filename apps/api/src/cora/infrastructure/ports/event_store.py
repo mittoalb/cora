@@ -159,6 +159,24 @@ class ConcurrencyError(Exception):
         self.actual = actual
 
 
+@dataclass(frozen=True)
+class StreamAppend:
+    """One stream's worth of events for `EventStore.append_streams`.
+
+    Carries the same per-stream knobs as the single-stream `append`
+    method (`stream_type` + `stream_id` + `expected_version` + `events`)
+    so a caller can specify N streams of arbitrary types/ids in one
+    atomic batch. Used by cross-aggregate slices like Safety's
+    `amend_clearance` (parent's `ClearanceSuperseded` + child's
+    `ClearanceRegistered`, both committed atomically or neither).
+    """
+
+    stream_type: str
+    stream_id: UUID
+    expected_version: int
+    events: list[NewEvent]
+
+
 class EventStore(Protocol):
     """Append and load events with optimistic concurrency."""
 
@@ -186,5 +204,29 @@ class EventStore(Protocol):
         Returns the new current version after append. Raises
         `ConcurrencyError` if `expected_version` does not match the stream's
         current version at the moment of write.
+        """
+        ...
+
+    async def append_streams(
+        self,
+        streams: list[StreamAppend],
+    ) -> dict[UUID, int]:
+        """Atomically append events to multiple streams in a single transaction.
+
+        All-or-nothing. If any stream's `expected_version` does not match,
+        the entire batch rolls back: no events from any stream become
+        visible. Raises `ConcurrencyError` for the first offending stream.
+
+        Returns a `dict` keyed by `stream_id` whose values are the new
+        current version per stream after the append.
+
+        Used by cross-aggregate atomic writes (Safety's `amend_clearance`
+        is the first consumer: parent's `ClearanceSuperseded` + child's
+        `ClearanceRegistered` must commit together or not at all).
+
+        Streams may share or differ in `stream_type`. Same `event_id`
+        UNIQUE constraint as `append` (raises `ValueError` /
+        `UniqueViolationError` on duplicate event_id within or across
+        streams in the same batch).
         """
         ...

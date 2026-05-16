@@ -5,10 +5,12 @@ from collections.abc import Callable
 from mcp.server.fastmcp import FastMCP
 
 from cora.safety.features.activate_clearance import tool as activate_clearance_tool
+from cora.safety.features.amend_clearance import tool as amend_clearance_tool
 from cora.safety.features.append_clearance_review_step import (
     tool as append_clearance_review_step_tool,
 )
 from cora.safety.features.approve_clearance import tool as approve_clearance_tool
+from cora.safety.features.expire_clearance import tool as expire_clearance_tool
 from cora.safety.features.get_clearance import tool as get_clearance_tool
 from cora.safety.features.list_clearances import tool as list_clearances_tool
 from cora.safety.features.register_clearance import tool as register_clearance_tool
@@ -59,4 +61,12 @@ def register_safety_tools(
     activate_clearance_tool.register(
         mcp,
         get_handler=lambda: get_handlers().activate_clearance,
+    )
+    expire_clearance_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().expire_clearance,
+    )
+    amend_clearance_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().amend_clearance,
     )

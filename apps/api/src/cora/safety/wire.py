@@ -28,6 +28,12 @@ Cross-cutting decorators applied here mirror Access / Trust / Subject
 
 All six 11a-b transition handlers go through `make_clearance_update_handler`
 (factory hoisted in 11a-b at the rule-of-three trigger).
+
+11a-c-2:
+  - `expire_clearance`              (transition; uses make_clearance_update_handler)
+  - `amend_clearance`               (cross-aggregate; create-style;
+                                     idempotency-wrapped; first
+                                     consumer of EventStore.append_streams)
 """
 
 from dataclasses import dataclass
@@ -38,8 +44,10 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.safety.features import (
     activate_clearance,
+    amend_clearance,
     append_clearance_review_step,
     approve_clearance,
+    expire_clearance,
     get_clearance,
     list_clearances,
     register_clearance,
@@ -64,6 +72,8 @@ class SafetyHandlers:
     approve_clearance: approve_clearance.Handler
     reject_clearance: reject_clearance.Handler
     activate_clearance: activate_clearance.Handler
+    expire_clearance: expire_clearance.Handler
+    amend_clearance: amend_clearance.IdempotentHandler
 
 
 def wire_safety(deps: Kernel) -> SafetyHandlers:
@@ -121,6 +131,23 @@ def wire_safety(deps: Kernel) -> SafetyHandlers:
         activate_clearance=with_tracing(
             activate_clearance.bind(deps),
             command_name="ActivateClearance",
+            bc=_BC,
+        ),
+        expire_clearance=with_tracing(
+            expire_clearance.bind(deps),
+            command_name="ExpireClearance",
+            bc=_BC,
+        ),
+        amend_clearance=with_tracing(
+            with_idempotency(
+                amend_clearance.bind(deps),
+                deps.idempotency_store,
+                command_name="AmendClearance",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="AmendClearance",
             bc=_BC,
         ),
     )

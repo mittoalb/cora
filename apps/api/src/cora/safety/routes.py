@@ -7,6 +7,13 @@ application errors to HTTP status codes.
 11a-b adds 6 transition-slice routers + 7 cannot-* error handlers
 (the FSM-closure cannot-* family) + 3 invalid-* error handlers
 (reviewer-role / reviewer-notes / reject-reason / review-step-index).
+
+11a-c-2 adds expire_clearance + amend_clearance routers, two new
+cannot-* handlers (Expire / Amend), and the InvalidClearanceExpire-
+ReasonError handler. The cross-stream `ConcurrencyError` raised by
+`EventStore.append_streams` on a contended parent surfaces via the
+existing globally-registered handler (Access BC registers it for the
+whole app); operators retry via the standard 409 flow.
 """
 
 from fastapi import FastAPI, Request, status
@@ -15,14 +22,17 @@ from fastapi.responses import JSONResponse
 from cora.safety.aggregates.clearance import (
     ClearanceAlreadyExistsError,
     ClearanceCannotActivateError,
+    ClearanceCannotAmendError,
     ClearanceCannotAppendReviewStepError,
     ClearanceCannotApproveError,
+    ClearanceCannotExpireError,
     ClearanceCannotRejectError,
     ClearanceCannotStartReviewError,
     ClearanceCannotSubmitError,
     ClearanceNotFoundError,
     InvalidClearanceBindingsError,
     InvalidClearanceDeclarationTargetError,
+    InvalidClearanceExpireReasonError,
     InvalidClearanceExternalBindingError,
     InvalidClearanceExternalIdError,
     InvalidClearanceHazardNotesError,
@@ -38,8 +48,10 @@ from cora.safety.aggregates.clearance import (
 from cora.safety.errors import UnauthorizedError
 from cora.safety.features import (
     activate_clearance,
+    amend_clearance,
     append_clearance_review_step,
     approve_clearance,
+    expire_clearance,
     get_clearance,
     list_clearances,
     register_clearance,
@@ -90,7 +102,8 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
 
     Covers the `Clearance.Cannot<Verb>Error` family: 11a-b's FSM-closure
     sextet (Submit / StartReview / AppendReviewStep / Approve / Reject /
-    Activate). Same pattern as Supply / Operation `_handle_cannot_transition`.
+    Activate) plus 11a-c-2's terminals (Expire / Amend). Same pattern as
+    Supply / Operation `_handle_cannot_transition`.
     """
     _ = request
     return JSONResponse(
@@ -113,6 +126,9 @@ def register_safety_routes(app: FastAPI) -> None:
     app.include_router(activate_clearance.router)
     # 11a-b list endpoint
     app.include_router(list_clearances.router)
+    # 11a-c-2 terminal slices
+    app.include_router(expire_clearance.router)
+    app.include_router(amend_clearance.router)
     for validation_cls in (
         InvalidClearanceTitleError,
         InvalidClearanceBindingsError,
@@ -127,6 +143,7 @@ def register_safety_routes(app: FastAPI) -> None:
         InvalidClearanceReviewStepDecidedAtError,
         InvalidClearanceReviewStepIndexError,
         InvalidClearanceRejectReasonError,
+        InvalidClearanceExpireReasonError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (ClearanceNotFoundError,):
@@ -140,6 +157,8 @@ def register_safety_routes(app: FastAPI) -> None:
         ClearanceCannotApproveError,
         ClearanceCannotRejectError,
         ClearanceCannotActivateError,
+        ClearanceCannotExpireError,
+        ClearanceCannotAmendError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

@@ -12,155 +12,27 @@ objects.
 """
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
 from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.safety._clearance_dtos import (
+    BindingDTO,
+    HazardDeclarationDTO,
+    binding_from_dto,
+    declaration_from_dto,
+)
 from cora.safety.aggregates.clearance import (
-    CLEARANCE_EXTERNAL_BINDING_ID_MAX_LENGTH,
-    CLEARANCE_EXTERNAL_BINDING_SCHEME_MAX_LENGTH,
     CLEARANCE_EXTERNAL_ID_MAX_LENGTH,
-    CLEARANCE_HAZARD_NOTES_MAX_LENGTH,
     CLEARANCE_TITLE_MAX_LENGTH,
-    AssetBinding,
-    ClearanceBinding,
     ClearanceKind,
-    ExternalBinding,
-    HazardDeclaration,
-    ProcedureBinding,
-    RunBinding,
-    SubjectBinding,
 )
-from cora.safety.aggregates.clearance.hazard_classification import (
-    GHS_VALID_PICTOGRAMS,
-    NFPA704_MAX_RATING,
-    NFPA704_MIN_RATING,
-    NFPA704_VALID_SPECIAL,
-    SCHEME_CODE_CODE_MAX_LENGTH,
-    SCHEME_CODE_SCHEME_MAX_LENGTH,
-    SCHEME_CODE_SEVERITY_LABEL_MAX_LENGTH,
-    GHSPictogram,
-    HazardClassification,
-    NFPA704Rating,
-    RiskBand,
-    SchemeCode,
-)
+from cora.safety.aggregates.clearance.hazard_classification import RiskBand
 from cora.safety.features.register_clearance.command import RegisterClearance
 from cora.safety.features.register_clearance.handler import IdempotentHandler
-
-# ---------------------------------------------------------------------------
-# Pydantic DTOs for the discriminated-union wire shapes
-# ---------------------------------------------------------------------------
-
-
-class _BindingSubjectDTO(BaseModel):
-    kind: Literal["Subject"]
-    id: UUID = Field(..., description="Target Subject's id.")
-
-
-class _BindingAssetDTO(BaseModel):
-    kind: Literal["Asset"]
-    id: UUID = Field(..., description="Target Asset's id.")
-
-
-class _BindingRunDTO(BaseModel):
-    kind: Literal["Run"]
-    id: UUID = Field(..., description="Target Run's id.")
-
-
-class _BindingProcedureDTO(BaseModel):
-    kind: Literal["Procedure"]
-    id: UUID = Field(..., description="Target Procedure's id.")
-
-
-class _BindingExternalDTO(BaseModel):
-    kind: Literal["External"]
-    scheme: str = Field(
-        ...,
-        min_length=1,
-        max_length=CLEARANCE_EXTERNAL_BINDING_SCHEME_MAX_LENGTH,
-        description=(
-            "External-ref scheme: 'proposal' | 'btr' | 'lab_visit' | 'session' "
-            "| <future>. Anti-corruption pattern for upstream-deferred concepts "
-            "CORA does NOT model (per BC map line 111)."
-        ),
-    )
-    id: str = Field(
-        ...,
-        min_length=1,
-        max_length=CLEARANCE_EXTERNAL_BINDING_ID_MAX_LENGTH,
-        description="Facility-minted external ID (e.g. 'GUP-12345').",
-    )
-
-
-_BindingDTO = Annotated[
-    _BindingSubjectDTO
-    | _BindingAssetDTO
-    | _BindingRunDTO
-    | _BindingProcedureDTO
-    | _BindingExternalDTO,
-    Field(discriminator="kind"),
-]
-
-
-class _NFPA704DTO(BaseModel):
-    kind: Literal["NFPA704"]
-    health: int = Field(..., ge=NFPA704_MIN_RATING, le=NFPA704_MAX_RATING)
-    flammability: int = Field(..., ge=NFPA704_MIN_RATING, le=NFPA704_MAX_RATING)
-    instability: int = Field(..., ge=NFPA704_MIN_RATING, le=NFPA704_MAX_RATING)
-    special: str | None = Field(
-        default=None,
-        description=(f"Optional NFPA 704 'special' code: one of {sorted(NFPA704_VALID_SPECIAL)}."),
-    )
-
-
-class _RiskBandDTO(BaseModel):
-    kind: Literal["RiskBand"]
-    band: RiskBand
-
-
-class _GHSDTO(BaseModel):
-    kind: Literal["GHS"]
-    code: str = Field(
-        ...,
-        description=f"GHS pictogram code; one of {sorted(GHS_VALID_PICTOGRAMS)}.",
-    )
-    statement_codes: list[str] = Field(
-        default_factory=list,
-        description="GHS H-statement codes triggering this pictogram (e.g. 'H300').",
-    )
-
-
-class _SchemeDTO(BaseModel):
-    kind: Literal["Scheme"]
-    scheme: str = Field(..., min_length=1, max_length=SCHEME_CODE_SCHEME_MAX_LENGTH)
-    code: str = Field(..., min_length=1, max_length=SCHEME_CODE_CODE_MAX_LENGTH)
-    severity_label: str = Field(
-        default="",
-        max_length=SCHEME_CODE_SEVERITY_LABEL_MAX_LENGTH,
-    )
-
-
-_ClassificationDTO = Annotated[
-    _NFPA704DTO | _RiskBandDTO | _GHSDTO | _SchemeDTO,
-    Field(discriminator="kind"),
-]
-
-
-class _HazardDeclarationDTO(BaseModel):
-    target: _BindingDTO
-    classifications: list[_ClassificationDTO] = Field(default_factory=list[_ClassificationDTO])
-    mitigations: list[str] = Field(
-        default_factory=list[str],
-        description=("Free-form mitigation refs: PPE codes, training cert refs, procedure IDs."),
-    )
-    notes: str | None = Field(
-        default=None,
-        max_length=CLEARANCE_HAZARD_NOTES_MAX_LENGTH,
-    )
 
 
 class RegisterClearanceRequest(BaseModel):
@@ -188,7 +60,7 @@ class RegisterClearanceRequest(BaseModel):
         max_length=CLEARANCE_TITLE_MAX_LENGTH,
         description="Operator-readable title for the clearance.",
     )
-    bindings: list[_BindingDTO] = Field(
+    bindings: list[BindingDTO] = Field(
         ...,
         min_length=1,
         description=(
@@ -198,8 +70,8 @@ class RegisterClearanceRequest(BaseModel):
             "upstream-deferred refs (proposal / btr / lab_visit / session)."
         ),
     )
-    declarations: list[_HazardDeclarationDTO] = Field(
-        default_factory=list[_HazardDeclarationDTO],
+    declarations: list[HazardDeclarationDTO] = Field(
+        default_factory=list[HazardDeclarationDTO],
         description=(
             "Hazard claims (intrinsic descriptor + mitigations) per binding "
             "target. Empty list allowed."
@@ -246,51 +118,8 @@ class RegisterClearanceResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# DTO -> domain conversions
+# DTO -> domain conversion
 # ---------------------------------------------------------------------------
-
-
-def _binding_from_dto(dto: _BindingDTO) -> ClearanceBinding:
-    if isinstance(dto, _BindingSubjectDTO):
-        return SubjectBinding(subject_id=dto.id)
-    if isinstance(dto, _BindingAssetDTO):
-        return AssetBinding(asset_id=dto.id)
-    if isinstance(dto, _BindingRunDTO):
-        return RunBinding(run_id=dto.id)
-    if isinstance(dto, _BindingProcedureDTO):
-        return ProcedureBinding(procedure_id=dto.id)
-    return ExternalBinding(scheme=dto.scheme, id=dto.id)
-
-
-def _classification_from_dto(dto: _ClassificationDTO) -> HazardClassification:
-    if isinstance(dto, _NFPA704DTO):
-        return NFPA704Rating(
-            health=dto.health,
-            flammability=dto.flammability,
-            instability=dto.instability,
-            special=dto.special,
-        )
-    if isinstance(dto, _RiskBandDTO):
-        return dto.band
-    if isinstance(dto, _GHSDTO):
-        return GHSPictogram(
-            code=dto.code,
-            statement_codes=frozenset(dto.statement_codes),
-        )
-    return SchemeCode(
-        scheme=dto.scheme,
-        code=dto.code,
-        severity_label=dto.severity_label,
-    )
-
-
-def _declaration_from_dto(dto: _HazardDeclarationDTO) -> HazardDeclaration:
-    return HazardDeclaration(
-        target=_binding_from_dto(dto.target),
-        classifications=frozenset(_classification_from_dto(c) for c in dto.classifications),
-        mitigations=frozenset(dto.mitigations),
-        notes=dto.notes,
-    )
 
 
 def _command_from_request(body: RegisterClearanceRequest) -> RegisterClearance:
@@ -298,8 +127,8 @@ def _command_from_request(body: RegisterClearanceRequest) -> RegisterClearance:
         kind=body.kind,
         facility_asset_id=body.facility_asset_id,
         title=body.title,
-        bindings=frozenset(_binding_from_dto(b) for b in body.bindings),
-        declarations=frozenset(_declaration_from_dto(d) for d in body.declarations),
+        bindings=frozenset(binding_from_dto(b) for b in body.bindings),
+        declarations=frozenset(declaration_from_dto(d) for d in body.declarations),
         risk_band=body.risk_band,
         external_id=body.external_id,
         valid_from=body.valid_from,

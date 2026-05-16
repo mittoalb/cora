@@ -20,8 +20,10 @@ Phase 11a-c adds:
 
 from cora.safety.features import (
     activate_clearance,
+    amend_clearance,
     append_clearance_review_step,
     approve_clearance,
+    expire_clearance,
     get_clearance,
     list_clearances,
     register_clearance,
@@ -32,8 +34,10 @@ from cora.safety.features import (
 
 __all__ = [
     "activate_clearance",
+    "amend_clearance",
     "append_clearance_review_step",
     "approve_clearance",
+    "expire_clearance",
     "get_clearance",
     "list_clearances",
     "register_clearance",

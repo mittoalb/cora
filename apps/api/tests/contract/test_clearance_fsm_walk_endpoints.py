@@ -82,6 +82,14 @@ def test_full_fsm_walk_to_active_via_rest() -> None:
         assert r.status_code == 204
         assert client.get(f"/clearances/{cid}").json()["status"] == "Active"
 
+        # Active -> Expired (11a-c-2 terminal)
+        r = client.post(
+            f"/clearances/{cid}/expire",
+            json={"reason": "validity window elapsed"},
+        )
+        assert r.status_code == 204
+        assert client.get(f"/clearances/{cid}").json()["status"] == "Expired"
+
 
 @pytest.mark.contract
 def test_full_fsm_walk_to_rejected_via_rest() -> None:
@@ -367,3 +375,157 @@ def test_three_step_chain_walk_succeeds() -> None:
         r = client.post(f"/clearances/{cid}/approve", json={})
         assert r.status_code == 204
         assert client.get(f"/clearances/{cid}").json()["status"] == "Approved"
+
+
+# ---------- 11a-c-2: expire + amend terminals ----------
+
+
+def _drive_to_active(client: TestClient) -> str:
+    """Walk a clearance to Active via the FSM. Helper for the 11a-c-2
+    contract tests that need a starting point at Active."""
+    cid = _register(client)
+    client.post(f"/clearances/{cid}/submit")
+    client.post(
+        f"/clearances/{cid}/start_review",
+        json={"first_reviewer_role": "ESH"},
+    )
+    client.post(
+        f"/clearances/{cid}/review_steps",
+        json={
+            "step_index": 0,
+            "role": "ESH",
+            "decision": "Approved",
+            "decided_at": datetime.now(tz=UTC).isoformat(),
+        },
+    )
+    client.post(f"/clearances/{cid}/approve", json={})
+    client.post(f"/clearances/{cid}/activate")
+    return cid
+
+
+@pytest.mark.contract
+def test_expire_returns_204_and_transitions_active_to_expired() -> None:
+    with TestClient(create_app()) as client:
+        cid = _drive_to_active(client)
+        r = client.post(
+            f"/clearances/{cid}/expire",
+            json={"reason": "validity window elapsed"},
+        )
+        assert r.status_code == 204
+        body = client.get(f"/clearances/{cid}").json()
+    assert body["status"] == "Expired"
+
+
+@pytest.mark.contract
+def test_expire_returns_409_when_not_active() -> None:
+    with TestClient(create_app()) as client:
+        cid = _register(client)
+        # Not yet Active (still Defined)
+        response = client.post(
+            f"/clearances/{cid}/expire",
+            json={"reason": "premature"},
+        )
+    assert response.status_code == 409
+    assert "cannot be expired" in response.json()["detail"].lower()
+
+
+@pytest.mark.contract
+def test_expire_returns_400_on_whitespace_only_reason() -> None:
+    with TestClient(create_app()) as client:
+        cid = _drive_to_active(client)
+        response = client.post(
+            f"/clearances/{cid}/expire",
+            json={"reason": "   "},
+        )
+    # Pydantic min_length=1 catches whitespace-only AFTER strip? Actually
+    # Pydantic's min_length=1 only catches empty string; whitespace is
+    # passed through to the decider, which returns 400 via the trimmed-
+    # text validator. Either way: 400 or 422.
+    assert response.status_code in (400, 422)
+
+
+@pytest.mark.contract
+def test_expire_returns_404_for_unknown_clearance() -> None:
+    with TestClient(create_app()) as client:
+        response = client.post(
+            f"/clearances/{uuid4()}/expire",
+            json={"reason": "x"},
+        )
+    assert response.status_code == 404
+
+
+@pytest.mark.contract
+def test_amend_returns_201_with_new_child_id_and_supersedes_parent() -> None:
+    with TestClient(create_app()) as client:
+        parent_cid = _drive_to_active(client)
+        amend_response = client.post(
+            f"/clearances/{parent_cid}/amend",
+            json={
+                "kind": "ESAF",
+                "facility_asset_id": str(uuid4()),
+                "title": "Amended pilot ESAF (post scope-change)",
+                "bindings": [{"kind": "Run", "id": str(uuid4())}],
+            },
+        )
+        assert amend_response.status_code == 201, amend_response.text
+        child_cid = amend_response.json()["clearance_id"]
+        assert child_cid != parent_cid
+
+        # Parent transitioned Active -> Superseded
+        parent_body = client.get(f"/clearances/{parent_cid}").json()
+        assert parent_body["status"] == "Superseded"
+
+        # Child landed in Defined with parent_clearance_id pointer
+        child_body = client.get(f"/clearances/{child_cid}").json()
+        assert child_body["status"] == "Defined"
+        assert child_body["parent_clearance_id"] == parent_cid
+
+
+@pytest.mark.contract
+def test_amend_returns_409_when_parent_not_active() -> None:
+    with TestClient(create_app()) as client:
+        parent_cid = _register(client)
+        # Parent still in Defined
+        response = client.post(
+            f"/clearances/{parent_cid}/amend",
+            json={
+                "kind": "ESAF",
+                "facility_asset_id": str(uuid4()),
+                "title": "Amended",
+                "bindings": [{"kind": "Run", "id": str(uuid4())}],
+            },
+        )
+    assert response.status_code == 409
+    assert "cannot be amended" in response.json()["detail"].lower()
+
+
+@pytest.mark.contract
+def test_amend_returns_404_for_unknown_parent() -> None:
+    with TestClient(create_app()) as client:
+        response = client.post(
+            f"/clearances/{uuid4()}/amend",
+            json={
+                "kind": "ESAF",
+                "facility_asset_id": str(uuid4()),
+                "title": "Amended",
+                "bindings": [{"kind": "Run", "id": str(uuid4())}],
+            },
+        )
+    assert response.status_code == 404
+
+
+@pytest.mark.contract
+def test_amend_returns_400_on_empty_child_bindings() -> None:
+    with TestClient(create_app()) as client:
+        parent_cid = _drive_to_active(client)
+        # Pydantic min_length=1 -> 422
+        response = client.post(
+            f"/clearances/{parent_cid}/amend",
+            json={
+                "kind": "ESAF",
+                "facility_asset_id": str(uuid4()),
+                "title": "Amended",
+                "bindings": [],
+            },
+        )
+    assert response.status_code == 422

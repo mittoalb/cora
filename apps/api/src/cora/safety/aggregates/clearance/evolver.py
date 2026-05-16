@@ -13,11 +13,10 @@ Status mapping per event type:
                                      overrides if explicit values provided)
   - `ClearanceRejected`           -> REJECTED
   - `ClearanceActivated`          -> ACTIVE
-
-Phase 11a-c will add:
-  - `ClearanceExpired`              -> EXPIRED
-  - `ClearanceAmendmentInitiated`   -> (no status change; metadata only)
-  - `ClearanceSuperseded`           -> SUPERSEDED
+  - `ClearanceExpired`            -> EXPIRED
+  - `ClearanceSuperseded`         -> SUPERSEDED (written to PARENT stream
+                                     when `amend_clearance` creates a
+                                     successor child)
 
 Source-state guards live at the decider, NOT here; the evolver trusts
 the event log (folded events have already passed their decider).
@@ -36,11 +35,13 @@ from cora.safety.aggregates.clearance.events import (
     ClearanceActivated,
     ClearanceApproved,
     ClearanceEvent,
+    ClearanceExpired,
     ClearanceRegistered,
     ClearanceRejected,
     ClearanceReviewStarted,
     ClearanceReviewStepAppended,
     ClearanceSubmitted,
+    ClearanceSuperseded,
     deserialize_binding,
     deserialize_declaration,
 )
@@ -127,6 +128,12 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
         case ClearanceActivated():
             prior = require_state(state, "ClearanceActivated")
             return _replace_status(prior, ClearanceStatus.ACTIVE)
+        case ClearanceExpired():
+            prior = require_state(state, "ClearanceExpired")
+            return _replace_status(prior, ClearanceStatus.EXPIRED)
+        case ClearanceSuperseded():
+            prior = require_state(state, "ClearanceSuperseded")
+            return _replace_status(prior, ClearanceStatus.SUPERSEDED)
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 

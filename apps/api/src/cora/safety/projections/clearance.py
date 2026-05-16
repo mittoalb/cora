@@ -109,6 +109,23 @@ SET status = 'Active',
 WHERE clearance_id = $1
 """
 
+_UPDATE_EXPIRED_SQL = """
+UPDATE proj_safety_clearance_summary
+SET status = 'Expired',
+    last_status_changed_at = $2,
+    last_status_reason = $3,
+    updated_at = now()
+WHERE clearance_id = $1
+"""
+
+_UPDATE_SUPERSEDED_SQL = """
+UPDATE proj_safety_clearance_summary
+SET status = 'Superseded',
+    last_status_changed_at = $2,
+    updated_at = now()
+WHERE clearance_id = $1
+"""
+
 
 def split_binding_ids(
     bindings: list[dict[str, Any]],
@@ -150,6 +167,8 @@ class ClearanceSummaryProjection:
             "ClearanceApproved",
             "ClearanceRejected",
             "ClearanceActivated",
+            "ClearanceExpired",
+            "ClearanceSuperseded",
         }
     )
 
@@ -229,6 +248,30 @@ class ClearanceSummaryProjection:
         if event.event_type == "ClearanceActivated":
             await conn.execute(
                 _UPDATE_ACTIVATED_SQL,
+                UUID(event.payload["clearance_id"]),
+                datetime.fromisoformat(event.payload["occurred_at"]),
+            )
+            return
+
+        if event.event_type == "ClearanceExpired":
+            payload = event.payload
+            await conn.execute(
+                _UPDATE_EXPIRED_SQL,
+                UUID(payload["clearance_id"]),
+                datetime.fromisoformat(payload["occurred_at"]),
+                payload["reason"],
+            )
+            return
+
+        if event.event_type == "ClearanceSuperseded":
+            # `by_clearance_id` is on the payload but not surfaced as a
+            # projection column today; defer the parent->child denorm
+            # until a list-view consumer asks for it (mirrors the
+            # ExternalBinding-projection deferral pattern). The child's
+            # `parent_clearance_id` already gives child->parent direction
+            # via the existing projection column.
+            await conn.execute(
+                _UPDATE_SUPERSEDED_SQL,
                 UUID(event.payload["clearance_id"]),
                 datetime.fromisoformat(event.payload["occurred_at"]),
             )

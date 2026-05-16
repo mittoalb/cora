@@ -74,7 +74,7 @@ def test_split_binding_ids_handles_multiple_per_kind() -> None:
 
 
 @pytest.mark.unit
-def test_subscribed_event_types_covers_all_7_clearance_events() -> None:
+def test_subscribed_event_types_covers_all_9_clearance_events() -> None:
     """Projection MUST subscribe to every event the worker should deliver,
     even no-op ones (per the architecture invariant)."""
     proj = ClearanceSummaryProjection()
@@ -87,6 +87,8 @@ def test_subscribed_event_types_covers_all_7_clearance_events() -> None:
             "ClearanceApproved",
             "ClearanceRejected",
             "ClearanceActivated",
+            "ClearanceExpired",
+            "ClearanceSuperseded",
         }
     )
 

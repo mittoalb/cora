@@ -174,10 +174,53 @@ class ClearanceActivated:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class ClearanceExpired:
+    """The clearance's validity ended (`Active -> Expired`).
+
+    Operator-action only in 11a-c-2; auto-expiry on `valid_until` is
+    deferred per watch #7 in [[project_safety_clearance_design]].
+
+    `reason` is operator-supplied free-form prose, 1-500 chars after
+    trim (mirrors RunAbortReason / ClearanceRejected precedent).
+    Expiring actor lives on `StoredEvent.principal_id` envelope.
+    """
+
+    clearance_id: UUID
+    reason: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class ClearanceSuperseded:
+    """The clearance was replaced by an amended child (`Active -> Superseded`).
+
+    Written to the PARENT clearance's stream alongside the child's
+    `ClearanceRegistered` via `EventStore.append_streams` (atomic
+    two-stream commit). The `by_clearance_id` field carries the new
+    child clearance's id so the parent->child link is queryable
+    without crossing streams.
+
+    Per modern event-sourcing convention (single event per transition
+    with causation metadata; see Dudycz, Khononov 2025): no separate
+    `AmendmentInitiated` intent event. Causation_id on the envelope
+    links the two events back to the originating `amend_clearance`
+    command. The superseding actor lives on `StoredEvent.principal_id`.
+    """
+
+    clearance_id: UUID
+    by_clearance_id: UUID
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Clearance aggregate emits.
 # Phase 11a-a: ClearanceRegistered (genesis).
 # Phase 11a-b: 6 FSM-closure events (Submit/StartReview/AppendReviewStep/Approve/Reject/Activate).
-# Phase 11a-c will add: Expired / AmendmentInitiated / Superseded.
+# Phase 11a-c-2: 2 terminal events (Expired/Superseded). The amend slice
+# atomically writes parent's Superseded + child's Registered via
+# EventStore.append_streams; the originally-planned AmendmentInitiated
+# event was dropped as redundant (Superseded.by_clearance_id carries
+# the same link).
 ClearanceEvent = (
     ClearanceRegistered
     | ClearanceSubmitted
@@ -186,6 +229,8 @@ ClearanceEvent = (
     | ClearanceApproved
     | ClearanceRejected
     | ClearanceActivated
+    | ClearanceExpired
+    | ClearanceSuperseded
 )
 
 
@@ -461,6 +506,26 @@ def to_payload(event: ClearanceEvent) -> dict[str, Any]:
                 "clearance_id": str(cid),
                 "occurred_at": occurred_at.isoformat(),
             }
+        case ClearanceExpired(
+            clearance_id=cid,
+            reason=reason,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "clearance_id": str(cid),
+                "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case ClearanceSuperseded(
+            clearance_id=cid,
+            by_clearance_id=by_cid,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "clearance_id": str(cid),
+                "by_clearance_id": str(by_cid),
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -542,6 +607,18 @@ def from_stored(stored: StoredEvent) -> ClearanceEvent:
                 clearance_id=UUID(payload["clearance_id"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "ClearanceExpired":
+            return ClearanceExpired(
+                clearance_id=UUID(payload["clearance_id"]),
+                reason=payload["reason"],
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "ClearanceSuperseded":
+            return ClearanceSuperseded(
+                clearance_id=UUID(payload["clearance_id"]),
+                by_clearance_id=UUID(payload["by_clearance_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
         case _:
             msg = f"Unknown ClearanceEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -551,11 +628,13 @@ __all__ = [
     "ClearanceActivated",
     "ClearanceApproved",
     "ClearanceEvent",
+    "ClearanceExpired",
     "ClearanceRegistered",
     "ClearanceRejected",
     "ClearanceReviewStarted",
     "ClearanceReviewStepAppended",
     "ClearanceSubmitted",
+    "ClearanceSuperseded",
     "deserialize_binding",
     "deserialize_classification",
     "deserialize_declaration",
