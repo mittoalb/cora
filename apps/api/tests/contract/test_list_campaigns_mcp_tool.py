@@ -44,6 +44,8 @@ def test_mcp_list_campaigns_tool_returns_empty_page_with_no_data() -> None:
 
 @pytest.mark.contract
 def test_mcp_list_campaigns_tool_accepts_combined_filters() -> None:
+    """Multi-value status passed as a list per the canonical shape; the tool
+    layer translates the 'all' sentinel."""
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
         response = client.post(
@@ -55,7 +57,7 @@ def test_mcp_list_campaigns_tool_accepts_combined_filters() -> None:
                 "params": {
                     "name": "list_campaigns",
                     "arguments": {
-                        "status": "all",
+                        "status": ["all"],
                         "intent": "Series",
                         "tag": "hexapod",
                         "limit": 25,
@@ -68,6 +70,51 @@ def test_mcp_list_campaigns_tool_accepts_combined_filters() -> None:
     result = body["result"]
     assert result["isError"] is False
     assert result["structuredContent"]["items"] == []
+
+
+@pytest.mark.contract
+def test_mcp_list_campaigns_tool_accepts_multi_value_status() -> None:
+    """`status=['Planned', 'Active']` narrows to those two; distinct from the
+    `['all']` sentinel that disables the filter."""
+    with TestClient(create_app()) as client:
+        session_headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "tools/call",
+                "params": {
+                    "name": "list_campaigns",
+                    "arguments": {"status": ["Planned", "Active"]},
+                },
+            },
+            headers=session_headers,
+        )
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is False
+
+
+@pytest.mark.contract
+def test_mcp_list_campaigns_tool_iserror_on_status_all_mixed_with_explicit() -> None:
+    """Conflict guard mirrors the REST 422: `['all', 'Active']` is ambiguous."""
+    with TestClient(create_app()) as client:
+        session_headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "tools/call",
+                "params": {
+                    "name": "list_campaigns",
+                    "arguments": {"status": ["all", "Active"]},
+                },
+            },
+            headers=session_headers,
+        )
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is True
 
 
 @pytest.mark.contract

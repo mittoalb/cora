@@ -1,20 +1,32 @@
 """HTTP route for the `list_campaigns` query slice.
 
 `GET /campaigns` accepts these optional query params: `cursor`,
-`limit`, `status`, `intent`, `lead_actor_id`, `subject_id`, `tag`.
-Returns `{"items": [...], "next_cursor": "..." | null}`.
+`limit`, `status` (one or more; multi-value; plus the `all`
+sentinel that disables the filter), `intent`, `lead_actor_id`,
+`subject_id`, `tag`.
 
-**Default behavior is `status` -> OPEN set (Planned + Active + Held).**
-Pass `status=all` to include Closed + Abandoned (per the design memo:
-terminal states never appear by default). Pass an exact status value
-to narrow further.
+## Status default + 'all' sentinel
+
+Omitted `status` defaults to the OPEN set (`[Planned, Active,
+Held]`) so operators don't see Closed + Abandoned terminal
+campaigns cluttering the list. Pass `?status=all` to opt into the
+full set. Pass one or more explicit values
+(`?status=Planned&status=Active`) to narrow further.
+
+`all` and explicit status values cannot be combined in the same
+request; doing so returns 422.
+
+The application handler sees only the canonical `statuses` list;
+the OPEN-set default and the 'all' sentinel both converge to the
+same internal contract per the `cora.infrastructure.list_query`
+growth-rule discipline (mirrors the list_cautions force-conform).
 """
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 
 from cora.campaign.aggregates.campaign import (
@@ -30,6 +42,46 @@ from cora.campaign.features.list_campaigns.query import (
     ListCampaigns,
 )
 from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+
+# Route-surface type: real status values plus the 'all' sentinel that
+# translates to "no filter" at this layer. The query dataclass +
+# application handler never see 'all' (per the growth-rule discipline
+# documented on `cora.infrastructure.list_query`).
+_RouteStatusParam = Literal["Planned", "Active", "Held", "Closed", "Abandoned", "all"]
+
+# OPEN-set default: Planned + Active + Held. Terminal states (Closed,
+# Abandoned) hidden by default; operator opts in via `?status=all` or
+# explicit terminal values.
+_OPEN_STATUSES: list[CampaignStatusFilter] = ["Planned", "Active", "Held"]
+
+
+def _resolve_statuses(
+    status_params: list[_RouteStatusParam] | None,
+) -> list[CampaignStatusFilter] | None:
+    """Translate user-facing status inputs into the canonical list.
+
+    None (omitted) -> OPEN-set default [Planned, Active, Held].
+
+    Exactly ['all'] -> None (disable the filter; show every status).
+    'all' mixed with real values raises 422 (ambiguous).
+
+    Otherwise -> the explicit list (after validating no 'all' sneaked
+    in alongside real values).
+    """
+    if status_params is None or len(status_params) == 0:
+        return list(_OPEN_STATUSES)
+    has_all = "all" in status_params
+    if has_all and len(status_params) > 1:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=(
+                "Pass either `status=all` (disable filter) or one or "
+                "more explicit status values, not both."
+            ),
+        )
+    if has_all:
+        return None
+    return [v for v in status_params if v != "all"]
 
 
 class CampaignSummaryDTO(BaseModel):
@@ -78,8 +130,7 @@ router = APIRouter(tags=["campaign"])
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": (
                 "Query parameters failed validation OR `cursor` was "
-                "malformed (corrupt base64, missing separator, bad "
-                "timestamp / UUID)."
+                "malformed OR `status=all` was mixed with explicit values."
             ),
         },
     },
@@ -102,16 +153,16 @@ async def list_campaigns(
         int,
         Query(ge=1, le=100, description="Page size; capped at 100."),
     ] = 50,
-    status_filter: Annotated[
-        CampaignStatusFilter | None,
+    status_params: Annotated[
+        list[_RouteStatusParam] | None,
         Query(
             alias="status",
             description=(
-                "Optional status filter; omit to default to the OPEN "
-                "set (Planned + Active + Held; hides Closed + "
-                "Abandoned). Pass 'all' to include every status, or an "
-                "exact value (Planned / Active / Held / Closed / "
-                "Abandoned) to narrow."
+                "Optional status filter; multi-value. Omit to default "
+                "to the OPEN set ([Planned, Active, Held]). Pass `all` "
+                "alone to include every status, or one or more explicit "
+                "values to narrow. `all` cannot be mixed with explicit "
+                "values."
             ),
         ),
     ] = None,
@@ -138,11 +189,12 @@ async def list_campaigns(
         ),
     ] = None,
 ) -> CampaignListPageResponse:
+    statuses = _resolve_statuses(status_params)
     page = await handler(
         ListCampaigns(
             cursor=cursor,
             limit=limit,
-            status=status_filter,
+            statuses=statuses,
             intent=intent,
             lead_actor_id=lead_actor_id,
             subject_id=subject_id,

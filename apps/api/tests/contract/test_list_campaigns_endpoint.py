@@ -42,10 +42,32 @@ def test_get_campaigns_accepts_each_status_including_all_sentinel(
     client: TestClient, status_value: str
 ) -> None:
     """Five concrete statuses + 'all' sentinel; design memo: default is the OPEN
-    set (Planned + Active + Held), 'all' to include Closed + Abandoned."""
+    set (Planned + Active + Held), 'all' to include Closed + Abandoned. The route
+    translates 'all' to None (no filter) and routes the rest as a single-element
+    list per the force-conform contract."""
     with client:
         response = client.get(f"/campaigns?status={status_value}")
     assert response.status_code == 200
+
+
+@pytest.mark.contract
+def test_get_campaigns_accepts_multi_value_status(client: TestClient) -> None:
+    """`?status=Planned&status=Active` narrows to those two statuses; distinct
+    from the `?status=all` sentinel that disables the filter."""
+    with client:
+        response = client.get("/campaigns?status=Planned&status=Active")
+    assert response.status_code == 200
+
+
+@pytest.mark.contract
+def test_get_campaigns_rejects_status_all_mixed_with_explicit_with_422(
+    client: TestClient,
+) -> None:
+    """`?status=all&status=Active` is ambiguous (disable filter OR narrow?);
+    the route 422s rather than guessing."""
+    with client:
+        response = client.get("/campaigns?status=all&status=Active")
+    assert response.status_code == 422
 
 
 @pytest.mark.contract

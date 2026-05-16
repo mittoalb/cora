@@ -1,8 +1,20 @@
-"""MCP tool for the `list_campaigns` query slice."""
+"""MCP tool for the `list_campaigns` query slice.
+
+Mirrors the REST route's behavior including the OPEN-set default
+([Planned, Active, Held]) and the `status=all` sentinel. The
+defaults MUST match the REST surface; agents and operators see the
+same filtered view so a bug surfaced in one client surfaces in the
+other.
+
+User-facing translation (default OPEN set, 'all' sentinel) lives
+here at the tool boundary; the application handler sees only
+canonical list-typed filters per the
+`cora.infrastructure.list_query` growth-rule discipline.
+"""
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from mcp.server.fastmcp import FastMCP
@@ -22,6 +34,42 @@ from cora.campaign.features.list_campaigns.query import (
     ListCampaigns,
 )
 from cora.infrastructure.observability import current_correlation_id
+
+# Tool-surface type for status, matching the route's `_RouteStatusParam`
+# semantics: real values plus the 'all' sentinel.
+_ToolStatusParam = Literal["Planned", "Active", "Held", "Closed", "Abandoned", "all"]
+
+# Same OPEN-set default as the route. Kept duplicated rather than
+# imported from route.py to avoid coupling tool layer to route layer
+# (both depend on the same domain default, neither depends on the other).
+_OPEN_STATUSES: list[CampaignStatusFilter] = ["Planned", "Active", "Held"]
+
+
+class _ListCampaignsInputError(ValueError):
+    """Raised when caller passes conflicting status inputs ('all' mixed
+    with explicit status values). MCP runtime surfaces ValueError as a
+    tool error, parallel to the REST route's HTTPException(422)."""
+
+
+def _resolve_statuses(
+    status_params: list[_ToolStatusParam] | None,
+) -> list[CampaignStatusFilter] | None:
+    """Mirror of `route._resolve_statuses`. See route docstring.
+
+    Default (None or empty) -> OPEN set [Planned, Active, Held], same
+    as the REST route.
+    """
+    if status_params is None or len(status_params) == 0:
+        return list(_OPEN_STATUSES)
+    has_all = "all" in status_params
+    if has_all and len(status_params) > 1:
+        raise _ListCampaignsInputError(
+            "Pass either `status=all` (disable filter) or one or "
+            "more explicit status values, not both."
+        )
+    if has_all:
+        return None
+    return [v for v in status_params if v != "all"]
 
 
 class CampaignSummaryRow(BaseModel):
@@ -55,12 +103,12 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         name="list_campaigns",
         description=(
             "Cursor-paginated list of campaigns. Optional filters: "
-            "`status` (defaults to OPEN set Planned+Active+Held; pass "
-            "'all' to include Closed + Abandoned, or an exact value), "
-            "`intent` (one of the 4 CampaignIntent values), "
-            "`lead_actor_id`, `subject_id`, `tag` (exact match in the "
-            "tags array). Pass `cursor` from a previous page's "
-            "`next_cursor` to fetch the next page."
+            "`status` (one or more values; defaults to OPEN set "
+            "[Planned, Active, Held]; pass ['all'] alone to include "
+            "every status), `intent` (one of the 4 CampaignIntent "
+            "values), `lead_actor_id`, `subject_id`, `tag` (exact "
+            "match in the tags array). Pass `cursor` from a previous "
+            "page's `next_cursor` to fetch the next page."
         ),
     )
     async def list_campaigns_tool(  # pyright: ignore[reportUnusedFunction]
@@ -73,12 +121,12 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             Field(ge=1, le=100, description="Page size cap (max 100)."),
         ] = 50,
         status: Annotated[
-            CampaignStatusFilter | None,
+            list[_ToolStatusParam] | None,
             Field(
                 description=(
-                    "Optional status filter; defaults to the OPEN set "
-                    "(Planned + Active + Held). Pass 'all' to include "
-                    "every status."
+                    "Optional status filter; multi-value; defaults to "
+                    "the OPEN set [Planned, Active, Held]. Pass ['all'] "
+                    "alone to include every status."
                 ),
             ),
         ] = None,
@@ -103,12 +151,13 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ),
         ] = None,
     ) -> CampaignListOutput:
+        statuses = _resolve_statuses(status)
         handler = get_handler()
         page = await handler(
             ListCampaigns(
                 cursor=cursor,
                 limit=limit,
-                status=status,
+                statuses=statuses,
                 intent=intent,
                 lead_actor_id=lead_actor_id,
                 subject_id=subject_id,

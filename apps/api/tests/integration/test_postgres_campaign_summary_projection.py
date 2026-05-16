@@ -351,8 +351,12 @@ async def test_list_returns_only_open_by_default(db_pool: asyncpg.Pool) -> None:
     await _drain(db_pool)
 
     list_deps = _build_deps(db_pool, [])
+    # Phase 2 cleanup: the OPEN-set default lives at the route + MCP-tool
+    # boundary now, not in the handler. To exercise the canonical shape
+    # this test pins the same operator-facing behavior by passing the
+    # OPEN set explicitly.
     page = await list_campaigns.bind(list_deps)(
-        ListCampaigns(),
+        ListCampaigns(statuses=["Planned", "Active", "Held"]),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -364,7 +368,9 @@ async def test_list_returns_only_open_by_default(db_pool: asyncpg.Pool) -> None:
 
 @pytest.mark.integration
 async def test_list_status_all_returns_every_campaign(db_pool: asyncpg.Pool) -> None:
-    """Passing `status='all'` disables the status filter."""
+    """Passing `statuses=None` (the canonical 'no status filter') returns
+    every row. Route-layer translates user-facing `?status=all` to this
+    None per the Phase 2 cleanup."""
     planned_id = uuid4()
     abandoned_id = uuid4()
     for cid in (planned_id, abandoned_id):
@@ -384,7 +390,7 @@ async def test_list_status_all_returns_every_campaign(db_pool: asyncpg.Pool) -> 
 
     list_deps = _build_deps(db_pool, [])
     page = await list_campaigns.bind(list_deps)(
-        ListCampaigns(status="all"),
+        ListCampaigns(statuses=None),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -395,7 +401,8 @@ async def test_list_status_all_returns_every_campaign(db_pool: asyncpg.Pool) -> 
 
 @pytest.mark.integration
 async def test_list_status_exact_value_filters_to_that_status(db_pool: asyncpg.Pool) -> None:
-    """`status='Closed'` returns only Closed campaigns."""
+    """`statuses=['Closed']` returns only Closed campaigns. This is what
+    the route emits for the user-facing `?status=Closed`."""
     planned_id = uuid4()
     closed_id = uuid4()
     for cid in (planned_id, closed_id):
@@ -421,7 +428,7 @@ async def test_list_status_exact_value_filters_to_that_status(db_pool: asyncpg.P
 
     list_deps = _build_deps(db_pool, [])
     page = await list_campaigns.bind(list_deps)(
-        ListCampaigns(status="Closed"),
+        ListCampaigns(statuses=["Closed"]),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
