@@ -33,6 +33,7 @@ Layout:
     _caution_dtos.py          -- BC-private shared Pydantic discriminated TargetDTO
 """
 
+from cora.caution._projections import register_caution_projections
 from cora.caution.errors import UnauthorizedError
 from cora.caution.routes import register_caution_routes
 from cora.caution.tools import register_caution_tools
@@ -41,6 +42,7 @@ from cora.caution.wire import CautionHandlers, wire_caution
 __all__ = [
     "CautionHandlers",
     "UnauthorizedError",
+    "register_caution_projections",
     "register_caution_routes",
     "register_caution_tools",
     "wire_caution",

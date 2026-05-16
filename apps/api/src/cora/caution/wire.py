@@ -29,6 +29,7 @@ from uuid import UUID
 
 from cora.caution.features import (
     get_caution,
+    list_cautions,
     register_caution,
     retire_caution,
     supersede_caution,
@@ -48,6 +49,7 @@ class CautionHandlers:
     supersede_caution: supersede_caution.IdempotentHandler
     retire_caution: retire_caution.Handler
     get_caution: get_caution.Handler
+    list_cautions: list_cautions.Handler
 
 
 def wire_caution(deps: Kernel) -> CautionHandlers:
@@ -87,6 +89,12 @@ def wire_caution(deps: Kernel) -> CautionHandlers:
         get_caution=with_tracing(
             get_caution.bind(deps),
             command_name="GetCaution",
+            bc=_BC,
+            kind="query",
+        ),
+        list_cautions=with_tracing(
+            list_cautions.bind(deps),
+            command_name="ListCautions",
             bc=_BC,
             kind="query",
         ),

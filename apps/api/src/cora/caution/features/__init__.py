@@ -14,6 +14,7 @@ Phase 11b-c adds the Run.start non-blocking integration via a new
 
 from cora.caution.features import (
     get_caution,
+    list_cautions,
     register_caution,
     retire_caution,
     supersede_caution,
@@ -21,6 +22,7 @@ from cora.caution.features import (
 
 __all__ = [
     "get_caution",
+    "list_cautions",
     "register_caution",
     "retire_caution",
     "supersede_caution",

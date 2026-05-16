@@ -48,6 +48,7 @@ from cora.access import (
 from cora.api.middleware import BodySizeLimitMiddleware
 from cora.caution import (
     CautionHandlers,
+    register_caution_projections,
     register_caution_routes,
     register_caution_tools,
     wire_caution,
@@ -299,6 +300,7 @@ def create_app() -> FastAPI:
             register_supply_projections(registry, deps)
             register_operation_projections(registry, deps)
             register_safety_projections(registry, deps)
+            register_caution_projections(registry, deps)
             app.state.projections = registry
 
             try:

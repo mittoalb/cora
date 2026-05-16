@@ -12,6 +12,7 @@ from collections.abc import Callable
 from mcp.server.fastmcp import FastMCP
 
 from cora.caution.features.get_caution import tool as get_caution_tool
+from cora.caution.features.list_cautions import tool as list_cautions_tool
 from cora.caution.features.register_caution import tool as register_caution_tool
 from cora.caution.features.retire_caution import tool as retire_caution_tool
 from cora.caution.features.supersede_caution import tool as supersede_caution_tool
@@ -39,4 +40,8 @@ def register_caution_tools(
     get_caution_tool.register(
         mcp,
         get_handler=lambda: get_handlers().get_caution,
+    )
+    list_cautions_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().list_cautions,
     )

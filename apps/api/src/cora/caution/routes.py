@@ -45,6 +45,7 @@ from cora.caution.aggregates.caution import (
 from cora.caution.errors import UnauthorizedError
 from cora.caution.features import (
     get_caution,
+    list_cautions,
     register_caution,
     retire_caution,
     supersede_caution,
@@ -111,6 +112,7 @@ def register_caution_routes(app: FastAPI) -> None:
     app.include_router(supersede_caution.router)
     app.include_router(retire_caution.router)
     app.include_router(get_caution.router)
+    app.include_router(list_cautions.router)
     for validation_cls in (
         InvalidCautionTextError,
         InvalidCautionWorkaroundError,
