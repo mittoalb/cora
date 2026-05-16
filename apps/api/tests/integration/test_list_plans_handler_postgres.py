@@ -88,7 +88,7 @@ async def _seed_chain(deps: Kernel) -> tuple[UUID, UUID, UUID]:
         correlation_id=_CORRELATION_ID,
     )
     method_id = await bind_define_method(deps)(
-        DefineMethod(name="Tomography", needs_capabilities=frozenset({cap_id})),
+        DefineMethod(name="Tomography", capabilities_needed=frozenset({cap_id})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

@@ -15,7 +15,7 @@ Equipment 5f-2.
 
 ## Payload conventions
 
-`needs_capabilities` is stored as `list[UUID]` here (events carry
+`capabilities_needed` is stored as `list[UUID]` here (events carry
 primitives per CONTRIBUTING.md; lists JSON-serialize cleanly). The
 evolver converts to `frozenset` when folding into Method state. The
 list is sorted by string form in `to_payload` so the same logical
@@ -44,22 +44,22 @@ class MethodDefined:
 
     Status is implicit (`Defined`) — the evolver sets it.
 
-    `needs_capabilities` carries the Capability ids the Method
+    `capabilities_needed` carries the Capability ids the Method
     requires; eventual-consistency stance, no cross-aggregate
     verification.
 
-    `needs_supplies` (post-10b, additive evolution) carries Supply
+    `supplies_needed` (post-10b, additive evolution) carries Supply
     KIND strings the Method requires — NOT Supply instance ids.
-    Pre-10b events fold via `payload.get("needs_supplies", [])`. The
+    Pre-10b events fold via `payload.get("supplies_needed", [])`. The
     list is sorted by string form in `to_payload` for persistence
-    determinism (matches needs_capabilities). Default empty list.
+    determinism (matches capabilities_needed). Default empty list.
     """
 
     method_id: UUID
     name: str
-    needs_capabilities: list[UUID]
+    capabilities_needed: list[UUID]
     occurred_at: datetime
-    needs_supplies: list[str] = field(default_factory=list[str])
+    supplies_needed: list[str] = field(default_factory=list[str])
 
 
 @dataclass(frozen=True)
@@ -138,7 +138,7 @@ def event_type_name(event: MethodEvent) -> str:
 def to_payload(event: MethodEvent) -> dict[str, Any]:
     """Serialize a Method event to a JSON-friendly dict for jsonb storage.
 
-    `needs_capabilities` is sorted by UUID string form so the
+    `capabilities_needed` is sorted by UUID string form so the
     persisted payload is deterministic — same logical capability
     set, same payload bytes, same idempotency hash. Same precedent
     as Trust's PolicyDefined.
@@ -147,18 +147,18 @@ def to_payload(event: MethodEvent) -> dict[str, Any]:
         case MethodDefined(
             method_id=method_id,
             name=name,
-            needs_capabilities=needs_capabilities,
-            needs_supplies=needs_supplies,
+            capabilities_needed=capabilities_needed,
+            supplies_needed=supplies_needed,
             occurred_at=occurred_at,
         ):
             return {
                 "method_id": str(method_id),
                 "name": name,
-                "needs_capabilities": sorted(str(c) for c in needs_capabilities),
+                "capabilities_needed": sorted(str(c) for c in capabilities_needed),
                 # Phase 10b additive: kind strings sorted lexically for
-                # deterministic payload bytes (matches needs_capabilities
+                # deterministic payload bytes (matches capabilities_needed
                 # convention; same idempotency-hash story).
-                "needs_supplies": sorted(needs_supplies),
+                "supplies_needed": sorted(supplies_needed),
                 "occurred_at": occurred_at.isoformat(),
             }
         case MethodVersioned(
@@ -203,11 +203,11 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
             return MethodDefined(
                 method_id=UUID(payload["method_id"]),
                 name=payload["name"],
-                needs_capabilities=[UUID(c) for c in payload["needs_capabilities"]],
+                capabilities_needed=[UUID(c) for c in payload["capabilities_needed"]],
                 # Phase 10b forward-compat: pre-10b MethodDefined
-                # payloads have no needs_supplies key; default to empty
+                # payloads have no supplies_needed key; default to empty
                 # list. Additive-evolution pattern.
-                needs_supplies=list(payload.get("needs_supplies", [])),
+                supplies_needed=list(payload.get("supplies_needed", [])),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "MethodVersioned":

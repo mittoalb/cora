@@ -50,7 +50,7 @@ def _start_run_and_finish(client: TestClient, *, end_state: str) -> str:
     run_id. `end_state` ∈ {'Completed', 'Aborted', 'Stopped',
     'Truncated'}."""
     cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
-    method_id = client.post("/methods", json={"name": "M", "needs_capabilities": [cap_id]}).json()[
+    method_id = client.post("/methods", json={"name": "M", "capabilities_needed": [cap_id]}).json()[
         "method_id"
     ]
     practice_id = client.post(

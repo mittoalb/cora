@@ -389,7 +389,7 @@ class AssetCannotAddCapabilityError(Exception):
 
     Eventual-consistency: the decider does NOT verify the referenced
     Capability id refers to a real Capability stream. Same precedent
-    as Trust Conduit zone refs (3b) and Method.needs_capabilities
+    as Trust Conduit zone refs (3b) and Method.capabilities_needed
     (6a).
     """
 
@@ -514,7 +514,7 @@ class Asset:
     `add_asset_capability` when commissioning a new technique on the
     asset, remove via `remove_asset_capability` when retiring one.
     Used at Plan binding time (6e) for the structural check
-    `asset.capabilities ⊇ method.needs_capabilities`. Eventual-
+    `asset.capabilities ⊇ method.capabilities_needed`. Eventual-
     consistency: each Capability id is NOT verified against the
     Capability stream at decide time. Defaults to empty so prior
     `AssetRegistered`-only streams fold cleanly without an upcaster
@@ -559,7 +559,7 @@ class Asset:
     # `frozenset` as default_factory triggers reportUnknownVariableType
     # under pyright strict because the empty frozenset has no element
     # type to infer. The parametrized form gives pyright the type
-    # without runtime cost. Same trick used in Method.needs_capabilities.
+    # without runtime cost. Same trick used in Method.capabilities_needed.
     capabilities: frozenset[UUID] = field(default_factory=frozenset[UUID])
     # dict[str, Any] for runtime-typed operator-supplied settings.
     # Same default_factory pattern as capabilities — the empty dict

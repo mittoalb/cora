@@ -102,7 +102,7 @@ async def _seed_full_chain(
         correlation_id=_CORRELATION_ID,
     )
     method_id = await define_method.bind(deps)(
-        DefineMethod(name="Test Method", needs_capabilities=frozenset({cap_id})),
+        DefineMethod(name="Test Method", capabilities_needed=frozenset({cap_id})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

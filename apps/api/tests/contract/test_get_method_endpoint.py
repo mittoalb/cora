@@ -1,7 +1,7 @@
 """Contract tests for `GET /methods/{method_id}`.
 
 Mirrors `test_get_capability_endpoint.py`. Pinned response shape:
-`{id, name, needs_capabilities, status}`. needs_capabilities is a
+`{id, name, capabilities_needed, status}`. capabilities_needed is a
 sorted list of UUIDs (deterministic ordering).
 """
 
@@ -17,15 +17,15 @@ def _define_method(
     client: TestClient,
     *,
     name: str = "XRF Mapping",
-    needs_capabilities: list[str] | None = None,
-    needs_supplies: list[str] | None = None,
+    capabilities_needed: list[str] | None = None,
+    supplies_needed: list[str] | None = None,
 ) -> UUID:
     body: dict[str, object] = {
         "name": name,
-        "needs_capabilities": needs_capabilities if needs_capabilities is not None else [],
+        "capabilities_needed": capabilities_needed if capabilities_needed is not None else [],
     }
-    if needs_supplies is not None:
-        body["needs_supplies"] = needs_supplies
+    if supplies_needed is not None:
+        body["supplies_needed"] = supplies_needed
     response = client.post("/methods", json=body)
     assert response.status_code == 201, response.text
     return UUID(response.json()["method_id"])
@@ -39,7 +39,7 @@ def test_get_method_returns_200_with_defined_status_for_new_method() -> None:
         method_id = _define_method(
             client,
             name="XRF Fly Mapping",
-            needs_capabilities=[cap1, cap2],
+            capabilities_needed=[cap1, cap2],
         )
         response = client.get(f"/methods/{method_id}")
 
@@ -49,54 +49,54 @@ def test_get_method_returns_200_with_defined_status_for_new_method() -> None:
     assert body["name"] == "XRF Fly Mapping"
     assert body["status"] == "Defined"
     # Sorted by UUID string form (deterministic).
-    assert body["needs_capabilities"] == sorted([cap1, cap2])
+    assert body["capabilities_needed"] == sorted([cap1, cap2])
     # Null until version_method runs (6b).
     assert body["version"] is None
 
 
 @pytest.mark.contract
-def test_get_method_returns_empty_needs_capabilities_for_procedural_method() -> None:
+def test_get_method_returns_empty_capabilities_needed_for_procedural_method() -> None:
     with TestClient(create_app()) as client:
-        method_id = _define_method(client, name="Sample Cleaning", needs_capabilities=[])
+        method_id = _define_method(client, name="Sample Cleaning", capabilities_needed=[])
         response = client.get(f"/methods/{method_id}")
 
     assert response.status_code == 200
     body = response.json()
-    assert body["needs_capabilities"] == []
+    assert body["capabilities_needed"] == []
 
 
-# ---------- Phase 10b: needs_supplies on response ----------
+# ---------- Phase 10b: supplies_needed on response ----------
 
 
 @pytest.mark.contract
-def test_get_method_returns_needs_supplies_sorted_lexically() -> None:
-    """Phase 10b. Method.needs_supplies surfaces on the GET response
+def test_get_method_returns_supplies_needed_sorted_lexically() -> None:
+    """Phase 10b. Method.supplies_needed surfaces on the GET response
     as a sorted list of Supply.kind strings."""
     with TestClient(create_app()) as client:
         method_id = _define_method(
             client,
             name="Tomography",
-            needs_supplies=["PhotonBeam", "LiquidNitrogen"],
+            supplies_needed=["PhotonBeam", "LiquidNitrogen"],
         )
         response = client.get(f"/methods/{method_id}")
 
     assert response.status_code == 200
     body = response.json()
-    # Sorted lexically (deterministic ordering, mirrors needs_capabilities convention).
-    assert body["needs_supplies"] == ["LiquidNitrogen", "PhotonBeam"]
+    # Sorted lexically (deterministic ordering, mirrors capabilities_needed convention).
+    assert body["supplies_needed"] == ["LiquidNitrogen", "PhotonBeam"]
 
 
 @pytest.mark.contract
-def test_get_method_returns_empty_needs_supplies_when_unspecified() -> None:
-    """Backward-compat: omit needs_supplies in POST body, response
+def test_get_method_returns_empty_supplies_needed_when_unspecified() -> None:
+    """Backward-compat: omit supplies_needed in POST body, response
     still includes the field as []. Pre-10b clients keep working."""
     with TestClient(create_app()) as client:
-        method_id = _define_method(client, name="X", needs_capabilities=[])
+        method_id = _define_method(client, name="X", capabilities_needed=[])
         response = client.get(f"/methods/{method_id}")
 
     assert response.status_code == 200
     body = response.json()
-    assert body["needs_supplies"] == []
+    assert body["supplies_needed"] == []
 
 
 @pytest.mark.contract
@@ -107,8 +107,8 @@ def test_define_method_returns_422_for_oversized_supply_kind() -> None:
             "/methods",
             json={
                 "name": "X",
-                "needs_capabilities": [],
-                "needs_supplies": ["x" * 51],
+                "capabilities_needed": [],
+                "supplies_needed": ["x" * 51],
             },
         )
     assert response.status_code == 422
@@ -122,8 +122,8 @@ def test_define_method_returns_422_for_empty_supply_kind() -> None:
             "/methods",
             json={
                 "name": "X",
-                "needs_capabilities": [],
-                "needs_supplies": [""],
+                "capabilities_needed": [],
+                "supplies_needed": [""],
             },
         )
     assert response.status_code == 422

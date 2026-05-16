@@ -20,7 +20,7 @@ def _setup_plan_with_two_assets_and_ports(client: TestClient) -> dict[str, Any]:
     binding both. Returns dict with plan_id, src_asset_id, tgt_asset_id."""
     cap_id = client.post("/capabilities", json={"name": "Trigger"}).json()["capability_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needs_capabilities": [cap_id]}
+        "/methods", json={"name": "Test Method", "capabilities_needed": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",

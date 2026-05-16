@@ -33,7 +33,7 @@ def _method(
     return Method(
         id=uuid4(),
         name=MethodName("XRF Mapping"),
-        needs_capabilities=frozenset(),
+        capabilities_needed=frozenset(),
         status=status,
         version=version,
     )

@@ -21,7 +21,7 @@ def _setup_full_run(client: TestClient) -> str:
     """Seed full upstream chain + start a Run. Returns the run_id.
     Mirrors the helper in test_append_run_reading_endpoint.py."""
     cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
-    method_id = client.post("/methods", json={"name": "M", "needs_capabilities": [cap_id]}).json()[
+    method_id = client.post("/methods", json={"name": "M", "capabilities_needed": [cap_id]}).json()[
         "method_id"
     ]
     practice_id = client.post(

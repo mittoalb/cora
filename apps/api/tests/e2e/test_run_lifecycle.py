@@ -23,7 +23,7 @@ async def test_full_run_cascade_to_completed(
 
     method = await e2e_client.post(
         "/methods",
-        json={"name": "Test Method", "needs_capabilities": [capability_id]},
+        json={"name": "Test Method", "capabilities_needed": [capability_id]},
     )
     method_id = method.json()["method_id"]
 

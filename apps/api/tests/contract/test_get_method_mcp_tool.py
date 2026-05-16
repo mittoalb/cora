@@ -1,7 +1,7 @@
 """Contract tests for the `get_method` MCP tool.
 
 Mirrors `test_get_capability_mcp_tool.py`. Pinned structured output
-shape: `{id, name, needs_capabilities, status}`.
+shape: `{id, name, capabilities_needed, status}`.
 """
 
 from uuid import UUID, uuid4
@@ -18,7 +18,7 @@ def _define_method_via_tool(
     headers: dict[str, str],
     *,
     name: str = "XRF Mapping",
-    needs_capabilities: list[str] | None = None,
+    capabilities_needed: list[str] | None = None,
 ) -> UUID:
     response = client.post(
         "/mcp",
@@ -30,8 +30,8 @@ def _define_method_via_tool(
                 "name": "define_method",
                 "arguments": {
                     "name": name,
-                    "needs_capabilities": (
-                        needs_capabilities if needs_capabilities is not None else []
+                    "capabilities_needed": (
+                        capabilities_needed if capabilities_needed is not None else []
                     ),
                 },
             },
@@ -62,7 +62,7 @@ def test_mcp_get_method_tool_returns_structured_method_for_known_id() -> None:
     with TestClient(create_app()) as client:
         headers = open_session(client)
         method_id = _define_method_via_tool(
-            client, headers, name="XRF Mapping", needs_capabilities=[cap1]
+            client, headers, name="XRF Mapping", capabilities_needed=[cap1]
         )
         response = client.post(
             "/mcp",
@@ -85,7 +85,7 @@ def test_mcp_get_method_tool_returns_structured_method_for_known_id() -> None:
     assert structured["id"] == str(method_id)
     assert structured["name"] == "XRF Mapping"
     assert structured["status"] == "Defined"
-    assert structured["needs_capabilities"] == [cap1]
+    assert structured["capabilities_needed"] == [cap1]
     # Null until version_method runs (6b).
     assert structured["version"] is None
 

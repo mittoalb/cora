@@ -22,7 +22,7 @@ before reaching the decider (gate-review Q5).
 state holds a `frozenset[UUID]`; sorting by string form keeps the
 persisted bytes deterministic — same logical Asset set, same
 payload, same idempotency hash). Same precedent as
-`Method.needs_capabilities`.
+`Method.capabilities_needed`.
 
 ## Audit snapshots in payload (gate-review Q4)
 
@@ -33,8 +33,8 @@ into Plan state:
     (resolved from `practice.method_id` at handler-load time).
     Captured in the event so audit replay doesn't need to traverse
     Practice → Method (capture-don't-recompute principle).
-  - `method_needs_capabilities_snapshot`: the Method's
-    `needs_capabilities` AT BIND TIME. Pinned so the audit trail
+  - `method_capabilities_needed_snapshot`: the Method's
+    `capabilities_needed` AT BIND TIME. Pinned so the audit trail
     reproduces what was checked even if Method later evolves.
   - `asset_capabilities_snapshot`: each bound Asset's `capabilities`
     AT BIND TIME. Same audit pinning rationale.
@@ -74,7 +74,7 @@ class PlanDefined:
     practice_id: UUID
     asset_ids: list[UUID]
     method_id: UUID
-    method_needs_capabilities_snapshot: list[UUID]
+    method_capabilities_needed_snapshot: list[UUID]
     asset_capabilities_snapshot: dict[UUID, list[UUID]]
     occurred_at: datetime
 
@@ -240,7 +240,7 @@ def to_payload(event: PlanEvent) -> dict[str, Any]:
             practice_id=practice_id,
             asset_ids=asset_ids,
             method_id=method_id,
-            method_needs_capabilities_snapshot=needs_snapshot,
+            method_capabilities_needed_snapshot=needs_snapshot,
             asset_capabilities_snapshot=asset_caps_snapshot,
             occurred_at=occurred_at,
         ):
@@ -251,7 +251,7 @@ def to_payload(event: PlanEvent) -> dict[str, Any]:
                 # asset_ids deterministic for idempotency hashing.
                 "asset_ids": sorted(str(a) for a in asset_ids),
                 "method_id": str(method_id),
-                "method_needs_capabilities_snapshot": sorted(str(c) for c in needs_snapshot),
+                "method_capabilities_needed_snapshot": sorted(str(c) for c in needs_snapshot),
                 "asset_capabilities_snapshot": _serialize_asset_capabilities_snapshot(
                     asset_caps_snapshot
                 ),
@@ -334,8 +334,8 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
                 practice_id=UUID(payload["practice_id"]),
                 asset_ids=[UUID(a) for a in payload["asset_ids"]],
                 method_id=UUID(payload["method_id"]),
-                method_needs_capabilities_snapshot=[
-                    UUID(c) for c in payload["method_needs_capabilities_snapshot"]
+                method_capabilities_needed_snapshot=[
+                    UUID(c) for c in payload["method_capabilities_needed_snapshot"]
                 ],
                 asset_capabilities_snapshot=_deserialize_asset_capabilities_snapshot(
                     payload["asset_capabilities_snapshot"]

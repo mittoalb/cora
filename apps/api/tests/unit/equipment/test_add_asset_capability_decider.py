@@ -135,7 +135,7 @@ def test_decide_does_not_validate_capability_existence() -> None:
     """Eventual-consistency stance: decider does NOT verify the
     referenced Capability id refers to a real Capability stream. Same
     precedent as Trust Conduit zone refs (3b) and
-    Method.needs_capabilities (6a)."""
+    Method.capabilities_needed (6a)."""
     state = _asset()
     bogus_cap = uuid4()
     events = add_asset_capability.decide(

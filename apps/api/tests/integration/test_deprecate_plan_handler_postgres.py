@@ -95,7 +95,7 @@ async def test_deprecate_plan_persists_and_preserves_version_through_fold(
         correlation_id=_CORRELATION_ID,
     )
     await define_method.bind(deps)(
-        DefineMethod(name="XRF Fly Scan", needs_capabilities=frozenset({cap_id})),
+        DefineMethod(name="XRF Fly Scan", capabilities_needed=frozenset({cap_id})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

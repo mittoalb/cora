@@ -34,7 +34,7 @@ carry primitives; lists JSON-serialize cleanly). The evolver
 converts to `frozenset` when folding into Procedure state. The list
 is sorted by string form in `to_payload` so the same logical Asset
 set serializes deterministically -- important for hash-based
-idempotency. Same precedent as Method's needs_capabilities (6a) and
+idempotency. Same precedent as Method's capabilities_needed (6a) and
 Plan's asset_ids (6e-1).
 
 `parent_run_id` is stored as `str | None` in payloads (UUID
@@ -317,7 +317,7 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
     those new keys MUST use `payload.get("k", default)` so pre-10c-b
     streams fold cleanly without backfill. Same additive-evolution
     pattern as `recipe/aggregates/method/events.py:from_stored`
-    (`needs_supplies` added in 10b).
+    (`supplies_needed` added in 10b).
     """
     payload = stored.payload
     match stored.event_type:

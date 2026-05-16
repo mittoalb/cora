@@ -35,7 +35,7 @@ transition evolver shape from Recipe 6d-2.
 `frozenset[UUID]` (state) here. Order doesn't matter at the state
 layer (set semantics for membership / equality); the payload
 already sorted in `to_payload` for persistence determinism. Same
-precedent as Method's `needs_capabilities`.
+precedent as Method's `capabilities_needed`.
 
 `version` is mutated by PlanVersioned (set to the new tag) and
 PRESERVED by PlanDeprecated as the audit signal of the last revision
@@ -43,7 +43,7 @@ before deprecation. Pre-6e-2 PlanDefined-only streams fold cleanly
 with version=None (the additive-state pattern).
 
 The audit snapshots in PlanDefined
-(method_needs_capabilities_snapshot, asset_capabilities_snapshot)
+(method_capabilities_needed_snapshot, asset_capabilities_snapshot)
 are NOT folded into state — they're audit-only payload data per
 gate-review Q4. The evolver intentionally ignores them.
 

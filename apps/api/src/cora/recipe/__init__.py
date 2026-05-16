@@ -18,7 +18,7 @@ type hierarchy (General → Site → Master → Control):
     BC where observation channels become relevant. Phase 6f.
 
 Track-A BC: depends on `Equipment.Capability` (referenced by
-`Method.needs_capabilities`) and (later) `Equipment.Asset`
+`Method.capabilities_needed`) and (later) `Equipment.Asset`
 (referenced by `Plan` binding). Cross-aggregate refs use the
 eventual-consistency stance (decider does NOT verify referenced
 Capability / Asset exists; precedent locked at Trust 3b).

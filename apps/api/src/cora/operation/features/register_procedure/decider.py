@@ -21,7 +21,7 @@ don't recompute).
 `target_asset_ids` and `parent_run_id` are NOT validated for
 existence here per the eventual-consistency stance (precedent: Trust
 Conduit zone refs from 3b, Asset parent refs from 5b, Method's
-needs_capabilities from 6a). Existence + Decommissioned-lifecycle
+capabilities_needed from 6a). Existence + Decommissioned-lifecycle
 gating happens at start_procedure time in 10c-b via
 `ProcedureStartContext` (mirrors `RunStartContext` from Run 6f-1).
 

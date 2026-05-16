@@ -12,7 +12,7 @@ their own DTO mapping (primitives only).
 
 Per gate-review Q4: get_plan returns CURRENT state only. The
 audit snapshots in PlanDefined event payload (method_id,
-method_needs_capabilities_snapshot, asset_capabilities_snapshot)
+method_capabilities_needed_snapshot, asset_capabilities_snapshot)
 are NOT exposed by this query — those are bind-time historical
 data, accessible later via a separate audit query if pilot needs
 it (deferred 6e-3+).

@@ -75,7 +75,7 @@ shared `validate_bounded_text` helper hoisted in 6e-1
 
 The decider does NOT verify each Asset id refers to a real Asset
 stream. Same precedent as Trust's Conduit zone refs (3b), Asset
-parent refs (5b), and Method's needs_capabilities (6a). Empty
+parent refs (5b), and Method's capabilities_needed (6a). Empty
 target_asset_ids is allowed (a procedure that doesn't act on a
 specific Asset, e.g. facility-envelope beam-mode change). Existence
 + Decommissioned-lifecycle gating happens at start_procedure time

@@ -26,7 +26,7 @@ payload was non-NULL; the schema content itself lives in the event
 stream (loaded on demand, not projected to keep the summary table
 small). Mirrors `CapabilitySummaryProjection` (Equipment 5g-a).
 
-`needs_capabilities` from the genesis payload is intentionally NOT
+`capabilities_needed` from the genesis payload is intentionally NOT
 in this projection: it's a list, the keyset+filter shape doesn't
 need it, and a future `proj_recipe_method_capabilities` join
 projection can carry it when use cases demand "all methods needing

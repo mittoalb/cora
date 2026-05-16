@@ -29,7 +29,7 @@ of adding fields when the first mutating event arrives, not
 speculatively).
 
 Audit data captured at bind time (`method_id`, snapshots of the
-Method's needs_capabilities and each bound Asset's capabilities)
+Method's capabilities_needed and each bound Asset's capabilities)
 lives in the `PlanDefined` event payload only — NOT in state.
 Slim Aggregate principle (gate-review Q4): state holds only what
 future deciders need to validate invariants. version_plan and
@@ -52,7 +52,7 @@ treats them as opaque domain data and validates:
   - Practice not Deprecated → `PracticeDeprecatedError`
   - Method not Deprecated → `MethodDeprecatedError`
   - No bound Asset is Decommissioned → `AssetDecommissionedError`
-  - `union(asset.capabilities) ⊇ method.needs_capabilities` →
+  - `union(asset.capabilities) ⊇ method.capabilities_needed` →
     `PlanCapabilitiesNotSatisfiedError`
 
 Handler-side load misses become `PracticeNotFoundError` /

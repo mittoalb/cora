@@ -116,12 +116,12 @@ async def _seed_method(
     store: InMemoryEventStore,
     method_id: UUID,
     *,
-    needs_capabilities: frozenset[UUID] = frozenset(),
+    capabilities_needed: frozenset[UUID] = frozenset(),
 ) -> None:
     event = MethodDefined(
         method_id=method_id,
         name="Test Method",
-        needs_capabilities=sorted(needs_capabilities, key=str),
+        capabilities_needed=sorted(capabilities_needed, key=str),
         occurred_at=_NOW,
     )
     await _append(
@@ -225,7 +225,7 @@ async def _seed_plan(
         practice_id=practice_id,
         asset_ids=sorted(asset_ids, key=str),
         method_id=method_id,
-        method_needs_capabilities_snapshot=[],
+        method_capabilities_needed_snapshot=[],
         asset_capabilities_snapshot={},
         occurred_at=_NOW,
     )
@@ -303,7 +303,7 @@ async def _seed_full_chain(
 
     asset_caps: frozenset[UUID] = frozenset() if drift_capability_off_asset else frozenset({cap_id})
     await _seed_asset(store, asset_id, capabilities=asset_caps, decommissioned=asset_decommissioned)
-    await _seed_method(store, method_id, needs_capabilities=frozenset({cap_id}))
+    await _seed_method(store, method_id, capabilities_needed=frozenset({cap_id}))
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_plan(
         store,

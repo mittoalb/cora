@@ -34,7 +34,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 async def _define_method_helper(deps: Kernel) -> UUID:
     return await define_method.bind(deps)(
-        DefineMethod(name="XRF Mapping", needs_capabilities=frozenset()),
+        DefineMethod(name="XRF Mapping", capabilities_needed=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

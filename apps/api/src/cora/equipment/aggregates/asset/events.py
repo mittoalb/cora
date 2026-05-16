@@ -144,7 +144,7 @@ class AssetCapabilityAdded:
 
     Eventual-consistency: `capability_id` is NOT verified against the
     Capability stream. Same precedent as Conduit zone refs (3b),
-    Asset parent refs (5b), Method.needs_capabilities (6a).
+    Asset parent refs (5b), Method.capabilities_needed (6a).
     """
 
     asset_id: UUID

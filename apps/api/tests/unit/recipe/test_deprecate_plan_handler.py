@@ -44,7 +44,7 @@ async def _seed_plan(store: InMemoryEventStore, plan_id: UUID) -> None:
         practice_id=uuid4(),
         asset_ids=[uuid4()],
         method_id=uuid4(),
-        method_needs_capabilities_snapshot=[],
+        method_capabilities_needed_snapshot=[],
         asset_capabilities_snapshot={},
         occurred_at=_NOW,
     )

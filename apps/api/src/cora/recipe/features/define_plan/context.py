@@ -40,7 +40,7 @@ class PlanBindingContext:
     All three carry their own status / lifecycle fields so the
     decider can reject Deprecated / Decommissioned upstreams. The
     capability-superset check uses each Asset's `capabilities` and
-    the Method's `needs_capabilities` (gate-review Q3: bound-Asset-
+    the Method's `capabilities_needed` (gate-review Q3: bound-Asset-
     only, no hierarchy walk).
     """
 

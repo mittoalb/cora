@@ -38,7 +38,7 @@ def _plan_defined(
         practice_id=practice_id or uuid4(),
         asset_ids=asset_ids if asset_ids is not None else [uuid4()],
         method_id=uuid4(),
-        method_needs_capabilities_snapshot=[uuid4()],
+        method_capabilities_needed_snapshot=[uuid4()],
         asset_capabilities_snapshot={},
         occurred_at=_NOW,
     )
@@ -63,7 +63,7 @@ def test_evolve_plan_defined_sets_status_to_defined() -> None:
             practice_id=practice_id,
             asset_ids=[asset_id],
             method_id=method_id,
-            method_needs_capabilities_snapshot=[uuid4()],
+            method_capabilities_needed_snapshot=[uuid4()],
             asset_capabilities_snapshot={asset_id: [uuid4()]},
             occurred_at=_NOW,
         ),
@@ -82,7 +82,7 @@ def test_evolve_plan_defined_sets_status_to_defined() -> None:
 def test_evolve_plan_defined_converts_asset_ids_list_to_frozenset() -> None:
     """Event payload carries `list[UUID]` (JSON-friendly); state
     holds `frozenset[UUID]` (set semantics for membership). Same
-    precedent as Method's needs_capabilities."""
+    precedent as Method's capabilities_needed."""
     a1 = uuid4()
     a2 = uuid4()
     state = evolve(None, _plan_defined(asset_ids=[a1, a2, a1]))  # duplicate
@@ -95,7 +95,7 @@ def test_evolve_plan_defined_does_not_fold_other_audit_snapshots() -> None:
     """Slim aggregate: snapshots in payload are NOT folded into
     state. Plan state holds method_id (promoted in 6g-b for the
     update_plan_default_parameters decider) but NOT
-    method_needs_capabilities_snapshot or asset_capabilities_snapshot.
+    method_capabilities_needed_snapshot or asset_capabilities_snapshot.
     This test pins the contract so future additions are deliberate.
     default_parameters is also on state (defaults to {} via
     additive-state pattern). wires is also on state (Phase 6h;
@@ -343,7 +343,7 @@ def test_evolve_plan_defined_folds_method_id_from_payload() -> None:
             practice_id=uuid4(),
             asset_ids=[uuid4()],
             method_id=method_id,
-            method_needs_capabilities_snapshot=[],
+            method_capabilities_needed_snapshot=[],
             asset_capabilities_snapshot={},
             occurred_at=_NOW,
         ),
@@ -566,7 +566,7 @@ def test_fold_full_wire_lifecycle_yields_empty_wire_set() -> None:
             practice_id=practice_id,
             asset_ids=[src_id, tgt_id],
             method_id=method_id,
-            method_needs_capabilities_snapshot=[],
+            method_capabilities_needed_snapshot=[],
             asset_capabilities_snapshot={},
             occurred_at=_NOW,
         ),

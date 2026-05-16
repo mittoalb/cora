@@ -27,7 +27,7 @@ async def test_handler_returns_generated_method_id() -> None:
     handler = define_method.bind(deps)
 
     result = await handler(
-        DefineMethod(name="XRF Mapping", needs_capabilities=frozenset()),
+        DefineMethod(name="XRF Mapping", capabilities_needed=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -42,7 +42,7 @@ async def test_handler_appends_method_defined_event_to_store() -> None:
     handler = define_method.bind(deps)
 
     await handler(
-        DefineMethod(name="XRF Fly Mapping", needs_capabilities=frozenset({_CAP1, _CAP2})),
+        DefineMethod(name="XRF Fly Mapping", capabilities_needed=frozenset({_CAP1, _CAP2})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -53,15 +53,15 @@ async def test_handler_appends_method_defined_event_to_store() -> None:
     stored = events[0]
     assert stored.event_type == "MethodDefined"
     assert stored.schema_version == 1
-    # Payload's needs_capabilities is sorted by string form
+    # Payload's capabilities_needed is sorted by string form
     # (deterministic). Compare exact bytes to lock the contract.
     assert stored.payload == {
         "method_id": str(_NEW_ID),
         "name": "XRF Fly Mapping",
-        "needs_capabilities": sorted([str(_CAP1), str(_CAP2)]),
+        "capabilities_needed": sorted([str(_CAP1), str(_CAP2)]),
         # Phase 10b additive: empty list when MethodDefined has no
-        # needs_supplies. Pinned by test_method_needs_supplies.py.
-        "needs_supplies": [],
+        # supplies_needed. Pinned by test_method_supplies_needed.py.
+        "supplies_needed": [],
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.correlation_id == _CORRELATION_ID
@@ -72,21 +72,21 @@ async def test_handler_appends_method_defined_event_to_store() -> None:
 
 
 @pytest.mark.unit
-async def test_handler_handles_empty_needs_capabilities() -> None:
+async def test_handler_handles_empty_capabilities_needed() -> None:
     """Procedural Method (no equipment requirement) lands as
-    payload `needs_capabilities = []`."""
+    payload `capabilities_needed = []`."""
     store = InMemoryEventStore()
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_method.bind(deps)
 
     await handler(
-        DefineMethod(name="Sample Cleaning", needs_capabilities=frozenset()),
+        DefineMethod(name="Sample Cleaning", capabilities_needed=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
     events, _ = await store.load("Method", _NEW_ID)
-    assert events[0].payload["needs_capabilities"] == []
+    assert events[0].payload["capabilities_needed"] == []
 
 
 @pytest.mark.unit
@@ -96,7 +96,7 @@ async def test_handler_trims_method_name_via_value_object() -> None:
     handler = define_method.bind(deps)
 
     await handler(
-        DefineMethod(name="  XRF Mapping  ", needs_capabilities=frozenset()),
+        DefineMethod(name="  XRF Mapping  ", capabilities_needed=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -112,7 +112,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 
     with pytest.raises(UnauthorizedError) as exc_info:
         await handler(
-            DefineMethod(name="X", needs_capabilities=frozenset()),
+            DefineMethod(name="X", capabilities_needed=frozenset()),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -127,7 +127,7 @@ async def test_handler_does_not_append_when_denied() -> None:
 
     with pytest.raises(UnauthorizedError):
         await handler(
-            DefineMethod(name="X", needs_capabilities=frozenset()),
+            DefineMethod(name="X", capabilities_needed=frozenset()),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -144,7 +144,7 @@ async def test_handler_propagates_invalid_method_name_error() -> None:
 
     with pytest.raises(InvalidMethodNameError):
         await handler(
-            DefineMethod(name="   ", needs_capabilities=frozenset()),
+            DefineMethod(name="   ", capabilities_needed=frozenset()),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -158,7 +158,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     handler = define_method.bind(deps)
 
     await handler(
-        DefineMethod(name="X", needs_capabilities=frozenset()),
+        DefineMethod(name="X", capabilities_needed=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,
@@ -186,7 +186,7 @@ async def test_wired_handler_propagates_causation_id_through_full_composition() 
     handlers = wire_recipe(deps)
 
     await handlers.define_method(
-        DefineMethod(name="X", needs_capabilities=frozenset()),
+        DefineMethod(name="X", capabilities_needed=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,

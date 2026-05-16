@@ -69,7 +69,7 @@ async def test_plan_defined_inserts_with_practice_id_and_method_id() -> None:
             "practice_id": str(_PRACTICE_ID),
             "asset_ids": [str(uuid4())],
             "method_id": str(_METHOD_ID),
-            "method_needs_capabilities_snapshot": [str(uuid4())],
+            "method_capabilities_needed_snapshot": [str(uuid4())],
             "asset_capabilities_snapshot": {},
             "occurred_at": _NOW.isoformat(),
         },

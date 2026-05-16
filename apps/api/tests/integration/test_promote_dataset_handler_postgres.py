@@ -152,7 +152,7 @@ async def test_register_dataset_persists_producing_run_end_state_in_payload(
         correlation_id=_CORRELATION_ID,
     )
     method_id = await define_method.bind(deps)(
-        DefineMethod(name="M", needs_capabilities=frozenset({cap_id})),
+        DefineMethod(name="M", capabilities_needed=frozenset({cap_id})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
