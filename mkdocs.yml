@@ -82,15 +82,8 @@ nav:
     - Modeling: reference/modeling.md
     - Patterns: reference/patterns.md
     - Runtime: reference/runtime.md
-  - Glossary:
-    - glossary/index.md
-    - Architecture: glossary/architecture.md
-    - Events: glossary/events.md
-    - Surfaces: glossary/surfaces.md
-    - Standards: glossary/standards.md
-    - Authz: glossary/authz.md
-    - Recipe ladder: glossary/ladder.md
-  - Contributing: contributing.md
+    - Glossary: reference/glossary.md
+    - Contributing: reference/contributing.md
 
 markdown_extensions:
   - admonition

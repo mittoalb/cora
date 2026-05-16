@@ -12,7 +12,7 @@ Stop at any step and you have a working mental model of the layer above.
 2. **The aggregate:** [aggregates/actor/](https://github.com/xmap/cora/tree/main/apps/api/src/cora/access/aggregates/actor). State, events, evolver. Pure.
 3. **The ports:** [infrastructure/ports/](https://github.com/xmap/cora/tree/main/apps/api/src/cora/infrastructure/ports). Six `Protocol`s (clock, id_generator, event_store, idempotency, authorize, event_publisher).
 4. **One fitness test:** [test_slice_contract.py](https://github.com/xmap/cora/blob/main/apps/api/tests/architecture/test_slice_contract.py). What's enforced mechanically.
-5. **Vocabulary:** [Glossary](../glossary/index.md).
+5. **Vocabulary:** [Glossary](glossary.md).
 
 ## Commits
 

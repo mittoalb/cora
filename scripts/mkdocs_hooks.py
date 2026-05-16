@@ -4,15 +4,15 @@ Rewrites markdown links in-memory so the static site at xmap.github.io/cora/
 resolves correctly without mutating the source files in docs/. Two distinct
 behaviors:
 
-1. The staged contributing.md (mirrored from /CONTRIBUTING.md at build time)
-   has paths that are repo-root-relative. They are rewritten to either an
-   intra-site mkdocs path (when the target is a docs/ page) or a GitHub blob
-   URL (when the target is a repo file outside docs/).
+1. The staged reference/contributing.md (mirrored from /CONTRIBUTING.md at
+   build time) has paths that are repo-root-relative. They are rewritten to
+   either an intra-site mkdocs path (when the target is a docs/ page) or a
+   GitHub blob URL (when the target is a repo file outside docs/).
 
 2. Every other page in docs/ is page-aware: links that resolve inside docs/
    are left alone (mkdocs handles relative intra-site links natively); links
    that resolve outside docs/ are rewritten to GitHub blob URLs (or to the
-   staged contributing.md for the ../CONTRIBUTING.md special case).
+   staged contributing page for the ../CONTRIBUTING.md special case).
 
 Links containing /.claude/ (private auto-memory) are stripped to plain text.
 
@@ -29,12 +29,13 @@ REPO_BLOB = "https://github.com/xmap/cora/blob/main/"
 HOOK_DIR = Path(__file__).resolve().parent
 REPO_ROOT = HOOK_DIR.parent
 DOCS_DIR = REPO_ROOT / "docs"
+STAGED_CONTRIBUTING_SRC_URI = "reference/contributing.md"
 
 LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 
 
 def _rewrite_in_page(page_src_uri: str, markdown: str) -> str:
-    is_staged = page_src_uri == "contributing.md"
+    is_staged = page_src_uri == STAGED_CONTRIBUTING_SRC_URI
     page_path_in_docs = Path(page_src_uri)
     page_dir_in_docs = page_path_in_docs.parent
     # Number of "../" steps to climb from the page back to docs/ root.
@@ -66,8 +67,9 @@ def _rewrite_in_page(page_src_uri: str, markdown: str) -> str:
             return original
 
         if is_staged:
-            # Staged contributing.md mirrors /CONTRIBUTING.md, so paths in the
-            # source are repo-root-relative.
+            # Staged reference/contributing.md mirrors /CONTRIBUTING.md, so
+            # paths in the source are repo-root-relative. Rewrite them to be
+            # relative to the staged page's location (docs/reference/).
             cleaned = path_part
             while cleaned.startswith("../"):
                 cleaned = cleaned[3:]
@@ -79,8 +81,8 @@ def _rewrite_in_page(page_src_uri: str, markdown: str) -> str:
             if cleaned.startswith("docs/"):
                 cleaned = cleaned[len("docs/") :]
                 if cleaned == "" or cleaned.endswith("/"):
-                    return f"[{label}](index.md{anchor})"
-                return f"[{label}]({cleaned}{anchor})"
+                    return f"[{label}]({up_to_docs_root}index.md{anchor})"
+                return f"[{label}]({up_to_docs_root}{cleaned}{anchor})"
 
             return f"[{label}]({REPO_BLOB}{cleaned}{anchor})"
 
@@ -106,7 +108,7 @@ def _rewrite_in_page(page_src_uri: str, markdown: str) -> str:
             return original
 
         if rel_in_repo == "CONTRIBUTING.md":
-            return f"[{label}]({up_to_docs_root}contributing.md{anchor})"
+            return f"[{label}]({up_to_docs_root}reference/contributing.md{anchor})"
 
         return f"[{label}]({REPO_BLOB}{rel_in_repo}{anchor})"
 

@@ -1,6 +1,6 @@
 # Reference
 
-For humans and LLM agents writing CORA code, and for code reviewers. Not a tutorial. The rules to honor when modifying CORA so the codebase doesn't drift. If the code disagrees with this page, the code is wrong. For collaboration on the design (not the code), see [Contributing](../../CONTRIBUTING.md).
+For humans and LLM agents writing CORA code, and for code reviewers. Not a tutorial. The rules to honor when modifying CORA so the codebase doesn't drift. If the code disagrees with this page, the code is wrong. For collaboration on the design (not the code), see [Contributing](contributing.md).
 
 ## Pages
 
@@ -45,5 +45,21 @@ For humans and LLM agents writing CORA code, and for code reviewers. Not a tutor
     Production hardening, logging, HTTP errors.
 
     [Read →](runtime.md)
+
+-   :material-book-alphabet:{ .lg .middle } __Glossary__
+
+    ---
+
+    Terms defined once and used the same way in code, commits, and prose.
+
+    [Read →](glossary.md)
+
+-   :material-handshake-outline:{ .lg .middle } __Contributing__
+
+    ---
+
+    What this project is and isn't asking for. Beamline collaborators welcome; drive-by code PRs not.
+
+    [Read →](contributing.md)
 
 </div>
