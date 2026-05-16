@@ -411,34 +411,43 @@ If asked for citations on row 3 (agents that plan / tune / flag): Vriza, Prince,
 # A concrete example
 
 <div class="text-base mt-2 opacity-80">
-Mid-cooling, the active solidification front drifts toward the FOV edge.
+In-situ freezing of brine in a porous sample; 30 minutes into a 4-hour scan, an interesting growth front emerges in the streaming reconstruction.
 </div>
 
 <div class="mt-5 text-sm">
 
 | Beat | Without a unified record | With CORA |
 |---|---|---|
-| **Notice** | a glance at live frames | Run telemetry <span class="text-teal-600 font-semibold">surfaces</span> the front velocity |
-| **Recall** | *"this happened in last summer's Al-Cu run"* | <span class="text-teal-600 font-semibold">queries</span> prior runs at matched composition |
-| **Propose** | *"shift the camera left"* | Decision <span class="text-teal-600 font-semibold">proposes</span> ROI move + frame-rate bump |
-| **Bound** | gut check on stage soft-limits | Trust <span class="text-teal-600 font-semibold">authorizes</span>; Operation gates the Aerotech envelope |
-| **Act** | operator nudges the stage by hand | ROI move and rate change <span class="text-teal-600 font-semibold">land</span> as events |
-| **Audit** | *"the postdoc remembers when"* | <span class="text-teal-600 font-semibold">one query</span> traces every retarget across the cooling |
+| **Notice** | a glance at the live recon | Run telemetry <span class="text-teal-600 font-semibold">surfaces</span> the brightening rate and dose-to-date |
+| **Recall** | *"this looked like last winter's NaBr run"* | <span class="text-teal-600 font-semibold">queries</span> prior runs at matched composition |
+| **Propose** | *"let's zoom to 5× there"* | Decision <span class="text-teal-600 font-semibold">proposes</span> lens 1.1× → 5× on the brightest front |
+| **Bound** | gut check on remaining dose budget | Trust <span class="text-teal-600 font-semibold">authorizes</span> against the envelope j.park pre-set; Budget gates remaining dose |
+| **Act** | operator switches the lens by hand | scan-runner agent <span class="text-teal-600 font-semibold">executes</span>; Optique Peter ack and new dataset land as events |
+| **Audit** | *"the postdoc remembers when"* | <span class="text-teal-600 font-semibold">one query</span> traces every zoom across the cooling |
 
 </div>
 
 <div class="mt-6 text-sm opacity-80 text-center">
 
-The cooling happens once. Every retarget either gets recorded against intent, or it gets remembered. Next slide: what that record actually looks like.
+The cooling happens once. Every zoom either gets recorded against intent, or it gets remembered. Next slide: what that record actually looks like.
 
 </div>
 
 <!--
+This is the in-situ ice-in-brine experiment from the 2-BM streaming demo:
+beam-sensitive, time-evolving, multi-scale via the Optique Peter lens changer.
+Real, demoed, not hypothetical.
+
 Read the leftmost column down once. Then walk ONE row across, picked for the room:
-- "Bound" lands hardest with safety / ops
+- "Bound" lands hardest with safety / ops / dose-budget folks
 - "Audit" lands hardest with FAIR / compliance / PI
 - "Recall" lands hardest with AI / agents
 Don't read all six. Let the audience scan the rest.
+
+If asked about Budget: this example exercises the planned Budget BC. The
+"Designed, next" status on the roadmap slide closes the loop — you're
+not asking the audience to imagine it, you're showing the use case
+that triggers the build.
 -->
 
 ---
@@ -457,14 +466,17 @@ Don't read all six. Let the audience scan the rest.
 
 ```json
 {
-  "event": "RoiRetargeted",
-  "run_id": "run_2026-05-15_35bm_solid_007",
-  "subject_id": "alloy_AlCu_4pct_S12",
+  "event": "ZoomProposed",
+  "run_id": "run_2026-05-15_2bm_ice_007",
+  "subject_id": "brine_sand_NaBr_5pct_S12",
   "principal": {"kind": "agent", "id": "front_tracker_v3"},
-  "from_roi": {"x": 1024, "y": 512, "w": 800, "h": 600},
-  "to_roi":   {"x": 1280, "y": 512, "w": 800, "h": 600},
-  "front_velocity_um_s": 47.3,
-  "reasoning_ref": "decision_front_drift_t4200ms",
+  "from_lens": "1.1x",
+  "to_lens":   "5x",
+  "from_pixel_size_um": 3.14,
+  "to_pixel_size_um":   0.69,
+  "roi_center_px": {"x": 1280, "y": 1024},
+  "brightening_pct_min": 8.2,
+  "reasoning_ref": "decision_front_pattern_t1820s",
   "ts": "2026-05-15T11:08:42.187Z"
 }
 ```
@@ -484,24 +496,25 @@ Immutable. Every actor (human or agent) writes the same shape, signed by the sam
 </div>
 
 ```text
-$ cora why "alloy_AlCu_4pct_S12 camera move at t=4.2s"
+$ cora why "S12 lens change at t=1820s"
 
 11:08:42.0  RunReading
-            front velocity 47 µm/s, FOV margin <50px
+            brightening 8.2%/min, dose 3.1/8.0 kGy
 
-11:08:42.2  RoiRetargeted
+11:08:42.2  ZoomProposed
             by agent front_tracker_v3
-            x: 1024 → 1280
+            lens: 1.1x → 5x, ROI (1280, 1024)
 
-11:08:42.3  ActuationAuthorized
-            by experimenter j.park
+11:08:42.3  EnvelopeChecked
+            pre-authorized policy (operator: j.park)
 
-11:08:42.4  StagePositionChanged
-            actuation acked by Aerotech
+11:08:42.4  LensChanged
+            by agent scan_runner
+            Optique Peter ack: pixel 3.14 → 0.69 µm
 ```
 
 <div class="mt-2 pt-2 border-t border-[#0A7E8C]/20 text-[10px] opacity-70 italic">
-Four hundred milliseconds, four events. The reason the camera moved is in the record, not in someone's head.
+Four hundred milliseconds, four events. The reason the lens changed is in the record, not in someone's head.
 </div>
 
 </div>
@@ -639,7 +652,7 @@ The CORA card, opened up. Three layers, each with a single job.
 </div>
 
 <div class="mt-6 text-center text-sm font-semibold bg-[#0A7E8C]/10 p-3 rounded-lg border border-[#0A7E8C]/20">
-Today: <span class="text-[#0A7E8C]">10 bounded contexts · 19 aggregates · 5,219 passing tests · pyright 0/0/0 strict · forward-only migrations</span>
+Today: <span class="text-[#0A7E8C]">11 bounded contexts · 16 aggregates · 5,664 passing tests · pyright 0/0/0 strict · forward-only migrations</span>
 </div>
 
 <div class="mt-4 text-sm opacity-80">
@@ -670,10 +683,10 @@ Architecture stable. Pilot in flight. Honest about both.
 <div class="flex flex-col gap-5">
 
 <div class="border-l-2 border-[#0A7E8C]/50 pl-5">
-  <div class="text-[11px] font-medium uppercase tracking-[0.22em] text-[#0A7E8C] mb-3">Built and stable · 10 bounded contexts</div>
+  <div class="text-[11px] font-medium uppercase tracking-[0.22em] text-[#0A7E8C] mb-3">Built and stable · 11 bounded contexts</div>
   <div class="space-y-1 text-xs">
-    <div><span class="font-semibold text-[#0A7E8C]">Access</span> <span class="opacity-75">· actors, roles, permissions</span></div>
-    <div><span class="font-semibold text-[#0A7E8C]">Trust</span> <span class="opacity-75">· principals, sessions, authz</span></div>
+    <div><span class="font-semibold text-[#0A7E8C]">Access</span> <span class="opacity-75">· actor identity (register, deactivate)</span></div>
+    <div><span class="font-semibold text-[#0A7E8C]">Trust</span> <span class="opacity-75">· zones, conduits, policies</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Equipment</span> <span class="opacity-75">· capability, settings, ports, condition</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Recipe</span> <span class="opacity-75">· Method → Practice → Plan → Run → Dataset</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Subject</span> <span class="opacity-75">· sample identity across stations</span></div>
@@ -682,13 +695,13 @@ Architecture stable. Pilot in flight. Honest about both.
     <div><span class="font-semibold text-[#0A7E8C]">Decision</span> <span class="opacity-75">· proposals, approvals, reasoning refs</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Supply</span> <span class="opacity-75">· reagents and consumables state</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Operation</span> <span class="opacity-75">· procedure execution (ISA-106 lens)</span></div>
+    <div><span class="font-semibold text-[#0A7E8C]">Safety</span> <span class="opacity-75">· clearances, hazard classifications, approval chains</span></div>
   </div>
 </div>
 
 <div class="border-l-2 border-[#0A7E8C]/25 pl-5 opacity-75">
-  <div class="text-[11px] font-medium uppercase tracking-[0.22em] text-[#0A7E8C]/80 mb-3">Designed, next · 4 more in scope</div>
+  <div class="text-[11px] font-medium uppercase tracking-[0.22em] text-[#0A7E8C]/80 mb-3">Designed, next · 3 more in scope</div>
   <div class="space-y-1 text-xs italic">
-    <div><span class="font-semibold not-italic">Safety</span> <span class="opacity-75">· clearances, hazard classifications, approval chains</span></div>
     <div><span class="font-semibold not-italic">Campaign</span> <span class="opacity-75">· multi-run orchestration across visits</span></div>
     <div><span class="font-semibold not-italic">Strategy</span> <span class="opacity-75">· decision modes (human / AI / hybrid) for workflows</span></div>
     <div><span class="font-semibold not-italic">Budget</span> <span class="opacity-75">· allocation tracking (hours, storage, USD, tokens) with limits</span></div>
@@ -800,7 +813,7 @@ CORA is one honest attempt at that layer: <span class="font-semibold">event-sour
 <div class="flex gap-4">
 <div class="text-3xl font-bold text-[#0A7E8C] flex-shrink-0 w-10">3</div>
 <div>
-It exists today: <span class="font-semibold">10 bounded contexts, 5,219 tests, APS 35-BM pilot in progress.</span> Looking for collaborators who care about the same problem, including this room.
+It exists today: <span class="font-semibold">11 bounded contexts, 5,664 tests, APS 35-BM pilot in progress.</span> Looking for collaborators who care about the same problem, including this room.
 </div>
 </div>
 
