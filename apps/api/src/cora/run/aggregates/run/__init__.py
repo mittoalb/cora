@@ -14,6 +14,7 @@ from cora.run.aggregates.run.entries import (
     RunReading,
 )
 from cora.run.aggregates.run.events import (
+    CautionAcknowledgement,
     RunAborted,
     RunCompleted,
     RunEvent,
@@ -92,6 +93,7 @@ __all__ = [
     "RUN_STOP_REASON_MAX_LENGTH",
     "RUN_TRUNCATE_REASON_MAX_LENGTH",
     "SAMPLING_PROCEDURE_VALUES",
+    "CautionAcknowledgement",
     "ChannelName",
     "ExternalRef",
     "InMemoryReadingStore",

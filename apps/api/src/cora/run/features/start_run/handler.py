@@ -179,11 +179,29 @@ def bind(deps: Kernel) -> Handler:
             )
         )
 
+        # Phase 11b-c cross-BC caution snapshot: query the Caution
+        # projection for Active cautions referencing the Run's scope.
+        # NON-BLOCKING by construction (anti-pattern #5: cautions
+        # WARN, never BLOCK; that authority belongs to Safety BC
+        # Clearance). The decider only embeds the snapshot in the
+        # RunStarted event payload (anti-pattern #7: ack lives on the
+        # consumption event, not per-operator on the Caution
+        # aggregate). `procedure_ids=frozenset()` because a Run has
+        # no Procedure scope today; forward-compat for procedure-
+        # driven runs (Watch item for the start_procedure consumer).
+        active_cautions = tuple(
+            await deps.caution_lookup.find_active_for_run(
+                asset_ids=plan.asset_ids,
+                procedure_ids=frozenset(),
+            )
+        )
+
         context = RunStartContext(
             plan=plan,
             subject=subject,
             assets=assets,
             referencing_clearances=referencing_clearances,
+            active_cautions=active_cautions,
         )
 
         now = deps.clock.now()

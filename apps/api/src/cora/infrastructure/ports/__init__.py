@@ -12,6 +12,11 @@ from cora.infrastructure.ports.authorize import (
     AuthzResult,
     Deny,
 )
+from cora.infrastructure.ports.caution_lookup import (
+    AlwaysQuietCautionLookup,
+    CautionLookup,
+    CautionReference,
+)
 from cora.infrastructure.ports.clearance_lookup import (
     AlwaysCoveredClearanceLookup,
     ClearanceLookup,
@@ -47,11 +52,14 @@ __all__ = [
     "Allow",
     "AllowAllAuthorize",
     "AlwaysCoveredClearanceLookup",
+    "AlwaysQuietCautionLookup",
     "Authorize",
     "AuthzResult",
     "CachedError",
     "CachedHandlerError",
     "CachedSuccess",
+    "CautionLookup",
+    "CautionReference",
     "ClaimOutcome",
     "Claimed",
     "ClearanceLookup",

@@ -28,6 +28,7 @@ from cora.equipment.aggregates.asset import (
     AssetPort,
     PortDirection,
 )
+from cora.infrastructure.ports.caution_lookup import CautionReference
 from cora.infrastructure.ports.clearance_lookup import ClearanceReference
 from cora.recipe.aggregates.plan import (
     Plan,
@@ -1072,3 +1073,172 @@ def test_decide_revalidation_fails_fast_on_first_invalid_wire_in_a_set() -> None
         )
     # The broken wire's target port name must appear in the diagnostic.
     assert any("trigger_in" in entry[1] for entry in exc_info.value.missing)
+
+
+# ---------- Phase 11b-c: acknowledged_cautions snapshot threading ----------
+
+
+def _caution_ref(
+    *,
+    severity: str = "Caution",
+    target_kind: str = "Asset",
+    text_excerpt: str = "hexapod stalls below 0.5 mm/s",
+    workaround_excerpt: str = "run at 0.6 mm/s",
+) -> CautionReference:
+    """One CautionReference covering the snapshot-path inputs."""
+    return CautionReference(
+        caution_id=uuid4(),
+        target_kind=target_kind,
+        target_id=uuid4(),
+        category="Wear",
+        severity=severity,
+        text_excerpt=text_excerpt,
+        workaround_excerpt=workaround_excerpt,
+    )
+
+
+@pytest.mark.unit
+def test_decide_embeds_empty_acknowledged_cautions_when_context_has_none() -> None:
+    """Default RunStartContext.active_cautions=() flows to a default
+    RunStarted.acknowledged_cautions=() on the emitted event. Nothing
+    in the decider has to be aware of cautions for this path."""
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
+    subject = _subject()
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+        active_cautions=(),
+    )
+    events = start_run.decide(
+        state=None,
+        command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
+        context=context,
+        needed_capabilities_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1
+    assert events[0].acknowledged_cautions == ()
+
+
+@pytest.mark.unit
+def test_decide_embeds_snapshot_in_run_started_payload() -> None:
+    """Each CautionReference in context.active_cautions becomes a
+    CautionAcknowledgement on the RunStarted event with every column
+    preserved (caution_id, target_kind, target_id, category, severity,
+    text_excerpt, workaround_excerpt)."""
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
+    subject = _subject()
+    caution = _caution_ref(severity="Caution")
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+        active_cautions=(caution,),
+    )
+    events = start_run.decide(
+        state=None,
+        command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
+        context=context,
+        needed_capabilities_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1
+    ack_tuple = events[0].acknowledged_cautions
+    assert len(ack_tuple) == 1
+    ack = ack_tuple[0]
+    assert ack.caution_id == caution.caution_id
+    assert ack.target_kind == caution.target_kind
+    assert ack.target_id == caution.target_id
+    assert ack.category == caution.category
+    assert ack.severity == caution.severity
+    assert ack.text_excerpt == caution.text_excerpt
+    assert ack.workaround_excerpt == caution.workaround_excerpt
+
+
+@pytest.mark.unit
+def test_decide_does_not_gate_on_active_cautions() -> None:
+    """NON-BLOCKING contract (anti-pattern #5): the decider emits
+    RunStarted normally even when the snapshot carries multiple
+    cautions across categories and severities. No error class is
+    raised for cautions; no precondition check on count, severity,
+    or category."""
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
+    subject = _subject()
+    many_cautions = (
+        _caution_ref(severity="Notice"),
+        _caution_ref(severity="Caution"),
+        _caution_ref(severity="Warning"),
+        _caution_ref(severity="Warning", target_kind="Procedure"),
+    )
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+        active_cautions=many_cautions,
+    )
+    events = start_run.decide(
+        state=None,
+        command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
+        context=context,
+        needed_capabilities_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1
+    assert len(events[0].acknowledged_cautions) == 4
+
+
+@pytest.mark.unit
+def test_decide_threads_warning_severity_caution_through_to_event() -> None:
+    """A Warning-severity caution surfaces verbatim on the event;
+    severity is carried as a string (matches projection column +
+    forward-compat with additive future severity values)."""
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
+    subject = _subject()
+    warning = _caution_ref(
+        severity="Warning",
+        text_excerpt="bearing degraded; replace within 7 days",
+    )
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+        active_cautions=(warning,),
+    )
+    events = start_run.decide(
+        state=None,
+        command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
+        context=context,
+        needed_capabilities_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].acknowledged_cautions[0].severity == "Warning"
+    assert events[0].acknowledged_cautions[0].text_excerpt.startswith("bearing degraded")

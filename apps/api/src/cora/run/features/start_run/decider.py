@@ -76,6 +76,7 @@ from uuid import UUID
 from cora.equipment.aggregates.asset import AssetLifecycle
 from cora.recipe.aggregates.plan import PlanStatus, validate_wire_endpoints
 from cora.run.aggregates.run import (
+    CautionAcknowledgement,
     PlanDeprecatedError,
     Run,
     RunAlreadyExistsError,
@@ -204,6 +205,28 @@ def decide(
         )
 
     name = RunName(command.name)  # validates + trims; raises InvalidRunNameError
+
+    # Phase 11b-c: build the acknowledged_cautions snapshot for the
+    # RunStarted event payload. Per the Caution design memo, this
+    # snapshot IS the ack (anti-pattern #7: ack lives on the
+    # consumption event, never per-operator on the Caution
+    # aggregate). NON-BLOCKING (anti-pattern #5): no precondition
+    # check is added here; the decider only converts each
+    # CautionReference from the context into a CautionAcknowledgement
+    # VO and embeds the tuple verbatim.
+    acknowledged_cautions = tuple(
+        CautionAcknowledgement(
+            caution_id=caution.caution_id,
+            target_kind=caution.target_kind,
+            target_id=caution.target_id,
+            category=caution.category,
+            severity=caution.severity,
+            text_excerpt=caution.text_excerpt,
+            workaround_excerpt=caution.workaround_excerpt,
+        )
+        for caution in context.active_cautions
+    )
+
     return [
         RunStarted(
             run_id=new_id,
@@ -217,6 +240,7 @@ def decide(
             external_refs=tuple(
                 {"scheme": ref.scheme, "id": ref.id} for ref in command.external_refs
             ),
+            acknowledged_cautions=acknowledged_cautions,
             occurred_at=now,
         )
     ]

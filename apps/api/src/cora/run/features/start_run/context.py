@@ -32,6 +32,16 @@ Slice-local module by design: only `start_run` uses it today.
     on `status == "Active"` to distinguish "no clearance at all"
     (`RunRequiresActiveClearanceError`) from "clearance exists but
     none Active" (`RunClearanceCoverageMismatchError`).
+  - `active_cautions` (Phase 11b-c): every Active Caution whose
+    target references the Run's scope (asset_ids + a future
+    procedure_ids when a procedure-driven run shape lands). Loaded
+    by the handler via
+    `deps.caution_lookup.find_active_for_run(...)` against the
+    `proj_caution_active` projection. NON-BLOCKING by construction:
+    the decider does NOT partition on this field; it only threads
+    the snapshot into the `RunStarted` event payload as
+    `acknowledged_cautions`. Distinct from
+    `referencing_clearances` which IS a gate.
 
 Naming: `assets` (not `bound_assets`) matches `PlanBindingContext`
 precedent. The "bound" qualifier was meaningful at Plan-bind time
@@ -43,6 +53,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from cora.equipment.aggregates.asset import Asset
+from cora.infrastructure.ports.caution_lookup import CautionReference
 from cora.infrastructure.ports.clearance_lookup import ClearanceReference
 from cora.recipe.aggregates.plan import Plan
 from cora.subject.aggregates.subject import Subject
@@ -57,9 +68,13 @@ class RunStartContext:
     `referencing_clearances` carries every Safety clearance that
     references the Run's scope (Run/Subject/Asset bindings) at any
     status; the decider applies the Active-coverage check.
+    `active_cautions` carries every Active Caution attached to the
+    Run's scope; the decider does NOT gate on this field, only
+    embeds it on the `RunStarted` event payload (Phase 11b-c).
     """
 
     plan: Plan
     subject: Subject | None
     assets: dict[UUID, Asset]
     referencing_clearances: tuple[ClearanceReference, ...]
+    active_cautions: tuple[CautionReference, ...] = ()

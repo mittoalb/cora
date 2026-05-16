@@ -38,7 +38,9 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     AlwaysCoveredClearanceLookup,
+    AlwaysQuietCautionLookup,
     Authorize,
+    CautionLookup,
     ClearanceLookup,
     EventStore,
     FixedIdGenerator,
@@ -56,16 +58,19 @@ def build_postgres_deps(
     event_store: EventStore | None = None,
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
+    caution_lookup: CautionLookup | None = None,
 ) -> Kernel:
     """Build a Kernel for integration-test handler invocation against real Postgres.
 
     Defaults: AllowAllAuthorize, fresh PostgresEventStore(pool), fresh
     PostgresIdempotencyStore(pool), `AlwaysCoveredClearanceLookup` (the
-    safety-gate bypass stub). Pass `event_store=` / `idempotency_store=`
-    / `clearance_lookup=` to share an already-constructed adapter or to
-    exercise a specific gate behavior (e.g., gate tests pass
-    `PostgresClearanceLookup(pool)` and seed a real clearance via
-    `register_clearance` + transition handlers).
+    safety-gate bypass stub), `AlwaysQuietCautionLookup` (the caution-
+    snapshot quiet stub). Pass `event_store=` / `idempotency_store=` /
+    `clearance_lookup=` / `caution_lookup=` to share an already-
+    constructed adapter or to exercise a specific behavior (e.g.,
+    gate tests pass `PostgresClearanceLookup(pool)` and seed a real
+    clearance; snapshot tests pass `PostgresCautionLookup(pool)` and
+    seed a real caution via `register_caution`).
 
     `ids=` queues UUIDs for the FixedIdGenerator (handler consumes them
     in order: aggregate ids first, then event ids per emitted event).
@@ -79,6 +84,7 @@ def build_postgres_deps(
         event_store=event_store,
         idempotency_store=idempotency_store,
         clearance_lookup=clearance_lookup or AlwaysCoveredClearanceLookup(),
+        caution_lookup=caution_lookup or AlwaysQuietCautionLookup(),
     )
 
 

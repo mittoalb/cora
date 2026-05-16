@@ -1,0 +1,152 @@
+"""CautionLookup port: cross-BC query for Caution BC's active-cautions projection.
+
+Used by Run BC's `start_run` handler (Phase 11b-c) to surface
+operator-authored cautions whose target references the Run's scope
+`(asset_ids, procedure_ids)` as a snapshot on the `RunStarted` event
+payload. The snapshot serves three purposes (per the Caution design
+memo's read-side layered surface): (1) operator-facing warning panel,
+(2) audit-trail proof that the caution was visible when the run
+started, (3) ack-on-consumption pattern (EHS convergent C7) — the ack
+lives on the consumption event, never per-operator on the Caution
+aggregate.
+
+## Convention
+
+This is the third cross-BC port (after `Authorize` and
+`ClearanceLookup`): one implementor (Caution BC ships
+`PostgresCautionLookup` reading `proj_caution_active`), many consumers
+(Run today; possibly Procedure / Operation later). Lives in
+`cora.infrastructure.ports` per the existing pattern (`Authorize`,
+`ClearanceLookup`, `EventStore`, `IdempotencyStore`, `Clock`,
+`IdGenerator` all live here).
+
+The port is shaped around the CONSUMER's need (the Run-start banner
+needs "what cautions reference this Run's Asset/Procedure scope"),
+not around Caution BC's domain language. Adapters translate the
+projection's columns to this shape.
+
+## Modern DDD alignment
+
+Per Khononov / Cockburn / Herberto Graça: cross-BC integration at
+command time should go through a port that the consumer shapes,
+with the implementor providing the adapter. Replicated read models
+(here: `proj_caution_active`) are the modern recommendation over
+synchronous calls to the upstream aggregate, because the projection
+is already a denormalized cross-stream view.
+
+CORA's `Authorize` and `ClearanceLookup` ports follow the same
+shape: consumer-shaped contract, single implementor BC, placed in
+infrastructure for neutral access by every BC. CautionLookup
+matches that precedent.
+
+## Non-blocking by design
+
+KEY DIFFERENCE from `ClearanceLookup`: the snapshot informs the
+event payload but NEVER gates the decider. The Caution BC exists
+exactly because operator-authored tribal-knowledge cautions are
+WARN-at-consumption, not BLOCK-at-consumption (anti-pattern #5 in
+the Caution design memo). Blocking authority belongs to Safety BC
+Clearance; cautions only warn.
+
+The `start_run` decider does NOT raise any error class based on
+the contents of the returned list. The handler embeds each entry
+into the `RunStarted.acknowledged_cautions` payload tuple and
+proceeds with the rest of the validation chain regardless of
+severity, count, or category.
+"""
+
+from dataclasses import dataclass
+from typing import Protocol
+from uuid import UUID
+
+
+@dataclass(frozen=True)
+class CautionReference:
+    """Summary row from `proj_caution_active` for the Run.start non-blocking banner.
+
+    Carries the minimal columns the start_run handler embeds in the
+    `RunStarted.acknowledged_cautions` payload tuple. Loaded by the
+    handler via `CautionLookup.find_active_for_run` and handed to
+    the decider in `RunStartContext.active_cautions`.
+
+    `severity` is the StrEnum value as a plain string (matches the
+    projection's `TEXT` column); the lookup adapter applies the
+    severity-threshold filter in SQL via `min_severity`.
+
+    `text_excerpt` / `workaround_excerpt` are the first 200 chars of
+    each (full text available via `GET /cautions/{id}` if the
+    operator wants the rest). The cap keeps the event payload bounded
+    even when many cautions reference the run's scope.
+    """
+
+    caution_id: UUID
+    target_kind: str  # "Asset" | "Procedure"
+    target_id: UUID
+    category: str
+    severity: str  # "Notice" | "Caution" | "Warning"
+    text_excerpt: str
+    workaround_excerpt: str
+
+
+class CautionLookup(Protocol):
+    """Cross-BC port: query Caution's active-cautions projection from Run BC."""
+
+    async def find_active_for_run(
+        self,
+        *,
+        asset_ids: frozenset[UUID],
+        procedure_ids: frozenset[UUID],
+        min_severity: str = "Caution",
+    ) -> list[CautionReference]:
+        """Return every Active caution whose target references the Run's scope.
+
+        "References" means:
+          - `target_kind == "Asset"` AND `target_id` is in `asset_ids`, OR
+          - `target_kind == "Procedure"` AND `target_id` is in `procedure_ids`.
+
+        `min_severity` thresholds the result by ordinal compare
+        (`Notice` < `Caution` < `Warning`). The default `"Caution"`
+        silences Notice-severity cautions from the Run.start banner
+        per the Caution design memo's read-side surface table;
+        callers wanting the full set (operator-dashboard view, tests)
+        pass `min_severity="Notice"` explicitly.
+
+        Only Active cautions are considered; Superseded and Retired
+        cautions never appear in the result. Empty `asset_ids` and
+        `procedure_ids` both yield an empty list (a Run with no
+        Asset/Procedure scope can't surface any cautions).
+
+        Per the Caution design memo (anti-pattern #5), the result is
+        NEVER used to gate the decider — only to embed an audit
+        snapshot in the `RunStarted` event payload.
+        """
+        ...
+
+
+class AlwaysQuietCautionLookup:
+    """Test-default stub: returns `[]`.
+
+    Mirrors `AllowAllAuthorize` / `AlwaysCoveredClearanceLookup`'s
+    test-default role: tests that don't care about caution snapshot
+    semantics get this stub from kernel-construction defaults, so
+    existing Run tests don't have to seed cautions. Tests that
+    exercise the snapshot explicitly override with the real adapter
+    (`PostgresCautionLookup`) and seed cautions via `register_caution`.
+
+    The "quiet" naming mirrors the design memo's "WARN-not-BLOCK"
+    semantic (anti-pattern #5): the lookup is silent at the
+    test-default level, and the production adapter only ever
+    surfaces additional payload entries (never gates).
+    """
+
+    async def find_active_for_run(
+        self,
+        *,
+        asset_ids: frozenset[UUID],
+        procedure_ids: frozenset[UUID],
+        min_severity: str = "Caution",
+    ) -> list[CautionReference]:
+        _ = asset_ids  # unused (stub never surfaces any cautions)
+        _ = procedure_ids  # unused
+        _ = min_severity  # unused
+        return []

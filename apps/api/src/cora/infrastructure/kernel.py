@@ -36,6 +36,7 @@ import asyncpg
 from cora.infrastructure.config import Settings
 from cora.infrastructure.ports import (
     Authorize,
+    CautionLookup,
     ClearanceLookup,
     Clock,
     EventStore,
@@ -64,6 +65,18 @@ class Kernel:
     real clearances; gate-specific tests override with the real
     adapter explicitly. Mirrors the `Authorize` / `AllowAllAuthorize`
     test-default pattern.
+
+    `caution_lookup` (Phase 11b-c): cross-BC port consumed by Run
+    BC's `start_run` handler to snapshot operator-authored cautions
+    onto the `RunStarted` event payload. Caution BC ships
+    `PostgresCautionLookup` as the production adapter (reads
+    `proj_caution_active`). Test environments default to
+    `AlwaysQuietCautionLookup` (returns `[]`) so existing Run tests
+    don't have to seed cautions; snapshot-specific tests override
+    with the real adapter explicitly. NON-BLOCKING by construction
+    (see `cora.infrastructure.ports.caution_lookup` module
+    docstring): the snapshot informs the payload but the decider
+    never gates on it.
     """
 
     settings: Settings
@@ -73,6 +86,7 @@ class Kernel:
     event_store: EventStore
     idempotency_store: IdempotencyStore
     clearance_lookup: ClearanceLookup
+    caution_lookup: CautionLookup
     pool: asyncpg.Pool | None = None
 
 

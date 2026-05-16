@@ -53,6 +53,7 @@ from cora.caution import (
     register_caution_tools,
     wire_caution,
 )
+from cora.caution.adapters import PostgresCautionLookup
 from cora.data import (
     DataHandlers,
     register_data_projections,
@@ -269,6 +270,7 @@ def create_app() -> FastAPI:
             deps, teardown = await build_kernel(
                 authorize_factory=build_authorize,
                 clearance_lookup_factory=PostgresClearanceLookup,
+                caution_lookup_factory=PostgresCautionLookup,
             )
             app.state.deps = deps
             app.state.access = wire_access(deps)

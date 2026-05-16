@@ -84,6 +84,11 @@ def test_to_payload_serializes_run_started_with_subject_to_primitives() -> None:
         # btr / lab_visit / session). Defaults to [] when omitted;
         # forward-compat via `payload.get("external_refs", [])`.
         "external_refs": [],
+        # 11b-c additive payload field for the non-blocking caution
+        # snapshot (anti-pattern #7: ack lives on the consumption
+        # event). Defaults to [] when omitted; forward-compat via
+        # `payload.get("acknowledged_cautions", [])`.
+        "acknowledged_cautions": [],
         "occurred_at": _NOW.isoformat(),
     }
 
@@ -322,6 +327,102 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
     stored = _stored("PlanDefined", {})
     with pytest.raises(ValueError, match="Unknown RunEvent event_type"):
         from_stored(stored)
+
+
+# ---------- Phase 11b-c: acknowledged_cautions forward-compat + round-trip ----------
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_acknowledged_cautions_as_list_of_dicts() -> None:
+    """Each CautionAcknowledgement on the event serializes as a dict
+    of primitives (caution_id + target_id are UUIDs -> str)."""
+    from cora.run.aggregates.run.events import CautionAcknowledgement
+
+    caution_id = uuid4()
+    target_id = uuid4()
+    event = RunStarted(
+        run_id=uuid4(),
+        name="Run with cautions",
+        plan_id=uuid4(),
+        subject_id=None,
+        occurred_at=_NOW,
+        acknowledged_cautions=(
+            CautionAcknowledgement(
+                caution_id=caution_id,
+                target_kind="Asset",
+                target_id=target_id,
+                category="Wear",
+                severity="Warning",
+                text_excerpt="bearing degraded",
+                workaround_excerpt="replace within 7 days",
+            ),
+        ),
+    )
+    payload = to_payload(event)
+    assert payload["acknowledged_cautions"] == [
+        {
+            "caution_id": str(caution_id),
+            "target_kind": "Asset",
+            "target_id": str(target_id),
+            "category": "Wear",
+            "severity": "Warning",
+            "text_excerpt": "bearing degraded",
+            "workaround_excerpt": "replace within 7 days",
+        }
+    ]
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_started_without_acknowledged_cautions_key_as_empty() -> None:
+    """Forward-compat: pre-11b-c events have no acknowledged_cautions
+    key. from_stored returns () for those, keeping older streams
+    replayable. Mirrors the external_refs / raid forward-compat
+    pattern."""
+    run_id = uuid4()
+    plan_id = uuid4()
+    stored = _stored(
+        "RunStarted",
+        {
+            "run_id": str(run_id),
+            "name": "Pre-11b-c run",
+            "plan_id": str(plan_id),
+            "subject_id": None,
+            "occurred_at": _NOW.isoformat(),
+            # NOTE: no "acknowledged_cautions" key — this is what
+            # pre-11b-c events look like.
+        },
+    )
+    event = from_stored(stored)
+    assert isinstance(event, RunStarted)
+    assert event.acknowledged_cautions == ()
+
+
+@pytest.mark.unit
+def test_acknowledged_cautions_round_trip_preserves_every_field() -> None:
+    """RunStarted with acknowledged_cautions round-trips through
+    to_payload + from_stored without losing any field."""
+    from cora.run.aggregates.run.events import CautionAcknowledgement
+
+    ack = CautionAcknowledgement(
+        caution_id=uuid4(),
+        target_kind="Procedure",
+        target_id=uuid4(),
+        category="Calibration",
+        severity="Caution",
+        text_excerpt="hexapod drift > 50 um after 30 min",
+        workaround_excerpt="re-home before each scan",
+    )
+    original = RunStarted(
+        run_id=uuid4(),
+        name="Run",
+        plan_id=uuid4(),
+        subject_id=None,
+        occurred_at=_NOW,
+        acknowledged_cautions=(ack,),
+    )
+    stored = _stored("RunStarted", to_payload(original))
+    rebuilt = from_stored(stored)
+    assert rebuilt == original
 
 
 # ---------- RunCompleted (6f-2) ----------

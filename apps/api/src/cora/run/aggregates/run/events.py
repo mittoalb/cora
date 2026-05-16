@@ -91,6 +91,38 @@ from cora.infrastructure.ports.event_store import StoredEvent
 
 
 @dataclass(frozen=True)
+class CautionAcknowledgement:
+    """One entry in `RunStarted.acknowledged_cautions` (Phase 11b-c).
+
+    Snapshot of a single Active caution that referenced the Run's
+    scope (Asset / Procedure) at start time. The full caution lives
+    in the Caution BC stream; this VO carries only the columns
+    needed for the operator-facing banner + audit trail. Excerpt
+    columns mirror the projection's `LEFT(text, 200)` truncation;
+    the full text is available via `GET /cautions/{id}`.
+
+    Per the Caution design memo anti-pattern #7 (ack tracked on the
+    consumption event, never per-operator on the Caution aggregate),
+    THIS VO is where the ack lives. The presence of the entry in
+    the `RunStarted` payload IS the ack: operators saw the caution
+    when the run started, and the snapshot proves it.
+
+    NON-BLOCKING by construction (anti-pattern #5): the `start_run`
+    decider does NOT raise any error class based on the presence,
+    count, severity, or category of these entries. The list is
+    purely informational + audit.
+    """
+
+    caution_id: UUID
+    target_kind: str  # "Asset" | "Procedure"
+    target_id: UUID
+    category: str
+    severity: str  # "Notice" | "Caution" | "Warning"
+    text_excerpt: str
+    workaround_excerpt: str
+
+
+@dataclass(frozen=True)
 class RunStarted:
     """A new Run was started: Plan + (optional) Subject binding established.
 
@@ -141,6 +173,16 @@ class RunStarted:
     # wire shape. Defaults to () for legacy pre-11a-c-3 streams; the
     # evolver reconstructs typed `ExternalRef` VOs.
     external_refs: tuple[dict[str, Any], ...] = ()
+    # Phase 11b-c: snapshot of Active cautions whose target referenced
+    # this Run's scope at start time. Audit-trail proof + operator-
+    # facing banner data; NON-BLOCKING by construction (anti-pattern
+    # #5: the decider never partitions on this field). Lives on the
+    # event payload only — NOT on Run state (anti-pattern #7: ack
+    # tracked on the consumption event, never per-operator on the
+    # Caution aggregate). Defaults to () for legacy pre-11b-c streams;
+    # forward-compat via `payload.get("acknowledged_cautions", [])` in
+    # `from_stored`.
+    acknowledged_cautions: tuple[CautionAcknowledgement, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -348,6 +390,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
             effective_parameters=effective_parameters,
             triggered_by=triggered_by,
             external_refs=external_refs,
+            acknowledged_cautions=acknowledged_cautions,
             occurred_at=occurred_at,
         ):
             return {
@@ -360,6 +403,18 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "effective_parameters": effective_parameters,
                 "triggered_by": triggered_by,
                 "external_refs": list(external_refs),
+                "acknowledged_cautions": [
+                    {
+                        "caution_id": str(ack.caution_id),
+                        "target_kind": ack.target_kind,
+                        "target_id": str(ack.target_id),
+                        "category": ack.category,
+                        "severity": ack.severity,
+                        "text_excerpt": ack.text_excerpt,
+                        "workaround_excerpt": ack.workaround_excerpt,
+                    }
+                    for ack in acknowledged_cautions
+                ],
                 "occurred_at": occurred_at.isoformat(),
             }
         case RunHeld(run_id=run_id, occurred_at=occurred_at):
@@ -431,11 +486,13 @@ def from_stored(stored: StoredEvent) -> RunEvent:
     match stored.event_type:
         case "RunStarted":
             raw_subject = payload["subject_id"]
-            # Forward-compat additive evolution: `raid` was added in 7d
-            # and `override_parameters` / `effective_parameters` /
-            # `triggered_by` in 6g-c. Each .get(...) returns the
-            # field's default when the key isn't in the jsonb payload,
-            # so pre-additive streams replay without an upcaster.
+            # Forward-compat additive evolution: `raid` was added in 7d,
+            # `override_parameters` / `effective_parameters` /
+            # `triggered_by` in 6g-c, `external_refs` in 11a-c-3, and
+            # `acknowledged_cautions` in 11b-c. Each .get(...) returns
+            # the field's default when the key isn't in the jsonb
+            # payload, so pre-additive streams replay without an
+            # upcaster.
             return RunStarted(
                 run_id=UUID(payload["run_id"]),
                 name=payload["name"],
@@ -446,6 +503,18 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 effective_parameters=payload.get("effective_parameters", {}),
                 triggered_by=payload.get("triggered_by"),
                 external_refs=tuple(payload.get("external_refs", [])),
+                acknowledged_cautions=tuple(
+                    CautionAcknowledgement(
+                        caution_id=UUID(ack["caution_id"]),
+                        target_kind=ack["target_kind"],
+                        target_id=UUID(ack["target_id"]),
+                        category=ack["category"],
+                        severity=ack["severity"],
+                        text_excerpt=ack["text_excerpt"],
+                        workaround_excerpt=ack["workaround_excerpt"],
+                    )
+                    for ack in payload.get("acknowledged_cautions", [])
+                ),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "RunHeld":
@@ -501,6 +570,7 @@ def from_stored(stored: StoredEvent) -> RunEvent:
 
 
 __all__ = [
+    "CautionAcknowledgement",
     "RunAborted",
     "RunCompleted",
     "RunEvent",
