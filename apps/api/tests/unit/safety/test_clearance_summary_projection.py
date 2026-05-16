@@ -273,3 +273,118 @@ async def test_apply_clearance_rejected_includes_reason_and_actor_from_envelope(
     assert args[0] == cid
     assert args[2] == "ESRB found insufficient PPE specification"
     assert args[3] == actor
+
+
+@pytest.mark.unit
+async def test_apply_clearance_submitted_emits_status_update() -> None:
+    """Submitted emits UPDATE status='Submitted' + last_status_changed_at."""
+    proj = ClearanceSummaryProjection()
+    conn = _RecordingConn()
+    cid = uuid4()
+    await proj.apply(
+        _stored(
+            "ClearanceSubmitted",
+            {"clearance_id": str(cid), "occurred_at": _NOW.isoformat()},
+        ),
+        conn,  # type: ignore[arg-type]
+    )
+    sql, args = conn.calls[0]
+    assert "status = 'Submitted'" in sql
+    assert args[0] == cid
+    assert args[1] == _NOW
+
+
+@pytest.mark.unit
+async def test_apply_clearance_review_started_emits_under_review_update() -> None:
+    """ClearanceReviewStarted writes status='UnderReview' (the FSM state
+    name) -- the event-name / status-name asymmetry is deliberate per
+    11a-c-1 rename. Pin both to catch accidental drift."""
+    proj = ClearanceSummaryProjection()
+    conn = _RecordingConn()
+    cid = uuid4()
+    await proj.apply(
+        _stored(
+            "ClearanceReviewStarted",
+            {
+                "clearance_id": str(cid),
+                "first_reviewer_role": "BeamlineScientist",
+                "occurred_at": _NOW.isoformat(),
+            },
+        ),
+        conn,  # type: ignore[arg-type]
+    )
+    sql, args = conn.calls[0]
+    assert "status = 'UnderReview'" in sql
+    assert args[0] == cid
+
+
+@pytest.mark.unit
+async def test_apply_clearance_activated_emits_active_update() -> None:
+    """Activated transitions Approved -> Active."""
+    proj = ClearanceSummaryProjection()
+    conn = _RecordingConn()
+    cid = uuid4()
+    await proj.apply(
+        _stored(
+            "ClearanceActivated",
+            {"clearance_id": str(cid), "occurred_at": _NOW.isoformat()},
+        ),
+        conn,  # type: ignore[arg-type]
+    )
+    sql, args = conn.calls[0]
+    assert "status = 'Active'" in sql
+    assert args[0] == cid
+
+
+@pytest.mark.unit
+async def test_apply_clearance_expired_includes_reason() -> None:
+    """Expired emits UPDATE status='Expired' + last_status_reason."""
+    proj = ClearanceSummaryProjection()
+    conn = _RecordingConn()
+    cid = uuid4()
+    await proj.apply(
+        _stored(
+            "ClearanceExpired",
+            {
+                "clearance_id": str(cid),
+                "reason": "validity window elapsed",
+                "occurred_at": _NOW.isoformat(),
+            },
+        ),
+        conn,  # type: ignore[arg-type]
+    )
+    sql, args = conn.calls[0]
+    assert "status = 'Expired'" in sql
+    assert args[0] == cid
+    assert args[1] == _NOW
+    assert args[2] == "validity window elapsed"
+
+
+@pytest.mark.unit
+async def test_apply_clearance_superseded_emits_status_only() -> None:
+    """Superseded emits UPDATE status='Superseded'. The payload's
+    `by_clearance_id` is deliberately NOT projected today (parent->child
+    denorm column deferred until a list-view consumer asks for it).
+    This test pins the deferred state so an accidental SQL change that
+    surfaced by_clearance_id would fail loudly."""
+    proj = ClearanceSummaryProjection()
+    conn = _RecordingConn()
+    cid = uuid4()
+    by_cid = uuid4()
+    await proj.apply(
+        _stored(
+            "ClearanceSuperseded",
+            {
+                "clearance_id": str(cid),
+                "by_clearance_id": str(by_cid),
+                "occurred_at": _NOW.isoformat(),
+            },
+        ),
+        conn,  # type: ignore[arg-type]
+    )
+    sql, args = conn.calls[0]
+    assert "status = 'Superseded'" in sql
+    assert args[0] == cid
+    assert args[1] == _NOW
+    # by_clearance_id NOT in args list -- column not added to projection today
+    assert str(by_cid) not in (str(a) for a in args)

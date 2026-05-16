@@ -10,7 +10,9 @@ Per [[project_safety_clearance_design]], the design locks:
 
   - 8-state FSM: `Defined -> Submitted -> UnderReview -> Approved
     -> Active -> Expired | Rejected | Superseded`
-  - 12-value `ClearanceKind` StrEnum covering 9 surveyed facilities
+  - 10-value `ClearanceKind` StrEnum covering 9 surveyed facilities
+    (form-type only; facility identity carried separately by
+    `facility_asset_id` referencing Asset.Level.Site)
   - Multi-binding `frozenset[ClearanceBinding]` covering Subject /
     Asset / Run / Procedure + ExternalBinding(scheme, id) for
     upstream-deferred refs (Proposal / BTR / LabVisit / Session per
@@ -34,9 +36,11 @@ Genesis decider only (`register_clearance`); transition slices land in
 `ProcedureStatus`). State holds the typed enum; evolver derives status
 from event type (`ClearanceRegistered -> DEFINED`).
 
-`ClearanceKind` is locked 12 values day one per the cross-facility
-portability research (v3 pass at /tmp/cora_hazard_research_v3.md).
-Extending to a 13th facility-form is purely additive.
+`ClearanceKind` is locked 10 values day one per the cross-facility
+portability research (v3 pass at /tmp/cora_hazard_research_v3.md;
+post-11a-a refactor split form-type from facility identity so the
+enum shrank from the originally-planned 12 down to 10). Extending to
+an 11th facility-form is purely additive.
 
 ## Bindings: multi (frozenset), polymorphic (5 typed arms + ExternalBinding)
 
