@@ -16,8 +16,6 @@
 | [`Scintillator_LuAG`](#scintillator_luag) | `Scintillator` |
 | [`Hexapod_2BM`](#hexapod_2bm) | `Hexapod` |
 
-Each Asset has its own section below with vendor, role, and `Asset.settings` (when the Capability schema is declared). The right-hand table of contents jumps to any Asset directly.
-
 ## `Aerotech_ABRS_rotary`
 
 - **Capability** `RotaryStage` (Aerotech ABRS)
