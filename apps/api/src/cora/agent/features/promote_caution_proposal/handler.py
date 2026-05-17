@@ -72,6 +72,7 @@ from cora.caution.aggregates.caution import (
     CautionTarget,
     CautionText,
     CautionWorkaround,
+    InvalidCautionSupersedeTargetError,
     ProcedureTarget,
     event_type_name,
     from_stored,
@@ -188,6 +189,18 @@ def bind(deps: Kernel) -> Handler:
                 raise CautionNotFoundError(view.supersedes_caution_id)
             if parent.status is not CautionStatus.ACTIVE:
                 raise CautionCannotSupersedeError(parent.id, parent.status)
+            # Target-stability invariant: a supersede MUST preserve the
+            # parent's target. Caution BC's own supersede_caution decider
+            # enforces this via InvalidCautionSupersedeTargetError; the
+            # cross-BC write here must replicate the guard or a buggy /
+            # poisoned LLM proposal could silently retarget on supersede
+            # (e.g. propose superseding a Caution on Asset A with a child
+            # targeting Asset B). Same error class so HTTP mapping is
+            # uniform regardless of which surface raised it.
+            if target != parent.target:
+                raise InvalidCautionSupersedeTargetError(
+                    "supersede preserves target; start a new caution to retarget"
+                )
 
             parent_event = CautionSuperseded(
                 caution_id=parent.id,
