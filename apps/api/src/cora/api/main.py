@@ -47,6 +47,7 @@ from cora.access import (
 )
 from cora.agent import (
     AgentHandlers,
+    build_llm,
     register_agent_routes,
     register_agent_tools,
     wire_agent,
@@ -294,6 +295,7 @@ def create_app() -> FastAPI:
                 authorize_factory=build_authorize,
                 clearance_lookup_factory=PostgresClearanceLookup,
                 caution_lookup_factory=PostgresCautionLookup,
+                llm_factory=build_llm,
             )
             app.state.deps = deps
             app.state.access = wire_access(deps)

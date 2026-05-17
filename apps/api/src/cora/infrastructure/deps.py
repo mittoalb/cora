@@ -58,6 +58,8 @@ from cora.infrastructure.ports import (
     EventStore,
     IdempotencyStore,
     IdGenerator,
+    LLMPort,
+    LogbookMirrorPort,
     SystemClock,
     UUIDv7Generator,
 )
@@ -96,6 +98,8 @@ def make_postgres_kernel(
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
+    llm: LLMPort | None = None,
+    logbook_mirror: LogbookMirrorPort | None = None,
 ) -> Kernel:
     """Postgres-backed Kernel primitive.
 
@@ -125,6 +129,15 @@ def make_postgres_kernel(
     `PostgresCautionLookup` via the `caution_lookup_factory` argument;
     snapshot-specific tests override here explicitly. NON-BLOCKING by
     construction (see `cora.infrastructure.ports.caution_lookup`).
+
+    `llm` defaults to `None` because most BCs and tests don't need
+    an LLM; only Agent BC subscribers consume it. Production's
+    `build_kernel` injects `AnthropicLLMAdapter` when
+    `Settings.anthropic_api_key` is set; subscriber-level tests
+    inject `FakeLLMAdapter` explicitly.
+
+    `logbook_mirror` defaults to `None`; no production implementor
+    exists at 8f-b. Subscribers short-circuit on `None`.
     """
     return Kernel(
         settings=settings,
@@ -142,6 +155,8 @@ def make_postgres_kernel(
             caution_lookup if caution_lookup is not None else AlwaysQuietCautionLookup()
         ),
         pool=pool,
+        llm=llm,
+        logbook_mirror=logbook_mirror,
     )
 
 
@@ -155,6 +170,8 @@ def make_inmemory_kernel(
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
+    llm: LLMPort | None = None,
+    logbook_mirror: LogbookMirrorPort | None = None,
     pool: object | None = None,
 ) -> Kernel:
     """In-memory Kernel primitive.
@@ -180,6 +197,15 @@ def make_inmemory_kernel(
     `[]`) for the same reason: no projection worker, no
     `proj_caution_summary` table. Snapshot-specific tests can override
     with a custom adapter or a fake that returns seeded references.
+
+    `llm` defaults to `None`; the in-memory kernel is for unit /
+    contract tests that don't exercise LLM subscribers. Subscriber
+    tests that DO exercise the LLM path inject `FakeLLMAdapter`
+    explicitly.
+
+    `logbook_mirror` defaults to `None`; no production implementor
+    at 8f-b. Subscriber tests inject a `FakeLogbookMirror` (when
+    they care) or leave `None`.
     """
     return Kernel(
         settings=settings,
@@ -197,6 +223,8 @@ def make_inmemory_kernel(
             caution_lookup if caution_lookup is not None else AlwaysQuietCautionLookup()
         ),
         pool=pool,  # type: ignore[arg-type]
+        llm=llm,
+        logbook_mirror=logbook_mirror,
     )
 
 
@@ -240,13 +268,49 @@ class CautionLookupFactory(Protocol):
     ) -> CautionLookup: ...
 
 
+class LLMPortFactory(Protocol):
+    """Builds the production LLMPort for the Kernel.
+
+    Phase 8f-b iter 2a: Agent BC's
+    `cora.agent.adapters.AnthropicLLMAdapter` is the only production
+    factory today; `cora.api.main` binds it when
+    `Settings.anthropic_api_key` is set. Same factory-injection
+    shape as `AuthorizeFactory` / `ClearanceLookupFactory` /
+    `CautionLookupFactory` so `cora.infrastructure.deps` doesn't
+    import from any BC (tach module rule:
+    `cora.infrastructure depends_on = []`).
+
+    `settings` is passed (rather than just an API key) so the
+    factory can read provider-specific options (timeouts,
+    max_retries, base URL overrides) without growing the factory
+    surface every time. The factory's `__call__` returns `None`
+    when settings indicate no LLM should be wired (eg.
+    `anthropic_api_key` unset) so the Kernel ends up with
+    `llm=None` and Agent subscribers fail-fast at registration.
+    """
+
+    def __call__(
+        self,
+        settings: Settings,
+    ) -> LLMPort | None: ...
+
+
 async def build_kernel(
     *,
     authorize_factory: AuthorizeFactory,
     clearance_lookup_factory: ClearanceLookupFactory | None = None,
     caution_lookup_factory: CautionLookupFactory | None = None,
+    llm_factory: LLMPortFactory | None = None,
 ) -> tuple[Kernel, Teardown]:
-    """Construct the kernel. Called once from the FastAPI lifespan."""
+    """Construct the kernel. Called once from the FastAPI lifespan.
+
+    `llm_factory` (Phase 8f-b iter 2a): when provided, called with
+    `Settings` and the result wired into `kernel.llm`. When `None`,
+    `kernel.llm` is `None` and Agent BC subscribers that depend on
+    it fail-fast at registration. Test mode (`app_env=test`) does
+    NOT call the factory; tests inject `FakeLLMAdapter` directly
+    via `make_inmemory_kernel(..., llm=...)`.
+    """
     settings = Settings()  # type: ignore[call-arg]  # Pydantic loads from env
     configure_logging(settings.log_level)
     clock = SystemClock()
@@ -296,6 +360,7 @@ async def build_kernel(
         if caution_lookup_factory is not None
         else AlwaysQuietCautionLookup()
     )
+    llm: LLMPort | None = llm_factory(settings) if llm_factory is not None else None
     kernel = make_postgres_kernel(
         pool,
         settings=settings,
@@ -306,6 +371,7 @@ async def build_kernel(
         idempotency_store=pg_idempotency_store,
         clearance_lookup=clearance_lookup,
         caution_lookup=caution_lookup,
+        llm=llm,
     )
     return kernel, _make_pool_teardown(pool)
 
@@ -325,6 +391,7 @@ __all__ = [
     "AuthorizeFactory",
     "CautionLookupFactory",
     "ClearanceLookupFactory",
+    "LLMPortFactory",
     "build_kernel",
     "make_inmemory_kernel",
     "make_postgres_kernel",

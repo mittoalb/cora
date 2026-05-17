@@ -8,7 +8,7 @@ environment variables directly.
 from typing import Literal
 from uuid import UUID
 
-from pydantic import field_validator
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _ALLOWED_DATABASE_SCHEMES = ("postgresql://", "postgres://")
@@ -100,6 +100,30 @@ class Settings(BaseSettings):
     # between the two modes (5s with NOTIFY, 1-2s without). Floor of
     # 0.1s prevents accidental tight-loop misconfiguration.
     projection_poll_interval_seconds: float = 5.0
+
+    # LLM provider — Agent BC wiring (Phase 8f-b iter 2a)
+    # When None, `build_kernel` wires no LLMPort and the Kernel
+    # carries `llm=None`; subscribers that depend on the LLM (the
+    # 8f-b RunDebrief subscriber) raise / log-and-skip when they
+    # try to use it. The dev / test default of None matches the
+    # `AllowAllAuthorize` / `AlwaysCoveredClearanceLookup` test-
+    # bypass convention: tests don't need real API credentials.
+    # Production deployments that ship RunDebrief MUST set this;
+    # the `8f-b iter 2b` wire-up adds a startup gate that refuses
+    # to register `run_debrief_subscriber` when this is unset (so
+    # the agent never runs blind).
+    #
+    # Read from `ANTHROPIC_API_KEY` env var (case-insensitive per
+    # pydantic-settings; matches the bare-field-name convention
+    # `APP_ENV` / `DATABASE_URL` / `TRUST_POLICY_ID` already follow).
+    # `SecretStr` ensures the key is never serialised by `repr()`,
+    # `str()`, or `model_dump_json()` (Pydantic redacts it to
+    # `**********` in all three paths). Production deploys MUST
+    # access the key via `.get_secret_value()` — only the
+    # `AnthropicLLMAdapter` factory does this today. A watch-item
+    # follow-up promotes `database_url` to the same shape so the
+    # whole Settings surface is repr-safe.
+    anthropic_api_key: SecretStr | None = None
 
     # Idempotency (Phase 9a)
     # `idempotency_ttl_hours` is read by the pruner background task

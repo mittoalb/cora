@@ -29,6 +29,14 @@ from cora.infrastructure.observability.provider import (
     instrument_app,
 )
 
+# `gen_ai` helpers are NOT re-exported: their only consumer is
+# `cora.agent.adapters.anthropic_llm_adapter`, which imports
+# directly from the submodule. Keeping the package surface focused
+# on cross-cutting telemetry primitives (tracing setup, correlation
+# id, log processor) makes "what's a CORA observability helper?"
+# easy to answer at a glance. If a second LLM adapter (RecipeScreener
+# at 8f-c?) needs the same helpers, that's the trigger to re-export.
+
 __all__ = [
     "Teardown",
     "add_trace_context",

@@ -42,6 +42,8 @@ from cora.infrastructure.ports import (
     EventStore,
     IdempotencyStore,
     IdGenerator,
+    LLMPort,
+    LogbookMirrorPort,
 )
 
 
@@ -77,6 +79,21 @@ class Kernel:
     (see `cora.infrastructure.ports.caution_lookup` module
     docstring): the snapshot informs the payload but the decider
     never gates on it.
+
+    `llm` (Phase 8f-b iter 2a): optional LLM-chat port consumed by
+    Agent BC subscribers (RunDebrief at 8f-b iter 2b; future
+    agents at 8f-c+). Production wires `AnthropicLLMAdapter` when
+    `Settings.anthropic_api_key` is set; otherwise this is `None`
+    and subscribers that depend on it must short-circuit or fail
+    fast at registration time. Tests use `FakeLLMAdapter` (zero
+    network) when an LLM is needed and leave this `None` otherwise.
+
+    `logbook_mirror` (Phase 8f-b iter 2a): optional mirror to
+    operator-facing logbook systems (Olog / SciLog / SciCat). No
+    production implementor lands at 8f-b; the field exists to
+    reserve the wiring slot and let the RunDebrief subscriber
+    short-circuit cleanly on `is None`. Adapter lands when a
+    pilot facility's logbook is wired.
     """
 
     settings: Settings
@@ -88,6 +105,8 @@ class Kernel:
     clearance_lookup: ClearanceLookup
     caution_lookup: CautionLookup
     pool: asyncpg.Pool | None = None
+    llm: LLMPort | None = None
+    logbook_mirror: LogbookMirrorPort | None = None
 
 
 Teardown = Callable[[], Awaitable[None]]

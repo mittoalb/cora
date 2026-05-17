@@ -15,10 +15,13 @@ from uuid import UUID
 
 import pytest
 
+from cora.agent import build_llm
+from cora.agent.adapters import AnthropicLLMAdapter
+from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import build_kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import AllowAllAuthorize
+from cora.infrastructure.ports import AllowAllAuthorize, FakeLLMAdapter
 from cora.trust import build_authorize
 from cora.trust.authorize import TrustAuthorize
 
@@ -85,3 +88,100 @@ async def test_build_kernel_uses_trust_authorize_when_policy_configured(
     deps, teardown = await build_kernel(authorize_factory=build_authorize)
     assert isinstance(deps.authorize, TrustAuthorize)
     await teardown()
+
+
+# ---------- Phase 8f-b iter 2a: LLM + LogbookMirror wiring ----------
+
+
+@pytest.mark.unit
+async def test_kernel_llm_is_none_by_default_in_test_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`build_kernel` in `app_env=test` does NOT call llm_factory;
+    Agent subscribers fail-fast on `kernel.llm is None` at iter 2b
+    registration. Defaulting to None in tests keeps the contract
+    explicit: opt-in to LLM by passing FakeLLMAdapter to
+    make_inmemory_kernel."""
+    monkeypatch.setenv("APP_ENV", "test")
+    deps, teardown = await build_kernel(authorize_factory=build_authorize, llm_factory=build_llm)
+    assert deps.llm is None
+    await teardown()
+
+
+@pytest.mark.unit
+async def test_kernel_logbook_mirror_is_none_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No production implementor lands at 8f-b; the field reserves
+    the slot and subscribers short-circuit on `is None`."""
+    monkeypatch.setenv("APP_ENV", "test")
+    deps, teardown = await build_kernel(authorize_factory=build_authorize)
+    assert deps.logbook_mirror is None
+    await teardown()
+
+
+@pytest.mark.unit
+def test_build_llm_returns_none_when_api_key_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Agent BC's LLMPortFactory short-circuits cleanly when no
+    credential is configured; subscriber registration handles the
+    fail-fast at iter 2b."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    settings = Settings()  # type: ignore[call-arg]
+    assert build_llm(settings) is None
+
+
+@pytest.mark.unit
+def test_build_llm_returns_anthropic_adapter_when_api_key_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the operator wires ANTHROPIC_API_KEY, the production
+    AnthropicLLMAdapter lands in the Kernel."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test-fake")
+    settings = Settings()  # type: ignore[call-arg]
+    llm = build_llm(settings)
+    assert isinstance(llm, AnthropicLLMAdapter)
+
+
+@pytest.mark.unit
+def test_anthropic_api_key_is_secret_str_and_redacted_in_repr(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Closes gate-review architecture P1 #2 (secret leak in
+    repr/str/json). `SecretStr` redacts the raw value to `**********`
+    in every standard serialisation path; the raw key surfaces only
+    via `.get_secret_value()`, which only `build_llm` calls."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-secret-VALUE-12345")
+    settings = Settings()  # type: ignore[call-arg]
+    assert settings.anthropic_api_key is not None
+    # `repr(SecretStr)` redacts.
+    assert "sk-ant-secret-VALUE-12345" not in repr(settings)
+    assert "sk-ant-secret-VALUE-12345" not in repr(settings.anthropic_api_key)
+    # `str(SecretStr)` redacts.
+    assert "sk-ant-secret-VALUE-12345" not in str(settings.anthropic_api_key)
+    # `model_dump_json()` redacts.
+    assert "sk-ant-secret-VALUE-12345" not in settings.model_dump_json()
+    # Round-trip via `.get_secret_value()` works (the legitimate read path).
+    assert settings.anthropic_api_key.get_secret_value() == "sk-ant-secret-VALUE-12345"
+
+
+@pytest.mark.unit
+async def test_make_inmemory_kernel_accepts_fake_llm_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Subscriber-level tests that need an LLM inject FakeLLMAdapter
+    via make_inmemory_kernel(..., llm=...). Pins the override seam."""
+    from cora.infrastructure.deps import make_inmemory_kernel
+    from cora.infrastructure.ports import SystemClock, UUIDv7Generator
+
+    fake = FakeLLMAdapter()
+    settings = Settings()  # type: ignore[call-arg]
+    kernel = make_inmemory_kernel(
+        settings=settings,
+        clock=SystemClock(),
+        id_generator=UUIDv7Generator(),
+        authorize=AllowAllAuthorize(),
+        llm=fake,
+    )
+    assert kernel.llm is fake
