@@ -1,8 +1,8 @@
 # Assets
 
-*Equipment BC Assets registered at 35-BM. See [Model](../../architecture/model.md) for the aggregate shape.*
+*Equipment BC Assets registered at 2-BM. See [Model](../../architecture/model.md) for the aggregate shape.*
 
-| Asset | Capability | Role at 35-BM |
+| Asset | Capability | Role at 2-BM |
 | --- | --- | --- |
 | `Aerotech_ABRS_rotary` | `RotaryStage` | Rotation axis; the motor driven 0° → 180° during alignment iterations and during fly-scan acquisition |
 | `Sample_top_X` | `LinearStage` | X-correction motor (Kohzu CYAT-070); the linear stage nudged to close rotation-axis offset |
@@ -10,11 +10,11 @@
 | `Sample_top_Roll` | `LinearStage` | Roll-tilt motor under the rotation stage; small-angle (milliradian) corrections to keep the rotation axis perpendicular to the camera Y axis |
 | `Sample_top_Pitch` | `LinearStage` | Pitch-tilt motor under the rotation stage; orthogonal to Sample_top_Roll; corrects out-of-plane axis tilt (toward/away from camera) |
 | `Optique_Peter_focus_Z` | `LinearStage` | Focus motor inside the Optique Peter microscope; sub-micron resolution lens-to-scintillator distance |
-| `Shutter_35BM` | `Shutter` | Safety shutter at the 35-BM front-end; opens to admit beam, closes for safe state |
+| `Shutter_35BM` | `Shutter` | Safety shutter at the 2-BM front-end; opens to admit beam, closes for safe state |
 | `Oryx_5MP_camera` | `Camera` | Alignment-frame detector (FLIR ORX-10G-51S5M-C, 2448 × 2048, 3.45 µm) |
 | `Scintillator_LuAG` | `Scintillator` | LuAG scintillator; converts X-rays to visible light for the camera |
 
-Source of truth: [`test_35bm_beta_alignment_center.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_center.py), [`test_35bm_shakedown_motor_homing.py`](../../../apps/api/tests/integration/scenarios/test_35bm_shakedown_motor_homing.py), [`test_35bm_commissioning_first_light.py`](../../../apps/api/tests/integration/scenarios/test_35bm_commissioning_first_light.py), [`test_35bm_commissioning_dark_baseline.py`](../../../apps/api/tests/integration/scenarios/test_35bm_commissioning_dark_baseline.py), [`test_35bm_commissioning_flat_baseline.py`](../../../apps/api/tests/integration/scenarios/test_35bm_commissioning_flat_baseline.py), [`test_35bm_beta_alignment_resolution.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_resolution.py), [`test_35bm_beta_alignment_focus.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_focus.py), [`test_35bm_beta_alignment_roll.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_roll.py), [`test_35bm_beta_alignment_pitch.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_pitch.py).
+Source of truth: [`test_2bm_alignment_center.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_center.py), [`test_2bm_motor_homing.py`](../../../apps/api/tests/integration/scenarios/test_2bm_motor_homing.py), [`test_2bm_first_light.py`](../../../apps/api/tests/integration/scenarios/test_2bm_first_light.py), [`test_2bm_dark_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_dark_baseline.py), [`test_2bm_flat_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_flat_baseline.py), [`test_2bm_alignment_resolution.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_resolution.py), [`test_2bm_alignment_focus.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_focus.py), [`test_2bm_alignment_roll.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_roll.py), [`test_2bm_alignment_pitch.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_pitch.py).
 
 ## Lifecycle and condition coverage
 
@@ -52,8 +52,8 @@ Every numeric property carries a `unit: {system, code}` annotation per the [unit
 | `Scintillator_LuAG` (LuAG:Ce) | `thickness` | 100 | `um` |
 | | `decay_time` | 0.07 | `us` |
 
-Source of truth: [`test_35bm_beta_alignment_center.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_center.py) (the `_SCHEMA_*` + `_SETTINGS_*` constants near the top of the file) plus the unit-tier coverage at [`tests/unit/equipment/test_pilot_capability_schemas.py`](../../../apps/api/tests/unit/equipment/test_pilot_capability_schemas.py).
+Source of truth: [`test_2bm_alignment_center.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_center.py) (the `_SCHEMA_*` + `_SETTINGS_*` constants near the top of the file) plus the unit-tier coverage at [`tests/unit/equipment/test_pilot_capability_schemas.py`](../../../apps/api/tests/unit/equipment/test_pilot_capability_schemas.py).
 
 ## Pending in code
 
-The broader 35-BM Asset stack (softGlueZynq FPGA, the full Optique Peter triple-objective microscope with three lens / scintillator options, the PCO Dimax HS high-speed detector, sample-stage X/Y/Z/pitch/roll motors, the hexapod) is not yet registered in code. Each lands as a row above when a scenario test or seed script instantiates it.
+The broader 2-BM Asset stack (softGlueZynq FPGA, the full Optique Peter triple-objective microscope with three lens / scintillator options, the PCO Dimax HS high-speed detector, sample-stage X/Y/Z/pitch/roll motors, the hexapod) is not yet registered in code. Each lands as a row above when a scenario test or seed script instantiates it.

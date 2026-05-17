@@ -1,7 +1,7 @@
-"""Phase: shakedown. Routine: motor homing at APS 35-BM.
+"""Motor homing at APS 2-BM.
 
 Scenario test for the shakedown rhythm: the 2 motorized Devices at
-35-BM (Aerotech ABRS rotary + Sample_top_X linear) are activated and
+2-BM (Aerotech ABRS rotary + Sample_top_X linear) are activated and
 homed without beam. One motor (Aerotech) misses its index pulse on
 the first attempt, gets re-homed successfully, and earns a Caution
 for the operator playbook.
@@ -94,7 +94,7 @@ from tests.integration._helpers import build_postgres_deps
 from tests.integration.scenarios._facility_fixture import (
     DeviceSpec,
     facility_id_prefix,
-    install_35bm_facility,
+    install_aps_unit,
 )
 
 _NOW = datetime(2026, 5, 17, 9, 30, 0, tzinfo=UTC)
@@ -103,10 +103,10 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000352bb")
 
 # Facility hierarchy mnemonic hex tags: e=enterprise, 5=site, u=unit.
 # The facility-install block (actor + Argonne/APS/Unit + Devices) is consumed
-# by `install_35bm_facility` via `facility_id_prefix(...)`.
+# by `install_aps_unit` via `facility_id_prefix(...)`.
 _ARGONNE_ENTERPRISE_ID = UUID("01900000-0000-7000-8000-000000352e01")
 _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000352501")
-_35BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000352a01")
+_2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000352a01")
 
 # Capabilities (2: rotary + linear)
 _CAP_ROTARY_STAGE_ID = UUID("01900000-0000-7000-8000-000000352c01")
@@ -146,7 +146,7 @@ def _id_queue() -> list[UUID]:
             principal_id=_PRINCIPAL_ID,
             argonne_id=_ARGONNE_ENTERPRISE_ID,
             aps_site_id=_APS_SITE_ID,
-            unit_id=_35BM_UNIT_ID,
+            unit_id=_2BM_UNIT_ID,
             devices=_DEVICES,
         ),
         # activate_asset x 2: event_id only (no aggregate id allocated)
@@ -269,17 +269,17 @@ async def test_motor_homing_plays_out_end_to_end(
     capturing the tribal knowledge, assert the auditable record."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
 
-    # ----- Seed facility hierarchy: actor + Argonne -> APS -> 35-BM + 2 motor Devices -----
+    # ----- Seed facility hierarchy: actor + Argonne -> APS -> 2-BM + 2 motor Devices -----
 
-    await install_35bm_facility(
+    await install_aps_unit(
         deps,
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ENTERPRISE_ID,
         aps_site_id=_APS_SITE_ID,
-        unit_id=_35BM_UNIT_ID,
+        unit_id=_2BM_UNIT_ID,
         devices=_DEVICES,
-        operator_name="35-BM Shakedown Operator",
+        operator_name="2-BM Shakedown Operator",
     )
 
     # ----- Equipment BC: activate both motors (Commissioned -> Active) -----
@@ -324,7 +324,7 @@ async def test_motor_homing_plays_out_end_to_end(
 
     await bind_register_procedure(deps)(
         RegisterProcedure(
-            name="35-BM cold-start motor homing (Aerotech + Sample_top_X)",
+            name="2-BM cold-start motor homing (Aerotech + Sample_top_X)",
             kind="motor_homing",
             target_asset_ids=frozenset({_ASSET_AEROTECH_ABRS_ID, _ASSET_SAMPLE_TOP_X_ID}),
         ),
@@ -496,7 +496,7 @@ async def test_motor_homing_plays_out_end_to_end(
     for asset_id in (
         _ARGONNE_ENTERPRISE_ID,
         _APS_SITE_ID,
-        _35BM_UNIT_ID,
+        _2BM_UNIT_ID,
         _ASSET_AEROTECH_ABRS_ID,
         _ASSET_SAMPLE_TOP_X_ID,
     ):

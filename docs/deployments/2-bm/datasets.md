@@ -1,13 +1,13 @@
 # Datasets
 
-*Data BC Datasets registered at 35-BM. A Dataset records an already-existing artifact (URI + checksum + byte_size + encoding) plus optional cross-aggregate refs (`producing_run_id`, `subject_id`, `derived_from`). See [Model](../../architecture/model.md) for the aggregate shape.*
+*Data BC Datasets registered at 2-BM. A Dataset records an already-existing artifact (URI + checksum + byte_size + encoding) plus optional cross-aggregate refs (`producing_run_id`, `subject_id`, `derived_from`). See [Model](../../architecture/model.md) for the aggregate shape.*
 
 | Dataset | Intent | Producing Run | Subject | Conforms to |
 | --- | --- | --- | --- | --- |
 | `35BM_dark_baseline_2026-04-17` | `Trial` | none (calibration) | none (no sample) | `https://www.nexusformat.org/NXdark_field` |
 | `35BM_flat_baseline_2026-04-17` | `Trial` | none (calibration) | none (no sample) | `https://www.nexusformat.org/NXflat_field` |
 
-Source of truth: [`test_35bm_commissioning_dark_baseline.py`](../../../apps/api/tests/integration/scenarios/test_35bm_commissioning_dark_baseline.py), [`test_35bm_commissioning_flat_baseline.py`](../../../apps/api/tests/integration/scenarios/test_35bm_commissioning_flat_baseline.py).
+Source of truth: [`test_2bm_dark_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_dark_baseline.py), [`test_2bm_flat_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_flat_baseline.py).
 
 ## Calibration Datasets (no Subject, no Run)
 
@@ -21,11 +21,11 @@ without the Run aggregate needing to know which specific baseline file it consum
 
 ## Intent and promotion
 
-Both baselines land as `intent=Trial`. The `promote_dataset` slice (deferred at 35-BM) gates Production: a baseline only transitions to Production after operator review (signal-level + uniformity + hot-pixel count meet operational thresholds). For the commissioning-phase scenarios captured here, Trial is the expected resting state.
+Both baselines land as `intent=Trial`. The `promote_dataset` slice (deferred at 2-BM) gates Production: a baseline only transitions to Production after operator review (signal-level + uniformity + hot-pixel count meet operational thresholds). For the commissioning-phase scenarios captured here, Trial is the expected resting state.
 
 ## Pending in code
 
-Other Dataset types are not yet registered at 35-BM:
+Other Dataset types are not yet registered at 2-BM:
 
 - **Raw projection stacks** produced by science Runs (require Subject + Run + operations-phase scenario; the entire `operations` phase is currently empty).
 - **Reconstructed volumes** (derived from raw + dark + flat via `tomopy`; `derived_from` would carry all three Dataset ids).

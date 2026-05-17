@@ -1,7 +1,7 @@
 """Unit-tier coverage for the 4 pilot Capability schemas + device values.
 
 Phase 10e-a sibling tests. The integration scenario at
-`tests/integration/test_35bm_beta_alignment_center_scenario.py`
+`tests/integration/scenarios/test_35bm_alignment_center.py`
 exercises these schemas + values end-to-end. These unit tests pin
 the schema-by-schema validator behavior at a faster tier:
 
@@ -31,6 +31,7 @@ from cora.equipment.aggregates.asset.settings_validation import (
 )
 from cora.equipment.aggregates.asset.state import InvalidAssetSettingsError
 from cora.equipment.aggregates.capability.settings_validation import (
+    InvalidCapabilitySettingsSchemaError,
     validate_settings_schema,
 )
 from cora.equipment.aggregates.capability.state import (
@@ -97,10 +98,11 @@ def test_rotary_stage_device_values_pass() -> None:
 
 @pytest.mark.unit
 def test_rotary_stage_negative_max_speed_rejected() -> None:
-    """max_speed bound: minimum=0 enforces hardware-envelope sanity."""
+    """max_speed bound: minimum=0 enforces hardware-envelope sanity. match=
+    discriminates a bound violation from a generic schema rejection."""
     cap = _capability("RotaryStage", _SCHEMA_ROTARY_STAGE)
     bad = {**_SETTINGS_AEROTECH_ABRS, "max_speed": -1.0}
-    with pytest.raises(InvalidAssetSettingsError):
+    with pytest.raises(InvalidAssetSettingsError, match=r"max_speed.*minimum"):
         validate_settings_against_capabilities(bad, [cap])
 
 
@@ -149,10 +151,11 @@ def test_linear_stage_device_values_pass() -> None:
 @pytest.mark.unit
 def test_linear_stage_missing_required_key_rejected() -> None:
     """All 4 of {min/max_position, max_speed, encoder_resolution} are
-    required at the schema level. Dropping any one fails validation."""
+    required at the schema level. Dropping any one fails validation;
+    match= discriminates the missing-required path from generic rejection."""
     cap = _capability("LinearStage", _SCHEMA_LINEAR_STAGE)
     bad = {k: v for k, v in _SETTINGS_SAMPLE_TOP_X.items() if k != "encoder_resolution"}
-    with pytest.raises(InvalidAssetSettingsError):
+    with pytest.raises(InvalidAssetSettingsError, match=r"encoder_resolution.*required property"):
         validate_settings_against_capabilities(bad, [cap])
 
 
@@ -209,10 +212,11 @@ def test_camera_device_values_pass() -> None:
 @pytest.mark.unit
 def test_camera_string_for_pixel_size_rejected() -> None:
     """pixel_size declared as number; string value fails type check.
-    Pins that the unit-annotated numeric properties enforce their type."""
+    Pins that the unit-annotated numeric properties enforce their type;
+    match= discriminates the type-violation path."""
     cap = _capability("Camera", _SCHEMA_CAMERA)
     bad = {**_SETTINGS_ORYX_5MP, "pixel_size": "3.45um"}
-    with pytest.raises(InvalidAssetSettingsError):
+    with pytest.raises(InvalidAssetSettingsError, match=r"pixel_size.*not of type"):
         validate_settings_against_capabilities(bad, [cap])
 
 
@@ -257,8 +261,42 @@ def test_scintillator_device_values_pass() -> None:
 @pytest.mark.unit
 def test_scintillator_unknown_key_rejected() -> None:
     """STRICT-by-default (per 5g-c): only DECLARED schema keys are allowed.
-    A typo like `decay_tyme` doesn't quietly become a no-op."""
+    A typo like `decay_tyme` doesn't quietly become a no-op; match=
+    discriminates the additionalProperties-violation path."""
     cap = _capability("Scintillator", _SCHEMA_SCINTILLATOR)
     bad = {**_SETTINGS_SCINTILLATOR_LUAG, "decay_tyme": 0.07}
-    with pytest.raises(InvalidAssetSettingsError):
+    with pytest.raises(InvalidAssetSettingsError, match=r"Additional properties.*decay_tyme"):
         validate_settings_against_capabilities(bad, [cap])
+
+
+# ---------- Cross-cutting: unit annotation namespace check ----------
+#
+# Most likely real-world bug class as the pilot schema corpus grows: a
+# pilot author copies a `unit` annotation block and typos the `system`
+# namespace (e.g., `"udunit"` instead of `"udunits"`). The schema-declarer
+# validator catches this at acceptance time, BEFORE any Asset.settings
+# value lands. Pin it with a pilot-shape schema so the regression is
+# caught at the tier closest to where pilot authors edit.
+
+
+@pytest.mark.unit
+def test_pilot_shape_schema_with_unknown_unit_system_rejected() -> None:
+    """A typo in `unit.system` namespace (not in the closed allowlist) must
+    fail schema acceptance at define time, not silently accept and surface
+    later at first settings write. match= discriminates the namespace path."""
+    bad_schema: dict[str, Any] = {
+        "$schema": _DRAFT,
+        "type": "object",
+        "properties": {
+            "rotation_step": {
+                "type": "number",
+                "unit": {"system": "made_up_namespace", "code": "deg"},
+            },
+        },
+        "required": ["rotation_step"],
+    }
+    with pytest.raises(
+        InvalidCapabilitySettingsSchemaError,
+        match=r"unit\.system.*made_up_namespace.*not in",
+    ):
+        validate_settings_schema(bad_schema)

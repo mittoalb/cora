@@ -7,7 +7,7 @@
 | Level | Site |
 | Enterprise | [Argonne](../argonne/index.md) |
 | Status | In design |
-| Beamlines under this Site | [35-BM](../35-bm/index.md) |
+| Beamlines under this Site | [2-BM](../2-bm/index.md) (Operational), [35-BM](../35-bm/index.md) (Planned) |
 
 ## Inventories
 
@@ -17,4 +17,4 @@
 - [Supplies](supplies.md): facility-wide Supplies (cryogens, beam, shared consumables)
 - [Cautions](cautions.md): facility-wide operator Cautions
 
-Source of truth: [`apps/api/tests/integration/scenarios/test_aps_install_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_install_facility.py).
+Source of truth: [`apps/api/tests/integration/scenarios/test_aps_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_facility.py).

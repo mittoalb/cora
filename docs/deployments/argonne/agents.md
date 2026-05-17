@@ -6,7 +6,7 @@
 | --- | --- | --- | --- |
 | `Run Debrief` | `RunDebrief` | `v1` | `anthropic / claude-sonnet-4-6 @ 20251001` |
 
-Source of truth: [`apps/api/tests/integration/scenarios/test_aps_install_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_install_facility.py).
+Source of truth: [`apps/api/tests/integration/scenarios/test_aps_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_facility.py).
 
 ## Pending in code
 

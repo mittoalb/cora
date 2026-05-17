@@ -10,9 +10,10 @@ Deployments mirror CORA's Asset hierarchy (Enterprise → Site → Unit):
 
 | Deployment | Level | Parent | Status |
 | --- | --- | --- | --- |
-| [Argonne](argonne/index.md) | Enterprise | (root) | In design |
-| [APS](aps/index.md) | Site | Argonne | In design |
-| [35-BM](35-bm/index.md) | Unit | APS | In design |
+| [Argonne](argonne/index.md) | Enterprise | (root) | Operational |
+| [APS](aps/index.md) | Site | Argonne | Operational |
+| [2-BM](2-bm/index.md) | Unit | APS | Operational |
+| [35-BM](35-bm/index.md) | Unit | APS | Planned |
 
 Cross-facility vocabulary (Capabilities, Methods) lives in the [Catalog](../catalog/index.md), since it is not bound to any single Site.
 

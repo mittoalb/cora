@@ -1,20 +1,20 @@
 # Procedures
 
-*Operation BC Procedures registered at 35-BM. See [Model](../../architecture/model.md) for the aggregate shape.*
+*Operation BC Procedures registered at 2-BM. See [Model](../../architecture/model.md) for the aggregate shape.*
 
-| Procedure | `kind` | Phase | What it produces |
-| --- | --- | --- | --- |
-| Motor homing | `motor_homing` | shakedown | Both motors (Aerotech + Sample_top_X) homed and verified |
-| First light | `first_light` | commissioning | First beam visible on the detector; dark + light + safe-state frames captured |
-| Dark baseline | `detector_dark_baseline` | commissioning | 50-frame dark stack with shutter closed; pixel-wise baseline Dataset for reconstruction subtraction |
-| Flat baseline | `detector_flat_baseline` | commissioning | 50-frame flat stack with shutter open + no sample; pixel-wise baseline Dataset for reconstruction division |
-| Resolution alignment | `resolution_alignment` | beta | Focus-Z position at peak image sharpness (Optique Peter focus motor) |
-| Focus alignment | `focus_alignment` | beta | Sample-Z position at peak depth-of-focus (Sample_top_Z linear stage) |
-| Center alignment | `center_alignment` | beta | Calibrated rotation-axis pixel position on the detector |
-| Roll alignment | `roll_alignment` | beta | Rotation axis perpendicular to the camera Y axis (Sample_top_Roll tilt) |
-| Pitch alignment | `pitch_alignment` | beta | Rotation axis perpendicular to the beam direction (Sample_top_Pitch tilt) |
+| Procedure | `kind` | What it produces |
+| --- | --- | --- |
+| Motor homing | `motor_homing` | Both motors (Aerotech + Sample_top_X) homed and verified |
+| First light | `first_light` | First beam visible on the detector; dark + light + safe-state frames captured |
+| Dark baseline | `detector_dark_baseline` | 50-frame dark stack with shutter closed; pixel-wise baseline Dataset for reconstruction subtraction |
+| Flat baseline | `detector_flat_baseline` | 50-frame flat stack with shutter open + no sample; pixel-wise baseline Dataset for reconstruction division |
+| Resolution alignment | `resolution_alignment` | Focus-Z position at peak image sharpness (Optique Peter focus motor) |
+| Focus alignment | `focus_alignment` | Sample-Z position at peak depth-of-focus (Sample_top_Z linear stage) |
+| Center alignment | `center_alignment` | Calibrated rotation-axis pixel position on the detector |
+| Roll alignment | `roll_alignment` | Rotation axis perpendicular to the camera Y axis (Sample_top_Roll tilt) |
+| Pitch alignment | `pitch_alignment` | Rotation axis perpendicular to the beam direction (Sample_top_Pitch tilt) |
 
-Source of truth: [`test_35bm_shakedown_motor_homing.py`](../../../apps/api/tests/integration/scenarios/test_35bm_shakedown_motor_homing.py), [`test_35bm_commissioning_first_light.py`](../../../apps/api/tests/integration/scenarios/test_35bm_commissioning_first_light.py), [`test_35bm_commissioning_dark_baseline.py`](../../../apps/api/tests/integration/scenarios/test_35bm_commissioning_dark_baseline.py), [`test_35bm_commissioning_flat_baseline.py`](../../../apps/api/tests/integration/scenarios/test_35bm_commissioning_flat_baseline.py), [`test_35bm_beta_alignment_resolution.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_resolution.py), [`test_35bm_beta_alignment_focus.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_focus.py), [`test_35bm_beta_alignment_center.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_center.py), [`test_35bm_beta_alignment_roll.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_roll.py), [`test_35bm_beta_alignment_pitch.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_pitch.py).
+Source of truth: [`test_2bm_motor_homing.py`](../../../apps/api/tests/integration/scenarios/test_2bm_motor_homing.py), [`test_2bm_first_light.py`](../../../apps/api/tests/integration/scenarios/test_2bm_first_light.py), [`test_2bm_dark_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_dark_baseline.py), [`test_2bm_flat_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_flat_baseline.py), [`test_2bm_alignment_resolution.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_resolution.py), [`test_2bm_alignment_focus.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_focus.py), [`test_2bm_alignment_center.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_center.py), [`test_2bm_alignment_roll.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_roll.py), [`test_2bm_alignment_pitch.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_pitch.py).
 
 ## Motor homing
 
@@ -54,7 +54,7 @@ Bound aggregates:
 - **Method**: `motor_homing` (Recipe BC, beamline-agnostic; declares `RotaryStage` + `LinearStage` capabilities)
 - **Practice**: `APS_motor_homing_practice` (Recipe BC, `site_id=APS`)
 - **Plan**: `35BM_motor_homing_plan` (Recipe BC, instance-level, no inventory page)
-- **Target Assets**: `Aerotech_ABRS_rotary`, `Sample_top_X` (Equipment BC Devices under the 35-BM Unit Asset)
+- **Target Assets**: `Aerotech_ABRS_rotary`, `Sample_top_X` (Equipment BC Devices under the 2-BM Unit Asset)
 - **Out-of-Procedure side-effects on the Asset stream**: `AssetActivated` x2 (lifecycle), `AssetDegraded` + `AssetRestored` on Aerotech (condition), one `CautionRegistered` on Aerotech
 
 Status FSM: same as Center alignment (`Defined → Running → Completed | Aborted | Truncated`).
@@ -65,7 +65,7 @@ Per-step entries (9 in total for a typical cold-start with one Aerotech retry): 
 
 Example queries:
 
-- "Which motors at 35-BM had cold-start home failures?" Filter `Asset` streams for `AssetDegraded` events with `reason LIKE '%cold-start%'`.
+- "Which motors at 2-BM had cold-start home failures?" Filter `Asset` streams for `AssetDegraded` events with `reason LIKE '%cold-start%'`.
 - "When was the Aerotech last homed?" Query the `motor_homing` Procedure stream for the most recent `ProcedureCompleted` whose `target_asset_ids` includes the Aerotech.
 - "Has anyone documented the Aerotech index-miss?" Query the `CautionLookup` projection for Cautions targeting the Aerotech.
 
@@ -118,7 +118,7 @@ Per-step entries (7 in total): two `Setpoint / Action / Check` triplets for the 
 
 Example queries:
 
-- "When did 35-BM see first light?" Query the Procedure stream for the earliest `first_light` `ProcedureCompleted` with `passed=True` on the light Check.
+- "When did 2-BM see first light?" Query the Procedure stream for the earliest `first_light` `ProcedureCompleted` with `passed=True` on the light Check.
 - "How has first-light signal level drifted across commissioning campaigns?" Group light-phase Check `actual` values by Procedure date.
 
 ## Dark baseline
@@ -242,7 +242,7 @@ Typical convergence: 3-4 acquisitions starting within +/- 100µm of the true pea
 
 Bound aggregates:
 
-- **Method**: [`resolution_alignment`](../../catalog/methods.md) (Recipe BC, beamline-agnostic; declares `LinearStage_um` + `Camera` + `Scintillator`)
+- **Method**: [`resolution_alignment`](../../catalog/methods.md) (Recipe BC, beamline-agnostic; declares `LinearStage` + `Camera` + `Scintillator`)
 - **Practice**: [`35BM_resolution_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
 - **Plan**: `35BM_resolution_plan` (Recipe BC, instance-level)
 - **Target Assets**: `Optique_Peter_focus_Z`, `Oryx_5MP_camera`, `Scintillator_LuAG`
@@ -253,8 +253,8 @@ Per-step entries (13 in total for a 4-iteration converged search): four `Setpoin
 
 Example queries:
 
-- "What focus-Z peak did 35-BM converge on with a Siemens star?" Filter Procedures by `kind="resolution_alignment"`, then the most recent Check with `passed=True` and `target="siemens_star"`.
-- "How tight is the focus tolerance at 35-BM?" Compare `evidence.bracket_low_mm` / `bracket_high_mm` on the bracketing Check entry across recent resolution Procedures.
+- "What focus-Z peak did 2-BM converge on with a Siemens star?" Filter Procedures by `kind="resolution_alignment"`, then the most recent Check with `passed=True` and `target="siemens_star"`.
+- "How tight is the focus tolerance at 2-BM?" Compare `evidence.bracket_low_mm` / `bracket_high_mm` on the bracketing Check entry across recent resolution Procedures.
 
 ## Focus alignment
 
@@ -303,7 +303,7 @@ Per-step entries (13 in total for a 4-iteration converged search): four `Setpoin
 
 Example queries:
 
-- "What sample-Z did 35-BM converge on for the depth-phantom?" Filter Procedures by `kind="focus_alignment"`, find the most recent Check with `passed=True` and `sample="depth_phantom"`.
+- "What sample-Z did 2-BM converge on for the depth-phantom?" Filter Procedures by `kind="focus_alignment"`, find the most recent Check with `passed=True` and `sample="depth_phantom"`.
 - "How does sample-Z peak vary across sample classes?" Group Check entries by `sample` payload key.
 
 ## Center alignment
@@ -346,7 +346,7 @@ Bound aggregates:
 - **Method**: [`center_alignment`](../../catalog/methods.md) (Recipe BC, beamline-agnostic)
 - **Practice**: [`35BM_alignment_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
 - **Plan**: `35BM_center_routine_plan` (Recipe BC, instance-level, no inventory page)
-- **Target Assets**: `Aerotech_ABRS_rotary`, `Sample_top_X`, `Oryx_5MP_camera`, `Scintillator_LuAG` (Equipment BC Devices under the 35-BM Unit Asset; full inventory at [Assets](assets.md))
+- **Target Assets**: `Aerotech_ABRS_rotary`, `Sample_top_X`, `Oryx_5MP_camera`, `Scintillator_LuAG` (Equipment BC Devices under the 2-BM Unit Asset; full inventory at [Assets](assets.md))
 
 Status FSM: `Defined → Running → Completed | Aborted | Truncated`. The event name `ProcedureRegistered` lands the aggregate in status `Defined` (event-type vs status-name divergence is intentional; status is derived from event type in the evolver).
 
@@ -362,7 +362,7 @@ Per-step entries land in the `entries_operation_procedure_steps` projection (one
 Example queries:
 
 - "What was the calibrated rotation-axis pixel position on date X?" Query the Procedure stream for the final Setpoint entry.
-- "Which center-alignment routines ran at 35-BM?" Filter Procedures by `kind="center_alignment"`.
+- "Which center-alignment routines ran at 2-BM?" Filter Procedures by `kind="center_alignment"`.
 - "Which alignments touched the Aerotech rotary stage?" Filter Procedures by `target_asset_id`.
 - "How many iterations did this alignment take?" Count Check entries with `iteration` payload keys.
 
@@ -413,7 +413,7 @@ Per-step entries (14 in total for a 2-iteration converged run): two `Setpoint(ro
 
 Example queries:
 
-- "What's 35-BM's current roll calibration?" Query the Procedure stream for the most recent `roll_alignment` with `passed=True`; the final Setpoint carries the calibrated value.
+- "What's 2-BM's current roll calibration?" Query the Procedure stream for the most recent `roll_alignment` with `passed=True`; the final Setpoint carries the calibrated value.
 - "How often does roll need re-calibration?" Count completed `roll_alignment` Procedures over time; long gaps imply mechanical stability.
 
 ## Pitch alignment
@@ -464,5 +464,5 @@ Per-step entries (14 in total for a 2-iteration converged run): same shape as ro
 
 Example queries:
 
-- "What's 35-BM's current pitch calibration?" Query the Procedure stream for the most recent `pitch_alignment` with `passed=True`; the final Setpoint carries the calibrated value.
+- "What's 2-BM's current pitch calibration?" Query the Procedure stream for the most recent `pitch_alignment` with `passed=True`; the final Setpoint carries the calibrated value.
 - "Which sphere targets give the cleanest pitch convergence?" Group Check entries by `target` payload key, compare iteration counts.

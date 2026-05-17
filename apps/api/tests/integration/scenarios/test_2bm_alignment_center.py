@@ -1,6 +1,6 @@
-"""Phase: beta. Routine: center alignment at APS 35-BM.
+"""Center alignment at APS 2-BM.
 
-Scenario test for the rotation-axis "center" alignment routine at 35-BM
+Scenario test for the rotation-axis "center" alignment routine at 2-BM
 micro-CT, as performed by operators today at mechanically-similar 2-BM
 via the `xray-imaging/adjust` CLI. Composes the full Equipment + Recipe
 + Operation BC stack end-to-end for one real beamline routine.
@@ -145,7 +145,7 @@ from tests.integration._helpers import build_postgres_deps
 from tests.integration.scenarios._facility_fixture import (
     DeviceSpec,
     facility_id_prefix,
-    install_35bm_facility,
+    install_aps_unit,
 )
 
 _NOW = datetime(2026, 5, 15, 14, 0, 0, tzinfo=UTC)
@@ -154,14 +154,14 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000035bb")
 
 # Pre-allocated id queue. Order matters (FixedIdGenerator consumes head-first).
 # Each block annotates which command consumes which IDs. The facility-install
-# block (actor + Argonne/APS/Unit + Devices) is consumed by `install_35bm_facility`
+# block (actor + Argonne/APS/Unit + Devices) is consumed by `install_aps_unit`
 # via `facility_id_prefix(...)`; everything below is scenario-specific.
 
-# Asset hierarchy: Argonne (Enterprise) → APS (Site) → 35-BM (Unit). Devices
-# below hang off _35BM_UNIT_ID. Practice's site_id references _APS_SITE_ID.
+# Asset hierarchy: Argonne (Enterprise) → APS (Site) → 2-BM (Unit). Devices
+# below hang off _2BM_UNIT_ID. Practice's site_id references _APS_SITE_ID.
 _ARGONNE_ENTERPRISE_ID = UUID("01900000-0000-7000-8000-000000350e01")
 _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000350501")
-_35BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000350a01")
+_2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000350a01")
 
 # Capability ids (4 caps x 2 ids/define = 8)
 _CAP_ROTARY_STAGE_ID = UUID("01900000-0000-7000-8000-000000035c01")
@@ -213,10 +213,10 @@ _DEVICES = (
 # physical dimensions in the same Capability use different unit codes
 # (positions in deg + max_speed in deg/s).
 
-_DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema"
+_DRAFT = "https://json-schema.org/draft/2020-12/schema"
 
 _SCHEMA_ROTARY_STAGE: dict[str, Any] = {
-    "$schema": _DRAFT_2020_12,
+    "$schema": _DRAFT,
     "type": "object",
     "properties": {
         "min_position": {
@@ -246,7 +246,7 @@ _SCHEMA_ROTARY_STAGE: dict[str, Any] = {
 }
 
 _SCHEMA_LINEAR_STAGE: dict[str, Any] = {
-    "$schema": _DRAFT_2020_12,
+    "$schema": _DRAFT,
     "type": "object",
     "properties": {
         "min_position": {
@@ -272,7 +272,7 @@ _SCHEMA_LINEAR_STAGE: dict[str, Any] = {
 }
 
 _SCHEMA_CAMERA: dict[str, Any] = {
-    "$schema": _DRAFT_2020_12,
+    "$schema": _DRAFT,
     "type": "object",
     "properties": {
         "sensor_width": {
@@ -300,7 +300,7 @@ _SCHEMA_CAMERA: dict[str, Any] = {
 }
 
 _SCHEMA_SCINTILLATOR: dict[str, Any] = {
-    "$schema": _DRAFT_2020_12,
+    "$schema": _DRAFT,
     "type": "object",
     "properties": {
         "thickness": {
@@ -369,7 +369,7 @@ def _id_queue() -> list[UUID]:
             principal_id=_PRINCIPAL_ID,
             argonne_id=_ARGONNE_ENTERPRISE_ID,
             aps_site_id=_APS_SITE_ID,
-            unit_id=_35BM_UNIT_ID,
+            unit_id=_2BM_UNIT_ID,
             devices=_DEVICES,
         ),
         # update_capability_settings_schema x 4: event_id only
@@ -498,23 +498,23 @@ async def test_center_alignment_plays_out_end_to_end(
     """
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
 
-    # ----- Seed facility hierarchy: actor + Argonne -> APS -> 35-BM + Devices -----
+    # ----- Seed facility hierarchy: actor + Argonne -> APS -> 2-BM + Devices -----
 
-    await install_35bm_facility(
+    await install_aps_unit(
         deps,
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ENTERPRISE_ID,
         aps_site_id=_APS_SITE_ID,
-        unit_id=_35BM_UNIT_ID,
+        unit_id=_2BM_UNIT_ID,
         devices=_DEVICES,
-        operator_name="35-BM Operator",
+        operator_name="2-BM Operator",
     )
 
     # ----- Phase 10e-a: declare Capability schemas then push per-Asset settings -----
     #
     # Schemas first (4 calls), then values (4 calls). Both are scenario-local
-    # rather than baked into install_35bm_facility per the design memo
+    # rather than baked into install_aps_unit per the design memo
     # anti-hook "DO NOT extract schemas before rule-of-three" -- the shakedown
     # scenario uses the same facility helper without authoring schemas.
 
@@ -574,7 +574,7 @@ async def test_center_alignment_plays_out_end_to_end(
 
     await bind_register_procedure(deps)(
         RegisterProcedure(
-            name="35-BM rotation-axis alignment (vessel-A bakeout pre-scan)",
+            name="2-BM rotation-axis alignment (vessel-A bakeout pre-scan)",
             kind="center_alignment",
             target_asset_ids=frozenset(
                 {
@@ -712,7 +712,7 @@ async def test_center_alignment_plays_out_end_to_end(
         channel="RotationCenter",
         target_value=1024.5,
         units="px",
-        note="calibrated rotation-axis pixel position for 35-BM micro-CT",
+        note="calibrated rotation-axis pixel position for 2-BM micro-CT",
         sampled_at=t(13),
     )
 
@@ -738,11 +738,11 @@ async def test_center_alignment_plays_out_end_to_end(
 
     # ----- Assert the Procedure stream tells the right lifecycle story -----
 
-    events, version = await deps.event_store.load("Procedure", _PROCEDURE_ID)
+    procedure_events, procedure_version = await deps.event_store.load("Procedure", _PROCEDURE_ID)
     # Expected event sequence: Registered, Started, StepsLogbookOpened, Completed.
-    assert version == 4, f"expected 4 events on Procedure stream, got {version}"
-    event_types = [e.event_type for e in events]
-    assert event_types == [
+    assert procedure_version == 4, f"expected 4 events on Procedure stream, got {procedure_version}"
+    procedure_event_types = [e.event_type for e in procedure_events]
+    assert procedure_event_types == [
         "ProcedureRegistered",
         "ProcedureStarted",
         "ProcedureStepsLogbookOpened",
@@ -801,7 +801,7 @@ async def test_center_alignment_plays_out_end_to_end(
     matching = [item for item in page.items if item.procedure_id == _PROCEDURE_ID]
     assert len(matching) == 1
     proc_summary = matching[0]
-    assert proc_summary.name == "35-BM rotation-axis alignment (vessel-A bakeout pre-scan)"
+    assert proc_summary.name == "2-BM rotation-axis alignment (vessel-A bakeout pre-scan)"
     assert proc_summary.kind == "center_alignment"
     assert proc_summary.status == ProcedureStatus.COMPLETED.value
     assert proc_summary.steps_logbook_id == _STEPS_LOGBOOK_ID
@@ -840,9 +840,18 @@ async def test_center_alignment_plays_out_end_to_end(
         assert events[1].payload["settings_schema"] == expected_schema
 
     for asset_id, expected_settings in _SETTINGS_SPECS:
-        events, _version = await deps.event_store.load("Asset", asset_id)
+        events, version = await deps.event_store.load("Asset", asset_id)
         # Expected sequence: Registered, CapabilityAdded, SettingsUpdated.
-        assert events[-1].event_type == "AssetSettingsUpdated"
+        assert version == 3, (
+            f"Asset {asset_id} should have 3 events "
+            f"(Registered + CapabilityAdded + SettingsUpdated); got {version}"
+        )
+        event_types = [e.event_type for e in events]
+        assert event_types == [
+            "AssetRegistered",
+            "AssetCapabilityAdded",
+            "AssetSettingsUpdated",
+        ]
         # 5g-c: event payload carries the FULL post-merge dict.
         assert events[-1].payload["settings"] == expected_settings
 

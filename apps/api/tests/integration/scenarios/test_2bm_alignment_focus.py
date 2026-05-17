@@ -1,4 +1,4 @@
-"""Phase: beta. Routine: focus alignment at APS 35-BM.
+"""Focus alignment at APS 2-BM.
 
 Scenario test for the `focus` step of the rotation-axis alignment
 chain. Adjusts the sample-to-scintillator distance via the
@@ -18,7 +18,7 @@ To ground the `focus_alignment` Procedure inventory row on
 (`Sample_top_Z`) that no prior scenario has touched. Per
 [[project_pilot_docs_design]] no doc page may name an aggregate until
 a scenario test registers it; this file unlocks the Z-axis sample
-stage in the 35-BM Asset inventory.
+stage in the 2-BM Asset inventory.
 
 ## Distinction from `resolution_alignment`
 
@@ -115,7 +115,7 @@ from tests.integration._helpers import build_postgres_deps
 from tests.integration.scenarios._facility_fixture import (
     DeviceSpec,
     facility_id_prefix,
-    install_35bm_facility,
+    install_aps_unit,
 )
 
 _NOW = datetime(2026, 5, 17, 11, 0, 0, tzinfo=UTC)
@@ -126,7 +126,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000356bb")
 _ACTOR_OPERATOR_ID = _PRINCIPAL_ID
 _ARGONNE_ENTERPRISE_ID = UUID("01900000-0000-7000-8000-000000356e01")
 _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000356501")
-_35BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000356a01")
+_2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000356a01")
 
 # Capabilities (sample-Z needs LinearStage; image chain needs Camera + Scintillator)
 _CAP_LINEAR_STAGE_ID = UUID("01900000-0000-7000-8000-000000356c01")
@@ -166,7 +166,7 @@ def _id_queue() -> list[UUID]:
             principal_id=_PRINCIPAL_ID,
             argonne_id=_ARGONNE_ENTERPRISE_ID,
             aps_site_id=_APS_SITE_ID,
-            unit_id=_35BM_UNIT_ID,
+            unit_id=_2BM_UNIT_ID,
             devices=_DEVICES,
         ),
         # activate_asset x 3: event_id only (no aggregate id allocated)
@@ -288,17 +288,17 @@ async def test_focus_alignment_plays_out_end_to_end(
     one final lock setpoint at the converged Z position."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
 
-    # ----- Install the 35-BM facility hierarchy + the 3 Devices -----
+    # ----- Install the 2-BM facility hierarchy + the 3 Devices -----
 
-    await install_35bm_facility(
+    await install_aps_unit(
         deps,
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ENTERPRISE_ID,
         aps_site_id=_APS_SITE_ID,
-        unit_id=_35BM_UNIT_ID,
+        unit_id=_2BM_UNIT_ID,
         devices=_DEVICES,
-        operator_name="35-BM Alignment Operator",
+        operator_name="2-BM Alignment Operator",
     )
 
     # ----- Equipment BC: activate all 3 Devices (Commissioned -> Active) -----
@@ -347,7 +347,7 @@ async def test_focus_alignment_plays_out_end_to_end(
 
     await bind_register_procedure(deps)(
         RegisterProcedure(
-            name="35-BM focus alignment (depth-of-focus phantom)",
+            name="2-BM focus alignment (depth-of-focus phantom)",
             kind="focus_alignment",
             target_asset_ids=frozenset(
                 {_ASSET_SAMPLE_TOP_Z_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID}

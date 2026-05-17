@@ -1,14 +1,14 @@
-"""Shared facility-hierarchy install helper for 35-BM-shape scenario tests.
+"""Shared facility-hierarchy install helper for 2-BM-shape scenario tests.
 
-Extracted when the 3rd scenario re-registered Argonne + APS + 35-BM Unit
+Extracted when the 3rd scenario re-registered Argonne + APS + 2-BM Unit
 by hand (per [[project_scenario_taxonomy]] watch item). The install scenario
-(`test_aps_install_facility_*`) is NOT a caller: it IS the source-of-truth
+(`test_aps_facility_*`) is NOT a caller: it IS the source-of-truth
 install ceremony being tested, with its own facility-level extras (Agent,
 Practice, Clearance, Supply, Caution).
 
 ## Two coupled functions
 
-`install_35bm_facility()` executes the ceremony; `facility_id_prefix()`
+`install_aps_unit()` executes the ceremony; `facility_id_prefix()`
 returns the matching `FixedIdGenerator` queue prefix. Callers must use
 both together: the prefix MUST sit at the head of `_id_queue()` and the
 install call MUST happen before any scenario-specific commands consume
@@ -44,7 +44,7 @@ def _id_queue() -> list[UUID]:
 
 async def test_...(db_pool):
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
-    await install_35bm_facility(
+    await install_aps_unit(
         deps,
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -52,7 +52,7 @@ async def test_...(db_pool):
         aps_site_id=_APS_ID,
         unit_id=_UNIT_ID,
         devices=_DEVICES,
-        operator_name="35-BM Shakedown Operator",
+        operator_name="2-BM Shakedown Operator",
     )
     # ... scenario-specific commands follow
 ```
@@ -87,7 +87,7 @@ class DeviceSpec:
 
 @dataclass(frozen=True)
 class FacilityIds:
-    """IDs of every aggregate registered by `install_35bm_facility()`.
+    """IDs of every aggregate registered by `install_aps_unit()`.
     Returned for callers that want to reference them post-install without
     re-importing module-level constants."""
 
@@ -107,7 +107,7 @@ def facility_id_prefix(
     unit_id: UUID,
     devices: Sequence[DeviceSpec],
 ) -> list[UUID]:
-    """FixedIdGenerator queue prefix for `install_35bm_facility()`.
+    """FixedIdGenerator queue prefix for `install_aps_unit()`.
 
     Ordering mirrors the ceremony exactly:
       1. register_actor: principal_id, event
@@ -137,7 +137,7 @@ def facility_id_prefix(
     return ids
 
 
-async def install_35bm_facility(
+async def install_aps_unit(
     deps: Kernel,
     *,
     principal_id: UUID,
@@ -146,16 +146,16 @@ async def install_35bm_facility(
     aps_site_id: UUID,
     unit_id: UUID,
     devices: Sequence[DeviceSpec],
-    operator_name: str = "35-BM Operator",
-    unit_name: str = "35-BM",
+    operator_name: str = "2-BM Operator",
+    unit_name: str = "2-BM",
 ) -> FacilityIds:
-    """Execute the canonical facility-install ceremony for a 35-BM-shape Unit.
+    """Execute the canonical facility-install ceremony for a 2-BM-shape Unit.
 
     Order matches `facility_id_prefix()` exactly: actor, then
     Argonne -> APS -> Unit, then all Capabilities defined, then all
     Devices registered + their Capabilities linked.
 
-    `unit_name` defaults to "35-BM" but parameterizes for future
+    `unit_name` defaults to "2-BM" but parameterizes for future
     beamline scenarios (2-BM, 7-BM, etc.).
     """
     await bind_register_actor(deps)(
@@ -209,5 +209,5 @@ __all__ = [
     "DeviceSpec",
     "FacilityIds",
     "facility_id_prefix",
-    "install_35bm_facility",
+    "install_aps_unit",
 ]

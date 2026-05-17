@@ -1,7 +1,7 @@
-"""Phase: commissioning. Routine: first light at APS 35-BM.
+"""First light at APS 2-BM.
 
 Scenario test for the canonical commissioning milestone: the first
-time beam passes through the 35-BM optics chain, hits the LuAG
+time beam passes through the 2-BM optics chain, hits the LuAG
 scintillator, and shows up on the Oryx camera. Opens with a dark
 frame (shutter closed) to verify the imaging chain is electronically
 quiet, opens the shutter, acquires the first-light frame, confirms
@@ -14,13 +14,13 @@ taxonomy this scenario fits into.
 
 First-light is THE phase-defining commissioning event in any
 synchrotron beamline literature (JWST / Rubin / IPAC). The scenario
-unlocks four firsts in CORA's 35-BM doc tree:
+unlocks four firsts in CORA's 2-BM doc tree:
 
   1. Phase `commissioning` is exercised for the first time (no prior
      scenario hangs there).
   2. New Capability `Shutter` joins the cross-facility catalog.
-  3. New Device `Shutter_35BM` joins the 35-BM Asset inventory.
-  4. New Procedure kind `first_light` joins the 35-BM Procedure list.
+  3. New Device `Shutter_35BM` joins the 2-BM Asset inventory.
+  4. New Procedure kind `first_light` joins the 2-BM Procedure list.
 
 Per [[project_pilot_docs_design]] no doc page may name an aggregate
 until a scenario test registers it.
@@ -121,7 +121,7 @@ from tests.integration._helpers import build_postgres_deps
 from tests.integration.scenarios._facility_fixture import (
     DeviceSpec,
     facility_id_prefix,
-    install_35bm_facility,
+    install_aps_unit,
 )
 
 _NOW = datetime(2026, 5, 17, 13, 15, 0, tzinfo=UTC)
@@ -132,7 +132,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000359bb")
 _ACTOR_OPERATOR_ID = _PRINCIPAL_ID
 _ARGONNE_ENTERPRISE_ID = UUID("01900000-0000-7000-8000-000000359e01")
 _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000359501")
-_35BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000359a01")
+_2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000359a01")
 
 # Capabilities (Shutter is NEW; Camera + Scintillator are already in the catalog)
 _CAP_SHUTTER_ID = UUID("01900000-0000-7000-8000-000000359c01")
@@ -140,7 +140,7 @@ _CAP_CAMERA_ID = UUID("01900000-0000-7000-8000-000000359c11")
 _CAP_SCINTILLATOR_ID = UUID("01900000-0000-7000-8000-000000359c21")
 
 # Devices (shutter + image chain)
-_ASSET_SHUTTER_35BM_ID = UUID("01900000-0000-7000-8000-000000359a11")
+_ASSET_SHUTTER_2BM_ID = UUID("01900000-0000-7000-8000-000000359a11")
 _ASSET_ORYX_5MP_ID = UUID("01900000-0000-7000-8000-000000359a21")
 _ASSET_SCINTILLATOR_LUAG_ID = UUID("01900000-0000-7000-8000-000000359a31")
 
@@ -156,7 +156,7 @@ _STEPS_OPEN_EVENT_ID = UUID("01900000-0000-7000-8000-000000359f12")
 
 
 _DEVICES = (
-    DeviceSpec("Shutter_35BM", _ASSET_SHUTTER_35BM_ID, "Shutter", _CAP_SHUTTER_ID),
+    DeviceSpec("Shutter_35BM", _ASSET_SHUTTER_2BM_ID, "Shutter", _CAP_SHUTTER_ID),
     DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
     DeviceSpec(
         "Scintillator_LuAG", _ASSET_SCINTILLATOR_LUAG_ID, "Scintillator", _CAP_SCINTILLATOR_ID
@@ -172,7 +172,7 @@ def _id_queue() -> list[UUID]:
             principal_id=_PRINCIPAL_ID,
             argonne_id=_ARGONNE_ENTERPRISE_ID,
             aps_site_id=_APS_SITE_ID,
-            unit_id=_35BM_UNIT_ID,
+            unit_id=_2BM_UNIT_ID,
             devices=_DEVICES,
         ),
         # activate_asset x 3: event_id only (no aggregate id allocated)
@@ -290,22 +290,22 @@ async def test_first_light_plays_out_end_to_end(
     light-passed, and safe-state-restored entries."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
 
-    # ----- Install the 35-BM facility hierarchy + the 3 Devices -----
+    # ----- Install the 2-BM facility hierarchy + the 3 Devices -----
 
-    await install_35bm_facility(
+    await install_aps_unit(
         deps,
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ENTERPRISE_ID,
         aps_site_id=_APS_SITE_ID,
-        unit_id=_35BM_UNIT_ID,
+        unit_id=_2BM_UNIT_ID,
         devices=_DEVICES,
-        operator_name="35-BM Commissioning Operator",
+        operator_name="2-BM Commissioning Operator",
     )
 
     # ----- Equipment BC: activate all 3 Devices (Commissioned -> Active) -----
 
-    for asset_id in (_ASSET_SHUTTER_35BM_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID):
+    for asset_id in (_ASSET_SHUTTER_2BM_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID):
         await bind_activate_asset(deps)(
             ActivateAsset(asset_id=asset_id),
             principal_id=_PRINCIPAL_ID,
@@ -336,7 +336,7 @@ async def test_first_light_plays_out_end_to_end(
             name="35BM_first_light_plan",
             practice_id=_PRACTICE_FIRST_LIGHT_ID,
             asset_ids=frozenset(
-                {_ASSET_SHUTTER_35BM_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID}
+                {_ASSET_SHUTTER_2BM_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID}
             ),
         ),
         principal_id=_PRINCIPAL_ID,
@@ -347,10 +347,10 @@ async def test_first_light_plays_out_end_to_end(
 
     await bind_register_procedure(deps)(
         RegisterProcedure(
-            name="35-BM first-light verification (Apr-2026 commissioning campaign)",
+            name="2-BM first-light verification (Apr-2026 commissioning campaign)",
             kind="first_light",
             target_asset_ids=frozenset(
-                {_ASSET_SHUTTER_35BM_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID}
+                {_ASSET_SHUTTER_2BM_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID}
             ),
         ),
         principal_id=_PRINCIPAL_ID,
@@ -440,7 +440,7 @@ async def test_first_light_plays_out_end_to_end(
 
     # ----- Assert: each target Asset reached Active lifecycle -----
 
-    for asset_id in (_ASSET_SHUTTER_35BM_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID):
+    for asset_id in (_ASSET_SHUTTER_2BM_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID):
         asset_events, _ = await deps.event_store.load("Asset", asset_id)
         event_types = [e.event_type for e in asset_events]
         assert event_types == ["AssetRegistered", "AssetCapabilityAdded", "AssetActivated"]

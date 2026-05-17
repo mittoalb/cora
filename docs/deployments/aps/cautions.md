@@ -6,7 +6,7 @@
 | --- | --- | --- | --- | --- |
 | Top-up flux transients | APS Site Asset | `OperationalWindow` | `Notice` | Top-up injections cause brief beam-flux transients (~0.5s) every few minutes |
 
-Source of truth: [`apps/api/tests/integration/scenarios/test_aps_install_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_install_facility.py).
+Source of truth: [`apps/api/tests/integration/scenarios/test_aps_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_facility.py).
 
 ## Pending in code
 

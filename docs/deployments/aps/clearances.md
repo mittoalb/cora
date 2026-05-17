@@ -6,7 +6,7 @@
 | --- | --- | --- | --- |
 | `APS scenario ESAF (facility umbrella)` | `ESAF` | APS Site Asset | Umbrella ESAF used by scenario tests; binds to the APS Site Asset rather than a specific Subject or Run |
 
-Source of truth: [`apps/api/tests/integration/scenarios/test_aps_install_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_install_facility.py).
+Source of truth: [`apps/api/tests/integration/scenarios/test_aps_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_facility.py).
 
 ## Pending in code
 

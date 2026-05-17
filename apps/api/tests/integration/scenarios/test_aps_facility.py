@@ -1,4 +1,4 @@
-"""Phase: install. Routine: APS facility hierarchy (Argonne + APS).
+"""APS facility hierarchy (Argonne + APS).
 
 Scenario test for the facility-install rhythm: register the Enterprise
 + Site Asset hierarchy and seed the BCs whose aggregates naturally

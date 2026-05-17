@@ -1,4 +1,4 @@
-"""Phase: beta. Routine: roll alignment at APS 35-BM.
+"""Roll alignment at APS 2-BM.
 
 Scenario test for the `roll` step of the rotation-axis alignment
 chain. Drives the `Sample_top_Roll` tilt motor (under the rotation
@@ -18,7 +18,7 @@ To ground the `roll_alignment` Procedure inventory row on
 (`Sample_top_Roll`) that no prior scenario has touched. Per
 [[project_pilot_docs_design]] no doc page may name an aggregate until
 a scenario test registers it; this file unlocks the roll-tilt motor
-in the 35-BM Asset inventory.
+in the 2-BM Asset inventory.
 
 ## Distinction from `center_alignment`
 
@@ -119,7 +119,7 @@ from tests.integration._helpers import build_postgres_deps
 from tests.integration.scenarios._facility_fixture import (
     DeviceSpec,
     facility_id_prefix,
-    install_35bm_facility,
+    install_aps_unit,
 )
 
 _NOW = datetime(2026, 5, 17, 11, 45, 0, tzinfo=UTC)
@@ -130,7 +130,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000357bb")
 _ACTOR_OPERATOR_ID = _PRINCIPAL_ID
 _ARGONNE_ENTERPRISE_ID = UUID("01900000-0000-7000-8000-000000357e01")
 _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000357501")
-_35BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000357a01")
+_2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000357a01")
 
 # Capabilities (4: rotary + linear-tilt + camera + scintillator)
 _CAP_ROTARY_STAGE_ID = UUID("01900000-0000-7000-8000-000000357c01")
@@ -175,7 +175,7 @@ def _id_queue() -> list[UUID]:
             principal_id=_PRINCIPAL_ID,
             argonne_id=_ARGONNE_ENTERPRISE_ID,
             aps_site_id=_APS_SITE_ID,
-            unit_id=_35BM_UNIT_ID,
+            unit_id=_2BM_UNIT_ID,
             devices=_DEVICES,
         ),
         # activate_asset x 4: event_id only (no aggregate id allocated)
@@ -289,17 +289,17 @@ async def test_roll_alignment_plays_out_end_to_end(
     roll motor."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
 
-    # ----- Install the 35-BM facility hierarchy + the 4 Devices -----
+    # ----- Install the 2-BM facility hierarchy + the 4 Devices -----
 
-    await install_35bm_facility(
+    await install_aps_unit(
         deps,
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ENTERPRISE_ID,
         aps_site_id=_APS_SITE_ID,
-        unit_id=_35BM_UNIT_ID,
+        unit_id=_2BM_UNIT_ID,
         devices=_DEVICES,
-        operator_name="35-BM Alignment Operator",
+        operator_name="2-BM Alignment Operator",
     )
 
     # ----- Equipment BC: activate all 4 Devices (Commissioned -> Active) -----
@@ -363,7 +363,7 @@ async def test_roll_alignment_plays_out_end_to_end(
 
     await bind_register_procedure(deps)(
         RegisterProcedure(
-            name="35-BM roll alignment (vertical-axis tilt on fiducial sphere)",
+            name="2-BM roll alignment (vertical-axis tilt on fiducial sphere)",
             kind="roll_alignment",
             target_asset_ids=frozenset(
                 {

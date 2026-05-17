@@ -4,10 +4,10 @@
 
 | Actor | Kind | Role |
 | --- | --- | --- |
-| `APS Operator` | `human` | Operator principal used by the 35-BM and APS facility scenario tests |
+| `APS Operator` | `human` | Operator principal used by the 2-BM and APS facility scenario tests |
 | `Run Debrief` | `agent` | The AI agent co-registered as an Actor by `define_agent` (see [Agents](agents.md)) |
 
-Source of truth: [`apps/api/tests/integration/scenarios/test_aps_install_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_install_facility.py) and [`apps/api/tests/integration/scenarios/test_35bm_beta_alignment_center.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_center.py).
+Source of truth: [`apps/api/tests/integration/scenarios/test_aps_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_facility.py) and [`apps/api/tests/integration/scenarios/test_2bm_alignment_center.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_center.py).
 
 ## Pending in code
 

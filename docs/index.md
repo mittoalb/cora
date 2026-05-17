@@ -40,7 +40,7 @@ For 35-BM micro-CT this reads: **Method** tomography, **Practice** 35-BM tomogra
 
 Built first for white-beam micro-CT at **APS beamline 35-BM** (Argonne). Greenfield instrument, real operations. CORA schedules, audits, and governs the existing open-source stack (TomoScan, TomoPy, mctOptics, Noise2Inverse360) without reimplementing it.
 
-[See the 35-BM pilot →](deployments/35-bm/index.md)
+[See the 35-BM pilot →](deployments/2-bm/index.md)
 
 ## Start here
 
@@ -50,7 +50,7 @@ Built first for white-beam micro-CT at **APS beamline 35-BM** (Argonne). Greenfi
 
     Could CORA run your experiments? Start with the pilot.
 
-    [See 35-BM →](deployments/35-bm/index.md)
+    [See 35-BM →](deployments/2-bm/index.md)
 
 -   __Software architect__
 

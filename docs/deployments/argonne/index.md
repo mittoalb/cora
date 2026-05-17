@@ -14,4 +14,4 @@
 - [Actors](actors.md): human Actors registered at Argonne
 - [Agents](agents.md): AI Agents registered at Argonne
 
-Source of truth: [`apps/api/tests/integration/scenarios/test_aps_install_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_install_facility.py).
+Source of truth: [`apps/api/tests/integration/scenarios/test_aps_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_facility.py).

@@ -1,8 +1,8 @@
 # 35-BM
 
-*APS micro-CT. CORA's first pilot.*
+*APS micro-CT. CORA's pilot deployment target. Planned; under construction.*
 
-A new dedicated micro-CT instrument at Argonne. White-beam micro-CT moves here from 7-BM.
+A new dedicated micro-CT instrument at Argonne. White-beam micro-CT will move here from 7-BM. CORA is being built first for 35-BM as its pilot integration target; the scenario corpus that grounds CORA's domain model today is run against the mechanically-similar operational analog at [2-BM](../2-bm/index.md).
 
 | Property | Value |
 | --- | --- |
@@ -10,22 +10,12 @@ A new dedicated micro-CT instrument at Argonne. White-beam micro-CT moves here f
 | Site | [APS](../aps/index.md) |
 | Enterprise | [Argonne](../argonne/index.md) |
 | Modality | White-beam micro-CT |
-| Status | In design |
+| Status | Planned |
 
 ## Inventories
 
-What's registered at 35-BM today (Unit level):
+No 35-BM-specific aggregates are registered yet. Per the [Living Documentation rule](../../../apps/api/tests/integration/scenarios/README.md), inventory pages here will populate when scenario tests that register 35-BM Assets, Procedures, Cautions, etc. land in `apps/api/tests/integration/scenarios/test_35bm_*.py`.
 
-- [Assets](assets.md): beamline-owned Devices, with lifecycle and condition transitions
-- [Procedures](procedures.md): operator routines (`motor_homing`, `center_alignment`)
-- [Cautions](cautions.md): operator tribal knowledge attached to specific Assets
-- [Datasets](datasets.md): calibration artifacts produced by commissioning scenarios (dark + flat baselines)
-
-The Methods and Practices 35-BM consumes live at higher levels of the hierarchy:
-
-- Methods: cross-facility vocabulary in the [Catalog](../../catalog/methods.md)
-- Practices: APS Site Recipes in [APS](../aps/practices.md)
-
-Source of truth: scenario tests at [`apps/api/tests/integration/`](../../../apps/api/tests/integration/) (see [Scenario taxonomy](../../reference/workflow.md#tests) for naming).
+The first 35-BM scenario will appear when 35-BM enters install phase (mechanical install, services, survey, bench-align optics) and the install ceremony differs from the 2-BM operational analog in load-bearing ways that justify a separate scenario file. Until then, the [2-BM scenario corpus](../2-bm/index.md) carries the mechanically-equivalent routines.
 
 For the stakeholder pitch (vision, scope, why this beamline), see the [MAX IV deck](../../talks.md).
