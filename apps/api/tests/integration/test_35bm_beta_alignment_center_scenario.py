@@ -85,26 +85,17 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
-from cora.access.features.register_actor import RegisterActor
-from cora.access.features.register_actor import bind as bind_register_actor
-from cora.equipment.aggregates.asset import AssetLevel
-from cora.equipment.features.add_asset_capability import (
-    AddAssetCapability,
+from cora.equipment.features.update_asset_settings import (
+    UpdateAssetSettings,
 )
-from cora.equipment.features.add_asset_capability import (
-    bind as bind_add_capability,
+from cora.equipment.features.update_asset_settings import (
+    bind as bind_update_asset_settings,
 )
-from cora.equipment.features.define_capability import (
-    DefineCapability,
+from cora.equipment.features.update_capability_settings_schema import (
+    UpdateCapabilitySettingsSchema,
 )
-from cora.equipment.features.define_capability import (
-    bind as bind_define_capability,
-)
-from cora.equipment.features.register_asset import (
-    RegisterAsset,
-)
-from cora.equipment.features.register_asset import (
-    bind as bind_register_asset,
+from cora.equipment.features.update_capability_settings_schema import (
+    bind as bind_update_capability_settings_schema,
 )
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.operation._projections import register_operation_projections
@@ -150,6 +141,11 @@ from cora.recipe.features.define_practice import (
 from cora.recipe.features.define_practice import (
     bind as bind_define_practice,
 )
+from tests.integration._facility_fixture import (
+    DeviceSpec,
+    facility_id_prefix,
+    install_35bm_facility,
+)
 from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 15, 14, 0, 0, tzinfo=UTC)
@@ -157,11 +153,9 @@ _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000003500")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000035bb")
 
 # Pre-allocated id queue. Order matters (FixedIdGenerator consumes head-first).
-# Each block annotates which command consumes which IDs.
-
-# Access BC: the operator Actor registered first; its id IS _PRINCIPAL_ID so
-# subsequent calls reference a real Actor instead of a placeholder UUID.
-_ACTOR_OPERATOR_ID = _PRINCIPAL_ID
+# Each block annotates which command consumes which IDs. The facility-install
+# block (actor + Argonne/APS/Unit + Devices) is consumed by `install_35bm_facility`
+# via `facility_id_prefix(...)`; everything below is scenario-specific.
 
 # Asset hierarchy: Argonne (Enterprise) → APS (Site) → 35-BM (Unit). Devices
 # below hang off _35BM_UNIT_ID. Practice's site_id references _APS_SITE_ID.
@@ -194,43 +188,198 @@ _STEPS_LOGBOOK_ID = UUID("01900000-0000-7000-8000-000000035f01")
 _STEPS_OPEN_EVENT_ID = UUID("01900000-0000-7000-8000-000000035f02")
 
 
+_DEVICES = (
+    DeviceSpec(
+        "Aerotech_ABRS_rotary", _ASSET_AEROTECH_ABRS_ID, "RotaryStage", _CAP_ROTARY_STAGE_ID
+    ),
+    DeviceSpec("Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID),
+    DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
+    DeviceSpec(
+        "Scintillator_LuAG", _ASSET_SCINTILLATOR_LUAG_ID, "Scintillator", _CAP_SCINTILLATOR_ID
+    ),
+)
+
+
+# ----- Phase 10e-a: Capability settings_schemas + per-device settings dicts -----
+#
+# Capability.settings_schema declares the intrinsic-property contract for a
+# device class (positions, encoder resolution, hardware envelope, per-install
+# calibration). Asset.settings carries this specific device's values. Runtime
+# parameters (exposure, energy, rotation step) are NOT here -- they belong on
+# Method.parameters_schema (Phase 10e-b). Per [[project_pilot_settings_schemas]].
+#
+# Same-unit-per-physical-dimension-per-Capability convention: all RotaryStage
+# angle properties in deg; all LinearStage length properties in mm. Different
+# physical dimensions in the same Capability use different unit codes
+# (positions in deg + max_speed in deg/s).
+
+_DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema"
+
+_SCHEMA_ROTARY_STAGE: dict[str, Any] = {
+    "$schema": _DRAFT_2020_12,
+    "type": "object",
+    "properties": {
+        "min_position": {
+            "type": "number",
+            "unit": {"system": "udunits", "code": "deg"},
+        },
+        "max_position": {
+            "type": "number",
+            "unit": {"system": "udunits", "code": "deg"},
+        },
+        "max_speed": {
+            "type": "number",
+            "minimum": 0,
+            "unit": {"system": "udunits", "code": "deg/s"},
+        },
+        "encoder_resolution": {
+            "type": "number",
+            "minimum": 0,
+            "unit": {"system": "udunits", "code": "deg"},
+        },
+        "homing_offset": {
+            "type": "number",
+            "unit": {"system": "udunits", "code": "deg"},
+        },
+    },
+    "required": ["min_position", "max_position", "max_speed", "encoder_resolution"],
+}
+
+_SCHEMA_LINEAR_STAGE: dict[str, Any] = {
+    "$schema": _DRAFT_2020_12,
+    "type": "object",
+    "properties": {
+        "min_position": {
+            "type": "number",
+            "unit": {"system": "udunits", "code": "mm"},
+        },
+        "max_position": {
+            "type": "number",
+            "unit": {"system": "udunits", "code": "mm"},
+        },
+        "max_speed": {
+            "type": "number",
+            "minimum": 0,
+            "unit": {"system": "udunits", "code": "mm/s"},
+        },
+        "encoder_resolution": {
+            "type": "number",
+            "minimum": 0,
+            "unit": {"system": "udunits", "code": "mm"},
+        },
+    },
+    "required": ["min_position", "max_position", "max_speed", "encoder_resolution"],
+}
+
+_SCHEMA_CAMERA: dict[str, Any] = {
+    "$schema": _DRAFT_2020_12,
+    "type": "object",
+    "properties": {
+        "sensor_width": {
+            "type": "integer",
+            "minimum": 1,
+            "unit": {"system": "udunits", "code": "pixel"},
+        },
+        "sensor_height": {
+            "type": "integer",
+            "minimum": 1,
+            "unit": {"system": "udunits", "code": "pixel"},
+        },
+        "pixel_size": {
+            "type": "number",
+            "minimum": 0,
+            "unit": {"system": "udunits", "code": "um"},
+        },
+        "bit_depth": {
+            "type": "integer",
+            "minimum": 1,
+            "unit": {"system": "udunits", "code": "bit"},
+        },
+    },
+    "required": ["sensor_width", "sensor_height", "pixel_size", "bit_depth"],
+}
+
+_SCHEMA_SCINTILLATOR: dict[str, Any] = {
+    "$schema": _DRAFT_2020_12,
+    "type": "object",
+    "properties": {
+        "thickness": {
+            "type": "number",
+            "minimum": 0,
+            "unit": {"system": "udunits", "code": "um"},
+        },
+        "decay_time": {
+            "type": "number",
+            "minimum": 0,
+            "unit": {"system": "udunits", "code": "us"},
+        },
+    },
+    "required": ["thickness", "decay_time"],
+}
+
+# Device-specific values (vendor datasheet figures, calibrated per install).
+
+_SETTINGS_AEROTECH_ABRS: dict[str, Any] = {
+    "min_position": -360.0,
+    "max_position": 360.0,
+    "max_speed": 720.0,
+    "encoder_resolution": 0.0001,
+    "homing_offset": 0.0,
+}
+
+_SETTINGS_SAMPLE_TOP_X: dict[str, Any] = {
+    "min_position": -10.0,
+    "max_position": 10.0,
+    "max_speed": 1.0,
+    "encoder_resolution": 0.0005,
+}
+
+_SETTINGS_ORYX_5MP: dict[str, Any] = {
+    "sensor_width": 2448,
+    "sensor_height": 2048,
+    "pixel_size": 3.45,
+    "bit_depth": 12,
+}
+
+_SETTINGS_SCINTILLATOR_LUAG: dict[str, Any] = {
+    "thickness": 100.0,
+    "decay_time": 0.07,
+}
+
+_SCHEMA_SPECS: tuple[tuple[UUID, dict[str, Any]], ...] = (
+    (_CAP_ROTARY_STAGE_ID, _SCHEMA_ROTARY_STAGE),
+    (_CAP_LINEAR_STAGE_ID, _SCHEMA_LINEAR_STAGE),
+    (_CAP_CAMERA_ID, _SCHEMA_CAMERA),
+    (_CAP_SCINTILLATOR_ID, _SCHEMA_SCINTILLATOR),
+)
+
+_SETTINGS_SPECS: tuple[tuple[UUID, dict[str, Any]], ...] = (
+    (_ASSET_AEROTECH_ABRS_ID, _SETTINGS_AEROTECH_ABRS),
+    (_ASSET_SAMPLE_TOP_X_ID, _SETTINGS_SAMPLE_TOP_X),
+    (_ASSET_ORYX_5MP_ID, _SETTINGS_ORYX_5MP),
+    (_ASSET_SCINTILLATOR_LUAG_ID, _SETTINGS_SCINTILLATOR_LUAG),
+)
+
+
 def _id_queue() -> list[UUID]:
     """Build the FixedIdGenerator queue. Anonymous event ids are uuid4()."""
     e = uuid4  # alias for brevity
     return [
-        # register_actor (operator, principal): actor_id, event_id
-        _ACTOR_OPERATOR_ID,
-        e(),
-        # register_asset Argonne (Enterprise): asset_id, event_id
-        _ARGONNE_ENTERPRISE_ID,
-        e(),
-        # register_asset APS (Site, parent=Argonne): asset_id, event_id
-        _APS_SITE_ID,
-        e(),
-        # register_asset 35-BM (Unit, parent=APS): asset_id, event_id
-        _35BM_UNIT_ID,
-        e(),
-        # define_capability x 4: cap_id, event_id
-        _CAP_ROTARY_STAGE_ID,
-        e(),
-        _CAP_LINEAR_STAGE_ID,
-        e(),
-        _CAP_CAMERA_ID,
-        e(),
-        _CAP_SCINTILLATOR_ID,
-        e(),
-        # register_asset x 4: asset_id, register_event_id
-        # add_asset_capability x 4: addcap_event_id
-        _ASSET_AEROTECH_ABRS_ID,
-        e(),
-        e(),  # add_capability event
-        _ASSET_SAMPLE_TOP_X_ID,
+        *facility_id_prefix(
+            principal_id=_PRINCIPAL_ID,
+            argonne_id=_ARGONNE_ENTERPRISE_ID,
+            aps_site_id=_APS_SITE_ID,
+            unit_id=_35BM_UNIT_ID,
+            devices=_DEVICES,
+        ),
+        # update_capability_settings_schema x 4: event_id only
         e(),
         e(),
-        _ASSET_ORYX_5MP_ID,
         e(),
         e(),
-        _ASSET_SCINTILLATOR_LUAG_ID,
+        # update_asset_settings x 4: event_id only
+        e(),
+        e(),
         e(),
         e(),
         # define_method: method_id, event_id
@@ -349,55 +498,35 @@ async def test_center_alignment_plays_out_end_to_end(
     """
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
 
-    # ----- Seed Access BC: register the operator Actor (id = _PRINCIPAL_ID) -----
+    # ----- Seed facility hierarchy: actor + Argonne -> APS -> 35-BM + Devices -----
 
-    await bind_register_actor(deps)(
-        RegisterActor(name="35-BM Operator"),
+    await install_35bm_facility(
+        deps,
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
+        argonne_id=_ARGONNE_ENTERPRISE_ID,
+        aps_site_id=_APS_SITE_ID,
+        unit_id=_35BM_UNIT_ID,
+        devices=_DEVICES,
+        operator_name="35-BM Operator",
     )
 
-    # ----- Seed Equipment BC (facility hierarchy): Argonne → APS → 35-BM Unit -----
+    # ----- Phase 10e-a: declare Capability schemas then push per-Asset settings -----
+    #
+    # Schemas first (4 calls), then values (4 calls). Both are scenario-local
+    # rather than baked into install_35bm_facility per the design memo
+    # anti-hook "DO NOT extract schemas before rule-of-three" -- the shakedown
+    # scenario uses the same facility helper without authoring schemas.
 
-    await bind_register_asset(deps)(
-        RegisterAsset(name="Argonne", level=AssetLevel.ENTERPRISE, parent_id=None),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    await bind_register_asset(deps)(
-        RegisterAsset(name="APS", level=AssetLevel.SITE, parent_id=_ARGONNE_ENTERPRISE_ID),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    await bind_register_asset(deps)(
-        RegisterAsset(name="35-BM", level=AssetLevel.UNIT, parent_id=_APS_SITE_ID),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-
-    # ----- Seed Equipment BC: 4 Capabilities + 4 Devices + 4 capability links -----
-
-    for cap_name in ("RotaryStage", "LinearStage", "Camera", "Scintillator"):
-        await bind_define_capability(deps)(
-            DefineCapability(name=cap_name),
+    for cap_id, schema in _SCHEMA_SPECS:
+        await bind_update_capability_settings_schema(deps)(
+            UpdateCapabilitySettingsSchema(capability_id=cap_id, settings_schema=schema),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-
-    asset_specs = [
-        ("Aerotech_ABRS_rotary", _ASSET_AEROTECH_ABRS_ID, _CAP_ROTARY_STAGE_ID),
-        ("Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, _CAP_LINEAR_STAGE_ID),
-        ("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, _CAP_CAMERA_ID),
-        ("Scintillator_LuAG", _ASSET_SCINTILLATOR_LUAG_ID, _CAP_SCINTILLATOR_ID),
-    ]
-    for asset_name, asset_id, cap_id in asset_specs:
-        await bind_register_asset(deps)(
-            RegisterAsset(name=asset_name, level=AssetLevel.DEVICE, parent_id=_35BM_UNIT_ID),
-            principal_id=_PRINCIPAL_ID,
-            correlation_id=_CORRELATION_ID,
-        )
-        await bind_add_capability(deps)(
-            AddAssetCapability(asset_id=asset_id, capability_id=cap_id),
+    for asset_id, settings in _SETTINGS_SPECS:
+        await bind_update_asset_settings(deps)(
+            UpdateAssetSettings(asset_id=asset_id, settings_patch=settings),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -694,6 +823,28 @@ async def test_center_alignment_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
     assert any(item.procedure_id == _PROCEDURE_ID for item in page_by_asset.items)
+
+    # ----- Phase 10e-a: assert Capability schemas + Asset settings landed -----
+    #
+    # Schemas + settings are NOT in proj_equipment_capability_summary or
+    # proj_equipment_asset_summary by design (5g-a / 5g-c locks: no list-by-
+    # settings-key consumer yet). Verify via event-stream replay instead.
+
+    for cap_id, expected_schema in _SCHEMA_SPECS:
+        events, version = await deps.event_store.load("Capability", cap_id)
+        assert version == 2, (
+            f"Capability {cap_id} should have 2 events (Defined + SchemaUpdated); got {version}"
+        )
+        event_types = [e.event_type for e in events]
+        assert event_types == ["CapabilityDefined", "CapabilitySettingsSchemaUpdated"]
+        assert events[1].payload["settings_schema"] == expected_schema
+
+    for asset_id, expected_settings in _SETTINGS_SPECS:
+        events, _version = await deps.event_store.load("Asset", asset_id)
+        # Expected sequence: Registered, CapabilityAdded, SettingsUpdated.
+        assert events[-1].event_type == "AssetSettingsUpdated"
+        # 5g-c: event payload carries the FULL post-merge dict.
+        assert events[-1].payload["settings"] == expected_settings
 
 
 # ---------------- Helpers ----------------
