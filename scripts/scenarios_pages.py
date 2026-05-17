@@ -60,14 +60,17 @@ def _github_link(stem: str) -> str:
     return f"{GITHUB_BLOB}{SCENARIOS_TEST_PATH}/{stem}.py"
 
 
-def _table_row(meta: ScenarioMeta) -> str:
+def _cluster_row(meta: ScenarioMeta) -> str:
+    """Cluster-table row: 2 columns, shape as inline code after the link.
+
+    BCs deliberately omitted: cluster pages are dominated by repeated BC
+    info (every Run scenario has Run as primary). BC detail lives on the
+    per-scenario stub and on the by-bc registry.
+    """
     label = _stem_to_label(meta.stem)
-    touches = ", ".join(t for t in meta.bc_touches if t != meta.bc_primary)
     return (
-        f"| [{label}]({_scenario_link(meta.stem)}) | {meta.gist} | "
-        f"`{meta.archetype}` | **{meta.bc_primary}**"
-        + (f" + {touches}" if touches else "")
-        + " |"
+        f"| [{label}]({_scenario_link(meta.stem)}) `{meta.archetype}` "
+        f"| {meta.gist} |"
     )
 
 
@@ -146,10 +149,10 @@ def render_cluster(cluster: str, metas: list[ScenarioMeta]) -> str:
         return "\n".join(lines) + "\n"
     lines.append("## Scenarios")
     lines.append("")
-    lines.append("| Scenario | Gist | Shape | BCs |")
-    lines.append("| --- | --- | --- | --- |")
+    lines.append("| Scenario | Gist |")
+    lines.append("| --- | --- |")
     for meta in members:
-        lines.append(_table_row(meta))
+        lines.append(_cluster_row(meta))
     lines.append("")
     return "\n".join(lines) + "\n"
 
@@ -195,10 +198,9 @@ def render_by_bc(metas: list[ScenarioMeta]) -> str:
             touches_counts[bc] += 1
     lines: list[str] = ["# Scenarios by bounded context", ""]
     lines.append(
-        "All 14 BCs that exist in CORA's codebase, with scenario coverage today. "
-        "BCs with zero `bc_primary` scenarios remain in this table as visible coverage "
-        "gaps (OpenTelemetry registry pattern; see "
-        "[project_scenario_taxonomy](https://github.com/xmap/cora/blob/main/.claude/projects/-Users-dgursoy-Documents-Github-cora/memory/project_scenario_taxonomy.md))."
+        "All 14 BCs in CORA's codebase, with scenario coverage today. "
+        "BCs with zero `bc_primary` scenarios remain visible as coverage "
+        "gaps (OpenTelemetry registry pattern)."
     )
     lines.append("")
     lines.append("| BC | Primary in | Touched in |")
@@ -207,6 +209,11 @@ def render_by_bc(metas: list[ScenarioMeta]) -> str:
         lines.append(f"| {bc} | {primary_counts.get(bc, 0)} | {touches_counts.get(bc, 0)} |")
     lines.append("")
     lines.append("## Per-BC scenarios")
+    lines.append("")
+    lines.append(
+        "*In each table below, **bold** scenario names mean that BC is the "
+        "scenario's primary; plain names mean the BC is touched but not primary.*"
+    )
     lines.append("")
     for bc in sorted(BOUNDED_CONTEXTS):
         members = sorted(
@@ -220,14 +227,17 @@ def render_by_bc(metas: list[ScenarioMeta]) -> str:
             lines.append("_No scenarios touch this BC yet._")
             lines.append("")
             continue
-        lines.append("| Scenario | Role | Cluster | Gist |")
-        lines.append("| --- | --- | --- | --- |")
+        # 3-column table: bold scenario name flags primary-BC role.
+        lines.append("| Scenario | Cluster | Gist |")
+        lines.append("| --- | --- | --- |")
         for meta in members:
-            role = "**primary**" if meta.bc_primary == bc else "touches"
             label = _stem_to_label(meta.stem)
+            link = f"[{label}]({_scenario_link(meta.stem)})"
+            scenario_cell = f"**{link}**" if meta.bc_primary == bc else link
             lines.append(
-                f"| [{label}]({_scenario_link(meta.stem)}) | {role} | "
-                f"[{meta.cluster}]({meta.cluster.lower()}.md) | {meta.gist} |"
+                f"| {scenario_cell} "
+                f"| [{meta.cluster}]({meta.cluster.lower()}.md) "
+                f"| {meta.gist} |"
             )
         lines.append("")
     return "\n".join(lines) + "\n"
