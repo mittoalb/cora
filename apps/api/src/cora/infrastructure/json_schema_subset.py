@@ -14,11 +14,21 @@ the `validate_bounded_text` hoist precedent at 6e-1.
 ## Constrained subset (locked in [[project_capability_settings_schema]])
 
 Top-level + properties-level keys allowed: `$schema`, `type`,
-`required`, `properties`, `enum`, `minimum`, `maximum`, `pattern`.
+`required`, `properties`, `enum`, `minimum`, `maximum`, `pattern`,
+`unit`.
 Forbidden everywhere: `$ref`, `oneOf`, `anyOf`, `allOf`, `not`,
 conditionals (`if`/`then`/`else`/`dependentSchemas`),
 `additionalProperties` / `unevaluatedProperties` / `prefixItems` /
 `$dynamicRef`, anything else.
+
+`unit` is a custom annotation keyword (locked in
+[[project_units_design]]): when present on a numeric property its
+value is a `{system, code, label?}` dict declaring the field's
+measurement unit. The subset checker treats `unit` as opaque — it
+does NOT recurse into the annotation's value. Shape validation
+(namespace allowlist, required keys) is done separately by
+`json_schema_validation.validate_unit_annotations` which runs after
+`check_subset` succeeds.
 
 When widening this set with a new RECURSIVE keyword (for example
 `items` for arrays, `patternProperties` for prefix-keyed maps), you
@@ -43,6 +53,7 @@ ALLOWED_SCHEMA_KEYS: frozenset[str] = frozenset(
         "minimum",
         "maximum",
         "pattern",
+        "unit",
     }
 )
 

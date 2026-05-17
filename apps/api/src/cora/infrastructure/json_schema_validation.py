@@ -47,6 +47,23 @@ import jsonschema_rs
 
 from cora.infrastructure.json_schema_subset import DRAFT_2020_12_URI, check_subset
 
+ALLOWED_UNIT_SYSTEMS: frozenset[str] = frozenset({"udunits", "ucum", "qudt", "iec61360", "ucefact"})
+"""Closed namespace allowlist for the `unit.system` annotation
+(locked in [[project_units_design]]). Each value names a unit
+vocabulary whose codes are interpreted opaque-within-namespace:
+
+  - ``udunits``: beamline-neighborhood default (NeXus, netCDF, EPICS-
+    adjacent). Day-one pilot fixtures use this.
+  - ``ucum``: clinical / cross-domain (HL7 FHIR, openEHR).
+  - ``qudt``: linked-data / semantic-web; codes are IRIs.
+  - ``iec61360``: Industry-4.0 / AAS submodel; codes are IRDIs.
+  - ``ucefact``: UN/CEFACT Common Code; schema.org `QuantitativeValue`.
+
+Widening this set is a deliberate decision driven by a real consumer
+appearing at a seam. Adding a system here does not buy automatic
+conversion across namespaces; that lives in the adapter layer
+(`unit_codec`, created at first-boundary trigger)."""
+
 
 def validate_schema_declaration(
     schema: dict[str, Any],
@@ -56,10 +73,12 @@ def validate_schema_declaration(
     """Validate that `schema` is a well-formed JSON Schema in CORA's
     constrained subset (declarer-side write-time check).
 
-    Three failure modes, all raised as `error_class(reason)`:
+    Four failure modes, all raised as `error_class(reason)`:
       1. Missing or wrong `$schema` declaration
       2. Forbidden keyword used (per `json_schema_subset.check_subset`)
-      3. jsonschema-rs rejects the schema as malformed (e.g. an
+      3. `unit` annotation present but malformed (per
+         `validate_unit_annotations`)
+      4. jsonschema-rs rejects the schema as malformed (e.g. an
          invalid `pattern` regex)
 
     Returns None on success. Caller persists the schema as-is; runtime
@@ -79,11 +98,101 @@ def validate_schema_declaration(
 
     check_subset(schema, path="<root>", error_class=error_class)
 
+    validate_unit_annotations(schema, path="<root>", error_class=error_class)
+
     try:
         jsonschema_rs.Draft202012Validator(schema)
     except (jsonschema_rs.ValidationError, ValueError) as exc:
         msg = f"jsonschema-rs rejected the schema as malformed: {exc}"
         raise error_class(msg) from exc
+
+
+def validate_unit_annotations(
+    schema: Mapping[str, Any],
+    *,
+    path: str,
+    error_class: type[ValueError],
+) -> None:
+    """Recursively validate any `unit` annotation in `schema` has the
+    locked three-field shape (per [[project_units_design]]).
+
+    For every property whose declaration contains a `unit` key, the
+    value must be a dict with:
+
+      - REQUIRED ``system: str`` in `ALLOWED_UNIT_SYSTEMS`
+      - REQUIRED ``code: str`` (non-empty)
+      - OPTIONAL ``label: str``
+      - No other keys
+
+    Called from `validate_schema_declaration` after `check_subset`
+    succeeds, so the underlying keyword whitelist is already known
+    good. Recursion mirrors `check_subset`: walk `properties.<name>`
+    for nested object properties.
+
+    Raises `error_class(reason)` on the first violation. Returns None
+    when no `unit` annotations are present (the common case for
+    non-numeric schemas).
+    """
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        return
+    for prop_name, prop_schema in properties.items():
+        if not isinstance(prop_schema, dict):
+            continue
+        prop_path = f"{path}.properties.{prop_name}"
+        if "unit" in prop_schema:
+            _check_unit_annotation_shape(
+                prop_schema["unit"],
+                path=f"{prop_path}.unit",
+                error_class=error_class,
+            )
+        validate_unit_annotations(prop_schema, path=prop_path, error_class=error_class)
+
+
+_REQUIRED_UNIT_KEYS: frozenset[str] = frozenset({"system", "code"})
+_OPTIONAL_UNIT_KEYS: frozenset[str] = frozenset({"label"})
+
+
+def _check_unit_annotation_shape(
+    annotation: Any,
+    *,
+    path: str,
+    error_class: type[ValueError],
+) -> None:
+    if not isinstance(annotation, dict):
+        msg = f"unit annotation at {path} must be a dict (got: {type(annotation).__name__})"
+        raise error_class(msg)
+    keys = set(annotation.keys())
+    missing = _REQUIRED_UNIT_KEYS - keys
+    if missing:
+        msg = f"unit annotation at {path} missing required keys: {sorted(missing)}"
+        raise error_class(msg)
+    extra = keys - _REQUIRED_UNIT_KEYS - _OPTIONAL_UNIT_KEYS
+    if extra:
+        msg = (
+            f"unit annotation at {path} has unknown keys: {sorted(extra)}; "
+            f"allowed: {sorted(_REQUIRED_UNIT_KEYS | _OPTIONAL_UNIT_KEYS)}"
+        )
+        raise error_class(msg)
+    system = annotation["system"]
+    if not isinstance(system, str):
+        msg = f"unit.system at {path} must be a string (got: {type(system).__name__})"
+        raise error_class(msg)
+    if system not in ALLOWED_UNIT_SYSTEMS:
+        msg = (
+            f"unit.system {system!r} at {path} is not in CORA's allowed "
+            f"namespace list: {sorted(ALLOWED_UNIT_SYSTEMS)}"
+        )
+        raise error_class(msg)
+    code = annotation["code"]
+    if not isinstance(code, str) or not code:
+        msg = f"unit.code at {path} must be a non-empty string"
+        raise error_class(msg)
+    if "label" in annotation:
+        label = annotation["label"]
+        if not isinstance(label, str):
+            msg = f"unit.label at {path} must be a string (got: {type(label).__name__})"
+            raise error_class(msg)
 
 
 def validate_values_against_schema(
@@ -159,6 +268,8 @@ def validate_values_against_schema(
 
 
 __all__ = [
+    "ALLOWED_UNIT_SYSTEMS",
     "validate_schema_declaration",
+    "validate_unit_annotations",
     "validate_values_against_schema",
 ]

@@ -35,7 +35,9 @@ def test_draft_uri_constant_pinned() -> None:
 def test_allowed_keys_pinned() -> None:
     """Anti-feature pin: widening this set is a deliberate decision
     (and every recursive-keyword addition needs a check_subset
-    extension; see the module docstring)."""
+    extension; see the module docstring). `unit` is a non-recursive
+    annotation keyword whose value-shape is enforced separately by
+    `json_schema_validation.validate_unit_annotations`."""
     assert (
         frozenset(
             {
@@ -47,10 +49,32 @@ def test_allowed_keys_pinned() -> None:
                 "minimum",
                 "maximum",
                 "pattern",
+                "unit",
             }
         )
         == ALLOWED_SCHEMA_KEYS
     )
+
+
+@pytest.mark.unit
+def test_check_subset_accepts_unit_annotation_opaque() -> None:
+    """`unit` is in the allowlist; the subset checker treats its
+    value as opaque and does NOT recurse into it. Shape validation
+    of the annotation lives in
+    `json_schema_validation.validate_unit_annotations`. This test
+    pins the no-recurse contract: a `unit` value that looks
+    schema-shaped but contains forbidden keywords must NOT raise here
+    (the checker would only catch it if it recursed wrongly)."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "energy": {
+                "type": "number",
+                "unit": {"oneOf": [{"type": "string"}]},
+            }
+        },
+    }
+    check_subset(schema, path="<root>", error_class=_SubsetError)
 
 
 @pytest.mark.unit
