@@ -27,6 +27,7 @@ from cora.agent._subscribers import register_agent_subscribers
 from cora.agent.llm_factory import build_llm
 from cora.agent.routes import register_agent_routes
 from cora.agent.seed import seed_run_debrief_agent
+from cora.agent.seed_caution_drafter import seed_caution_drafter_agent
 from cora.agent.tools import register_agent_tools
 from cora.agent.wire import AgentHandlers, wire_agent
 
@@ -36,6 +37,7 @@ __all__ = [
     "register_agent_routes",
     "register_agent_subscribers",
     "register_agent_tools",
+    "seed_caution_drafter_agent",
     "seed_run_debrief_agent",
     "wire_agent",
 ]

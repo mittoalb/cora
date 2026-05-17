@@ -55,12 +55,18 @@ from cora.agent.aggregates.agent import (
     InvalidModelRefError,
     InvalidToolNameError,
 )
-from cora.agent.errors import UnauthorizedError
+from cora.agent.errors import (
+    CautionProposalMalformedError,
+    CautionProposalNotActionableError,
+    DecisionNotCautionProposalError,
+    UnauthorizedError,
+)
 from cora.agent.features import (
     define_agent,
     deprecate_agent,
     get_agent,
     grant_tool_to_agent,
+    promote_caution_proposal,
     re_debrief_run,
     resume_agent,
     revise_agent_budget,
@@ -139,6 +145,7 @@ def register_agent_routes(app: FastAPI) -> None:
     app.include_router(revise_agent_budget.router)
     app.include_router(get_agent.router)
     app.include_router(re_debrief_run.router)
+    app.include_router(promote_caution_proposal.router)
     # 400 validation handlers: Invalid<X> family + AgentToolsExceedsLimit
     # cardinality guard + 8f-c iter 1 cross-aggregate guards
     # (AgentNotSeededError + AgentDeactivatedError from this BC;
@@ -168,6 +175,10 @@ def register_agent_routes(app: FastAPI) -> None:
         AgentDeactivatedError,
         ParentDecisionAgentMismatchError,
         ParentDecisionRunMismatchError,
+        # Phase 8f-c iter 3: promote_caution_proposal validation errors.
+        DecisionNotCautionProposalError,
+        CautionProposalNotActionableError,
+        CautionProposalMalformedError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (AgentNotFoundError,):

@@ -27,12 +27,14 @@ from cora.decision.aggregates.decision.events import (
 from cora.decision.aggregates.decision.evolver import evolve, fold
 from cora.decision.aggregates.decision.read import load_decision
 from cora.decision.aggregates.decision.state import (
+    CAUTION_PROPOSAL_CHOICES,
     CONFIDENCE_BAND_CERTAIN_MIN,
     CONFIDENCE_BAND_HIGH_MIN,
     CONFIDENCE_BAND_MEDIUM_MIN,
     DECISION_ALTERNATIVE_ENTRY_MAX_LENGTH,
     DECISION_ALTERNATIVES_MAX_ENTRIES,
     DECISION_CHOICE_MAX_LENGTH,
+    DECISION_CONTEXT_CAUTION_PROPOSAL,
     DECISION_CONTEXT_DATASET_DISCARD,
     DECISION_CONTEXT_MAX_LENGTH,
     DECISION_CONTEXT_POLICY_GRANT,
@@ -51,6 +53,7 @@ from cora.decision.aggregates.decision.state import (
     DECISION_RULE_MAX_LENGTH,
     LOGBOOK_KIND_REASONING,
     RUN_DEBRIEF_CHOICES,
+    CautionProposalChoice,
     ConfidenceBand,
     DeciderActorMissingError,
     Decision,
@@ -89,12 +92,14 @@ from cora.decision.aggregates.decision.state import (
 )
 
 __all__ = [
+    "CAUTION_PROPOSAL_CHOICES",
     "CONFIDENCE_BAND_CERTAIN_MIN",
     "CONFIDENCE_BAND_HIGH_MIN",
     "CONFIDENCE_BAND_MEDIUM_MIN",
     "DECISION_ALTERNATIVES_MAX_ENTRIES",
     "DECISION_ALTERNATIVE_ENTRY_MAX_LENGTH",
     "DECISION_CHOICE_MAX_LENGTH",
+    "DECISION_CONTEXT_CAUTION_PROPOSAL",
     "DECISION_CONTEXT_DATASET_DISCARD",
     "DECISION_CONTEXT_MAX_LENGTH",
     "DECISION_CONTEXT_POLICY_GRANT",
@@ -120,6 +125,7 @@ __all__ = [
     "LOGBOOK_KIND_REASONING",
     "REASONING_LOGBOOK_SCHEMA",
     "RUN_DEBRIEF_CHOICES",
+    "CautionProposalChoice",
     "ConfidenceBand",
     "DeciderActorMissingError",
     "Decision",

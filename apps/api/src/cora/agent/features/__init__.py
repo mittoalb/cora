@@ -24,11 +24,15 @@ Phase 8f-c iter 2 adds:
   - `revise_agent_budget`   (Defined | Versioned | Suspended;
                              PUT-semantics; idempotent no-op)
 
-Also: deprecate's source set widens to include Suspended.
+Phase 8f-c iter 3 adds:
+  - `promote_caution_proposal` (operator-triggered cross-BC
+                                promotion of a CautionDrafter-authored
+                                Decision into a real Caution via
+                                Caution BC's register_caution or
+                                supersede_caution slice;
+                                idempotency-wrapped; Pattern C)
 
-No projection / list_agents slice at 8f-c iter 2 (deferred until
-per-kind active-agent queries surface; see
-[[project_agent_bc_design]] watch items).
+Also: deprecate's source set widens to include Suspended.
 """
 
 from cora.agent.features import (
@@ -36,6 +40,7 @@ from cora.agent.features import (
     deprecate_agent,
     get_agent,
     grant_tool_to_agent,
+    promote_caution_proposal,
     re_debrief_run,
     resume_agent,
     revise_agent_budget,
@@ -49,6 +54,7 @@ __all__ = [
     "deprecate_agent",
     "get_agent",
     "grant_tool_to_agent",
+    "promote_caution_proposal",
     "re_debrief_run",
     "resume_agent",
     "revise_agent_budget",

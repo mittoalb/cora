@@ -38,6 +38,7 @@ from cora.agent.features import (
     deprecate_agent,
     get_agent,
     grant_tool_to_agent,
+    promote_caution_proposal,
     re_debrief_run,
     resume_agent,
     revise_agent_budget,
@@ -66,6 +67,7 @@ class AgentHandlers:
     revise_agent_budget: revise_agent_budget.Handler
     get_agent: get_agent.Handler
     re_debrief_run: re_debrief_run.IdempotentHandler | None
+    promote_caution_proposal: promote_caution_proposal.IdempotentHandler
 
 
 def wire_agent(deps: Kernel) -> AgentHandlers:
@@ -151,4 +153,17 @@ def wire_agent(deps: Kernel) -> AgentHandlers:
             bc=_BC,
         ),
         re_debrief_run=re_debrief_run_handler,
+        promote_caution_proposal=with_tracing(
+            with_idempotency(
+                promote_caution_proposal.bind(deps),
+                deps.idempotency_store,
+                command_name="PromoteCautionProposal",
+                # Handler returns UUID; cache as str (jsonb-friendly).
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="PromoteCautionProposal",
+            bc=_BC,
+        ),
     )

@@ -13,21 +13,32 @@ side); it only owns SIDE-EFFECTING subscribers that emit new events.
 
 ## Conditional registration
 
-If `kernel.llm is None` (`ANTHROPIC_API_KEY` unset), the
-subscriber is NOT registered and a warning is logged. The
-alternative (raising at app startup) would refuse to boot a
-deployment that wants to defer Agent rollout. Deployments that
-WANT to enforce LLM-required can configure that with a startup
-gate; this module's contract is "register if possible, log if
-not". (Note: `make_run_debrief_subscriber` raises `RuntimeError`
-on a None LLM -- that's the contract for callers who bypass this
-registration helper.)
+If `kernel.llm is None` (`ANTHROPIC_API_KEY` unset), no subscribers
+are registered and a warning is logged. The alternative (raising at
+app startup) would refuse to boot a deployment that wants to defer
+Agent rollout.
+
+## Registered subscribers (Phase 8f-c iter 3)
+
+  - `RunDebriefSubscriber` (8f-b iter 2b) — terminal Run -> one
+    advisory Decision with AAR narrative + 6-value choice.
+  - `CautionDrafterSubscriber` (8f-c iter 3) — terminal Run -> one
+    `DecisionRegistered(context="CautionProposal")` with 5-value
+    choice + optional proposed-Caution tuple. Operator-promoted
+    via the `promote_caution_proposal` slice.
+
+Both subscribers run concurrently and INDEPENDENTLY in the
+projection worker. Per [[project-caution-drafter-design]] Q4 lock:
+DO NOT widen the subscriber framework at iter 3. Named widening
+triggers (3rd subscriber / >50ms blocking / first cross-subscriber
+ordering dependency) documented in the design memo.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from cora.agent.subscribers.caution_drafter import make_caution_drafter_subscriber
 from cora.agent.subscribers.run_debrief import make_run_debrief_subscriber
 from cora.infrastructure.logging import get_logger
 
@@ -39,25 +50,29 @@ _log = get_logger(__name__)
 
 
 def register_agent_subscribers(registry: ProjectionRegistry, deps: Kernel) -> None:
-    """Register Agent BC's subscribers into the projection-worker registry.
-
-    Today: one subscriber (`RunDebriefSubscriber`). Future agents at
-    8f-c add their own subscribers here.
-    """
+    """Register Agent BC's subscribers into the projection-worker registry."""
     if deps.llm is None:
         _log.warning(
             "agent_subscriber.skipped",
-            subscriber="run_debrief",
+            subscribers=["run_debrief", "caution_drafter"],
             reason="kernel.llm is None (ANTHROPIC_API_KEY not configured)",
         )
         return
 
-    subscriber = make_run_debrief_subscriber(deps)
-    registry.register(subscriber)
+    run_debrief = make_run_debrief_subscriber(deps)
+    registry.register(run_debrief)
     _log.info(
         "agent_subscriber.registered",
-        subscriber=subscriber.name,
-        subscribed_event_types=sorted(subscriber.subscribed_event_types),
+        subscriber=run_debrief.name,
+        subscribed_event_types=sorted(run_debrief.subscribed_event_types),
+    )
+
+    caution_drafter = make_caution_drafter_subscriber(deps)
+    registry.register(caution_drafter)
+    _log.info(
+        "agent_subscriber.registered",
+        subscriber=caution_drafter.name,
+        subscribed_event_types=sorted(caution_drafter.subscribed_event_types),
     )
 
 

@@ -51,6 +51,7 @@ from cora.agent import (
     register_agent_routes,
     register_agent_subscribers,
     register_agent_tools,
+    seed_caution_drafter_agent,
     seed_run_debrief_agent,
     wire_agent,
 )
@@ -343,6 +344,8 @@ def create_app() -> FastAPI:
             # the subscriber can resolve `actor_id` at apply()-time.
             # Idempotent across restarts; safe to re-run forever.
             await seed_run_debrief_agent(deps)
+            # Phase 8f-c iter 3: same shape for CautionDrafter.
+            await seed_caution_drafter_agent(deps)
 
             try:
                 async with (

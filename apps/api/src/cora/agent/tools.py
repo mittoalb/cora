@@ -15,6 +15,7 @@ from cora.agent.features.define_agent import tool as define_agent_tool
 from cora.agent.features.deprecate_agent import tool as deprecate_agent_tool
 from cora.agent.features.get_agent import tool as get_agent_tool
 from cora.agent.features.grant_tool_to_agent import tool as grant_tool_to_agent_tool
+from cora.agent.features.promote_caution_proposal import tool as promote_caution_proposal_tool
 from cora.agent.features.re_debrief_run import tool as re_debrief_run_tool
 from cora.agent.features.re_debrief_run.handler import IdempotentHandler as ReDebriefRunHandler
 from cora.agent.features.resume_agent import tool as resume_agent_tool
@@ -66,6 +67,11 @@ def register_agent_tools(
     get_agent_tool.register(
         mcp,
         get_handler=lambda: get_handlers().get_agent,
+    )
+    # Phase 8f-c iter 3: operator-triggered cross-BC promotion.
+    promote_caution_proposal_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().promote_caution_proposal,
     )
     # 8f-c iter 1: re_debrief_run handler is Optional in the bundle
     # (None when kernel.llm is unwired). The tool's lambda dereferences

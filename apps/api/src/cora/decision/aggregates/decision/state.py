@@ -196,6 +196,61 @@ RUN_DEBRIEF_CHOICES: Final = frozenset(
 )
 
 
+# Phase 8f-c iter 3: CautionDrafter agent writes one Decision per
+# terminal Run event proposing (or refusing to propose) a Caution.
+# Open-ended convention identical to `DECISION_CONTEXT_RUN_DEBRIEF`;
+# the closed choice vocabulary lives in the `CautionProposalChoice`
+# Literal below. See [[project-caution-drafter-design]] for the full
+# round-1+2 Stage 0 grounding.
+DECISION_CONTEXT_CAUTION_PROPOSAL = "CautionProposal"
+
+
+# Closed `choice` value set for `context = "CautionProposal"` Decisions.
+# Five values:
+#
+#   - `NoAction`         -- Run signals do NOT warrant a Caution.
+#                           Target 65-75% of all proposals (Epic Sepsis
+#                           refuse-aggressively lesson). Audit-only
+#                           outcome: Decision still written for
+#                           telemetry + future-training signal.
+#   - `ProposeNotice`    -- Awareness-only Caution; no required next
+#                           operator step. FDA CDS Criterion 3
+#                           "contextually relevant reference information."
+#                           Tier-quota target <= 80% of non-NoAction.
+#   - `ProposeCaution`   -- Operator should adjust HOW they execute
+#                           the next Plan. FDA "matching reference
+#                           guidelines." Tier-quota target <= 15%.
+#   - `ProposeWarning`   -- Potential harm or expensive loss if
+#                           ignored. Bound by FDA's device line
+#                           (always advisory, never directive).
+#                           Tier-quota target <= 5%.
+#   - `ProposeSupersede` -- Matches an existing Active Caution on
+#                           the same target; propose superseding with
+#                           refined narrative. Counts in the tier
+#                           quota at the severity of the proposed
+#                           superseding Caution.
+#
+# Quota is telemetry-only at iter 3 (per design lock Anti-hook #12;
+# Epic Sepsis lesson: don't enforce a rate you haven't measured
+# baselines for).
+CautionProposalChoice = Literal[
+    "NoAction",
+    "ProposeNotice",
+    "ProposeCaution",
+    "ProposeWarning",
+    "ProposeSupersede",
+]
+CAUTION_PROPOSAL_CHOICES: Final = frozenset(
+    {
+        "NoAction",
+        "ProposeNotice",
+        "ProposeCaution",
+        "ProposeWarning",
+        "ProposeSupersede",
+    }
+)
+
+
 # Phase 8f-b acceptance-signal capture: closed 3-value rating set on
 # the new `DecisionRated` event. `useful` and `misleading` are
 # operator-affirmative; `ignored` is a positive marker ("operator saw
