@@ -100,20 +100,6 @@ from cora.campaign.features.start_campaign import StartCampaign
 from cora.campaign.features.start_campaign import bind as bind_start_campaign
 from cora.data.features.register_dataset import RegisterDataset
 from cora.data.features.register_dataset import bind as bind_register_dataset
-from cora.equipment.features.activate_asset import ActivateAsset
-from cora.equipment.features.activate_asset import bind as bind_activate_asset
-from cora.recipe.features.define_method import DefineMethod
-from cora.recipe.features.define_method import bind as bind_define_method
-from cora.recipe.features.define_plan import DefinePlan
-from cora.recipe.features.define_plan import bind as bind_define_plan
-from cora.recipe.features.define_practice import DefinePractice
-from cora.recipe.features.define_practice import bind as bind_define_practice
-from cora.recipe.features.update_method_parameters_schema import (
-    UpdateMethodParametersSchema,
-)
-from cora.recipe.features.update_method_parameters_schema import (
-    bind as bind_update_method_schema,
-)
 from cora.run.features.complete_run import CompleteRun
 from cora.run.features.complete_run import bind as bind_complete_run
 from cora.run.features.start_run import StartRun
@@ -128,11 +114,14 @@ from tests.integration.scenarios._beamtime_fixture import (
     beamtime_id_prefix,
     open_beamtime,
 )
-from tests.integration.scenarios._facility_fixture import (
-    DeviceSpec,
-    facility_id_prefix,
-    install_aps_unit,
-    operator_for,
+from tests.integration.scenarios._facility_fixture import operator_for
+from tests.integration.scenarios._tomography_fixture import (
+    RecipeSpec,
+    TomographyAssetIds,
+    define_recipe_ladder,
+    install_and_activate_tomography_assets,
+    recipe_ladder_id_prefix,
+    tomography_install_id_prefix,
 )
 
 _NOW = datetime(2026, 5, 17, 10, 0, 0, tzinfo=UTC)
@@ -171,15 +160,19 @@ _PLAN_TOMO_ID = UUID("01900000-0000-7000-8000-000000403d21")
 _RUN_ID = UUID("01900000-0000-7000-8000-000000403f02")
 _DATASET_ID = UUID("01900000-0000-7000-8000-000000403f01")
 
-_DEVICES = (
-    DeviceSpec(
-        "Aerotech_ABRS_rotary", _ASSET_AEROTECH_ABRS_ID, "RotaryStage", _CAP_ROTARY_STAGE_ID
-    ),
-    DeviceSpec("Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID),
-    DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
-    DeviceSpec(
-        "Scintillator_LuAG", _ASSET_SCINTILLATOR_LUAG_ID, "Scintillator", _CAP_SCINTILLATOR_ID
-    ),
+_TOMO_ASSETS = TomographyAssetIds(
+    argonne_id=_ARGONNE_ENTERPRISE_ID,
+    aps_site_id=_APS_SITE_ID,
+    sector_id=_SECTOR_2_AREA_ID,
+    unit_id=_2BM_UNIT_ID,
+    rotary_cap_id=_CAP_ROTARY_STAGE_ID,
+    linear_x_cap_id=_CAP_LINEAR_STAGE_ID,
+    camera_cap_id=_CAP_CAMERA_ID,
+    scintillator_cap_id=_CAP_SCINTILLATOR_ID,
+    rotary_id=_ASSET_AEROTECH_ABRS_ID,
+    linear_x_id=_ASSET_SAMPLE_TOP_X_ID,
+    camera_id=_ASSET_ORYX_5MP_ID,
+    scintillator_id=_ASSET_SCINTILLATOR_LUAG_ID,
 )
 
 _BEAMTIME = BeamtimeSpec(
@@ -193,38 +186,58 @@ _BEAMTIME = BeamtimeSpec(
     campaign_tags=frozenset({"proposal", "tomography", "porous_media"}),
 )
 
+_RECIPE = RecipeSpec(
+    method_id=_METHOD_TOMO_ID,
+    method_name="tomography",
+    needed_capabilities=frozenset(
+        {_CAP_ROTARY_STAGE_ID, _CAP_LINEAR_STAGE_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}
+    ),
+    parameters_schema={
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+            "exposure_ms": {
+                "type": "integer",
+                "minimum": 1,
+                "unit": {"system": "ucum", "code": "ms"},
+            },
+            "n_projections": {"type": "integer", "minimum": 1},
+            "angle_range_deg": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 360,
+                "unit": {"system": "ucum", "code": "deg"},
+            },
+        },
+        "required": ["exposure_ms", "n_projections", "angle_range_deg"],
+    },
+    practice_id=_PRACTICE_TOMO_ID,
+    practice_name="2BM_tomography_practice",
+    site_id=_APS_SITE_ID,
+    plan_id=_PLAN_TOMO_ID,
+    plan_name="2BM_porous_media_tomography_plan",
+    plan_asset_ids=frozenset(
+        {
+            _ASSET_AEROTECH_ABRS_ID,
+            _ASSET_SAMPLE_TOP_X_ID,
+            _ASSET_ORYX_5MP_ID,
+            _ASSET_SCINTILLATOR_LUAG_ID,
+        }
+    ),
+)
+
 
 def _id_queue() -> list[UUID]:
     """Pre-allocated FixedIdGenerator queue (head-first consumption)."""
     e = uuid4
     return [
-        *facility_id_prefix(
-            argonne_id=_ARGONNE_ENTERPRISE_ID,
-            aps_site_id=_APS_SITE_ID,
-            sector_id=_SECTOR_2_AREA_ID,
-            unit_id=_2BM_UNIT_ID,
-            devices=_DEVICES,
-        ),
-        # activate_asset x 4: event_id only
-        e(),
-        e(),
-        e(),
-        e(),
+        *tomography_install_id_prefix(asset_ids=_TOMO_ASSETS),
         # Beamtime intake: actor + subject + campaign (3 pairs = 6 ids)
         *beamtime_id_prefix(spec=_BEAMTIME),
         # mount_subject: event_id only
         e(),
-        # define_method: method_id, event_id
-        _METHOD_TOMO_ID,
-        e(),
-        # update_method_parameters_schema: event_id only
-        e(),
-        # define_practice: practice_id, event_id
-        _PRACTICE_TOMO_ID,
-        e(),
-        # define_plan: plan_id, event_id
-        _PLAN_TOMO_ID,
-        e(),
+        # Recipe ladder: Method + schema + Practice + Plan (7 ids with schema)
+        *recipe_ladder_id_prefix(spec=_RECIPE),
         # start_run: run_id, event_id
         _RUN_ID,
         e(),
@@ -257,32 +270,14 @@ async def test_tomography_scan_plays_out_end_to_end(
     references resolve."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
 
-    # ----- Seed full imaging chain (4 Devices: rotary, linear, camera, scintillator) -----
+    # ----- Seed full imaging chain (4 Devices) + activate all of them -----
 
-    await install_aps_unit(
+    await install_and_activate_tomography_assets(
         deps,
+        principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
-        argonne_id=_ARGONNE_ENTERPRISE_ID,
-        aps_site_id=_APS_SITE_ID,
-        sector_id=_SECTOR_2_AREA_ID,
-        unit_id=_2BM_UNIT_ID,
-        devices=_DEVICES,
-        unit_name="2-BM",
-        sector_name="Sector 2",
+        asset_ids=_TOMO_ASSETS,
     )
-
-    # Activate all 4 Devices (required Active for Plan binding + Subject mount)
-    for asset_id in (
-        _ASSET_AEROTECH_ABRS_ID,
-        _ASSET_SAMPLE_TOP_X_ID,
-        _ASSET_ORYX_5MP_ID,
-        _ASSET_SCINTILLATOR_LUAG_ID,
-    ):
-        await bind_activate_asset(deps)(
-            ActivateAsset(asset_id=asset_id),
-            principal_id=_PRINCIPAL_ID,
-            correlation_id=_CORRELATION_ID,
-        )
 
     # ----- Open beamtime via fixture (PI Actor + Subject + Campaign) -----
 
@@ -305,79 +300,17 @@ async def test_tomography_scan_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
 
-    # ----- Recipe BC: define Method + Practice + Plan for tomography -----
+    # ----- Recipe BC: Method + parameters_schema + Practice + Plan via fixture -----
+    # Declares the tomography Method's parameters_schema (operator-facing
+    # exposure/projection-count/angle-range) so start_run accepts the
+    # override_parameters below, per the STRICT validation posture in
+    # [[project_schema_validated_values_pattern]].
 
-    await bind_define_method(deps)(
-        DefineMethod(
-            name="tomography",
-            needed_capabilities=frozenset(
-                {
-                    _CAP_ROTARY_STAGE_ID,
-                    _CAP_LINEAR_STAGE_ID,
-                    _CAP_CAMERA_ID,
-                    _CAP_SCINTILLATOR_ID,
-                }
-            ),
-        ),
+    await define_recipe_ladder(
+        deps,
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
-    )
-
-    # Declare the tomography Method's parameters_schema: operator-facing
-    # runtime parameters (exposure, projection count, angular sweep). Without
-    # this, start_run rejects override_parameters per the STRICT validation
-    # posture in [[project_schema_validated_values_pattern]].
-    await bind_update_method_schema(deps)(
-        UpdateMethodParametersSchema(
-            method_id=_METHOD_TOMO_ID,
-            parameters_schema={
-                "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "type": "object",
-                "properties": {
-                    "exposure_ms": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "unit": {"system": "ucum", "code": "ms"},
-                    },
-                    "n_projections": {"type": "integer", "minimum": 1},
-                    "angle_range_deg": {
-                        "type": "number",
-                        "minimum": 1,
-                        "maximum": 360,
-                        "unit": {"system": "ucum", "code": "deg"},
-                    },
-                },
-                "required": ["exposure_ms", "n_projections", "angle_range_deg"],
-            },
-        ),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-
-    await bind_define_practice(deps)(
-        DefinePractice(
-            name="2BM_tomography_practice",
-            method_id=_METHOD_TOMO_ID,
-            site_id=_APS_SITE_ID,
-        ),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    await bind_define_plan(deps)(
-        DefinePlan(
-            name="2BM_porous_media_tomography_plan",
-            practice_id=_PRACTICE_TOMO_ID,
-            asset_ids=frozenset(
-                {
-                    _ASSET_AEROTECH_ABRS_ID,
-                    _ASSET_SAMPLE_TOP_X_ID,
-                    _ASSET_ORYX_5MP_ID,
-                    _ASSET_SCINTILLATOR_LUAG_ID,
-                }
-            ),
-        ),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
+        spec=_RECIPE,
     )
 
     # ----- Run BC: start the scan -----

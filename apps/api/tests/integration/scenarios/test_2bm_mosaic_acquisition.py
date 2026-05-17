@@ -101,20 +101,6 @@ from cora.campaign.features.start_campaign import StartCampaign
 from cora.campaign.features.start_campaign import bind as bind_start_campaign
 from cora.data.features.register_dataset import RegisterDataset
 from cora.data.features.register_dataset import bind as bind_register_dataset
-from cora.equipment.features.activate_asset import ActivateAsset
-from cora.equipment.features.activate_asset import bind as bind_activate_asset
-from cora.recipe.features.define_method import DefineMethod
-from cora.recipe.features.define_method import bind as bind_define_method
-from cora.recipe.features.define_plan import DefinePlan
-from cora.recipe.features.define_plan import bind as bind_define_plan
-from cora.recipe.features.define_practice import DefinePractice
-from cora.recipe.features.define_practice import bind as bind_define_practice
-from cora.recipe.features.update_method_parameters_schema import (
-    UpdateMethodParametersSchema,
-)
-from cora.recipe.features.update_method_parameters_schema import (
-    bind as bind_update_method_schema,
-)
 from cora.run.features.complete_run import CompleteRun
 from cora.run.features.complete_run import bind as bind_complete_run
 from cora.run.features.start_run import StartRun
@@ -129,11 +115,14 @@ from tests.integration.scenarios._beamtime_fixture import (
     beamtime_id_prefix,
     open_beamtime,
 )
-from tests.integration.scenarios._facility_fixture import (
-    DeviceSpec,
-    facility_id_prefix,
-    install_aps_unit,
-    operator_for,
+from tests.integration.scenarios._facility_fixture import operator_for
+from tests.integration.scenarios._tomography_fixture import (
+    RecipeSpec,
+    TomographyAssetIds,
+    define_recipe_ladder,
+    install_and_activate_tomography_assets,
+    recipe_ladder_id_prefix,
+    tomography_install_id_prefix,
 )
 
 _NOW = datetime(2026, 5, 17, 20, 0, 0, tzinfo=UTC)
@@ -187,15 +176,19 @@ _TILES: tuple[tuple[int, float, float], ...] = (
     (3, 1.8, 1.8),
 )
 
-_DEVICES = (
-    DeviceSpec(
-        "Aerotech_ABRS_rotary", _ASSET_AEROTECH_ABRS_ID, "RotaryStage", _CAP_ROTARY_STAGE_ID
-    ),
-    DeviceSpec("Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID),
-    DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
-    DeviceSpec(
-        "Scintillator_LuAG", _ASSET_SCINTILLATOR_LUAG_ID, "Scintillator", _CAP_SCINTILLATOR_ID
-    ),
+_TOMO_ASSETS = TomographyAssetIds(
+    argonne_id=_ARGONNE_ENTERPRISE_ID,
+    aps_site_id=_APS_SITE_ID,
+    sector_id=_SECTOR_2_AREA_ID,
+    unit_id=_2BM_UNIT_ID,
+    rotary_cap_id=_CAP_ROTARY_STAGE_ID,
+    linear_x_cap_id=_CAP_LINEAR_STAGE_ID,
+    camera_cap_id=_CAP_CAMERA_ID,
+    scintillator_cap_id=_CAP_SCINTILLATOR_ID,
+    rotary_id=_ASSET_AEROTECH_ABRS_ID,
+    linear_x_id=_ASSET_SAMPLE_TOP_X_ID,
+    camera_id=_ASSET_ORYX_5MP_ID,
+    scintillator_id=_ASSET_SCINTILLATOR_LUAG_ID,
 )
 
 _BEAMTIME = BeamtimeSpec(
@@ -210,29 +203,55 @@ _BEAMTIME = BeamtimeSpec(
 )
 
 
+_RECIPE = RecipeSpec(
+    method_id=_METHOD_TOMO_ID,
+    method_name="mosaic_tomography",
+    needed_capabilities=frozenset(
+        {_CAP_ROTARY_STAGE_ID, _CAP_LINEAR_STAGE_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}
+    ),
+    parameters_schema={
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+            "exposure_ms": {"type": "integer", "minimum": 1},
+            "n_projections": {"type": "integer", "minimum": 1},
+            "angle_range_deg": {"type": "number", "minimum": 1, "maximum": 360},
+            "tile_index": {"type": "integer", "minimum": 0},
+            "tile_x_mm": {"type": "number"},
+            "tile_y_mm": {"type": "number"},
+        },
+        "required": [
+            "exposure_ms",
+            "n_projections",
+            "angle_range_deg",
+            "tile_index",
+            "tile_x_mm",
+            "tile_y_mm",
+        ],
+    },
+    practice_id=_PRACTICE_TOMO_ID,
+    practice_name="2BM_mosaic_practice",
+    site_id=_APS_SITE_ID,
+    plan_id=_PLAN_TOMO_ID,
+    plan_name="2BM_mosaic_plan",
+    plan_asset_ids=frozenset(
+        {
+            _ASSET_AEROTECH_ABRS_ID,
+            _ASSET_SAMPLE_TOP_X_ID,
+            _ASSET_ORYX_5MP_ID,
+            _ASSET_SCINTILLATOR_LUAG_ID,
+        }
+    ),
+)
+
+
 def _id_queue() -> list[UUID]:
     e = uuid4
     ids: list[UUID] = [
-        *facility_id_prefix(
-            argonne_id=_ARGONNE_ENTERPRISE_ID,
-            aps_site_id=_APS_SITE_ID,
-            sector_id=_SECTOR_2_AREA_ID,
-            unit_id=_2BM_UNIT_ID,
-            devices=_DEVICES,
-        ),
-        e(),
-        e(),
-        e(),
-        e(),  # activate_asset x 4
+        *tomography_install_id_prefix(asset_ids=_TOMO_ASSETS),
         *beamtime_id_prefix(spec=_BEAMTIME),
         e(),  # mount_subject
-        _METHOD_TOMO_ID,
-        e(),  # define_method
-        e(),  # update_method_parameters_schema
-        _PRACTICE_TOMO_ID,
-        e(),  # define_practice
-        _PLAN_TOMO_ID,
-        e(),  # define_plan
+        *recipe_ladder_id_prefix(spec=_RECIPE),
         e(),  # start_campaign (Planned -> Active; before tile loop)
     ]
     # Per tile Run: start_run (run_id + event) + add_run_to_campaign (2) +
@@ -265,29 +284,12 @@ async def test_mosaic_acquisition_plays_out_end_to_end(
     carries N member-add events."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
 
-    await install_aps_unit(
+    await install_and_activate_tomography_assets(
         deps,
+        principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
-        argonne_id=_ARGONNE_ENTERPRISE_ID,
-        aps_site_id=_APS_SITE_ID,
-        sector_id=_SECTOR_2_AREA_ID,
-        unit_id=_2BM_UNIT_ID,
-        devices=_DEVICES,
-        unit_name="2-BM",
-        sector_name="Sector 2",
+        asset_ids=_TOMO_ASSETS,
     )
-
-    for asset_id in (
-        _ASSET_AEROTECH_ABRS_ID,
-        _ASSET_SAMPLE_TOP_X_ID,
-        _ASSET_ORYX_5MP_ID,
-        _ASSET_SCINTILLATOR_LUAG_ID,
-    ):
-        await bind_activate_asset(deps)(
-            ActivateAsset(asset_id=asset_id),
-            principal_id=_PRINCIPAL_ID,
-            correlation_id=_CORRELATION_ID,
-        )
 
     await open_beamtime(
         deps,
@@ -306,72 +308,11 @@ async def test_mosaic_acquisition_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
 
-    await bind_define_method(deps)(
-        DefineMethod(
-            name="mosaic_tomography",
-            needed_capabilities=frozenset(
-                {
-                    _CAP_ROTARY_STAGE_ID,
-                    _CAP_LINEAR_STAGE_ID,
-                    _CAP_CAMERA_ID,
-                    _CAP_SCINTILLATOR_ID,
-                }
-            ),
-        ),
+    await define_recipe_ladder(
+        deps,
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
-    )
-    await bind_update_method_schema(deps)(
-        UpdateMethodParametersSchema(
-            method_id=_METHOD_TOMO_ID,
-            parameters_schema={
-                "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "type": "object",
-                "properties": {
-                    "exposure_ms": {"type": "integer", "minimum": 1},
-                    "n_projections": {"type": "integer", "minimum": 1},
-                    "angle_range_deg": {"type": "number", "minimum": 1, "maximum": 360},
-                    "tile_index": {"type": "integer", "minimum": 0},
-                    "tile_x_mm": {"type": "number"},
-                    "tile_y_mm": {"type": "number"},
-                },
-                "required": [
-                    "exposure_ms",
-                    "n_projections",
-                    "angle_range_deg",
-                    "tile_index",
-                    "tile_x_mm",
-                    "tile_y_mm",
-                ],
-            },
-        ),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    await bind_define_practice(deps)(
-        DefinePractice(
-            name="2BM_mosaic_practice",
-            method_id=_METHOD_TOMO_ID,
-            site_id=_APS_SITE_ID,
-        ),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    await bind_define_plan(deps)(
-        DefinePlan(
-            name="2BM_mosaic_plan",
-            practice_id=_PRACTICE_TOMO_ID,
-            asset_ids=frozenset(
-                {
-                    _ASSET_AEROTECH_ABRS_ID,
-                    _ASSET_SAMPLE_TOP_X_ID,
-                    _ASSET_ORYX_5MP_ID,
-                    _ASSET_SCINTILLATOR_LUAG_ID,
-                }
-            ),
-        ),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
+        spec=_RECIPE,
     )
 
     # ----- Campaign BC: Planned -> Active before the tile loop -----
