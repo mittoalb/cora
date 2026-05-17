@@ -5,7 +5,7 @@ micro-CT, as performed by operators today at mechanically-similar 2-BM
 via the `xray-imaging/adjust` CLI. Composes the full Equipment + Recipe
 + Operation BC stack end-to-end for one real beamline routine.
 
-See [[project_scenario_taxonomy]] for the phase / file-naming taxonomy
+See [[project_pilot_docs_design]] for the phase / file-naming taxonomy
 this scenario fits into.
 
 ## Why this test exists
@@ -51,7 +51,7 @@ not directly manipulated during the center routine.
 
 ## What this test surfaces (gap-finding intent)
 
-See `docs/deployments/35-bm/procedures.md` (the operator-facing
+See `docs/deployments/2-bm/procedures.md` (the operator-facing
 companion) for the gaps documented in domain terms. The most consequential surfaces are:
 
   - **Iteration loop has no first-class shape**: alignment IS iterative

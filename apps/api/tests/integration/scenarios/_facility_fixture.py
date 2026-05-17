@@ -1,7 +1,7 @@
 """Shared facility-hierarchy install helper for 2-BM-shape scenario tests.
 
 Extracted when the 3rd scenario re-registered Argonne + APS + 2-BM Unit
-by hand (per [[project_scenario_taxonomy]] watch item). The install scenario
+by hand (per [[project_pilot_docs_design]] watch item). The install scenario
 (`test_aps_facility_*`) is NOT a caller: it IS the source-of-truth
 install ceremony being tested, with its own facility-level extras (Agent,
 Practice, Clearance, Supply, Caution).

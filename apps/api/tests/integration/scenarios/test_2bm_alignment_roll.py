@@ -8,13 +8,13 @@ horizontal line at the same Y across all rotation angles. Comes
 fourth in the five-routine chain (`resolution -> focus -> center ->
 roll -> pitch`).
 
-See [[project_scenario_taxonomy]] for the phase / file-naming
+See [[project_pilot_docs_design]] for the phase / file-naming
 taxonomy this scenario fits into.
 
 ## Why this scenario exists
 
 To ground the `roll_alignment` Procedure inventory row on
-`docs/deployments/35-bm/procedures.md`, and to register a new Asset
+`docs/deployments/2-bm/procedures.md`, and to register a new Asset
 (`Sample_top_Roll`) that no prior scenario has touched. Per
 [[project_pilot_docs_design]] no doc page may name an aggregate until
 a scenario test registers it; this file unlocks the roll-tilt motor

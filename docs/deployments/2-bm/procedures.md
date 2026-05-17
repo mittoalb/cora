@@ -110,7 +110,7 @@ Bound aggregates:
 - **Method**: [`first_light`](../../catalog/methods.md) (Recipe BC, beamline-agnostic; declares `Shutter` + `Camera` + `Scintillator`)
 - **Practice**: [`2BM_first_light_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
 - **Plan**: `2BM_first_light_plan` (Recipe BC, instance-level)
-- **Target Assets**: `Shutter_35BM`, `Oryx_5MP_camera`, `Scintillator_LuAG`
+- **Target Assets**: `Shutter_2BM`, `Oryx_5MP_camera`, `Scintillator_LuAG`
 
 Operation stream (4 events per Procedure execution): `ProcedureRegistered → ProcedureStarted → ProcedureStepsLogbookOpened → ProcedureCompleted`.
 
@@ -158,7 +158,7 @@ Bound aggregates:
 - **Method**: [`detector_dark_baseline`](../../catalog/methods.md) (Recipe BC, beamline-agnostic; declares `Shutter` + `Camera` + `Scintillator`)
 - **Practice**: [`2BM_dark_baseline_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
 - **Plan**: `2BM_dark_baseline_plan`
-- **Target Assets**: `Shutter_35BM`, `Oryx_5MP_camera`, `Scintillator_LuAG`
+- **Target Assets**: `Shutter_2BM`, `Oryx_5MP_camera`, `Scintillator_LuAG`
 - **Out-of-Procedure artifact**: one `DatasetRegistered` event with `producing_run_id=None`, `subject_id=None`, `media_type="application/x-hdf5"`, `conforms_to={"https://www.nexusformat.org/NXdark_field"}`.
 
 Operation stream (4 events). Per-step entries: `Setpoint` (verify shutter closed), `Action` (acquire stack), `Check` (stack quality), `Action` (compute baseline), `Check` (baseline quality). Five entries total.
@@ -200,7 +200,7 @@ Bound aggregates:
 - **Method**: [`detector_flat_baseline`](../../catalog/methods.md)
 - **Practice**: [`2BM_flat_baseline_practice`](../aps/practices.md)
 - **Plan**: `2BM_flat_baseline_plan`
-- **Target Assets**: `Shutter_35BM`, `Oryx_5MP_camera`, `Scintillator_LuAG`
+- **Target Assets**: `Shutter_2BM`, `Oryx_5MP_camera`, `Scintillator_LuAG`
 - **Out-of-Procedure artifact**: one `DatasetRegistered` event, same shape as dark with `NXflat_field` profile.
 
 Operation stream (4 events). Per-step entries (8 total): `Check` (sample-out assertion), `Setpoint` (verify shutter closed), `Setpoint` (open shutter), `Action` (acquire stack), `Check` (stack quality), `Setpoint` (close shutter), `Action` (compute baseline), `Check` (baseline quality).

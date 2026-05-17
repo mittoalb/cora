@@ -9,13 +9,13 @@ moves the sphere closer to / further from the scintillator across
 the rotation, modulating focus. Comes fifth and last in the chain
 (`resolution -> focus -> center -> roll -> pitch`).
 
-See [[project_scenario_taxonomy]] for the phase / file-naming
+See [[project_pilot_docs_design]] for the phase / file-naming
 taxonomy this scenario fits into.
 
 ## Why this scenario exists
 
 To ground the `pitch_alignment` Procedure inventory row on
-`docs/deployments/35-bm/procedures.md`, register a new Asset
+`docs/deployments/2-bm/procedures.md`, register a new Asset
 (`Sample_top_Pitch`), and complete the five-routine alignment chain
 in code. After this scenario, the chain's full inventory is
 exercised end-to-end.

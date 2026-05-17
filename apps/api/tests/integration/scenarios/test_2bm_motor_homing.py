@@ -6,7 +6,7 @@ homed without beam. One motor (Aerotech) misses its index pulse on
 the first attempt, gets re-homed successfully, and earns a Caution
 for the operator playbook.
 
-See [[project_scenario_taxonomy]] for the phase / file-naming
+See [[project_pilot_docs_design]] for the phase / file-naming
 taxonomy this scenario fits into.
 
 ## Why this scenario exists

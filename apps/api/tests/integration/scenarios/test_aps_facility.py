@@ -5,7 +5,7 @@ Scenario test for the facility-install rhythm: register the Enterprise
 hang at those levels (Actor, Agent, Practice with site_id=APS,
 Clearance, Supply, Caution). Pre-beam; no beamline-level state.
 
-See [[project_scenario_taxonomy]] for the phase / file-naming taxonomy
+See [[project_pilot_docs_design]] for the phase / file-naming taxonomy
 this scenario fits into.
 
 ## Coverage

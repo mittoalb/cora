@@ -1,7 +1,7 @@
 """Unit-tier coverage for the 4 pilot Capability schemas + device values.
 
 Phase 10e-a sibling tests. The integration scenario at
-`tests/integration/scenarios/test_35bm_alignment_center.py`
+`tests/integration/scenarios/test_2bm_alignment_center.py`
 exercises these schemas + values end-to-end. These unit tests pin
 the schema-by-schema validator behavior at a faster tier:
 

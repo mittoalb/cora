@@ -7,7 +7,7 @@ reconstruction to subtract. Runs after `first_light` but before any
 science Run; produces the baseline that every subsequent Run consumes
 to remove detector dark current.
 
-See [[project_scenario_taxonomy]] for the phase / file-naming
+See [[project_pilot_docs_design]] for the phase / file-naming
 taxonomy this scenario fits into.
 
 ## Why this scenario exists
@@ -44,7 +44,7 @@ above ~5x the median std flag pixels to mask in reconstruction.
 
 ## Asset stack (shutter + image chain)
 
-Same as `first_light`: Shutter_35BM, Oryx_5MP_camera, Scintillator_LuAG.
+Same as `first_light`: Shutter_2BM, Oryx_5MP_camera, Scintillator_LuAG.
 Dark baseline does not move any motors.
 
 ## What this scenario surfaces (gap-finding intent)
@@ -142,7 +142,7 @@ _DATASET_DARK_BASELINE_ID = UUID("01900000-0000-7000-8000-00000035af21")
 
 
 _DEVICES = (
-    DeviceSpec("Shutter_35BM", _ASSET_SHUTTER_2BM_ID, "Shutter", _CAP_SHUTTER_ID),
+    DeviceSpec("Shutter_2BM", _ASSET_SHUTTER_2BM_ID, "Shutter", _CAP_SHUTTER_ID),
     DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
     DeviceSpec(
         "Scintillator_LuAG", _ASSET_SCINTILLATOR_LUAG_ID, "Scintillator", _CAP_SCINTILLATOR_ID
@@ -194,7 +194,7 @@ def _shutter(
     *, state: str, role: str, sampled_at: datetime, note: str | None = None
 ) -> ProcedureStepInput:
     payload: dict[str, Any] = {
-        "channel": "Shutter_35BM",
+        "channel": "Shutter_2BM",
         "target_value": state,
         "units": "state",
         "role": role,

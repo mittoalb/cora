@@ -8,13 +8,13 @@ for the mounted sample. Comes second in the five-routine chain
 must converge first so the microscope optics are at peak sharpness
 before adjusting the sample-Z axis.
 
-See [[project_scenario_taxonomy]] for the phase / file-naming
+See [[project_pilot_docs_design]] for the phase / file-naming
 taxonomy this scenario fits into.
 
 ## Why this scenario exists
 
 To ground the `focus_alignment` Procedure inventory row on
-`docs/deployments/35-bm/procedures.md`, and to register a new Asset
+`docs/deployments/2-bm/procedures.md`, and to register a new Asset
 (`Sample_top_Z`) that no prior scenario has touched. Per
 [[project_pilot_docs_design]] no doc page may name an aggregate until
 a scenario test registers it; this file unlocks the Z-axis sample

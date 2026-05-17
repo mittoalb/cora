@@ -10,7 +10,7 @@
 | `Sample_top_Roll` | `LinearStage` | Roll-tilt motor under the rotation stage; small-angle (milliradian) corrections to keep the rotation axis perpendicular to the camera Y axis |
 | `Sample_top_Pitch` | `LinearStage` | Pitch-tilt motor under the rotation stage; orthogonal to Sample_top_Roll; corrects out-of-plane axis tilt (toward/away from camera) |
 | `Optique_Peter_focus_Z` | `LinearStage` | Focus motor inside the Optique Peter microscope; sub-micron resolution lens-to-scintillator distance |
-| `Shutter_35BM` | `Shutter` | Safety shutter at the 2-BM front-end; opens to admit beam, closes for safe state |
+| `Shutter_2BM` | `Shutter` | Safety shutter at the 2-BM front-end; opens to admit beam, closes for safe state |
 | `Oryx_5MP_camera` | `Camera` | Alignment-frame detector (FLIR ORX-10G-51S5M-C, 2448 × 2048, 3.45 µm) |
 | `Scintillator_LuAG` | `Scintillator` | LuAG scintillator; converts X-rays to visible light for the camera |
 
@@ -20,7 +20,7 @@ Source of truth: [`test_2bm_alignment_center.py`](../../../apps/api/tests/integr
 
 Asset facets exercised in code today:
 
-| Facet | Aerotech | Sample_top_X | Sample_top_Z | Sample_top_Roll | Sample_top_Pitch | Optique_Peter_focus_Z | Shutter_35BM | Oryx_5MP_camera | Scintillator_LuAG |
+| Facet | Aerotech | Sample_top_X | Sample_top_Z | Sample_top_Roll | Sample_top_Pitch | Optique_Peter_focus_Z | Shutter_2BM | Oryx_5MP_camera | Scintillator_LuAG |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Lifecycle: `Commissioned → Active` | yes | yes | yes (focus) | yes (roll) | yes (pitch) | yes (resolution) | yes (first_light) | yes (resolution, focus, roll, pitch, first_light) | yes (resolution, focus, roll, pitch, first_light) |
 | Condition: `Nominal → Degraded → Nominal` | yes (cold-start home failure → retry) | no | no | no | no | no | no | no | no |

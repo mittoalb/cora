@@ -7,7 +7,7 @@ frame (shutter closed) to verify the imaging chain is electronically
 quiet, opens the shutter, acquires the first-light frame, confirms
 above-threshold mean signal, then closes the shutter for safe state.
 
-See [[project_scenario_taxonomy]] for the phase / file-naming
+See [[project_pilot_docs_design]] for the phase / file-naming
 taxonomy this scenario fits into.
 
 ## Why this scenario exists
@@ -19,7 +19,7 @@ unlocks four firsts in CORA's 2-BM doc tree:
   1. Phase `commissioning` is exercised for the first time (no prior
      scenario hangs there).
   2. New Capability `Shutter` joins the cross-facility catalog.
-  3. New Device `Shutter_35BM` joins the 2-BM Asset inventory.
+  3. New Device `Shutter_2BM` joins the 2-BM Asset inventory.
   4. New Procedure kind `first_light` joins the 2-BM Procedure list.
 
 Per [[project_pilot_docs_design]] no doc page may name an aggregate
@@ -58,7 +58,7 @@ each of those is its own scenario in this taxonomy.
 
 ## Asset stack (shutter + image chain)
 
-  - Shutter_35BM (the safety shutter; opens to admit beam, closes
+  - Shutter_2BM (the safety shutter; opens to admit beam, closes
     for safe state)
   - FLIR Oryx 5MP camera
   - LuAG scintillator
@@ -156,7 +156,7 @@ _STEPS_OPEN_EVENT_ID = UUID("01900000-0000-7000-8000-000000359f12")
 
 
 _DEVICES = (
-    DeviceSpec("Shutter_35BM", _ASSET_SHUTTER_2BM_ID, "Shutter", _CAP_SHUTTER_ID),
+    DeviceSpec("Shutter_2BM", _ASSET_SHUTTER_2BM_ID, "Shutter", _CAP_SHUTTER_ID),
     DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
     DeviceSpec(
         "Scintillator_LuAG", _ASSET_SCINTILLATOR_LUAG_ID, "Scintillator", _CAP_SCINTILLATOR_ID
@@ -210,7 +210,7 @@ def _shutter(
 ) -> ProcedureStepInput:
     """Build a Shutter Setpoint step input. `state` is `closed` or `open`."""
     payload: dict[str, Any] = {
-        "channel": "Shutter_35BM",
+        "channel": "Shutter_2BM",
         "target_value": state,
         "units": "state",
         "role": role,
