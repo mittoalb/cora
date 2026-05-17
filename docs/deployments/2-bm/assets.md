@@ -20,18 +20,21 @@
 
 ### `Shutter_2BM`
 
-Capability
-: `Shutter`
+| | |
+| --- | --- |
+| Capability | `Shutter` |
 
 ## Rotary stages
 
 ### `Aerotech_ABRS_rotary`
 
-Capability
-: `RotaryStage` (Aerotech ABRS)
+| | |
+| --- | --- |
+| Capability | `RotaryStage` (Aerotech ABRS) |
 
-Cautions
-: [Aerotech cold-start index miss](cautions.md#aerotech-cold-start-index-miss)
+Cautions:
+
+- [Aerotech cold-start index miss](cautions.md#aerotech-cold-start-index-miss)
 
 | Property | Value |
 | --- | --- |
@@ -45,11 +48,10 @@ Cautions
 
 ### `Sample_top_X`
 
-Capability
-: `LinearStage` (Kohzu CYAT-070)
-
-Role
-: Lateral correction for rotation-axis alignment.
+| | |
+| --- | --- |
+| Capability | `LinearStage` (Kohzu CYAT-070) |
+| Role | Lateral correction for rotation-axis alignment. |
 
 | Property | Value |
 | --- | --- |
@@ -60,52 +62,51 @@ Role
 
 ### `Sample_top_Z`
 
-Capability
-: `LinearStage`
-
-Role
-: Sample-to-scintillator distance.
+| | |
+| --- | --- |
+| Capability | `LinearStage` |
+| Role | Sample-to-scintillator distance. |
 
 ### `Sample_top_Roll`
 
-Capability
-: `LinearStage`
-
-Role
-: Roll tilt for rotation-axis alignment.
+| | |
+| --- | --- |
+| Capability | `LinearStage` |
+| Role | Roll tilt for rotation-axis alignment. |
 
 ### `Sample_top_Pitch`
 
-Capability
-: `LinearStage`
-
-Role
-: Pitch tilt for rotation-axis alignment.
+| | |
+| --- | --- |
+| Capability | `LinearStage` |
+| Role | Pitch tilt for rotation-axis alignment. |
 
 ### `Optique_Peter_focus_Z`
 
-Capability
-: `LinearStage` (Optique Peter microscope)
-
-Role
-: Lens-to-scintillator focus inside the microscope.
+| | |
+| --- | --- |
+| Capability | `LinearStage` (Optique Peter microscope) |
+| Role | Lens-to-scintillator focus inside the microscope. |
 
 ## Hexapods
 
 ### `Hexapod_2BM`
 
-Capability
-: `Hexapod` (PI)
+| | |
+| --- | --- |
+| Capability | `Hexapod` (PI) |
 
-Cautions
-: [Hexapod controller lockup](cautions.md#hexapod-controller-lockup)
+Cautions:
+
+- [Hexapod controller lockup](cautions.md#hexapod-controller-lockup)
 
 ## Scintillators
 
 ### `Scintillator_LuAG`
 
-Capability
-: `Scintillator` (LuAG:Ce)
+| | |
+| --- | --- |
+| Capability | `Scintillator` (LuAG:Ce) |
 
 | Property | Value |
 | --- | --- |
@@ -116,8 +117,9 @@ Capability
 
 ### `Oryx_5MP_camera`
 
-Capability
-: `Camera` (FLIR ORX-10G-51S5M-C)
+| | |
+| --- | --- |
+| Capability | `Camera` (FLIR ORX-10G-51S5M-C) |
 
 | Property | Value |
 | --- | --- |
