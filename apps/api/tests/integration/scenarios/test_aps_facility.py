@@ -11,6 +11,10 @@ this scenario fits into.
 ## Coverage
 
   - **Equipment BC**: Argonne (Enterprise) + APS (Site, parent=Argonne)
+    + Sector 2 (Area, parent=APS). APS organizes beamlines into
+    sectors; Sector 2 hosts the operational 2-BM beamline. Sector 35
+    (the planned 35-BM pilot) is intentionally absent until its Unit
+    lands.
   - **Access BC**: one Actor (kind=human) for use as principal
   - **Agent BC**: one Agent (RunDebrief), cross-BC-co-registers a
     second Actor with kind=agent
@@ -75,10 +79,11 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-000000a050bb")
 
 # Pre-allocated aggregate ids. Order matters in _id_queue (FixedIdGenerator
 # consumes head-first). Mnemonic hex tags in the last segment: e=enterprise,
-# 5=site, a=actor, c=capability, d=recipe (method/practice), 8=clearance,
-# 9=supply, f=caution.
+# 5=site, 7=area (sector), a=actor, c=capability, d=recipe (method/practice),
+# 8=clearance, 9=supply, f=caution.
 _ARGONNE_ENTERPRISE_ID = UUID("01900000-0000-7000-8000-000000a00e01")
 _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000a00501")
+_SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000a00701")
 _ACTOR_OPERATOR_ID = UUID("01900000-0000-7000-8000-000000a00a01")
 _CAP_PROBE_GENERIC_ID = UUID("01900000-0000-7000-8000-000000a00c01")
 _METHOD_FLAT_FIELD_ID = UUID("01900000-0000-7000-8000-000000a00d01")
@@ -102,6 +107,9 @@ def _id_queue() -> list[UUID]:
         e(),
         # register_asset APS (Site, parent=Argonne): asset_id, event_id
         _APS_SITE_ID,
+        e(),
+        # register_asset Sector 2 (Area, parent=APS): asset_id, event_id
+        _SECTOR_2_AREA_ID,
         e(),
         # register_actor (operator, human): actor_id, event_id
         _ACTOR_OPERATOR_ID,
@@ -151,6 +159,11 @@ async def test_facility_install_plays_out_end_to_end(
     )
     await bind_register_asset(deps)(
         RegisterAsset(name="APS", level=AssetLevel.SITE, parent_id=_ARGONNE_ENTERPRISE_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_register_asset(deps)(
+        RegisterAsset(name="Sector 2", level=AssetLevel.AREA, parent_id=_APS_SITE_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -262,6 +275,13 @@ async def test_facility_install_plays_out_end_to_end(
     aps_events, aps_version = await deps.event_store.load("Asset", _APS_SITE_ID)
     assert aps_version == 1
     assert [e.event_type for e in aps_events] == ["AssetRegistered"]
+
+    sector2_events, sector2_version = await deps.event_store.load("Asset", _SECTOR_2_AREA_ID)
+    assert sector2_version == 1
+    assert [e.event_type for e in sector2_events] == ["AssetRegistered"]
+    sector2_payload = sector2_events[0].payload
+    assert sector2_payload["level"] == AssetLevel.AREA.value
+    assert UUID(sector2_payload["parent_id"]) == _APS_SITE_ID
 
     operator = await load_actor(deps.event_store, _ACTOR_OPERATOR_ID)
     assert operator is not None

@@ -36,6 +36,7 @@ def _id_queue() -> list[UUID]:
             principal_id=_PRINCIPAL_ID,
             argonne_id=_ARGONNE_ID,
             aps_site_id=_APS_ID,
+            sector_id=_SECTOR_ID,
             unit_id=_UNIT_ID,
             devices=_DEVICES,
         ),
@@ -50,6 +51,7 @@ async def test_...(db_pool):
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ID,
         aps_site_id=_APS_ID,
+        sector_id=_SECTOR_ID,
         unit_id=_UNIT_ID,
         devices=_DEVICES,
         operator_name="2-BM Shakedown Operator",
@@ -94,6 +96,7 @@ class FacilityIds:
     principal_id: UUID
     argonne_id: UUID
     aps_site_id: UUID
+    sector_id: UUID
     unit_id: UUID
     device_ids: tuple[UUID, ...]
     cap_ids: tuple[UUID, ...]
@@ -104,6 +107,7 @@ def facility_id_prefix(
     principal_id: UUID,
     argonne_id: UUID,
     aps_site_id: UUID,
+    sector_id: UUID,
     unit_id: UUID,
     devices: Sequence[DeviceSpec],
 ) -> list[UUID]:
@@ -111,13 +115,14 @@ def facility_id_prefix(
 
     Ordering mirrors the ceremony exactly:
       1. register_actor: principal_id, event
-      2. register_asset Argonne: argonne_id, event
-      3. register_asset APS: aps_site_id, event
-      4. register_asset Unit: unit_id, event
-      5. define_capability x N (in `devices` order): cap_id, event
-      6. register_asset + add_asset_capability x N: asset_id, register_event, addcap_event
+      2. register_asset Argonne (Enterprise): argonne_id, event
+      3. register_asset APS (Site): aps_site_id, event
+      4. register_asset Sector (Area, parent=APS): sector_id, event
+      5. register_asset Unit (parent=Sector): unit_id, event
+      6. define_capability x N (in `devices` order): cap_id, event
+      7. register_asset + add_asset_capability x N: asset_id, register_event, addcap_event
 
-    Anonymous event ids use `uuid4()`. Total length = 8 + 5 * N device entries.
+    Anonymous event ids use `uuid4()`. Total length = 10 + 5 * N device entries.
     """
     e = uuid4
     ids: list[UUID] = [
@@ -126,6 +131,8 @@ def facility_id_prefix(
         argonne_id,
         e(),
         aps_site_id,
+        e(),
+        sector_id,
         e(),
         unit_id,
         e(),
@@ -144,19 +151,26 @@ async def install_aps_unit(
     correlation_id: UUID,
     argonne_id: UUID,
     aps_site_id: UUID,
+    sector_id: UUID,
     unit_id: UUID,
     devices: Sequence[DeviceSpec],
     operator_name: str = "2-BM Operator",
     unit_name: str = "2-BM",
+    sector_name: str = "Sector 2",
 ) -> FacilityIds:
     """Execute the canonical facility-install ceremony for a 2-BM-shape Unit.
 
     Order matches `facility_id_prefix()` exactly: actor, then
-    Argonne -> APS -> Unit, then all Capabilities defined, then all
-    Devices registered + their Capabilities linked.
+    Argonne -> APS -> Sector -> Unit, then all Capabilities defined,
+    then all Devices registered + their Capabilities linked.
 
-    `unit_name` defaults to "2-BM" but parameterizes for future
-    beamline scenarios (2-BM, 7-BM, etc.).
+    APS organizes beamlines into sectors; the Sector sits at the
+    `Area` level between `APS` (Site) and the beamline (Unit). The
+    Unit's parent is the Sector, not APS directly.
+
+    `unit_name` defaults to "2-BM" and `sector_name` to "Sector 2";
+    both parameterize for future beamline scenarios (35-BM under
+    Sector 35, 7-BM under Sector 7, etc.).
     """
     await bind_register_actor(deps)(
         RegisterActor(name=operator_name),
@@ -174,7 +188,12 @@ async def install_aps_unit(
         correlation_id=correlation_id,
     )
     await bind_register_asset(deps)(
-        RegisterAsset(name=unit_name, level=AssetLevel.UNIT, parent_id=aps_site_id),
+        RegisterAsset(name=sector_name, level=AssetLevel.AREA, parent_id=aps_site_id),
+        principal_id=principal_id,
+        correlation_id=correlation_id,
+    )
+    await bind_register_asset(deps)(
+        RegisterAsset(name=unit_name, level=AssetLevel.UNIT, parent_id=sector_id),
         principal_id=principal_id,
         correlation_id=correlation_id,
     )
@@ -199,6 +218,7 @@ async def install_aps_unit(
         principal_id=principal_id,
         argonne_id=argonne_id,
         aps_site_id=aps_site_id,
+        sector_id=sector_id,
         unit_id=unit_id,
         device_ids=tuple(d.asset_id for d in devices),
         cap_ids=tuple(d.cap_id for d in devices),

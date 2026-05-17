@@ -4,13 +4,15 @@
 
 | Property | Value |
 | --- | --- |
-| Level | Enterprise |
-| Status | In design |
+| Asset | `Argonne` (Enterprise, root) |
+| Status | Operational |
 | Sites under this Enterprise | [APS](../aps/index.md) |
 
 ## Inventories
 
-- [Assets](assets.md): Enterprise-level Asset (the Argonne node at the top of the hierarchy)
+What's registered under Argonne today:
+
+- [Assets](assets.md): sibling Sites under the Argonne Enterprise (APS is the only one registered; ATLAS / CNM / ALCF are not modelled until a pilot demands them)
 - [Actors](actors.md): human Actors registered at Argonne
 - [Agents](agents.md): AI Agents registered at Argonne
 

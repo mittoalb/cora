@@ -1,13 +1,14 @@
 # Assets
 
-*Equipment BC Assets registered at the APS Site level (and Area levels below it). See [Model](../../architecture/model.md) for the aggregate shape.*
+*Equipment BC Assets registered **under** the APS Site (the Sectors at the Area level). The APS Asset itself sits at the Site level and is declared on the [APS index](index.md). See [Model](../../architecture/model.md) for the aggregate shape.*
 
-| Asset | Level | Parent |
-| --- | --- | --- |
-| `APS` | `Site` | `Argonne` (Enterprise) |
+| Asset | Level | Parent | Hosts |
+| --- | --- | --- | --- |
+| `Sector 2` | `Area` | `APS` (Site) | [2-BM](../2-bm/index.md) Unit |
 
 Source of truth: [`apps/api/tests/integration/scenarios/test_aps_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_facility.py).
 
 ## Pending in code
 
-Area-level Assets under APS (the experimental halls, sectors, beamline-cluster groupings) and shared facility equipment (storage ring, beam transport, front-end optics) are not yet registered. Each lands as a row above when a scenario test or seed script instantiates it.
+- `Sector 35` — lands when the [35-BM](../35-bm/index.md) Unit is registered.
+- Other Sectors and shared facility equipment (storage ring, beam transport, front-end optics) are not modelled until a pilot demands them per [Pilots earn the abstractions](../index.md).

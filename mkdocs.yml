@@ -87,6 +87,7 @@ nav:
       - Campaigns: deployments/2-bm/campaigns.md
       - Cautions: deployments/2-bm/cautions.md
       - Datasets: deployments/2-bm/datasets.md
+      - Decisions: deployments/2-bm/decisions.md
     - 35-BM:
       - deployments/35-bm/index.md
   - Catalog:

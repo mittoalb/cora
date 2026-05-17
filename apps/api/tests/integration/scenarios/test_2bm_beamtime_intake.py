@@ -97,6 +97,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000401bb")
 # Facility hierarchy. Scenario tag: 401 (operations / beamtime intake).
 _ARGONNE_ENTERPRISE_ID = UUID("01900000-0000-7000-8000-000000401e01")
 _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000401501")
+_SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000401701")
 _2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000401a01")
 
 # Operations-phase aggregates registered by intake
@@ -118,6 +119,7 @@ def _id_queue() -> list[UUID]:
             principal_id=_PRINCIPAL_ID,
             argonne_id=_ARGONNE_ENTERPRISE_ID,
             aps_site_id=_APS_SITE_ID,
+            sector_id=_SECTOR_2_AREA_ID,
             unit_id=_2BM_UNIT_ID,
             devices=(),
         ),
@@ -154,6 +156,7 @@ async def test_beamtime_intake_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ENTERPRISE_ID,
         aps_site_id=_APS_SITE_ID,
+        sector_id=_SECTOR_2_AREA_ID,
         unit_id=_2BM_UNIT_ID,
         devices=(),
         operator_name="2-BM Operations Operator",

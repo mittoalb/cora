@@ -6,8 +6,12 @@
 | --- | --- | --- | --- | --- |
 | `2BM_dark_baseline_2026-04-17` | `Trial` | none (calibration) | none (no sample) | `https://www.nexusformat.org/NXdark_field` |
 | `2BM_flat_baseline_2026-04-17` | `Trial` | none (calibration) | none (no sample) | `https://www.nexusformat.org/NXflat_field` |
+| `Proposal_2026-1234_sample_A_tomo` | `Production` (promoted from `Trial` after operator review) | `Proposal 2026-1234 sample A tomography` Run | `porous sandstone core (Proposal 2026-1234, sample A)` | `https://www.nexusformat.org/NXtomo` |
+| `Proposal_2026-1234_sample_A_rotation_{01..03}` | `Trial` (N=3) | three back-to-back rotation Runs under a Series Campaign | `porous sandstone core (Proposal 2026-1234, sample A, continuous rotation)` | `https://www.nexusformat.org/NXtomo` |
+| `Proposal_2026-1236_mosaic_tile_{00..03}` | `Trial` (N=4 tiles) | four tile Runs under a Coordinated Campaign | `wide sandstone slab (Proposal 2026-1236, mosaic acquisition)` | `https://www.nexusformat.org/NXtomo` |
+| `Proposal_2026-1237_low_energy_25keV` / `..._high_energy_30keV` | `Trial` (N=2) | two Runs on distinct low/high-energy Plans under a Coordinated Campaign | `iron-bearing sandstone core (Proposal 2026-1237, energy-pivot study)` | `https://www.nexusformat.org/NXtomo` |
 
-Source of truth: [`test_2bm_dark_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_dark_baseline.py), [`test_2bm_flat_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_flat_baseline.py).
+Source of truth: [`test_2bm_dark_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_dark_baseline.py), [`test_2bm_flat_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_flat_baseline.py), [`test_2bm_tomography_scan.py`](../../../apps/api/tests/integration/scenarios/test_2bm_tomography_scan.py) (Trial genesis), [`test_2bm_data_publish.py`](../../../apps/api/tests/integration/scenarios/test_2bm_data_publish.py) (Trial -> Production promotion), [`test_2bm_continuous_rotation_sweep.py`](../../../apps/api/tests/integration/scenarios/test_2bm_continuous_rotation_sweep.py) (N=3 rotation Trials), [`test_2bm_mosaic_acquisition.py`](../../../apps/api/tests/integration/scenarios/test_2bm_mosaic_acquisition.py) (N=4 tile Trials), [`test_2bm_energy_change.py`](../../../apps/api/tests/integration/scenarios/test_2bm_energy_change.py) (low/high-energy Trials).
 
 ## Calibration Datasets (no Subject, no Run)
 
@@ -29,13 +33,10 @@ Other Dataset types surfaced by the [2-BM repo survey](https://github.com/xray-i
 
 | Pending Dataset class | Intent at registration | Source scenario (planned) |
 | --- | --- | --- |
-| Raw projection stack (operator-driven scan) | `Production` | `tests/integration/scenarios/test_2bm_first_proposal_scan.py` (canonical first user acquisition; landing path `/data/YYYY-MM/PI/file.h5`) |
-| Continuous-rotation projection stack (N back-to-back) | `Production` | `tests/integration/scenarios/test_2bm_continuous_rotation_sweep.py` (one TomoScan call yields N child Runs; N Datasets share one Campaign) |
-| Mosaic-tile projection stack | `Production` | `tests/integration/scenarios/test_2bm_mosaic_acquisition.py` (parameter sweep across tile XY) |
 | Live-reconstruction projection (streaming) | `Trial` | `tests/integration/scenarios/test_2bm_streaming_tomography.py` (TomoScanStream + tomoStream) |
 | Rocking curve | `Trial` | `tests/integration/scenarios/test_2bm_energy_calibration.py` (channel-cut-crystal scan to measure true DMM energy) |
 | Vibration baseline (1000-frame stack) | `Trial` | `tests/integration/scenarios/test_2bm_vibration_baseline.py` (pre / post air-handler shutdown comparison) |
-| Promoted production scan (Trial -> Production) | `Production` | `tests/integration/scenarios/test_2bm_data_publish_globus.py` (exercises `promote_dataset` slice + Campaign close + FDT/Globus push to Petrel) |
+| Globus / FDT push to Petrel | (external transport, not a Dataset event) | Not yet sourced; LogbookMirrorPort implementor would complement `test_2bm_data_publish.py` once Olog/SciLog/SciCat integration lands |
 | Reconstructed volume | `Production` | Not yet sourced; downstream of raw + dark + flat via `tomopy`; `derived_from` would carry all three Dataset ids |
 | Segmentation mask | `Production` | Not yet sourced; further down the lineage chain |
 | Dark-subtracted flat | `Trial` | Not yet sourced; `derived_from` would point at both dark + flat baselines |

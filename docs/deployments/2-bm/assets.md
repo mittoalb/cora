@@ -1,6 +1,6 @@
 # Assets
 
-*Equipment BC Assets registered at 2-BM. See [Model](../../architecture/model.md) for the aggregate shape.*
+*Equipment BC Assets registered **under** the 2-BM Unit (the Devices that hang off it). The 2-BM Asset itself sits at the Unit level and is declared on the [2-BM index](index.md). See [Model](../../architecture/model.md) for the aggregate shape.*
 
 | Asset | Capability | Role at 2-BM |
 | --- | --- | --- |
@@ -19,14 +19,20 @@ Source of truth: [`test_2bm_alignment_center.py`](../../../apps/api/tests/integr
 
 ## Lifecycle and condition coverage
 
-Asset facets exercised in code today:
+Asset facets exercised in code today (row-per-Asset; scales linearly as new Devices land in the inventory above):
 
-| Facet | Aerotech | Sample_top_X | Sample_top_Z | Sample_top_Roll | Sample_top_Pitch | Optique_Peter_focus_Z | Shutter_2BM | Oryx_5MP_camera | Scintillator_LuAG | Hexapod_2BM |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Lifecycle: `Commissioned → Active` | yes | yes | yes (focus) | yes (roll) | yes (pitch) | yes (resolution) | yes (first_light) | yes (resolution, focus, roll, pitch, first_light) | yes (resolution, focus, roll, pitch, first_light) | yes (hexapod_reboot) |
-| Condition: `Nominal → Degraded → Nominal` | yes (cold-start home failure → retry) | no | no | no | no | no | no | no | no | no |
-| Condition: `Nominal → Faulted → Nominal` | no | no | no | no | no | no | no | no | no | yes (controller lockup → reboot ceremony) |
-| Caution attached | yes ([Aerotech cold-start index miss](cautions.md)) | no | no | no | no | no | no | no | no | yes ([Hexapod controller lockup](cautions.md)) |
+| Asset | Activated (Commissioned → Active) | Condition cycle (Nominal → Degraded → Nominal) | Condition fault (Nominal → Faulted → Nominal) | Caution attached |
+| --- | --- | --- | --- | --- |
+| `Aerotech_ABRS_rotary` | yes (motor_homing, alignments) | yes (cold-start home failure → retry) | no | yes ([Aerotech cold-start index miss](cautions.md)) |
+| `Sample_top_X` | yes (motor_homing, alignments) | no | no | no |
+| `Sample_top_Z` | yes (focus alignment) | no | no | no |
+| `Sample_top_Roll` | yes (roll alignment) | no | no | no |
+| `Sample_top_Pitch` | yes (pitch alignment) | no | no | no |
+| `Optique_Peter_focus_Z` | yes (resolution alignment) | no | no | no |
+| `Shutter_2BM` | yes (first_light, baselines) | no | no | no |
+| `Oryx_5MP_camera` | yes (resolution, focus, center, roll, pitch, first_light) | no | no | no |
+| `Scintillator_LuAG` | yes (resolution, focus, center, roll, pitch, first_light) | no | no | no |
+| `Hexapod_2BM` | yes (hexapod_reboot) | no | yes (controller lockup → reboot ceremony) | yes ([Hexapod controller lockup](cautions.md)) |
 
 Lifecycle transitions on Oryx and Scintillator land in every alignment + first-light scenario that consumes the image chain; their condition / Caution facets remain unexercised until further commissioning scenarios surface operator pain points.
 

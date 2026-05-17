@@ -126,6 +126,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000356bb")
 _ACTOR_OPERATOR_ID = _PRINCIPAL_ID
 _ARGONNE_ENTERPRISE_ID = UUID("01900000-0000-7000-8000-000000356e01")
 _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000356501")
+_SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000356701")
 _2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000356a01")
 
 # Capabilities (sample-Z needs LinearStage; image chain needs Camera + Scintillator)
@@ -166,6 +167,7 @@ def _id_queue() -> list[UUID]:
             principal_id=_PRINCIPAL_ID,
             argonne_id=_ARGONNE_ENTERPRISE_ID,
             aps_site_id=_APS_SITE_ID,
+            sector_id=_SECTOR_2_AREA_ID,
             unit_id=_2BM_UNIT_ID,
             devices=_DEVICES,
         ),
@@ -296,6 +298,7 @@ async def test_focus_alignment_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ENTERPRISE_ID,
         aps_site_id=_APS_SITE_ID,
+        sector_id=_SECTOR_2_AREA_ID,
         unit_id=_2BM_UNIT_ID,
         devices=_DEVICES,
         operator_name="2-BM Alignment Operator",

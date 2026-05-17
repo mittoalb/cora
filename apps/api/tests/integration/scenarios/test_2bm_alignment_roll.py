@@ -130,6 +130,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000357bb")
 _ACTOR_OPERATOR_ID = _PRINCIPAL_ID
 _ARGONNE_ENTERPRISE_ID = UUID("01900000-0000-7000-8000-000000357e01")
 _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000357501")
+_SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000357701")
 _2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000357a01")
 
 # Capabilities (4: rotary + linear-tilt + camera + scintillator)
@@ -175,6 +176,7 @@ def _id_queue() -> list[UUID]:
             principal_id=_PRINCIPAL_ID,
             argonne_id=_ARGONNE_ENTERPRISE_ID,
             aps_site_id=_APS_SITE_ID,
+            sector_id=_SECTOR_2_AREA_ID,
             unit_id=_2BM_UNIT_ID,
             devices=_DEVICES,
         ),
@@ -297,6 +299,7 @@ async def test_roll_alignment_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ENTERPRISE_ID,
         aps_site_id=_APS_SITE_ID,
+        sector_id=_SECTOR_2_AREA_ID,
         unit_id=_2BM_UNIT_ID,
         devices=_DEVICES,
         operator_name="2-BM Alignment Operator",

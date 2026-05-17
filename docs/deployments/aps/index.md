@@ -4,14 +4,17 @@
 
 | Property | Value |
 | --- | --- |
-| Level | Site |
+| Asset | `APS` (Site, parent `Argonne`) |
 | Enterprise | [Argonne](../argonne/index.md) |
-| Status | In design |
-| Beamlines under this Site | [2-BM](../2-bm/index.md) (Operational), [35-BM](../35-bm/index.md) (Planned) |
+| Status | Operational |
+| Sectors under this Site | `Sector 2` (registered); `Sector 35` (pending, lands with 35-BM) |
+| Beamlines under this Site | [2-BM](../2-bm/index.md) under `Sector 2` (Operational); [35-BM](../35-bm/index.md) under `Sector 35` (Planned) |
+
+APS organises beamlines into sectors. Each sector is an `Area`-level Asset between the `APS` Site and the beamline `Unit`. Beamlines do **not** parent directly to APS.
 
 ## Inventories
 
-- [Assets](assets.md): the APS Site Asset and Area Assets under it
+- [Assets](assets.md): Area Assets under APS (the Sectors)
 - [Practices](practices.md): Practices with `site_id=APS` (ISA-88 Site Recipes)
 - [Clearances](clearances.md): APS-issued safety clearances
 - [Supplies](supplies.md): facility-wide Supplies (cryogens, beam, shared consumables)

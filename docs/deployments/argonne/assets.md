@@ -1,13 +1,13 @@
 # Assets
 
-*Equipment BC Assets registered at Argonne (Enterprise level). See [Model](../../architecture/model.md) for the aggregate shape.*
+*Equipment BC Assets registered **under** the Argonne Enterprise (the Sites that hang off it). The Argonne Asset itself sits at the top of the hierarchy and is declared on the [Argonne index](index.md). See [Model](../../architecture/model.md) for the aggregate shape.*
 
 | Asset | Level | Parent |
 | --- | --- | --- |
-| `Argonne` | `Enterprise` | (root) |
+| `APS` | `Site` | `Argonne` (Enterprise) |
 
 Source of truth: [`apps/api/tests/integration/scenarios/test_aps_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_facility.py).
 
 ## Pending in code
 
-Other Argonne Enterprise-level Assets (the lab's organizational sub-units, if CORA needs to model them) are not registered. Each lands as a row above when a scenario test or seed script instantiates it.
+Other Argonne sibling Sites (ATLAS, CNM, ALCF, ...) are not registered. They land here when a pilot demands them per [Pilots earn the abstractions](../index.md).
