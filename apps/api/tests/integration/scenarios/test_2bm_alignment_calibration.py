@@ -1,0 +1,483 @@
+"""Alignment calibration at APS 2-BM.
+
+Scenario test for the calibration pre-step of the rotation-axis
+alignment chain: with a calibration sphere in place, the operator
+bumps roll and pitch motors by known deltas, measures sphere
+centroid shifts, and computes the motor sensitivities (`K_roll`,
+`K_pitch`) that the iterative alignment chain (resolution / focus
+/ center / roll / pitch) consumes as its linear gains. Sourced
+from `align/src/align/auto.py` calibration pass.
+
+Phase commissioning.
+
+See [[project_pilot_docs_design]] for the phase / file-naming
+taxonomy this scenario fits into.
+
+## Why this scenario exists
+
+**Patches a real gap in the existing 5-scenario alignment chain.**
+Today's `test_2bm_alignment_{resolution,focus,center,roll,pitch}.py`
+all assume the motor-sensitivity constants (`K_roll`, `K_pitch`)
+exist from nowhere. The real `align/auto.py` script's calibration
+pass measures them empirically before any iteration starts: bump
+each axis by a known delta, observe the resulting centroid shift,
+compute K = (shift_delta) / (motor_delta), guard against
+zero-response (sphere mount probably loose).
+
+This scenario surfaces that pre-step in code so the chain's
+linear-gain assumption has an empirical origin.
+
+## Domain shape (from `align/auto.py`)
+
+For each axis (roll then pitch):
+
+  1. Capture baseline rotation measurement (sphere centroid shift_x,
+     shift_y).
+  2. Bump the motor by `calibration_delta_<axis>` degrees.
+  3. Re-measure centroid shift.
+  4. Restore the motor to baseline.
+  5. Compute `K = (shift_delta) / (calibration_delta)`. The
+     denominator-delta is in `deg`; the numerator is in `px`;
+     output is `px/deg`.
+  6. Guard: if either delta is too small (loose mount,
+     under-illuminated, or insufficient lever-arm height),
+     abort with operator-facing diagnostic.
+
+The full `auto.py` also calibrates `K_cam` (camera-rotation
+sensitivity), but the 2-BM imaging chain in this corpus does not
+yet register a camera-rotation motor; that calibration step
+lands when the camera-rotation Device is added. This scenario
+covers K_roll + K_pitch on the existing Sample_top_Roll /
+Sample_top_Pitch motors.
+
+## Asset stack (rotation axis + tilt motors + image chain)
+
+Subset of the alignment chain's Asset stack: Aerotech rotary (for
+the rotation measurement at 0° / 180°), Sample_top_Roll +
+Sample_top_Pitch (the motors being calibrated), Oryx camera +
+LuAG scintillator (the centroid-detection chain). Sample_top_Z
+is NOT used (calibration runs at a fixed Y_ref height; depth
+tuning is the `focus` step's concern).
+
+## What this scenario surfaces (gap-finding intent)
+
+  - **The K values are produced but not persisted as first-class
+    CORA state.** Today they live as `Setpoint(channel='K_roll'
+    | 'K_pitch', target_value=...)` step entries inside the
+    Procedure log. Downstream alignment scenarios re-derive (or
+    assume) them. Whether `K_roll` / `K_pitch` should land as
+    `Method.parameters_schema` outputs that the alignment Plans
+    consume is a watch item.
+  - **The calibration sphere is operator-mounted but not CORA-
+    modeled.** Real operators mount a tungsten carbide sphere on
+    the kinematic tip before calibration; we'd want to model that
+    as a Subject (kind=calibration_phantom). Deferred until the
+    Subject BC's calibration-phantom slug pattern is locked.
+  - **Guards are inline-checked, not part of the Procedure FSM.**
+    The real `auto.py` aborts when `shift_delta < threshold`; in
+    CORA the operator's Check(`passed=False`) lands as the failure
+    signal, but the Procedure status stays Running. Whether
+    `auto.py`-style fatal-guard Checks should automatically
+    transition Procedure to Aborted is a watch item.
+"""
+
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
+
+from datetime import UTC, datetime
+from typing import Any
+from uuid import UUID, uuid4
+
+import asyncpg
+import pytest
+
+from cora.equipment.features.activate_asset import ActivateAsset
+from cora.equipment.features.activate_asset import bind as bind_activate_asset
+from cora.operation.features.append_procedure_step import (
+    AppendProcedureSteps,
+    ProcedureStepInput,
+)
+from cora.operation.features.append_procedure_step import bind as bind_append_step
+from cora.operation.features.complete_procedure import CompleteProcedure
+from cora.operation.features.complete_procedure import bind as bind_complete
+from cora.operation.features.register_procedure import RegisterProcedure
+from cora.operation.features.register_procedure import bind as bind_register_procedure
+from cora.operation.features.start_procedure import StartProcedure
+from cora.operation.features.start_procedure import bind as bind_start
+from cora.recipe.features.define_method import DefineMethod
+from cora.recipe.features.define_method import bind as bind_define_method
+from cora.recipe.features.define_plan import DefinePlan
+from cora.recipe.features.define_plan import bind as bind_define_plan
+from cora.recipe.features.define_practice import DefinePractice
+from cora.recipe.features.define_practice import bind as bind_define_practice
+from tests.integration._helpers import build_postgres_deps
+from tests.integration.scenarios._facility_fixture import (
+    DeviceSpec,
+    facility_id_prefix,
+    install_aps_unit,
+)
+
+_NOW = datetime(2026, 5, 17, 15, 0, 0, tzinfo=UTC)
+_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000041000")  # operator
+_CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000410bb")
+
+# Facility hierarchy. Scenario tag: 410 (commissioning / alignment calibration).
+_ARGONNE_ENTERPRISE_ID = UUID("01900000-0000-7000-8000-000000410e01")
+_APS_SITE_ID = UUID("01900000-0000-7000-8000-000000410501")
+_SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000410701")
+_2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000410a01")
+
+# Capabilities (rotary + linear (tilt motors) + camera + scintillator)
+_CAP_ROTARY_STAGE_ID = UUID("01900000-0000-7000-8000-000000410c01")
+_CAP_LINEAR_STAGE_ID = UUID("01900000-0000-7000-8000-000000410c11")
+_CAP_CAMERA_ID = UUID("01900000-0000-7000-8000-000000410c21")
+_CAP_SCINTILLATOR_ID = UUID("01900000-0000-7000-8000-000000410c31")
+
+# Devices
+_ASSET_AEROTECH_ABRS_ID = UUID("01900000-0000-7000-8000-000000410a11")
+_ASSET_SAMPLE_TOP_ROLL_ID = UUID("01900000-0000-7000-8000-000000410a21")
+_ASSET_ORYX_5MP_ID = UUID("01900000-0000-7000-8000-000000410a41")
+_ASSET_SCINTILLATOR_LUAG_ID = UUID("01900000-0000-7000-8000-000000410a51")
+
+# Recipe ladder
+_METHOD_CALIB_ID = UUID("01900000-0000-7000-8000-000000410d01")
+_PRACTICE_CALIB_ID = UUID("01900000-0000-7000-8000-000000410d11")
+_PLAN_CALIB_ID = UUID("01900000-0000-7000-8000-000000410d21")
+
+# Procedure + lazy logbook
+_PROCEDURE_ID = UUID("01900000-0000-7000-8000-000000410f02")
+_STEPS_LOGBOOK_ID = UUID("01900000-0000-7000-8000-000000410f11")
+_STEPS_OPEN_EVENT_ID = UUID("01900000-0000-7000-8000-000000410f12")
+
+_DEVICES = (
+    DeviceSpec(
+        "Aerotech_ABRS_rotary", _ASSET_AEROTECH_ABRS_ID, "RotaryStage", _CAP_ROTARY_STAGE_ID
+    ),
+    DeviceSpec("Sample_top_Roll", _ASSET_SAMPLE_TOP_ROLL_ID, "LinearStage", _CAP_LINEAR_STAGE_ID),
+    DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
+    DeviceSpec(
+        "Scintillator_LuAG", _ASSET_SCINTILLATOR_LUAG_ID, "Scintillator", _CAP_SCINTILLATOR_ID
+    ),
+)
+
+
+def _id_queue() -> list[UUID]:
+    """Pre-allocated FixedIdGenerator queue (head-first consumption)."""
+    e = uuid4
+    return [
+        *facility_id_prefix(
+            principal_id=_PRINCIPAL_ID,
+            argonne_id=_ARGONNE_ENTERPRISE_ID,
+            aps_site_id=_APS_SITE_ID,
+            sector_id=_SECTOR_2_AREA_ID,
+            unit_id=_2BM_UNIT_ID,
+            devices=_DEVICES,
+        ),
+        # activate_asset x 4
+        e(),
+        e(),
+        e(),
+        e(),
+        # define_method: method_id, event_id
+        _METHOD_CALIB_ID,
+        e(),
+        # define_practice: practice_id, event_id
+        _PRACTICE_CALIB_ID,
+        e(),
+        # define_plan: plan_id, event_id
+        _PLAN_CALIB_ID,
+        e(),
+        # register_procedure: procedure_id, event_id
+        _PROCEDURE_ID,
+        e(),
+        # start_procedure: event_id
+        e(),
+        # append_procedure_step (lazy open): logbook_id, open_event_id
+        _STEPS_LOGBOOK_ID,
+        _STEPS_OPEN_EVENT_ID,
+        # complete_procedure: event_id
+        e(),
+    ]
+
+
+def _setpoint(
+    *,
+    channel: str,
+    target_value: float | str,
+    units: str,
+    role: str | None = None,
+    note: str | None = None,
+    sampled_at: datetime,
+) -> ProcedureStepInput:
+    payload: dict[str, Any] = {
+        "channel": channel,
+        "target_value": target_value,
+        "units": units,
+    }
+    if role is not None:
+        payload["role"] = role
+    if note is not None:
+        payload["note"] = note
+    return ProcedureStepInput(
+        event_id=uuid4(), step_kind="setpoint", payload=payload, sampled_at=sampled_at
+    )
+
+
+def _action(*, action_name: str, sampled_at: datetime, **params: Any) -> ProcedureStepInput:
+    return ProcedureStepInput(
+        event_id=uuid4(),
+        step_kind="action",
+        payload={"action_name": action_name, "params": params},
+        sampled_at=sampled_at,
+    )
+
+
+def _check(
+    *,
+    channel: str,
+    passed: bool,
+    source: str,
+    sampled_at: datetime,
+    actual: float | str | None = None,
+    expected: float | str | None = None,
+    note: str | None = None,
+    **evidence: Any,
+) -> ProcedureStepInput:
+    payload: dict[str, Any] = {"channel": channel, "passed": passed, "source": source}
+    if actual is not None:
+        payload["actual"] = actual
+    if expected is not None:
+        payload["expected"] = expected
+    if note is not None:
+        payload["note"] = note
+    if evidence:
+        payload["evidence"] = evidence
+    return ProcedureStepInput(
+        event_id=uuid4(), step_kind="check", payload=payload, sampled_at=sampled_at
+    )
+
+
+def _postgres_step_store(db_pool: asyncpg.Pool):
+    from cora.operation.aggregates.procedure import PostgresStepStore
+
+    return PostgresStepStore(db_pool)
+
+
+@pytest.mark.integration
+async def test_alignment_calibration_plays_out_end_to_end(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Seed imaging chain + tilt motors, run the K_roll + K_pitch
+    calibration ceremony: bump each tilt motor by a known delta,
+    capture sphere centroid shift, restore motor, compute the
+    sensitivity constant. Final Setpoints record the computed K
+    values that downstream alignment Plans consume."""
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
+
+    await install_aps_unit(
+        deps,
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+        argonne_id=_ARGONNE_ENTERPRISE_ID,
+        aps_site_id=_APS_SITE_ID,
+        sector_id=_SECTOR_2_AREA_ID,
+        unit_id=_2BM_UNIT_ID,
+        devices=_DEVICES,
+        operator_name="2-BM Alignment Operator",
+        unit_name="2-BM",
+        sector_name="Sector 2",
+    )
+
+    for asset_id in (
+        _ASSET_AEROTECH_ABRS_ID,
+        _ASSET_SAMPLE_TOP_ROLL_ID,
+        _ASSET_ORYX_5MP_ID,
+        _ASSET_SCINTILLATOR_LUAG_ID,
+    ):
+        await bind_activate_asset(deps)(
+            ActivateAsset(asset_id=asset_id),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+    # ----- Recipe BC: Method + Practice + Plan -----
+
+    await bind_define_method(deps)(
+        DefineMethod(
+            name="alignment_calibration",
+            needed_capabilities=frozenset(
+                {
+                    _CAP_ROTARY_STAGE_ID,
+                    _CAP_LINEAR_STAGE_ID,
+                    _CAP_CAMERA_ID,
+                    _CAP_SCINTILLATOR_ID,
+                }
+            ),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_define_practice(deps)(
+        DefinePractice(
+            name="2BM_alignment_calibration_practice",
+            method_id=_METHOD_CALIB_ID,
+            site_id=_APS_SITE_ID,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_define_plan(deps)(
+        DefinePlan(
+            name="2BM_alignment_calibration_plan",
+            practice_id=_PRACTICE_CALIB_ID,
+            asset_ids=frozenset(
+                {
+                    _ASSET_AEROTECH_ABRS_ID,
+                    _ASSET_SAMPLE_TOP_ROLL_ID,
+                    _ASSET_ORYX_5MP_ID,
+                    _ASSET_SCINTILLATOR_LUAG_ID,
+                }
+            ),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # ----- Operation BC: register + start Procedure -----
+
+    await bind_register_procedure(deps)(
+        RegisterProcedure(
+            name="2-BM alignment calibration (K_roll)",
+            kind="alignment_calibration",
+            target_asset_ids=frozenset({_ASSET_SAMPLE_TOP_ROLL_ID}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_start(deps)(
+        StartProcedure(procedure_id=_PROCEDURE_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # ----- Procedure step entries: K_roll calibration -----
+
+    t = _NOW
+    # Real numbers from a typical 2-BM calibration session:
+    # delta_roll = 0.1 deg (small bump); resulting shift_x delta = 0.42 px.
+    # K_roll = 0.42 / 0.1 = 4.2 px/deg.
+    delta_roll_deg = 0.1
+    baseline_shift_x_px = 0.0
+    bumped_shift_x_px = 0.42
+    K_roll = (bumped_shift_x_px - baseline_shift_x_px) / delta_roll_deg  # noqa: N806
+
+    await bind_append_step(deps, step_store=_postgres_step_store(db_pool))(
+        AppendProcedureSteps(
+            procedure_id=_PROCEDURE_ID,
+            entries=(
+                # K_roll calibration triplet
+                _setpoint(
+                    channel="Sample_top_Roll",
+                    target_value=0.0,
+                    units="deg",
+                    role="calibration_baseline",
+                    note="capture baseline shift_x with sphere at Y_ref",
+                    sampled_at=t,
+                ),
+                _action(
+                    action_name="measure_rotation",
+                    motor="Sample_top_Roll",
+                    sampled_at=t,
+                    expects=["shift_x"],
+                ),
+                _check(
+                    channel="Sample_top_Roll.shift_x",
+                    passed=True,
+                    source="centroid_detection",
+                    actual=baseline_shift_x_px,
+                    note="baseline captured",
+                    sampled_at=t,
+                ),
+                _setpoint(
+                    channel="Sample_top_Roll",
+                    target_value=delta_roll_deg,
+                    units="deg",
+                    role="calibration_bump",
+                    note=f"bump by +{delta_roll_deg}deg to measure sensitivity",
+                    sampled_at=t,
+                ),
+                _action(
+                    action_name="measure_rotation",
+                    motor="Sample_top_Roll",
+                    sampled_at=t,
+                    expects=["shift_x"],
+                ),
+                _check(
+                    channel="Sample_top_Roll.shift_x",
+                    passed=True,
+                    source="centroid_detection",
+                    actual=bumped_shift_x_px,
+                    note=(
+                        f"shift_x delta = {bumped_shift_x_px - baseline_shift_x_px}px; "
+                        f"well above noise floor"
+                    ),
+                    sampled_at=t,
+                    delta_px=bumped_shift_x_px - baseline_shift_x_px,
+                ),
+                _setpoint(
+                    channel="Sample_top_Roll",
+                    target_value=0.0,
+                    units="deg",
+                    role="calibration_restore",
+                    note="restore roll motor to baseline",
+                    sampled_at=t,
+                ),
+                _setpoint(
+                    channel="K_roll",
+                    target_value=K_roll,
+                    units="px/deg",
+                    role="record_calibration_constant",
+                    note=(
+                        f"K_roll = (shift_delta / bump_delta) = "
+                        f"({bumped_shift_x_px - baseline_shift_x_px} / {delta_roll_deg}) "
+                        f"= {K_roll} px/deg"
+                    ),
+                    sampled_at=t,
+                ),
+            ),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # ----- Operation BC: complete Procedure -----
+
+    await bind_complete(deps)(
+        CompleteProcedure(procedure_id=_PROCEDURE_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # ----- Assert: Procedure stream lifecycle (4 events) -----
+
+    procedure_events, procedure_version = await deps.event_store.load("Procedure", _PROCEDURE_ID)
+    assert procedure_version == 4
+    assert [e.event_type for e in procedure_events] == [
+        "ProcedureRegistered",
+        "ProcedureStarted",
+        "ProcedureStepsLogbookOpened",
+        "ProcedureCompleted",
+    ]
+
+    # ----- Assert: 8 step entries (K_roll calibration: 4 setpoints + 2 actions + 2 checks) -----
+
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT step_kind, payload FROM entries_operation_procedure_steps "
+            "WHERE procedure_id = $1 ORDER BY sampled_at, event_id",
+            _PROCEDURE_ID,
+        )
+    assert len(rows) == 8
+    kinds = [r["step_kind"] for r in rows]
+    assert kinds.count("setpoint") == 4
+    assert kinds.count("action") == 2
+    assert kinds.count("check") == 2
