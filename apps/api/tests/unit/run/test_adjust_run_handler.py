@@ -205,7 +205,14 @@ def _energy_schema() -> dict[str, Any]:
     return {
         "$schema": _DRAFT,
         "type": "object",
-        "properties": {"energy_kev": {"type": "number", "minimum": 5, "maximum": 50}},
+        "properties": {
+            "energy": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 50,
+                "unit": {"system": "udunits", "code": "keV"},
+            }
+        },
     }
 
 
@@ -239,14 +246,14 @@ async def _seed_full_chain(
 async def test_handler_appends_run_adjusted_event_with_merged_snapshot() -> None:
     store = InMemoryEventStore()
     _, _, _, run_id = await _seed_full_chain(
-        store, schema=_energy_schema(), effective_parameters={"energy_kev": 10.0}
+        store, schema=_energy_schema(), effective_parameters={"energy": 10.0}
     )
     deps = build_deps(ids=[_ADJUSTED_EVENT_ID], now=_NOW, event_store=store)
 
     result = await adjust_run.bind(deps)(
         AdjustRun(
             run_id=run_id,
-            parameter_patch={"energy_kev": 12.0},
+            parameter_patch={"energy": 12.0},
             reason="re-center on detected feature",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -260,8 +267,8 @@ async def test_handler_appends_run_adjusted_event_with_merged_snapshot() -> None
     adjusted = events[1]
     assert adjusted.event_id == _ADJUSTED_EVENT_ID
     assert adjusted.metadata == {"command": "AdjustRun"}
-    assert adjusted.payload["parameter_patch"] == {"energy_kev": 12.0}
-    assert adjusted.payload["effective_parameters"] == {"energy_kev": 12.0}
+    assert adjusted.payload["parameter_patch"] == {"energy": 12.0}
+    assert adjusted.payload["effective_parameters"] == {"energy": 12.0}
     assert adjusted.payload["reason"] == "re-center on detected feature"
     assert adjusted.payload["decided_by_decision_id"] is None
 

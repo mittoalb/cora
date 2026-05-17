@@ -59,7 +59,13 @@ def test_patch_settings_returns_204_on_happy_path() -> None:
             {
                 "$schema": _DRAFT,
                 "type": "object",
-                "properties": {"energy_kev": {"type": "number", "minimum": 5}},
+                "properties": {
+                    "energy": {
+                        "type": "number",
+                        "minimum": 5,
+                        "unit": {"system": "udunits", "code": "keV"},
+                    }
+                },
             },
         )
         asset_id = _register_asset(client)
@@ -67,7 +73,7 @@ def test_patch_settings_returns_204_on_happy_path() -> None:
 
         response = client.patch(
             f"/assets/{asset_id}/settings",
-            json={"settings_patch": {"energy_kev": 30}},
+            json={"settings_patch": {"energy": 30}},
         )
     assert response.status_code == 204
     assert response.content == b""
@@ -84,7 +90,13 @@ def test_patch_settings_returns_400_for_constraint_violation() -> None:
             {
                 "$schema": _DRAFT,
                 "type": "object",
-                "properties": {"energy_kev": {"type": "number", "minimum": 10}},
+                "properties": {
+                    "energy": {
+                        "type": "number",
+                        "minimum": 10,
+                        "unit": {"system": "udunits", "code": "keV"},
+                    }
+                },
             },
         )
         asset_id = _register_asset(client)
@@ -92,7 +104,7 @@ def test_patch_settings_returns_400_for_constraint_violation() -> None:
 
         response = client.patch(
             f"/assets/{asset_id}/settings",
-            json={"settings_patch": {"energy_kev": 1}},
+            json={"settings_patch": {"energy": 1}},
         )
     assert response.status_code == 400
     assert "Invalid Asset settings" in response.json()["detail"]
@@ -109,7 +121,9 @@ def test_patch_settings_returns_400_for_orphan_key_in_strict_mode() -> None:
             {
                 "$schema": _DRAFT,
                 "type": "object",
-                "properties": {"energy_kev": {"type": "number"}},
+                "properties": {
+                    "energy": {"type": "number", "unit": {"system": "udunits", "code": "keV"}}
+                },
             },
         )
         asset_id = _register_asset(client)
@@ -170,7 +184,7 @@ def test_patch_settings_supports_merge_via_two_calls() -> None:
                 "$schema": _DRAFT,
                 "type": "object",
                 "properties": {
-                    "energy_kev": {"type": "number"},
+                    "energy": {"type": "number", "unit": {"system": "udunits", "code": "keV"}},
                     "filter": {"type": "string"},
                 },
             },
@@ -180,7 +194,7 @@ def test_patch_settings_supports_merge_via_two_calls() -> None:
 
         first = client.patch(
             f"/assets/{asset_id}/settings",
-            json={"settings_patch": {"energy_kev": 30}},
+            json={"settings_patch": {"energy": 30}},
         )
         assert first.status_code == 204
         second = client.patch(
@@ -192,7 +206,7 @@ def test_patch_settings_supports_merge_via_two_calls() -> None:
         # Assert via get_asset that both keys are present.
         get_response = client.get(f"/assets/{asset_id}")
         body = get_response.json()
-        assert body["settings"] == {"energy_kev": 30, "filter": "Cu"}
+        assert body["settings"] == {"energy": 30, "filter": "Cu"}
 
 
 @pytest.mark.contract
@@ -207,7 +221,7 @@ def test_patch_settings_null_deletes_key() -> None:
                 "$schema": _DRAFT,
                 "type": "object",
                 "properties": {
-                    "energy_kev": {"type": "number"},
+                    "energy": {"type": "number", "unit": {"system": "udunits", "code": "keV"}},
                     "filter": {"type": "string"},
                 },
             },
@@ -218,7 +232,7 @@ def test_patch_settings_null_deletes_key() -> None:
         # Set both keys.
         client.patch(
             f"/assets/{asset_id}/settings",
-            json={"settings_patch": {"energy_kev": 30, "filter": "Cu"}},
+            json={"settings_patch": {"energy": 30, "filter": "Cu"}},
         )
         # Null out filter.
         delete_response = client.patch(
@@ -228,7 +242,7 @@ def test_patch_settings_null_deletes_key() -> None:
         assert delete_response.status_code == 204
 
         get_response = client.get(f"/assets/{asset_id}")
-        assert get_response.json()["settings"] == {"energy_kev": 30}
+        assert get_response.json()["settings"] == {"energy": 30}
 
 
 @pytest.mark.contract

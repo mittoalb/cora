@@ -52,8 +52,17 @@ def _schema() -> dict[str, Any]:
         "$schema": _DRAFT,
         "type": "object",
         "properties": {
-            "energy_kev": {"type": "number", "minimum": 5, "maximum": 50},
-            "exposure_ms": {"type": "integer", "minimum": 1},
+            "energy": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 50,
+                "unit": {"system": "udunits", "code": "keV"},
+            },
+            "exposure": {
+                "type": "integer",
+                "minimum": 1,
+                "unit": {"system": "udunits", "code": "ms"},
+            },
         },
     }
 
@@ -135,9 +144,7 @@ async def test_handler_returns_none_on_success() -> None:
     deps = build_deps(ids=[_DEFAULTS_EVENT_ID_1, _DEFAULTS_EVENT_ID_2], now=_NOW, event_store=store)
 
     result = await update_plan_default_parameters.bind(deps)(
-        UpdatePlanDefaultParameters(
-            plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
-        ),
+        UpdatePlanDefaultParameters(plan_id=_PLAN_ID, default_parameters_patch={"energy": 12.0}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -152,9 +159,7 @@ async def test_handler_appends_plan_default_parameters_updated_event() -> None:
     deps = build_deps(ids=[_DEFAULTS_EVENT_ID_1, _DEFAULTS_EVENT_ID_2], now=_NOW, event_store=store)
 
     await update_plan_default_parameters.bind(deps)(
-        UpdatePlanDefaultParameters(
-            plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
-        ),
+        UpdatePlanDefaultParameters(plan_id=_PLAN_ID, default_parameters_patch={"energy": 12.0}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -168,7 +173,7 @@ async def test_handler_appends_plan_default_parameters_updated_event() -> None:
     defaults_event = events[1]
     assert defaults_event.event_id == _DEFAULTS_EVENT_ID_1
     assert defaults_event.metadata == {"command": "UpdatePlanDefaultParameters"}
-    assert defaults_event.payload["default_parameters"] == {"energy_kev": 12.0}
+    assert defaults_event.payload["default_parameters"] == {"energy": 12.0}
 
 
 @pytest.mark.unit
@@ -181,16 +186,12 @@ async def test_handler_merges_patch_into_existing_defaults() -> None:
     handler = update_plan_default_parameters.bind(deps)
 
     await handler(
-        UpdatePlanDefaultParameters(
-            plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
-        ),
+        UpdatePlanDefaultParameters(plan_id=_PLAN_ID, default_parameters_patch={"energy": 12.0}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await handler(
-        UpdatePlanDefaultParameters(
-            plan_id=_PLAN_ID, default_parameters_patch={"exposure_ms": 250}
-        ),
+        UpdatePlanDefaultParameters(plan_id=_PLAN_ID, default_parameters_patch={"exposure": 250}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -198,8 +199,8 @@ async def test_handler_merges_patch_into_existing_defaults() -> None:
     events, _ = await store.load("Plan", _PLAN_ID)
     # Second event's payload carries the FULL post-merge dict.
     assert events[2].payload["default_parameters"] == {
-        "energy_kev": 12.0,
-        "exposure_ms": 250,
+        "energy": 12.0,
+        "exposure": 250,
     }
 
 
@@ -212,17 +213,13 @@ async def test_handler_no_op_on_unchanged_defaults_does_not_append() -> None:
     handler = update_plan_default_parameters.bind(deps)
 
     await handler(
-        UpdatePlanDefaultParameters(
-            plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
-        ),
+        UpdatePlanDefaultParameters(plan_id=_PLAN_ID, default_parameters_patch={"energy": 12.0}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     # Re-submit identical patch (merge result == current).
     await handler(
-        UpdatePlanDefaultParameters(
-            plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
-        ),
+        UpdatePlanDefaultParameters(plan_id=_PLAN_ID, default_parameters_patch={"energy": 12.0}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -238,7 +235,7 @@ async def test_handler_raises_plan_not_found_when_plan_does_not_exist() -> None:
     with pytest.raises(PlanNotFoundError):
         await handler(
             UpdatePlanDefaultParameters(
-                plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
+                plan_id=_PLAN_ID, default_parameters_patch={"energy": 12.0}
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
@@ -254,9 +251,7 @@ async def test_handler_raises_invalid_when_post_merge_violates_schema() -> None:
 
     with pytest.raises(InvalidPlanDefaultParametersError):
         await update_plan_default_parameters.bind(deps)(
-            UpdatePlanDefaultParameters(
-                plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 1.0}
-            ),
+            UpdatePlanDefaultParameters(plan_id=_PLAN_ID, default_parameters_patch={"energy": 1.0}),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -324,7 +319,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     with pytest.raises(UnauthorizedError) as exc_info:
         await update_plan_default_parameters.bind(deny_deps)(
             UpdatePlanDefaultParameters(
-                plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
+                plan_id=_PLAN_ID, default_parameters_patch={"energy": 12.0}
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
@@ -341,9 +336,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     deps = build_deps(ids=[_DEFAULTS_EVENT_ID_1, _DEFAULTS_EVENT_ID_2], now=_NOW, event_store=store)
 
     await update_plan_default_parameters.bind(deps)(
-        UpdatePlanDefaultParameters(
-            plan_id=_PLAN_ID, default_parameters_patch={"energy_kev": 12.0}
-        ),
+        UpdatePlanDefaultParameters(plan_id=_PLAN_ID, default_parameters_patch={"energy": 12.0}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,

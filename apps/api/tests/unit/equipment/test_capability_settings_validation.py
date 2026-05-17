@@ -35,11 +35,21 @@ def test_accepts_full_subset() -> None:
     validate_settings_schema(
         _schema(
             type="object",
-            required=["energy_kev"],
+            required=["energy"],
             properties={
-                "energy_kev": {"type": "number", "minimum": 5, "maximum": 50},
+                "energy": {
+                    "type": "number",
+                    "minimum": 5,
+                    "maximum": 50,
+                    "unit": {"system": "udunits", "code": "keV"},
+                },
                 "filter_material": {"type": "string", "enum": ["Cu", "Al", "Mo"]},
-                "exposure_ms": {"type": "integer", "minimum": 1, "maximum": 5000},
+                "exposure": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5000,
+                    "unit": {"system": "udunits", "code": "ms"},
+                },
                 "detector_serial": {"type": "string", "pattern": "^FLIR-[0-9]+$"},
             },
         )

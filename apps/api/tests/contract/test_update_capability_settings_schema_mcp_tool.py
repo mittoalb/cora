@@ -63,7 +63,13 @@ def test_mcp_update_capability_settings_schema_tool_succeeds_on_happy_path() -> 
                         "settings_schema": {
                             "$schema": _DRAFT,
                             "type": "object",
-                            "properties": {"energy_kev": {"type": "number", "minimum": 5}},
+                            "properties": {
+                                "energy": {
+                                    "type": "number",
+                                    "minimum": 5,
+                                    "unit": {"system": "udunits", "code": "keV"},
+                                }
+                            },
                         },
                     },
                 },

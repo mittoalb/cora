@@ -281,7 +281,7 @@ _DRAFT = "https://json-schema.org/draft/2020-12/schema"
 _SAMPLE_SCHEMA = {
     "$schema": _DRAFT,
     "type": "object",
-    "properties": {"energy_kev": {"type": "number"}},
+    "properties": {"energy": {"type": "number", "unit": {"system": "udunits", "code": "keV"}}},
 }
 
 

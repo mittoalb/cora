@@ -46,9 +46,16 @@ def test_raises_when_schema_is_none_and_effective_is_non_empty() -> None:
 def test_passes_when_effective_matches_schema() -> None:
     schema = _schema(
         type="object",
-        properties={"energy_kev": {"type": "number", "minimum": 5, "maximum": 50}},
+        properties={
+            "energy": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 50,
+                "unit": {"system": "udunits", "code": "keV"},
+            }
+        },
     )
-    validate_effective_parameters_against_method_schema({"energy_kev": 12.0}, schema)
+    validate_effective_parameters_against_method_schema({"energy": 12.0}, schema)
 
 
 @pytest.mark.unit
@@ -56,8 +63,8 @@ def test_passes_when_effective_is_empty_even_with_schema() -> None:
     """Empty effective satisfies any schema at this layer."""
     schema = _schema(
         type="object",
-        required=["energy_kev"],
-        properties={"energy_kev": {"type": "number"}},
+        required=["energy"],
+        properties={"energy": {"type": "number", "unit": {"system": "udunits", "code": "keV"}}},
     )
     validate_effective_parameters_against_method_schema({}, schema)
 
@@ -66,10 +73,12 @@ def test_passes_when_effective_is_empty_even_with_schema() -> None:
 def test_raises_on_constraint_violation() -> None:
     schema = _schema(
         type="object",
-        properties={"energy_kev": {"type": "number", "minimum": 5}},
+        properties={
+            "energy": {"type": "number", "minimum": 5, "unit": {"system": "udunits", "code": "keV"}}
+        },
     )
     with pytest.raises(InvalidRunParametersError) as exc_info:
-        validate_effective_parameters_against_method_schema({"energy_kev": 1.0}, schema)
+        validate_effective_parameters_against_method_schema({"energy": 1.0}, schema)
     assert "validation failed" in exc_info.value.reason
 
 
@@ -77,10 +86,10 @@ def test_raises_on_constraint_violation() -> None:
 def test_raises_on_type_mismatch() -> None:
     schema = _schema(
         type="object",
-        properties={"energy_kev": {"type": "number"}},
+        properties={"energy": {"type": "number", "unit": {"system": "udunits", "code": "keV"}}},
     )
     with pytest.raises(InvalidRunParametersError):
-        validate_effective_parameters_against_method_schema({"energy_kev": "twelve"}, schema)
+        validate_effective_parameters_against_method_schema({"energy": "twelve"}, schema)
 
 
 @pytest.mark.unit
@@ -88,12 +97,20 @@ def test_path_threading_in_error_message() -> None:
     schema = _schema(
         type="object",
         properties={
-            "energy_kev": {"type": "number", "minimum": 5},
-            "exposure_ms": {"type": "integer", "minimum": 1},
+            "energy": {
+                "type": "number",
+                "minimum": 5,
+                "unit": {"system": "udunits", "code": "keV"},
+            },
+            "exposure": {
+                "type": "integer",
+                "minimum": 1,
+                "unit": {"system": "udunits", "code": "ms"},
+            },
         },
     )
     with pytest.raises(InvalidRunParametersError) as exc_info:
         validate_effective_parameters_against_method_schema(
-            {"energy_kev": 12.0, "exposure_ms": -5}, schema
+            {"energy": 12.0, "exposure": -5}, schema
         )
-    assert "exposure_ms" in exc_info.value.reason
+    assert "exposure" in exc_info.value.reason

@@ -54,8 +54,17 @@ def _schema() -> dict[str, Any]:
         "$schema": _DRAFT,
         "type": "object",
         "properties": {
-            "energy_kev": {"type": "number", "minimum": 5, "maximum": 50},
-            "exposure_ms": {"type": "integer", "minimum": 1},
+            "energy": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 50,
+                "unit": {"system": "udunits", "code": "keV"},
+            },
+            "exposure": {
+                "type": "integer",
+                "minimum": 1,
+                "unit": {"system": "udunits", "code": "ms"},
+            },
         },
     }
 
@@ -66,7 +75,7 @@ def test_decide_emits_event_when_setting_first_keys() -> None:
     events = update_plan_default_parameters.decide(
         state=state,
         command=UpdatePlanDefaultParameters(
-            plan_id=state.id, default_parameters_patch={"energy_kev": 12.0}
+            plan_id=state.id, default_parameters_patch={"energy": 12.0}
         ),
         method_parameters_schema=_schema(),
         now=_NOW,
@@ -74,7 +83,7 @@ def test_decide_emits_event_when_setting_first_keys() -> None:
     assert events == [
         PlanDefaultParametersUpdated(
             plan_id=state.id,
-            default_parameters={"energy_kev": 12.0},
+            default_parameters={"energy": 12.0},
             occurred_at=_NOW,
         )
     ]
@@ -84,40 +93,40 @@ def test_decide_emits_event_when_setting_first_keys() -> None:
 def test_decide_event_payload_carries_post_merge_not_patch() -> None:
     """Locked design: event carries the FULL post-merge dict so each
     event is a self-contained audit record (5g-c precedent)."""
-    state = _plan(default_parameters={"energy_kev": 12.0})
+    state = _plan(default_parameters={"energy": 12.0})
     events = update_plan_default_parameters.decide(
         state=state,
         command=UpdatePlanDefaultParameters(
-            plan_id=state.id, default_parameters_patch={"exposure_ms": 250}
+            plan_id=state.id, default_parameters_patch={"exposure": 250}
         ),
         method_parameters_schema=_schema(),
         now=_NOW,
     )
     assert len(events) == 1
-    # Post-merge: BOTH keys present, not just the patch's exposure_ms.
-    assert events[0].default_parameters == {"energy_kev": 12.0, "exposure_ms": 250}
+    # Post-merge: BOTH keys present, not just the patch's exposure.
+    assert events[0].default_parameters == {"energy": 12.0, "exposure": 250}
 
 
 @pytest.mark.unit
 def test_decide_null_patch_value_deletes_key() -> None:
     """RFC 7396: null in patch deletes the key."""
-    state = _plan(default_parameters={"energy_kev": 12.0, "exposure_ms": 100})
+    state = _plan(default_parameters={"energy": 12.0, "exposure": 100})
     events = update_plan_default_parameters.decide(
         state=state,
         command=UpdatePlanDefaultParameters(
-            plan_id=state.id, default_parameters_patch={"exposure_ms": None}
+            plan_id=state.id, default_parameters_patch={"exposure": None}
         ),
         method_parameters_schema=_schema(),
         now=_NOW,
     )
     assert len(events) == 1
-    assert events[0].default_parameters == {"energy_kev": 12.0}
+    assert events[0].default_parameters == {"energy": 12.0}
 
 
 @pytest.mark.unit
 def test_decide_no_op_when_merge_result_unchanged() -> None:
     """Re-submitting an empty patch on existing defaults: no event."""
-    state = _plan(default_parameters={"energy_kev": 12.0})
+    state = _plan(default_parameters={"energy": 12.0})
     events = update_plan_default_parameters.decide(
         state=state,
         command=UpdatePlanDefaultParameters(plan_id=state.id, default_parameters_patch={}),
@@ -129,11 +138,11 @@ def test_decide_no_op_when_merge_result_unchanged() -> None:
 
 @pytest.mark.unit
 def test_decide_no_op_when_setting_same_value() -> None:
-    state = _plan(default_parameters={"energy_kev": 12.0})
+    state = _plan(default_parameters={"energy": 12.0})
     events = update_plan_default_parameters.decide(
         state=state,
         command=UpdatePlanDefaultParameters(
-            plan_id=state.id, default_parameters_patch={"energy_kev": 12.0}
+            plan_id=state.id, default_parameters_patch={"energy": 12.0}
         ),
         method_parameters_schema=_schema(),
         now=_NOW,
@@ -148,7 +157,7 @@ def test_decide_raises_plan_not_found_when_state_is_none() -> None:
         update_plan_default_parameters.decide(
             state=None,
             command=UpdatePlanDefaultParameters(
-                plan_id=target_id, default_parameters_patch={"energy_kev": 12.0}
+                plan_id=target_id, default_parameters_patch={"energy": 12.0}
             ),
             method_parameters_schema=_schema(),
             now=_NOW,
@@ -163,7 +172,7 @@ def test_decide_raises_invalid_when_post_merge_violates_schema() -> None:
         update_plan_default_parameters.decide(
             state=state,
             command=UpdatePlanDefaultParameters(
-                plan_id=state.id, default_parameters_patch={"energy_kev": 1.0}
+                plan_id=state.id, default_parameters_patch={"energy": 1.0}
             ),
             method_parameters_schema=_schema(),
             now=_NOW,
@@ -219,7 +228,7 @@ def test_decide_accepts_defaults_update_in_any_lifecycle_state(
     events = update_plan_default_parameters.decide(
         state=state,
         command=UpdatePlanDefaultParameters(
-            plan_id=state.id, default_parameters_patch={"energy_kev": 12.0}
+            plan_id=state.id, default_parameters_patch={"energy": 12.0}
         ),
         method_parameters_schema=_schema(),
         now=_NOW,

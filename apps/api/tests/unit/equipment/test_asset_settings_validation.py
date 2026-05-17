@@ -61,10 +61,16 @@ def test_validate_passes_when_all_keys_match_single_schema() -> None:
     cap = _capability(
         settings_schema=_schema(
             type="object",
-            properties={"energy_kev": {"type": "number", "minimum": 5}},
+            properties={
+                "energy": {
+                    "type": "number",
+                    "minimum": 5,
+                    "unit": {"system": "udunits", "code": "keV"},
+                }
+            },
         )
     )
-    validate_settings_against_capabilities({"energy_kev": 30}, [cap])
+    validate_settings_against_capabilities({"energy": 30}, [cap])
 
 
 @pytest.mark.unit
@@ -72,12 +78,18 @@ def test_validate_rejects_constraint_violation() -> None:
     cap = _capability(
         settings_schema=_schema(
             type="object",
-            properties={"energy_kev": {"type": "number", "minimum": 5}},
+            properties={
+                "energy": {
+                    "type": "number",
+                    "minimum": 5,
+                    "unit": {"system": "udunits", "code": "keV"},
+                }
+            },
         )
     )
     with pytest.raises(InvalidAssetSettingsError) as exc_info:
-        validate_settings_against_capabilities({"energy_kev": 1}, [cap])
-    assert "energy_kev" in exc_info.value.reason
+        validate_settings_against_capabilities({"energy": 1}, [cap])
+    assert "energy" in exc_info.value.reason
 
 
 @pytest.mark.unit
@@ -86,11 +98,11 @@ def test_validate_rejects_orphan_key_when_all_capabilities_have_schemas() -> Non
     cap = _capability(
         settings_schema=_schema(
             type="object",
-            properties={"energy_kev": {"type": "number"}},
+            properties={"energy": {"type": "number", "unit": {"system": "udunits", "code": "keV"}}},
         )
     )
     with pytest.raises(InvalidAssetSettingsError) as exc_info:
-        validate_settings_against_capabilities({"energy_kev": 30, "unknown_key": "x"}, [cap])
+        validate_settings_against_capabilities({"energy": 30, "unknown_key": "x"}, [cap])
     assert "unknown_key" in exc_info.value.reason
 
 
@@ -106,13 +118,13 @@ def test_validate_strict_when_one_capability_is_schemaless_rejects_unknown_key()
     declared = _capability(
         settings_schema=_schema(
             type="object",
-            properties={"energy_kev": {"type": "number"}},
+            properties={"energy": {"type": "number", "unit": {"system": "udunits", "code": "keV"}}},
         )
     )
     schemaless = _capability(settings_schema=None)
     with pytest.raises(InvalidAssetSettingsError):
         validate_settings_against_capabilities(
-            {"energy_kev": 30, "vendor_specific": "x"},
+            {"energy": 30, "vendor_specific": "x"},
             [declared, schemaless],
         )
 
@@ -125,12 +137,12 @@ def test_validate_passes_when_one_capability_is_schemaless_and_keys_are_declared
     declared = _capability(
         settings_schema=_schema(
             type="object",
-            properties={"energy_kev": {"type": "number"}},
+            properties={"energy": {"type": "number", "unit": {"system": "udunits", "code": "keV"}}},
         )
     )
     schemaless = _capability(settings_schema=None)
     validate_settings_against_capabilities(
-        {"energy_kev": 30},
+        {"energy": 30},
         [declared, schemaless],
     )
 
@@ -239,7 +251,13 @@ def test_validate_empty_settings_passes_with_strict_schemas() -> None:
     cap = _capability(
         settings_schema=_schema(
             type="object",
-            properties={"energy_kev": {"type": "number", "minimum": 5}},
+            properties={
+                "energy": {
+                    "type": "number",
+                    "minimum": 5,
+                    "unit": {"system": "udunits", "code": "keV"},
+                }
+            },
             required=[],  # leave required empty so empty dict passes
         )
     )

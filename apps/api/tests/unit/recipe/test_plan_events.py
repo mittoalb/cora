@@ -334,7 +334,7 @@ def test_to_payload_then_from_stored_round_trips_for_plan_deprecated() -> None:
 # ---------- PlanDefaultParametersUpdated (Phase 6g-b) ----------
 
 
-_SAMPLE_DEFAULTS: dict[str, object] = {"energy_kev": 12.0, "exposure_ms": 100}
+_SAMPLE_DEFAULTS: dict[str, object] = {"energy": 12.0, "exposure": 100}
 
 
 @pytest.mark.unit

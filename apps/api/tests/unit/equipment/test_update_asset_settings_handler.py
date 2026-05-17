@@ -60,7 +60,11 @@ def _schema(min_val: int = 5) -> dict[str, Any]:
         "$schema": _DRAFT,
         "type": "object",
         "properties": {
-            "energy_kev": {"type": "number", "minimum": min_val},
+            "energy": {
+                "type": "number",
+                "minimum": min_val,
+                "unit": {"system": "udunits", "code": "keV"},
+            },
             "filter": {"type": "string"},
         },
     }
@@ -128,7 +132,7 @@ async def test_handler_returns_none_on_success() -> None:
     asset_id = await _setup_asset_with_schemaful_capability(deps)
 
     result = await update_asset_settings.bind(deps)(
-        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy_kev": 30}),
+        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy": 30}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -142,7 +146,7 @@ async def test_handler_appends_settings_updated_event_with_full_post_merge_dict(
     asset_id = await _setup_asset_with_schemaful_capability(deps)
 
     await update_asset_settings.bind(deps)(
-        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy_kev": 30, "filter": "Cu"}),
+        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy": 30, "filter": "Cu"}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -154,7 +158,7 @@ async def test_handler_appends_settings_updated_event_with_full_post_merge_dict(
     assert settings_event.event_id == _SETTINGS_EVENT_ID
     assert settings_event.metadata == {"command": "UpdateAssetSettings"}
     # Payload carries the FULL post-merge dict, not the patch (5g-c lock).
-    assert settings_event.payload["settings"] == {"energy_kev": 30, "filter": "Cu"}
+    assert settings_event.payload["settings"] == {"energy": 30, "filter": "Cu"}
 
 
 @pytest.mark.unit
@@ -166,7 +170,7 @@ async def test_handler_merges_patches_across_two_calls() -> None:
     handler = update_asset_settings.bind(deps)
 
     await handler(
-        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy_kev": 30}),
+        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy": 30}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -178,8 +182,8 @@ async def test_handler_merges_patches_across_two_calls() -> None:
 
     events, version = await store.load("Asset", asset_id)
     assert version == 4
-    assert events[-2].payload["settings"] == {"energy_kev": 30}
-    assert events[-1].payload["settings"] == {"energy_kev": 30, "filter": "Cu"}
+    assert events[-2].payload["settings"] == {"energy": 30}
+    assert events[-1].payload["settings"] == {"energy": 30, "filter": "Cu"}
 
 
 @pytest.mark.unit
@@ -190,13 +194,13 @@ async def test_handler_no_op_on_unchanged_merge_does_not_append() -> None:
     handler = update_asset_settings.bind(deps)
 
     await handler(
-        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy_kev": 30}),
+        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy": 30}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     # Re-applying the same key/value merges to an identical dict -> no event.
     await handler(
-        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy_kev": 30}),
+        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy": 30}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -212,7 +216,7 @@ async def test_handler_raises_asset_not_found_when_asset_does_not_exist() -> Non
 
     with pytest.raises(AssetNotFoundError):
         await update_asset_settings.bind(deps)(
-            UpdateAssetSettings(asset_id=_ASSET_ID, settings_patch={"energy_kev": 30}),
+            UpdateAssetSettings(asset_id=_ASSET_ID, settings_patch={"energy": 30}),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -227,7 +231,7 @@ async def test_handler_raises_invalid_settings_on_schema_violation() -> None:
 
     with pytest.raises(InvalidAssetSettingsError):
         await update_asset_settings.bind(deps)(
-            UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy_kev": 1}),
+            UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy": 1}),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -242,7 +246,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     deny_deps = _build_deps(event_store=store, deny=True)
     with pytest.raises(UnauthorizedError) as exc_info:
         await update_asset_settings.bind(deny_deps)(
-            UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy_kev": 30}),
+            UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy": 30}),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -257,7 +261,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     asset_id = await _setup_asset_with_schemaful_capability(deps)
 
     await update_asset_settings.bind(deps)(
-        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy_kev": 30}),
+        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy": 30}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,

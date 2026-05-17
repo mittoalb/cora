@@ -318,7 +318,7 @@ def test_fold_is_pure_same_input_same_output() -> None:
 # ---------- PlanDefaultParametersUpdated (Phase 6g-b) ----------
 
 
-_DEFAULTS_A: dict[str, object] = {"energy_kev": 12.0, "exposure_ms": 100}
+_DEFAULTS_A: dict[str, object] = {"energy": 12.0, "exposure": 100}
 
 
 @pytest.mark.unit

@@ -28,8 +28,17 @@ def _energy_schema() -> dict[str, Any]:
         "$schema": _DRAFT,
         "type": "object",
         "properties": {
-            "energy_kev": {"type": "number", "minimum": 5, "maximum": 50},
-            "exposure_ms": {"type": "integer", "minimum": 1},
+            "energy": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 50,
+                "unit": {"system": "udunits", "code": "keV"},
+            },
+            "exposure": {
+                "type": "integer",
+                "minimum": 1,
+                "unit": {"system": "udunits", "code": "ms"},
+            },
         },
     }
 
@@ -88,7 +97,7 @@ def _setup_run_chain(
 def test_start_run_accepts_override_parameters_and_triggered_by() -> None:
     with TestClient(create_app()) as client:
         plan_id, subject_id = _setup_run_chain(
-            client, method_schema=_energy_schema(), plan_defaults={"energy_kev": 12.0}
+            client, method_schema=_energy_schema(), plan_defaults={"energy": 12.0}
         )
         response = client.post(
             "/runs",
@@ -96,7 +105,7 @@ def test_start_run_accepts_override_parameters_and_triggered_by() -> None:
                 "name": "Run-with-overrides",
                 "plan_id": plan_id,
                 "subject_id": subject_id,
-                "override_parameters": {"exposure_ms": 250},
+                "override_parameters": {"exposure": 250},
                 "triggered_by": "operator:opid:5",
             },
         )
@@ -112,7 +121,7 @@ def test_get_run_surfaces_effective_parameters_after_merge() -> None:
         plan_id, subject_id = _setup_run_chain(
             client,
             method_schema=_energy_schema(),
-            plan_defaults={"energy_kev": 12.0, "exposure_ms": 100},
+            plan_defaults={"energy": 12.0, "exposure": 100},
         )
         post = client.post(
             "/runs",
@@ -120,7 +129,7 @@ def test_get_run_surfaces_effective_parameters_after_merge() -> None:
                 "name": "Run-X",
                 "plan_id": plan_id,
                 "subject_id": subject_id,
-                "override_parameters": {"exposure_ms": 250},
+                "override_parameters": {"exposure": 250},
                 "triggered_by": "operator:opid:5",
             },
         )
@@ -130,9 +139,9 @@ def test_get_run_surfaces_effective_parameters_after_merge() -> None:
         get = client.get(f"/runs/{run_id}")
     assert get.status_code == 200
     body = get.json()
-    assert body["override_parameters"] == {"exposure_ms": 250}
-    # Defaults' energy_kev preserved + override's exposure_ms wins.
-    assert body["effective_parameters"] == {"energy_kev": 12.0, "exposure_ms": 250}
+    assert body["override_parameters"] == {"exposure": 250}
+    # Defaults' energy preserved + override's exposure wins.
+    assert body["effective_parameters"] == {"energy": 12.0, "exposure": 250}
     assert body["triggered_by"] == "operator:opid:5"
 
 
@@ -142,7 +151,7 @@ def test_start_run_returns_400_when_effective_parameters_violate_schema() -> Non
     Method's parameters_schema bounds -> 400."""
     with TestClient(create_app()) as client:
         plan_id, subject_id = _setup_run_chain(
-            client, method_schema=_energy_schema(), plan_defaults={"energy_kev": 12.0}
+            client, method_schema=_energy_schema(), plan_defaults={"energy": 12.0}
         )
         response = client.post(
             "/runs",
@@ -150,7 +159,7 @@ def test_start_run_returns_400_when_effective_parameters_violate_schema() -> Non
                 "name": "Run-bad",
                 "plan_id": plan_id,
                 "subject_id": subject_id,
-                "override_parameters": {"energy_kev": 1.0},
+                "override_parameters": {"energy": 1.0},
             },
         )
     assert response.status_code == 400, response.text
@@ -206,7 +215,7 @@ def test_get_run_returns_plan_defaults_as_effective_when_no_overrides() -> None:
         plan_id, subject_id = _setup_run_chain(
             client,
             method_schema=_energy_schema(),
-            plan_defaults={"energy_kev": 12.0, "exposure_ms": 100},
+            plan_defaults={"energy": 12.0, "exposure": 100},
         )
         post = client.post(
             "/runs",
@@ -218,7 +227,7 @@ def test_get_run_returns_plan_defaults_as_effective_when_no_overrides() -> None:
     assert get.status_code == 200
     body = get.json()
     assert body["override_parameters"] == {}
-    assert body["effective_parameters"] == {"energy_kev": 12.0, "exposure_ms": 100}
+    assert body["effective_parameters"] == {"energy": 12.0, "exposure": 100}
     assert body["triggered_by"] is None
 
 

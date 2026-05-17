@@ -48,10 +48,15 @@ def _example_schema() -> dict[str, Any]:
         "$schema": _DRAFT,
         "type": "object",
         "properties": {
-            "energy_kev": {"type": "number", "minimum": 5, "maximum": 50},
+            "energy": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 50,
+                "unit": {"system": "udunits", "code": "keV"},
+            },
             "filter_material": {"type": "string", "enum": ["Cu", "Al", "Mo"]},
         },
-        "required": ["energy_kev"],
+        "required": ["energy"],
     }
 
 

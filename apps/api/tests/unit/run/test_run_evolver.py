@@ -289,8 +289,8 @@ def test_evolve_run_started_without_raid_yields_state_with_raid_none() -> None:
 def test_evolve_run_started_folds_6gc_parameter_fields() -> None:
     """6g-c additive payload: override_parameters + effective_parameters
     + triggered_by carry verbatim from RunStarted into Run state."""
-    overrides = {"energy_kev": 12.0}
-    effective = {"energy_kev": 12.0, "exposure_ms": 100}
+    overrides = {"energy": 12.0}
+    effective = {"energy": 12.0, "exposure": 100}
     state = evolve(
         None,
         RunStarted(
@@ -324,8 +324,8 @@ def test_evolve_held_then_resumed_preserves_6gc_fields() -> None:
     """Critical pin: every transition uses dataclass.replace which
     preserves all fields. override_parameters + effective_parameters
     + triggered_by must survive Hold → Resume cycles unchanged."""
-    overrides = {"energy_kev": 12.0}
-    effective = {"energy_kev": 12.0, "exposure_ms": 100}
+    overrides = {"energy": 12.0}
+    effective = {"energy": 12.0, "exposure": 100}
     state = evolve(
         None,
         RunStarted(
@@ -808,7 +808,7 @@ def test_run_adjusted_mutates_effective_and_stamps_denorm() -> None:
         plan_id=uuid4(),
         subject_id=None,
         occurred_at=_NOW,
-        effective_parameters={"energy_kev": 10.0},
+        effective_parameters={"energy": 10.0},
     )
     later = datetime(2026, 5, 14, 13, 0, 0, tzinfo=UTC)
     state = fold(
@@ -816,15 +816,15 @@ def test_run_adjusted_mutates_effective_and_stamps_denorm() -> None:
             started,
             RunAdjusted(
                 run_id=run_id,
-                parameter_patch={"energy_kev": 12.0},
-                effective_parameters={"energy_kev": 12.0},
+                parameter_patch={"energy": 12.0},
+                effective_parameters={"energy": 12.0},
                 reason="x",
                 occurred_at=later,
             ),
         ]
     )
     assert state is not None
-    assert state.effective_parameters == {"energy_kev": 12.0}
+    assert state.effective_parameters == {"energy": 12.0}
     assert state.last_adjusted_at == later
     assert state.adjustment_count == 1
     # Status preserved (steering orthogonal to lifecycle).

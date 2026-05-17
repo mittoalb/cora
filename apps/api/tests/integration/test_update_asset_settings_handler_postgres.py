@@ -80,7 +80,11 @@ async def test_update_asset_settings_persists_event_with_full_post_merge_dict(
                 "$schema": _DRAFT,
                 "type": "object",
                 "properties": {
-                    "energy_kev": {"type": "number", "minimum": 5},
+                    "energy": {
+                        "type": "number",
+                        "minimum": 5,
+                        "unit": {"system": "udunits", "code": "keV"},
+                    },
                     "filter": {"type": "string"},
                 },
             },
@@ -99,7 +103,7 @@ async def test_update_asset_settings_persists_event_with_full_post_merge_dict(
         correlation_id=_CORRELATION_ID,
     )
     await update_asset_settings.bind(deps)(
-        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy_kev": 30, "filter": "Cu"}),
+        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy": 30, "filter": "Cu"}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -113,7 +117,7 @@ async def test_update_asset_settings_persists_event_with_full_post_merge_dict(
     ]
     settings_event = events[2]
     assert settings_event.metadata == {"command": "UpdateAssetSettings"}
-    assert settings_event.payload["settings"] == {"energy_kev": 30, "filter": "Cu"}
+    assert settings_event.payload["settings"] == {"energy": 30, "filter": "Cu"}
 
 
 @pytest.mark.integration
@@ -148,7 +152,7 @@ async def test_update_asset_settings_merges_across_two_patches(
                 "$schema": _DRAFT,
                 "type": "object",
                 "properties": {
-                    "energy_kev": {"type": "number"},
+                    "energy": {"type": "number", "unit": {"system": "udunits", "code": "keV"}},
                     "filter": {"type": "string"},
                 },
             },
@@ -167,7 +171,7 @@ async def test_update_asset_settings_merges_across_two_patches(
         correlation_id=_CORRELATION_ID,
     )
     await update_asset_settings.bind(deps)(
-        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy_kev": 30}),
+        UpdateAssetSettings(asset_id=asset_id, settings_patch={"energy": 30}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -180,7 +184,7 @@ async def test_update_asset_settings_merges_across_two_patches(
     events, version = await deps.event_store.load("Asset", asset_id)
     assert version == 4
     # Last event's payload carries the FULL merged dict.
-    assert events[-1].payload["settings"] == {"energy_kev": 30, "filter": "Cu"}
+    assert events[-1].payload["settings"] == {"energy": 30, "filter": "Cu"}
 
 
 @pytest.mark.integration

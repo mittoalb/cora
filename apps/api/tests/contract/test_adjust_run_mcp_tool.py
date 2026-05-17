@@ -17,7 +17,14 @@ def _energy_schema() -> dict[str, Any]:
     return {
         "$schema": _DRAFT,
         "type": "object",
-        "properties": {"energy_kev": {"type": "number", "minimum": 5, "maximum": 50}},
+        "properties": {
+            "energy": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 50,
+                "unit": {"system": "udunits", "code": "keV"},
+            }
+        },
     }
 
 
@@ -45,7 +52,7 @@ def _setup_full_run(client: TestClient) -> str:
     ).json()["plan_id"]
     client.patch(
         f"/plans/{plan_id}/default-parameters",
-        json={"default_parameters_patch": {"energy_kev": 10.0}},
+        json={"default_parameters_patch": {"energy": 10.0}},
     )
     subject_id = client.post("/subjects", json={"name": "Sample"}).json()["subject_id"]
     mount_asset_id = register_active_asset(client)
@@ -89,7 +96,7 @@ def test_mcp_adjust_run_tool_succeeds_on_happy_path() -> None:
                     "name": "adjust_run",
                     "arguments": {
                         "run_id": run_id,
-                        "parameter_patch": {"energy_kev": 12.0},
+                        "parameter_patch": {"energy": 12.0},
                         "reason": "re-center",
                     },
                 },
@@ -115,7 +122,7 @@ def test_mcp_adjust_run_tool_passes_decision_id_through() -> None:
                     "name": "adjust_run",
                     "arguments": {
                         "run_id": run_id,
-                        "parameter_patch": {"energy_kev": 13.0},
+                        "parameter_patch": {"energy": 13.0},
                         "reason": "agent steering",
                         "decided_by_decision_id": str(uuid4()),
                     },
@@ -167,7 +174,7 @@ def test_mcp_adjust_run_tool_surfaces_whitespace_reason_error() -> None:
                     "name": "adjust_run",
                     "arguments": {
                         "run_id": run_id,
-                        "parameter_patch": {"energy_kev": 12.0},
+                        "parameter_patch": {"energy": 12.0},
                         "reason": "   ",
                     },
                 },

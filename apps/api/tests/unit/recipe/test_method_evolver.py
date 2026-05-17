@@ -352,7 +352,7 @@ def test_evolve_method_versioned_preserves_needed_capabilities() -> None:
 _SCHEMA_A = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
-    "properties": {"energy_kev": {"type": "number"}},
+    "properties": {"energy": {"type": "number", "unit": {"system": "udunits", "code": "keV"}}},
 }
 
 

@@ -19,7 +19,7 @@ _SCHEMA = {
     "$schema": _DRAFT,
     "type": "object",
     "properties": {
-        "energy_kev": {"type": "number", "minimum": 5},
+        "energy": {"type": "number", "minimum": 5, "unit": {"system": "udunits", "code": "keV"}},
         "filter": {"type": "string"},
     },
 }
@@ -113,7 +113,7 @@ def test_mcp_update_asset_settings_tool_succeeds_on_happy_path() -> None:
             name="update_asset_settings",
             arguments={
                 "asset_id": str(asset_id),
-                "settings_patch": {"energy_kev": 30, "filter": "Cu"},
+                "settings_patch": {"energy": 30, "filter": "Cu"},
             },
         )
     assert body["result"]["isError"] is False  # type: ignore[index]
@@ -130,7 +130,7 @@ def test_mcp_update_asset_settings_tool_returns_iserror_for_unknown_asset() -> N
             name="update_asset_settings",
             arguments={
                 "asset_id": str(uuid4()),
-                "settings_patch": {"energy_kev": 30},
+                "settings_patch": {"energy": 30},
             },
         )
     assert body["result"]["isError"] is True  # type: ignore[index]
@@ -139,7 +139,7 @@ def test_mcp_update_asset_settings_tool_returns_iserror_for_unknown_asset() -> N
 
 @pytest.mark.contract
 def test_mcp_update_asset_settings_tool_returns_iserror_on_schema_violation() -> None:
-    """Schema requires energy_kev >= 5; pass 1 -> InvalidAssetSettingsError."""
+    """Schema requires energy >= 5; pass 1 -> InvalidAssetSettingsError."""
     with TestClient(create_app()) as client:
         headers = open_session(client)
         asset_id = _setup_asset_with_schemaful_capability(client, headers)
@@ -150,7 +150,7 @@ def test_mcp_update_asset_settings_tool_returns_iserror_on_schema_violation() ->
             name="update_asset_settings",
             arguments={
                 "asset_id": str(asset_id),
-                "settings_patch": {"energy_kev": 1},
+                "settings_patch": {"energy": 1},
             },
         )
     assert body["result"]["isError"] is True  # type: ignore[index]

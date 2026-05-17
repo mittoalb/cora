@@ -5,7 +5,7 @@ Module-as-namespace surface:
     from cora.equipment.features import update_asset_settings
 
     cmd = update_asset_settings.UpdateAssetSettings(
-        asset_id=..., settings_patch={"exposure_ms": 50, "filter": "Cu"}
+        asset_id=..., settings_patch={"exposure": 50, "filter": "Cu"}
     )
     handler = update_asset_settings.bind(deps)
     await handler(cmd, principal_id=..., correlation_id=...)

@@ -73,8 +73,17 @@ def _energy_schema() -> dict[str, Any]:
         "$schema": _DRAFT,
         "type": "object",
         "properties": {
-            "energy_kev": {"type": "number", "minimum": 5, "maximum": 50},
-            "exposure_ms": {"type": "integer", "minimum": 1},
+            "energy": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 50,
+                "unit": {"system": "udunits", "code": "keV"},
+            },
+            "exposure": {
+                "type": "integer",
+                "minimum": 1,
+                "unit": {"system": "udunits", "code": "ms"},
+            },
         },
     }
 
@@ -162,7 +171,7 @@ async def test_adjust_run_persists_run_adjusted_and_folds_into_state(
     plan_id, subject_id = await _seed_full_chain(
         db_pool,
         method_schema=_energy_schema(),
-        plan_defaults={"energy_kev": 10.0, "exposure_ms": 100},
+        plan_defaults={"energy": 10.0, "exposure": 100},
     )
     deps = _build_deps(db_pool, [uuid4(), uuid4(), uuid4()])
 
@@ -175,7 +184,7 @@ async def test_adjust_run_persists_run_adjusted_and_folds_into_state(
     await adjust_run.bind(deps)(
         AdjustRun(
             run_id=run_id,
-            parameter_patch={"energy_kev": 12.0},
+            parameter_patch={"energy": 12.0},
             reason="re-center on ROI",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -184,7 +193,7 @@ async def test_adjust_run_persists_run_adjusted_and_folds_into_state(
 
     loaded = await load_run(deps.event_store, run_id)
     assert loaded is not None
-    assert loaded.effective_parameters == {"energy_kev": 12.0, "exposure_ms": 100}
+    assert loaded.effective_parameters == {"energy": 12.0, "exposure": 100}
     assert loaded.adjustment_count == 1
     assert loaded.last_adjusted_at == _NOW
     # override_parameters is untouched by adjust (immutable post-start
@@ -201,7 +210,7 @@ async def test_two_consecutive_adjust_run_increments_count_cumulatively(
     plan_id, subject_id = await _seed_full_chain(
         db_pool,
         method_schema=_energy_schema(),
-        plan_defaults={"energy_kev": 10.0},
+        plan_defaults={"energy": 10.0},
     )
     deps = _build_deps(db_pool, [uuid4() for _ in range(4)])
 
@@ -213,7 +222,7 @@ async def test_two_consecutive_adjust_run_increments_count_cumulatively(
     await adjust_run.bind(deps)(
         AdjustRun(
             run_id=run_id,
-            parameter_patch={"energy_kev": 12.0},
+            parameter_patch={"energy": 12.0},
             reason="first",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -222,7 +231,7 @@ async def test_two_consecutive_adjust_run_increments_count_cumulatively(
     await adjust_run.bind(deps)(
         AdjustRun(
             run_id=run_id,
-            parameter_patch={"exposure_ms": 200},
+            parameter_patch={"exposure": 200},
             reason="second",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -232,7 +241,7 @@ async def test_two_consecutive_adjust_run_increments_count_cumulatively(
     loaded = await load_run(deps.event_store, run_id)
     assert loaded is not None
     assert loaded.adjustment_count == 2
-    assert loaded.effective_parameters == {"energy_kev": 12.0, "exposure_ms": 200}
+    assert loaded.effective_parameters == {"energy": 12.0, "exposure": 200}
 
     # Per-event snapshot pin: each RunAdjusted carries its own
     # effective_parameters snapshot (not overwriting). The first event
@@ -242,10 +251,10 @@ async def test_two_consecutive_adjust_run_increments_count_cumulatively(
     stored, _ = await deps.event_store.load("Run", run_id)
     types = [s.event_type for s in stored]
     assert types == ["RunStarted", "RunAdjusted", "RunAdjusted"]
-    assert stored[1].payload["effective_parameters"] == {"energy_kev": 12.0}
+    assert stored[1].payload["effective_parameters"] == {"energy": 12.0}
     assert stored[2].payload["effective_parameters"] == {
-        "energy_kev": 12.0,
-        "exposure_ms": 200,
+        "energy": 12.0,
+        "exposure": 200,
     }
 
 
@@ -259,7 +268,7 @@ async def test_adjust_run_with_decision_id_persists_link_on_payload(
     plan_id, subject_id = await _seed_full_chain(
         db_pool,
         method_schema=_energy_schema(),
-        plan_defaults={"energy_kev": 10.0},
+        plan_defaults={"energy": 10.0},
     )
     deps = _build_deps(db_pool, [uuid4(), uuid4(), uuid4()])
 
@@ -272,7 +281,7 @@ async def test_adjust_run_with_decision_id_persists_link_on_payload(
     await adjust_run.bind(deps)(
         AdjustRun(
             run_id=run_id,
-            parameter_patch={"energy_kev": 13.0},
+            parameter_patch={"energy": 13.0},
             reason="agent steering iteration",
             decided_by_decision_id=decision_id,
         ),
@@ -285,6 +294,6 @@ async def test_adjust_run_with_decision_id_persists_link_on_payload(
     assert types == ["RunStarted", "RunAdjusted"]
     adjusted_payload = stored[1].payload
     assert adjusted_payload["decided_by_decision_id"] == str(decision_id)
-    assert adjusted_payload["parameter_patch"] == {"energy_kev": 13.0}
-    assert adjusted_payload["effective_parameters"] == {"energy_kev": 13.0}
+    assert adjusted_payload["parameter_patch"] == {"energy": 13.0}
+    assert adjusted_payload["effective_parameters"] == {"energy": 13.0}
     assert adjusted_payload["reason"] == "agent steering iteration"

@@ -76,8 +76,17 @@ def _energy_schema() -> dict[str, Any]:
         "$schema": _DRAFT,
         "type": "object",
         "properties": {
-            "energy_kev": {"type": "number", "minimum": 5, "maximum": 50},
-            "exposure_ms": {"type": "integer", "minimum": 1},
+            "energy": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 50,
+                "unit": {"system": "udunits", "code": "keV"},
+            },
+            "exposure": {
+                "type": "integer",
+                "minimum": 1,
+                "unit": {"system": "udunits", "code": "ms"},
+            },
         },
     }
 
@@ -170,7 +179,7 @@ async def test_start_run_merges_defaults_and_overrides_into_effective_parameters
     plan_id, subject_id = await _seed_full_chain(
         db_pool,
         method_schema=_energy_schema(),
-        plan_defaults={"energy_kev": 12.0, "exposure_ms": 100},
+        plan_defaults={"energy": 12.0, "exposure": 100},
     )
     deps = _build_deps(db_pool, [uuid4(), uuid4()])  # run id + RunStarted event id
 
@@ -179,7 +188,7 @@ async def test_start_run_merges_defaults_and_overrides_into_effective_parameters
             name="Run-with-overrides",
             plan_id=plan_id,
             subject_id=subject_id,
-            override_parameters={"exposure_ms": 250},
+            override_parameters={"exposure": 250},
             triggered_by="operator:opid:5",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -188,9 +197,9 @@ async def test_start_run_merges_defaults_and_overrides_into_effective_parameters
 
     loaded = await load_run(deps.event_store, run_id)
     assert loaded is not None
-    assert loaded.override_parameters == {"exposure_ms": 250}
-    # Defaults' energy_kev preserved; override's exposure_ms wins.
-    assert loaded.effective_parameters == {"energy_kev": 12.0, "exposure_ms": 250}
+    assert loaded.override_parameters == {"exposure": 250}
+    # Defaults' energy preserved; override's exposure wins.
+    assert loaded.effective_parameters == {"energy": 12.0, "exposure": 250}
     assert loaded.triggered_by == "operator:opid:5"
 
     await _drain_run_projections(db_pool)
@@ -211,7 +220,7 @@ async def test_start_run_with_no_overrides_uses_plan_defaults(
     plan_id, subject_id = await _seed_full_chain(
         db_pool,
         method_schema=_energy_schema(),
-        plan_defaults={"energy_kev": 12.0, "exposure_ms": 100},
+        plan_defaults={"energy": 12.0, "exposure": 100},
     )
     deps = _build_deps(db_pool, [uuid4(), uuid4()])
 
@@ -223,7 +232,7 @@ async def test_start_run_with_no_overrides_uses_plan_defaults(
     loaded = await load_run(deps.event_store, run_id)
     assert loaded is not None
     assert loaded.override_parameters == {}
-    assert loaded.effective_parameters == {"energy_kev": 12.0, "exposure_ms": 100}
+    assert loaded.effective_parameters == {"energy": 12.0, "exposure": 100}
 
     await _drain_run_projections(db_pool)
     async with db_pool.acquire() as conn:
@@ -245,7 +254,7 @@ async def test_start_run_rejects_overrides_violating_method_schema(
     plan_id, subject_id = await _seed_full_chain(
         db_pool,
         method_schema=_energy_schema(),
-        plan_defaults={"energy_kev": 12.0},
+        plan_defaults={"energy": 12.0},
     )
     deps = _build_deps(db_pool, [uuid4(), uuid4()])
 
@@ -255,7 +264,7 @@ async def test_start_run_rejects_overrides_violating_method_schema(
                 name="Run-bad",
                 plan_id=plan_id,
                 subject_id=subject_id,
-                override_parameters={"energy_kev": 1.0},
+                override_parameters={"energy": 1.0},
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,

@@ -25,8 +25,17 @@ def _energy_schema() -> dict[str, Any]:
         "$schema": _DRAFT,
         "type": "object",
         "properties": {
-            "energy_kev": {"type": "number", "minimum": 5, "maximum": 50},
-            "exposure_ms": {"type": "integer", "minimum": 1},
+            "energy": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 50,
+                "unit": {"system": "udunits", "code": "keV"},
+            },
+            "exposure": {
+                "type": "integer",
+                "minimum": 1,
+                "unit": {"system": "udunits", "code": "ms"},
+            },
         },
     }
 
@@ -85,12 +94,12 @@ def test_post_adjust_run_returns_204_happy_path() -> None:
         run_id = _setup_full_run(
             client,
             method_schema=_energy_schema(),
-            plan_defaults={"energy_kev": 10.0},
+            plan_defaults={"energy": 10.0},
         )
         response = client.post(
             f"/runs/{run_id}/adjust",
             json={
-                "parameter_patch": {"energy_kev": 12.0},
+                "parameter_patch": {"energy": 12.0},
                 "reason": "re-center on ROI",
             },
         )
@@ -122,12 +131,12 @@ def test_post_adjust_run_persists_decision_id_link_on_event() -> None:
         run_id_str = _setup_full_run(
             client,
             method_schema=_energy_schema(),
-            plan_defaults={"energy_kev": 10.0},
+            plan_defaults={"energy": 10.0},
         )
         response = client.post(
             f"/runs/{run_id_str}/adjust",
             json={
-                "parameter_patch": {"energy_kev": 13.0},
+                "parameter_patch": {"energy": 13.0},
                 "reason": "agent steering",
                 "decided_by_decision_id": str(decision_id),
             },
@@ -136,7 +145,7 @@ def test_post_adjust_run_persists_decision_id_link_on_event() -> None:
 
         payload = _load_adjusted_payload(app, UUID(run_id_str))
         assert payload["decided_by_decision_id"] == str(decision_id)
-        assert payload["parameter_patch"] == {"energy_kev": 13.0}
+        assert payload["parameter_patch"] == {"energy": 13.0}
 
 
 @pytest.mark.contract
@@ -146,13 +155,13 @@ def test_post_adjust_run_returns_204_from_held_state() -> None:
         run_id = _setup_full_run(
             client,
             method_schema=_energy_schema(),
-            plan_defaults={"energy_kev": 10.0},
+            plan_defaults={"energy": 10.0},
         )
         client.post(f"/runs/{run_id}/hold")
         response = client.post(
             f"/runs/{run_id}/adjust",
             json={
-                "parameter_patch": {"energy_kev": 14.0},
+                "parameter_patch": {"energy": 14.0},
                 "reason": "tune during pause",
             },
         )
@@ -187,7 +196,7 @@ def test_post_adjust_run_returns_409_for_each_terminal_state(
         run_id = _setup_full_run(
             client,
             method_schema=_energy_schema(),
-            plan_defaults={"energy_kev": 10.0},
+            plan_defaults={"energy": 10.0},
         )
         if transition == "complete":
             client.post(f"/runs/{run_id}/complete")
@@ -196,7 +205,7 @@ def test_post_adjust_run_returns_409_for_each_terminal_state(
 
         response = client.post(
             f"/runs/{run_id}/adjust",
-            json={"parameter_patch": {"energy_kev": 12.0}, "reason": "late adjust"},
+            json={"parameter_patch": {"energy": 12.0}, "reason": "late adjust"},
         )
     assert response.status_code == 409, response.text
     assert expected_status in response.json()["detail"]
@@ -208,7 +217,7 @@ def test_post_adjust_run_returns_400_for_empty_patch() -> None:
         run_id = _setup_full_run(
             client,
             method_schema=_energy_schema(),
-            plan_defaults={"energy_kev": 10.0},
+            plan_defaults={"energy": 10.0},
         )
         response = client.post(
             f"/runs/{run_id}/adjust",
@@ -224,11 +233,11 @@ def test_post_adjust_run_returns_400_for_whitespace_only_reason() -> None:
         run_id = _setup_full_run(
             client,
             method_schema=_energy_schema(),
-            plan_defaults={"energy_kev": 10.0},
+            plan_defaults={"energy": 10.0},
         )
         response = client.post(
             f"/runs/{run_id}/adjust",
-            json={"parameter_patch": {"energy_kev": 12.0}, "reason": "   "},
+            json={"parameter_patch": {"energy": 12.0}, "reason": "   "},
         )
     assert response.status_code == 400, response.text
     assert "adjust reason" in response.json()["detail"].lower()
@@ -240,12 +249,12 @@ def test_post_adjust_run_returns_400_when_merged_violates_schema() -> None:
         run_id = _setup_full_run(
             client,
             method_schema=_energy_schema(),
-            plan_defaults={"energy_kev": 10.0},
+            plan_defaults={"energy": 10.0},
         )
         response = client.post(
             f"/runs/{run_id}/adjust",
             json={
-                "parameter_patch": {"energy_kev": 1.0},  # below minimum=5
+                "parameter_patch": {"energy": 1.0},  # below minimum=5
                 "reason": "x",
             },
         )
@@ -259,11 +268,11 @@ def test_post_adjust_run_returns_422_when_reason_missing() -> None:
         run_id = _setup_full_run(
             client,
             method_schema=_energy_schema(),
-            plan_defaults={"energy_kev": 10.0},
+            plan_defaults={"energy": 10.0},
         )
         response = client.post(
             f"/runs/{run_id}/adjust",
-            json={"parameter_patch": {"energy_kev": 12.0}},
+            json={"parameter_patch": {"energy": 12.0}},
         )
     assert response.status_code == 422
 
@@ -274,7 +283,7 @@ def test_post_adjust_run_returns_422_when_patch_missing() -> None:
         run_id = _setup_full_run(
             client,
             method_schema=_energy_schema(),
-            plan_defaults={"energy_kev": 10.0},
+            plan_defaults={"energy": 10.0},
         )
         response = client.post(
             f"/runs/{run_id}/adjust",
@@ -301,12 +310,12 @@ def test_post_adjust_run_returns_422_for_bad_decision_id_uuid() -> None:
         run_id = _setup_full_run(
             client,
             method_schema=_energy_schema(),
-            plan_defaults={"energy_kev": 10.0},
+            plan_defaults={"energy": 10.0},
         )
         response = client.post(
             f"/runs/{run_id}/adjust",
             json={
-                "parameter_patch": {"energy_kev": 12.0},
+                "parameter_patch": {"energy": 12.0},
                 "reason": "x",
                 "decided_by_decision_id": "not-a-uuid",
             },
@@ -322,7 +331,7 @@ def test_post_adjust_run_returns_422_for_null_parameter_patch() -> None:
         run_id = _setup_full_run(
             client,
             method_schema=_energy_schema(),
-            plan_defaults={"energy_kev": 10.0},
+            plan_defaults={"energy": 10.0},
         )
         response = client.post(
             f"/runs/{run_id}/adjust",
@@ -339,10 +348,10 @@ def test_post_adjust_run_returns_422_for_reason_over_max_length() -> None:
         run_id = _setup_full_run(
             client,
             method_schema=_energy_schema(),
-            plan_defaults={"energy_kev": 10.0},
+            plan_defaults={"energy": 10.0},
         )
         response = client.post(
             f"/runs/{run_id}/adjust",
-            json={"parameter_patch": {"energy_kev": 12.0}, "reason": "x" * 501},
+            json={"parameter_patch": {"energy": 12.0}, "reason": "x" * 501},
         )
     assert response.status_code == 422

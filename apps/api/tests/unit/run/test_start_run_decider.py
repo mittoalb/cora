@@ -547,7 +547,14 @@ def _energy_schema() -> dict[str, Any]:
     return {
         "$schema": _DRAFT,
         "type": "object",
-        "properties": {"energy_kev": {"type": "number", "minimum": 5, "maximum": 50}},
+        "properties": {
+            "energy": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 50,
+                "unit": {"system": "udunits", "code": "keV"},
+            }
+        },
     }
 
 
@@ -567,8 +574,8 @@ def test_decide_emits_run_started_with_6gc_parameter_fields() -> None:
         assets={asset_id: asset},
         referencing_clearances=_active_clearance_stub(),
     )
-    overrides: dict[str, Any] = {"energy_kev": 12.0}
-    effective: dict[str, Any] = {"energy_kev": 12.0}
+    overrides: dict[str, Any] = {"energy": 12.0}
+    effective: dict[str, Any] = {"energy": 12.0}
 
     decision = start_run.decide(
         state=None,
@@ -615,7 +622,7 @@ def test_decide_raises_invalid_run_parameters_on_post_merge_violation() -> None:
             command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
             context=context,
             needed_capabilities_snapshot=frozenset({cap}),
-            effective_parameters={"energy_kev": 1.0},  # below minimum=5
+            effective_parameters={"energy": 1.0},  # below minimum=5
             method_parameters_schema=_energy_schema(),
             now=_NOW,
             new_id=uuid4(),

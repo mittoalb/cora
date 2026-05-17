@@ -1202,10 +1202,10 @@ def test_evolve_lifecycle_transition_preserves_settings(
             if transition is AssetRestoredFromMaintenance
             else AssetLifecycle.ACTIVE
         ),
-        settings={"energy_kev": 30, "filter": "Cu"},
+        settings={"energy": 30, "filter": "Cu"},
     )
     state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW))
-    assert state.settings == {"energy_kev": 30, "filter": "Cu"}
+    assert state.settings == {"energy": 30, "filter": "Cu"}
 
 
 @pytest.mark.unit

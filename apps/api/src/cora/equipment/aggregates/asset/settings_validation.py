@@ -97,9 +97,9 @@ shared rationale.
 
 `InvalidAssetSettingsError` carries a `reason` string with enough
 detail for an operator to fix the patch:
-  - "key 'energy_kev' is not declared by any assigned Capability's
+  - "key 'energy' is not declared by any assigned Capability's
     settings_schema" (orphan)
-  - "value <X> for key 'energy_kev' violates schema constraint
+  - "value <X> for key 'energy' violates schema constraint
     <details>" (constraint violation)
   - "key 'temperature_c' has incompatible types across Capabilities
     (Capability A: number, Capability B: string)" (true conflict)

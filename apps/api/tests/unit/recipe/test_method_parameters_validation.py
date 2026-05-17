@@ -36,11 +36,21 @@ def test_accepts_full_subset() -> None:
     validate_parameters_schema(
         _schema(
             type="object",
-            required=["energy_kev"],
+            required=["energy"],
             properties={
-                "energy_kev": {"type": "number", "minimum": 5, "maximum": 50},
+                "energy": {
+                    "type": "number",
+                    "minimum": 5,
+                    "maximum": 50,
+                    "unit": {"system": "udunits", "code": "keV"},
+                },
                 "filter_material": {"type": "string", "enum": ["Cu", "Al", "Mo"]},
-                "exposure_ms": {"type": "integer", "minimum": 1, "maximum": 5000},
+                "exposure": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5000,
+                    "unit": {"system": "udunits", "code": "ms"},
+                },
                 "detector_serial": {"type": "string", "pattern": "^FLIR-[0-9]+$"},
             },
         )
@@ -114,10 +124,16 @@ def test_accepts_nested_properties_with_subset_only() -> None:
                 "trajectory": {
                     "type": "object",
                     "properties": {
-                        "start_position_mm": {"type": "number"},
-                        "stop_position_mm": {"type": "number"},
+                        "start_position": {
+                            "type": "number",
+                            "unit": {"system": "udunits", "code": "mm"},
+                        },
+                        "stop_position": {
+                            "type": "number",
+                            "unit": {"system": "udunits", "code": "mm"},
+                        },
                     },
-                    "required": ["start_position_mm"],
+                    "required": ["start_position"],
                 },
             },
         )
@@ -135,7 +151,12 @@ def test_accepts_nested_dollar_schema_declaration() -> None:
                 "trajectory": {
                     "$schema": _DRAFT,
                     "type": "object",
-                    "properties": {"start_position_mm": {"type": "number"}},
+                    "properties": {
+                        "start_position": {
+                            "type": "number",
+                            "unit": {"system": "udunits", "code": "mm"},
+                        }
+                    },
                 },
             },
         )

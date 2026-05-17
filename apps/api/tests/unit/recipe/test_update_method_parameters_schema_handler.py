@@ -36,7 +36,13 @@ def _valid_schema(min_val: int = 5) -> dict[str, Any]:
     return {
         "$schema": _DRAFT,
         "type": "object",
-        "properties": {"energy_kev": {"type": "number", "minimum": min_val}},
+        "properties": {
+            "energy": {
+                "type": "number",
+                "minimum": min_val,
+                "unit": {"system": "udunits", "code": "keV"},
+            }
+        },
     }
 
 

@@ -189,7 +189,7 @@ def test_to_payload_then_from_stored_round_trips_for_capability_deprecated() -> 
 _TEST_SCHEMA = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
-    "properties": {"energy_kev": {"type": "number"}},
+    "properties": {"energy": {"type": "number", "unit": {"system": "udunits", "code": "keV"}}},
 }
 
 

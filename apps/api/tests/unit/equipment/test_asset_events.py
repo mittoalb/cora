@@ -656,11 +656,11 @@ def test_event_type_name_returns_class_name_for_condition_events() -> None:
 @pytest.mark.unit
 def test_to_payload_serializes_asset_settings_updated() -> None:
     asset_id = uuid4()
-    settings = {"energy_kev": 30, "filter": "Cu"}
+    settings = {"energy": 30, "filter": "Cu"}
     event = AssetSettingsUpdated(asset_id=asset_id, settings=settings, occurred_at=_NOW)
     assert to_payload(event) == {
         "asset_id": str(asset_id),
-        "settings": {"energy_kev": 30, "filter": "Cu"},
+        "settings": {"energy": 30, "filter": "Cu"},
         "occurred_at": _NOW.isoformat(),
     }
 
@@ -680,12 +680,12 @@ def test_from_stored_rebuilds_asset_settings_updated() -> None:
         "AssetSettingsUpdated",
         {
             "asset_id": str(asset_id),
-            "settings": {"energy_kev": 30},
+            "settings": {"energy": 30},
             "occurred_at": _NOW.isoformat(),
         },
     )
     assert from_stored(stored) == AssetSettingsUpdated(
-        asset_id=asset_id, settings={"energy_kev": 30}, occurred_at=_NOW
+        asset_id=asset_id, settings={"energy": 30}, occurred_at=_NOW
     )
 
 
@@ -711,7 +711,7 @@ def test_from_stored_tolerates_missing_settings_key_for_additive_evolution() -> 
 def test_to_payload_then_from_stored_round_trips_for_asset_settings_updated() -> None:
     original = AssetSettingsUpdated(
         asset_id=uuid4(),
-        settings={"energy_kev": 30, "filter": "Cu", "nested": {"x": 1}},
+        settings={"energy": 30, "filter": "Cu", "nested": {"x": 1}},
         occurred_at=_NOW,
     )
     stored = _stored("AssetSettingsUpdated", to_payload(original))

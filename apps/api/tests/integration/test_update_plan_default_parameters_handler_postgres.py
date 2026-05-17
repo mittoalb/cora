@@ -60,8 +60,17 @@ def _example_schema() -> dict[str, Any]:
         "$schema": _DRAFT,
         "type": "object",
         "properties": {
-            "energy_kev": {"type": "number", "minimum": 5, "maximum": 50},
-            "exposure_ms": {"type": "integer", "minimum": 1},
+            "energy": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 50,
+                "unit": {"system": "udunits", "code": "keV"},
+            },
+            "exposure": {
+                "type": "integer",
+                "minimum": 1,
+                "unit": {"system": "udunits", "code": "ms"},
+            },
         },
     }
 
@@ -156,14 +165,14 @@ async def test_update_plan_default_parameters_round_trips_event_and_projection(
     await _seed_plan(deps, plan_id, method_id)
 
     await update_plan_default_parameters.bind(deps)(
-        UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy_kev": 12.0}),
+        UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy": 12.0}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
     loaded = await load_plan(deps.event_store, plan_id)
     assert loaded is not None
-    assert loaded.default_parameters == {"energy_kev": 12.0}
+    assert loaded.default_parameters == {"energy": 12.0}
 
     await _drain(db_pool)
     async with db_pool.acquire() as conn:
@@ -189,12 +198,12 @@ async def test_clearing_all_keys_flips_projection_present_back_to_false(
     await _seed_plan(deps, plan_id, method_id)
 
     await update_plan_default_parameters.bind(deps)(
-        UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy_kev": 12.0}),
+        UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy": 12.0}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await update_plan_default_parameters.bind(deps)(
-        UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy_kev": None}),
+        UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy": None}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -228,9 +237,7 @@ async def test_validation_rejects_post_merge_violation(
 
     with pytest.raises(InvalidPlanDefaultParametersError):
         await update_plan_default_parameters.bind(deps)(
-            UpdatePlanDefaultParameters(
-                plan_id=plan_id, default_parameters_patch={"energy_kev": 1.0}
-            ),
+            UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy": 1.0}),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -252,7 +259,7 @@ async def test_no_op_on_unchanged_does_not_emit(
     await _seed_plan(deps, plan_id, method_id)
 
     await update_plan_default_parameters.bind(deps)(
-        UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy_kev": 12.0}),
+        UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy": 12.0}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -260,7 +267,7 @@ async def test_no_op_on_unchanged_does_not_emit(
     _, version_after_first = await deps.event_store.load("Plan", plan_id)
 
     await update_plan_default_parameters.bind(deps)(
-        UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy_kev": 12.0}),
+        UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch={"energy": 12.0}),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

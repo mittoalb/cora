@@ -528,7 +528,8 @@ class Asset:
     (additive-state pattern).
 
     `settings` (5g-c): slow-changing operational parameters
-    (gap_mm, energy_kev, exposure_ms, filter_material, etc.).
+    (gap, energy, exposure, filter_material, etc.; units live in
+    each Capability's settings_schema as a `unit` annotation).
     Validated at write time against the union of currently-assigned
     Capabilities' `settings_schema` declarations (5g-a). Updated via
     the `update_asset_settings` slice with PATCH RFC 7396 merge

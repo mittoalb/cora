@@ -170,7 +170,7 @@ async def test_asset_registered_is_silently_dropped() -> None:
 _TEST_SCHEMA = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
-    "properties": {"energy_kev": {"type": "number"}},
+    "properties": {"energy": {"type": "number", "unit": {"system": "udunits", "code": "keV"}}},
 }
 
 

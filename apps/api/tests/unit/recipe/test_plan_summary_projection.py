@@ -146,7 +146,7 @@ async def test_plan_default_parameters_updated_with_non_empty_sets_present_true(
         "PlanDefaultParametersUpdated",
         {
             "plan_id": str(_PLAN_ID),
-            "default_parameters": {"energy_kev": 12.0},
+            "default_parameters": {"energy": 12.0},
             "occurred_at": _NOW.isoformat(),
         },
     )

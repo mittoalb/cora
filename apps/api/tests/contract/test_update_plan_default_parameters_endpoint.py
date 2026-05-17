@@ -23,8 +23,17 @@ def _example_method_schema() -> dict[str, Any]:
         "$schema": _DRAFT,
         "type": "object",
         "properties": {
-            "energy_kev": {"type": "number", "minimum": 5, "maximum": 50},
-            "exposure_ms": {"type": "integer", "minimum": 1},
+            "energy": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 50,
+                "unit": {"system": "udunits", "code": "keV"},
+            },
+            "exposure": {
+                "type": "integer",
+                "minimum": 1,
+                "unit": {"system": "udunits", "code": "ms"},
+            },
         },
     }
 
@@ -72,7 +81,7 @@ def test_patch_plan_default_parameters_returns_204_when_setting_defaults() -> No
         plan_id = _setup_plan_with_schema(client, method_schema=_example_method_schema())
         response = client.patch(
             f"/plans/{plan_id}/default-parameters",
-            json={"default_parameters_patch": {"energy_kev": 12.0}},
+            json={"default_parameters_patch": {"energy": 12.0}},
         )
     assert response.status_code == 204
     assert response.content == b""
@@ -85,12 +94,12 @@ def test_patch_plan_default_parameters_returns_204_when_clearing_via_null() -> N
         plan_id = _setup_plan_with_schema(client, method_schema=_example_method_schema())
         first = client.patch(
             f"/plans/{plan_id}/default-parameters",
-            json={"default_parameters_patch": {"energy_kev": 12.0}},
+            json={"default_parameters_patch": {"energy": 12.0}},
         )
         assert first.status_code == 204
         cleared = client.patch(
             f"/plans/{plan_id}/default-parameters",
-            json={"default_parameters_patch": {"energy_kev": None}},
+            json={"default_parameters_patch": {"energy": None}},
         )
     assert cleared.status_code == 204
 
@@ -102,7 +111,7 @@ def test_patch_plan_default_parameters_returns_400_for_constraint_violation() ->
         plan_id = _setup_plan_with_schema(client, method_schema=_example_method_schema())
         response = client.patch(
             f"/plans/{plan_id}/default-parameters",
-            json={"default_parameters_patch": {"energy_kev": 1.0}},
+            json={"default_parameters_patch": {"energy": 1.0}},
         )
     assert response.status_code == 400
     body = response.json()
@@ -145,7 +154,7 @@ def test_patch_plan_default_parameters_returns_404_for_unknown_plan() -> None:
     with TestClient(create_app()) as client:
         response = client.patch(
             f"/plans/{unknown_id}/default-parameters",
-            json={"default_parameters_patch": {"energy_kev": 12.0}},
+            json={"default_parameters_patch": {"energy": 12.0}},
         )
     assert response.status_code == 404
 

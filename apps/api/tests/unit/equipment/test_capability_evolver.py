@@ -251,7 +251,7 @@ def test_fold_define_version_deprecate_preserves_version_through_deprecation() -
 _TEST_SCHEMA = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
-    "properties": {"energy_kev": {"type": "number"}},
+    "properties": {"energy": {"type": "number", "unit": {"system": "udunits", "code": "keV"}}},
 }
 
 

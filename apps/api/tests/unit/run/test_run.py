@@ -411,9 +411,9 @@ def test_invalid_run_adjust_patch_error_carries_reason() -> None:
 def test_invalid_run_adjust_schema_error_carries_detail() -> None:
     from cora.run.aggregates.run import InvalidRunAdjustSchemaError
 
-    err = InvalidRunAdjustSchemaError("energy_kev: below minimum")
-    assert err.detail == "energy_kev: below minimum"
-    assert "energy_kev" in str(err)
+    err = InvalidRunAdjustSchemaError("energy: below minimum")
+    assert err.detail == "energy: below minimum"
+    assert "energy" in str(err)
 
 
 @pytest.mark.unit

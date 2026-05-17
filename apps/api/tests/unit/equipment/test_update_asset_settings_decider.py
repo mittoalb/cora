@@ -66,7 +66,12 @@ def _energy_cap() -> Capability:
             "$schema": _DRAFT,
             "type": "object",
             "properties": {
-                "energy_kev": {"type": "number", "minimum": 5, "maximum": 50},
+                "energy": {
+                    "type": "number",
+                    "minimum": 5,
+                    "maximum": 50,
+                    "unit": {"system": "udunits", "code": "keV"},
+                },
                 "filter": {"type": "string"},
             },
         }
@@ -79,14 +84,14 @@ def test_decide_emits_event_when_setting_first_value() -> None:
     cap = _energy_cap()
     events = update_asset_settings.decide(
         state=state,
-        command=UpdateAssetSettings(asset_id=state.id, settings_patch={"energy_kev": 30}),
+        command=UpdateAssetSettings(asset_id=state.id, settings_patch={"energy": 30}),
         capabilities=[cap],
         now=_NOW,
     )
     assert events == [
         AssetSettingsUpdated(
             asset_id=state.id,
-            settings={"energy_kev": 30},
+            settings={"energy": 30},
             occurred_at=_NOW,
         )
     ]
@@ -97,20 +102,20 @@ def test_decide_emits_event_with_merged_dict_not_patch() -> None:
     """Pinned: event payload carries the FULL post-merge dict, NOT
     the patch. Readers don't have to fold prior events to reconstruct
     current state."""
-    state = _asset(settings={"energy_kev": 30, "filter": "Cu"})
+    state = _asset(settings={"energy": 30, "filter": "Cu"})
     events = update_asset_settings.decide(
         state=state,
-        command=UpdateAssetSettings(asset_id=state.id, settings_patch={"energy_kev": 40}),
+        command=UpdateAssetSettings(asset_id=state.id, settings_patch={"energy": 40}),
         capabilities=[_energy_cap()],
         now=_NOW,
     )
     assert len(events) == 1
-    assert events[0].settings == {"energy_kev": 40, "filter": "Cu"}
+    assert events[0].settings == {"energy": 40, "filter": "Cu"}
 
 
 @pytest.mark.unit
 def test_decide_emits_event_when_null_deletes_existing_key() -> None:
-    state = _asset(settings={"energy_kev": 30, "filter": "Cu"})
+    state = _asset(settings={"energy": 30, "filter": "Cu"})
     events = update_asset_settings.decide(
         state=state,
         command=UpdateAssetSettings(asset_id=state.id, settings_patch={"filter": None}),
@@ -118,17 +123,17 @@ def test_decide_emits_event_when_null_deletes_existing_key() -> None:
         now=_NOW,
     )
     assert len(events) == 1
-    assert events[0].settings == {"energy_kev": 30}
+    assert events[0].settings == {"energy": 30}
 
 
 @pytest.mark.unit
 def test_decide_no_op_when_merged_equals_current() -> None:
     """Re-submitting the same value is a no-op (matches 5g-a / 5g-b
     no-op-on-unchanged precedent)."""
-    state = _asset(settings={"energy_kev": 30})
+    state = _asset(settings={"energy": 30})
     events = update_asset_settings.decide(
         state=state,
-        command=UpdateAssetSettings(asset_id=state.id, settings_patch={"energy_kev": 30}),
+        command=UpdateAssetSettings(asset_id=state.id, settings_patch={"energy": 30}),
         capabilities=[_energy_cap()],
         now=_NOW,
     )
@@ -138,7 +143,7 @@ def test_decide_no_op_when_merged_equals_current() -> None:
 @pytest.mark.unit
 def test_decide_no_op_when_patch_is_empty_dict() -> None:
     """Empty patch leaves settings unchanged; no event."""
-    state = _asset(settings={"energy_kev": 30})
+    state = _asset(settings={"energy": 30})
     events = update_asset_settings.decide(
         state=state,
         command=UpdateAssetSettings(asset_id=state.id, settings_patch={}),
@@ -169,7 +174,7 @@ def test_decide_raises_invalid_settings_for_constraint_violation() -> None:
             state=state,
             command=UpdateAssetSettings(
                 asset_id=state.id,
-                settings_patch={"energy_kev": 1},  # below minimum=5
+                settings_patch={"energy": 1},  # below minimum=5
             ),
             capabilities=[_energy_cap()],
             now=_NOW,
@@ -198,7 +203,7 @@ def test_decide_allows_null_cleanup_of_orphan_key_after_capability_removed() -> 
     it owned become orphans on the Asset. PATCH writes that mention
     those keys with non-null values reject; PATCH writes with null
     are allowed (cleanup mechanism)."""
-    state = _asset(settings={"energy_kev": 30, "orphan_key": "leftover"})
+    state = _asset(settings={"energy": 30, "orphan_key": "leftover"})
     cap = _energy_cap()
     # Submit a patch that nulls the orphan key — must succeed and emit
     # an event with the cleaned-up settings.
@@ -212,14 +217,14 @@ def test_decide_allows_null_cleanup_of_orphan_key_after_capability_removed() -> 
         now=_NOW,
     )
     assert len(events) == 1
-    assert events[0].settings == {"energy_kev": 30}
+    assert events[0].settings == {"energy": 30}
 
 
 @pytest.mark.unit
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     state = _asset(settings={})
     cap = _energy_cap()
-    command = UpdateAssetSettings(asset_id=state.id, settings_patch={"energy_kev": 30})
+    command = UpdateAssetSettings(asset_id=state.id, settings_patch={"energy": 30})
     first = update_asset_settings.decide(state=state, command=command, capabilities=[cap], now=_NOW)
     second = update_asset_settings.decide(
         state=state, command=command, capabilities=[cap], now=_NOW

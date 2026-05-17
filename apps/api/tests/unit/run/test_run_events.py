@@ -133,8 +133,8 @@ def test_to_payload_serializes_run_started_with_6gc_parameter_fields() -> None:
     """Phase 6g-c additive payload: override_parameters,
     effective_parameters, triggered_by carry verbatim through the
     payload."""
-    overrides = {"energy_kev": 12.0}
-    effective = {"energy_kev": 12.0, "exposure_ms": 100}
+    overrides = {"energy": 12.0}
+    effective = {"energy": 12.0, "exposure": 100}
     event = RunStarted(
         run_id=uuid4(),
         name="32-ID FlyScan",
@@ -202,8 +202,8 @@ def test_from_stored_rebuilds_run_started_with_6gc_keys() -> None:
     """Post-6g-c events round-trip with parameter values intact."""
     run_id = uuid4()
     plan_id = uuid4()
-    overrides = {"energy_kev": 12.0}
-    effective = {"energy_kev": 12.0, "exposure_ms": 100}
+    overrides = {"energy": 12.0}
+    effective = {"energy": 12.0, "exposure": 100}
     stored = _stored(
         "RunStarted",
         {
@@ -839,8 +839,8 @@ def test_to_payload_serializes_run_adjusted_with_decision_id() -> None:
     decision_id = uuid4()
     event = RunAdjusted(
         run_id=run_id,
-        parameter_patch={"energy_kev": 12.0},
-        effective_parameters={"energy_kev": 12.0, "exposure_ms": 100},
+        parameter_patch={"energy": 12.0},
+        effective_parameters={"energy": 12.0, "exposure": 100},
         reason="re-center on ROI",
         decided_by_decision_id=decision_id,
         occurred_at=_NOW,
@@ -848,8 +848,8 @@ def test_to_payload_serializes_run_adjusted_with_decision_id() -> None:
     payload = to_payload(event)
     assert payload == {
         "run_id": str(run_id),
-        "parameter_patch": {"energy_kev": 12.0},
-        "effective_parameters": {"energy_kev": 12.0, "exposure_ms": 100},
+        "parameter_patch": {"energy": 12.0},
+        "effective_parameters": {"energy": 12.0, "exposure": 100},
         "reason": "re-center on ROI",
         "decided_by_decision_id": str(decision_id),
         "occurred_at": _NOW.isoformat(),
@@ -878,8 +878,8 @@ def test_from_stored_rebuilds_run_adjusted_with_decision_id() -> None:
 
     original = RunAdjusted(
         run_id=uuid4(),
-        parameter_patch={"energy_kev": 12.0},
-        effective_parameters={"energy_kev": 12.0, "exposure_ms": 100},
+        parameter_patch={"energy": 12.0},
+        effective_parameters={"energy": 12.0, "exposure": 100},
         reason="agent steering iteration 5",
         decided_by_decision_id=uuid4(),
         occurred_at=_NOW,
