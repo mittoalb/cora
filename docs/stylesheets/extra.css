@@ -191,9 +191,13 @@ body::before {
   margin-right: 0.6rem;
 }
 
-/* Match table text to body size; mkdocs-material default is ~0.64rem. */
+/* Tables run a pinch smaller than body (~0.92em) so dense reference tables
+   keep multi-cell rows on a single visual line. Material's default
+   (~0.64rem) felt too small here; body-inherit felt too generous when
+   tables carry 4-5 columns of mixed identifiers + narrative. */
 .md-typeset table:not([class]) {
-  font-size: inherit;
+  font-size: 0.92em;
+  line-height: 1.45;
 }
 
 .md-typeset table:not([class]) th,
@@ -228,12 +232,12 @@ body::before {
   background: transparent;
   color: var(--md-default-fg-color--light);
   font-weight: 600;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   border: none;
   border-bottom: 1px solid var(--md-default-fg-color--lightest);
-  padding: 0.7rem 0.9rem;
+  padding: 0.5rem 0.7rem;
   text-align: left;
   vertical-align: bottom;
 }
@@ -241,7 +245,7 @@ body::before {
 .md-typeset table:not([class]) td {
   border: none;
   border-bottom: 1px solid var(--md-default-fg-color--lightest);
-  padding: 0.75rem 0.9rem;
+  padding: 0.55rem 0.7rem;
   vertical-align: top;
 }
 
