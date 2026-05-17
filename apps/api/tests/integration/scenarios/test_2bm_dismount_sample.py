@@ -1,5 +1,10 @@
 """Dismount sample at APS 2-BM.
 
+cluster: Runs
+archetype: setup-only
+bc_primary: Subject
+bc_touches: Equipment, Subject
+
 Scenario test for the closing-the-loop routine: after a Subject has
 been measured, the operator physically removes it from the Aerotech
 kinematic tip, transitioning the Subject's lifecycle from `Measured`

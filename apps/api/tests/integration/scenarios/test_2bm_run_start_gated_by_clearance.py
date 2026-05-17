@@ -1,5 +1,10 @@
 """Run.start cross-BC gate enforcement at APS 2-BM.
 
+cluster: Staging
+archetype: gate-enforcement
+bc_primary: Safety
+bc_touches: Access, Campaign, Equipment, Recipe, Run, Safety, Subject
+
 Scenario test for the Safety BC -> Run BC cross-BC integration:
 `start_run` is HARD-GATED on the presence of an Active Safety
 Clearance covering the Run's scope (Subject + Assets). Without
@@ -202,9 +207,7 @@ _DEVICES = (
         "RotaryStage",
         _CAP_ROTARY_STAGE_ID,
     ),
-    DeviceSpec(
-        "Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID
-    ),
+    DeviceSpec("Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID),
     DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
     DeviceSpec(
         "Scintillator_LuAG",

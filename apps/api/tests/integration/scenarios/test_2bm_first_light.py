@@ -1,5 +1,10 @@
 """First light at APS 2-BM.
 
+cluster: Commissioning
+archetype: single-routine
+bc_primary: Operation
+bc_touches: Equipment, Operation, Recipe
+
 Scenario test for the canonical commissioning milestone: the first
 time beam passes through the 2-BM optics chain, hits the LuAG
 scintillator, and shows up on the Oryx camera. Opens with a dark

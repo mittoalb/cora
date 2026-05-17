@@ -1,5 +1,10 @@
 """Resolution alignment at APS 2-BM.
 
+cluster: Commissioning
+archetype: single-routine
+bc_primary: Operation
+bc_touches: Equipment, Operation, Recipe
+
 Scenario test for the `resolution` step of the rotation-axis alignment
 chain. Adjusts the Optique Peter focus-Z motor on a mounted resolution
 target (Siemens star) until the image sharpness metric peaks. Comes

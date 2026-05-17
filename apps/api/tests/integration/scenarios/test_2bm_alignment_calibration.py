@@ -1,5 +1,10 @@
 """Alignment calibration at APS 2-BM.
 
+cluster: Commissioning
+archetype: single-routine
+bc_primary: Operation
+bc_touches: Equipment, Operation, Recipe
+
 Scenario test for the calibration pre-step of the rotation-axis
 alignment chain: with a calibration sphere in place, the operator
 bumps roll and pitch motors by known deltas, measures sphere

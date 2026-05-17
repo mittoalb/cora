@@ -1,5 +1,10 @@
 """Run reading logbook (baseline + monitor) at APS 2-BM.
 
+cluster: Runs
+archetype: single-routine
+bc_primary: Run
+bc_touches: Campaign, Equipment, Recipe, Run, Subject
+
 Scenario test for the polymorphic per-Run reading logbook
 exercising the SOSA-aligned `sampling_procedure` discriminator:
 during a tomography Run the operator captures pre-scan baseline
@@ -203,9 +208,7 @@ _DEVICES = (
         "RotaryStage",
         _CAP_ROTARY_STAGE_ID,
     ),
-    DeviceSpec(
-        "Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID
-    ),
+    DeviceSpec("Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID),
     DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
     DeviceSpec(
         "Scintillator_LuAG",

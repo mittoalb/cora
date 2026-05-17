@@ -1,5 +1,10 @@
 """RunDebrief at APS 2-BM.
 
+cluster: Advisories
+archetype: agent-driven
+bc_primary: Decision
+bc_touches: Campaign, Decision, Equipment, Recipe, Run, Subject
+
 Scenario test for CORA's first AI-agent runtime: the RunDebrief
 subscriber observes the tomography scan's terminal `RunCompleted`
 event, calls the LLM (stubbed via `FakeLLMAdapter`), and emits an

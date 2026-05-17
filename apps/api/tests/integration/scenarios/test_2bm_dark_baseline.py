@@ -1,5 +1,10 @@
 """Detector dark baseline at APS 2-BM.
 
+cluster: Commissioning
+archetype: single-routine
+bc_primary: Operation
+bc_touches: Data, Equipment, Operation, Recipe
+
 Scenario test for the dark-baseline routine: with the shutter closed,
 acquire a stack of N dark frames, compute a pixel-wise mean + std,
 and register the resulting baseline as a Dataset for downstream

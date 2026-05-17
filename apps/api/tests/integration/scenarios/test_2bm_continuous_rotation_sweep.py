@@ -1,5 +1,10 @@
 """Continuous-rotation sweep at APS 2-BM.
 
+cluster: Runs
+archetype: full-run-lifecycle
+bc_primary: Run
+bc_touches: Campaign, Data, Equipment, Recipe, Run, Subject
+
 Scenario test for the N-back-to-back-Runs-share-Plan pattern: one
 TomoScan call yields N child Runs (rotations) under a single
 `Campaign(intent=Series)` with a shared Plan. Sourced from

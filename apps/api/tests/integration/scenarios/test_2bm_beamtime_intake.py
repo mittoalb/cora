@@ -1,5 +1,10 @@
 """Beamtime intake at APS 2-BM.
 
+cluster: Staging
+archetype: setup-only
+bc_primary: Subject
+bc_touches: Access, Campaign, Subject
+
 Scenario test for the canonical first step of a proposal-driven
 beamtime: the operator runs `dmagic` to pull the proposal metadata
 from APS scheduling, then registers the PI as a CORA Actor, the

@@ -1,5 +1,10 @@
 """Pitch alignment at APS 2-BM.
 
+cluster: Commissioning
+archetype: single-routine
+bc_primary: Operation
+bc_touches: Equipment, Operation, Recipe
+
 Scenario test for the `pitch` step of the rotation-axis alignment
 chain. Drives the `Sample_top_Pitch` tilt motor (orthogonal to
 `Sample_top_Roll`) to remove the rotation axis's out-of-plane tilt

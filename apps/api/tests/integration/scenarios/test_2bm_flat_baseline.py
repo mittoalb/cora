@@ -1,5 +1,10 @@
 """Detector flat-field baseline at APS 2-BM.
 
+cluster: Commissioning
+archetype: single-routine
+bc_primary: Operation
+bc_touches: Data, Equipment, Operation, Recipe
+
 Scenario test for the flat-field baseline routine: with the shutter
 open and NO sample in the beam, acquire a stack of N flat frames,
 compute a pixel-wise mean, and register the resulting baseline as a

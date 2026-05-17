@@ -1,5 +1,10 @@
 """RunDebrief on an EquipmentAbort Run at APS 2-BM.
 
+cluster: Advisories
+archetype: agent-driven
+bc_primary: Decision
+bc_touches: Campaign, Decision, Equipment, Recipe, Run, Subject
+
 Sibling scenario to `test_2bm_run_debrief.py` (NominalCompletion)
 and `test_2bm_run_debrief_degraded.py` (DegradedCompletion):
 exercises the RunDebrief agent on a Run that terminated as

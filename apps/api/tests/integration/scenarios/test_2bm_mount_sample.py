@@ -1,5 +1,10 @@
 """Mount sample at APS 2-BM.
 
+cluster: Staging
+archetype: setup-only
+bc_primary: Subject
+bc_touches: Access, Campaign, Equipment, Subject
+
 Scenario test for the kinematic-mount routine: a Subject registered
 during beamtime intake (in `Received` state) is mounted onto the
 Aerotech rotary stage's kinematic tip, transitioning the Subject's

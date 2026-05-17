@@ -1,5 +1,10 @@
 """Retroactive Run.truncate after a control-room outage at APS 2-BM.
 
+cluster: Runs
+archetype: single-routine
+bc_primary: Run
+bc_touches: Campaign, Equipment, Recipe, Run, Subject
+
 Scenario test for the de-facto-dead Run cleanup pathway: an
 overnight tomography Run was in flight when the storage ring
 beam dumped + the operator console crashed (no laptop power);
@@ -184,9 +189,7 @@ _DEVICES = (
         "RotaryStage",
         _CAP_ROTARY_STAGE_ID,
     ),
-    DeviceSpec(
-        "Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID
-    ),
+    DeviceSpec("Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID),
     DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
     DeviceSpec(
         "Scintillator_LuAG",

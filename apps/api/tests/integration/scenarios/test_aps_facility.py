@@ -1,5 +1,10 @@
 """APS facility hierarchy (Argonne + APS).
 
+cluster: Seed
+archetype: setup-only
+bc_primary: Equipment
+bc_touches: Access, Agent, Caution, Equipment, Recipe, Safety, Supply
+
 Scenario test for the facility-install rhythm: register the Enterprise
 + Site Asset hierarchy and seed the BCs whose aggregates naturally
 hang at those levels (Actor, Agent, Practice with site_id=APS,

@@ -94,6 +94,16 @@ nav:
       - Policies: deployments/2-bm/policies.md
     - 35-BM:
       - deployments/35-bm/index.md
+  - Scenarios:
+    - scenarios/index.md
+    - Clusters:
+      - Seed: scenarios/seed.md
+      - Commissioning: scenarios/commissioning.md
+      - Staging: scenarios/staging.md
+      - Runs: scenarios/runs.md
+      - Advisories: scenarios/advisories.md
+    - By shape: scenarios/by-archetype.md
+    - By BC: scenarios/by-bc.md
   - Catalog:
     - catalog/index.md
     - Capabilities: catalog/capabilities.md

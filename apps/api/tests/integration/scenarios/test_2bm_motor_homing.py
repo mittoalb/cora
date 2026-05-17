@@ -1,5 +1,10 @@
 """Motor homing at APS 2-BM.
 
+cluster: Commissioning
+archetype: single-routine
+bc_primary: Operation
+bc_touches: Caution, Equipment, Operation, Recipe
+
 Scenario test for the shakedown rhythm: the 2 motorized Devices at
 2-BM (Aerotech ABRS rotary + Sample_top_X linear) are activated and
 homed without beam. One motor (Aerotech) misses its index pulse on

@@ -1,5 +1,10 @@
 """Proposal-clearance FSM walk at APS 2-BM.
 
+cluster: Staging
+archetype: fsm-walk
+bc_primary: Safety
+bc_touches: Access, Safety
+
 Scenario test for the Safety BC's full Clearance lifecycle in a
 beamtime-intake context: a proposal arrives, an ESAF
 (Experiment Safety Assessment Form) is registered against the
@@ -433,9 +438,7 @@ async def test_proposal_clearance_walks_to_active(
 
     # ----- Assert: Clearance stream carries the full FSM walk -----
 
-    clearance_events, _version = await deps.event_store.load(
-        "Clearance", _CLEARANCE_ID
-    )
+    clearance_events, _version = await deps.event_store.load("Clearance", _CLEARANCE_ID)
     clearance_event_types = [e.event_type for e in clearance_events]
     # Register + Submit + StartReview + 2x AppendStep + Approve + Activate = 7
     assert clearance_event_types == [

@@ -1,5 +1,10 @@
 """Streaming tomography at APS 2-BM.
 
+cluster: Runs
+archetype: full-run-lifecycle
+bc_primary: Run
+bc_touches: Campaign, Data, Equipment, Recipe, Run, Subject
+
 Scenario test for TomoScanStream + tomoStream live-reconstruction:
 the operator starts a tomography Run, observes the live-reconstructed
 slice on tomoStream, decides mid-flight that exposure is too short

@@ -1,5 +1,10 @@
 """2-BM facility install (Unit + Devices + Trust shape).
 
+cluster: Seed
+archetype: setup-only
+bc_primary: Equipment
+bc_touches: Access, Equipment, Trust
+
 Scenario test that exercises `install_aps_unit` end-to-end and asserts
 the full 2-BM facility-level state lands. Parallel to
 `test_aps_facility.py` for APS-Site level — this scenario is the

@@ -1,5 +1,10 @@
 """Hold + Resume cycle on a long Run at APS 2-BM.
 
+cluster: Runs
+archetype: fsm-walk
+bc_primary: Run
+bc_touches: Campaign, Equipment, Recipe, Run, Subject
+
 Scenario test for the operator-pause / operator-resume pathway:
 a long tomography scan is in flight when the storage ring drops
 beam (top-up gap, beam dump, or scheduled fill); the operator
@@ -186,9 +191,7 @@ _DEVICES = (
         "RotaryStage",
         _CAP_ROTARY_STAGE_ID,
     ),
-    DeviceSpec(
-        "Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID
-    ),
+    DeviceSpec("Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID),
     DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
     DeviceSpec(
         "Scintillator_LuAG",

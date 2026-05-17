@@ -1,5 +1,10 @@
 """Sibling Agent tool-grant / revoke / deprecation at APS 2-BM.
 
+cluster: Seed
+archetype: fsm-walk
+bc_primary: Agent
+bc_touches: Agent
+
 Scenario test for the Agent BC's config-time pathway: defining a
 fresh sibling Agent (a `DatasetIntegrityAuditor`, a hypothetical
 second AI agent that would audit raw Datasets post-acquisition),

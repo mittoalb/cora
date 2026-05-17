@@ -1,5 +1,10 @@
 """Mosaic-tile tomography acquisition at APS 2-BM.
 
+cluster: Runs
+archetype: full-run-lifecycle
+bc_primary: Run
+bc_touches: Campaign, Data, Equipment, Recipe, Run, Subject
+
 Scenario test for a 2x2 spatial-mosaic acquisition: a Subject too
 wide for the camera FOV is imaged as four tile Runs at different
 sample-stage positions, all under a single `Coordinated` Campaign

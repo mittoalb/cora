@@ -1,5 +1,10 @@
 """Data publish at APS 2-BM.
 
+cluster: Runs
+archetype: full-run-lifecycle
+bc_primary: Data
+bc_touches: Campaign, Data, Equipment, Recipe, Run, Subject
+
 Scenario test for the closing-the-books routine: after a beamtime
 finishes acquisition, the operator reviews each Trial Dataset and
 promotes the keepers to Production, then closes the Campaign

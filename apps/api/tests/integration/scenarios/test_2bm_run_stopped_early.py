@@ -1,5 +1,10 @@
 """Controlled-exit Run.stop at APS 2-BM.
 
+cluster: Runs
+archetype: single-routine
+bc_primary: Run
+bc_touches: Campaign, Data, Equipment, Recipe, Run, Subject
+
 Scenario test for the operator-driven controlled-exit pathway:
 a tomography scan is in flight when the operator decides the
 data acquired so far is sufficient (live-reconstruction quality
@@ -176,9 +181,7 @@ _DEVICES = (
         "RotaryStage",
         _CAP_ROTARY_STAGE_ID,
     ),
-    DeviceSpec(
-        "Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID
-    ),
+    DeviceSpec("Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID),
     DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
     DeviceSpec(
         "Scintillator_LuAG",
@@ -405,9 +408,7 @@ async def test_run_stop_early_lands_as_stopped_terminal(
     await bind_register_dataset(deps)(
         RegisterDataset(
             name="Sample_of_opportunity_partial_600proj",
-            uri=(
-                "file:///data/2026-05/Dr_PI/Sample_of_opportunity_partial_600proj.h5"
-            ),
+            uri=("file:///data/2026-05/Dr_PI/Sample_of_opportunity_partial_600proj.h5"),
             checksum_algorithm="sha256",
             checksum_value="c" * 64,
             byte_size=5_032_704_000,  # ~5 GB partial

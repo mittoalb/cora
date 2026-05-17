@@ -1,5 +1,10 @@
 """Roll alignment at APS 2-BM.
 
+cluster: Commissioning
+archetype: single-routine
+bc_primary: Operation
+bc_touches: Equipment, Operation, Recipe
+
 Scenario test for the `roll` step of the rotation-axis alignment
 chain. Drives the `Sample_top_Roll` tilt motor (under the rotation
 stage) to make the rotation axis perpendicular to the camera Y axis,

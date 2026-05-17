@@ -1,5 +1,10 @@
 """Tomography scan at APS 2-BM.
 
+cluster: Runs
+archetype: full-run-lifecycle
+bc_primary: Run
+bc_touches: Campaign, Data, Equipment, Recipe, Run, Subject
+
 Scenario test for the canonical first user acquisition: with the
 sandstone Subject mounted on the Aerotech kinematic tip, the
 operator defines a tomography Method + Practice + Plan, starts a

@@ -1,5 +1,10 @@
 """Hexapod reboot at APS 2-BM.
 
+cluster: Commissioning
+archetype: fsm-walk
+bc_primary: Equipment
+bc_touches: Caution, Equipment, Operation, Recipe
+
 Scenario test for the canonical hexapod-recovery routine: the
 PI-Hexapod sample-positioning controller locks up (HexapodAllEnabled
 PV stuck at 0), operator power-cycles outlet 4 on the network PDU

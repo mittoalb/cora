@@ -1,5 +1,10 @@
 """Operator-paused RunDebrief agent at APS 2-BM (cost overrun).
 
+cluster: Seed
+archetype: fsm-walk
+bc_primary: Agent
+bc_touches: Agent
+
 Scenario test for the operator-intervention pathway on an in-flight
 Agent: an Agent that is running normally suddenly exceeds its
 budget envelope (real-life Anthropic API spend spiking), the

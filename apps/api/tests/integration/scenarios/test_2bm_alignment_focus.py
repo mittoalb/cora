@@ -1,5 +1,10 @@
 """Focus alignment at APS 2-BM.
 
+cluster: Commissioning
+archetype: single-routine
+bc_primary: Operation
+bc_touches: Equipment, Operation, Recipe
+
 Scenario test for the `focus` step of the rotation-axis alignment
 chain. Adjusts the sample-to-scintillator distance via the
 `Sample_top_Z` linear stage until the image's depth-of-focus peaks

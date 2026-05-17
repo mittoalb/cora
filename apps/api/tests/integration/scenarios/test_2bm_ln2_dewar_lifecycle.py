@@ -1,5 +1,10 @@
 """LN2 dewar Supply lifecycle at APS 2-BM.
 
+cluster: Seed
+archetype: fsm-walk
+bc_primary: Supply
+bc_touches: Supply
+
 Scenario test for the Supply BC's full 5-state FSM walk in a
 realistic 2-BM operator narrative: a beamline-scope liquid-
 nitrogen (LN2) dewar feeds the cooled detector chain across the
@@ -300,9 +305,7 @@ async def test_ln2_dewar_walks_through_all_five_supply_states(
 
     # ----- Assert: Supply stream carries the full FSM walk -----
 
-    supply_events, _supply_version = await deps.event_store.load(
-        "Supply", _SUPPLY_ID
-    )
+    supply_events, _supply_version = await deps.event_store.load("Supply", _SUPPLY_ID)
     supply_event_types = [e.event_type for e in supply_events]
     # 6 events covering register + 5 transitions.
     assert supply_event_types == [
@@ -318,9 +321,7 @@ async def test_ln2_dewar_walks_through_all_five_supply_states(
     # All five transition events carry an operator-supplied `reason`; the
     # one without is the genesis (SupplyRegistered has no reason field).
 
-    transitions_with_reasons = [
-        e for e in supply_events if e.event_type != "SupplyRegistered"
-    ]
+    transitions_with_reasons = [e for e in supply_events if e.event_type != "SupplyRegistered"]
     for transition_event in transitions_with_reasons:
         assert "reason" in transition_event.payload
         assert len(transition_event.payload["reason"]) > 10  # non-trivial

@@ -1,5 +1,10 @@
 """Center alignment at APS 2-BM.
 
+cluster: Commissioning
+archetype: single-routine
+bc_primary: Operation
+bc_touches: Equipment, Operation, Recipe
+
 Scenario test for the rotation-axis "center" alignment routine at 2-BM
 micro-CT, as performed by operators today at mechanically-similar 2-BM
 via the `xray-imaging/adjust` CLI. Composes the full Equipment + Recipe
