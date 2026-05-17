@@ -5,8 +5,9 @@
 | Caution | Target | Category | Severity | Summary |
 | --- | --- | --- | --- | --- |
 | Aerotech cold-start index miss | `Aerotech_ABRS_rotary` (Device) | `Wear` | `Caution` | Misses index pulse on cold-start home; retry once after 5s settling |
+| Hexapod controller lockup | `Hexapod_2BM` (Device) | `Wear` | `Caution` | Controller locks up under sustained load (HexapodAllEnabled stuck at 0); recover via the `hexapod_reboot` Procedure (PDU outlet 4 power-cycle + IOC restart) |
 
-Source of truth: [`apps/api/tests/integration/scenarios/test_2bm_motor_homing.py`](../../../apps/api/tests/integration/scenarios/test_2bm_motor_homing.py).
+Source of truth: [`apps/api/tests/integration/scenarios/test_2bm_motor_homing.py`](../../../apps/api/tests/integration/scenarios/test_2bm_motor_homing.py), [`apps/api/tests/integration/scenarios/test_2bm_hexapod_reboot.py`](../../../apps/api/tests/integration/scenarios/test_2bm_hexapod_reboot.py).
 
 ## Aerotech cold-start index miss
 
@@ -18,13 +19,22 @@ Source of truth: [`apps/api/tests/integration/scenarios/test_2bm_motor_homing.py
 
 **Lifetime.** No `expires_at` (permanent until superseded or retired). Persists on the operator banner for every future Run start at 2-BM until the underlying stage is replaced or recalibrated.
 
+## Hexapod controller lockup
+
+`Wear` / `Caution`. Tags: `hexapod`, `controller_lockup`, `pdu_power_cycle`, `ioc_restart`.
+
+**Observation.** The PI-Hexapod sample-positioning controller occasionally locks up under sustained load: the `2bmHXP:HexapodAllEnabled` EPICS PV reads `0` while motion commands return no error. Operator-observable symptom is the hexapod stops responding to position requests even though no fault has been raised by the motion-control layer.
+
+**Workaround.** Run `hexapod_reboot.py` (in [`2bmb-bin`](https://github.com/xray-imaging/2bmb-bin)): stops the hexapod IOC, power-cycles PDU outlet 4 with 10s settling each way, restarts the IOC, polls `HexapodAllEnabled` for up to 180s. If the PV is still `0` after the timeout, `caput 2bmHXP:EnableWork.PROC 1` to force-enable, then re-poll. Manual checks during recovery: verify outlet state via NetBooter `/status.xml`; SSH `2bmb@arcturus` for IOC log inspection.
+
+**Lifetime.** No `expires_at` (permanent until superseded or retired). Surfaces on every future Run start at 2-BM that targets the Hexapod, so operators know to run the recovery routine on first sign of unresponsiveness rather than chasing a phantom motion-control bug.
+
 ## Pending in code
 
 Other 2-BM Cautions surfaced by the [2-BM repo survey](https://github.com/xray-imaging/2bm-docs) or open watch items. Each lands as a row above when a scenario test (or seed script) registers it.
 
 | Pending Caution | Target | Source scenario (planned) |
 | --- | --- | --- |
-| Hexapod cold-start controller lockup | Hexapod Device | `tests/integration/scenarios/test_2bm_hexapod_reboot.py` (sourced from `2bmb-bin/hexapod_reboot.py`: PDU outlet 4 power-cycle + IOC restart) |
 | Vibration threshold exceeded after air-handler shutdown | 2-BM Unit | `tests/integration/scenarios/test_2bm_vibration_baseline.py` (registers the Caution only when measured vibration frequency exceeds reference) |
 | Detector dark-frame drift after long beam-off periods | `Oryx_5MP_camera` Device | Not yet sourced; would land when an operations-phase scenario observes the drift |
 | Scintillator browning under prolonged white-beam exposure | `Scintillator_LuAG` Device | Not yet sourced; needs long-duration operations scenario |

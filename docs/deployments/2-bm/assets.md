@@ -13,18 +13,20 @@
 | `Shutter_2BM` | `Shutter` | Safety shutter at the 2-BM front-end; opens to admit beam, closes for safe state |
 | `Oryx_5MP_camera` | `Camera` | Alignment-frame detector (FLIR ORX-10G-51S5M-C, 2448 × 2048, 3.45 µm) |
 | `Scintillator_LuAG` | `Scintillator` | LuAG scintillator; converts X-rays to visible light for the camera |
+| `Hexapod_2BM` | `Hexapod` | PI sample-positioning hexapod (6-DOF); recoverable via `hexapod_reboot` Procedure when controller locks up |
 
-Source of truth: [`test_2bm_alignment_center.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_center.py), [`test_2bm_motor_homing.py`](../../../apps/api/tests/integration/scenarios/test_2bm_motor_homing.py), [`test_2bm_first_light.py`](../../../apps/api/tests/integration/scenarios/test_2bm_first_light.py), [`test_2bm_dark_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_dark_baseline.py), [`test_2bm_flat_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_flat_baseline.py), [`test_2bm_alignment_resolution.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_resolution.py), [`test_2bm_alignment_focus.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_focus.py), [`test_2bm_alignment_roll.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_roll.py), [`test_2bm_alignment_pitch.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_pitch.py).
+Source of truth: [`test_2bm_alignment_center.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_center.py), [`test_2bm_motor_homing.py`](../../../apps/api/tests/integration/scenarios/test_2bm_motor_homing.py), [`test_2bm_first_light.py`](../../../apps/api/tests/integration/scenarios/test_2bm_first_light.py), [`test_2bm_dark_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_dark_baseline.py), [`test_2bm_flat_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_flat_baseline.py), [`test_2bm_alignment_resolution.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_resolution.py), [`test_2bm_alignment_focus.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_focus.py), [`test_2bm_alignment_roll.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_roll.py), [`test_2bm_alignment_pitch.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_pitch.py), [`test_2bm_hexapod_reboot.py`](../../../apps/api/tests/integration/scenarios/test_2bm_hexapod_reboot.py).
 
 ## Lifecycle and condition coverage
 
 Asset facets exercised in code today:
 
-| Facet | Aerotech | Sample_top_X | Sample_top_Z | Sample_top_Roll | Sample_top_Pitch | Optique_Peter_focus_Z | Shutter_2BM | Oryx_5MP_camera | Scintillator_LuAG |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Lifecycle: `Commissioned → Active` | yes | yes | yes (focus) | yes (roll) | yes (pitch) | yes (resolution) | yes (first_light) | yes (resolution, focus, roll, pitch, first_light) | yes (resolution, focus, roll, pitch, first_light) |
-| Condition: `Nominal → Degraded → Nominal` | yes (cold-start home failure → retry) | no | no | no | no | no | no | no | no |
-| Caution attached | yes ([Aerotech cold-start index miss](cautions.md)) | no | no | no | no | no | no | no | no |
+| Facet | Aerotech | Sample_top_X | Sample_top_Z | Sample_top_Roll | Sample_top_Pitch | Optique_Peter_focus_Z | Shutter_2BM | Oryx_5MP_camera | Scintillator_LuAG | Hexapod_2BM |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Lifecycle: `Commissioned → Active` | yes | yes | yes (focus) | yes (roll) | yes (pitch) | yes (resolution) | yes (first_light) | yes (resolution, focus, roll, pitch, first_light) | yes (resolution, focus, roll, pitch, first_light) | yes (hexapod_reboot) |
+| Condition: `Nominal → Degraded → Nominal` | yes (cold-start home failure → retry) | no | no | no | no | no | no | no | no | no |
+| Condition: `Nominal → Faulted → Nominal` | no | no | no | no | no | no | no | no | no | yes (controller lockup → reboot ceremony) |
+| Caution attached | yes ([Aerotech cold-start index miss](cautions.md)) | no | no | no | no | no | no | no | no | yes ([Hexapod controller lockup](cautions.md)) |
 
 Lifecycle transitions on Oryx and Scintillator land in every alignment + first-light scenario that consumes the image chain; their condition / Caution facets remain unexercised until further commissioning scenarios surface operator pain points.
 
@@ -60,7 +62,6 @@ The broader 2-BM Asset stack surfaced by the [2-BM repo survey](https://github.c
 
 | Pending Asset | Capability | Role at 2-BM | Source scenario (planned) |
 | --- | --- | --- | --- |
-| `Hexapod_2BM` | (new `Hexapod` Capability) | Sample-positioning hexapod; exercises Asset.fault → Asset.restore via PDU outlet 4 reboot pattern | `tests/integration/scenarios/test_2bm_hexapod_reboot.py` |
 | `Mirror_2BM` | (new `Mirror` Capability with coating-dependent energy range) | White-beam mirror with multi-stripe coating (Cr base + Pt / W-Si multilayer / Rh stripes); exercises Asset.replace + Capability re-declaration on substrate return from recoating | `tests/integration/scenarios/test_2bm_mirror_recoat_return.py` |
 | `softGlueZynq_FPGA` | (new `TriggerFPGA` Capability) | Hardware trigger generation for fly-scans; needed to model live-reconstruction streaming | Not yet sourced; likely lands with `streaming_tomography` scenario |
 | `PCO_Dimax_HS` | `HighSpeedCamera` | High-speed detector alternate to Oryx; used for vibration-baseline acquisitions and continuous-rotation sweeps | Not yet sourced; likely lands with `vibration_baseline` or `continuous_rotation_sweep` |

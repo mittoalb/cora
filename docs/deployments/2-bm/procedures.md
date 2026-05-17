@@ -13,8 +13,9 @@
 | Center alignment | `center_alignment` | Calibrated rotation-axis pixel position on the detector |
 | Roll alignment | `roll_alignment` | Rotation axis perpendicular to the camera Y axis (Sample_top_Roll tilt) |
 | Pitch alignment | `pitch_alignment` | Rotation axis perpendicular to the beam direction (Sample_top_Pitch tilt) |
+| Hexapod reboot | `hexapod_reboot` | Stuck hexapod controller recovered: IOC stop + PDU outlet 4 power-cycle + IOC start + EPICS enable check |
 
-Source of truth: [`test_2bm_motor_homing.py`](../../../apps/api/tests/integration/scenarios/test_2bm_motor_homing.py), [`test_2bm_first_light.py`](../../../apps/api/tests/integration/scenarios/test_2bm_first_light.py), [`test_2bm_dark_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_dark_baseline.py), [`test_2bm_flat_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_flat_baseline.py), [`test_2bm_alignment_resolution.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_resolution.py), [`test_2bm_alignment_focus.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_focus.py), [`test_2bm_alignment_center.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_center.py), [`test_2bm_alignment_roll.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_roll.py), [`test_2bm_alignment_pitch.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_pitch.py).
+Source of truth: [`test_2bm_motor_homing.py`](../../../apps/api/tests/integration/scenarios/test_2bm_motor_homing.py), [`test_2bm_first_light.py`](../../../apps/api/tests/integration/scenarios/test_2bm_first_light.py), [`test_2bm_dark_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_dark_baseline.py), [`test_2bm_flat_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_flat_baseline.py), [`test_2bm_alignment_resolution.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_resolution.py), [`test_2bm_alignment_focus.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_focus.py), [`test_2bm_alignment_center.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_center.py), [`test_2bm_alignment_roll.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_roll.py), [`test_2bm_alignment_pitch.py`](../../../apps/api/tests/integration/scenarios/test_2bm_alignment_pitch.py), [`test_2bm_hexapod_reboot.py`](../../../apps/api/tests/integration/scenarios/test_2bm_hexapod_reboot.py).
 
 ## Motor homing
 
@@ -467,6 +468,64 @@ Example queries:
 - "What's 2-BM's current pitch calibration?" Query the Procedure stream for the most recent `pitch_alignment` with `passed=True`; the final Setpoint carries the calibrated value.
 - "Which sphere targets give the cleanest pitch convergence?" Group Check entries by `target` payload key, compare iteration counts.
 
+## Hexapod reboot
+
+Recovery routine for a stuck PI-Hexapod sample-positioning controller: power-cycles PDU outlet 4 and restarts the hexapod EPICS IOC until `2bmHXP:HexapodAllEnabled` reads `1`. Registered in code as `kind="hexapod_reboot"`. Runs reactively (after the operator observes a lockup), never on a schedule.
+
+### What it produces
+
+A stuck hexapod (condition `Faulted`) restored to `Nominal` and producing motion again. The procedure logs 17 step entries documenting the seven-step recovery ceremony (IOC stop, power off, settle, power on, boot, IOC start, EPICS enable check); the Asset stream carries the bracketing `AssetFaulted` (precondition) and `AssetRestored` (postcondition) events. The reboot does not produce a Dataset.
+
+### When to run it
+
+Preconditions: hexapod controller is unresponsive (`2bmHXP:HexapodAllEnabled` stuck at `0`), no other beamline operation is in flight that depends on the hexapod, operator has SSH access to the IOC host (`2bmb@arcturus`) and the PDU credentials in `~/access.json`.
+
+Reactive: runs on first sign of controller unresponsiveness. The [Hexapod controller lockup Caution](cautions.md) surfaces this on every Run start that targets the Hexapod, so operators know the recovery path rather than chasing a phantom motion-control bug.
+
+### How the operator runs it
+
+Source: [`2bmb-bin/hexapod_reboot.py`](https://github.com/xray-imaging/2bmb-bin).
+
+Seven steps, mirrored in the Procedure step entries:
+
+1. Stop hexapod IOC: `hexapod_IOC_stop.sh`.
+2. Power OFF PDU outlet 4 (NetBooter HTTP, default PDU `a`).
+3. Sleep 10s for controller de-energization.
+4. Power ON PDU outlet 4.
+5. Sleep 10s for controller boot.
+6. Start hexapod IOC: `hexapod_IOC.sh`.
+7. Poll `2bmHXP:HexapodAllEnabled.VAL` until it reads `1` (180s timeout). Fallback: if still `0`, `caput 2bmHXP:EnableWork.PROC 1` and re-poll.
+
+The scenario test captures the happy path (controller enabled on first poll); the fallback caput is a watch item for a sibling scenario.
+
+### Gotchas
+
+- **External-system actions are opaque to CORA.** PDU HTTP calls, shell-script invocations, and EPICS CA polls happen outside CORA's spine. The Procedure records them as Action step entries with payload encoding the external call (script name, PV name, outlet number) but cannot independently verify success against the external system.
+- **Sleep is a first-class step.** The two 10-second waits are not no-ops; they are operator-enforced controller-settling time. They appear as Action entries with `role=power_settling` / `controller_boot`.
+- **PDU credentials are out-of-band.** `~/access.json` holds the NetBooter URL + Basic-auth credentials. The Procedure references the credential set via `pdu="a"` payload key but does not capture the credentials themselves.
+
+---
+
+### CORA encoding
+
+Bound aggregates:
+
+- **Method**: [`hexapod_reboot`](../../catalog/methods.md) (Recipe BC, beamline-agnostic; declares `Hexapod` capability)
+- **Practice**: `2BM_hexapod_reboot_practice` (Recipe BC, `site_id=APS`)
+- **Plan**: `2BM_hexapod_reboot_plan` (Recipe BC, instance-level)
+- **Target Asset**: `Hexapod_2BM` (Equipment BC Device under the 2-BM Unit Asset)
+- **Out-of-Procedure side-effects on the Asset stream**: `AssetActivated` (one-time, on first registration), `AssetFaulted` (precondition: operator observed lockup), `AssetRestored` (postcondition: EPICS enable check passed), one `CautionRegistered` capturing the recurring-lockup playbook entry
+
+Operation stream (4 events per Procedure execution): `ProcedureRegistered → ProcedureStarted → ProcedureStepsLogbookOpened → ProcedureCompleted`.
+
+Per-step entries (17 total): five `Setpoint / Action / Check` triplets for the routine reboot steps (15 entries) plus two standalone `Action(sleep)` entries for the two settling waits.
+
+Example queries:
+
+- "How often does the hexapod lock up at 2-BM?" Count `AssetFaulted` events on the Hexapod's Asset stream over a time window.
+- "Which reboot attempts needed the fallback `EnableWork` poke?" Filter `hexapod_reboot` Procedure step entries for the `Check` on `HexapodAllEnabled` with `passed=False`, then look for a subsequent `caput` Action with `role=force_enable`. (Today the scenario only captures the happy path; this query lands when the fallback-path scenario ships.)
+- "Are operators consistently waiting the full settling time?" Group `Action(sleep)` step entries by `seconds` payload key.
+
 ## Pending in code
 
 The following Procedure kinds are surfaced by the [2-BM repo survey](https://github.com/xray-imaging/2bm-docs) but not yet registered in code. Each materializes as a row in the table above when its scenario test (or a seed script) registers it. Planned filenames follow the [scenario naming convention](../../../apps/api/tests/integration/scenarios/README.md):
@@ -479,6 +538,5 @@ The following Procedure kinds are surfaced by the [2-BM repo survey](https://git
 | `energy_change` | operations | `tests/integration/scenarios/test_2bm_energy_change.py` | DMM energy switch mid-beamtime between two user Plans at different keV. |
 | `energy_calibration` | maintenance | `tests/integration/scenarios/test_2bm_energy_calibration.py` | Channel-cut-crystal rocking-curve to measure true DMM energy + update the offset. 7-step Procedure; produces a rocking-curve [Dataset](datasets.md). |
 | `ioc_restart` | maintenance | `tests/integration/scenarios/test_2bm_ioc_restart.py` | EPICS IOC bring-up across 8 IOC pairs in `2bmb-bin/*_IOC.sh`; exercises `Asset.degrade` -> `Asset.restore` lifecycle on IOC-hosted Assets + a Supply event for the EPICS subnet. |
-| `hexapod_reboot` | maintenance | `tests/integration/scenarios/test_2bm_hexapod_reboot.py` | PDU power-cycle outlet 4 + hexapod IOC restart after controller lockup. Asset.fault -> Asset.restore on the Hexapod (see [Assets](assets.md) Pending), Supply event for the power-rail blip, [Caution](cautions.md) for the lockup pattern. Sourced from `2bmb-bin/hexapod_reboot.py`. |
 | `vibration_baseline` | maintenance | `tests/integration/scenarios/test_2bm_vibration_baseline.py` | 1000-frame high-speed acquisition to characterize vertical vibration before / after APS air-handler shutdown. Produces a vibration-baseline [Dataset](datasets.md); registers a Caution if frequencies exceed reference. |
 | `mirror_recoat_return` | maintenance | `tests/integration/scenarios/test_2bm_mirror_recoat_return.py` | Mirror substrate returns from external recoating (Cr base + Pt / W-Si multilayer / Rh stripes); re-install + re-commission. Exercises Asset.replace (Mirror) and Capability re-declaration (coating stripes change usable energy ranges). |
