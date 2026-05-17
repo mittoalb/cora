@@ -4,7 +4,7 @@
 
 | Method | Needed capabilities | Purpose |
 | --- | --- | --- |
-| `center_alignment` | `RotaryStage`, `LinearStage_um`, `Camera`, `Scintillator` | The `center` step in the five-routine rotation-axis alignment chain; iterative 0°/180° convergence on the calibrated rotation-axis pixel position |
+| `center_alignment` | `RotaryStage`, `LinearStage`, `Camera`, `Scintillator` | The `center` step in the five-routine rotation-axis alignment chain; iterative 0°/180° convergence on the calibrated rotation-axis pixel position |
 | `flat_field_correction` | `ProbeGeneric` | Flat-field (white-field / dark-field) correction baseline applied prior to reconstruction |
 
 Source of truth: [`apps/api/tests/integration/test_35bm_beta_alignment_center_scenario.py`](../../apps/api/tests/integration/test_35bm_beta_alignment_center_scenario.py) and [`apps/api/tests/integration/test_aps_install_facility_scenario.py`](../../apps/api/tests/integration/test_aps_install_facility_scenario.py).

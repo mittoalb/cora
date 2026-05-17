@@ -309,7 +309,7 @@ async def test_motor_homing_plays_out_end_to_end(
 
     # ----- Equipment BC: 2 Capabilities + 2 motor Devices + capability links -----
 
-    for cap_name in ("RotaryStage", "LinearStage_um"):
+    for cap_name in ("RotaryStage", "LinearStage"):
         await bind_define_capability(deps)(
             DefineCapability(name=cap_name),
             principal_id=_PRINCIPAL_ID,

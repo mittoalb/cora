@@ -377,7 +377,7 @@ async def test_center_alignment_plays_out_end_to_end(
 
     # ----- Seed Equipment BC: 4 Capabilities + 4 Devices + 4 capability links -----
 
-    for cap_name in ("RotaryStage", "LinearStage_um", "Camera", "Scintillator"):
+    for cap_name in ("RotaryStage", "LinearStage", "Camera", "Scintillator"):
         await bind_define_capability(deps)(
             DefineCapability(name=cap_name),
             principal_id=_PRINCIPAL_ID,

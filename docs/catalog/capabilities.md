@@ -5,7 +5,7 @@
 | Capability | Used by Methods |
 | --- | --- |
 | `RotaryStage` | `center_alignment` |
-| `LinearStage_um` | `center_alignment` |
+| `LinearStage` | `center_alignment` |
 | `Camera` | `center_alignment` |
 | `Scintillator` | `center_alignment` |
 | `ProbeGeneric` | `flat_field_correction` |

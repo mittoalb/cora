@@ -44,7 +44,7 @@ For each motor:
 
 Bound aggregates:
 
-- **Method**: `motor_homing` (Recipe BC, beamline-agnostic; declares `RotaryStage` + `LinearStage_um` capabilities)
+- **Method**: `motor_homing` (Recipe BC, beamline-agnostic; declares `RotaryStage` + `LinearStage` capabilities)
 - **Practice**: `APS_motor_homing_practice` (Recipe BC, `site_id=APS`)
 - **Plan**: `35BM_motor_homing_plan` (Recipe BC, instance-level, no inventory page)
 - **Target Assets**: `Aerotech_ABRS_rotary`, `Sample_top_X` (Equipment BC Devices under the 35-BM Unit Asset)
