@@ -91,22 +91,37 @@ def validate_values_against_schema(
     schema: dict[str, Any] | None,
     *,
     error_class: type[ValueError],
-    no_schema_message: str,
+    no_schema_message: str | None = None,
 ) -> None:
     """Validate a values dict against a JSON Schema (carrier-side
-    write-time check). STRICT-by-default per the post-6g audit:
-    schema=None + non-empty values rejects.
+    write-time check).
 
-    The `no_schema_message` template MUST contain a `{keys}`
+    Two postures, picked by whether `no_schema_message` is supplied:
+
+      - **STRICT** (`no_schema_message` provided): schema=None +
+        non-empty values rejects with the supplied message. Used by
+        6g-b (Plan.default_parameters) and 6g-c (Run.effective_parameters
+        at start_run) per the post-6g audit. Forces operators to
+        declare a schema before accepting overrides.
+      - **RELAXED** (`no_schema_message=None`): schema=None always
+        accepts (the caller has already decided schemaless is OK at
+        this checkpoint). Used by 6j adjust_run and future steering
+        slices where the operator-trust posture is "operator started
+        the Run; respect their steering judgement." Callers that pick
+        this posture typically early-return on `schema is None` before
+        calling, but passing `no_schema_message=None` makes the
+        intent explicit and lets this helper own the dispatch.
+
+    When `no_schema_message` is provided it MUST contain a `{keys}`
     placeholder; the function fills in a comma-separated list of
     the offending keys (sorted, single-quoted) before raising.
-    Each carrier wrapper supplies its own operator-facing message
-    (Plan / Run / Asset).
 
     Behavior:
       - schema is None AND values is empty → accept (trivially valid)
-      - schema is None AND values is non-empty → raise error_class
-        with no_schema_message.format(keys=...)
+      - schema is None AND values is non-empty AND no_schema_message
+        is None → accept (RELAXED posture)
+      - schema is None AND values is non-empty AND no_schema_message
+        is provided → raise error_class with no_schema_message.format(keys=...)
       - schema is non-None AND values is empty → accept (no
         required-field check at this layer; required applies at the
         per-aggregate consumer point — for example, effective_parameters
@@ -115,14 +130,13 @@ def validate_values_against_schema(
         jsonschema-rs Draft 2020-12, run iter_errors, raise on first
         violation with path-prefixed diagnostic
 
-    Used by 6g-b (Plan.default_parameters) and 6g-c (Run.effective_parameters).
     The Asset.settings validator (5g-c) builds a UNION mega-schema
     from multiple Capabilities first, then could reuse the
     iter_errors path here (currently retains its own implementation
     because the multi-source pre-step is BC-specific).
     """
     if schema is None:
-        if not values:
+        if not values or no_schema_message is None:
             return
         keys = ", ".join(f"'{k}'" for k in sorted(values.keys()))
         raise error_class(no_schema_message.format(keys=keys))

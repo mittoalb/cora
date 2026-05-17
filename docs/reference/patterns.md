@@ -134,6 +134,15 @@ def decide(
 
 FCIS canonical: data not in the stream is fetched in the shell and passed to the pure core as plain values.
 
+## Schema validation posture
+
+Two postures coexist for `Method.parameters_schema` validation against a carrier aggregate's values dict. Pick by whether the operator has already committed to the Run.
+
+- **STRICT** (`validate_effective_parameters_against_method_schema`): used by `start_run` (6g-c). Schemaless Method + non-empty parameters = REJECT. Forces operators to declare a schema before accepting overrides at Run start time.
+- **RELAXED** (`validate_adjusted_parameters_against_method_schema`): used by `adjust_run` (6j) and future steering slices. Schemaless Method = SKIP validation. Once an operator started a Run on a schemaless Method, they carry full responsibility for steering it; the system does not second-guess at adjust time.
+
+Both adapters live in `cora/run/aggregates/run/parameters_validation.py` and delegate to the shared values-validator at `cora/infrastructure/json_schema_validation.py` (which dispatches on whether the caller supplied a `no_schema_message`). Pick STRICT for "operator hasn't proven they know what they're doing yet"; pick RELAXED for "operator already committed; respect their judgment."
+
 ## Rejections
 
 A slice's behavioral contract has two halves: the events the decider emits on success, and the named exceptions it raises on failure. Both are first-class. When designing a new slice, enumerate the rejection list as a peer to the event list, not as an afterthought.

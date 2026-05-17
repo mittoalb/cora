@@ -13,6 +13,7 @@ import pytest
 
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.memory.event_store import InMemoryEventStore
+from cora.recipe.aggregates.method import MethodNotFoundError
 from cora.recipe.aggregates.method.events import (
     MethodDefined,
     MethodParametersSchemaUpdated,
@@ -21,11 +22,13 @@ from cora.recipe.aggregates.method.events import (
     event_type_name as method_event_type_name,
 )
 from cora.recipe.aggregates.method.events import to_payload as method_to_payload
+from cora.recipe.aggregates.plan import PlanNotFoundError
 from cora.recipe.aggregates.plan.events import PlanDefined
 from cora.recipe.aggregates.plan.events import (
     event_type_name as plan_event_type_name,
 )
 from cora.recipe.aggregates.plan.events import to_payload as plan_to_payload
+from cora.recipe.aggregates.practice import PracticeNotFoundError
 from cora.recipe.aggregates.practice.events import PracticeDefined
 from cora.recipe.aggregates.practice.events import (
     event_type_name as practice_event_type_name,
@@ -329,6 +332,105 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     events, version = await store.load("Run", run_id)
     assert version == 1
     assert [e.event_type for e in events] == ["RunStarted"]
+
+
+@pytest.mark.unit
+async def test_handler_raises_plan_not_found_when_plan_stream_empty() -> None:
+    """Cross-aggregate load-miss: Run seeded but its plan_id points to
+    an empty stream. Defensive — production should never see this, but
+    a clean 404 beats a 500 if the Plan stream is somehow gone."""
+    store = InMemoryEventStore()
+    plan_id = uuid4()
+    await _seed_run_started(store, _RUN_ID, plan_id=plan_id)
+    deps = build_deps(ids=[_ADJUSTED_EVENT_ID], now=_NOW, event_store=store)
+
+    with pytest.raises(PlanNotFoundError):
+        await adjust_run.bind(deps)(
+            AdjustRun(
+                run_id=_RUN_ID,
+                parameter_patch={"x": 1},
+                reason="x",
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+@pytest.mark.unit
+async def test_handler_raises_practice_not_found_when_practice_stream_empty() -> None:
+    """Cross-aggregate load-miss: Run + Plan seeded but Plan's
+    practice_id points to an empty stream."""
+    store = InMemoryEventStore()
+    plan_id = uuid4()
+    practice_id = uuid4()
+    method_id = uuid4()
+    await _seed_plan(store, plan_id, practice_id=practice_id, asset_ids=[], method_id=method_id)
+    await _seed_run_started(store, _RUN_ID, plan_id=plan_id)
+    deps = build_deps(ids=[_ADJUSTED_EVENT_ID], now=_NOW, event_store=store)
+
+    with pytest.raises(PracticeNotFoundError):
+        await adjust_run.bind(deps)(
+            AdjustRun(
+                run_id=_RUN_ID,
+                parameter_patch={"x": 1},
+                reason="x",
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+@pytest.mark.unit
+async def test_handler_raises_method_not_found_when_method_stream_empty() -> None:
+    """Cross-aggregate load-miss: Run + Plan + Practice seeded but
+    Practice's method_id points to an empty stream."""
+    store = InMemoryEventStore()
+    plan_id = uuid4()
+    practice_id = uuid4()
+    method_id = uuid4()
+    await _seed_practice(store, practice_id, method_id=method_id)
+    await _seed_plan(store, plan_id, practice_id=practice_id, asset_ids=[], method_id=method_id)
+    await _seed_run_started(store, _RUN_ID, plan_id=plan_id)
+    deps = build_deps(ids=[_ADJUSTED_EVENT_ID], now=_NOW, event_store=store)
+
+    with pytest.raises(MethodNotFoundError):
+        await adjust_run.bind(deps)(
+            AdjustRun(
+                run_id=_RUN_ID,
+                parameter_patch={"x": 1},
+                reason="x",
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+@pytest.mark.unit
+async def test_handler_does_not_auto_populate_decided_by_from_causation_id() -> None:
+    """Anti-hook verification (anti-hook #6): `causation_id` is the
+    technical envelope chain (previous-message id); it MUST NOT leak
+    into the domain `decided_by_decision_id` payload field. Passing
+    causation_id with decided_by_decision_id=None must persist
+    decided_by_decision_id=None on the event payload."""
+    store = InMemoryEventStore()
+    _, _, _, run_id = await _seed_full_chain(store, schema=None, effective_parameters={})
+    causation_id = uuid4()
+    deps = build_deps(ids=[_ADJUSTED_EVENT_ID], now=_NOW, event_store=store)
+
+    await adjust_run.bind(deps)(
+        AdjustRun(
+            run_id=run_id,
+            parameter_patch={"x": 1},
+            reason="x",
+            decided_by_decision_id=None,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+        causation_id=causation_id,
+    )
+
+    events, _ = await store.load("Run", run_id)
+    assert events[1].payload["decided_by_decision_id"] is None
 
 
 @pytest.mark.unit

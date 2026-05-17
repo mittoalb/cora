@@ -51,9 +51,10 @@ from cora.recipe.aggregates.practice import PracticeNotFoundError, load_practice
 from cora.run.aggregates.run import (
     RunNotFoundError,
     event_type_name,
-    load_run,
+    from_stored,
     to_payload,
 )
+from cora.run.aggregates.run.evolver import fold
 from cora.run.errors import UnauthorizedError
 from cora.run.features.adjust_run.command import AdjustRun
 from cora.run.features.adjust_run.context import RunAdjustContext
@@ -139,14 +140,14 @@ def bind(deps: Kernel) -> Handler:
             )
             raise UnauthorizedError(decision.reason)
 
-        # Pre-load the Run + its stream version (optimistic-concurrency
-        # token for the append). load_run returns the folded Run; we
-        # need the raw version for expected_version on append.
+        # Pre-load the Run stream once: we need both the folded Run
+        # (for status / effective_parameters / plan_id) AND the raw
+        # version (optimistic-concurrency token for the append). Fold
+        # inline rather than re-loading via `load_run`.
         stored, current_version = await deps.event_store.load(_STREAM_TYPE, command.run_id)
-        run = await load_run(deps.event_store, command.run_id)
+        run = fold([from_stored(s) for s in stored])
         if run is None:
             raise RunNotFoundError(command.run_id)
-        _ = stored  # raw stream not needed beyond the version
 
         # Walk the Recipe chain to pull the Method's parameters_schema.
         # Same path as start_run's handler.

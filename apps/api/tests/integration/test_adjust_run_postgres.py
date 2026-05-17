@@ -234,6 +234,20 @@ async def test_two_consecutive_adjust_run_increments_count_cumulatively(
     assert loaded.adjustment_count == 2
     assert loaded.effective_parameters == {"energy_kev": 12.0, "exposure_ms": 200}
 
+    # Per-event snapshot pin: each RunAdjusted carries its own
+    # effective_parameters snapshot (not overwriting). The first event
+    # reflects the post-first-patch state; the second reflects the
+    # cumulative merge. Replay never needs to fold prior RunAdjusted
+    # events to surface the current value.
+    stored, _ = await deps.event_store.load("Run", run_id)
+    types = [s.event_type for s in stored]
+    assert types == ["RunStarted", "RunAdjusted", "RunAdjusted"]
+    assert stored[1].payload["effective_parameters"] == {"energy_kev": 12.0}
+    assert stored[2].payload["effective_parameters"] == {
+        "energy_kev": 12.0,
+        "exposure_ms": 200,
+    }
+
 
 @pytest.mark.integration
 async def test_adjust_run_with_decision_id_persists_link_on_payload(

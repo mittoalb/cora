@@ -399,19 +399,19 @@ def test_run_cannot_adjust_error_carries_attrs() -> None:
 
 
 @pytest.mark.unit
-def test_invalid_run_adjustment_patch_error_carries_reason() -> None:
-    from cora.run.aggregates.run import InvalidRunAdjustmentPatchError
+def test_invalid_run_adjust_patch_error_carries_reason() -> None:
+    from cora.run.aggregates.run import InvalidRunAdjustPatchError
 
-    err = InvalidRunAdjustmentPatchError("must contain at least one change")
+    err = InvalidRunAdjustPatchError("must contain at least one change")
     assert err.reason == "must contain at least one change"
     assert "must contain at least one change" in str(err)
 
 
 @pytest.mark.unit
-def test_invalid_run_adjustment_schema_error_carries_detail() -> None:
-    from cora.run.aggregates.run import InvalidRunAdjustmentSchemaError
+def test_invalid_run_adjust_schema_error_carries_detail() -> None:
+    from cora.run.aggregates.run import InvalidRunAdjustSchemaError
 
-    err = InvalidRunAdjustmentSchemaError("energy_kev: below minimum")
+    err = InvalidRunAdjustSchemaError("energy_kev: below minimum")
     assert err.detail == "energy_kev: below minimum"
     assert "energy_kev" in str(err)
 
@@ -423,3 +423,33 @@ def test_invalid_run_adjust_reason_error_carries_value() -> None:
     err = InvalidRunAdjustReasonError("   ")
     assert err.value == "   "
     assert "1-500" in str(err)
+
+
+@pytest.mark.unit
+def test_run_dataclass_has_no_adjustments_history_field() -> None:
+    """Anti-hook #10 verification: 6j adjust_run records adjustments as
+    events on the stream; the Run aggregate state MUST NOT carry an
+    `adjustments` history list. Replay = history; the denormalized
+    `adjustment_count` + `last_adjusted_at` are the only adjust-derived
+    state fields. Prevents fold-cost regression if a future PR is
+    tempted to re-introduce an in-aggregate history list."""
+    import dataclasses
+
+    from cora.run.aggregates.run import Run
+
+    field_names = {f.name for f in dataclasses.fields(Run)}
+    assert "adjustments" not in field_names
+
+
+@pytest.mark.unit
+def test_run_dataclass_has_no_adjustments_logbook_id_field() -> None:
+    """Anti-hook #8 verification: 6j adjust_run did NOT open an
+    adjustments logbook (`adjustments_logbook_id` was rejected per the
+    design memo: the event stream IS the audit trail; a parallel
+    logbook would duplicate state)."""
+    import dataclasses
+
+    from cora.run.aggregates.run import Run
+
+    field_names = {f.name for f in dataclasses.fields(Run)}
+    assert "adjustments_logbook_id" not in field_names

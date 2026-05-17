@@ -12,9 +12,9 @@ from uuid import UUID, uuid4
 import pytest
 
 from cora.run.aggregates.run import (
-    InvalidRunAdjustmentPatchError,
-    InvalidRunAdjustmentSchemaError,
+    InvalidRunAdjustPatchError,
     InvalidRunAdjustReasonError,
+    InvalidRunAdjustSchemaError,
     Run,
     RunCannotAdjustError,
     RunName,
@@ -216,7 +216,7 @@ def test_decide_raises_invalid_patch_for_empty_patch() -> None:
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
 
-    with pytest.raises(InvalidRunAdjustmentPatchError):
+    with pytest.raises(InvalidRunAdjustPatchError):
         decide(state=state, command=cmd, context=ctx, now=_NOW)
 
 
@@ -230,7 +230,7 @@ def test_decide_raises_invalid_schema_for_post_merge_violation() -> None:
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=_energy_schema())
 
-    with pytest.raises(InvalidRunAdjustmentSchemaError):
+    with pytest.raises(InvalidRunAdjustSchemaError):
         decide(state=state, command=cmd, context=ctx, now=_NOW)
 
 
@@ -274,3 +274,70 @@ def test_decide_trims_reason_before_event_emission() -> None:
 
     events = decide(state=state, command=cmd, context=ctx, now=_NOW)
     assert events[0].reason == "re-centering"
+
+
+# ---------- Boundary + RFC 7396 explicit pins ----------
+
+
+@pytest.mark.unit
+def test_decide_accepts_reason_at_exactly_max_length() -> None:
+    """Exact max-length boundary (500 chars after trim) is accepted."""
+    state = _run(effective={})
+    cmd = AdjustRun(
+        run_id=state.id,
+        parameter_patch={"a": 1},
+        reason="x" * 500,
+    )
+    ctx = RunAdjustContext(run=state, method_parameters_schema=None)
+
+    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    assert len(events) == 1
+    assert events[0].reason == "x" * 500
+
+
+@pytest.mark.unit
+def test_decide_accepts_reason_at_exactly_one_char() -> None:
+    """Exact min-length boundary (1 char after trim) is accepted."""
+    state = _run(effective={})
+    cmd = AdjustRun(
+        run_id=state.id,
+        parameter_patch={"a": 1},
+        reason="x",
+    )
+    ctx = RunAdjustContext(run=state, method_parameters_schema=None)
+
+    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    assert len(events) == 1
+    assert events[0].reason == "x"
+
+
+@pytest.mark.unit
+def test_decide_adds_new_key_when_patch_introduces_one() -> None:
+    """RFC 7396 add semantic: keys present only in the patch are added
+    to the merged result alongside prior keys."""
+    state = _run(effective={"a": 1})
+    cmd = AdjustRun(
+        run_id=state.id,
+        parameter_patch={"b": 2},
+        reason="add new key",
+    )
+    ctx = RunAdjustContext(run=state, method_parameters_schema=None)
+
+    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    assert events[0].effective_parameters == {"a": 1, "b": 2}
+
+
+# ---------- _ADJUSTABLE_STATUSES constant pin ----------
+
+
+@pytest.mark.unit
+def test_adjustable_statuses_constant_is_exactly_running_and_held() -> None:
+    """Pin the source-state guard set against accidental widening if
+    RunStatus enum grows. Adjust accepts ONLY Running and Held: Idle/
+    Starting use override_parameters at start, terminal states are
+    frozen."""
+    from cora.run.features.adjust_run.decider import (
+        _ADJUSTABLE_STATUSES,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    assert set(_ADJUSTABLE_STATUSES) == {RunStatus.RUNNING, RunStatus.HELD}

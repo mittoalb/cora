@@ -5,7 +5,7 @@ Carries the caller-controlled inputs for mid-flight parameter steering:
   - `parameter_patch` — RFC 7396 JSON Merge Patch on top of the Run's
     current `effective_parameters`. Non-empty required (empty patches
     silently no-op and mislead the audit; rejected at the decider with
-    `InvalidRunAdjustmentPatchError`).
+    `InvalidRunAdjustPatchError`).
   - `reason` — operator-supplied free-text justification (1-500 chars
     after trim; mirrors RunAbortReason / RunStopReason / RunTruncateReason
     + ClearanceRejectReason precedent). Required: steering without

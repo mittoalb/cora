@@ -40,8 +40,8 @@ InvalidRunInterruptedAtError).
     RunCannotResumeError, RunCannotStopError
   - 409 (Run transition guards, 6f-4): RunCannotTruncateError
   - 409 (reading logbook guard, 6f-5b): RunReadingLogbookClosedError
-  - 400 (Run adjust validation guards, 6j): InvalidRunAdjustmentPatchError,
-    InvalidRunAdjustmentSchemaError, InvalidRunAdjustReasonError
+  - 400 (Run adjust validation guards, 6j): InvalidRunAdjustPatchError,
+    InvalidRunAdjustSchemaError, InvalidRunAdjustReasonError
   - 409 (Run adjust transition guard, 6j): RunCannotAdjustError
 """
 
@@ -52,9 +52,9 @@ from cora.run.aggregates.run import (
     InvalidChannelNameError,
     InvalidReadingValueError,
     InvalidRunAbortReasonError,
-    InvalidRunAdjustmentPatchError,
-    InvalidRunAdjustmentSchemaError,
+    InvalidRunAdjustPatchError,
     InvalidRunAdjustReasonError,
+    InvalidRunAdjustSchemaError,
     InvalidRunExternalRefError,
     InvalidRunInterruptedAtError,
     InvalidRunNameError,
@@ -180,9 +180,9 @@ def register_run_routes(app: FastAPI) -> None:
         # ExternalRef validation guard (11a-c-3).
         InvalidRunExternalRefError,
         # Adjust validation guards (6j).
-        InvalidRunAdjustmentPatchError,
-        InvalidRunAdjustmentSchemaError,
+        InvalidRunAdjustPatchError,
         InvalidRunAdjustReasonError,
+        InvalidRunAdjustSchemaError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (RunNotFoundError,):

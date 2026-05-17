@@ -96,6 +96,29 @@ _MAX_KEY_LENGTH = 255
 _log = get_logger(__name__)
 
 
+def _noop_serialize(_value: None) -> None:
+    """Serialize codec for None-returning handlers idempotency-wrapped.
+
+    `with_idempotency` requires a serialize_result / deserialize_result
+    pair; for handlers that return None there is no payload to round-
+    trip. The pair stays symmetric (serializes None to None, deserializes
+    None to None) so the cache hit replays "success with None".
+
+    First use: 6j adjust_run. Other candidates per the design memo:
+    hold_run / resume_run / Procedure-step appends (all 204-returning).
+    """
+    return None
+
+
+def _noop_deserialize(_value: object) -> None:
+    """Inverse of `NOOP_SERIALIZE`."""
+    return None
+
+
+NOOP_SERIALIZE = _noop_serialize
+NOOP_DESERIALIZE = _noop_deserialize
+
+
 def _normalize_for_hash(obj: Any) -> Any:
     """Recursively normalize containers so the JSON form is hash-stable.
 
@@ -315,6 +338,8 @@ def with_idempotency[TCommand, TResult](
 
 
 __all__ = [
+    "NOOP_DESERIALIZE",
+    "NOOP_SERIALIZE",
     "classify_error_status",
     "hash_command",
     "with_idempotency",

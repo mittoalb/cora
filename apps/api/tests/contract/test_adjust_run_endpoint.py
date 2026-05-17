@@ -6,10 +6,12 @@ patch), `reason` (1-500 chars), optional `decided_by_decision_id`.
 Returns 204 on success. Adjust on terminal Runs raises 409.
 """
 
+import asyncio
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
@@ -95,25 +97,46 @@ def test_post_adjust_run_returns_204_happy_path() -> None:
     assert response.status_code == 204, response.text
 
 
+def _load_adjusted_payload(app: FastAPI, run_id: UUID) -> dict[str, object]:
+    """Load the last RunAdjusted payload directly from the event store.
+
+    Mirrors the `_load_run_payload` helper in test_start_run_endpoint.py:
+    when the response is 204 (no body), we drop down to the event store
+    to verify the persisted event carries the expected payload field.
+    """
+    events, _ = asyncio.run(app.state.deps.event_store.load("Run", run_id))
+    assert events, "expected at least one Run event"
+    adjusted = [e for e in events if e.event_type == "RunAdjusted"]
+    assert adjusted, "expected at least one RunAdjusted event"
+    return dict(adjusted[-1].payload)
+
+
 @pytest.mark.contract
-def test_post_adjust_run_returns_204_with_decision_id_link() -> None:
-    """Optional decided_by_decision_id flows through on the payload
-    (no existence check at the write path)."""
-    with TestClient(create_app()) as client:
-        run_id = _setup_full_run(
+def test_post_adjust_run_persists_decision_id_link_on_event() -> None:
+    """Optional decided_by_decision_id flows through on the persisted
+    event payload (no existence check at the write path). Drops down
+    to the event store because the 204 response carries no body."""
+    decision_id = uuid4()
+    app = create_app()
+    with TestClient(app) as client:
+        run_id_str = _setup_full_run(
             client,
             method_schema=_energy_schema(),
             plan_defaults={"energy_kev": 10.0},
         )
         response = client.post(
-            f"/runs/{run_id}/adjust",
+            f"/runs/{run_id_str}/adjust",
             json={
                 "parameter_patch": {"energy_kev": 13.0},
                 "reason": "agent steering",
-                "decided_by_decision_id": str(uuid4()),
+                "decided_by_decision_id": str(decision_id),
             },
         )
-    assert response.status_code == 204, response.text
+        assert response.status_code == 204, response.text
+
+        payload = _load_adjusted_payload(app, UUID(run_id_str))
+        assert payload["decided_by_decision_id"] == str(decision_id)
+        assert payload["parameter_patch"] == {"energy_kev": 13.0}
 
 
 @pytest.mark.contract
@@ -227,7 +250,7 @@ def test_post_adjust_run_returns_400_when_merged_violates_schema() -> None:
             },
         )
     assert response.status_code == 400, response.text
-    assert "adjustment" in response.json()["detail"].lower()
+    assert "adjust" in response.json()["detail"].lower()
 
 
 @pytest.mark.contract
@@ -266,5 +289,60 @@ def test_post_adjust_run_rejects_invalid_path_uuid_with_422() -> None:
         response = client.post(
             "/runs/not-a-uuid/adjust",
             json={"parameter_patch": {"x": 1}, "reason": "x"},
+        )
+    assert response.status_code == 422
+
+
+@pytest.mark.contract
+def test_post_adjust_run_returns_422_for_bad_decision_id_uuid() -> None:
+    """Body decided_by_decision_id must be a valid UUID (Pydantic
+    boundary check; reaches FastAPI's 422 validator)."""
+    with TestClient(create_app()) as client:
+        run_id = _setup_full_run(
+            client,
+            method_schema=_energy_schema(),
+            plan_defaults={"energy_kev": 10.0},
+        )
+        response = client.post(
+            f"/runs/{run_id}/adjust",
+            json={
+                "parameter_patch": {"energy_kev": 12.0},
+                "reason": "x",
+                "decided_by_decision_id": "not-a-uuid",
+            },
+        )
+    assert response.status_code == 422
+
+
+@pytest.mark.contract
+def test_post_adjust_run_returns_422_for_null_parameter_patch() -> None:
+    """parameter_patch must be a dict (Pydantic boundary). null body
+    field surfaces as 422 before the decider's emptiness check."""
+    with TestClient(create_app()) as client:
+        run_id = _setup_full_run(
+            client,
+            method_schema=_energy_schema(),
+            plan_defaults={"energy_kev": 10.0},
+        )
+        response = client.post(
+            f"/runs/{run_id}/adjust",
+            json={"parameter_patch": None, "reason": "x"},
+        )
+    assert response.status_code == 422
+
+
+@pytest.mark.contract
+def test_post_adjust_run_returns_422_for_reason_over_max_length() -> None:
+    """reason is Field(max_length=500) at the API boundary; over-limit
+    bodies surface as 422 before the decider's defensive 1-500 gate."""
+    with TestClient(create_app()) as client:
+        run_id = _setup_full_run(
+            client,
+            method_schema=_energy_schema(),
+            plan_defaults={"energy_kev": 10.0},
+        )
+        response = client.post(
+            f"/runs/{run_id}/adjust",
+            json={"parameter_patch": {"energy_kev": 12.0}, "reason": "x" * 501},
         )
     assert response.status_code == 422

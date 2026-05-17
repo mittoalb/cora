@@ -17,14 +17,16 @@ issues surface first:
   2. State.status must be in `_ADJUSTABLE_STATUSES` (RUNNING | HELD)
      -> `RunCannotAdjustError(run_id, current_status)`.
   3. `parameter_patch` must be non-empty (len > 0)
-     -> `InvalidRunAdjustmentPatchError("must contain at least one change")`.
+     -> `InvalidRunAdjustPatchError("must contain at least one change")`.
   4. `reason` length 1-500 chars after trim
      -> `InvalidRunAdjustReasonError`.
   5. Compute `merged = merge_patch(state.effective_parameters, patch)`;
      when `context.method_parameters_schema is not None`, validate
-     `merged` against the schema (STRICT-by-default per the 5g-c
-     anchor; schemaless Methods skip validation).
-     -> `InvalidRunAdjustmentSchemaError(detail)` on violation.
+     `merged` against the schema (RELAXED posture per the 5g-c
+     STRICT anchor at start_run vs the steering posture at adjust;
+     schemaless Methods skip validation here). Delegates to
+     `parameters_validation.validate_adjusted_parameters_against_method_schema`.
+     -> `InvalidRunAdjustSchemaError(detail)` on violation.
   6. Emit `RunAdjusted(run_id, parameter_patch, effective_parameters=merged,
      reason=trimmed, decided_by_decision_id, occurred_at=now)`.
 
@@ -37,24 +39,30 @@ RunAdjusted events to surface the current value. Mirrors
 verbatim. NOT verified at decider (eventual-consistency stance per
 Trust.Conduit / Asset parent / Procedure target / Campaign
 lead_actor / Run.subject_id precedent).
+
+## Schema validation posture
+
+See `cora.run.aggregates.run.parameters_validation` for the STRICT
+(start_run) vs RELAXED (adjust_run) sibling adapters and
+`docs/reference/patterns.md` "Schema validation posture" for the
+cross-BC convention. Adjust-time uses RELAXED: once an operator
+started a Run on a schemaless Method, they carry full responsibility
+for steering it; we don't second-guess at adjust time.
 """
 
 from datetime import datetime
-from typing import Any
-
-import jsonschema_rs
 
 from cora.infrastructure.json_merge_patch import merge_patch
 from cora.run.aggregates.run import (
     RUN_ADJUST_REASON_MAX_LENGTH,
-    InvalidRunAdjustmentPatchError,
-    InvalidRunAdjustmentSchemaError,
+    InvalidRunAdjustPatchError,
     InvalidRunAdjustReasonError,
     Run,
     RunAdjusted,
     RunCannotAdjustError,
     RunNotFoundError,
     RunStatus,
+    validate_adjusted_parameters_against_method_schema,
 )
 from cora.run.features.adjust_run.command import AdjustRun
 from cora.run.features.adjust_run.context import RunAdjustContext
@@ -74,42 +82,6 @@ def _validate_reason(value: str) -> str:
     return trimmed
 
 
-def _validate_merged_against_schema(
-    merged: dict[str, Any],
-    schema: dict[str, Any] | None,
-) -> None:
-    """Strict-when-schema-present validation of the post-merge dict.
-
-    `adjust_run` deliberately uses a different posture from
-    `start_run` (6g-c) for the schemaless-Method case: an adjustment
-    on a schemaless Method is operator-responsibility territory
-    (the steering operator is iterating intentionally outside a
-    declared contract). When the Method has no schema, no validation
-    runs. When the Method declares a schema, the merged dict must
-    conform; otherwise raise `InvalidRunAdjustmentSchemaError`.
-    """
-    if schema is None:
-        return
-    if not merged:
-        # Trivial: empty merged set always conforms (required-field
-        # checks apply at Run-start, not at each adjustment).
-        return
-    try:
-        validator = jsonschema_rs.Draft202012Validator(schema)  # type: ignore[no-untyped-call]
-    except (jsonschema_rs.ValidationError, ValueError) as exc:
-        raise InvalidRunAdjustmentSchemaError(
-            f"jsonschema-rs failed to compile the schema: {exc}"
-        ) from exc
-
-    errors = list(validator.iter_errors(merged))  # type: ignore[no-untyped-call]
-    if errors:
-        first = errors[0]
-        path = ".".join(str(p) for p in first.instance_path) or "<root>"  # type: ignore[union-attr]
-        raise InvalidRunAdjustmentSchemaError(
-            f"validation failed at {path}: {first.message}"  # type: ignore[union-attr]
-        )
-
-
 def decide(
     state: Run | None,
     command: AdjustRun,
@@ -122,8 +94,9 @@ def decide(
     `state` is the source-state Run (None means the Run has no stream;
     raises `RunNotFoundError`). `context.method_parameters_schema` is
     the Method's optional schema (None means schemaless Method;
-    validation skipped). `now` is the wall clock from the handler
-    (injected per non-determinism principle).
+    validation skipped per the RELAXED adjust-time posture). `now` is
+    the wall clock from the handler (injected per non-determinism
+    principle).
     """
     if state is None:
         raise RunNotFoundError(command.run_id)
@@ -132,12 +105,12 @@ def decide(
         raise RunCannotAdjustError(state.id, current_status=state.status)
 
     if not command.parameter_patch:
-        raise InvalidRunAdjustmentPatchError("must contain at least one change")
+        raise InvalidRunAdjustPatchError("must contain at least one change")
 
     trimmed_reason = _validate_reason(command.reason)
 
     merged = merge_patch(state.effective_parameters, command.parameter_patch)
-    _validate_merged_against_schema(merged, context.method_parameters_schema)
+    validate_adjusted_parameters_against_method_schema(merged, context.method_parameters_schema)
 
     return [
         RunAdjusted(

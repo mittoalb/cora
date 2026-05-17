@@ -1045,7 +1045,7 @@ class RunCannotAdjustError(Exception):
         self.current_status = current_status
 
 
-class InvalidRunAdjustmentPatchError(ValueError):
+class InvalidRunAdjustPatchError(ValueError):
     """The supplied `parameter_patch` is empty or otherwise unusable
     (Phase 6j).
 
@@ -1058,26 +1058,27 @@ class InvalidRunAdjustmentPatchError(ValueError):
     """
 
     def __init__(self, reason: str) -> None:
-        super().__init__(f"Invalid run adjustment patch: {reason}")
+        super().__init__(f"Invalid run adjust patch: {reason}")
         self.reason = reason
 
 
-class InvalidRunAdjustmentSchemaError(ValueError):
+class InvalidRunAdjustSchemaError(ValueError):
     """The post-merge `effective_parameters` failed validation against
     the owning Method's `parameters_schema` (Phase 6j).
 
     Sibling of `InvalidRunParametersError` (Phase 6g-c, raised by
     start_run). Kept as a distinct error class so API responses
-    unambiguously identify the adjust path. STRICT-by-default per
-    5g-c cross-BC anchor: when Method.parameters_schema is None the
+    unambiguously identify the adjust path. RELAXED-by-design for
+    schemaless Methods: when Method.parameters_schema is None the
     decider skips validation (an adjustment to a schemaless Method
-    is operator-responsibility territory).
+    is operator-responsibility territory; see
+    `validate_adjusted_parameters_against_method_schema`).
 
     Mapped to HTTP 400.
     """
 
     def __init__(self, detail: str) -> None:
-        super().__init__(f"Invalid run adjustment after merge: {detail}")
+        super().__init__(f"Invalid run adjust after merge: {detail}")
         self.detail = detail
 
 

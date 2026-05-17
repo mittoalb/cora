@@ -33,6 +33,7 @@ from cora.run.aggregates.run.events import (
 )
 from cora.run.aggregates.run.evolver import evolve, fold
 from cora.run.aggregates.run.parameters_validation import (
+    validate_adjusted_parameters_against_method_schema,
     validate_effective_parameters_against_method_schema,
 )
 from cora.run.aggregates.run.read import load_run
@@ -54,9 +55,9 @@ from cora.run.aggregates.run.state import (
     InvalidChannelNameError,
     InvalidReadingValueError,
     InvalidRunAbortReasonError,
-    InvalidRunAdjustmentPatchError,
-    InvalidRunAdjustmentSchemaError,
+    InvalidRunAdjustPatchError,
     InvalidRunAdjustReasonError,
+    InvalidRunAdjustSchemaError,
     InvalidRunExternalRefError,
     InvalidRunInterruptedAtError,
     InvalidRunNameError,
@@ -111,9 +112,9 @@ __all__ = [
     "InvalidChannelNameError",
     "InvalidReadingValueError",
     "InvalidRunAbortReasonError",
+    "InvalidRunAdjustPatchError",
     "InvalidRunAdjustReasonError",
-    "InvalidRunAdjustmentPatchError",
-    "InvalidRunAdjustmentSchemaError",
+    "InvalidRunAdjustSchemaError",
     "InvalidRunExternalRefError",
     "InvalidRunInterruptedAtError",
     "InvalidRunNameError",
@@ -167,5 +168,6 @@ __all__ = [
     "from_stored",
     "load_run",
     "to_payload",
+    "validate_adjusted_parameters_against_method_schema",
     "validate_effective_parameters_against_method_schema",
 ]

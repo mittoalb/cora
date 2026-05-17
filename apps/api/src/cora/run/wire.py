@@ -51,7 +51,11 @@ fields. Mirrors how Decision BC wires its ReasoningStore.
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.infrastructure.idempotency import with_idempotency
+from cora.infrastructure.idempotency import (
+    NOOP_DESERIALIZE,
+    NOOP_SERIALIZE,
+    with_idempotency,
+)
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.run.aggregates.run import (
@@ -74,22 +78,6 @@ from cora.run.features import (
 )
 
 _BC = "run"
-
-
-def _noop_serialize(_: None) -> None:
-    """Codec for None-returning idempotency-wrapped handlers (adjust_run).
-
-    `with_idempotency` requires a serialize_result + deserialize_result
-    pair; for handlers that return None there is no payload to round-trip.
-    The pair stays symmetric (serializes None to None; deserializes None
-    to None) so the cache hit replays "success with None".
-    """
-    return None
-
-
-def _noop_deserialize(_: object) -> None:
-    """Inverse of `_noop_serialize`."""
-    return None
 
 
 @dataclass(frozen=True)
@@ -166,9 +154,10 @@ def wire_run(deps: Kernel) -> RunHandlers:
                 command_name="AdjustRun",
                 # Handler returns None (204-on-success). No payload to
                 # cache; the cache hit replays "success with None"
-                # via the no-op codecs.
-                serialize_result=_noop_serialize,
-                deserialize_result=_noop_deserialize,
+                # via the shared no-op codecs hoisted to
+                # cora.infrastructure.idempotency.
+                serialize_result=NOOP_SERIALIZE,
+                deserialize_result=NOOP_DESERIALIZE,
                 lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="AdjustRun",
