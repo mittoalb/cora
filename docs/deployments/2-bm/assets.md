@@ -28,9 +28,9 @@ Asset facets exercised in code today:
 
 Lifecycle transitions on Oryx and Scintillator land in every alignment + first-light scenario that consumes the image chain; their condition / Caution facets remain unexercised until further commissioning scenarios surface operator pain points.
 
-## Settings (Phase 10e-a)
+## Settings
 
-`Capability.settings_schema` declares the *intrinsic property contract* for a device class (positions, encoder resolution, hardware envelope, per-install calibration). `Asset.settings` carries this specific device's values. Runtime parameters (exposure, energy, rotation step) live on `Method.parameters_schema` instead and land in 10e-b.
+`Capability.settings_schema` declares the *intrinsic property contract* for a device class (positions, encoder resolution, hardware envelope, per-install calibration). `Asset.settings` carries this specific device's values. Runtime parameters (exposure, energy, rotation step) live on `Method.parameters_schema` instead (Method-side counterpart, separate track).
 
 Every numeric property carries a `unit: {system, code}` annotation per the [units design](../../architecture/model.md). The same-unit-per-physical-dimension-per-Capability convention means all RotaryStage angles are in `deg`, all LinearStage lengths in `mm`, etc. Different physical dimensions in the same Capability use different unit codes (positions in `deg` plus `max_speed` in `deg/s`).
 
