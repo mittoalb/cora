@@ -3,18 +3,18 @@
 *Equipment BC Assets registered **under** the 2-BM Unit (the Devices that hang off it). The 2-BM Asset itself sits at the Unit level and is declared on the [2-BM index](index.md). See [Model](../../architecture/model.md) for the aggregate shape.*
 
 
-| Asset | Capability | Role |
-| --- | --- | --- |
-| [`Aerotech_ABRS_rotary`](#aerotech_abrs_rotary) | `RotaryStage` | Rotation axis. |
-| [`Sample_top_X`](#sample_top_x) | `LinearStage` | Lateral correction for rotation-axis alignment. |
-| [`Sample_top_Z`](#sample_top_z) | `LinearStage` | Sample-to-scintillator distance. |
-| [`Sample_top_Roll`](#sample_top_roll) | `LinearStage` | Roll tilt for rotation-axis alignment. |
-| [`Sample_top_Pitch`](#sample_top_pitch) | `LinearStage` | Pitch tilt for rotation-axis alignment. |
-| [`Optique_Peter_focus_Z`](#optique_peter_focus_z) | `LinearStage` | Lens-to-scintillator focus inside the microscope. |
-| [`Shutter_2BM`](#shutter_2bm) | `Shutter` | Safety shutter. |
-| [`Oryx_5MP_camera`](#oryx_5mp_camera) | `Camera` | Imaging detector. |
-| [`Scintillator_LuAG`](#scintillator_luag) | `Scintillator` | Converts X-rays to visible light. |
-| [`Hexapod_2BM`](#hexapod_2bm) | `Hexapod` | Sample-positioning stage (6-DOF). |
+| Asset | Capability |
+| --- | --- |
+| [`Aerotech_ABRS_rotary`](#aerotech_abrs_rotary) | `RotaryStage` |
+| [`Sample_top_X`](#sample_top_x) | `LinearStage` |
+| [`Sample_top_Z`](#sample_top_z) | `LinearStage` |
+| [`Sample_top_Roll`](#sample_top_roll) | `LinearStage` |
+| [`Sample_top_Pitch`](#sample_top_pitch) | `LinearStage` |
+| [`Optique_Peter_focus_Z`](#optique_peter_focus_z) | `LinearStage` |
+| [`Shutter_2BM`](#shutter_2bm) | `Shutter` |
+| [`Oryx_5MP_camera`](#oryx_5mp_camera) | `Camera` |
+| [`Scintillator_LuAG`](#scintillator_luag) | `Scintillator` |
+| [`Hexapod_2BM`](#hexapod_2bm) | `Hexapod` |
 
 Each Asset has its own section below with vendor, role, and `Asset.settings` (when the Capability schema is declared). The right-hand table of contents jumps to any Asset directly.
 
@@ -33,6 +33,7 @@ Each Asset has its own section below with vendor, role, and `Asset.settings` (wh
 ## `Sample_top_X`
 
 - **Capability** `LinearStage` (Kohzu CYAT-070)
+- **Role** Lateral correction for rotation-axis alignment.
 
 | Property | Value | Unit |
 | --- | ---: | --- |
@@ -44,18 +45,22 @@ Each Asset has its own section below with vendor, role, and `Asset.settings` (wh
 ## `Sample_top_Z`
 
 - **Capability** `LinearStage`
+- **Role** Sample-to-scintillator distance.
 
 ## `Sample_top_Roll`
 
 - **Capability** `LinearStage`
+- **Role** Roll tilt for rotation-axis alignment.
 
 ## `Sample_top_Pitch`
 
 - **Capability** `LinearStage`
+- **Role** Pitch tilt for rotation-axis alignment.
 
 ## `Optique_Peter_focus_Z`
 
 - **Capability** `LinearStage` (Optique Peter microscope)
+- **Role** Lens-to-scintillator focus inside the microscope.
 
 ## `Shutter_2BM`
 
