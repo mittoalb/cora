@@ -17,12 +17,10 @@
 | `wide sandstone slab (Proposal 2026-1236, mosaic acquisition)` | porous-media slab (sandstone) | `2026-1236` | `Measured` (single mount across N=4 mosaic tiles) | `mosaic_acquisition` |
 | `iron-bearing sandstone core (Proposal 2026-1237, energy-pivot study)` | porous-media core (sandstone) | `2026-1237` | `Measured` (single mount across two Plans) | `energy_change` |
 
-Source of truth: scenario files at [`apps/api/tests/integration/scenarios/test_2bm_<scenario>.py`](../../../apps/api/tests/integration/scenarios/) (one-to-one with the Scenario column). The "Most-advanced state" column reflects the furthest state any shipped scenario reaches.
+## Pending
 
-## Pending in code
+Subject shapes planned for 2-BM but not yet present in the inventory above.
 
-| Pending Subject | Class | Source scenario (planned) |
-| --- | --- | --- |
-| Subject disposition (Returned / Stored / Discarded terminals) | Terminal lifecycle after dismount | Not yet sourced; sibling slices `return_subject` / `store_subject` / `discard_subject` each get their own scenario when the disposition policy is locked |
-| Proposal co-I sample roster | Multi-sample-class per proposal | `test_2bm_beamtime_intake.py` extension (`dmagic` proposal metadata + TomoScan IOC tagging) |
-| Calibration phantom (Siemens star, USAF 1951, sphere) | Calibration-class Subject (no proposal) | Not yet sourced; alignment scenarios use sphere fixtures inline today |
+- **Subject disposition terminals** (`Returned` / `Stored` / `Discarded`) — sibling slices `return_subject` / `store_subject` / `discard_subject`, each landing when the disposition policy is locked.
+- **Proposal co-I sample roster** — multi-sample-class per proposal (`dmagic` metadata + TomoScan IOC tagging).
+- **Calibration phantom** (Siemens star, USAF 1951, sphere) — calibration-class Subject (no proposal); alignment scenarios use sphere fixtures inline today.

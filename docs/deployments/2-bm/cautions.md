@@ -9,8 +9,6 @@
 | Aerotech cold-start index miss | `Aerotech_ABRS_rotary` (Device) | `Wear` · `Caution` | Misses index pulse on cold-start home; retry once after 5s settling | `motor_homing` |
 | Hexapod controller lockup | `Hexapod_2BM` (Device) | `Wear` · `Caution` | Controller locks up under sustained load (HexapodAllEnabled stuck at 0); recover via the `hexapod_reboot` Procedure | `hexapod_reboot` |
 
-Source of truth: scenario files at [`apps/api/tests/integration/scenarios/test_2bm_<scenario>.py`](../../../apps/api/tests/integration/scenarios/) (one-to-one with the Scenario column).
-
 ## Aerotech cold-start index miss
 
 `Wear` / `Caution`. Tags: `aerotech`, `home`, `cold_start`.
@@ -31,13 +29,11 @@ Source of truth: scenario files at [`apps/api/tests/integration/scenarios/test_2
 
 **Lifetime.** No `expires_at` (permanent until superseded or retired). Surfaces on every future Run start at 2-BM that targets the Hexapod, so operators know to run the recovery routine on first sign of unresponsiveness rather than chasing a phantom motion-control bug.
 
-## Pending in code
+## Pending
 
-Other 2-BM Cautions surfaced by the [2-BM repo survey](https://github.com/xray-imaging/2bm-docs) or open watch items. Each lands as a row above when a scenario test (or seed script) registers it.
+Other 2-BM Cautions surfaced by the [2-BM repo survey](https://github.com/xray-imaging/2bm-docs) or open watch items.
 
-| Pending Caution | Target | Source scenario (planned) |
-| --- | --- | --- |
-| Vibration threshold exceeded after air-handler shutdown | 2-BM Unit | `tests/integration/scenarios/test_2bm_vibration_baseline.py` (registers the Caution only when measured vibration frequency exceeds reference) |
-| Detector dark-frame drift after long beam-off periods | `Oryx_5MP_camera` Device | Not yet sourced; would land when an operations-phase scenario observes the drift |
-| Scintillator browning under prolonged white-beam exposure | `Scintillator_LuAG` Device | Not yet sourced; needs long-duration operations scenario |
-| Sample-stage backlash after manual handling | Sample-stage Devices | Not yet sourced; needs manual-intervention recovery scenario |
+- **Vibration threshold exceeded after air-handler shutdown** — target 2-BM Unit. Registered only when measured vibration frequency exceeds reference.
+- **Detector dark-frame drift after long beam-off periods** — target `Oryx_5MP_camera` Device.
+- **Scintillator browning under prolonged white-beam exposure** — target `Scintillator_LuAG` Device; needs long-duration operations scenario.
+- **Sample-stage backlash after manual handling** — target Sample-stage Devices; needs manual-intervention recovery scenario.

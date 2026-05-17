@@ -13,13 +13,11 @@
 | `Proposal 2026-1236 2x2 tile mosaic` | `Coordinated` · `proposal`, `mosaic`, `tomography`, `porous_media` | `Planned` | 4 tile Runs | `mosaic_acquisition` |
 | `Proposal 2026-1237 multi-energy contrast study` | `Coordinated` · `proposal`, `tomography`, `multi_energy`, `porous_media` | `Planned` | 2 Runs (distinct Plans) | `energy_change` |
 
-Source of truth: scenario files at [`apps/api/tests/integration/scenarios/test_2bm_<scenario>.py`](../../../apps/api/tests/integration/scenarios/) (one-to-one with the Scenario column). FSM coverage: `Planned → Active → Closed` exercised by the `data_publish` path; `Held` and `Abandoned` not yet exercised.
+## Pending
 
-## Pending in code
+Campaign shapes planned for 2-BM but not yet present in the inventory above.
 
-| Pending Campaign | Shape (`intent` · tags) | Source scenario (planned) |
-| --- | --- | --- |
-| Alignment-chain orchestration | `Coordinated` · `alignment`, `auto_chain` | `test_2bm_alignment_auto_chain.py` (5 alignment Runs + calibration + Step-1 re-run) |
-| In-situ / operando study | `Coordinated` · `in_situ`, `operando` | Not yet sourced |
-| Energy sweep (N-point) | `Sweep` · `energy_sweep`, `xanes` | Not yet sourced (`energy_change` is a 2-point `Coordinated` pivot, not an N-point `Sweep`) |
-| Block-design experiment | `Block` · `block_design` | Not yet sourced |
+- **Alignment-chain orchestration** — `Coordinated` · `alignment`, `auto_chain`. 5 alignment Runs + calibration + Step-1 re-run.
+- **In-situ / operando study** — `Coordinated` · `in_situ`, `operando`.
+- **Energy sweep (N-point)** — `Sweep` · `energy_sweep`, `xanes`. (`energy_change` today is a 2-point `Coordinated` pivot, not an N-point `Sweep`.)
+- **Block-design experiment** — `Block` · `block_design`.

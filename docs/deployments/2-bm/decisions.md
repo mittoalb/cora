@@ -13,8 +13,6 @@
 
 Every Decision above carries `confidence_source=self_reported`. RunDebrief Decisions carry `decision_rule=agent:RunDebrief:v1`.
 
-Source of truth: scenario files at [`apps/api/tests/integration/scenarios/test_2bm_<scenario>.py`](../../../apps/api/tests/integration/scenarios/) (one-to-one with the Scenario column).
-
 ## Decision choice vocabulary (`RunDebrief` context)
 
 | Choice | Meaning |
@@ -25,11 +23,11 @@ Source of truth: scenario files at [`apps/api/tests/integration/scenarios/test_2
 | `EquipmentAbort` | Run reached `Aborted` because Equipment fault forced termination |
 | `DataSuspect` | Run reached terminal state but agent narrative review surfaced a data-quality concern |
 
-## Pending in code
+## Pending
 
-| Pending Decision class | Source scenario (planned) |
-| --- | --- |
-| RunDebrief AAR with `OperatorAbort` choice | Variant of `run_debrief_aborted` distinguished by abort reason (operator judgment, no fault) |
-| RunDebrief AAR with `DataSuspect` choice | Lands when scan-quality scoring enters the agent's read scope |
-| Manually-triggered re-debrief via `re_debrief_run` slice | Not yet scenario-tier (slice exercised at contract + integration tier) |
-| Strategy-agent Decisions (8g sibling to RunDebrief) | Lands with the first non-RunDebrief Agent runtime |
+Decision classes planned for 2-BM but not yet present in the inventory above.
+
+- **RunDebrief AAR with `OperatorAbort` choice** — variant distinguished by abort reason (operator judgment, no fault).
+- **RunDebrief AAR with `DataSuspect` choice** — lands when scan-quality scoring enters the agent's read scope.
+- **Manually-triggered re-debrief via `re_debrief_run` slice** — slice exists at contract + integration tier; not yet at scenario tier.
+- **Strategy-agent Decisions** (8g sibling to RunDebrief) — lands with the first non-RunDebrief Agent runtime.

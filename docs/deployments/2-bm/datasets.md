@@ -15,19 +15,17 @@
 | `Proposal_2026-1234_sample_A_streaming_snapshot` | `Trial` · `NXtomo` | streaming tomography Run with mid-flight `adjust_run` → `porous sandstone core (Proposal 2026-1234, sample A)` | `streaming_tomography` |
 | `Sample_of_opportunity_partial_600proj` | `Trial` · `NXtomo` | `Stopped` Run (1500 projections planned, 600 actually captured) → `leftover sandstone core (sample-of-opportunity)` | `run_stopped_early` |
 
-Source of truth: scenario files at [`apps/api/tests/integration/scenarios/test_2bm_<scenario>.py`](../../../apps/api/tests/integration/scenarios/) (one-to-one with the Scenario column).
-
 ## Calibration Datasets (no Subject, no Run)
 
 Dark and flat baselines carry `subject_id=None` and `producing_run_id=None`. Downstream science Runs consume them via the reconstruction formula `(raw - dark) / (flat - dark)`; that linkage lives in reconstruction-pipeline metadata, not on the Run aggregate.
 
-## Pending in code
+## Pending
 
-| Pending Dataset class | Intent at registration | Source scenario (planned) |
-| --- | --- | --- |
-| Rocking curve | `Trial` | `test_2bm_energy_calibration.py` |
-| Vibration baseline (1000-frame stack) | `Trial` | `test_2bm_vibration_baseline.py` |
-| Globus / FDT push to Petrel | (external transport, not a Dataset event) | Not yet sourced; LogbookMirrorPort implementor would complement `data_publish` |
-| Reconstructed volume | `Production` | Not yet sourced; `derived_from` would carry raw + dark + flat |
-| Segmentation mask | `Production` | Not yet sourced; further down the lineage chain |
-| Dark-subtracted flat | `Trial` | Not yet sourced; `derived_from` would point at both baselines |
+Dataset classes planned for 2-BM but not yet present in the inventory above.
+
+- **Rocking curve** (`Trial`) — channel-cut-crystal scan output.
+- **Vibration baseline** (`Trial`) — 1000-frame stack.
+- **Globus / FDT push to Petrel** — external transport, not a Dataset event in itself; complements `data_publish` once a `LogbookMirrorPort` implementor exists.
+- **Reconstructed volume** (`Production`) — `derived_from` would carry raw + dark + flat.
+- **Segmentation mask** (`Production`) — further down the lineage chain.
+- **Dark-subtracted flat** (`Trial`) — `derived_from` would point at both baselines.

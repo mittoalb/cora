@@ -10,9 +10,9 @@
 
 Source of truth: [`apps/api/tests/integration/scenarios/test_2bm_ln2_dewar_lifecycle.py`](../../../apps/api/tests/integration/scenarios/test_2bm_ln2_dewar_lifecycle.py).
 
-## Pending in code
+## Pending
 
-| Pending Supply | `scope` · `kind` | Source scenario (planned) |
-| --- | --- | --- |
-| Sample-environment gas mix | `BEAMLINE` · `gas` | Not yet sourced; lands when a gas-flow Subject environment scenario lands |
-| Compressed air supply | `BEAMLINE` · `pneumatic` | Not yet sourced |
+Supplies planned for 2-BM but not yet present in the inventory above.
+
+- **Sample-environment gas mix** — `BEAMLINE` · `gas`. Lands when a gas-flow Subject environment scenario lands.
+- **Compressed air supply** — `BEAMLINE` · `pneumatic`.

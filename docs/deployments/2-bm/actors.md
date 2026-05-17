@@ -24,12 +24,12 @@ Source of truth: [`_facility_fixture.py`](../../../apps/api/tests/integration/sc
 
 When a row moves from 2-BM Actors to [APS Actors](../aps/actors.md):
 
-- **PI**: a non-2-BM beamline scenario references the same `Actor.id` (instead of registering a fresh PI).
-- **ESRB**: a second beamline scenario references `_ESRB_ACTOR_ID` (or any ESRB Actor). The ESRB registration then hoists into [`test_aps_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_facility.py).
-- **Beamline Scientist**: stays at 2-BM unless a sibling-beamline Beamline Scientist Actor is registered with the same id.
+- **PI** — a non-2-BM beamline references the same `Actor.id` (instead of registering a fresh PI).
+- **ESRB** — a second beamline references the same ESRB `Actor.id`; the registration then hoists into the facility-install ceremony.
+- **Beamline Scientist** — stays at 2-BM unless a sibling-beamline Beamline Scientist is registered with the same id.
 
-## Pending in code
+## Pending
 
-- Per-beamline named staff rosters (real individuals, on-call schedules) beyond the 3-operator pool and the review-chain reviewers above.
-- Sibling proposal PI rosters for proposals that have not yet been exercised by a scenario.
-- The combined-role `2-BM Beamline Scientist + ESRB Reviewer` is a test-scenario convenience; it will likely be replaced by separate Beamline Scientist + ESRB references once the clearance workflow is exercised by more scenarios.
+- **Per-beamline named staff rosters** — real individuals, on-call schedules; beyond the 3-operator pool and the review-chain reviewers above.
+- **Sibling proposal PI rosters** — for proposals not yet anchored at 2-BM.
+- **Separate Beamline Scientist + ESRB references** — replacing the combined-role reviewer, once the clearance workflow has more callers.
