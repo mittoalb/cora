@@ -2,7 +2,6 @@
 
 *Trust BC boundary shape at 2-BM: the Zone, the Conduit, and the Policies that govern who may issue which command. Per ISA-99 a Zone groups assets with homogeneous trust requirements (orthogonal to the Equipment hierarchy), a Conduit is a governed comms path between Zones, and a Policy is an authorization rule attached to a Conduit. See [Model](../../architecture/model.md) for the aggregate shape.*
 
-*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
 
 ## Zone
 

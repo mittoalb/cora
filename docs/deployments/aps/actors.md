@@ -2,7 +2,6 @@
 
 *Access BC Actors registered at APS by the canonical facility install (`test_aps_facility.py`). These are facility-wide principals: roles that work across any sector or beamline. Per-beamline staff Actors (the 2-BM operator pool, proposal PIs bound to a specific beamtime) live with their beamline. See [Model](../../architecture/model.md) for the aggregate shape.*
 
-*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
 
 | Actor | Kind | Role |
 | --- | --- | --- |

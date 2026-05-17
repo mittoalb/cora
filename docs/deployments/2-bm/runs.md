@@ -2,7 +2,6 @@
 
 *Run BC Runs registered at 2-BM. A Run is the operator-started execution of a Plan against a Subject, lifecycle `Created → Running → (Completed | Aborted | Stopped | Truncated)`. Runs are composed by [Campaigns](campaigns.md) (`Run.campaign_id ↔ Campaign.run_ids`) and produce [Datasets](datasets.md) (`Dataset.producing_run_id`). See [Model](../../architecture/model.md) for the aggregate shape.*
 
-*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
 
 | Run | Subject | Campaign | Terminal state | Scenario |
 | --- | --- | --- | --- | --- |

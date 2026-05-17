@@ -2,7 +2,6 @@
 
 *Caution BC Cautions targeting facility-level Assets. A Caution carries operator tribal knowledge (category, severity, text, workaround) on a target Asset or Procedure. See [Model](../../architecture/model.md) for the aggregate shape.*
 
-*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
 
 | Caution | Target | Category | Severity | Summary |
 | --- | --- | --- | --- | --- |

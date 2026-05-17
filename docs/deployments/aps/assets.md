@@ -2,7 +2,6 @@
 
 *Equipment BC Assets registered **under** the APS Site (the Sectors at the Area level). The APS Asset itself sits at the Site level and is declared on the [APS index](index.md). See [Model](../../architecture/model.md) for the aggregate shape.*
 
-*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
 
 | Asset | Level | Parent | Hosts |
 | --- | --- | --- | --- |

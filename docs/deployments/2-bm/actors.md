@@ -2,7 +2,6 @@
 
 *Access BC Actors registered at 2-BM by the beamline install ceremony, the canonical beamtime fixture, and per-scenario intake. These are beamline-bound principals: staff on the 2-BM rota, proposal PIs tied to a beamtime, and review-chain reviewers whose first registration lives in a 2-BM scenario. Facility-wide principals (the APS Operator role, the Run Debrief agent) live at [APS](../aps/actors.md). See [Model](../../architecture/model.md) for the aggregate shape.*
 
-*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
 
 | Actor | Kind | Role |
 | --- | --- | --- |

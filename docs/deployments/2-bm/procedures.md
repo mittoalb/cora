@@ -2,7 +2,6 @@
 
 *Operation BC Procedures registered at 2-BM. Each row binds a Method + Practice + Plan to a set of target Assets and runs through the `Defined → Running → Completed | Aborted | Truncated` FSM. Per-step entries (`Setpoint / Action / Check` triplets) land in the `entries_operation_procedure_steps` projection. See [Model](../../architecture/model.md) for the aggregate shape.*
 
-*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
 
 | Procedure | Recipe (Method · Practice) | Target Assets | Scenario |
 | --- | --- | --- | --- |

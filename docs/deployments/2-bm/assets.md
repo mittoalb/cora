@@ -2,7 +2,6 @@
 
 *Equipment BC Assets registered **under** the 2-BM Unit (the Devices that hang off it). The 2-BM Asset itself sits at the Unit level and is declared on the [2-BM index](index.md). See [Model](../../architecture/model.md) for the aggregate shape.*
 
-*See [Scenarios](../../scenarios/by-bc.md#equipment) for which operator routines exercise these Assets and what lifecycle facets each one walks through.*
 
 | Asset | Capability | Role at 2-BM |
 | --- | --- | --- |

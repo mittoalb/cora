@@ -2,7 +2,6 @@
 
 *Subject BC Subjects registered at 2-BM. A Subject is the sample-or-thing being measured (proposal-anchored at operations phase, kinematic-mounted at acquisition time). See [Model](../../architecture/model.md) for the aggregate shape.*
 
-*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
 
 | Subject | Class | Proposal | Most-advanced state | Scenario(s) |
 | --- | --- | --- | --- | --- |
