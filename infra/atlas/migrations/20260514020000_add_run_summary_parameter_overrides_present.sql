@@ -20,7 +20,7 @@
 -- ## Future trigger: promote to denormalized JSONB column
 --
 -- When the first list-side filter on a parameter VALUE surfaces
--- (for example "Runs where energy_kev > 10"), promote to a
+-- (for example "Runs where energy > 10"), promote to a
 -- denormalized JSONB column (`effective_parameters JSONB`) with a
 -- GIN index. This mirrors W&B's `config.<key>` and MLflow's
 -- `params.<key>` filterability. Locked in
