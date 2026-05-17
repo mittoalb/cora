@@ -11,7 +11,9 @@ Walks the full cross-BC seam on real Postgres:
      on the Decision stream with the proposed_caution payload.
   6. Invoke `promote_caution_proposal` against the Decision.
   7. Verify a real Caution was registered in Caution BC via the
-     cross-BC slice delegation (Pattern C).
+     cross-BC write (the promote handler composes `CautionRegistered`
+     events directly via `EventStore.append_streams`, mirroring
+     `define_agent`'s pattern; no sibling-features import).
   8. Sanity-check at-most-once on the subscriber (second apply is a
      no-op via ConcurrencyError on the deterministic decision_id).
 
