@@ -46,6 +46,7 @@ from cora.infrastructure.ports import (
     FixedIdGenerator,
     FrozenClock,
     IdempotencyStore,
+    LLMPort,
 )
 
 
@@ -59,6 +60,7 @@ def build_postgres_deps(
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
+    llm: LLMPort | None = None,
 ) -> Kernel:
     """Build a Kernel for integration-test handler invocation against real Postgres.
 
@@ -85,6 +87,7 @@ def build_postgres_deps(
         idempotency_store=idempotency_store,
         clearance_lookup=clearance_lookup or AlwaysCoveredClearanceLookup(),
         caution_lookup=caution_lookup or AlwaysQuietCautionLookup(),
+        llm=llm,
     )
 
 

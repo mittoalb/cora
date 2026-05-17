@@ -146,6 +146,17 @@ class AnthropicLLMAdapter:
             timeout=request_timeout_seconds,
         )
 
+    async def aclose(self) -> None:
+        """Release the underlying httpx connection pool.
+
+        Wired into `Kernel.Teardown` from `cora.api.main` so the
+        FastAPI lifespan closes the SDK client at shutdown. Without
+        this the underlying `httpx.AsyncClient` leaks its connection
+        pool on every process exit (a watch item flagged at iter 2a's
+        test-coverage gate review).
+        """
+        await self._client.close()
+
     async def chat(self, request: LLMChatRequest) -> LLMResponse:
         cache_count = _count_cache_breakpoints(request)
         if cache_count > _MAX_CACHE_BREAKPOINTS:

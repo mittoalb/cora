@@ -569,6 +569,13 @@ def validate_reasoning(value: str | None) -> str | None:
     (operator UIs commonly send empty strings for unset optional
     fields). Raises `InvalidDecisionReasoningError` for over-cap
     text after trim.
+
+    **Public to sibling BCs** (cross-BC gate-review P1#4 of 8f-b
+    iter 2b): callable from `cora.agent.subscribers.run_debrief`
+    which composes `DecisionRegistered` inline because it needs a
+    deterministic decision_id that the slice handler cannot provide.
+    Sibling-BC callers depend on this helper's stability; treat
+    rename / signature changes as cross-BC breaking.
     """
     if value is None:
         return None
@@ -581,7 +588,12 @@ def validate_reasoning(value: str | None) -> str | None:
 
 
 def validate_confidence(value: float | None) -> float | None:
-    """Bound-check the optional confidence float to [0.0, 1.0]."""
+    """Bound-check the optional confidence float to [0.0, 1.0].
+
+    **Public to sibling BCs** (cross-BC gate-review P1#4 of 8f-b
+    iter 2b): same callable-by-Agent-BC contract as
+    `validate_reasoning`.
+    """
     if value is None:
         return None
     if value != value:  # NaN check (NaN != NaN)
@@ -623,6 +635,10 @@ def validate_decision_inputs(value: dict[str, Any] | None) -> dict[str, Any] | N
     non-roundtrippable value (datetime, set, custom object) raises
     here at the BC boundary rather than failing deep at jsonb
     serialization time.
+
+    **Public to sibling BCs** (cross-BC gate-review P1#4 of 8f-b
+    iter 2b): same callable-by-Agent-BC contract as
+    `validate_reasoning` / `validate_confidence`.
     """
     if value is None:
         return None

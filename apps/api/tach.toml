@@ -217,12 +217,25 @@ depends_on = [
 # `AgentDefined` to the Agent stream in ONE transaction (the
 # Agent.id == Actor.id identity-sharing invariant; same atomic-write
 # pattern as Campaign's `add_run_to_campaign` from 6i-c).
+#
+# Phase 8f-b iter 2b adds two cross-BC aggregate dependencies for
+# the FIRST side-effecting subscriber (`RunDebriefSubscriber`):
+#   - `cora.run.aggregates` to subscribe to terminal Run events
+#     (RunCompleted / RunAborted / RunStopped / RunTruncated) and
+#     fold the Run aggregate via `load_run`.
+#   - `cora.decision.aggregates` to compose `DecisionRegistered`
+#     events with a deterministic decision_id (UUID5-derived from
+#     the terminal event_id for at-most-once retry semantics).
+# Conventions preserved: imports only from sibling `aggregates.*`,
+# never `features.*` (rule 2 in this file's header).
 [[modules]]
 path = "cora.agent"
 depends_on = [
     "cora.infrastructure",
     "cora.agent.aggregates",
     "cora.access.aggregates",
+    "cora.run.aggregates",
+    "cora.decision.aggregates",
 ]
 
 # API entrypoint composes every BC.

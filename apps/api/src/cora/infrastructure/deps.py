@@ -373,7 +373,7 @@ async def build_kernel(
         caution_lookup=caution_lookup,
         llm=llm,
     )
-    return kernel, _make_pool_teardown(pool)
+    return kernel, _compose_teardowns([_maybe_llm_teardown(llm), _make_pool_teardown(pool)])
 
 
 async def _noop_teardown() -> None:
@@ -385,6 +385,57 @@ def _make_pool_teardown(pool: asyncpg.Pool) -> Teardown:
         await pool.close()
 
     return teardown
+
+
+def _maybe_llm_teardown(llm: LLMPort | None) -> Teardown:
+    """Build a teardown that closes the LLM client if it exposes `aclose()`.
+
+    Production `AnthropicLLMAdapter` has an `aclose()` method that
+    releases the SDK's httpx connection pool. Test stubs
+    (`FakeLLMAdapter`) typically don't; the teardown is a no-op
+    in that case. When `llm is None` (no LLM configured), the
+    returned teardown is also a no-op.
+    """
+
+    async def teardown() -> None:
+        if llm is None:
+            return
+        close = getattr(llm, "aclose", None)
+        if close is None:
+            return
+        await close()
+
+    return teardown
+
+
+def _compose_teardowns(teardowns: list[Teardown]) -> Teardown:
+    """Run teardowns sequentially, swallowing per-teardown errors.
+
+    Ordering: pass `[a, b, c]` and they run a -> b -> c at shutdown.
+    Errors from any one teardown are captured and re-raised AFTER
+    the remaining teardowns run, so a misbehaving LLM client close
+    doesn't leak the Postgres pool (or vice versa). The first
+    raised exception wins; subsequent ones are suppressed per
+    FastAPI shutdown convention.
+
+    Catches `Exception` (NOT `BaseException`) so `asyncio.CancelledError`
+    + `KeyboardInterrupt` + `SystemExit` propagate through the
+    teardown chain as intended (architecture gate-review P1#2 of
+    8f-b iter 2b).
+    """
+
+    async def composed() -> None:
+        first_exc: Exception | None = None
+        for td in teardowns:
+            try:
+                await td()
+            except Exception as exc:
+                if first_exc is None:
+                    first_exc = exc
+        if first_exc is not None:
+            raise first_exc
+
+    return composed
 
 
 __all__ = [
