@@ -1,34 +1,39 @@
 """Application handler for the `promote_caution_proposal` slice.
 
-Pattern C from the design memo: operator-triggered cross-BC
-promotion. Loads the CautionProposal Decision via Decision BC's
-read helper, validates via the slice's `decide()`, then dispatches
-to Caution BC's `register_caution` or `supersede_caution` slice
-depending on the Decision's `choice`.
+Pattern C cross-BC write: the agent BC writes Caution events
+DIRECTLY to the Caution BC's event stream via
+`EventStore.append_streams`. Mirrors `define_agent` (which writes
+`ActorRegistered` on the Access BC stream the same way).
 
-## Cross-BC write target
+## Why not call Caution BC's bind() factory
 
-Agent BC writes NO events on its own aggregate here. Instead it
-invokes Caution BC's existing slices via their `bind(deps)` factory.
-This preserves Caution BC's own validation (CautionTarget VOs,
-category/severity validation, supersede source-state guard) without
-duplication.
+CORA's architecture rule (see `apps/api/tach.toml` header):
 
-## Field mapping (CautionDrafter prompt -> Caution BC command)
+  > A BC may only reach into a sibling BC through that sibling's
+  > `aggregates.*` namespace (the read-side public surface).
+  > Never through `features.*` (sibling slice handlers).
 
-The prompt schema generates: `title` (1-200) + `body` (40-2000) +
-`tags`. The Caution BC's command expects: `text` + `workaround`
-(both REQUIRED). v1 mapping:
+The Caution aggregate already exposes everything needed for a
+cross-BC write: event types (`CautionRegistered` / `CautionSuperseded`),
+validating VOs (`CautionText`, `CautionWorkaround`, `CautionTag`),
+state + status enums (for the supersede source-state guard), the
+read helper (`load_caution`), and the envelope helpers
+(`event_type_name` / `to_payload`). The handler below uses those
+directly. The Caution BC's own slice handlers are not invoked.
+
+## Field mapping (CautionDrafter prompt -> Caution event)
 
   - `text = title` (short summary; appears in Caution.text and the
     Run.start banner truncation)
   - `workaround = body` (the actionable narrative)
+  - `expires_at`, `propagate_to_children`: not surfaced on the
+    CautionDrafter prompt at v1; defaults applied (None / False).
 
 ## Idempotency
 
-Fresh UUIDv7 per call + Brandur Idempotency-Key envelope wrapped
-at wire.py (same pattern as re_debrief_run). Same Idempotency-Key
-on retry returns the cached caution_id; fresh key creates a new
+Fresh UUIDv7 per call + Brandur Idempotency-Key envelope wrapped at
+wire.py (same pattern as re_debrief_run). Same Idempotency-Key on
+retry returns the cached caution_id; fresh key creates a new
 Caution.
 
 ## Authorize
@@ -38,12 +43,14 @@ Authorize port IS called (HTTP-handler convention). Action name
 
 ## Errors
 
-  - DecisionNotFoundError (404) — load_decision returned None
-  - DecisionNotCautionProposalError (400) — wrong context
-  - CautionProposalNotActionableError (400) — choice = NoAction
-  - CautionProposalMalformedError (400) — proposed_caution invalid
-  - UnauthorizedError (403) — Authorize port denied
-  - Caution BC's own errors propagate (cross-BC validation)
+  - DecisionNotFoundError (404) -- load_decision returned None
+  - DecisionNotCautionProposalError (400) -- wrong context
+  - CautionProposalNotActionableError (400) -- choice = NoAction
+  - CautionProposalMalformedError (400) -- proposed_caution invalid
+  - UnauthorizedError (403) -- Authorize port denied
+  - CautionNotFoundError (Caution BC) -- supersede parent missing
+  - CautionCannotSupersedeError (Caution BC) -- parent not Active
+  - Invalid*Error (Caution BC) -- VO validation failures
 """
 
 from typing import Protocol
@@ -54,20 +61,31 @@ from cora.agent.features.promote_caution_proposal.command import PromoteCautionP
 from cora.agent.features.promote_caution_proposal.decider import decide
 from cora.caution.aggregates.caution import (
     AssetTarget,
+    CautionCannotSupersedeError,
     CautionCategory,
+    CautionNotFoundError,
+    CautionRegistered,
     CautionSeverity,
+    CautionStatus,
+    CautionSuperseded,
+    CautionTag,
     CautionTarget,
+    CautionText,
+    CautionWorkaround,
     ProcedureTarget,
+    event_type_name,
+    from_stored,
+    to_payload,
 )
-from cora.caution.features.register_caution import RegisterCaution
-from cora.caution.features.register_caution import bind as bind_register_caution
-from cora.caution.features.supersede_caution import SupersedeCaution
-from cora.caution.features.supersede_caution import bind as bind_supersede_caution
+from cora.caution.aggregates.caution.evolver import fold
 from cora.decision.aggregates.decision import load_decision
+from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
+from cora.infrastructure.ports.event_store import StreamAppend
 
+_CAUTION_STREAM_TYPE = "Caution"
 _COMMAND_NAME = "PromoteCautionProposal"
 _CONDUIT_DEFAULT_ID = UUID(int=0)
 
@@ -114,9 +132,6 @@ def _build_caution_target(target_kind: str, target_id: UUID) -> CautionTarget:
 def bind(deps: Kernel) -> Handler:
     """Build a promote_caution_proposal handler closed over the shared deps."""
 
-    register_handler = bind_register_caution(deps)
-    supersede_handler = bind_supersede_caution(deps)
-
     async def handler(
         command: PromoteCautionProposal,
         *,
@@ -150,57 +165,135 @@ def bind(deps: Kernel) -> Handler:
         target = _build_caution_target(view.target_kind, view.target_id)
         category = CautionCategory(view.category)
         severity = CautionSeverity(view.severity)
-        tags = frozenset(view.tags)
+        # VO validation: bounded-text + tag length checks. Raises
+        # InvalidCautionTextError / InvalidCautionWorkaroundError /
+        # InvalidCautionTagError if any field violates the contract.
+        text = CautionText(view.title)
+        workaround = CautionWorkaround(view.body)
+        tags = frozenset(CautionTag(t).value for t in view.tags)
 
-        # Dispatch to the appropriate Caution BC slice based on choice.
-        caution_id: UUID
+        new_caution_id = deps.id_generator.new_id()
+        now = deps.clock.now()
+
         if view.choice == "ProposeSupersede":
             assert view.supersedes_caution_id is not None  # decider invariant
-            supersede_command = SupersedeCaution(
-                parent_caution_id=view.supersedes_caution_id,
-                target=target,
-                category=category,
-                severity=severity,
-                text=view.title,
-                workaround=view.body,
-                tags=tags,
+
+            # Load the parent + its raw stream version (the
+            # optimistic-concurrency token for the parent append).
+            stored, parent_version = await deps.event_store.load(
+                _CAUTION_STREAM_TYPE, view.supersedes_caution_id
             )
+            parent = fold([from_stored(s) for s in stored])
+            if parent is None:
+                raise CautionNotFoundError(view.supersedes_caution_id)
+            if parent.status is not CautionStatus.ACTIVE:
+                raise CautionCannotSupersedeError(parent.id, parent.status)
+
+            parent_event = CautionSuperseded(
+                caution_id=parent.id,
+                by_caution_id=new_caution_id,
+                occurred_at=now,
+            )
+            child_event = CautionRegistered(
+                caution_id=new_caution_id,
+                target=target,
+                category=category.value,
+                severity=severity.value,
+                text=text.value,
+                workaround=workaround.value,
+                tags=tags,
+                author_actor_id=principal_id,
+                expires_at=None,
+                propagate_to_children=False,
+                parent_caution_id=parent.id,
+                occurred_at=now,
+            )
+
+            parent_envelope = to_new_event(
+                event_type=event_type_name(parent_event),
+                payload=to_payload(parent_event),
+                occurred_at=now,
+                event_id=deps.id_generator.new_id(),
+                command_name=_COMMAND_NAME,
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+                principal_id=principal_id,
+            )
+            child_envelope = to_new_event(
+                event_type=event_type_name(child_event),
+                payload=to_payload(child_event),
+                occurred_at=now,
+                event_id=deps.id_generator.new_id(),
+                command_name=_COMMAND_NAME,
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+                principal_id=principal_id,
+            )
+
             log.info(
                 "promote_caution_proposal.via_supersede",
                 target_kind=view.target_kind,
-                prior_caution_id=str(view.supersedes_caution_id),
+                prior_caution_id=str(parent.id),
+                new_caution_id=str(new_caution_id),
             )
-            caution_id = await supersede_handler(
-                supersede_command,
-                principal_id=principal_id,
-                correlation_id=correlation_id,
-                causation_id=causation_id,
+            await deps.event_store.append_streams(
+                [
+                    StreamAppend(
+                        stream_type=_CAUTION_STREAM_TYPE,
+                        stream_id=parent.id,
+                        expected_version=parent_version,
+                        events=[parent_envelope],
+                    ),
+                    StreamAppend(
+                        stream_type=_CAUTION_STREAM_TYPE,
+                        stream_id=new_caution_id,
+                        expected_version=0,
+                        events=[child_envelope],
+                    ),
+                ]
             )
         else:
-            register_command = RegisterCaution(
+            register_event = CautionRegistered(
+                caution_id=new_caution_id,
                 target=target,
-                category=category,
-                severity=severity,
-                text=view.title,
-                workaround=view.body,
+                category=category.value,
+                severity=severity.value,
+                text=text.value,
+                workaround=workaround.value,
                 tags=tags,
+                author_actor_id=principal_id,
+                expires_at=None,
+                propagate_to_children=False,
+                parent_caution_id=None,
+                occurred_at=now,
+            )
+            register_envelope = to_new_event(
+                event_type=event_type_name(register_event),
+                payload=to_payload(register_event),
+                occurred_at=now,
+                event_id=deps.id_generator.new_id(),
+                command_name=_COMMAND_NAME,
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+                principal_id=principal_id,
             )
             log.info(
                 "promote_caution_proposal.via_register",
                 target_kind=view.target_kind,
+                new_caution_id=str(new_caution_id),
             )
-            caution_id = await register_handler(
-                register_command,
-                principal_id=principal_id,
-                correlation_id=correlation_id,
-                causation_id=causation_id,
+            await deps.event_store.append(
+                stream_type=_CAUTION_STREAM_TYPE,
+                stream_id=new_caution_id,
+                expected_version=0,
+                events=[register_envelope],
             )
 
         log.info(
             "promote_caution_proposal.success",
             choice=view.choice,
-            caution_id=str(caution_id),
+            caution_id=str(new_caution_id),
         )
-        return caution_id
+        return new_caution_id
 
     return handler

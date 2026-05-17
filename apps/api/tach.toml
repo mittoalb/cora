@@ -239,30 +239,14 @@ depends_on = [
     # Phase 8f-c iter 3: CautionDrafter agent.
     # - `cora.recipe.aggregates` for `load_plan` (subscriber reads
     #   Plan for asset_ids).
-    # - `cora.caution.aggregates` for VOs in prompt schema + promote
-    #   handler's `AssetTarget`/`ProcedureTarget`/`CautionCategory`/
-    #   `CautionSeverity` construction.
+    # - `cora.caution.aggregates` for VOs in the CautionDrafter prompt
+    #   schema + the `promote_caution_proposal` handler's cross-BC
+    #   write (constructs `CautionRegistered` / `CautionSuperseded`
+    #   events directly via `EventStore.append_streams`, mirroring
+    #   `define_agent`'s cross-BC write of `ActorRegistered`). No
+    #   sibling-features import: rule 2 stays inviolate.
     "cora.recipe.aggregates",
     "cora.caution.aggregates",
-    # Pattern C cross-BC slice delegation (DOCUMENTED EXCEPTION to
-    # rule 2 in this file's header). The `promote_caution_proposal`
-    # slice invokes Caution BC's `register_caution.bind(deps)(...)`
-    # and `supersede_caution.bind(deps)(...)` so Caution BC's own
-    # decider + handler validation chain is reused (CautionTarget VOs
-    # + category/severity validation + supersede source-state guard).
-    # Composing those events directly via `EventStore.append_streams`
-    # would duplicate Caution BC's validation logic. See
-    # [[project-caution-drafter-design]] -> "Pattern C cross-BC slice
-    # delegation" for when-to-use criteria. Rule-of-three trigger:
-    # promote to a CONTRIBUTING.md convention when a third such slice
-    # ships.
-    #
-    # The architecture fitness tests at tests/architecture/ pin the
-    # specific files in `cora.agent.features.promote_caution_proposal`
-    # that are allowed to import from Caution BC, so this broad
-    # `cora.caution` allowance does not propagate beyond the
-    # documented Pattern C consumer.
-    "cora.caution",
 ]
 
 # API entrypoint composes every BC.
