@@ -7,7 +7,7 @@
 | --- | --- | --- |
 | [`Aerotech_ABRS_rotary`](#aerotech_abrs_rotary) | `RotaryStage` | Rotation axis. |
 | [`Sample_top_X`](#sample_top_x) | `LinearStage` | Lateral correction for rotation-axis alignment. |
-| [`Sample_top_Z`](#sample_top_z) | `LinearStage` | Sample-to-scintillator distance (depth of focus + magnification). |
+| [`Sample_top_Z`](#sample_top_z) | `LinearStage` | Sample-to-scintillator distance. |
 | [`Sample_top_Roll`](#sample_top_roll) | `LinearStage` | Roll tilt for rotation-axis alignment. |
 | [`Sample_top_Pitch`](#sample_top_pitch) | `LinearStage` | Pitch tilt for rotation-axis alignment. |
 | [`Optique_Peter_focus_Z`](#optique_peter_focus_z) | `LinearStage` | Lens-to-scintillator focus inside the microscope. |
