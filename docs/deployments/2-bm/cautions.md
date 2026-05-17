@@ -2,6 +2,8 @@
 
 *Caution BC Cautions targeting 2-BM Assets and Procedures. Operator tribal knowledge captured at shakedown / first-light / production time, surfaced on every future Run start via the `CautionLookup` snapshot. See [Model](../../architecture/model.md) for the aggregate shape.*
 
+*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
+
 | Caution | Target | Category | Severity | Summary | Scenario |
 | --- | --- | --- | --- | --- | --- |
 | Aerotech cold-start index miss | `Aerotech_ABRS_rotary` (Device) | `Wear` | `Caution` | Misses index pulse on cold-start home; retry once after 5s settling | `motor_homing` |

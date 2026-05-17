@@ -2,6 +2,8 @@
 
 *Subject BC Subjects registered at 2-BM. A Subject is the sample-or-thing being measured (proposal-anchored at operations phase, kinematic-mounted at acquisition time). See [Model](../../architecture/model.md) for the aggregate shape.*
 
+*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
+
 | Subject | Class | Proposal | Most-advanced state | Scenario(s) |
 | --- | --- | --- | --- | --- |
 | `porous sandstone core (Proposal 2026-1234, sample A)` | porous-media core (sandstone) | `2026-1234` | `Received` (full `Received → Mounted → Measured → Received` cycle) | `beamtime_intake`, `mount_sample`, `tomography_scan`, `dismount_sample` |

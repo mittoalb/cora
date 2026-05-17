@@ -2,6 +2,8 @@
 
 *Decision BC Decisions emitted at 2-BM. A Decision is a structured-audit record of a consequential choice, attributed to a human or agent Actor. The Decision BC's `RunDebrief` agent (see [APS Agents](../aps/agents.md)) emits one advisory Decision per terminal Run. See [Model](../../architecture/model.md) for the aggregate shape.*
 
+*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
+
 | Decision | Context | Choice | Actor | Scenario |
 | --- | --- | --- | --- | --- |
 | RunDebrief AAR for `Proposal 2026-1234 sample A tomography` | `RunDebrief` | `NominalCompletion` | `Run Debrief` agent | `run_debrief` |

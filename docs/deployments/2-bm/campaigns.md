@@ -2,6 +2,8 @@
 
 *Campaign BC Campaigns registered at 2-BM. A Campaign composes Runs under a coordinated study (proposal-scoped, technique-tagged). See [Model](../../architecture/model.md) for the aggregate shape.*
 
+*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
+
 | Campaign | `intent` | Tags | Status | Members | Scenario |
 | --- | --- | --- | --- | --- | --- |
 | `Proposal 2026-1234 beamtime` | `Coordinated` | `proposal`, `tomography`, `porous_media` | `Closed` | 1 Run | `beamtime_intake` (genesis), `tomography_scan` (member added), `data_publish` (start + close) |

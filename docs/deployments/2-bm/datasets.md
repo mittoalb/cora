@@ -2,6 +2,8 @@
 
 *Data BC Datasets registered at 2-BM. A Dataset records an already-existing artifact (URI + checksum + byte_size + encoding) plus optional cross-aggregate refs (`producing_run_id`, `subject_id`, `derived_from`). See [Model](../../architecture/model.md) for the aggregate shape.*
 
+*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
+
 | Dataset | Intent | Producing Run | Subject | Conforms to | Scenario |
 | --- | --- | --- | --- | --- | --- |
 | `2BM_dark_baseline_2026-04-17` | `Trial` | none | none | `NXdark_field` | `dark_baseline` |

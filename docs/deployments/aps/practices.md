@@ -2,6 +2,8 @@
 
 *Recipe BC Practices with `site_id` pointing to the APS Site Asset. A Practice is ISA-88's Site Recipe: the facility-adapted form of a Method. See [Model](../../architecture/model.md) for the aggregate shape.*
 
+*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
+
 | Practice | Method | Beamline targets | Consuming scenario(s) |
 | --- | --- | --- | --- |
 | `APS_standard_flat_field_practice` | [`flat_field_correction`](../../catalog/methods.md) | facility-wide (Method binding) | (no scenario consumer yet) |

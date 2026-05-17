@@ -2,6 +2,8 @@
 
 *Supply BC Supplies at facility scope. A Supply is a continuously-available resource whose availability the facility tracks. See [Model](../../architecture/model.md) for the aggregate shape.*
 
+*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
+
 | Supply | `scope` | `kind` | Initial status |
 | --- | --- | --- | --- |
 | `APS liquid helium` | `Facility` | `cryogen` | `Unknown` (lands here; transitions to `Available` via `mark_supply_available`) |

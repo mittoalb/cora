@@ -2,6 +2,8 @@
 
 *Agent BC Agents defined at APS by the canonical facility install. Each Agent's id is shared with an Access BC Actor (kind=agent) via a cross-BC atomic write (`ActorRegistered` + `AgentDefined` in one transaction). See [Model](../../architecture/model.md) for the aggregate shape.*
 
+*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
+
 | Agent | Kind | Version | Model |
 | --- | --- | --- | --- |
 | `Run Debrief` | `RunDebrief` | `v1` | `anthropic / claude-sonnet-4-6 @ 20251001` |

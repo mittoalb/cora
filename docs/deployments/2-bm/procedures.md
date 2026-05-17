@@ -2,6 +2,8 @@
 
 *Operation BC Procedures registered at 2-BM. Each row binds a Method + Practice + Plan to a set of target Assets and runs through the `Defined → Running → Completed | Aborted | Truncated` FSM. Per-step entries (`Setpoint / Action / Check` triplets) land in the `entries_operation_procedure_steps` projection. See [Model](../../architecture/model.md) for the aggregate shape.*
 
+*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
+
 | Procedure | `kind` | Method (Recipe BC) | Practice (Recipe BC) | Target Assets | Out-of-Procedure side-effects | Scenario |
 | --- | --- | --- | --- | --- | --- | --- |
 | Motor homing | `motor_homing` | [`motor_homing`](../../catalog/methods.md) | [`APS_motor_homing_practice`](../aps/practices.md) | `Aerotech_ABRS_rotary`, `Sample_top_X` | `AssetActivated` ×2; `AssetDegraded` + `AssetRestored` on Aerotech (cold-start); 1 `CautionRegistered` ([Aerotech cold-start index miss](cautions.md)) | `motor_homing` |

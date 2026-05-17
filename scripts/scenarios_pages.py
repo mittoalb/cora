@@ -18,11 +18,13 @@ Page set:
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from pathlib import Path
 
 from scenarios_meta import ARCHETYPES, BOUNDED_CONTEXTS, CLUSTERS, ScenarioMeta
 
 GITHUB_BLOB = "https://github.com/xmap/cora/blob/main/"
 SCENARIOS_TEST_PATH = "apps/api/tests/integration/scenarios"
+INTROS_DIR = Path(__file__).resolve().parent / "scenarios_intros"
 
 # Cluster ordering for stable rendering (matches reading-order convention
 # from README and project_scenario_taxonomy memory).
@@ -109,21 +111,41 @@ def render_index(metas: list[ScenarioMeta]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _load_intro(cluster: str) -> str | None:
+    """Hand-authored intro prose for a cluster, if present."""
+    path = INTROS_DIR / f"{cluster.lower()}.md"
+    if not path.exists():
+        return None
+    return path.read_text().strip()
+
+
 def render_cluster(cluster: str, metas: list[ScenarioMeta]) -> str:
     members = sorted(
         (m for m in metas if m.cluster == cluster), key=lambda m: m.stem
     )
     lines: list[str] = [f"# {cluster}", ""]
-    lines.append(
-        f"*Auto-generated table of scenarios in the **{cluster}** cluster.* "
-        f"For Run instances and other domain state these scenarios produce, "
-        f"see the per-beamline [Deployments](../deployments/index.md) inventories."
-    )
+    intro = _load_intro(cluster)
+    if intro:
+        lines.append(intro)
+        lines.append("")
+        lines.append(
+            "For domain instances these scenarios produce (Runs, Subjects, "
+            "Assets), see the per-beamline "
+            "[Deployments](../deployments/index.md) inventories."
+        )
+    else:
+        lines.append(
+            f"*Auto-generated table of scenarios in the **{cluster}** cluster.* "
+            f"For Run instances and other domain state these scenarios produce, "
+            f"see the per-beamline [Deployments](../deployments/index.md) inventories."
+        )
     lines.append("")
     if not members:
         lines.append("_No scenarios in this cluster yet._")
         lines.append("")
         return "\n".join(lines) + "\n"
+    lines.append("## Scenarios")
+    lines.append("")
     lines.append("| Scenario | Gist | Shape | BCs |")
     lines.append("| --- | --- | --- | --- |")
     for meta in members:

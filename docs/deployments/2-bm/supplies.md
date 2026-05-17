@@ -2,6 +2,8 @@
 
 *Supply BC Supplies at beamline scope. A Supply is a continuously-available resource whose availability the beamline tracks; the 5-state FSM is `Unknown → Available → Degraded → Unavailable → Recovering`. Facility-scope Supplies live at [APS](../aps/supplies.md). See [Model](../../architecture/model.md) for the aggregate shape.*
 
+*See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
+
 | Supply | `scope` | `kind` | Lifecycle exercised | Scenario |
 | --- | --- | --- | --- | --- |
 | `2-BM detector LN2 dewar` | `BEAMLINE` | `cryogen` | `Unknown → Available → Degraded → Unavailable → Recovering → Available` (6-slice walk) | `ln2_dewar_lifecycle` |
