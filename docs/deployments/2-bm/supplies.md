@@ -4,15 +4,15 @@
 
 *See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
 
-| Supply | `scope` | `kind` | Lifecycle exercised | Scenario |
-| --- | --- | --- | --- | --- |
-| `2-BM detector LN2 dewar` | `BEAMLINE` | `cryogen` | `Unknown → Available → Degraded → Unavailable → Recovering → Available` (6-slice walk) | `ln2_dewar_lifecycle` |
+| Supply | `scope` · `kind` | Lifecycle exercised | Scenario |
+| --- | --- | --- | --- |
+| `2-BM detector LN2 dewar` | `BEAMLINE` · `cryogen` | `Unknown → Available → Degraded → Unavailable → Recovering → Available` (6-slice walk) | `ln2_dewar_lifecycle` |
 
 Source of truth: [`apps/api/tests/integration/scenarios/test_2bm_ln2_dewar_lifecycle.py`](../../../apps/api/tests/integration/scenarios/test_2bm_ln2_dewar_lifecycle.py).
 
 ## Pending in code
 
-| Pending Supply | `scope` | `kind` | Source scenario (planned) |
-| --- | --- | --- | --- |
-| Sample-environment gas mix | `BEAMLINE` | `gas` | Not yet sourced; lands when a gas-flow Subject environment scenario lands |
-| Compressed air supply | `BEAMLINE` | `pneumatic` | Not yet sourced |
+| Pending Supply | `scope` · `kind` | Source scenario (planned) |
+| --- | --- | --- |
+| Sample-environment gas mix | `BEAMLINE` · `gas` | Not yet sourced; lands when a gas-flow Subject environment scenario lands |
+| Compressed air supply | `BEAMLINE` · `pneumatic` | Not yet sourced |

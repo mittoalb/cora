@@ -4,12 +4,12 @@
 
 *See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
 
-| Decision | Context | Choice | Actor | Scenario |
-| --- | --- | --- | --- | --- |
-| RunDebrief AAR for `Proposal 2026-1234 sample A tomography` | `RunDebrief` | `NominalCompletion` | `Run Debrief` agent | `run_debrief` |
-| RunDebrief AAR for `Proposal 2026-1234 sample A tomography (with intervention)` | `RunDebrief` | `DegradedCompletion` | `Run Debrief` agent | `run_debrief_degraded` |
-| RunDebrief AAR for `Proposal 2026-1235 sample B tomography (aborted on hexapod fault)` | `RunDebrief` | `EquipmentAbort` | `Run Debrief` agent | `run_debrief_aborted` |
-| Operator energy-pivot decision in `Proposal 2026-1237 multi-energy contrast study` | `EnergyChange` | `switch_to_30_keV` | 2-BM Operator | `energy_change` |
+| Decision | Context · Choice | Actor | Scenario |
+| --- | --- | --- | --- |
+| RunDebrief AAR for `Proposal 2026-1234 sample A tomography` | `RunDebrief` · `NominalCompletion` | `Run Debrief` agent | `run_debrief` |
+| RunDebrief AAR for `Proposal 2026-1234 sample A tomography (with intervention)` | `RunDebrief` · `DegradedCompletion` | `Run Debrief` agent | `run_debrief_degraded` |
+| RunDebrief AAR for `Proposal 2026-1235 sample B tomography (aborted on hexapod fault)` | `RunDebrief` · `EquipmentAbort` | `Run Debrief` agent | `run_debrief_aborted` |
+| Operator energy-pivot decision in `Proposal 2026-1237 multi-energy contrast study` | `EnergyChange` · `switch_to_30_keV` | 2-BM Operator | `energy_change` |
 
 Every Decision above carries `confidence_source=self_reported`. RunDebrief Decisions carry `decision_rule=agent:RunDebrief:v1`.
 
