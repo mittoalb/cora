@@ -202,14 +202,21 @@ def render_by_archetype(metas: list[ScenarioMeta]) -> str:
     lines.append("")
     for archetype in ARCHETYPE_ORDER:
         members = sorted(by_arch.get(archetype, []), key=lambda m: m.stem)
-        # Explicit anchor (attr_list) so per-scenario stubs can link to
-        # the archetype section without the count breaking the slug.
-        lines.append(f"## `{archetype}` ({len(members)}) {{ #{archetype} }}")
-        lines.append("")
         if not members:
+            lines.append(f"## `{archetype}` (0) {{ #{archetype} }}")
+            lines.append("")
             lines.append("_No scenarios with this shape yet._")
             lines.append("")
             continue
+        # Collapsible per-archetype section. md_in_html lets the
+        # markdown table inside render normally; the anchor on the
+        # <details> element keeps deep links from per-scenario stubs
+        # working, and mkdocs-material auto-opens the targeted section.
+        lines.append(f'<details markdown class="scenarios-section" id="{archetype}">')
+        lines.append(
+            f"<summary><code>{archetype}</code> &middot; {len(members)} scenarios</summary>"
+        )
+        lines.append("")
         lines.append("| Scenario | Cluster | Gist |")
         lines.append("| --- | --- | --- |")
         for meta in members:
@@ -218,6 +225,8 @@ def render_by_archetype(metas: list[ScenarioMeta]) -> str:
                 f"| [{label}]({_scenario_link(meta.stem)}) | "
                 f"[{meta.cluster}]({meta.cluster.lower()}.md) | {meta.gist} |"
             )
+        lines.append("")
+        lines.append("</details>")
         lines.append("")
     return "\n".join(lines) + "\n"
 
@@ -251,15 +260,23 @@ def render_by_bc(metas: list[ScenarioMeta]) -> str:
         members = sorted(
             (m for m in metas if bc in m.bc_touches), key=lambda m: m.stem
         )
-        # Explicit anchor (attr_list) so per-scenario stubs can link to
-        # the BC section without the count breaking the slug.
-        lines.append(f"### {bc} ({len(members)}) {{ #{bc.lower()} }}")
-        lines.append("")
         if not members:
+            lines.append(f"### {bc} (0) {{ #{bc.lower()} }}")
+            lines.append("")
             lines.append("_No scenarios touch this BC yet._")
             lines.append("")
             continue
-        # 3-column table: bold scenario name flags primary-BC role.
+        # Collapsible per-BC section. Default-closed so the page reads as
+        # an overview; click a BC to expand. mkdocs-material auto-opens
+        # the targeted section when the URL fragment matches the id.
+        primary_count = sum(1 for m in members if m.bc_primary == bc)
+        lines.append(f'<details markdown class="scenarios-section" id="{bc.lower()}">')
+        lines.append(
+            f"<summary><strong>{bc}</strong> &middot; "
+            f"{len(members)} touches &middot; "
+            f"{primary_count} primary</summary>"
+        )
+        lines.append("")
         lines.append("| Scenario | Cluster | Gist |")
         lines.append("| --- | --- | --- |")
         for meta in members:
@@ -271,6 +288,8 @@ def render_by_bc(metas: list[ScenarioMeta]) -> str:
                 f"| [{meta.cluster}]({meta.cluster.lower()}.md) "
                 f"| {meta.gist} |"
             )
+        lines.append("")
+        lines.append("</details>")
         lines.append("")
     return "\n".join(lines) + "\n"
 
