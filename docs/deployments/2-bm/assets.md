@@ -19,6 +19,7 @@
 ## `Aerotech_ABRS_rotary`
 
 - **Capability** `RotaryStage` (Aerotech ABRS)
+- **Cautions** [Aerotech cold-start index miss](cautions.md#aerotech-cold-start-index-miss)
 
 | Property | Value | Unit |
 | --- | ---: | --- |
@@ -87,6 +88,7 @@
 ## `Hexapod_2BM`
 
 - **Capability** `Hexapod` (PI)
+- **Cautions** [Hexapod controller lockup](cautions.md#hexapod-controller-lockup)
 
 ## About Settings
 
