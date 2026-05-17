@@ -346,7 +346,8 @@ CORA is intentionally narrow. Each layer below keeps doing its job.
 
 | Layer | Examples | Keeps doing |
 |---|---|---|
-| **Control system** | EPICS, Tango, Bluesky | <span class="text-teal-600 font-semibold">driving</span> the hardware |
+| **Control system** | EPICS, Tango | <span class="text-teal-600 font-semibold">driving</span> the hardware |
+| **Orchestrator** | Bluesky, Sardana, NICOS | <span class="text-teal-600 font-semibold">sequencing</span> the scan *(CORA fills in where absent)* |
 | **Data movement** | Globus, Tiled, file system | <span class="text-teal-600 font-semibold">moving</span> the bytes |
 | **Analysis** | TomoPy, NumPy, PyTorch | <span class="text-teal-600 font-semibold">doing</span> the math |
 | **LIMS / catalog** | SciCat, ISPyB | <span class="text-teal-600 font-semibold">holding</span> samples and finished products |
