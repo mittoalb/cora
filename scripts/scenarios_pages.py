@@ -47,9 +47,37 @@ ARCHETYPE_ORDER: tuple[str, ...] = (
 
 
 def _stem_to_label(stem: str) -> str:
-    # `test_2bm_tomography_scan` -> `tomography_scan`
+    """Drop the `test_<beamline>_` prefix unless doing so creates a collision
+    (`test_2bm_facility` and `test_aps_facility` would both become `facility`,
+    so they keep the beamline qualifier as `2bm_facility` / `aps_facility`)."""
     parts = stem.split("_", 2)
-    return parts[2] if len(parts) >= 3 and parts[0] == "test" else stem
+    if len(parts) >= 3 and parts[0] == "test":
+        routine = parts[2]
+        if routine == "facility":
+            return f"{parts[1]}_{routine}"
+        return routine
+    return stem
+
+
+# Cluster -> prefix(es) that are redundant with the cluster axis on a cluster
+# landing page. Drop these prefixes ONLY when rendering a cluster page; keep
+# them on by-bc and by-archetype where cross-cluster context makes the prefix
+# load-bearing for disambiguation.
+_CLUSTER_PREFIX_DROP: dict[str, tuple[str, ...]] = {
+    "Commissioning": ("alignment_",),
+    "Runs": ("run_",),
+    "Advisories": ("run_",),
+    "Seed": ("agent_",),
+}
+
+
+def _cluster_label(meta: ScenarioMeta) -> str:
+    """Cluster-page label: full stem-label minus any cluster-implied prefix."""
+    label = _stem_to_label(meta.stem)
+    for prefix in _CLUSTER_PREFIX_DROP.get(meta.cluster, ()):
+        if label.startswith(prefix):
+            return label[len(prefix) :]
+    return label
 
 
 def _scenario_link(stem: str) -> str:
@@ -66,8 +94,12 @@ def _cluster_row(meta: ScenarioMeta) -> str:
     BCs deliberately omitted: cluster pages are dominated by repeated BC
     info (every Run scenario has Run as primary). BC detail lives on the
     per-scenario stub and on the by-bc registry.
+
+    Label drops the cluster-implied prefix (alignment_ on Commissioning,
+    run_ on Runs / Advisories, agent_ on Seed) for visual compactness.
+    The full stem still appears in the link href and on the stub page.
     """
-    label = _stem_to_label(meta.stem)
+    label = _cluster_label(meta)
     return (
         f"| [{label}]({_scenario_link(meta.stem)}) `{meta.archetype}` "
         f"| {meta.gist} |"
