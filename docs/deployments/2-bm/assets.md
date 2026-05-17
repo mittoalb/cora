@@ -3,18 +3,18 @@
 *Equipment BC Assets registered **under** the 2-BM Unit (the Devices that hang off it). The 2-BM Asset itself sits at the Unit level and is declared on the [2-BM index](index.md). See [Model](../../architecture/model.md) for the aggregate shape.*
 
 
-| Asset | Capability |
-| --- | --- |
-| [`Aerotech_ABRS_rotary`](#aerotech_abrs_rotary) | `RotaryStage` |
-| [`Sample_top_X`](#sample_top_x) | `LinearStage` |
-| [`Sample_top_Z`](#sample_top_z) | `LinearStage` |
-| [`Sample_top_Roll`](#sample_top_roll) | `LinearStage` |
-| [`Sample_top_Pitch`](#sample_top_pitch) | `LinearStage` |
-| [`Optique_Peter_focus_Z`](#optique_peter_focus_z) | `LinearStage` |
-| [`Shutter_2BM`](#shutter_2bm) | `Shutter` |
-| [`Oryx_5MP_camera`](#oryx_5mp_camera) | `Camera` |
-| [`Scintillator_LuAG`](#scintillator_luag) | `Scintillator` |
-| [`Hexapod_2BM`](#hexapod_2bm) | `Hexapod` |
+| Asset | Capability | Subsystem |
+| --- | --- | --- |
+| [`Shutter_2BM`](#shutter_2bm) | `Shutter` | Front-end |
+| [`Aerotech_ABRS_rotary`](#aerotech_abrs_rotary) | `RotaryStage` | Sample |
+| [`Sample_top_X`](#sample_top_x) | `LinearStage` | Sample |
+| [`Sample_top_Z`](#sample_top_z) | `LinearStage` | Sample |
+| [`Sample_top_Roll`](#sample_top_roll) | `LinearStage` | Sample |
+| [`Sample_top_Pitch`](#sample_top_pitch) | `LinearStage` | Sample |
+| [`Hexapod_2BM`](#hexapod_2bm) | `Hexapod` | Sample |
+| [`Optique_Peter_focus_Z`](#optique_peter_focus_z) | `LinearStage` | Microscope |
+| [`Scintillator_LuAG`](#scintillator_luag) | `Scintillator` | Microscope |
+| [`Oryx_5MP_camera`](#oryx_5mp_camera) | `Camera` | Detector |
 
 ## `Aerotech_ABRS_rotary`
 
