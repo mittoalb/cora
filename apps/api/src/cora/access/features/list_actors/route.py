@@ -29,6 +29,7 @@ class ActorSummaryDTO(BaseModel):
 
     actor_id: UUID
     name: str = Field(..., max_length=ACTOR_NAME_MAX_LENGTH)
+    kind: Literal["human", "agent"]
     status: Literal["active", "deactivated"]
     created_at: datetime
 
@@ -104,6 +105,7 @@ async def list_actors(
             ActorSummaryDTO(
                 actor_id=item.actor_id,
                 name=item.name,
+                kind=item.kind,  # type: ignore[arg-type]  # CHECK constraint guarantees it
                 status=item.status,  # type: ignore[arg-type]  # CHECK constraint guarantees it
                 created_at=item.created_at,
             )

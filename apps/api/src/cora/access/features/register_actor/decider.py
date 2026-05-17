@@ -18,6 +18,7 @@ from uuid import UUID
 from cora.access.aggregates.actor import (
     Actor,
     ActorAlreadyExistsError,
+    ActorKind,
     ActorName,
     ActorRegistered,
 )
@@ -31,7 +32,14 @@ def decide(
     now: datetime,
     new_id: UUID,
 ) -> list[ActorRegistered]:
-    """Decide the events produced by registering a new actor."""
+    """Decide the events produced by registering a new actor.
+
+    `kind` is hardcoded to `ActorKind.HUMAN` because the
+    `register_actor` slice is the human-actor path. Agent-kind
+    Actors are minted exclusively via the cross-BC atomic write in
+    `define_agent` (Agent BC, Phase 8f-a); see
+    [[project_agent_bc_design]] P0-4.
+    """
     if state is not None:
         raise ActorAlreadyExistsError(state.id)
     name = ActorName(command.name)  # validates + trims; raises InvalidActorNameError
@@ -40,5 +48,6 @@ def decide(
             actor_id=new_id,
             name=name.value,
             occurred_at=now,
+            kind=ActorKind.HUMAN,
         )
     ]

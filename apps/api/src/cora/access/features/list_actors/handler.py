@@ -28,6 +28,7 @@ class ActorSummaryItem:
 
     actor_id: UUID
     name: str
+    kind: str
     status: str
     created_at: datetime
 
@@ -56,13 +57,14 @@ class Handler(Protocol):
     ) -> ActorListPage: ...
 
 
-_SELECT_COLUMNS = "actor_id, name, status, created_at"
+_SELECT_COLUMNS = "actor_id, name, kind, status, created_at"
 
 
 def _row_to_item(row: Any) -> ActorSummaryItem:
     return ActorSummaryItem(
         actor_id=row["actor_id"],
         name=str(row["name"]),
+        kind=str(row["kind"]),
         status=str(row["status"]),
         created_at=row["created_at"],
     )

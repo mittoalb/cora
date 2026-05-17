@@ -45,6 +45,12 @@ from cora.access import (
     register_access_tools,
     wire_access,
 )
+from cora.agent import (
+    AgentHandlers,
+    register_agent_routes,
+    register_agent_tools,
+    wire_agent,
+)
 from cora.api.middleware import BodySizeLimitMiddleware
 from cora.campaign import (
     CampaignHandlers,
@@ -259,6 +265,10 @@ def create_app() -> FastAPI:
         handlers: CampaignHandlers = fastapi_app.state.campaign
         return handlers
 
+    def _get_agent_handlers() -> AgentHandlers:
+        handlers: AgentHandlers = fastapi_app.state.agent
+        return handlers
+
     register_access_tools(mcp, get_handlers=_get_access_handlers)
     register_trust_tools(mcp, get_handlers=_get_trust_handlers)
     register_subject_tools(mcp, get_handlers=_get_subject_handlers)
@@ -272,6 +282,7 @@ def create_app() -> FastAPI:
     register_safety_tools(mcp, get_handlers=_get_safety_handlers)
     register_caution_tools(mcp, get_handlers=_get_caution_handlers)
     register_campaign_tools(mcp, get_handlers=_get_campaign_handlers)
+    register_agent_tools(mcp, get_handlers=_get_agent_handlers)
     mcp_app = mcp.streamable_http_app()
 
     @asynccontextmanager
@@ -298,6 +309,7 @@ def create_app() -> FastAPI:
             app.state.safety = wire_safety(deps)
             app.state.caution = wire_caution(deps)
             app.state.campaign = wire_campaign(deps)
+            app.state.agent = wire_agent(deps)
 
             # Phase-8e-1a: projection worker. Each BC that owns
             # projections exports a `register_<bc>_projections`
@@ -389,6 +401,7 @@ def create_app() -> FastAPI:
     register_safety_routes(fastapi_app)
     register_caution_routes(fastapi_app)
     register_campaign_routes(fastapi_app)
+    register_agent_routes(fastapi_app)
     fastapi_app.mount("/mcp", mcp_app)
 
     @fastapi_app.get("/health")

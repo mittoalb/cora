@@ -48,6 +48,7 @@ async def test_handler_persists_actor_registered_to_postgres(
         "actor_id": str(_NEW_ID),
         "name": "Doga",
         "occurred_at": _NOW.isoformat(),
+        "kind": "human",
     }
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None

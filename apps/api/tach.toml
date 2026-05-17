@@ -41,6 +41,10 @@ path = "cora.access.aggregates"
 depends_on = ["cora.infrastructure"]
 
 [[modules]]
+path = "cora.agent.aggregates"
+depends_on = ["cora.infrastructure"]
+
+[[modules]]
 path = "cora.campaign.aggregates"
 depends_on = ["cora.infrastructure"]
 
@@ -205,12 +209,29 @@ depends_on = [
     "cora.run.aggregates",
 ]
 
+# Agent BC (Phase 8f-a) owns the Agent aggregate (config-only AI-agent
+# identity record; 3-state FSM Defined -> Versioned -> Deprecated).
+# Depends on `cora.access.aggregates` because `define_agent` is CORA's
+# FIRST cross-BC `append_streams` consumer: it writes
+# `ActorRegistered(kind="agent")` to the Access stream AND
+# `AgentDefined` to the Agent stream in ONE transaction (the
+# Agent.id == Actor.id identity-sharing invariant; same atomic-write
+# pattern as Campaign's `add_run_to_campaign` from 6i-c).
+[[modules]]
+path = "cora.agent"
+depends_on = [
+    "cora.infrastructure",
+    "cora.agent.aggregates",
+    "cora.access.aggregates",
+]
+
 # API entrypoint composes every BC.
 [[modules]]
 path = "cora.api"
 depends_on = [
     "cora.infrastructure",
     "cora.access",
+    "cora.agent",
     "cora.campaign",
     "cora.caution",
     "cora.data",

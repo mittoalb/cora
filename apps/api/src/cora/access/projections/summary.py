@@ -24,8 +24,8 @@ from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_ACTOR_SQL = """
 INSERT INTO proj_access_actor_summary
-    (actor_id, name, status, created_at)
-VALUES ($1, $2, 'active', $3)
+    (actor_id, name, kind, status, created_at)
+VALUES ($1, $2, $3, 'active', $4)
 ON CONFLICT (actor_id) DO NOTHING
 """
 
@@ -66,10 +66,14 @@ class ActorSummaryProjection:
         """
         match event.event_type:
             case "ActorRegistered":
+                # `kind` is forward-compat: pre-8f-a payloads lack it,
+                # so `payload.get("kind", "human")` matches the
+                # `from_stored` deserializer's default.
                 await conn.execute(
                     _INSERT_ACTOR_SQL,
                     UUID(event.payload["actor_id"]),
                     event.payload["name"],
+                    event.payload.get("kind", "human"),
                     datetime.fromisoformat(event.payload["occurred_at"]),
                 )
             case "ActorDeactivated":

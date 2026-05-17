@@ -46,6 +46,7 @@ def test_projection_metadata() -> None:
 
 @pytest.mark.unit
 async def test_actor_registered_inserts_with_active_status() -> None:
+    """Current-shape payload (with kind=human or kind=agent) inserts that value."""
     proj = ActorSummaryProjection()
     conn = AsyncMock()
     event = _stored(
@@ -54,6 +55,7 @@ async def test_actor_registered_inserts_with_active_status() -> None:
             "actor_id": str(_ACTOR_ID),
             "name": "Doga",
             "occurred_at": _NOW.isoformat(),
+            "kind": "human",
         },
     )
 
@@ -67,7 +69,54 @@ async def test_actor_registered_inserts_with_active_status() -> None:
     assert "ON CONFLICT (actor_id) DO NOTHING" in sql
     assert args.args[1] == _ACTOR_ID
     assert args.args[2] == "Doga"
-    assert args.args[3] == _NOW
+    assert args.args[3] == "human"
+    assert args.args[4] == _NOW
+
+
+@pytest.mark.unit
+async def test_actor_registered_agent_kind_inserts_correctly() -> None:
+    """Phase 8f-a co-write: kind=agent flows through the projection."""
+    proj = ActorSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "ActorRegistered",
+        {
+            "actor_id": str(_ACTOR_ID),
+            "name": "RunDebrief",
+            "occurred_at": _NOW.isoformat(),
+            "kind": "agent",
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    conn.execute.assert_awaited_once()
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[3] == "agent"
+
+
+@pytest.mark.unit
+async def test_actor_registered_pre_8f_a_payload_falls_back_to_human() -> None:
+    """Forward-compat: pre-8f-a payloads (no `kind` field) get kind=human."""
+    proj = ActorSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "ActorRegistered",
+        {
+            "actor_id": str(_ACTOR_ID),
+            "name": "Doga",
+            "occurred_at": _NOW.isoformat(),
+            # No "kind" field; pre-8f-a payload shape.
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    conn.execute.assert_awaited_once()
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[3] == "human"
 
 
 @pytest.mark.unit

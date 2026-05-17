@@ -8,7 +8,7 @@ message rather than null structuredContent they have to interpret).
 """
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from mcp.server.fastmcp import FastMCP
@@ -26,6 +26,7 @@ class ActorOutput(BaseModel):
 
     id: UUID
     name: str = Field(..., max_length=ACTOR_NAME_MAX_LENGTH)
+    kind: Literal["human", "agent"]
     is_active: bool
 
 
@@ -54,5 +55,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         return ActorOutput(
             id=actor.id,
             name=actor.name.value,
+            kind=actor.kind.value,  # type: ignore[arg-type]  # ActorKind StrEnum
             is_active=actor.is_active,
         )

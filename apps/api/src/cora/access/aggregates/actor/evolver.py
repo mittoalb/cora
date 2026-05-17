@@ -26,15 +26,15 @@ from cora.access.aggregates.actor.state import Actor, ActorName
 def evolve(state: Actor | None, event: ActorEvent) -> Actor:
     """Apply one event to the current state."""
     match event:
-        case ActorRegistered(actor_id=actor_id, name=name):
-            return Actor(id=actor_id, name=ActorName(name), is_active=True)
+        case ActorRegistered(actor_id=actor_id, name=name, kind=kind):
+            return Actor(id=actor_id, name=ActorName(name), is_active=True, kind=kind)
         case ActorDeactivated():
             if state is None:  # pragma: no cover  # corruption guard
                 # ActorDeactivated never appears before ActorRegistered in a
                 # well-formed stream; if it does, the stream is corrupted.
                 msg = "ActorDeactivated cannot be applied to empty state"
                 raise ValueError(msg)
-            return Actor(id=state.id, name=state.name, is_active=False)
+            return Actor(id=state.id, name=state.name, is_active=False, kind=state.kind)
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -44,7 +44,7 @@ def fold(events: Sequence[ActorEvent]) -> Actor | None:
 
     `Sequence` (covariant) rather than `list` (invariant) so callers can
     pass `list[ActorRegistered]` (a single-variant subtype) without an
-    explicit cast — matters in tests that build small homogeneous lists.
+    explicit cast -- matters in tests that build small homogeneous lists.
     """
     state: Actor | None = None
     for event in events:

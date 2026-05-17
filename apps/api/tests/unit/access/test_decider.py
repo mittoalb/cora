@@ -8,6 +8,7 @@ import pytest
 from cora.access.aggregates.actor import (
     Actor,
     ActorAlreadyExistsError,
+    ActorKind,
     ActorName,
     InvalidActorNameError,
 )
@@ -27,7 +28,9 @@ def test_decide_emits_actor_registered_when_stream_is_empty() -> None:
         now=_NOW,
         new_id=new_id,
     )
-    assert events == [ActorRegistered(actor_id=new_id, name="Doga", occurred_at=_NOW)]
+    assert events == [
+        ActorRegistered(actor_id=new_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN)
+    ]
 
 
 @pytest.mark.unit

@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from cora.access.aggregates.actor import Actor, ActorName, evolve, fold
+from cora.access.aggregates.actor import Actor, ActorKind, ActorName, evolve, fold
 from cora.access.aggregates.actor.events import ActorRegistered
 from cora.access.features import register_actor
 from cora.access.features.register_actor import RegisterActor
@@ -16,7 +16,10 @@ _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 @pytest.mark.unit
 def test_evolve_actor_registered_from_empty_state() -> None:
     actor_id = uuid4()
-    state = evolve(None, ActorRegistered(actor_id=actor_id, name="Doga", occurred_at=_NOW))
+    state = evolve(
+        None,
+        ActorRegistered(actor_id=actor_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN),
+    )
     assert state == Actor(id=actor_id, name=ActorName("Doga"))
 
 
@@ -28,14 +31,18 @@ def test_fold_empty_event_list_returns_none() -> None:
 @pytest.mark.unit
 def test_fold_single_actor_registered_returns_actor() -> None:
     actor_id = uuid4()
-    state = fold([ActorRegistered(actor_id=actor_id, name="Doga", occurred_at=_NOW)])
+    state = fold(
+        [ActorRegistered(actor_id=actor_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN)]
+    )
     assert state == Actor(id=actor_id, name=ActorName("Doga"))
 
 
 @pytest.mark.unit
 def test_fold_is_pure_same_input_same_output() -> None:
     actor_id = uuid4()
-    events = [ActorRegistered(actor_id=actor_id, name="Doga", occurred_at=_NOW)]
+    events = [
+        ActorRegistered(actor_id=actor_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN)
+    ]
     assert fold(events) == fold(events)
 
 

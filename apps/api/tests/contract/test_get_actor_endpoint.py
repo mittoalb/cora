@@ -25,6 +25,7 @@ def test_get_actor_returns_200_with_actor_response() -> None:
     assert body == {
         "id": str(actor_id),
         "name": "Doga",
+        "kind": "human",
         "is_active": True,
     }
 

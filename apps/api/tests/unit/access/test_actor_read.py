@@ -12,6 +12,7 @@ import pytest
 
 from cora.access.aggregates.actor import (
     Actor,
+    ActorKind,
     ActorName,
     load_actor,
     to_payload,
@@ -53,7 +54,13 @@ async def test_load_actor_rebuilds_active_actor_from_single_event() -> None:
         "Actor",
         actor_id,
         0,
-        [_new_event(ActorRegistered(actor_id=actor_id, name="Doga", occurred_at=_NOW))],
+        [
+            _new_event(
+                ActorRegistered(
+                    actor_id=actor_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN
+                )
+            )
+        ],
     )
 
     actor = await load_actor(store, actor_id)
@@ -70,7 +77,11 @@ async def test_load_actor_rebuilds_deactivated_actor_after_replay() -> None:
         actor_id,
         0,
         [
-            _new_event(ActorRegistered(actor_id=actor_id, name="Doga", occurred_at=_NOW)),
+            _new_event(
+                ActorRegistered(
+                    actor_id=actor_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN
+                )
+            ),
             _new_event(ActorDeactivated(actor_id=actor_id, occurred_at=_NOW)),
         ],
     )
@@ -90,7 +101,13 @@ async def test_load_actor_only_reads_target_stream() -> None:
         "Actor",
         other_id,
         0,
-        [_new_event(ActorRegistered(actor_id=other_id, name="Other", occurred_at=_NOW))],
+        [
+            _new_event(
+                ActorRegistered(
+                    actor_id=other_id, name="Other", occurred_at=_NOW, kind=ActorKind.HUMAN
+                )
+            )
+        ],
     )
 
     actor = await load_actor(store, target_id)

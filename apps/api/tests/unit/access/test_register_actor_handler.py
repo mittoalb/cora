@@ -60,6 +60,7 @@ async def test_handler_appends_actor_registered_event_to_store() -> None:
         "actor_id": str(_NEW_ID),
         "name": "Doga",
         "occurred_at": _NOW.isoformat(),
+        "kind": "human",
     }
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None

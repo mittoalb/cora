@@ -7,7 +7,7 @@ infrastructure stays focused on domain/application errors raised
 deeper in the stack).
 """
 
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
@@ -23,12 +23,19 @@ class ActorResponse(BaseModel):
     """Read-side DTO at the API boundary.
 
     Carries primitives, not domain VOs. Decouples the wire format from
-    the domain model so the two can evolve independently (e.g. an
-    ActorName invariant change doesn't break older clients).
+    the domain model so the two can evolve independently (for example
+    an ActorName invariant change doesn't break older clients).
+
+    `kind` (Phase 8f-a) distinguishes human-registered Actors from
+    agent-co-registered Actors (via the Agent BC `define_agent`
+    cross-BC atomic write). Existing consumers that don't read `kind`
+    are unaffected; consumers that need the distinction (Decision
+    projections, audit-policy filters) gain it without polymorphism.
     """
 
     id: UUID
     name: str = Field(..., max_length=ACTOR_NAME_MAX_LENGTH)
+    kind: Literal["human", "agent"]
     is_active: bool
 
 
@@ -74,5 +81,6 @@ async def get_actors(
     return ActorResponse(
         id=actor.id,
         name=actor.name.value,
+        kind=actor.kind.value,  # type: ignore[arg-type]  # ActorKind StrEnum guarantees literal
         is_active=actor.is_active,
     )

@@ -26,6 +26,7 @@ class ActorSummaryRow(BaseModel):
 
     actor_id: UUID
     name: str = Field(..., max_length=ACTOR_NAME_MAX_LENGTH)
+    kind: Literal["human", "agent"]
     status: Literal["active", "deactivated"]
     created_at: datetime
 
@@ -73,6 +74,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 ActorSummaryRow(
                     actor_id=item.actor_id,
                     name=item.name,
+                    kind=item.kind,  # type: ignore[arg-type]
                     status=item.status,  # type: ignore[arg-type]
                     created_at=item.created_at,
                 )
