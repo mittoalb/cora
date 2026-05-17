@@ -33,9 +33,9 @@ moment from intake (intake happens once per beamtime; mount happens
 once per Subject change), and exercises a different aggregate (Subject
 lifecycle vs Subject + Campaign genesis).
 
-The intake setup is replicated INLINE for now (no fixture yet); the
-rule-of-three fixture extraction trigger fires once O-3 lands and the
-intake boilerplate has three callers.
+Intake setup is delegated to [`_beamtime_fixture.open_beamtime`](
+_beamtime_fixture.py), the shared helper used by every operations-
+phase scenario downstream of intake.
 
 ## Asset stack (just the Aerotech)
 
@@ -75,18 +75,17 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
-from cora.access.features.register_actor import RegisterActor
-from cora.access.features.register_actor import bind as bind_register_actor
 from cora.campaign.aggregates.campaign import CampaignIntent
-from cora.campaign.features.register_campaign import RegisterCampaign
-from cora.campaign.features.register_campaign import bind as bind_register_campaign
 from cora.equipment.features.activate_asset import ActivateAsset
 from cora.equipment.features.activate_asset import bind as bind_activate_asset
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.mount_subject import bind as bind_mount_subject
-from cora.subject.features.register_subject import RegisterSubject
-from cora.subject.features.register_subject import bind as bind_register_subject
 from tests.integration._helpers import build_postgres_deps
+from tests.integration.scenarios._beamtime_fixture import (
+    BeamtimeSpec,
+    beamtime_id_prefix,
+    open_beamtime,
+)
 from tests.integration.scenarios._facility_fixture import (
     DeviceSpec,
     facility_id_prefix,
@@ -108,10 +107,21 @@ _2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000402a01")
 _CAP_ROTARY_STAGE_ID = UUID("01900000-0000-7000-8000-000000402c01")
 _ASSET_AEROTECH_ABRS_ID = UUID("01900000-0000-7000-8000-000000402a11")
 
-# Operations-phase aggregates (intake setup, inlined until rule-of-three)
+# Operations-phase intake aggregates (PI Actor + Subject + Campaign)
 _PI_ACTOR_ID = UUID("01900000-0000-7000-8000-000000402b01")
 _SUBJECT_ID = UUID("01900000-0000-7000-8000-000000402b11")
 _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000402b21")
+
+_BEAMTIME = BeamtimeSpec(
+    pi_actor_id=_PI_ACTOR_ID,
+    pi_actor_name="Dr. PI (Proposal 2026-1234 lead)",
+    subject_id=_SUBJECT_ID,
+    subject_name="porous sandstone core (Proposal 2026-1234, sample A)",
+    campaign_id=_CAMPAIGN_ID,
+    campaign_name="Proposal 2026-1234 beamtime",
+    campaign_intent=CampaignIntent.COORDINATED,
+    campaign_tags=frozenset({"proposal", "tomography", "porous_media"}),
+)
 
 
 _DEVICES = (
@@ -134,15 +144,7 @@ def _id_queue() -> list[UUID]:
         ),
         # activate_asset (Aerotech, required Active for mount): event_id
         e(),
-        # register_actor (PI, intake): actor_id, event_id
-        _PI_ACTOR_ID,
-        e(),
-        # register_subject (sample, intake): subject_id, event_id
-        _SUBJECT_ID,
-        e(),
-        # register_campaign (proposal-scoped, intake): campaign_id, event_id
-        _CAMPAIGN_ID,
-        e(),
+        *beamtime_id_prefix(spec=_BEAMTIME),
         # mount_subject (the routine under test): event_id
         e(),
     ]
@@ -152,8 +154,8 @@ def _id_queue() -> list[UUID]:
 async def test_mount_sample_plays_out_end_to_end(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Replicate beamtime-intake setup (Aerotech registered + activated,
-    PI Actor + Subject + Campaign registered), then mount the Subject
+    """Open beamtime (Aerotech registered + activated, PI Actor + Subject
+    + Campaign registered via `open_beamtime`), then mount the Subject
     onto the Aerotech's kinematic tip. Assert the Subject's lifecycle
     transitions Received -> Mounted with the correct asset_id + reason
     captured on the SubjectMounted event."""
@@ -180,28 +182,13 @@ async def test_mount_sample_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
 
-    # ----- Intake setup (replicated inline; fixture extraction at rule-of-three) -----
+    # ----- Intake: PI Actor + Subject + Campaign via shared fixture -----
 
-    await bind_register_actor(deps)(
-        RegisterActor(name="Dr. PI (Proposal 2026-1234 lead)"),
+    await open_beamtime(
+        deps,
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
-    )
-    await bind_register_subject(deps)(
-        RegisterSubject(name="porous sandstone core (Proposal 2026-1234, sample A)"),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    await bind_register_campaign(deps)(
-        RegisterCampaign(
-            name="Proposal 2026-1234 beamtime",
-            intent=CampaignIntent.COORDINATED,
-            lead_actor_id=_PI_ACTOR_ID,
-            subject_id=_SUBJECT_ID,
-            tags=frozenset({"proposal", "tomography", "porous_media"}),
-        ),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
+        spec=_BEAMTIME,
     )
 
     # ----- Subject BC: mount the sandstone core onto the Aerotech rotary -----
