@@ -32,7 +32,9 @@ from cora.agent.aggregates.agent import (
     AgentAlreadyExistsError,
     AgentCannotDeprecateError,
     AgentCannotVersionError,
+    AgentDeactivatedError,
     AgentNotFoundError,
+    AgentNotSeededError,
     InvalidAgentCanonicalURIError,
     InvalidAgentCapabilitiesError,
     InvalidAgentCapabilityError,
@@ -48,7 +50,12 @@ from cora.agent.features import (
     define_agent,
     deprecate_agent,
     get_agent,
+    re_debrief_run,
     version_agent,
+)
+from cora.decision.aggregates.decision import (
+    ParentDecisionAgentMismatchError,
+    ParentDecisionRunMismatchError,
 )
 
 
@@ -110,6 +117,19 @@ def register_agent_routes(app: FastAPI) -> None:
     app.include_router(version_agent.router)
     app.include_router(deprecate_agent.router)
     app.include_router(get_agent.router)
+    app.include_router(re_debrief_run.router)
+    # 400 validation handlers: Invalid<X> family (define_agent /
+    # version_agent / deprecate_agent / etc) + 8f-c iter 1 cross-
+    # aggregate guards (AgentNotSeededError + AgentDeactivatedError
+    # from this BC; ParentDecisionAgentMismatchError +
+    # ParentDecisionRunMismatchError from Decision BC's state). Loop-
+    # collapsed per the cross-BC convention captured in this file's
+    # docstring.
+    #
+    # NOT registered here: RunNotFoundError (Run BC owns -> 404) and
+    # ParentDecisionMissingError (Decision BC owns -> 409). FastAPI's
+    # app-scoped exception handlers catch them regardless of which BC's
+    # route raises.
     for validation_cls in (
         InvalidAgentKindError,
         InvalidAgentNameError,
@@ -120,6 +140,10 @@ def register_agent_routes(app: FastAPI) -> None:
         InvalidAgentCapabilitiesError,
         InvalidAgentDeprecationReasonError,
         InvalidModelRefError,
+        AgentNotSeededError,
+        AgentDeactivatedError,
+        ParentDecisionAgentMismatchError,
+        ParentDecisionRunMismatchError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (AgentNotFoundError,):

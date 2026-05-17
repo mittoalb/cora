@@ -432,6 +432,45 @@ class ParentDecisionMissingError(Exception):
         self.parent_id = parent_id
 
 
+class ParentDecisionRunMismatchError(Exception):
+    """The supplied parent Decision references a different `run_id`
+    than the new Decision's command. Prevents accidental cross-Run
+    chains in operator-triggered re-invocations (8f-c iter 1
+    `debrief_run`).
+
+    Hoisted to Decision aggregate state.py per cross-BC convention:
+    cross-aggregate-load-state errors live with the relevant
+    aggregate (mirrors `DeciderActorMissingError` precedent above).
+    """
+
+    def __init__(self, parent_decision_id: UUID, parent_run_id: UUID | None) -> None:
+        super().__init__(
+            f"parent decision {parent_decision_id} references "
+            f"run_id={parent_run_id!r}; expected the command's run_id"
+        )
+        self.parent_decision_id = parent_decision_id
+        self.parent_run_id = parent_run_id
+
+
+class ParentDecisionAgentMismatchError(Exception):
+    """The supplied parent Decision was authored by a different agent
+    (or by a non-`RunDebrief`-context decider). Prevents accidental
+    cross-agent chains in operator-triggered re-invocations.
+
+    Pinned by 8f-c iter 1's architecture gate-review P1: the parent-
+    chain validator should check `parent.context` matches the
+    expected RunDebrief context.
+    """
+
+    def __init__(self, parent_decision_id: UUID, parent_context: str) -> None:
+        super().__init__(
+            f"parent decision {parent_decision_id} has context "
+            f"{parent_context!r}; expected 'RunDebrief'"
+        )
+        self.parent_decision_id = parent_decision_id
+        self.parent_context = parent_context
+
+
 class DecisionLogbookAlreadyOpenError(Exception):
     """Attempted to open a second logbook of the same kind on a Decision.
 

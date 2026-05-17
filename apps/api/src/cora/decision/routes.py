@@ -37,7 +37,9 @@ from cora.decision.aggregates.decision import (
     InvalidDecisionReasoningError,
     InvalidDecisionRuleError,
     InvalidReasoningSignatureError,
+    ParentDecisionAgentMismatchError,
     ParentDecisionMissingError,
+    ParentDecisionRunMismatchError,
 )
 from cora.decision.errors import OverrideKindRequiresParentError, UnauthorizedError
 from cora.decision.features import (
@@ -109,6 +111,14 @@ def register_decision_routes(app: FastAPI) -> None:
         InvalidDecisionRatingCommentError,
         InvalidReasoningSignatureError,
         OverrideKindRequiresParentError,
+        # 8f-c iter 1 parent-chain validators raised by Agent BC's
+        # `re_debrief_run` slice. Mapped to 400 per the operator-supplied-
+        # bad-input shape; the route registration is done here so the
+        # Decision BC owns the HTTP mapping for its own errors (the
+        # Agent BC's routes.py re-registers them as a defensive duplicate
+        # so the routes-completeness fitness test sees both BCs).
+        ParentDecisionAgentMismatchError,
+        ParentDecisionRunMismatchError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (DecisionNotFoundError,):

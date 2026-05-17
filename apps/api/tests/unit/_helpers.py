@@ -48,6 +48,7 @@ from cora.infrastructure.ports import (
     EventStore,
     FixedIdGenerator,
     FrozenClock,
+    LLMPort,
 )
 
 DEFAULT_NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
@@ -77,6 +78,7 @@ def build_deps(
     event_store: EventStore | None = None,
     deny: bool = False,
     authorize: Authorize | None = None,
+    llm: LLMPort | None = None,
 ) -> Kernel:
     """Build a Kernel for unit-test handler invocation.
 
@@ -88,6 +90,11 @@ def build_deps(
     `authorize` overrides the default authorize port (use this for
     tests injecting a recording / counting / specific-reason
     Authorize stub). When `authorize` is set, `deny` is ignored.
+
+    `llm` (Phase 8f-c iter 1) wires a test LLMPort (typically
+    `FakeLLMAdapter`) when the handler under test consumes one
+    (eg. `re_debrief_run`). Defaults to None so the vast majority
+    of tests that don't need an LLM stay LLM-free.
     """
     if authorize is None:
         authorize = DenyAllAuthorize() if deny else AllowAllAuthorize()
@@ -97,6 +104,7 @@ def build_deps(
         id_generator=FixedIdGenerator(list(ids or [])),
         authorize=authorize,
         event_store=event_store,
+        llm=llm,
     )
 
 

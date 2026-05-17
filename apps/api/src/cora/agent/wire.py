@@ -30,6 +30,7 @@ from cora.agent.features import (
     define_agent,
     deprecate_agent,
     get_agent,
+    re_debrief_run,
     version_agent,
 )
 from cora.infrastructure.idempotency import with_idempotency
@@ -47,10 +48,36 @@ class AgentHandlers:
     version_agent: version_agent.Handler
     deprecate_agent: deprecate_agent.Handler
     get_agent: get_agent.Handler
+    re_debrief_run: re_debrief_run.IdempotentHandler | None
 
 
 def wire_agent(deps: Kernel) -> AgentHandlers:
-    """Build the Agent BC handlers from shared dependencies."""
+    """Build the Agent BC handlers from shared dependencies.
+
+    `re_debrief_run` requires `kernel.llm` to be set (production
+    `AnthropicLLMAdapter` or test `FakeLLMAdapter`). When the LLM
+    is unwired (eg. dev startup without ANTHROPIC_API_KEY), the
+    handler bundle carries `re_debrief_run=None`; the REST route
+    + MCP tool guard on the None to return HTTP 503.
+    """
+    re_debrief_run_handler: re_debrief_run.IdempotentHandler | None
+    if deps.llm is None:
+        re_debrief_run_handler = None
+    else:
+        re_debrief_run_handler = with_tracing(
+            with_idempotency(
+                re_debrief_run.bind(deps),
+                deps.idempotency_store,
+                command_name="ReDebriefRun",
+                # Handler returns UUID; cache as str (jsonb-friendly) and
+                # rebuild via UUID() on retrieval.
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="ReDebriefRun",
+            bc=_BC,
+        )
     return AgentHandlers(
         define_agent=with_tracing(
             with_idempotency(
@@ -81,4 +108,5 @@ def wire_agent(deps: Kernel) -> AgentHandlers:
             command_name="GetAgent",
             bc=_BC,
         ),
+        re_debrief_run=re_debrief_run_handler,
     )

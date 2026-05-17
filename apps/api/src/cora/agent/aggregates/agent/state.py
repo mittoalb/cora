@@ -253,6 +253,51 @@ class AgentCannotDeprecateError(Exception):
         self.current_status = current_status
 
 
+class AgentNotSeededError(Exception):
+    """Cross-aggregate load failure: the operator-triggered slice
+    expected an Agent record at the supplied id but found none.
+
+    Today raised by 8f-c iter 1's `debrief_run`-style slices when
+    the RunDebrief Agent's bootstrap seed didn't run (deployment
+    misconfiguration: `seed_run_debrief_agent` not invoked at app
+    startup, or the Agent stream was manually purged).
+
+    Mirrors `DeciderActorMissingError` / `ProducingRunMissingError`
+    / `LinkedSubjectMissingError` precedents: cross-aggregate-load
+    failure errors live at the aggregate's state.py module per
+    8f-c iter 1 cross-BC gate-review P1.
+    """
+
+    def __init__(self, agent_id: UUID, agent_name: str) -> None:
+        super().__init__(
+            f"Agent {agent_name} ({agent_id}) is not seeded; ensure the "
+            "appropriate bootstrap seed ran at app startup"
+        )
+        self.agent_id = agent_id
+        self.agent_name = agent_name
+
+
+class AgentDeactivatedError(Exception):
+    """Cross-aggregate state-gate failure: the Agent's co-registered
+    Actor is `is_active=False`.
+
+    Today raised by 8f-c iter 1's `debrief_run`-style slices when
+    an operator deactivated the agent's Actor via Access BC.
+    Recovery is operator-side: reactivate the Actor before re-
+    invoking the agent.
+
+    Mirrors the subscriber's runtime gate (`cora.agent.subscribers.
+    run_debrief.RunDebriefSubscriber.apply` line: `if not
+    actor.is_active: return`).
+    """
+
+    def __init__(self, agent_id: UUID) -> None:
+        super().__init__(
+            f"Agent's Actor {agent_id} is deactivated; reactivate via Access BC before invoking"
+        )
+        self.agent_id = agent_id
+
+
 # ---------------------------------------------------------------------------
 # Bounded-text value objects
 # ---------------------------------------------------------------------------

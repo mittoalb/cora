@@ -96,6 +96,25 @@ diagnostic output (defensive against a future SDK regression).
 `_redact_secrets` strips `sk-ant-*` substrings from any LLM
 error message before structured-logging it (security gate-review
 P1#2).
+
+## Duplication-by-design with `re_debrief_run` slice
+
+`_compose_and_append` here and
+`cora.agent.features.re_debrief_run.decider.decide` use the same
+Decision BC public validators + `DecisionRegistered` constructor.
+The subscriber inlines the composition (its at-most-once depends
+on a deterministic decision_id derived from terminal_event.event_id
++ a UUID5 namespace, distinct from the operator-triggered slice's
+fresh UUIDv7 from the IdGenerator). The slice extracts a pure
+`decide()` because the slice-contract test requires `decider.py`.
+
+The shared logic is ~25 lines. **DRY-extract trigger**: when EITHER
+a third consumer of the same composition appears (Pattern B per-
+anomaly subscriber, second on-demand agent slice at 8f-c+) OR the
+subscriber's at-most-once scheme converges with the slice's
+(eg. both move to IdempotencyStore-keyed dedup). Pre-trigger: live
+with the duplication, documented here + at
+`cora.agent.features.re_debrief_run.decider`.
 """
 
 from __future__ import annotations
@@ -171,7 +190,7 @@ _REDACTED_TOKEN = "[REDACTED]"
 _log = get_logger(__name__)
 
 
-def _redact_secrets(message: str) -> str:
+def redact_secrets(message: str) -> str:
     """Strip Anthropic API-key-like substrings from a log line.
 
     Defensive: the SDK SHOULD never embed the key in its error
@@ -179,8 +198,19 @@ def _redact_secrets(message: str) -> str:
     to logs forever (events INSERT-only). Sanitise here so the
     redaction is in CORA's audit boundary, not relying on the
     vendor.
+
+    Public callable: used by both this subscriber and the
+    `re_debrief_run` handler (8f-c iter 1) for parallel error-
+    logging redaction.
     """
     return _API_KEY_LIKE_PATTERN.sub(_REDACTED_TOKEN, message)
+
+
+# Backward-compat alias retained for the existing test that pins
+# the private name. The public name `redact_secrets` is the one
+# to use going forward; the alias is dropped at the rule-of-three
+# trigger (third consumer or first second-agent ship).
+_redact_secrets = redact_secrets
 
 
 def _derive_decision_id(terminal_event_id: UUID) -> UUID:
@@ -334,7 +364,7 @@ class RunDebriefSubscriber:
             log.warning(
                 "run_debrief.llm_failed",
                 error_class=type(exc).__name__,
-                error_message=_redact_secrets(str(exc)[:200]),
+                error_message=redact_secrets(str(exc)[:200]),
             )
             await self._write_debrief_deferred(
                 decision_id=decision_id,
@@ -369,7 +399,7 @@ class RunDebriefSubscriber:
                 log.warning(
                     "run_debrief.logbook_mirror_failed",
                     error_class=type(exc).__name__,
-                    error_message=_redact_secrets(str(exc)[:200]),
+                    error_message=redact_secrets(str(exc)[:200]),
                 )
 
     async def _write_debrief_success(
