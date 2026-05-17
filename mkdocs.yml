@@ -70,11 +70,11 @@ nav:
     - Argonne:
       - deployments/argonne/index.md
       - Assets: deployments/argonne/assets.md
-      - Actors: deployments/argonne/actors.md
-      - Agents: deployments/argonne/agents.md
     - APS:
       - deployments/aps/index.md
       - Assets: deployments/aps/assets.md
+      - Actors: deployments/aps/actors.md
+      - Agents: deployments/aps/agents.md
       - Practices: deployments/aps/practices.md
       - Clearances: deployments/aps/clearances.md
       - Supplies: deployments/aps/supplies.md
@@ -82,11 +82,13 @@ nav:
     - 2-BM:
       - deployments/2-bm/index.md
       - Assets: deployments/2-bm/assets.md
+      - Actors: deployments/2-bm/actors.md
       - Procedures: deployments/2-bm/procedures.md
       - Subjects: deployments/2-bm/subjects.md
       - Runs: deployments/2-bm/runs.md
       - Campaigns: deployments/2-bm/campaigns.md
       - Cautions: deployments/2-bm/cautions.md
+      - Supplies: deployments/2-bm/supplies.md
       - Datasets: deployments/2-bm/datasets.md
       - Decisions: deployments/2-bm/decisions.md
       - Policies: deployments/2-bm/policies.md

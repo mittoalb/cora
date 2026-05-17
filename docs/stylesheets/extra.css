@@ -470,6 +470,16 @@ body::before {
   font-weight: 600;
 }
 
+/* ---- Left-nav section-head breathing room ----
+   Material gives every nav row a uniform pitch, so when a tab's nested
+   subsections (Argonne / APS / 2-BM / 35-BM under Deployments) collapse,
+   the section heads stack against each other with no visual separation.
+   Add a small top margin between consecutive nested-inside-nested items
+   so section heads read as groups whether expanded or collapsed. */
+.md-nav--primary .md-nav__item--nested + .md-nav__item--nested {
+  margin-top: 0.5rem;
+}
+
 /* ---- Right-rail TOC active accent ----
    Tailwind's on-this-page pattern: a 2px brand-teal bar + weight bump on
    the currently-scrolled section. toc-active.js sets .cora-toc-active on

@@ -1,6 +1,6 @@
 # Argonne
 
-*Enterprise-level inventories. Aggregates that hang at the institution level (Actors, Agents) and the root Asset of CORA's Equipment hierarchy.*
+*Enterprise-level inventories. The root of CORA's Equipment hierarchy and the holding parent for the Sites that hang off it.*
 
 | Property | Value |
 | --- | --- |
@@ -10,10 +10,8 @@
 
 ## Inventories
 
-What's registered under Argonne today:
+- [Assets](assets.md): sibling Sites under the Argonne Enterprise (APS is the only one registered).
 
-- [Assets](assets.md): sibling Sites under the Argonne Enterprise (APS is the only one registered; ATLAS / CNM / ALCF are not modelled until a pilot demands them)
-- [Actors](actors.md): human Actors registered at Argonne
-- [Agents](agents.md): AI Agents registered at Argonne
+No Actors / Agents inventoried: Argonne has no install ceremony of its own, so no principal is registered at Enterprise scope today. Identity registration begins at the [APS](../aps/index.md) Site (facility-wide) and continues at each beamline. A row lands here when a cross-Site principal is registered (one that spans APS and a sibling Site such as ATLAS).
 
-Source of truth: [`apps/api/tests/integration/scenarios/test_aps_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_facility.py).
+Source of truth: [`test_aps_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_facility.py) (creates the Argonne Enterprise Asset as the root of the Site hierarchy at [line 159](../../../apps/api/tests/integration/scenarios/test_aps_facility.py#L159)).

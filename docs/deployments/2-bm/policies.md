@@ -20,21 +20,17 @@ The Conduit automatically opens a `traversals` observation logbook at creation (
 
 | Policy | Permitted principals | Permitted commands |
 | --- | --- | --- |
-| `2-BM Operations Policy` | `2-BM Operator 1`, `2-BM Operator 2`, `2-BM Operator 3` (see [Argonne Actors](../argonne/actors.md)) | Operator-driven commands across Equipment, Recipe, Operation, Run, Subject, Dataset, Caution, Clearance, Supply, Campaign (representative list, not exhaustive) |
-| `2-BM Agent Policy` | `Run Debrief` (see [Argonne Actors](../argonne/actors.md) and [Agents](../argonne/agents.md)) | Decision-family commands: `RegisterDecision`, `RateDecision`, `AppendReasoningEntry` |
+| `2-BM Operations Policy` | `2-BM Operator 1`, `2-BM Operator 2`, `2-BM Operator 3` (see [2-BM Actors](actors.md)) | Operator-driven commands across Equipment, Recipe, Operation, Run, Subject, Dataset, Caution, Clearance, Supply, Campaign (representative list, not exhaustive) |
+| `2-BM Agent Policy` | `Run Debrief` (see [APS Actors](../aps/actors.md) and [APS Agents](../aps/agents.md)) | Decision-family commands: `RegisterDecision`, `RateDecision`, `AppendReasoningEntry` |
 
-Separating the two policies keeps human-operator and AI-agent authority clean: a new sibling Strategy or Budget agent drops into the Agent Policy without touching the human one, and a new operator role drops into Operations without widening the agent surface.
+Source of truth: [`_facility_fixture.py`](../../../apps/api/tests/integration/scenarios/_facility_fixture.py) (Zone + Conduit + Policy definitions, canonical UUIDs), [`test_2bm_facility.py`](../../../apps/api/tests/integration/scenarios/test_2bm_facility.py) (end-to-end install assertion).
 
-Source of truth: [`apps/api/tests/integration/scenarios/_facility_fixture.py`](../../../apps/api/tests/integration/scenarios/_facility_fixture.py) (Zone + Conduit + Policy definitions, canonical UUIDs), [`apps/api/tests/integration/scenarios/test_2bm_facility.py`](../../../apps/api/tests/integration/scenarios/test_2bm_facility.py) (end-to-end install assertion).
+## Enforcement state
 
-## How authorization actually runs today
-
-The runtime port wired into tests is `AllowAllAuthorize`, which permits every command unconditionally. The Zone, Conduit, and Policies registered here are therefore declarative shape rather than enforcement: they ground the boundary model in the deployment docs and pre-position the Trust aggregates for the eventual switch to `TrustAuthorize`, where every command issued by a 2-BM operator or the Run Debrief agent will pass through `Policy.evaluate(...)` before any aggregate state mutates.
-
-The `Run Debrief` actor id permitted by the Agent Policy is canonical (`RUN_DEBRIEF_ACTOR_ID` from the fixture). The Agent aggregate itself is registered only by the facility-level install (`test_aps_facility.py`); 2-BM scenarios reference the canonical actor id without re-registering the Agent. This works because Trust BC has no command-time referential integrity (forward-permitted principals are fine), and Run Debrief subscribes facility-wide rather than per-beamline.
+The runtime port wired into tests is `AllowAllAuthorize`. The Zone, Conduit, and Policies above are declarative shape, not enforcement; `permitted_commands` lists are illustrative until the switch to `TrustAuthorize`. Policy status is implicit `Active` (the `Drafted → Approved → Active → Superseded` lifecycle defers to a later sub-phase).
 
 ## Pending in code
 
-- **A second Zone.** The current self-loop Conduit exists because there is only one Zone at 2-BM. A Storage Zone (for Dataset publication via the deferred `LogbookMirrorPort`) and a Control Zone (for actuation against EPICS IOCs) are the natural next zones; the Conduit and Policy roster widens when either lands.
-- **Policy enforcement.** Switching from `AllowAllAuthorize` to `TrustAuthorize` is the trigger for `permitted_commands` lists becoming load-bearing rather than illustrative. The lists today cover the commands the 2-BM scenario corpus exercises but are not exhaustive.
-- **Policy status lifecycle.** Per the [Policy aggregate state](../../architecture/model.md), the `Drafted -> Approved -> Active -> Superseded` lifecycle defers to a later sub-phase. Today the Policies are implicit `Active`.
+- **A second Zone.** A Storage Zone (for Dataset publication via the deferred `LogbookMirrorPort`) and a Control Zone (for EPICS IOC actuation) are the natural next zones; Conduit and Policy roster widens when either lands.
+- **Policy enforcement.** Switching from `AllowAllAuthorize` to `TrustAuthorize` makes `permitted_commands` load-bearing.
+- **Policy status lifecycle.** `Drafted → Approved → Active → Superseded` not yet exercised.

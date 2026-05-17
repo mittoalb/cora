@@ -10,5 +10,5 @@ Source of truth: [`apps/api/tests/integration/scenarios/test_aps_facility.py`](.
 
 ## Pending in code
 
-- `Sector 35` — lands when the [35-BM](../35-bm/index.md) Unit is registered.
+- `Sector 35`: lands when the [35-BM](../35-bm/index.md) Unit is registered.
 - Other Sectors and shared facility equipment (storage ring, beam transport, front-end optics) are not modelled until a pilot demands them per [Pilots earn the abstractions](../index.md).

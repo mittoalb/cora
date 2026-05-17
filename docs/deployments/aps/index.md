@@ -15,6 +15,8 @@ APS organises beamlines into sectors. Each sector is an `Area`-level Asset betwe
 ## Inventories
 
 - [Assets](assets.md): Area Assets under APS (the Sectors)
+- [Actors](actors.md): facility-wide human Actors and the AI agent's co-registered Actor row; beamline-bound principals (operator pools, proposal PIs) live with their beamline (see [2-BM Actors](../2-bm/actors.md))
+- [Agents](agents.md): facility-wide AI Agents (subscribe to events across all beamlines rather than per-beamline)
 - [Practices](practices.md): Practices with `site_id=APS` (ISA-88 Site Recipes)
 - [Clearances](clearances.md): APS-issued safety clearances
 - [Supplies](supplies.md): facility-wide Supplies (cryogens, beam, shared consumables)

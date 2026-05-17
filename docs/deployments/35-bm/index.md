@@ -6,7 +6,7 @@ A new dedicated micro-CT instrument at Argonne. White-beam micro-CT will move he
 
 | Property | Value |
 | --- | --- |
-| Asset | `35-BM` (Unit, parent `Sector 35`; neither registered yet — both land with the first 35-BM scenario) |
+| Asset | `35-BM` (Unit, parent `Sector 35`; neither registered yet, both land with the first 35-BM scenario) |
 | Sector | `Sector 35` (Area, under APS) |
 | Site | [APS](../aps/index.md) |
 | Enterprise | [Argonne](../argonne/index.md) |

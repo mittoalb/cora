@@ -2,12 +2,12 @@
 
 *Caution BC Cautions targeting 2-BM Assets and Procedures. Operator tribal knowledge captured at shakedown / first-light / production time, surfaced on every future Run start via the `CautionLookup` snapshot. See [Model](../../architecture/model.md) for the aggregate shape.*
 
-| Caution | Target | Category | Severity | Summary |
-| --- | --- | --- | --- | --- |
-| Aerotech cold-start index miss | `Aerotech_ABRS_rotary` (Device) | `Wear` | `Caution` | Misses index pulse on cold-start home; retry once after 5s settling |
-| Hexapod controller lockup | `Hexapod_2BM` (Device) | `Wear` | `Caution` | Controller locks up under sustained load (HexapodAllEnabled stuck at 0); recover via the `hexapod_reboot` Procedure (PDU outlet 4 power-cycle + IOC restart) |
+| Caution | Target | Category | Severity | Summary | Scenario |
+| --- | --- | --- | --- | --- | --- |
+| Aerotech cold-start index miss | `Aerotech_ABRS_rotary` (Device) | `Wear` | `Caution` | Misses index pulse on cold-start home; retry once after 5s settling | `motor_homing` |
+| Hexapod controller lockup | `Hexapod_2BM` (Device) | `Wear` | `Caution` | Controller locks up under sustained load (HexapodAllEnabled stuck at 0); recover via the `hexapod_reboot` Procedure | `hexapod_reboot` |
 
-Source of truth: [`apps/api/tests/integration/scenarios/test_2bm_motor_homing.py`](../../../apps/api/tests/integration/scenarios/test_2bm_motor_homing.py), [`apps/api/tests/integration/scenarios/test_2bm_hexapod_reboot.py`](../../../apps/api/tests/integration/scenarios/test_2bm_hexapod_reboot.py).
+Source of truth: scenario files at [`apps/api/tests/integration/scenarios/test_2bm_<scenario>.py`](../../../apps/api/tests/integration/scenarios/) (one-to-one with the Scenario column).
 
 ## Aerotech cold-start index miss
 

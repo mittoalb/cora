@@ -18,3 +18,7 @@ Deployments mirror CORA's Asset hierarchy (Enterprise → Site → Area → Unit
 Cross-facility vocabulary (Capabilities, Methods) lives in the [Catalog](../catalog/index.md), since it is not bound to any single Site.
 
 Each page name names its role (`assets`, `practices`, `procedures`, ...). A page exists only when there is code-grounded content to fill it. Stakeholder-facing framing (pilot vision, scope, why-this-beamline) lives in the [slide deck](../talks.md) instead.
+
+Most inventory pages place by Asset hierarchy (Methods at Site, Procedures at beamline, and so on). The two scope-free identity aggregates (Access BC `Actor`, Agent BC `Agent`) instead place by *registrar-ceremony scope*: the deployment folder whose canonical install fixture contains the `register_actor` or `define_agent` call. That is why APS has `actors.md` plus `agents.md` (facility-wide principals) while 2-BM has `actors.md` (beamline-bound principals), with no `scope` field on the aggregate itself.
+
+The Trust BC (zones, conduits, policies) intentionally has no deployment-page surface: it is system plumbing for cross-BC identity and access, not a per-deployment inventory operators would browse.

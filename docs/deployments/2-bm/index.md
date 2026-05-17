@@ -15,15 +15,17 @@ The bending-magnet micro-CT instrument at APS, hosted under `Sector 2`. CORA's [
 
 ## Inventories
 
-What's registered at 2-BM today (Unit level) per the scenario corpus:
-
-- [Assets](assets.md): beamline-owned Devices, with lifecycle and condition transitions
-- [Procedures](procedures.md): operator routines (`motor_homing`, alignment chain, first light, baselines, `hexapod_reboot`, `tomography`; remaining operations + maintenance routines pending)
-- [Subjects](subjects.md): samples-or-things being measured (intake genesis + mount + measure cycle exercised; dismount pending)
-- [Campaigns](campaigns.md): coordinated studies composing Runs (first proposal Campaign Active with one Run member)
-- [Cautions](cautions.md): operator tribal knowledge attached to specific Assets
-- [Datasets](datasets.md): calibration artifacts + first Production raw projection stack
-- [Decisions](decisions.md): advisory AAR Decisions emitted by the `RunDebrief` agent after every terminal Run
+- [Assets](assets.md): beamline Devices (Equipment BC), with lifecycle + condition + settings coverage matrix
+- [Actors](actors.md): beamline-bound principals (operator pool + proposal PIs + review-chain reviewers); facility-wide principals at [APS Actors](../aps/actors.md)
+- [Procedures](procedures.md): operator routines (Operation BC)
+- [Subjects](subjects.md): samples (Subject BC) with per-row most-advanced-state
+- [Runs](runs.md): Plan executions (Run BC); lifecycle-facets matrix maps each FSM facet to the scenario that exercises it
+- [Campaigns](campaigns.md): coordinated studies composing Runs (Campaign BC)
+- [Datasets](datasets.md): calibration baselines + per-Run raw projection stacks (Data BC)
+- [Decisions](decisions.md): AAR Decisions from the `RunDebrief` agent + operator-authored Decisions (Decision BC)
+- [Cautions](cautions.md): operator tribal knowledge on specific Assets (Caution BC)
+- [Supplies](supplies.md): beamline-scope continuously-available resources (Supply BC)
+- [Policies](policies.md): Trust BC boundary shape (Zone + Conduit + Policies)
 
 The Methods and Practices 2-BM consumes live at higher levels of the hierarchy:
 
