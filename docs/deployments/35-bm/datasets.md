@@ -7,7 +7,7 @@
 | `35BM_dark_baseline_2026-04-17` | `Trial` | none (calibration) | none (no sample) | `https://www.nexusformat.org/NXdark_field` |
 | `35BM_flat_baseline_2026-04-17` | `Trial` | none (calibration) | none (no sample) | `https://www.nexusformat.org/NXflat_field` |
 
-Source of truth: [`test_35bm_commissioning_dark_baseline_scenario.py`](../../../apps/api/tests/integration/test_35bm_commissioning_dark_baseline_scenario.py), [`test_35bm_commissioning_flat_baseline_scenario.py`](../../../apps/api/tests/integration/test_35bm_commissioning_flat_baseline_scenario.py).
+Source of truth: [`test_35bm_commissioning_dark_baseline.py`](../../../apps/api/tests/integration/scenarios/test_35bm_commissioning_dark_baseline.py), [`test_35bm_commissioning_flat_baseline.py`](../../../apps/api/tests/integration/scenarios/test_35bm_commissioning_flat_baseline.py).
 
 ## Calibration Datasets (no Subject, no Run)
 

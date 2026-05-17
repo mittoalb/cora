@@ -84,6 +84,7 @@ nav:
       - Assets: deployments/35-bm/assets.md
       - Procedures: deployments/35-bm/procedures.md
       - Cautions: deployments/35-bm/cautions.md
+      - Datasets: deployments/35-bm/datasets.md
   - Catalog:
     - catalog/index.md
     - Capabilities: catalog/capabilities.md

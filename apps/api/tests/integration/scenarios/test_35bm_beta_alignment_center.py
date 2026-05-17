@@ -141,12 +141,12 @@ from cora.recipe.features.define_practice import (
 from cora.recipe.features.define_practice import (
     bind as bind_define_practice,
 )
-from tests.integration._facility_fixture import (
+from tests.integration._helpers import build_postgres_deps
+from tests.integration.scenarios._facility_fixture import (
     DeviceSpec,
     facility_id_prefix,
     install_35bm_facility,
 )
-from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 15, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000003500")

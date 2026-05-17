@@ -19,6 +19,7 @@ What's registered at 35-BM today (Unit level):
 - [Assets](assets.md): beamline-owned Devices, with lifecycle and condition transitions
 - [Procedures](procedures.md): operator routines (`motor_homing`, `center_alignment`)
 - [Cautions](cautions.md): operator tribal knowledge attached to specific Assets
+- [Datasets](datasets.md): calibration artifacts produced by commissioning scenarios (dark + flat baselines)
 
 The Methods and Practices 35-BM consumes live at higher levels of the hierarchy:
 

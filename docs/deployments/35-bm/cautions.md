@@ -6,7 +6,7 @@
 | --- | --- | --- | --- | --- |
 | Aerotech cold-start index miss | `Aerotech_ABRS_rotary` (Device) | `Wear` | `Caution` | Misses index pulse on cold-start home; retry once after 5s settling |
 
-Source of truth: [`apps/api/tests/integration/test_35bm_shakedown_motor_homing_scenario.py`](../../../apps/api/tests/integration/test_35bm_shakedown_motor_homing_scenario.py).
+Source of truth: [`apps/api/tests/integration/scenarios/test_35bm_shakedown_motor_homing.py`](../../../apps/api/tests/integration/scenarios/test_35bm_shakedown_motor_homing.py).
 
 ## Aerotech cold-start index miss
 

@@ -14,7 +14,7 @@
 | Roll alignment | `roll_alignment` | beta | Rotation axis perpendicular to the camera Y axis (Sample_top_Roll tilt) |
 | Pitch alignment | `pitch_alignment` | beta | Rotation axis perpendicular to the beam direction (Sample_top_Pitch tilt) |
 
-Source of truth: [`test_35bm_shakedown_motor_homing_scenario.py`](../../../apps/api/tests/integration/test_35bm_shakedown_motor_homing_scenario.py), [`test_35bm_commissioning_first_light_scenario.py`](../../../apps/api/tests/integration/test_35bm_commissioning_first_light_scenario.py), [`test_35bm_commissioning_dark_baseline_scenario.py`](../../../apps/api/tests/integration/test_35bm_commissioning_dark_baseline_scenario.py), [`test_35bm_commissioning_flat_baseline_scenario.py`](../../../apps/api/tests/integration/test_35bm_commissioning_flat_baseline_scenario.py), [`test_35bm_beta_alignment_resolution_scenario.py`](../../../apps/api/tests/integration/test_35bm_beta_alignment_resolution_scenario.py), [`test_35bm_beta_alignment_focus_scenario.py`](../../../apps/api/tests/integration/test_35bm_beta_alignment_focus_scenario.py), [`test_35bm_beta_alignment_center_scenario.py`](../../../apps/api/tests/integration/test_35bm_beta_alignment_center_scenario.py), [`test_35bm_beta_alignment_roll_scenario.py`](../../../apps/api/tests/integration/test_35bm_beta_alignment_roll_scenario.py), [`test_35bm_beta_alignment_pitch_scenario.py`](../../../apps/api/tests/integration/test_35bm_beta_alignment_pitch_scenario.py).
+Source of truth: [`test_35bm_shakedown_motor_homing.py`](../../../apps/api/tests/integration/scenarios/test_35bm_shakedown_motor_homing.py), [`test_35bm_commissioning_first_light.py`](../../../apps/api/tests/integration/scenarios/test_35bm_commissioning_first_light.py), [`test_35bm_commissioning_dark_baseline.py`](../../../apps/api/tests/integration/scenarios/test_35bm_commissioning_dark_baseline.py), [`test_35bm_commissioning_flat_baseline.py`](../../../apps/api/tests/integration/scenarios/test_35bm_commissioning_flat_baseline.py), [`test_35bm_beta_alignment_resolution.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_resolution.py), [`test_35bm_beta_alignment_focus.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_focus.py), [`test_35bm_beta_alignment_center.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_center.py), [`test_35bm_beta_alignment_roll.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_roll.py), [`test_35bm_beta_alignment_pitch.py`](../../../apps/api/tests/integration/scenarios/test_35bm_beta_alignment_pitch.py).
 
 ## Motor homing
 
@@ -466,7 +466,3 @@ Example queries:
 
 - "What's 35-BM's current pitch calibration?" Query the Procedure stream for the most recent `pitch_alignment` with `passed=True`; the final Setpoint carries the calibrated value.
 - "Which sphere targets give the cleanest pitch convergence?" Group Check entries by `target` payload key, compare iteration counts.
-
-## Alignment chain complete
-
-All five sibling alignment routines (`resolution → focus → center → roll → pitch`) are now scenario-grounded in code. Future scenarios at this beamline land in higher phases: `commissioning` (first beam through the chain), `operations` (proposal-driven science runs), `shutdown` (recalibration cycles), and `decommission` (end-of-life teardown).
