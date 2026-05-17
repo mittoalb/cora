@@ -122,6 +122,7 @@ nav:
 markdown_extensions:
   - admonition
   - attr_list
+  - def_list
   - md_in_html
   - tables
   - pymdownx.details
