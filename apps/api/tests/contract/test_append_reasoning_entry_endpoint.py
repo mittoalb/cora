@@ -88,7 +88,7 @@ def test_post_reasoning_entries_accepts_full_otel_field_set() -> None:
                         operation_name="execute_tool",
                         provider_name="anthropic",
                         request_model="claude-opus-4-7",
-                        duration_ms=1234,
+                        duration=1234,
                         response_id="msg_abc",
                         response_model="claude-opus-4-7",
                         request_temperature=0.7,

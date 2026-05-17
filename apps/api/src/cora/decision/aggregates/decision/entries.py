@@ -108,7 +108,7 @@ class DecisionReasoning:
     correlation_id: UUID
     causation_id: UUID | None
     occurred_at: datetime
-    duration_ms: int | None
+    duration: int | None
     # --- OTel gen_ai.* required discriminators ---
     operation_name: str  # gen_ai.operation.name
     provider_name: str  # gen_ai.provider.name (NOT deprecated gen_ai.system)
@@ -182,7 +182,7 @@ REASONING_LOGBOOK_SCHEMA: LogbookSchema = LogbookSchema(
             type="string",
             description="OTel gen_ai.tool.type (Extension / Function / Datastore)",
         ),
-        "duration_ms": LogbookFieldSpec(
+        "duration": LogbookFieldSpec(
             type="int", units="ms", description="span end_time - start_time"
         ),
     },
@@ -215,7 +215,7 @@ class ReasoningStore(Protocol):
 _APPEND_SQL = """
 INSERT INTO entries_decision_reasonings (
     event_id, decision_id, logbook_id, correlation_id, causation_id,
-    occurred_at, duration_ms,
+    occurred_at, duration,
     operation_name, provider_name, request_model,
     response_id, response_model,
     request_temperature, request_top_p, request_max_tokens,
@@ -292,7 +292,7 @@ class PostgresReasoningStore:
                         row.correlation_id,
                         row.causation_id,
                         row.occurred_at,
-                        row.duration_ms,
+                        row.duration,
                         row.operation_name,
                         row.provider_name,
                         row.request_model,

@@ -63,7 +63,7 @@ CREATE TABLE entries_decision_reasonings (
     correlation_id      uuid              NOT NULL,
     causation_id        uuid,
     occurred_at         timestamptz       NOT NULL,
-    duration_ms         bigint,
+    duration         bigint,
 
     -- OTel gen_ai.* required discriminators
     operation_name      text              NOT NULL,

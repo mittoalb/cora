@@ -33,7 +33,7 @@ def _row(**overrides: object) -> DecisionReasoning:
         "correlation_id": uuid4(),
         "causation_id": None,
         "occurred_at": _NOW,
-        "duration_ms": None,
+        "duration": None,
         "operation_name": DECISION_REASONING_OP_CHAT,
         "provider_name": "anthropic",
         "request_model": "claude-opus-4-7",

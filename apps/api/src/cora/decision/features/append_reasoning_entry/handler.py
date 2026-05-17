@@ -243,7 +243,7 @@ def _build_row(
         correlation_id=correlation_id,
         causation_id=causation_id,
         occurred_at=entry.occurred_at,
-        duration_ms=entry.duration_ms,
+        duration=entry.duration,
         operation_name=entry.operation_name,
         provider_name=entry.provider_name,
         request_model=entry.request_model,

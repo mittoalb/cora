@@ -47,7 +47,7 @@ class ReasoningEntryInput:
     operation_name: str
     provider_name: str
     request_model: str
-    duration_ms: int | None = None
+    duration: int | None = None
     response_id: str | None = None
     response_model: str | None = None
     request_temperature: float | None = None

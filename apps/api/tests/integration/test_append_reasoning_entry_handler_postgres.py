@@ -52,7 +52,7 @@ async def _read_entries_for_decision(
             """
             SELECT
                 event_id, decision_id, logbook_id, correlation_id, causation_id,
-                occurred_at, duration_ms,
+                occurred_at, duration,
                 operation_name, provider_name, request_model,
                 response_id, response_model,
                 request_temperature, request_top_p, request_max_tokens,
@@ -135,7 +135,7 @@ async def test_append_reasoning_entry_full_lazy_open_and_jsonb_round_trip(
         operation_name=DECISION_REASONING_OP_CHAT,
         provider_name="anthropic",
         request_model="claude-opus-4-7",
-        duration_ms=1234,
+        duration=1234,
         response_id="msg_abc",
         response_model="claude-opus-4-7",
         request_temperature=0.7,
@@ -299,7 +299,7 @@ async def test_postgres_reasoning_store_dedups_on_event_id(
         correlation_id=_CORRELATION_ID,
         causation_id=None,
         occurred_at=_NOW,
-        duration_ms=None,
+        duration=None,
         operation_name="chat",
         provider_name="anthropic",
         request_model="claude-opus-4-7",
@@ -329,7 +329,7 @@ async def test_postgres_reasoning_store_dedups_on_event_id(
         correlation_id=_CORRELATION_ID,
         causation_id=None,
         occurred_at=_NOW,
-        duration_ms=None,
+        duration=None,
         operation_name="chat",
         provider_name="anthropic",
         request_model="claude-sonnet-4-6",  # different content

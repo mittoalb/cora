@@ -90,7 +90,7 @@ class ReasoningEntryRequest(BaseModel):
         max_length=200,
         description="OTel gen_ai.request.model (the requested model id).",
     )
-    duration_ms: int | None = Field(
+    duration: int | None = Field(
         default=None, ge=0, description="Span duration (end_time - start_time)."
     )
     response_id: str | None = Field(default=None, max_length=200)
@@ -204,7 +204,7 @@ async def post_decisions_reasoning_entries(
             operation_name=e.operation_name,
             provider_name=e.provider_name,
             request_model=e.request_model,
-            duration_ms=e.duration_ms,
+            duration=e.duration,
             response_id=e.response_id,
             response_model=e.response_model,
             request_temperature=e.request_temperature,

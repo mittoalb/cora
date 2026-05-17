@@ -8,7 +8,7 @@ persistence-envelope construction (`NewEvent`) lives at
 Phase 6f-1 shipped `RunStarted`. Phase 6f-2 added:
   - `RunCompleted` — happy-path terminal (Running → Completed).
     Payload is `run_id` + `occurred_at` only; substantive run
-    summary (frame_count, duration_ms, final detector positions,
+    summary (frame_count, duration, final detector positions,
     etc.) is deferred to 6f-5+ when DAQ-channel integration
     arrives. Per the fold-cost principles, the completion event
     SHOULD eventually carry summary state so consumers don't have
