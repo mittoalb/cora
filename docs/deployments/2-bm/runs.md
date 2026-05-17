@@ -20,30 +20,13 @@
 | `Proposal 2026-1237 low-energy tomography (25 keV)` | `iron-bearing sandstone core (Proposal 2026-1237, energy-pivot study)` | [`Proposal 2026-1237 multi-energy contrast study`](campaigns.md) | `Completed` | `energy_change` |
 | `Proposal 2026-1237 high-energy tomography (30 keV)` | `iron-bearing sandstone core (Proposal 2026-1237, energy-pivot study)` | `Proposal 2026-1237 multi-energy contrast study` | `Completed` (operator-authored `EnergyChange` [Decision](decisions.md) between Plans) | `energy_change` |
 
-Source of truth: scenario files at [`apps/api/tests/integration/scenarios/test_2bm_<scenario>.py`](../../../apps/api/tests/integration/scenarios/) (one-to-one with the Scenario column).
+For which scenarios exercise each lifecycle facet (terminal states, mid-flight transitions, Campaign membership shapes), see [Scenarios > by-bc > Run](../../scenarios/by-bc.md#run).
 
-## Lifecycle facets exercised
+## Pending
 
-| Facet | Scenario(s) |
-| --- | --- |
-| Terminal `Completed` | `tomography_scan`, `data_publish`, `streaming_tomography`, `mosaic_acquisition` (N=4), `continuous_rotation_sweep` (N=3), `energy_change` (N=2), `run_debrief`, `run_debrief_degraded` |
-| Terminal `Aborted` (Equipment fault) | `run_debrief_aborted` |
-| Terminal `Aborted` (Operator decision, no fault) | Pending (variant of `run_debrief_aborted` distinguished by reason) |
-| Terminal `Stopped` (operator-issued stop with partial-data valid) | `run_stopped_early` |
-| Terminal `Truncated` (early termination, partial-data accepted) | `run_truncated_after_outage` |
-| Mid-flight `Hold → Resume` | `run_hold_resume_cycle` |
-| Mid-flight `adjust_run` (parameter steering) | `streaming_tomography` |
-| Mid-flight degrade/restore on a target Asset | `run_debrief_degraded` (Hexapod degrade → recover → continue → Complete) |
-| `RunReading` logbook appended (`baseline` + `monitor` sampling procedures) | `run_reading_logbook` |
-| Run member of a Coordinated Campaign | `tomography_scan`, `mosaic_acquisition`, `energy_change` |
-| Run member of a Series Campaign | `continuous_rotation_sweep` |
-| Run with no Campaign membership | Not exercised (every shipped Run is Campaign-bound today) |
+Run shapes planned for 2-BM but not yet present in the inventory above.
 
-## Pending in code
-
-| Pending Run shape | Source scenario (planned) |
-| --- | --- |
-| `Aborted` via operator decision (vs Equipment fault) | Variant of `run_debrief_aborted` distinguished only by abort reason |
-| Alignment-chain Runs composed into one Campaign | `test_2bm_alignment_auto_chain.py` (5 alignment Runs + calibration + a Step-1 re-run under a Coordinated Campaign) |
-| Energy-calibration Run (rocking-curve) | `test_2bm_energy_calibration.py` (channel-cut-crystal scan; produces a rocking-curve [Dataset](datasets.md)) |
-| Vibration-baseline Run (1000-frame high-speed) | `test_2bm_vibration_baseline.py` (pre / post air-handler shutdown comparison) |
+- **`Aborted` via operator decision** (vs Equipment fault) — distinct from the existing `EquipmentAbort` Run by abort reason.
+- **Alignment-chain Runs composed into one Campaign** — 5 alignment Runs + calibration + a Step-1 re-run under a Coordinated Campaign.
+- **Energy-calibration Run** (channel-cut-crystal rocking-curve) — produces a rocking-curve [Dataset](datasets.md).
+- **Vibration-baseline Run** (1000-frame high-speed) — pre / post air-handler shutdown comparison.
