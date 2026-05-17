@@ -1,4 +1,4 @@
-# Site Assets
+# Assets
 
 *Equipment BC Assets registered at the APS Site level (and Area levels below it). See [Model](../../architecture/model.md) for the aggregate shape.*
 

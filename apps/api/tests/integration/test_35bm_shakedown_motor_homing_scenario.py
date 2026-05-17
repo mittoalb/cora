@@ -58,8 +58,6 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
-from cora.access.features.register_actor import RegisterActor
-from cora.access.features.register_actor import bind as bind_register_actor
 from cora.caution.aggregates.caution import (
     AssetTarget,
     CautionCategory,
@@ -67,17 +65,10 @@ from cora.caution.aggregates.caution import (
 )
 from cora.caution.features.register_caution import RegisterCaution
 from cora.caution.features.register_caution import bind as bind_register_caution
-from cora.equipment.aggregates.asset import AssetLevel
 from cora.equipment.features.activate_asset import ActivateAsset
 from cora.equipment.features.activate_asset import bind as bind_activate_asset
-from cora.equipment.features.add_asset_capability import AddAssetCapability
-from cora.equipment.features.add_asset_capability import bind as bind_add_capability
-from cora.equipment.features.define_capability import DefineCapability
-from cora.equipment.features.define_capability import bind as bind_define_capability
 from cora.equipment.features.degrade_asset import DegradeAsset
 from cora.equipment.features.degrade_asset import bind as bind_degrade_asset
-from cora.equipment.features.register_asset import RegisterAsset
-from cora.equipment.features.register_asset import bind as bind_register_asset
 from cora.equipment.features.restore_asset import RestoreAsset
 from cora.equipment.features.restore_asset import bind as bind_restore_asset
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
@@ -99,6 +90,11 @@ from cora.recipe.features.define_plan import DefinePlan
 from cora.recipe.features.define_plan import bind as bind_define_plan
 from cora.recipe.features.define_practice import DefinePractice
 from cora.recipe.features.define_practice import bind as bind_define_practice
+from tests.integration._facility_fixture import (
+    DeviceSpec,
+    facility_id_prefix,
+    install_35bm_facility,
+)
 from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 17, 9, 30, 0, tzinfo=UTC)
@@ -106,7 +102,8 @@ _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000035200")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000352bb")
 
 # Facility hierarchy mnemonic hex tags: e=enterprise, 5=site, u=unit.
-_ACTOR_OPERATOR_ID = _PRINCIPAL_ID
+# The facility-install block (actor + Argonne/APS/Unit + Devices) is consumed
+# by `install_35bm_facility` via `facility_id_prefix(...)`.
 _ARGONNE_ENTERPRISE_ID = UUID("01900000-0000-7000-8000-000000352e01")
 _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000352501")
 _35BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000352a01")
@@ -133,34 +130,25 @@ _STEPS_OPEN_EVENT_ID = UUID("01900000-0000-7000-8000-000000352f12")
 _CAUTION_AEROTECH_INDEX_ID = UUID("01900000-0000-7000-8000-000000352f21")
 
 
+_DEVICES = (
+    DeviceSpec(
+        "Aerotech_ABRS_rotary", _ASSET_AEROTECH_ABRS_ID, "RotaryStage", _CAP_ROTARY_STAGE_ID
+    ),
+    DeviceSpec("Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID),
+)
+
+
 def _id_queue() -> list[UUID]:
     """Pre-allocated FixedIdGenerator queue (head-first consumption)."""
     e = uuid4
     return [
-        # register_actor (operator, principal): actor_id, event_id
-        _ACTOR_OPERATOR_ID,
-        e(),
-        # register_asset Argonne (Enterprise): asset_id, event_id
-        _ARGONNE_ENTERPRISE_ID,
-        e(),
-        # register_asset APS (Site, parent=Argonne): asset_id, event_id
-        _APS_SITE_ID,
-        e(),
-        # register_asset 35-BM Unit (parent=APS): asset_id, event_id
-        _35BM_UNIT_ID,
-        e(),
-        # define_capability x 2: cap_id, event_id
-        _CAP_ROTARY_STAGE_ID,
-        e(),
-        _CAP_LINEAR_STAGE_ID,
-        e(),
-        # register_asset x 2 + add_asset_capability x 2: asset_id, register_event, addcap_event
-        _ASSET_AEROTECH_ABRS_ID,
-        e(),
-        e(),
-        _ASSET_SAMPLE_TOP_X_ID,
-        e(),
-        e(),
+        *facility_id_prefix(
+            principal_id=_PRINCIPAL_ID,
+            argonne_id=_ARGONNE_ENTERPRISE_ID,
+            aps_site_id=_APS_SITE_ID,
+            unit_id=_35BM_UNIT_ID,
+            devices=_DEVICES,
+        ),
         # activate_asset x 2: event_id only (no aggregate id allocated)
         e(),
         e(),
@@ -281,56 +269,18 @@ async def test_motor_homing_plays_out_end_to_end(
     capturing the tribal knowledge, assert the auditable record."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
 
-    # ----- Access BC: register the operator Actor (id = _PRINCIPAL_ID) -----
+    # ----- Seed facility hierarchy: actor + Argonne -> APS -> 35-BM + 2 motor Devices -----
 
-    await bind_register_actor(deps)(
-        RegisterActor(name="35-BM Shakedown Operator"),
+    await install_35bm_facility(
+        deps,
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
+        argonne_id=_ARGONNE_ENTERPRISE_ID,
+        aps_site_id=_APS_SITE_ID,
+        unit_id=_35BM_UNIT_ID,
+        devices=_DEVICES,
+        operator_name="35-BM Shakedown Operator",
     )
-
-    # ----- Equipment BC (facility hierarchy): Argonne -> APS -> 35-BM Unit -----
-
-    await bind_register_asset(deps)(
-        RegisterAsset(name="Argonne", level=AssetLevel.ENTERPRISE, parent_id=None),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    await bind_register_asset(deps)(
-        RegisterAsset(name="APS", level=AssetLevel.SITE, parent_id=_ARGONNE_ENTERPRISE_ID),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    await bind_register_asset(deps)(
-        RegisterAsset(name="35-BM", level=AssetLevel.UNIT, parent_id=_APS_SITE_ID),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-
-    # ----- Equipment BC: 2 Capabilities + 2 motor Devices + capability links -----
-
-    for cap_name in ("RotaryStage", "LinearStage"):
-        await bind_define_capability(deps)(
-            DefineCapability(name=cap_name),
-            principal_id=_PRINCIPAL_ID,
-            correlation_id=_CORRELATION_ID,
-        )
-
-    motor_specs = [
-        ("Aerotech_ABRS_rotary", _ASSET_AEROTECH_ABRS_ID, _CAP_ROTARY_STAGE_ID),
-        ("Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, _CAP_LINEAR_STAGE_ID),
-    ]
-    for asset_name, asset_id, cap_id in motor_specs:
-        await bind_register_asset(deps)(
-            RegisterAsset(name=asset_name, level=AssetLevel.DEVICE, parent_id=_35BM_UNIT_ID),
-            principal_id=_PRINCIPAL_ID,
-            correlation_id=_CORRELATION_ID,
-        )
-        await bind_add_capability(deps)(
-            AddAssetCapability(asset_id=asset_id, capability_id=cap_id),
-            principal_id=_PRINCIPAL_ID,
-            correlation_id=_CORRELATION_ID,
-        )
 
     # ----- Equipment BC: activate both motors (Commissioned -> Active) -----
 

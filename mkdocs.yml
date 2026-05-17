@@ -74,7 +74,7 @@ nav:
       - Agents: deployments/argonne/agents.md
     - APS:
       - deployments/aps/index.md
-      - Site Assets: deployments/aps/site_assets.md
+      - Assets: deployments/aps/assets.md
       - Practices: deployments/aps/practices.md
       - Clearances: deployments/aps/clearances.md
       - Supplies: deployments/aps/supplies.md

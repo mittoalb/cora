@@ -1,6 +1,6 @@
 # APS
 
-*Site-level inventories for APS. Aggregates that hang at the facility level: Site Assets, Practices (ISA-88 Site Recipes), facility-issued Clearances, facility-wide Supplies and Cautions.*
+*Site-level inventories for APS. Aggregates that hang at the facility level: Assets, Practices (ISA-88 Site Recipes), facility-issued Clearances, facility-wide Supplies and Cautions.*
 
 | Property | Value |
 | --- | --- |
@@ -11,7 +11,7 @@
 
 ## Inventories
 
-- [Site Assets](site_assets.md): the APS Site Asset and Area Assets under it
+- [Assets](assets.md): the APS Site Asset and Area Assets under it
 - [Practices](practices.md): Practices with `site_id=APS` (ISA-88 Site Recipes)
 - [Clearances](clearances.md): APS-issued safety clearances
 - [Supplies](supplies.md): facility-wide Supplies (cryogens, beam, shared consumables)
