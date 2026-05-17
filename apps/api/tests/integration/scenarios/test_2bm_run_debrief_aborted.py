@@ -126,10 +126,11 @@ from tests.integration.scenarios._facility_fixture import (
     DeviceSpec,
     facility_id_prefix,
     install_aps_unit,
+    operator_for,
 )
 
 _NOW = datetime(2026, 5, 17, 19, 0, 0, tzinfo=UTC)
-_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000042100")
+_PRINCIPAL_ID = operator_for(__file__)
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000421bb")
 
 # Scenario tag: 421 (operations / debrief variant: EquipmentAbort).
@@ -219,7 +220,6 @@ def _id_queue() -> list[UUID]:
     e = uuid4
     return [
         *facility_id_prefix(
-            principal_id=_PRINCIPAL_ID,
             argonne_id=_ARGONNE_ENTERPRISE_ID,
             aps_site_id=_APS_SITE_ID,
             sector_id=_SECTOR_2_AREA_ID,
@@ -260,14 +260,12 @@ async def test_run_debrief_agent_fires_on_equipment_abort(
 
     await install_aps_unit(
         deps,
-        principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ENTERPRISE_ID,
         aps_site_id=_APS_SITE_ID,
         sector_id=_SECTOR_2_AREA_ID,
         unit_id=_2BM_UNIT_ID,
         devices=_DEVICES,
-        operator_name="2-BM Operator",
         unit_name="2-BM",
         sector_name="Sector 2",
     )

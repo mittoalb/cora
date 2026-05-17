@@ -28,6 +28,7 @@ async def test_register_then_get_then_list(
     assert fetched.json() == {
         "id": str(actor_id),
         "name": "Doga",
+        "kind": "human",
         "is_active": True,
     }
 

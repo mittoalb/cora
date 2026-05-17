@@ -88,10 +88,11 @@ from tests.integration._helpers import build_postgres_deps
 from tests.integration.scenarios._facility_fixture import (
     facility_id_prefix,
     install_aps_unit,
+    operator_for,
 )
 
 _NOW = datetime(2026, 5, 17, 8, 0, 0, tzinfo=UTC)
-_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000040100")  # operator
+_PRINCIPAL_ID = operator_for(__file__)
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000401bb")
 
 # Facility hierarchy. Scenario tag: 401 (operations / beamtime intake).
@@ -116,7 +117,6 @@ def _id_queue() -> list[UUID]:
     e = uuid4
     return [
         *facility_id_prefix(
-            principal_id=_PRINCIPAL_ID,
             argonne_id=_ARGONNE_ENTERPRISE_ID,
             aps_site_id=_APS_SITE_ID,
             sector_id=_SECTOR_2_AREA_ID,
@@ -152,14 +152,12 @@ async def test_beamtime_intake_plays_out_end_to_end(
 
     await install_aps_unit(
         deps,
-        principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ENTERPRISE_ID,
         aps_site_id=_APS_SITE_ID,
         sector_id=_SECTOR_2_AREA_ID,
         unit_id=_2BM_UNIT_ID,
         devices=(),
-        operator_name="2-BM Operations Operator",
         unit_name="2-BM",
     )
 

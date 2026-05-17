@@ -72,6 +72,7 @@ from cora.supply.aggregates.supply import SupplyScope
 from cora.supply.features.register_supply import RegisterSupply
 from cora.supply.features.register_supply import bind as bind_register_supply
 from tests.integration._helpers import build_postgres_deps
+from tests.integration.scenarios._facility_fixture import RUN_DEBRIEF_ACTOR_ID
 
 _NOW = datetime(2026, 5, 17, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000a05000")
@@ -116,7 +117,9 @@ def _id_queue() -> list[UUID]:
         e(),
         # define_agent (RunDebrief, kind=agent): shared_id, actor_event_id, agent_event_id
         # Cross-BC atomic write: ActorRegistered + AgentDefined in one transaction.
-        e(),  # shared agent_id == actor_id
+        # Canonical RUN_DEBRIEF_ACTOR_ID (from _facility_fixture) so the 2-BM
+        # Agent Policy registered by `install_aps_unit` references the same UUID.
+        RUN_DEBRIEF_ACTOR_ID,  # shared agent_id == actor_id
         e(),  # ActorRegistered event id
         e(),  # AgentDefined event id
         # define_capability (generic Probe, for Method to declare): cap_id, event_id
@@ -288,6 +291,7 @@ async def test_facility_install_plays_out_end_to_end(
     assert operator.kind is ActorKind.HUMAN
     assert operator.name.value == "APS Operator"
 
+    assert agent_id == RUN_DEBRIEF_ACTOR_ID  # canonical, shared with 2-BM Agent Policy
     agent = await load_agent(deps.event_store, agent_id)
     assert agent is not None
     assert agent.status is AgentStatus.DEFINED

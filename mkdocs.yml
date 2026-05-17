@@ -84,10 +84,12 @@ nav:
       - Assets: deployments/2-bm/assets.md
       - Procedures: deployments/2-bm/procedures.md
       - Subjects: deployments/2-bm/subjects.md
+      - Runs: deployments/2-bm/runs.md
       - Campaigns: deployments/2-bm/campaigns.md
       - Cautions: deployments/2-bm/cautions.md
       - Datasets: deployments/2-bm/datasets.md
       - Decisions: deployments/2-bm/decisions.md
+      - Policies: deployments/2-bm/policies.md
     - 35-BM:
       - deployments/35-bm/index.md
   - Catalog:

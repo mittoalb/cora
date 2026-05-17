@@ -1,16 +1,78 @@
 """E2E smoke: full Run cascade from Capability to Completed.
 
 Keystone e2e: register every upstream aggregate (Capability + Asset
-+ Method + Practice + Plan + Subject + mount-target Asset), start a
-Run against the chain, complete it, then assert the Completed Run
++ Method + Practice + Plan + Subject + mount-target Asset + an
+Active Safety Clearance bound to the Plan asset), start a Run
+against the chain, complete it, then assert the Completed Run
 appears in the projection-backed list endpoint.
+
+Run-start was gated on at least one Active Safety Clearance in
+Phase 11a-c-3 (`RunRequiresActiveClearanceError`); the production
+`ClearanceLookup` wired here (not `AlwaysCoveredClearanceLookup`)
+returns only what's actually been registered in the local DB, so
+this test walks the 6-step Clearance lifecycle (Defined -> Submitted
+-> UnderReview -> +ReviewStep[Approved] -> Approved -> Active) before
+starting the Run.
 """
 
 from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
+
+
+async def _register_and_activate_clearance(
+    client: AsyncClient,
+    *,
+    facility_asset_id: UUID,
+    bound_asset_id: UUID,
+) -> UUID:
+    """Walk the 6-step Clearance lifecycle so the Run-start safety gate passes.
+
+    `bound_asset_id` is the Asset id the Clearance gates against (matches
+    `ClearanceLookup.find_referencing_run`'s `asset_ids` set). Returns the
+    activated Clearance's id."""
+    registered = await client.post(
+        "/clearances",
+        json={
+            "kind": "ESAF",
+            "facility_asset_id": str(facility_asset_id),
+            "title": "E2E test clearance",
+            "bindings": [{"kind": "Asset", "id": str(bound_asset_id)}],
+        },
+    )
+    assert registered.status_code == 201, registered.text
+    clearance_id = UUID(registered.json()["clearance_id"])
+
+    submitted = await client.post(f"/clearances/{clearance_id}/submit")
+    assert submitted.status_code == 204, submitted.text
+
+    started = await client.post(
+        f"/clearances/{clearance_id}/start_review",
+        json={"first_reviewer_role": "BeamlineScientist"},
+    )
+    assert started.status_code == 204, started.text
+
+    appended = await client.post(
+        f"/clearances/{clearance_id}/review_steps",
+        json={
+            "step_index": 0,
+            "role": "BeamlineScientist",
+            "decision": "Approved",
+            "decided_at": datetime.now(UTC).isoformat(),
+        },
+    )
+    assert appended.status_code == 204, appended.text
+
+    approved = await client.post(f"/clearances/{clearance_id}/approve", json={})
+    assert approved.status_code == 204, approved.text
+
+    activated = await client.post(f"/clearances/{clearance_id}/activate")
+    assert activated.status_code == 204, activated.text
+
+    return clearance_id
 
 
 @pytest.mark.e2e
@@ -66,11 +128,22 @@ async def test_full_run_cascade_to_completed(
     )
     assert mounted.status_code == 204
 
+    # Phase 11a-c-3 safety gate: register + activate a Clearance bound to
+    # the Plan asset so the Run-start safety lookup finds an Active
+    # clearance covering the Run's scope. The lookup is projection-backed
+    # (`proj_safety_clearance_summary`), so drain before starting the Run.
+    await _register_and_activate_clearance(
+        e2e_client,
+        facility_asset_id=UUID(plan_asset_id),
+        bound_asset_id=UUID(plan_asset_id),
+    )
+    await e2e_drain()
+
     started = await e2e_client.post(
         "/runs",
         json={"name": "Run-1", "plan_id": plan_id, "subject_id": subject_id},
     )
-    assert started.status_code == 201
+    assert started.status_code == 201, started.text
     run_id = UUID(started.json()["run_id"])
 
     completed = await e2e_client.post(f"/runs/{run_id}/complete")

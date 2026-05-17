@@ -14,13 +14,41 @@ both together: the prefix MUST sit at the head of `_id_queue()` and the
 install call MUST happen before any scenario-specific commands consume
 the queue. Drift between the two corrupts every downstream id allocation.
 
-## Why scenario-supplied UUIDs (not canonical)
+## Operator pool + Trust shape (canonical, fixture-owned)
 
-Each scenario tags its aggregate ids with a mnemonic hex segment so the
-event store records remain traceable back to the scenario that wrote
-them (e.g., `...000000350e01` for Argonne under the beta-alignment
-scenario, `...000000352e01` under shakedown). The fixture must NOT pick
-canonical UUIDs; it accepts whatever the caller declares as constants.
+The fixture owns canonical UUIDs for:
+
+  - **3 human operators** (`OPERATOR_1_ID/OPERATOR_2_ID/OPERATOR_3_ID`),
+    matching the 1-3-staff-per-beamline reality. Scenarios pick one via
+    `operator_for(__file__)` (round-robin by filename hash) so the same
+    human appears as principal across multiple scenarios, exactly the
+    way real staff do.
+  - **Run Debrief actor id** (`RUN_DEBRIEF_ACTOR_ID`) — the canonical
+    identity of the AI agent, shared with `test_aps_facility.py`'s
+    `define_agent` call. Lives here so the 2-BM Agent Policy can
+    reference it; the actual `Agent` aggregate is only defined in the
+    APS facility scenario (Run Debrief subscribes facility-wide, not
+    per-beamline).
+  - **2-BM Trust shape** (Zone + self-loop Conduit + 2 Policies). The
+    Operations Policy permits the 3 human operators on operator-driven
+    commands; the Agent Policy permits Run Debrief on decision commands.
+    Declarative-only today (`AllowAllAuthorize` is wired for tests); the
+    shape grounds the deployment docs and prepares for the eventual
+    `Authorize` wiring.
+
+This deviates from the scenario-supplied-UUID pattern used for the Asset
+hierarchy (where mnemonic hex tags trace events back to a single
+scenario) — operators and Trust artefacts are SHARED identity by design,
+so the fixture owns their UUIDs.
+
+## Why scenario-supplied UUIDs (Asset hierarchy)
+
+Each scenario tags its Asset-hierarchy aggregate ids with a mnemonic hex
+segment so the event store records remain traceable back to the scenario
+that wrote them (e.g., `...000000350e01` for Argonne under the
+beta-alignment scenario, `...000000352e01` under shakedown). The fixture
+must NOT pick canonical UUIDs for Assets; it accepts whatever the caller
+declares as constants.
 
 ## Usage shape
 
@@ -29,11 +57,11 @@ _DEVICES = (
     DeviceSpec("Aerotech_ABRS_rotary", _ASSET_ROTARY_ID, "RotaryStage", _CAP_ROTARY_ID),
     DeviceSpec("Sample_top_X",         _ASSET_LINEAR_ID, "LinearStage", _CAP_LINEAR_ID),
 )
+_PRINCIPAL_ID = operator_for(__file__)
 
 def _id_queue() -> list[UUID]:
     return [
         *facility_id_prefix(
-            principal_id=_PRINCIPAL_ID,
             argonne_id=_ARGONNE_ID,
             aps_site_id=_APS_ID,
             sector_id=_SECTOR_ID,
@@ -47,19 +75,19 @@ async def test_...(db_pool):
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
     await install_aps_unit(
         deps,
-        principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ID,
         aps_site_id=_APS_ID,
         sector_id=_SECTOR_ID,
         unit_id=_UNIT_ID,
         devices=_DEVICES,
-        operator_name="2-BM Shakedown Operator",
     )
-    # ... scenario-specific commands follow
+    # ... scenario-specific commands follow, using _PRINCIPAL_ID
 ```
 """
 
+import hashlib
+import os
 from collections.abc import Sequence
 from dataclasses import dataclass
 from uuid import UUID, uuid4
@@ -74,6 +102,96 @@ from cora.equipment.features.define_capability import bind as bind_define_capabi
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.register_asset import bind as bind_register_asset
 from cora.infrastructure.kernel import Kernel
+from cora.trust.features.define_conduit import DefineConduit
+from cora.trust.features.define_conduit import bind as bind_define_conduit
+from cora.trust.features.define_policy import DefinePolicy
+from cora.trust.features.define_policy import bind as bind_define_policy
+from cora.trust.features.define_zone import DefineZone
+from cora.trust.features.define_zone import bind as bind_define_zone
+
+# ---------------------------------------------------------------------------
+# Canonical, fixture-owned UUIDs (shared identity across all 2-BM scenarios).
+# Mnemonic hex tags in last segment: a=actor (operator pool + agent),
+# b=trust shape (b01=zone, b02=conduit, b03=ops policy, b04=agent policy).
+# ---------------------------------------------------------------------------
+
+OPERATOR_1_ID = UUID("01900000-0000-7000-8000-000000002a01")
+OPERATOR_2_ID = UUID("01900000-0000-7000-8000-000000002a02")
+OPERATOR_3_ID = UUID("01900000-0000-7000-8000-000000002a03")
+OPERATOR_POOL_IDS: tuple[UUID, UUID, UUID] = (OPERATOR_1_ID, OPERATOR_2_ID, OPERATOR_3_ID)
+OPERATOR_NAMES: tuple[str, str, str] = ("2-BM Operator 1", "2-BM Operator 2", "2-BM Operator 3")
+
+# Canonical Run Debrief actor id. The `Agent` aggregate is registered
+# only in `test_aps_facility.py`; this constant lets the 2-BM Agent
+# Policy reference the same UUID even though no `Actor` record for it
+# exists in 2-BM scenario DBs (Trust BC has no referential integrity at
+# command time — see `policy/state.py` docstring).
+RUN_DEBRIEF_ACTOR_ID = UUID("01900000-0000-7000-8000-000000002a99")
+
+# 2-BM Trust shape. Self-loop Conduit (source==target==2-BM Zone) because
+# the 2-BM scenarios don't yet model cross-zone flows; the Conduit exists
+# so the Policies have something to attach to.
+BM2_ZONE_ID = UUID("01900000-0000-7000-8000-000000002b01")
+BM2_LOCAL_CONDUIT_ID = UUID("01900000-0000-7000-8000-000000002b02")
+BM2_OPERATIONS_POLICY_ID = UUID("01900000-0000-7000-8000-000000002b03")
+BM2_AGENT_POLICY_ID = UUID("01900000-0000-7000-8000-000000002b04")
+
+# Representative command lists. These do not exhaustively enumerate every
+# command an operator / agent ever runs; they document the canonical
+# operator-driven vs. agent-driven boundary and will be expanded when
+# `Authorize` wiring lands and the policies become enforcement (not just
+# documentation) of the seam.
+_OPERATIONS_COMMANDS: frozenset[str] = frozenset(
+    {
+        "ActivateAsset",
+        "DegradeAsset",
+        "RestoreAsset",
+        "AddAssetCapability",
+        "RegisterSubject",
+        "MountSubject",
+        "DismountSubject",
+        "DefineMethod",
+        "DefinePractice",
+        "DefinePlan",
+        "RegisterProcedure",
+        "StartProcedure",
+        "CompleteProcedure",
+        "AppendProcedureSteps",
+        "StartRun",
+        "StopRun",
+        "AbortRun",
+        "AdjustRun",
+        "RegisterDataset",
+        "PromoteDataset",
+        "RegisterCaution",
+        "RegisterClearance",
+        "AmendClearance",
+        "RegisterSupply",
+        "RegisterCampaign",
+        "AddRunToCampaign",
+    }
+)
+_AGENT_COMMANDS: frozenset[str] = frozenset(
+    {
+        "RegisterDecision",
+        "RateDecision",
+        "AppendReasoningEntry",
+    }
+)
+
+
+def operator_for(scenario_file: str) -> UUID:
+    """Round-robin operator selection by stable hash of the scenario filename.
+
+    Pass `__file__` from the scenario module. Only the basename is hashed
+    so moving files between directories doesn't reshuffle assignments.
+    Uses blake2b for stability across Python versions (unlike `hash()`,
+    which is per-interpreter-run randomized).
+    """
+    basename = os.path.basename(scenario_file)
+    digest = hashlib.blake2b(basename.encode("utf-8"), digest_size=4).digest()
+    idx = int.from_bytes(digest, "big") % len(OPERATOR_POOL_IDS)
+    return OPERATOR_POOL_IDS[idx]
 
 
 @dataclass(frozen=True)
@@ -90,21 +208,26 @@ class DeviceSpec:
 @dataclass(frozen=True)
 class FacilityIds:
     """IDs of every aggregate registered by `install_aps_unit()`.
-    Returned for callers that want to reference them post-install without
-    re-importing module-level constants."""
 
-    principal_id: UUID
+    Returned for callers that want to reference them post-install without
+    re-importing module-level constants. Operator + Trust-shape ids are
+    fixture-owned canonical constants; the rest are scenario-supplied."""
+
+    operator_pool_ids: tuple[UUID, UUID, UUID]
     argonne_id: UUID
     aps_site_id: UUID
     sector_id: UUID
     unit_id: UUID
     device_ids: tuple[UUID, ...]
     cap_ids: tuple[UUID, ...]
+    bm2_zone_id: UUID
+    bm2_local_conduit_id: UUID
+    bm2_operations_policy_id: UUID
+    bm2_agent_policy_id: UUID
 
 
 def facility_id_prefix(
     *,
-    principal_id: UUID,
     argonne_id: UUID,
     aps_site_id: UUID,
     sector_id: UUID,
@@ -114,20 +237,30 @@ def facility_id_prefix(
     """FixedIdGenerator queue prefix for `install_aps_unit()`.
 
     Ordering mirrors the ceremony exactly:
-      1. register_actor: principal_id, event
+      1. register_actor x 3 (operator pool, canonical ids): actor_id, event
       2. register_asset Argonne (Enterprise): argonne_id, event
       3. register_asset APS (Site): aps_site_id, event
       4. register_asset Sector (Area, parent=APS): sector_id, event
       5. register_asset Unit (parent=Sector): unit_id, event
       6. define_capability x N (in `devices` order): cap_id, event
       7. register_asset + add_asset_capability x N: asset_id, register_event, addcap_event
+      8. define_zone (2-BM Zone, canonical id): zone_id, event
+      9. define_conduit (2-BM Local Conduit, self-loop): conduit_id, event
+     10. define_policy x 2 (Operations + Agent, canonical ids): policy_id, event
 
-    Anonymous event ids use `uuid4()`. Total length = 10 + 5 * N device entries.
+    Anonymous event ids use `uuid4()`. Total length = 6 + 8 + 5 * N + 10 = 24 + 5 * N.
+    (Trust block = 10: zone[2] + conduit[4 — agg + logbook + 2 events] + 2 policies[2 each].)
     """
     e = uuid4
     ids: list[UUID] = [
-        principal_id,
+        # 3 operators (fixture-owned canonical UUIDs)
+        OPERATOR_1_ID,
         e(),
+        OPERATOR_2_ID,
+        e(),
+        OPERATOR_3_ID,
+        e(),
+        # Asset hierarchy (scenario-supplied UUIDs)
         argonne_id,
         e(),
         aps_site_id,
@@ -141,28 +274,55 @@ def facility_id_prefix(
         ids.extend([d.cap_id, e()])
     for d in devices:
         ids.extend([d.asset_id, e(), e()])
+    # Trust shape (fixture-owned canonical UUIDs).
+    # define_conduit consumes FOUR slots from the id queue:
+    #   1. conduit aggregate id
+    #   2. traversals_logbook_id (auto-opened logbook id; see
+    #      conduit/handler.py line 96 — distinct from the event id)
+    #   3. ConduitDefined event id
+    #   4. LogbookOpened event id
+    # See conduit/state.py docstring for why the traversals logbook
+    # auto-opens at conduit-creation.
+    ids.extend(
+        [
+            BM2_ZONE_ID,
+            e(),
+            BM2_LOCAL_CONDUIT_ID,
+            e(),
+            e(),
+            e(),
+            BM2_OPERATIONS_POLICY_ID,
+            e(),
+            BM2_AGENT_POLICY_ID,
+            e(),
+        ]
+    )
     return ids
 
 
 async def install_aps_unit(
     deps: Kernel,
     *,
-    principal_id: UUID,
     correlation_id: UUID,
     argonne_id: UUID,
     aps_site_id: UUID,
     sector_id: UUID,
     unit_id: UUID,
     devices: Sequence[DeviceSpec],
-    operator_name: str = "2-BM Operator",
     unit_name: str = "2-BM",
     sector_name: str = "Sector 2",
 ) -> FacilityIds:
     """Execute the canonical facility-install ceremony for a 2-BM-shape Unit.
 
-    Order matches `facility_id_prefix()` exactly: actor, then
+    Order matches `facility_id_prefix()` exactly: 3 operators, then
     Argonne -> APS -> Sector -> Unit, then all Capabilities defined,
-    then all Devices registered + their Capabilities linked.
+    then all Devices registered + their Capabilities linked, then the
+    2-BM Trust shape (Zone + Conduit + Operations Policy + Agent Policy).
+
+    All install events are attributed to `OPERATOR_1_ID` (bootstrap
+    convention; the first operator-registration event is self-attributed
+    by necessity, and the rest follow for narrative consistency — "the
+    lead operator installed the beamline equipment").
 
     APS organizes beamlines into sectors; the Sector sits at the
     `Area` level between `APS` (Site) and the beamline (Unit). The
@@ -172,11 +332,17 @@ async def install_aps_unit(
     both parameterize for future beamline scenarios (35-BM under
     Sector 35, 7-BM under Sector 7, etc.).
     """
-    await bind_register_actor(deps)(
-        RegisterActor(name=operator_name),
-        principal_id=principal_id,
-        correlation_id=correlation_id,
-    )
+    principal_id = OPERATOR_1_ID
+
+    # ----- Access BC: register the 3-operator pool -----
+    for actor_name in OPERATOR_NAMES:
+        await bind_register_actor(deps)(
+            RegisterActor(name=actor_name),
+            principal_id=principal_id,
+            correlation_id=correlation_id,
+        )
+
+    # ----- Equipment BC: Asset hierarchy + Devices -----
     await bind_register_asset(deps)(
         RegisterAsset(name="Argonne", level=AssetLevel.ENTERPRISE, parent_id=None),
         principal_id=principal_id,
@@ -214,20 +380,72 @@ async def install_aps_unit(
             principal_id=principal_id,
             correlation_id=correlation_id,
         )
-    return FacilityIds(
+
+    # ----- Trust BC: 2-BM Zone + self-loop Conduit + 2 Policies -----
+    await bind_define_zone(deps)(
+        DefineZone(name=f"{unit_name} Zone"),
         principal_id=principal_id,
+        correlation_id=correlation_id,
+    )
+    await bind_define_conduit(deps)(
+        DefineConduit(
+            name=f"{unit_name} Local Conduit",
+            source_zone_id=BM2_ZONE_ID,
+            target_zone_id=BM2_ZONE_ID,
+        ),
+        principal_id=principal_id,
+        correlation_id=correlation_id,
+    )
+    await bind_define_policy(deps)(
+        DefinePolicy(
+            name=f"{unit_name} Operations Policy",
+            conduit_id=BM2_LOCAL_CONDUIT_ID,
+            permitted_principals=frozenset(OPERATOR_POOL_IDS),
+            permitted_commands=_OPERATIONS_COMMANDS,
+        ),
+        principal_id=principal_id,
+        correlation_id=correlation_id,
+    )
+    await bind_define_policy(deps)(
+        DefinePolicy(
+            name=f"{unit_name} Agent Policy",
+            conduit_id=BM2_LOCAL_CONDUIT_ID,
+            permitted_principals=frozenset({RUN_DEBRIEF_ACTOR_ID}),
+            permitted_commands=_AGENT_COMMANDS,
+        ),
+        principal_id=principal_id,
+        correlation_id=correlation_id,
+    )
+
+    return FacilityIds(
+        operator_pool_ids=OPERATOR_POOL_IDS,
         argonne_id=argonne_id,
         aps_site_id=aps_site_id,
         sector_id=sector_id,
         unit_id=unit_id,
         device_ids=tuple(d.asset_id for d in devices),
         cap_ids=tuple(d.cap_id for d in devices),
+        bm2_zone_id=BM2_ZONE_ID,
+        bm2_local_conduit_id=BM2_LOCAL_CONDUIT_ID,
+        bm2_operations_policy_id=BM2_OPERATIONS_POLICY_ID,
+        bm2_agent_policy_id=BM2_AGENT_POLICY_ID,
     )
 
 
 __all__ = [
+    "BM2_AGENT_POLICY_ID",
+    "BM2_LOCAL_CONDUIT_ID",
+    "BM2_OPERATIONS_POLICY_ID",
+    "BM2_ZONE_ID",
+    "OPERATOR_1_ID",
+    "OPERATOR_2_ID",
+    "OPERATOR_3_ID",
+    "OPERATOR_NAMES",
+    "OPERATOR_POOL_IDS",
+    "RUN_DEBRIEF_ACTOR_ID",
     "DeviceSpec",
     "FacilityIds",
     "facility_id_prefix",
     "install_aps_unit",
+    "operator_for",
 ]
