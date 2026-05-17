@@ -4,8 +4,11 @@
 
 | Campaign | `intent` | Tags | Status |
 | --- | --- | --- | --- |
+| `Proposal 2026-1234 beamtime` | `Coordinated` | `proposal`, `tomography`, `porous_media` | `Planned` |
 
-No 2-BM Campaigns are registered in code yet. The Campaign BC enters scope at operations phase: every proposal-driven beamtime yields at least one Campaign (the proposal itself), and intra-beamtime acquisition modes (continuous-rotation, mosaic, energy-sweep, in-situ) add further Campaigns with specific `intent` values.
+Source of truth: [`apps/api/tests/integration/scenarios/test_2bm_beamtime_intake.py`](../../../apps/api/tests/integration/scenarios/test_2bm_beamtime_intake.py).
+
+The Campaign was opened by the operator (acting on the PI's behalf) during beamtime intake; `lead_actor_id` resolves to `Dr. PI (Proposal 2026-1234 lead)` (see [Argonne Actors](../argonne/actors.md)), `subject_id` resolves to the registered sandstone-core Subject (see [Subjects](subjects.md)). The Campaign stays in `Planned` until the first Run is added (`start_campaign` transitions to `Active`).
 
 ## Pending in code
 
@@ -13,7 +16,6 @@ The following Campaigns are surfaced by the [2-BM repo survey](https://github.co
 
 | Pending Campaign | `intent` | Tags | Source scenario (planned) |
 | --- | --- | --- | --- |
-| Proposal beamtime Campaign | `Coordinated` | `proposal`, `<technique-per-proposal>` | `tests/integration/scenarios/test_2bm_beamtime_intake.py` (proposal-scoped Campaign; lead_actor_id = PI; opens at beamtime start via `dmagic show` + `dmagic tag`) |
 | Continuous-rotation sweep | `Series` | `tomography`, `continuous_rotation` | `tests/integration/scenarios/test_2bm_continuous_rotation_sweep.py` (N child Runs sharing one Plan; one TomoScan call collects 100 datasets x 1500 projections in one fly per `pre_apsu/ops/item_025.rst`) |
 | Mosaic acquisition | `Coordinated` | `tomography`, `mosaic` | `tests/integration/scenarios/test_2bm_mosaic_acquisition.py` (parameter sweep across tile XY; filename pattern `<Subject>_mosaic_NNN.h5` per `ops/item_030.rst`) |
 | Alignment-chain orchestration | `Coordinated` | `alignment`, `auto_chain` | `tests/integration/scenarios/test_2bm_alignment_auto_chain.py` (composes the 5 alignment Runs + calibration + a Step-1 re-run; mirrors `align/auto.py` orchestration) |

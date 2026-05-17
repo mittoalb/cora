@@ -4,8 +4,9 @@
 
 | Subject | Class | Proposal | Status |
 | --- | --- | --- | --- |
+| `porous sandstone core (Proposal 2026-1234, sample A)` | porous-media core (sandstone) | `2026-1234` | `Received` |
 
-No 2-BM Subjects are registered in code yet. The Subject BC enters scope at operations phase (first proposal-driven user acquisition); the corpus today is rooted at install / shakedown / commissioning / beta, none of which mount a sample for science.
+Source of truth: [`apps/api/tests/integration/scenarios/test_2bm_beamtime_intake.py`](../../../apps/api/tests/integration/scenarios/test_2bm_beamtime_intake.py).
 
 ## Pending in code
 
@@ -13,8 +14,8 @@ The following Subjects are surfaced by the [2-BM repo survey](https://github.com
 
 | Pending Subject | Class | Source scenario (planned) |
 | --- | --- | --- |
-| Proposal PI sample (first canonical acquisition) | Sample-class TBD per first proposal | `tests/integration/scenarios/test_2bm_first_proposal_scan.py` (canonical first user acquisition; full Subject mount + Plan + Run + Dataset loop) |
-| Proposal co-I sample roster | Multi-sample-class per proposal | `tests/integration/scenarios/test_2bm_beamtime_intake.py` (`dmagic` pulls proposal metadata + tags TomoScan IOC; PI + co-Is registered as Actors, samples as Subjects) |
+| Mounted sandstone core (post-mount lifecycle transition) | Same Subject as above, advanced to `Mounted` | `tests/integration/scenarios/test_2bm_mount_sample.py` (Phase O-2: Subject lifecycle `Received -> Mounted`) |
+| Proposal co-I sample roster | Multi-sample-class per proposal | `tests/integration/scenarios/test_2bm_beamtime_intake.py` (extension: `dmagic` pulls proposal metadata + tags TomoScan IOC; PI + co-Is registered as Actors, samples as Subjects) |
 | Mosaic-acquisition shared Subject | Single Subject under Campaign(intent=Coordinated) | `tests/integration/scenarios/test_2bm_mosaic_acquisition.py` (N tiled scans share one Subject) |
 | Continuous-rotation shared Subject | Single Subject under Campaign(intent=Series) | `tests/integration/scenarios/test_2bm_continuous_rotation_sweep.py` (N back-to-back acquisitions on one mounted sample) |
 | Calibration phantom (Siemens star, USAF 1951, sphere) | Calibration-class Subject (kinematic-mounted, no proposal) | Not yet sourced as its own scenario; the alignment scenarios use sphere fixtures inline today without registering them as Subjects |
