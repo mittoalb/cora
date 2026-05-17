@@ -15,12 +15,19 @@ Subject / Equipment / Supply / Safety / Caution:
      misses both attribute to the tracing span.
   3. `with_tracing` -- OTel span around every handler call.
 
-## Wired handlers (8f-a)
+## Wired handlers (8f-c iter 2)
 
-  - `define_agent`    (cross-BC atomic; create-style; idempotency-wrapped)
-  - `version_agent`   (transition; no idempotency wrap)
-  - `deprecate_agent` (transition; no idempotency wrap)
-  - `get_agent`       (query)
+  - `define_agent`            (cross-BC atomic; create-style;
+                               idempotency-wrapped)
+  - `version_agent`           (transition; no idempotency wrap)
+  - `deprecate_agent`         (transition; no idempotency wrap)
+  - `suspend_agent`           (transition; no idempotency wrap)
+  - `resume_agent`            (transition; no idempotency wrap)
+  - `grant_tool_to_agent`     (transition; idempotent; no wrap)
+  - `revoke_tool_from_agent`  (transition; idempotent; no wrap)
+  - `revise_agent_budget`     (transition; idempotent; no wrap)
+  - `get_agent`               (query)
+  - `re_debrief_run`          (operator-triggered; idempotency-wrapped)
 """
 
 from dataclasses import dataclass
@@ -30,7 +37,12 @@ from cora.agent.features import (
     define_agent,
     deprecate_agent,
     get_agent,
+    grant_tool_to_agent,
     re_debrief_run,
+    resume_agent,
+    revise_agent_budget,
+    revoke_tool_from_agent,
+    suspend_agent,
     version_agent,
 )
 from cora.infrastructure.idempotency import with_idempotency
@@ -47,6 +59,11 @@ class AgentHandlers:
     define_agent: define_agent.IdempotentHandler
     version_agent: version_agent.Handler
     deprecate_agent: deprecate_agent.Handler
+    suspend_agent: suspend_agent.Handler
+    resume_agent: resume_agent.Handler
+    grant_tool_to_agent: grant_tool_to_agent.Handler
+    revoke_tool_from_agent: revoke_tool_from_agent.Handler
+    revise_agent_budget: revise_agent_budget.Handler
     get_agent: get_agent.Handler
     re_debrief_run: re_debrief_run.IdempotentHandler | None
 
@@ -101,6 +118,31 @@ def wire_agent(deps: Kernel) -> AgentHandlers:
         deprecate_agent=with_tracing(
             deprecate_agent.bind(deps),
             command_name="DeprecateAgent",
+            bc=_BC,
+        ),
+        suspend_agent=with_tracing(
+            suspend_agent.bind(deps),
+            command_name="SuspendAgent",
+            bc=_BC,
+        ),
+        resume_agent=with_tracing(
+            resume_agent.bind(deps),
+            command_name="ResumeAgent",
+            bc=_BC,
+        ),
+        grant_tool_to_agent=with_tracing(
+            grant_tool_to_agent.bind(deps),
+            command_name="GrantToolToAgent",
+            bc=_BC,
+        ),
+        revoke_tool_from_agent=with_tracing(
+            revoke_tool_from_agent.bind(deps),
+            command_name="RevokeToolFromAgent",
+            bc=_BC,
+        ),
+        revise_agent_budget=with_tracing(
+            revise_agent_budget.bind(deps),
+            command_name="ReviseAgentBudget",
             bc=_BC,
         ),
         get_agent=with_tracing(

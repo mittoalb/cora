@@ -6,8 +6,13 @@ from uuid import uuid4
 import pytest
 
 from cora.agent.aggregates.agent.events import (
+    AgentBudgetRevised,
     AgentDefined,
     AgentDeprecated,
+    AgentResumed,
+    AgentSuspended,
+    AgentToolGranted,
+    AgentToolRevoked,
     AgentVersioned,
     deserialize_model_ref,
     event_type_name,
@@ -131,6 +136,12 @@ def test_to_payload_serializes_agent_defined_minimal() -> None:
         "prompt_template_id": None,
         "capabilities": [],
         "occurred_at": _NOW.isoformat(),
+        # Phase 8f-c iter 2: additive payload fields default to empty / None
+        # on a minimal define (operators add tools / budget via separate
+        # commands post-genesis).
+        "tools": [],
+        "budget_monthly_usd_cap": None,
+        "budget_daily_token_cap": None,
     }
 
 
@@ -259,6 +270,156 @@ def test_round_trip_agent_deprecated() -> None:
     original = AgentDeprecated(agent_id=uuid4(), reason="model retired", occurred_at=_NOW)
     stored = _stored("AgentDeprecated", to_payload(original))
     assert from_stored(stored) == original
+
+
+# ---------- Phase 8f-c iter 2: Suspended / Resumed / ToolGrant / Budget ----------
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_agent_suspended() -> None:
+    agent_id = uuid4()
+    e = AgentSuspended(agent_id=agent_id, reason="cost overrun", occurred_at=_NOW)
+    assert to_payload(e) == {
+        "agent_id": str(agent_id),
+        "reason": "cost overrun",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_round_trip_agent_suspended() -> None:
+    original = AgentSuspended(agent_id=uuid4(), reason="x", occurred_at=_NOW)
+    stored = _stored("AgentSuspended", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_agent_resumed() -> None:
+    agent_id = uuid4()
+    e = AgentResumed(agent_id=agent_id, occurred_at=_NOW)
+    assert to_payload(e) == {
+        "agent_id": str(agent_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_round_trip_agent_resumed() -> None:
+    original = AgentResumed(agent_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("AgentResumed", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_agent_tool_granted() -> None:
+    agent_id = uuid4()
+    e = AgentToolGranted(agent_id=agent_id, tool_name="read_run", occurred_at=_NOW)
+    assert to_payload(e) == {
+        "agent_id": str(agent_id),
+        "tool_name": "read_run",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_round_trip_agent_tool_granted() -> None:
+    original = AgentToolGranted(agent_id=uuid4(), tool_name="read_run", occurred_at=_NOW)
+    stored = _stored("AgentToolGranted", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_agent_tool_revoked() -> None:
+    agent_id = uuid4()
+    e = AgentToolRevoked(agent_id=agent_id, tool_name="read_run", occurred_at=_NOW)
+    assert to_payload(e) == {
+        "agent_id": str(agent_id),
+        "tool_name": "read_run",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_round_trip_agent_tool_revoked() -> None:
+    original = AgentToolRevoked(agent_id=uuid4(), tool_name="read_run", occurred_at=_NOW)
+    stored = _stored("AgentToolRevoked", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_agent_budget_revised_both_caps() -> None:
+    agent_id = uuid4()
+    e = AgentBudgetRevised(
+        agent_id=agent_id,
+        monthly_usd_cap=100.0,
+        daily_token_cap=500_000,
+        occurred_at=_NOW,
+    )
+    assert to_payload(e) == {
+        "agent_id": str(agent_id),
+        "monthly_usd_cap": 100.0,
+        "daily_token_cap": 500_000,
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_round_trip_agent_budget_revised_with_null_caps() -> None:
+    original = AgentBudgetRevised(
+        agent_id=uuid4(), monthly_usd_cap=None, daily_token_cap=None, occurred_at=_NOW
+    )
+    stored = _stored("AgentBudgetRevised", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_agent_defined_round_trip_with_tools_and_budget_caps() -> None:
+    """Iter 2 payload fields round-trip even when set non-default."""
+    original = AgentDefined(
+        agent_id=uuid4(),
+        kind="RunDebrief",
+        name="Run Debrief",
+        version="v1",
+        model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
+        description=None,
+        canonical_uri=None,
+        prompt_template_id=None,
+        capabilities=frozenset(),
+        occurred_at=_NOW,
+        tools=frozenset({"read_run", "read_dataset"}),
+        budget_monthly_usd_cap=200.0,
+        budget_daily_token_cap=2_000_000,
+    )
+    stored = _stored("AgentDefined", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_agent_defined_from_stored_tolerates_pre_iter2_payload() -> None:
+    """Pre-iter-2 streams have no tools / budget keys; from_stored must default."""
+    agent_id = uuid4()
+    pre_iter2_payload: dict[str, object] = {
+        "agent_id": str(agent_id),
+        "kind": "RunDebrief",
+        "name": "Run Debrief",
+        "version": "v1",
+        "model_ref": {
+            "provider": "anthropic",
+            "model": "claude-sonnet-4-6",
+            "snapshot_pin": None,
+        },
+        "description": None,
+        "canonical_uri": None,
+        "prompt_template_id": None,
+        "capabilities": [],
+        "occurred_at": _NOW.isoformat(),
+        # tools / budget_* fields absent
+    }
+    rebuilt = from_stored(_stored("AgentDefined", pre_iter2_payload))
+    assert isinstance(rebuilt, AgentDefined)
+    assert rebuilt.tools == frozenset()
+    assert rebuilt.budget_monthly_usd_cap is None
+    assert rebuilt.budget_daily_token_cap is None
 
 
 # ---------- Foreign event_type fails loud ----------

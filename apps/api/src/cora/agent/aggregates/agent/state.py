@@ -55,6 +55,9 @@ AGENT_CANONICAL_URI_MAX_LENGTH = 2000
 AGENT_CAPABILITY_MAX_LENGTH = 100
 AGENT_CAPABILITIES_MAX_COUNT = 32
 AGENT_DEPRECATION_REASON_MAX_LENGTH = 500
+AGENT_SUSPENSION_REASON_MAX_LENGTH = 500
+AGENT_TOOL_NAME_MAX_LENGTH = 100
+AGENT_TOOLS_MAX_COUNT = 32
 MODEL_REF_PROVIDER_MAX_LENGTH = 100
 MODEL_REF_MODEL_MAX_LENGTH = 200
 MODEL_REF_SNAPSHOT_PIN_MAX_LENGTH = 100
@@ -63,7 +66,7 @@ MODEL_REF_SNAPSHOT_PIN_MAX_LENGTH = 100
 class AgentStatus(StrEnum):
     """The Agent's lifecycle state.
 
-    Three values locked day one per [[project_agent_bc_design]]:
+    Four values:
 
       - `Defined`    -- registered as config; NOT yet ready for
                         invocation (8f-b's subscriber filters on
@@ -72,13 +75,23 @@ class AgentStatus(StrEnum):
                         deploy-style signal. Multiple Versioned
                         Agents may exist concurrently (different
                         `id`s sharing `kind`).
+      - `Suspended`  -- (Phase 8f-c iter 2) non-terminal operator-
+                        pause from `Versioned`. Returns to
+                        `Versioned` via `resume_agent`. Config
+                        changes (tools, budget) still permitted so
+                        the operator can fix permissions while
+                        paused. Cannot re-Version from Suspended
+                        (resume is its own dedicated verb).
       - `Deprecated` -- terminal; cannot be re-Defined or re-
                         Versioned. Future invocations must pick a
                         non-Deprecated Agent of the same kind.
+                        Reachable from `Defined`, `Versioned`, or
+                        `Suspended`.
     """
 
     DEFINED = "Defined"
     VERSIONED = "Versioned"
+    SUSPENDED = "Suspended"
     DEPRECATED = "Deprecated"
 
 
@@ -184,6 +197,61 @@ class InvalidAgentDeprecationReasonError(ValueError):
         self.value = value
 
 
+class InvalidAgentSuspensionReasonError(ValueError):
+    """The supplied suspension reason is empty, whitespace-only, or too long.
+
+    Mirrors `InvalidAgentDeprecationReasonError` shape. Suspension
+    reason carries operator-supplied free text (cost-overrun,
+    output-spike, model-regression context) that operators reading
+    the audit log later need.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Agent suspension reason must be 1-{AGENT_SUSPENSION_REASON_MAX_LENGTH} chars "
+            f"after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+class InvalidToolNameError(ValueError):
+    """The supplied MCP tool name is empty, whitespace-only, or too long.
+
+    Cap matches MCP tool-naming convention as of 2025-11-25 spec
+    revision; tightening to a formal BNF is a watch item in
+    [[project-agent-lifecycle-grants-design]].
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Tool name must be 1-{AGENT_TOOL_NAME_MAX_LENGTH} chars after trimming "
+            f"(got: {value!r})"
+        )
+        self.value = value
+
+
+class AgentToolsExceedsLimitError(ValueError):
+    """A grant_tool_to_agent call would push `Agent.tools` past
+    `AGENT_TOOLS_MAX_COUNT` entries. Mirrors
+    `InvalidAgentCapabilitiesError` shape."""
+
+    def __init__(self, count: int) -> None:
+        super().__init__(
+            f"Agent tools must have at most {AGENT_TOOLS_MAX_COUNT} entries (got: {count})"
+        )
+        self.count = count
+
+
+class InvalidAgentBudgetError(ValueError):
+    """The supplied AgentBudget violates an invariant: both fields
+    None (use `Agent.budget = None` for clearing), OR a negative
+    cap."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"AgentBudget invalid: {reason}")
+        self.reason = reason
+
+
 class InvalidModelRefError(ValueError):
     """The supplied ModelRef has empty / whitespace-only / over-cap fields."""
 
@@ -239,15 +307,105 @@ class AgentCannotVersionError(Exception):
 class AgentCannotDeprecateError(Exception):
     """Attempted `deprecate_agent` from a disqualifying status.
 
-    Source set is `{Defined, Versioned}`. Cannot re-deprecate an
-    already-Deprecated agent (strict-not-idempotent).
+    Source set is `{Defined, Versioned, Suspended}`. Cannot re-
+    deprecate an already-Deprecated agent (strict-not-idempotent).
+    Phase 8f-c iter 2 added `Suspended` to the source set so an
+    operator who paused an agent can still retire it without
+    resuming first.
     """
 
     def __init__(self, agent_id: UUID, current_status: "AgentStatus") -> None:
         super().__init__(
             f"Agent {agent_id} cannot be deprecated: currently in status "
-            f"{current_status.value}, deprecate_agent requires {AgentStatus.DEFINED.value} or "
-            f"{AgentStatus.VERSIONED.value}"
+            f"{current_status.value}, deprecate_agent requires {AgentStatus.DEFINED.value}, "
+            f"{AgentStatus.VERSIONED.value}, or {AgentStatus.SUSPENDED.value}"
+        )
+        self.agent_id = agent_id
+        self.current_status = current_status
+
+
+class AgentCannotSuspendError(Exception):
+    """Attempted `suspend_agent` from a disqualifying status.
+
+    Source set is `{Versioned}` only. `Defined` agents aren't yet
+    invocable so suspension is meaningless; `Suspended` agents are
+    already paused (strict-not-idempotent); `Deprecated` agents are
+    terminal. Phase 8f-c iter 2.
+    """
+
+    def __init__(self, agent_id: UUID, current_status: "AgentStatus") -> None:
+        super().__init__(
+            f"Agent {agent_id} cannot be suspended: currently in status "
+            f"{current_status.value}, suspend_agent requires {AgentStatus.VERSIONED.value}"
+        )
+        self.agent_id = agent_id
+        self.current_status = current_status
+
+
+class AgentCannotResumeError(Exception):
+    """Attempted `resume_agent` from a disqualifying status.
+
+    Source set is `{Suspended}` only. Resume's contract is
+    "return a paused agent to active"; any other current state
+    means the operator is doing the wrong thing. Phase 8f-c iter 2.
+    """
+
+    def __init__(self, agent_id: UUID, current_status: "AgentStatus") -> None:
+        super().__init__(
+            f"Agent {agent_id} cannot be resumed: currently in status "
+            f"{current_status.value}, resume_agent requires {AgentStatus.SUSPENDED.value}"
+        )
+        self.agent_id = agent_id
+        self.current_status = current_status
+
+
+class AgentCannotGrantToolError(Exception):
+    """Attempted `grant_tool_to_agent` against a `Deprecated` agent.
+
+    Tool grants are allowed from `Defined`, `Versioned`, AND
+    `Suspended` so operators can fix permissions while an agent is
+    paused. `Deprecated` is the only blocking state (terminal, no
+    config changes). Phase 8f-c iter 2.
+    """
+
+    def __init__(self, agent_id: UUID, current_status: "AgentStatus") -> None:
+        super().__init__(
+            f"Agent {agent_id} cannot grant tools: currently in status "
+            f"{current_status.value}; grants are blocked in {AgentStatus.DEPRECATED.value}"
+        )
+        self.agent_id = agent_id
+        self.current_status = current_status
+
+
+class AgentCannotRevokeToolError(Exception):
+    """Attempted `revoke_tool_from_agent` against a `Deprecated` agent.
+
+    Same source-set rule as `AgentCannotGrantToolError`. Phase 8f-c
+    iter 2.
+    """
+
+    def __init__(self, agent_id: UUID, current_status: "AgentStatus") -> None:
+        super().__init__(
+            f"Agent {agent_id} cannot revoke tools: currently in status "
+            f"{current_status.value}; revocations are blocked in "
+            f"{AgentStatus.DEPRECATED.value}"
+        )
+        self.agent_id = agent_id
+        self.current_status = current_status
+
+
+class AgentCannotReviseBudgetError(Exception):
+    """Attempted `revise_agent_budget` against a `Deprecated` agent.
+
+    Same source-set rule as `AgentCannotGrantToolError`. Phase 8f-c
+    iter 2.
+    """
+
+    def __init__(self, agent_id: UUID, current_status: "AgentStatus") -> None:
+        super().__init__(
+            f"Agent {agent_id} cannot revise budget: currently in status "
+            f"{current_status.value}; revisions are blocked in "
+            f"{AgentStatus.DEPRECATED.value}"
         )
         self.agent_id = agent_id
         self.current_status = current_status
@@ -449,6 +607,89 @@ class AgentDeprecationReason:
 
 
 @dataclass(frozen=True)
+class AgentSuspensionReason:
+    """Operator-supplied reason at suspension time. Trimmed; 1-500 chars.
+
+    Phase 8f-c iter 2. Mirrors `AgentDeprecationReason` shape;
+    carries cost-overrun / output-spike / model-regression context
+    operators reading the audit log later need.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_bounded_text(
+            self.value,
+            max_length=AGENT_SUSPENSION_REASON_MAX_LENGTH,
+            error_class=InvalidAgentSuspensionReasonError,
+        )
+        object.__setattr__(self, "value", trimmed)
+
+
+@dataclass(frozen=True)
+class ToolName:
+    """One MCP tool name the agent is authorized to invoke.
+
+    Phase 8f-c iter 2. Bounded text 1-100 chars (matches MCP
+    tool-naming convention; tightening to a formal BNF is a watch
+    item). The aggregate carries `frozenset[ToolName]`. Cardinality
+    cap enforced separately by `grant_tool_to_agent` decider.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_bounded_text(
+            self.value,
+            max_length=AGENT_TOOL_NAME_MAX_LENGTH,
+            error_class=InvalidToolNameError,
+        )
+        object.__setattr__(self, "value", trimmed)
+
+
+@dataclass(frozen=True)
+class AgentBudget:
+    """Optional per-agent budget caps (declaration only at iter 2).
+
+    Phase 8f-c iter 2. Both `monthly_usd_cap` and
+    `daily_token_cap` are independently nullable so the same VO
+    covers "set both", "set one, clear the other", and "set new
+    monthly while keeping daily" cases. At least one must be
+    non-None at construction (the no-budget shape is
+    `Agent.budget = None` directly).
+
+    Enforcement is deferred to 8h Budget BC adoption (watch item
+    in [[project-agent-lifecycle-grants-design]]); at iter 2 these
+    are declaration-only fields. Cost telemetry already lands on
+    `gen_ai.cost.usd` (Phase 8f-b iter 2a gen_ai helper) so the
+    8h BC can begin enforcement without further per-agent surface
+    work.
+
+    Zero caps allowed (interpretation: "no spend permitted today");
+    future enforcement layer can treat zero as a hard stop.
+    Negative caps rejected.
+    """
+
+    monthly_usd_cap: float | None
+    daily_token_cap: int | None
+
+    def __post_init__(self) -> None:
+        if self.monthly_usd_cap is None and self.daily_token_cap is None:
+            raise InvalidAgentBudgetError(
+                "at least one of monthly_usd_cap or daily_token_cap must be set; "
+                "use Agent.budget = None to clear"
+            )
+        if self.monthly_usd_cap is not None and self.monthly_usd_cap < 0:
+            raise InvalidAgentBudgetError(
+                f"monthly_usd_cap must be >= 0 (got: {self.monthly_usd_cap})"
+            )
+        if self.daily_token_cap is not None and self.daily_token_cap < 0:
+            raise InvalidAgentBudgetError(
+                f"daily_token_cap must be >= 0 (got: {self.daily_token_cap})"
+            )
+
+
+@dataclass(frozen=True)
 class ModelRef:
     """Model identity: provider + model + optional snapshot pin.
 
@@ -531,8 +772,17 @@ class Agent:
 
     `defined_at` is always present (set at genesis).
 
+    Phase 8f-c iter 2 additions: `tools` per-agent MCP tool
+    allowlist; `budget` optional declarative caps (no enforcement
+    at this iter); `suspended_at` / `resumed_at` / `suspension_reason`
+    timestamps + reason for the new `Suspended` non-terminal state.
+
+    Forward-compat fold: pre-8f-c-iter-2 `AgentDefined` events have
+    no `tools` / `budget` keys; `from_stored` reads them via
+    `payload.get(...)` returning `frozenset()` / `None`. Mirrors
+    11a-c-3 `external_refs` + 6i-c `campaign_id` precedents.
+
     Deferred fields (per design lock):
-      - `tools` (8f-c ToolGrant slices)
       - `provider_org` (A2A trigger)
       - `acts_on_behalf_of` (per-operator-agent trigger)
       - `card_signature` (A2A JWS trigger)
@@ -552,3 +802,9 @@ class Agent:
     versioned_at: datetime | None = None
     deprecated_at: datetime | None = None
     deprecation_reason: AgentDeprecationReason | None = None
+    # Phase 8f-c iter 2: ToolGrant + Suspended + AgentBudget
+    tools: frozenset[ToolName] = field(default_factory=frozenset[ToolName])
+    budget: AgentBudget | None = None
+    suspended_at: datetime | None = None
+    resumed_at: datetime | None = None
+    suspension_reason: AgentSuspensionReason | None = None

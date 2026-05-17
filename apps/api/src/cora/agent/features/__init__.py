@@ -14,16 +14,33 @@ Phase 8f-c iter 1 adds:
                        idempotency-wrapped; Pattern C from the
                        design memo)
 
-No projection / list_agents slice at 8f-a (deferred until per-kind
-active-agent queries surface; see [[project_agent_bc_design]] watch
-items).
+Phase 8f-c iter 2 adds:
+  - `suspend_agent`         (Versioned -> Suspended; non-terminal)
+  - `resume_agent`          (Suspended -> Versioned)
+  - `grant_tool_to_agent`   (Defined | Versioned | Suspended;
+                             idempotent re-grant)
+  - `revoke_tool_from_agent`(Defined | Versioned | Suspended;
+                             idempotent revoke-of-non-granted)
+  - `revise_agent_budget`   (Defined | Versioned | Suspended;
+                             PUT-semantics; idempotent no-op)
+
+Also: deprecate's source set widens to include Suspended.
+
+No projection / list_agents slice at 8f-c iter 2 (deferred until
+per-kind active-agent queries surface; see
+[[project_agent_bc_design]] watch items).
 """
 
 from cora.agent.features import (
     define_agent,
     deprecate_agent,
     get_agent,
+    grant_tool_to_agent,
     re_debrief_run,
+    resume_agent,
+    revise_agent_budget,
+    revoke_tool_from_agent,
+    suspend_agent,
     version_agent,
 )
 
@@ -31,6 +48,11 @@ __all__ = [
     "define_agent",
     "deprecate_agent",
     "get_agent",
+    "grant_tool_to_agent",
     "re_debrief_run",
+    "resume_agent",
+    "revise_agent_budget",
+    "revoke_tool_from_agent",
+    "suspend_agent",
     "version_agent",
 ]

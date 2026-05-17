@@ -1,13 +1,15 @@
 """Pure decider for the `DeprecateAgent` command.
 
-Source set is `{Defined, Versioned}`. Strict-not-idempotent: re-
+Source set is `{Defined, Versioned, Suspended}` (Phase 8f-c iter 2
+added `Suspended` so an operator who paused an agent can still
+retire it without resuming first). Strict-not-idempotent: re-
 deprecating an already-Deprecated Agent raises
 `AgentCannotDeprecateError`.
 
 ## Validation
 
   - State must not be None -> `AgentNotFoundError`
-  - Current status must be `Defined` or `Versioned` ->
+  - Current status must be `Defined`, `Versioned`, or `Suspended` ->
     `AgentCannotDeprecateError`
   - `reason` wrapped via `AgentDeprecationReason(...)` when not None;
     1-500 chars after trim -> `InvalidAgentDeprecationReasonError`.
@@ -29,6 +31,7 @@ from cora.agent.features.deprecate_agent.command import DeprecateAgent
 _DEPRECATABLE_STATUSES: tuple[AgentStatus, ...] = (
     AgentStatus.DEFINED,
     AgentStatus.VERSIONED,
+    AgentStatus.SUSPENDED,
 )
 
 

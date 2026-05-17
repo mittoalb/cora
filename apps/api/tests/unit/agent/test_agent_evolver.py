@@ -1,4 +1,4 @@
-"""Evolver tests for the Agent aggregate (Phase 8f-a)."""
+"""Evolver tests for the Agent aggregate (Phase 8f-a + 8f-c iter 2)."""
 
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -6,15 +6,22 @@ from uuid import uuid4
 import pytest
 
 from cora.agent.aggregates.agent.events import (
+    AgentBudgetRevised,
     AgentDefined,
     AgentDeprecated,
+    AgentResumed,
+    AgentSuspended,
+    AgentToolGranted,
+    AgentToolRevoked,
     AgentVersioned,
 )
 from cora.agent.aggregates.agent.evolver import fold
 from cora.agent.aggregates.agent.state import (
+    AgentBudget,
     AgentCapability,
     AgentStatus,
     ModelRef,
+    ToolName,
 )
 
 _T0 = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
@@ -115,4 +122,257 @@ def test_versioned_applied_to_empty_state_raises() -> None:
 def test_deprecated_applied_to_empty_state_raises() -> None:
     e = AgentDeprecated(agent_id=uuid4(), reason=None, occurred_at=_T0)
     with pytest.raises(ValueError, match="AgentDeprecated"):
+        fold([e])
+
+
+# ---------------------------------------------------------------------------
+# Phase 8f-c iter 2: Suspended FSM + ToolGrant + Budget
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_versioned_then_suspended_folds_to_suspended_state() -> None:
+    agent_id = uuid4()
+    e1 = _genesis(agent_id=agent_id)
+    e2 = AgentVersioned(agent_id=agent_id, version="v1", occurred_at=_T1)
+    e3 = AgentSuspended(agent_id=agent_id, reason="cost overrun", occurred_at=_T2)
+    state = fold([e1, e2, e3])
+    assert state is not None
+    assert state.status is AgentStatus.SUSPENDED
+    assert state.suspended_at == _T2
+    assert state.suspension_reason is not None
+    assert state.suspension_reason.value == "cost overrun"
+    # Versioned-at preserved as audit-trail historical record.
+    assert state.versioned_at == _T1
+
+
+@pytest.mark.unit
+def test_suspended_then_resumed_folds_to_versioned_state() -> None:
+    agent_id = uuid4()
+    e1 = _genesis(agent_id=agent_id)
+    e2 = AgentVersioned(agent_id=agent_id, version="v1", occurred_at=_T1)
+    e3 = AgentSuspended(agent_id=agent_id, reason="cost overrun", occurred_at=_T2)
+    e4 = AgentResumed(agent_id=agent_id, occurred_at=_T2 + timedelta(minutes=5))
+    state = fold([e1, e2, e3, e4])
+    assert state is not None
+    assert state.status is AgentStatus.VERSIONED
+    # Resume preserves historical suspended_at + suspension_reason for audit.
+    assert state.suspended_at == _T2
+    assert state.suspension_reason is not None
+    assert state.suspension_reason.value == "cost overrun"
+    assert state.resumed_at == _T2 + timedelta(minutes=5)
+
+
+@pytest.mark.unit
+def test_suspended_then_deprecated_folds_to_deprecated_state() -> None:
+    """Deprecated source set includes Suspended (Phase 8f-c iter 2)."""
+    agent_id = uuid4()
+    e1 = _genesis(agent_id=agent_id)
+    e2 = AgentVersioned(agent_id=agent_id, version="v1", occurred_at=_T1)
+    e3 = AgentSuspended(agent_id=agent_id, reason="x", occurred_at=_T2)
+    e4 = AgentDeprecated(
+        agent_id=agent_id, reason="retired while paused", occurred_at=_T2 + timedelta(minutes=10)
+    )
+    state = fold([e1, e2, e3, e4])
+    assert state is not None
+    assert state.status is AgentStatus.DEPRECATED
+
+
+@pytest.mark.unit
+def test_tool_granted_folds_into_tools_set() -> None:
+    agent_id = uuid4()
+    e1 = _genesis(agent_id=agent_id)
+    e2 = AgentToolGranted(agent_id=agent_id, tool_name="read_run", occurred_at=_T1)
+    e3 = AgentToolGranted(agent_id=agent_id, tool_name="read_dataset", occurred_at=_T2)
+    state = fold([e1, e2, e3])
+    assert state is not None
+    assert state.tools == frozenset({ToolName("read_run"), ToolName("read_dataset")})
+
+
+@pytest.mark.unit
+def test_tool_revoked_removes_from_tools_set() -> None:
+    agent_id = uuid4()
+    e1 = _genesis(agent_id=agent_id)
+    e2 = AgentToolGranted(agent_id=agent_id, tool_name="read_run", occurred_at=_T1)
+    e3 = AgentToolRevoked(agent_id=agent_id, tool_name="read_run", occurred_at=_T2)
+    state = fold([e1, e2, e3])
+    assert state is not None
+    assert state.tools == frozenset()
+
+
+@pytest.mark.unit
+def test_budget_revised_sets_budget_field() -> None:
+    agent_id = uuid4()
+    e1 = _genesis(agent_id=agent_id)
+    e2 = AgentBudgetRevised(
+        agent_id=agent_id,
+        monthly_usd_cap=100.0,
+        daily_token_cap=500_000,
+        occurred_at=_T1,
+    )
+    state = fold([e1, e2])
+    assert state is not None
+    assert state.budget == AgentBudget(monthly_usd_cap=100.0, daily_token_cap=500_000)
+
+
+@pytest.mark.unit
+def test_budget_revised_with_both_caps_none_clears_budget() -> None:
+    agent_id = uuid4()
+    e1 = _genesis(agent_id=agent_id)
+    e2 = AgentBudgetRevised(
+        agent_id=agent_id,
+        monthly_usd_cap=100.0,
+        daily_token_cap=500_000,
+        occurred_at=_T1,
+    )
+    e3 = AgentBudgetRevised(
+        agent_id=agent_id,
+        monthly_usd_cap=None,
+        daily_token_cap=None,
+        occurred_at=_T2,
+    )
+    state = fold([e1, e2, e3])
+    assert state is not None
+    assert state.budget is None
+
+
+@pytest.mark.unit
+def test_tool_grant_preserves_unrelated_fields() -> None:
+    """ToolGrant arm must not silently wipe deprecation_reason / suspended_at
+    / versioned_at. Guards the silent-wipe class of bugs caught at 8f-b iter 1
+    gate review."""
+    agent_id = uuid4()
+    e1 = _genesis(agent_id=agent_id)
+    e2 = AgentVersioned(agent_id=agent_id, version="v1", occurred_at=_T1)
+    e3 = AgentToolGranted(agent_id=agent_id, tool_name="read_run", occurred_at=_T2)
+    state = fold([e1, e2, e3])
+    assert state is not None
+    assert state.versioned_at == _T1
+    assert state.status is AgentStatus.VERSIONED
+    assert state.tools == frozenset({ToolName("read_run")})
+
+
+@pytest.mark.unit
+def test_suspended_preserves_unrelated_fields() -> None:
+    """Suspended arm must carry forward tools/budget/capabilities/description.
+
+    Guards against a future refactor accidentally dropping a field when
+    updating the Suspended evolver arm (silent-wipe class of bug)."""
+    agent_id = uuid4()
+    e1 = _genesis(agent_id=agent_id)
+    e2 = AgentVersioned(agent_id=agent_id, version="v1", occurred_at=_T1)
+    e3 = AgentToolGranted(agent_id=agent_id, tool_name="read_run", occurred_at=_T1)
+    e4 = AgentBudgetRevised(
+        agent_id=agent_id,
+        monthly_usd_cap=100.0,
+        daily_token_cap=500_000,
+        occurred_at=_T1,
+    )
+    e5 = AgentSuspended(agent_id=agent_id, reason="x", occurred_at=_T2)
+    state = fold([e1, e2, e3, e4, e5])
+    assert state is not None
+    assert state.tools == frozenset({ToolName("read_run")})
+    assert state.budget == AgentBudget(monthly_usd_cap=100.0, daily_token_cap=500_000)
+    assert state.capabilities == frozenset({AgentCapability("summarize")})
+    assert state.description is not None
+    assert state.description.value == "Synthesises terminal Runs."
+
+
+@pytest.mark.unit
+def test_resumed_preserves_unrelated_fields() -> None:
+    """Resumed arm must carry forward tools/budget/historical suspension data."""
+    agent_id = uuid4()
+    e1 = _genesis(agent_id=agent_id)
+    e2 = AgentVersioned(agent_id=agent_id, version="v1", occurred_at=_T1)
+    e3 = AgentToolGranted(agent_id=agent_id, tool_name="read_run", occurred_at=_T1)
+    e4 = AgentBudgetRevised(
+        agent_id=agent_id,
+        monthly_usd_cap=100.0,
+        daily_token_cap=500_000,
+        occurred_at=_T1,
+    )
+    e5 = AgentSuspended(agent_id=agent_id, reason="x", occurred_at=_T2)
+    e6 = AgentResumed(agent_id=agent_id, occurred_at=_T2 + timedelta(minutes=5))
+    state = fold([e1, e2, e3, e4, e5, e6])
+    assert state is not None
+    assert state.tools == frozenset({ToolName("read_run")})
+    assert state.budget == AgentBudget(monthly_usd_cap=100.0, daily_token_cap=500_000)
+    assert state.capabilities == frozenset({AgentCapability("summarize")})
+
+
+@pytest.mark.unit
+def test_tool_revoked_preserves_unrelated_fields() -> None:
+    """ToolRevoked arm must not silently wipe budget/capabilities/description."""
+    agent_id = uuid4()
+    e1 = _genesis(agent_id=agent_id)
+    e2 = AgentToolGranted(agent_id=agent_id, tool_name="read_run", occurred_at=_T1)
+    e3 = AgentBudgetRevised(
+        agent_id=agent_id,
+        monthly_usd_cap=50.0,
+        daily_token_cap=None,
+        occurred_at=_T1,
+    )
+    e4 = AgentToolRevoked(agent_id=agent_id, tool_name="read_run", occurred_at=_T2)
+    state = fold([e1, e2, e3, e4])
+    assert state is not None
+    assert state.tools == frozenset()
+    assert state.budget == AgentBudget(monthly_usd_cap=50.0, daily_token_cap=None)
+    assert state.capabilities == frozenset({AgentCapability("summarize")})
+    assert state.description is not None
+
+
+@pytest.mark.unit
+def test_budget_revised_preserves_unrelated_fields() -> None:
+    """BudgetRevised arm must not silently wipe tools/capabilities/description."""
+    agent_id = uuid4()
+    e1 = _genesis(agent_id=agent_id)
+    e2 = AgentToolGranted(agent_id=agent_id, tool_name="read_run", occurred_at=_T1)
+    e3 = AgentBudgetRevised(
+        agent_id=agent_id,
+        monthly_usd_cap=100.0,
+        daily_token_cap=500_000,
+        occurred_at=_T2,
+    )
+    state = fold([e1, e2, e3])
+    assert state is not None
+    assert state.tools == frozenset({ToolName("read_run")})
+    assert state.capabilities == frozenset({AgentCapability("summarize")})
+    assert state.description is not None
+    assert state.budget == AgentBudget(monthly_usd_cap=100.0, daily_token_cap=500_000)
+
+
+@pytest.mark.unit
+def test_suspended_applied_to_empty_state_raises() -> None:
+    e = AgentSuspended(agent_id=uuid4(), reason="x", occurred_at=_T0)
+    with pytest.raises(ValueError, match="AgentSuspended"):
+        fold([e])
+
+
+@pytest.mark.unit
+def test_resumed_applied_to_empty_state_raises() -> None:
+    e = AgentResumed(agent_id=uuid4(), occurred_at=_T0)
+    with pytest.raises(ValueError, match="AgentResumed"):
+        fold([e])
+
+
+@pytest.mark.unit
+def test_tool_granted_applied_to_empty_state_raises() -> None:
+    e = AgentToolGranted(agent_id=uuid4(), tool_name="x", occurred_at=_T0)
+    with pytest.raises(ValueError, match="AgentToolGranted"):
+        fold([e])
+
+
+@pytest.mark.unit
+def test_tool_revoked_applied_to_empty_state_raises() -> None:
+    e = AgentToolRevoked(agent_id=uuid4(), tool_name="x", occurred_at=_T0)
+    with pytest.raises(ValueError, match="AgentToolRevoked"):
+        fold([e])
+
+
+@pytest.mark.unit
+def test_budget_revised_applied_to_empty_state_raises() -> None:
+    e = AgentBudgetRevised(
+        agent_id=uuid4(), monthly_usd_cap=10.0, daily_token_cap=None, occurred_at=_T0
+    )
+    with pytest.raises(ValueError, match="AgentBudgetRevised"):
         fold([e])

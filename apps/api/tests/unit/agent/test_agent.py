@@ -280,6 +280,7 @@ def test_model_ref_rejects_over_cap_snapshot_pin() -> None:
 def test_agent_status_values() -> None:
     assert AgentStatus.DEFINED.value == "Defined"
     assert AgentStatus.VERSIONED.value == "Versioned"
+    assert AgentStatus.SUSPENDED.value == "Suspended"
     assert AgentStatus.DEPRECATED.value == "Deprecated"
 
 
@@ -326,3 +327,135 @@ def test_agent_capabilities_cap_is_enforced_at_decider_not_state() -> None:
         capabilities=frozenset(AgentCapability(f"cap-{i}") for i in range(over_cap_count)),
     )
     assert len(agent.capabilities) == over_cap_count
+
+
+# ---------- Phase 8f-c iter 2: AgentSuspensionReason / ToolName / AgentBudget ----------
+
+
+@pytest.mark.unit
+def test_agent_suspension_reason_accepts_normal_string() -> None:
+    from cora.agent.aggregates.agent import AgentSuspensionReason
+
+    assert AgentSuspensionReason("cost overrun").value == "cost overrun"
+
+
+@pytest.mark.unit
+def test_agent_suspension_reason_trims_whitespace() -> None:
+    from cora.agent.aggregates.agent import AgentSuspensionReason
+
+    assert AgentSuspensionReason("  cost overrun  ").value == "cost overrun"
+
+
+@pytest.mark.unit
+def test_agent_suspension_reason_rejects_empty() -> None:
+    from cora.agent.aggregates.agent import (
+        AgentSuspensionReason,
+        InvalidAgentSuspensionReasonError,
+    )
+
+    with pytest.raises(InvalidAgentSuspensionReasonError):
+        AgentSuspensionReason("   ")
+
+
+@pytest.mark.unit
+def test_agent_suspension_reason_rejects_over_cap() -> None:
+    from cora.agent.aggregates.agent import (
+        AGENT_SUSPENSION_REASON_MAX_LENGTH,
+        AgentSuspensionReason,
+        InvalidAgentSuspensionReasonError,
+    )
+
+    with pytest.raises(InvalidAgentSuspensionReasonError):
+        AgentSuspensionReason("x" * (AGENT_SUSPENSION_REASON_MAX_LENGTH + 1))
+
+
+@pytest.mark.unit
+def test_tool_name_accepts_normal_string_and_trims() -> None:
+    from cora.agent.aggregates.agent import ToolName
+
+    assert ToolName("read_run").value == "read_run"
+    assert ToolName("  read_run  ").value == "read_run"
+
+
+@pytest.mark.unit
+def test_tool_name_rejects_empty_and_over_cap() -> None:
+    from cora.agent.aggregates.agent import (
+        AGENT_TOOL_NAME_MAX_LENGTH,
+        InvalidToolNameError,
+        ToolName,
+    )
+
+    with pytest.raises(InvalidToolNameError):
+        ToolName("   ")
+    with pytest.raises(InvalidToolNameError):
+        ToolName("x" * (AGENT_TOOL_NAME_MAX_LENGTH + 1))
+
+
+@pytest.mark.unit
+def test_agent_budget_accepts_both_caps_set() -> None:
+    from cora.agent.aggregates.agent import AgentBudget
+
+    b = AgentBudget(monthly_usd_cap=100.0, daily_token_cap=500_000)
+    assert b.monthly_usd_cap == 100.0
+    assert b.daily_token_cap == 500_000
+
+
+@pytest.mark.unit
+def test_agent_budget_accepts_one_cap_set() -> None:
+    from cora.agent.aggregates.agent import AgentBudget
+
+    assert AgentBudget(monthly_usd_cap=50.0, daily_token_cap=None).daily_token_cap is None
+    assert AgentBudget(monthly_usd_cap=None, daily_token_cap=10_000).monthly_usd_cap is None
+
+
+@pytest.mark.unit
+def test_agent_budget_accepts_zero_caps() -> None:
+    """Zero caps are allowed (interpretation: 'no spend permitted today')."""
+    from cora.agent.aggregates.agent import AgentBudget
+
+    b = AgentBudget(monthly_usd_cap=0.0, daily_token_cap=0)
+    assert b.monthly_usd_cap == 0.0
+    assert b.daily_token_cap == 0
+
+
+@pytest.mark.unit
+def test_agent_budget_rejects_both_none() -> None:
+    """Both None is the no-budget shape (Agent.budget = None directly)."""
+    from cora.agent.aggregates.agent import AgentBudget, InvalidAgentBudgetError
+
+    with pytest.raises(InvalidAgentBudgetError):
+        AgentBudget(monthly_usd_cap=None, daily_token_cap=None)
+
+
+@pytest.mark.unit
+def test_agent_budget_rejects_negative_monthly() -> None:
+    from cora.agent.aggregates.agent import AgentBudget, InvalidAgentBudgetError
+
+    with pytest.raises(InvalidAgentBudgetError):
+        AgentBudget(monthly_usd_cap=-0.01, daily_token_cap=None)
+
+
+@pytest.mark.unit
+def test_agent_budget_rejects_negative_daily() -> None:
+    from cora.agent.aggregates.agent import AgentBudget, InvalidAgentBudgetError
+
+    with pytest.raises(InvalidAgentBudgetError):
+        AgentBudget(monthly_usd_cap=None, daily_token_cap=-1)
+
+
+@pytest.mark.unit
+def test_agent_defaults_to_empty_tools_and_none_budget() -> None:
+    """Aggregate-level: iter 2 additive fields default appropriately."""
+    agent = Agent(
+        id=uuid4(),
+        kind=AgentKind("RunDebrief"),
+        name=AgentName("Run Debrief"),
+        version=AgentVersion("v1"),
+        model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
+        defined_at=_NOW,
+    )
+    assert agent.tools == frozenset()
+    assert agent.budget is None
+    assert agent.suspended_at is None
+    assert agent.resumed_at is None
+    assert agent.suspension_reason is None

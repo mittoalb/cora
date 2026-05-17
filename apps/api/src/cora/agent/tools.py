@@ -14,8 +14,13 @@ from mcp.server.fastmcp import FastMCP
 from cora.agent.features.define_agent import tool as define_agent_tool
 from cora.agent.features.deprecate_agent import tool as deprecate_agent_tool
 from cora.agent.features.get_agent import tool as get_agent_tool
+from cora.agent.features.grant_tool_to_agent import tool as grant_tool_to_agent_tool
 from cora.agent.features.re_debrief_run import tool as re_debrief_run_tool
 from cora.agent.features.re_debrief_run.handler import IdempotentHandler as ReDebriefRunHandler
+from cora.agent.features.resume_agent import tool as resume_agent_tool
+from cora.agent.features.revise_agent_budget import tool as revise_agent_budget_tool
+from cora.agent.features.revoke_tool_from_agent import tool as revoke_tool_from_agent_tool
+from cora.agent.features.suspend_agent import tool as suspend_agent_tool
 from cora.agent.features.version_agent import tool as version_agent_tool
 from cora.agent.wire import AgentHandlers
 
@@ -37,6 +42,26 @@ def register_agent_tools(
     deprecate_agent_tool.register(
         mcp,
         get_handler=lambda: get_handlers().deprecate_agent,
+    )
+    suspend_agent_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().suspend_agent,
+    )
+    resume_agent_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().resume_agent,
+    )
+    grant_tool_to_agent_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().grant_tool_to_agent,
+    )
+    revoke_tool_from_agent_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().revoke_tool_from_agent,
+    )
+    revise_agent_budget_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().revise_agent_budget,
     )
     get_agent_tool.register(
         mcp,

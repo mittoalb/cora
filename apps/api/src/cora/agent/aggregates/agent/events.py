@@ -105,6 +105,11 @@ class AgentDefined:
     prompt_template_id: UUID | None
     capabilities: frozenset[str]
     occurred_at: datetime
+    # Phase 8f-c iter 2: additive payload fields (default to
+    # empty / None for backward-compat with 8f-a / 8f-b streams).
+    tools: frozenset[str] = frozenset()
+    budget_monthly_usd_cap: float | None = None
+    budget_daily_token_cap: int | None = None
 
 
 @dataclass(frozen=True)
@@ -125,8 +130,10 @@ class AgentVersioned:
 class AgentDeprecated:
     """An Agent was deprecated (terminal).
 
-    Source set is `{Defined, Versioned}`. `reason` is an optional
-    operator-supplied bounded-text value (1-500 chars).
+    Source set is `{Defined, Versioned, Suspended}` (Phase 8f-c
+    iter 2 added `Suspended` so an operator who paused an agent
+    can still retire it). `reason` is an optional operator-supplied
+    bounded-text value (1-500 chars).
 
     The deprecating actor's id lives on the envelope
     (`StoredEvent.principal_id`); no actor field on the payload.
@@ -137,8 +144,103 @@ class AgentDeprecated:
     occurred_at: datetime
 
 
+# ---------------------------------------------------------------------------
+# Phase 8f-c iter 2 events: Suspended FSM expansion + ToolGrant + Budget
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class AgentSuspended:
+    """A `Versioned` Agent was paused by operator command.
+
+    Non-terminal: returns to `Versioned` via `resume_agent`. The
+    `reason` field is REQUIRED (unlike `AgentDeprecated.reason`)
+    because operator-pause is a high-information signal that the
+    audit log should always carry context for.
+
+    The suspending actor's id lives on the envelope; no actor
+    field on the payload (mirrors 11b-a `supersede_caution` /
+    8f-b iter 2b security gate-review P1#3 convention).
+    """
+
+    agent_id: UUID
+    reason: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class AgentResumed:
+    """A `Suspended` Agent was returned to `Versioned`.
+
+    NO `reason` field by design: the act of resuming is its own
+    signal; if rationale matters operators record a Decision
+    separately. Asymmetry with `AgentSuspended.reason` is
+    deliberate (events carry facts; Decisions carry rationale).
+    """
+
+    agent_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class AgentToolGranted:
+    """One MCP tool was granted to an Agent.
+
+    Idempotent: re-granting an already-granted tool emits NO event
+    (the decider returns `[]`). The audit trail is the existing
+    event log + the projected `Agent.tools` set.
+
+    The granting actor's id lives on the envelope; no actor field
+    on the payload.
+    """
+
+    agent_id: UUID
+    tool_name: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class AgentToolRevoked:
+    """One MCP tool was revoked from an Agent.
+
+    Idempotent: re-revoking an already-revoked tool emits NO event.
+    """
+
+    agent_id: UUID
+    tool_name: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class AgentBudgetRevised:
+    """The Agent's declarative budget caps were revised.
+
+    Both `monthly_usd_cap` and `daily_token_cap` are nullable so
+    the same event carries "set both", "set one, clear the other",
+    and "clear all" cases. When both fields are None the Agent's
+    `budget` field is set to None (no budget).
+
+    Declaration only at Phase 8f-c iter 2; enforcement deferred
+    to 8h Budget BC adoption.
+    """
+
+    agent_id: UUID
+    monthly_usd_cap: float | None
+    daily_token_cap: int | None
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Agent aggregate emits.
-AgentEvent = AgentDefined | AgentVersioned | AgentDeprecated
+AgentEvent = (
+    AgentDefined
+    | AgentVersioned
+    | AgentDeprecated
+    | AgentSuspended
+    | AgentResumed
+    | AgentToolGranted
+    | AgentToolRevoked
+    | AgentBudgetRevised
+)
 
 
 def event_type_name(event: AgentEvent) -> str:
@@ -166,6 +268,9 @@ def to_payload(event: AgentEvent) -> dict[str, Any]:
             prompt_template_id=prompt_template_id,
             capabilities=capabilities,
             occurred_at=occurred_at,
+            tools=tools,
+            budget_monthly_usd_cap=budget_monthly_usd_cap,
+            budget_daily_token_cap=budget_daily_token_cap,
         ):
             return {
                 "agent_id": str(agent_id),
@@ -180,6 +285,12 @@ def to_payload(event: AgentEvent) -> dict[str, Any]:
                 ),
                 "capabilities": sorted(capabilities),
                 "occurred_at": occurred_at.isoformat(),
+                # Phase 8f-c iter 2: additive payload fields. Always
+                # written so the wire shape is uniform; from_stored
+                # falls back to defaults on pre-iter-2 streams.
+                "tools": sorted(tools),
+                "budget_monthly_usd_cap": budget_monthly_usd_cap,
+                "budget_daily_token_cap": budget_daily_token_cap,
             }
         case AgentVersioned(agent_id=agent_id, version=version, occurred_at=occurred_at):
             return {
@@ -191,6 +302,41 @@ def to_payload(event: AgentEvent) -> dict[str, Any]:
             return {
                 "agent_id": str(agent_id),
                 "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case AgentSuspended(agent_id=agent_id, reason=reason, occurred_at=occurred_at):
+            return {
+                "agent_id": str(agent_id),
+                "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case AgentResumed(agent_id=agent_id, occurred_at=occurred_at):
+            return {
+                "agent_id": str(agent_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case AgentToolGranted(agent_id=agent_id, tool_name=tool_name, occurred_at=occurred_at):
+            return {
+                "agent_id": str(agent_id),
+                "tool_name": tool_name,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case AgentToolRevoked(agent_id=agent_id, tool_name=tool_name, occurred_at=occurred_at):
+            return {
+                "agent_id": str(agent_id),
+                "tool_name": tool_name,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case AgentBudgetRevised(
+            agent_id=agent_id,
+            monthly_usd_cap=monthly_usd_cap,
+            daily_token_cap=daily_token_cap,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "agent_id": str(agent_id),
+                "monthly_usd_cap": monthly_usd_cap,
+                "daily_token_cap": daily_token_cap,
                 "occurred_at": occurred_at.isoformat(),
             }
         case _:  # pragma: no cover  # exhaustiveness guard
@@ -226,6 +372,11 @@ def from_stored(stored: StoredEvent) -> AgentEvent:
                     ),
                     capabilities=frozenset(payload.get("capabilities", [])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    # Phase 8f-c iter 2: forward-compat reads for pre-
+                    # iter-2 streams (default to empty / None).
+                    tools=frozenset(payload.get("tools", [])),
+                    budget_monthly_usd_cap=payload.get("budget_monthly_usd_cap"),
+                    budget_daily_token_cap=payload.get("budget_daily_token_cap"),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed AgentDefined payload {payload!r}: {exc}"
@@ -250,15 +401,70 @@ def from_stored(stored: StoredEvent) -> AgentEvent:
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed AgentDeprecated payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
+        case "AgentSuspended":
+            try:
+                return AgentSuspended(
+                    agent_id=UUID(payload["agent_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AgentSuspended payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
+        case "AgentResumed":
+            try:
+                return AgentResumed(
+                    agent_id=UUID(payload["agent_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AgentResumed payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
+        case "AgentToolGranted":
+            try:
+                return AgentToolGranted(
+                    agent_id=UUID(payload["agent_id"]),
+                    tool_name=payload["tool_name"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AgentToolGranted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
+        case "AgentToolRevoked":
+            try:
+                return AgentToolRevoked(
+                    agent_id=UUID(payload["agent_id"]),
+                    tool_name=payload["tool_name"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AgentToolRevoked payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
+        case "AgentBudgetRevised":
+            try:
+                return AgentBudgetRevised(
+                    agent_id=UUID(payload["agent_id"]),
+                    monthly_usd_cap=payload.get("monthly_usd_cap"),
+                    daily_token_cap=payload.get("daily_token_cap"),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AgentBudgetRevised payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown AgentEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
 
 
 __all__ = [
+    "AgentBudgetRevised",
     "AgentDefined",
     "AgentDeprecated",
     "AgentEvent",
+    "AgentResumed",
+    "AgentSuspended",
+    "AgentToolGranted",
+    "AgentToolRevoked",
     "AgentVersioned",
     "deserialize_model_ref",
     "event_type_name",

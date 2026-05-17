@@ -19,10 +19,11 @@ Agent owns one aggregate. Four error families share response
 shapes and get collapsed via the established Trust / Equipment /
 Supply / Safety / Caution loop pattern:
 
-  - 400 (validation): all `Invalid<X>` errors
+  - 400 (validation): all `Invalid<X>` errors + AgentToolsExceedsLimit
   - 404 (load miss): AgentNotFound
   - 409 (defensive guard for AlreadyExists): AgentAlreadyExists
-  - 409 (transition guards): AgentCannotVersion, AgentCannotDeprecate
+  - 409 (transition guards): AgentCannot<Verb> family (Version,
+    Deprecate, Suspend, Resume, GrantTool, RevokeTool, ReviseBudget)
 """
 
 from fastapi import FastAPI, Request, status
@@ -31,10 +32,17 @@ from fastapi.responses import JSONResponse
 from cora.agent.aggregates.agent import (
     AgentAlreadyExistsError,
     AgentCannotDeprecateError,
+    AgentCannotGrantToolError,
+    AgentCannotResumeError,
+    AgentCannotReviseBudgetError,
+    AgentCannotRevokeToolError,
+    AgentCannotSuspendError,
     AgentCannotVersionError,
     AgentDeactivatedError,
     AgentNotFoundError,
     AgentNotSeededError,
+    AgentToolsExceedsLimitError,
+    InvalidAgentBudgetError,
     InvalidAgentCanonicalURIError,
     InvalidAgentCapabilitiesError,
     InvalidAgentCapabilityError,
@@ -42,15 +50,22 @@ from cora.agent.aggregates.agent import (
     InvalidAgentDescriptionError,
     InvalidAgentKindError,
     InvalidAgentNameError,
+    InvalidAgentSuspensionReasonError,
     InvalidAgentVersionError,
     InvalidModelRefError,
+    InvalidToolNameError,
 )
 from cora.agent.errors import UnauthorizedError
 from cora.agent.features import (
     define_agent,
     deprecate_agent,
     get_agent,
+    grant_tool_to_agent,
     re_debrief_run,
+    resume_agent,
+    revise_agent_budget,
+    revoke_tool_from_agent,
+    suspend_agent,
     version_agent,
 )
 from cora.decision.aggregates.decision import (
@@ -102,7 +117,8 @@ async def _handle_already_exists(request: Request, exc: Exception) -> JSONRespon
 async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONResponse:
     """Shared 409 handler for state-transition guards.
 
-    Covers the `AgentCannot<Verb>Error` family: Version + Deprecate.
+    Covers the `AgentCannot<Verb>Error` family: Version + Deprecate +
+    Suspend + Resume + GrantTool + RevokeTool + ReviseBudget.
     """
     _ = request
     return JSONResponse(
@@ -116,15 +132,19 @@ def register_agent_routes(app: FastAPI) -> None:
     app.include_router(define_agent.router)
     app.include_router(version_agent.router)
     app.include_router(deprecate_agent.router)
+    app.include_router(suspend_agent.router)
+    app.include_router(resume_agent.router)
+    app.include_router(grant_tool_to_agent.router)
+    app.include_router(revoke_tool_from_agent.router)
+    app.include_router(revise_agent_budget.router)
     app.include_router(get_agent.router)
     app.include_router(re_debrief_run.router)
-    # 400 validation handlers: Invalid<X> family (define_agent /
-    # version_agent / deprecate_agent / etc) + 8f-c iter 1 cross-
-    # aggregate guards (AgentNotSeededError + AgentDeactivatedError
-    # from this BC; ParentDecisionAgentMismatchError +
-    # ParentDecisionRunMismatchError from Decision BC's state). Loop-
-    # collapsed per the cross-BC convention captured in this file's
-    # docstring.
+    # 400 validation handlers: Invalid<X> family + AgentToolsExceedsLimit
+    # cardinality guard + 8f-c iter 1 cross-aggregate guards
+    # (AgentNotSeededError + AgentDeactivatedError from this BC;
+    # ParentDecisionAgentMismatchError + ParentDecisionRunMismatchError
+    # from Decision BC's state). Loop-collapsed per the cross-BC
+    # convention captured in this file's docstring.
     #
     # NOT registered here: RunNotFoundError (Run BC owns -> 404) and
     # ParentDecisionMissingError (Decision BC owns -> 409). FastAPI's
@@ -139,6 +159,10 @@ def register_agent_routes(app: FastAPI) -> None:
         InvalidAgentCapabilityError,
         InvalidAgentCapabilitiesError,
         InvalidAgentDeprecationReasonError,
+        InvalidAgentSuspensionReasonError,
+        InvalidToolNameError,
+        InvalidAgentBudgetError,
+        AgentToolsExceedsLimitError,
         InvalidModelRefError,
         AgentNotSeededError,
         AgentDeactivatedError,
@@ -153,6 +177,11 @@ def register_agent_routes(app: FastAPI) -> None:
     for cannot_transition_cls in (
         AgentCannotVersionError,
         AgentCannotDeprecateError,
+        AgentCannotSuspendError,
+        AgentCannotResumeError,
+        AgentCannotGrantToolError,
+        AgentCannotRevokeToolError,
+        AgentCannotReviseBudgetError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
