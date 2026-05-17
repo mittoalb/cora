@@ -205,7 +205,7 @@ _DEVICES = (
 
 _BEAMTIME = BeamtimeSpec(
     pi_actor_id=_PI_ACTOR_ID,
-    pi_actor_name="Dr. PI (Proposal 2026-1237 lead)",
+    pi_actor_name="Proposal 2026-1237 PI",
     subject_id=_SUBJECT_ID,
     subject_name="iron-bearing sandstone core (Proposal 2026-1237, energy-pivot study)",
     campaign_id=_CAMPAIGN_ID,

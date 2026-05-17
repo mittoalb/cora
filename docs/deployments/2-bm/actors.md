@@ -9,11 +9,11 @@
 | `2-BM Operator 1` | `human` | 2-BM beamline staff (pool position 1); registered by `install_aps_unit` and assigned to scenarios via `operator_for(__file__)` (round-robin by `blake2b` of the test filename) |
 | `2-BM Operator 2` | `human` | 2-BM beamline staff (pool position 2); same registration and assignment as Operator 1 |
 | `2-BM Operator 3` | `human` | 2-BM beamline staff (pool position 3); same registration and assignment as Operator 1 |
-| `Dr. PI (Proposal 2026-1234 lead)` | `human` | Proposal PI for the canonical proposal-2026-1234 beamtime; registered by `open_beamtime()` (the canonical beamtime fixture, used by 12+ scenarios) |
-| `Dr. PI (Proposal 2026-1235 lead)` | `human` | Proposal PI for the aborted-variant beamtime in `test_2bm_run_debrief_aborted.py` |
-| `Dr. PI (Proposal 2026-1236 lead)` | `human` | Proposal PI for the Coordinated mosaic beamtime in `test_2bm_mosaic_acquisition.py` |
-| `Dr. PI (Proposal 2026-1237 lead)` | `human` | Proposal PI for the multi-energy beamtime in `test_2bm_energy_change.py` |
-| `Dr. PI (sample-of-opportunity scan)` | `human` | Proposal PI for the early-stop scan in `test_2bm_run_stopped_early.py` |
+| `Proposal 2026-1234 PI` | `human` | Proposal PI for the canonical proposal-2026-1234 beamtime; registered by `open_beamtime()` (the canonical beamtime fixture, used by 12+ scenarios) |
+| `Proposal 2026-1235 PI` | `human` | Proposal PI for the aborted-variant beamtime in `test_2bm_run_debrief_aborted.py` |
+| `Proposal 2026-1236 PI` | `human` | Proposal PI for the Coordinated mosaic beamtime in `test_2bm_mosaic_acquisition.py` |
+| `Proposal 2026-1237 PI` | `human` | Proposal PI for the multi-energy beamtime in `test_2bm_energy_change.py` |
+| `Sample-of-opportunity PI` | `human` | Proposal PI for the early-stop scan in `test_2bm_run_stopped_early.py` |
 | `2-BM Beamline Scientist` | `human` | Review-chain reviewer for the proposal-Clearance workflow; first registration in `test_2bm_proposal_clearance.py` |
 | `APS Experiment Safety Review Board` | `human` | Review-chain reviewer (ESRB) for the proposal-Clearance workflow; first registration in `test_2bm_proposal_clearance.py` (the Actor name carries APS scope but the registration ceremony lives at 2-BM today; see Promotion triggers below) |
 | `2-BM Beamline Scientist + ESRB Reviewer` | `human` | Combined-role reviewer for scenarios that compress the two-step review chain; first registration in `test_2bm_run_start_gated_by_clearance.py` |

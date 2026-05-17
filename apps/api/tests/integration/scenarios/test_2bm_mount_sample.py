@@ -119,7 +119,7 @@ _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000402b21")
 
 _BEAMTIME = BeamtimeSpec(
     pi_actor_id=_PI_ACTOR_ID,
-    pi_actor_name="Dr. PI (Proposal 2026-1234 lead)",
+    pi_actor_name="Proposal 2026-1234 PI",
     subject_id=_SUBJECT_ID,
     subject_name="porous sandstone core (Proposal 2026-1234, sample A)",
     campaign_id=_CAMPAIGN_ID,

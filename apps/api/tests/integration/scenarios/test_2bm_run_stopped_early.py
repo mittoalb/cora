@@ -180,7 +180,7 @@ _TOMO_ASSETS = TomographyAssetIds(
 
 _BEAMTIME = BeamtimeSpec(
     pi_actor_id=_PI_ACTOR_ID,
-    pi_actor_name="Dr. PI (sample-of-opportunity scan)",
+    pi_actor_name="Sample-of-opportunity PI",
     subject_id=_SUBJECT_ID,
     subject_name="leftover sandstone core (sample-of-opportunity)",
     campaign_id=_CAMPAIGN_ID,

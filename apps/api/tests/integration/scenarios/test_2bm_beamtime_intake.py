@@ -172,7 +172,7 @@ async def test_beamtime_intake_plays_out_end_to_end(
     # operator-assigned Campaign lead.
 
     await bind_register_actor(deps)(
-        RegisterActor(name="Dr. PI (Proposal 2026-1234 lead)"),
+        RegisterActor(name="Proposal 2026-1234 PI"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -221,7 +221,7 @@ async def test_beamtime_intake_plays_out_end_to_end(
     pi_events, pi_version = await deps.event_store.load("Actor", _PI_ACTOR_ID)
     assert pi_version == 1
     assert [e.event_type for e in pi_events] == ["ActorRegistered"]
-    assert pi_events[0].payload["name"] == "Dr. PI (Proposal 2026-1234 lead)"
+    assert pi_events[0].payload["name"] == "Proposal 2026-1234 PI"
 
     # Subject (lands in Received state)
     subject_events, subject_version = await deps.event_store.load("Subject", _SUBJECT_ID)
