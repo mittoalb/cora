@@ -16,7 +16,15 @@
 | [`Scintillator_LuAG`](#scintillator_luag) | `Scintillator` |
 | [`Oryx_5MP_camera`](#oryx_5mp_camera) | `Camera` |
 
-## `Aerotech_ABRS_rotary`
+## Shutters
+
+### `Shutter_2BM`
+
+- **Capability** `Shutter`
+
+## Rotary stages
+
+### `Aerotech_ABRS_rotary`
 
 - **Capability** `RotaryStage` (Aerotech ABRS)
 - **Cautions** [Aerotech cold-start index miss](cautions.md#aerotech-cold-start-index-miss)
@@ -29,7 +37,9 @@
 | `encoder_resolution` | 0.0001 | `deg` |
 | `homing_offset` | 0 | `deg` |
 
-## `Sample_top_X`
+## Linear stages
+
+### `Sample_top_X`
 
 - **Capability** `LinearStage` (Kohzu CYAT-070)
 - **Role** Lateral correction for rotation-axis alignment.
@@ -41,31 +51,47 @@
 | `max_speed` | 1 | `mm/s` |
 | `encoder_resolution` | 0.0005 | `mm` |
 
-## `Sample_top_Z`
+### `Sample_top_Z`
 
 - **Capability** `LinearStage`
 - **Role** Sample-to-scintillator distance.
 
-## `Sample_top_Roll`
+### `Sample_top_Roll`
 
 - **Capability** `LinearStage`
 - **Role** Roll tilt for rotation-axis alignment.
 
-## `Sample_top_Pitch`
+### `Sample_top_Pitch`
 
 - **Capability** `LinearStage`
 - **Role** Pitch tilt for rotation-axis alignment.
 
-## `Optique_Peter_focus_Z`
+### `Optique_Peter_focus_Z`
 
 - **Capability** `LinearStage` (Optique Peter microscope)
 - **Role** Lens-to-scintillator focus inside the microscope.
 
-## `Shutter_2BM`
+## Hexapods
 
-- **Capability** `Shutter`
+### `Hexapod_2BM`
 
-## `Oryx_5MP_camera`
+- **Capability** `Hexapod` (PI)
+- **Cautions** [Hexapod controller lockup](cautions.md#hexapod-controller-lockup)
+
+## Scintillators
+
+### `Scintillator_LuAG`
+
+- **Capability** `Scintillator` (LuAG:Ce)
+
+| Property | Value | Unit |
+| --- | ---: | --- |
+| `thickness` | 100 | `um` |
+| `decay_time` | 0.07 | `us` |
+
+## Cameras
+
+### `Oryx_5MP_camera`
 
 - **Capability** `Camera` (FLIR ORX-10G-51S5M-C)
 
@@ -75,20 +101,6 @@
 | `sensor_height` | 2048 | `pixel` |
 | `pixel_size` | 3.45 | `um` |
 | `bit_depth` | 12 | `bit` |
-
-## `Scintillator_LuAG`
-
-- **Capability** `Scintillator` (LuAG:Ce)
-
-| Property | Value | Unit |
-| --- | ---: | --- |
-| `thickness` | 100 | `um` |
-| `decay_time` | 0.07 | `us` |
-
-## `Hexapod_2BM`
-
-- **Capability** `Hexapod` (PI)
-- **Cautions** [Hexapod controller lockup](cautions.md#hexapod-controller-lockup)
 
 ## About Settings
 
