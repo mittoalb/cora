@@ -196,26 +196,38 @@ def test_validate_unions_keys_across_two_capabilities() -> None:
 
 @pytest.mark.unit
 def test_validate_intersects_constraints_for_shared_key() -> None:
-    """Two Capabilities both declare `temperature_c` as number with
+    """Two Capabilities both declare `temperature` as number with
     different minimums; allOf intersection makes the higher minimum
     binding."""
     cap_a = _capability(
         settings_schema=_schema(
             type="object",
-            properties={"temperature_c": {"type": "number", "minimum": 5}},
+            properties={
+                "temperature": {
+                    "type": "number",
+                    "minimum": 5,
+                    "unit": {"system": "udunits", "code": "degC"},
+                }
+            },
         )
     )
     cap_b = _capability(
         settings_schema=_schema(
             type="object",
-            properties={"temperature_c": {"type": "number", "minimum": 20}},
+            properties={
+                "temperature": {
+                    "type": "number",
+                    "minimum": 20,
+                    "unit": {"system": "udunits", "code": "degC"},
+                }
+            },
         )
     )
     # 25 satisfies both
-    validate_settings_against_capabilities({"temperature_c": 25}, [cap_a, cap_b])
+    validate_settings_against_capabilities({"temperature": 25}, [cap_a, cap_b])
     # 10 satisfies cap_a but not cap_b -> reject
     with pytest.raises(InvalidAssetSettingsError):
-        validate_settings_against_capabilities({"temperature_c": 10}, [cap_a, cap_b])
+        validate_settings_against_capabilities({"temperature": 10}, [cap_a, cap_b])
 
 
 @pytest.mark.unit
@@ -225,19 +237,24 @@ def test_validate_rejects_true_type_conflict_across_capabilities() -> None:
     cap_a = _capability(
         settings_schema=_schema(
             type="object",
-            properties={"temperature_c": {"type": "number"}},
+            properties={
+                "temperature": {
+                    "type": "number",
+                    "unit": {"system": "udunits", "code": "degC"},
+                }
+            },
         )
     )
     cap_b = _capability(
         settings_schema=_schema(
             type="object",
-            properties={"temperature_c": {"type": "string"}},
+            properties={"temperature": {"type": "string"}},
         )
     )
     with pytest.raises(InvalidAssetSettingsError) as exc_info:
-        validate_settings_against_capabilities({"temperature_c": 25}, [cap_a, cap_b])
+        validate_settings_against_capabilities({"temperature": 25}, [cap_a, cap_b])
     assert "incompatible types" in exc_info.value.reason
-    assert "temperature_c" in exc_info.value.reason
+    assert "temperature" in exc_info.value.reason
     # Both Capability ids surface in the diagnostic.
     assert str(cap_a.id) in exc_info.value.reason
     assert str(cap_b.id) in exc_info.value.reason

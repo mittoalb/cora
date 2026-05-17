@@ -47,8 +47,9 @@ class LogbookFieldSpec:
     """Declaration of one column in a logbook's entries.
 
     `type` names the on-the-wire primitive type (the entry payload's
-    column type); `units` is for numeric measurements (temperature_C,
-    position_deg, etc.); `description` is free-text audit context.
+    column type); `units` is for numeric measurements (temperature,
+    angle, etc.; the actual unit is a UDUNITS/UCUM code, see
+    [[project-units-design]]); `description` is free-text audit context.
     """
 
     type: LogbookFieldType

@@ -191,7 +191,7 @@ async def test_update_asset_settings_merges_across_two_patches(
 async def test_update_asset_settings_rejects_true_type_conflict_across_capabilities(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Two Capabilities both declare `temperature_c` but with
+    """Two Capabilities both declare `temperature` but with
     incompatible types; the validator names both Capabilities."""
     cap_a_id = UUID("01900000-0000-7000-8000-0000005c0041")
     cap_b_id = UUID("01900000-0000-7000-8000-0000005c0042")
@@ -221,7 +221,12 @@ async def test_update_asset_settings_rejects_true_type_conflict_across_capabilit
             settings_schema={
                 "$schema": _DRAFT,
                 "type": "object",
-                "properties": {"temperature_c": {"type": "number"}},
+                "properties": {
+                    "temperature": {
+                        "type": "number",
+                        "unit": {"system": "udunits", "code": "degC"},
+                    }
+                },
             },
         ),
         principal_id=_PRINCIPAL_ID,
@@ -238,7 +243,7 @@ async def test_update_asset_settings_rejects_true_type_conflict_across_capabilit
             settings_schema={
                 "$schema": _DRAFT,
                 "type": "object",
-                "properties": {"temperature_c": {"type": "string"}},
+                "properties": {"temperature": {"type": "string"}},
             },
         ),
         principal_id=_PRINCIPAL_ID,
@@ -264,7 +269,7 @@ async def test_update_asset_settings_rejects_true_type_conflict_across_capabilit
         await update_asset_settings.bind(deps)(
             UpdateAssetSettings(
                 asset_id=asset_id,
-                settings_patch={"temperature_c": 25},
+                settings_patch={"temperature": 25},
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
@@ -272,5 +277,5 @@ async def test_update_asset_settings_rejects_true_type_conflict_across_capabilit
     # Both Capability ids surface in the diagnostic.
     assert str(cap_a_id) in exc_info.value.reason
     assert str(cap_b_id) in exc_info.value.reason
-    assert "temperature_c" in exc_info.value.reason
+    assert "temperature" in exc_info.value.reason
     assert "incompatible types" in exc_info.value.reason
