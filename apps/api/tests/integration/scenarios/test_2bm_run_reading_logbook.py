@@ -1,0 +1,544 @@
+"""Run reading logbook (baseline + monitor) at APS 2-BM.
+
+Scenario test for the polymorphic per-Run reading logbook
+exercising the SOSA-aligned `sampling_procedure` discriminator:
+during a tomography Run the operator captures pre-scan baseline
+readings (T_sample, ring current, motor positions) and then
+periodic mid-scan monitor readings on the same channels. The
+readings land in the Run's lazy-opened reading logbook (one
+logbook per Run, lazy-opened on first write) with the entries
+projected into the `entries_run_readings` Postgres table by the
+handler-internal `ReadingStore`.
+
+Phase operations.
+
+See [[project_pilot_docs_design]] for the phase / file-naming
+taxonomy. See [[project_run_reading_design]] for the logbook
+design lock (lazy open-on-first-write, polymorphic by
+`sampling_procedure`, SOSA `sosa:samplingProcedure` alignment).
+See [[project_logbook_entry_storage]] for Path B (per-Run,
+high-volume, projection-backed entries) vs Path A / Path C
+trichotomy.
+
+## Why this scenario exists
+
+**First scenario-tier exercise of `append_run_reading`** + the
+lazy-open `RunReadingLogbookOpened` event + the polymorphic
+`sampling_procedure` discriminator with BOTH `baseline` and
+`monitor` values. The lower-tier integration test
+`test_append_run_reading_handler_postgres.py` covers the
+plumbing (entries land in the projection table; lazy open works;
+PK dedup on retry) against a bypass-seeded `RunStarted` event.
+This scenario is the operator-narrative source-of-truth for
+"the readings logbook is how the Run captures continuous-channel
+ephemera that don't belong in the Run aggregate's state but do
+belong in its audit trail".
+
+This scenario exercises:
+
+  - `append_run_reading` first call: lazy emits
+    `RunReadingLogbookOpened` on the Run stream + N entries land
+    in `entries_run_readings`.
+  - `append_run_reading` second call: skips the open emit + N
+    more entries land.
+  - Both `sampling_procedure="baseline"` (pre-scan one-shot) and
+    `sampling_procedure="monitor"` (mid-scan periodic) values.
+  - Cross-aggregate-friendly: the Run's own status remains
+    `Running` throughout; reading appends are NOT a Run FSM
+    transition (they live in a separate logbook).
+
+## Domain shape (operator narrative)
+
+  1. Beamtime intake + sample mounted + recipe ladder defined.
+  2. Operator starts the tomography Run.
+  3. Just before commanding the scan to begin, the operator
+     captures pre-scan baseline readings (T_sample, ring
+     current, motor_x) in one `append_run_reading` batch with
+     `sampling_procedure="baseline"`. The Run's reading
+     logbook is lazily opened on this first call
+     (`RunReadingLogbookOpened` event emitted on the Run
+     stream).
+  4. ~600 projections in, the operator captures periodic
+     monitor readings (same channels, fresh sampling) in a
+     second `append_run_reading` batch with
+     `sampling_procedure="monitor"`. The logbook is already
+     open; no `RunReadingLogbookOpened` event is emitted.
+  5. Run completes normally. The reading logbook stays
+     attached to the Run forever (immutable event-sourced
+     audit trail).
+
+## Why a separate scenario
+
+Per [scenarios/README.md](../README.md) Rule 1. The reading
+logbook is a separable concern from:
+
+  - Run lifecycle transitions (start / hold / resume / complete
+    / abort / stop / truncate).
+  - Asset condition transitions (degrade / restore / fault).
+  - Operator Decisions (RunDebrief / EnergyChange).
+
+It's how ephemeral per-Run continuous-channel data lands in the
+audit trail; bundling with any of the above would conflate
+"the Run's lifecycle" with "the Run's sensor capture".
+
+## What this scenario surfaces (gap-finding intent)
+
+  - **The polymorphic discriminator is a bare string.** Today
+    `sampling_procedure` accepts any string; "baseline" and
+    "monitor" are convention only. A future scenario or BC
+    enhancement might promote to a closed `SamplingProcedure`
+    enum if a third value emerges; the SOSA spec is itself
+    open-set, so the bare-string approach is OK in principle.
+  - **No projection over multiple Runs' readings.** A future
+    "compare T_sample baselines across Runs on this Subject"
+    query would benefit from a cross-Run projection over
+    `entries_run_readings`; not built today.
+  - **Reading entries are NOT in scope for the RunDebrief
+    agent.** Per [[project_run_debrief_design]] v1 read scope
+    is Run+RunReading+ConduitTraversal+Subject+Plan+Method+
+    Practice+Cautions. Wait, `RunReading` IS in the read scope
+    -- but no current debrief scenario actually loads readings.
+    Whether the agent's narrative would meaningfully change
+    with reading-context is a watch item for a future
+    debrief-with-readings scenario.
+"""
+
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
+
+from datetime import UTC, datetime, timedelta
+from uuid import UUID, uuid4
+
+import asyncpg
+import pytest
+
+from cora.campaign.aggregates.campaign import CampaignIntent
+from cora.campaign.features.add_run_to_campaign import AddRunToCampaign
+from cora.campaign.features.add_run_to_campaign import bind as bind_add_run_to_campaign
+from cora.campaign.features.close_campaign import CloseCampaign
+from cora.campaign.features.close_campaign import bind as bind_close_campaign
+from cora.campaign.features.start_campaign import StartCampaign
+from cora.campaign.features.start_campaign import bind as bind_start_campaign
+from cora.equipment.features.activate_asset import ActivateAsset
+from cora.equipment.features.activate_asset import bind as bind_activate_asset
+from cora.recipe.features.define_method import DefineMethod
+from cora.recipe.features.define_method import bind as bind_define_method
+from cora.recipe.features.define_plan import DefinePlan
+from cora.recipe.features.define_plan import bind as bind_define_plan
+from cora.recipe.features.define_practice import DefinePractice
+from cora.recipe.features.define_practice import bind as bind_define_practice
+from cora.recipe.features.update_method_parameters_schema import (
+    UpdateMethodParametersSchema,
+)
+from cora.recipe.features.update_method_parameters_schema import (
+    bind as bind_update_method_schema,
+)
+from cora.run.aggregates.run import PostgresReadingStore
+from cora.run.features.append_run_reading import (
+    AppendRunReadings,
+    RunReadingInput,
+)
+from cora.run.features.append_run_reading import bind as bind_append_readings
+from cora.run.features.complete_run import CompleteRun
+from cora.run.features.complete_run import bind as bind_complete_run
+from cora.run.features.start_run import StartRun
+from cora.run.features.start_run import bind as bind_start_run
+from cora.subject.features.mount_subject import MountSubject
+from cora.subject.features.mount_subject import bind as bind_mount_subject
+from tests.integration._helpers import build_postgres_deps
+from tests.integration.scenarios._beamtime_fixture import (
+    BeamtimeSpec,
+    beamtime_id_prefix,
+    open_beamtime,
+)
+from tests.integration.scenarios._facility_fixture import (
+    DeviceSpec,
+    facility_id_prefix,
+    install_aps_unit,
+    operator_for,
+)
+
+_NOW = datetime(2026, 5, 18, 5, 0, 0, tzinfo=UTC)
+_PRINCIPAL_ID = operator_for(__file__)
+_CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000470bb")
+
+# Scenario tag: 470 (run readings / baseline + monitor logbook).
+_ARGONNE_ENTERPRISE_ID = UUID("01900000-0000-7000-8000-000000470e01")
+_APS_SITE_ID = UUID("01900000-0000-7000-8000-000000470501")
+_SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000470701")
+_2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000470a01")
+
+_CAP_ROTARY_STAGE_ID = UUID("01900000-0000-7000-8000-000000470c01")
+_CAP_LINEAR_STAGE_ID = UUID("01900000-0000-7000-8000-000000470c11")
+_CAP_CAMERA_ID = UUID("01900000-0000-7000-8000-000000470c21")
+_CAP_SCINTILLATOR_ID = UUID("01900000-0000-7000-8000-000000470c31")
+
+_ASSET_AEROTECH_ABRS_ID = UUID("01900000-0000-7000-8000-000000470a11")
+_ASSET_SAMPLE_TOP_X_ID = UUID("01900000-0000-7000-8000-000000470a21")
+_ASSET_ORYX_5MP_ID = UUID("01900000-0000-7000-8000-000000470a31")
+_ASSET_SCINTILLATOR_LUAG_ID = UUID("01900000-0000-7000-8000-000000470a41")
+
+_PI_ACTOR_ID = UUID("01900000-0000-7000-8000-000000470b01")
+_SUBJECT_ID = UUID("01900000-0000-7000-8000-000000470b11")
+_CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000470b21")
+
+_METHOD_TOMO_ID = UUID("01900000-0000-7000-8000-000000470d01")
+_PRACTICE_TOMO_ID = UUID("01900000-0000-7000-8000-000000470d11")
+_PLAN_TOMO_ID = UUID("01900000-0000-7000-8000-000000470d21")
+
+_RUN_ID = UUID("01900000-0000-7000-8000-000000470f02")
+_READING_LOGBOOK_ID = UUID("01900000-0000-7000-8000-000000470f11")
+
+# Per-entry event_ids for the two batches (pre-allocated for audit
+# stability; producer-supplied per the at-least-once semantics).
+_BASELINE_T_SAMPLE_ID = UUID("01900000-0000-7000-8000-00000047b001")
+_BASELINE_RING_CURRENT_ID = UUID("01900000-0000-7000-8000-00000047b002")
+_BASELINE_MOTOR_X_ID = UUID("01900000-0000-7000-8000-00000047b003")
+_MONITOR_T_SAMPLE_ID = UUID("01900000-0000-7000-8000-000000470c81")
+_MONITOR_RING_CURRENT_ID = UUID("01900000-0000-7000-8000-000000470c82")
+
+_DEVICES = (
+    DeviceSpec(
+        "Aerotech_ABRS_rotary",
+        _ASSET_AEROTECH_ABRS_ID,
+        "RotaryStage",
+        _CAP_ROTARY_STAGE_ID,
+    ),
+    DeviceSpec(
+        "Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID
+    ),
+    DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
+    DeviceSpec(
+        "Scintillator_LuAG",
+        _ASSET_SCINTILLATOR_LUAG_ID,
+        "Scintillator",
+        _CAP_SCINTILLATOR_ID,
+    ),
+)
+
+_BEAMTIME = BeamtimeSpec(
+    pi_actor_id=_PI_ACTOR_ID,
+    pi_actor_name="Dr. PI (Proposal 2026-1234 lead)",
+    subject_id=_SUBJECT_ID,
+    subject_name="porous sandstone core (Proposal 2026-1234, sample A, with readings)",
+    campaign_id=_CAMPAIGN_ID,
+    campaign_name="Proposal 2026-1234 beamtime (with readings)",
+    campaign_intent=CampaignIntent.COORDINATED,
+    campaign_tags=frozenset({"proposal", "tomography", "porous_media"}),
+)
+
+
+def _id_queue() -> list[UUID]:
+    e = uuid4
+    return [
+        *facility_id_prefix(
+            argonne_id=_ARGONNE_ENTERPRISE_ID,
+            aps_site_id=_APS_SITE_ID,
+            sector_id=_SECTOR_2_AREA_ID,
+            unit_id=_2BM_UNIT_ID,
+            devices=_DEVICES,
+        ),
+        # activate_asset x 4
+        e(),
+        e(),
+        e(),
+        e(),
+        *beamtime_id_prefix(spec=_BEAMTIME),
+        # mount_subject
+        e(),
+        # define_method + schema
+        _METHOD_TOMO_ID,
+        e(),
+        e(),
+        # define_practice
+        _PRACTICE_TOMO_ID,
+        e(),
+        # define_plan
+        _PLAN_TOMO_ID,
+        e(),
+        # start_run
+        _RUN_ID,
+        e(),
+        # add_run_to_campaign (2)
+        e(),
+        e(),
+        # start_campaign
+        e(),
+        # First append_run_reading: lazy logbook_id + open event_id
+        _READING_LOGBOOK_ID,
+        e(),  # RunReadingLogbookOpened
+        # Second append: no open event; just the row inserts (no
+        # event-id from id queue because no Run event is appended)
+        # complete_run
+        e(),
+        # close_campaign
+        e(),
+    ]
+
+
+@pytest.mark.integration
+async def test_run_reading_logbook_lazy_open_and_polymorphic_procedures(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Seed full chain, start Run, append baseline readings (lazy
+    open), append monitor readings (skip open), complete Run.
+    Assert: Run stream gets RunStarted + RunReadingLogbookOpened +
+    RunCompleted (no second open event); 5 reading rows land with
+    both sampling_procedure values across the two batches."""
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
+    reading_store = PostgresReadingStore(db_pool)
+
+    await install_aps_unit(
+        deps,
+        correlation_id=_CORRELATION_ID,
+        argonne_id=_ARGONNE_ENTERPRISE_ID,
+        aps_site_id=_APS_SITE_ID,
+        sector_id=_SECTOR_2_AREA_ID,
+        unit_id=_2BM_UNIT_ID,
+        devices=_DEVICES,
+    )
+
+    for asset_id in (
+        _ASSET_AEROTECH_ABRS_ID,
+        _ASSET_SAMPLE_TOP_X_ID,
+        _ASSET_ORYX_5MP_ID,
+        _ASSET_SCINTILLATOR_LUAG_ID,
+    ):
+        await bind_activate_asset(deps)(
+            ActivateAsset(asset_id=asset_id),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+    await open_beamtime(
+        deps,
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+        spec=_BEAMTIME,
+    )
+
+    await bind_mount_subject(deps)(
+        MountSubject(
+            subject_id=_SUBJECT_ID,
+            asset_id=_ASSET_AEROTECH_ABRS_ID,
+            reason="reading-logbook scenario setup",
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    await bind_define_method(deps)(
+        DefineMethod(
+            name="tomography",
+            needed_capabilities=frozenset(
+                {
+                    _CAP_ROTARY_STAGE_ID,
+                    _CAP_LINEAR_STAGE_ID,
+                    _CAP_CAMERA_ID,
+                    _CAP_SCINTILLATOR_ID,
+                }
+            ),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_update_method_schema(deps)(
+        UpdateMethodParametersSchema(
+            method_id=_METHOD_TOMO_ID,
+            parameters_schema={
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                    "exposure_ms": {"type": "integer", "minimum": 1},
+                    "n_projections": {"type": "integer", "minimum": 1},
+                    "angle_range_deg": {
+                        "type": "number",
+                        "minimum": 1,
+                        "maximum": 360,
+                    },
+                },
+                "required": ["exposure_ms", "n_projections", "angle_range_deg"],
+            },
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_define_practice(deps)(
+        DefinePractice(
+            name="2BM_tomography_practice",
+            method_id=_METHOD_TOMO_ID,
+            site_id=_APS_SITE_ID,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_define_plan(deps)(
+        DefinePlan(
+            name="2BM_porous_media_tomography_plan",
+            practice_id=_PRACTICE_TOMO_ID,
+            asset_ids=frozenset(
+                {
+                    _ASSET_AEROTECH_ABRS_ID,
+                    _ASSET_SAMPLE_TOP_X_ID,
+                    _ASSET_ORYX_5MP_ID,
+                    _ASSET_SCINTILLATOR_LUAG_ID,
+                }
+            ),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    await bind_start_run(deps)(
+        StartRun(
+            name="Proposal 2026-1234 sample A tomography (with reading logbook)",
+            plan_id=_PLAN_TOMO_ID,
+            subject_id=_SUBJECT_ID,
+            override_parameters={
+                "exposure_ms": 100,
+                "n_projections": 1500,
+                "angle_range_deg": 180.0,
+            },
+            triggered_by="operator-manual",
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_add_run_to_campaign(deps)(
+        AddRunToCampaign(campaign_id=_CAMPAIGN_ID, run_id=_RUN_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_start_campaign(deps)(
+        StartCampaign(campaign_id=_CAMPAIGN_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # ----- Batch 1: pre-scan baseline readings (3 entries; lazy open) -----
+
+    pre_scan_at = _NOW
+    baseline_entries = (
+        RunReadingInput(
+            event_id=_BASELINE_T_SAMPLE_ID,
+            channel_name="T_sample",
+            value=295.1,
+            sampled_at=pre_scan_at,
+            sampling_procedure="baseline",
+            units="K",
+        ),
+        RunReadingInput(
+            event_id=_BASELINE_RING_CURRENT_ID,
+            channel_name="S_SRCurrentAI",
+            value=102.7,
+            sampled_at=pre_scan_at,
+            sampling_procedure="baseline",
+            units="mA",
+        ),
+        RunReadingInput(
+            event_id=_BASELINE_MOTOR_X_ID,
+            channel_name="Sample_top_X",
+            value=12.345,
+            sampled_at=pre_scan_at,
+            sampling_procedure="baseline",
+            units="mm",
+        ),
+    )
+    baseline_count = await bind_append_readings(deps, reading_store=reading_store)(
+        AppendRunReadings(run_id=_RUN_ID, entries=baseline_entries),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert baseline_count == 3
+
+    # ----- Batch 2: mid-scan monitor readings (2 entries; no open emit) -----
+
+    mid_scan_at = _NOW + timedelta(minutes=10)
+    monitor_entries = (
+        RunReadingInput(
+            event_id=_MONITOR_T_SAMPLE_ID,
+            channel_name="T_sample",
+            value=295.4,
+            sampled_at=mid_scan_at,
+            sampling_procedure="monitor",
+            units="K",
+        ),
+        RunReadingInput(
+            event_id=_MONITOR_RING_CURRENT_ID,
+            channel_name="S_SRCurrentAI",
+            value=101.9,
+            sampled_at=mid_scan_at,
+            sampling_procedure="monitor",
+            units="mA",
+        ),
+    )
+    monitor_count = await bind_append_readings(deps, reading_store=reading_store)(
+        AppendRunReadings(run_id=_RUN_ID, entries=monitor_entries),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert monitor_count == 2
+
+    # ----- Run completes normally -----
+
+    await bind_complete_run(deps)(
+        CompleteRun(run_id=_RUN_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_close_campaign(deps)(
+        CloseCampaign(campaign_id=_CAMPAIGN_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # ----- Assert: Run stream carries the lazy-open event ONCE -----
+
+    run_events, _ = await deps.event_store.load("Run", _RUN_ID)
+    run_event_types = [e.event_type for e in run_events]
+    # RunStarted + RunCampaignAssigned + RunReadingLogbookOpened (lazy)
+    # + RunCompleted = 4. Second append must NOT emit a second
+    # RunReadingLogbookOpened.
+    assert run_event_types == [
+        "RunStarted",
+        "RunCampaignAssigned",
+        "RunReadingLogbookOpened",
+        "RunCompleted",
+    ]
+    assert run_event_types.count("RunReadingLogbookOpened") == 1
+
+    # ----- Assert: 5 reading rows landed in entries_run_readings -----
+
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT event_id, channel_name, value, units, sampling_procedure
+            FROM entries_run_readings
+            WHERE run_id = $1
+            ORDER BY sampled_at, channel_name
+            """,
+            _RUN_ID,
+        )
+
+    assert len(rows) == 5
+
+    by_event_id = {r["event_id"]: r for r in rows}
+
+    # Baseline rows: 3 entries with sampling_procedure="baseline"
+    baseline_rows = [r for r in rows if r["sampling_procedure"] == "baseline"]
+    assert len(baseline_rows) == 3
+
+    # Monitor rows: 2 entries with sampling_procedure="monitor"
+    monitor_rows = [r for r in rows if r["sampling_procedure"] == "monitor"]
+    assert len(monitor_rows) == 2
+
+    # Spot-check a baseline row's typed-column round trip
+    t_sample_baseline = by_event_id[_BASELINE_T_SAMPLE_ID]
+    assert t_sample_baseline["channel_name"] == "T_sample"
+    assert t_sample_baseline["value"] == pytest.approx(295.1)
+    assert t_sample_baseline["units"] == "K"
+
+    # Spot-check a monitor row
+    t_sample_monitor = by_event_id[_MONITOR_T_SAMPLE_ID]
+    assert t_sample_monitor["channel_name"] == "T_sample"
+    assert t_sample_monitor["value"] == pytest.approx(295.4)
+    assert t_sample_monitor["sampling_procedure"] == "monitor"
