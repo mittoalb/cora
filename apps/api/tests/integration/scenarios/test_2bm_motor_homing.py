@@ -312,7 +312,7 @@ async def test_motor_homing_plays_out_end_to_end(
     )
     await bind_define_plan(deps)(
         DefinePlan(
-            name="35BM_motor_homing_plan",
+            name="2BM_motor_homing_plan",
             practice_id=_PRACTICE_HOMING_ID,
             asset_ids=frozenset({_ASSET_AEROTECH_ABRS_ID, _ASSET_SAMPLE_TOP_X_ID}),
         ),

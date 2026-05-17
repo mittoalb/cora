@@ -549,13 +549,13 @@ async def test_center_alignment_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
     await bind_define_practice(deps)(
-        DefinePractice(name="35BM_alignment_practice", method_id=_METHOD_ID, site_id=_APS_SITE_ID),
+        DefinePractice(name="2BM_alignment_practice", method_id=_METHOD_ID, site_id=_APS_SITE_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await bind_define_plan(deps)(
         DefinePlan(
-            name="35BM_center_routine_plan",
+            name="2BM_center_routine_plan",
             practice_id=_PRACTICE_ID,
             asset_ids=frozenset(
                 {

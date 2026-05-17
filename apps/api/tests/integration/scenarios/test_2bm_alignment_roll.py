@@ -335,7 +335,7 @@ async def test_roll_alignment_plays_out_end_to_end(
     )
     await bind_define_practice(deps)(
         DefinePractice(
-            name="35BM_roll_practice",
+            name="2BM_roll_practice",
             method_id=_METHOD_ROLL_ID,
             site_id=_APS_SITE_ID,
         ),
@@ -344,7 +344,7 @@ async def test_roll_alignment_plays_out_end_to_end(
     )
     await bind_define_plan(deps)(
         DefinePlan(
-            name="35BM_roll_plan",
+            name="2BM_roll_plan",
             practice_id=_PRACTICE_ROLL_ID,
             asset_ids=frozenset(
                 {

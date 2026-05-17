@@ -324,7 +324,7 @@ async def test_first_light_plays_out_end_to_end(
     )
     await bind_define_practice(deps)(
         DefinePractice(
-            name="35BM_first_light_practice",
+            name="2BM_first_light_practice",
             method_id=_METHOD_FIRST_LIGHT_ID,
             site_id=_APS_SITE_ID,
         ),
@@ -333,7 +333,7 @@ async def test_first_light_plays_out_end_to_end(
     )
     await bind_define_plan(deps)(
         DefinePlan(
-            name="35BM_first_light_plan",
+            name="2BM_first_light_plan",
             practice_id=_PRACTICE_FIRST_LIGHT_ID,
             asset_ids=frozenset(
                 {_ASSET_SHUTTER_2BM_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID}

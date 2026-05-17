@@ -53,7 +53,7 @@ Bound aggregates:
 
 - **Method**: `motor_homing` (Recipe BC, beamline-agnostic; declares `RotaryStage` + `LinearStage` capabilities)
 - **Practice**: `APS_motor_homing_practice` (Recipe BC, `site_id=APS`)
-- **Plan**: `35BM_motor_homing_plan` (Recipe BC, instance-level, no inventory page)
+- **Plan**: `2BM_motor_homing_plan` (Recipe BC, instance-level, no inventory page)
 - **Target Assets**: `Aerotech_ABRS_rotary`, `Sample_top_X` (Equipment BC Devices under the 2-BM Unit Asset)
 - **Out-of-Procedure side-effects on the Asset stream**: `AssetActivated` x2 (lifecycle), `AssetDegraded` + `AssetRestored` on Aerotech (condition), one `CautionRegistered` on Aerotech
 
@@ -108,8 +108,8 @@ Three-frame ceremony at low exposure:
 Bound aggregates:
 
 - **Method**: [`first_light`](../../catalog/methods.md) (Recipe BC, beamline-agnostic; declares `Shutter` + `Camera` + `Scintillator`)
-- **Practice**: [`35BM_first_light_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
-- **Plan**: `35BM_first_light_plan` (Recipe BC, instance-level)
+- **Practice**: [`2BM_first_light_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
+- **Plan**: `2BM_first_light_plan` (Recipe BC, instance-level)
 - **Target Assets**: `Shutter_35BM`, `Oryx_5MP_camera`, `Scintillator_LuAG`
 
 Operation stream (4 events per Procedure execution): `ProcedureRegistered → ProcedureStarted → ProcedureStepsLogbookOpened → ProcedureCompleted`.
@@ -156,8 +156,8 @@ The output Dataset is consumed by every subsequent science Run via the reconstru
 Bound aggregates:
 
 - **Method**: [`detector_dark_baseline`](../../catalog/methods.md) (Recipe BC, beamline-agnostic; declares `Shutter` + `Camera` + `Scintillator`)
-- **Practice**: [`35BM_dark_baseline_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
-- **Plan**: `35BM_dark_baseline_plan`
+- **Practice**: [`2BM_dark_baseline_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
+- **Plan**: `2BM_dark_baseline_plan`
 - **Target Assets**: `Shutter_35BM`, `Oryx_5MP_camera`, `Scintillator_LuAG`
 - **Out-of-Procedure artifact**: one `DatasetRegistered` event with `producing_run_id=None`, `subject_id=None`, `media_type="application/x-hdf5"`, `conforms_to={"https://www.nexusformat.org/NXdark_field"}`.
 
@@ -198,8 +198,8 @@ Preconditions: `first_light` succeeded, `detector_dark_baseline` registered (the
 Bound aggregates:
 
 - **Method**: [`detector_flat_baseline`](../../catalog/methods.md)
-- **Practice**: [`35BM_flat_baseline_practice`](../aps/practices.md)
-- **Plan**: `35BM_flat_baseline_plan`
+- **Practice**: [`2BM_flat_baseline_practice`](../aps/practices.md)
+- **Plan**: `2BM_flat_baseline_plan`
 - **Target Assets**: `Shutter_35BM`, `Oryx_5MP_camera`, `Scintillator_LuAG`
 - **Out-of-Procedure artifact**: one `DatasetRegistered` event, same shape as dark with `NXflat_field` profile.
 
@@ -243,8 +243,8 @@ Typical convergence: 3-4 acquisitions starting within +/- 100µm of the true pea
 Bound aggregates:
 
 - **Method**: [`resolution_alignment`](../../catalog/methods.md) (Recipe BC, beamline-agnostic; declares `LinearStage` + `Camera` + `Scintillator`)
-- **Practice**: [`35BM_resolution_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
-- **Plan**: `35BM_resolution_plan` (Recipe BC, instance-level)
+- **Practice**: [`2BM_resolution_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
+- **Plan**: `2BM_resolution_plan` (Recipe BC, instance-level)
 - **Target Assets**: `Optique_Peter_focus_Z`, `Oryx_5MP_camera`, `Scintillator_LuAG`
 
 Operation stream (4 events per Procedure execution): `ProcedureRegistered → ProcedureStarted → ProcedureStepsLogbookOpened → ProcedureCompleted`.
@@ -293,8 +293,8 @@ Typical convergence: 3-4 acquisitions starting within +/- 1mm of the true peak.
 Bound aggregates:
 
 - **Method**: [`focus_alignment`](../../catalog/methods.md) (Recipe BC, beamline-agnostic; declares `LinearStage` + `Camera` + `Scintillator`)
-- **Practice**: [`35BM_focus_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
-- **Plan**: `35BM_focus_plan` (Recipe BC, instance-level)
+- **Practice**: [`2BM_focus_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
+- **Plan**: `2BM_focus_plan` (Recipe BC, instance-level)
 - **Target Assets**: `Sample_top_Z`, `Oryx_5MP_camera`, `Scintillator_LuAG`
 
 Operation stream (4 events per Procedure execution): `ProcedureRegistered → ProcedureStarted → ProcedureStepsLogbookOpened → ProcedureCompleted`.
@@ -344,8 +344,8 @@ Typical convergence: 2-3 iterations starting from a few-pixel misalignment. Tole
 Bound aggregates:
 
 - **Method**: [`center_alignment`](../../catalog/methods.md) (Recipe BC, beamline-agnostic)
-- **Practice**: [`35BM_alignment_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
-- **Plan**: `35BM_center_routine_plan` (Recipe BC, instance-level, no inventory page)
+- **Practice**: [`2BM_alignment_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
+- **Plan**: `2BM_center_routine_plan` (Recipe BC, instance-level, no inventory page)
 - **Target Assets**: `Aerotech_ABRS_rotary`, `Sample_top_X`, `Oryx_5MP_camera`, `Scintillator_LuAG` (Equipment BC Devices under the 2-BM Unit Asset; full inventory at [Assets](assets.md))
 
 Status FSM: `Defined → Running → Completed | Aborted | Truncated`. The event name `ProcedureRegistered` lands the aggregate in status `Defined` (event-type vs status-name divergence is intentional; status is derived from event type in the evolver).
@@ -403,8 +403,8 @@ Typical convergence: 2 iterations from a few-pixel Y delta. The roll motor's ang
 Bound aggregates:
 
 - **Method**: [`roll_alignment`](../../catalog/methods.md) (Recipe BC, beamline-agnostic; declares `RotaryStage` + `LinearStage` + `Camera` + `Scintillator`)
-- **Practice**: [`35BM_roll_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
-- **Plan**: `35BM_roll_plan` (Recipe BC, instance-level)
+- **Practice**: [`2BM_roll_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
+- **Plan**: `2BM_roll_plan` (Recipe BC, instance-level)
 - **Target Assets**: `Aerotech_ABRS_rotary`, `Sample_top_Roll`, `Oryx_5MP_camera`, `Scintillator_LuAG`
 
 Operation stream (4 events per Procedure execution): `ProcedureRegistered → ProcedureStarted → ProcedureStepsLogbookOpened → ProcedureCompleted`.
@@ -454,8 +454,8 @@ Typical convergence: 2 iterations from ~10% sharpness delta. Motor steps are mil
 Bound aggregates:
 
 - **Method**: [`pitch_alignment`](../../catalog/methods.md) (Recipe BC, beamline-agnostic; declares `RotaryStage` + `LinearStage` + `Camera` + `Scintillator`)
-- **Practice**: [`35BM_pitch_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
-- **Plan**: `35BM_pitch_plan` (Recipe BC, instance-level)
+- **Practice**: [`2BM_pitch_practice`](../aps/practices.md) (Recipe BC, `site_id=APS`)
+- **Plan**: `2BM_pitch_plan` (Recipe BC, instance-level)
 - **Target Assets**: `Aerotech_ABRS_rotary`, `Sample_top_Pitch`, `Oryx_5MP_camera`, `Scintillator_LuAG`
 
 Operation stream (4 events per Procedure execution): `ProcedureRegistered → ProcedureStarted → ProcedureStepsLogbookOpened → ProcedureCompleted`.
@@ -466,3 +466,19 @@ Example queries:
 
 - "What's 2-BM's current pitch calibration?" Query the Procedure stream for the most recent `pitch_alignment` with `passed=True`; the final Setpoint carries the calibrated value.
 - "Which sphere targets give the cleanest pitch convergence?" Group Check entries by `target` payload key, compare iteration counts.
+
+## Pending in code
+
+The following Procedure kinds are surfaced by the [2-BM repo survey](https://github.com/xray-imaging/2bm-docs) but not yet registered in code. Each materializes as a row in the table above when its scenario test (or a seed script) registers it. Planned filenames follow the [scenario naming convention](../../../apps/api/tests/integration/scenarios/README.md):
+
+| Pending Procedure | Phase | Lands when this file ships | Source-of-truth note |
+| --- | --- | --- | --- |
+| `alignment_calibration` | commissioning | `tests/integration/scenarios/test_2bm_alignment_calibration.py` | Pre-step in `align/src/align/auto.py` that measures motor sensitivities (`K_cam` / `K_roll` / `K_pitch`) before iterating the alignment chain. Gap-filler: today's 5-step chain assumes K values exist from nowhere. |
+| `alignment_auto_chain` | commissioning | `tests/integration/scenarios/test_2bm_alignment_auto_chain.py` | Full `align auto` orchestration: calibration -> Step1 -> Step2 (roll) -> **Step1 re-run** (roll perturbs tilt) -> Step3 -> Step4. Campaign-level composition. See also [Campaigns](campaigns.md). |
+| `streaming_tomography` | operations | `tests/integration/scenarios/test_2bm_streaming_tomography.py` | TomoScanStream + tomoStream real-time reconstruction; exercises `adjust_run` slice for mid-flight operator steering. |
+| `energy_change` | operations | `tests/integration/scenarios/test_2bm_energy_change.py` | DMM energy switch mid-beamtime between two user Plans at different keV. |
+| `energy_calibration` | maintenance | `tests/integration/scenarios/test_2bm_energy_calibration.py` | Channel-cut-crystal rocking-curve to measure true DMM energy + update the offset. 7-step Procedure; produces a rocking-curve [Dataset](datasets.md). |
+| `ioc_restart` | maintenance | `tests/integration/scenarios/test_2bm_ioc_restart.py` | EPICS IOC bring-up across 8 IOC pairs in `2bmb-bin/*_IOC.sh`; exercises `Asset.degrade` -> `Asset.restore` lifecycle on IOC-hosted Assets + a Supply event for the EPICS subnet. |
+| `hexapod_reboot` | maintenance | `tests/integration/scenarios/test_2bm_hexapod_reboot.py` | PDU power-cycle outlet 4 + hexapod IOC restart after controller lockup. Asset.fault -> Asset.restore on the Hexapod (see [Assets](assets.md) Pending), Supply event for the power-rail blip, [Caution](cautions.md) for the lockup pattern. Sourced from `2bmb-bin/hexapod_reboot.py`. |
+| `vibration_baseline` | maintenance | `tests/integration/scenarios/test_2bm_vibration_baseline.py` | 1000-frame high-speed acquisition to characterize vertical vibration before / after APS air-handler shutdown. Produces a vibration-baseline [Dataset](datasets.md); registers a Caution if frequencies exceed reference. |
+| `mirror_recoat_return` | maintenance | `tests/integration/scenarios/test_2bm_mirror_recoat_return.py` | Mirror substrate returns from external recoating (Cr base + Pt / W-Si multilayer / Rh stripes); re-install + re-commission. Exercises Asset.replace (Mirror) and Capability re-declaration (coating stripes change usable energy ranges). |

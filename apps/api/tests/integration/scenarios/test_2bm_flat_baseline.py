@@ -316,7 +316,7 @@ async def test_flat_baseline_plays_out_end_to_end(
     )
     await bind_define_practice(deps)(
         DefinePractice(
-            name="35BM_flat_baseline_practice",
+            name="2BM_flat_baseline_practice",
             method_id=_METHOD_FLAT_ID,
             site_id=_APS_SITE_ID,
         ),
@@ -325,7 +325,7 @@ async def test_flat_baseline_plays_out_end_to_end(
     )
     await bind_define_plan(deps)(
         DefinePlan(
-            name="35BM_flat_baseline_plan",
+            name="2BM_flat_baseline_plan",
             practice_id=_PRACTICE_FLAT_ID,
             asset_ids=frozenset(
                 {_ASSET_SHUTTER_2BM_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID}
@@ -426,7 +426,7 @@ async def test_flat_baseline_plays_out_end_to_end(
 
     await bind_register_dataset(deps)(
         RegisterDataset(
-            name="35BM_flat_baseline_2026-04-17",
+            name="2BM_flat_baseline_2026-04-17",
             uri="file:///data/35bm/2026-04/flat_baseline.h5",
             checksum_algorithm="sha256",
             checksum_value="f" * 64,
@@ -491,7 +491,7 @@ async def test_flat_baseline_plays_out_end_to_end(
     assert dataset_version == 1
     assert [e.event_type for e in dataset_events] == ["DatasetRegistered"]
     dataset_payload = dataset_events[0].payload
-    assert dataset_payload["name"] == "35BM_flat_baseline_2026-04-17"
+    assert dataset_payload["name"] == "2BM_flat_baseline_2026-04-17"
     assert dataset_payload["encoding"]["media_type"] == "application/x-hdf5"
     assert dataset_payload["subject_id"] is None
     assert dataset_payload["producing_run_id"] is None

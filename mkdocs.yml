@@ -83,6 +83,8 @@ nav:
       - deployments/2-bm/index.md
       - Assets: deployments/2-bm/assets.md
       - Procedures: deployments/2-bm/procedures.md
+      - Subjects: deployments/2-bm/subjects.md
+      - Campaigns: deployments/2-bm/campaigns.md
       - Cautions: deployments/2-bm/cautions.md
       - Datasets: deployments/2-bm/datasets.md
     - 35-BM:

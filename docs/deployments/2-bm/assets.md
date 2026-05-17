@@ -56,4 +56,14 @@ Source of truth: [`test_2bm_alignment_center.py`](../../../apps/api/tests/integr
 
 ## Pending in code
 
-The broader 2-BM Asset stack (softGlueZynq FPGA, the full Optique Peter triple-objective microscope with three lens / scintillator options, the PCO Dimax HS high-speed detector, sample-stage X/Y/Z/pitch/roll motors, the hexapod) is not yet registered in code. Each lands as a row above when a scenario test or seed script instantiates it.
+The broader 2-BM Asset stack surfaced by the [2-BM repo survey](https://github.com/xray-imaging/2bm-docs) or `2bmb-bin` IOC scripts. Each lands as a row above when a scenario test (or seed script) registers it.
+
+| Pending Asset | Capability | Role at 2-BM | Source scenario (planned) |
+| --- | --- | --- | --- |
+| `Hexapod_2BM` | (new `Hexapod` Capability) | Sample-positioning hexapod; exercises Asset.fault → Asset.restore via PDU outlet 4 reboot pattern | `tests/integration/scenarios/test_2bm_hexapod_reboot.py` |
+| `Mirror_2BM` | (new `Mirror` Capability with coating-dependent energy range) | White-beam mirror with multi-stripe coating (Cr base + Pt / W-Si multilayer / Rh stripes); exercises Asset.replace + Capability re-declaration on substrate return from recoating | `tests/integration/scenarios/test_2bm_mirror_recoat_return.py` |
+| `softGlueZynq_FPGA` | (new `TriggerFPGA` Capability) | Hardware trigger generation for fly-scans; needed to model live-reconstruction streaming | Not yet sourced; likely lands with `streaming_tomography` scenario |
+| `PCO_Dimax_HS` | `HighSpeedCamera` | High-speed detector alternate to Oryx; used for vibration-baseline acquisitions and continuous-rotation sweeps | Not yet sourced; likely lands with `vibration_baseline` or `continuous_rotation_sweep` |
+| Full Optique Peter triple-objective microscope | `LinearStage` x3 (lens swap) + `Scintillator` x3 (per-objective swap) | Three-objective swap stack (Mitutoyo 1.1x / 5x / 10x); exercises Capability re-binding when the operator swaps objectives | Not yet sourced; would land with an operations-phase scan that requires a non-default objective |
+| Sample-stage X / Y / Z / pitch / roll motors (broader stack beyond the 5 above) | `LinearStage` (X/Y/Z) + tilt motors | Full sample-stage stack used in mosaic + multi-tile acquisitions | Likely partial coverage from `mosaic_acquisition` scenario |
+| IOC-hosted EPICS Devices (8 IOC pairs in `2bmb-bin`) | various | All Devices that need IOC restart cycles to exercise their lifecycle facets | `tests/integration/scenarios/test_2bm_ioc_restart.py` (touches all IOC-hosted Assets in one scenario) |

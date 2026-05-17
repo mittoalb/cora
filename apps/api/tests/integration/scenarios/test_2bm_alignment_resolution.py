@@ -313,7 +313,7 @@ async def test_resolution_alignment_plays_out_end_to_end(
     )
     await bind_define_practice(deps)(
         DefinePractice(
-            name="35BM_resolution_practice",
+            name="2BM_resolution_practice",
             method_id=_METHOD_RESOLUTION_ID,
             site_id=_APS_SITE_ID,
         ),
@@ -322,7 +322,7 @@ async def test_resolution_alignment_plays_out_end_to_end(
     )
     await bind_define_plan(deps)(
         DefinePlan(
-            name="35BM_resolution_plan",
+            name="2BM_resolution_plan",
             practice_id=_PRACTICE_RESOLUTION_ID,
             asset_ids=frozenset(
                 {_ASSET_FOCUS_Z_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID}

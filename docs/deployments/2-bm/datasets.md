@@ -4,8 +4,8 @@
 
 | Dataset | Intent | Producing Run | Subject | Conforms to |
 | --- | --- | --- | --- | --- |
-| `35BM_dark_baseline_2026-04-17` | `Trial` | none (calibration) | none (no sample) | `https://www.nexusformat.org/NXdark_field` |
-| `35BM_flat_baseline_2026-04-17` | `Trial` | none (calibration) | none (no sample) | `https://www.nexusformat.org/NXflat_field` |
+| `2BM_dark_baseline_2026-04-17` | `Trial` | none (calibration) | none (no sample) | `https://www.nexusformat.org/NXdark_field` |
+| `2BM_flat_baseline_2026-04-17` | `Trial` | none (calibration) | none (no sample) | `https://www.nexusformat.org/NXflat_field` |
 
 Source of truth: [`test_2bm_dark_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_dark_baseline.py), [`test_2bm_flat_baseline.py`](../../../apps/api/tests/integration/scenarios/test_2bm_flat_baseline.py).
 
@@ -25,11 +25,17 @@ Both baselines land as `intent=Trial`. The `promote_dataset` slice (deferred at 
 
 ## Pending in code
 
-Other Dataset types are not yet registered at 2-BM:
+Other Dataset types surfaced by the [2-BM repo survey](https://github.com/xray-imaging/2bm-docs) or design notes. Each lands as a row above when a scenario test (or seed script) registers it.
 
-- **Raw projection stacks** produced by science Runs (require Subject + Run + operations-phase scenario; the entire `operations` phase is currently empty).
-- **Reconstructed volumes** (derived from raw + dark + flat via `tomopy`; `derived_from` would carry all three Dataset ids).
-- **Segmentation masks** (derived from reconstructions; further down the lineage chain).
-- **Dark-subtracted flats** (the `derived_from` example mentioned in the flat-baseline scenario's gap-finding notes).
-
-Each lands as a row above when a scenario test or seed script registers it.
+| Pending Dataset class | Intent at registration | Source scenario (planned) |
+| --- | --- | --- |
+| Raw projection stack (operator-driven scan) | `Production` | `tests/integration/scenarios/test_2bm_first_proposal_scan.py` (canonical first user acquisition; landing path `/data/YYYY-MM/PI/file.h5`) |
+| Continuous-rotation projection stack (N back-to-back) | `Production` | `tests/integration/scenarios/test_2bm_continuous_rotation_sweep.py` (one TomoScan call yields N child Runs; N Datasets share one Campaign) |
+| Mosaic-tile projection stack | `Production` | `tests/integration/scenarios/test_2bm_mosaic_acquisition.py` (parameter sweep across tile XY) |
+| Live-reconstruction projection (streaming) | `Trial` | `tests/integration/scenarios/test_2bm_streaming_tomography.py` (TomoScanStream + tomoStream) |
+| Rocking curve | `Trial` | `tests/integration/scenarios/test_2bm_energy_calibration.py` (channel-cut-crystal scan to measure true DMM energy) |
+| Vibration baseline (1000-frame stack) | `Trial` | `tests/integration/scenarios/test_2bm_vibration_baseline.py` (pre / post air-handler shutdown comparison) |
+| Promoted production scan (Trial -> Production) | `Production` | `tests/integration/scenarios/test_2bm_data_publish_globus.py` (exercises `promote_dataset` slice + Campaign close + FDT/Globus push to Petrel) |
+| Reconstructed volume | `Production` | Not yet sourced; downstream of raw + dark + flat via `tomopy`; `derived_from` would carry all three Dataset ids |
+| Segmentation mask | `Production` | Not yet sourced; further down the lineage chain |
+| Dark-subtracted flat | `Trial` | Not yet sourced; `derived_from` would point at both dark + flat baselines |

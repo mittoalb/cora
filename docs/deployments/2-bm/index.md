@@ -17,7 +17,9 @@ The bending-magnet micro-CT instrument at APS sector 2. CORA's [pilot](../35-bm/
 What's registered at 2-BM today (Unit level) per the scenario corpus:
 
 - [Assets](assets.md): beamline-owned Devices, with lifecycle and condition transitions
-- [Procedures](procedures.md): operator routines (`motor_homing`, `center_alignment`)
+- [Procedures](procedures.md): operator routines (`motor_homing`, alignment chain, first light, baselines; operations + maintenance routines pending)
+- [Subjects](subjects.md): samples-or-things being measured (pending; lands with operations-phase scenarios)
+- [Campaigns](campaigns.md): coordinated studies composing Runs (pending; lands with operations-phase scenarios)
 - [Cautions](cautions.md): operator tribal knowledge attached to specific Assets
 - [Datasets](datasets.md): calibration artifacts produced by commissioning scenarios (dark + flat baselines)
 
