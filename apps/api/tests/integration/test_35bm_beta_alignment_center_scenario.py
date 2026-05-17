@@ -1,21 +1,19 @@
-"""Pilot integration test: 35-BM rotation-axis alignment Procedure (Phase 10d).
+"""Phase: beta. Routine: center alignment at APS 35-BM.
 
-This is the first concrete-domain integration test for CORA. Unlike the
-synthetic integration tests in 10c-* which exercise individual slices,
-this test composes the full BC stack (Equipment + Recipe + Operation)
-to express ONE real beamline-operations workflow end-to-end:
+Scenario test for the rotation-axis "center" alignment routine at 35-BM
+micro-CT, as performed by operators today at mechanically-similar 2-BM
+via the `xray-imaging/adjust` CLI. Composes the full Equipment + Recipe
++ Operation BC stack end-to-end for one real beamline routine.
 
-  the rotation-axis alignment "center" routine at APS 2-BM (mechanically
-  similar to 35-BM micro-CT), as performed by operators today via the
-  `xray-imaging/adjust` CLI.
+See [[project_scenario_taxonomy]] for the phase / file-naming taxonomy
+this scenario fits into.
 
 ## Why this test exists
 
-Per [[project_phase_plan]] §10d, the value is not a green CI light.
-The value is **gap-surfacing**: do the synthetic-BC-shape decisions we
-made through 10c hold up when expressed against a real operator
-workflow? Each gap surfaced becomes a watch item, design memo
-addition, or future-phase task — NOT a 10d code fix.
+The value is not a green CI light; it is **gap-surfacing**: do the
+synthetic-BC-shape decisions hold up when expressed against a real
+operator workflow? Each gap surfaced becomes a watch item or design
+memo addition, not a fix in this file.
 
 ## Domain shape (synthesized from APS tomoscan + 2bm-docs)
 
@@ -53,9 +51,8 @@ not directly manipulated during the center routine.
 
 ## What this test surfaces (gap-finding intent)
 
-See `docs/projects/35-bm/rotation_axis_alignment.md` (the operator-
-facing companion) for the gaps documented in domain terms. The most
-consequential surfaces are:
+See `docs/deployments/35-bm/procedures.md` (the operator-facing
+companion) for the gaps documented in domain terms. The most consequential surfaces are:
 
   - **Iteration loop has no first-class shape**: alignment IS iterative
     (rotate → check → adjust → re-rotate); we encode iteration via
@@ -88,6 +85,8 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
+from cora.access.features.register_actor import RegisterActor
+from cora.access.features.register_actor import bind as bind_register_actor
 from cora.equipment.aggregates.asset import AssetLevel
 from cora.equipment.features.add_asset_capability import (
     AddAssetCapability,
@@ -160,6 +159,16 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000035bb")
 # Pre-allocated id queue. Order matters (FixedIdGenerator consumes head-first).
 # Each block annotates which command consumes which IDs.
 
+# Access BC: the operator Actor registered first; its id IS _PRINCIPAL_ID so
+# subsequent calls reference a real Actor instead of a placeholder UUID.
+_ACTOR_OPERATOR_ID = _PRINCIPAL_ID
+
+# Asset hierarchy: Argonne (Enterprise) → APS (Site) → 35-BM (Unit). Devices
+# below hang off _35BM_UNIT_ID. Practice's site_id references _APS_SITE_ID.
+_ARGONNE_ENTERPRISE_ID = UUID("01900000-0000-7000-8000-000000350e01")
+_APS_SITE_ID = UUID("01900000-0000-7000-8000-000000350501")
+_35BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000350a01")
+
 # Capability ids (4 caps x 2 ids/define = 8)
 _CAP_ROTARY_STAGE_ID = UUID("01900000-0000-7000-8000-000000035c01")
 _CAP_LINEAR_STAGE_ID = UUID("01900000-0000-7000-8000-000000035c11")
@@ -189,6 +198,18 @@ def _id_queue() -> list[UUID]:
     """Build the FixedIdGenerator queue. Anonymous event ids are uuid4()."""
     e = uuid4  # alias for brevity
     return [
+        # register_actor (operator, principal): actor_id, event_id
+        _ACTOR_OPERATOR_ID,
+        e(),
+        # register_asset Argonne (Enterprise): asset_id, event_id
+        _ARGONNE_ENTERPRISE_ID,
+        e(),
+        # register_asset APS (Site, parent=Argonne): asset_id, event_id
+        _APS_SITE_ID,
+        e(),
+        # register_asset 35-BM (Unit, parent=APS): asset_id, event_id
+        _35BM_UNIT_ID,
+        e(),
         # define_capability x 4: cap_id, event_id
         _CAP_ROTARY_STAGE_ID,
         e(),
@@ -319,17 +340,42 @@ async def _drain(db_pool: asyncpg.Pool) -> None:
 
 
 @pytest.mark.integration
-async def test_35bm_rotation_axis_alignment_center_routine_end_to_end(
+async def test_center_alignment_plays_out_end_to_end(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """One full execution of the 'center' alignment sub-routine:
-    seed Equipment + Recipe + Operation, run the iterative 0°/180°
+    """Seed Equipment + Recipe + Operation, run the iterative 0°/180°
     convergence loop, finalize with RotationCenter setpoint, drain the
     projection, assert the operator-readable record is correct.
     """
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
 
-    # ----- Seed Equipment BC: 4 Capabilities + 4 Assets + 4 add-capability links -----
+    # ----- Seed Access BC: register the operator Actor (id = _PRINCIPAL_ID) -----
+
+    await bind_register_actor(deps)(
+        RegisterActor(name="35-BM Operator"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # ----- Seed Equipment BC (facility hierarchy): Argonne → APS → 35-BM Unit -----
+
+    await bind_register_asset(deps)(
+        RegisterAsset(name="Argonne", level=AssetLevel.ENTERPRISE, parent_id=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_register_asset(deps)(
+        RegisterAsset(name="APS", level=AssetLevel.SITE, parent_id=_ARGONNE_ENTERPRISE_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await bind_register_asset(deps)(
+        RegisterAsset(name="35-BM", level=AssetLevel.UNIT, parent_id=_APS_SITE_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # ----- Seed Equipment BC: 4 Capabilities + 4 Devices + 4 capability links -----
 
     for cap_name in ("RotaryStage", "LinearStage_um", "Camera", "Scintillator"):
         await bind_define_capability(deps)(
@@ -344,10 +390,9 @@ async def test_35bm_rotation_axis_alignment_center_routine_end_to_end(
         ("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, _CAP_CAMERA_ID),
         ("Scintillator_LuAG", _ASSET_SCINTILLATOR_LUAG_ID, _CAP_SCINTILLATOR_ID),
     ]
-    site_id = uuid4()  # Asset.parent_id; not under test
     for asset_name, asset_id, cap_id in asset_specs:
         await bind_register_asset(deps)(
-            RegisterAsset(name=asset_name, level=AssetLevel.DEVICE, parent_id=site_id),
+            RegisterAsset(name=asset_name, level=AssetLevel.DEVICE, parent_id=_35BM_UNIT_ID),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -361,7 +406,7 @@ async def test_35bm_rotation_axis_alignment_center_routine_end_to_end(
 
     await bind_define_method(deps)(
         DefineMethod(
-            name="RotationAxisAlignment_center",
+            name="center_alignment",
             needed_capabilities=frozenset(
                 {
                     _CAP_ROTARY_STAGE_ID,
@@ -375,7 +420,7 @@ async def test_35bm_rotation_axis_alignment_center_routine_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
     await bind_define_practice(deps)(
-        DefinePractice(name="35BM_alignment_practice", method_id=_METHOD_ID, site_id=site_id),
+        DefinePractice(name="35BM_alignment_practice", method_id=_METHOD_ID, site_id=_APS_SITE_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -401,7 +446,7 @@ async def test_35bm_rotation_axis_alignment_center_routine_end_to_end(
     await bind_register_procedure(deps)(
         RegisterProcedure(
             name="35-BM rotation-axis alignment (vessel-A bakeout pre-scan)",
-            kind="rotation_axis_alignment",
+            kind="center_alignment",
             target_asset_ids=frozenset(
                 {
                     _ASSET_AEROTECH_ABRS_ID,
@@ -437,7 +482,7 @@ async def test_35bm_rotation_axis_alignment_center_routine_end_to_end(
         ),
         _action(
             action_name="acquire_alignment_frame",
-            exposure_time_s=0.05,
+            exposure_time=0.05,
             frame_type="Projection",
             hdf5_location="/exchange/data/align_iter1_0deg.h5",
             sampled_at=t(2),
@@ -461,7 +506,7 @@ async def test_35bm_rotation_axis_alignment_center_routine_end_to_end(
         ),
         _action(
             action_name="acquire_alignment_frame",
-            exposure_time_s=0.05,
+            exposure_time=0.05,
             frame_type="Projection",
             hdf5_location="/exchange/data/align_iter1_180deg.h5",
             sampled_at=t(5),
@@ -500,7 +545,7 @@ async def test_35bm_rotation_axis_alignment_center_routine_end_to_end(
         ),
         _action(
             action_name="acquire_alignment_frame",
-            exposure_time_s=0.05,
+            exposure_time=0.05,
             frame_type="Projection",
             hdf5_location="/exchange/data/align_iter2_0deg.h5",
             sampled_at=t(9),
@@ -514,7 +559,7 @@ async def test_35bm_rotation_axis_alignment_center_routine_end_to_end(
         ),
         _action(
             action_name="acquire_alignment_frame",
-            exposure_time_s=0.05,
+            exposure_time=0.05,
             frame_type="Projection",
             hdf5_location="/exchange/data/align_iter2_180deg.h5",
             sampled_at=t(11),
@@ -620,7 +665,7 @@ async def test_35bm_rotation_axis_alignment_center_routine_end_to_end(
     await _drain(db_pool)
 
     page = await bind_list(deps)(
-        ListProcedures(kind="rotation_axis_alignment"),
+        ListProcedures(kind="center_alignment"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -628,7 +673,7 @@ async def test_35bm_rotation_axis_alignment_center_routine_end_to_end(
     assert len(matching) == 1
     proc_summary = matching[0]
     assert proc_summary.name == "35-BM rotation-axis alignment (vessel-A bakeout pre-scan)"
-    assert proc_summary.kind == "rotation_axis_alignment"
+    assert proc_summary.kind == "center_alignment"
     assert proc_summary.status == ProcedureStatus.COMPLETED.value
     assert proc_summary.steps_logbook_id == _STEPS_LOGBOOK_ID
     # All 4 target Assets surface in the read model for at-a-glance ops queries.
@@ -658,7 +703,7 @@ def _postgres_step_store(db_pool: asyncpg.Pool):
     """Build a PostgresStepStore for the BC-internal step writer.
 
     `wire_operation` constructs this normally from `deps.pool`; the
-    pilot test exercises the slice handler directly via `bind_append`,
+    scenario test exercises the slice handler directly via `bind_append`,
     so we construct the store here.
     """
     from cora.operation.aggregates.procedure import PostgresStepStore

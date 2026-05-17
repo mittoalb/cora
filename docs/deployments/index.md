@@ -1,14 +1,14 @@
-# Projects
+# Deployments
 
 *Pilots earn the abstractions.*
 
-Vertical before horizontal. CORA's domain model only contains what at least one real deployment forced into it. A project is a real-world scope at some level of the Asset hierarchy (an enterprise, a site, or an instrument) where the recipe ladder, BCs, and trust boundaries meet actual users. Until a project demands a shape, the shape stays out.
+Vertical before horizontal. CORA's domain model only contains what at least one real deployment forced into it. A deployment is a real-world scope at some level of the Asset hierarchy (an enterprise, a site, or an instrument) where the recipe ladder, BCs, and trust boundaries meet actual users. Until a deployment demands a shape, the shape stays out.
 
 ## Active
 
-Projects mirror CORA's Asset hierarchy (Enterprise → Site → Unit):
+Deployments mirror CORA's Asset hierarchy (Enterprise → Site → Unit):
 
-| Project | Level | Parent | Status |
+| Deployment | Level | Parent | Status |
 | --- | --- | --- | --- |
 | [Argonne](argonne/index.md) | Enterprise | (root) | In design |
 | [APS](aps/index.md) | Site | Argonne | In design |

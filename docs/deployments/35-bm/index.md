@@ -16,14 +16,15 @@ A new dedicated micro-CT instrument at Argonne. White-beam micro-CT moves here f
 
 What's registered at 35-BM today (Unit level):
 
-- [Assets](assets.md): beamline-owned Devices and Assemblies
-- [Procedures](procedures.md): operator routines
+- [Assets](assets.md): beamline-owned Devices, with lifecycle and condition transitions
+- [Procedures](procedures.md): operator routines (`motor_homing`, `center_alignment`)
+- [Cautions](cautions.md): operator tribal knowledge attached to specific Assets
 
 The Methods and Practices 35-BM consumes live at higher levels of the hierarchy:
 
-- [`center_alignment` Method](../../catalog/methods.md): cross-facility vocabulary
-- [`35BM_alignment_practice`](../aps/practices.md): APS Site Recipe
+- Methods: cross-facility vocabulary in the [Catalog](../../catalog/methods.md)
+- Practices: APS Site Recipes in [APS](../aps/practices.md)
 
-Source of truth: [`apps/api/tests/integration/test_35bm_rotation_axis_alignment_scenario.py`](../../../apps/api/tests/integration/test_35bm_rotation_axis_alignment_scenario.py).
+Source of truth: scenario tests at [`apps/api/tests/integration/`](../../../apps/api/tests/integration/) (see [Scenario taxonomy](../../reference/workflow.md#tests) for naming).
 
 For the stakeholder pitch (vision, scope, why this beamline), see the [MAX IV deck](../../talks.md).

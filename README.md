@@ -25,7 +25,7 @@ The full docs render as a static site at **[xmap.github.io/cora](https://xmap.gi
 | Stack | Concrete picks (backend, data, auth, frontend, observability, operations) and what is deliberately deferred | [docs/stack/](docs/stack/index.md) |
 | Reference | Rules for writing CORA code: layout, modeling, patterns, runtime, workflow | [docs/reference/](docs/reference/index.md) |
 | Glossary | Terminology used across architecture, code, commits, and prose | [docs/glossary/](docs/glossary/index.md) |
-| Projects | Pilots driving the model. Today: 35-BM micro-CT at APS | [docs/projects/](docs/projects/index.md) |
+| Deployments | Pilots driving the model. Today: 35-BM micro-CT at APS | [docs/deployments/](docs/deployments/index.md) |
 | Contributing | What kinds of collaboration are wanted | [CONTRIBUTING.md](CONTRIBUTING.md) |
 
 Exact pinned versions live in `apps/api/pyproject.toml`, `Makefile`, and `infra/atlas/migrations/`, not in the docs.

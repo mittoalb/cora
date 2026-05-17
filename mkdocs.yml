@@ -44,6 +44,7 @@ theme:
   font:
     text: Inter
     code: JetBrains Mono
+  favicon: assets/favicon.svg
   icon:
     repo: fontawesome/brands/github
 
@@ -64,16 +65,29 @@ nav:
     - Observability: stack/observability.md
     - Operations: stack/operations.md
     - Deferred: stack/deferred.md
-  - Projects:
-    - projects/index.md
+  - Deployments:
+    - deployments/index.md
+    - Argonne:
+      - deployments/argonne/index.md
+      - Assets: deployments/argonne/assets.md
+      - Actors: deployments/argonne/actors.md
+      - Agents: deployments/argonne/agents.md
+    - APS:
+      - deployments/aps/index.md
+      - Site Assets: deployments/aps/site_assets.md
+      - Practices: deployments/aps/practices.md
+      - Clearances: deployments/aps/clearances.md
+      - Supplies: deployments/aps/supplies.md
+      - Cautions: deployments/aps/cautions.md
     - 35-BM:
-      - projects/35-bm/index.md
-      - Ground: projects/35-bm/ground.md
-      - Scope: projects/35-bm/scope.md
-      - Walk: projects/35-bm/walk.md
-      - Capabilities: projects/35-bm/capabilities.md
-      - Routines:
-        - Rotation-axis alignment: projects/35-bm/routines/rotation_axis_alignment.md
+      - deployments/35-bm/index.md
+      - Assets: deployments/35-bm/assets.md
+      - Procedures: deployments/35-bm/procedures.md
+      - Cautions: deployments/35-bm/cautions.md
+  - Catalog:
+    - catalog/index.md
+    - Capabilities: catalog/capabilities.md
+    - Methods: catalog/methods.md
   - Talks: talks.md
   - Reference:
     - reference/index.md
