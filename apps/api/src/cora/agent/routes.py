@@ -59,6 +59,7 @@ from cora.agent.errors import (
     CautionProposalMalformedError,
     CautionProposalNotActionableError,
     DecisionNotCautionProposalError,
+    DecisionNotEmittedByCautionDrafterError,
     UnauthorizedError,
 )
 from cora.agent.features import (
@@ -196,3 +197,8 @@ def register_agent_routes(app: FastAPI) -> None:
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
+    # Phase A.2: provenance gate on promote_caution_proposal. Treated
+    # as an authorization failure (403) because the caller is not
+    # authorized to promote a Decision they did not originate
+    # through a CautionDrafter agent.
+    app.add_exception_handler(DecisionNotEmittedByCautionDrafterError, _handle_unauthorized)

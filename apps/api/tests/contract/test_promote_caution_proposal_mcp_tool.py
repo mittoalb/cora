@@ -10,6 +10,10 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from cora.agent.seed_caution_drafter import (
+    CAUTION_DRAFTER_AGENT_ID,
+    seed_caution_drafter_agent,
+)
 from cora.api.main import create_app
 from cora.decision.aggregates.decision import (
     DECISION_CONTEXT_CAUTION_PROPOSAL,
@@ -46,9 +50,14 @@ async def _seed_caution_proposal_decision(
     choice: str = "ProposeNotice",
     inputs: dict[str, Any] | None = None,
 ) -> None:
-    """Append a CautionProposal Decision via the app's wired kernel."""
+    """Append a CautionProposal Decision via the app's wired kernel.
+
+    Seeds the canonical CautionDrafter Agent and uses its id as the
+    Decision's `actor_id` so the Phase A.2 provenance gate passes.
+    """
     deps = app.state.deps
-    actor_id = uuid4()
+    await seed_caution_drafter_agent(deps)
+    actor_id = CAUTION_DRAFTER_AGENT_ID
     event = DecisionRegistered(
         decision_id=decision_id,
         actor_id=actor_id,

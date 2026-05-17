@@ -52,7 +52,10 @@ router = APIRouter(tags=["agent"])
         },
         status.HTTP_403_FORBIDDEN: {
             "model": ErrorResponse,
-            "description": "Authorize port denied the command.",
+            "description": (
+                "Authorize port denied the command, OR the Decision was not "
+                "emitted by a registered CautionDrafter agent (provenance gate)."
+            ),
         },
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,

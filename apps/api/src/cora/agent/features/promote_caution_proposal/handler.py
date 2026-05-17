@@ -56,9 +56,14 @@ Authorize port IS called (HTTP-handler convention). Action name
 from typing import Protocol
 from uuid import UUID
 
-from cora.agent.errors import UnauthorizedError
+from cora.agent.aggregates.agent import load_agent
+from cora.agent.errors import (
+    DecisionNotEmittedByCautionDrafterError,
+    UnauthorizedError,
+)
 from cora.agent.features.promote_caution_proposal.command import PromoteCautionProposal
 from cora.agent.features.promote_caution_proposal.decider import decide
+from cora.agent.seed_caution_drafter import CAUTION_DRAFTER_AGENT_KIND
 from cora.caution.aggregates.caution import (
     AssetTarget,
     CautionCategory,
@@ -161,6 +166,33 @@ def bind(deps: Kernel) -> Handler:
         # Load the CautionProposal Decision; the decider validates
         # it + extracts the proposed-Caution payload.
         decision = await load_decision(deps.event_store, command.decision_id)
+
+        # Provenance gate: the Decision must have been emitted by a
+        # registered Agent of kind CautionDrafter. Decision.context +
+        # choice are necessary but not sufficient (any actor able to
+        # write a `DecisionRegistered` envelope with the right context
+        # would otherwise be able to promote arbitrary Cautions). The
+        # check uses `load_agent` against the Agent BC's event stream;
+        # mirrors W3C PROV-O + FDA CDS Criterion 3 (receiver
+        # re-validates attribution against the producer registry).
+        # NOTE: a None decision is left to the pure decider below, which
+        # raises DecisionNotFoundError; we only gate when the Decision
+        # actually exists.
+        if decision is not None:
+            producer = await load_agent(deps.event_store, decision.actor_id)
+            producer_kind = producer.kind.value if producer is not None else None
+            if producer is None or producer_kind != CAUTION_DRAFTER_AGENT_KIND:
+                log.info(
+                    "promote_caution_proposal.provenance_failed",
+                    decision_actor_id=str(decision.actor_id),
+                    observed_kind=producer_kind,
+                )
+                raise DecisionNotEmittedByCautionDrafterError(
+                    decision_id=command.decision_id,
+                    actor_id=decision.actor_id,
+                    observed_kind=producer_kind,
+                )
+
         view = decide(decision, command)
 
         target = _build_caution_target(view.target_kind, view.target_id)

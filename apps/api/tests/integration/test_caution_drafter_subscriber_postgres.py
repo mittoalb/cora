@@ -342,7 +342,12 @@ async def _seed_supersede_decision(
     supersedes_caution_id: UUID,
     proposed_target_id: UUID = _ASSET_ID,
 ) -> None:
-    """Append a ProposeSupersede CautionProposal Decision."""
+    """Append a ProposeSupersede CautionProposal Decision.
+
+    Also (idempotently) seeds the CautionDrafter Agent stream so the
+    promote handler's Phase A.2 provenance gate passes when the
+    Decision is later promoted.
+    """
     from cora.decision.aggregates.decision import (
         DECISION_CONTEXT_CAUTION_PROPOSAL,
         DecisionConfidenceSource,
@@ -350,6 +355,8 @@ async def _seed_supersede_decision(
     )
     from cora.decision.aggregates.decision import event_type_name as decision_event_type_name
     from cora.decision.aggregates.decision import to_payload as decision_to_payload
+
+    await seed_caution_drafter_agent(deps)
 
     proposed = {
         "target_kind": "Asset",
@@ -364,7 +371,9 @@ async def _seed_supersede_decision(
         "tags": ["encoder", "rotary-stage"],
         "supersedes_caution_id": str(supersedes_caution_id),
     }
-    actor_id = uuid4()
+    # CAUTION_DRAFTER_AGENT_ID so the promote handler's Phase A.2
+    # provenance gate passes; callers seed the agent in their fixture.
+    actor_id = CAUTION_DRAFTER_AGENT_ID
     event = DecisionRegistered(
         decision_id=decision_id,
         actor_id=actor_id,

@@ -14,10 +14,15 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.agent.aggregates.agent import ModelRef
+from cora.agent.aggregates.agent import event_type_name as agent_event_type_name
+from cora.agent.aggregates.agent import to_payload as agent_to_payload
+from cora.agent.aggregates.agent.events import AgentDefined
 from cora.agent.errors import (
     CautionProposalMalformedError,
     CautionProposalNotActionableError,
     DecisionNotCautionProposalError,
+    DecisionNotEmittedByCautionDrafterError,
     UnauthorizedError,
 )
 from cora.agent.features import promote_caution_proposal
@@ -79,6 +84,78 @@ def _build_deps(
         now=_T2,
         event_store=event_store,
         deny=deny,
+    )
+
+
+async def _seed_caution_drafter_agent(store: InMemoryEventStore, *, agent_id: UUID) -> None:
+    """Seed an Agent stream with kind='CautionDrafter' so the promote
+    handler's provenance gate (Phase A.2) passes.
+
+    Mirrors the production seed at `cora.agent.seed_caution_drafter`
+    but skips the cross-BC Access write (Actor row is not loaded by
+    the gate).
+    """
+    genesis = AgentDefined(
+        agent_id=agent_id,
+        kind="CautionDrafter",
+        name="Caution Drafter",
+        version="v1",
+        model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
+        description="Drafts operator-advisory Cautions from terminal Runs.",
+        canonical_uri=None,
+        prompt_template_id=None,
+        capabilities=frozenset(),
+        occurred_at=_T0,
+    )
+    new_event = to_new_event(
+        event_type=agent_event_type_name(genesis),
+        payload=agent_to_payload(genesis),
+        occurred_at=genesis.occurred_at,
+        event_id=uuid4(),
+        command_name="SeedCautionDrafterAgent",
+        correlation_id=_CORRELATION_ID,
+        causation_id=None,
+        principal_id=agent_id,
+    )
+    await store.append(
+        stream_type="Agent",
+        stream_id=agent_id,
+        expected_version=0,
+        events=[new_event],
+    )
+
+
+async def _seed_non_caution_drafter_agent(
+    store: InMemoryEventStore, *, agent_id: UUID, kind: str = "RunDebrief"
+) -> None:
+    """Seed an Agent of a non-CautionDrafter kind for negative-path gate tests."""
+    genesis = AgentDefined(
+        agent_id=agent_id,
+        kind=kind,
+        name=kind,
+        version="v1",
+        model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
+        description=f"{kind} agent.",
+        canonical_uri=None,
+        prompt_template_id=None,
+        capabilities=frozenset(),
+        occurred_at=_T0,
+    )
+    new_event = to_new_event(
+        event_type=agent_event_type_name(genesis),
+        payload=agent_to_payload(genesis),
+        occurred_at=genesis.occurred_at,
+        event_id=uuid4(),
+        command_name=f"Seed{kind}Agent",
+        correlation_id=_CORRELATION_ID,
+        causation_id=None,
+        principal_id=agent_id,
+    )
+    await store.append(
+        stream_type="Agent",
+        stream_id=agent_id,
+        expected_version=0,
+        events=[new_event],
     )
 
 
@@ -154,6 +231,7 @@ async def test_handler_promotes_via_register_for_propose_notice() -> None:
     deps = _build_deps(event_store=store)
     decision_id = uuid4()
     actor_id = uuid4()
+    await _seed_caution_drafter_agent(store, agent_id=actor_id)
     await _seed_caution_proposal_decision(
         store,
         decision_id=decision_id,
@@ -197,6 +275,7 @@ async def test_handler_promotes_via_supersede_for_propose_supersede() -> None:
 
     decision_id = uuid4()
     actor_id = uuid4()
+    await _seed_caution_drafter_agent(store, agent_id=actor_id)
     await _seed_caution_proposal_decision(
         store,
         decision_id=decision_id,
@@ -245,6 +324,9 @@ async def test_handler_rejects_wrong_context() -> None:
     deps = _build_deps(event_store=store)
     decision_id = uuid4()
     actor_id = uuid4()
+    # Seed CautionDrafter so the provenance gate passes; the decider's
+    # context check is the assertion under test here.
+    await _seed_caution_drafter_agent(store, agent_id=actor_id)
     event = DecisionRegistered(
         decision_id=decision_id,
         actor_id=actor_id,
@@ -293,10 +375,12 @@ async def test_handler_rejects_no_action_choice() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     decision_id = uuid4()
+    actor_id = uuid4()
+    await _seed_caution_drafter_agent(store, agent_id=actor_id)
     await _seed_caution_proposal_decision(
         store,
         decision_id=decision_id,
-        actor_id=uuid4(),
+        actor_id=actor_id,
         choice="NoAction",
         inputs={"reason": "no actionable signal"},
     )
@@ -316,10 +400,12 @@ async def test_handler_rejects_malformed_proposed_caution() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     decision_id = uuid4()
+    actor_id = uuid4()
+    await _seed_caution_drafter_agent(store, agent_id=actor_id)
     await _seed_caution_proposal_decision(
         store,
         decision_id=decision_id,
-        actor_id=uuid4(),
+        actor_id=actor_id,
         choice="ProposeNotice",
         inputs={},  # no proposed_caution
     )
@@ -345,6 +431,7 @@ async def test_handler_denied_does_not_write_caution() -> None:
     deps = _build_deps(event_store=store, deny=True)
     decision_id = uuid4()
     actor_id = uuid4()
+    await _seed_caution_drafter_agent(store, agent_id=actor_id)
     await _seed_caution_proposal_decision(
         store,
         decision_id=decision_id,
@@ -364,3 +451,95 @@ async def test_handler_denied_does_not_write_caution() -> None:
     # The Decision stream is the only thing in the store; no Caution stream.
     # Verify no Caution stream exists (any UUID query returns None).
     assert await load_caution(deps.event_store, uuid4()) is None
+
+
+# ---------------------------------------------------------------------------
+# Phase A.2: provenance gate (Decision must come from a CautionDrafter agent)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+async def test_handler_rejects_decision_from_unregistered_actor() -> None:
+    """The Decision exists but the actor_id is not a registered Agent at all
+    (e.g. a human operator hand-wrote a fake CautionProposal envelope)."""
+    store = InMemoryEventStore()
+    deps = _build_deps(event_store=store)
+    decision_id = uuid4()
+    actor_id = uuid4()  # NO _seed_caution_drafter_agent call
+    await _seed_caution_proposal_decision(
+        store,
+        decision_id=decision_id,
+        actor_id=actor_id,
+        choice="ProposeNotice",
+        inputs={"proposed_caution": _PROPOSED_CAUTION_NOTICE},
+    )
+    handler = promote_caution_proposal.bind(deps)
+
+    with pytest.raises(DecisionNotEmittedByCautionDrafterError) as exc:
+        await handler(
+            PromoteCautionProposal(decision_id=decision_id),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert exc.value.observed_kind is None
+    assert exc.value.actor_id == actor_id
+
+    # No Caution stream was written.
+    assert await load_caution(deps.event_store, uuid4()) is None
+
+
+@pytest.mark.unit
+async def test_handler_rejects_decision_from_wrong_agent_kind() -> None:
+    """The Decision actor is a registered Agent, but kind != 'CautionDrafter'
+    (e.g. a forged DecisionRegistered claiming context=CautionProposal
+    but actor_id pointing at the RunDebrief agent)."""
+    store = InMemoryEventStore()
+    deps = _build_deps(event_store=store)
+    decision_id = uuid4()
+    actor_id = uuid4()
+    await _seed_non_caution_drafter_agent(store, agent_id=actor_id, kind="RunDebrief")
+    await _seed_caution_proposal_decision(
+        store,
+        decision_id=decision_id,
+        actor_id=actor_id,
+        choice="ProposeNotice",
+        inputs={"proposed_caution": _PROPOSED_CAUTION_NOTICE},
+    )
+    handler = promote_caution_proposal.bind(deps)
+
+    with pytest.raises(DecisionNotEmittedByCautionDrafterError) as exc:
+        await handler(
+            PromoteCautionProposal(decision_id=decision_id),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert exc.value.observed_kind == "RunDebrief"
+    assert exc.value.actor_id == actor_id
+
+
+@pytest.mark.unit
+async def test_handler_gate_fires_before_decider_validation() -> None:
+    """A forged CautionProposal Decision from a non-CautionDrafter actor
+    is rejected at the gate even if the payload would also have failed
+    decider validation. Pins ordering: provenance is gated first."""
+    store = InMemoryEventStore()
+    deps = _build_deps(event_store=store)
+    decision_id = uuid4()
+    actor_id = uuid4()
+    await _seed_non_caution_drafter_agent(store, agent_id=actor_id, kind="RunDebrief")
+    await _seed_caution_proposal_decision(
+        store,
+        decision_id=decision_id,
+        actor_id=actor_id,
+        choice="ProposeNotice",
+        inputs={},  # missing proposed_caution; would be malformed
+    )
+    handler = promote_caution_proposal.bind(deps)
+
+    # Provenance fires first; the malformed-payload error never gets a chance.
+    with pytest.raises(DecisionNotEmittedByCautionDrafterError):
+        await handler(
+            PromoteCautionProposal(decision_id=decision_id),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )

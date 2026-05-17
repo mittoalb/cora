@@ -72,3 +72,39 @@ class CautionProposalMalformedError(Exception):
         super().__init__(f"Decision {decision_id} proposed_caution payload is malformed: {reason}")
         self.decision_id = decision_id
         self.reason = reason
+
+
+class DecisionNotEmittedByCautionDrafterError(Exception):
+    """Provenance check failed: the Decision's actor is not a CautionDrafter agent.
+
+    Phase A.2 of the post-review hardening plan. Closes the
+    authority-to-emit gap: a Decision's `context=CautionProposal`
+    is necessary but not sufficient. The promote slice must also
+    verify the producing actor is a registered Agent of kind
+    `CautionDrafter`. Without this check, any actor able to write
+    a `DecisionRegistered` envelope with `context=CautionProposal`
+    could have arbitrary Caution events promoted into the Caution
+    stream (W3C PROV-O / FDA CDS Criterion 3 pattern: receiver
+    re-validates attribution against a producer registry).
+
+    Raised by the `promote_caution_proposal` handler after loading
+    the source Decision but before passing it to the pure decider.
+    Maps to HTTP 403.
+    """
+
+    def __init__(
+        self,
+        *,
+        decision_id: UUID,
+        actor_id: UUID,
+        observed_kind: str | None,
+    ) -> None:
+        observed = f"kind={observed_kind!r}" if observed_kind else "not a registered Agent"
+        super().__init__(
+            f"Decision {decision_id} actor_id {actor_id} is {observed}; "
+            "promote_caution_proposal requires the Decision to have been "
+            "emitted by an Agent of kind 'CautionDrafter'"
+        )
+        self.decision_id = decision_id
+        self.actor_id = actor_id
+        self.observed_kind = observed_kind
