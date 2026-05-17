@@ -453,6 +453,63 @@ async def test_apply_writes_no_action_deferred_when_proposed_caution_missing() -
     assert decision.decision_inputs["failure_error_class"] == "SchemaViolation"
 
 
+@pytest.mark.unit
+async def test_apply_writes_no_action_deferred_when_target_id_not_in_candidates() -> None:
+    """LLM returns a UUID NOT present in `candidate_targets` (Plan.asset_ids).
+
+    The output-schema enum was meant to constrain this, but a
+    misconfigured / poisoned LLM can emit arbitrary UUIDs. The
+    subscriber re-validates membership and falls back to
+    NoAction-deferred with `failure_error_class=HallucinatedTarget`,
+    so the Decision is never written against an unknown target.
+    """
+    rogue_target_id = uuid4()
+    assert rogue_target_id != _ASSET_ID, "test fixture must use a fresh UUID"
+    hallucinated = FakeLLMResponse(
+        parsed={
+            "choice": "ProposeCaution",
+            "confidence": 0.7,
+            "confidence_band": "medium",
+            "reasoning": (
+                "Plausible reasoning narrative for the proposed Caution, "
+                "but the target_id below is fabricated / not in the prompt's "
+                "candidate_targets list."
+            ),
+            "proposed_caution": {
+                "target_kind": "Asset",
+                "target_id": str(rogue_target_id),
+                "category": "Wear",
+                "severity": "Caution",
+                "title": "Hallucinated target Caution",
+                "body": "Body for the hallucinated-target Caution.",
+                "tags": [],
+            },
+        },
+        stop_reason="tool_use",
+        model_id="claude-sonnet-4-6",
+    )
+    store = InMemoryEventStore()
+    llm = FakeLLMAdapter(responses=[hallucinated])
+    await _seed_caution_drafter_actor(store)
+    await _seed_plan(store)
+    run_id = uuid4()
+    await _seed_run(store, run_id)
+    subscriber = await _build_subscriber(store, llm)
+    event = _terminal_event(event_type="RunCompleted", run_id=run_id)
+
+    await subscriber.apply(event, conn=None)
+
+    decision = await load_decision(store, _derive_decision_id(event.event_id))
+    assert decision is not None
+    assert decision.choice.value == "NoAction"
+    assert decision.decision_inputs is not None
+    assert decision.decision_inputs["failure_error_class"] == "HallucinatedTarget"
+    # The hallucinated proposed_caution must NOT have been persisted; the
+    # NoAction-deferred path emits a minimal inputs dict with no
+    # proposed_caution field.
+    assert "proposed_caution" not in decision.decision_inputs
+
+
 # ---------------------------------------------------------------------------
 # At-most-once: deterministic decision_id + ConcurrencyError as no-op
 # ---------------------------------------------------------------------------

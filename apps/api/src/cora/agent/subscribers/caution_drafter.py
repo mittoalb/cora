@@ -320,6 +320,7 @@ class CautionDrafterSubscriber:
             run_id=run_id,
             terminal_event=event,
             parsed=response.parsed,
+            valid_target_ids=plan.asset_ids,
             log=log,
         )
 
@@ -331,6 +332,7 @@ class CautionDrafterSubscriber:
         run_id: UUID,
         terminal_event: StoredEvent,
         parsed: Any,
+        valid_target_ids: frozenset[UUID],
         log: Any,
     ) -> None:
         """Compose + append the LLM-success Decision.
@@ -341,6 +343,14 @@ class CautionDrafterSubscriber:
           - confidence_band: "low" | "medium" | "high"
           - reasoning: str
           - proposed_caution: dict (only when choice != "NoAction")
+
+        `valid_target_ids` is the closed set of Asset UUIDs the prompt
+        surfaced as `candidate_targets`. The schema constrains the LLM
+        to return ONE of these, but a hallucinated/buggy LLM can emit
+        an arbitrary UUID anyway; we defend by re-validating membership
+        here and falling back to NoAction-deferred on miss (avoids
+        landing a Decision against an unknown target that the operator
+        would then have no Run-context to promote).
         """
         choice = str(parsed["choice"])
         confidence = float(parsed["confidence"])
@@ -373,6 +383,21 @@ class CautionDrafterSubscriber:
                     run_id=run_id,
                     terminal_event=terminal_event,
                     error_class="SchemaViolation",
+                    log=log,
+                )
+                return
+            if not _proposed_target_in_candidates(proposed, valid_target_ids):
+                log.warning(
+                    "caution_drafter.hallucinated_target",
+                    choice=choice,
+                    proposed_target_id=str(proposed.get("target_id")),
+                )
+                await self._write_noaction_deferred(
+                    decision_id=decision_id,
+                    actor=actor,
+                    run_id=run_id,
+                    terminal_event=terminal_event,
+                    error_class="HallucinatedTarget",
                     log=log,
                 )
                 return
@@ -508,6 +533,28 @@ class CautionDrafterSubscriber:
             return
 
         log.info("caution_drafter.success", outcome=outcome, choice=choice)
+
+
+def _proposed_target_in_candidates(proposed: Any, valid_target_ids: frozenset[UUID]) -> bool:
+    """True iff `proposed["target_id"]` parses as a UUID present in `valid_target_ids`.
+
+    The schema's `enum` for target_id is meant to constrain the LLM
+    to a closed set, but structured-output adapters sometimes elide
+    enum checks for UUID-typed properties, and a misconfigured /
+    poisoned LLM can return arbitrary values. Defensive: missing /
+    non-string / unparseable / unknown -> False. Caller falls back
+    to NoAction-deferred on a False return.
+    """
+    if not isinstance(proposed, dict):
+        return False
+    raw = proposed.get("target_id")
+    if not isinstance(raw, str):
+        return False
+    try:
+        parsed = UUID(raw)
+    except (ValueError, TypeError):
+        return False
+    return parsed in valid_target_ids
 
 
 def _coerce_proposed_caution(proposed: Any) -> dict[str, Any]:
