@@ -61,19 +61,19 @@ from cora.agent.features.promote_caution_proposal.command import PromoteCautionP
 from cora.agent.features.promote_caution_proposal.decider import decide
 from cora.caution.aggregates.caution import (
     AssetTarget,
-    CautionCannotSupersedeError,
     CautionCategory,
     CautionNotFoundError,
     CautionRegistered,
     CautionSeverity,
-    CautionStatus,
     CautionSuperseded,
     CautionTag,
     CautionTarget,
     CautionText,
     CautionWorkaround,
-    InvalidCautionSupersedeTargetError,
     ProcedureTarget,
+    ensure_expires_at_future,
+    ensure_supersedable,
+    ensure_target_preserved,
     event_type_name,
     from_stored,
     to_payload,
@@ -176,6 +176,13 @@ def bind(deps: Kernel) -> Handler:
         new_caution_id = deps.id_generator.new_id()
         now = deps.clock.now()
 
+        # CautionDrafter v1 does not surface expires_at on the prompt
+        # (hardcoded None below). The predicate call is explicit so the
+        # invariant fires the moment a future prompt iteration surfaces
+        # it; the architecture pin pairs this with the import.
+        expires_at = None
+        ensure_expires_at_future(expires_at, now)
+
         if view.choice == "ProposeSupersede":
             assert view.supersedes_caution_id is not None  # decider invariant
 
@@ -187,20 +194,12 @@ def bind(deps: Kernel) -> Handler:
             parent = fold([from_stored(s) for s in stored])
             if parent is None:
                 raise CautionNotFoundError(view.supersedes_caution_id)
-            if parent.status is not CautionStatus.ACTIVE:
-                raise CautionCannotSupersedeError(parent.id, parent.status)
-            # Target-stability invariant: a supersede MUST preserve the
-            # parent's target. Caution BC's own supersede_caution decider
-            # enforces this via InvalidCautionSupersedeTargetError; the
-            # cross-BC write here must replicate the guard or a buggy /
-            # poisoned LLM proposal could silently retarget on supersede
-            # (e.g. propose superseding a Caution on Asset A with a child
-            # targeting Asset B). Same error class so HTTP mapping is
-            # uniform regardless of which surface raised it.
-            if target != parent.target:
-                raise InvalidCautionSupersedeTargetError(
-                    "supersede preserves target; start a new caution to retarget"
-                )
+            # Caution BC invariants applied via the shared `aggregates.caution`
+            # invariants module so this cross-BC write cannot drift from the
+            # native deciders. Same errors as `supersede_caution`, so HTTP
+            # mapping is uniform regardless of which surface raised them.
+            ensure_supersedable(parent)
+            ensure_target_preserved(parent.target, target)
 
             parent_event = CautionSuperseded(
                 caution_id=parent.id,
@@ -216,7 +215,7 @@ def bind(deps: Kernel) -> Handler:
                 workaround=workaround.value,
                 tags=tags,
                 author_actor_id=principal_id,
-                expires_at=None,
+                expires_at=expires_at,
                 propagate_to_children=False,
                 parent_caution_id=parent.id,
                 occurred_at=now,
@@ -275,7 +274,7 @@ def bind(deps: Kernel) -> Handler:
                 workaround=workaround.value,
                 tags=tags,
                 author_actor_id=principal_id,
-                expires_at=None,
+                expires_at=expires_at,
                 propagate_to_children=False,
                 parent_caution_id=None,
                 occurred_at=now,

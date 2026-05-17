@@ -39,7 +39,7 @@ from cora.caution.aggregates.caution import (
     CautionTag,
     CautionText,
     CautionWorkaround,
-    InvalidCautionExpiresAtError,
+    ensure_expires_at_future,
 )
 from cora.caution.features.register_caution.command import RegisterCaution
 
@@ -67,8 +67,7 @@ def decide(
     workaround = CautionWorkaround(command.workaround)
     tags = frozenset(CautionTag(t) for t in command.tags)
 
-    if command.expires_at is not None and command.expires_at <= now:
-        raise InvalidCautionExpiresAtError("expires_at must be in the future")
+    ensure_expires_at_future(command.expires_at, now)
 
     return [
         CautionRegistered(

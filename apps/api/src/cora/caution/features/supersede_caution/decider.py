@@ -28,20 +28,17 @@ from uuid import UUID
 
 from cora.caution.aggregates.caution import (
     Caution,
-    CautionCannotSupersedeError,
     CautionRegistered,
-    CautionStatus,
     CautionSuperseded,
     CautionTag,
     CautionText,
     CautionWorkaround,
-    InvalidCautionExpiresAtError,
-    InvalidCautionSupersedeTargetError,
+    ensure_expires_at_future,
+    ensure_supersedable,
+    ensure_target_preserved,
 )
 from cora.caution.features.supersede_caution.command import SupersedeCaution
 from cora.caution.features.supersede_caution.context import CautionSupersessionContext
-
-_SUPERSEDABLE_STATUSES: tuple[CautionStatus, ...] = (CautionStatus.ACTIVE,)
 
 
 @dataclass(frozen=True)
@@ -81,8 +78,7 @@ def decide(
     _ = state  # The child is genesis; this slice never sees a prior child state.
 
     parent = context.parent
-    if parent.status not in _SUPERSEDABLE_STATUSES:
-        raise CautionCannotSupersedeError(parent.id, parent.status)
+    ensure_supersedable(parent)
 
     # ---- Validate the child's fields (mirrors register_caution decider) ----
 
@@ -90,13 +86,8 @@ def decide(
     workaround = CautionWorkaround(command.workaround)
     tags = frozenset(CautionTag(t) for t in command.tags)
 
-    if command.expires_at is not None and command.expires_at <= now:
-        raise InvalidCautionExpiresAtError("expires_at must be in the future")
-
-    if command.target != parent.target:
-        raise InvalidCautionSupersedeTargetError(
-            "supersede preserves target; start a new caution to retarget"
-        )
+    ensure_expires_at_future(command.expires_at, now)
+    ensure_target_preserved(parent.target, command.target)
 
     parent_events = [
         CautionSuperseded(

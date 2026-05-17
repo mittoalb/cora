@@ -23,6 +23,11 @@ from cora.caution.aggregates.caution.events import (
     to_payload,
 )
 from cora.caution.aggregates.caution.evolver import evolve, fold
+from cora.caution.aggregates.caution.invariants import (
+    ensure_expires_at_future,
+    ensure_supersedable,
+    ensure_target_preserved,
+)
 from cora.caution.aggregates.caution.read import load_caution
 from cora.caution.aggregates.caution.state import (
     CAUTION_TAG_MAX_LENGTH,
@@ -79,6 +84,9 @@ __all__ = [
     "InvalidCautionWorkaroundError",
     "ProcedureTarget",
     "deserialize_target",
+    "ensure_expires_at_future",
+    "ensure_supersedable",
+    "ensure_target_preserved",
     "event_type_name",
     "evolve",
     "fold",
