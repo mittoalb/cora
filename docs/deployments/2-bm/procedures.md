@@ -4,19 +4,19 @@
 
 *See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
 
-| Procedure | `kind` | Method (Recipe BC) | Practice (Recipe BC) | Target Assets | Out-of-Procedure side-effects | Scenario |
-| --- | --- | --- | --- | --- | --- | --- |
-| Motor homing | `motor_homing` | [`motor_homing`](../../catalog/methods.md) | [`APS_motor_homing_practice`](../aps/practices.md) | `Aerotech_ABRS_rotary`, `Sample_top_X` | `AssetActivated` ×2; `AssetDegraded` + `AssetRestored` on Aerotech (cold-start); 1 `CautionRegistered` ([Aerotech cold-start index miss](cautions.md)) | `motor_homing` |
-| First light | `first_light` | [`first_light`](../../catalog/methods.md) | [`2BM_first_light_practice`](../aps/practices.md) | `Shutter_2BM`, `Oryx_5MP_camera`, `Scintillator_LuAG` | — | `first_light` |
-| Dark baseline | `detector_dark_baseline` | [`detector_dark_baseline`](../../catalog/methods.md) | [`2BM_dark_baseline_practice`](../aps/practices.md) | `Shutter_2BM`, `Oryx_5MP_camera`, `Scintillator_LuAG` | 1 `DatasetRegistered` (`NXdark_field`, `subject_id=None`, `producing_run_id=None`) | `dark_baseline` |
-| Flat baseline | `detector_flat_baseline` | [`detector_flat_baseline`](../../catalog/methods.md) | [`2BM_flat_baseline_practice`](../aps/practices.md) | `Shutter_2BM`, `Oryx_5MP_camera`, `Scintillator_LuAG` | 1 `DatasetRegistered` (`NXflat_field`, same shape as dark) | `flat_baseline` |
-| Resolution alignment | `resolution_alignment` | [`resolution_alignment`](../../catalog/methods.md) | [`2BM_resolution_practice`](../aps/practices.md) | `Optique_Peter_focus_Z`, `Oryx_5MP_camera`, `Scintillator_LuAG` | — | `alignment_resolution` |
-| Focus alignment | `focus_alignment` | [`focus_alignment`](../../catalog/methods.md) | [`2BM_focus_practice`](../aps/practices.md) | `Sample_top_Z`, `Oryx_5MP_camera`, `Scintillator_LuAG` | — | `alignment_focus` |
-| Center alignment | `center_alignment` | [`center_alignment`](../../catalog/methods.md) | [`2BM_alignment_practice`](../aps/practices.md) | `Aerotech_ABRS_rotary`, `Sample_top_X`, `Oryx_5MP_camera`, `Scintillator_LuAG` | — | `alignment_center` |
-| Roll alignment | `roll_alignment` | [`roll_alignment`](../../catalog/methods.md) | [`2BM_roll_practice`](../aps/practices.md) | `Aerotech_ABRS_rotary`, `Sample_top_Roll`, `Oryx_5MP_camera`, `Scintillator_LuAG` | — | `alignment_roll` |
-| Pitch alignment | `pitch_alignment` | [`pitch_alignment`](../../catalog/methods.md) | [`2BM_pitch_practice`](../aps/practices.md) | `Aerotech_ABRS_rotary`, `Sample_top_Pitch`, `Oryx_5MP_camera`, `Scintillator_LuAG` | — | `alignment_pitch` |
-| Alignment calibration | `alignment_calibration` | `alignment_calibration` | `2BM_alignment_calibration_practice` | `Aerotech_ABRS_rotary`, `Sample_top_Roll`, `Sample_top_Pitch`, `Oryx_5MP_camera`, `Scintillator_LuAG` | — (produces `K_roll` / `K_pitch` as Setpoint entries inside the Procedure log; not first-class CORA state today) | `alignment_calibration` |
-| Hexapod reboot | `hexapod_reboot` | [`hexapod_reboot`](../../catalog/methods.md) | `2BM_hexapod_reboot_practice` | `Hexapod_2BM` | `AssetActivated` (first registration), `AssetFaulted` (precondition), `AssetRestored` (postcondition); 1 `CautionRegistered` ([Hexapod controller lockup](cautions.md)) | `hexapod_reboot` |
+| Procedure | Recipe (Method · Practice) | Target Assets | Side-effects | Scenario |
+| --- | --- | --- | --- | --- |
+| `motor_homing` | [`motor_homing`](../../catalog/methods.md) · [`APS_motor_homing_practice`](../aps/practices.md) | `Aerotech_ABRS_rotary`, `Sample_top_X` | `AssetActivated` ×2; `AssetDegraded` + `AssetRestored` on Aerotech (cold-start); 1 `CautionRegistered` ([Aerotech cold-start index miss](cautions.md)) | `motor_homing` |
+| `first_light` | [`first_light`](../../catalog/methods.md) · [`2BM_first_light_practice`](../aps/practices.md) | `Shutter_2BM`, `Oryx_5MP_camera`, `Scintillator_LuAG` | — | `first_light` |
+| `detector_dark_baseline` | [`detector_dark_baseline`](../../catalog/methods.md) · [`2BM_dark_baseline_practice`](../aps/practices.md) | `Shutter_2BM`, `Oryx_5MP_camera`, `Scintillator_LuAG` | 1 `DatasetRegistered` (`NXdark_field`, `subject_id=None`, `producing_run_id=None`) | `dark_baseline` |
+| `detector_flat_baseline` | [`detector_flat_baseline`](../../catalog/methods.md) · [`2BM_flat_baseline_practice`](../aps/practices.md) | `Shutter_2BM`, `Oryx_5MP_camera`, `Scintillator_LuAG` | 1 `DatasetRegistered` (`NXflat_field`, same shape as dark) | `flat_baseline` |
+| `resolution_alignment` | [`resolution_alignment`](../../catalog/methods.md) · [`2BM_resolution_practice`](../aps/practices.md) | `Optique_Peter_focus_Z`, `Oryx_5MP_camera`, `Scintillator_LuAG` | — | `alignment_resolution` |
+| `focus_alignment` | [`focus_alignment`](../../catalog/methods.md) · [`2BM_focus_practice`](../aps/practices.md) | `Sample_top_Z`, `Oryx_5MP_camera`, `Scintillator_LuAG` | — | `alignment_focus` |
+| `center_alignment` | [`center_alignment`](../../catalog/methods.md) · [`2BM_alignment_practice`](../aps/practices.md) | `Aerotech_ABRS_rotary`, `Sample_top_X`, `Oryx_5MP_camera`, `Scintillator_LuAG` | — | `alignment_center` |
+| `roll_alignment` | [`roll_alignment`](../../catalog/methods.md) · [`2BM_roll_practice`](../aps/practices.md) | `Aerotech_ABRS_rotary`, `Sample_top_Roll`, `Oryx_5MP_camera`, `Scintillator_LuAG` | — | `alignment_roll` |
+| `pitch_alignment` | [`pitch_alignment`](../../catalog/methods.md) · [`2BM_pitch_practice`](../aps/practices.md) | `Aerotech_ABRS_rotary`, `Sample_top_Pitch`, `Oryx_5MP_camera`, `Scintillator_LuAG` | — | `alignment_pitch` |
+| `alignment_calibration` | `alignment_calibration` · `2BM_alignment_calibration_practice` | `Aerotech_ABRS_rotary`, `Sample_top_Roll`, `Sample_top_Pitch`, `Oryx_5MP_camera`, `Scintillator_LuAG` | — (produces `K_roll` / `K_pitch` as Setpoint entries inside the Procedure log; not first-class CORA state today) | `alignment_calibration` |
+| `hexapod_reboot` | [`hexapod_reboot`](../../catalog/methods.md) · `2BM_hexapod_reboot_practice` | `Hexapod_2BM` | `AssetActivated` (first registration), `AssetFaulted` (precondition), `AssetRestored` (postcondition); 1 `CautionRegistered` ([Hexapod controller lockup](cautions.md)) | `hexapod_reboot` |
 
 Source of truth: scenario files at [`apps/api/tests/integration/scenarios/test_2bm_<scenario>.py`](../../../apps/api/tests/integration/scenarios/) (one-to-one with the Scenario column).
 

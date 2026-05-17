@@ -4,16 +4,16 @@
 
 *See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
 
-| Dataset | Intent | Producing Run | Subject | Conforms to | Scenario |
-| --- | --- | --- | --- | --- | --- |
-| `2BM_dark_baseline_2026-04-17` | `Trial` | none | none | `NXdark_field` | `dark_baseline` |
-| `2BM_flat_baseline_2026-04-17` | `Trial` | none | none | `NXflat_field` | `flat_baseline` |
-| `Proposal_2026-1234_sample_A_tomo` | `Trial → Production` (`promote_dataset`) | `Proposal 2026-1234 sample A tomography` | `porous sandstone core (Proposal 2026-1234, sample A)` | `NXtomo` | `tomography_scan` (genesis), `data_publish` (promotion) |
-| `Proposal_2026-1234_sample_A_rotation_{01..03}` | `Trial` (N=3) | 3 rotation Runs under a Series Campaign | `porous sandstone core (Proposal 2026-1234, sample A, continuous rotation)` | `NXtomo` | `continuous_rotation_sweep` |
-| `Proposal_2026-1236_mosaic_tile_{00..03}` | `Trial` (N=4) | 4 tile Runs under a Coordinated Campaign | `wide sandstone slab (Proposal 2026-1236, mosaic acquisition)` | `NXtomo` | `mosaic_acquisition` |
-| `Proposal_2026-1237_low_energy_25keV` / `..._high_energy_30keV` | `Trial` (N=2) | 2 Runs on distinct low/high-energy Plans | `iron-bearing sandstone core (Proposal 2026-1237, energy-pivot study)` | `NXtomo` | `energy_change` |
-| `Proposal_2026-1234_sample_A_streaming_snapshot` | `Trial` | streaming tomography Run with mid-flight `adjust_run` | `porous sandstone core (Proposal 2026-1234, sample A)` | `NXtomo` | `streaming_tomography` |
-| `Sample_of_opportunity_partial_600proj` | `Trial` | `Stopped` Run (1500 projections planned, 600 actually captured) | `leftover sandstone core (sample-of-opportunity)` | `NXtomo` | `run_stopped_early` |
+| Dataset | Intent · Format | Lineage (Run → Subject) | Scenario |
+| --- | --- | --- | --- |
+| `2BM_dark_baseline_2026-04-17` | `Trial` · `NXdark_field` | none → none | `dark_baseline` |
+| `2BM_flat_baseline_2026-04-17` | `Trial` · `NXflat_field` | none → none | `flat_baseline` |
+| `Proposal_2026-1234_sample_A_tomo` | `Trial → Production` · `NXtomo` (`promote_dataset`) | `Proposal 2026-1234 sample A tomography` → `porous sandstone core (Proposal 2026-1234, sample A)` | `tomography_scan` (genesis), `data_publish` (promotion) |
+| `Proposal_2026-1234_sample_A_rotation_{01..03}` | `Trial` (N=3) · `NXtomo` | 3 rotation Runs under a Series Campaign → `porous sandstone core (Proposal 2026-1234, sample A, continuous rotation)` | `continuous_rotation_sweep` |
+| `Proposal_2026-1236_mosaic_tile_{00..03}` | `Trial` (N=4) · `NXtomo` | 4 tile Runs under a Coordinated Campaign → `wide sandstone slab (Proposal 2026-1236, mosaic acquisition)` | `mosaic_acquisition` |
+| `Proposal_2026-1237_low_energy_25keV` / `..._high_energy_30keV` | `Trial` (N=2) · `NXtomo` | 2 Runs on distinct low/high-energy Plans → `iron-bearing sandstone core (Proposal 2026-1237, energy-pivot study)` | `energy_change` |
+| `Proposal_2026-1234_sample_A_streaming_snapshot` | `Trial` · `NXtomo` | streaming tomography Run with mid-flight `adjust_run` → `porous sandstone core (Proposal 2026-1234, sample A)` | `streaming_tomography` |
+| `Sample_of_opportunity_partial_600proj` | `Trial` · `NXtomo` | `Stopped` Run (1500 projections planned, 600 actually captured) → `leftover sandstone core (sample-of-opportunity)` | `run_stopped_early` |
 
 Source of truth: scenario files at [`apps/api/tests/integration/scenarios/test_2bm_<scenario>.py`](../../../apps/api/tests/integration/scenarios/) (one-to-one with the Scenario column).
 

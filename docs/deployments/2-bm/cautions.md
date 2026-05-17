@@ -4,10 +4,10 @@
 
 *See [Scenarios](../../scenarios/index.md) for the operator routines that exercise this surface.*
 
-| Caution | Target | Category | Severity | Summary | Scenario |
-| --- | --- | --- | --- | --- | --- |
-| Aerotech cold-start index miss | `Aerotech_ABRS_rotary` (Device) | `Wear` | `Caution` | Misses index pulse on cold-start home; retry once after 5s settling | `motor_homing` |
-| Hexapod controller lockup | `Hexapod_2BM` (Device) | `Wear` | `Caution` | Controller locks up under sustained load (HexapodAllEnabled stuck at 0); recover via the `hexapod_reboot` Procedure | `hexapod_reboot` |
+| Caution | Target | Class (`cat` · `sev`) | Summary | Scenario |
+| --- | --- | --- | --- | --- |
+| Aerotech cold-start index miss | `Aerotech_ABRS_rotary` (Device) | `Wear` · `Caution` | Misses index pulse on cold-start home; retry once after 5s settling | `motor_homing` |
+| Hexapod controller lockup | `Hexapod_2BM` (Device) | `Wear` · `Caution` | Controller locks up under sustained load (HexapodAllEnabled stuck at 0); recover via the `hexapod_reboot` Procedure | `hexapod_reboot` |
 
 Source of truth: scenario files at [`apps/api/tests/integration/scenarios/test_2bm_<scenario>.py`](../../../apps/api/tests/integration/scenarios/) (one-to-one with the Scenario column).
 
