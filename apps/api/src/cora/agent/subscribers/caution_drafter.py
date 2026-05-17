@@ -90,6 +90,10 @@ from cora.agent.seed_caution_drafter import (
     CAUTION_DRAFTER_AGENT_ID,
     CAUTION_DRAFTER_AGENT_NAME,
 )
+from cora.agent.subscribers._terminal_run_helpers import (
+    extract_interrupted_at,
+    extract_reason,
+)
 from cora.agent.subscribers.run_debrief import redact_secrets
 from cora.decision.aggregates.decision import (
     DECISION_CONTEXT_CAUTION_PROPOSAL,
@@ -145,16 +149,8 @@ def _derive_decision_id(terminal_event_id: UUID) -> UUID:
     return uuid5(_CAUTION_DRAFTER_DECISION_NAMESPACE, str(terminal_event_id))
 
 
-def _extract_reason(event: StoredEvent) -> str | None:
-    """Pull the `reason` field from the event payload (None if absent)."""
-    reason = event.payload.get("reason")
-    return str(reason) if reason is not None else None
-
-
-def _extract_interrupted_at(event: StoredEvent) -> str | None:
-    """Pull `interrupted_at` (RunTruncated only)."""
-    interrupted_at = event.payload.get("interrupted_at")
-    return str(interrupted_at) if interrupted_at is not None else None
+# Extractors hoisted to `_terminal_run_helpers` (rule-of-three);
+# imported above as `extract_reason` / `extract_interrupted_at`.
 
 
 class CautionDrafterSubscriber:
@@ -191,8 +187,8 @@ class CautionDrafterSubscriber:
 
         run_id = UUID(event.payload["run_id"])
         decision_id = _derive_decision_id(event.event_id)
-        terminal_event_reason = _extract_reason(event)
-        interrupted_at = _extract_interrupted_at(event)
+        terminal_event_reason = extract_reason(event)
+        interrupted_at = extract_interrupted_at(event)
 
         log = _log.bind(
             subscriber=self.name,

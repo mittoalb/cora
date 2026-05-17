@@ -25,11 +25,15 @@ from cora.agent.seed import (
     RUN_DEBRIEF_AGENT_ID,
     RUN_DEBRIEF_AGENT_NAME,
 )
+from cora.agent.subscribers._terminal_run_helpers import (
+    extract_interrupted_at as _extract_interrupted_at,
+)
+from cora.agent.subscribers._terminal_run_helpers import (
+    extract_reason as _extract_reason,
+)
 from cora.agent.subscribers.run_debrief import (
     RunDebriefSubscriber,
     _derive_decision_id,
-    _extract_interrupted_at,
-    _extract_reason,
     _redact_secrets,
 )
 from cora.decision.aggregates.decision import load_decision

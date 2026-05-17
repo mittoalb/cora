@@ -130,6 +130,10 @@ from cora.agent.prompts import (
     build_run_debrief_chat_request,
 )
 from cora.agent.seed import RUN_DEBRIEF_AGENT_ID, RUN_DEBRIEF_AGENT_NAME
+from cora.agent.subscribers._terminal_run_helpers import (
+    extract_interrupted_at,
+    extract_reason,
+)
 from cora.decision.aggregates.decision import (
     DECISION_CONTEXT_RUN_DEBRIEF,
     DecisionChoice,
@@ -223,21 +227,8 @@ def _derive_decision_id(terminal_event_id: UUID) -> UUID:
     return uuid5(_RUN_DEBRIEF_DECISION_NAMESPACE, str(terminal_event_id))
 
 
-def _extract_reason(event: StoredEvent) -> str | None:
-    """Pull the `reason` field from the event payload (None if absent).
-
-    `RunCompleted` has no `reason`; the other three carry it.
-    Returns `None` when missing rather than KeyError-raising so
-    new terminal event shapes (future) don't crash the subscriber.
-    """
-    reason = event.payload.get("reason")
-    return str(reason) if reason is not None else None
-
-
-def _extract_interrupted_at(event: StoredEvent) -> str | None:
-    """Pull `interrupted_at` from the event payload (`RunTruncated`-only)."""
-    interrupted_at = event.payload.get("interrupted_at")
-    return str(interrupted_at) if interrupted_at is not None else None
+# Extractors hoisted to `_terminal_run_helpers` (rule-of-three);
+# imported above as `extract_reason` / `extract_interrupted_at`.
 
 
 class RunDebriefSubscriber:
@@ -288,8 +279,8 @@ class RunDebriefSubscriber:
 
         run_id = UUID(event.payload["run_id"])
         decision_id = _derive_decision_id(event.event_id)
-        terminal_event_reason = _extract_reason(event)
-        interrupted_at = _extract_interrupted_at(event)
+        terminal_event_reason = extract_reason(event)
+        interrupted_at = extract_interrupted_at(event)
 
         log = _log.bind(
             subscriber=self.name,

@@ -32,11 +32,26 @@ system prompt. All per-Run data goes into the user message as a
 JSON object so the model treats it as data, not instructions.
 Same defense as RunDebrief; same Anthropic Dec-2024 guidance.
 
-## Cache layout (v1 simplified)
+## Cache layout (v1 simplified vs design memo)
 
-v1 ships ONE cached block at 1h TTL containing the whole system
-prompt; user message is uncached. Watch item: split to 4-breakpoint
-layout when per-Plan / per-Asset examples become load-bearing.
+Design memo lock calls for 4 cache breakpoints (tools layer +
+instructions+schema + per-Plan / per-Asset examples + variable
+suffix). v1 ships a SIMPLIFIED 2-layer layout: the entire system
+prompt is ONE cached block at 1h TTL; the user message is uncached.
+The system prompt is ~1500 tokens, comfortably above Anthropic's
+1024-token cache minimum (Sonnet/Haiku 4.x). This matches
+RunDebrief's identical v1 deferral verbatim — both AI agents share
+the same trigger condition; see `prompts/run_debrief.py`
+docstring under "Cache layout".
+
+Trigger to split into the 4-breakpoint layout (whichever fires
+first; applies to BOTH agents at once for parallel-cost amortization):
+
+  - Per-Plan / per-Asset few-shot examples become load-bearing
+    (operators rate v1 outputs as missing local context).
+  - Token-cost telemetry surfaces a high cache-miss tax on the
+    cross-Run prefix (>30% of v1 token budget spent on uncached
+    re-sending of stable bytes).
 
 ## Read scope (v1)
 
