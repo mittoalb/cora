@@ -3,18 +3,18 @@
 *Equipment BC Assets registered **under** the 2-BM Unit (the Devices that hang off it). The 2-BM Asset itself sits at the Unit level and is declared on the [2-BM index](index.md). See [Model](../../architecture/model.md) for the aggregate shape.*
 
 
-| Asset | Capability | Role at 2-BM |
+| Asset | Capability | Role |
 | --- | --- | --- |
-| [`Aerotech_ABRS_rotary`](#aerotech_abrs_rotary) | `RotaryStage` | Rotation axis; the motor driven 0° → 180° during alignment iterations and during fly-scan acquisition |
-| [`Sample_top_X`](#sample_top_x) | `LinearStage` | X-correction motor (Kohzu CYAT-070); the linear stage nudged to close rotation-axis offset |
-| [`Sample_top_Z`](#sample_top_z) | `LinearStage` | Sample-to-scintillator distance motor (cm range, ~10µm resolution); tunes depth-of-focus and projection magnification together |
-| [`Sample_top_Roll`](#sample_top_roll) | `LinearStage` | Roll-tilt motor under the rotation stage; small-angle (milliradian) corrections to keep the rotation axis perpendicular to the camera Y axis |
-| [`Sample_top_Pitch`](#sample_top_pitch) | `LinearStage` | Pitch-tilt motor under the rotation stage; orthogonal to Sample_top_Roll; corrects out-of-plane axis tilt (toward/away from camera) |
-| [`Optique_Peter_focus_Z`](#optique_peter_focus_z) | `LinearStage` | Focus motor inside the Optique Peter microscope; sub-micron resolution lens-to-scintillator distance |
-| [`Shutter_2BM`](#shutter_2bm) | `Shutter` | Safety shutter at the 2-BM front-end; opens to admit beam, closes for safe state |
-| [`Oryx_5MP_camera`](#oryx_5mp_camera) | `Camera` | Alignment-frame detector (FLIR ORX-10G-51S5M-C, 2448 × 2048, 3.45 µm) |
-| [`Scintillator_LuAG`](#scintillator_luag) | `Scintillator` | LuAG scintillator; converts X-rays to visible light for the camera |
-| [`Hexapod_2BM`](#hexapod_2bm) | `Hexapod` | PI sample-positioning hexapod (6-DOF); recoverable via `hexapod_reboot` Procedure when controller locks up |
+| [`Aerotech_ABRS_rotary`](#aerotech_abrs_rotary) | `RotaryStage` | Rotation axis. |
+| [`Sample_top_X`](#sample_top_x) | `LinearStage` | Lateral correction for rotation-axis alignment. |
+| [`Sample_top_Z`](#sample_top_z) | `LinearStage` | Sample-to-scintillator distance (depth of focus + magnification). |
+| [`Sample_top_Roll`](#sample_top_roll) | `LinearStage` | Roll tilt for rotation-axis alignment. |
+| [`Sample_top_Pitch`](#sample_top_pitch) | `LinearStage` | Pitch tilt for rotation-axis alignment. |
+| [`Optique_Peter_focus_Z`](#optique_peter_focus_z) | `LinearStage` | Lens-to-scintillator focus inside the microscope. |
+| [`Shutter_2BM`](#shutter_2bm) | `Shutter` | Safety shutter. |
+| [`Oryx_5MP_camera`](#oryx_5mp_camera) | `Camera` | Imaging detector. |
+| [`Scintillator_LuAG`](#scintillator_luag) | `Scintillator` | Converts X-rays to visible light. |
+| [`Hexapod_2BM`](#hexapod_2bm) | `Hexapod` | Sample-positioning stage (6-DOF). |
 
 Each Asset has its own section below with vendor, role, and `Asset.settings` (when the Capability schema is declared). The right-hand table of contents jumps to any Asset directly.
 
