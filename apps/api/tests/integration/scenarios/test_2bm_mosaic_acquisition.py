@@ -90,6 +90,10 @@ import pytest
 from cora.campaign.aggregates.campaign import CampaignIntent
 from cora.campaign.features.add_run_to_campaign import AddRunToCampaign
 from cora.campaign.features.add_run_to_campaign import bind as bind_add_run_to_campaign
+from cora.campaign.features.close_campaign import CloseCampaign
+from cora.campaign.features.close_campaign import bind as bind_close_campaign
+from cora.campaign.features.start_campaign import StartCampaign
+from cora.campaign.features.start_campaign import bind as bind_start_campaign
 from cora.data.features.register_dataset import RegisterDataset
 from cora.data.features.register_dataset import bind as bind_register_dataset
 from cora.equipment.features.activate_asset import ActivateAsset
@@ -224,6 +228,7 @@ def _id_queue() -> list[UUID]:
         e(),  # define_practice
         _PLAN_TOMO_ID,
         e(),  # define_plan
+        e(),  # start_campaign (Planned -> Active; before tile loop)
     ]
     # Per tile Run: start_run (run_id + event) + add_run_to_campaign (2) +
     # complete_run (event) + register_dataset (dataset_id + event) = 7 ids.
@@ -240,6 +245,7 @@ def _id_queue() -> list[UUID]:
             ]
         )
     ids.append(e())  # measure_subject (once after all tiles)
+    ids.append(e())  # close_campaign (Active -> Closed; mosaic complete)
     return ids
 
 
@@ -365,6 +371,14 @@ async def test_mosaic_acquisition_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
 
+    # ----- Campaign BC: Planned -> Active before the tile loop -----
+
+    await bind_start_campaign(deps)(
+        StartCampaign(campaign_id=_CAMPAIGN_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
     # ----- N=4 tile Runs, each at a distinct (x, y) grid position -----
 
     for (tile_index, tile_x_mm, tile_y_mm), run_id, _dataset_id in zip(
@@ -424,6 +438,14 @@ async def test_mosaic_acquisition_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
 
+    # ----- Campaign BC: close the mosaic (Active -> Closed) -----
+
+    await bind_close_campaign(deps)(
+        CloseCampaign(campaign_id=_CAMPAIGN_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
     # ----- Assert: each tile Run reached terminal Completed -----
 
     for run_id in _RUN_IDS:
@@ -439,6 +461,8 @@ async def test_mosaic_acquisition_plays_out_end_to_end(
     campaign_event_types = [e.event_type for e in campaign_events]
     assert campaign_event_types.count("CampaignRegistered") == 1
     assert campaign_event_types.count("CampaignRunAdded") == 4
+    assert campaign_event_types.count("CampaignStarted") == 1
+    assert campaign_event_types.count("CampaignClosed") == 1
 
     # ----- Assert: each tile Dataset references its own producing_run_id -----
 

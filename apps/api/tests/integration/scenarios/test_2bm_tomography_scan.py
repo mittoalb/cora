@@ -61,11 +61,14 @@ scan routine itself).
     `triggered_by` becomes the audit trail for why an operator
     deviated from defaults.
   - **`add_run_to_campaign` is the first multi-stream atomic in
-    scenarios.** Campaign Planned -> Active happens via the
-    membership transition (no separate `start_campaign` is called;
-    the FSM evolver promotes Active on first member join per the
-    Campaign design memo). Whether the implicit Planned -> Active
-    rhythm should become explicit is a watch item.
+    scenarios.** The Campaign FSM does NOT auto-promote on first
+    member join: `Planned` accepts Runs, but `Planned -> Active`
+    requires an explicit `start_campaign` call (per the Campaign
+    design memo). This scenario calls `start_campaign` before
+    `add_run_to_campaign` so the Campaign actually enters Active
+    once a Run is bound, matching real-beamtime narrative where
+    the operator declares "campaign is live" before bringing Runs
+    in.
   - **Dataset registration order matters for lineage.** The Dataset
     must register AFTER the Run completes (the integrity guard
     requires `producing_run_id` to point to a Run in a terminal
@@ -86,6 +89,10 @@ import pytest
 from cora.campaign.aggregates.campaign import CampaignIntent
 from cora.campaign.features.add_run_to_campaign import AddRunToCampaign
 from cora.campaign.features.add_run_to_campaign import bind as bind_add_run_to_campaign
+from cora.campaign.features.close_campaign import CloseCampaign
+from cora.campaign.features.close_campaign import bind as bind_close_campaign
+from cora.campaign.features.start_campaign import StartCampaign
+from cora.campaign.features.start_campaign import bind as bind_start_campaign
 from cora.data.features.register_dataset import RegisterDataset
 from cora.data.features.register_dataset import bind as bind_register_dataset
 from cora.equipment.features.activate_asset import ActivateAsset
@@ -219,7 +226,11 @@ def _id_queue() -> list[UUID]:
         # add_run_to_campaign (cross-aggregate atomic; 2 event ids for the 2 streams)
         e(),  # CampaignRunAdded
         e(),  # RunCampaignAssigned
+        # start_campaign: event_id (explicit Planned -> Active)
+        e(),
         # complete_run: event_id
+        e(),
+        # close_campaign: event_id (Active -> Closed)
         e(),
         # measure_subject: event_id
         e(),
@@ -389,11 +400,18 @@ async def test_tomography_scan_plays_out_end_to_end(
 
     # ----- Campaign BC: add the Run to the Campaign (cross-aggregate atomic) -----
     # Two-stream atomic write: Campaign gets CampaignRunAdded + Run gets
-    # RunCampaignAssigned. Campaign transitions Planned -> Active on first
-    # member join per the Campaign FSM.
+    # RunCampaignAssigned. The Campaign FSM does NOT auto-promote; Planned
+    # accepts Runs but stays Planned until an explicit start_campaign.
 
     await bind_add_run_to_campaign(deps)(
         AddRunToCampaign(campaign_id=_CAMPAIGN_ID, run_id=_RUN_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    # Explicit Planned -> Active. The operator declares the Campaign live
+    # once at least one Run has joined.
+    await bind_start_campaign(deps)(
+        StartCampaign(campaign_id=_CAMPAIGN_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -402,6 +420,15 @@ async def test_tomography_scan_plays_out_end_to_end(
 
     await bind_complete_run(deps)(
         CompleteRun(run_id=_RUN_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # ----- Campaign BC: close the Campaign (Active -> Closed) -----
+    # Single-Run scan completes the beamtime arc; close locks membership.
+
+    await bind_close_campaign(deps)(
+        CloseCampaign(campaign_id=_CAMPAIGN_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -463,6 +490,8 @@ async def test_tomography_scan_plays_out_end_to_end(
     campaign_event_types = [e.event_type for e in campaign_events]
     assert "CampaignRegistered" in campaign_event_types
     assert "CampaignRunAdded" in campaign_event_types
+    assert "CampaignStarted" in campaign_event_types
+    assert "CampaignClosed" in campaign_event_types
 
     # ----- Assert: Dataset registered with full cross-aggregate refs -----
 

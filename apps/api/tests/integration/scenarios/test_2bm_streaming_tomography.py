@@ -94,6 +94,10 @@ import pytest
 from cora.campaign.aggregates.campaign import CampaignIntent
 from cora.campaign.features.add_run_to_campaign import AddRunToCampaign
 from cora.campaign.features.add_run_to_campaign import bind as bind_add_run_to_campaign
+from cora.campaign.features.close_campaign import CloseCampaign
+from cora.campaign.features.close_campaign import bind as bind_close_campaign
+from cora.campaign.features.start_campaign import StartCampaign
+from cora.campaign.features.start_campaign import bind as bind_start_campaign
 from cora.data.features.register_dataset import RegisterDataset
 from cora.data.features.register_dataset import bind as bind_register_dataset
 from cora.equipment.features.activate_asset import ActivateAsset
@@ -210,6 +214,7 @@ def _id_queue() -> list[UUID]:
         e(),  # define_practice
         _PLAN_STREAM_ID,
         e(),  # define_plan
+        e(),  # start_campaign (Planned -> Active; before any Run)
         _RUN_ID,
         e(),  # start_run
         e(),
@@ -219,6 +224,7 @@ def _id_queue() -> list[UUID]:
         e(),  # measure_subject
         _DATASET_ID,
         e(),  # register_dataset (live-reco snapshot)
+        e(),  # close_campaign (Active -> Closed; streaming session over)
     ]
 
 
@@ -333,6 +339,14 @@ async def test_streaming_tomography_with_adjust_run(
         correlation_id=_CORRELATION_ID,
     )
 
+    # ----- Campaign BC: Planned -> Active before any Run -----
+
+    await bind_start_campaign(deps)(
+        StartCampaign(campaign_id=_CAMPAIGN_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
     # Start Run with initial (under-exposed) parameters.
     await bind_start_run(deps)(
         StartRun(
@@ -407,6 +421,14 @@ async def test_streaming_tomography_with_adjust_run(
         correlation_id=_CORRELATION_ID,
     )
 
+    # ----- Campaign BC: close the streaming session (Active -> Closed) -----
+
+    await bind_close_campaign(deps)(
+        CloseCampaign(campaign_id=_CAMPAIGN_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
     # ----- Assert: Run stream carries RunAdjusted with the patch + reason -----
 
     run_events, run_version = await deps.event_store.load("Run", _RUN_ID)
@@ -446,3 +468,12 @@ async def test_streaming_tomography_with_adjust_run(
     dataset_payload = dataset_events[0].payload
     assert UUID(dataset_payload["producing_run_id"]) == _RUN_ID
     assert UUID(dataset_payload["subject_id"]) == _SUBJECT_ID
+
+    # ----- Assert: Campaign FSM reached Closed via the explicit Started transition -----
+
+    campaign_events, _ = await deps.event_store.load("Campaign", _CAMPAIGN_ID)
+    campaign_event_types = [e.event_type for e in campaign_events]
+    assert "CampaignRegistered" in campaign_event_types
+    assert "CampaignStarted" in campaign_event_types
+    assert "CampaignRunAdded" in campaign_event_types
+    assert "CampaignClosed" in campaign_event_types

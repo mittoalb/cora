@@ -80,6 +80,10 @@ import pytest
 from cora.campaign.aggregates.campaign import CampaignIntent
 from cora.campaign.features.add_run_to_campaign import AddRunToCampaign
 from cora.campaign.features.add_run_to_campaign import bind as bind_add_run_to_campaign
+from cora.campaign.features.close_campaign import CloseCampaign
+from cora.campaign.features.close_campaign import bind as bind_close_campaign
+from cora.campaign.features.start_campaign import StartCampaign
+from cora.campaign.features.start_campaign import bind as bind_start_campaign
 from cora.data.features.register_dataset import RegisterDataset
 from cora.data.features.register_dataset import bind as bind_register_dataset
 from cora.equipment.features.activate_asset import ActivateAsset
@@ -203,6 +207,7 @@ def _id_queue() -> list[UUID]:
         e(),  # define_practice
         _PLAN_FLYSCAN_ID,
         e(),  # define_plan
+        e(),  # start_campaign (Planned -> Active; before the loop)
     ]
     # Per child Run: start_run (run_id + event) + add_run_to_campaign (2 event ids) +
     # complete_run (event) + register_dataset (dataset_id + event) = 7 ids.
@@ -219,6 +224,7 @@ def _id_queue() -> list[UUID]:
             ]
         )
     ids.append(e())  # measure_subject (once after all Runs complete)
+    ids.append(e())  # close_campaign (Active -> Closed; after measure_subject)
     return ids
 
 
@@ -336,6 +342,17 @@ async def test_continuous_rotation_sweep_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
 
+    # ----- Campaign BC: Planned -> Active before the Run loop -----
+    # Series Campaign goes live for the sweep. add_run_to_campaign accepts
+    # Planned too, but explicit start_campaign matches operator narrative
+    # (operator declares "series is live" before kicking off rotation 1).
+
+    await bind_start_campaign(deps)(
+        StartCampaign(campaign_id=_CAMPAIGN_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
     # ----- N=3 child Runs, each sharing the same Plan + Subject + Campaign -----
 
     for idx, (run_id, _dataset_id) in enumerate(zip(_RUN_IDS, _DATASET_IDS, strict=True)):
@@ -393,6 +410,15 @@ async def test_continuous_rotation_sweep_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
 
+    # ----- Campaign BC: close the sweep (Active -> Closed) -----
+    # Series complete; close locks membership.
+
+    await bind_close_campaign(deps)(
+        CloseCampaign(campaign_id=_CAMPAIGN_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
     # ----- Assert: each child Run reached terminal Completed -----
 
     for run_id in _RUN_IDS:
@@ -408,6 +434,8 @@ async def test_continuous_rotation_sweep_plays_out_end_to_end(
     campaign_event_types = [e.event_type for e in campaign_events]
     assert campaign_event_types.count("CampaignRegistered") == 1
     assert campaign_event_types.count("CampaignRunAdded") == 3
+    assert campaign_event_types.count("CampaignStarted") == 1
+    assert campaign_event_types.count("CampaignClosed") == 1
 
     # ----- Assert: each Dataset references its own producing_run_id -----
 

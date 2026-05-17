@@ -99,6 +99,10 @@ import pytest
 from cora.campaign.aggregates.campaign import CampaignIntent
 from cora.campaign.features.add_run_to_campaign import AddRunToCampaign
 from cora.campaign.features.add_run_to_campaign import bind as bind_add_run_to_campaign
+from cora.campaign.features.close_campaign import CloseCampaign
+from cora.campaign.features.close_campaign import bind as bind_close_campaign
+from cora.campaign.features.start_campaign import StartCampaign
+from cora.campaign.features.start_campaign import bind as bind_start_campaign
 from cora.data.features.register_dataset import RegisterDataset
 from cora.data.features.register_dataset import bind as bind_register_dataset
 from cora.decision.aggregates.decision import (
@@ -235,6 +239,7 @@ def _id_queue() -> list[UUID]:
         _PLAN_HIGH_ENERGY_ID,
         e(),  # define_plan
         e(),  # update_plan_default_parameters (high)
+        e(),  # start_campaign (Planned -> Active; before any Run)
         # Run 1 (low energy) + dataset
         _RUN_LOW_ENERGY_ID,
         e(),  # start_run
@@ -255,6 +260,7 @@ def _id_queue() -> list[UUID]:
         _DATASET_HIGH_ENERGY_ID,
         e(),  # register_dataset
         e(),  # measure_subject
+        e(),  # close_campaign (Active -> Closed; beamtime arc complete)
     ]
 
 
@@ -421,6 +427,14 @@ async def test_energy_change_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
 
+    # ----- Campaign BC: Planned -> Active before any Run starts -----
+
+    await bind_start_campaign(deps)(
+        StartCampaign(campaign_id=_CAMPAIGN_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
     # ----- Run 1: low-energy scan on Plan A -----
 
     await bind_start_run(deps)(
@@ -540,6 +554,14 @@ async def test_energy_change_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
 
+    # ----- Campaign BC: close the multi-energy study (Active -> Closed) -----
+
+    await bind_close_campaign(deps)(
+        CloseCampaign(campaign_id=_CAMPAIGN_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
     # ----- Assert: EnergyChange Decision landed with operator authorship -----
 
     decision = await load_decision(deps.event_store, _DECISION_PIVOT_ID)
@@ -566,6 +588,8 @@ async def test_energy_change_plays_out_end_to_end(
     campaign_event_types = [e.event_type for e in campaign_events]
     assert campaign_event_types.count("CampaignRegistered") == 1
     assert campaign_event_types.count("CampaignRunAdded") == 2
+    assert campaign_event_types.count("CampaignStarted") == 1
+    assert campaign_event_types.count("CampaignClosed") == 1
 
     # ----- Assert: each Dataset references its own producing_run_id -----
 
