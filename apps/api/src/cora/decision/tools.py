@@ -7,6 +7,7 @@ from mcp.server.fastmcp import FastMCP
 from cora.decision.features.append_reasoning_entry import tool as append_reasoning_entry_tool
 from cora.decision.features.get_decision import tool as get_decision_tool
 from cora.decision.features.list_decisions import tool as list_decisions_tool
+from cora.decision.features.rate_decision import tool as rate_decision_tool
 from cora.decision.features.register_decision import tool as register_decision_tool
 from cora.decision.wire import DecisionHandlers
 
@@ -32,4 +33,8 @@ def register_decision_tools(
     list_decisions_tool.register(
         mcp,
         get_handler=lambda: get_handlers().list_decisions,
+    )
+    rate_decision_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().rate_decision,
     )

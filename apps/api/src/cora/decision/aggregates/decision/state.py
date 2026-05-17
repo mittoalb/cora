@@ -89,12 +89,19 @@ See [[project_authz_future]] for the saga-propagation pattern.
 
 ## Aggregate is atomic-immutable; chains carry corrections
 
-Decisions are append-only and never updated in place. Corrections,
-exceptions, appeals, and supersessions land as NEW Decisions with
-`parent_id` pointing at the original and `override_kind`
-explaining the transition. The "current" Decision in a chain is
-the latest entry; consumers use the `latest-in-chain wins`
-projection rule (documented in this BC's `__init__.py`).
+Decisions' decision facts are append-only and never updated in
+place. Corrections, exceptions, appeals, and supersessions land
+as NEW Decisions with `parent_id` pointing at the original and
+`override_kind` explaining the transition. The "current" Decision
+in a chain is the latest entry; consumers use the `latest-in-chain
+wins` projection rule (documented in this BC's `__init__.py`).
+
+See `Decision.ratings` for the additive operator-rating annotation
+channel (Phase 8f-b); rating accrual does NOT change decision
+facts and is folded latest-per-actor wins into the aggregate
+state. The atomic-immutability stance applies to the choice /
+reasoning / confidence / decision_inputs fields; ratings are an
+orthogonal additive annotation.
 
 ## Thirteenth bounded-name VO
 
@@ -108,6 +115,7 @@ migration.
 
 import json
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import StrEnum
 from typing import Any, Final, Literal
 from uuid import UUID
@@ -155,6 +163,56 @@ DECISION_CONTEXT_RESOURCE_ALLOCATION = "ResourceAllocation"
 DECISION_CONTEXT_POLICY_GRANT = "PolicyGrant"
 DECISION_CONTEXT_PROCEDURE_EXECUTION = "ProcedureExecution"
 DECISION_CONTEXT_DATASET_DISCARD = "DatasetDiscard"
+# Phase 8f-b: RunDebrief agent writes one Decision per terminal Run
+# event. Open-ended convention; the choice value lives in the
+# `RunDebriefChoice` Literal below.
+DECISION_CONTEXT_RUN_DEBRIEF = "RunDebrief"
+
+
+# Closed `choice` value set for `context = "RunDebrief"` Decisions.
+# Projection-validated, not domain-enforced (the open-string
+# `DecisionContext` + `DecisionChoice` shape is preserved so future
+# agent kinds can add their own choice vocabularies without churn).
+# `DebriefDeferred` is the audit-fallback value emitted by the
+# subscriber when the LLM call fails after 3 retries; preserves the
+# exactly-one-Decision-per-terminal-Run audit invariant.
+RunDebriefChoice = Literal[
+    "NominalCompletion",
+    "DegradedCompletion",
+    "OperatorAbort",
+    "EquipmentAbort",
+    "DataSuspect",
+    "DebriefDeferred",
+]
+RUN_DEBRIEF_CHOICES: Final = frozenset(
+    {
+        "NominalCompletion",
+        "DegradedCompletion",
+        "OperatorAbort",
+        "EquipmentAbort",
+        "DataSuspect",
+        "DebriefDeferred",
+    }
+)
+
+
+# Phase 8f-b acceptance-signal capture: closed 3-value rating set on
+# the new `DecisionRated` event. `useful` and `misleading` are
+# operator-affirmative; `ignored` is a positive marker ("operator saw
+# it and chose not to act"), distinct from no-rating ("never seen").
+# Latest-per-actor wins in the projection; audit trail keeps all
+# ratings. See [[project-run-debrief-design]] Locks for the
+# `ConfidenceCalibrator` adoption trigger that consumes the (rating,
+# context, confidence_at_emit_time) corpus this event accrues.
+class DecisionRating(StrEnum):
+    """How an operator rates a Decision after the fact (Phase 8f-b)."""
+
+    USEFUL = "useful"
+    MISLEADING = "misleading"
+    IGNORED = "ignored"
+
+
+DECISION_RATING_COMMENT_MAX_LENGTH = 2000
 
 
 class DecisionConfidenceSource(StrEnum):
@@ -413,6 +471,25 @@ class DecisionLogbookNotOpenError(Exception):
         self.logbook_id = logbook_id
 
 
+class InvalidDecisionRatingCommentError(ValueError):
+    """The supplied rating comment is empty (after trim) or too long.
+
+    Per [[project-run-debrief-design]] the `rate_decision` slice
+    accepts an OPTIONAL free-form comment. None means "no comment";
+    an empty / whitespace-only string is rejected (callers pass
+    None to omit). Over 2000 chars after trim raises.
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Decision rating comment must be 1-{DECISION_RATING_COMMENT_MAX_LENGTH} "
+            f"chars after trimming (got length: {len(value)})"
+        )
+        self.value = value
+
+
 @dataclass(frozen=True)
 class DecisionChoice:
     """The choice that was made. Trimmed; 1-500 chars.
@@ -580,6 +657,24 @@ def validate_reasoning_signature(value: str | None) -> str | None:
     return trimmed
 
 
+def validate_decision_rating_comment(value: str | None) -> str | None:
+    """Trim + bound-check the optional rating comment (Phase 8f-b).
+
+    Returns None for None input (operator omitted the comment).
+    Raises `InvalidDecisionRatingCommentError` for empty /
+    whitespace-only / over-cap strings (callers pass None to omit;
+    explicit empty strings indicate UI bugs and surface as 400).
+    """
+    if value is None:
+        return None
+    trimmed = value.strip()
+    if not trimmed:
+        raise InvalidDecisionRatingCommentError(value)
+    if len(trimmed) > DECISION_RATING_COMMENT_MAX_LENGTH:
+        raise InvalidDecisionRatingCommentError(value)
+    return trimmed
+
+
 def confidence_band(confidence: float | None) -> ConfidenceBand | None:
     """Map a stored `confidence` float to its triage band.
 
@@ -638,13 +733,38 @@ def has_determining_policies(decision: "Decision") -> bool:
 
 
 @dataclass(frozen=True)
+class DecisionRatingRecord:
+    """One operator's latest rating of a Decision (Phase 8f-b).
+
+    Held in `Decision.ratings: dict[UUID, DecisionRatingRecord]`
+    keyed by `rated_by_actor_id`. Multiple `DecisionRated` events
+    per (decision, actor) pair are allowed; the evolver keeps only
+    the latest (greatest `rated_at`) per actor in the aggregate
+    state. The audit trail (every rating ever submitted) lives in
+    the event log; this is the read-side latest-wins snapshot.
+
+    `comment` is optional (None = no comment).
+    """
+
+    rating: "DecisionRating"
+    comment: str | None
+    rated_at: datetime
+
+
+@dataclass(frozen=True)
 class Decision:
     """Aggregate root: one structured-audit record of a consequential choice.
 
-    Atomic-immutable: corrections / appeals / supersessions land as
-    NEW Decisions with `parent_id` pointing at the original and
-    `override_kind` explaining the transition. The 'current'
-    Decision in a chain is the latest entry (latest-in-chain wins).
+    Atomic-immutable for its decision facts: corrections / appeals /
+    supersessions of the DECISION itself land as NEW Decisions with
+    `parent_id` pointing at the original and `override_kind`
+    explaining the transition. The 'current' Decision in a chain is
+    the latest entry (latest-in-chain wins).
+
+    Operator ratings (Phase 8f-b) are an ADDITIVE annotation channel:
+    they do NOT change the decision facts; they accrue alongside in
+    `ratings` for downstream calibration consumption. Latest-per-
+    actor wins (the audit trail keeps all rating events).
     """
 
     id: UUID
@@ -666,3 +786,9 @@ class Decision:
     # chains, evaluator votes, etc.) follow the same shape.
     # At-most-one-open-per-kind enforced by the evolver.
     logbooks: dict[str, UUID] = field(default_factory=dict[str, UUID])
+    # 8f-b: operator ratings, keyed by rated_by_actor_id. Latest
+    # per actor wins; audit trail in the event log. Empty dict at
+    # genesis; populated as `DecisionRated` events fold.
+    ratings: dict[UUID, DecisionRatingRecord] = field(
+        default_factory=dict[UUID, DecisionRatingRecord]
+    )

@@ -22,6 +22,7 @@ from cora.decision.features import (
     append_reasoning_entry,
     get_decision,
     list_decisions,
+    rate_decision,
     register_decision,
 )
 from cora.infrastructure.idempotency import with_idempotency
@@ -39,6 +40,7 @@ class DecisionHandlers:
     get_decision: get_decision.Handler
     list_decisions: list_decisions.Handler
     append_reasoning_entry: append_reasoning_entry.Handler
+    rate_decision: rate_decision.Handler
 
 
 def wire_decision(deps: Kernel) -> DecisionHandlers:
@@ -75,5 +77,10 @@ def wire_decision(deps: Kernel) -> DecisionHandlers:
             command_name="ListDecisions",
             bc=_BC,
             kind="query",
+        ),
+        rate_decision=with_tracing(
+            rate_decision.bind(deps),
+            command_name="RateDecision",
+            bc=_BC,
         ),
     )

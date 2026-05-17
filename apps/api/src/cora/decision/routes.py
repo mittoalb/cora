@@ -33,6 +33,7 @@ from cora.decision.aggregates.decision import (
     InvalidDecisionConfidenceError,
     InvalidDecisionContextError,
     InvalidDecisionInputsError,
+    InvalidDecisionRatingCommentError,
     InvalidDecisionReasoningError,
     InvalidDecisionRuleError,
     InvalidReasoningSignatureError,
@@ -43,6 +44,7 @@ from cora.decision.features import (
     append_reasoning_entry,
     get_decision,
     list_decisions,
+    rate_decision,
     register_decision,
 )
 
@@ -95,6 +97,7 @@ def register_decision_routes(app: FastAPI) -> None:
     app.include_router(get_decision.router)
     app.include_router(append_reasoning_entry.router)
     app.include_router(list_decisions.router)
+    app.include_router(rate_decision.router)
     for validation_cls in (
         InvalidDecisionChoiceError,
         InvalidDecisionContextError,
@@ -103,6 +106,7 @@ def register_decision_routes(app: FastAPI) -> None:
         InvalidDecisionConfidenceError,
         InvalidDecisionAlternativesError,
         InvalidDecisionInputsError,
+        InvalidDecisionRatingCommentError,
         InvalidReasoningSignatureError,
         OverrideKindRequiresParentError,
     ):

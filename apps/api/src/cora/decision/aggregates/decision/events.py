@@ -50,6 +50,7 @@ from uuid import UUID
 from cora.decision.aggregates.decision.state import (
     DecisionConfidenceSource,
     DecisionOverrideKind,
+    DecisionRating,
 )
 from cora.infrastructure.logbook import LogbookSchema
 from cora.infrastructure.ports.event_store import StoredEvent
@@ -116,8 +117,58 @@ class DecisionLogbookClosed:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class DecisionRated:
+    """An operator rated a Decision (Phase 8f-b acceptance-signal capture).
+
+    Multiple `DecisionRated` events per (decision, actor) pair are
+    allowed; the evolver folds latest-per-actor wins into
+    `Decision.ratings: dict[UUID, DecisionRatingRecord]`. The audit
+    trail (every rating ever submitted) lives in the event log;
+    the aggregate / projection carry the latest snapshot.
+
+    `comment` is optional. Empty / whitespace-only comments are
+    rejected at the validator (callers pass None to omit).
+
+    `rated_at` is the DOMAIN timestamp (when the operator submitted
+    the rating per their wall-clock); `occurred_at` is the
+    ENVELOPE timestamp (the same value at write time, kept distinct
+    per the cross-BC envelope-field convention; see
+    [[project-naming-conventions]] and the
+    `ClearanceReviewStepAppended` `decided_at` + `occurred_at`
+    precedent). At write time the two values are equal by
+    construction; downstream consumers prefer `rated_at` for
+    domain-aware queries and `occurred_at` for envelope-bound
+    audit / ordering.
+
+    `confidence_at_emit_time` captures the rated Decision's
+    `confidence` value at the instant the rating was recorded
+    (gate-review cross-BC P2-4: payload-borne avoids the cross-
+    projection read race that the original projection-side denorm
+    would suffer under rebuild). Null when the rated Decision has
+    no confidence value. The handler captures this from
+    `Decision.state.confidence` at write time (`capture, don't
+    recompute` principle from
+    [[project-non-determinism-principle]]).
+
+    The rating actor's identity lives on the payload as
+    `rated_by_actor_id` for denorm convenience; the
+    `StoredEvent.principal_id` envelope carries the same value at
+    write time (every rating is self-recorded; no spoof path).
+    """
+
+    decision_id: UUID
+    rating: DecisionRating
+    comment: str | None
+    rated_by_actor_id: UUID
+    rated_at: datetime
+    occurred_at: datetime
+    confidence_at_emit_time: float | None
+
+
 # 8c-a expands the union with the two logbook lifecycle events.
-DecisionEvent = DecisionRegistered | DecisionLogbookOpened | DecisionLogbookClosed
+# 8f-b adds DecisionRated for operator acceptance-signal capture.
+DecisionEvent = DecisionRegistered | DecisionLogbookOpened | DecisionLogbookClosed | DecisionRated
 
 
 def event_type_name(event: DecisionEvent) -> str:
@@ -187,6 +238,24 @@ def to_payload(event: DecisionEvent) -> dict[str, Any]:
                 "logbook_id": str(logbook_id),
                 "occurred_at": occurred_at.isoformat(),
             }
+        case DecisionRated(
+            decision_id=decision_id,
+            rating=rating,
+            comment=comment,
+            rated_by_actor_id=rated_by_actor_id,
+            rated_at=rated_at,
+            occurred_at=occurred_at,
+            confidence_at_emit_time=confidence_at_emit_time,
+        ):
+            return {
+                "decision_id": str(decision_id),
+                "rating": rating.value,
+                "comment": comment,
+                "rated_by_actor_id": str(rated_by_actor_id),
+                "rated_at": rated_at.isoformat(),
+                "occurred_at": occurred_at.isoformat(),
+                "confidence_at_emit_time": confidence_at_emit_time,
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -233,6 +302,26 @@ def from_stored(stored: StoredEvent) -> DecisionEvent:
                 logbook_id=UUID(payload["logbook_id"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        case "DecisionRated":
+            # `occurred_at` defaults to `rated_at` for forward-compat
+            # with pre-cleanup payloads (none exist in production but
+            # the .get() pattern is the cross-BC additive-evolution
+            # convention). Same for `confidence_at_emit_time` -> None.
+            rated_at = datetime.fromisoformat(payload["rated_at"])
+            occurred_at_raw = payload.get("occurred_at")
+            return DecisionRated(
+                decision_id=UUID(payload["decision_id"]),
+                rating=DecisionRating(payload["rating"]),
+                comment=payload.get("comment"),
+                rated_by_actor_id=UUID(payload["rated_by_actor_id"]),
+                rated_at=rated_at,
+                occurred_at=(
+                    datetime.fromisoformat(occurred_at_raw)
+                    if occurred_at_raw is not None
+                    else rated_at
+                ),
+                confidence_at_emit_time=payload.get("confidence_at_emit_time"),
+            )
         case _:
             msg = f"Unknown DecisionEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -242,6 +331,7 @@ __all__ = [
     "DecisionEvent",
     "DecisionLogbookClosed",
     "DecisionLogbookOpened",
+    "DecisionRated",
     "DecisionRegistered",
     "event_type_name",
     "from_stored",

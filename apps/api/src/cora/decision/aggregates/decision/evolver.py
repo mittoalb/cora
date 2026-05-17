@@ -43,6 +43,7 @@ from cora.decision.aggregates.decision.events import (
     DecisionEvent,
     DecisionLogbookClosed,
     DecisionLogbookOpened,
+    DecisionRated,
     DecisionRegistered,
 )
 from cora.decision.aggregates.decision.state import (
@@ -51,6 +52,7 @@ from cora.decision.aggregates.decision.state import (
     DecisionContext,
     DecisionLogbookAlreadyOpenError,
     DecisionLogbookNotOpenError,
+    DecisionRatingRecord,
     DecisionRule,
 )
 from cora.infrastructure.evolver import require_state
@@ -110,6 +112,7 @@ def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
                 decision_inputs=prior.decision_inputs,
                 reasoning_signature=prior.reasoning_signature,
                 logbooks={**prior.logbooks, kind: logbook_id},
+                ratings=prior.ratings,
             )
         case DecisionLogbookClosed(logbook_id=logbook_id):
             prior = require_state(state, "DecisionLogbookClosed")
@@ -134,6 +137,40 @@ def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
                 decision_inputs=prior.decision_inputs,
                 reasoning_signature=prior.reasoning_signature,
                 logbooks={k: v for k, v in prior.logbooks.items() if k != matching_kind},
+                ratings=prior.ratings,
+            )
+        case DecisionRated(
+            rating=rating,
+            comment=comment,
+            rated_by_actor_id=rated_by_actor_id,
+            rated_at=rated_at,
+        ):
+            prior = require_state(state, "DecisionRated")
+            # Latest-per-actor wins: if a prior rating exists for the
+            # same actor, the new one overwrites IFF rated_at is later
+            # (defensive: out-of-order replay must not regress state).
+            existing = prior.ratings.get(rated_by_actor_id)
+            if existing is not None and existing.rated_at >= rated_at:
+                # Replay observed an older event after a newer one (rare
+                # but possible during projection rebuild). Keep newer.
+                return prior
+            new_record = DecisionRatingRecord(rating=rating, comment=comment, rated_at=rated_at)
+            return Decision(
+                id=prior.id,
+                actor_id=prior.actor_id,
+                context=prior.context,
+                choice=prior.choice,
+                parent_id=prior.parent_id,
+                override_kind=prior.override_kind,
+                decision_rule=prior.decision_rule,
+                reasoning=prior.reasoning,
+                confidence=prior.confidence,
+                confidence_source=prior.confidence_source,
+                alternatives=prior.alternatives,
+                decision_inputs=prior.decision_inputs,
+                reasoning_signature=prior.reasoning_signature,
+                logbooks=prior.logbooks,
+                ratings={**prior.ratings, rated_by_actor_id: new_record},
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
