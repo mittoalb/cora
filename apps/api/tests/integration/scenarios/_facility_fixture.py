@@ -94,6 +94,7 @@ from uuid import UUID, uuid4
 
 from cora.access.features.register_actor import RegisterActor
 from cora.access.features.register_actor import bind as bind_register_actor
+from cora.agent.seed import RUN_DEBRIEF_AGENT_ID
 from cora.equipment.aggregates.asset import AssetLevel
 from cora.equipment.features.add_asset_capability import AddAssetCapability
 from cora.equipment.features.add_asset_capability import bind as bind_add_capability
@@ -121,12 +122,17 @@ OPERATOR_3_ID = UUID("01900000-0000-7000-8000-000000002a03")
 OPERATOR_POOL_IDS: tuple[UUID, UUID, UUID] = (OPERATOR_1_ID, OPERATOR_2_ID, OPERATOR_3_ID)
 OPERATOR_NAMES: tuple[str, str, str] = ("2-BM Operator 1", "2-BM Operator 2", "2-BM Operator 3")
 
-# Canonical Run Debrief actor id. The `Agent` aggregate is registered
-# only in `test_aps_facility.py`; this constant lets the 2-BM Agent
-# Policy reference the same UUID even though no `Actor` record for it
-# exists in 2-BM scenario DBs (Trust BC has no referential integrity at
-# command time — see `policy/state.py` docstring).
-RUN_DEBRIEF_ACTOR_ID = UUID("01900000-0000-7000-8000-000000002a99")
+# Canonical Run Debrief actor id. Re-exported alias for the production
+# constant `RUN_DEBRIEF_AGENT_ID` from `cora.agent.seed` (Agent.id ==
+# Actor.id per the 8f-a shared-identity invariant, so the fixture's
+# Actor-shaped name aliases the Agent-shaped seed constant). The 2-BM
+# Agent Policy permits this UUID; the production-boot seed registers
+# the Agent at the same UUID; the unit + integration tests reference
+# the seed constant directly. Prior to this fix the fixture defined a
+# different literal UUID, which silently created two competing
+# canonical identities for the RunDebrief Agent — the Policy would
+# have rejected the seeded Agent once Authorize wiring lands.
+RUN_DEBRIEF_ACTOR_ID = RUN_DEBRIEF_AGENT_ID
 
 # 2-BM Trust shape. Self-loop Conduit (source==target==2-BM Zone) because
 # the 2-BM scenarios don't yet model cross-zone flows; the Conduit exists
