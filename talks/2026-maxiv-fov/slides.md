@@ -689,7 +689,7 @@ Architecture stable. Pilot in flight. Honest about both.
     <div><span class="font-semibold text-[#0A7E8C]">Access</span> <span class="opacity-75">· actor identity (register, deactivate)</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Trust</span> <span class="opacity-75">· zones, conduits, policies</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Equipment</span> <span class="opacity-75">· family, affordances, settings, ports, condition</span></div>
-    <div><span class="font-semibold text-[#0A7E8C]">Recipe</span> <span class="opacity-75">· Method → Practice → Plan → Run → Dataset</span></div>
+    <div><span class="font-semibold text-[#0A7E8C]">Recipe</span> <span class="opacity-75">· Capability template · Method → Practice → Plan → Run → Dataset</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Subject</span> <span class="opacity-75">· sample identity across stations</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Run</span> <span class="opacity-75">· execution, readings, procedure</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Campaign</span> <span class="opacity-75">· multi-run studies (in-situ, operando, sweeps)</span></div>

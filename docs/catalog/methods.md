@@ -1,8 +1,8 @@
 # Methods
 
-*Recipe BC Methods. A Method names a technique abstractly (ISA-88 General Recipe layer) and declares the Capabilities its realizations must offer. Methods are cross-facility vocabulary, not bound to any Site. See [Model](../architecture/model.md) for the aggregate shape.*
+*Recipe BC Methods. A Method names a technique abstractly (ISA-88 General Recipe layer). Two binding fields, distinct purposes: `needed_families` lists the Equipment [Families](families.md) the technique requires hardware-compat-wise; `capability_id` binds to a Recipe `Capability` template (see [Glossary](../reference/glossary.md)) that declares the operations contract (required affordances, parameter schema, executor shape). Methods are cross-facility vocabulary, not bound to any Site. See [Model](../architecture/model.md) for the aggregate shape.*
 
-| Method | Needed capabilities | Purpose |
+| Method | Needed families | Purpose |
 | --- | --- | --- |
 | `motor_homing` | `RotaryStage`, `LinearStage` | Reference-position seek for one or more motorized Devices; produces motors with encoders zeroed and ready for absolute-coordinate moves |
 | `resolution_alignment` | `LinearStage`, `Camera`, `Scintillator` | The `resolution` step in the rotation-axis alignment chain; iterative focus-Z peak search on a mounted resolution target |
