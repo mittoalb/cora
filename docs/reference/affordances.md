@@ -6,7 +6,7 @@ An **Affordance** is a claim about what a device can do. Each Family enumerates 
 
 ## Three patterns
 
-The v1 closed enum carries 28 items in three explicit patterns. The split is deliberate ([project_capability_research](../../../memory/project_capability_research.md) section 5a):
+The v1 closed enum carries 28 items in three explicit patterns. The split is deliberate (see `project_capability_research` section 5a in user-memory):
 
 - **Pattern A — Action affordances (`-able` / `-ible` suffix)**: "device supports doing X". 24 items. Reads as a predicate: a `RotaryStage` Family is `Rotatable`, a Camera Family is `Imageable`.
 - **Pattern B — Signal affordances (noun)**: "device exposes signal X". 3 items. Names a data-flow shape rather than an action.

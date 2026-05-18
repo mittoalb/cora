@@ -4,7 +4,7 @@
 
 ## Inventories
 
-- [Capabilities](capabilities.md): Equipment BC vocabulary for what a device does
+- [Families](families.md): Equipment BC vocabulary for what a device does
 - [Methods](methods.md): Recipe BC vocabulary for what a technique is (ISA-88 General Recipe layer)
 
 Source of truth: the scenario integration tests.
