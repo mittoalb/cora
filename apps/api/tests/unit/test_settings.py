@@ -159,3 +159,67 @@ def test_settings_projection_poll_interval_rejects_tight_loop(
     monkeypatch.setenv("PROJECTION_POLL_INTERVAL_SECONDS", "0.05")
     with pytest.raises(pydantic.ValidationError):
         Settings()
+
+
+# ---------------------------------------------------------------------------
+# Field validators that enforce numeric bounds
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("bad_value", ["-0.01", "1.01", "2.0", "-1.0"])
+def test_settings_otel_sampler_ratio_rejects_out_of_range(
+    monkeypatch: pytest.MonkeyPatch, bad_value: str
+) -> None:
+    """Sampler ratio outside [0.0, 1.0] is meaningless and rejected."""
+    import pydantic
+
+    monkeypatch.setenv("OTEL_SAMPLER_RATIO", bad_value)
+    with pytest.raises(pydantic.ValidationError, match="otel_sampler_ratio must be in"):
+        Settings()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("boundary_value", ["0.0", "1.0", "0.5"])
+def test_settings_otel_sampler_ratio_accepts_in_range(
+    monkeypatch: pytest.MonkeyPatch, boundary_value: str
+) -> None:
+    """Boundaries inclusive: 0.0 and 1.0 are both valid."""
+    monkeypatch.setenv("OTEL_SAMPLER_RATIO", boundary_value)
+    settings = Settings()
+    assert settings.otel_sampler_ratio == float(boundary_value)
+
+
+@pytest.mark.unit
+def test_settings_idempotency_ttl_hours_accepts_zero_to_disable_pruner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """0 is the documented sentinel that disables the pruner."""
+    monkeypatch.setenv("IDEMPOTENCY_TTL_HOURS", "0")
+    assert Settings().idempotency_ttl_hours == 0
+
+
+@pytest.mark.unit
+def test_settings_idempotency_ttl_hours_rejects_negative(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Negative TTL would invert the window (always-prune-everything)."""
+    import pydantic
+
+    monkeypatch.setenv("IDEMPOTENCY_TTL_HOURS", "-1")
+    with pytest.raises(pydantic.ValidationError, match="idempotency_ttl_hours must be >= 0"):
+        Settings()
+
+
+@pytest.mark.unit
+def test_settings_idempotency_lock_stale_seconds_rejects_below_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Floor of 1s prevents a tight stale-lock recovery loop."""
+    import pydantic
+
+    monkeypatch.setenv("IDEMPOTENCY_LOCK_STALE_SECONDS", "0")
+    with pytest.raises(
+        pydantic.ValidationError, match="idempotency_lock_stale_seconds must be >= 1"
+    ):
+        Settings()
