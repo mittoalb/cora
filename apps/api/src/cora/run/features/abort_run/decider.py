@@ -50,6 +50,7 @@ def decide(
         RunAborted(
             run_id=state.id,
             reason=reason.value,
+            decided_by_decision_id=command.decided_by_decision_id,
             occurred_at=now,
         )
     ]

@@ -98,6 +98,20 @@ class StartRunRequest(BaseModel):
             "via `POST /campaigns/{id}/runs/{run_id}`. Phase 6i-c."
         ),
     )
+    decided_by_decision_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Optional Decision id that justified starting this Run "
+            "(most commonly a cross-Plan operator pivot: EnergyChange, "
+            "PivotToHighResolution, etc.). Maps to `prov:wasInformedBy` "
+            "at the future PROV-O export adapter (same export contract "
+            "used by Decision.parent_id and AdjustRun.decided_by_decision_id). "
+            "NOT verified at the write path (eventual-consistency stance "
+            "per cross-BC reference precedent). Operators can start "
+            "ad-hoc Runs without a Decision. Phase 1 (Decision→Run "
+            "linkage)."
+        ),
+    )
 
 
 class StartRunResponse(BaseModel):
@@ -181,6 +195,7 @@ async def post_runs(
             override_parameters=body.override_parameters,
             triggered_by=body.triggered_by,
             campaign_id=body.campaign_id,
+            decided_by_decision_id=body.decided_by_decision_id,
         ),
         principal_id=principal_id,
         correlation_id=cid,

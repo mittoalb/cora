@@ -68,3 +68,13 @@ class StartRun:
     triggered_by: str | None = None
     external_refs: frozenset[ExternalRef] = field(default_factory=frozenset[ExternalRef])
     campaign_id: UUID | None = None
+    # Phase 1 (Decision→Run linkage): optional Decision-causation link
+    # mirroring `AdjustRun.decided_by_decision_id`. Lets the operator
+    # link a Run's start to the Decision BC record that justified it
+    # (most commonly a cross-Plan operator pivot — EnergyChange,
+    # PivotToHighResolution, etc.). Operators can start ad-hoc Runs
+    # without a Decision; not every start needs formal justification.
+    # NO existence check at the decider per the cross-BC eventual-
+    # consistency stance (Trust.Conduit / Asset parent / Procedure
+    # target / Campaign lead_actor / Run.subject_id precedent).
+    decided_by_decision_id: UUID | None = None

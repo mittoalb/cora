@@ -40,10 +40,26 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 description=("Free-form reason for the abort (1-500 chars after trimming)."),
             ),
         ],
+        decided_by_decision_id: Annotated[
+            UUID | None,
+            Field(
+                default=None,
+                description=(
+                    "Optional Decision id that justified this abort. "
+                    "Maps to prov:wasInformedBy at the future PROV-O "
+                    "export adapter. Not verified at the write path. "
+                    "Phase 1."
+                ),
+            ),
+        ] = None,
     ) -> None:
         handler = get_handler()
         await handler(
-            AbortRun(run_id=run_id, reason=reason),
+            AbortRun(
+                run_id=run_id,
+                reason=reason,
+                decided_by_decision_id=decided_by_decision_id,
+            ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
         )

@@ -294,6 +294,7 @@ def decide(
             ),
             acknowledged_cautions=acknowledged_cautions,
             campaign_id=command.campaign_id,
+            decided_by_decision_id=command.decided_by_decision_id,
             occurred_at=now,
         )
     ]

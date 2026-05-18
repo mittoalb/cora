@@ -18,7 +18,18 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class AbortRun:
-    """Mark an existing Run as aborted (emergency-exit terminal)."""
+    """Mark an existing Run as aborted (emergency-exit terminal).
+
+    `decided_by_decision_id` (Phase 1; mirrors AdjustRun + StartRun):
+    optional Decision BC reference to the record that justified this
+    abort (most commonly an OperatorAbortDecision or
+    EquipmentAbortDecision per [[project-run-debrief-design]]'s 5-value
+    choice enum). Operators can record ad-hoc / emergency aborts
+    without a Decision; not every abort needs formal justification.
+    NO existence check at the decider per the cross-BC eventual-
+    consistency stance.
+    """
 
     run_id: UUID
     reason: str
+    decided_by_decision_id: UUID | None = None

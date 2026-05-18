@@ -93,6 +93,11 @@ def test_to_payload_serializes_run_started_with_subject_to_primitives() -> None:
         # at start time. None when StartRun.campaign_id was not
         # provided; forward-compat via `payload.get("campaign_id")`.
         "campaign_id": None,
+        # Phase 1 (Decision→Run linkage) additive payload field for the
+        # optional Decision-causation link. None when
+        # StartRun.decided_by_decision_id was not provided; forward-compat
+        # via `payload.get("decided_by_decision_id")`.
+        "decided_by_decision_id": None,
         "occurred_at": _NOW.isoformat(),
     }
 
@@ -485,12 +490,19 @@ def test_to_payload_serializes_run_aborted_to_primitives() -> None:
     assert to_payload(event) == {
         "run_id": str(run_id),
         "reason": "detector overheating",
+        # Phase 1 (Decision→Run linkage) additive payload field; None
+        # when not supplied. Forward-compat via
+        # `payload.get("decided_by_decision_id")`.
+        "decided_by_decision_id": None,
         "occurred_at": _NOW.isoformat(),
     }
 
 
 @pytest.mark.unit
 def test_from_stored_rebuilds_run_aborted() -> None:
+    """Pre-Phase-1 RunAborted streams replay without the
+    decided_by_decision_id key via the `.get(..., None)` forward-compat
+    fold."""
     run_id = uuid4()
     stored = _stored(
         "RunAborted",
@@ -506,6 +518,8 @@ def test_from_stored_rebuilds_run_aborted() -> None:
         reason="operator stop",
         occurred_at=_NOW,
     )
+    assert isinstance(rebuilt, RunAborted)
+    assert rebuilt.decided_by_decision_id is None
 
 
 @pytest.mark.unit
@@ -513,6 +527,33 @@ def test_run_aborted_round_trips() -> None:
     original = RunAborted(
         run_id=uuid4(),
         reason="beam dump unscheduled",
+        occurred_at=_NOW,
+    )
+    stored = _stored("RunAborted", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# Phase 1: Decision→Run linkage on RunAborted
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_run_aborted_with_decision_id() -> None:
+    decision_id = uuid4()
+    event = RunAborted(
+        run_id=uuid4(),
+        reason="agent EquipmentAbortDecision triggered",
+        decided_by_decision_id=decision_id,
+        occurred_at=_NOW,
+    )
+    assert to_payload(event)["decided_by_decision_id"] == str(decision_id)
+
+
+@pytest.mark.unit
+def test_run_aborted_with_decision_id_round_trips() -> None:
+    original = RunAborted(
+        run_id=uuid4(),
+        reason="agent OperatorAbortDecision recorded",
+        decided_by_decision_id=uuid4(),
         occurred_at=_NOW,
     )
     stored = _stored("RunAborted", to_payload(original))
@@ -926,3 +967,61 @@ def test_from_stored_rebuilds_run_adjusted_with_missing_decision_key_as_none() -
     event = from_stored(stored)
     assert isinstance(event, RunAdjusted)
     assert event.decided_by_decision_id is None
+
+
+# ---------- Phase 1: Decision→Run linkage on RunStarted ----------
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_run_started_with_decision_id() -> None:
+    """Phase 1: when StartRun supplied decided_by_decision_id, the event
+    payload includes it as a string."""
+    decision_id = uuid4()
+    event = RunStarted(
+        run_id=uuid4(),
+        name="post-EnergyChange pivot run",
+        plan_id=uuid4(),
+        subject_id=None,
+        occurred_at=_NOW,
+        decided_by_decision_id=decision_id,
+    )
+    assert to_payload(event)["decided_by_decision_id"] == str(decision_id)
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_started_without_decision_id_key_as_none() -> None:
+    """Forward-compat: pre-Phase-1 events have no decided_by_decision_id
+    key. from_stored returns None via `payload.get`. Mirrors the
+    raid / external_refs / campaign_id forward-compat pattern."""
+    run_id = uuid4()
+    plan_id = uuid4()
+    stored = _stored(
+        "RunStarted",
+        {
+            "run_id": str(run_id),
+            "name": "Pre-Phase-1 run",
+            "plan_id": str(plan_id),
+            "subject_id": None,
+            "occurred_at": _NOW.isoformat(),
+            # NOTE: no "decided_by_decision_id" key — pre-Phase-1 shape.
+        },
+    )
+    event = from_stored(stored)
+    assert isinstance(event, RunStarted)
+    assert event.decided_by_decision_id is None
+
+
+@pytest.mark.unit
+def test_run_started_decision_id_round_trips() -> None:
+    """RunStarted with decided_by_decision_id round-trips through
+    to_payload + from_stored without loss."""
+    original = RunStarted(
+        run_id=uuid4(),
+        name="Run informed by EnergyChange decision",
+        plan_id=uuid4(),
+        subject_id=None,
+        occurred_at=_NOW,
+        decided_by_decision_id=uuid4(),
+    )
+    stored = _stored("RunStarted", to_payload(original))
+    assert from_stored(stored) == original

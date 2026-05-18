@@ -288,6 +288,10 @@ async def test_abort_run_persists_with_trimmed_reason_and_round_trips_to_aborted
     assert aborted.payload == {
         "run_id": str(run_id),
         "reason": "detector overheating",
+        # Phase 1 (Decision→Run linkage) additive payload field. None
+        # when AbortRun.decided_by_decision_id was not provided;
+        # forward-compat via `payload.get("decided_by_decision_id")`.
+        "decided_by_decision_id": None,
         "occurred_at": _NOW.isoformat(),
     }
 

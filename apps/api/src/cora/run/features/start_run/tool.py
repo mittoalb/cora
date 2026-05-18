@@ -111,6 +111,18 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ] = None,
+        decided_by_decision_id: Annotated[
+            UUID | None,
+            Field(
+                default=None,
+                description=(
+                    "Optional Decision id that justified starting this Run "
+                    "(cross-Plan pivots like EnergyChange). Maps to "
+                    "prov:wasInformedBy at the future PROV-O export "
+                    "adapter. Not verified at the write path. Phase 1."
+                ),
+            ),
+        ] = None,
     ) -> StartRunOutput:
         handler = get_handler()
         run_id = await handler(
@@ -122,6 +134,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 override_parameters=override_parameters if override_parameters else {},
                 triggered_by=triggered_by,
                 campaign_id=campaign_id,
+                decided_by_decision_id=decided_by_decision_id,
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),

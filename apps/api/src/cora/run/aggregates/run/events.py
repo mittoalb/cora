@@ -192,6 +192,18 @@ class RunStarted:
     # shape). Forward-compat via `payload.get("campaign_id")` returning
     # None for legacy pre-6i-c streams.
     campaign_id: UUID | None = None
+    # Phase 1 (Decision→Run linkage): optional Decision-causation link
+    # mirroring RunAdjusted.decided_by_decision_id. Lets operators link
+    # the Run's start to the Decision BC record that justified it (most
+    # commonly an EnergyChange / PivotToHighResolution / similar
+    # cross-Plan operator pivot). Maps to `prov:wasInformedBy` at the
+    # future PROV-O export adapter, same contract as Decision.parent_id.
+    # OPTIONAL: not every Run-start needs formal justification. NO
+    # existence check at the decider per the cross-BC eventual-
+    # consistency stance. Forward-compat via
+    # `payload.get("decided_by_decision_id")` returning None for legacy
+    # pre-Phase-1 streams.
+    decided_by_decision_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -291,11 +303,23 @@ class RunAborted:
     Source set widened in 6f-3 to include `Held` — emergencies
     during a hold are real and should not require an intervening
     Resume.
+
+    `decided_by_decision_id` (Phase 1; mirrors RunAdjusted +
+    RunStarted): optional Decision-causation link to the Decision BC
+    record that justified this abort (most commonly an
+    OperatorAbortDecision or EquipmentAbortDecision per
+    [[project-run-debrief-design]]'s 5-value choice enum). OPTIONAL:
+    not every abort needs formal justification (operator-emergency
+    aborts may bypass Decision). NO existence check at the decider
+    per the cross-BC eventual-consistency stance. Forward-compat via
+    `payload.get("decided_by_decision_id")` returning None for legacy
+    pre-Phase-1 streams.
     """
 
     run_id: UUID
     reason: str
     occurred_at: datetime
+    decided_by_decision_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -492,6 +516,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
             external_refs=external_refs,
             acknowledged_cautions=acknowledged_cautions,
             campaign_id=campaign_id,
+            decided_by_decision_id=decided_by_decision_id,
             occurred_at=occurred_at,
         ):
             return {
@@ -517,6 +542,9 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                     for ack in acknowledged_cautions
                 ],
                 "campaign_id": str(campaign_id) if campaign_id is not None else None,
+                "decided_by_decision_id": (
+                    str(decided_by_decision_id) if decided_by_decision_id is not None else None
+                ),
                 "occurred_at": occurred_at.isoformat(),
             }
         case RunHeld(run_id=run_id, occurred_at=occurred_at):
@@ -534,10 +562,18 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "run_id": str(run_id),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case RunAborted(run_id=run_id, reason=reason, occurred_at=occurred_at):
+        case RunAborted(
+            run_id=run_id,
+            reason=reason,
+            decided_by_decision_id=decided_by_decision_id,
+            occurred_at=occurred_at,
+        ):
             return {
                 "run_id": str(run_id),
                 "reason": reason,
+                "decided_by_decision_id": (
+                    str(decided_by_decision_id) if decided_by_decision_id is not None else None
+                ),
                 "occurred_at": occurred_at.isoformat(),
             }
         case RunStopped(run_id=run_id, reason=reason, occurred_at=occurred_at):
@@ -630,12 +666,14 @@ def from_stored(stored: StoredEvent) -> RunEvent:
             raw_subject = payload["subject_id"]
             # Forward-compat additive evolution: `raid` was added in 7d,
             # `override_parameters` / `effective_parameters` /
-            # `triggered_by` in 6g-c, `external_refs` in 11a-c-3, and
-            # `acknowledged_cautions` in 11b-c. Each .get(...) returns
-            # the field's default when the key isn't in the jsonb
-            # payload, so pre-additive streams replay without an
-            # upcaster.
+            # `triggered_by` in 6g-c, `external_refs` in 11a-c-3,
+            # `acknowledged_cautions` in 11b-c, `campaign_id` in 6i-c,
+            # `decided_by_decision_id` in Phase 1 (Decision→Run linkage).
+            # Each .get(...) returns the field's default when the key
+            # isn't in the jsonb payload, so pre-additive streams replay
+            # without an upcaster.
             raw_campaign_id = payload.get("campaign_id")
+            raw_decided_by = payload.get("decided_by_decision_id")
             return RunStarted(
                 run_id=UUID(payload["run_id"]),
                 name=payload["name"],
@@ -659,6 +697,7 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                     for ack in payload.get("acknowledged_cautions", [])
                 ),
                 campaign_id=UUID(raw_campaign_id) if raw_campaign_id is not None else None,
+                decided_by_decision_id=UUID(raw_decided_by) if raw_decided_by is not None else None,
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "RunHeld":
@@ -677,9 +716,16 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "RunAborted":
+            # Phase 1: `decided_by_decision_id` optional. Forward-compat
+            # additive evolution: pre-Phase-1 streams replay without the
+            # key via `.get(..., None)`.
+            raw_decided_by_abort = payload.get("decided_by_decision_id")
             return RunAborted(
                 run_id=UUID(payload["run_id"]),
                 reason=payload["reason"],
+                decided_by_decision_id=(
+                    UUID(raw_decided_by_abort) if raw_decided_by_abort is not None else None
+                ),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "RunStopped":

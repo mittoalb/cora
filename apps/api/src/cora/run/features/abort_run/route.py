@@ -29,6 +29,18 @@ class AbortRunRequest(BaseModel):
             "future-additive."
         ),
     )
+    decided_by_decision_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Optional Decision id that justified this abort (most "
+            "commonly an OperatorAbortDecision or EquipmentAbortDecision "
+            "per RunDebrief's 5-value choice enum). Maps to "
+            "`prov:wasInformedBy` at the future PROV-O export adapter. "
+            "NOT verified at the write path (eventual-consistency stance). "
+            "Operators can record ad-hoc / emergency aborts without a "
+            "Decision. Phase 1 (Decision→Run linkage)."
+        ),
+    )
 
 
 def _get_handler(request: Request) -> Handler:
@@ -78,7 +90,11 @@ async def post_runs_abort(
     principal_id: Annotated[UUID, Depends(get_principal_id)],
 ) -> None:
     await handler(
-        AbortRun(run_id=run_id, reason=body.reason),
+        AbortRun(
+            run_id=run_id,
+            reason=body.reason,
+            decided_by_decision_id=body.decided_by_decision_id,
+        ),
         principal_id=principal_id,
         correlation_id=cid,
     )

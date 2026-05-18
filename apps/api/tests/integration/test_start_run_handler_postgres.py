@@ -190,6 +190,11 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
         # at start time. None when StartRun.campaign_id was not
         # provided; forward-compat via `payload.get("campaign_id")`.
         "campaign_id": None,
+        # Phase 1 (Decision→Run linkage) additive payload field for the
+        # optional Decision-causation link. None when
+        # StartRun.decided_by_decision_id was not provided; forward-compat
+        # via `payload.get("decided_by_decision_id")`.
+        "decided_by_decision_id": None,
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.event_id == run_event_id

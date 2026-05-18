@@ -1443,3 +1443,72 @@ def test_decide_emits_campaign_run_added_when_campaign_supplied() -> None:
     assert decision.campaign_events == [
         CampaignRunAdded(campaign_id=campaign.id, run_id=new_id, occurred_at=_NOW)
     ]
+
+
+# ---------- Phase 1: Decision→Run linkage ----------
+
+
+@pytest.mark.unit
+def test_decide_defaults_decided_by_decision_id_to_none_when_omitted() -> None:
+    """The optional Decision-causation link defaults to None on the
+    emitted RunStarted event."""
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    subject = _subject()
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
+    decision = start_run.decide(
+        state=None,
+        command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
+        context=context,
+        needed_families_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert decision.run_events[0].decided_by_decision_id is None
+
+
+@pytest.mark.unit
+def test_decide_threads_decided_by_decision_id_through_to_event() -> None:
+    """When the operator supplies decided_by_decision_id (cross-Plan
+    pivot like EnergyChange), it flows verbatim into RunStarted.
+
+    NOT cross-BC validated at the decider (mirrors AdjustRun + the
+    eventual-consistency stance for cross-BC references).
+    """
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    subject = _subject()
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
+    decision_id = uuid4()
+    decision = start_run.decide(
+        state=None,
+        command=StartRun(
+            name="Run",
+            plan_id=plan.id,
+            subject_id=subject.id,
+            decided_by_decision_id=decision_id,
+        ),
+        context=context,
+        needed_families_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert decision.run_events[0].decided_by_decision_id == decision_id
