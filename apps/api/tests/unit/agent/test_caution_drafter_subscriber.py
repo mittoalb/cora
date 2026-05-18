@@ -30,7 +30,10 @@ from cora.agent.seed_caution_drafter import (
 )
 from cora.agent.subscribers.caution_drafter import (
     CautionDrafterSubscriber,
+    _coerce_proposed_caution,
     _derive_decision_id,
+    _proposed_target_in_candidates,
+    make_caution_drafter_subscriber,
 )
 from cora.decision.aggregates.decision import load_decision
 from cora.infrastructure.event_envelope import to_new_event
@@ -54,6 +57,7 @@ from cora.run.aggregates.run.events import (
     RunAborted,
     RunCompleted,
 )
+from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 17, 14, 0, 0, tzinfo=UTC)
 _LATER = datetime(2026, 5, 17, 14, 47, 0, tzinfo=UTC)
@@ -650,3 +654,130 @@ async def test_apply_ignores_non_terminal_event_defensively() -> None:
     await subscriber.apply(not_terminal, conn=None)
 
     assert llm.received == []
+
+
+@pytest.mark.unit
+async def test_apply_skips_when_run_missing() -> None:
+    """No Run aggregate in the store -> skip without writing.
+
+    Mirrors the Plan/Actor skip guards. The Run-load guard sits before
+    Plan/Actor in the apply() body so it short-circuits the earliest.
+    """
+    store = InMemoryEventStore()
+    llm = FakeLLMAdapter(responses=[_CANNED_PROPOSE_CAUTION])
+    await _seed_caution_drafter_actor(store)
+    await _seed_plan(store)
+    run_id = uuid4()
+    # Intentionally NO _seed_run() call.
+    subscriber = await _build_subscriber(store, llm)
+    event = _terminal_event(event_type="RunCompleted", run_id=run_id)
+
+    await subscriber.apply(event, conn=None)
+
+    decision = await load_decision(store, _derive_decision_id(event.event_id))
+    assert decision is None
+    assert llm.received == []
+
+
+# ---------------------------------------------------------------------------
+# LLM-output sanitization helpers (poisoned-LLM defensive returns)
+#
+# `_proposed_target_in_candidates` and `_coerce_proposed_caution` are the
+# trust-boundary between LLM output and CORA's domain. Both treat the
+# parsed dict as adversarial — the structured-output schema constrains
+# shape but a misconfigured / poisoned LLM can emit arbitrary values.
+# The hallucinated-target case is covered upstream by the subscriber-
+# level test; these tests pin the lower-level defensive returns.
+# ---------------------------------------------------------------------------
+
+
+_VALID_TARGETS = frozenset({_ASSET_ID})
+
+
+@pytest.mark.unit
+def test_proposed_target_in_candidates_returns_false_for_non_dict() -> None:
+    assert _proposed_target_in_candidates("not-a-dict", _VALID_TARGETS) is False
+    assert _proposed_target_in_candidates(None, _VALID_TARGETS) is False
+    assert _proposed_target_in_candidates(["a", "list"], _VALID_TARGETS) is False
+
+
+@pytest.mark.unit
+def test_proposed_target_in_candidates_returns_false_for_non_string_target_id() -> None:
+    """LLM emits target_id as an int / None / nested object instead of UUID-string."""
+    assert _proposed_target_in_candidates({"target_id": 12345}, _VALID_TARGETS) is False
+    assert _proposed_target_in_candidates({"target_id": None}, _VALID_TARGETS) is False
+    assert _proposed_target_in_candidates({"target_id": {"nested": "x"}}, _VALID_TARGETS) is False
+    assert _proposed_target_in_candidates({}, _VALID_TARGETS) is False  # key missing
+
+
+@pytest.mark.unit
+def test_proposed_target_in_candidates_returns_false_for_unparseable_uuid() -> None:
+    """target_id is a string but not a well-formed UUID."""
+    assert _proposed_target_in_candidates({"target_id": "not-a-uuid"}, _VALID_TARGETS) is False
+    assert _proposed_target_in_candidates({"target_id": ""}, _VALID_TARGETS) is False
+
+
+@pytest.mark.unit
+def test_proposed_target_in_candidates_returns_true_for_valid_uuid_in_set() -> None:
+    """Pin the True path so the test parity holds with the False arms."""
+    assert _proposed_target_in_candidates({"target_id": str(_ASSET_ID)}, _VALID_TARGETS) is True
+
+
+@pytest.mark.unit
+def test_coerce_proposed_caution_raises_on_non_dict() -> None:
+    """Defensive: a Propose* choice whose proposed_caution is somehow not
+    a dict (schema violation that the membership check upstream didn't
+    catch — e.g., LLM returned a list) must raise rather than silently
+    coerce garbage into the Decision payload."""
+    with pytest.raises(ValueError, match="must be a dict"):
+        _coerce_proposed_caution(["not", "a", "dict"])
+    with pytest.raises(ValueError, match="must be a dict"):
+        _coerce_proposed_caution(None)
+
+
+@pytest.mark.unit
+def test_coerce_proposed_caution_carries_supersedes_caution_id_when_present() -> None:
+    """`ProposeSupersede` choice carries `supersedes_caution_id` in the
+    proposed_caution payload; the coercer must preserve it as a string
+    for byte-stable round-trip. The base path (no supersedes_caution_id)
+    is exercised by every existing happy-path test."""
+    parent_caution_id = uuid4()
+    coerced = _coerce_proposed_caution(
+        {
+            "target_kind": "Asset",
+            "target_id": str(_ASSET_ID),
+            "category": "Wear",
+            "severity": "Warning",
+            "title": "Updated guidance after re-investigation",
+            "body": "Re-home encoder every 5 minutes; the 10-minute interval was insufficient.",
+            "tags": ["encoder"],
+            "supersedes_caution_id": str(parent_caution_id),
+        }
+    )
+    assert coerced["supersedes_caution_id"] == str(parent_caution_id)
+    assert coerced["target_kind"] == "Asset"
+
+
+# ---------------------------------------------------------------------------
+# Factory guard
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_make_caution_drafter_subscriber_raises_when_llm_is_none() -> None:
+    """The subscriber is useless without an LLM. The conditional-
+    registration shim in `cora.agent._subscribers.register_agent_subscribers`
+    is supposed to short-circuit on `llm is None`, so this fail-fast
+    only fires for misconfigured callers that bypass that shim."""
+    deps = build_deps(llm=None)
+    with pytest.raises(RuntimeError, match=r"requires kernel\.llm"):
+        make_caution_drafter_subscriber(deps)
+
+
+@pytest.mark.unit
+def test_make_caution_drafter_subscriber_constructs_when_llm_is_set() -> None:
+    """Pin the success branch — factory wires through to the subscriber
+    instance when the Kernel has an LLM port configured."""
+    deps = build_deps(llm=FakeLLMAdapter())
+    subscriber = make_caution_drafter_subscriber(deps)
+    assert isinstance(subscriber, CautionDrafterSubscriber)
