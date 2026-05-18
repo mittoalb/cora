@@ -27,10 +27,13 @@ from cora.agent.errors import (
 )
 from cora.agent.features import promote_caution_proposal
 from cora.agent.features.promote_caution_proposal import PromoteCautionProposal
+from cora.agent.features.promote_caution_proposal.handler import _build_caution_target
 from cora.caution.aggregates.caution import (
     AssetTarget,
     CautionCategory,
+    CautionNotFoundError,
     CautionSeverity,
+    ProcedureTarget,
     load_caution,
 )
 from cora.caution.features.register_caution import RegisterCaution
@@ -538,6 +541,85 @@ async def test_handler_gate_fires_before_decider_validation() -> None:
 
     # Provenance fires first; the malformed-payload error never gets a chance.
     with pytest.raises(DecisionNotEmittedByCautionDrafterError):
+        await handler(
+            PromoteCautionProposal(decision_id=decision_id),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+# ---------------------------------------------------------------------------
+# _build_caution_target helper (forward-looking Procedure arm + unknown raise)
+#
+# CautionDrafter v1 only emits target_kind="Asset", so the Procedure arm
+# and the unknown-kind raise can only be exercised by calling the helper
+# directly. Procedure-targeting is deferred to v2 when Procedure-on-Run
+# binding lands; the helper is already wired to handle it so v2 doesn't
+# inherit a TODO.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_build_caution_target_returns_asset_target_for_asset_kind() -> None:
+    asset_id = uuid4()
+    result = _build_caution_target("Asset", asset_id)
+    assert isinstance(result, AssetTarget)
+    assert result.asset_id == asset_id
+
+
+@pytest.mark.unit
+def test_build_caution_target_returns_procedure_target_for_procedure_kind() -> None:
+    """v2 forward-compat pin: the helper handles `Procedure` already even
+    though CautionDrafter v1's prompt only emits Asset. When the v2 prompt
+    iteration surfaces Procedure targets, this branch starts firing on
+    its own — no helper changes needed."""
+    procedure_id = uuid4()
+    result = _build_caution_target("Procedure", procedure_id)
+    assert isinstance(result, ProcedureTarget)
+    assert result.procedure_id == procedure_id
+
+
+@pytest.mark.unit
+def test_build_caution_target_raises_for_unknown_kind() -> None:
+    """Closed-set guard: any target_kind outside {Asset, Procedure} raises
+    rather than silently falling through. Protects against a future prompt-
+    schema drift or a payload-shape error in an upstream Decision write."""
+    with pytest.raises(ValueError, match="Unknown target_kind"):
+        _build_caution_target("Mystery", uuid4())
+
+
+# ---------------------------------------------------------------------------
+# Supersede: parent Caution stream missing -> CautionNotFoundError
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+async def test_handler_raises_caution_not_found_when_supersede_parent_missing() -> None:
+    """`ProposeSupersede` with a `supersedes_caution_id` pointing at an
+    empty stream surfaces CautionNotFoundError (mapped to 404 at the
+    REST/MCP layer). Pinned because the decider can't catch this — the
+    decider only sees the Decision payload, not the Caution stream — and
+    the handler is the integrity gate."""
+    store = InMemoryEventStore()
+    deps = _build_deps(event_store=store)
+    decision_id = uuid4()
+    actor_id = uuid4()
+    missing_parent_id = uuid4()
+    await _seed_caution_drafter_agent(store, agent_id=actor_id)
+
+    proposed = dict(_PROPOSED_CAUTION_NOTICE)
+    proposed["severity"] = "Caution"
+    proposed["supersedes_caution_id"] = str(missing_parent_id)
+    await _seed_caution_proposal_decision(
+        store,
+        decision_id=decision_id,
+        actor_id=actor_id,
+        choice="ProposeSupersede",
+        inputs={"proposed_caution": proposed},
+    )
+    handler = promote_caution_proposal.bind(deps)
+
+    with pytest.raises(CautionNotFoundError):
         await handler(
             PromoteCautionProposal(decision_id=decision_id),
             principal_id=_PRINCIPAL_ID,
