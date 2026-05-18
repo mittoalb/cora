@@ -15,7 +15,7 @@ from cora.agent.features.grant_tool_to_agent import GrantToolToAgent
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from tests.unit._helpers import build_deps as _build_deps_shared
-from tests.unit.agent._iter2_seed import (
+from tests.unit.agent._helpers import (
     append_tool_grant,
     seed_versioned_agent,
 )

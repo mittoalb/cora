@@ -34,7 +34,7 @@ from cora.subject.features.remove_subject import bind as bind_remove
 from cora.subject.features.return_subject import ReturnSubject
 from cora.subject.features.return_subject import bind as bind_return
 from tests.integration._helpers import build_postgres_deps
-from tests.unit.subject._asset_helper import seed_active_asset
+from tests.unit.subject._helpers import seed_active_asset
 
 _NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")

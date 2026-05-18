@@ -20,7 +20,7 @@ from cora.operation.errors import UnauthorizedError
 from cora.operation.features import abort_procedure
 from cora.operation.features.abort_procedure import AbortProcedure
 from tests.unit._helpers import build_deps as _build_deps_shared
-from tests.unit.operation._seed_helpers import seed_running_procedure
+from tests.unit.operation._helpers import seed_running_procedure
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 _PRIOR = datetime(2026, 5, 15, 11, 0, 0, tzinfo=UTC)

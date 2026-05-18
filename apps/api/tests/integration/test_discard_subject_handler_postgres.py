@@ -21,7 +21,7 @@ from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
 from cora.subject.features.remove_subject import RemoveSubject
 from tests.integration._helpers import build_postgres_deps
-from tests.unit.subject._asset_helper import seed_active_asset
+from tests.unit.subject._helpers import seed_active_asset
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000054e3ec")

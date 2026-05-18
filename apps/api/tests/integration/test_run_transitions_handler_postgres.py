@@ -46,7 +46,7 @@ from cora.subject.features import mount_subject, register_subject
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
 from tests.integration._helpers import build_postgres_deps, seed_capability_pg
-from tests.unit.subject._asset_helper import seed_active_asset
+from tests.unit.subject._helpers import seed_active_asset
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")

@@ -22,7 +22,7 @@ from cora.subject.features.dismount_subject import DismountSubject
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
 from tests.unit._helpers import build_deps as _build_deps_shared
-from tests.unit.subject._asset_helper import seed_active_asset
+from tests.unit.subject._helpers import seed_active_asset
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-0000000d04a1")

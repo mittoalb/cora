@@ -141,7 +141,7 @@ async def test_register_dataset_persists_producing_run_end_state_in_payload(
     from cora.subject.features import mount_subject, register_subject
     from cora.subject.features.mount_subject import MountSubject
     from cora.subject.features.register_subject import RegisterSubject
-    from tests.unit.subject._asset_helper import seed_active_asset
+    from tests.unit.subject._helpers import seed_active_asset
 
     # Generous id pool: full upstream chain + Run + abort + Dataset.
     deps = _build_deps(db_pool, [uuid4() for _ in range(20)])

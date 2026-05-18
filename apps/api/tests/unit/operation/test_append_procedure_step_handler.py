@@ -30,7 +30,7 @@ from cora.operation.features.append_procedure_step import (
     ProcedureStepInput,
 )
 from tests.unit._helpers import build_deps as _build_deps_shared
-from tests.unit.operation._seed_helpers import (
+from tests.unit.operation._helpers import (
     seed_completed_procedure,
     seed_registered_procedure,
     seed_running_procedure,

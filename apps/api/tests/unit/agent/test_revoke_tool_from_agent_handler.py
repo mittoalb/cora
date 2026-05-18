@@ -12,7 +12,7 @@ from cora.agent.features.revoke_tool_from_agent import RevokeToolFromAgent
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from tests.unit._helpers import build_deps as _build_deps_shared
-from tests.unit.agent._iter2_seed import append_tool_grant, seed_versioned_agent
+from tests.unit.agent._helpers import append_tool_grant, seed_versioned_agent
 
 _T0 = datetime(2026, 5, 17, 10, 0, 0, tzinfo=UTC)
 _T1 = datetime(2026, 5, 17, 11, 0, 0, tzinfo=UTC)

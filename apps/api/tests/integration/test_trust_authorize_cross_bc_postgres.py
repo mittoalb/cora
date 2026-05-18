@@ -34,7 +34,7 @@ from cora.trust.authorize import TrustAuthorize
 from cora.trust.features import define_policy
 from cora.trust.features.define_policy import DefinePolicy
 from tests.integration._helpers import build_postgres_deps
-from tests.unit.subject._asset_helper import seed_active_asset
+from tests.unit.subject._helpers import seed_active_asset
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 # Post-3h: handlers pass nil conduit_id; gating policy matches.

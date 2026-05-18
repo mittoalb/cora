@@ -12,7 +12,7 @@ from cora.campaign.features import resume_campaign
 from cora.campaign.features.resume_campaign import ResumeCampaign
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from tests.unit._helpers import build_deps as _build_deps_shared
-from tests.unit.campaign._transition_helpers import (
+from tests.unit.campaign._helpers import (
     CAMPAIGN_ID,
     CORRELATION_ID,
     NOW,
