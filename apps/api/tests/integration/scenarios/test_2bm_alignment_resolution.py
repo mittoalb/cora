@@ -310,9 +310,7 @@ async def test_resolution_alignment_plays_out_end_to_end(
     await bind_define_method(deps)(
         DefineMethod(
             name="resolution_alignment",
-            needed_capabilities=frozenset(
-                {_CAP_LINEAR_STAGE_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}
-            ),
+            needed_families=frozenset({_CAP_LINEAR_STAGE_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -436,7 +434,7 @@ async def test_resolution_alignment_plays_out_end_to_end(
     for asset_id in (_ASSET_FOCUS_Z_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID):
         asset_events, _ = await deps.event_store.load("Asset", asset_id)
         event_types = [e.event_type for e in asset_events]
-        assert event_types == ["AssetRegistered", "AssetCapabilityAdded", "AssetActivated"]
+        assert event_types == ["AssetRegistered", "AssetFamilyAdded", "AssetActivated"]
 
     # ----- Assert: 13 step entries land in the projection in canonical order -----
 

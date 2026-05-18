@@ -2,7 +2,7 @@
 
 Multi-source-state guard: `Defined | Versioned -> Versioned`. Both
 source states valid; only Deprecated rejected. Mirrors
-`test_version_capability_decider.py` (Equipment 5f-2).
+`test_version_family_decider.py` (Equipment 5f-2).
 """
 
 from datetime import UTC, datetime
@@ -33,7 +33,7 @@ def _method(
     return Method(
         id=uuid4(),
         name=MethodName("XRF Mapping"),
-        needed_capabilities=frozenset(),
+        needed_families=frozenset(),
         status=status,
         version=version,
     )
@@ -151,7 +151,7 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
 
 @pytest.mark.unit
 def test_decide_allows_versioning_with_same_tag_for_re_attestation() -> None:
-    """Mirrors version_capability's deliberate divergence from
+    """Mirrors version_family's deliberate divergence from
     strict-not-idempotent (5f fix-pass): re-attesting the same tag
     succeeds. See decider docstring for rationale."""
     state = _method(

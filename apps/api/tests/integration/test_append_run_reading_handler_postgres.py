@@ -46,7 +46,7 @@ async def _seed_run_started(
     """Seed a RunStarted event directly into the event store.
 
     We bypass start_run's full upstream-chain validation
-    (Capability + Asset + Method + Practice + Plan + Subject + Mount)
+    (Family + Asset + Method + Practice + Plan + Subject + Mount)
     because this test focuses on the reading entry + lazy open path
     against Postgres, not Run-start. Direct seed mirrors the unit
     test's _seed_run_started for portability."""

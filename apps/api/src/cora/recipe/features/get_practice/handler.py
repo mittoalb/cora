@@ -1,6 +1,6 @@
 """Application handler for the `get_practice` query slice.
 
-Cross-BC query-handler shape mirroring `get_method` / `get_capability`
+Cross-BC query-handler shape mirroring `get_method` / `get_family`
 / `get_subject` / `get_actor`:
 
     1. authorize(principal_id, query_name, conduit_id) -> Allow | Deny

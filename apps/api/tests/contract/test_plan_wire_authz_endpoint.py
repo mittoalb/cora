@@ -67,11 +67,11 @@ def _seed_policy(
 _PERMITTED_SETUP_COMMANDS: frozenset[str] = frozenset(
     {
         # Setup chain to bring a Plan into being with bound Assets and ports.
-        "DefineCapability",
+        "DefineFamily",
         "DefineMethod",
         "DefinePractice",
         "RegisterAsset",
-        "AddAssetCapability",
+        "AddAssetFamily",
         "AddAssetPort",
         "DefinePlan",
         # Wire commands — P1 is permitted to add+remove wires; P2 is not.
@@ -115,12 +115,10 @@ def wire_authz_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient
 def _setup_plan_with_two_wired_assets(client: TestClient, principal: UUID) -> dict[str, Any]:
     """Helper: P1 sets up the full Plan + Assets + ports needed to wire."""
     h = {"X-Principal-Id": str(principal)}
-    cap_id = client.post("/capabilities", json={"name": "Trigger"}, headers=h).json()[
-        "capability_id"
-    ]
+    cap_id = client.post("/families", json={"name": "Trigger"}, headers=h).json()["family_id"]
     method_id = client.post(
         "/methods",
-        json={"name": "Test Method", "needed_capabilities": [cap_id]},
+        json={"name": "Test Method", "needed_families": [cap_id]},
         headers=h,
     ).json()["method_id"]
     practice_id = client.post(
@@ -141,7 +139,7 @@ def _setup_plan_with_two_wired_assets(client: TestClient, principal: UUID) -> di
     for asset_id in (src_id, tgt_id):
         client.post(
             f"/assets/{asset_id}/add_capability",
-            json={"capability_id": cap_id},
+            json={"family_id": cap_id},
             headers=h,
         )
     client.post(

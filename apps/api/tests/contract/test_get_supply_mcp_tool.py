@@ -17,7 +17,7 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 def _register_supply_via_tool(client: TestClient, headers: dict[str, str]) -> UUID:
     """Seed a supply via the MCP tool (not REST) so the contract test
     exercises the full MCP write surface. Mirrors capability's
-    `_define_capability_via_tool` pattern."""
+    `_define_family_via_tool` pattern."""
     response = client.post(
         "/mcp",
         json={
@@ -85,7 +85,7 @@ def test_mcp_get_supply_tool_returns_structured_supply_on_hit() -> None:
 @pytest.mark.contract
 def test_mcp_get_supply_tool_iserror_on_miss() -> None:
     """Iter-3 cleanup: handler returns None -> tool raises ValueError -> isError: true.
-    Mirrors get_capability / get_asset convention; no silent None to LLM."""
+    Mirrors get_family / get_asset convention; no silent None to LLM."""
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
         response = client.post(

@@ -22,7 +22,7 @@ before reaching the decider (gate-review Q5).
 state holds a `frozenset[UUID]`; sorting by string form keeps the
 persisted bytes deterministic — same logical Asset set, same
 payload, same idempotency hash). Same precedent as
-`Method.needed_capabilities`.
+`Method.needed_families`.
 
 ## Audit snapshots in payload (gate-review Q4)
 
@@ -33,10 +33,10 @@ into Plan state:
     (resolved from `practice.method_id` at handler-load time).
     Captured in the event so audit replay doesn't need to traverse
     Practice → Method (capture-don't-recompute principle).
-  - `method_needed_capabilities_snapshot`: the Method's
-    `needed_capabilities` AT BIND TIME. Pinned so the audit trail
+  - `method_needed_families_snapshot`: the Method's
+    `needed_families` AT BIND TIME. Pinned so the audit trail
     reproduces what was checked even if Method later evolves.
-  - `asset_capabilities_snapshot`: each bound Asset's `capabilities`
+  - `asset_families_snapshot`: each bound Asset's `capabilities`
     AT BIND TIME. Same audit pinning rationale.
 
 Both snapshots serialize as primitive forms (sorted UUID lists /
@@ -47,7 +47,7 @@ data living in the payload, not state.
 Status is NOT carried in event payloads — the event type itself
 encodes the state change. The evolver hardcodes the mapping per
 match arm. Same precedent as PracticeDefined / MethodDefined /
-CapabilityDefined / SubjectMounted / ActorDeactivated.
+FamilyDefined / SubjectMounted / ActorDeactivated.
 """
 
 from dataclasses import dataclass
@@ -74,8 +74,8 @@ class PlanDefined:
     practice_id: UUID
     asset_ids: list[UUID]
     method_id: UUID
-    method_needed_capabilities_snapshot: list[UUID]
-    asset_capabilities_snapshot: dict[UUID, list[UUID]]
+    method_needed_families_snapshot: list[UUID]
+    asset_families_snapshot: dict[UUID, list[UUID]]
     occurred_at: datetime
 
 
@@ -90,7 +90,7 @@ class PlanVersioned:
 
     `version_tag` is operator-supplied free text (1-50 chars,
     validated at API boundary AND in the decider). Same precedent
-    as PracticeVersioned / MethodVersioned / CapabilityVersioned.
+    as PracticeVersioned / MethodVersioned / FamilyVersioned.
     """
 
     plan_id: UUID
@@ -203,7 +203,7 @@ def event_type_name(event: PlanEvent) -> str:
     return type(event).__name__
 
 
-def _serialize_asset_capabilities_snapshot(
+def _serialize_asset_families_snapshot(
     snapshot: dict[UUID, list[UUID]],
 ) -> dict[str, list[str]]:
     """Serialize the bind-time asset-capabilities snapshot deterministically.
@@ -219,10 +219,10 @@ def _serialize_asset_capabilities_snapshot(
     }
 
 
-def _deserialize_asset_capabilities_snapshot(
+def _deserialize_asset_families_snapshot(
     payload: dict[str, list[str]],
 ) -> dict[UUID, list[UUID]]:
-    """Inverse of `_serialize_asset_capabilities_snapshot`."""
+    """Inverse of `_serialize_asset_families_snapshot`."""
     return {UUID(asset_id): [UUID(c) for c in caps] for asset_id, caps in payload.items()}
 
 
@@ -240,8 +240,8 @@ def to_payload(event: PlanEvent) -> dict[str, Any]:
             practice_id=practice_id,
             asset_ids=asset_ids,
             method_id=method_id,
-            method_needed_capabilities_snapshot=needs_snapshot,
-            asset_capabilities_snapshot=asset_caps_snapshot,
+            method_needed_families_snapshot=needs_snapshot,
+            asset_families_snapshot=asset_caps_snapshot,
             occurred_at=occurred_at,
         ):
             return {
@@ -251,10 +251,8 @@ def to_payload(event: PlanEvent) -> dict[str, Any]:
                 # asset_ids deterministic for idempotency hashing.
                 "asset_ids": sorted(str(a) for a in asset_ids),
                 "method_id": str(method_id),
-                "method_needed_capabilities_snapshot": sorted(str(c) for c in needs_snapshot),
-                "asset_capabilities_snapshot": _serialize_asset_capabilities_snapshot(
-                    asset_caps_snapshot
-                ),
+                "method_needed_families_snapshot": sorted(str(c) for c in needs_snapshot),
+                "asset_families_snapshot": _serialize_asset_families_snapshot(asset_caps_snapshot),
                 "occurred_at": occurred_at.isoformat(),
             }
         case PlanVersioned(
@@ -328,18 +326,28 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
     payload = stored.payload
     match stored.event_type:
         case "PlanDefined":
+            # Phase 5i dual-key fallback: pre-5i PlanDefined payloads carry
+            # `method_needed_capabilities_snapshot` and
+            # `asset_capabilities_snapshot`; post-5i payloads carry the
+            # `*_families_snapshot` equivalents. Read the new key first,
+            # fall back to the legacy key. Stays forever per Marten/Axon
+            # rename pattern.
+            needed_snap = payload.get(
+                "method_needed_families_snapshot",
+                payload.get("method_needed_capabilities_snapshot", []),
+            )
+            asset_snap = payload.get(
+                "asset_families_snapshot",
+                payload.get("asset_capabilities_snapshot", {}),
+            )
             return PlanDefined(
                 plan_id=UUID(payload["plan_id"]),
                 name=payload["name"],
                 practice_id=UUID(payload["practice_id"]),
                 asset_ids=[UUID(a) for a in payload["asset_ids"]],
                 method_id=UUID(payload["method_id"]),
-                method_needed_capabilities_snapshot=[
-                    UUID(c) for c in payload["method_needed_capabilities_snapshot"]
-                ],
-                asset_capabilities_snapshot=_deserialize_asset_capabilities_snapshot(
-                    payload["asset_capabilities_snapshot"]
-                ),
+                method_needed_families_snapshot=[UUID(c) for c in needed_snap],
+                asset_families_snapshot=_deserialize_asset_families_snapshot(asset_snap),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "PlanVersioned":

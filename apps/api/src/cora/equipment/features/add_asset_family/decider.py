@@ -1,0 +1,65 @@
+"""Pure decider for the `AddAssetFamily` command.
+
+Family mutation, not a lifecycle transition. Two disqualifying
+conditions both surface as `AssetCannotAddFamilyError` with a
+diagnostic `reason` string:
+
+  - asset is `Decommissioned` (retired; no further capability changes)
+  - family_id already in `state.families` (strict-not-idempotent;
+    same precedent as activate / mount-second-call-raises)
+
+Mirrors `AssetCannotRelocateError`'s collapsed-conditions pattern.
+The decider does NOT verify the referenced Family id refers to
+a real Family stream (eventual-consistency stance per Trust 3b
+precedent); mismatch surfaces at Plan binding (6e).
+"""
+
+from datetime import datetime
+
+from cora.equipment.aggregates.asset import (
+    Asset,
+    AssetCannotAddFamilyError,
+    AssetFamilyAdded,
+    AssetLifecycle,
+    AssetNotFoundError,
+)
+from cora.equipment.features.add_asset_family.command import AddAssetFamily
+
+
+def decide(
+    state: Asset | None,
+    command: AddAssetFamily,
+    *,
+    now: datetime,
+) -> list[AssetFamilyAdded]:
+    """Decide the events produced by adding a capability to an existing asset."""
+    if state is None:
+        raise AssetNotFoundError(command.asset_id)
+
+    if state.lifecycle is AssetLifecycle.DECOMMISSIONED:
+        raise AssetCannotAddFamilyError(
+            state.id,
+            command.family_id,
+            reason=(
+                f"asset is currently {AssetLifecycle.DECOMMISSIONED.value} "
+                "(retired from service; capability changes are not allowed)"
+            ),
+        )
+
+    if command.family_id in state.families:
+        raise AssetCannotAddFamilyError(
+            state.id,
+            command.family_id,
+            reason=(
+                f"capability {command.family_id} is already in this "
+                "asset's capability set (strict-not-idempotent)"
+            ),
+        )
+
+    return [
+        AssetFamilyAdded(
+            asset_id=state.id,
+            family_id=command.family_id,
+            occurred_at=now,
+        )
+    ]

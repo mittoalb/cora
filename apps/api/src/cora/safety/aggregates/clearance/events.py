@@ -8,7 +8,7 @@ Superseded). Per the per-sub-phase event-introduction precedent
 (Supply 10a-a/b, Operation 10c-a/b/c).
 
 Status is NOT carried in `ClearanceRegistered`'s payload -- the event
-type IS the state-change indicator (matches `CapabilityDefined ->
+type IS the state-change indicator (matches `FamilyDefined ->
 DEFINED`, `SubjectMounted -> MOUNTED`, `SupplyRegistered -> UNKNOWN`).
 
 `bindings`, `declarations`, `risk_band` travel in the genesis payload

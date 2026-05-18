@@ -1,8 +1,8 @@
 """Contract tests for the `update_asset_settings` MCP tool.
 
-Full bootstrap is done via other MCP tools (define_capability,
-update_capability_settings_schema, register_asset,
-add_asset_capability) so the entire write path is exercised over
+Full bootstrap is done via other MCP tools (define_family,
+update_family_settings_schema, register_asset,
+add_asset_family) so the entire write path is exercised over
 JSON-RPC, not Python imports.
 """
 
@@ -47,22 +47,22 @@ def _call_tool(
 
 
 def _setup_asset_with_schemaful_capability(client: TestClient, headers: dict[str, str]) -> UUID:
-    """Define Capability + set schema + register Asset + assign Cap. Returns asset_id."""
+    """Define Family + set schema + register Asset + assign Cap. Returns asset_id."""
     cap_body = _call_tool(
         client,
         headers,
         call_id=10,
-        name="define_capability",
+        name="define_family",
         arguments={"name": "Tomography"},
     )
-    cap_id = UUID(cap_body["result"]["structuredContent"]["capability_id"])  # type: ignore[index]
+    cap_id = UUID(cap_body["result"]["structuredContent"]["family_id"])  # type: ignore[index]
 
     schema_body = _call_tool(
         client,
         headers,
         call_id=11,
-        name="update_capability_settings_schema",
-        arguments={"capability_id": str(cap_id), "settings_schema": _SCHEMA},
+        name="update_family_settings_schema",
+        arguments={"family_id": str(cap_id), "settings_schema": _SCHEMA},
     )
     assert schema_body["result"]["isError"] is False  # type: ignore[index]
 
@@ -79,8 +79,8 @@ def _setup_asset_with_schemaful_capability(client: TestClient, headers: dict[str
         client,
         headers,
         call_id=13,
-        name="add_asset_capability",
-        arguments={"asset_id": str(asset_id), "capability_id": str(cap_id)},
+        name="add_asset_family",
+        arguments={"asset_id": str(asset_id), "family_id": str(cap_id)},
     )
     assert add_body["result"]["isError"] is False  # type: ignore[index]
 

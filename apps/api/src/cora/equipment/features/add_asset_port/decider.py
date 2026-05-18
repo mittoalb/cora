@@ -5,7 +5,7 @@ Two disqualifying conditions both surface as
 
   - asset is `Decommissioned` (retired; no further port changes)
   - port name already exists in `state.ports` (strict-not-idempotent;
-    same precedent as Capability mutation)
+    same precedent as Family mutation)
 
 The new port's value-object construction (AssetPort.__post_init__)
 validates name + signal_type lengths and raises

@@ -82,7 +82,7 @@ def test_plan_name_uses_shared_validate_bounded_text_helper() -> None:
 
 @pytest.mark.unit
 def test_plan_status_has_all_three_lifecycle_values() -> None:
-    """Mirrors Method / Practice / Capability lifecycle vocabulary
+    """Mirrors Method / Practice / Family lifecycle vocabulary
     (gate-review Q2: structural lifecycle only; approval lives in
     Decision BC)."""
     assert {s.value for s in PlanStatus} == {"Defined", "Versioned", "Deprecated"}

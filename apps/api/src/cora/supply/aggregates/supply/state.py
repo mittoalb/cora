@@ -49,7 +49,7 @@ from `mark_supply_available`'s first-observation semantics).
 JSON-friendly strings IF carried in an event payload. State holds
 the enum (typed); evolver derives status from event type
 (`SupplyRegistered -> UNKNOWN`, `SupplyMarkedAvailable -> AVAILABLE`).
-Same precedent as `SubjectStatus` / `CapabilityStatus` /
+Same precedent as `SubjectStatus` / `FamilyStatus` /
 `AssetLifecycle`.
 
 `SupplyScope` enum value DOES travel in event payloads (scope is set

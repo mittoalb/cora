@@ -41,14 +41,14 @@ def test_evolve_method_defined_sets_status_to_defined() -> None:
         MethodDefined(
             method_id=method_id,
             name="XRF Fly Mapping",
-            needed_capabilities=[cap1],
+            needed_families=[cap1],
             occurred_at=_NOW,
         ),
     )
     assert state == Method(
         id=method_id,
         name=MethodName("XRF Fly Mapping"),
-        needed_capabilities=frozenset({cap1}),
+        needed_families=frozenset({cap1}),
         status=MethodStatus.DEFINED,
     )
 
@@ -68,16 +68,16 @@ def test_evolve_converts_list_to_frozenset() -> None:
         MethodDefined(
             method_id=uuid4(),
             name="X",
-            needed_capabilities=[cap1, cap2, cap3, cap1],  # duplicate
+            needed_families=[cap1, cap2, cap3, cap1],  # duplicate
             occurred_at=_NOW,
         ),
     )
-    assert state.needed_capabilities == frozenset({cap1, cap2, cap3})
-    assert isinstance(state.needed_capabilities, frozenset)
+    assert state.needed_families == frozenset({cap1, cap2, cap3})
+    assert isinstance(state.needed_families, frozenset)
 
 
 @pytest.mark.unit
-def test_evolve_handles_empty_needed_capabilities() -> None:
+def test_evolve_handles_empty_needed_families() -> None:
     """Procedural Methods (no equipment requirement) fold to empty
     frozenset; Plan-binding's superset check still works
     (frozenset() ⊆ anything)."""
@@ -86,11 +86,11 @@ def test_evolve_handles_empty_needed_capabilities() -> None:
         MethodDefined(
             method_id=uuid4(),
             name="Sample Cleaning",
-            needed_capabilities=[],
+            needed_families=[],
             occurred_at=_NOW,
         ),
     )
-    assert state.needed_capabilities == frozenset()
+    assert state.needed_families == frozenset()
 
 
 @pytest.mark.unit
@@ -107,7 +107,7 @@ def test_fold_single_method_defined_returns_method() -> None:
             MethodDefined(
                 method_id=method_id,
                 name="Step Tomography",
-                needed_capabilities=[cap1],
+                needed_families=[cap1],
                 occurred_at=_NOW,
             )
         ]
@@ -115,7 +115,7 @@ def test_fold_single_method_defined_returns_method() -> None:
     assert state == Method(
         id=method_id,
         name=MethodName("Step Tomography"),
-        needed_capabilities=frozenset({cap1}),
+        needed_families=frozenset({cap1}),
         status=MethodStatus.DEFINED,
     )
 
@@ -127,7 +127,7 @@ def test_fold_is_pure_same_input_same_output() -> None:
         MethodDefined(
             method_id=uuid4(),
             name="X",
-            needed_capabilities=[cap1],
+            needed_families=[cap1],
             occurred_at=_NOW,
         )
     ]
@@ -143,14 +143,14 @@ def test_decider_and_evolver_round_trip() -> None:
     cap2 = UUID("01900000-0000-7000-8000-000000000222")
     command = DefineMethod(
         name="  XRF Fly Mapping  ",
-        needed_capabilities=frozenset({cap1, cap2}),
+        needed_families=frozenset({cap1, cap2}),
     )
     events = define_method.decide(state=None, command=command, now=_NOW, new_id=new_id)
     rebuilt = fold(events)
     assert rebuilt == Method(
         id=new_id,
         name=MethodName("XRF Fly Mapping"),
-        needed_capabilities=frozenset({cap1, cap2}),
+        needed_families=frozenset({cap1, cap2}),
         status=MethodStatus.DEFINED,
     )
 
@@ -165,7 +165,7 @@ def test_evolve_method_defined_starts_with_null_version() -> None:
     an upcaster)."""
     state = evolve(
         None,
-        MethodDefined(method_id=uuid4(), name="X", needed_capabilities=[], occurred_at=_NOW),
+        MethodDefined(method_id=uuid4(), name="X", needed_families=[], occurred_at=_NOW),
     )
     assert state.version is None
 
@@ -177,7 +177,7 @@ def test_evolve_method_versioned_flips_status_and_sets_version() -> None:
     defined = Method(
         id=method_id,
         name=MethodName("XRF Mapping"),
-        needed_capabilities=frozenset({cap1}),
+        needed_families=frozenset({cap1}),
         status=MethodStatus.DEFINED,
     )
     versioned = evolve(
@@ -186,8 +186,8 @@ def test_evolve_method_versioned_flips_status_and_sets_version() -> None:
     )
     assert versioned.status is MethodStatus.VERSIONED
     assert versioned.version == "v2"
-    # needed_capabilities preserved.
-    assert versioned.needed_capabilities == frozenset({cap1})
+    # needed_families preserved.
+    assert versioned.needed_families == frozenset({cap1})
     assert versioned.id == method_id
 
 
@@ -198,7 +198,7 @@ def test_evolve_method_versioned_replaces_prior_version_tag() -> None:
     versioned_v1 = Method(
         id=method_id,
         name=MethodName("X"),
-        needed_capabilities=frozenset(),
+        needed_families=frozenset(),
         status=MethodStatus.VERSIONED,
         version="v1",
     )
@@ -224,13 +224,13 @@ def test_evolve_method_versioned_on_empty_state_raises() -> None:
 @pytest.mark.unit
 def test_evolve_method_deprecated_flips_status_and_preserves_version() -> None:
     """version is preserved across deprecation. Mirrors
-    Capability's preserve-on-deprecate semantics from Equipment 5f-2."""
+    Family's preserve-on-deprecate semantics from Equipment 5f-2."""
     method_id = uuid4()
     cap1 = uuid4()
     versioned = Method(
         id=method_id,
         name=MethodName("X"),
-        needed_capabilities=frozenset({cap1}),
+        needed_families=frozenset({cap1}),
         status=MethodStatus.VERSIONED,
         version="v3",
     )
@@ -240,8 +240,8 @@ def test_evolve_method_deprecated_flips_status_and_preserves_version() -> None:
     )
     assert deprecated.status is MethodStatus.DEPRECATED
     assert deprecated.version == "v3"
-    # needed_capabilities preserved across deprecation too.
-    assert deprecated.needed_capabilities == frozenset({cap1})
+    # needed_families preserved across deprecation too.
+    assert deprecated.needed_families == frozenset({cap1})
 
 
 @pytest.mark.unit
@@ -249,7 +249,7 @@ def test_evolve_method_deprecated_from_defined_preserves_null_version() -> None:
     defined = Method(
         id=uuid4(),
         name=MethodName("X"),
-        needed_capabilities=frozenset(),
+        needed_families=frozenset(),
         status=MethodStatus.DEFINED,
     )
     deprecated = evolve(
@@ -271,7 +271,7 @@ def test_fold_define_version_yields_versioned_method() -> None:
     method_id = uuid4()
     state = fold(
         [
-            MethodDefined(method_id=method_id, name="X", needed_capabilities=[], occurred_at=_NOW),
+            MethodDefined(method_id=method_id, name="X", needed_families=[], occurred_at=_NOW),
             MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW),
         ]
     )
@@ -286,7 +286,7 @@ def test_fold_define_version_version_yields_latest_version_tag() -> None:
     method_id = uuid4()
     state = fold(
         [
-            MethodDefined(method_id=method_id, name="X", needed_capabilities=[], occurred_at=_NOW),
+            MethodDefined(method_id=method_id, name="X", needed_families=[], occurred_at=_NOW),
             MethodVersioned(method_id=method_id, version_tag="v1", occurred_at=_NOW),
             MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW),
             MethodVersioned(method_id=method_id, version_tag="v3", occurred_at=_NOW),
@@ -301,7 +301,7 @@ def test_fold_define_deprecate_yields_deprecated_method() -> None:
     method_id = uuid4()
     state = fold(
         [
-            MethodDefined(method_id=method_id, name="X", needed_capabilities=[], occurred_at=_NOW),
+            MethodDefined(method_id=method_id, name="X", needed_families=[], occurred_at=_NOW),
             MethodDeprecated(method_id=method_id, occurred_at=_NOW),
         ]
     )
@@ -316,7 +316,7 @@ def test_fold_define_version_deprecate_preserves_version_through_deprecation() -
     method_id = uuid4()
     state = fold(
         [
-            MethodDefined(method_id=method_id, name="X", needed_capabilities=[], occurred_at=_NOW),
+            MethodDefined(method_id=method_id, name="X", needed_families=[], occurred_at=_NOW),
             MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW),
             MethodDeprecated(method_id=method_id, occurred_at=_NOW),
         ]
@@ -327,8 +327,8 @@ def test_fold_define_version_deprecate_preserves_version_through_deprecation() -
 
 
 @pytest.mark.unit
-def test_evolve_method_versioned_preserves_needed_capabilities() -> None:
-    """Critical pin: needed_capabilities MUST carry through the
+def test_evolve_method_versioned_preserves_needed_families() -> None:
+    """Critical pin: needed_families MUST carry through the
     version transition. Same safety-net pattern as
     test_evolve_<X>_preserves_capabilities for Asset (5f-1)."""
     cap1 = uuid4()
@@ -336,14 +336,14 @@ def test_evolve_method_versioned_preserves_needed_capabilities() -> None:
     defined = Method(
         id=uuid4(),
         name=MethodName("X"),
-        needed_capabilities=frozenset({cap1, cap2}),
+        needed_families=frozenset({cap1, cap2}),
         status=MethodStatus.DEFINED,
     )
     versioned = evolve(
         defined,
         MethodVersioned(method_id=defined.id, version_tag="v2", occurred_at=_NOW),
     )
-    assert versioned.needed_capabilities == frozenset({cap1, cap2})
+    assert versioned.needed_families == frozenset({cap1, cap2})
 
 
 # ---------- MethodParametersSchemaUpdated (Phase 6g-a) ----------
@@ -363,7 +363,7 @@ def test_evolve_method_defined_starts_with_null_parameters_schema() -> None:
     an upcaster)."""
     state = evolve(
         None,
-        MethodDefined(method_id=uuid4(), name="X", needed_capabilities=[], occurred_at=_NOW),
+        MethodDefined(method_id=uuid4(), name="X", needed_families=[], occurred_at=_NOW),
     )
     assert state.parameters_schema is None
 
@@ -376,7 +376,7 @@ def test_evolve_method_parameters_schema_updated_sets_schema_and_preserves_statu
     defined = Method(
         id=method_id,
         name=MethodName("X"),
-        needed_capabilities=frozenset({cap1}),
+        needed_families=frozenset({cap1}),
         status=MethodStatus.DEFINED,
     )
     updated = evolve(
@@ -387,7 +387,7 @@ def test_evolve_method_parameters_schema_updated_sets_schema_and_preserves_statu
     )
     assert updated.parameters_schema == _SCHEMA_A
     assert updated.status is MethodStatus.DEFINED
-    assert updated.needed_capabilities == frozenset({cap1})
+    assert updated.needed_families == frozenset({cap1})
 
 
 @pytest.mark.unit
@@ -396,7 +396,7 @@ def test_evolve_method_parameters_schema_updated_with_none_clears_schema() -> No
     state_with_schema = Method(
         id=method_id,
         name=MethodName("X"),
-        needed_capabilities=frozenset(),
+        needed_families=frozenset(),
         status=MethodStatus.DEFINED,
         parameters_schema=_SCHEMA_A,
     )
@@ -423,11 +423,11 @@ def test_evolve_method_parameters_schema_updated_on_empty_state_raises() -> None
 @pytest.mark.unit
 def test_evolve_method_versioned_preserves_parameters_schema() -> None:
     """Critical pin: parameters_schema MUST carry through the version
-    transition. Mirrors `test_evolve_method_versioned_preserves_needed_capabilities`."""
+    transition. Mirrors `test_evolve_method_versioned_preserves_needed_families`."""
     state = Method(
         id=uuid4(),
         name=MethodName("X"),
-        needed_capabilities=frozenset(),
+        needed_families=frozenset(),
         status=MethodStatus.DEFINED,
         parameters_schema=_SCHEMA_A,
     )
@@ -444,7 +444,7 @@ def test_evolve_method_deprecated_preserves_parameters_schema() -> None:
     state = Method(
         id=uuid4(),
         name=MethodName("X"),
-        needed_capabilities=frozenset(),
+        needed_families=frozenset(),
         status=MethodStatus.VERSIONED,
         version="v1",
         parameters_schema=_SCHEMA_A,
@@ -458,7 +458,7 @@ def test_fold_define_update_schema_yields_state_with_schema() -> None:
     method_id = uuid4()
     state = fold(
         [
-            MethodDefined(method_id=method_id, name="X", needed_capabilities=[], occurred_at=_NOW),
+            MethodDefined(method_id=method_id, name="X", needed_families=[], occurred_at=_NOW),
             MethodParametersSchemaUpdated(
                 method_id=method_id, parameters_schema=_SCHEMA_A, occurred_at=_NOW
             ),
@@ -475,7 +475,7 @@ def test_fold_define_update_schema_version_carries_schema_through_versioning() -
     method_id = uuid4()
     state = fold(
         [
-            MethodDefined(method_id=method_id, name="X", needed_capabilities=[], occurred_at=_NOW),
+            MethodDefined(method_id=method_id, name="X", needed_families=[], occurred_at=_NOW),
             MethodParametersSchemaUpdated(
                 method_id=method_id, parameters_schema=_SCHEMA_A, occurred_at=_NOW
             ),

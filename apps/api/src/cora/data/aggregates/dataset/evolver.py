@@ -22,7 +22,7 @@ cross-aggregate refs (`producing_run_id`, `subject_id`,
 `derived_from`) AND the 7e additions (`producing_run_end_state`,
 `intent`) would silently WIPE them to defaults. Aligned to explicit
 construction post-domain-audit to match the documented pattern in
-Asset/Plan/Method/Practice/Capability/Subject evolvers.
+Asset/Plan/Method/Practice/Family/Subject evolvers.
 
 Defensive guard: `DatasetDiscarded` and `DatasetPromoted` arms raise
 on `state is None` (the parent Dataset must exist before any

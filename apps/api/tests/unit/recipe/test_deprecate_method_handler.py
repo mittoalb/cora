@@ -1,6 +1,6 @@
 """Unit tests for the `deprecate_method` application handler.
 
-Mirror of `test_deprecate_capability_handler.py` (Equipment 5f-2).
+Mirror of `test_deprecate_family_handler.py` (Equipment 5f-2).
 """
 
 from datetime import UTC, datetime
@@ -32,7 +32,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 async def _define_method_helper(deps: Kernel) -> UUID:
     return await define_method.bind(deps)(
-        DefineMethod(name="XRF Mapping", needed_capabilities=frozenset()),
+        DefineMethod(name="XRF Mapping", needed_families=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

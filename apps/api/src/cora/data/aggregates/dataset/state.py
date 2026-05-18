@@ -100,7 +100,7 @@ are not part of the in-domain Dataset identity.
 `DatasetName` calls the shared `validate_bounded_text` helper hoisted in
 6e-1 (`cora.infrastructure.bounded_text`). Twelfth occurrence of the
 trimmed-bounded-name VO pattern (after Actor / Zone / Conduit /
-Policy / Subject / Capability / Asset / Method / Practice / Plan /
+Policy / Subject / Family / Asset / Method / Practice / Plan /
 Run).
 """
 

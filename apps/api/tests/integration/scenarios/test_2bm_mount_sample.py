@@ -108,7 +108,7 @@ _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000402501")
 _SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000402701")
 _2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000402a01")
 
-# Aerotech rotary (the mount apparatus): Capability + Device
+# Aerotech rotary (the mount apparatus): Family + Device
 _CAP_ROTARY_STAGE_ID = UUID("01900000-0000-7000-8000-000000402c01")
 _ASSET_AEROTECH_ABRS_ID = UUID("01900000-0000-7000-8000-000000402a11")
 
@@ -234,7 +234,7 @@ async def test_mount_sample_plays_out_end_to_end(
     aerotech_event_types = [e.event_type for e in aerotech_events]
     assert aerotech_event_types == [
         "AssetRegistered",
-        "AssetCapabilityAdded",
+        "AssetFamilyAdded",
         "AssetActivated",
     ]
 

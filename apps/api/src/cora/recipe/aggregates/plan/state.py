@@ -29,7 +29,7 @@ of adding fields when the first mutating event arrives, not
 speculatively).
 
 Audit data captured at bind time (`method_id`, snapshots of the
-Method's needed_capabilities and each bound Asset's capabilities)
+Method's needed_families and each bound Asset's capabilities)
 lives in the `PlanDefined` event payload only — NOT in state.
 Slim Aggregate principle (gate-review Q4): state holds only what
 future deciders need to validate invariants. version_plan and
@@ -52,7 +52,7 @@ treats them as opaque domain data and validates:
   - Practice not Deprecated → `PracticeDeprecatedError`
   - Method not Deprecated → `MethodDeprecatedError`
   - No bound Asset is Decommissioned → `AssetDecommissionedError`
-  - `union(asset.capabilities) ⊇ method.needed_capabilities` →
+  - `union(asset.families) ⊇ method.needed_families` →
     `PlanCapabilitiesNotSatisfiedError`
 
 Handler-side load misses become `PracticeNotFoundError` /
@@ -70,7 +70,7 @@ deciders. Second instance shipped in `start_run` (Phase 6f-1) with
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
 
-Same precedent as Method (6a) and Practice (6d-1) and Capability
+Same precedent as Method (6a) and Practice (6d-1) and Family
 (5a). The lifecycle mirrors theirs: Defined → Versioned →
 Deprecated. Approval/governance is a separate concern handled by
 the future Decision BC with `RecipeApproval` context (gate-review
@@ -101,7 +101,7 @@ WIRE_PORT_NAME_MAX_LENGTH = 100  # mirrors PORT_NAME_MAX_LENGTH on AssetPort (5h
 class PlanStatus(StrEnum):
     """The Plan's lifecycle state.
 
-    Mirrors Method's and Practice's lifecycle (and Capability's).
+    Mirrors Method's and Practice's lifecycle (and Family's).
     Transitions land per-slice in Phase 6e-2:
       - Defined -> Versioned        (version_plan)
       - (Defined | Versioned) -> Deprecated  (deprecate_plan)
@@ -208,7 +208,7 @@ class PlanCannotVersionError(Exception):
 
     Per-transition error class — same naming convention as
     `MethodCannotVersionError` (Recipe 6b), `PracticeCannotVersionError`
-    (Recipe 6d-2), `CapabilityCannotVersionError` (Equipment 5f-2).
+    (Recipe 6d-2), `FamilyCannotVersionError` (Equipment 5f-2).
     Mapped to HTTP 409.
     """
 
@@ -267,7 +267,7 @@ class InvalidPlanVersionTagError(ValueError):
     AND defensively at the decider via this error so direct in-process
     callers (sagas, tests) get the same protection. Same precedent as
     InvalidPracticeVersionTagError / InvalidMethodVersionTagError /
-    InvalidCapabilityVersionTagError. Mapped to HTTP 400.
+    InvalidFamilyVersionTagError. Mapped to HTTP 400.
     """
 
     def __init__(self, value: str) -> None:
@@ -288,17 +288,17 @@ class PlanCapabilitiesNotSatisfiedError(Exception):
 
     Per gate-review Q3: check is on each bound Asset's OWN
     capabilities (no hierarchy traversal). Operators model
-    Asset.capabilities at whatever granularity makes sense (Assembly
+    Asset.families at whatever granularity makes sense (Assembly
     level for composed devices, Device level for leaves) and bind
     the Assets that actually carry the needed capabilities.
     """
 
-    def __init__(self, missing_capability_ids: frozenset[UUID]) -> None:
+    def __init__(self, missing_family_ids: frozenset[UUID]) -> None:
         super().__init__(
             f"Plan capabilities not satisfied: bound Assets are missing "
-            f"capabilities {sorted(str(c) for c in missing_capability_ids)}"
+            f"capabilities {sorted(str(c) for c in missing_family_ids)}"
         )
-        self.missing_capability_ids = missing_capability_ids
+        self.missing_family_ids = missing_family_ids
 
 
 @dataclass(frozen=True)
@@ -343,7 +343,7 @@ class Plan:
     `name`). Free-text validated at API boundary + defensively in
     the decider; no VO. Default None keeps pre-6e-2 PlanDefined-
     only streams folding cleanly (additive-state pattern). Mirrors
-    Method/Practice/Capability `version` semantics: preserved across
+    Method/Practice/Family `version` semantics: preserved across
     deprecation as an audit signal of the last revision before
     deprecation.
 
@@ -507,7 +507,7 @@ class PlanWireTargetAlreadyConnectedError(Exception):
     new add. Mapped to HTTP 409.
 
     Policy not physics: when fan-in is genuinely needed, introduce
-    a `Combiner` Capability Asset with N inputs + 1 output and wire
+    a `Combiner` Family Asset with N inputs + 1 output and wire
     through it. See [[project_plan_wiring_design]].
     """
 

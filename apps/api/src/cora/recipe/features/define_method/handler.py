@@ -1,7 +1,7 @@
 """Application handler for the `define_method` slice.
 
 Same shape as `register_actor` / `register_subject` / `define_zone`
-/ `define_conduit` / `define_policy` / `define_capability` /
+/ `define_conduit` / `define_policy` / `define_family` /
 `register_asset` — the locked cross-BC create-style command pattern.
 Module-as-namespace: callers use
 `from cora.recipe.features import define_method` then
@@ -16,7 +16,7 @@ and 11 instances after 6f-1).
 After 6f-1, two distinct create-style shapes coexist:
   - **Simple create** (no cross-aggregate loads) — 9 instances:
     register_actor, register_subject, define_zone, define_conduit,
-    define_policy, define_capability, register_asset, define_method,
+    define_policy, define_family, register_asset, define_method,
     define_practice.
   - **Cross-aggregate-validating create** (handler pre-loads + slice-
     local context dataclass) — 2 instances: define_plan

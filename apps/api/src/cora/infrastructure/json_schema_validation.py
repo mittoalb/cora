@@ -4,8 +4,8 @@ CORA has two structurally identical validation surfaces across BCs:
 
   - **Schema declaration validators** check that a stored schema is
     well-formed and in CORA's constrained subset. Used at write time
-    when an operator submits a new schema (Capability.settings_schema
-    via 5g-a's `update_capability_settings_schema`; Method.parameters_schema
+    when an operator submits a new schema (Family.settings_schema
+    via 5g-a's `update_family_settings_schema`; Method.parameters_schema
     via 6g-a's `update_method_parameters_schema`).
   - **Values-against-schema validators** check that a values dict
     conforms to a previously-declared schema. Used when the values
@@ -14,7 +14,7 @@ CORA has two structurally identical validation surfaces across BCs:
     union of assigned Capabilities' schemas (5g-c).
 
 This module hoists the shared bits. Each BC keeps its own typed
-error class (Capability/Method/Plan/Run/Asset specific) so HTTP
+error class (Family/Method/Plan/Run/Asset specific) so HTTP
 exception handlers stay aligned with their BC namespace; the error
 class is passed in as a parameter. Mirrors the `json_schema_subset`
 hoist precedent (each BC's wrapper ~10 lines instead of ~80).
@@ -22,7 +22,7 @@ hoist precedent (each BC's wrapper ~10 lines instead of ~80).
 ## Pattern memo
 
 The "schema-validated values" pattern has two halves:
-  1. **Declarer aggregate** owns the optional schema (Capability,
+  1. **Declarer aggregate** owns the optional schema (Family,
      Method). Schema mutations validate well-formedness.
   2. **Carrier aggregate** owns the values (Asset, Plan, Run).
      Values mutations validate against the declarer's schema.
@@ -85,7 +85,7 @@ def validate_schema_declaration(
     validation of values against it (5g-c / 6g-b / 6g-c) reuses
     `validate_values_against_schema` below.
 
-    Used by 5g-a (Capability.settings_schema) and 6g-a
+    Used by 5g-a (Family.settings_schema) and 6g-a
     (Method.parameters_schema).
     """
     declared = schema.get("$schema")

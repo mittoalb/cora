@@ -16,7 +16,7 @@ Subject (composition order matters — innermost first):
 3. `with_tracing` — OTel span around every handler call. Records
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
-Phase 5a shipped `define_capability` + `get_capability`. Phase 5b
+Phase 5a shipped `define_family` + `get_family`. Phase 5b
 added `register_asset`. Phase 5c added `activate_asset` +
 `decommission_asset`. Phase 5d adds `relocate_asset` (hierarchy
 mutation; first event in the codebase whose payload carries source
@@ -29,7 +29,7 @@ The per-aggregate `make_asset_update_handler` factory was extracted
 in 5e (4 byte-identical Asset transitions; relocate stays longhand
 because its log shape carries an extra to_parent_id field). Per-BC
 naming was rejected because Equipment owns two aggregates: a
-future Capability lifecycle factory will be a sibling
+future Family lifecycle factory will be a sibling
 `make_capability_update_handler` rather than a parameterization of
 this one.
 """
@@ -39,27 +39,27 @@ from uuid import UUID
 
 from cora.equipment.features import (
     activate_asset,
-    add_asset_capability,
+    add_asset_family,
     add_asset_port,
     decommission_asset,
-    define_capability,
+    define_family,
     degrade_asset,
-    deprecate_capability,
+    deprecate_family,
     enter_maintenance,
     fault_asset,
     get_asset,
-    get_capability,
+    get_family,
     list_assets,
-    list_capabilities,
+    list_families,
     register_asset,
     relocate_asset,
-    remove_asset_capability,
+    remove_asset_family,
     remove_asset_port,
     restore_asset,
     restore_from_maintenance,
     update_asset_settings,
-    update_capability_settings_schema,
-    version_capability,
+    update_family_settings_schema,
+    version_family,
 )
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
@@ -72,29 +72,29 @@ _BC = "equipment"
 class EquipmentHandlers:
     """The Equipment BC's handler bundle, each closed over Kernel.
 
-    Phase 5a shipped `define_capability` (create-style; idempotency-
-    wrapped) and `get_capability` (read side). Phase 5b added
+    Phase 5a shipped `define_family` (create-style; idempotency-
+    wrapped) and `get_family` (read side). Phase 5b added
     `register_asset` (create-style; idempotency-wrapped). Phase 5c
     added the first two Asset lifecycle transitions: `activate_asset`
     and `decommission_asset`. Phase 5d adds `relocate_asset`
     (hierarchy mutation). All transition handlers are update-style
     with bare Handler protocols. The get_asset query (5e) and
-    Capability transitions (5f+) land subsequently.
+    Family transitions (5f+) land subsequently.
     """
 
-    define_capability: define_capability.IdempotentHandler
-    get_capability: get_capability.Handler
-    version_capability: version_capability.Handler
-    deprecate_capability: deprecate_capability.Handler
-    update_capability_settings_schema: update_capability_settings_schema.Handler
+    define_family: define_family.IdempotentHandler
+    get_family: get_family.Handler
+    version_family: version_family.Handler
+    deprecate_family: deprecate_family.Handler
+    update_family_settings_schema: update_family_settings_schema.Handler
     register_asset: register_asset.IdempotentHandler
     activate_asset: activate_asset.Handler
     decommission_asset: decommission_asset.Handler
     relocate_asset: relocate_asset.Handler
     enter_maintenance: enter_maintenance.Handler
     restore_from_maintenance: restore_from_maintenance.Handler
-    add_asset_capability: add_asset_capability.Handler
-    remove_asset_capability: remove_asset_capability.Handler
+    add_asset_family: add_asset_family.Handler
+    remove_asset_family: remove_asset_family.Handler
     degrade_asset: degrade_asset.Handler
     fault_asset: fault_asset.Handler
     restore_asset: restore_asset.Handler
@@ -103,45 +103,45 @@ class EquipmentHandlers:
     remove_asset_port: remove_asset_port.Handler
     get_asset: get_asset.Handler
     list_assets: list_assets.Handler
-    list_capabilities: list_capabilities.Handler
+    list_families: list_families.Handler
 
 
 def wire_equipment(deps: Kernel) -> EquipmentHandlers:
     """Build the Equipment BC handlers from shared dependencies."""
     return EquipmentHandlers(
-        define_capability=with_tracing(
+        define_family=with_tracing(
             with_idempotency(
-                define_capability.bind(deps),
+                define_family.bind(deps),
                 deps.idempotency_store,
-                command_name="DefineCapability",
+                command_name="DefineFamily",
                 # Handler returns UUID; cache as str (jsonb-friendly) and
                 # rebuild via UUID() on retrieval.
                 serialize_result=str,
                 deserialize_result=UUID,
                 lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
-            command_name="DefineCapability",
+            command_name="DefineFamily",
             bc=_BC,
         ),
-        get_capability=with_tracing(
-            get_capability.bind(deps),
-            command_name="GetCapability",
+        get_family=with_tracing(
+            get_family.bind(deps),
+            command_name="GetFamily",
             bc=_BC,
             kind="query",
         ),
-        version_capability=with_tracing(
-            version_capability.bind(deps),
-            command_name="VersionCapability",
+        version_family=with_tracing(
+            version_family.bind(deps),
+            command_name="VersionFamily",
             bc=_BC,
         ),
-        deprecate_capability=with_tracing(
-            deprecate_capability.bind(deps),
-            command_name="DeprecateCapability",
+        deprecate_family=with_tracing(
+            deprecate_family.bind(deps),
+            command_name="DeprecateFamily",
             bc=_BC,
         ),
-        update_capability_settings_schema=with_tracing(
-            update_capability_settings_schema.bind(deps),
-            command_name="UpdateCapabilitySettingsSchema",
+        update_family_settings_schema=with_tracing(
+            update_family_settings_schema.bind(deps),
+            command_name="UpdateFamilySettingsSchema",
             bc=_BC,
         ),
         register_asset=with_tracing(
@@ -181,14 +181,14 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
             command_name="RestoreFromMaintenance",
             bc=_BC,
         ),
-        add_asset_capability=with_tracing(
-            add_asset_capability.bind(deps),
-            command_name="AddAssetCapability",
+        add_asset_family=with_tracing(
+            add_asset_family.bind(deps),
+            command_name="AddAssetFamily",
             bc=_BC,
         ),
-        remove_asset_capability=with_tracing(
-            remove_asset_capability.bind(deps),
-            command_name="RemoveAssetCapability",
+        remove_asset_family=with_tracing(
+            remove_asset_family.bind(deps),
+            command_name="RemoveAssetFamily",
             bc=_BC,
         ),
         degrade_asset=with_tracing(
@@ -233,9 +233,9 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
             bc=_BC,
             kind="query",
         ),
-        list_capabilities=with_tracing(
-            list_capabilities.bind(deps),
-            command_name="ListCapabilities",
+        list_families=with_tracing(
+            list_families.bind(deps),
+            command_name="ListFamilies",
             bc=_BC,
             kind="query",
         ),

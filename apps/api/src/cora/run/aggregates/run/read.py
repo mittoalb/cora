@@ -1,7 +1,7 @@
 """Read repository for the Run aggregate.
 
 `load_run(event_store, run_id) -> Run | None` mirrors `load_plan` /
-`load_practice` / `load_method` / `load_capability` / `load_actor` /
+`load_practice` / `load_method` / `load_family` / `load_actor` /
 `load_subject` / `load_asset`. Used by the `get_run` query slice
 (6f-1) and any future update-style commands (6f-2+).
 """

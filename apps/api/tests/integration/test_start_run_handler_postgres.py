@@ -1,7 +1,7 @@
 """End-to-end integration test: start_run handler against real Postgres.
 
 The keystone integration test — exercises the full upstream chain
-(Capability + Asset + Method + Practice + Plan + Subject) plus
+(Family + Asset + Method + Practice + Plan + Subject) plus
 Run-start, all against real Postgres. This is the first
 integration test that touches FIVE BCs in one transaction (Equipment,
 Recipe, Subject, Run, plus the cross-cutting Access via principal_id).
@@ -20,12 +20,12 @@ import pytest
 
 from cora.equipment.aggregates.asset import AssetLevel
 from cora.equipment.features import (
-    add_asset_capability,
-    define_capability,
+    add_asset_family,
+    define_family,
     register_asset,
 )
-from cora.equipment.features.add_asset_capability import AddAssetCapability
-from cora.equipment.features.define_capability import DefineCapability
+from cora.equipment.features.add_asset_family import AddAssetFamily
+from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.recipe.features import (
     define_method,
@@ -95,8 +95,8 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
     )
 
     # Seed full upstream chain.
-    await define_capability.bind(deps)(
-        DefineCapability(name="FlyMotion"),
+    await define_family.bind(deps)(
+        DefineFamily(name="FlyMotion"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -105,13 +105,13 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await add_asset_capability.bind(deps)(
-        AddAssetCapability(asset_id=asset_id, capability_id=cap_id),
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=asset_id, family_id=cap_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await define_method.bind(deps)(
-        DefineMethod(name="XRF Fly Scan", needed_capabilities=frozenset({cap_id})),
+        DefineMethod(name="XRF Fly Scan", needed_families=frozenset({cap_id})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

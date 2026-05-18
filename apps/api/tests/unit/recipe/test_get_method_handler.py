@@ -1,8 +1,8 @@
 """Unit tests for the `get_method` query handler.
 
-Mirrors `test_get_capability_handler.py`. Round-trips through the
+Mirrors `test_get_family_handler.py`. Round-trips through the
 write side (define → get) verify fold-on-read returns the registered
-Method with the right needed_capabilities frozenset.
+Method with the right needed_families frozenset.
 """
 
 from datetime import UTC, datetime
@@ -39,7 +39,7 @@ async def test_handler_returns_method_for_known_id() -> None:
     """Round-trip: define + get."""
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
     await define_method.bind(deps)(
-        DefineMethod(name="XRF Fly Mapping", needed_capabilities=frozenset({_CAP1, _CAP2})),
+        DefineMethod(name="XRF Fly Mapping", needed_families=frozenset({_CAP1, _CAP2})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -54,18 +54,18 @@ async def test_handler_returns_method_for_known_id() -> None:
     assert method == Method(
         id=_NEW_ID,
         name=MethodName("XRF Fly Mapping"),
-        needed_capabilities=frozenset({_CAP1, _CAP2}),
+        needed_families=frozenset({_CAP1, _CAP2}),
         status=MethodStatus.DEFINED,
     )
 
 
 @pytest.mark.unit
-async def test_handler_returns_method_with_empty_needed_capabilities() -> None:
+async def test_handler_returns_method_with_empty_needed_families() -> None:
     """Procedural Methods (no equipment requirement) round-trip
     through fold-on-read with empty frozenset preserved."""
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
     await define_method.bind(deps)(
-        DefineMethod(name="Sample Cleaning", needed_capabilities=frozenset()),
+        DefineMethod(name="Sample Cleaning", needed_families=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -78,7 +78,7 @@ async def test_handler_returns_method_with_empty_needed_capabilities() -> None:
     )
 
     assert method is not None
-    assert method.needed_capabilities == frozenset()
+    assert method.needed_families == frozenset()
 
 
 @pytest.mark.unit

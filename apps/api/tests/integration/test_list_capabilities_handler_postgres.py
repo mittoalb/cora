@@ -1,13 +1,13 @@
-"""End-to-end: `list_capabilities` handler against real Postgres
+"""End-to-end: `list_families` handler against real Postgres
 projection table. Stresses the framework against the second
 projection in a multi-aggregate BC (alongside Asset's projection).
 
-Capability is the simpler projection sibling: 3 events, 3 statuses,
+Family is the simpler projection sibling: 3 events, 3 statuses,
 no hierarchy. This pins:
 
-  - CapabilityDefined -> status=Defined, version_tag=NULL
-  - CapabilityVersioned -> status=Versioned, version_tag=payload
-  - CapabilityDeprecated -> status=Deprecated, version_tag preserved
+  - FamilyDefined -> status=Defined, version_tag=NULL
+  - FamilyVersioned -> status=Versioned, version_tag=payload
+  - FamilyDeprecated -> status=Deprecated, version_tag preserved
   - status filter
   - cursor pagination
 """
@@ -21,14 +21,14 @@ import asyncpg
 import pytest
 
 from cora.equipment._projections import register_equipment_projections
-from cora.equipment.features.define_capability import DefineCapability
-from cora.equipment.features.define_capability import bind as bind_define
-from cora.equipment.features.deprecate_capability import DeprecateCapability
-from cora.equipment.features.deprecate_capability import bind as bind_deprecate
-from cora.equipment.features.list_capabilities import ListCapabilities
-from cora.equipment.features.list_capabilities import bind as bind_list
-from cora.equipment.features.version_capability import VersionCapability
-from cora.equipment.features.version_capability import bind as bind_version
+from cora.equipment.features.define_family import DefineFamily
+from cora.equipment.features.define_family import bind as bind_define
+from cora.equipment.features.deprecate_family import DeprecateFamily
+from cora.equipment.features.deprecate_family import bind as bind_deprecate
+from cora.equipment.features.list_families import ListFamilies
+from cora.equipment.features.list_families import bind as bind_list
+from cora.equipment.features.version_family import VersionFamily
+from cora.equipment.features.version_family import bind as bind_version
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from tests.integration._helpers import build_postgres_deps
@@ -56,7 +56,7 @@ async def test_define_emits_defined_status_with_null_version_tag(
     cap_id = uuid4()
     deps = _build_deps(db_pool, [cap_id, uuid4()])
     await bind_define(deps)(
-        DefineCapability(name="Continuous Rotation Tomography"),
+        DefineFamily(name="Continuous Rotation Tomography"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -65,7 +65,7 @@ async def test_define_emits_defined_status_with_null_version_tag(
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT name, status, version_tag "
-            "FROM proj_equipment_capability_summary WHERE capability_id = $1",
+            "FROM proj_equipment_family_summary WHERE family_id = $1",
             cap_id,
         )
     assert row is not None
@@ -82,12 +82,12 @@ async def test_version_writes_versioned_status_and_version_tag(
     cap_id = uuid4()
     deps = _build_deps(db_pool, [cap_id, uuid4(), uuid4()])
     await bind_define(deps)(
-        DefineCapability(name="Powder Diffraction"),
+        DefineFamily(name="Powder Diffraction"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await bind_version(deps)(
-        VersionCapability(capability_id=cap_id, version_tag="v2.1.0"),
+        VersionFamily(family_id=cap_id, version_tag="v2.1.0"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -95,8 +95,7 @@ async def test_version_writes_versioned_status_and_version_tag(
 
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT status, version_tag "
-            "FROM proj_equipment_capability_summary WHERE capability_id = $1",
+            "SELECT status, version_tag FROM proj_equipment_family_summary WHERE family_id = $1",
             cap_id,
         )
     assert row is not None
@@ -112,17 +111,17 @@ async def test_deprecate_preserves_version_tag(db_pool: asyncpg.Pool) -> None:
     cap_id = uuid4()
     deps = _build_deps(db_pool, [cap_id, uuid4(), uuid4(), uuid4()])
     await bind_define(deps)(
-        DefineCapability(name="X-ray Fluorescence Mapping"),
+        DefineFamily(name="X-ray Fluorescence Mapping"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await bind_version(deps)(
-        VersionCapability(capability_id=cap_id, version_tag="2026-Q3"),
+        VersionFamily(family_id=cap_id, version_tag="2026-Q3"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await bind_deprecate(deps)(
-        DeprecateCapability(capability_id=cap_id),
+        DeprecateFamily(family_id=cap_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -130,8 +129,7 @@ async def test_deprecate_preserves_version_tag(db_pool: asyncpg.Pool) -> None:
 
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT status, version_tag "
-            "FROM proj_equipment_capability_summary WHERE capability_id = $1",
+            "SELECT status, version_tag FROM proj_equipment_family_summary WHERE family_id = $1",
             cap_id,
         )
     assert row is not None
@@ -148,12 +146,12 @@ async def test_deprecate_without_version_keeps_version_tag_null(
     cap_id = uuid4()
     deps = _build_deps(db_pool, [cap_id, uuid4(), uuid4()])
     await bind_define(deps)(
-        DefineCapability(name="ObsoleteMethod"),
+        DefineFamily(name="ObsoleteMethod"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await bind_deprecate(deps)(
-        DeprecateCapability(capability_id=cap_id),
+        DeprecateFamily(family_id=cap_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -161,8 +159,7 @@ async def test_deprecate_without_version_keeps_version_tag_null(
 
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT status, version_tag "
-            "FROM proj_equipment_capability_summary WHERE capability_id = $1",
+            "SELECT status, version_tag FROM proj_equipment_family_summary WHERE family_id = $1",
             cap_id,
         )
     assert row is not None
@@ -194,27 +191,27 @@ async def test_status_filter_returns_only_matching_rows(
     )
     define = bind_define(deps)
     await define(
-        DefineCapability(name="DefinedOnly"),
+        DefineFamily(name="DefinedOnly"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await define(
-        DefineCapability(name="ToBeVersioned"),
+        DefineFamily(name="ToBeVersioned"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await bind_version(deps)(
-        VersionCapability(capability_id=versioned_id, version_tag="v1"),
+        VersionFamily(family_id=versioned_id, version_tag="v1"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await define(
-        DefineCapability(name="ToBeDeprecated"),
+        DefineFamily(name="ToBeDeprecated"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await bind_deprecate(deps)(
-        DeprecateCapability(capability_id=deprecated_id),
+        DeprecateFamily(family_id=deprecated_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -222,12 +219,12 @@ async def test_status_filter_returns_only_matching_rows(
     await _drain(db_pool)
     handler = bind_list(deps)
     page = await handler(
-        ListCapabilities(status="Versioned", limit=10),
+        ListFamilies(status="Versioned", limit=10),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     assert len(page.items) == 1
-    assert page.items[0].capability_id == versioned_id
+    assert page.items[0].family_id == versioned_id
     assert page.items[0].status == "Versioned"
     assert page.items[0].version_tag == "v1"
 
@@ -245,7 +242,7 @@ async def test_cursor_walks_pages(db_pool: asyncpg.Pool) -> None:
     define = bind_define(deps)
     for i in range(5):
         await define(
-            DefineCapability(name=f"Cap{i:02d}"),
+            DefineFamily(name=f"Cap{i:02d}"),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -254,24 +251,24 @@ async def test_cursor_walks_pages(db_pool: asyncpg.Pool) -> None:
     handler = bind_list(deps)
 
     page1 = await handler(
-        ListCapabilities(limit=2),
+        ListFamilies(limit=2),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     page2 = await handler(
-        ListCapabilities(cursor=page1.next_cursor, limit=2),
+        ListFamilies(cursor=page1.next_cursor, limit=2),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     page3 = await handler(
-        ListCapabilities(cursor=page2.next_cursor, limit=2),
+        ListFamilies(cursor=page2.next_cursor, limit=2),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     assert len(page1.items) == 2 and page1.next_cursor is not None
     assert len(page2.items) == 2 and page2.next_cursor is not None
     assert len(page3.items) == 1 and page3.next_cursor is None
-    seen = {item.capability_id for p in (page1, page2, page3) for item in p.items}
+    seen = {item.family_id for p in (page1, page2, page3) for item in p.items}
     assert seen == set(cap_ids)
 
 
@@ -280,7 +277,7 @@ async def test_empty_table_returns_empty_page(db_pool: asyncpg.Pool) -> None:
     deps = _build_deps(db_pool, [])
     handler = bind_list(deps)
     page = await handler(
-        ListCapabilities(),
+        ListFamilies(),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

@@ -7,7 +7,7 @@ are valid sources; only Deprecated is rejected.
 ## Deliberate divergence from strict-not-idempotent
 
 Same as version_practice (Recipe 6d-2), version_method (Recipe 6b),
-and version_capability (Equipment 5f-2): re-versioning with the same
+and version_family (Equipment 5f-2): re-versioning with the same
 tag succeeds and emits a fresh event. Re-attestation is a legitimate
 audit moment. Pinned by
 `test_decide_allows_versioning_with_same_tag_for_re_attestation`.

@@ -3,7 +3,7 @@
 Action endpoint at `POST /assets/{asset_id}/add_port`. Body
 carries `port_name`, `direction` (Input/Output), `signal_type`.
 204 No Content on success. Same action-endpoint pattern as
-`add_asset_capability`.
+`add_asset_family`.
 """
 
 from typing import Annotated, Literal

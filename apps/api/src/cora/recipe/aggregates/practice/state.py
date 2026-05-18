@@ -19,7 +19,7 @@ Minimal Practice:
   - `id` + `name`
   - `method_id: UUID` — the Method this Practice adapts (eventual-
     consistency stance: existence is NOT verified at decide time;
-    same precedent as Method.needed_capabilities and Trust 3b)
+    same precedent as Method.needed_families and Trust 3b)
   - `site_id: UUID` — the Site-level Asset this Practice belongs to
     (institutional ownership; eventual-consistency: not verified)
   - `status: PracticeStatus` (Defined initially; Versioned /
@@ -28,9 +28,9 @@ Minimal Practice:
 
 Additional facets defer to a 6d-3 equivalent if pilot demand
 emerges:
-  - `additional_capabilities: frozenset[CapabilityId]` (facility-
-    specific Capability requirements that go beyond Method's
-    needed_capabilities — for example a facility that always pairs
+  - `additional_families: frozenset[FamilyId]` (facility-
+    specific Family requirements that go beyond Method's
+    needed_families — for example a facility that always pairs
     Tomography with FlyScan)
   - `default_parameters` (parameter envelope dict)
   - `safety_overlay` (free-text or structured operator instructions)
@@ -48,7 +48,7 @@ generalize.
 ## Eventual-consistency stance for cross-aggregate refs
 
 Same precedent as everywhere else (Trust Conduit zone refs in 3b,
-Method needed_capabilities in 6a, Asset.capabilities entries in
+Method needed_families in 6a, Asset.families entries in
 5f-1): the decider does NOT verify `method_id` refers to a real
 Method or `site_id` refers to a real Site-level Asset. Typos
 produce "dangling" Practices; downstream Plan binding (6e) is where
@@ -56,13 +56,13 @@ the mismatch surfaces.
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
 
-Same precedent as Method (6a) and Capability (5a). The lifecycle
+Same precedent as Method (6a) and Family (5a). The lifecycle
 mirrors Method's: Defined → Versioned → Deprecated.
 
 ## Ninth bounded-name VO
 
 `PracticeName` is the **ninth** trimmed-bounded-name VO after
-Actor / Zone / Conduit / Policy / Subject / Capability / Asset /
+Actor / Zone / Conduit / Policy / Subject / Family / Asset /
 Method. Phase 6e-1 hoisted the shared trim+length-check logic to
 `cora.infrastructure.bounded_text.validate_bounded_text` once the 10th VO (PlanName)
 landed; PracticeName now calls that helper while keeping its own
@@ -82,7 +82,7 @@ PRACTICE_VERSION_TAG_MAX_LENGTH = 50
 class PracticeStatus(StrEnum):
     """The Practice's lifecycle state.
 
-    Mirrors Method's lifecycle (and Capability's). Transitions land
+    Mirrors Method's lifecycle (and Family's). Transitions land
     per-slice in Phase 6d-2:
       - Defined -> Versioned        (version_practice)
       - (Defined | Versioned) -> Deprecated  (deprecate_practice)
@@ -131,13 +131,13 @@ class PracticeCannotVersionError(Exception):
     Multi-source guard: `version_practice` accepts both `Defined`
     (first revision) and `Versioned` (subsequent revisions). Only
     `Deprecated` is rejected. Same divergence from strict-not-
-    idempotent as version_method / version_capability:
+    idempotent as version_method / version_family:
     re-versioning with the same tag succeeds (re-attestation is a
     legitimate audit moment).
 
     Per-transition error class — same naming convention as
     `MethodCannotVersionError` (Recipe 6b) and
-    `CapabilityCannotVersionError` (Equipment 5f-2).
+    `FamilyCannotVersionError` (Equipment 5f-2).
     """
 
     def __init__(self, practice_id: UUID, current_status: "PracticeStatus") -> None:
@@ -175,7 +175,7 @@ class InvalidPracticeVersionTagError(ValueError):
     AND defensively at the decider via this error so direct in-process
     callers (sagas, tests) get the same protection. Same precedent as
     InvalidMethodVersionTagError (Recipe 6b) and
-    InvalidCapabilityVersionTagError (Equipment 5f-2).
+    InvalidFamilyVersionTagError (Equipment 5f-2).
     """
 
     def __init__(self, value: str) -> None:

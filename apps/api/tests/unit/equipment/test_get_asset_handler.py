@@ -1,6 +1,6 @@
 """Unit tests for the `get_asset` query handler.
 
-Mirrors `test_get_capability_handler.py` / `test_get_subject_handler.py`.
+Mirrors `test_get_family_handler.py` / `test_get_subject_handler.py`.
 Round-trips through the write side (register → get) verify that
 fold-on-read correctly returns the registered Asset, and that
 state mutations (activate, relocate) are reflected in the read.

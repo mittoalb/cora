@@ -181,7 +181,7 @@ def test_post_assets_rejects_malformed_parent_uuid_with_422() -> None:
 def test_post_assets_returns_409_when_asset_already_exists() -> None:
     """Defensive guard: AssetAlreadyExistsError -> 409. Same pattern
     as ActorAlreadyExistsError / SubjectAlreadyExistsError /
-    CapabilityAlreadyExistsError. Test overrides the slice handler
+    FamilyAlreadyExistsError. Test overrides the slice handler
     with a stub that raises directly so the route's exception
     handler is verified end-to-end."""
     existing_id = uuid4()

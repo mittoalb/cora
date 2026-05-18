@@ -25,9 +25,9 @@ import asyncpg
 import pytest
 
 from cora.equipment.aggregates.asset import AssetLevel
-from cora.equipment.features import add_asset_capability, define_capability, register_asset
-from cora.equipment.features.add_asset_capability import AddAssetCapability
-from cora.equipment.features.define_capability import DefineCapability
+from cora.equipment.features import add_asset_family, define_family, register_asset
+from cora.equipment.features.add_asset_family import AddAssetFamily
+from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
@@ -114,8 +114,8 @@ async def _seed_upstream_chain(
     )
     cap_id = queue[0]
 
-    await define_capability.bind(deps)(
-        DefineCapability(name="FlyMotion"),
+    await define_family.bind(deps)(
+        DefineFamily(name="FlyMotion"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -124,13 +124,13 @@ async def _seed_upstream_chain(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await add_asset_capability.bind(deps)(
-        AddAssetCapability(asset_id=asset_id, capability_id=cap_id),
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=asset_id, family_id=cap_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await define_method.bind(deps)(
-        DefineMethod(name="XRF Fly Scan", needed_capabilities=frozenset({cap_id})),
+        DefineMethod(name="XRF Fly Scan", needed_families=frozenset({cap_id})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

@@ -64,7 +64,7 @@ def _asset(
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=lifecycle,
-        capabilities=frozenset(),
+        families=frozenset(),
     )
 
 

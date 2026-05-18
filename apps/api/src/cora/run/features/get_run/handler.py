@@ -1,7 +1,7 @@
 """Application handler for the `get_run` query slice.
 
 Cross-BC query-handler shape mirroring `get_plan` / `get_practice`
-/ `get_method` / `get_capability` / `get_subject` / `get_actor`.
+/ `get_method` / `get_family` / `get_subject` / `get_actor`.
 
 Returns the domain `Run`, not a DTO. The route + tool layers do
 their own DTO mapping (primitives only).

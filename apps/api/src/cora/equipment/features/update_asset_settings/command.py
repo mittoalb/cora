@@ -19,7 +19,7 @@ class UpdateAssetSettings:
     Validation runs at the handler boundary against the union of the
     Asset's currently-assigned Capabilities' settings_schemas. The
     decider receives the prior state, the merged-result, and the
-    Capability schemas to decide whether to emit AssetSettingsUpdated.
+    Family schemas to decide whether to emit AssetSettingsUpdated.
     """
 
     asset_id: UUID

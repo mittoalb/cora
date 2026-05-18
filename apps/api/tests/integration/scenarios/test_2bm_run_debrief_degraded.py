@@ -205,7 +205,7 @@ _CANNED_DEGRADED_AAR = FakeLLMResponse(
 _RECIPE = RecipeSpec(
     method_id=_METHOD_TOMO_ID,
     method_name="tomography",
-    needed_capabilities=frozenset(
+    needed_families=frozenset(
         {_CAP_ROTARY_STAGE_ID, _CAP_LINEAR_STAGE_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}
     ),
     parameters_schema={

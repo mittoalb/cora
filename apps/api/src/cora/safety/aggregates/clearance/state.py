@@ -32,7 +32,7 @@ Genesis decider only (`register_clearance`); transition slices land in
 ## Status as enum-in-state, derived-from-event-type-in-evolver
 
 `ClearanceStatus` is a `StrEnum` mirroring the cross-aggregate convention
-(`SubjectStatus`, `CapabilityStatus`, `AssetLifecycle`, `SupplyStatus`,
+(`SubjectStatus`, `FamilyStatus`, `AssetLifecycle`, `SupplyStatus`,
 `ProcedureStatus`). State holds the typed enum; evolver derives status
 from event type (`ClearanceRegistered -> DEFINED`).
 
@@ -69,7 +69,7 @@ facility. This keeps the FSM legible and the audit chain expressive.
 ## Thirteenth bounded-name VO
 
 `ClearanceTitle` is the 13th occurrence of the trimmed-bounded-name
-VO pattern (after SubjectName, AssetName, CapabilityName, RunName,
+VO pattern (after SubjectName, AssetName, FamilyName, RunName,
 SupplyName, ProcedureName, RecipeName/MethodName/PracticeName/
 PlanName, etc.). Uses the shared `validate_bounded_text` helper.
 """
@@ -165,7 +165,7 @@ class ClearanceKind(StrEnum):
     Future ClearanceTemplate aggregate (watch item): when first
     per-template body-schema-validation OR template-versioning need
     surfaces, this StrEnum gets replaced by `template_id: UUID`
-    referencing a typed `ClearanceTemplate` aggregate (mirrors Capability
+    referencing a typed `ClearanceTemplate` aggregate (mirrors Family
     inside Equipment BC). Same trigger pattern as ProcedureTemplate watch
     item in [[project_operation_design]].
     """

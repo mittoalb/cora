@@ -3,7 +3,7 @@
 `Method` is the abstract recipe — the technique class as published
 by the vendor or scientific community. Examples: "X-ray Fluorescence
 Mapping", "Step Tomography", "Ptychography". Equipment-agnostic
-(refers to `Capability` ids only, not specific Asset instances).
+(refers to `Family` ids only, not specific Asset instances).
 
 Per the BC map's recipe ladder, Method ≈ ISA-88 General Recipe. The
 facility's adapted version lives in `Practice` (6d), and the
@@ -13,27 +13,27 @@ concrete Asset binding lives in `Plan` (6e).
 
 Minimal Method:
   - `id` + `name`
-  - `needed_capabilities: frozenset[UUID]` — the Capability ids this
+  - `needed_families: frozenset[UUID]` — the Family ids this
     Method requires. Composable: a "Fly Tomography" Method has
-    needed_capabilities = {Tomography_id, FlyScan_id}. At Plan
+    needed_families = {Tomography_id, FlyScan_id}. At Plan
     binding time (6e), the operator picks an Asset whose
-    capabilities ⊇ method.needed_capabilities.
+    capabilities ⊇ method.needed_families.
   - `status` (defaults `Defined`).
 
 `Versioned` and `Deprecated` transitions land in 6b. Description /
 owner / additional facets defer to 6c.
 
-## needed_capabilities — eventual-consistency stance
+## needed_families — eventual-consistency stance
 
-The decider does NOT verify each Capability id refers to a real
-Capability stream in the event store. Same precedent as Trust's
+The decider does NOT verify each Family id refers to a real
+Family stream in the event store. Same precedent as Trust's
 Conduit zone refs (3b) and Asset parent refs (5b). Typos produce
 "dangling" Methods; downstream Plan binding (6e) is where the
 mismatch will surface (Asset can't satisfy the requirement). For
 day-one ergonomics this is fine; structural validation can be
 layered on at the API boundary later if pilot demand emerges.
 
-Empty `needed_capabilities` is allowed (a Method that needs no
+Empty `needed_families` is allowed (a Method that needs no
 specific equipment capability — rare but operationally valid for
 purely procedural Methods like "Sample Cleaning").
 
@@ -43,13 +43,13 @@ purely procedural Methods like "Sample Cleaning").
 naturally as JSON-friendly strings IF carried in an event payload.
 Today they aren't: state holds the enum (typed) and the evolver
 derives the new status from the event TYPE — same precedent as
-`CapabilityStatus`, `SubjectStatus`, `AssetLifecycle`.
+`FamilyStatus`, `SubjectStatus`, `AssetLifecycle`.
 
 ## Eighth bounded-name VO
 
 `MethodName` is the **eighth** trimmed-bounded-name VO after
 `ActorName`, `ZoneName`, `ConduitName`, `PolicyName`, `SubjectName`,
-`CapabilityName`, `AssetName`. Phase 6e-1 hoisted the shared
+`FamilyName`, `AssetName`. Phase 6e-1 hoisted the shared
 trim+length-check logic to `cora.infrastructure.bounded_text.validate_bounded_text`
 once the 10th VO (PlanName) landed; MethodName now calls that helper
 while keeping its own frozen dataclass type and per-aggregate error
@@ -57,7 +57,7 @@ class. See the helper module's docstring for the design rationale.
 
 ## Frozensets in state, lists in payloads
 
-`needed_capabilities` is `frozenset[UUID]` in domain state
+`needed_families` is `frozenset[UUID]` in domain state
 (deduplicated, hashable, set-membership in O(1) for Plan-binding
 checks) and `list[UUID]` in event payloads (JSON-friendly, sorted
 for determinism). Same precedent as Trust's Policy
@@ -140,7 +140,7 @@ class MethodCannotVersionError(Exception):
     first if you want to bring it back, though that slice doesn't
     exist today).
 
-    Mirrors `CapabilityCannotVersionError` shape and semantics
+    Mirrors `FamilyCannotVersionError` shape and semantics
     (Equipment 5f-2). Same deliberate divergence from strict-not-
     idempotent: re-versioning with the same tag succeeds and emits a
     fresh event (re-attestation is a legitimate audit moment).
@@ -164,7 +164,7 @@ class MethodCannotDeprecateError(Exception):
     (deprecating before any revisions) and `Versioned` (deprecating
     a revised recipe). Re-deprecating an already-`Deprecated` method
     raises (strict-not-idempotent). Mirrors
-    `CapabilityCannotDeprecateError` shape.
+    `FamilyCannotDeprecateError` shape.
 
     Existing Plans / Practices that reference this Method are NOT
     automatically invalidated. Deprecation is advisory at the BC
@@ -196,9 +196,9 @@ class InvalidMethodNeededSuppliesError(ValueError):
     references kind values that Supply registrations carry). See
     [[project_supply_design]] §"Phase 10b — Method.needed_supplies
     consumer" for the design lock + asymmetry rationale (frozenset[str]
-    on Method vs frozenset[UUID] for needed_capabilities: Supply is
+    on Method vs frozenset[UUID] for needed_families: Supply is
     INSTANCE-aggregate per facility, sharing a `kind` label;
-    Capability is TYPE-aggregate, one global definition referenced
+    Family is TYPE-aggregate, one global definition referenced
     by UUID).
     """
 
@@ -216,7 +216,7 @@ class InvalidMethodVersionTagError(ValueError):
     Validated at the API boundary via Pydantic min_length / max_length,
     AND defensively at the decider via this error so direct in-process
     callers (sagas, tests) get the same protection. Same precedent as
-    `InvalidCapabilityVersionTagError` (Equipment 5f-2) and
+    `InvalidFamilyVersionTagError` (Equipment 5f-2) and
     `InvalidMethodNameError`.
     """
 
@@ -254,7 +254,7 @@ class MethodName:
 class Method:
     """Aggregate root: an abstract technique-class recipe.
 
-    `needed_capabilities` is a frozenset of Capability ids the Method
+    `needed_families` is a frozenset of Family ids the Method
     requires. Eventual-consistency stance: existence is not verified
     at decide time; mismatch surfaces at Plan binding (6e).
 
@@ -266,7 +266,7 @@ class Method:
     `name`). Free-text validated at API boundary + defensively in the
     decider; no VO. Default None keeps pre-6b MethodDefined-only
     streams folding cleanly (additive-state pattern). Mirrors
-    Capability's `version` semantics (Equipment 5f-2): preserved
+    Family's `version` semantics (Equipment 5f-2): preserved
     across deprecation as an audit signal of the last revision before
     deprecation.
 
@@ -276,20 +276,20 @@ class Method:
     None for legacy Methods (additive-state pattern); None means
     "this Method declares no parameter contract — accept any dict".
     Distinct from `{}` (empty schema, "operator explicitly said no
-    parameters"). Subset shared with Capability.settings_schema via
+    parameters"). Subset shared with Family.settings_schema via
     `cora.infrastructure.json_schema_subset`. See
     [[project_run_parameters_design]] for the full 6g family layout.
     """
 
     id: UUID
     name: MethodName
-    needed_capabilities: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    needed_families: frozenset[UUID] = field(default_factory=frozenset[UUID])
     status: MethodStatus = MethodStatus.DEFINED
     version: str | None = None
     parameters_schema: dict[str, Any] | None = field(default=None)
     # Phase 10b: needed_supplies references Supply.kind STRINGS (not
-    # UUIDs). Asymmetric with needed_capabilities (frozenset[UUID]) by
-    # design: Capability is a TYPE registry (one global definition,
+    # UUIDs). Asymmetric with needed_families (frozenset[UUID]) by
+    # design: Family is a TYPE registry (one global definition,
     # referenced by UUID); Supply is an INSTANCE aggregate (multiple
     # per facility, each with its own availability state, sharing a
     # `kind` label). Methods are facility-portable so they reference

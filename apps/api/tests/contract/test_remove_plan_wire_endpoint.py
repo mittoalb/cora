@@ -16,9 +16,9 @@ from cora.api.main import create_app
 def _setup_plan_with_one_wire(client: TestClient) -> dict[str, Any]:
     """Seed a Plan with two Assets, one OUTPUT port + one INPUT port, and
     add one Wire connecting them. Returns plan_id, src/tgt asset ids."""
-    cap_id = client.post("/capabilities", json={"name": "Trigger"}).json()["capability_id"]
+    cap_id = client.post("/families", json={"name": "Trigger"}).json()["family_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
+        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",
@@ -33,7 +33,7 @@ def _setup_plan_with_one_wire(client: TestClient) -> dict[str, Any]:
         json={"name": "Camera", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
     for asset_id in (src_asset_id, tgt_asset_id):
-        client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+        client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
     client.post(
         f"/assets/{src_asset_id}/add_port",
         json={"port_name": "trigger_out", "direction": "Output", "signal_type": "TTL"},

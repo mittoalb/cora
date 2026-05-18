@@ -2,7 +2,7 @@
 
 Phase 6g-a. Action endpoint with body `{parameters_schema}`. Schema
 can be set, replaced, or cleared (null payload). Mirrors
-`test_update_capability_settings_schema_endpoint.py` (5g-a).
+`test_update_family_settings_schema_endpoint.py` (5g-a).
 """
 
 from typing import Any
@@ -19,7 +19,7 @@ _DRAFT = "https://json-schema.org/draft/2020-12/schema"
 def _define_method(client: TestClient, name: str = "XRF Mapping") -> UUID:
     response = client.post(
         "/methods",
-        json={"name": name, "needed_capabilities": []},
+        json={"name": name, "needed_families": []},
     )
     assert response.status_code == 201, response.text
     return UUID(response.json()["method_id"])

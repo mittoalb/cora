@@ -16,8 +16,8 @@ Subscribed events:
   - AssetRestored              -> UPDATE condition=Nominal
 
 NOT subscribed:
-  - AssetCapabilityAdded / AssetCapabilityRemoved — these describe
-    the Asset<->Capability join, not the Asset's own state. Belong
+  - AssetFamilyAdded / AssetFamilyRemoved — these describe
+    the Asset<->Family join, not the Asset's own state. Belong
     in a future `proj_equipment_asset_capabilities` projection
     (deferred until a list-by-capability query demands it).
 

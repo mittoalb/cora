@@ -23,7 +23,7 @@ unlocks four firsts in CORA's 2-BM doc tree:
 
   1. Phase `commissioning` is exercised for the first time (no prior
      scenario hangs there).
-  2. New Capability `Shutter` joins the cross-facility catalog.
+  2. New Family `Shutter` joins the cross-facility catalog.
   3. New Device `Shutter_2BM` joins the 2-BM Asset inventory.
   4. New Procedure kind `first_light` joins the 2-BM Procedure list.
 
@@ -323,7 +323,7 @@ async def test_first_light_plays_out_end_to_end(
     await bind_define_method(deps)(
         DefineMethod(
             name="first_light",
-            needed_capabilities=frozenset({_CAP_SHUTTER_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}),
+            needed_families=frozenset({_CAP_SHUTTER_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -449,7 +449,7 @@ async def test_first_light_plays_out_end_to_end(
     for asset_id in (_ASSET_SHUTTER_2BM_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID):
         asset_events, _ = await deps.event_store.load("Asset", asset_id)
         event_types = [e.event_type for e in asset_events]
-        assert event_types == ["AssetRegistered", "AssetCapabilityAdded", "AssetActivated"]
+        assert event_types == ["AssetRegistered", "AssetFamilyAdded", "AssetActivated"]
 
     # ----- Assert: 7 step entries land in the projection in canonical order -----
 

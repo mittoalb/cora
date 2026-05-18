@@ -30,12 +30,12 @@ from cora.campaign.features.register_campaign import RegisterCampaign
 from cora.campaign.features.start_campaign import StartCampaign
 from cora.equipment.aggregates.asset import AssetLevel
 from cora.equipment.features import (
-    add_asset_capability,
-    define_capability,
+    add_asset_family,
+    define_family,
     register_asset,
 )
-from cora.equipment.features.add_asset_capability import AddAssetCapability
-from cora.equipment.features.define_capability import DefineCapability
+from cora.equipment.features.add_asset_family import AddAssetFamily
+from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.recipe.features import (
@@ -124,8 +124,8 @@ async def test_start_run_with_campaign_writes_both_streams_atomically(
     )
 
     # Upstream chain.
-    await define_capability.bind(deps)(
-        DefineCapability(name="FlyMotion"),
+    await define_family.bind(deps)(
+        DefineFamily(name="FlyMotion"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -134,13 +134,13 @@ async def test_start_run_with_campaign_writes_both_streams_atomically(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await add_asset_capability.bind(deps)(
-        AddAssetCapability(asset_id=asset_id, capability_id=cap_id),
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=asset_id, family_id=cap_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await define_method.bind(deps)(
-        DefineMethod(name="XRF Fly Scan", needed_capabilities=frozenset({cap_id})),
+        DefineMethod(name="XRF Fly Scan", needed_families=frozenset({cap_id})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

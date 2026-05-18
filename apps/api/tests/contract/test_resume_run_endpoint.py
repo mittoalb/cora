@@ -16,8 +16,8 @@ from tests.contract._subject_helpers import register_active_asset
 
 def _setup_full_run(client: TestClient) -> str:
     """Seed full upstream chain + start a Run. Returns the run_id."""
-    cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
-    method_id = client.post("/methods", json={"name": "M", "needed_capabilities": [cap_id]}).json()[
+    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+    method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
         "method_id"
     ]
     practice_id = client.post(
@@ -27,7 +27,7 @@ def _setup_full_run(client: TestClient) -> str:
     asset_id = client.post(
         "/assets", json={"name": "A", "level": "Enterprise", "parent_id": None}
     ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+    client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
     plan_id = client.post(
         "/plans",
         json={"name": "Plan", "practice_id": practice_id, "asset_ids": [asset_id]},

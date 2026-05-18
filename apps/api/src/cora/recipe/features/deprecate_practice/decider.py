@@ -6,7 +6,7 @@ Re-deprecating an already-Deprecated practice raises (strict-not-
 idempotent).
 
 Source-state guard uses tuple-membership (same precedent as
-deprecate_method / deprecate_capability / decommission_asset).
+deprecate_method / deprecate_family / decommission_asset).
 
 Invariants:
   - State must not be None -> PracticeNotFoundError

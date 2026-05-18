@@ -153,7 +153,7 @@ def test_run_asset_decommissioned_error_carries_asset_ids_list() -> None:
 def test_run_capabilities_not_satisfied_error_carries_missing_ids() -> None:
     missing = frozenset({uuid4()})
     err = RunCapabilitiesNotSatisfiedError(missing)
-    assert err.missing_capability_ids == missing
+    assert err.missing_family_ids == missing
     assert "missing capabilities" in str(err)
 
 

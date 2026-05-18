@@ -13,11 +13,11 @@ from cora.api.main import create_app
 
 
 def _setup_plan(client: TestClient) -> str:
-    """Seed Capability + Method + Practice + Asset (with capability) +
+    """Seed Family + Method + Practice + Asset (with capability) +
     Plan via the public API; return the plan_id as a string."""
-    cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
+        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",
@@ -27,7 +27,7 @@ def _setup_plan(client: TestClient) -> str:
         "/assets",
         json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+    client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
     plan_id = client.post(
         "/plans",
         json={"name": "32-ID FlyScan", "practice_id": practice_id, "asset_ids": [asset_id]},

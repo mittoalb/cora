@@ -5,7 +5,7 @@ issue a new version_tag to mark a revision of the Plan binding (for
 example: "added an extra detector", "changed sample stage assembly").
 
 Mirrors `VersionPractice` (Recipe 6d-2) / `VersionMethod` (Recipe 6b)
-/ `VersionCapability` (Equipment 5f-2) shape and semantics.
+/ `VersionFamily` (Equipment 5f-2) shape and semantics.
 """
 
 from dataclasses import dataclass

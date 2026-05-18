@@ -1,7 +1,7 @@
 """Application handler for the `register_asset` slice.
 
 Same shape as `register_actor` / `register_subject` / `define_zone`
-/ `define_conduit` / `define_policy` / `define_capability` — the
+/ `define_conduit` / `define_policy` / `define_family` — the
 locked cross-BC create-style command pattern (now 7th instance).
 
 The cross-BC create-style template extraction stays parked per the

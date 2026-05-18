@@ -29,7 +29,7 @@ fundamental issues surface first:
 4. Method must not be Deprecated. Raises `MethodDeprecatedError`.
 5. No bound Asset may be Decommissioned. Raises
    `AssetDecommissionedError` carrying the offending asset_ids.
-6. `union(asset.capabilities) ⊇ method.needed_capabilities`. Raises
+6. `union(asset.families) ⊇ method.needed_families`. Raises
    `PlanCapabilitiesNotSatisfiedError` with the missing capability
    ids. Per gate-review Q3: bound-Asset-only check (no hierarchy
    traversal); operators model capabilities at whichever
@@ -103,9 +103,9 @@ def decide(
     # Generator expression keeps the element type inferable as UUID
     # (vs `frozenset().union(*generators)` which infers Unknown | UUID).
     union_capabilities: frozenset[UUID] = frozenset(
-        cap for asset in context.assets.values() for cap in asset.capabilities
+        cap for asset in context.assets.values() for cap in asset.families
     )
-    missing = context.method.needed_capabilities - union_capabilities
+    missing = context.method.needed_families - union_capabilities
     if missing:
         raise PlanCapabilitiesNotSatisfiedError(missing)
 
@@ -117,9 +117,9 @@ def decide(
             practice_id=command.practice_id,
             asset_ids=sorted(command.asset_ids, key=str),
             method_id=context.method.id,
-            method_needed_capabilities_snapshot=sorted(context.method.needed_capabilities, key=str),
-            asset_capabilities_snapshot={
-                asset_id: sorted(context.assets[asset_id].capabilities, key=str)
+            method_needed_families_snapshot=sorted(context.method.needed_families, key=str),
+            asset_families_snapshot={
+                asset_id: sorted(context.assets[asset_id].families, key=str)
                 for asset_id in sorted(context.assets.keys(), key=str)
             },
             occurred_at=now,

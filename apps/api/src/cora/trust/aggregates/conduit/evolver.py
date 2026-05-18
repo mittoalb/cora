@@ -22,7 +22,7 @@ Constructing `Conduit(id=..., name=..., source_zone_id=...,
 target_zone_id=...)` without explicitly passing `logbooks` would
 silently WIPE the dict to its empty default. Aligned to explicit
 construction post-domain-audit to match the documented pattern in
-Asset/Plan/Method/Practice/Capability/Subject evolvers.
+Asset/Plan/Method/Practice/Family/Subject evolvers.
 
 Defensive guards: both arms raise on `state is None` (the parent
 Conduit must exist before any logbook can attach to it). The

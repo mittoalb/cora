@@ -15,10 +15,10 @@ event. Phase 5e added `AssetMaintenanceEntered` and
 `AssetRestoredFromMaintenance` (single-source paired transitions:
 ACTIVE -> MAINTENANCE and MAINTENANCE -> ACTIVE) and widened the
 `AssetDecommissioned` source-state set to also accept MAINTENANCE.
-Phase 5f-1 adds `AssetCapabilityAdded` and `AssetCapabilityRemoved`
+Phase 5f-1 adds `AssetFamilyAdded` and `AssetFamilyRemoved`
 — first incremental-mutation event pair on Asset state
 (capabilities accumulate over the asset's lifetime as new techniques
-are commissioned / retired). Each carries a single `capability_id`;
+are commissioned / retired). Each carries a single `family_id`;
 the evolver folds each into the `capabilities` frozenset.
 
 ## Payload conventions for Asset
@@ -43,7 +43,7 @@ decommissioning to storage, etc).
 
 `lifecycle` is NOT carried in the payload — the event TYPE
 encodes the state change (`AssetRegistered → COMMISSIONED`).
-Same precedent as Subject / Capability / Actor.
+Same precedent as Subject / Family / Actor.
 """
 
 from dataclasses import dataclass
@@ -130,40 +130,40 @@ class AssetRestoredFromMaintenance:
 
 
 @dataclass(frozen=True)
-class AssetCapabilityAdded:
-    """A Capability was added to an asset's capability set.
+class AssetFamilyAdded:
+    """A Family was added to an asset's capability set.
 
     Single-capability event (not bulk-update). Capabilities accumulate
     as operators commission new techniques on the asset; each event
     captures a single addition for clean audit trails ("when did this
-    asset gain XRF Mapping?"). The evolver inserts the capability_id
-    into `state.capabilities` (frozenset semantics → no-op on
+    asset gain XRF Mapping?"). The evolver inserts the family_id
+    into `state.families` (frozenset semantics → no-op on
     duplicate at the evolver layer; the decider's strict-not-idempotent
     guard is what enforces "must not already be present" at command
     time).
 
-    Eventual-consistency: `capability_id` is NOT verified against the
-    Capability stream. Same precedent as Conduit zone refs (3b),
-    Asset parent refs (5b), Method.needed_capabilities (6a).
+    Eventual-consistency: `family_id` is NOT verified against the
+    Family stream. Same precedent as Conduit zone refs (3b),
+    Asset parent refs (5b), Method.needed_families (6a).
     """
 
     asset_id: UUID
-    capability_id: UUID
+    family_id: UUID
     occurred_at: datetime
 
 
 @dataclass(frozen=True)
-class AssetCapabilityRemoved:
-    """A Capability was removed from an asset's capability set.
+class AssetFamilyRemoved:
+    """A Family was removed from an asset's capability set.
 
-    Mirror of `AssetCapabilityAdded`. Single-capability event; the
-    evolver removes the capability_id from `state.capabilities`. The
+    Mirror of `AssetFamilyAdded`. Single-capability event; the
+    evolver removes the family_id from `state.families`. The
     decider's strict-not-idempotent guard enforces "must currently be
     present" at command time.
     """
 
     asset_id: UUID
-    capability_id: UUID
+    family_id: UUID
     occurred_at: datetime
 
 
@@ -220,7 +220,7 @@ class AssetRestored:
 class AssetPortAdded:
     """A typed port was added to an Asset's port set (5h).
 
-    Single-port event (not bulk-add), mirrors `AssetCapabilityAdded`.
+    Single-port event (not bulk-add), mirrors `AssetFamilyAdded`.
     Audit value: "when did this Asset gain a `sync_clock` port?"
 
     `port_name`, `direction`, and `signal_type` are the three
@@ -243,7 +243,7 @@ class AssetPortRemoved:
     Mirror of `AssetPortAdded`. Carries only `port_name` because
     that is the unique key on Asset.ports — the decider's evolver
     pre-image gives the removed port's full shape if a future reader
-    needs it. Symmetric with `AssetCapabilityRemoved`.
+    needs it. Symmetric with `AssetFamilyRemoved`.
     """
 
     asset_id: UUID
@@ -267,7 +267,7 @@ class AssetSettingsUpdated:
     The handler validates the post-merge dict against the union of
     currently-assigned Capabilities' settings_schemas BEFORE
     emitting; an event in the stream means validation passed at the
-    moment of write. Capability schemas changing later does NOT
+    moment of write. Family schemas changing later does NOT
     auto-revalidate existing settings (locked design; see the 5g-c
     memo).
     """
@@ -310,8 +310,8 @@ AssetEvent = (
     | AssetRelocated
     | AssetMaintenanceEntered
     | AssetRestoredFromMaintenance
-    | AssetCapabilityAdded
-    | AssetCapabilityRemoved
+    | AssetFamilyAdded
+    | AssetFamilyRemoved
     | AssetDegraded
     | AssetFaulted
     | AssetRestored
@@ -381,24 +381,24 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
                 "asset_id": str(asset_id),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case AssetCapabilityAdded(
+        case AssetFamilyAdded(
             asset_id=asset_id,
-            capability_id=capability_id,
+            family_id=family_id,
             occurred_at=occurred_at,
         ):
             return {
                 "asset_id": str(asset_id),
-                "capability_id": str(capability_id),
+                "family_id": str(family_id),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case AssetCapabilityRemoved(
+        case AssetFamilyRemoved(
             asset_id=asset_id,
-            capability_id=capability_id,
+            family_id=family_id,
             occurred_at=occurred_at,
         ):
             return {
                 "asset_id": str(asset_id),
-                "capability_id": str(capability_id),
+                "family_id": str(family_id),
                 "occurred_at": occurred_at.isoformat(),
             }
         case AssetDegraded(asset_id=asset_id, reason=reason, occurred_at=occurred_at):
@@ -495,16 +495,33 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                 asset_id=UUID(payload["asset_id"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
+        # Phase 5i dual-match: pre-5i Asset events used "AssetCapabilityAdded"
+        # / "AssetCapabilityRemoved" type strings with "capability_id" payload
+        # key. Post-5i emits "AssetFamilyAdded" / "AssetFamilyRemoved" with
+        # "family_id". Both type strings produce the new Family-shaped
+        # dataclass. Legacy arms stay forever per Marten/Axon rename pattern.
         case "AssetCapabilityAdded":
-            return AssetCapabilityAdded(
+            return AssetFamilyAdded(
                 asset_id=UUID(payload["asset_id"]),
-                capability_id=UUID(payload["capability_id"]),
+                family_id=UUID(payload["capability_id"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "AssetCapabilityRemoved":
-            return AssetCapabilityRemoved(
+            return AssetFamilyRemoved(
                 asset_id=UUID(payload["asset_id"]),
-                capability_id=UUID(payload["capability_id"]),
+                family_id=UUID(payload["capability_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "AssetFamilyAdded":
+            return AssetFamilyAdded(
+                asset_id=UUID(payload["asset_id"]),
+                family_id=UUID(payload["family_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "AssetFamilyRemoved":
+            return AssetFamilyRemoved(
+                asset_id=UUID(payload["asset_id"]),
+                family_id=UUID(payload["family_id"]),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "AssetDegraded":
@@ -554,11 +571,11 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
 
 __all__ = [
     "AssetActivated",
-    "AssetCapabilityAdded",
-    "AssetCapabilityRemoved",
     "AssetDecommissioned",
     "AssetDegraded",
     "AssetEvent",
+    "AssetFamilyAdded",
+    "AssetFamilyRemoved",
     "AssetFaulted",
     "AssetMaintenanceEntered",
     "AssetPortAdded",

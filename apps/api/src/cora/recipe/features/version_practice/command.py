@@ -5,7 +5,7 @@ issue a new version_tag to mark a revision of the facility-adapted
 recipe (for example: "added safety hold-point after sample exchange",
 "new default dwell time").
 
-Mirrors `VersionMethod` (Recipe 6b) and `VersionCapability`
+Mirrors `VersionMethod` (Recipe 6b) and `VersionFamily`
 (Equipment 5f-2) shape and semantics.
 """
 

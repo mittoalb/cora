@@ -67,8 +67,8 @@ treats them as opaque domain data and validates:
   - plan must not be Deprecated
   - subject (if present) must be in {Mounted, Measured}
   - no bound Asset may be Decommissioned
-  - capability superset RE-VALIDATED: union(asset.capabilities) ⊇
-    method.needed_capabilities (from current Asset state, not the
+  - capability superset RE-VALIDATED: union(asset.families) ⊇
+    method.needed_families (from current Asset state, not the
     Plan-bind snapshot — drift is real and Run is the last gate)
   - name validation (via RunName VO)
 
@@ -77,7 +77,7 @@ in CONTRIBUTING.md as the cross-aggregate-validation idiom.
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
 
-Same precedent as Method / Practice / Plan / Capability /
+Same precedent as Method / Practice / Plan / Family /
 Subject / Asset. RunStatus is a `StrEnum`; the evolver derives
 the new status from the event TYPE per match arm. Status is NOT
 carried in event payloads.
@@ -465,13 +465,13 @@ class RunCapabilitiesNotSatisfiedError(Exception):
     Mirrors Plan-bind's PlanCapabilitiesNotSatisfiedError shape.
     """
 
-    def __init__(self, missing_capability_ids: frozenset[UUID]) -> None:
+    def __init__(self, missing_family_ids: frozenset[UUID]) -> None:
         super().__init__(
             f"Run capabilities not satisfied at start time: bound Assets "
             f"are missing capabilities "
-            f"{sorted(str(c) for c in missing_capability_ids)}"
+            f"{sorted(str(c) for c in missing_family_ids)}"
         )
-        self.missing_capability_ids = missing_capability_ids
+        self.missing_family_ids = missing_family_ids
 
 
 class RunCannotCompleteError(Exception):

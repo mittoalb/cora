@@ -302,7 +302,7 @@ async def test_motor_homing_plays_out_end_to_end(
     await bind_define_method(deps)(
         DefineMethod(
             name="motor_homing",
-            needed_capabilities=frozenset({_CAP_ROTARY_STAGE_ID, _CAP_LINEAR_STAGE_ID}),
+            needed_families=frozenset({_CAP_ROTARY_STAGE_ID, _CAP_LINEAR_STAGE_ID}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -515,7 +515,7 @@ async def test_motor_homing_plays_out_end_to_end(
     aerotech_event_types = [e.event_type for e in aerotech_events]
     assert aerotech_event_types == [
         "AssetRegistered",  # genesis (Commissioned)
-        "AssetCapabilityAdded",  # +RotaryStage
+        "AssetFamilyAdded",  # +RotaryStage
         "AssetActivated",  # Commissioned -> Active
         "AssetDegraded",  # condition Nominal -> Degraded (after index miss)
         "AssetRestored",  # condition Degraded -> Nominal (after retry success)
@@ -527,7 +527,7 @@ async def test_motor_homing_plays_out_end_to_end(
     sample_event_types = [e.event_type for e in sample_events]
     assert sample_event_types == [
         "AssetRegistered",
-        "AssetCapabilityAdded",
+        "AssetFamilyAdded",
         "AssetActivated",
     ]
 

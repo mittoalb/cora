@@ -59,8 +59,8 @@ from cora.caution.aggregates.caution import (
 from cora.caution.features.register_caution import RegisterCaution
 from cora.caution.features.register_caution import bind as bind_register_caution
 from cora.equipment.aggregates.asset import AssetLevel
-from cora.equipment.features.define_capability import DefineCapability
-from cora.equipment.features.define_capability import bind as bind_define_capability
+from cora.equipment.features.define_family import DefineFamily
+from cora.equipment.features.define_family import bind as bind_define_family
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.register_asset import bind as bind_register_asset
 from cora.recipe.features.define_method import DefineMethod
@@ -127,7 +127,7 @@ def _id_queue() -> list[UUID]:
         RUN_DEBRIEF_ACTOR_ID,  # shared agent_id == actor_id
         e(),  # ActorRegistered event id
         e(),  # AgentDefined event id
-        # define_capability (generic Probe, for Method to declare): cap_id, event_id
+        # define_family (generic Probe, for Method to declare): cap_id, event_id
         _CAP_PROBE_GENERIC_ID,
         e(),
         # define_method (flat_field_correction): method_id, event_id
@@ -205,15 +205,15 @@ async def test_facility_install_plays_out_end_to_end(
 
     # ----- Recipe BC: Method + Practice (Practice.site_id = APS Site Asset) -----
 
-    await bind_define_capability(deps)(
-        DefineCapability(name="ProbeGeneric"),
+    await bind_define_family(deps)(
+        DefineFamily(name="ProbeGeneric"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await bind_define_method(deps)(
         DefineMethod(
             name="flat_field_correction",
-            needed_capabilities=frozenset({_CAP_PROBE_GENERIC_ID}),
+            needed_families=frozenset({_CAP_PROBE_GENERIC_ID}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

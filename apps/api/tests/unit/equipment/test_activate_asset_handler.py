@@ -200,7 +200,7 @@ def test_wire_equipment_includes_activate_asset() -> None:
     assert callable(handlers.activate_asset)
     # earlier handlers still wired
     assert callable(handlers.register_asset)
-    assert callable(handlers.define_capability)
+    assert callable(handlers.define_family)
 
 
 @pytest.mark.unit

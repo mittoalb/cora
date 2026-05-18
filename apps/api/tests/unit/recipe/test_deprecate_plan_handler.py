@@ -2,7 +2,7 @@
 
 Mirror of `test_deprecate_practice_handler.py`. Single-field
 command (just plan_id); same shape as deprecate_method /
-deprecate_capability.
+deprecate_family.
 
 Setup uses direct event-seeding via `_seed_plan` (mirrors
 test_version_plan_handler.py).
@@ -44,8 +44,8 @@ async def _seed_plan(store: InMemoryEventStore, plan_id: UUID) -> None:
         practice_id=uuid4(),
         asset_ids=[uuid4()],
         method_id=uuid4(),
-        method_needed_capabilities_snapshot=[],
-        asset_capabilities_snapshot={},
+        method_needed_families_snapshot=[],
+        asset_families_snapshot={},
         occurred_at=_NOW,
     )
     new_event = to_new_event(

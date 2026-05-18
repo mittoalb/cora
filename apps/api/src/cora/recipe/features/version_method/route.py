@@ -2,7 +2,7 @@
 
 Action endpoint at `POST /methods/{method_id}/version`. Body
 carries `version_tag`. 204 No Content on success. Mirrors
-`version_capability`'s shape (Equipment 5f-2).
+`version_family`'s shape (Equipment 5f-2).
 """
 
 from typing import Annotated

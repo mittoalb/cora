@@ -1,7 +1,7 @@
 """Contract tests for `PATCH /assets/{asset_id}/settings`.
 
 Phase 5g-c. Action endpoint with body `{settings_patch}`. RFC 7396
-JSON Merge Patch semantics; cross-Capability schema-union
+JSON Merge Patch semantics; cross-Family schema-union
 validation at write time.
 """
 
@@ -16,15 +16,15 @@ from cora.api.main import create_app
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
 
 
-def _define_capability(client: TestClient, *, name: str = "Tomography") -> UUID:
-    response = client.post("/capabilities", json={"name": name})
+def _define_family(client: TestClient, *, name: str = "Tomography") -> UUID:
+    response = client.post("/families", json={"name": name})
     assert response.status_code == 201, response.text
-    return UUID(response.json()["capability_id"])
+    return UUID(response.json()["family_id"])
 
 
-def _set_capability_schema(client: TestClient, capability_id: UUID, schema: dict[str, Any]) -> None:
+def _set_capability_schema(client: TestClient, family_id: UUID, schema: dict[str, Any]) -> None:
     response = client.post(
-        f"/capabilities/{capability_id}/settings-schema",
+        f"/families/{family_id}/settings-schema",
         json={"settings_schema": schema},
     )
     assert response.status_code == 204, response.text
@@ -39,20 +39,20 @@ def _register_asset(client: TestClient) -> UUID:
     return UUID(response.json()["asset_id"])
 
 
-def _add_capability(client: TestClient, asset_id: UUID, capability_id: UUID) -> None:
+def _add_capability(client: TestClient, asset_id: UUID, family_id: UUID) -> None:
     response = client.post(
         f"/assets/{asset_id}/add_capability",
-        json={"capability_id": str(capability_id)},
+        json={"family_id": str(family_id)},
     )
     assert response.status_code == 204, response.text
 
 
 @pytest.mark.contract
 def test_patch_settings_returns_204_on_happy_path() -> None:
-    """End-to-end: define Capability with schema, register Asset,
-    add Capability, PATCH settings, get back 204."""
+    """End-to-end: define Family with schema, register Asset,
+    add Family, PATCH settings, get back 204."""
     with TestClient(create_app()) as client:
-        cap_id = _define_capability(client)
+        cap_id = _define_family(client)
         _set_capability_schema(
             client,
             cap_id,
@@ -83,7 +83,7 @@ def test_patch_settings_returns_204_on_happy_path() -> None:
 def test_patch_settings_returns_400_for_constraint_violation() -> None:
     """Value below the schema's `minimum` rejects with 400."""
     with TestClient(create_app()) as client:
-        cap_id = _define_capability(client)
+        cap_id = _define_family(client)
         _set_capability_schema(
             client,
             cap_id,
@@ -112,9 +112,9 @@ def test_patch_settings_returns_400_for_constraint_violation() -> None:
 
 @pytest.mark.contract
 def test_patch_settings_returns_400_for_orphan_key_in_strict_mode() -> None:
-    """Capability has a schema; an unknown key rejects."""
+    """Family has a schema; an unknown key rejects."""
     with TestClient(create_app()) as client:
-        cap_id = _define_capability(client)
+        cap_id = _define_family(client)
         _set_capability_schema(
             client,
             cap_id,
@@ -176,7 +176,7 @@ def test_patch_settings_supports_merge_via_two_calls() -> None:
     """Two PATCHes accumulate via merge: first sets one key, second
     sets another, both are present in the get_asset response."""
     with TestClient(create_app()) as client:
-        cap_id = _define_capability(client)
+        cap_id = _define_family(client)
         _set_capability_schema(
             client,
             cap_id,
@@ -213,7 +213,7 @@ def test_patch_settings_supports_merge_via_two_calls() -> None:
 def test_patch_settings_null_deletes_key() -> None:
     """RFC 7396 null-delete: PATCH with `null` value removes the key."""
     with TestClient(create_app()) as client:
-        cap_id = _define_capability(client)
+        cap_id = _define_family(client)
         _set_capability_schema(
             client,
             cap_id,

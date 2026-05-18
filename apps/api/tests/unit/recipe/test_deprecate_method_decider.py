@@ -3,7 +3,7 @@
 Multi-source-state guard: `Defined | Versioned -> Deprecated`. Same
 source-set as version_method but the target is terminal.
 Re-deprecating raises (strict-not-idempotent). Mirrors
-`test_deprecate_capability_decider.py` (Equipment 5f-2).
+`test_deprecate_family_decider.py` (Equipment 5f-2).
 """
 
 from datetime import UTC, datetime
@@ -33,7 +33,7 @@ def _method(
     return Method(
         id=uuid4(),
         name=MethodName("XRF Mapping"),
-        needed_capabilities=frozenset(),
+        needed_families=frozenset(),
         status=status,
         version=version,
     )

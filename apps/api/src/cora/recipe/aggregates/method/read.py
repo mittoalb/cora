@@ -1,7 +1,7 @@
 """Read repository for the Method aggregate.
 
 `load_method(event_store, method_id) -> Method | None` mirrors
-`load_capability` / `load_actor` / `load_subject` / `load_zone` /
+`load_family` / `load_actor` / `load_subject` / `load_zone` /
 `load_conduit` / `load_policy` / `load_asset`. Used by the
 `get_method` query slice (6a) and any future update-style commands
 (6b).

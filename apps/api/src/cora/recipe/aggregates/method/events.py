@@ -9,13 +9,13 @@ Phase 6a shipped `MethodDefined`. Phase 6b adds `MethodVersioned`
 and `MethodDeprecated` per the `Defined → Versioned → Deprecated`
 lifecycle. MethodVersioned carries an operator-supplied
 `version_tag` (free-text label like "v2" or "2026-Q3"; precedent:
-AssetRelocated.reason and CapabilityVersioned). MethodDeprecated
-carries no extra fields. Mirrors Capability's transition shape from
+AssetRelocated.reason and FamilyVersioned). MethodDeprecated
+carries no extra fields. Mirrors Family's transition shape from
 Equipment 5f-2.
 
 ## Payload conventions
 
-`needed_capabilities` is stored as `list[UUID]` here (events carry
+`needed_families` is stored as `list[UUID]` here (events carry
 primitives per CONTRIBUTING.md; lists JSON-serialize cleanly). The
 evolver converts to `frozenset` when folding into Method state. The
 list is sorted by string form in `to_payload` so the same logical
@@ -26,7 +26,7 @@ Same precedent as Trust's PolicyDefined.
 Status is NOT carried in event payloads — the event type itself
 encodes the state change (for example, `MethodVersioned ->
 status=VERSIONED`). The evolver hardcodes the mapping per match
-arm. Same precedent as `CapabilityDefined → DEFINED` /
+arm. Same precedent as `FamilyDefined → DEFINED` /
 `SubjectMounted → MOUNTED`.
 """
 
@@ -44,7 +44,7 @@ class MethodDefined:
 
     Status is implicit (`Defined`) — the evolver sets it.
 
-    `needed_capabilities` carries the Capability ids the Method
+    `needed_families` carries the Family ids the Method
     requires; eventual-consistency stance, no cross-aggregate
     verification.
 
@@ -52,12 +52,12 @@ class MethodDefined:
     KIND strings the Method requires — NOT Supply instance ids.
     Pre-10b events fold via `payload.get("needed_supplies", [])`. The
     list is sorted by string form in `to_payload` for persistence
-    determinism (matches needed_capabilities). Default empty list.
+    determinism (matches needed_families). Default empty list.
     """
 
     method_id: UUID
     name: str
-    needed_capabilities: list[UUID]
+    needed_families: list[UUID]
     occurred_at: datetime
     needed_supplies: list[str] = field(default_factory=list[str])
 
@@ -75,7 +75,7 @@ class MethodVersioned:
     validated at API boundary AND in the decider). Could be semver
     ("v2.1.0"), date-stamped ("2026-Q3"), or anything else
     institution-specific. Not a VO; same precedent as
-    AssetRelocated.reason and CapabilityVersioned.
+    AssetRelocated.reason and FamilyVersioned.
     """
 
     method_id: UUID
@@ -115,7 +115,7 @@ class MethodParametersSchemaUpdated:
 
     Validator (`parameters_validation.validate_parameters_schema`)
     runs at decide time so persisted payloads are always well-formed.
-    Mirrors `CapabilitySettingsSchemaUpdated` shape from Equipment 5g-a.
+    Mirrors `FamilySettingsSchemaUpdated` shape from Equipment 5g-a.
 
     Status is NOT carried — schema updates are orthogonal to lifecycle
     (Defined / Versioned / Deprecated all permit schema updates).
@@ -138,7 +138,7 @@ def event_type_name(event: MethodEvent) -> str:
 def to_payload(event: MethodEvent) -> dict[str, Any]:
     """Serialize a Method event to a JSON-friendly dict for jsonb storage.
 
-    `needed_capabilities` is sorted by UUID string form so the
+    `needed_families` is sorted by UUID string form so the
     persisted payload is deterministic — same logical capability
     set, same payload bytes, same idempotency hash. Same precedent
     as Trust's PolicyDefined.
@@ -147,16 +147,16 @@ def to_payload(event: MethodEvent) -> dict[str, Any]:
         case MethodDefined(
             method_id=method_id,
             name=name,
-            needed_capabilities=needed_capabilities,
+            needed_families=needed_families,
             needed_supplies=needed_supplies,
             occurred_at=occurred_at,
         ):
             return {
                 "method_id": str(method_id),
                 "name": name,
-                "needed_capabilities": sorted(str(c) for c in needed_capabilities),
+                "needed_families": sorted(str(c) for c in needed_families),
                 # Phase 10b additive: kind strings sorted lexically for
-                # deterministic payload bytes (matches needed_capabilities
+                # deterministic payload bytes (matches needed_families
                 # convention; same idempotency-hash story).
                 "needed_supplies": sorted(needed_supplies),
                 "occurred_at": occurred_at.isoformat(),
@@ -203,7 +203,7 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
             return MethodDefined(
                 method_id=UUID(payload["method_id"]),
                 name=payload["name"],
-                needed_capabilities=[UUID(c) for c in payload["needed_capabilities"]],
+                needed_families=[UUID(c) for c in payload["needed_families"]],
                 # Phase 10b forward-compat: pre-10b MethodDefined
                 # payloads have no needed_supplies key; default to empty
                 # list. Additive-evolution pattern.

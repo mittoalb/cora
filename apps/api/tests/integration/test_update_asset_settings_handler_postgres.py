@@ -5,10 +5,10 @@ Covers:
   - happy path: set, persists AssetSettingsUpdated with full
     post-merge dict
   - merge across two PATCHes accumulates
-  - cross-Capability schema union: settings keys owned by either
-    Capability are validated against the right schema
+  - cross-Family schema union: settings keys owned by either
+    Family are validated against the right schema
   - true type conflict between two Capabilities surfaces with both
-    Capability ids in the error
+    Family ids in the error
 """
 
 from datetime import UTC, datetime
@@ -19,17 +19,17 @@ import pytest
 
 from cora.equipment.aggregates.asset import AssetLevel, InvalidAssetSettingsError
 from cora.equipment.features import (
-    add_asset_capability,
-    define_capability,
+    add_asset_family,
+    define_family,
     register_asset,
     update_asset_settings,
-    update_capability_settings_schema,
+    update_family_settings_schema,
 )
-from cora.equipment.features.add_asset_capability import AddAssetCapability
-from cora.equipment.features.define_capability import DefineCapability
+from cora.equipment.features.add_asset_family import AddAssetFamily
+from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.update_asset_settings import UpdateAssetSettings
-from cora.equipment.features.update_capability_settings_schema import UpdateCapabilitySettingsSchema
+from cora.equipment.features.update_family_settings_schema import UpdateFamilySettingsSchema
 from cora.infrastructure.kernel import Kernel
 from tests.integration._helpers import build_postgres_deps
 
@@ -47,35 +47,35 @@ def _deps(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:
 async def test_update_asset_settings_persists_event_with_full_post_merge_dict(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Happy path: define Capability with schema, register Asset,
-    add Capability, PATCH settings, assert persisted event payload
+    """Happy path: define Family with schema, register Asset,
+    add Family, PATCH settings, assert persisted event payload
     carries the FULL post-merge dict (5g-c lock)."""
     cap_id = UUID("01900000-0000-7000-8000-0000005c0001")
     asset_id = UUID("01900000-0000-7000-8000-0000005c0002")
     ids = [
-        # define_capability: capability_id, define_event_id
+        # define_family: family_id, define_event_id
         cap_id,
         UUID("01900000-0000-7000-8000-0000005c0011"),
-        # update_capability_settings_schema: schema_event_id
+        # update_family_settings_schema: schema_event_id
         UUID("01900000-0000-7000-8000-0000005c0012"),
         # register_asset: asset_id, register_event_id
         asset_id,
         UUID("01900000-0000-7000-8000-0000005c0013"),
-        # add_asset_capability: cap_added_event_id
+        # add_asset_family: cap_added_event_id
         UUID("01900000-0000-7000-8000-0000005c0014"),
         # update_asset_settings: settings_event_id
         UUID("01900000-0000-7000-8000-0000005c0015"),
     ]
     deps = _deps(db_pool, ids)
 
-    await define_capability.bind(deps)(
-        DefineCapability(name="Tomography"),
+    await define_family.bind(deps)(
+        DefineFamily(name="Tomography"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await update_capability_settings_schema.bind(deps)(
-        UpdateCapabilitySettingsSchema(
-            capability_id=cap_id,
+    await update_family_settings_schema.bind(deps)(
+        UpdateFamilySettingsSchema(
+            family_id=cap_id,
             settings_schema={
                 "$schema": _DRAFT,
                 "type": "object",
@@ -97,8 +97,8 @@ async def test_update_asset_settings_persists_event_with_full_post_merge_dict(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await add_asset_capability.bind(deps)(
-        AddAssetCapability(asset_id=asset_id, capability_id=cap_id),
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=asset_id, family_id=cap_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -112,7 +112,7 @@ async def test_update_asset_settings_persists_event_with_full_post_merge_dict(
     assert version == 3
     assert [e.event_type for e in events] == [
         "AssetRegistered",
-        "AssetCapabilityAdded",
+        "AssetFamilyAdded",
         "AssetSettingsUpdated",
     ]
     settings_event = events[2]
@@ -140,14 +140,14 @@ async def test_update_asset_settings_merges_across_two_patches(
     ]
     deps = _deps(db_pool, ids)
 
-    await define_capability.bind(deps)(
-        DefineCapability(name="Tomography"),
+    await define_family.bind(deps)(
+        DefineFamily(name="Tomography"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await update_capability_settings_schema.bind(deps)(
-        UpdateCapabilitySettingsSchema(
-            capability_id=cap_id,
+    await update_family_settings_schema.bind(deps)(
+        UpdateFamilySettingsSchema(
+            family_id=cap_id,
             settings_schema={
                 "$schema": _DRAFT,
                 "type": "object",
@@ -165,8 +165,8 @@ async def test_update_asset_settings_merges_across_two_patches(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await add_asset_capability.bind(deps)(
-        AddAssetCapability(asset_id=asset_id, capability_id=cap_id),
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=asset_id, family_id=cap_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -210,14 +210,14 @@ async def test_update_asset_settings_rejects_true_type_conflict_across_capabilit
     ]
     deps = _deps(db_pool, ids)
 
-    await define_capability.bind(deps)(
-        DefineCapability(name="A"),
+    await define_family.bind(deps)(
+        DefineFamily(name="A"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await update_capability_settings_schema.bind(deps)(
-        UpdateCapabilitySettingsSchema(
-            capability_id=cap_a_id,
+    await update_family_settings_schema.bind(deps)(
+        UpdateFamilySettingsSchema(
+            family_id=cap_a_id,
             settings_schema={
                 "$schema": _DRAFT,
                 "type": "object",
@@ -232,14 +232,14 @@ async def test_update_asset_settings_rejects_true_type_conflict_across_capabilit
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await define_capability.bind(deps)(
-        DefineCapability(name="B"),
+    await define_family.bind(deps)(
+        DefineFamily(name="B"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await update_capability_settings_schema.bind(deps)(
-        UpdateCapabilitySettingsSchema(
-            capability_id=cap_b_id,
+    await update_family_settings_schema.bind(deps)(
+        UpdateFamilySettingsSchema(
+            family_id=cap_b_id,
             settings_schema={
                 "$schema": _DRAFT,
                 "type": "object",
@@ -254,13 +254,13 @@ async def test_update_asset_settings_rejects_true_type_conflict_across_capabilit
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await add_asset_capability.bind(deps)(
-        AddAssetCapability(asset_id=asset_id, capability_id=cap_a_id),
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=asset_id, family_id=cap_a_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await add_asset_capability.bind(deps)(
-        AddAssetCapability(asset_id=asset_id, capability_id=cap_b_id),
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=asset_id, family_id=cap_b_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -274,7 +274,7 @@ async def test_update_asset_settings_rejects_true_type_conflict_across_capabilit
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-    # Both Capability ids surface in the diagnostic.
+    # Both Family ids surface in the diagnostic.
     assert str(cap_a_id) in exc_info.value.reason
     assert str(cap_b_id) in exc_info.value.reason
     assert "temperature" in exc_info.value.reason

@@ -45,9 +45,9 @@ def _setup_plan_with_schema(
 ) -> str:
     """Seed all upstream + a Plan; optionally set a Method
     parameters_schema. Returns plan_id (str)."""
-    cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
+        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]
     if method_schema is not None:
         resp = client.post(
@@ -63,7 +63,7 @@ def _setup_plan_with_schema(
         "/assets",
         json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+    client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
     plan_id: str = client.post(
         "/plans",
         json={

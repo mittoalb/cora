@@ -2,7 +2,7 @@
 list of methods from the projection.
 
 Single optional filter: status (Defined / Versioned / Deprecated),
-mirroring `ListCapabilities`. Method is the technique-class
+mirroring `ListFamilies`. Method is the technique-class
 definition, equipment-agnostic. Cursor encodes (created_at,
 method_id).
 """

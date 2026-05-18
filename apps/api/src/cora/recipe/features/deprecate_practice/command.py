@@ -2,7 +2,7 @@
 
 Multi-source transition: Defined | Versioned -> Deprecated. Single-
 field command (just practice_id); no body at the API layer. Mirrors
-`DeprecateMethod` / `DeprecateCapability`.
+`DeprecateMethod` / `DeprecateFamily`.
 """
 
 from dataclasses import dataclass

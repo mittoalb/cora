@@ -1,6 +1,6 @@
 """The `GetRun` query — intent dataclass for this read slice.
 
-Mirrors `GetPlan` / `GetPractice` / `GetMethod` / `GetCapability`
+Mirrors `GetPlan` / `GetPractice` / `GetMethod` / `GetFamily`
 / `GetSubject` / `GetActor`: queries are dataclasses just like
 commands.
 """

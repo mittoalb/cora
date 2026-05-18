@@ -330,7 +330,7 @@ async def test_pitch_alignment_plays_out_end_to_end(
     await bind_define_method(deps)(
         DefineMethod(
             name="pitch_alignment",
-            needed_capabilities=frozenset(
+            needed_families=frozenset(
                 {
                     _CAP_ROTARY_STAGE_ID,
                     _CAP_LINEAR_STAGE_ID,
@@ -510,7 +510,7 @@ async def test_pitch_alignment_plays_out_end_to_end(
     ):
         asset_events, _ = await deps.event_store.load("Asset", asset_id)
         event_types = [e.event_type for e in asset_events]
-        assert event_types == ["AssetRegistered", "AssetCapabilityAdded", "AssetActivated"]
+        assert event_types == ["AssetRegistered", "AssetFamilyAdded", "AssetActivated"]
 
     # ----- Assert: 14 step entries land in the projection in canonical order -----
 

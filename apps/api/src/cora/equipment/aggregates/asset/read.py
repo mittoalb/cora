@@ -1,7 +1,7 @@
 """Read repository for the Asset aggregate.
 
 `load_asset(event_store, asset_id) -> Asset | None` mirrors
-`load_capability` / `load_subject` / `load_actor`. Used by the
+`load_family` / `load_subject` / `load_actor`. Used by the
 `get_asset` query slice (5e) and any future update-style commands
 (5c lifecycle, 5d hierarchy).
 """

@@ -63,7 +63,7 @@ router = APIRouter(tags=["equipment"])
             "model": ErrorResponse,
             "description": (
                 "The proposed settings (after merge) failed cross-"
-                "Capability validation: an orphan key, a constraint "
+                "Family validation: an orphan key, a constraint "
                 "violation, or a true type conflict between two "
                 "Capabilities declaring the same key."
             ),

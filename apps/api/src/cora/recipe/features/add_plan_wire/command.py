@@ -11,7 +11,7 @@ Validation (in the decider, not here):
   - both endpoint asset_ids must be in the Plan's `asset_ids` set
   - both endpoint port_names must exist on their respective Asset.ports
   - target port can be the destination of at most one Wire (fan-in
-    forbidden; escape hatch is a `Combiner` Capability Asset)
+    forbidden; escape hatch is a `Combiner` Family Asset)
   - self-loops on the SAME port are rejected; self-loops between
     DIFFERENT ports on the same Asset are allowed
   - re-adding an already-present Wire raises `PlanWireAlreadyExistsError`

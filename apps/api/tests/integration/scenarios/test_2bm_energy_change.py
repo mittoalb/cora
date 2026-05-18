@@ -327,7 +327,7 @@ async def test_energy_change_plays_out_end_to_end(
     await bind_define_method(deps)(
         DefineMethod(
             name="tomography",
-            needed_capabilities=frozenset(
+            needed_families=frozenset(
                 {
                     _CAP_ROTARY_STAGE_ID,
                     _CAP_LINEAR_STAGE_ID,

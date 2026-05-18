@@ -11,17 +11,17 @@ Module-as-namespace surface:
     await handler(cmd, principal_id=..., correlation_id=...)
 
 Phase 5g-c. The first slice that consumes 5g-a's
-`Capability.settings_schema` declarations: the handler loads every
-Capability assigned to the target Asset, unions their schemas, and
+`Family.settings_schema` declarations: the handler loads every
+Family assigned to the target Asset, unions their schemas, and
 validates the proposed (post-merge) settings against the union via
 `jsonschema-rs`. Atomicity is per-Asset (single stream append at
-the end); Capability schemas are read at decision time and may
+the end); Family schemas are read at decision time and may
 change concurrently — we accept the small race because schema
 changes are rare and existing settings are NOT auto-revalidated.
 
 Custom handler (NOT make_asset_update_handler) because the
 factory only loads the target Asset stream; this slice must
-ALSO load N Capability streams concurrently to compute the union.
+ALSO load N Family streams concurrently to compute the union.
 """
 
 from cora.equipment.features.update_asset_settings import tool

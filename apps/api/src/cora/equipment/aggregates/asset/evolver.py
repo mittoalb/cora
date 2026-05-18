@@ -11,8 +11,8 @@ Lifecycle mapping per event type:
   - `AssetRelocated`               -> (lifecycle UNCHANGED; mutates parent_id only)
   - `AssetMaintenanceEntered`      -> MAINTENANCE
   - `AssetRestoredFromMaintenance` -> ACTIVE
-  - `AssetCapabilityAdded`         -> (lifecycle UNCHANGED; inserts into capabilities frozenset)
-  - `AssetCapabilityRemoved`       -> (lifecycle UNCHANGED; removes from capabilities frozenset)
+  - `AssetFamilyAdded`         -> (lifecycle UNCHANGED; inserts into capabilities frozenset)
+  - `AssetFamilyRemoved`       -> (lifecycle UNCHANGED; removes from capabilities frozenset)
   - `AssetDegraded`                -> (lifecycle UNCHANGED; condition -> DEGRADED)
   - `AssetFaulted`                 -> (lifecycle UNCHANGED; condition -> FAULTED)
   - `AssetRestored`                -> (lifecycle UNCHANGED; condition -> NOMINAL)
@@ -22,7 +22,7 @@ Lifecycle mapping per event type:
 
 The lifecycle mapping is hardcoded per match arm — the event type
 IS the lifecycle-change indicator (no lifecycle field in event
-payloads). Same precedent as Subject / Capability. Condition
+payloads). Same precedent as Subject / Family. Condition
 mapping follows the same pattern (event type encodes the target
 condition; no condition field in payload).
 
@@ -33,8 +33,8 @@ AssetRegistered's payload AND mutated by AssetRelocated's
 `to_parent_id` field. `capabilities` defaults to empty frozenset on
 AssetRegistered (additive-state pattern; existing AssetRegistered
 events from before 5f-1 fold cleanly without an upcaster) and is
-mutated incrementally by `AssetCapabilityAdded` /
-`AssetCapabilityRemoved`.
+mutated incrementally by `AssetFamilyAdded` /
+`AssetFamilyRemoved`.
 
 **Critical invariant**: every transition arm MUST carry
 `capabilities` AND `condition` AND `settings` AND `ports` through
@@ -61,11 +61,11 @@ from typing import assert_never
 
 from cora.equipment.aggregates.asset.events import (
     AssetActivated,
-    AssetCapabilityAdded,
-    AssetCapabilityRemoved,
     AssetDecommissioned,
     AssetDegraded,
     AssetEvent,
+    AssetFamilyAdded,
+    AssetFamilyRemoved,
     AssetFaulted,
     AssetMaintenanceEntered,
     AssetPortAdded,
@@ -113,7 +113,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=AssetLifecycle.ACTIVE,
                 condition=prior.condition,
-                capabilities=prior.capabilities,
+                families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
             )
@@ -126,7 +126,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=AssetLifecycle.DECOMMISSIONED,
                 condition=prior.condition,
-                capabilities=prior.capabilities,
+                families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
             )
@@ -144,7 +144,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=to_parent_id,
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
-                capabilities=prior.capabilities,
+                families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
             )
@@ -157,7 +157,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=AssetLifecycle.MAINTENANCE,
                 condition=prior.condition,
-                capabilities=prior.capabilities,
+                families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
             )
@@ -170,17 +170,17 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=AssetLifecycle.ACTIVE,
                 condition=prior.condition,
-                capabilities=prior.capabilities,
+                families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
             )
-        case AssetCapabilityAdded(capability_id=capability_id):
-            # Capability mutation: only `capabilities` changes; everything
+        case AssetFamilyAdded(family_id=family_id):
+            # Family mutation: only `capabilities` changes; everything
             # else carries over. Frozenset semantics: adding an already-
             # present id is a no-op AT THE EVOLVER LAYER (the decider's
             # strict-not-idempotent guard enforces "must not already be
             # present" at command time).
-            prior = require_state(state, "AssetCapabilityAdded")
+            prior = require_state(state, "AssetFamilyAdded")
             return Asset(
                 id=prior.id,
                 name=prior.name,
@@ -188,18 +188,18 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
-                capabilities=prior.capabilities | {capability_id},
+                families=prior.families | {family_id},
                 settings=prior.settings,
                 ports=prior.ports,
             )
-        case AssetCapabilityRemoved(capability_id=capability_id):
-            # Mirror of AssetCapabilityAdded. Frozenset difference is a
+        case AssetFamilyRemoved(family_id=family_id):
+            # Mirror of AssetFamilyAdded. Frozenset difference is a
             # no-op when the id isn't present (decider enforces
             # presence at command time). Settings are NOT auto-purged
-            # when a Capability is removed (5g-c lock: preserve orphans;
+            # when a Family is removed (5g-c lock: preserve orphans;
             # the update_asset_settings slice's null-write is the
             # cleanup path).
-            prior = require_state(state, "AssetCapabilityRemoved")
+            prior = require_state(state, "AssetFamilyRemoved")
             return Asset(
                 id=prior.id,
                 name=prior.name,
@@ -207,7 +207,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
-                capabilities=prior.capabilities - {capability_id},
+                families=prior.families - {family_id},
                 settings=prior.settings,
                 ports=prior.ports,
             )
@@ -225,7 +225,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=AssetCondition.DEGRADED,
-                capabilities=prior.capabilities,
+                families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
             )
@@ -238,7 +238,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=AssetCondition.FAULTED,
-                capabilities=prior.capabilities,
+                families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
             )
@@ -251,7 +251,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=AssetCondition.NOMINAL,
-                capabilities=prior.capabilities,
+                families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
             )
@@ -269,7 +269,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
-                capabilities=prior.capabilities,
+                families=prior.families,
                 settings=settings,
                 ports=prior.ports,
             )
@@ -297,7 +297,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
-                capabilities=prior.capabilities,
+                families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports | {new_port},
             )
@@ -318,7 +318,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
-                capabilities=prior.capabilities,
+                families=prior.families,
                 settings=prior.settings,
                 ports=frozenset(p for p in prior.ports if p.name != port_name),
             )

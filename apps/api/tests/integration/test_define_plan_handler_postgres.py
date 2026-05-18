@@ -18,12 +18,12 @@ import pytest
 
 from cora.equipment.aggregates.asset import AssetLevel
 from cora.equipment.features import (
-    add_asset_capability,
-    define_capability,
+    add_asset_family,
+    define_family,
     register_asset,
 )
-from cora.equipment.features.add_asset_capability import AddAssetCapability
-from cora.equipment.features.define_capability import DefineCapability
+from cora.equipment.features.add_asset_family import AddAssetFamily
+from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.recipe.aggregates.plan import (
     PlanName,
@@ -77,9 +77,9 @@ async def test_define_plan_persists_event_with_audit_snapshots_to_postgres(
         ],
     )
 
-    # Seed upstream chain: Capability → Asset(+capability) → Method → Practice.
-    await define_capability.bind(deps)(
-        DefineCapability(name="FlyMotion"),
+    # Seed upstream chain: Family → Asset(+capability) → Method → Practice.
+    await define_family.bind(deps)(
+        DefineFamily(name="FlyMotion"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -88,13 +88,13 @@ async def test_define_plan_persists_event_with_audit_snapshots_to_postgres(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await add_asset_capability.bind(deps)(
-        AddAssetCapability(asset_id=asset_id, capability_id=cap_id),
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=asset_id, family_id=cap_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await define_method.bind(deps)(
-        DefineMethod(name="XRF Fly Scan Mapping", needed_capabilities=frozenset({cap_id})),
+        DefineMethod(name="XRF Fly Scan Mapping", needed_families=frozenset({cap_id})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -134,8 +134,8 @@ async def test_define_plan_persists_event_with_audit_snapshots_to_postgres(
         "practice_id": str(practice_id),
         "asset_ids": [str(asset_id)],
         "method_id": str(method_id),
-        "method_needed_capabilities_snapshot": [str(cap_id)],
-        "asset_capabilities_snapshot": {str(asset_id): [str(cap_id)]},
+        "method_needed_families_snapshot": [str(cap_id)],
+        "asset_families_snapshot": {str(asset_id): [str(cap_id)]},
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.event_id == plan_event_id

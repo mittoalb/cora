@@ -32,7 +32,7 @@ hexapod is verified enabled again, RestoreAsset fires.
 
 The scenario also unlocks four firsts in CORA's 2-BM doc tree:
 
-  1. New Capability `Hexapod` joins the cross-facility catalog.
+  1. New Family `Hexapod` joins the cross-facility catalog.
   2. New Device `Hexapod_2BM` joins the 2-BM Asset inventory.
   3. New Procedure kind `hexapod_reboot` joins the 2-BM Procedure
      list (first maintenance-phase routine).
@@ -149,7 +149,7 @@ _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000360501")
 _SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000360701")
 _2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000360a01")
 
-# Capability + Device (just the Hexapod for this scenario)
+# Family + Device (just the Hexapod for this scenario)
 _CAP_HEXAPOD_ID = UUID("01900000-0000-7000-8000-000000360c01")
 _ASSET_HEXAPOD_ID = UUID("01900000-0000-7000-8000-000000360a11")
 
@@ -332,7 +332,7 @@ async def test_hexapod_reboot_plays_out_end_to_end(
     await bind_define_method(deps)(
         DefineMethod(
             name="hexapod_reboot",
-            needed_capabilities=frozenset({_CAP_HEXAPOD_ID}),
+            needed_families=frozenset({_CAP_HEXAPOD_ID}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -588,7 +588,7 @@ async def test_hexapod_reboot_plays_out_end_to_end(
     hexapod_event_types = [e.event_type for e in hexapod_events]
     assert hexapod_event_types == [
         "AssetRegistered",  # genesis (Commissioned)
-        "AssetCapabilityAdded",  # +Hexapod capability
+        "AssetFamilyAdded",  # +Hexapod capability
         "AssetActivated",  # Commissioned -> Active
         "AssetFaulted",  # condition Nominal -> Faulted (operator observed lockup)
         "AssetRestored",  # condition Faulted -> Nominal (reboot succeeded)

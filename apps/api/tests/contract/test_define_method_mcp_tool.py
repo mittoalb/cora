@@ -1,7 +1,7 @@
 """Contract tests for the `define_method` MCP tool.
 
-Mirrors `test_define_capability_mcp_tool.py`. Adds a pin that the
-needed_capabilities argument round-trips through the MCP boundary
+Mirrors `test_define_family_mcp_tool.py`. Adds a pin that the
+needed_families argument round-trips through the MCP boundary
 (pydantic UUID list serialization) — the first MCP tool in the
 codebase to take a list-of-UUIDs argument.
 """
@@ -45,7 +45,7 @@ def test_mcp_define_method_tool_returns_structured_method_id() -> None:
                     "name": "define_method",
                     "arguments": {
                         "name": "XRF Mapping",
-                        "needed_capabilities": [cap1],
+                        "needed_families": [cap1],
                     },
                 },
             },
@@ -60,7 +60,7 @@ def test_mcp_define_method_tool_returns_structured_method_id() -> None:
 
 
 @pytest.mark.contract
-def test_mcp_define_method_tool_accepts_empty_needed_capabilities() -> None:
+def test_mcp_define_method_tool_accepts_empty_needed_families() -> None:
     """Procedural Method via MCP."""
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
@@ -74,7 +74,7 @@ def test_mcp_define_method_tool_accepts_empty_needed_capabilities() -> None:
                     "name": "define_method",
                     "arguments": {
                         "name": "Sample Cleaning",
-                        "needed_capabilities": [],
+                        "needed_families": [],
                     },
                 },
             },
@@ -99,7 +99,7 @@ def test_mcp_define_method_tool_returns_iserror_on_invalid_input() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "define_method",
-                    "arguments": {"name": "   ", "needed_capabilities": []},
+                    "arguments": {"name": "   ", "needed_families": []},
                 },
             },
             headers=session_headers,

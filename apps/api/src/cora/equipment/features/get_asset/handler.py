@@ -1,7 +1,7 @@
 """Application handler for the `get_asset` query slice.
 
 Cross-BC query-handler shape (Phase 2b precedent, mirrored from
-`get_capability` / `get_subject` / `get_actor`):
+`get_family` / `get_subject` / `get_actor`):
 
     1. authorize(principal_id, query_name, conduit_id) -> Allow | Deny
     2. load_asset(...)              -> Asset | None  (fold-on-read)
@@ -14,7 +14,7 @@ sagas, projections) get the rich object.
 
 Query handlers do NOT emit `causation_id` log fields — queries have
 no causation chain (they don't emit events that downstream commands
-react to). Same convention as `get_capability` / `get_subject` /
+react to). Same convention as `get_family` / `get_subject` /
 `get_actor`.
 """
 

@@ -7,16 +7,16 @@ No I/O, no awaits, no side effects.
 `now` and `new_id` are injected by the application handler from the
 Clock and IdGenerator ports.
 
-## Eventual-consistency stance for needed_capabilities
+## Eventual-consistency stance for needed_families
 
-The decider does NOT verify each Capability id refers to a real
-Capability stream in the event store. Same precedent as Trust's
+The decider does NOT verify each Family id refers to a real
+Family stream in the event store. Same precedent as Trust's
 Conduit zone refs (3b) and Asset parent refs (5b). Typos produce
 "dangling" Methods that won't bind at Plan time (6e); structural
 validation can be layered at the API boundary if pilot demand
 emerges.
 
-Empty `needed_capabilities` is allowed (a Method that needs no
+Empty `needed_families` is allowed (a Method that needs no
 specific equipment capability — operationally valid for purely
 procedural Methods like "Sample Cleaning").
 """
@@ -64,7 +64,7 @@ def decide(
         MethodDefined(
             method_id=new_id,
             name=name.value,
-            needed_capabilities=list(command.needed_capabilities),
+            needed_families=list(command.needed_families),
             needed_supplies=trimmed_supplies,
             occurred_at=now,
         )

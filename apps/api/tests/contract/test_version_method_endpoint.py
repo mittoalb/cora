@@ -2,7 +2,7 @@
 
 Action endpoint with body `{version_tag}`. Multi-source guard
 (Defined | Versioned -> Versioned). Mirrors
-`test_version_capability_endpoint.py` (Equipment 5f-2).
+`test_version_family_endpoint.py` (Equipment 5f-2).
 """
 
 from uuid import UUID, uuid4
@@ -14,7 +14,7 @@ from cora.api.main import create_app
 
 
 def _define_method(client: TestClient, name: str = "XRF Mapping") -> UUID:
-    response = client.post("/methods", json={"name": name, "needed_capabilities": []})
+    response = client.post("/methods", json={"name": name, "needed_families": []})
     assert response.status_code == 201
     return UUID(response.json()["method_id"])
 

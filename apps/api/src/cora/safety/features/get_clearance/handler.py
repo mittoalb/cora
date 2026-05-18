@@ -1,7 +1,7 @@
 """Application handler for the `get_clearance` query slice.
 
 Cross-BC query-handler shape (mirrored from `get_supply` / `get_actor`
-/ `get_subject` / `get_capability`):
+/ `get_subject` / `get_family`):
 
     1. authorize(principal_id, query_name, conduit_id) -> Allow | Deny
     2. load_clearance(...)            -> Clearance | None  (fold-on-read)

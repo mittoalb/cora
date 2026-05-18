@@ -16,9 +16,9 @@ from cora.api.main import create_app
 
 def _setup_full_plan(client: TestClient) -> tuple[str, str, str]:
     """Seed all upstream then create a Plan. Returns (plan_id, practice_id, asset_id)."""
-    cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
+        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",
@@ -28,7 +28,7 @@ def _setup_full_plan(client: TestClient) -> tuple[str, str, str]:
         "/assets",
         json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+    client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
     plan_id = client.post(
         "/plans",
         json={
@@ -64,10 +64,10 @@ def test_get_plan_returns_sorted_asset_ids_for_deterministic_response() -> None:
     """Multi-asset binding: response asset_ids are deterministically
     ordered for client diff stability."""
     with TestClient(create_app()) as client:
-        cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
+        cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
         method_id = client.post(
             "/methods",
-            json={"name": "Test Method", "needed_capabilities": [cap_id]},
+            json={"name": "Test Method", "needed_families": [cap_id]},
         ).json()["method_id"]
         practice_id = client.post(
             "/practices",
@@ -84,7 +84,7 @@ def test_get_plan_returns_sorted_asset_ids_for_deterministic_response() -> None:
                 "/assets",
                 json={"name": f"Asset{i}", "level": "Enterprise", "parent_id": None},
             ).json()["asset_id"]
-            client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+            client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
             asset_ids.append(asset_id)
         plan_id = client.post(
             "/plans",
@@ -127,5 +127,5 @@ def test_get_plan_omits_audit_snapshots_from_response_per_slim_aggregate() -> No
 
     body = response.json()
     assert "method_id" not in body
-    assert "method_needed_capabilities_snapshot" not in body
-    assert "asset_capabilities_snapshot" not in body
+    assert "method_needed_families_snapshot" not in body
+    assert "asset_families_snapshot" not in body

@@ -4,7 +4,7 @@
 
 The Devices that hang off 2-BM. The 2-BM Asset itself sits at the Unit level and is declared on the [2-BM index](index.md). See [Model](../../architecture/model.md) for the aggregate shape.
 
-| Asset | Capability |
+| Asset | Family |
 | --- | --- |
 | `Shutter_2BM` | `Shutter` |
 | `Aerotech_ABRS_rotary` | `RotaryStage` |
@@ -56,7 +56,7 @@ The Devices that hang off 2-BM. The 2-BM Asset itself sits at the Unit level and
 
 ## Pending
 
-| Asset | Capability |
+| Asset | Family |
 | --- | --- |
 | `Mirror_2BM` | `Mirror` |
 | `softGlueZynq_FPGA` | `TriggerFPGA` |

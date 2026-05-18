@@ -1,6 +1,6 @@
 """The `GetSupply` query — intent dataclass for this read slice.
 
-Mirrors `GetCapability` / `GetAsset` / `GetSubject`: queries are
+Mirrors `GetFamily` / `GetAsset` / `GetSubject`: queries are
 dataclasses just like commands, naming the read intent and carrying
 only what the caller controls. The application handler adds context
 (correlation_id, principal_id) at call time.

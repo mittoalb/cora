@@ -16,9 +16,9 @@ from httpx import AsyncClient
 async def test_mount_then_dismount_clears_mounted_on_asset_id(
     e2e_client: AsyncClient,
 ) -> None:
-    cap = await e2e_client.post("/capabilities", json={"name": "Tomography"})
+    cap = await e2e_client.post("/families", json={"name": "Tomography"})
     assert cap.status_code == 201
-    capability_id = UUID(cap.json()["capability_id"])
+    family_id = UUID(cap.json()["family_id"])
 
     asset = await e2e_client.post(
         "/assets",
@@ -29,7 +29,7 @@ async def test_mount_then_dismount_clears_mounted_on_asset_id(
 
     add_cap = await e2e_client.post(
         f"/assets/{asset_id}/add_capability",
-        json={"capability_id": str(capability_id)},
+        json={"family_id": str(family_id)},
     )
     assert add_cap.status_code == 204
 

@@ -1,6 +1,6 @@
-"""E2E smoke: full Run cascade from Capability to Completed.
+"""E2E smoke: full Run cascade from Family to Completed.
 
-Keystone e2e: register every upstream aggregate (Capability + Asset
+Keystone e2e: register every upstream aggregate (Family + Asset
 + Method + Practice + Plan + Subject + mount-target Asset + an
 Active Safety Clearance bound to the Plan asset), start a Run
 against the chain, complete it, then assert the Completed Run
@@ -80,12 +80,12 @@ async def test_full_run_cascade_to_completed(
     e2e_client: AsyncClient,
     e2e_drain: Callable[[], Awaitable[None]],
 ) -> None:
-    cap = await e2e_client.post("/capabilities", json={"name": "FlyMotion"})
-    capability_id = cap.json()["capability_id"]
+    cap = await e2e_client.post("/families", json={"name": "FlyMotion"})
+    family_id = cap.json()["family_id"]
 
     method = await e2e_client.post(
         "/methods",
-        json={"name": "Test Method", "needed_capabilities": [capability_id]},
+        json={"name": "Test Method", "needed_families": [family_id]},
     )
     method_id = method.json()["method_id"]
 
@@ -102,7 +102,7 @@ async def test_full_run_cascade_to_completed(
     plan_asset_id = plan_asset.json()["asset_id"]
     add = await e2e_client.post(
         f"/assets/{plan_asset_id}/add_capability",
-        json={"capability_id": capability_id},
+        json={"family_id": family_id},
     )
     assert add.status_code == 204
 

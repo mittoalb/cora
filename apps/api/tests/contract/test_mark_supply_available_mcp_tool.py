@@ -12,7 +12,7 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 def _register_supply_via_tool(client: TestClient, headers: dict[str, str]) -> UUID:
     """Seed a supply via the MCP tool (not REST) so the contract test
     exercises the full MCP write surface. Mirrors capability's
-    `_define_capability_via_tool` pattern."""
+    `_define_family_via_tool` pattern."""
     response = client.post(
         "/mcp",
         json={

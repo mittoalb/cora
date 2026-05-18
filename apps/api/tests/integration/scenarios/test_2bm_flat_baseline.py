@@ -315,7 +315,7 @@ async def test_flat_baseline_plays_out_end_to_end(
     await bind_define_method(deps)(
         DefineMethod(
             name="detector_flat_baseline",
-            needed_capabilities=frozenset({_CAP_SHUTTER_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}),
+            needed_families=frozenset({_CAP_SHUTTER_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -464,7 +464,7 @@ async def test_flat_baseline_plays_out_end_to_end(
         asset_events, _ = await deps.event_store.load("Asset", asset_id)
         assert [e.event_type for e in asset_events] == [
             "AssetRegistered",
-            "AssetCapabilityAdded",
+            "AssetFamilyAdded",
             "AssetActivated",
         ]
 

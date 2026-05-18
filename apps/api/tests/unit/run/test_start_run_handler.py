@@ -22,7 +22,7 @@ from cora.equipment.aggregates.asset import (
     AssetNotFoundError,
 )
 from cora.equipment.aggregates.asset.events import (
-    AssetCapabilityAdded,
+    AssetFamilyAdded,
     AssetRegistered,
 )
 from cora.equipment.aggregates.asset.events import (
@@ -116,12 +116,12 @@ async def _seed_method(
     store: InMemoryEventStore,
     method_id: UUID,
     *,
-    needed_capabilities: frozenset[UUID] = frozenset(),
+    needed_families: frozenset[UUID] = frozenset(),
 ) -> None:
     event = MethodDefined(
         method_id=method_id,
         name="Test Method",
-        needed_capabilities=sorted(needed_capabilities, key=str),
+        needed_families=sorted(needed_families, key=str),
         occurred_at=_NOW,
     )
     await _append(
@@ -184,7 +184,7 @@ async def _seed_asset(
     )
     version = 1
     for cap_id in sorted(capabilities, key=str):
-        cap_event = AssetCapabilityAdded(asset_id=asset_id, capability_id=cap_id, occurred_at=_NOW)
+        cap_event = AssetFamilyAdded(asset_id=asset_id, family_id=cap_id, occurred_at=_NOW)
         await _append(
             store,
             stream_type="Asset",
@@ -192,7 +192,7 @@ async def _seed_asset(
             expected_version=version,
             event_type=asset_event_type_name(cap_event),
             payload=asset_to_payload(cap_event),
-            command_name="AddAssetCapability",
+            command_name="AddAssetFamily",
         )
         version += 1
     if decommissioned:
@@ -225,8 +225,8 @@ async def _seed_plan(
         practice_id=practice_id,
         asset_ids=sorted(asset_ids, key=str),
         method_id=method_id,
-        method_needed_capabilities_snapshot=[],
-        asset_capabilities_snapshot={},
+        method_needed_families_snapshot=[],
+        asset_families_snapshot={},
         occurred_at=_NOW,
     )
     await _append(
@@ -286,7 +286,7 @@ async def _seed_full_chain(
     asset_decommissioned: bool = False,
     drift_capability_off_asset: bool = False,
 ) -> tuple[UUID, UUID, UUID, UUID, UUID, UUID]:
-    """Seed Capability → Asset (with capability) → Method → Practice → Plan
+    """Seed Family → Asset (with capability) → Method → Practice → Plan
     + Subject. Returns (cap_id, asset_id, method_id, practice_id, plan_id,
     subject_id). Subject is always Mounted; tests can override.
 
@@ -303,7 +303,7 @@ async def _seed_full_chain(
 
     asset_caps: frozenset[UUID] = frozenset() if drift_capability_off_asset else frozenset({cap_id})
     await _seed_asset(store, asset_id, capabilities=asset_caps, decommissioned=asset_decommissioned)
-    await _seed_method(store, method_id, needed_capabilities=frozenset({cap_id}))
+    await _seed_method(store, method_id, needed_families=frozenset({cap_id}))
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_plan(
         store,

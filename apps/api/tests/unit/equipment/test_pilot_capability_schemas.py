@@ -1,15 +1,15 @@
-"""Unit-tier coverage for the 4 pilot Capability schemas + device values.
+"""Unit-tier coverage for the 4 pilot Family schemas + device values.
 
 Phase 10e-a sibling tests. The integration scenario at
 `tests/integration/scenarios/test_2bm_alignment_center.py`
 exercises these schemas + values end-to-end. These unit tests pin
 the schema-by-schema validator behavior at a faster tier:
 
-  - Each pilot schema parses cleanly as a Capability settings_schema
+  - Each pilot schema parses cleanly as a Family settings_schema
     (subset + unit annotations both valid).
-  - Each pilot device-value dict passes cross-Capability validation
+  - Each pilot device-value dict passes cross-Family validation
     against its declaring schema.
-  - One pilot-specific boundary check per Capability (negative
+  - One pilot-specific boundary check per Family (negative
     max_speed rejected, missing required key rejected, etc.) -- not
     duplicating the validator's own test suite, but pinning the
     bounds the pilot schemas declare are actually enforced.
@@ -27,27 +27,27 @@ from uuid import uuid4
 import pytest
 
 from cora.equipment.aggregates.asset.settings_validation import (
-    validate_settings_against_capabilities,
+    validate_settings_against_families,
 )
 from cora.equipment.aggregates.asset.state import InvalidAssetSettingsError
-from cora.equipment.aggregates.capability.settings_validation import (
-    InvalidCapabilitySettingsSchemaError,
+from cora.equipment.aggregates.family.settings_validation import (
+    InvalidFamilySettingsSchemaError,
     validate_settings_schema,
 )
-from cora.equipment.aggregates.capability.state import (
-    Capability,
-    CapabilityName,
-    CapabilityStatus,
+from cora.equipment.aggregates.family.state import (
+    Family,
+    FamilyName,
+    FamilyStatus,
 )
 
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
 
 
-def _capability(name: str, schema: dict[str, Any]) -> Capability:
-    return Capability(
+def _capability(name: str, schema: dict[str, Any]) -> Family:
+    return Family(
         id=uuid4(),
-        name=CapabilityName(name),
-        status=CapabilityStatus.DEFINED,
+        name=FamilyName(name),
+        status=FamilyStatus.DEFINED,
         settings_schema=schema,
     )
 
@@ -93,7 +93,7 @@ def test_rotary_stage_schema_validates() -> None:
 @pytest.mark.unit
 def test_rotary_stage_device_values_pass() -> None:
     cap = _capability("RotaryStage", _SCHEMA_ROTARY_STAGE)
-    validate_settings_against_capabilities(_SETTINGS_AEROTECH_ABRS, [cap])
+    validate_settings_against_families(_SETTINGS_AEROTECH_ABRS, [cap])
 
 
 @pytest.mark.unit
@@ -103,7 +103,7 @@ def test_rotary_stage_negative_max_speed_rejected() -> None:
     cap = _capability("RotaryStage", _SCHEMA_ROTARY_STAGE)
     bad = {**_SETTINGS_AEROTECH_ABRS, "max_speed": -1.0}
     with pytest.raises(InvalidAssetSettingsError, match=r"max_speed.*minimum"):
-        validate_settings_against_capabilities(bad, [cap])
+        validate_settings_against_families(bad, [cap])
 
 
 # ---------- LinearStage ----------
@@ -145,7 +145,7 @@ def test_linear_stage_schema_validates() -> None:
 @pytest.mark.unit
 def test_linear_stage_device_values_pass() -> None:
     cap = _capability("LinearStage", _SCHEMA_LINEAR_STAGE)
-    validate_settings_against_capabilities(_SETTINGS_SAMPLE_TOP_X, [cap])
+    validate_settings_against_families(_SETTINGS_SAMPLE_TOP_X, [cap])
 
 
 @pytest.mark.unit
@@ -156,7 +156,7 @@ def test_linear_stage_missing_required_key_rejected() -> None:
     cap = _capability("LinearStage", _SCHEMA_LINEAR_STAGE)
     bad = {k: v for k, v in _SETTINGS_SAMPLE_TOP_X.items() if k != "encoder_resolution"}
     with pytest.raises(InvalidAssetSettingsError, match=r"encoder_resolution.*required property"):
-        validate_settings_against_capabilities(bad, [cap])
+        validate_settings_against_families(bad, [cap])
 
 
 # ---------- Camera ----------
@@ -206,7 +206,7 @@ def test_camera_schema_validates() -> None:
 @pytest.mark.unit
 def test_camera_device_values_pass() -> None:
     cap = _capability("Camera", _SCHEMA_CAMERA)
-    validate_settings_against_capabilities(_SETTINGS_ORYX_5MP, [cap])
+    validate_settings_against_families(_SETTINGS_ORYX_5MP, [cap])
 
 
 @pytest.mark.unit
@@ -217,7 +217,7 @@ def test_camera_string_for_pixel_size_rejected() -> None:
     cap = _capability("Camera", _SCHEMA_CAMERA)
     bad = {**_SETTINGS_ORYX_5MP, "pixel_size": "3.45um"}
     with pytest.raises(InvalidAssetSettingsError, match=r"pixel_size.*not of type"):
-        validate_settings_against_capabilities(bad, [cap])
+        validate_settings_against_families(bad, [cap])
 
 
 # ---------- Scintillator ----------
@@ -255,7 +255,7 @@ def test_scintillator_schema_validates() -> None:
 @pytest.mark.unit
 def test_scintillator_device_values_pass() -> None:
     cap = _capability("Scintillator", _SCHEMA_SCINTILLATOR)
-    validate_settings_against_capabilities(_SETTINGS_SCINTILLATOR_LUAG, [cap])
+    validate_settings_against_families(_SETTINGS_SCINTILLATOR_LUAG, [cap])
 
 
 @pytest.mark.unit
@@ -266,7 +266,7 @@ def test_scintillator_unknown_key_rejected() -> None:
     cap = _capability("Scintillator", _SCHEMA_SCINTILLATOR)
     bad = {**_SETTINGS_SCINTILLATOR_LUAG, "decay_tyme": 0.07}
     with pytest.raises(InvalidAssetSettingsError, match=r"Additional properties.*decay_tyme"):
-        validate_settings_against_capabilities(bad, [cap])
+        validate_settings_against_families(bad, [cap])
 
 
 # ---------- Cross-cutting: unit annotation namespace check ----------
@@ -296,7 +296,7 @@ def test_pilot_shape_schema_with_unknown_unit_system_rejected() -> None:
         "required": ["rotation_step"],
     }
     with pytest.raises(
-        InvalidCapabilitySettingsSchemaError,
+        InvalidFamilySettingsSchemaError,
         match=r"unit\.system.*made_up_namespace.*not in",
     ):
         validate_settings_schema(bad_schema)

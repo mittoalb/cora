@@ -2,7 +2,7 @@
 
 Same shape as `register_supply` / `register_actor` / `register_subject`
 / `define_zone` / `define_conduit` / `define_policy` /
-`define_capability` / `register_asset` / `define_method` -- the
+`define_family` / `register_asset` / `define_method` -- the
 locked cross-BC create-style command pattern.
 
 Module-as-namespace: callers use

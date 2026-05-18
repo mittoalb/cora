@@ -92,7 +92,7 @@ The `__init__.py` is the BC's curated public surface; importing through it lets 
 ## Naming
 
 - **Commands**: PascalCase verb+noun in `command.py` (e.g. `RegisterActor`).
-- **Define vs Register**: `Define<X>` for types/templates/configs (Zone, Conduit, Policy, Capability: defined once, referenced as a contract). `Register<X>` for instances (Actor, Subject, Asset: recorded). Genesis event mirrors the verb (`<X>Defined` vs `<X>Registered`).
+- **Define vs Register**: `Define<X>` for types/templates/configs (Zone, Conduit, Policy, Family: defined once, referenced as a contract). `Register<X>` for instances (Actor, Subject, Asset: recorded). Genesis event mirrors the verb (`<X>Defined` vs `<X>Registered`).
 - **Queries**: PascalCase nouns in `query.py` (e.g. `GetActor`).
 - **Decider**: pure `decide` in `decider.py`. Create-style: `decide(state, command, *, now, new_id)`. Update-style: `decide(state, command, *, now)`.
 - **Handler**: `bind(deps) -> Handler` in `handler.py`. Bare `Handler` is a `Protocol`; create/update slices that opt into idempotency also define `IdempotentHandler` (same shape + optional `idempotency_key`).

@@ -8,7 +8,7 @@ caching adds no value).
 This slice loads the Plan stream AND the owning Method stream
 (needed for parameters_schema), so it can't share a single-stream
 factory. Same posture as `update_asset_settings` (5g-c) which loads
-the Asset and each assigned Capability.
+the Asset and each assigned Family.
 
 ## Method-loading concurrency
 

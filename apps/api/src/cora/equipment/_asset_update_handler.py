@@ -9,8 +9,8 @@ combined 11 byte-identical longhand handlers.
 
 ## Per-aggregate, not per-BC
 
-Equipment owns two aggregates (Capability + Asset). This factory
-only handles Asset transitions; if Capability lifecycle
+Equipment owns two aggregates (Family + Asset). This factory
+only handles Asset transitions; if Family lifecycle
 transitions land they get their own
 `make_capability_update_handler` factory in a sibling module
 rather than parameterizing this one (per-aggregate scoping keeps

@@ -1,10 +1,10 @@
 """Unit tests for the `update_asset_settings` application handler.
 
-Phase 5g-c. Longhand handler (loads concurrent Capability streams to
-union settings_schemas). Tests cover happy path with one Capability,
+Phase 5g-c. Longhand handler (loads concurrent Family streams to
+union settings_schemas). Tests cover happy path with one Family,
 RFC 7396 merge accumulation, no-op on unchanged dict,
 AssetNotFoundError, InvalidAssetSettingsError on schema violation,
-auth deny, causation_id propagation, and wire smoke. Multi-Capability
+auth deny, causation_id propagation, and wire smoke. Multi-Family
 cross-schema scenarios are covered by
 `tests/integration/test_update_asset_settings_handler_postgres.py`.
 """
@@ -22,18 +22,18 @@ from cora.equipment.aggregates.asset import (
     InvalidAssetSettingsError,
 )
 from cora.equipment.features import (
-    add_asset_capability,
-    define_capability,
+    add_asset_family,
+    define_family,
     register_asset,
     update_asset_settings,
-    update_capability_settings_schema,
+    update_family_settings_schema,
 )
-from cora.equipment.features.add_asset_capability import AddAssetCapability
-from cora.equipment.features.define_capability import DefineCapability
+from cora.equipment.features.add_asset_family import AddAssetFamily
+from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.update_asset_settings import UpdateAssetSettings
-from cora.equipment.features.update_capability_settings_schema import (
-    UpdateCapabilitySettingsSchema,
+from cora.equipment.features.update_family_settings_schema import (
+    UpdateFamilySettingsSchema,
 )
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
@@ -77,9 +77,9 @@ def _build_deps(
 ) -> Kernel:
     """Thin wrapper preserving this file's ID list + clock.
 
-    Order matches the canonical setup: define_capability,
-    update_capability_settings_schema, register_asset,
-    add_asset_capability, then two update_asset_settings event ids
+    Order matches the canonical setup: define_family,
+    update_family_settings_schema, register_asset,
+    add_asset_family, then two update_asset_settings event ids
     for tests that emit twice.
     """
     return _build_deps_shared(
@@ -100,15 +100,15 @@ def _build_deps(
 
 
 async def _setup_asset_with_schemaful_capability(deps: Kernel) -> UUID:
-    """Define a Capability with a settings_schema, register an Asset,
-    and add the Capability to it. Returns the Asset id."""
-    cap_id = await define_capability.bind(deps)(
-        DefineCapability(name="Tomography"),
+    """Define a Family with a settings_schema, register an Asset,
+    and add the Family to it. Returns the Asset id."""
+    cap_id = await define_family.bind(deps)(
+        DefineFamily(name="Tomography"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await update_capability_settings_schema.bind(deps)(
-        UpdateCapabilitySettingsSchema(capability_id=cap_id, settings_schema=_schema()),
+    await update_family_settings_schema.bind(deps)(
+        UpdateFamilySettingsSchema(family_id=cap_id, settings_schema=_schema()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -117,8 +117,8 @@ async def _setup_asset_with_schemaful_capability(deps: Kernel) -> UUID:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await add_asset_capability.bind(deps)(
-        AddAssetCapability(asset_id=asset_id, capability_id=cap_id),
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=asset_id, family_id=cap_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -152,7 +152,7 @@ async def test_handler_appends_settings_updated_event_with_full_post_merge_dict(
     )
 
     events, version = await store.load("Asset", asset_id)
-    assert version == 3  # AssetRegistered + AssetCapabilityAdded + AssetSettingsUpdated
+    assert version == 3  # AssetRegistered + AssetFamilyAdded + AssetSettingsUpdated
     assert events[-1].event_type == "AssetSettingsUpdated"
     settings_event = events[-1]
     assert settings_event.event_id == _SETTINGS_EVENT_ID

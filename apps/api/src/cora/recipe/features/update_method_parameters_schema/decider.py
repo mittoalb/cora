@@ -14,7 +14,7 @@ per-attestation re-emission is meaningful for content versioning
 (see version_method's "strict-not-idempotent-with-exception"
 rationale) but not for schema declarations, where the value IS the
 audit trail and identical re-submission carries no new information.
-Mirrors `update_capability_settings_schema` (Equipment 5g-a) decider stance.
+Mirrors `update_family_settings_schema` (Equipment 5g-a) decider stance.
 
 Invariants:
   - State must not be None -> MethodNotFoundError

@@ -1,7 +1,7 @@
 """End-to-end integration test for the `adjust_run` slice (Phase 6j).
 
 Exercises the cross-aggregate adjust flow against real Postgres:
-  - seed upstream chain (Capability + Asset + Method (with schema) +
+  - seed upstream chain (Family + Asset + Method (with schema) +
     Practice + Plan + Subject + RunStarted)
   - adjust_run with valid patch -> RunAdjusted persisted; Run state
     folds with merged effective_parameters + last_adjusted_at +
@@ -24,12 +24,12 @@ import pytest
 
 from cora.equipment.aggregates.asset import AssetLevel
 from cora.equipment.features import (
-    add_asset_capability,
-    define_capability,
+    add_asset_family,
+    define_family,
     register_asset,
 )
-from cora.equipment.features.add_asset_capability import AddAssetCapability
-from cora.equipment.features.define_capability import DefineCapability
+from cora.equipment.features.add_asset_family import AddAssetFamily
+from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.infrastructure.kernel import Kernel
 from cora.recipe.features import (
@@ -94,18 +94,18 @@ async def _seed_full_chain(
     method_schema: dict[str, Any] | None,
     plan_defaults: dict[str, Any] | None,
 ) -> tuple[UUID, UUID]:
-    """Seed Capability + Method (with schema) + Practice + Asset +
+    """Seed Family + Method (with schema) + Practice + Asset +
     Plan (with defaults) + Subject (Mounted). Returns (plan_id, subject_id)."""
     ids = [uuid4() for _ in range(40)]
     deps = _build_deps(db_pool, ids)
 
-    cap_id = await define_capability.bind(deps)(
-        DefineCapability(name="FlyMotion"),
+    cap_id = await define_family.bind(deps)(
+        DefineFamily(name="FlyMotion"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     method_id = await define_method.bind(deps)(
-        DefineMethod(name="Test Method", needed_capabilities=frozenset({cap_id})),
+        DefineMethod(name="Test Method", needed_families=frozenset({cap_id})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -125,8 +125,8 @@ async def _seed_full_chain(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await add_asset_capability.bind(deps)(
-        AddAssetCapability(asset_id=asset_id, capability_id=cap_id),
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=asset_id, family_id=cap_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

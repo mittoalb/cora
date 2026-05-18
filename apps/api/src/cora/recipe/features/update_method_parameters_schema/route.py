@@ -2,7 +2,7 @@
 
 Action endpoint at `POST /methods/{method_id}/parameters-schema`.
 Body carries the JSON Schema (or null to clear). 204 No Content on
-success. Same action-endpoint pattern as `update_capability_settings_schema`
+success. Same action-endpoint pattern as `update_family_settings_schema`
 (Equipment 5g-a) and the other transition slices.
 """
 

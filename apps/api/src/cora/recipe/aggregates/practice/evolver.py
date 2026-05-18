@@ -12,7 +12,7 @@ Status mapping per event type:
                                         multi-source: Defined | Versioned)
 
 Mirrors Method's transition evolver shape (Recipe 6b) and
-Capability's (Equipment 5f-2). `version` is mutated by
+Family's (Equipment 5f-2). `version` is mutated by
 PracticeVersioned and PRESERVED by PracticeDeprecated as the audit
 signal of the last revision before deprecation.
 

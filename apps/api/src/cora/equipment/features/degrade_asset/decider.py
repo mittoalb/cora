@@ -8,7 +8,7 @@ Invariants:
   - State must not be None (asset must exist) -> AssetNotFoundError
   - No-op on unchanged: if current condition is already Degraded,
     return [] (matches 5g-a's no-op-on-unchanged precedent for
-    `update_capability_settings_schema`). Reason changes alone do NOT emit a
+    `update_family_settings_schema`). Reason changes alone do NOT emit a
     new event; reason updates belong in a future Asset logbook.
 """
 

@@ -6,7 +6,7 @@ Re-deprecating an already-Deprecated plan raises (strict-not-
 idempotent).
 
 Source-state guard uses tuple-membership (same precedent as
-deprecate_practice / deprecate_method / deprecate_capability /
+deprecate_practice / deprecate_method / deprecate_family /
 decommission_asset).
 
 Invariants:

@@ -17,7 +17,7 @@ as TriggerSource being locked 3-value day one.
 
 Cursor encodes (registered_at, supply_id) — `registered_at` is set
 once at SupplyRegistered (immutable), so it's a stable keyset key.
-Mirrors `list_capabilities` cursor exactly.
+Mirrors `list_families` cursor exactly.
 """
 
 from dataclasses import dataclass

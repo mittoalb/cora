@@ -14,7 +14,7 @@ Pins the wire-level Campaign membership behavior introduced in 6i-c:
     terminal status (Closed) raises RunCannotJoinCampaignError ->
     HTTP 409.
 
-The full upstream chain (Capability + Asset + Method + Practice +
+The full upstream chain (Family + Asset + Method + Practice +
 Plan + Subject) is set up via the public HTTP API per the existing
 `_setup_chain` pattern in test_start_run_idempotency.py.
 """
@@ -31,8 +31,8 @@ from tests.contract._subject_helpers import register_active_asset
 
 
 def _setup_chain(client: TestClient) -> tuple[str, str]:
-    cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
-    method_id = client.post("/methods", json={"name": "M", "needed_capabilities": [cap_id]}).json()[
+    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+    method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
         "method_id"
     ]
     practice_id = client.post(
@@ -42,7 +42,7 @@ def _setup_chain(client: TestClient) -> tuple[str, str]:
     asset_id = client.post(
         "/assets", json={"name": "A", "level": "Enterprise", "parent_id": None}
     ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+    client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
     plan_id = client.post(
         "/plans",
         json={"name": "Plan", "practice_id": practice_id, "asset_ids": [asset_id]},

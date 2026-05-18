@@ -77,7 +77,7 @@ both before reaching the decider.
 
 Status is NOT carried in event payloads — the event type itself
 encodes the state change. Same precedent as PracticeDefined /
-MethodDefined / CapabilityDefined / SubjectMounted /
+MethodDefined / FamilyDefined / SubjectMounted /
 ActorDeactivated / PlanDefined.
 """
 

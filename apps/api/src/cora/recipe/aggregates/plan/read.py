@@ -1,7 +1,7 @@
 """Read repository for the Plan aggregate.
 
 `load_plan(event_store, plan_id) -> Plan | None` mirrors
-`load_practice` / `load_method` / `load_capability` / `load_actor` /
+`load_practice` / `load_method` / `load_family` / `load_actor` /
 etc. Used by the `get_plan` query slice (6e-1) and any future
 update-style commands (6e-2).
 """

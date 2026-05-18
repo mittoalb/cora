@@ -106,10 +106,10 @@ from cora.access.features.register_actor import RegisterActor
 from cora.access.features.register_actor import bind as bind_register_actor
 from cora.agent.seed import RUN_DEBRIEF_AGENT_ID
 from cora.equipment.aggregates.asset import AssetLevel
-from cora.equipment.features.add_asset_capability import AddAssetCapability
-from cora.equipment.features.add_asset_capability import bind as bind_add_capability
-from cora.equipment.features.define_capability import DefineCapability
-from cora.equipment.features.define_capability import bind as bind_define_capability
+from cora.equipment.features.add_asset_family import AddAssetFamily
+from cora.equipment.features.add_asset_family import bind as bind_add_capability
+from cora.equipment.features.define_family import DefineFamily
+from cora.equipment.features.define_family import bind as bind_define_family
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.register_asset import bind as bind_register_asset
 from cora.infrastructure.kernel import Kernel
@@ -171,7 +171,7 @@ _OPERATIONS_COMMANDS: frozenset[str] = frozenset(
         "ActivateAsset",
         "DegradeAsset",
         "RestoreAsset",
-        "AddAssetCapability",
+        "AddAssetFamily",
         "RegisterSubject",
         "MountSubject",
         "DismountSubject",
@@ -222,7 +222,7 @@ def operator_for(scenario_file: str) -> UUID:
 @dataclass(frozen=True)
 class DeviceSpec:
     """One Device under the Unit: its name, pre-allocated asset_id, the
-    Capability it gets linked to, and that Capability's pre-allocated id."""
+    Family it gets linked to, and that Family's pre-allocated id."""
 
     name: str
     asset_id: UUID
@@ -271,8 +271,8 @@ def facility_id_prefix(
       4. register_asset APS (Site): aps_site_id, event
       5. register_asset Sector (Area, parent=APS): sector_id, event
       6. register_asset Unit (parent=Sector): unit_id, event
-      7. define_capability x N (in `devices` order): cap_id, event
-      8. register_asset + add_asset_capability x N: asset_id, register_event, addcap_event
+      7. define_family x N (in `devices` order): cap_id, event
+      8. register_asset + add_asset_family x N: asset_id, register_event, addcap_event
       9. define_zone (2-BM Zone, canonical id): zone_id, event
      10. define_conduit (2-BM Local Conduit, self-loop): conduit_id, event
      11. define_policy x 2 (Operations + Agent, canonical ids): policy_id, event
@@ -414,8 +414,8 @@ async def install_aps_unit(
         correlation_id=correlation_id,
     )
     for d in devices:
-        await bind_define_capability(deps)(
-            DefineCapability(name=d.cap_name),
+        await bind_define_family(deps)(
+            DefineFamily(name=d.cap_name),
             principal_id=principal_id,
             correlation_id=correlation_id,
         )
@@ -426,7 +426,7 @@ async def install_aps_unit(
             correlation_id=correlation_id,
         )
         await bind_add_capability(deps)(
-            AddAssetCapability(asset_id=d.asset_id, capability_id=d.cap_id),
+            AddAssetFamily(asset_id=d.asset_id, family_id=d.cap_id),
             principal_id=principal_id,
             correlation_id=correlation_id,
         )

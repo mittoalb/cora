@@ -67,7 +67,7 @@ status=...)` for the transition arms (terse, but no field-add
 review surface — new fields would silently carry through without
 prompting evolver-arm review). Aligned to explicit construction
 post-domain-audit to match the documented pattern in
-Asset/Plan/Method/Practice/Capability/Subject evolvers.
+Asset/Plan/Method/Practice/Family/Subject evolvers.
 
 Transition events applied to empty state raise ValueError: they
 can never appear before `RunStarted` in a well-formed stream. The

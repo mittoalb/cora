@@ -5,14 +5,14 @@ Both Defined (first revision) and Versioned (subsequent revisions)
 are valid sources; only Deprecated is rejected.
 
 Source-state guard uses tuple-membership (same precedent as
-decommission_asset / version_capability). The decider validates
+decommission_asset / version_family). The decider validates
 `version_tag` defensively via `InvalidMethodVersionTagError` so
 direct in-process callers get the same protection as API-boundary
 callers.
 
 ## Deliberate divergence from strict-not-idempotent
 
-Same as `version_capability` (Equipment 5f-2): re-versioning with
+Same as `version_family` (Equipment 5f-2): re-versioning with
 the same tag succeeds and emits a fresh event. Re-attestation is a
 legitimate audit moment ("the operator confirmed v2 again on date
 X"). Tightening would couple the decider to history-walking, which

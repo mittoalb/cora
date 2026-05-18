@@ -1,7 +1,7 @@
 """Read repository for the Clearance aggregate.
 
 `load_clearance(event_store, clearance_id) -> Clearance | None` mirrors
-`load_supply` / `load_capability` / `load_subject`. Used by the
+`load_supply` / `load_family` / `load_subject`. Used by the
 `get_clearance` query slice (11a-a) and future update-style command
 handlers (11a-b transitions; 11a-c expire / amend).
 """

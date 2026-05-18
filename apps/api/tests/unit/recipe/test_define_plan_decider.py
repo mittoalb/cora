@@ -11,7 +11,7 @@ Validation order pinned per gate-review Q5:
   3. Practice not Deprecated (PracticeDeprecatedError)
   4. Method not Deprecated (MethodDeprecatedError)
   5. No bound Asset Decommissioned (AssetDecommissionedError)
-  6. Capability superset (PlanCapabilitiesNotSatisfiedError)
+  6. Family superset (PlanCapabilitiesNotSatisfiedError)
   7. Name validation (InvalidPlanNameError)
 """
 
@@ -70,13 +70,13 @@ def _practice(
 def _method(
     *,
     method_id: UUID | None = None,
-    needed_capabilities: frozenset[UUID] | None = None,
+    needed_families: frozenset[UUID] | None = None,
     status: MethodStatus = MethodStatus.DEFINED,
 ) -> Method:
     return Method(
         id=method_id or uuid4(),
         name=MethodName("XRF Fly Scan Mapping"),
-        needed_capabilities=needed_capabilities if needed_capabilities is not None else frozenset(),
+        needed_families=needed_families if needed_families is not None else frozenset(),
         status=status,
     )
 
@@ -84,7 +84,7 @@ def _method(
 def _asset(
     *,
     asset_id: UUID | None = None,
-    capabilities: frozenset[UUID] | None = None,
+    families: frozenset[UUID] | None = None,
     lifecycle: AssetLifecycle = AssetLifecycle.ACTIVE,
 ) -> Asset:
     return Asset(
@@ -93,7 +93,7 @@ def _asset(
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=lifecycle,
-        capabilities=capabilities if capabilities is not None else frozenset(),
+        families=families if families is not None else frozenset(),
     )
 
 
@@ -120,10 +120,10 @@ def test_decide_emits_plan_defined_for_valid_binding() -> None:
     """All checks pass: bound Assets satisfy Method's capabilities,
     upstream is non-Deprecated, asset is non-Decommissioned."""
     cap = uuid4()
-    method = _method(needed_capabilities=frozenset({cap}))
+    method = _method(needed_families=frozenset({cap}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
-    asset = _asset(asset_id=asset_id, capabilities=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
     context = PlanBindingContext(practice=practice, method=method, assets={asset_id: asset})
     new_id = uuid4()
     events = define_plan.decide(
@@ -144,8 +144,8 @@ def test_decide_emits_plan_defined_for_valid_binding() -> None:
             practice_id=practice.id,
             asset_ids=[asset_id],
             method_id=method.id,
-            method_needed_capabilities_snapshot=[cap],
-            asset_capabilities_snapshot={asset_id: [cap]},
+            method_needed_families_snapshot=[cap],
+            asset_families_snapshot={asset_id: [cap]},
             occurred_at=_NOW,
         )
     ]
@@ -176,18 +176,18 @@ def test_decide_captures_method_id_in_event_for_audit() -> None:
 
 
 @pytest.mark.unit
-def test_decide_captures_asset_capabilities_snapshot_at_bind_time() -> None:
+def test_decide_captures_asset_families_snapshot_at_bind_time() -> None:
     """gate-review Q4: snapshots in event payload pin what was true
     at bind time, even if Assets later evolve."""
     cap1 = uuid4()
     cap2 = uuid4()
     a1 = uuid4()
     a2 = uuid4()
-    method = _method(needed_capabilities=frozenset({cap1, cap2}))
+    method = _method(needed_families=frozenset({cap1, cap2}))
     practice = _practice(method_id=method.id)
     assets = {
-        a1: _asset(asset_id=a1, capabilities=frozenset({cap1})),
-        a2: _asset(asset_id=a2, capabilities=frozenset({cap2})),
+        a1: _asset(asset_id=a1, families=frozenset({cap1})),
+        a2: _asset(asset_id=a2, families=frozenset({cap2})),
     }
     context = PlanBindingContext(practice=practice, method=method, assets=assets)
     events = define_plan.decide(
@@ -197,7 +197,7 @@ def test_decide_captures_asset_capabilities_snapshot_at_bind_time() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    snapshot = events[0].asset_capabilities_snapshot
+    snapshot = events[0].asset_families_snapshot
     assert snapshot[a1] == [cap1]
     assert snapshot[a2] == [cap2]
 
@@ -359,10 +359,10 @@ def test_decide_accepts_commissioned_lifecycle_for_bound_assets() -> None:
 def test_decide_raises_capabilities_not_satisfied_when_assets_missing_needed_capability() -> None:
     needed_cap = uuid4()
     different_cap = uuid4()
-    method = _method(needed_capabilities=frozenset({needed_cap}))
+    method = _method(needed_families=frozenset({needed_cap}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
-    asset = _asset(asset_id=asset_id, capabilities=frozenset({different_cap}))
+    asset = _asset(asset_id=asset_id, families=frozenset({different_cap}))
     context = PlanBindingContext(practice=practice, method=method, assets={asset_id: asset})
     with pytest.raises(PlanCapabilitiesNotSatisfiedError) as exc_info:
         define_plan.decide(
@@ -372,7 +372,7 @@ def test_decide_raises_capabilities_not_satisfied_when_assets_missing_needed_cap
             now=_NOW,
             new_id=uuid4(),
         )
-    assert exc_info.value.missing_capability_ids == frozenset({needed_cap})
+    assert exc_info.value.missing_family_ids == frozenset({needed_cap})
 
 
 @pytest.mark.unit
@@ -382,15 +382,15 @@ def test_decide_uses_union_of_bound_assets_capabilities_for_satisfaction_check()
     distributed across multiple Assets binds successfully."""
     cap1 = uuid4()
     cap2 = uuid4()
-    method = _method(needed_capabilities=frozenset({cap1, cap2}))
+    method = _method(needed_families=frozenset({cap1, cap2}))
     practice = _practice(method_id=method.id)
     a1 = uuid4()
     a2 = uuid4()
     # Each asset has only ONE of the two needed capabilities;
     # together they cover both.
     assets = {
-        a1: _asset(asset_id=a1, capabilities=frozenset({cap1})),
-        a2: _asset(asset_id=a2, capabilities=frozenset({cap2})),
+        a1: _asset(asset_id=a1, families=frozenset({cap1})),
+        a2: _asset(asset_id=a2, families=frozenset({cap2})),
     }
     context = PlanBindingContext(practice=practice, method=method, assets=assets)
     events = define_plan.decide(
@@ -409,10 +409,10 @@ def test_decide_accepts_assets_with_extra_capabilities_beyond_method_needs() -> 
     the Method needs (extras are fine)."""
     needed = uuid4()
     extra = uuid4()
-    method = _method(needed_capabilities=frozenset({needed}))
+    method = _method(needed_families=frozenset({needed}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
-    asset = _asset(asset_id=asset_id, capabilities=frozenset({needed, extra}))
+    asset = _asset(asset_id=asset_id, families=frozenset({needed, extra}))
     context = PlanBindingContext(practice=practice, method=method, assets={asset_id: asset})
     events = define_plan.decide(
         state=None,
@@ -425,13 +425,13 @@ def test_decide_accepts_assets_with_extra_capabilities_beyond_method_needs() -> 
 
 
 @pytest.mark.unit
-def test_decide_accepts_method_with_empty_needed_capabilities() -> None:
+def test_decide_accepts_method_with_empty_needed_families() -> None:
     """Procedural Methods (no equipment requirement) bind to any set
     of Assets without capability-check failure."""
-    method = _method(needed_capabilities=frozenset())
+    method = _method(needed_families=frozenset())
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
-    asset = _asset(asset_id=asset_id, capabilities=frozenset())
+    asset = _asset(asset_id=asset_id, families=frozenset())
     context = PlanBindingContext(practice=practice, method=method, assets={asset_id: asset})
     events = define_plan.decide(
         state=None,

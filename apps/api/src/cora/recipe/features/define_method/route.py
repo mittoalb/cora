@@ -4,7 +4,7 @@ Pydantic request/response schemas + APIRouter for `POST /methods`.
 The slice's BC-level wiring (`cora.recipe.routes.register_recipe_routes`)
 includes this router on the FastAPI app.
 
-`needed_capabilities` accepts a list of UUIDs at the API boundary
+`needed_families` accepts a list of UUIDs at the API boundary
 (JSON arrays don't have set semantics); the handler converts to
 frozenset before threading into the command. Empty list is allowed
 (maps to empty frozenset, which the decider permits — operationally
@@ -29,17 +29,17 @@ from cora.recipe.features.define_method.handler import IdempotentHandler
 class DefineMethodRequest(BaseModel):
     """Body for `POST /methods`.
 
-    `needed_capabilities` is required (use `[]` for procedural
+    `needed_families` is required (use `[]` for procedural
     Methods that need no specific equipment capability). Eventual-
-    consistency: each Capability id is NOT verified against the
-    Capability stream; mismatch surfaces at Plan binding (6e).
+    consistency: each Family id is NOT verified against the
+    Family stream; mismatch surfaces at Plan binding (6e).
 
     `needed_supplies` (Phase 10b) is optional; defaults to `[]` for
     backward-compat (pre-10b clients keep working). Each element is
     a Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.
-    Asymmetric vs needed_capabilities by design — see
+    Asymmetric vs needed_families by design — see
     [[project_supply_design]] §"Phase 10b — Method.needed_supplies
-    consumer" for the rationale (Capability is TYPE registry,
+    consumer" for the rationale (Family is TYPE registry,
     Supply is INSTANCE aggregate per facility sharing a `kind` label).
     Eventual-consistency: kind strings are NOT verified against the
     Supply stream; mismatch surfaces at Plan binding (10c+).
@@ -51,12 +51,12 @@ class DefineMethodRequest(BaseModel):
         max_length=METHOD_NAME_MAX_LENGTH,
         description="Display name for the new method.",
     )
-    needed_capabilities: list[UUID] = Field(
+    needed_families: list[UUID] = Field(
         ...,
         description=(
-            "Capability ids this Method requires. May be empty. "
+            "Family ids this Method requires. May be empty. "
             "Eventual-consistency: ids are NOT verified against the "
-            "Capability stream at decide time; mismatch surfaces at "
+            "Family stream at decide time; mismatch surfaces at "
             "Plan binding (Phase 6e)."
         ),
     )
@@ -138,7 +138,7 @@ async def post_methods(
     method_id = await handler(
         DefineMethod(
             name=body.name,
-            needed_capabilities=frozenset(body.needed_capabilities),
+            needed_families=frozenset(body.needed_families),
             needed_supplies=frozenset(body.needed_supplies),
         ),
         principal_id=principal_id,

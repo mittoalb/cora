@@ -40,7 +40,7 @@ def _context(
     referencing_clearances: tuple[ClearanceReference, ...],
 ) -> tuple[RunStartContext, frozenset[UUID]]:
     """Build a RunStartContext that would pass every check EXCEPT the
-    clearance gate. Returns the context + the needed_capabilities the
+    clearance gate. Returns the context + the needed_families the
     handler would resolve so the decider sees a fully-satisfied Plan
     on the non-clearance dimensions."""
     cap = uuid4()
@@ -58,7 +58,7 @@ def _context(
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        capabilities=frozenset({cap}),
+        families=frozenset({cap}),
     )
     subject = Subject(
         id=uuid4(),
@@ -97,7 +97,7 @@ def test_decide_raises_requires_active_when_no_clearance_references_the_run() ->
                 subject_id=context.subject.id if context.subject else None,
             ),
             context=context,
-            needed_capabilities_snapshot=needs,
+            needed_families_snapshot=needs,
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,
@@ -124,7 +124,7 @@ def test_decide_raises_coverage_mismatch_when_no_clearance_is_active(status: str
                 subject_id=context.subject.id if context.subject else None,
             ),
             context=context,
-            needed_capabilities_snapshot=needs,
+            needed_families_snapshot=needs,
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,
@@ -152,7 +152,7 @@ def test_decide_passes_when_at_least_one_active_clearance_covers() -> None:
             subject_id=context.subject.id if context.subject else None,
         ),
         context=context,
-        needed_capabilities_snapshot=needs,
+        needed_families_snapshot=needs,
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -191,7 +191,7 @@ def test_decide_clearance_gate_fires_before_plan_status_check() -> None:
                 subject_id=context.subject.id if context.subject else None,
             ),
             context=deprecated_context,
-            needed_capabilities_snapshot=needs,
+            needed_families_snapshot=needs,
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,

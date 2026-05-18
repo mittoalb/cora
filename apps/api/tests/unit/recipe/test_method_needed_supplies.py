@@ -12,7 +12,7 @@ Covers:
   - Each transition (Versioned, Deprecated, ParametersSchemaUpdated)
     PRESERVES needed_supplies through (preserve-fields invariant)
 
-Asymmetric-with-needed_capabilities design (str vs UUID) is exercised
+Asymmetric-with-needed_families design (str vs UUID) is exercised
 implicitly throughout — needed_supplies elements are kind STRINGS,
 never instance UUIDs.
 """
@@ -74,13 +74,13 @@ def test_method_state_carries_supplied_needed_supplies() -> None:
 
 @pytest.mark.unit
 def test_decider_accepts_empty_needed_supplies() -> None:
-    """Sample-cleaning Method valid: no Capability AND no Supply
+    """Sample-cleaning Method valid: no Family AND no Supply
     requirement (purely procedural)."""
     events = define_method.decide(
         state=None,
         command=DefineMethod(
             name="Sample Cleaning",
-            needed_capabilities=frozenset(),
+            needed_families=frozenset(),
             needed_supplies=frozenset(),
         ),
         now=_NOW,
@@ -95,7 +95,7 @@ def test_decider_accepts_populated_needed_supplies() -> None:
         state=None,
         command=DefineMethod(
             name="Tomography",
-            needed_capabilities=frozenset(),
+            needed_families=frozenset(),
             needed_supplies=frozenset({"PhotonBeam", "LiquidNitrogen"}),
         ),
         now=_NOW,
@@ -112,7 +112,7 @@ def test_decider_trims_each_kind_string() -> None:
         state=None,
         command=DefineMethod(
             name="X",
-            needed_capabilities=frozenset(),
+            needed_families=frozenset(),
             needed_supplies=frozenset({"  PhotonBeam  ", "LiquidNitrogen"}),
         ),
         now=_NOW,
@@ -129,7 +129,7 @@ def test_decider_rejects_whitespace_only_kind() -> None:
             state=None,
             command=DefineMethod(
                 name="X",
-                needed_capabilities=frozenset(),
+                needed_families=frozenset(),
                 needed_supplies=frozenset({"   "}),
             ),
             now=_NOW,
@@ -144,7 +144,7 @@ def test_decider_rejects_empty_kind() -> None:
             state=None,
             command=DefineMethod(
                 name="X",
-                needed_capabilities=frozenset(),
+                needed_families=frozenset(),
                 needed_supplies=frozenset({""}),
             ),
             now=_NOW,
@@ -160,7 +160,7 @@ def test_decider_rejects_oversized_kind() -> None:
             state=None,
             command=DefineMethod(
                 name="X",
-                needed_capabilities=frozenset(),
+                needed_families=frozenset(),
                 needed_supplies=frozenset({"x" * 51}),
             ),
             now=_NOW,
@@ -175,7 +175,7 @@ def test_decider_accepts_max_length_kind() -> None:
         state=None,
         command=DefineMethod(
             name="X",
-            needed_capabilities=frozenset(),
+            needed_families=frozenset(),
             needed_supplies=frozenset({boundary}),
         ),
         now=_NOW,
@@ -195,7 +195,7 @@ def test_to_payload_sorts_needed_supplies_lexically() -> None:
     event = MethodDefined(
         method_id=uuid4(),
         name="X",
-        needed_capabilities=[],
+        needed_families=[],
         needed_supplies=["LiquidNitrogen", "PhotonBeam", "ComputePool"],
         occurred_at=_NOW,
     )
@@ -208,7 +208,7 @@ def test_event_round_trips_with_needed_supplies() -> None:
     original = MethodDefined(
         method_id=uuid4(),
         name="Tomography",
-        needed_capabilities=[],
+        needed_families=[],
         needed_supplies=["LiquidNitrogen", "PhotonBeam"],
         occurred_at=_NOW,
     )
@@ -231,7 +231,7 @@ def test_pre_10b_event_payload_folds_with_empty_needed_supplies() -> None:
     pre_10b_payload: dict[str, object] = {
         "method_id": str(uuid4()),
         "name": "Pre-10b Method",
-        "needed_capabilities": [],
+        "needed_families": [],
         "occurred_at": _NOW.isoformat(),
         # No needed_supplies key — pre-10b payload shape.
     }
@@ -252,7 +252,7 @@ def test_evolve_method_defined_sets_needed_supplies() -> None:
     event = MethodDefined(
         method_id=method_id,
         name="Tomography",
-        needed_capabilities=[],
+        needed_families=[],
         needed_supplies=["PhotonBeam", "LiquidNitrogen"],
         occurred_at=_NOW,
     )
@@ -269,7 +269,7 @@ def _seed_state(supplies: frozenset[str]) -> Method:
         MethodDefined(
             method_id=uuid4(),
             name="Tomography",
-            needed_capabilities=[],
+            needed_families=[],
             needed_supplies=list(supplies),
             occurred_at=_NOW,
         ),
@@ -317,7 +317,7 @@ def test_fold_full_lifecycle_preserves_needed_supplies() -> None:
             MethodDefined(
                 method_id=method_id,
                 name="Tomography",
-                needed_capabilities=[],
+                needed_families=[],
                 needed_supplies=["PhotonBeam", "LiquidNitrogen"],
                 occurred_at=_NOW,
             ),
@@ -365,7 +365,7 @@ def test_event_type_name_for_method_defined_unchanged() -> None:
     event = MethodDefined(
         method_id=uuid4(),
         name="X",
-        needed_capabilities=[],
+        needed_families=[],
         needed_supplies=[],
         occurred_at=_NOW,
     )

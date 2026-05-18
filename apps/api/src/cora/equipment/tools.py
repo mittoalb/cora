@@ -12,26 +12,26 @@ from collections.abc import Callable
 from mcp.server.fastmcp import FastMCP
 
 from cora.equipment.features.activate_asset import tool as activate_asset_tool
-from cora.equipment.features.add_asset_capability import (
-    tool as add_asset_capability_tool,
+from cora.equipment.features.add_asset_family import (
+    tool as add_asset_family_tool,
 )
 from cora.equipment.features.add_asset_port import tool as add_asset_port_tool
 from cora.equipment.features.decommission_asset import tool as decommission_asset_tool
-from cora.equipment.features.define_capability import tool as define_capability_tool
+from cora.equipment.features.define_family import tool as define_family_tool
 from cora.equipment.features.degrade_asset import tool as degrade_asset_tool
-from cora.equipment.features.deprecate_capability import (
-    tool as deprecate_capability_tool,
+from cora.equipment.features.deprecate_family import (
+    tool as deprecate_family_tool,
 )
 from cora.equipment.features.enter_maintenance import tool as enter_maintenance_tool
 from cora.equipment.features.fault_asset import tool as fault_asset_tool
 from cora.equipment.features.get_asset import tool as get_asset_tool
-from cora.equipment.features.get_capability import tool as get_capability_tool
+from cora.equipment.features.get_family import tool as get_family_tool
 from cora.equipment.features.list_assets import tool as list_assets_tool
-from cora.equipment.features.list_capabilities import tool as list_capabilities_tool
+from cora.equipment.features.list_families import tool as list_families_tool
 from cora.equipment.features.register_asset import tool as register_asset_tool
 from cora.equipment.features.relocate_asset import tool as relocate_asset_tool
-from cora.equipment.features.remove_asset_capability import (
-    tool as remove_asset_capability_tool,
+from cora.equipment.features.remove_asset_family import (
+    tool as remove_asset_family_tool,
 )
 from cora.equipment.features.remove_asset_port import tool as remove_asset_port_tool
 from cora.equipment.features.restore_asset import tool as restore_asset_tool
@@ -41,10 +41,10 @@ from cora.equipment.features.restore_from_maintenance import (
 from cora.equipment.features.update_asset_settings import (
     tool as update_asset_settings_tool,
 )
-from cora.equipment.features.update_capability_settings_schema import (
-    tool as update_capability_settings_schema_tool,
+from cora.equipment.features.update_family_settings_schema import (
+    tool as update_family_settings_schema_tool,
 )
-from cora.equipment.features.version_capability import tool as version_capability_tool
+from cora.equipment.features.version_family import tool as version_family_tool
 from cora.equipment.wire import EquipmentHandlers
 
 
@@ -54,25 +54,25 @@ def register_equipment_tools(
     get_handlers: Callable[[], EquipmentHandlers],
 ) -> None:
     """Register every Equipment slice's MCP tool on the FastMCP server."""
-    define_capability_tool.register(
+    define_family_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().define_capability,
+        get_handler=lambda: get_handlers().define_family,
     )
-    get_capability_tool.register(
+    get_family_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().get_capability,
+        get_handler=lambda: get_handlers().get_family,
     )
-    version_capability_tool.register(
+    version_family_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().version_capability,
+        get_handler=lambda: get_handlers().version_family,
     )
-    deprecate_capability_tool.register(
+    deprecate_family_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().deprecate_capability,
+        get_handler=lambda: get_handlers().deprecate_family,
     )
-    update_capability_settings_schema_tool.register(
+    update_family_settings_schema_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().update_capability_settings_schema,
+        get_handler=lambda: get_handlers().update_family_settings_schema,
     )
     register_asset_tool.register(
         mcp,
@@ -98,13 +98,13 @@ def register_equipment_tools(
         mcp,
         get_handler=lambda: get_handlers().restore_from_maintenance,
     )
-    add_asset_capability_tool.register(
+    add_asset_family_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().add_asset_capability,
+        get_handler=lambda: get_handlers().add_asset_family,
     )
-    remove_asset_capability_tool.register(
+    remove_asset_family_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().remove_asset_capability,
+        get_handler=lambda: get_handlers().remove_asset_family,
     )
     degrade_asset_tool.register(
         mcp,
@@ -138,7 +138,7 @@ def register_equipment_tools(
         mcp,
         get_handler=lambda: get_handlers().list_assets,
     )
-    list_capabilities_tool.register(
+    list_families_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().list_capabilities,
+        get_handler=lambda: get_handlers().list_families,
     )

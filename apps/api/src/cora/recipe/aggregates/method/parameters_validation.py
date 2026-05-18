@@ -13,7 +13,7 @@ same shared module via Plan / Run thin wrappers.
 This module is a thin BC-specific adapter: it defines the
 `InvalidMethodParametersSchemaError` exception class and a
 one-liner `validate_parameters_schema` that delegates to the
-shared validator. Mirrors the Capability schema-validation
+shared validator. Mirrors the Family schema-validation
 adapter shape from 5g-a.
 """
 

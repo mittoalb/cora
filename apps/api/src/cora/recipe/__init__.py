@@ -6,7 +6,7 @@ type hierarchy (General → Site → Master → Control):
 
   - `Method` ≈ ISA-88 General Recipe — the technique class, vendor /
     scientific-community level. Equipment-agnostic (refers to
-    `Capability` ids, not specific Asset instances). Phase 6a.
+    `Family` ids, not specific Asset instances). Phase 6a.
   - `Practice` ≈ ISA-88 Site Recipe — a facility's adapted version
     of a Method (institutional constraints, default parameter
     envelopes, safety overlay), still abstract over which Asset
@@ -17,17 +17,17 @@ type hierarchy (General → Site → Master → Control):
   - `Run` — the actual execution. High-cardinality streams; first
     BC where observation channels become relevant. Phase 6f.
 
-Track-A BC: depends on `Equipment.Capability` (referenced by
-`Method.needed_capabilities`) and (later) `Equipment.Asset`
+Track-A BC: depends on `Equipment.Family` (referenced by
+`Method.needed_families`) and (later) `Equipment.Asset`
 (referenced by `Plan` binding). Cross-aggregate refs use the
 eventual-consistency stance (decider does NOT verify referenced
-Capability / Asset exists; precedent locked at Trust 3b).
+Family / Asset exists; precedent locked at Trust 3b).
 
 Phase history (✅ all shipped except 6c, 6f):
   - 6a: `Method` + `define_method` + `get_method`
   - 6b: Method transitions (version, deprecate)
   - 6d: Practice aggregate (define + get + version + deprecate)
-  - 5f: Asset.capabilities (just-in-time before Plan; Equipment side)
+  - 5f: Asset.families (just-in-time before Plan; Equipment side)
   - 6e: Plan aggregate (define + get + version + deprecate; binds
     Practice + multi-asset set with capability-superset check via
     PlanBindingContext pattern)

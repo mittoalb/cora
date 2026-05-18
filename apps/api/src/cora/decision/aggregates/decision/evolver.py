@@ -25,7 +25,7 @@ actor_id=..., context=..., choice=...)` without explicitly
 passing the additive fields would silently WIPE them to defaults
 (None / empty tuple / empty dict). Aligned to explicit construction
 post-domain-audit to match the documented pattern in
-Asset/Plan/Method/Practice/Capability/Subject evolvers.
+Asset/Plan/Method/Practice/Family/Subject evolvers.
 
 Defensive guards: both logbook arms raise on `state is None`
 (the parent Decision must exist before any logbook can attach

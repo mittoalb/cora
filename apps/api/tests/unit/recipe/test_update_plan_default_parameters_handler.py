@@ -72,7 +72,7 @@ async def _seed_method(store: InMemoryEventStore, *, schema: dict[str, Any] | No
     define = MethodDefined(
         method_id=_METHOD_ID,
         name="Phase-Contrast Micro-CT",
-        needed_capabilities=[],
+        needed_families=[],
         occurred_at=_NOW,
     )
     events = [
@@ -114,8 +114,8 @@ async def _seed_plan(store: InMemoryEventStore) -> None:
         practice_id=_PRACTICE_ID,
         asset_ids=[_ASSET_ID],
         method_id=_METHOD_ID,
-        method_needed_capabilities_snapshot=[],
-        asset_capabilities_snapshot={_ASSET_ID: []},
+        method_needed_families_snapshot=[],
+        asset_families_snapshot={_ASSET_ID: []},
         occurred_at=_NOW,
     )
     await store.append(

@@ -1,7 +1,7 @@
 """Application handler for the `register_supply` slice.
 
 Same shape as `register_actor` / `register_subject` / `define_zone`
-/ `define_conduit` / `define_policy` / `define_capability` /
+/ `define_conduit` / `define_policy` / `define_family` /
 `register_asset` — the locked cross-BC create-style command pattern.
 Module-as-namespace: callers use
 `from cora.supply.features import register_supply` then

@@ -1,7 +1,7 @@
 """Read repository for the Supply aggregate.
 
 `load_supply(event_store, supply_id) -> Supply | None` mirrors
-`load_capability` / `load_asset` / `load_subject`. Used by the
+`load_family` / `load_asset` / `load_subject`. Used by the
 `get_supply` query slice (10a-a) and update-style command handlers
 (10a-a `mark_supply_available`; 10a-b transition slices).
 """

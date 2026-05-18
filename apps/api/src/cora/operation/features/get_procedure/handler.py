@@ -1,7 +1,7 @@
 """Application handler for the `get_procedure` query slice.
 
 Cross-BC query-handler shape (Phase 2b precedent, mirrored from
-`get_actor` / `get_subject` / `get_capability` / `get_supply`):
+`get_actor` / `get_subject` / `get_family` / `get_supply`):
 
     1. authorize(principal_id, query_name, conduit_id) -> Allow | Deny
     2. load_procedure(...)             -> Procedure | None  (fold-on-read)
@@ -14,7 +14,7 @@ output. Handlers stay in domain types so non-HTTP/MCP consumers
 
 Query handlers do NOT emit `causation_id` log fields -- queries
 have no causation chain (they don't emit events that downstream
-commands react to). Same convention as `get_capability` /
+commands react to). Same convention as `get_family` /
 `get_subject` / `get_supply`.
 """
 

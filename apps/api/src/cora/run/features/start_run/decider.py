@@ -29,16 +29,16 @@ fundamental issues surface first:
    context.subject is None).
 4. No bound Asset may be Decommissioned → `RunAssetDecommissionedError`
    carrying the offending asset_ids.
-5. RE-VALIDATE: `union(asset.capabilities) ⊇ method.needed_capabilities`
+5. RE-VALIDATE: `union(asset.families) ⊇ method.needed_families`
    against CURRENT Asset state (gate-review Q5: drift since Plan-bind
    is real; Run-start is the last gate before execution).
    `RunCapabilitiesNotSatisfiedError` carrying the missing capability
-   ids. **NOTE**: Method's needed_capabilities comes via Plan; we
+   ids. **NOTE**: Method's needed_families comes via Plan; we
    load Plan but NOT Method here — instead, the handler resolved
    Plan → Method at load time and passes the needs as part of...
    wait, re-reading: actually we don't have Method directly in
    RunStartContext. Plan's bind-time snapshot in PlanDefined event
-   carries `method_needed_capabilities_snapshot`, but we need
+   carries `method_needed_families_snapshot`, but we need
    CURRENT Method state for re-validation. The handler must load
    Method via plan.practice_id → practice.method_id → Method.
    See handler docstring.
@@ -46,7 +46,7 @@ fundamental issues surface first:
    Wait, simpler: we re-load via the snapshot. The PlanDefined
    event captured method_id and the needs snapshot. We could trust
    the snapshot, OR we could re-load Method to get current
-   needed_capabilities. Per gate-review Q5 ("re-validate at Run-
+   needed_families. Per gate-review Q5 ("re-validate at Run-
    start"), we re-load to catch Method drift too.
 
    Actually for 6f-1 simplicity, we trust Plan's bind-time
@@ -133,7 +133,7 @@ def decide(
     command: StartRun,
     *,
     context: RunStartContext,
-    needed_capabilities_snapshot: frozenset[UUID],
+    needed_families_snapshot: frozenset[UUID],
     effective_parameters: dict[str, Any],
     method_parameters_schema: dict[str, Any] | None,
     now: datetime,
@@ -141,9 +141,9 @@ def decide(
 ) -> RunStartEvents:
     """Decide the events produced by starting a new run.
 
-    `needed_capabilities_snapshot` is the Method's needed_capabilities
+    `needed_families_snapshot` is the Method's needed_families
     set the handler resolved transitively from `plan.practice_id →
-    practice.method_id → method.needed_capabilities`. Passed in as a
+    practice.method_id → method.needed_families`. Passed in as a
     plain frozenset so the decider stays purely state-driven.
 
     `effective_parameters` is the post-merge dict (Plan defaults +
@@ -201,9 +201,9 @@ def decide(
     # cover Method's needs (per gate-review Q5; drift since Plan-bind
     # is real; Run-start is the last gate).
     union_capabilities: frozenset[UUID] = frozenset(
-        cap for asset in context.assets.values() for cap in asset.capabilities
+        cap for asset in context.assets.values() for cap in asset.families
     )
-    missing = needed_capabilities_snapshot - union_capabilities
+    missing = needed_families_snapshot - union_capabilities
     if missing:
         raise RunCapabilitiesNotSatisfiedError(missing)
 

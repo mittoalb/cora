@@ -61,10 +61,10 @@ def test_projection_metadata() -> None:
 
 @pytest.mark.unit
 async def test_projection_does_not_subscribe_to_capability_events() -> None:
-    """Asset<->Capability join events belong in a future projection."""
+    """Asset<->Family join events belong in a future projection."""
     proj = AssetSummaryProjection()
-    assert "AssetCapabilityAdded" not in proj.subscribed_event_types
-    assert "AssetCapabilityRemoved" not in proj.subscribed_event_types
+    assert "AssetFamilyAdded" not in proj.subscribed_event_types
+    assert "AssetFamilyRemoved" not in proj.subscribed_event_types
 
 
 @pytest.mark.unit
@@ -199,12 +199,12 @@ async def test_unknown_event_type_falls_through_match() -> None:
 
 @pytest.mark.unit
 async def test_asset_capability_added_is_silently_dropped() -> None:
-    """AssetCapabilityAdded is intentionally NOT in subscribed_event_types
+    """AssetFamilyAdded is intentionally NOT in subscribed_event_types
     (belongs in a future asset_capabilities join projection). If the
     SQL filter ever lets one through, the bare match drops it."""
     proj = AssetSummaryProjection()
     conn = AsyncMock()
-    event = _stored("AssetCapabilityAdded", {"asset_id": str(_ASSET_ID)})
+    event = _stored("AssetFamilyAdded", {"asset_id": str(_ASSET_ID)})
     await proj.apply(event, conn)
     conn.execute.assert_not_awaited()
 

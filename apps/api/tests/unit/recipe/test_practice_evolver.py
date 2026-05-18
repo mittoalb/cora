@@ -177,7 +177,7 @@ def test_evolve_practice_versioned_on_empty_state_raises() -> None:
 @pytest.mark.unit
 def test_evolve_practice_deprecated_flips_status_and_preserves_version() -> None:
     """version preserved across deprecation. Mirrors Method
-    and Capability shape."""
+    and Family shape."""
     practice_id = uuid4()
     method_id = uuid4()
     site_id = uuid4()

@@ -12,9 +12,9 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 def _setup_chain_via_rest(client: TestClient) -> tuple[str, str]:
     """Seed Method+Practice+Asset (with capability) via REST so the
     MCP define_plan call has valid upstream to bind."""
-    cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
+        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",
@@ -24,7 +24,7 @@ def _setup_chain_via_rest(client: TestClient) -> tuple[str, str]:
         "/assets",
         json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+    client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
     return practice_id, asset_id
 
 

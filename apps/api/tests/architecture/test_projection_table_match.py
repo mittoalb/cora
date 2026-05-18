@@ -39,13 +39,33 @@ _CREATE_PROJ_TABLE_RE = re.compile(
     r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(proj_[a-zA-Z_][a-zA-Z0-9_]*)",
     re.IGNORECASE,
 )
+_RENAME_PROJ_TABLE_RE = re.compile(
+    r"ALTER\s+TABLE\s+(proj_[a-zA-Z_][a-zA-Z0-9_]*)\s+RENAME\s+TO\s+(proj_[a-zA-Z_][a-zA-Z0-9_]*)",
+    re.IGNORECASE,
+)
+_DROP_PROJ_TABLE_RE = re.compile(
+    r"DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?(proj_[a-zA-Z_][a-zA-Z0-9_]*)",
+    re.IGNORECASE,
+)
 
 
 def _proj_tables_created() -> set[str]:
+    """Return the set of `proj_*` tables that currently exist after applying
+    all migrations in order, following any `ALTER TABLE ... RENAME TO ...`
+    or `DROP TABLE` along the way. Without this, a forward-only rename
+    would leave the old name in the set forever and the new name absent
+    (orphan + missing-table double false positive)."""
     out: set[str] = set()
     for path in sorted(_MIGRATIONS_DIR.glob("*.sql")):
-        for match in _CREATE_PROJ_TABLE_RE.finditer(path.read_text()):
+        text = path.read_text()
+        for match in _CREATE_PROJ_TABLE_RE.finditer(text):
             out.add(match.group(1))
+        for match in _RENAME_PROJ_TABLE_RE.finditer(text):
+            old_name, new_name = match.group(1), match.group(2)
+            out.discard(old_name)
+            out.add(new_name)
+        for match in _DROP_PROJ_TABLE_RE.finditer(text):
+            out.discard(match.group(1))
     return out
 
 

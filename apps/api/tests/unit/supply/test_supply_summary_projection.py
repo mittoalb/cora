@@ -74,11 +74,11 @@ def test_projection_metadata() -> None:
 
 @pytest.mark.unit
 def test_projection_does_not_subscribe_to_unrelated_events() -> None:
-    """Asset / Capability / Run events belong to other projections."""
+    """Asset / Family / Run events belong to other projections."""
     proj = SupplySummaryProjection()
     for foreign in (
         "AssetRegistered",
-        "CapabilityDefined",
+        "FamilyDefined",
         "RunStarted",
         "SubjectMounted",
     ):

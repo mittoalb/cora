@@ -1,7 +1,7 @@
 """Application handler for the `get_plan` query slice.
 
 Cross-BC query-handler shape mirroring `get_practice` / `get_method`
-/ `get_capability` / `get_subject` / `get_actor`:
+/ `get_family` / `get_subject` / `get_actor`:
 
     1. authorize(principal_id, query_name, conduit_id) -> Allow | Deny
     2. load_plan(...)               -> Plan | None  (fold-on-read)
@@ -12,7 +12,7 @@ their own DTO mapping (primitives only).
 
 Per gate-review Q4: get_plan returns CURRENT state only. The
 audit snapshots in PlanDefined event payload (method_id,
-method_needed_capabilities_snapshot, asset_capabilities_snapshot)
+method_needed_families_snapshot, asset_families_snapshot)
 are NOT exposed by this query — those are bind-time historical
 data, accessible later via a separate audit query if pilot needs
 it (deferred 6e-3+).

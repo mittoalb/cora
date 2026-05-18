@@ -1,0 +1,67 @@
+"""Family aggregate: state, status enum, errors, events, evolver, read repo.
+
+Vertical slices that operate on this aggregate live under
+`cora.equipment.features.<verb>_family/` and import from here for
+state and event types.
+
+Phase 5i renamed this aggregate from `Family` to `Family`. The
+old `cora.equipment.aggregates.family` module is a compat shim
+during the 5i sub-cuts and is removed in 5i.4.
+"""
+
+from cora.equipment.aggregates.family.events import (
+    FamilyDefined,
+    FamilyDeprecated,
+    FamilyEvent,
+    FamilySettingsSchemaUpdated,
+    FamilyVersioned,
+    event_type_name,
+    from_stored,
+    to_payload,
+)
+from cora.equipment.aggregates.family.evolver import evolve, fold
+from cora.equipment.aggregates.family.read import load_family
+from cora.equipment.aggregates.family.settings_validation import (
+    InvalidFamilySettingsSchemaError,
+    validate_settings_schema,
+)
+from cora.equipment.aggregates.family.state import (
+    FAMILY_NAME_MAX_LENGTH,
+    FAMILY_VERSION_TAG_MAX_LENGTH,
+    Family,
+    FamilyAlreadyExistsError,
+    FamilyCannotDeprecateError,
+    FamilyCannotVersionError,
+    FamilyName,
+    FamilyNotFoundError,
+    FamilyStatus,
+    InvalidFamilyNameError,
+    InvalidFamilyVersionTagError,
+)
+
+__all__ = [
+    "FAMILY_NAME_MAX_LENGTH",
+    "FAMILY_VERSION_TAG_MAX_LENGTH",
+    "Family",
+    "FamilyAlreadyExistsError",
+    "FamilyCannotDeprecateError",
+    "FamilyCannotVersionError",
+    "FamilyDefined",
+    "FamilyDeprecated",
+    "FamilyEvent",
+    "FamilyName",
+    "FamilyNotFoundError",
+    "FamilySettingsSchemaUpdated",
+    "FamilyStatus",
+    "FamilyVersioned",
+    "InvalidFamilyNameError",
+    "InvalidFamilySettingsSchemaError",
+    "InvalidFamilyVersionTagError",
+    "event_type_name",
+    "evolve",
+    "fold",
+    "from_stored",
+    "load_family",
+    "to_payload",
+    "validate_settings_schema",
+]

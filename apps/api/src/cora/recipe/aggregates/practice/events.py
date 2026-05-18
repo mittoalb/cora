@@ -10,7 +10,7 @@ Phase 6d-1 shipped `PracticeDefined`. Phase 6d-2 adds
 `Defined → Versioned → Deprecated` lifecycle. PracticeVersioned
 carries an operator-supplied `version_tag`. PracticeDeprecated
 carries no extra fields. Mirrors Method's transition shape (Recipe
-6b) and Capability's (Equipment 5f-2).
+6b) and Family's (Equipment 5f-2).
 
 ## Payload conventions
 
@@ -20,7 +20,7 @@ time (mismatch surfaces at Plan binding in 6e).
 
 Status is NOT carried in event payloads — the event type itself
 encodes the state change. The evolver hardcodes the mapping per
-match arm. Same precedent as MethodDefined / CapabilityDefined /
+match arm. Same precedent as MethodDefined / FamilyDefined /
 SubjectMounted / ActorDeactivated.
 """
 
@@ -60,7 +60,7 @@ class PracticeVersioned:
 
     `version_tag` is operator-supplied free text (1-50 chars,
     validated at API boundary AND in the decider). Same precedent
-    as MethodVersioned / CapabilityVersioned.
+    as MethodVersioned / FamilyVersioned.
     """
 
     practice_id: UUID

@@ -49,12 +49,12 @@ def _setup_run_chain(
     method_schema: dict[str, Any] | None = None,
     plan_defaults: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
-    """Seed Capability + Method (optionally with schema) + Practice +
+    """Seed Family + Method (optionally with schema) + Practice +
     Asset + Plan (optionally with defaults) + Subject (Mounted).
     Returns (plan_id, subject_id)."""
-    cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
+        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]
     if method_schema is not None:
         r = client.post(
@@ -70,7 +70,7 @@ def _setup_run_chain(
         "/assets",
         json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
-    add_resp = client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+    add_resp = client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
     assert add_resp.status_code == 204
     plan_id = client.post(
         "/plans",

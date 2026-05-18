@@ -123,12 +123,12 @@ async def test_register_dataset_persists_producing_run_end_state_in_payload(
     promote_dataset Run-must-be-Completed guard."""
     from cora.equipment.aggregates.asset import AssetLevel
     from cora.equipment.features import (
-        add_asset_capability,
-        define_capability,
+        add_asset_family,
+        define_family,
         register_asset,
     )
-    from cora.equipment.features.add_asset_capability import AddAssetCapability
-    from cora.equipment.features.define_capability import DefineCapability
+    from cora.equipment.features.add_asset_family import AddAssetFamily
+    from cora.equipment.features.define_family import DefineFamily
     from cora.equipment.features.register_asset import RegisterAsset
     from cora.recipe.features import define_method, define_plan, define_practice
     from cora.recipe.features.define_method import DefineMethod
@@ -145,14 +145,14 @@ async def test_register_dataset_persists_producing_run_end_state_in_payload(
     # Generous id pool: full upstream chain + Run + abort + Dataset.
     deps = _build_deps(db_pool, [uuid4() for _ in range(20)])
 
-    # Set up: Capability → Method → Practice → Asset → Plan → Subject → Run
-    cap_id = await define_capability.bind(deps)(
-        DefineCapability(name="FlyMotion"),
+    # Set up: Family → Method → Practice → Asset → Plan → Subject → Run
+    cap_id = await define_family.bind(deps)(
+        DefineFamily(name="FlyMotion"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     method_id = await define_method.bind(deps)(
-        DefineMethod(name="M", needed_capabilities=frozenset({cap_id})),
+        DefineMethod(name="M", needed_families=frozenset({cap_id})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -166,8 +166,8 @@ async def test_register_dataset_persists_producing_run_end_state_in_payload(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await add_asset_capability.bind(deps)(
-        AddAssetCapability(asset_id=asset_id, capability_id=cap_id),
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=asset_id, family_id=cap_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

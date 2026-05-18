@@ -16,15 +16,15 @@ does not re-register them.
 
 ## Loop-collapse pattern
 
-Equipment owns multiple aggregates (Capability + Asset, with more
+Equipment owns multiple aggregates (Family + Asset, with more
 slices to come). Three error families share the same response
 shape and get collapsed via Trust's `_handle_invalid_name`-style
 loop pattern:
 
-  - 400 (validation): InvalidCapabilityName, InvalidAssetName,
+  - 400 (validation): InvalidFamilyName, InvalidAssetName,
     InvalidAssetParent
-  - 404 (load miss): CapabilityNotFound, AssetNotFound
-  - 409 (defensive guard for AlreadyExists): CapabilityAlreadyExists,
+  - 404 (load miss): FamilyNotFound, AssetNotFound
+  - 409 (defensive guard for AlreadyExists): FamilyAlreadyExists,
     AssetAlreadyExists
 
 Adding a new aggregate (or a new transition error) becomes one tuple
@@ -39,12 +39,12 @@ from fastapi.responses import JSONResponse
 from cora.equipment.aggregates.asset import (
     AssetAlreadyExistsError,
     AssetCannotActivateError,
-    AssetCannotAddCapabilityError,
+    AssetCannotAddFamilyError,
     AssetCannotAddPortError,
     AssetCannotDecommissionError,
     AssetCannotEnterMaintenanceError,
     AssetCannotRelocateError,
-    AssetCannotRemoveCapabilityError,
+    AssetCannotRemoveFamilyError,
     AssetCannotRemovePortError,
     AssetCannotRestoreFromMaintenanceError,
     AssetNotFoundError,
@@ -54,39 +54,39 @@ from cora.equipment.aggregates.asset import (
     InvalidAssetPortSignalTypeError,
     InvalidAssetSettingsError,
 )
-from cora.equipment.aggregates.capability import (
-    CapabilityAlreadyExistsError,
-    CapabilityCannotDeprecateError,
-    CapabilityCannotVersionError,
-    CapabilityNotFoundError,
-    InvalidCapabilityNameError,
-    InvalidCapabilitySettingsSchemaError,
-    InvalidCapabilityVersionTagError,
+from cora.equipment.aggregates.family import (
+    FamilyAlreadyExistsError,
+    FamilyCannotDeprecateError,
+    FamilyCannotVersionError,
+    FamilyNotFoundError,
+    InvalidFamilyNameError,
+    InvalidFamilySettingsSchemaError,
+    InvalidFamilyVersionTagError,
 )
 from cora.equipment.errors import UnauthorizedError
 from cora.equipment.features import (
     activate_asset,
-    add_asset_capability,
+    add_asset_family,
     add_asset_port,
     decommission_asset,
-    define_capability,
+    define_family,
     degrade_asset,
-    deprecate_capability,
+    deprecate_family,
     enter_maintenance,
     fault_asset,
     get_asset,
-    get_capability,
+    get_family,
     list_assets,
-    list_capabilities,
+    list_families,
     register_asset,
     relocate_asset,
-    remove_asset_capability,
+    remove_asset_family,
     remove_asset_port,
     restore_asset,
     restore_from_maintenance,
     update_asset_settings,
-    update_capability_settings_schema,
-    version_capability,
+    update_family_settings_schema,
+    version_family,
 )
 
 
@@ -154,20 +154,20 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
 
 def register_equipment_routes(app: FastAPI) -> None:
     """Attach Equipment slice routers and exception handlers to the FastAPI app."""
-    app.include_router(define_capability.router)
-    app.include_router(get_capability.router)
-    app.include_router(version_capability.router)
-    app.include_router(deprecate_capability.router)
-    app.include_router(update_capability_settings_schema.router)
-    app.include_router(list_capabilities.router)
+    app.include_router(define_family.router)
+    app.include_router(get_family.router)
+    app.include_router(version_family.router)
+    app.include_router(deprecate_family.router)
+    app.include_router(update_family_settings_schema.router)
+    app.include_router(list_families.router)
     app.include_router(register_asset.router)
     app.include_router(activate_asset.router)
     app.include_router(decommission_asset.router)
     app.include_router(relocate_asset.router)
     app.include_router(enter_maintenance.router)
     app.include_router(restore_from_maintenance.router)
-    app.include_router(add_asset_capability.router)
-    app.include_router(remove_asset_capability.router)
+    app.include_router(add_asset_family.router)
+    app.include_router(remove_asset_family.router)
     app.include_router(degrade_asset.router)
     app.include_router(fault_asset.router)
     app.include_router(restore_asset.router)
@@ -177,9 +177,9 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(get_asset.router)
     app.include_router(list_assets.router)
     for validation_cls in (
-        InvalidCapabilityNameError,
-        InvalidCapabilitySettingsSchemaError,
-        InvalidCapabilityVersionTagError,
+        InvalidFamilyNameError,
+        InvalidFamilySettingsSchemaError,
+        InvalidFamilyVersionTagError,
         InvalidAssetNameError,
         InvalidAssetParentError,
         InvalidAssetPortNameError,
@@ -187,9 +187,9 @@ def register_equipment_routes(app: FastAPI) -> None:
         InvalidAssetSettingsError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
-    for not_found_cls in (CapabilityNotFoundError, AssetNotFoundError):
+    for not_found_cls in (FamilyNotFoundError, AssetNotFoundError):
         app.add_exception_handler(not_found_cls, _handle_not_found)
-    for already_exists_cls in (CapabilityAlreadyExistsError, AssetAlreadyExistsError):
+    for already_exists_cls in (FamilyAlreadyExistsError, AssetAlreadyExistsError):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
         AssetCannotActivateError,
@@ -197,12 +197,12 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssetCannotRelocateError,
         AssetCannotEnterMaintenanceError,
         AssetCannotRestoreFromMaintenanceError,
-        AssetCannotAddCapabilityError,
-        AssetCannotRemoveCapabilityError,
+        AssetCannotAddFamilyError,
+        AssetCannotRemoveFamilyError,
         AssetCannotAddPortError,
         AssetCannotRemovePortError,
-        CapabilityCannotVersionError,
-        CapabilityCannotDeprecateError,
+        FamilyCannotVersionError,
+        FamilyCannotDeprecateError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

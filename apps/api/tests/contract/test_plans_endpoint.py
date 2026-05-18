@@ -25,11 +25,11 @@ from cora.recipe.features.define_plan.route import (
 
 
 def _setup_chain(client: TestClient) -> tuple[str, str, str]:
-    """Seed Capability + Method + Practice + Asset(with capability)
-    via the public API. Returns (practice_id, asset_id, capability_id)."""
-    cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
+    """Seed Family + Method + Practice + Asset(with capability)
+    via the public API. Returns (practice_id, asset_id, family_id)."""
+    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
+        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",
@@ -39,7 +39,7 @@ def _setup_chain(client: TestClient) -> tuple[str, str, str]:
         "/assets",
         json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
-    add_resp = client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+    add_resp = client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
     assert add_resp.status_code == 204
     return practice_id, asset_id, cap_id
 
@@ -232,9 +232,9 @@ def test_post_plans_returns_409_when_practice_is_deprecated() -> None:
 @pytest.mark.contract
 def test_post_plans_returns_409_when_method_is_deprecated() -> None:
     with TestClient(create_app()) as client:
-        cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
+        cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
         method_id = client.post(
-            "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
+            "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
         ).json()["method_id"]
         practice_id = client.post(
             "/practices",
@@ -248,7 +248,7 @@ def test_post_plans_returns_409_when_method_is_deprecated() -> None:
             "/assets",
             json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
         ).json()["asset_id"]
-        client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+        client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
         # Deprecate Method AFTER Practice has been bound to it.
         deprecate_resp = client.post(f"/methods/{method_id}/deprecate")
         assert deprecate_resp.status_code == 204
@@ -287,15 +287,11 @@ def test_post_plans_returns_409_when_asset_is_decommissioned() -> None:
 def test_post_plans_returns_409_when_capabilities_not_satisfied() -> None:
     """Method needs capability X but bound Asset has only Y."""
     with TestClient(create_app()) as client:
-        needed_cap = client.post("/capabilities", json={"name": "FlyMotion"}).json()[
-            "capability_id"
-        ]
-        different_cap = client.post("/capabilities", json={"name": "OtherCap"}).json()[
-            "capability_id"
-        ]
+        needed_cap = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+        different_cap = client.post("/families", json={"name": "OtherCap"}).json()["family_id"]
         method_id = client.post(
             "/methods",
-            json={"name": "Test Method", "needed_capabilities": [needed_cap]},
+            json={"name": "Test Method", "needed_families": [needed_cap]},
         ).json()["method_id"]
         practice_id = client.post(
             "/practices",
@@ -310,7 +306,7 @@ def test_post_plans_returns_409_when_capabilities_not_satisfied() -> None:
             json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
         ).json()["asset_id"]
         # Asset has different capability than Method needs.
-        client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": different_cap})
+        client.post(f"/assets/{asset_id}/add_capability", json={"family_id": different_cap})
         response = client.post(
             "/plans",
             json={

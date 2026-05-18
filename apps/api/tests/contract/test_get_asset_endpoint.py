@@ -1,6 +1,6 @@
 """Contract tests for `GET /assets/{asset_id}`.
 
-Mirrors `test_get_capability_endpoint.py` / `test_get_subject_endpoint.py`.
+Mirrors `test_get_family_endpoint.py` / `test_get_subject_endpoint.py`.
 Pinned response shape: `{id, name, level, parent_id, lifecycle,
 condition, capabilities, settings}` where `level`, `lifecycle`, and
 `condition` are the StrEnum string values (PascalCase per the BC
@@ -51,8 +51,8 @@ def test_get_asset_returns_200_with_commissioned_lifecycle_for_new_asset() -> No
         "lifecycle": "Commissioned",
         # 5g-b: condition defaults to Nominal at registration.
         "condition": "Nominal",
-        # Empty until add_asset_capability runs (5f-1).
-        "capabilities": [],
+        # Empty until add_asset_family runs (5f-1).
+        "families": [],
         # 5g-c: settings defaults to empty dict at registration.
         "settings": {},
         # 5h: ports defaults to empty list at registration.

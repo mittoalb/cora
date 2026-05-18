@@ -1,7 +1,7 @@
 """Unit tests for the `version_practice` slice's pure decider.
 
 Mirror of `test_version_method_decider.py` and
-`test_version_capability_decider.py`. Multi-source guard
+`test_version_family_decider.py`. Multi-source guard
 `Defined | Versioned -> Versioned`; only Deprecated rejected.
 Same deliberate divergence from strict-not-idempotent.
 """
@@ -154,7 +154,7 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
 @pytest.mark.unit
 def test_decide_allows_versioning_with_same_tag_for_re_attestation() -> None:
     """Mirrors the deliberate divergence pinned for version_method
-    (Recipe 6b) and version_capability (Equipment 5f-2)."""
+    (Recipe 6b) and version_family (Equipment 5f-2)."""
     state = _practice(status=PracticeStatus.VERSIONED, version="v2")
     events = version_practice.decide(
         state=state,

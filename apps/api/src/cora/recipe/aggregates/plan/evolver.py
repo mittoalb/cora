@@ -27,7 +27,7 @@ Status mapping per event type:
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
 precedent as `PracticeDefined → DEFINED` / `MethodDefined →
-DEFINED` / `CapabilityDefined → DEFINED` / `SubjectMounted →
+DEFINED` / `FamilyDefined → DEFINED` / `SubjectMounted →
 MOUNTED` / `ActorDeactivated → is_active=False`. Mirrors Practice's
 transition evolver shape from Recipe 6d-2.
 
@@ -35,7 +35,7 @@ transition evolver shape from Recipe 6d-2.
 `frozenset[UUID]` (state) here. Order doesn't matter at the state
 layer (set semantics for membership / equality); the payload
 already sorted in `to_payload` for persistence determinism. Same
-precedent as Method's `needed_capabilities`.
+precedent as Method's `needed_families`.
 
 `version` is mutated by PlanVersioned (set to the new tag) and
 PRESERVED by PlanDeprecated as the audit signal of the last revision
@@ -43,7 +43,7 @@ before deprecation. Pre-6e-2 PlanDefined-only streams fold cleanly
 with version=None (the additive-state pattern).
 
 The audit snapshots in PlanDefined
-(method_needed_capabilities_snapshot, asset_capabilities_snapshot)
+(method_needed_families_snapshot, asset_families_snapshot)
 are NOT folded into state — they're audit-only payload data per
 gate-review Q4. The evolver intentionally ignores them.
 

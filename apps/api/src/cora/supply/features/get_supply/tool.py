@@ -30,7 +30,7 @@ class SupplyOutput(BaseModel):
 
     On miss the tool raises `ValueError` so FastMCP wraps the
     response as `isError: true` with a clear diagnostic — same
-    convention as `get_capability` / `get_asset`. Never returns
+    convention as `get_family` / `get_asset`. Never returns
     None; the LLM gets either a populated DTO or an error.
     """
 

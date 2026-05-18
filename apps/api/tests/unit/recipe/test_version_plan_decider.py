@@ -155,7 +155,7 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
 @pytest.mark.unit
 def test_decide_allows_versioning_with_same_tag_for_re_attestation() -> None:
     """Mirrors the deliberate divergence pinned for version_practice
-    (Recipe 6d-2), version_method (Recipe 6b), version_capability
+    (Recipe 6d-2), version_method (Recipe 6b), version_family
     (Equipment 5f-2): re-attesting the same tag succeeds. Re-
     attestation is a legitimate audit moment."""
     state = _plan(status=PlanStatus.VERSIONED, version="v2")

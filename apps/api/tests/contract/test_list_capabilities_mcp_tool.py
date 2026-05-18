@@ -1,4 +1,4 @@
-"""Contract tests for the `list_capabilities` MCP tool."""
+"""Contract tests for the `list_families` MCP tool."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,7 +8,7 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 
 @pytest.mark.contract
-def test_mcp_lists_list_capabilities_tool() -> None:
+def test_mcp_lists_list_families_tool() -> None:
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
         response = client.post(
@@ -19,11 +19,11 @@ def test_mcp_lists_list_capabilities_tool() -> None:
     assert response.status_code == 200
     body = parse_sse_data(response.text)
     tool_names = [t["name"] for t in body["result"]["tools"]]
-    assert "list_capabilities" in tool_names
+    assert "list_families" in tool_names
 
 
 @pytest.mark.contract
-def test_mcp_list_capabilities_tool_returns_empty_page() -> None:
+def test_mcp_list_families_tool_returns_empty_page() -> None:
     """In-memory app has no pool; tool returns empty items + null cursor."""
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
@@ -33,7 +33,7 @@ def test_mcp_list_capabilities_tool_returns_empty_page() -> None:
                 "jsonrpc": "2.0",
                 "id": 3,
                 "method": "tools/call",
-                "params": {"name": "list_capabilities", "arguments": {}},
+                "params": {"name": "list_families", "arguments": {}},
             },
             headers=session_headers,
         )

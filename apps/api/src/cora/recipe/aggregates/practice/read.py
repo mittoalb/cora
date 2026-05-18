@@ -1,7 +1,7 @@
 """Read repository for the Practice aggregate.
 
 `load_practice(event_store, practice_id) -> Practice | None` mirrors
-`load_method` / `load_capability` / `load_actor` / etc. Used by the
+`load_method` / `load_family` / `load_actor` / etc. Used by the
 `get_practice` query slice (6d-1) and any future update-style
 commands (6d-2).
 """

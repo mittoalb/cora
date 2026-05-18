@@ -117,7 +117,7 @@ def _id_queue() -> list[UUID]:
 
     Intake registers no Devices, so `facility_id_prefix(devices=())`
     consumes only the 8 ids for actor + Argonne + APS + Unit
-    (no Capability defines, no Device registers).
+    (no Family defines, no Device registers).
     """
     e = uuid4
     return [

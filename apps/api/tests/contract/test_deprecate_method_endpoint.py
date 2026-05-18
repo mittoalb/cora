@@ -2,7 +2,7 @@
 
 Action endpoint, no body. Multi-source guard
 (Defined | Versioned -> Deprecated). Mirrors
-`test_deprecate_capability_endpoint.py` (Equipment 5f-2).
+`test_deprecate_family_endpoint.py` (Equipment 5f-2).
 """
 
 from uuid import UUID, uuid4
@@ -14,7 +14,7 @@ from cora.api.main import create_app
 
 
 def _define_method(client: TestClient, name: str = "XRF Mapping") -> UUID:
-    response = client.post("/methods", json={"name": name, "needed_capabilities": []})
+    response = client.post("/methods", json={"name": name, "needed_families": []})
     assert response.status_code == 201
     return UUID(response.json()["method_id"])
 

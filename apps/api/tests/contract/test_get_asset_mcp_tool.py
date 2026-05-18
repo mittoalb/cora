@@ -1,6 +1,6 @@
 """Contract tests for the `get_asset` MCP tool.
 
-Mirrors `test_get_capability_mcp_tool.py` / `test_get_subject_mcp_tool.py`.
+Mirrors `test_get_family_mcp_tool.py` / `test_get_subject_mcp_tool.py`.
 Pinned structured output shape: `{id, name, level, parent_id, lifecycle}`.
 """
 
@@ -86,8 +86,8 @@ def test_mcp_get_asset_tool_returns_structured_asset_for_known_id() -> None:
     assert structured["level"] == "Unit"
     assert structured["parent_id"] == parent_id
     assert structured["lifecycle"] == "Commissioned"
-    # Empty until add_asset_capability runs (5f-1).
-    assert structured["capabilities"] == []
+    # Empty until add_asset_family runs (5f-1).
+    assert structured["families"] == []
 
 
 @pytest.mark.contract

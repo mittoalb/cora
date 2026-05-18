@@ -11,10 +11,10 @@ Per [[project_agent_bc_design]] the 3-state FSM is locked day one:
   Defined  -> Deprecated   (via `deprecate_agent`; terminal)
   Versioned -> Deprecated  (via `deprecate_agent`; terminal)
 
-Verb is `define` (matching Capability / Zone / Conduit / Policy
+Verb is `define` (matching Family / Zone / Conduit / Policy
 template-aggregate convention), NOT `register` (Actor / Subject /
 Asset instance-shape verb). FSM matches Method / Plan / Practice /
-Capability (`Defined -> Versioned -> Deprecated`). The research-memo
+Family (`Defined -> Versioned -> Deprecated`). The research-memo
 suggestion `Registered -> Published -> Retired` was rejected at
 design lock for CORA-vocabulary-alignment and Actor-collision risk.
 

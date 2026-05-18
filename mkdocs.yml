@@ -105,7 +105,7 @@ nav:
     - By BC: scenarios/by-bc.md
   - Catalog:
     - catalog/index.md
-    - Capabilities: catalog/capabilities.md
+    - Families: catalog/families.md
     - Methods: catalog/methods.md
   - Talks: talks.md
   - Reference:

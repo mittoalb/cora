@@ -153,7 +153,7 @@ async def test_2bm_facility_install_plays_out_end_to_end(
     assert argonne_version == 1
     _, unit_version = await deps.event_store.load("Asset", _2BM_UNIT_ID)
     assert unit_version == 1
-    # Devices: register_asset (v1) + add_asset_capability (v2)
+    # Devices: register_asset (v1) + add_asset_family (v2)
     _, aerotech_version = await deps.event_store.load("Asset", _ASSET_AEROTECH_ABRS_ID)
     assert aerotech_version == 2
 

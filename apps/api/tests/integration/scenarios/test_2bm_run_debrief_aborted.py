@@ -308,7 +308,7 @@ async def test_run_debrief_agent_fires_on_equipment_abort(
     await bind_define_method(deps)(
         DefineMethod(
             name="tomography",
-            needed_capabilities=frozenset(
+            needed_families=frozenset(
                 {
                     _CAP_ROTARY_STAGE_ID,
                     _CAP_LINEAR_STAGE_ID,

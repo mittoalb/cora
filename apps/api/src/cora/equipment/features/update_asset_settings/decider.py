@@ -14,7 +14,7 @@ Phase 5g-c. The decider:
     the patch — readers reconstruct current state without folding
     back through prior events).
 
-The handler is responsible for loading the Capability streams and
+The handler is responsible for loading the Family streams and
 passing them into `decide` as the `capabilities` argument; the
 decider stays pure (no I/O).
 """
@@ -28,9 +28,9 @@ from cora.equipment.aggregates.asset import (
     AssetSettingsUpdated,
 )
 from cora.equipment.aggregates.asset.settings_validation import (
-    validate_settings_against_capabilities,
+    validate_settings_against_families,
 )
-from cora.equipment.aggregates.capability.state import Capability
+from cora.equipment.aggregates.family.state import Family
 from cora.equipment.features.update_asset_settings.command import UpdateAssetSettings
 from cora.infrastructure.json_merge_patch import merge_patch
 
@@ -39,7 +39,7 @@ def decide(
     state: Asset | None,
     command: UpdateAssetSettings,
     *,
-    capabilities: Sequence[Capability],
+    families: Sequence[Family],
     now: datetime,
 ) -> list[AssetSettingsUpdated]:
     """Decide the events produced by an Asset.settings update."""
@@ -48,7 +48,7 @@ def decide(
 
     merged = merge_patch(state.settings, command.settings_patch)
 
-    validate_settings_against_capabilities(merged, capabilities)
+    validate_settings_against_families(merged, families)
 
     if merged == state.settings:
         return []

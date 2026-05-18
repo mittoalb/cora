@@ -15,7 +15,7 @@ trigger, occurred_at`) so the projection can fold them through one
 parameterized UPDATE.
 
 Status is NOT carried in `SupplyRegistered`'s payload — the event
-type IS the state-change indicator (matches `CapabilityDefined ->
+type IS the state-change indicator (matches `FamilyDefined ->
 DEFINED`, `SubjectMounted -> MOUNTED`). Status DOES travel in
 transition-event payloads as `from_status` so the projection can
 reconstruct exact source-state audit without re-folding the prior

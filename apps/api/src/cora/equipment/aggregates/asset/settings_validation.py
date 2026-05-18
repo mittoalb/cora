@@ -1,6 +1,6 @@
-"""Cross-Capability validation for Asset.settings (Phase 5g-c).
+"""Cross-Family validation for Asset.settings (Phase 5g-c).
 
-`validate_settings_against_capabilities(settings, capabilities)`:
+`validate_settings_against_families(settings, capabilities)`:
 union all assigned Capabilities' settings_schemas (5g-a) and validate
 the proposed settings dict against the union via `jsonschema-rs`.
 Raises `InvalidAssetSettingsError(reason)` on failure with a clear
@@ -15,9 +15,9 @@ the infrastructure module.
 
 ## Union semantics
 
-For each currently-assigned Capability with a non-None
+For each currently-assigned Family with a non-None
 `settings_schema`:
-  - Every property name declared in any Capability's `properties`
+  - Every property name declared in any Family's `properties`
     is allowed.
   - For properties declared in MULTIPLE Capabilities, all
     constraints intersect via `allOf`-style semantics
@@ -26,7 +26,7 @@ For each currently-assigned Capability with a non-None
     the lowest, `type` must agree across all declarations.
 
 The implementation builds a single mega-schema with `allOf: [...]`
-(one entry per Capability with a schema) PLUS an
+(one entry per Family with a schema) PLUS an
 `additionalProperties: false` clause whenever ANY schemas exist.
 Schemaless Capabilities are no-ops in the union: they contribute
 nothing to the allowed-keys set.
@@ -41,7 +41,7 @@ walks, and that difference is forced by a real JSON Schema pitfall:
 SAME schema object — it CANNOT see properties declared in `allOf`
 subschemas (per JSON Schema 2020-12 spec; see the upstream
 discussion at json-schema/json-schema#116). Naively wrapping each
-Capability's schema in `allOf` and hoping `additionalProperties:
+Family's schema in `allOf` and hoping `additionalProperties:
 false` would close the union over all the subschemas' property names
 silently rejects every key that isn't redeclared at the root.
 
@@ -52,9 +52,9 @@ constrained subset deliberately forbids it (see
 is a separate locked design decision).
 
 So the Asset validator manually closes the union: collect declared
-property names from each Capability's `properties`, emit them as
+property names from each Family's `properties`, emit them as
 `properties: {k: True for k in declared}` at the root, then add
-`additionalProperties: false` at the root and the per-Capability
+`additionalProperties: false` at the root and the per-Family
 constraints under `allOf`. This is the correct workaround for the
 pitfall under the subset constraint. Sharing the iter_errors loop
 with `validate_values_against_schema` would save ~5 lines but
@@ -63,18 +63,18 @@ implementation.
 
 ## Strict-by-default modes (post-6g audit alignment)
 
-A Capability with `settings_schema=None` does not contribute to the
+A Family with `settings_schema=None` does not contribute to the
 union. Three modes follow:
 
-  - **DECLARED**: at least one assigned Capability declares a
+  - **DECLARED**: at least one assigned Family declares a
     schema. The validator strictly rejects keys not declared by
     any of the declared schemas (`additionalProperties: false`),
     and validates declared keys against their union constraints.
     Schemaless Capabilities present alongside declared ones are
     no-ops; they do NOT widen the accepted-keys set.
-  - **ALL-SCHEMALESS**: every assigned Capability is schemaless
+  - **ALL-SCHEMALESS**: every assigned Family is schemaless
     (none declares a schema). Empty settings is trivially valid;
-    non-empty settings is rejected with a clear "no Capability
+    non-empty settings is rejected with a clear "no Family
     declares a schema" message. Mirrors the NO-CAPABILITIES
     posture for consistency.
   - **NO-CAPABILITIES**: the Asset has zero assigned Capabilities.
@@ -83,12 +83,12 @@ union. Three modes follow:
     against".
 
 Originally (5g-c through pre-6g cleanup) the **PERMISSIVE** mode
-existed: when at least one Capability was schemaless AND at least
+existed: when at least one Family was schemaless AND at least
 one declared a schema, the union widened to accept unknown keys.
 Post-6g audit reversed this for consistency with the 6g-b/c
 strict-when-no-Method-schema reversal: silent typo prevention
 beats graceful degradation when both are at stake. Operators
-wanting "this Capability has no settings" declare
+wanting "this Family has no settings" declare
 `settings_schema={}` explicitly. See
 [[project_run_parameters_design]] §audit-correction for the
 shared rationale.
@@ -97,12 +97,12 @@ shared rationale.
 
 `InvalidAssetSettingsError` carries a `reason` string with enough
 detail for an operator to fix the patch:
-  - "key 'energy' is not declared by any assigned Capability's
+  - "key 'energy' is not declared by any assigned Family's
     settings_schema" (orphan)
   - "value <X> for key 'energy' violates schema constraint
     <details>" (constraint violation)
   - "key 'temperature' has incompatible types across Capabilities
-    (Capability A: number, Capability B: string)" (true conflict)
+    (Family A: number, Family B: string)" (true conflict)
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -113,13 +113,13 @@ from typing import Any
 import jsonschema_rs
 
 from cora.equipment.aggregates.asset.state import InvalidAssetSettingsError
-from cora.equipment.aggregates.capability.state import Capability
+from cora.equipment.aggregates.family.state import Family
 from cora.infrastructure.json_schema_subset import DRAFT_2020_12_URI
 
 
-def validate_settings_against_capabilities(
+def validate_settings_against_families(
     settings: Mapping[str, Any],
-    capabilities: Sequence[Capability],
+    families: Sequence[Family],
 ) -> None:
     """Validate `settings` against the union of `capabilities`'
     settings_schemas. Raises InvalidAssetSettingsError on failure.
@@ -129,27 +129,27 @@ def validate_settings_against_capabilities(
     settings_schema is rejected. See module docstring for the three
     modes (DECLARED / ALL-SCHEMALESS / NO-CAPABILITIES).
     """
-    schemas = [c.settings_schema for c in capabilities if c.settings_schema is not None]
+    schemas = [c.settings_schema for c in families if c.settings_schema is not None]
 
     # Edge case: no assigned Capabilities and no settings -> trivially valid.
-    if not capabilities and not settings:
+    if not families and not settings:
         return
 
     # Edge case: no assigned Capabilities but non-empty settings -> orphan.
-    if not capabilities and settings:
+    if not families and settings:
         keys = ", ".join(f"'{k}'" for k in sorted(settings.keys()))
         msg = f"key(s) {keys} cannot be set: Asset has no assigned Capabilities to validate against"
         raise InvalidAssetSettingsError(msg)
 
     # Post-6g audit: ALL-SCHEMALESS mode. If every assigned
-    # Capability is schemaless, no schema constrains the union.
+    # Family is schemaless, no schema constrains the union.
     # Empty settings is trivially valid (no contract, no values, no
     # conflict). Non-empty settings rejects with a clear message
     # (mirrors the NO-CAPABILITIES posture and the 6g-b/c "Method
     # declares no schema" rejection). Operators wanting a schemaless
-    # Capability that nonetheless permits settings declare
-    # `settings_schema={}` explicitly on the Capability — empty
-    # schema means "no constraints, but the Capability has been
+    # Family that nonetheless permits settings declare
+    # `settings_schema={}` explicitly on the Family — empty
+    # schema means "no constraints, but the Family has been
     # inspected" and joins the union as a no-op constraint that
     # still allows declared keys from siblings.
     if not schemas:
@@ -157,20 +157,20 @@ def validate_settings_against_capabilities(
             return
         keys = ", ".join(f"'{k}'" for k in sorted(settings.keys()))
         msg = (
-            f"key(s) {keys} cannot be set: every assigned Capability is "
+            f"key(s) {keys} cannot be set: every assigned Family is "
             f"schemaless (settings_schema=None). Declare a settings_schema "
-            f"on at least one Capability (an empty `{{}}` is valid for "
+            f"on at least one Family (an empty `{{}}` is valid for "
             f"Capabilities with no settings to constrain) or remove the keys."
         )
         raise InvalidAssetSettingsError(msg)
 
-    # Detect true cross-Capability type conflicts BEFORE running
+    # Detect true cross-Family type conflicts BEFORE running
     # jsonschema-rs (the validator's error messages are less
     # operator-friendly than naming the conflicting Capabilities
     # ourselves).
-    _check_cross_capability_type_conflicts(capabilities)
+    _check_cross_capability_type_conflicts(families)
 
-    # Build the mega-schema: allOf the per-Capability schemas, plus
+    # Build the mega-schema: allOf the per-Family schemas, plus
     # the strict-mode clause (every key not declared by any schema
     # is rejected). Schemaless Capabilities are no-ops here; they
     # don't widen the allowed-keys set (post-6g audit reversal).
@@ -186,7 +186,7 @@ def validate_settings_against_capabilities(
     try:
         validator = jsonschema_rs.Draft202012Validator(mega)
     except (jsonschema_rs.ValidationError, ValueError) as exc:  # pragma: no cover
-        # Double-defense: per-Capability schemas already validated cleanly upstream,
+        # Double-defense: per-Family schemas already validated cleanly upstream,
         # so a union compile-failure here would mean an Ajv-vs-jsonschema-rs divergence.
         msg = f"jsonschema-rs failed to compile the union schema: {exc}"
         raise InvalidAssetSettingsError(msg) from exc
@@ -211,13 +211,13 @@ def _collect_declared_property_names(schemas: Sequence[dict[str, Any]]) -> set[s
     return declared
 
 
-def _check_cross_capability_type_conflicts(capabilities: Sequence[Capability]) -> None:
+def _check_cross_capability_type_conflicts(families: Sequence[Family]) -> None:
     """Surface incompatible-type declarations across Capabilities
     BEFORE handing off to jsonschema-rs.
 
-    Walks the top-level `properties` dicts of each Capability with a
+    Walks the top-level `properties` dicts of each Family with a
     schema, and for every property name appearing in more than one
-    Capability, asserts the declared `type` is identical. If types
+    Family, asserts the declared `type` is identical. If types
     differ, raises InvalidAssetSettingsError naming both Capabilities
     and the offending key.
 
@@ -225,9 +225,9 @@ def _check_cross_capability_type_conflicts(capabilities: Sequence[Capability]) -
     under `allOf` semantics (constraint differences like minimum +
     minimum just intersect to the most restrictive).
     """
-    # property_name -> list of (capability_id, declared_type)
+    # property_name -> list of (family_id, declared_type)
     type_by_key: dict[str, list[tuple[str, Any]]] = {}
-    for cap in capabilities:
+    for cap in families:
         schema = cap.settings_schema
         if schema is None:
             continue
@@ -245,7 +245,7 @@ def _check_cross_capability_type_conflicts(capabilities: Sequence[Capability]) -
     for prop_name, entries in type_by_key.items():
         types = {t for _, t in entries}
         if len(types) > 1:
-            descriptions = "; ".join(f"Capability {cid}: {t}" for cid, t in entries)
+            descriptions = "; ".join(f"Family {cid}: {t}" for cid, t in entries)
             msg = (
                 f"key '{prop_name}' has incompatible types across "
                 f"Capabilities ({descriptions}); no value can satisfy "
@@ -254,4 +254,4 @@ def _check_cross_capability_type_conflicts(capabilities: Sequence[Capability]) -
             raise InvalidAssetSettingsError(msg)
 
 
-__all__ = ["validate_settings_against_capabilities"]
+__all__ = ["validate_settings_against_families"]

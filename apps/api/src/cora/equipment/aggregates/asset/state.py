@@ -49,7 +49,7 @@ instruments with addressable sub-modules).
 JSON-friendly strings IF carried in an event payload. State holds
 the enum (typed); evolver derives lifecycle from event type
 (`AssetRegistered → COMMISSIONED`, future `AssetActivated → ACTIVE`).
-Same precedent as `SubjectStatus` / `CapabilityStatus`.
+Same precedent as `SubjectStatus` / `FamilyStatus`.
 
 `AssetLevel` is also a StrEnum but its value DOES travel in event
 payloads (level is set at registration and doesn't change — there
@@ -236,11 +236,11 @@ class InvalidAssetNameError(ValueError):
 
 
 class InvalidAssetSettingsError(ValueError):
-    """The proposed Asset.settings dict failed cross-Capability validation.
+    """The proposed Asset.settings dict failed cross-Family validation.
 
     Three failure modes (5g-c):
       1. A key in the proposed settings is not declared by any
-         currently-assigned Capability's settings_schema (orphan key
+         currently-assigned Family's settings_schema (orphan key
          on a fully-schema-covered Asset).
       2. A value violates the schema constraints declared for its
          key by one or more assigned Capabilities (intersection via
@@ -250,7 +250,7 @@ class InvalidAssetSettingsError(ValueError):
 
     Mapped to HTTP 400 by the equipment BC's exception handler. The
     `reason` string identifies the offending key(s) and, where
-    applicable, the conflicting Capability ids.
+    applicable, the conflicting Family ids.
     """
 
     def __init__(self, reason: str) -> None:
@@ -375,44 +375,44 @@ class AssetCannotRestoreFromMaintenanceError(Exception):
         self.current_lifecycle = current_lifecycle
 
 
-class AssetCannotAddCapabilityError(Exception):
-    """Attempted to add a Capability to an asset under disqualifying conditions.
+class AssetCannotAddFamilyError(Exception):
+    """Attempted to add a Family to an asset under disqualifying conditions.
 
-    Capability mutation (5f-1): like relocate, has multiple
+    Family mutation (5f-1): like relocate, has multiple
     disqualifying conditions that don't share a single state-mismatch
     shape. They collapse into one error class with a diagnostic
     `reason` string that surfaces in the route's 409 body:
 
       - asset is `Decommissioned` (retired; no further capability changes)
-      - capability already in `asset.capabilities` (strict-not-idempotent;
+      - capability already in `asset.families` (strict-not-idempotent;
         same precedent as activate / mount-second-call-raises)
 
     Eventual-consistency: the decider does NOT verify the referenced
-    Capability id refers to a real Capability stream. Same precedent
-    as Trust Conduit zone refs (3b) and Method.needed_capabilities
+    Family id refers to a real Family stream. Same precedent
+    as Trust Conduit zone refs (3b) and Method.needed_families
     (6a).
     """
 
-    def __init__(self, asset_id: UUID, capability_id: UUID, reason: str) -> None:
-        super().__init__(f"Asset {asset_id} cannot add capability {capability_id}: {reason}")
+    def __init__(self, asset_id: UUID, family_id: UUID, reason: str) -> None:
+        super().__init__(f"Asset {asset_id} cannot add capability {family_id}: {reason}")
         self.asset_id = asset_id
-        self.capability_id = capability_id
+        self.family_id = family_id
         self.reason = reason
 
 
-class AssetCannotRemoveCapabilityError(Exception):
-    """Attempted to remove a Capability from an asset under disqualifying conditions.
+class AssetCannotRemoveFamilyError(Exception):
+    """Attempted to remove a Family from an asset under disqualifying conditions.
 
-    Mirrors `AssetCannotAddCapabilityError`. Disqualifying conditions:
+    Mirrors `AssetCannotAddFamilyError`. Disqualifying conditions:
 
       - asset is `Decommissioned` (retired)
-      - capability not in `asset.capabilities` (strict-not-idempotent)
+      - capability not in `asset.families` (strict-not-idempotent)
     """
 
-    def __init__(self, asset_id: UUID, capability_id: UUID, reason: str) -> None:
-        super().__init__(f"Asset {asset_id} cannot remove capability {capability_id}: {reason}")
+    def __init__(self, asset_id: UUID, family_id: UUID, reason: str) -> None:
+        super().__init__(f"Asset {asset_id} cannot remove capability {family_id}: {reason}")
         self.asset_id = asset_id
-        self.capability_id = capability_id
+        self.family_id = family_id
         self.reason = reason
 
 
@@ -422,9 +422,9 @@ class AssetCannotAddPortError(Exception):
     Two failure modes:
       - asset is `Decommissioned` (retired; no further port changes)
       - port name is already in `asset.ports` (strict-not-idempotent;
-        same convention as Capability mutation)
+        same convention as Family mutation)
 
-    Mirrors `AssetCannotAddCapabilityError`. The `port_name` is
+    Mirrors `AssetCannotAddFamilyError`. The `port_name` is
     surfaced as a separate field for diagnostics; the `reason`
     string is what the route's 409 body shows.
     """
@@ -509,14 +509,14 @@ class Asset:
     `None` only when `level == Enterprise` (root). Mutable across
     `AssetRelocated` events (5d).
 
-    `capabilities` is the set of Capability ids this asset can
-    perform. Operationally curated: operators add via
-    `add_asset_capability` when commissioning a new technique on the
-    asset, remove via `remove_asset_capability` when retiring one.
-    Used at Plan binding time (6e) for the structural check
-    `asset.capabilities ⊇ method.needed_capabilities`. Eventual-
-    consistency: each Capability id is NOT verified against the
-    Capability stream at decide time. Defaults to empty so prior
+    `families` is the set of Family ids this asset belongs to.
+    Operationally curated: operators add via `add_asset_family` when
+    commissioning a new device-class on the asset, remove via
+    `remove_asset_family` when retiring one. Used at Plan binding
+    time (6e) for the structural check
+    `asset.families ⊇ method.needed_families`. Eventual-
+    consistency: each Family id is NOT verified against the
+    Family stream at decide time. Defaults to empty so prior
     `AssetRegistered`-only streams fold cleanly without an upcaster
     (the additive-state pattern; see CONTRIBUTING.md).
 
@@ -529,7 +529,7 @@ class Asset:
 
     `settings` (5g-c): slow-changing operational parameters
     (gap, energy, exposure, filter_material, etc.; units live in
-    each Capability's settings_schema as a `unit` annotation).
+    each Family's settings_schema as a `unit` annotation).
     Validated at write time against the union of currently-assigned
     Capabilities' `settings_schema` declarations (5g-a). Updated via
     the `update_asset_settings` slice with PATCH RFC 7396 merge
@@ -540,7 +540,7 @@ class Asset:
     (trigger_in, encoder_a, sync_clock, etc.). Each AssetPort is a
     name + direction + signal_type tuple. Updated incrementally via
     `add_asset_port` / `remove_asset_port` slices (mirrors the
-    Capability-mutation precedent). Defaults to empty frozenset;
+    Family-mutation precedent). Defaults to empty frozenset;
     pre-5h streams fold cleanly via the additive-state pattern.
     Plan.wiring (6h) will reference these by name to declare port-
     to-port connections.
@@ -560,8 +560,8 @@ class Asset:
     # `frozenset` as default_factory triggers reportUnknownVariableType
     # under pyright strict because the empty frozenset has no element
     # type to infer. The parametrized form gives pyright the type
-    # without runtime cost. Same trick used in Method.needed_capabilities.
-    capabilities: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    # without runtime cost. Same trick used in Method.needed_families.
+    families: frozenset[UUID] = field(default_factory=frozenset[UUID])
     # dict[str, Any] for runtime-typed operator-supplied settings.
     # Same default_factory pattern as capabilities — the empty dict
     # has no element types for pyright to infer, so the parametrized

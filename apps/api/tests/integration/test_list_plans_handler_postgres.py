@@ -1,7 +1,7 @@
 """End-to-end: `list_plans` handler against real Postgres.
 
-Plan binding requires a chain of upstream events: Capability, Asset
-(with that Capability added), Method (needing the Capability), and
+Plan binding requires a chain of upstream events: Family, Asset
+(with that Family added), Method (needing the Family), and
 Practice (referencing the Method). This test seeds the chain via a
 helper, then pins that the projection surfaces practice_id +
 method_id and that the practice_id filter works.
@@ -23,10 +23,10 @@ import pytest
 
 from cora.equipment._projections import register_equipment_projections
 from cora.equipment.aggregates.asset import AssetLevel
-from cora.equipment.features.add_asset_capability import AddAssetCapability
-from cora.equipment.features.add_asset_capability import bind as bind_add_capability
-from cora.equipment.features.define_capability import DefineCapability
-from cora.equipment.features.define_capability import bind as bind_define_capability
+from cora.equipment.features.add_asset_family import AddAssetFamily
+from cora.equipment.features.add_asset_family import bind as bind_add_capability
+from cora.equipment.features.define_family import DefineFamily
+from cora.equipment.features.define_family import bind as bind_define_family
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.register_asset import bind as bind_register_asset
 from cora.infrastructure.kernel import Kernel
@@ -65,15 +65,15 @@ async def _drain(db_pool: asyncpg.Pool) -> None:
 
 
 async def _seed_chain(deps: Kernel) -> tuple[UUID, UUID, UUID]:
-    """Seed Capability + Asset + Method + Practice. Returns
+    """Seed Family + Asset + Method + Practice. Returns
     (practice_id, method_id, asset_id) for the Plan to bind to.
 
     The IDs are consumed from deps.id_generator in this exact order
-    (define_capability, register_asset, add_asset_capability,
+    (define_family, register_asset, add_asset_family,
     define_method, define_practice). Caller pre-allocates them in
     the FixedIdGenerator queue."""
-    cap_id = await bind_define_capability(deps)(
-        DefineCapability(name="Tomography"),
+    cap_id = await bind_define_family(deps)(
+        DefineFamily(name="Tomography"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -83,12 +83,12 @@ async def _seed_chain(deps: Kernel) -> tuple[UUID, UUID, UUID]:
         correlation_id=_CORRELATION_ID,
     )
     await bind_add_capability(deps)(
-        AddAssetCapability(asset_id=asset_id, capability_id=cap_id),
+        AddAssetFamily(asset_id=asset_id, family_id=cap_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     method_id = await bind_define_method(deps)(
-        DefineMethod(name="Tomography", needed_capabilities=frozenset({cap_id})),
+        DefineMethod(name="Tomography", needed_families=frozenset({cap_id})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -102,9 +102,9 @@ async def _seed_chain(deps: Kernel) -> tuple[UUID, UUID, UUID]:
 
 def _chain_ids() -> list[UUID]:
     """9 ids consumed by _seed_chain (in order):
-      - define_capability: cap_id + event_id  = 2
+      - define_family: cap_id + event_id  = 2
       - register_asset:    asset_id + event_id = 2
-      - add_asset_capability: event_id only   = 1 (no new aggregate)
+      - add_asset_family: event_id only   = 1 (no new aggregate)
       - define_method:     method_id + event_id = 2
       - define_practice:   practice_id + event_id = 2
     Total = 9."""

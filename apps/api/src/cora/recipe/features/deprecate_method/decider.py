@@ -6,7 +6,7 @@ Re-deprecating an already-Deprecated method raises (strict-not-
 idempotent).
 
 Source-state guard uses tuple-membership (same precedent as
-decommission_asset / deprecate_capability).
+decommission_asset / deprecate_family).
 
 Invariants:
   - State must not be None -> MethodNotFoundError

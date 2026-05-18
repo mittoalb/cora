@@ -1,6 +1,6 @@
 """The `GetPractice` query — intent dataclass for this read slice.
 
-Mirrors `GetMethod` / `GetCapability` / `GetSubject` / `GetActor`:
+Mirrors `GetMethod` / `GetFamily` / `GetSubject` / `GetActor`:
 queries are dataclasses just like commands. They name the read
 intent and carry only the input the caller controls; the
 application handler adds context (correlation_id, principal_id) at

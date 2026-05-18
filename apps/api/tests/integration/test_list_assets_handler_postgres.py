@@ -1,7 +1,7 @@
 """End-to-end: `list_assets` handler against real Postgres
 projection table. Stresses the framework against:
 
-  - Multi-aggregate BC (Equipment has Asset + Capability; we project
+  - Multi-aggregate BC (Equipment has Asset + Family; we project
     only Asset events here)
   - Hierarchy: parent_id column + parent_id filter
   - Lifecycle FSM with maintenance round-trip

@@ -23,8 +23,8 @@ from cora.equipment.aggregates.asset import (
     AssetNotFoundError,
 )
 from cora.equipment.aggregates.asset.events import (
-    AssetCapabilityAdded,
     AssetDecommissioned,
+    AssetFamilyAdded,
     AssetRegistered,
 )
 from cora.equipment.aggregates.asset.events import (
@@ -115,13 +115,13 @@ async def _seed_method(
     store: InMemoryEventStore,
     method_id: UUID,
     *,
-    needed_capabilities: frozenset[UUID] = frozenset(),
+    needed_families: frozenset[UUID] = frozenset(),
     deprecated: bool = False,
 ) -> None:
     event = MethodDefined(
         method_id=method_id,
         name="Test Method",
-        needed_capabilities=sorted(needed_capabilities, key=str),
+        needed_families=sorted(needed_families, key=str),
         occurred_at=_NOW,
     )
     await _append(
@@ -208,7 +208,7 @@ async def _seed_asset(
     )
     version = 1
     for cap_id in sorted(capabilities, key=str):
-        cap_event = AssetCapabilityAdded(asset_id=asset_id, capability_id=cap_id, occurred_at=_NOW)
+        cap_event = AssetFamilyAdded(asset_id=asset_id, family_id=cap_id, occurred_at=_NOW)
         await _append(
             store,
             stream_type="Asset",
@@ -216,7 +216,7 @@ async def _seed_asset(
             expected_version=version,
             event_type=asset_event_type_name(cap_event),
             payload=asset_to_payload(cap_event),
-            command_name="AddAssetCapability",
+            command_name="AddAssetFamily",
         )
         version += 1
     if decommissioned:
@@ -242,7 +242,7 @@ async def test_handler_returns_generated_plan_id() -> None:
     asset_id = uuid4()
     cap = uuid4()
     store = InMemoryEventStore()
-    await _seed_method(store, method_id, needed_capabilities=frozenset({cap}))
+    await _seed_method(store, method_id, needed_families=frozenset({cap}))
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id, capabilities=frozenset({cap}))
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
@@ -267,7 +267,7 @@ async def test_handler_appends_plan_defined_event_to_store() -> None:
     asset_id = uuid4()
     cap = uuid4()
     store = InMemoryEventStore()
-    await _seed_method(store, method_id, needed_capabilities=frozenset({cap}))
+    await _seed_method(store, method_id, needed_families=frozenset({cap}))
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id, capabilities=frozenset({cap}))
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
@@ -293,8 +293,8 @@ async def test_handler_appends_plan_defined_event_to_store() -> None:
     assert stored.payload["practice_id"] == str(practice_id)
     assert stored.payload["asset_ids"] == [str(asset_id)]
     assert stored.payload["method_id"] == str(method_id)
-    assert stored.payload["method_needed_capabilities_snapshot"] == [str(cap)]
-    assert stored.payload["asset_capabilities_snapshot"] == {str(asset_id): [str(cap)]}
+    assert stored.payload["method_needed_families_snapshot"] == [str(cap)]
+    assert stored.payload["asset_families_snapshot"] == {str(asset_id): [str(cap)]}
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None
     assert stored.event_id == _EVENT_ID
@@ -503,7 +503,7 @@ async def test_handler_propagates_capabilities_not_satisfied_error() -> None:
     practice_id = uuid4()
     asset_id = uuid4()
     store = InMemoryEventStore()
-    await _seed_method(store, method_id, needed_capabilities=frozenset({needed_cap}))
+    await _seed_method(store, method_id, needed_families=frozenset({needed_cap}))
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id, capabilities=frozenset({different_cap}))
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)

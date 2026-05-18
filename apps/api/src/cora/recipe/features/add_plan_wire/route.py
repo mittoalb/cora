@@ -54,7 +54,7 @@ class AddPlanWireRequest(BaseModel):
             "Must exist on Asset.ports, have direction=INPUT, and "
             "match source port's signal_type exactly. At most one "
             "Wire can target a given (target_asset_id, target_port_name) "
-            "pair (fan-in forbidden; use a Combiner Capability Asset "
+            "pair (fan-in forbidden; use a Combiner Family Asset "
             "if you genuinely need multi-source aggregation)."
         ),
     )

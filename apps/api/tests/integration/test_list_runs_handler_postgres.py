@@ -25,12 +25,12 @@ import pytest
 from cora.equipment._projections import register_equipment_projections
 from cora.equipment.aggregates.asset import AssetLevel
 from cora.equipment.features import (
-    add_asset_capability,
-    define_capability,
+    add_asset_family,
+    define_family,
     register_asset,
 )
-from cora.equipment.features.add_asset_capability import AddAssetCapability
-from cora.equipment.features.define_capability import DefineCapability
+from cora.equipment.features.add_asset_family import AddAssetFamily
+from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
@@ -78,11 +78,11 @@ async def _drain(db_pool: asyncpg.Pool) -> None:
 
 
 async def _seed_plan(deps: Kernel) -> UUID:
-    """Seed the upstream chain (Capability + Asset + Method +
+    """Seed the upstream chain (Family + Asset + Method +
     Practice + Plan) needed for start_run cross-aggregate validation.
     Returns plan_id. Consumes 11 ids from the FixedIdGenerator."""
-    cap_id = await define_capability.bind(deps)(
-        DefineCapability(name="Tomography"),
+    cap_id = await define_family.bind(deps)(
+        DefineFamily(name="Tomography"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -91,13 +91,13 @@ async def _seed_plan(deps: Kernel) -> UUID:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await add_asset_capability.bind(deps)(
-        AddAssetCapability(asset_id=asset_id, capability_id=cap_id),
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=asset_id, family_id=cap_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     method_id = await define_method.bind(deps)(
-        DefineMethod(name="Tomography", needed_capabilities=frozenset({cap_id})),
+        DefineMethod(name="Tomography", needed_families=frozenset({cap_id})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -119,8 +119,8 @@ async def _seed_plan(deps: Kernel) -> UUID:
 
 
 def _chain_ids() -> list[UUID]:
-    """11 ids consumed by _seed_plan (define_capability=2 +
-    register_asset=2 + add_asset_capability=1 + define_method=2 +
+    """11 ids consumed by _seed_plan (define_family=2 +
+    register_asset=2 + add_asset_family=1 + define_method=2 +
     define_practice=2 + define_plan=2)."""
     return [uuid4() for _ in range(11)]
 

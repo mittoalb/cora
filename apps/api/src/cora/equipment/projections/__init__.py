@@ -6,6 +6,6 @@ re-exporting its class + adding it to `register_equipment_projections`.
 """
 
 from cora.equipment.projections.asset import AssetSummaryProjection
-from cora.equipment.projections.capability import CapabilitySummaryProjection
+from cora.equipment.projections.family import FamilySummaryProjection
 
-__all__ = ["AssetSummaryProjection", "CapabilitySummaryProjection"]
+__all__ = ["AssetSummaryProjection", "FamilySummaryProjection"]

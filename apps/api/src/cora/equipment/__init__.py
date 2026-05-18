@@ -1,7 +1,7 @@
 """Equipment bounded context.
 
 Owns the equipment-and-capability concerns of CORA:
-  - `Capability` (technique-class catalog; what an equipment type
+  - `Family` (technique-class catalog; what an equipment type
     can do, equipment-agnostic, cross-facility). Referenced by
     `Recipe.Method.needs.capabilities` to express a Method's
     hardware contract.
@@ -10,18 +10,18 @@ Owns the equipment-and-capability concerns of CORA:
     Lands in 5b+; not in 5a.
 
 Foundation-tier BC: every Track A and Track B BC depends on
-Capability and/or Asset. Built before Recipe so Method's
-`needs.capabilities` resolves to real Capability ids instead of
+Family and/or Asset. Built before Recipe so Method's
+`needs.capabilities` resolves to real Family ids instead of
 bare UUIDs (the eventual-consistency fallback that Trust uses for
 Conduit's zone refs).
 
-Phase 5a ships `Capability` + `define_capability` + `get_capability`.
+Phase 5a ships `Family` + `define_family` + `get_family`.
 Subsequent phases:
   - 5b: Asset aggregate scaffold + register_asset
   - 5c: Asset lifecycle (activate, decommission)
   - 5d: Asset hierarchy (relocate)
   - 5e: get_asset + maintenance lifecycle
-  - 5f+: Capability transitions, Asset condition/settings/ports/
+  - 5f+: Family transitions, Asset condition/settings/ports/
     owner/PIDINST
 
 Layout:

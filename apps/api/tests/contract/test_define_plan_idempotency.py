@@ -15,9 +15,9 @@ from cora.api.main import create_app
 
 
 def _setup_chain(client: TestClient) -> tuple[str, str]:
-    cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
+        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",
@@ -27,7 +27,7 @@ def _setup_chain(client: TestClient) -> tuple[str, str]:
         "/assets",
         json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+    client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
     return practice_id, asset_id
 
 
@@ -101,9 +101,9 @@ def test_post_plans_same_key_with_reordered_asset_ids_returns_same_plan_id() -> 
     with TestClient(create_app()) as client:
         practice_id, asset_id_1 = _setup_chain(client)
         # Add a second asset with the same capability.
-        cap_id = client.post("/capabilities", json={"name": "OtherCap"}).json()["capability_id"]
+        cap_id = client.post("/families", json={"name": "OtherCap"}).json()["family_id"]
         # Add OtherCap to first asset.
-        client.post(f"/assets/{asset_id_1}/add_capability", json={"capability_id": cap_id})
+        client.post(f"/assets/{asset_id_1}/add_capability", json={"family_id": cap_id})
         asset_id_2 = client.post(
             "/assets",
             json={"name": "Asset2", "level": "Enterprise", "parent_id": None},
@@ -112,7 +112,7 @@ def test_post_plans_same_key_with_reordered_asset_ids_returns_same_plan_id() -> 
         # required (the single FlyMotion). Add it.
         first_cap_id = client.post(
             f"/assets/{asset_id_2}/add_capability",
-            json={"capability_id": cap_id},
+            json={"family_id": cap_id},
         )
         # Skip the asset_id_2 capability check; for this test we just
         # need both to satisfy the Method's needs (which is single

@@ -4,7 +4,7 @@ Mirror of `test_capabilities_endpoint.py`. Verifies request schema,
 response schema, status codes, and that the whitespace-only-name
 domain error maps to 400 via the BC's exception handler.
 
-Pinned: needed_capabilities is required (use [] for procedural
+Pinned: needed_families is required (use [] for procedural
 Methods); empty list accepted; non-list rejected as 422.
 """
 
@@ -29,7 +29,7 @@ def test_post_methods_returns_201_with_method_id() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/methods",
-            json={"name": "XRF Mapping", "needed_capabilities": [cap1]},
+            json={"name": "XRF Mapping", "needed_families": [cap1]},
         )
 
     assert response.status_code == 201
@@ -39,12 +39,12 @@ def test_post_methods_returns_201_with_method_id() -> None:
 
 
 @pytest.mark.contract
-def test_post_methods_accepts_empty_needed_capabilities() -> None:
+def test_post_methods_accepts_empty_needed_families() -> None:
     """Procedural Methods (no equipment requirement)."""
     with TestClient(create_app()) as client:
         response = client.post(
             "/methods",
-            json={"name": "Sample Cleaning", "needed_capabilities": []},
+            json={"name": "Sample Cleaning", "needed_families": []},
         )
     assert response.status_code == 201
 
@@ -54,7 +54,7 @@ def test_post_methods_trims_whitespace_in_name() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/methods",
-            json={"name": "  XRF Mapping  ", "needed_capabilities": []},
+            json={"name": "  XRF Mapping  ", "needed_families": []},
         )
     assert response.status_code == 201
 
@@ -62,13 +62,13 @@ def test_post_methods_trims_whitespace_in_name() -> None:
 @pytest.mark.contract
 def test_post_methods_rejects_missing_name_with_422() -> None:
     with TestClient(create_app()) as client:
-        response = client.post("/methods", json={"needed_capabilities": []})
+        response = client.post("/methods", json={"needed_families": []})
     assert response.status_code == 422
 
 
 @pytest.mark.contract
-def test_post_methods_rejects_missing_needed_capabilities_with_422() -> None:
-    """needed_capabilities is required (no default at the API
+def test_post_methods_rejects_missing_needed_families_with_422() -> None:
+    """needed_families is required (no default at the API
     boundary); use [] explicitly for procedural Methods."""
     with TestClient(create_app()) as client:
         response = client.post("/methods", json={"name": "X"})
@@ -78,7 +78,7 @@ def test_post_methods_rejects_missing_needed_capabilities_with_422() -> None:
 @pytest.mark.contract
 def test_post_methods_rejects_empty_name_with_422() -> None:
     with TestClient(create_app()) as client:
-        response = client.post("/methods", json={"name": "", "needed_capabilities": []})
+        response = client.post("/methods", json={"name": "", "needed_families": []})
     assert response.status_code == 422
 
 
@@ -87,7 +87,7 @@ def test_post_methods_rejects_too_long_name_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/methods",
-            json={"name": "a" * 201, "needed_capabilities": []},
+            json={"name": "a" * 201, "needed_families": []},
         )
     assert response.status_code == 422
 
@@ -98,7 +98,7 @@ def test_post_methods_rejects_whitespace_only_name_with_400() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/methods",
-            json={"name": "   ", "needed_capabilities": []},
+            json={"name": "   ", "needed_families": []},
         )
     assert response.status_code == 400
     body = response.json()
@@ -110,7 +110,7 @@ def test_post_methods_rejects_non_uuid_capability_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/methods",
-            json={"name": "X", "needed_capabilities": ["not-a-uuid"]},
+            json={"name": "X", "needed_families": ["not-a-uuid"]},
         )
     assert response.status_code == 422
 
@@ -121,21 +121,21 @@ def test_post_methods_uses_max_length_constant_from_domain() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/methods",
-            json={"name": "a" * METHOD_NAME_MAX_LENGTH, "needed_capabilities": []},
+            json={"name": "a" * METHOD_NAME_MAX_LENGTH, "needed_families": []},
         )
     assert response.status_code == 201
 
 
 @pytest.mark.contract
-def test_post_methods_accepts_capability_ids_without_verifying_existence() -> None:
-    """Eventual-consistency stance: bogus Capability ids are accepted
+def test_post_methods_accepts_family_ids_without_verifying_existence() -> None:
+    """Eventual-consistency stance: bogus Family ids are accepted
     at decide time. Mismatch surfaces at Plan binding (6e). Pinned
     to lock the no-verification contract end-to-end."""
     bogus_cap = "01900000-0000-7000-8000-deadbeefcafe"
     with TestClient(create_app()) as client:
         response = client.post(
             "/methods",
-            json={"name": "X", "needed_capabilities": [bogus_cap]},
+            json={"name": "X", "needed_families": [bogus_cap]},
         )
     assert response.status_code == 201
 
@@ -143,7 +143,7 @@ def test_post_methods_accepts_capability_ids_without_verifying_existence() -> No
 @pytest.mark.contract
 def test_post_methods_returns_409_when_method_already_exists() -> None:
     """Defensive guard: MethodAlreadyExistsError -> 409. Same pattern
-    as CapabilityAlreadyExistsError. Stub the handler so the route's
+    as FamilyAlreadyExistsError. Stub the handler so the route's
     exception handler is verified end-to-end."""
     existing_id = uuid4()
 
@@ -156,7 +156,7 @@ def test_post_methods_returns_409_when_method_already_exists() -> None:
         with TestClient(app) as client:
             response = client.post(
                 "/methods",
-                json={"name": "X", "needed_capabilities": []},
+                json={"name": "X", "needed_families": []},
             )
     finally:
         app.dependency_overrides.clear()

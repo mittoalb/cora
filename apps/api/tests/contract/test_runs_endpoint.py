@@ -1,6 +1,6 @@
 """Contract tests for `POST /runs`.
 
-The keystone slice — exercises the full upstream chain (Capability +
+The keystone slice — exercises the full upstream chain (Family +
 Asset + Method + Practice + Plan + optionally Subject) end-to-end
 against the real app boundary.
 """
@@ -22,11 +22,11 @@ from tests.contract._subject_helpers import register_active_asset
 
 
 def _setup_full_chain(client: TestClient) -> tuple[str, str]:
-    """Seed Capability + Method + Practice + Asset (with capability) +
+    """Seed Family + Method + Practice + Asset (with capability) +
     Plan + Subject (Mounted) via the public API. Returns (plan_id, subject_id)."""
-    cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_capabilities": [cap_id]}
+        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",
@@ -36,7 +36,7 @@ def _setup_full_chain(client: TestClient) -> tuple[str, str]:
         "/assets",
         json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
-    add_resp = client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+    add_resp = client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
     assert add_resp.status_code == 204
     plan_id = client.post(
         "/plans",
@@ -255,10 +255,10 @@ def test_post_runs_returns_409_when_asset_decommissioned_after_plan_bind() -> No
     """Drift since Plan-bind: bound Asset got Decommissioned. Run-start re-validates."""
     with TestClient(create_app()) as client:
         # Build chain manually so we have asset_id handle.
-        cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
-        method_id = client.post(
-            "/methods", json={"name": "M", "needed_capabilities": [cap_id]}
-        ).json()["method_id"]
+        cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+        method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
+            "method_id"
+        ]
         practice_id = client.post(
             "/practices",
             json={"name": "P", "method_id": method_id, "site_id": str(uuid4())},
@@ -266,7 +266,7 @@ def test_post_runs_returns_409_when_asset_decommissioned_after_plan_bind() -> No
         asset_id = client.post(
             "/assets", json={"name": "A", "level": "Enterprise", "parent_id": None}
         ).json()["asset_id"]
-        client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+        client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
         plan_id = client.post(
             "/plans",
             json={"name": "Plan", "practice_id": practice_id, "asset_ids": [asset_id]},
@@ -282,10 +282,10 @@ def test_post_runs_returns_409_when_asset_decommissioned_after_plan_bind() -> No
 def test_post_runs_returns_409_when_asset_capabilities_drifted_off() -> None:
     """Drift: Asset's capability got removed since Plan-bind. Run-start re-validates."""
     with TestClient(create_app()) as client:
-        cap_id = client.post("/capabilities", json={"name": "FlyMotion"}).json()["capability_id"]
-        method_id = client.post(
-            "/methods", json={"name": "M", "needed_capabilities": [cap_id]}
-        ).json()["method_id"]
+        cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+        method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
+            "method_id"
+        ]
         practice_id = client.post(
             "/practices",
             json={"name": "P", "method_id": method_id, "site_id": str(uuid4())},
@@ -293,13 +293,13 @@ def test_post_runs_returns_409_when_asset_capabilities_drifted_off() -> None:
         asset_id = client.post(
             "/assets", json={"name": "A", "level": "Enterprise", "parent_id": None}
         ).json()["asset_id"]
-        client.post(f"/assets/{asset_id}/add_capability", json={"capability_id": cap_id})
+        client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
         plan_id = client.post(
             "/plans",
             json={"name": "Plan", "practice_id": practice_id, "asset_ids": [asset_id]},
         ).json()["plan_id"]
         # Now remove the capability from the Asset (drift).
-        client.post(f"/assets/{asset_id}/remove_capability", json={"capability_id": cap_id})
+        client.post(f"/assets/{asset_id}/remove_capability", json={"family_id": cap_id})
         response = client.post("/runs", json={"name": "X", "plan_id": plan_id})
     assert response.status_code == 409
     assert "missing capabilities" in response.json()["detail"]

@@ -29,8 +29,8 @@ Recipe ladder mid-test); pre-baked Methods would erase that surface.
 The Aerotech rotary + Sample_top_X linear stage + Oryx 5MP camera +
 LuAG scintillator are the standard 2-BM micro-CT imaging chain. Every
 tomography-flavour scenario uses exactly these four, with the same
-Device names and the same Capability kinds. Hard-coding the names +
-Capability kinds in the fixture removes a per-scenario boilerplate
+Device names and the same Family kinds. Hard-coding the names +
+Family kinds in the fixture removes a per-scenario boilerplate
 loop and one whole layer of plumbing constants from the caller. The
 caller still supplies the UUIDs (mnemonic-hex tags per scenario,
 matching the `_facility_fixture` convention).
@@ -55,7 +55,7 @@ _TOMO_ASSETS = TomographyAssetIds(
 _RECIPE = RecipeSpec(
     method_id=_METHOD_ID,
     method_name="tomography",
-    needed_capabilities=frozenset({_CAP_ROTARY_ID, _CAP_LINEAR_ID, _CAP_CAMERA_ID, _CAP_SCIN_ID}),
+    needed_families=frozenset({_CAP_ROTARY_ID, _CAP_LINEAR_ID, _CAP_CAMERA_ID, _CAP_SCIN_ID}),
     parameters_schema={...},
     practice_id=_PRACTICE_ID,
     practice_name="2BM_tomography_practice",
@@ -114,7 +114,7 @@ from tests.integration.scenarios._facility_fixture import (
     install_aps_unit,
 )
 
-# Canonical 2-BM micro-CT imaging chain. Names + Capability kinds are
+# Canonical 2-BM micro-CT imaging chain. Names + Family kinds are
 # fixture-owned because they describe the physical apparatus, not the
 # scenario; UUIDs remain scenario-supplied per the audit-trail convention.
 ROTARY_NAME = "Aerotech_ABRS_rotary"
@@ -234,7 +234,7 @@ class RecipeSpec:
 
     method_id: UUID
     method_name: str
-    needed_capabilities: frozenset[UUID]
+    needed_families: frozenset[UUID]
     practice_id: UUID
     practice_name: str
     site_id: UUID
@@ -277,7 +277,7 @@ async def define_recipe_ladder(
     await bind_define_method(deps)(
         DefineMethod(
             name=spec.method_name,
-            needed_capabilities=spec.needed_capabilities,
+            needed_families=spec.needed_families,
         ),
         principal_id=principal_id,
         correlation_id=correlation_id,

@@ -1,7 +1,7 @@
 """Read repository for the Procedure aggregate.
 
 `load_procedure(event_store, procedure_id) -> Procedure | None`
-mirrors `load_supply` / `load_capability` / `load_subject`. Used by
+mirrors `load_supply` / `load_family` / `load_subject`. Used by
 the `get_procedure` query slice (10c-a) and update-style command
 handlers (10c-b transition slices).
 """

@@ -2,7 +2,7 @@
 
 Mirrors `test_actor_lifecycle.py` for the Recipe BC's Method aggregate.
 Pinned response shapes: POST returns `{method_id}`, GET returns
-`{id, name, needed_capabilities, status, version}`, list returns
+`{id, name, needed_families, status, version}`, list returns
 `{items: [...], next_cursor}`.
 """
 
@@ -20,7 +20,7 @@ async def test_define_then_get_then_list_method(
 ) -> None:
     define = await e2e_client.post(
         "/methods",
-        json={"name": "XRF Mapping", "needed_capabilities": []},
+        json={"name": "XRF Mapping", "needed_families": []},
     )
     assert define.status_code == 201
     method_id = UUID(define.json()["method_id"])
@@ -31,7 +31,7 @@ async def test_define_then_get_then_list_method(
     assert body["id"] == str(method_id)
     assert body["name"] == "XRF Mapping"
     assert body["status"] == "Defined"
-    assert body["needed_capabilities"] == []
+    assert body["needed_families"] == []
 
     await e2e_drain()
     listed = await e2e_client.get("/methods")

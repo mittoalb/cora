@@ -222,8 +222,8 @@ def test_wire_equipment_includes_register_asset() -> None:
     assert isinstance(handlers, EquipmentHandlers)
     assert callable(handlers.register_asset)
     # earlier-phase handlers still wired (regression guards)
-    assert callable(handlers.define_capability)
-    assert callable(handlers.get_capability)
+    assert callable(handlers.define_family)
+    assert callable(handlers.get_family)
 
 
 @pytest.mark.unit

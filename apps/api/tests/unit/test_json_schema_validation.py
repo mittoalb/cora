@@ -2,7 +2,7 @@
 validators.
 
 Most of `cora.infrastructure.json_schema_validation` is exercised
-indirectly via each BC's wrapper (5g-a Capability, 6g-a Method, 6g-b
+indirectly via each BC's wrapper (5g-a Family, 6g-a Method, 6g-b
 Plan, 6g-c Run, 5g-c Asset). This file pins the cross-BC pieces ONCE
 to keep their contract scannable:
 

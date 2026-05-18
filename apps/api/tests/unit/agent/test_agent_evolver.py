@@ -254,7 +254,7 @@ def test_tool_grant_preserves_unrelated_fields() -> None:
 
 @pytest.mark.unit
 def test_suspended_preserves_unrelated_fields() -> None:
-    """Suspended arm must carry forward tools/budget/capabilities/description.
+    """Suspended arm must carry forward tools/budget/families/description.
 
     Guards against a future refactor accidentally dropping a field when
     updating the Suspended evolver arm (silent-wipe class of bug)."""
@@ -302,7 +302,7 @@ def test_resumed_preserves_unrelated_fields() -> None:
 
 @pytest.mark.unit
 def test_tool_revoked_preserves_unrelated_fields() -> None:
-    """ToolRevoked arm must not silently wipe budget/capabilities/description."""
+    """ToolRevoked arm must not silently wipe budget/families/description."""
     agent_id = uuid4()
     e1 = _genesis(agent_id=agent_id)
     e2 = AgentToolGranted(agent_id=agent_id, tool_name="read_run", occurred_at=_T1)
@@ -323,7 +323,7 @@ def test_tool_revoked_preserves_unrelated_fields() -> None:
 
 @pytest.mark.unit
 def test_budget_revised_preserves_unrelated_fields() -> None:
-    """BudgetRevised arm must not silently wipe tools/capabilities/description."""
+    """BudgetRevised arm must not silently wipe tools/families/description."""
     agent_id = uuid4()
     e1 = _genesis(agent_id=agent_id)
     e2 = AgentToolGranted(agent_id=agent_id, tool_name="read_run", occurred_at=_T1)

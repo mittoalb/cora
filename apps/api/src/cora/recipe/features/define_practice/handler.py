@@ -1,6 +1,6 @@
 """Application handler for the `define_practice` slice.
 
-Same shape as `define_method` / `define_capability` / etc — the
+Same shape as `define_method` / `define_family` / etc — the
 locked cross-BC create-style command pattern. Module-as-namespace:
 callers use `from cora.recipe.features import define_practice` then
 `define_practice.bind(deps)` returning a `define_practice.Handler`.

@@ -307,7 +307,7 @@ async def test_alignment_calibration_plays_out_end_to_end(
     await bind_define_method(deps)(
         DefineMethod(
             name="alignment_calibration",
-            needed_capabilities=frozenset(
+            needed_families=frozenset(
                 {
                     _CAP_ROTARY_STAGE_ID,
                     _CAP_LINEAR_STAGE_ID,

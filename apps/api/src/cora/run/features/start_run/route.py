@@ -41,7 +41,7 @@ class StartRunRequest(BaseModel):
         description=(
             "Plan id this Run executes. Existence verified at handler-"
             "load time; missing → 404. Plan's status verified by decider "
-            "(Deprecated → 409). Capability superset re-validated against "
+            "(Deprecated → 409). Family superset re-validated against "
             "current Asset state (drift since Plan-bind → 409)."
         ),
     )
@@ -141,7 +141,7 @@ router = APIRouter(tags=["run"])
                 "Run-start rejected: Plan is Deprecated, Subject is not "
                 "in Mounted or Measured, a bound Asset is Decommissioned, "
                 "the bound Assets' current capabilities don't cover "
-                "the Method's needed_capabilities, OR (Phase 6i-c) the "
+                "the Method's needed_families, OR (Phase 6i-c) the "
                 "supplied Campaign is in a terminal status (Closed / "
                 "Abandoned) and refuses new members."
             ),

@@ -20,7 +20,7 @@ Phase 6a ships `define_method` + `get_method`. Subsequent phases:
   - 6b: Method transitions (version, deprecate)
   - 6c: Method enrichment (description, owner)
   - 6d: Practice aggregate slices
-  - 6e: Plan aggregate slices (depends on 5f Asset.capabilities)
+  - 6e: Plan aggregate slices (depends on 5f Asset.families)
   - 6f: Run aggregate slices
 """
 

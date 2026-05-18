@@ -1,5 +1,5 @@
 """End-to-end: `list_methods` handler against real Postgres
-projection table. Same shape as `list_capabilities` (3 lifecycle
+projection table. Same shape as `list_families` (3 lifecycle
 events, 3 statuses, version_tag preserved through deprecation).
 
 Drains all three Recipe projections (Method + Practice + Plan are

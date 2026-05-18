@@ -1,4 +1,4 @@
-"""Unit tests for the `list_capabilities` handler. Pool-less
+"""Unit tests for the `list_families` handler. Pool-less
 (in-memory test environment); end-to-end pagination + status filter
 are in the integration suite.
 
@@ -9,7 +9,7 @@ from uuid import UUID
 
 import pytest
 
-from cora.equipment.features.list_capabilities import ListCapabilities, bind
+from cora.equipment.features.list_families import ListFamilies, bind
 from cora.infrastructure.projection import InvalidCursorError, encode_cursor
 from tests.unit._helpers import build_deps
 
@@ -22,7 +22,7 @@ _NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
 async def test_handler_returns_empty_page_when_no_pool() -> None:
     handler = bind(build_deps())
     page = await handler(
-        ListCapabilities(),
+        ListFamilies(),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -35,7 +35,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     handler = bind(build_deps(deny=True))
     with pytest.raises(Exception, match="denied for test"):
         await handler(
-            ListCapabilities(),
+            ListFamilies(),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -46,7 +46,7 @@ async def test_handler_raises_invalid_cursor_for_garbage() -> None:
     handler = bind(build_deps())
     with pytest.raises(InvalidCursorError):
         await handler(
-            ListCapabilities(cursor="not-a-real-cursor"),
+            ListFamilies(cursor="not-a-real-cursor"),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -60,7 +60,7 @@ async def test_handler_accepts_well_formed_cursor() -> None:
     )
     handler = bind(build_deps())
     page = await handler(
-        ListCapabilities(cursor=cursor),
+        ListFamilies(cursor=cursor),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -73,7 +73,7 @@ async def test_handler_accepts_status_filter() -> None:
     """No-pool path: handler doesn't error when status filter is set."""
     handler = bind(build_deps())
     page = await handler(
-        ListCapabilities(status="Versioned"),
+        ListFamilies(status="Versioned"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

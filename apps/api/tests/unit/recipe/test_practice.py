@@ -59,7 +59,7 @@ def test_practice_name_is_frozen() -> None:
 
 @pytest.mark.unit
 def test_practice_status_has_all_three_lifecycle_values() -> None:
-    """Mirrors Method / Capability lifecycle vocabulary."""
+    """Mirrors Method / Family lifecycle vocabulary."""
     assert {s.value for s in PracticeStatus} == {"Defined", "Versioned", "Deprecated"}
 
 

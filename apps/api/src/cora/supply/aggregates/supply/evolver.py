@@ -13,7 +13,7 @@ Status mapping per event type:
   - `SupplyRestored`          -> AVAILABLE   (single-source: Recovering; recovery ack)
 
 The mapping is hardcoded per match arm — the event type IS the
-state-change indicator. Same precedent as `CapabilityDefined ->
+state-change indicator. Same precedent as `FamilyDefined ->
 DEFINED` / `SubjectMounted -> MOUNTED`. Source-state guards are
 enforced at the decider, NOT here; the evolver trusts the event
 log (folded events have already passed their decider).

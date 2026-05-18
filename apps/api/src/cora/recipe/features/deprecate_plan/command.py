@@ -2,7 +2,7 @@
 
 Multi-source transition: Defined | Versioned -> Deprecated. Single-
 field command (just plan_id); no body at the API layer. Mirrors
-`DeprecatePractice` / `DeprecateMethod` / `DeprecateCapability`.
+`DeprecatePractice` / `DeprecateMethod` / `DeprecateFamily`.
 """
 
 from dataclasses import dataclass

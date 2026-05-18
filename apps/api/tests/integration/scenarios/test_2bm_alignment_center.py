@@ -49,7 +49,7 @@ Four target Assets cover the load-bearing instruments:
   - FLIR Oryx 5MP camera (the alignment-frame detector)
   - LuAG scintillator (converts X-rays to visible for the camera)
 
-Each gets one Capability defined day-one. The hexapod, sample_y,
+Each gets one Family defined day-one. The hexapod, sample_y,
 phantom, and beamline-envelope Assets are deliberately omitted from
 the Procedure's target_asset_ids — they're upstream / supporting,
 not directly manipulated during the center routine.
@@ -96,11 +96,11 @@ from cora.equipment.features.update_asset_settings import (
 from cora.equipment.features.update_asset_settings import (
     bind as bind_update_asset_settings,
 )
-from cora.equipment.features.update_capability_settings_schema import (
-    UpdateCapabilitySettingsSchema,
+from cora.equipment.features.update_family_settings_schema import (
+    UpdateFamilySettingsSchema,
 )
-from cora.equipment.features.update_capability_settings_schema import (
-    bind as bind_update_capability_settings_schema,
+from cora.equipment.features.update_family_settings_schema import (
+    bind as bind_update_family_settings_schema,
 )
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.operation._projections import register_operation_projections
@@ -170,7 +170,7 @@ _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000350501")
 _SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000350701")
 _2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000350a01")
 
-# Capability ids (4 caps x 2 ids/define = 8)
+# Family ids (4 caps x 2 ids/define = 8)
 _CAP_ROTARY_STAGE_ID = UUID("01900000-0000-7000-8000-000000035c01")
 _CAP_LINEAR_STAGE_ID = UUID("01900000-0000-7000-8000-000000035c11")
 _CAP_CAMERA_ID = UUID("01900000-0000-7000-8000-000000035c21")
@@ -207,17 +207,17 @@ _DEVICES = (
 )
 
 
-# ----- Phase 10e-a: Capability settings_schemas + per-device settings dicts -----
+# ----- Phase 10e-a: Family settings_schemas + per-device settings dicts -----
 #
-# Capability.settings_schema declares the intrinsic-property contract for a
+# Family.settings_schema declares the intrinsic-property contract for a
 # device class (positions, encoder resolution, hardware envelope, per-install
 # calibration). Asset.settings carries this specific device's values. Runtime
 # parameters (exposure, energy, rotation step) are NOT here -- they belong on
 # Method.parameters_schema (Phase 10e-b). Per [[project_pilot_settings_schemas]].
 #
-# Same-unit-per-physical-dimension-per-Capability convention: all RotaryStage
+# Same-unit-per-physical-dimension-per-Family convention: all RotaryStage
 # angle properties in deg; all LinearStage length properties in mm. Different
-# physical dimensions in the same Capability use different unit codes
+# physical dimensions in the same Family use different unit codes
 # (positions in deg + max_speed in deg/s).
 
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
@@ -379,7 +379,7 @@ def _id_queue() -> list[UUID]:
             unit_id=_2BM_UNIT_ID,
             devices=_DEVICES,
         ),
-        # update_capability_settings_schema x 4: event_id only
+        # update_family_settings_schema x 4: event_id only
         e(),
         e(),
         e(),
@@ -517,7 +517,7 @@ async def test_center_alignment_plays_out_end_to_end(
         devices=_DEVICES,
     )
 
-    # ----- Phase 10e-a: declare Capability schemas then push per-Asset settings -----
+    # ----- Phase 10e-a: declare Family schemas then push per-Asset settings -----
     #
     # Schemas first (4 calls), then values (4 calls). Both are scenario-local
     # rather than baked into install_aps_unit per the design memo
@@ -525,8 +525,8 @@ async def test_center_alignment_plays_out_end_to_end(
     # scenario uses the same facility helper without authoring schemas.
 
     for cap_id, schema in _SCHEMA_SPECS:
-        await bind_update_capability_settings_schema(deps)(
-            UpdateCapabilitySettingsSchema(capability_id=cap_id, settings_schema=schema),
+        await bind_update_family_settings_schema(deps)(
+            UpdateFamilySettingsSchema(family_id=cap_id, settings_schema=schema),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -542,7 +542,7 @@ async def test_center_alignment_plays_out_end_to_end(
     await bind_define_method(deps)(
         DefineMethod(
             name="center_alignment",
-            needed_capabilities=frozenset(
+            needed_families=frozenset(
                 {
                     _CAP_ROTARY_STAGE_ID,
                     _CAP_LINEAR_STAGE_ID,
@@ -830,32 +830,32 @@ async def test_center_alignment_plays_out_end_to_end(
     )
     assert any(item.procedure_id == _PROCEDURE_ID for item in page_by_asset.items)
 
-    # ----- Phase 10e-a: assert Capability schemas + Asset settings landed -----
+    # ----- Phase 10e-a: assert Family schemas + Asset settings landed -----
     #
-    # Schemas + settings are NOT in proj_equipment_capability_summary or
+    # Schemas + settings are NOT in proj_equipment_family_summary or
     # proj_equipment_asset_summary by design (5g-a / 5g-c locks: no list-by-
     # settings-key consumer yet). Verify via event-stream replay instead.
 
     for cap_id, expected_schema in _SCHEMA_SPECS:
-        events, version = await deps.event_store.load("Capability", cap_id)
+        events, version = await deps.event_store.load("Family", cap_id)
         assert version == 2, (
-            f"Capability {cap_id} should have 2 events (Defined + SchemaUpdated); got {version}"
+            f"Family {cap_id} should have 2 events (Defined + SchemaUpdated); got {version}"
         )
         event_types = [e.event_type for e in events]
-        assert event_types == ["CapabilityDefined", "CapabilitySettingsSchemaUpdated"]
+        assert event_types == ["FamilyDefined", "FamilySettingsSchemaUpdated"]
         assert events[1].payload["settings_schema"] == expected_schema
 
     for asset_id, expected_settings in _SETTINGS_SPECS:
         events, version = await deps.event_store.load("Asset", asset_id)
-        # Expected sequence: Registered, CapabilityAdded, SettingsUpdated.
+        # Expected sequence: Registered, FamilyAdded, SettingsUpdated.
         assert version == 3, (
             f"Asset {asset_id} should have 3 events "
-            f"(Registered + CapabilityAdded + SettingsUpdated); got {version}"
+            f"(Registered + FamilyAdded + SettingsUpdated); got {version}"
         )
         event_types = [e.event_type for e in events]
         assert event_types == [
             "AssetRegistered",
-            "AssetCapabilityAdded",
+            "AssetFamilyAdded",
             "AssetSettingsUpdated",
         ]
         # 5g-c: event payload carries the FULL post-merge dict.
