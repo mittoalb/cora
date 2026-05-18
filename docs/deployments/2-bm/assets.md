@@ -122,19 +122,19 @@
 
 ## About Settings
 
-`Capability.settings_schema` declares the *intrinsic property contract* for a Device class (positions, encoder resolution, hardware envelope, per-install calibration). `Asset.settings` carries this specific Device's values. Runtime parameters (exposure, energy, rotation step) live on `Method.parameters_schema` instead (Method-side counterpart, separate track).
+`Capability.settings_schema` declares the per-class property contract (positions, encoder resolution, hardware envelope). `Asset.settings` carries this Device's values. Runtime parameters (exposure, energy, rotation step) live on `Method.parameters_schema` instead.
 
-Every numeric property carries a `unit: {system, code}` annotation per the [units design](../../architecture/model.md). The same-unit-per-physical-dimension-per-Capability convention means all `RotaryStage` angles are in `deg`, all `LinearStage` lengths in `mm`, etc. Different physical dimensions in the same Capability use different unit codes (positions in `deg` plus `max_speed` in `deg/s`).
+Numeric properties carry a `unit` annotation per the [units design](../../architecture/model.md): one unit per physical dimension per Capability. Different dimensions in the same Capability use different unit codes (`deg` for position, `deg/s` for speed).
 
-Assets with no schema-keyed rows in their table do not yet have their `Capability.settings_schema` declared in code; values land when the schema does.
+Assets without schema-keyed rows have no `Capability.settings_schema` yet; rows land when the schema does.
 
 ## Pending
 
-Devices surfaced by the [2-BM repo survey](https://github.com/xray-imaging/2bm-docs) or `2bmb-bin` IOC scripts, not yet present in the inventory above.
+Devices catalogued in 2-BM ops material but not yet registered in the inventory above.
 
-- **`Mirror_2BM`** — new `Mirror` Capability (coating-dependent energy range). White-beam mirror with multi-stripe coating (Cr base + Pt / W-Si multilayer / Rh stripes).
-- **`softGlueZynq_FPGA`** — new `TriggerFPGA` Capability. Hardware trigger generation for fly-scans; needed to model live-reconstruction streaming.
-- **`PCO_Dimax_HS`** — `HighSpeedCamera`. High-speed detector alternate to `Oryx_5MP_camera`; used for vibration-baseline acquisitions and continuous-rotation sweeps.
-- **Optique Peter triple-objective microscope (full stack)** — `LinearStage` ×3 (lens swap) + `Scintillator` ×3 (per-objective swap). Three-objective swap stack (Mitutoyo 1.1x / 5x / 10x); exercises Capability re-binding when the operator swaps objectives.
-- **Broader sample-stage motors** — `LinearStage` (X / Y / Z) + tilt motors. Full stack used in mosaic and multi-tile acquisitions.
-- **IOC-hosted EPICS Devices** — 8 IOC pairs in `2bmb-bin`; all Devices that need IOC restart cycles.
+- **`Mirror_2BM`** — `Mirror` Capability. White-beam mirror with multi-stripe coating (Cr / Pt / W-Si multilayer / Rh).
+- **`softGlueZynq_FPGA`** — `TriggerFPGA` Capability. Hardware trigger generation for fly-scans.
+- **`PCO_Dimax_HS`** — `HighSpeedCamera`. High-speed detector for vibration baselines and continuous-rotation sweeps.
+- **Optique Peter triple-objective microscope** — `LinearStage` ×3 + `Scintillator` ×3. Three-objective swap stack (Mitutoyo 1.1x / 5x / 10x).
+- **Broader sample-stage motors** — `LinearStage` (X / Y / Z) + tilt motors. Used in mosaic and multi-tile acquisitions.
+- **IOC-hosted EPICS Devices** — 8 IOC pairs in `2bmb-bin`.
