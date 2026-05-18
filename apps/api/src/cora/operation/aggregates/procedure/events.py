@@ -334,56 +334,80 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
     payload = stored.payload
     match stored.event_type:
         case "ProcedureRegistered":
-            raw_parent = payload["parent_run_id"]
-            # Phase 10d-additive: capability_id is OPTIONAL on the payload.
-            # Pre-10d streams omit the key entirely; fold via `.get` →
-            # None default. Mirrors Method.capability_id (6l-additive).
-            raw_capability = payload.get("capability_id")
-            return ProcedureRegistered(
-                procedure_id=UUID(payload["procedure_id"]),
-                name=payload["name"],
-                kind=payload["kind"],
-                target_asset_ids=[UUID(a) for a in payload["target_asset_ids"]],
-                parent_run_id=UUID(raw_parent) if raw_parent is not None else None,
-                capability_id=UUID(raw_capability) if raw_capability is not None else None,
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                raw_parent = payload["parent_run_id"]
+                # Phase 10d-additive: capability_id is OPTIONAL on the payload.
+                # Pre-10d streams omit the key entirely; fold via `.get` →
+                # None default. Mirrors Method.capability_id (6l-additive).
+                raw_capability = payload.get("capability_id")
+                return ProcedureRegistered(
+                    procedure_id=UUID(payload["procedure_id"]),
+                    name=payload["name"],
+                    kind=payload["kind"],
+                    target_asset_ids=[UUID(a) for a in payload["target_asset_ids"]],
+                    parent_run_id=UUID(raw_parent) if raw_parent is not None else None,
+                    capability_id=UUID(raw_capability) if raw_capability is not None else None,
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ProcedureRegistered payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ProcedureStarted":
-            return ProcedureStarted(
-                procedure_id=UUID(payload["procedure_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ProcedureStarted(
+                    procedure_id=UUID(payload["procedure_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ProcedureStarted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ProcedureCompleted":
-            return ProcedureCompleted(
-                procedure_id=UUID(payload["procedure_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ProcedureCompleted(
+                    procedure_id=UUID(payload["procedure_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ProcedureCompleted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ProcedureAborted":
-            return ProcedureAborted(
-                procedure_id=UUID(payload["procedure_id"]),
-                reason=payload["reason"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ProcedureAborted(
+                    procedure_id=UUID(payload["procedure_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ProcedureAborted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ProcedureTruncated":
-            raw_interrupted_at = payload["interrupted_at"]
-            return ProcedureTruncated(
-                procedure_id=UUID(payload["procedure_id"]),
-                reason=payload["reason"],
-                interrupted_at=(
-                    datetime.fromisoformat(raw_interrupted_at)
-                    if raw_interrupted_at is not None
-                    else None
-                ),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                raw_interrupted_at = payload["interrupted_at"]
+                return ProcedureTruncated(
+                    procedure_id=UUID(payload["procedure_id"]),
+                    reason=payload["reason"],
+                    interrupted_at=(
+                        datetime.fromisoformat(raw_interrupted_at)
+                        if raw_interrupted_at is not None
+                        else None
+                    ),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ProcedureTruncated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ProcedureStepsLogbookOpened":
-            return ProcedureStepsLogbookOpened(
-                procedure_id=UUID(payload["procedure_id"]),
-                logbook_id=UUID(payload["logbook_id"]),
-                kind=payload["kind"],
-                schema=LogbookSchema.from_dict(payload["schema"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ProcedureStepsLogbookOpened(
+                    procedure_id=UUID(payload["procedure_id"]),
+                    logbook_id=UUID(payload["logbook_id"]),
+                    kind=payload["kind"],
+                    schema=LogbookSchema.from_dict(payload["schema"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ProcedureStepsLogbookOpened payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown ProcedureEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

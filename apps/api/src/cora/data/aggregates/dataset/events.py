@@ -204,44 +204,56 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
     payload = stored.payload
     match stored.event_type:
         case "DatasetRegistered":
-            raw_producing_run_id = payload["producing_run_id"]
-            raw_subject_id = payload["subject_id"]
-            raw_checksum = payload["checksum"]
-            raw_encoding = payload["encoding"]
-            return DatasetRegistered(
-                dataset_id=UUID(payload["dataset_id"]),
-                name=payload["name"],
-                uri=payload["uri"],
-                checksum_algorithm=raw_checksum["algorithm"],
-                checksum_value=raw_checksum["value"],
-                byte_size=int(payload["byte_size"]),
-                media_type=raw_encoding["media_type"],
-                conforms_to=frozenset(raw_encoding["conforms_to"]),
-                producing_run_id=(
-                    UUID(raw_producing_run_id) if raw_producing_run_id is not None else None
-                ),
-                subject_id=UUID(raw_subject_id) if raw_subject_id is not None else None,
-                derived_from=frozenset(UUID(d) for d in payload["derived_from"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                # Phase 7e additive evolution: pre-7e events have no
-                # producing_run_end_state or intent in payload; default
-                # to None and "Trial" respectively (state evolver will
-                # construct Intent.TRIAL from the string).
-                producing_run_end_state=payload.get("producing_run_end_state"),
-                intent=payload.get("intent", "Trial"),
-            )
+            try:
+                raw_producing_run_id = payload["producing_run_id"]
+                raw_subject_id = payload["subject_id"]
+                raw_checksum = payload["checksum"]
+                raw_encoding = payload["encoding"]
+                return DatasetRegistered(
+                    dataset_id=UUID(payload["dataset_id"]),
+                    name=payload["name"],
+                    uri=payload["uri"],
+                    checksum_algorithm=raw_checksum["algorithm"],
+                    checksum_value=raw_checksum["value"],
+                    byte_size=int(payload["byte_size"]),
+                    media_type=raw_encoding["media_type"],
+                    conforms_to=frozenset(raw_encoding["conforms_to"]),
+                    producing_run_id=(
+                        UUID(raw_producing_run_id) if raw_producing_run_id is not None else None
+                    ),
+                    subject_id=UUID(raw_subject_id) if raw_subject_id is not None else None,
+                    derived_from=frozenset(UUID(d) for d in payload["derived_from"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    # Phase 7e additive evolution: pre-7e events have no
+                    # producing_run_end_state or intent in payload; default
+                    # to None and "Trial" respectively (state evolver will
+                    # construct Intent.TRIAL from the string).
+                    producing_run_end_state=payload.get("producing_run_end_state"),
+                    intent=payload.get("intent", "Trial"),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed DatasetRegistered payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "DatasetDiscarded":
-            return DatasetDiscarded(
-                dataset_id=UUID(payload["dataset_id"]),
-                reason=payload["reason"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return DatasetDiscarded(
+                    dataset_id=UUID(payload["dataset_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed DatasetDiscarded payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "DatasetPromoted":
-            return DatasetPromoted(
-                dataset_id=UUID(payload["dataset_id"]),
-                reason=payload["reason"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return DatasetPromoted(
+                    dataset_id=UUID(payload["dataset_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed DatasetPromoted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown DatasetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

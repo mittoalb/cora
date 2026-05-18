@@ -508,3 +508,26 @@ def test_procedure_truncated_round_trips() -> None:
     stored = _stored("ProcedureTruncated", to_payload(original))
     rebuilt = from_stored(stored)
     assert rebuilt == original
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "event_type",
+    [
+        "ProcedureRegistered",
+        "ProcedureStarted",
+        "ProcedureCompleted",
+        "ProcedureAborted",
+        "ProcedureTruncated",
+        "ProcedureStepsLogbookOpened",
+    ],
+)
+def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:
+    """Per the convention adopted post-corpus-survey (Marten /
+    pyeventsourcing / Pydantic / msgspec all wrap), each event-type case
+    wraps `KeyError`/`TypeError`/`AttributeError` into a tagged
+    `ValueError` so a corrupted event row fails loud with the event-type
+    name in the message rather than bubbling a raw KeyError from deep
+    in the load path."""
+    with pytest.raises(ValueError, match=f"Malformed {event_type} payload"):
+        from_stored(_stored(event_type, {}))

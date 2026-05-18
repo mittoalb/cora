@@ -326,65 +326,89 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
     payload = stored.payload
     match stored.event_type:
         case "PlanDefined":
-            # Phase 5i dual-key fallback: pre-5i PlanDefined payloads carry
-            # `method_needed_capabilities_snapshot` and
-            # `asset_capabilities_snapshot`; post-5i payloads carry the
-            # `*_families_snapshot` equivalents. Read the new key first,
-            # fall back to the legacy key. Stays forever per Marten/Axon
-            # rename pattern.
-            needed_snap = payload.get(
-                "method_needed_families_snapshot",
-                payload.get("method_needed_capabilities_snapshot", []),
-            )
-            asset_snap = payload.get(
-                "asset_families_snapshot",
-                payload.get("asset_capabilities_snapshot", {}),
-            )
-            return PlanDefined(
-                plan_id=UUID(payload["plan_id"]),
-                name=payload["name"],
-                practice_id=UUID(payload["practice_id"]),
-                asset_ids=[UUID(a) for a in payload["asset_ids"]],
-                method_id=UUID(payload["method_id"]),
-                method_needed_families_snapshot=[UUID(c) for c in needed_snap],
-                asset_families_snapshot=_deserialize_asset_families_snapshot(asset_snap),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                # Phase 5i dual-key fallback: pre-5i PlanDefined payloads carry
+                # `method_needed_capabilities_snapshot` and
+                # `asset_capabilities_snapshot`; post-5i payloads carry the
+                # `*_families_snapshot` equivalents. Read the new key first,
+                # fall back to the legacy key. Stays forever per Marten/Axon
+                # rename pattern.
+                needed_snap = payload.get(
+                    "method_needed_families_snapshot",
+                    payload.get("method_needed_capabilities_snapshot", []),
+                )
+                asset_snap = payload.get(
+                    "asset_families_snapshot",
+                    payload.get("asset_capabilities_snapshot", {}),
+                )
+                return PlanDefined(
+                    plan_id=UUID(payload["plan_id"]),
+                    name=payload["name"],
+                    practice_id=UUID(payload["practice_id"]),
+                    asset_ids=[UUID(a) for a in payload["asset_ids"]],
+                    method_id=UUID(payload["method_id"]),
+                    method_needed_families_snapshot=[UUID(c) for c in needed_snap],
+                    asset_families_snapshot=_deserialize_asset_families_snapshot(asset_snap),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed PlanDefined payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "PlanVersioned":
-            return PlanVersioned(
-                plan_id=UUID(payload["plan_id"]),
-                version_tag=payload["version_tag"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return PlanVersioned(
+                    plan_id=UUID(payload["plan_id"]),
+                    version_tag=payload["version_tag"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed PlanVersioned payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "PlanDeprecated":
-            return PlanDeprecated(
-                plan_id=UUID(payload["plan_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return PlanDeprecated(
+                    plan_id=UUID(payload["plan_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed PlanDeprecated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "PlanDefaultParametersUpdated":
-            return PlanDefaultParametersUpdated(
-                plan_id=UUID(payload["plan_id"]),
-                default_parameters=payload["default_parameters"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return PlanDefaultParametersUpdated(
+                    plan_id=UUID(payload["plan_id"]),
+                    default_parameters=payload["default_parameters"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed PlanDefaultParametersUpdated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "PlanWireAdded":
-            return PlanWireAdded(
-                plan_id=UUID(payload["plan_id"]),
-                source_asset_id=UUID(payload["source_asset_id"]),
-                source_port_name=payload["source_port_name"],
-                target_asset_id=UUID(payload["target_asset_id"]),
-                target_port_name=payload["target_port_name"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return PlanWireAdded(
+                    plan_id=UUID(payload["plan_id"]),
+                    source_asset_id=UUID(payload["source_asset_id"]),
+                    source_port_name=payload["source_port_name"],
+                    target_asset_id=UUID(payload["target_asset_id"]),
+                    target_port_name=payload["target_port_name"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed PlanWireAdded payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "PlanWireRemoved":
-            return PlanWireRemoved(
-                plan_id=UUID(payload["plan_id"]),
-                source_asset_id=UUID(payload["source_asset_id"]),
-                source_port_name=payload["source_port_name"],
-                target_asset_id=UUID(payload["target_asset_id"]),
-                target_port_name=payload["target_port_name"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return PlanWireRemoved(
+                    plan_id=UUID(payload["plan_id"]),
+                    source_asset_id=UUID(payload["source_asset_id"]),
+                    source_port_name=payload["source_port_name"],
+                    target_asset_id=UUID(payload["target_asset_id"]),
+                    target_port_name=payload["target_port_name"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed PlanWireRemoved payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown PlanEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

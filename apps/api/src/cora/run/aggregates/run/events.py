@@ -663,127 +663,173 @@ def from_stored(stored: StoredEvent) -> RunEvent:
     payload = stored.payload
     match stored.event_type:
         case "RunStarted":
-            raw_subject = payload["subject_id"]
-            # Forward-compat additive evolution: `raid` was added in 7d,
-            # `override_parameters` / `effective_parameters` /
-            # `triggered_by` in 6g-c, `external_refs` in 11a-c-3,
-            # `acknowledged_cautions` in 11b-c, `campaign_id` in 6i-c,
-            # `decided_by_decision_id` in Phase 1 (Decision→Run linkage).
-            # Each .get(...) returns the field's default when the key
-            # isn't in the jsonb payload, so pre-additive streams replay
-            # without an upcaster.
-            raw_campaign_id = payload.get("campaign_id")
-            raw_decided_by = payload.get("decided_by_decision_id")
-            return RunStarted(
-                run_id=UUID(payload["run_id"]),
-                name=payload["name"],
-                plan_id=UUID(payload["plan_id"]),
-                subject_id=UUID(raw_subject) if raw_subject is not None else None,
-                raid=payload.get("raid"),
-                override_parameters=payload.get("override_parameters", {}),
-                effective_parameters=payload.get("effective_parameters", {}),
-                triggered_by=payload.get("triggered_by"),
-                external_refs=tuple(payload.get("external_refs", [])),
-                acknowledged_cautions=tuple(
-                    CautionAcknowledgement(
-                        caution_id=UUID(ack["caution_id"]),
-                        target_kind=ack["target_kind"],
-                        target_id=UUID(ack["target_id"]),
-                        category=ack["category"],
-                        severity=ack["severity"],
-                        text_excerpt=ack["text_excerpt"],
-                        workaround_excerpt=ack["workaround_excerpt"],
-                    )
-                    for ack in payload.get("acknowledged_cautions", [])
-                ),
-                campaign_id=UUID(raw_campaign_id) if raw_campaign_id is not None else None,
-                decided_by_decision_id=UUID(raw_decided_by) if raw_decided_by is not None else None,
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                raw_subject = payload["subject_id"]
+                # Forward-compat additive evolution: `raid` was added in 7d,
+                # `override_parameters` / `effective_parameters` /
+                # `triggered_by` in 6g-c, `external_refs` in 11a-c-3,
+                # `acknowledged_cautions` in 11b-c, `campaign_id` in 6i-c,
+                # `decided_by_decision_id` in Phase 1 (Decision→Run linkage).
+                # Each .get(...) returns the field's default when the key
+                # isn't in the jsonb payload, so pre-additive streams replay
+                # without an upcaster.
+                raw_campaign_id = payload.get("campaign_id")
+                raw_decided_by = payload.get("decided_by_decision_id")
+                return RunStarted(
+                    run_id=UUID(payload["run_id"]),
+                    name=payload["name"],
+                    plan_id=UUID(payload["plan_id"]),
+                    subject_id=UUID(raw_subject) if raw_subject is not None else None,
+                    raid=payload.get("raid"),
+                    override_parameters=payload.get("override_parameters", {}),
+                    effective_parameters=payload.get("effective_parameters", {}),
+                    triggered_by=payload.get("triggered_by"),
+                    external_refs=tuple(payload.get("external_refs", [])),
+                    acknowledged_cautions=tuple(
+                        CautionAcknowledgement(
+                            caution_id=UUID(ack["caution_id"]),
+                            target_kind=ack["target_kind"],
+                            target_id=UUID(ack["target_id"]),
+                            category=ack["category"],
+                            severity=ack["severity"],
+                            text_excerpt=ack["text_excerpt"],
+                            workaround_excerpt=ack["workaround_excerpt"],
+                        )
+                        for ack in payload.get("acknowledged_cautions", [])
+                    ),
+                    campaign_id=UUID(raw_campaign_id) if raw_campaign_id is not None else None,
+                    decided_by_decision_id=UUID(raw_decided_by)
+                    if raw_decided_by is not None
+                    else None,
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed RunStarted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "RunHeld":
-            return RunHeld(
-                run_id=UUID(payload["run_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return RunHeld(
+                    run_id=UUID(payload["run_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed RunHeld payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "RunResumed":
-            return RunResumed(
-                run_id=UUID(payload["run_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return RunResumed(
+                    run_id=UUID(payload["run_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed RunResumed payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "RunCompleted":
-            return RunCompleted(
-                run_id=UUID(payload["run_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return RunCompleted(
+                    run_id=UUID(payload["run_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed RunCompleted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "RunAborted":
-            # Phase 1: `decided_by_decision_id` optional. Forward-compat
-            # additive evolution: pre-Phase-1 streams replay without the
-            # key via `.get(..., None)`.
-            raw_decided_by_abort = payload.get("decided_by_decision_id")
-            return RunAborted(
-                run_id=UUID(payload["run_id"]),
-                reason=payload["reason"],
-                decided_by_decision_id=(
-                    UUID(raw_decided_by_abort) if raw_decided_by_abort is not None else None
-                ),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                # Phase 1: `decided_by_decision_id` optional. Forward-compat
+                # additive evolution: pre-Phase-1 streams replay without the
+                # key via `.get(..., None)`.
+                raw_decided_by_abort = payload.get("decided_by_decision_id")
+                return RunAborted(
+                    run_id=UUID(payload["run_id"]),
+                    reason=payload["reason"],
+                    decided_by_decision_id=(
+                        UUID(raw_decided_by_abort) if raw_decided_by_abort is not None else None
+                    ),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed RunAborted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "RunStopped":
-            return RunStopped(
-                run_id=UUID(payload["run_id"]),
-                reason=payload["reason"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return RunStopped(
+                    run_id=UUID(payload["run_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed RunStopped payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "RunTruncated":
-            raw_interrupted_at = payload["interrupted_at"]
-            return RunTruncated(
-                run_id=UUID(payload["run_id"]),
-                reason=payload["reason"],
-                interrupted_at=(
-                    datetime.fromisoformat(raw_interrupted_at)
-                    if raw_interrupted_at is not None
-                    else None
-                ),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                raw_interrupted_at = payload["interrupted_at"]
+                return RunTruncated(
+                    run_id=UUID(payload["run_id"]),
+                    reason=payload["reason"],
+                    interrupted_at=(
+                        datetime.fromisoformat(raw_interrupted_at)
+                        if raw_interrupted_at is not None
+                        else None
+                    ),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed RunTruncated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "RunAdjusted":
-            # Phase 6j: `decided_by_decision_id` is optional on the
-            # event payload. Forward-compat additive: synthetic / future
-            # callers omitting the key (None semantically) deserialize
-            # as decided_by_decision_id=None. `parameter_patch` and
-            # `effective_parameters` are always carried (never optional).
-            raw_decision_id = payload.get("decided_by_decision_id")
-            return RunAdjusted(
-                run_id=UUID(payload["run_id"]),
-                parameter_patch=payload["parameter_patch"],
-                effective_parameters=payload["effective_parameters"],
-                reason=payload["reason"],
-                decided_by_decision_id=(
-                    UUID(raw_decision_id) if raw_decision_id is not None else None
-                ),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                # Phase 6j: `decided_by_decision_id` is optional on the
+                # event payload. Forward-compat additive: synthetic / future
+                # callers omitting the key (None semantically) deserialize
+                # as decided_by_decision_id=None. `parameter_patch` and
+                # `effective_parameters` are always carried (never optional).
+                raw_decision_id = payload.get("decided_by_decision_id")
+                return RunAdjusted(
+                    run_id=UUID(payload["run_id"]),
+                    parameter_patch=payload["parameter_patch"],
+                    effective_parameters=payload["effective_parameters"],
+                    reason=payload["reason"],
+                    decided_by_decision_id=(
+                        UUID(raw_decision_id) if raw_decision_id is not None else None
+                    ),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed RunAdjusted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "RunReadingLogbookOpened":
-            return RunReadingLogbookOpened(
-                run_id=UUID(payload["run_id"]),
-                logbook_id=UUID(payload["logbook_id"]),
-                kind=payload["kind"],
-                schema=LogbookSchema.from_dict(payload["schema"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return RunReadingLogbookOpened(
+                    run_id=UUID(payload["run_id"]),
+                    logbook_id=UUID(payload["logbook_id"]),
+                    kind=payload["kind"],
+                    schema=LogbookSchema.from_dict(payload["schema"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed RunReadingLogbookOpened payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "RunCampaignAssigned":
-            return RunCampaignAssigned(
-                run_id=UUID(payload["run_id"]),
-                campaign_id=UUID(payload["campaign_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return RunCampaignAssigned(
+                    run_id=UUID(payload["run_id"]),
+                    campaign_id=UUID(payload["campaign_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed RunCampaignAssigned payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "RunCampaignUnassigned":
-            return RunCampaignUnassigned(
-                run_id=UUID(payload["run_id"]),
-                campaign_id=UUID(payload["campaign_id"]),
-                reason=payload["reason"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return RunCampaignUnassigned(
+                    run_id=UUID(payload["run_id"]),
+                    campaign_id=UUID(payload["campaign_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed RunCampaignUnassigned payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown RunEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

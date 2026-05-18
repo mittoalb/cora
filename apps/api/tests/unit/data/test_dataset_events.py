@@ -20,6 +20,23 @@ _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 
 
+def _stored(event_type: str, payload: dict[str, object]) -> StoredEvent:
+    return StoredEvent(
+        position=1,
+        event_id=uuid4(),
+        stream_type="Dataset",
+        stream_id=uuid4(),
+        version=1,
+        event_type=event_type,
+        schema_version=1,
+        payload=payload,
+        correlation_id=uuid4(),
+        causation_id=None,
+        occurred_at=_NOW,
+        recorded_at=_NOW,
+    )
+
+
 @pytest.mark.unit
 def test_event_type_name_returns_class_name() -> None:
     event = DatasetRegistered(
@@ -323,3 +340,23 @@ def test_dataset_promoted_round_trip_through_stored() -> None:
     )
     rebuilt = from_stored(stored)
     assert rebuilt == original
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "event_type",
+    [
+        "DatasetRegistered",
+        "DatasetDiscarded",
+        "DatasetPromoted",
+    ],
+)
+def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:
+    """Per the convention adopted post-corpus-survey (Marten /
+    pyeventsourcing / Pydantic / msgspec all wrap), each event-type case
+    wraps `KeyError`/`TypeError`/`AttributeError` into a tagged
+    `ValueError` so a corrupted event row fails loud with the event-type
+    name in the message rather than bubbling a raw KeyError from deep
+    in the load path."""
+    with pytest.raises(ValueError, match=f"Malformed {event_type} payload"):
+        from_stored(_stored(event_type, {}))

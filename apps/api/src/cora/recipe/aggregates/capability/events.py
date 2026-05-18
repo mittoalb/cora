@@ -194,35 +194,47 @@ def from_stored(stored: StoredEvent) -> RecipeCapabilityEvent:
     payload = stored.payload
     match stored.event_type:
         case "RecipeCapabilityDefined":
-            return RecipeCapabilityDefined(
-                capability_id=UUID(payload["capability_id"]),
-                code=payload["code"],
-                name=payload["name"],
-                description=payload.get("description"),
-                required_affordances=_load_affordances(payload),
-                executor_shapes=_load_executor_shapes(payload),
-                parameter_schema=payload.get("parameter_schema"),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return RecipeCapabilityDefined(
+                    capability_id=UUID(payload["capability_id"]),
+                    code=payload["code"],
+                    name=payload["name"],
+                    description=payload.get("description"),
+                    required_affordances=_load_affordances(payload),
+                    executor_shapes=_load_executor_shapes(payload),
+                    parameter_schema=payload.get("parameter_schema"),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed RecipeCapabilityDefined payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "RecipeCapabilityVersioned":
-            return RecipeCapabilityVersioned(
-                capability_id=UUID(payload["capability_id"]),
-                version_tag=payload["version_tag"],
-                description=payload.get("description"),
-                required_affordances=_load_affordances(payload),
-                executor_shapes=_load_executor_shapes(payload),
-                parameter_schema=payload.get("parameter_schema"),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return RecipeCapabilityVersioned(
+                    capability_id=UUID(payload["capability_id"]),
+                    version_tag=payload["version_tag"],
+                    description=payload.get("description"),
+                    required_affordances=_load_affordances(payload),
+                    executor_shapes=_load_executor_shapes(payload),
+                    parameter_schema=payload.get("parameter_schema"),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed RecipeCapabilityVersioned payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "RecipeCapabilityDeprecated":
-            replaced_raw = payload.get("replaced_by_capability_id")
-            return RecipeCapabilityDeprecated(
-                capability_id=UUID(payload["capability_id"]),
-                replaced_by_capability_id=(
-                    UUID(replaced_raw) if replaced_raw is not None else None
-                ),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                replaced_raw = payload.get("replaced_by_capability_id")
+                return RecipeCapabilityDeprecated(
+                    capability_id=UUID(payload["capability_id"]),
+                    replaced_by_capability_id=(
+                        UUID(replaced_raw) if replaced_raw is not None else None
+                    ),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed RecipeCapabilityDeprecated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown RecipeCapabilityEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

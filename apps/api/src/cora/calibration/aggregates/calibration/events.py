@@ -20,8 +20,23 @@ recommendation). The serialize / deserialize helpers below are
 PUBLIC cross-slice helpers (no leading underscore): the
 `append_revision` decider uses `serialize_source` to build the event
 payload; the evolver uses `deserialize_source` to reconstruct the
-typed union from the payload. Same convention as Safety's
-`serialize_binding` / Caution's `serialize_target`.
+typed union from the payload.
+
+### Wire-shape divergence from Caution / Safety (deliberate)
+
+Caution's `serialize_target` and Safety's `serialize_binding` emit a
+nested `{"kind": "<ArmName>", "id": "<uuid>"}` object inside the event
+payload. Calibration deliberately inlines exclusive-arc fields
+(`source_procedure_id` / `source_dataset_id` / `source_actor_id`)
+directly into the event payload instead. Reason: the same
+exclusive-arc shape lands in the projection's
+`proj_calibration_revisions` table per Q5 lock, so keeping wire and
+projection-column shapes symmetric simplifies the projection-write
+code path (one structural transform instead of two). The
+aggregate's typed `CalibrationSource` union is the in-memory
+representation; both wire layers below it (event payload + projection
+columns) use exclusive-arc. The convergence point with Caution /
+Safety is the typed in-aggregate VO, NOT the wire serialization.
 """
 
 from dataclasses import dataclass
@@ -32,6 +47,7 @@ from uuid import UUID
 from cora.calibration.aggregates.calibration.state import (
     AssertedSource,
     CalibrationSource,
+    CalibrationStatus,
     ComputedSource,
     InvalidCalibrationSourceError,
     MeasuredSource,
@@ -155,8 +171,8 @@ class CalibrationRevisionAppended:
     `value` is the JSON-shaped dict for the revision; validated against
     the quantity's value_schema at the decider.
 
-    `status` is the per-revision CalibrationStatus value-string
-    (`Provisional` | `Verified`).
+    `status` is the per-revision CalibrationStatus enum
+    (`Provisional` | `Verified`); `.value` is the wire-payload string.
 
     The three `source_*_id` fields are the exclusive-arc serialization
     of the typed CalibrationSource union: exactly one non-null at
@@ -176,7 +192,7 @@ class CalibrationRevisionAppended:
     revision_id: UUID
     calibration_id: UUID
     value: dict[str, Any]
-    status: str  # CalibrationStatus value-string
+    status: CalibrationStatus
     source_procedure_id: UUID | None
     source_dataset_id: UUID | None
     source_actor_id: UUID | None
@@ -242,7 +258,7 @@ def to_payload(event: CalibrationEvent) -> dict[str, Any]:
                 "revision_id": str(revision_id),
                 "calibration_id": str(calibration_id),
                 "value": value,
-                "status": status,
+                "status": status.value,
                 "source_procedure_id": (
                     str(source_procedure_id) if source_procedure_id is not None else None
                 ),
@@ -274,38 +290,46 @@ def from_stored(stored: StoredEvent) -> CalibrationEvent:
     payload = stored.payload
     match stored.event_type:
         case "CalibrationDefined":
-            return CalibrationDefined(
-                calibration_id=UUID(payload["calibration_id"]),
-                subsystem_or_asset_id=UUID(payload["subsystem_or_asset_id"]),
-                quantity=payload["quantity"],
-                operating_point=payload["operating_point"],
-                description=payload.get("description"),
-                defined_at=datetime.fromisoformat(payload["defined_at"]),
-                defined_by_actor_id=UUID(payload["defined_by_actor_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return CalibrationDefined(
+                    calibration_id=UUID(payload["calibration_id"]),
+                    subsystem_or_asset_id=UUID(payload["subsystem_or_asset_id"]),
+                    quantity=payload["quantity"],
+                    operating_point=payload["operating_point"],
+                    description=payload.get("description"),
+                    defined_at=datetime.fromisoformat(payload["defined_at"]),
+                    defined_by_actor_id=UUID(payload["defined_by_actor_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CalibrationDefined payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "CalibrationRevisionAppended":
-            raw_proc = payload.get("source_procedure_id")
-            raw_dataset = payload.get("source_dataset_id")
-            raw_actor = payload.get("source_actor_id")
-            raw_decided = payload.get("decided_by_decision_id")
-            raw_supersedes = payload.get("supersedes_revision_id")
-            return CalibrationRevisionAppended(
-                revision_id=UUID(payload["revision_id"]),
-                calibration_id=UUID(payload["calibration_id"]),
-                value=payload["value"],
-                status=payload["status"],
-                source_procedure_id=UUID(raw_proc) if raw_proc is not None else None,
-                source_dataset_id=UUID(raw_dataset) if raw_dataset is not None else None,
-                source_actor_id=UUID(raw_actor) if raw_actor is not None else None,
-                established_at=datetime.fromisoformat(payload["established_at"]),
-                established_by_actor_id=UUID(payload["established_by_actor_id"]),
-                decided_by_decision_id=UUID(raw_decided) if raw_decided is not None else None,
-                supersedes_revision_id=(
-                    UUID(raw_supersedes) if raw_supersedes is not None else None
-                ),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                raw_proc = payload.get("source_procedure_id")
+                raw_dataset = payload.get("source_dataset_id")
+                raw_actor = payload.get("source_actor_id")
+                raw_decided = payload.get("decided_by_decision_id")
+                raw_supersedes = payload.get("supersedes_revision_id")
+                return CalibrationRevisionAppended(
+                    revision_id=UUID(payload["revision_id"]),
+                    calibration_id=UUID(payload["calibration_id"]),
+                    value=payload["value"],
+                    status=CalibrationStatus(payload["status"]),
+                    source_procedure_id=UUID(raw_proc) if raw_proc is not None else None,
+                    source_dataset_id=UUID(raw_dataset) if raw_dataset is not None else None,
+                    source_actor_id=UUID(raw_actor) if raw_actor is not None else None,
+                    established_at=datetime.fromisoformat(payload["established_at"]),
+                    established_by_actor_id=UUID(payload["established_by_actor_id"]),
+                    decided_by_decision_id=UUID(raw_decided) if raw_decided is not None else None,
+                    supersedes_revision_id=(
+                        UUID(raw_supersedes) if raw_supersedes is not None else None
+                    ),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CalibrationRevisionAppended payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case unknown:
             msg = f"Unknown Calibration event type: {unknown!r}"
             raise ValueError(msg)

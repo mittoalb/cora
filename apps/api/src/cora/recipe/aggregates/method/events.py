@@ -210,38 +210,54 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
     payload = stored.payload
     match stored.event_type:
         case "MethodDefined":
-            capability_raw = payload.get("capability_id")
-            return MethodDefined(
-                method_id=UUID(payload["method_id"]),
-                name=payload["name"],
-                needed_families=[UUID(c) for c in payload["needed_families"]],
-                # Phase 10b forward-compat: pre-10b MethodDefined
-                # payloads have no needed_supplies key; default to empty
-                # list. Additive-evolution pattern.
-                needed_supplies=list(payload.get("needed_supplies", [])),
-                # Phase 6l forward-compat: pre-6l MethodDefined payloads
-                # have no capability_id key; default to None. Post-6l
-                # the decider enforces non-None at write time.
-                capability_id=(UUID(capability_raw) if capability_raw is not None else None),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                capability_raw = payload.get("capability_id")
+                return MethodDefined(
+                    method_id=UUID(payload["method_id"]),
+                    name=payload["name"],
+                    needed_families=[UUID(c) for c in payload["needed_families"]],
+                    # Phase 10b forward-compat: pre-10b MethodDefined
+                    # payloads have no needed_supplies key; default to empty
+                    # list. Additive-evolution pattern.
+                    needed_supplies=list(payload.get("needed_supplies", [])),
+                    # Phase 6l forward-compat: pre-6l MethodDefined payloads
+                    # have no capability_id key; default to None. Post-6l
+                    # the decider enforces non-None at write time.
+                    capability_id=(UUID(capability_raw) if capability_raw is not None else None),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed MethodDefined payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "MethodVersioned":
-            return MethodVersioned(
-                method_id=UUID(payload["method_id"]),
-                version_tag=payload["version_tag"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return MethodVersioned(
+                    method_id=UUID(payload["method_id"]),
+                    version_tag=payload["version_tag"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed MethodVersioned payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "MethodDeprecated":
-            return MethodDeprecated(
-                method_id=UUID(payload["method_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return MethodDeprecated(
+                    method_id=UUID(payload["method_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed MethodDeprecated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "MethodParametersSchemaUpdated":
-            return MethodParametersSchemaUpdated(
-                method_id=UUID(payload["method_id"]),
-                parameters_schema=payload["parameters_schema"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return MethodParametersSchemaUpdated(
+                    method_id=UUID(payload["method_id"]),
+                    parameters_schema=payload["parameters_schema"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed MethodParametersSchemaUpdated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown MethodEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

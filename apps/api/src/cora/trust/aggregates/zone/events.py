@@ -67,11 +67,15 @@ def from_stored(stored: StoredEvent) -> ZoneEvent:
     payload = stored.payload
     match stored.event_type:
         case "ZoneDefined":
-            return ZoneDefined(
-                zone_id=UUID(payload["zone_id"]),
-                name=payload["name"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ZoneDefined(
+                    zone_id=UUID(payload["zone_id"]),
+                    name=payload["name"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ZoneDefined payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown ZoneEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

@@ -366,3 +366,24 @@ def test_to_payload_then_from_stored_round_trips_for_parameters_schema_updated()
     )
     stored = _stored("MethodParametersSchemaUpdated", to_payload(original))
     assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "event_type",
+    [
+        "MethodDefined",
+        "MethodVersioned",
+        "MethodDeprecated",
+        "MethodParametersSchemaUpdated",
+    ],
+)
+def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:
+    """Per the convention adopted post-corpus-survey (Marten /
+    pyeventsourcing / Pydantic / msgspec all wrap), each event-type case
+    wraps `KeyError`/`TypeError`/`AttributeError` into a tagged
+    `ValueError` so a corrupted event row fails loud with the event-type
+    name in the message rather than bubbling a raw KeyError from deep
+    in the load path."""
+    with pytest.raises(ValueError, match=f"Malformed {event_type} payload"):
+        from_stored(_stored(event_type, {}))

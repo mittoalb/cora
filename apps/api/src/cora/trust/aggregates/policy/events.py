@@ -78,14 +78,18 @@ def from_stored(stored: StoredEvent) -> PolicyEvent:
     payload = stored.payload
     match stored.event_type:
         case "PolicyDefined":
-            return PolicyDefined(
-                policy_id=UUID(payload["policy_id"]),
-                name=payload["name"],
-                conduit_id=UUID(payload["conduit_id"]),
-                permitted_principals=[UUID(p) for p in payload["permitted_principals"]],
-                permitted_commands=list(payload["permitted_commands"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return PolicyDefined(
+                    policy_id=UUID(payload["policy_id"]),
+                    name=payload["name"],
+                    conduit_id=UUID(payload["conduit_id"]),
+                    permitted_principals=[UUID(p) for p in payload["permitted_principals"]],
+                    permitted_commands=list(payload["permitted_commands"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed PolicyDefined payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown PolicyEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

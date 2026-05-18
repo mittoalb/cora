@@ -145,24 +145,36 @@ def from_stored(stored: StoredEvent) -> PracticeEvent:
     payload = stored.payload
     match stored.event_type:
         case "PracticeDefined":
-            return PracticeDefined(
-                practice_id=UUID(payload["practice_id"]),
-                name=payload["name"],
-                method_id=UUID(payload["method_id"]),
-                site_id=UUID(payload["site_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return PracticeDefined(
+                    practice_id=UUID(payload["practice_id"]),
+                    name=payload["name"],
+                    method_id=UUID(payload["method_id"]),
+                    site_id=UUID(payload["site_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed PracticeDefined payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "PracticeVersioned":
-            return PracticeVersioned(
-                practice_id=UUID(payload["practice_id"]),
-                version_tag=payload["version_tag"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return PracticeVersioned(
+                    practice_id=UUID(payload["practice_id"]),
+                    version_tag=payload["version_tag"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed PracticeVersioned payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "PracticeDeprecated":
-            return PracticeDeprecated(
-                practice_id=UUID(payload["practice_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return PracticeDeprecated(
+                    practice_id=UUID(payload["practice_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed PracticeDeprecated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown PracticeEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

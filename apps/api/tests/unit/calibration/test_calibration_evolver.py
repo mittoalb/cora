@@ -59,7 +59,7 @@ def _revision(
         revision_id=revision_id,
         calibration_id=_CAL_ID,
         value={"center_px": 1024.5},
-        status="Provisional",
+        status=CalibrationStatus.PROVISIONAL,
         source_procedure_id=source_procedure_id,
         source_dataset_id=source_dataset_id,
         source_actor_id=source_actor_id,

@@ -53,6 +53,10 @@ path = "cora.caution.aggregates"
 depends_on = ["cora.infrastructure"]
 
 [[modules]]
+path = "cora.calibration.aggregates"
+depends_on = ["cora.infrastructure"]
+
+[[modules]]
 path = "cora.data.aggregates"
 depends_on = ["cora.infrastructure"]
 
@@ -199,6 +203,20 @@ depends_on = ["cora.infrastructure", "cora.safety.aggregates"]
 path = "cora.caution"
 depends_on = ["cora.infrastructure", "cora.caution.aggregates"]
 
+# Calibration BC (Phase 12) owns the Calibration aggregate (empirical
+# instrument-value records keyed by `(subsystem_or_asset_id, quantity,
+# operating_point)` with append-only revision history). Day-1 lock:
+# source FK targets (Procedure / Dataset / Actor) are bare UUID
+# references on the write path (eventual-consistency stance per the
+# adjust_run / decided_by_decision_id precedent). The polymorphic
+# `CalibrationSource` discriminated union is self-contained on the
+# aggregate; no cross-BC kernel imports needed here. Cross-BC
+# integration (Run.calibration_pins, Dataset.calibrations_used) lands
+# additively in 12b/12c on the consumer BCs, not here.
+[[modules]]
+path = "cora.calibration"
+depends_on = ["cora.infrastructure", "cora.calibration.aggregates"]
+
 # Campaign BC owns the Campaign aggregate (operator-declared
 # coordinated container above Run; 5-state FSM
 # Planned -> Active <-> Held -> Closed | Abandoned). 6i-c added the
@@ -264,6 +282,7 @@ depends_on = [
     "cora.infrastructure",
     "cora.access",
     "cora.agent",
+    "cora.calibration",
     "cora.campaign",
     "cora.caution",
     "cora.data",

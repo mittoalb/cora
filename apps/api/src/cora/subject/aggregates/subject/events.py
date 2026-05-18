@@ -269,53 +269,85 @@ def from_stored(stored: StoredEvent) -> SubjectEvent:
     payload = stored.payload
     match stored.event_type:
         case "SubjectRegistered":
-            return SubjectRegistered(
-                subject_id=UUID(payload["subject_id"]),
-                name=payload["name"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return SubjectRegistered(
+                    subject_id=UUID(payload["subject_id"]),
+                    name=payload["name"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed SubjectRegistered payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "SubjectMounted":
-            # `payload.get` for additive evolution: pre-4f stored
-            # events without the reason key fold to "" (empty string).
-            return SubjectMounted(
-                subject_id=UUID(payload["subject_id"]),
-                asset_id=UUID(payload["asset_id"]),
-                reason=payload.get("reason", ""),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                # `payload.get` for additive evolution: pre-4f stored
+                # events without the reason key fold to "" (empty string).
+                return SubjectMounted(
+                    subject_id=UUID(payload["subject_id"]),
+                    asset_id=UUID(payload["asset_id"]),
+                    reason=payload.get("reason", ""),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed SubjectMounted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "SubjectMeasured":
-            return SubjectMeasured(
-                subject_id=UUID(payload["subject_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return SubjectMeasured(
+                    subject_id=UUID(payload["subject_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed SubjectMeasured payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "SubjectRemoved":
-            return SubjectRemoved(
-                subject_id=UUID(payload["subject_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return SubjectRemoved(
+                    subject_id=UUID(payload["subject_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed SubjectRemoved payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "SubjectReturned":
-            return SubjectReturned(
-                subject_id=UUID(payload["subject_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return SubjectReturned(
+                    subject_id=UUID(payload["subject_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed SubjectReturned payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "SubjectStored":
-            return SubjectStored(
-                subject_id=UUID(payload["subject_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return SubjectStored(
+                    subject_id=UUID(payload["subject_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed SubjectStored payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "SubjectDiscarded":
-            return SubjectDiscarded(
-                subject_id=UUID(payload["subject_id"]),
-                reason=payload["reason"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return SubjectDiscarded(
+                    subject_id=UUID(payload["subject_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed SubjectDiscarded payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "SubjectDismounted":
-            return SubjectDismounted(
-                subject_id=UUID(payload["subject_id"]),
-                from_asset_id=UUID(payload["from_asset_id"]),
-                reason=payload["reason"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return SubjectDismounted(
+                    subject_id=UUID(payload["subject_id"]),
+                    from_asset_id=UUID(payload["from_asset_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed SubjectDismounted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown SubjectEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

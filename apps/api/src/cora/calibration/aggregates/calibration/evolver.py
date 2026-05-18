@@ -28,7 +28,6 @@ from cora.calibration.aggregates.calibration.events import (
 from cora.calibration.aggregates.calibration.state import (
     Calibration,
     CalibrationRevision,
-    CalibrationStatus,
 )
 from cora.infrastructure.evolver import require_state
 
@@ -89,7 +88,7 @@ def evolve(state: Calibration | None, event: CalibrationEvent) -> Calibration:
             revision = CalibrationRevision(
                 revision_id=revision_id,
                 value=value,
-                status=CalibrationStatus(status),
+                status=status,  # already a CalibrationStatus enum from event class
                 source=source,
                 established_at=established_at,
                 established_by_actor_id=established_by_actor_id,

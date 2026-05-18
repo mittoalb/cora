@@ -267,23 +267,47 @@ def from_stored(stored: StoredEvent) -> SupplyEvent:
     payload = stored.payload
     match stored.event_type:
         case "SupplyRegistered":
-            return SupplyRegistered(
-                supply_id=UUID(payload["supply_id"]),
-                scope=payload["scope"],
-                kind=payload["kind"],
-                name=payload["name"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return SupplyRegistered(
+                    supply_id=UUID(payload["supply_id"]),
+                    scope=payload["scope"],
+                    kind=payload["kind"],
+                    name=payload["name"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed SupplyRegistered payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "SupplyMarkedAvailable":
-            return SupplyMarkedAvailable(**_transition_kwargs(payload))
+            try:
+                return SupplyMarkedAvailable(**_transition_kwargs(payload))
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed SupplyMarkedAvailable payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "SupplyDegraded":
-            return SupplyDegraded(**_transition_kwargs(payload))
+            try:
+                return SupplyDegraded(**_transition_kwargs(payload))
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed SupplyDegraded payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "SupplyMarkedUnavailable":
-            return SupplyMarkedUnavailable(**_transition_kwargs(payload))
+            try:
+                return SupplyMarkedUnavailable(**_transition_kwargs(payload))
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed SupplyMarkedUnavailable payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "SupplyMarkedRecovering":
-            return SupplyMarkedRecovering(**_transition_kwargs(payload))
+            try:
+                return SupplyMarkedRecovering(**_transition_kwargs(payload))
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed SupplyMarkedRecovering payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "SupplyRestored":
-            return SupplyRestored(**_transition_kwargs(payload))
+            try:
+                return SupplyRestored(**_transition_kwargs(payload))
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed SupplyRestored payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown SupplyEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

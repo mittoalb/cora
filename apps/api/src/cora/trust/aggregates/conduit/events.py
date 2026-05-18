@@ -142,27 +142,39 @@ def from_stored(stored: StoredEvent) -> ConduitEvent:
     payload = stored.payload
     match stored.event_type:
         case "ConduitDefined":
-            return ConduitDefined(
-                conduit_id=UUID(payload["conduit_id"]),
-                name=payload["name"],
-                source_zone_id=UUID(payload["source_zone_id"]),
-                target_zone_id=UUID(payload["target_zone_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ConduitDefined(
+                    conduit_id=UUID(payload["conduit_id"]),
+                    name=payload["name"],
+                    source_zone_id=UUID(payload["source_zone_id"]),
+                    target_zone_id=UUID(payload["target_zone_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ConduitDefined payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ConduitLogbookOpened":
-            return ConduitLogbookOpened(
-                conduit_id=UUID(payload["conduit_id"]),
-                logbook_id=UUID(payload["logbook_id"]),
-                kind=payload["kind"],
-                schema=LogbookSchema.from_dict(payload["schema"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ConduitLogbookOpened(
+                    conduit_id=UUID(payload["conduit_id"]),
+                    logbook_id=UUID(payload["logbook_id"]),
+                    kind=payload["kind"],
+                    schema=LogbookSchema.from_dict(payload["schema"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ConduitLogbookOpened payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ConduitLogbookClosed":
-            return ConduitLogbookClosed(
-                conduit_id=UUID(payload["conduit_id"]),
-                logbook_id=UUID(payload["logbook_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ConduitLogbookClosed(
+                    conduit_id=UUID(payload["conduit_id"]),
+                    logbook_id=UUID(payload["logbook_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ConduitLogbookClosed payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown ConduitEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

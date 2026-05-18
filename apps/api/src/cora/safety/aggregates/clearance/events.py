@@ -540,85 +540,129 @@ def from_stored(stored: StoredEvent) -> ClearanceEvent:
     payload = stored.payload
     match stored.event_type:
         case "ClearanceRegistered":
-            raw_valid_from = payload.get("valid_from")
-            raw_valid_until = payload.get("valid_until")
-            raw_parent = payload.get("parent_clearance_id")
-            return ClearanceRegistered(
-                clearance_id=UUID(payload["clearance_id"]),
-                kind=payload["kind"],
-                facility_asset_id=UUID(payload["facility_asset_id"]),
-                title=payload["title"],
-                bindings=tuple(payload.get("bindings", [])),
-                declarations=tuple(payload.get("declarations", [])),
-                risk_band=payload.get("risk_band"),
-                external_id=payload.get("external_id"),
-                valid_from=(
-                    datetime.fromisoformat(raw_valid_from) if raw_valid_from is not None else None
-                ),
-                valid_until=(
-                    datetime.fromisoformat(raw_valid_until) if raw_valid_until is not None else None
-                ),
-                parent_clearance_id=(UUID(raw_parent) if raw_parent is not None else None),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                raw_valid_from = payload.get("valid_from")
+                raw_valid_until = payload.get("valid_until")
+                raw_parent = payload.get("parent_clearance_id")
+                return ClearanceRegistered(
+                    clearance_id=UUID(payload["clearance_id"]),
+                    kind=payload["kind"],
+                    facility_asset_id=UUID(payload["facility_asset_id"]),
+                    title=payload["title"],
+                    bindings=tuple(payload.get("bindings", [])),
+                    declarations=tuple(payload.get("declarations", [])),
+                    risk_band=payload.get("risk_band"),
+                    external_id=payload.get("external_id"),
+                    valid_from=(
+                        datetime.fromisoformat(raw_valid_from)
+                        if raw_valid_from is not None
+                        else None
+                    ),
+                    valid_until=(
+                        datetime.fromisoformat(raw_valid_until)
+                        if raw_valid_until is not None
+                        else None
+                    ),
+                    parent_clearance_id=(UUID(raw_parent) if raw_parent is not None else None),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ClearanceRegistered payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ClearanceSubmitted":
-            return ClearanceSubmitted(
-                clearance_id=UUID(payload["clearance_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ClearanceSubmitted(
+                    clearance_id=UUID(payload["clearance_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ClearanceSubmitted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ClearanceReviewStarted":
-            return ClearanceReviewStarted(
-                clearance_id=UUID(payload["clearance_id"]),
-                first_reviewer_role=payload["first_reviewer_role"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ClearanceReviewStarted(
+                    clearance_id=UUID(payload["clearance_id"]),
+                    first_reviewer_role=payload["first_reviewer_role"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ClearanceReviewStarted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ClearanceReviewStepAppended":
-            return ClearanceReviewStepAppended(
-                clearance_id=UUID(payload["clearance_id"]),
-                step_index=payload["step_index"],
-                role=payload["role"],
-                actor_id=UUID(payload["actor_id"]),
-                decision=payload["decision"],
-                decided_at=datetime.fromisoformat(payload["decided_at"]),
-                notes=payload.get("notes"),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ClearanceReviewStepAppended(
+                    clearance_id=UUID(payload["clearance_id"]),
+                    step_index=payload["step_index"],
+                    role=payload["role"],
+                    actor_id=UUID(payload["actor_id"]),
+                    decision=payload["decision"],
+                    decided_at=datetime.fromisoformat(payload["decided_at"]),
+                    notes=payload.get("notes"),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ClearanceReviewStepAppended payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ClearanceApproved":
-            raw_valid_from = payload.get("valid_from")
-            raw_valid_until = payload.get("valid_until")
-            return ClearanceApproved(
-                clearance_id=UUID(payload["clearance_id"]),
-                valid_from=(
-                    datetime.fromisoformat(raw_valid_from) if raw_valid_from is not None else None
-                ),
-                valid_until=(
-                    datetime.fromisoformat(raw_valid_until) if raw_valid_until is not None else None
-                ),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                raw_valid_from = payload.get("valid_from")
+                raw_valid_until = payload.get("valid_until")
+                return ClearanceApproved(
+                    clearance_id=UUID(payload["clearance_id"]),
+                    valid_from=(
+                        datetime.fromisoformat(raw_valid_from)
+                        if raw_valid_from is not None
+                        else None
+                    ),
+                    valid_until=(
+                        datetime.fromisoformat(raw_valid_until)
+                        if raw_valid_until is not None
+                        else None
+                    ),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ClearanceApproved payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ClearanceRejected":
-            return ClearanceRejected(
-                clearance_id=UUID(payload["clearance_id"]),
-                reason=payload["reason"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ClearanceRejected(
+                    clearance_id=UUID(payload["clearance_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ClearanceRejected payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ClearanceActivated":
-            return ClearanceActivated(
-                clearance_id=UUID(payload["clearance_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ClearanceActivated(
+                    clearance_id=UUID(payload["clearance_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ClearanceActivated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ClearanceExpired":
-            return ClearanceExpired(
-                clearance_id=UUID(payload["clearance_id"]),
-                reason=payload["reason"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ClearanceExpired(
+                    clearance_id=UUID(payload["clearance_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ClearanceExpired payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ClearanceSuperseded":
-            return ClearanceSuperseded(
-                clearance_id=UUID(payload["clearance_id"]),
-                by_clearance_id=UUID(payload["by_clearance_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ClearanceSuperseded(
+                    clearance_id=UUID(payload["clearance_id"]),
+                    by_clearance_id=UUID(payload["by_clearance_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ClearanceSuperseded payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown ClearanceEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

@@ -117,17 +117,25 @@ def from_stored(stored: StoredEvent) -> ActorEvent:
     payload = stored.payload
     match stored.event_type:
         case "ActorRegistered":
-            return ActorRegistered(
-                actor_id=UUID(payload["actor_id"]),
-                name=payload["name"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                kind=ActorKind(payload.get("kind", ActorKind.HUMAN.value)),
-            )
+            try:
+                return ActorRegistered(
+                    actor_id=UUID(payload["actor_id"]),
+                    name=payload["name"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    kind=ActorKind(payload.get("kind", ActorKind.HUMAN.value)),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ActorRegistered payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "ActorDeactivated":
-            return ActorDeactivated(
-                actor_id=UUID(payload["actor_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return ActorDeactivated(
+                    actor_id=UUID(payload["actor_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed ActorDeactivated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown ActorEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

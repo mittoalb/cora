@@ -191,56 +191,88 @@ def from_stored(stored: StoredEvent) -> FamilyEvent:
         # `affordances` payload field; default to empty frozenset
         # (additive-state pattern).
         case "CapabilityDefined":
-            return FamilyDefined(
-                family_id=UUID(payload["capability_id"]),
-                name=payload["name"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                affordances=_load_affordances(payload),
-            )
+            try:
+                return FamilyDefined(
+                    family_id=UUID(payload["capability_id"]),
+                    name=payload["name"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    affordances=_load_affordances(payload),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CapabilityDefined payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "CapabilityVersioned":
-            return FamilyVersioned(
-                family_id=UUID(payload["capability_id"]),
-                version_tag=payload["version_tag"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                affordances=_load_affordances(payload),
-            )
+            try:
+                return FamilyVersioned(
+                    family_id=UUID(payload["capability_id"]),
+                    version_tag=payload["version_tag"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    affordances=_load_affordances(payload),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CapabilityVersioned payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "CapabilityDeprecated":
-            return FamilyDeprecated(
-                family_id=UUID(payload["capability_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return FamilyDeprecated(
+                    family_id=UUID(payload["capability_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CapabilityDeprecated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "CapabilitySettingsSchemaUpdated":
-            return FamilySettingsSchemaUpdated(
-                family_id=UUID(payload["capability_id"]),
-                settings_schema=payload.get("settings_schema"),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return FamilySettingsSchemaUpdated(
+                    family_id=UUID(payload["capability_id"]),
+                    settings_schema=payload.get("settings_schema"),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed CapabilitySettingsSchemaUpdated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         # New event type names from 5i onward. Payload key is `"family_id"`.
         case "FamilyDefined":
-            return FamilyDefined(
-                family_id=UUID(payload["family_id"]),
-                name=payload["name"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                affordances=_load_affordances(payload),
-            )
+            try:
+                return FamilyDefined(
+                    family_id=UUID(payload["family_id"]),
+                    name=payload["name"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    affordances=_load_affordances(payload),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed FamilyDefined payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "FamilyVersioned":
-            return FamilyVersioned(
-                family_id=UUID(payload["family_id"]),
-                version_tag=payload["version_tag"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                affordances=_load_affordances(payload),
-            )
+            try:
+                return FamilyVersioned(
+                    family_id=UUID(payload["family_id"]),
+                    version_tag=payload["version_tag"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    affordances=_load_affordances(payload),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed FamilyVersioned payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "FamilyDeprecated":
-            return FamilyDeprecated(
-                family_id=UUID(payload["family_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return FamilyDeprecated(
+                    family_id=UUID(payload["family_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed FamilyDeprecated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "FamilySettingsSchemaUpdated":
-            return FamilySettingsSchemaUpdated(
-                family_id=UUID(payload["family_id"]),
-                settings_schema=payload.get("settings_schema"),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return FamilySettingsSchemaUpdated(
+                    family_id=UUID(payload["family_id"]),
+                    settings_schema=payload.get("settings_schema"),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed FamilySettingsSchemaUpdated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown FamilyEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

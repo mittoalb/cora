@@ -459,111 +459,175 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
     payload = stored.payload
     match stored.event_type:
         case "AssetRegistered":
-            raw_parent = payload["parent_id"]
-            return AssetRegistered(
-                asset_id=UUID(payload["asset_id"]),
-                name=payload["name"],
-                level=payload["level"],
-                parent_id=UUID(raw_parent) if raw_parent is not None else None,
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                raw_parent = payload["parent_id"]
+                return AssetRegistered(
+                    asset_id=UUID(payload["asset_id"]),
+                    name=payload["name"],
+                    level=payload["level"],
+                    parent_id=UUID(raw_parent) if raw_parent is not None else None,
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetRegistered payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "AssetActivated":
-            return AssetActivated(
-                asset_id=UUID(payload["asset_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return AssetActivated(
+                    asset_id=UUID(payload["asset_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetActivated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "AssetDecommissioned":
-            return AssetDecommissioned(
-                asset_id=UUID(payload["asset_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return AssetDecommissioned(
+                    asset_id=UUID(payload["asset_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetDecommissioned payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "AssetRelocated":
-            return AssetRelocated(
-                asset_id=UUID(payload["asset_id"]),
-                from_parent_id=UUID(payload["from_parent_id"]),
-                to_parent_id=UUID(payload["to_parent_id"]),
-                reason=payload["reason"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return AssetRelocated(
+                    asset_id=UUID(payload["asset_id"]),
+                    from_parent_id=UUID(payload["from_parent_id"]),
+                    to_parent_id=UUID(payload["to_parent_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetRelocated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "AssetMaintenanceEntered":
-            return AssetMaintenanceEntered(
-                asset_id=UUID(payload["asset_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return AssetMaintenanceEntered(
+                    asset_id=UUID(payload["asset_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetMaintenanceEntered payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "AssetRestoredFromMaintenance":
-            return AssetRestoredFromMaintenance(
-                asset_id=UUID(payload["asset_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return AssetRestoredFromMaintenance(
+                    asset_id=UUID(payload["asset_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetRestoredFromMaintenance payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         # Phase 5i dual-match: pre-5i Asset events used "AssetCapabilityAdded"
         # / "AssetCapabilityRemoved" type strings with "capability_id" payload
         # key. Post-5i emits "AssetFamilyAdded" / "AssetFamilyRemoved" with
         # "family_id". Both type strings produce the new Family-shaped
         # dataclass. Legacy arms stay forever per Marten/Axon rename pattern.
         case "AssetCapabilityAdded":
-            return AssetFamilyAdded(
-                asset_id=UUID(payload["asset_id"]),
-                family_id=UUID(payload["capability_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return AssetFamilyAdded(
+                    asset_id=UUID(payload["asset_id"]),
+                    family_id=UUID(payload["capability_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetCapabilityAdded payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "AssetCapabilityRemoved":
-            return AssetFamilyRemoved(
-                asset_id=UUID(payload["asset_id"]),
-                family_id=UUID(payload["capability_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return AssetFamilyRemoved(
+                    asset_id=UUID(payload["asset_id"]),
+                    family_id=UUID(payload["capability_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetCapabilityRemoved payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "AssetFamilyAdded":
-            return AssetFamilyAdded(
-                asset_id=UUID(payload["asset_id"]),
-                family_id=UUID(payload["family_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return AssetFamilyAdded(
+                    asset_id=UUID(payload["asset_id"]),
+                    family_id=UUID(payload["family_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetFamilyAdded payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "AssetFamilyRemoved":
-            return AssetFamilyRemoved(
-                asset_id=UUID(payload["asset_id"]),
-                family_id=UUID(payload["family_id"]),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return AssetFamilyRemoved(
+                    asset_id=UUID(payload["asset_id"]),
+                    family_id=UUID(payload["family_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetFamilyRemoved payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "AssetDegraded":
-            return AssetDegraded(
-                asset_id=UUID(payload["asset_id"]),
-                reason=payload["reason"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return AssetDegraded(
+                    asset_id=UUID(payload["asset_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetDegraded payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "AssetFaulted":
-            return AssetFaulted(
-                asset_id=UUID(payload["asset_id"]),
-                reason=payload["reason"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return AssetFaulted(
+                    asset_id=UUID(payload["asset_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetFaulted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "AssetRestored":
-            return AssetRestored(
-                asset_id=UUID(payload["asset_id"]),
-                reason=payload["reason"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return AssetRestored(
+                    asset_id=UUID(payload["asset_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetRestored payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "AssetSettingsUpdated":
-            # `payload.get` for additive evolution: pre-5g-c stored
-            # events without the settings key fold to {} (empty dict).
-            return AssetSettingsUpdated(
-                asset_id=UUID(payload["asset_id"]),
-                settings=payload.get("settings", {}),
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                # `payload.get` for additive evolution: pre-5g-c stored
+                # events without the settings key fold to {} (empty dict).
+                return AssetSettingsUpdated(
+                    asset_id=UUID(payload["asset_id"]),
+                    settings=payload.get("settings", {}),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetSettingsUpdated payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "AssetPortAdded":
-            return AssetPortAdded(
-                asset_id=UUID(payload["asset_id"]),
-                port_name=payload["port_name"],
-                direction=payload["direction"],
-                signal_type=payload["signal_type"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return AssetPortAdded(
+                    asset_id=UUID(payload["asset_id"]),
+                    port_name=payload["port_name"],
+                    direction=payload["direction"],
+                    signal_type=payload["signal_type"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetPortAdded payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case "AssetPortRemoved":
-            return AssetPortRemoved(
-                asset_id=UUID(payload["asset_id"]),
-                port_name=payload["port_name"],
-                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-            )
+            try:
+                return AssetPortRemoved(
+                    asset_id=UUID(payload["asset_id"]),
+                    port_name=payload["port_name"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed AssetPortRemoved payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown AssetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
