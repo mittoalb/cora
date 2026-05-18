@@ -30,6 +30,7 @@ def _defined(
     kind: str = "bakeout",
     target_asset_ids: list[UUID] | None = None,
     parent_run_id: UUID | None = None,
+    capability_id: UUID | None = None,
 ) -> Procedure:
     """Build a Procedure in DEFINED state via fold of ProcedureRegistered."""
     state = fold(
@@ -40,6 +41,7 @@ def _defined(
                 kind=kind,
                 target_asset_ids=target_asset_ids or [],
                 parent_run_id=parent_run_id,
+                capability_id=capability_id,
                 occurred_at=_NOW,
             )
         ]
@@ -543,3 +545,95 @@ def test_evolve_procedure_truncated_on_empty_state_raises() -> None:
                 procedure_id=uuid4(), reason="x", interrupted_at=None, occurred_at=_NOW
             ),
         )
+
+
+# ---------- Phase 10d: capability_id additive evolution ----------
+
+
+@pytest.mark.unit
+def test_evolve_procedure_registered_sets_capability_id_when_present() -> None:
+    """Phase 10d genesis: ProcedureRegistered with capability_id populates
+    state.capability_id. Pinned because the additive field is what the
+    cross-BC affordance contract reads back."""
+    capability_id = uuid4()
+    state = _defined(capability_id=capability_id)
+    assert state.capability_id == capability_id
+
+
+@pytest.mark.unit
+def test_evolve_procedure_registered_capability_id_defaults_to_none() -> None:
+    """Phase 10d-additive: pre-10d Procedures + ceremony Procedures with
+    no Capability binding have `capability_id=None` after genesis."""
+    state = _defined()
+    assert state.capability_id is None
+
+
+@pytest.mark.unit
+def test_evolve_procedure_started_preserves_capability_id() -> None:
+    """Phase 10d invariant: ProcedureStarted MUST carry capability_id
+    through from prior state. The Procedure(...) constructor without
+    explicit `capability_id=` would silently wipe the additive field
+    to None — same risk as the steps_logbook_id preservation invariant
+    pinned by the analogous test at line ~373."""
+    capability_id = uuid4()
+    prior = _defined(capability_id=capability_id)
+    started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
+    assert started.capability_id == capability_id
+
+
+@pytest.mark.unit
+def test_evolve_procedure_completed_preserves_capability_id() -> None:
+    """Phase 10d invariant: Completed terminal preserves capability_id."""
+    capability_id = uuid4()
+    prior = _defined(capability_id=capability_id)
+    started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
+    completed = evolve(started, ProcedureCompleted(procedure_id=prior.id, occurred_at=_NOW))
+    assert completed.capability_id == capability_id
+
+
+@pytest.mark.unit
+def test_evolve_procedure_aborted_preserves_capability_id() -> None:
+    """Phase 10d invariant: Aborted terminal preserves capability_id."""
+    capability_id = uuid4()
+    prior = _defined(capability_id=capability_id)
+    started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
+    aborted = evolve(started, ProcedureAborted(procedure_id=prior.id, reason="x", occurred_at=_NOW))
+    assert aborted.capability_id == capability_id
+
+
+@pytest.mark.unit
+def test_evolve_procedure_truncated_preserves_capability_id() -> None:
+    """Phase 10d invariant: Truncated terminal preserves capability_id."""
+    capability_id = uuid4()
+    prior = _defined(capability_id=capability_id)
+    started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
+    truncated = evolve(
+        started,
+        ProcedureTruncated(
+            procedure_id=prior.id, reason="x", interrupted_at=None, occurred_at=_NOW
+        ),
+    )
+    assert truncated.capability_id == capability_id
+
+
+@pytest.mark.unit
+def test_evolve_steps_logbook_opened_preserves_capability_id() -> None:
+    """Phase 10d invariant: lazy-open envelope event preserves
+    capability_id. Pinned because StepsLogbookOpened sets a different
+    additive field (steps_logbook_id) without touching the lifecycle
+    status, so its handler had to carry every other additive field
+    through manually."""
+    capability_id = uuid4()
+    prior = _defined(capability_id=capability_id)
+    started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
+    after_open = evolve(
+        started,
+        ProcedureStepsLogbookOpened(
+            procedure_id=prior.id,
+            logbook_id=uuid4(),
+            kind="steps",
+            schema=STEPS_LOGBOOK_SCHEMA,
+            occurred_at=_NOW,
+        ),
+    )
+    assert after_open.capability_id == capability_id

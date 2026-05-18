@@ -144,6 +144,56 @@ def test_from_stored_rebuilds_standalone_procedure_with_null_parent() -> None:
 
 
 @pytest.mark.unit
+def test_from_stored_rebuilds_pre_10d_procedure_registered_without_capability_id_key() -> None:
+    """Phase 10d-additive backwards-compat pin: pre-10d streams omit
+    the `capability_id` key from `ProcedureRegistered` payloads
+    entirely. `from_stored` MUST use `payload.get("capability_id")`
+    sentinel-default-None so legacy streams fold cleanly without
+    backfill. Mirrors the additive-evolution shape locked for
+    Method.capability_id (6l-additive) and Method.needed_supplies (10b)."""
+    procedure_id = uuid4()
+    stored = _stored(
+        "ProcedureRegistered",
+        {
+            # NOTE: NO "capability_id" key — pre-10d shape.
+            "procedure_id": str(procedure_id),
+            "name": "Vessel-A bakeout",
+            "kind": "bakeout",
+            "target_asset_ids": [],
+            "parent_run_id": None,
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, ProcedureRegistered)
+    assert rebuilt.capability_id is None
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_procedure_registered_with_capability_id() -> None:
+    """Phase 10d-additive: post-10d streams carry `capability_id` as a
+    UUID string in the payload; `from_stored` converts it back to a
+    UUID instance in the rebuilt event."""
+    procedure_id = uuid4()
+    capability_id = uuid4()
+    stored = _stored(
+        "ProcedureRegistered",
+        {
+            "procedure_id": str(procedure_id),
+            "name": "Hexapod reboot",
+            "kind": "recovery",
+            "target_asset_ids": [],
+            "parent_run_id": None,
+            "capability_id": str(capability_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, ProcedureRegistered)
+    assert rebuilt.capability_id == capability_id
+
+
+@pytest.mark.unit
 def test_procedure_registered_round_trips() -> None:
     asset1 = uuid4()
     asset2 = uuid4()

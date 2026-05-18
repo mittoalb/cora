@@ -248,6 +248,52 @@ async def test_wired_handler_propagates_causation_id_through_full_composition() 
 
 
 @pytest.mark.unit
+async def test_handler_emits_byte_identical_payload_for_same_capability_id() -> None:
+    """Phase 10d-additive determinism pin (gate-review P1): two
+    RegisterProcedure calls with the same logical inputs — including
+    a non-None `capability_id` — must produce byte-identical persisted
+    `ProcedureRegistered.payload` dicts. Mirrors the 6l-additive
+    sibling pin at test_define_method_handler.py; keeps idempotency-
+    key SHA256 hashing stable across the additive payload shape change."""
+    capability_id = UUID("01900000-0000-7000-8000-0000000c00de")
+
+    # Run 1
+    store_a = InMemoryEventStore()
+    await _seed_capability(store_a, capability_id)
+    deps_a = _build_deps(event_store=store_a)
+    await register_procedure.bind(deps_a)(
+        RegisterProcedure(
+            name="35-BM rotation-axis alignment",
+            kind="alignment",
+            target_asset_ids=frozenset({_ASSET_ID}),
+            capability_id=capability_id,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    events_a, _ = await store_a.load("Procedure", _NEW_ID)
+
+    # Run 2 (fresh store + deps)
+    store_b = InMemoryEventStore()
+    await _seed_capability(store_b, capability_id)
+    deps_b = _build_deps(event_store=store_b)
+    await register_procedure.bind(deps_b)(
+        RegisterProcedure(
+            name="35-BM rotation-axis alignment",
+            kind="alignment",
+            target_asset_ids=frozenset({_ASSET_ID}),
+            capability_id=capability_id,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    events_b, _ = await store_b.load("Procedure", _NEW_ID)
+
+    assert events_a[0].payload == events_b[0].payload
+    assert events_a[0].payload["capability_id"] == str(capability_id)
+
+
+@pytest.mark.unit
 async def test_handler_loads_and_validates_bound_capability_when_set() -> None:
     """Phase 10d-additive happy path: when RegisterProcedure.capability_id
     is set, the handler loads the Capability stream via
