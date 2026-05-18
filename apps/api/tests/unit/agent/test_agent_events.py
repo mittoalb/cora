@@ -430,3 +430,38 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
     stored = _stored("SomethingElse", {})
     with pytest.raises(ValueError, match="Unknown AgentEvent event_type"):
         from_stored(stored)
+
+
+# ---------------------------------------------------------------------------
+# Malformed-payload defensive arms (every event type's `try/except` raise)
+#
+# `from_stored` wraps each event-type's constructor in
+# `try: ... except (KeyError, TypeError, AttributeError): raise ValueError`.
+# This is the schema-drift insurance for a corrupted event row (older
+# producer's payload shape diverged from the current evolver's expectations).
+# `AgentDefined` is already pinned above; this parametrized test closes the
+# remaining 7 event types so a future field addition can't silently break
+# replay on legacy events without surfacing here.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "event_type",
+    [
+        "AgentVersioned",
+        "AgentDeprecated",
+        "AgentSuspended",
+        "AgentResumed",
+        "AgentToolGranted",
+        "AgentToolRevoked",
+        "AgentBudgetRevised",
+    ],
+)
+def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:
+    """An empty payload triggers KeyError on the first required field
+    lookup; the wrapping `except` surfaces a ValueError tagged with the
+    event_type so operators can grep the failure back to the bad row."""
+    stored = _stored(event_type, {})
+    with pytest.raises(ValueError, match=f"Malformed {event_type} payload"):
+        from_stored(stored)

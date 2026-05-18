@@ -10,11 +10,13 @@ from cora.safety.aggregates.clearance import (
     AssetBinding,
     ClearanceActivated,
     ClearanceApproved,
+    ClearanceExpired,
     ClearanceRegistered,
     ClearanceRejected,
     ClearanceReviewStarted,
     ClearanceReviewStepAppended,
     ClearanceSubmitted,
+    ClearanceSuperseded,
     ExternalBinding,
     HazardDeclaration,
     ProcedureBinding,
@@ -460,3 +462,62 @@ def test_clearance_activated_round_trip() -> None:
     assert payload == {"clearance_id": str(_CLEARANCE_ID), "occurred_at": _NOW.isoformat()}
     assert from_stored(_stored("ClearanceActivated", payload)) == original
     assert event_type_name(original) == "ClearanceActivated"
+
+
+@pytest.mark.unit
+def test_clearance_expired_round_trip() -> None:
+    """Pin to_payload + from_stored for ClearanceExpired (the terminal-
+    no-successor event); reason is required (Active -> Expired needs an
+    audit trail explaining why)."""
+    original = ClearanceExpired(
+        clearance_id=_CLEARANCE_ID,
+        reason="valid_until elapsed before renewal arrived",
+        occurred_at=_NOW,
+    )
+    payload = to_payload(original)
+    assert payload == {
+        "clearance_id": str(_CLEARANCE_ID),
+        "reason": "valid_until elapsed before renewal arrived",
+        "occurred_at": _NOW.isoformat(),
+    }
+    assert from_stored(_stored("ClearanceExpired", payload)) == original
+    assert event_type_name(original) == "ClearanceExpired"
+
+
+@pytest.mark.unit
+def test_clearance_superseded_round_trip() -> None:
+    """Pin the parent-clearance pointer round-trip; `by_clearance_id` is
+    the new Active Clearance taking over."""
+    by_id = UUID("01900000-0000-7000-8000-000000011002")
+    original = ClearanceSuperseded(
+        clearance_id=_CLEARANCE_ID,
+        by_clearance_id=by_id,
+        occurred_at=_NOW,
+    )
+    payload = to_payload(original)
+    assert payload == {
+        "clearance_id": str(_CLEARANCE_ID),
+        "by_clearance_id": str(by_id),
+        "occurred_at": _NOW.isoformat(),
+    }
+    assert from_stored(_stored("ClearanceSuperseded", payload)) == original
+    assert event_type_name(original) == "ClearanceSuperseded"
+
+
+# ---------------------------------------------------------------------------
+# Malformed-payload defensive arm in the HazardDeclaration helper
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_deserialize_declaration_raises_on_malformed_payload() -> None:
+    """`deserialize_declaration` is the helper for the embedded
+    `HazardDeclaration` value-object inside `ClearanceRegistered.declarations`.
+    Wraps KeyError/TypeError/AttributeError to a tagged ValueError so a
+    contaminated stream fails loud at evolver time rather than bubbling
+    a raw error from `deserialize_binding`. Safety's `from_stored` itself
+    does NOT wrap KeyError (one of the two BC styles in CORA; agent and
+    caution use the per-event try/except wrap; safety lets raw KeyError
+    surface). This helper is the only defensive raise on the safety side."""
+    with pytest.raises(ValueError, match="Malformed HazardDeclaration payload"):
+        deserialize_declaration({})  # missing required `target` field

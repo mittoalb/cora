@@ -300,6 +300,27 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
         from_stored(_stored("ImaginaryEvent", {"foo": "bar"}))
 
 
+# ---------- Malformed-payload defensive arms ----------
+#
+# `from_stored` wraps each event-type constructor in
+# `try/except (KeyError, TypeError, AttributeError) -> raise ValueError`.
+# Schema-drift insurance: a corrupted event row (older producer's payload
+# diverged from the current evolver's expectations) fails loud at the
+# evolver instead of crashing with a raw KeyError deep in the load path.
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "event_type",
+    ["CautionRegistered", "CautionSuperseded", "CautionRetired"],
+)
+def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:
+    """Empty payload triggers KeyError on the first required field lookup;
+    the wrapping `except` surfaces a ValueError tagged with the event_type."""
+    with pytest.raises(ValueError, match=f"Malformed {event_type} payload"):
+        from_stored(_stored(event_type, {}))
+
+
 # ---------- Defensive payload helpers used inside CautionRegistered ----------
 
 
