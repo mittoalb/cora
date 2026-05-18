@@ -17,6 +17,7 @@ import asyncpg
 import pytest
 
 from cora.equipment.aggregates.asset import AssetLevel
+from cora.equipment.aggregates.family import Affordance
 from cora.equipment.features import (
     add_asset_family,
     define_family,
@@ -25,12 +26,20 @@ from cora.equipment.features import (
 from cora.equipment.features.add_asset_family import AddAssetFamily
 from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.register_asset import RegisterAsset
+from cora.recipe.aggregates.capability import ExecutorShape
 from cora.recipe.aggregates.plan import (
+    PlanAffordancesNotSatisfiedError,
     PlanName,
     PlanStatus,
     load_plan,
 )
-from cora.recipe.features import define_method, define_plan, define_practice
+from cora.recipe.features import (
+    define_capability,
+    define_method,
+    define_plan,
+    define_practice,
+)
+from cora.recipe.features.define_capability import DefineCapability
 from cora.recipe.features.define_method import DefineMethod
 from cora.recipe.features.define_plan import DefinePlan
 from cora.recipe.features.define_practice import DefinePractice
@@ -149,3 +158,114 @@ async def test_define_plan_persists_event_with_audit_snapshots_to_postgres(
     assert plan.practice_id == practice_id
     assert plan.asset_ids == frozenset({asset_id})
     assert plan.status is PlanStatus.DEFINED
+
+
+@pytest.mark.integration
+async def test_define_plan_affordance_cover_guard_against_postgres(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Phase 6l.B PG round-trip (gate-review P1): exercises the full
+    cross-BC fan-out against real Postgres — Capability + Family +
+    Asset + Method (with capability_id) + Practice + Plan — and asserts
+    that the affordance-cover guard fires when Family.affordances
+    miss a required affordance. Pinned because the fan-out reads
+    Family streams across the BC boundary via load_family, and
+    affordance set membership round-trips through jsonb."""
+    cap_template_id = UUID("01900000-0000-7000-8000-00000061a001")
+    cap_template_event = UUID("01900000-0000-7000-8000-00000061a002")
+    family_id = UUID("01900000-0000-7000-8000-00000061b001")
+    family_event = UUID("01900000-0000-7000-8000-00000061b002")
+    asset_id = UUID("01900000-0000-7000-8000-00000061c001")
+    asset_register_event = UUID("01900000-0000-7000-8000-00000061c002")
+    asset_addcap_event = UUID("01900000-0000-7000-8000-00000061c003")
+    method_id = UUID("01900000-0000-7000-8000-00000061d001")
+    method_event = UUID("01900000-0000-7000-8000-00000061d002")
+    practice_id = UUID("01900000-0000-7000-8000-00000061e001")
+    practice_event = UUID("01900000-0000-7000-8000-00000061e002")
+    site_id = UUID("01900000-0000-7000-8000-00000061f001")
+    plan_id = UUID("01900000-0000-7000-8000-00000061faa1")
+    plan_event = UUID("01900000-0000-7000-8000-00000061faa2")
+
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[
+            cap_template_id,
+            cap_template_event,
+            family_id,
+            family_event,
+            asset_id,
+            asset_register_event,
+            asset_addcap_event,
+            method_id,
+            method_event,
+            practice_id,
+            practice_event,
+            plan_id,
+            plan_event,
+        ],
+    )
+
+    # Capability template requires ROTATABLE + TRIGGERABLE.
+    await define_capability.bind(deps)(
+        DefineCapability(
+            code="cora.capability.flyscan",
+            name="FlyScan",
+            required_affordances=frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE}),
+            executor_shapes=frozenset({ExecutorShape.METHOD}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    # Family carries ONLY ROTATABLE — TRIGGERABLE is the missing
+    # affordance that 6l.B's guard must surface.
+    await define_family.bind(deps)(
+        DefineFamily(name="RotaryStage", affordances=frozenset({Affordance.ROTATABLE})),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await register_asset.bind(deps)(
+        RegisterAsset(name="EigerDetector", level=AssetLevel.ENTERPRISE, parent_id=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=asset_id, family_id=family_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await define_method.bind(deps)(
+        DefineMethod(
+            name="FlyScan Method",
+            needed_families=frozenset({family_id}),
+            capability_id=cap_template_id,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await define_practice.bind(deps)(
+        DefinePractice(
+            name="APS FlyScan at 32-ID",
+            method_id=method_id,
+            site_id=site_id,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    with pytest.raises(PlanAffordancesNotSatisfiedError) as exc_info:
+        await define_plan.bind(deps)(
+            DefinePlan(
+                name="32-ID FlyScan Plan",
+                practice_id=practice_id,
+                asset_ids=frozenset({asset_id}),
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert exc_info.value.missing_affordances == frozenset({Affordance.TRIGGERABLE.value})
+
+    # No Plan was persisted — the guard fired before any append.
+    events, version = await deps.event_store.load("Plan", plan_id)
+    assert events == []
+    assert version == 0

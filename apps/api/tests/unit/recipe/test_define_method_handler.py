@@ -203,6 +203,51 @@ async def test_handler_propagates_invalid_method_name_error() -> None:
 
 
 @pytest.mark.unit
+async def test_handler_emits_byte_identical_payload_for_same_capability_id() -> None:
+    """Phase 6l-additive determinism pin (gate-review P0): two
+    DefineMethod calls with the same logical inputs — INCLUDING the
+    new `capability_id` key — must produce byte-identical persisted
+    `MethodDefined.payload` dicts. Required for idempotency-key
+    hashing to stay stable across the additive payload shape change
+    (see `with_idempotency` SHA256 over normalized request body)."""
+    capability_id = UUID("01900000-0000-7000-8000-00000000c0d1")
+    needed_families = frozenset({_CAP1, _CAP2})
+
+    # Run 1
+    store_a = InMemoryEventStore()
+    await _seed_capability(store_a, capability_id)
+    deps_a = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store_a)
+    await define_method.bind(deps_a)(
+        DefineMethod(
+            name="XRF Fly Mapping",
+            needed_families=needed_families,
+            capability_id=capability_id,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    events_a, _ = await store_a.load("Method", _NEW_ID)
+
+    # Run 2 (fresh store + deps)
+    store_b = InMemoryEventStore()
+    await _seed_capability(store_b, capability_id)
+    deps_b = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store_b)
+    await define_method.bind(deps_b)(
+        DefineMethod(
+            name="XRF Fly Mapping",
+            needed_families=needed_families,
+            capability_id=capability_id,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    events_b, _ = await store_b.load("Method", _NEW_ID)
+
+    assert events_a[0].payload == events_b[0].payload
+    assert events_a[0].payload["capability_id"] == str(capability_id)
+
+
+@pytest.mark.unit
 async def test_handler_loads_and_validates_bound_capability_when_set() -> None:
     """Phase 6l-additive happy path through the handler: when
     DefineMethod.capability_id is set, the handler loads the
