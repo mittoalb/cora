@@ -804,3 +804,49 @@ def test_event_type_name_for_port_events() -> None:
     removed = AssetPortRemoved(asset_id=asset_id, port_name="x", occurred_at=_NOW)
     assert event_type_name(added) == "AssetPortAdded"
     assert event_type_name(removed) == "AssetPortRemoved"
+
+
+# ---------- Phase 5i dual-match: legacy AssetCapability* event types ----------
+#
+# Per DLM-A direct-rename pattern: pre-5i Asset events used type strings
+# "AssetCapabilityAdded" / "AssetCapabilityRemoved" with payload key
+# "capability_id". Post-5i emits "AssetFamilyAdded" / "AssetFamilyRemoved"
+# with "family_id". from_stored dual-matches: both legacy and new produce
+# the new AssetFamily* dataclass. These tests pin the legacy arms so a
+# future refactor can't silently break replay safety.
+
+
+@pytest.mark.unit
+def test_from_stored_upcasts_legacy_asset_capability_added_to_asset_family_added() -> None:
+    asset_id = uuid4()
+    legacy_cap_id = uuid4()
+    stored = _stored(
+        "AssetCapabilityAdded",
+        {
+            "asset_id": str(asset_id),
+            "capability_id": str(legacy_cap_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == AssetFamilyAdded(asset_id=asset_id, family_id=legacy_cap_id, occurred_at=_NOW)
+
+
+@pytest.mark.unit
+def test_from_stored_upcasts_legacy_asset_capability_removed_to_asset_family_removed() -> None:
+    from cora.equipment.aggregates.asset.events import AssetFamilyRemoved
+
+    asset_id = uuid4()
+    legacy_cap_id = uuid4()
+    stored = _stored(
+        "AssetCapabilityRemoved",
+        {
+            "asset_id": str(asset_id),
+            "capability_id": str(legacy_cap_id),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == AssetFamilyRemoved(
+        asset_id=asset_id, family_id=legacy_cap_id, occurred_at=_NOW
+    )

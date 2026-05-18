@@ -42,12 +42,20 @@ def _stored(event_type: str, payload: dict[str, Any]) -> StoredEvent:
 def test_projection_metadata() -> None:
     proj = FamilySummaryProjection()
     assert proj.name == "proj_equipment_family_summary"
+    # Phase 5i: projection subscribes to BOTH new Family* event types and
+    # legacy Capability* event types (per Marten/Axon dual-match contract).
+    # Without the legacy subscription, a replay-from-zero on a deployment
+    # with historical data would silently skip pre-5i events.
     assert proj.subscribed_event_types == frozenset(
         {
             "FamilyDefined",
             "FamilyVersioned",
             "FamilyDeprecated",
             "FamilySettingsSchemaUpdated",
+            "CapabilityDefined",
+            "CapabilityVersioned",
+            "CapabilityDeprecated",
+            "CapabilitySettingsSchemaUpdated",
         }
     )
 
@@ -263,3 +271,105 @@ async def test_capability_defined_inserts_with_schema_present_false() -> None:
     assert args is not None
     sql = args.args[0]
     assert "FALSE" in sql  # explicit FALSE in INSERT
+
+
+# ---------- Phase 5i dual-match: projection processes legacy Capability* events ----------
+#
+# The FamilySummaryProjection subscribes to BOTH new Family* and legacy
+# Capability* event types per the Marten/Axon dual-match contract.
+# These tests pin the apply-arm dual-match so a replay-from-zero on a
+# deployment with historical data populates the summary table correctly.
+
+
+@pytest.mark.unit
+async def test_legacy_capability_defined_inserts_via_family_summary_path() -> None:
+    """Pre-5i CapabilityDefined events use payload key `capability_id`.
+    The projection's `_id()` helper reads new key first, falls back to
+    legacy. INSERT path must populate proj_equipment_family_summary."""
+    proj = FamilySummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "CapabilityDefined",
+        {
+            "capability_id": str(_CAPABILITY_ID),
+            "name": "LegacyTomography",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "INSERT INTO proj_equipment_family_summary" in sql
+    assert args.args[1] == _CAPABILITY_ID
+    assert args.args[2] == "LegacyTomography"
+
+
+@pytest.mark.unit
+async def test_legacy_capability_versioned_updates_via_family_summary_path() -> None:
+    proj = FamilySummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "CapabilityVersioned",
+        {
+            "capability_id": str(_CAPABILITY_ID),
+            "version_tag": "v2-legacy",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "UPDATE proj_equipment_family_summary" in sql
+    assert "Versioned" in sql
+    assert args.args[1] == _CAPABILITY_ID
+    assert args.args[2] == "v2-legacy"
+
+
+@pytest.mark.unit
+async def test_legacy_capability_deprecated_updates_via_family_summary_path() -> None:
+    proj = FamilySummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "CapabilityDeprecated",
+        {
+            "capability_id": str(_CAPABILITY_ID),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "Deprecated" in sql
+    assert args.args[1] == _CAPABILITY_ID
+
+
+@pytest.mark.unit
+async def test_legacy_capability_settings_schema_updated_via_family_summary_path() -> None:
+    proj = FamilySummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "CapabilitySettingsSchemaUpdated",
+        {
+            "capability_id": str(_CAPABILITY_ID),
+            "settings_schema": {"$schema": "x", "type": "object"},
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "settings_schema_present" in sql
+    assert args.args[1] == _CAPABILITY_ID
+    assert args.args[2] is True

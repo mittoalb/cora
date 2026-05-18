@@ -553,3 +553,76 @@ def test_to_payload_then_from_stored_round_trips_for_wire_removed() -> None:
     )
     stored = _stored("PlanWireRemoved", to_payload(original))
     assert from_stored(stored) == original
+
+
+# ---------- Phase 5i dual-key fallback: legacy snapshot payload keys ----------
+#
+# Per DLM-A direct-rename pattern: pre-5i PlanDefined payloads carried
+# `method_needed_capabilities_snapshot` + `asset_capabilities_snapshot`
+# keys. Post-5i payloads carry the `*_families_snapshot` equivalents.
+# from_stored reads the new key first, falls back to the legacy key.
+# These tests pin the fallback so a future refactor can't silently
+# break replay safety.
+
+
+@pytest.mark.unit
+def test_from_stored_reads_legacy_asset_capabilities_snapshot_payload_key() -> None:
+    """Pre-5i payloads use `asset_capabilities_snapshot` (with
+    `method_needed_capabilities_snapshot` for the method side). from_stored
+    must populate the new dataclass fields from the legacy keys."""
+    plan_id = uuid4()
+    practice_id = uuid4()
+    method_id = uuid4()
+    asset_id = uuid4()
+    legacy_cap_id = uuid4()
+    stored = _stored(
+        "PlanDefined",
+        {
+            "plan_id": str(plan_id),
+            "name": "LegacyPlan",
+            "practice_id": str(practice_id),
+            "asset_ids": [str(asset_id)],
+            "method_id": str(method_id),
+            # LEGACY keys (no `*_families_snapshot` keys present)
+            "method_needed_capabilities_snapshot": [str(legacy_cap_id)],
+            "asset_capabilities_snapshot": {str(asset_id): [str(legacy_cap_id)]},
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, PlanDefined)
+    assert rebuilt.method_needed_families_snapshot == [legacy_cap_id]
+    assert rebuilt.asset_families_snapshot == {asset_id: [legacy_cap_id]}
+
+
+@pytest.mark.unit
+def test_from_stored_prefers_new_families_snapshot_over_legacy_key() -> None:
+    """When BOTH the new and legacy keys are present (defensive case
+    against partial migration), the new key wins. This locks the
+    `.get(new, .get(legacy, default))` precedence."""
+    plan_id = uuid4()
+    practice_id = uuid4()
+    method_id = uuid4()
+    asset_id = uuid4()
+    new_id = uuid4()
+    legacy_id = uuid4()
+    stored = _stored(
+        "PlanDefined",
+        {
+            "plan_id": str(plan_id),
+            "name": "DualKeyPlan",
+            "practice_id": str(practice_id),
+            "asset_ids": [str(asset_id)],
+            "method_id": str(method_id),
+            # BOTH keys present; new should win
+            "method_needed_families_snapshot": [str(new_id)],
+            "method_needed_capabilities_snapshot": [str(legacy_id)],
+            "asset_families_snapshot": {str(asset_id): [str(new_id)]},
+            "asset_capabilities_snapshot": {str(asset_id): [str(legacy_id)]},
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, PlanDefined)
+    assert rebuilt.method_needed_families_snapshot == [new_id]
+    assert rebuilt.asset_families_snapshot == {asset_id: [new_id]}
