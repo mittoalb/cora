@@ -1003,6 +1003,22 @@ class Run:
     # history lives on the event log; aggregate state stays slim.
     last_adjusted_at: datetime | None = None
     adjustment_count: int = 0
+    # Phase 12b: AsShot calibration pin set (Calibration BC integration
+    # per [[project_calibration_design]]). Each entry is a
+    # CalibrationRevision.id that was live at start_run time.
+    # IMMUTABLE after start_run by aggregate-level invariant — every
+    # transition arm in the evolver (RunHeld / RunResumed /
+    # RunCompleted / RunAborted / RunStopped / RunTruncated /
+    # RunAdjusted / RunCampaignAssigned / RunCampaignUnassigned /
+    # RunReadingLogbookOpened) preserves `prior.calibration_pins`
+    # verbatim. The AsShot anchor lets downstream consumers (Dataset
+    # reconstruction in 12c, RunDebrief AI advisories) answer "what
+    # calibration was this scan acquired against?" deterministically
+    # months later, even if later refined revisions arrive on the
+    # same Calibration aggregate. DNG AsShot vs Current precedent
+    # (Q5/Q6 research). Defaults to empty frozenset so pre-12b
+    # streams fold cleanly via `payload.get("calibration_pins", [])`.
+    calibration_pins: frozenset[UUID] = field(default_factory=frozenset[UUID])
 
 
 class InvalidRunParametersError(ValueError):

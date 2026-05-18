@@ -981,3 +981,137 @@ def test_legacy_pre_6j_stream_folds_with_default_adjustment_fields() -> None:
     assert state is not None
     assert state.last_adjusted_at is None
     assert state.adjustment_count == 0
+
+
+# ---------- Phase 12b: Calibration AsShot anchor immutability ----------
+
+
+@pytest.mark.unit
+def test_run_started_genesis_populates_calibration_pins_as_frozenset() -> None:
+    """RunStarted carries the tuple-form on the event payload; the
+    evolver coerces to frozenset for in-memory equality semantics."""
+    pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    pin_b = UUID("01900000-0000-7000-8000-00000000ca02")
+    run_id = uuid4()
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="Pinned run",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+                calibration_pins=(pin_a, pin_b),
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.calibration_pins == frozenset({pin_a, pin_b})
+
+
+@pytest.mark.unit
+def test_legacy_pre_12b_run_folds_with_empty_calibration_pins() -> None:
+    """Pre-12b Runs have no calibration_pins on RunStarted. They MUST
+    fold to an empty frozenset — additive backward-compat contract."""
+    run_id = uuid4()
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="Pre-12b Run",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.calibration_pins == frozenset()
+
+
+@pytest.mark.parametrize(
+    "terminal_factory",
+    [_make_completed, _make_aborted, _make_stopped, _make_truncated],
+)
+def test_each_terminal_preserves_calibration_pins_asshot_invariant(
+    terminal_factory: _TerminalFactory,
+) -> None:
+    """Phase 12b critical invariant: every terminal arm preserves the
+    calibration_pins set verbatim. A regression that wiped them would
+    silently break "what calibration was this scan acquired against?"
+    queries forever — DNG AsShot lesson."""
+    pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    pin_b = UUID("01900000-0000-7000-8000-00000000ca02")
+    run_id = uuid4()
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="Run",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+                calibration_pins=(pin_a, pin_b),
+            ),
+            terminal_factory(run_id),
+        ]
+    )
+    assert state is not None
+    assert state.calibration_pins == frozenset({pin_a, pin_b})
+
+
+@pytest.mark.unit
+def test_hold_resume_cycle_preserves_calibration_pins() -> None:
+    """Hold + Resume are routine mid-flight; they must NOT touch the
+    AsShot anchor."""
+    from cora.run.aggregates.run.events import RunHeld, RunResumed
+
+    pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    run_id = uuid4()
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="Run",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+                calibration_pins=(pin_a,),
+            ),
+            RunHeld(run_id=run_id, occurred_at=_NOW),
+            RunResumed(run_id=run_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.calibration_pins == frozenset({pin_a})
+
+
+@pytest.mark.unit
+def test_adjust_run_preserves_calibration_pins() -> None:
+    """Even mid-flight parameter steering (adjust_run) MUST preserve the
+    AsShot anchor — the design memo's strongest form of the rule."""
+    from cora.run.aggregates.run.events import RunAdjusted
+
+    pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    run_id = uuid4()
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="Run",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+                calibration_pins=(pin_a,),
+            ),
+            RunAdjusted(
+                run_id=run_id,
+                parameter_patch={"a": 1},
+                effective_parameters={"a": 1},
+                reason="adjust",
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.calibration_pins == frozenset({pin_a})

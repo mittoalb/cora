@@ -111,6 +111,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
             triggered_by=triggered_by,
             external_refs=external_refs,
             campaign_id=campaign_id,
+            calibration_pins=calibration_pins,
         ):
             _ = state  # RunStarted is the genesis event; prior state ignored.
             return Run(
@@ -130,6 +131,10 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=campaign_id,
                 last_adjusted_at=None,
                 adjustment_count=0,
+                # Phase 12b: AsShot anchor set at genesis (frozenset for in-
+                # memory equality semantics; the event carries a tuple for
+                # deterministic wire byte ordering).
+                calibration_pins=frozenset(calibration_pins),
             )
         case RunHeld():
             prior = require_state(state, "RunHeld")
@@ -148,6 +153,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
+                # Phase 12b AsShot invariant: never change after start.
+                calibration_pins=prior.calibration_pins,
             )
         case RunResumed():
             prior = require_state(state, "RunResumed")
@@ -166,6 +173,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
+                # Phase 12b AsShot invariant: never change after start.
+                calibration_pins=prior.calibration_pins,
             )
         case RunCompleted():
             prior = require_state(state, "RunCompleted")
@@ -184,6 +193,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
+                # Phase 12b AsShot invariant: never change after start.
+                calibration_pins=prior.calibration_pins,
             )
         case RunAborted():
             prior = require_state(state, "RunAborted")
@@ -202,6 +213,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
+                # Phase 12b AsShot invariant: never change after start.
+                calibration_pins=prior.calibration_pins,
             )
         case RunStopped():
             prior = require_state(state, "RunStopped")
@@ -220,6 +233,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
+                # Phase 12b AsShot invariant: never change after start.
+                calibration_pins=prior.calibration_pins,
             )
         case RunTruncated():
             prior = require_state(state, "RunTruncated")
@@ -238,6 +253,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
+                # Phase 12b AsShot invariant: never change after start.
+                calibration_pins=prior.calibration_pins,
             )
         case RunAdjusted(
             effective_parameters=effective_parameters,
@@ -264,6 +281,11 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=adjusted_at,
                 adjustment_count=prior.adjustment_count + 1,
+                # Phase 12b AsShot invariant: adjust_run never touches the
+                # calibration_pins; per the design memo this is the strongest
+                # form of the AsShot rule (even mid-flight steering can't
+                # change what calibration the Run was acquired against).
+                calibration_pins=prior.calibration_pins,
             )
         case RunReadingLogbookOpened(logbook_id=logbook_id):
             # Lazy open-on-first-write (Phase 6f-5b): preserve all
@@ -285,6 +307,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
+                # Phase 12b AsShot invariant: never change after start.
+                calibration_pins=prior.calibration_pins,
             )
         case RunCampaignAssigned(campaign_id=campaign_id):
             # Phase 6i-c: post-hoc membership assignment from
@@ -308,6 +332,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
+                # Phase 12b AsShot invariant: never change after start.
+                calibration_pins=prior.calibration_pins,
             )
         case RunCampaignUnassigned():
             # Phase 6i-c: post-hoc membership removal from
@@ -331,6 +357,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=None,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
+                # Phase 12b AsShot invariant: never change after start.
+                calibration_pins=prior.calibration_pins,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

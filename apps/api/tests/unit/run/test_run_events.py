@@ -1,7 +1,7 @@
 """Unit tests for the Run aggregate's event (de)serialization helpers."""
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -98,6 +98,11 @@ def test_to_payload_serializes_run_started_with_subject_to_primitives() -> None:
         # StartRun.decided_by_decision_id was not provided; forward-compat
         # via `payload.get("decided_by_decision_id")`.
         "decided_by_decision_id": None,
+        # Phase 12b (Calibration AsShot anchor) additive payload field;
+        # sorted list of CalibrationRevision ids. Empty when
+        # StartRun.calibration_pins was empty; forward-compat via
+        # `payload.get("calibration_pins", [])`.
+        "calibration_pins": [],
         "occurred_at": _NOW.isoformat(),
     }
 
@@ -1045,6 +1050,74 @@ def test_run_started_decision_id_round_trips() -> None:
         subject_id=None,
         occurred_at=_NOW,
         decided_by_decision_id=uuid4(),
+    )
+    stored = _stored("RunStarted", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- Phase 12b: Calibration AsShot anchor on RunStarted ----------
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_run_started_with_calibration_pins_sorted() -> None:
+    """The wire form is a list sorted lexicographically for deterministic
+    byte ordering (the in-memory frozenset has no order)."""
+    pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    pin_b = UUID("01900000-0000-7000-8000-00000000ca02")
+    pin_c = UUID("01900000-0000-7000-8000-00000000ca03")
+    event = RunStarted(
+        run_id=uuid4(),
+        name="Scan with pinned center + pixel-size calibrations",
+        plan_id=uuid4(),
+        subject_id=None,
+        occurred_at=_NOW,
+        # Tuple input in scrambled order; payload must come out sorted.
+        calibration_pins=(pin_c, pin_a, pin_b),
+    )
+    payload = to_payload(event)
+    assert payload["calibration_pins"] == sorted([str(pin_a), str(pin_b), str(pin_c)])
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_run_started_without_calibration_pins_key_as_empty() -> None:
+    """Forward-compat: pre-12b RunStarted payloads have no
+    calibration_pins key. from_stored returns an empty tuple via
+    `payload.get(..., [])`."""
+    run_id = uuid4()
+    plan_id = uuid4()
+    stored = _stored(
+        "RunStarted",
+        {
+            "run_id": str(run_id),
+            "name": "Pre-12b run",
+            "plan_id": str(plan_id),
+            "subject_id": None,
+            "occurred_at": _NOW.isoformat(),
+            # NOTE: no "calibration_pins" key — pre-12b shape.
+        },
+    )
+    event = from_stored(stored)
+    assert isinstance(event, RunStarted)
+    assert event.calibration_pins == ()
+
+
+@pytest.mark.unit
+def test_run_started_calibration_pins_round_trip() -> None:
+    """RunStarted with calibration_pins round-trips through to_payload +
+    from_stored. The event class holds them as a tuple; equality on the
+    tuple is order-sensitive but to_payload sorts before serialise."""
+    pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    pin_b = UUID("01900000-0000-7000-8000-00000000ca02")
+    # Use already-sorted input so round-trip equality is trivial; the
+    # "decider sorts before emit" pattern is exercised in the decider
+    # test_start_run_decider.py suite separately.
+    original = RunStarted(
+        run_id=uuid4(),
+        name="Run with calibration pins",
+        plan_id=uuid4(),
+        subject_id=None,
+        occurred_at=_NOW,
+        calibration_pins=(pin_a, pin_b),
     )
     stored = _stored("RunStarted", to_payload(original))
     assert from_stored(stored) == original

@@ -295,6 +295,9 @@ def decide(
             acknowledged_cautions=acknowledged_cautions,
             campaign_id=command.campaign_id,
             decided_by_decision_id=command.decided_by_decision_id,
+            # Phase 12b: sort for deterministic byte-form on the event
+            # payload (frozenset has no inherent order).
+            calibration_pins=tuple(sorted(command.calibration_pins)),
             occurred_at=now,
         )
     ]

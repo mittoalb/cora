@@ -1,18 +1,18 @@
-"""Contract tests for `POST /runs` wire-level (Phase 6i-c).
+"""Contract tests for `POST /runs` wire-level (Phase 6i-c + 12b).
 
-Pins the wire-level Campaign membership behavior introduced in 6i-c:
+Pins the wire-level Campaign membership behavior introduced in 6i-c
+plus the Phase 12b Calibration AsShot anchor:
 
-  - happy path: POST /runs with campaign_id returns 201 and
-    RunStarted carries the campaign_id on the persisted payload
-    (asserted via direct event-store inspection; the RunResponse
-    DTO does not surface campaign_id today).
-  - 404 path: POST /runs with a campaign_id for a Campaign that
-    does not exist (decider's load returns None -> handler raises
-    CampaignNotFoundError -> Run BC's exception handler maps to
-    HTTP 404).
-  - 409 path: POST /runs with a campaign_id for a Campaign in a
-    terminal status (Closed) raises RunCannotJoinCampaignError ->
-    HTTP 409.
+  - 6i-c happy path: POST /runs with campaign_id returns 201 and
+    RunStarted carries the campaign_id on the persisted payload.
+  - 6i-c 404 path: POST /runs with a campaign_id for a Campaign that
+    does not exist.
+  - 6i-c 409 path: POST /runs with a campaign_id for a Campaign in a
+    terminal status (Closed) raises RunCannotJoinCampaignError.
+  - 12b happy path: POST /runs with calibration_pins returns 201 and
+    RunStarted carries the sorted-list calibration_pins on the
+    persisted payload (no cross-BC validation; eventual-consistency
+    stance).
 
 The full upstream chain (Family + Asset + Method + Practice +
 Plan + Subject) is set up via the public HTTP API per the existing
@@ -150,3 +150,95 @@ def test_post_runs_returns_409_when_campaign_terminal() -> None:
         )
     assert response.status_code == 409, response.text
     assert "campaign" in response.json()["detail"].lower()
+
+
+# ---------- Phase 12b: Calibration AsShot anchor ----------
+
+
+@pytest.mark.contract
+def test_post_runs_with_calibration_pins_returns_201() -> None:
+    """POST /runs with calibration_pins returns 201 and the persisted
+    RunStarted payload carries the sorted list of pins (no cross-BC
+    validation of the CalibrationRevision ids — eventual-consistency
+    stance per design memo Phase 12b)."""
+    app = create_app()
+    pin_a = uuid4()
+    pin_b = uuid4()
+    with TestClient(app) as client:
+        plan_id, subject_id = _setup_chain(client)
+        response = client.post(
+            "/runs",
+            json={
+                "name": "pinned-run",
+                "plan_id": plan_id,
+                "subject_id": subject_id,
+                # Scrambled order; decider sorts before emit.
+                "calibration_pins": [str(pin_b), str(pin_a)],
+            },
+        )
+        assert response.status_code == 201, response.text
+        run_id = UUID(response.json()["run_id"])
+        payload = _load_run_payload(app, run_id)
+    assert payload["calibration_pins"] == sorted([str(pin_a), str(pin_b)])
+
+
+@pytest.mark.contract
+def test_post_runs_defaults_calibration_pins_to_empty_list() -> None:
+    """Omitted calibration_pins serializes as `[]` on the payload
+    (forward-compat with pre-12b RunStarted readers)."""
+    app = create_app()
+    with TestClient(app) as client:
+        plan_id, subject_id = _setup_chain(client)
+        response = client.post(
+            "/runs",
+            json={
+                "name": "no-pins-run",
+                "plan_id": plan_id,
+                "subject_id": subject_id,
+            },
+        )
+        assert response.status_code == 201, response.text
+        run_id = UUID(response.json()["run_id"])
+        payload = _load_run_payload(app, run_id)
+    assert payload["calibration_pins"] == []
+
+
+@pytest.mark.contract
+def test_post_runs_does_not_validate_calibration_pin_existence() -> None:
+    """Phase 12b eventual-consistency stance: the write path does NOT
+    look up the CalibrationRevision ids. Any well-formed UUID list
+    is accepted; downstream consumers that need to dereference still
+    go through the Calibration BC."""
+    app = create_app()
+    with TestClient(app) as client:
+        plan_id, subject_id = _setup_chain(client)
+        # Fully synthetic pin ids that will never exist in any
+        # Calibration BC stream.
+        response = client.post(
+            "/runs",
+            json={
+                "name": "synthetic-pins-run",
+                "plan_id": plan_id,
+                "subject_id": subject_id,
+                "calibration_pins": [str(uuid4()) for _ in range(5)],
+            },
+        )
+    assert response.status_code == 201, response.text
+
+
+@pytest.mark.contract
+def test_post_runs_rejects_malformed_calibration_pin_uuid_with_422() -> None:
+    """Pydantic enforces UUID format at the wire layer (the decider
+    never sees malformed strings)."""
+    with TestClient(create_app()) as client:
+        plan_id, subject_id = _setup_chain(client)
+        response = client.post(
+            "/runs",
+            json={
+                "name": "bad-pin-uuid-run",
+                "plan_id": plan_id,
+                "subject_id": subject_id,
+                "calibration_pins": ["not-a-uuid"],
+            },
+        )
+    assert response.status_code == 422

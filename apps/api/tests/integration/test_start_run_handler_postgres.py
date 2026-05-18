@@ -195,6 +195,10 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
         # StartRun.decided_by_decision_id was not provided; forward-compat
         # via `payload.get("decided_by_decision_id")`.
         "decided_by_decision_id": None,
+        # Phase 12b additive payload field for Calibration AsShot anchor
+        # pins. Empty tuple by default; forward-compat via
+        # `payload.get("calibration_pins", [])`.
+        "calibration_pins": [],
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.event_id == run_event_id

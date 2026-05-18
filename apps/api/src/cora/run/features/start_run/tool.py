@@ -123,6 +123,18 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ] = None,
+        calibration_pins: Annotated[
+            list[UUID] | None,
+            Field(
+                default=None,
+                description=(
+                    "Optional CalibrationRevision ids pinned at this Run's "
+                    "start time (Calibration BC AsShot anchor per Phase 12b). "
+                    "IMMUTABLE on the aggregate after start. NOT verified "
+                    "at the write path. Omit or null for an empty pin set."
+                ),
+            ),
+        ] = None,
     ) -> StartRunOutput:
         handler = get_handler()
         run_id = await handler(
@@ -135,6 +147,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 triggered_by=triggered_by,
                 campaign_id=campaign_id,
                 decided_by_decision_id=decided_by_decision_id,
+                calibration_pins=frozenset(calibration_pins) if calibration_pins else frozenset(),
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),

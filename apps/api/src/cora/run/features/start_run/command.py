@@ -78,3 +78,13 @@ class StartRun:
     # consistency stance (Trust.Conduit / Asset parent / Procedure
     # target / Campaign lead_actor / Run.subject_id precedent).
     decided_by_decision_id: UUID | None = None
+    # Phase 12b (Calibration AsShot anchor): set of CalibrationRevision
+    # ids that should be recorded as live at this Run's start per
+    # [[project_calibration_design]]. Operator-supplied (or, in the
+    # autonomous-CT future, agent-supplied). IMMUTABLE on the Run
+    # aggregate after start_run — every transition arm preserves the
+    # field verbatim per the DNG AsShot precedent. NO cross-BC
+    # existence check at the decider (cross-BC eventual-consistency
+    # stance); a downstream consumer that needs to read the pinned
+    # CalibrationRevision still goes through the Calibration BC.
+    calibration_pins: frozenset[UUID] = field(default_factory=frozenset[UUID])

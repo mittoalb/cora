@@ -1512,3 +1512,70 @@ def test_decide_threads_decided_by_decision_id_through_to_event() -> None:
         new_id=uuid4(),
     )
     assert decision.run_events[0].decided_by_decision_id == decision_id
+
+
+# ---------- Phase 12b: Calibration AsShot anchor threading ----------
+
+
+@pytest.mark.unit
+def test_decide_defaults_calibration_pins_to_empty_when_omitted() -> None:
+    """Pin set defaults to empty frozenset; emitted event payload is `()`."""
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    subject = _subject()
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
+    decision = start_run.decide(
+        state=None,
+        command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
+        context=context,
+        needed_families_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert decision.run_events[0].calibration_pins == ()
+
+
+@pytest.mark.unit
+def test_decide_threads_calibration_pins_sorted_through_to_event() -> None:
+    """The decider sorts the operator-supplied frozenset before
+    emit so the event payload has deterministic bytes."""
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    subject = _subject()
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
+    pin_a = uuid4()
+    pin_b = uuid4()
+    pin_c = uuid4()
+    decision = start_run.decide(
+        state=None,
+        command=StartRun(
+            name="Pinned run",
+            plan_id=plan.id,
+            subject_id=subject.id,
+            # Frozenset has no order; the decider must sort.
+            calibration_pins=frozenset({pin_c, pin_a, pin_b}),
+        ),
+        context=context,
+        needed_families_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert decision.run_events[0].calibration_pins == tuple(sorted([pin_a, pin_b, pin_c]))

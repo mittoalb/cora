@@ -112,6 +112,21 @@ class StartRunRequest(BaseModel):
             "linkage)."
         ),
     )
+    calibration_pins: list[UUID] = Field(
+        default_factory=list[UUID],
+        description=(
+            "Optional list of `CalibrationRevision.id`s pinned at this "
+            "Run's start time (Calibration BC AsShot anchor per Phase "
+            "12b / Q5/Q6 design memo). IMMUTABLE on the aggregate after "
+            "start — every Run transition arm preserves it verbatim. "
+            "NOT verified at the write path (cross-BC eventual-"
+            "consistency stance). Empty list when no calibrations "
+            "apply (today's default; pre-12b Runs fold the same way "
+            "via `payload.get(..., [])`). Order on the wire is not "
+            "significant — the aggregate carries a frozenset; the "
+            "decider sorts for deterministic event-payload bytes."
+        ),
+    )
 
 
 class StartRunResponse(BaseModel):
@@ -196,6 +211,7 @@ async def post_runs(
             triggered_by=body.triggered_by,
             campaign_id=body.campaign_id,
             decided_by_decision_id=body.decided_by_decision_id,
+            calibration_pins=frozenset(body.calibration_pins),
         ),
         principal_id=principal_id,
         correlation_id=cid,
