@@ -16,6 +16,7 @@ import pytest
 from cora.infrastructure.json_schema_subset import (
     ALLOWED_SCHEMA_KEYS,
     DRAFT_2020_12_URI,
+    check_schema_is_subset,
     check_subset,
 )
 
@@ -141,3 +142,131 @@ def test_check_subset_path_is_threaded_through_recursion() -> None:
     with pytest.raises(_SubsetError) as exc_info:
         check_subset(schema, path="<root>", error_class=_SubsetError)
     assert "properties.outer.properties.inner" in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# check_schema_is_subset (Phase 6l-strict-c cross-schema relation)
+#
+# The Recipe BC's `update_method_parameters_schema` decider has its own
+# integration-style tests in `tests/unit/recipe/test_update_method_
+# parameters_schema_subset.py` that cover the most-load-bearing rules
+# (type, properties, required, enum, maximum) through the wrapped error
+# class. These tests pin the rules + edge cases that the decider tier
+# doesn't already exercise:
+#   - minimum narrowing (rule 5)
+#   - pattern exact match (rule 7)
+#   - unit exact match (rule 8)
+#   - graceful skip when sub-shapes are malformed (lines 161, 176, 186)
+#   - `_hashable` coercion for list and dict enum values (lines 268-271)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_subset_relation_passes_for_identical_schemas() -> None:
+    schema = {
+        "type": "object",
+        "properties": {"x": {"type": "number", "minimum": 0, "maximum": 10}},
+    }
+    check_schema_is_subset(schema, schema, path="$", error_class=_SubsetError)
+
+
+@pytest.mark.unit
+def test_subset_relation_rejects_widened_minimum() -> None:
+    """Method narrowing OK; widening (inner_min < outer_min) rejected."""
+    outer = {"type": "object", "properties": {"x": {"type": "number", "minimum": 5}}}
+    inner = {"type": "object", "properties": {"x": {"type": "number", "minimum": 1}}}
+    with pytest.raises(_SubsetError) as exc_info:
+        check_schema_is_subset(inner, outer, path="$", error_class=_SubsetError)
+    assert "minimum mismatch" in str(exc_info.value)
+    assert "$.properties.x" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_subset_relation_rejects_pattern_mismatch() -> None:
+    """Pattern subsumption is undecidable; subset checker requires exact equality."""
+    outer = {"type": "object", "properties": {"sn": {"type": "string", "pattern": "^FLIR-[0-9]+$"}}}
+    inner = {"type": "object", "properties": {"sn": {"type": "string", "pattern": "^FLIR-.*$"}}}
+    with pytest.raises(_SubsetError) as exc_info:
+        check_schema_is_subset(inner, outer, path="$", error_class=_SubsetError)
+    assert "pattern mismatch" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_subset_relation_accepts_equal_patterns() -> None:
+    """Pin the equality branch — equal patterns must NOT trigger the rejection."""
+    schema = {
+        "type": "object",
+        "properties": {"sn": {"type": "string", "pattern": "^FLIR-[0-9]+$"}},
+    }
+    check_schema_is_subset(schema, schema, path="$", error_class=_SubsetError)
+
+
+@pytest.mark.unit
+def test_subset_relation_rejects_unit_mismatch() -> None:
+    """Units are a `{system, code, label?}` annotation per [[project_units_design]];
+    any divergence is rejected because canonical storage assumes one unit per field."""
+    outer = {
+        "type": "object",
+        "properties": {"energy": {"type": "number", "unit": {"system": "udunits", "code": "keV"}}},
+    }
+    inner = {
+        "type": "object",
+        "properties": {"energy": {"type": "number", "unit": {"system": "udunits", "code": "eV"}}},
+    }
+    with pytest.raises(_SubsetError) as exc_info:
+        check_schema_is_subset(inner, outer, path="$", error_class=_SubsetError)
+    assert "unit mismatch" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_subset_relation_accepts_list_enum_values() -> None:
+    """Enum values can themselves be lists (composite enum members);
+    `_hashable` coerces them to tuples for set comparison."""
+    schema = {
+        "type": "object",
+        "properties": {"pair": {"enum": [[1, 2], [3, 4]]}},
+    }
+    check_schema_is_subset(schema, schema, path="$", error_class=_SubsetError)
+
+
+@pytest.mark.unit
+def test_subset_relation_accepts_dict_enum_values() -> None:
+    """Same `_hashable` coercion for dict enum members."""
+    schema = {
+        "type": "object",
+        "properties": {"preset": {"enum": [{"mode": "fast", "n": 1}, {"mode": "slow", "n": 5}]}},
+    }
+    check_schema_is_subset(schema, schema, path="$", error_class=_SubsetError)
+
+
+@pytest.mark.unit
+def test_subset_relation_skips_when_properties_is_malformed() -> None:
+    """Malformed sub-shapes are out of scope here — `check_subset` is the
+    structural checker that catches them per-schema. The relation checker
+    must skip cleanly so the caller surfaces one well-targeted error
+    (from check_subset) instead of two (structural + relation)."""
+    outer = {"type": "object", "properties": {"x": {"type": "number"}}}
+    inner = {"type": "object", "properties": ["not", "a", "dict"]}
+    check_schema_is_subset(inner, outer, path="$", error_class=_SubsetError)
+
+
+@pytest.mark.unit
+def test_subset_relation_skips_recurse_when_property_value_is_not_a_dict() -> None:
+    """If a property's value is malformed on either side, skip the recurse
+    rather than crash. Same rationale as the parent-properties guard."""
+    outer = {"type": "object", "properties": {"x": "not-a-schema"}}
+    inner = {"type": "object", "properties": {"x": {"type": "number"}}}
+    check_schema_is_subset(inner, outer, path="$", error_class=_SubsetError)
+
+
+@pytest.mark.unit
+def test_subset_relation_skips_required_check_when_required_is_not_a_list() -> None:
+    """`required` is supposed to be a list per JSON Schema, but a malformed
+    schema with a non-list `required` must not crash the relation checker."""
+    outer = {"type": "object", "properties": {"x": {"type": "number"}}}
+    inner = {
+        "type": "object",
+        "properties": {"x": {"type": "number"}},
+        "required": "x",  # malformed: should be a list
+    }
+    check_schema_is_subset(inner, outer, path="$", error_class=_SubsetError)
