@@ -42,7 +42,7 @@ def decide(
     *,
     now: datetime,
 ) -> list[FamilySettingsSchemaUpdated]:
-    """Decide the events produced by updating a capability's schema."""
+    """Decide the events produced by updating a family's schema."""
     if state is None:
         raise FamilyNotFoundError(command.family_id)
     if command.settings_schema is not None:

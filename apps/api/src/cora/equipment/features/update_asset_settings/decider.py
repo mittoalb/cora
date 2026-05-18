@@ -15,7 +15,7 @@ Phase 5g-c. The decider:
     back through prior events).
 
 The handler is responsible for loading the Family streams and
-passing them into `decide` as the `capabilities` argument; the
+passing them into `decide` as the `families` argument; the
 decider stays pure (no I/O).
 """
 

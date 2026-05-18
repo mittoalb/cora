@@ -35,7 +35,7 @@ def _setup_plan_with_one_wire(client: TestClient) -> dict[str, Any]:
         json={"name": "Camera", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
     for asset_id in (src_asset_id, tgt_asset_id):
-        client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
+        client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap_id})
     client.post(
         f"/assets/{src_asset_id}/add_port",
         json={"port_name": "trigger_out", "direction": "Output", "signal_type": "TTL"},

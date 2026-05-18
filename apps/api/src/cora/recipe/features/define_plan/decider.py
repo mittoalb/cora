@@ -30,9 +30,9 @@ fundamental issues surface first:
 5. No bound Asset may be Decommissioned. Raises
    `AssetDecommissionedError` carrying the offending asset_ids.
 6. `union(asset.families) ⊇ method.needed_families`. Raises
-   `PlanCapabilitiesNotSatisfiedError` with the missing capability
+   `PlanCapabilitiesNotSatisfiedError` with the missing family
    ids. Per gate-review Q3: bound-Asset-only check (no hierarchy
-   traversal); operators model capabilities at whichever
+   traversal); operators model families at whichever
    granularity makes sense and bind the Assets that carry them.
 7. Name validation (via `PlanName` VO). Raises
    `InvalidPlanNameError`. Last because the name is a primitive

@@ -14,7 +14,7 @@ from cora.api.main import create_app
 
 
 @pytest.mark.contract
-def test_post_capabilities_without_key_creates_distinct_capabilities_on_each_call() -> None:
+def test_post_families_without_key_creates_distinct_capabilities_on_each_call() -> None:
     with TestClient(create_app()) as client:
         r1 = client.post("/families", json={"name": "Tomography", "affordances": []})
         r2 = client.post("/families", json={"name": "Tomography", "affordances": []})
@@ -24,7 +24,7 @@ def test_post_capabilities_without_key_creates_distinct_capabilities_on_each_cal
 
 
 @pytest.mark.contract
-def test_post_capabilities_same_key_and_body_returns_same_family_id() -> None:
+def test_post_families_same_key_and_body_returns_same_family_id() -> None:
     with TestClient(create_app()) as client:
         headers = {"Idempotency-Key": "ck-1"}
         r1 = client.post(
@@ -40,7 +40,7 @@ def test_post_capabilities_same_key_and_body_returns_same_family_id() -> None:
 
 
 @pytest.mark.contract
-def test_post_capabilities_same_key_different_body_returns_422() -> None:
+def test_post_families_same_key_different_body_returns_422() -> None:
     with TestClient(create_app()) as client:
         headers = {"Idempotency-Key": "ck-2"}
         r1 = client.post(
@@ -56,7 +56,7 @@ def test_post_capabilities_same_key_different_body_returns_422() -> None:
 
 
 @pytest.mark.contract
-def test_post_capabilities_different_keys_create_distinct_capabilities() -> None:
+def test_post_families_different_keys_create_distinct_capabilities() -> None:
     with TestClient(create_app()) as client:
         r1 = client.post(
             "/families",
@@ -74,7 +74,7 @@ def test_post_capabilities_different_keys_create_distinct_capabilities() -> None
 
 
 @pytest.mark.contract
-def test_post_capabilities_cached_response_returns_valid_uuid() -> None:
+def test_post_families_cached_response_returns_valid_uuid() -> None:
     with TestClient(create_app()) as client:
         headers = {"Idempotency-Key": "ck-uuid"}
         r1 = client.post(

@@ -19,15 +19,15 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     @mcp.tool(
         name="deprecate_family",
         description=(
-            "Mark an existing capability as deprecated. Accepts both "
+            "Mark an existing family as deprecated. Accepts both "
             "Defined and Versioned source states. Re-deprecating an "
-            "already-Deprecated capability raises."
+            "already-Deprecated family raises."
         ),
     )
     async def deprecate_family_tool(  # pyright: ignore[reportUnusedFunction]
         family_id: Annotated[
             UUID,
-            Field(description="Target capability's id."),
+            Field(description="Target family's id."),
         ],
     ) -> None:
         handler = get_handler()

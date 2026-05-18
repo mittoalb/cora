@@ -61,13 +61,12 @@ router = APIRouter(tags=["equipment"])
         },
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
-            "description": "No capability exists with the given id.",
+            "description": "No family exists with the given id.",
         },
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
             "description": (
-                "Concurrent write to the same capability stream conflicted "
-                "(optimistic concurrency)."
+                "Concurrent write to the same family stream conflicted (optimistic concurrency)."
             ),
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -76,8 +75,8 @@ router = APIRouter(tags=["equipment"])
     },
     summary="Set, replace, or clear a Family's settings_schema",
 )
-async def post_capabilities_schema(
-    family_id: Annotated[UUID, Path(description="Target capability's id.")],
+async def post_families_schema(
+    family_id: Annotated[UUID, Path(description="Target family's id.")],
     body: UpdateFamilySettingsSchemaRequest,
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],

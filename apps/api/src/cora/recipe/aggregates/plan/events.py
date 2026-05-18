@@ -36,7 +36,7 @@ into Plan state:
   - `method_needed_families_snapshot`: the Method's
     `needed_families` AT BIND TIME. Pinned so the audit trail
     reproduces what was checked even if Method later evolves.
-  - `asset_families_snapshot`: each bound Asset's `capabilities`
+  - `asset_families_snapshot`: each bound Asset's `families`
     AT BIND TIME. Same audit pinning rationale.
 
 Both snapshots serialize as primitive forms (sorted UUID lists /
@@ -206,7 +206,7 @@ def event_type_name(event: PlanEvent) -> str:
 def _serialize_asset_families_snapshot(
     snapshot: dict[UUID, list[UUID]],
 ) -> dict[str, list[str]]:
-    """Serialize the bind-time asset-capabilities snapshot deterministically.
+    """Serialize the bind-time asset-families snapshot deterministically.
 
     jsonb stores object keys as strings; the dict key sort order
     matters for idempotency-key hashing (same logical snapshot
@@ -214,8 +214,8 @@ def _serialize_asset_families_snapshot(
     form; inner lists sorted by UUID string form.
     """
     return {
-        str(asset_id): sorted(str(c) for c in capabilities)
-        for asset_id, capabilities in sorted(snapshot.items(), key=lambda kv: str(kv[0]))
+        str(asset_id): sorted(str(c) for c in families)
+        for asset_id, families in sorted(snapshot.items(), key=lambda kv: str(kv[0]))
     }
 
 

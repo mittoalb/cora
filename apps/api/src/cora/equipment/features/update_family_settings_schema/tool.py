@@ -30,7 +30,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def update_family_settings_schema_tool(  # pyright: ignore[reportUnusedFunction]
-        family_id: Annotated[UUID, Field(description="Target capability's id.")],
+        family_id: Annotated[UUID, Field(description="Target family's id.")],
         settings_schema: Annotated[
             dict[str, Any] | None,
             Field(

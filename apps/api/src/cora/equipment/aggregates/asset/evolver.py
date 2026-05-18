@@ -11,8 +11,8 @@ Lifecycle mapping per event type:
   - `AssetRelocated`               -> (lifecycle UNCHANGED; mutates parent_id only)
   - `AssetMaintenanceEntered`      -> MAINTENANCE
   - `AssetRestoredFromMaintenance` -> ACTIVE
-  - `AssetFamilyAdded`         -> (lifecycle UNCHANGED; inserts into capabilities frozenset)
-  - `AssetFamilyRemoved`       -> (lifecycle UNCHANGED; removes from capabilities frozenset)
+  - `AssetFamilyAdded`         -> (lifecycle UNCHANGED; inserts into families frozenset)
+  - `AssetFamilyRemoved`       -> (lifecycle UNCHANGED; removes from families frozenset)
   - `AssetDegraded`                -> (lifecycle UNCHANGED; condition -> DEGRADED)
   - `AssetFaulted`                 -> (lifecycle UNCHANGED; condition -> FAULTED)
   - `AssetRestored`                -> (lifecycle UNCHANGED; condition -> NOMINAL)
@@ -30,18 +30,18 @@ condition; no condition field in payload).
 at registration, never changes; payload-carried by design — see
 events.py docstring). `parent_id` IS reconstructed from
 AssetRegistered's payload AND mutated by AssetRelocated's
-`to_parent_id` field. `capabilities` defaults to empty frozenset on
+`to_parent_id` field. `families` defaults to empty frozenset on
 AssetRegistered (additive-state pattern; existing AssetRegistered
 events from before 5f-1 fold cleanly without an upcaster) and is
 mutated incrementally by `AssetFamilyAdded` /
 `AssetFamilyRemoved`.
 
 **Critical invariant**: every transition arm MUST carry
-`capabilities` AND `condition` AND `settings` AND `ports` through
+`families` AND `condition` AND `settings` AND `ports` through
 from prior state. Constructing `Asset(id=..., name=..., level=...,
 parent_id=..., lifecycle=...)` without explicitly passing them
 would silently WIPE the fields to their defaults (empty frozenset /
-NOMINAL / empty dict / empty frozenset). 5f-1 added `capabilities`
+NOMINAL / empty dict / empty frozenset). 5f-1 added `families`
 with a default solely for additive-state forward compatibility on
 genesis events; 5g-b added `condition`, 5g-c added `settings`, 5h
 added `ports` likewise. Transition arms must explicitly carry all
@@ -99,7 +99,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 level=AssetLevel(level),
                 parent_id=parent_id,
                 lifecycle=AssetLifecycle.COMMISSIONED,
-                # capabilities defaults to empty frozenset; condition
+                # families defaults to empty frozenset; condition
                 # defaults to NOMINAL. Additive-state pattern: both
                 # default-via-state so pre-5f-1 / pre-5g-b streams fold
                 # cleanly without an upcaster.
@@ -132,7 +132,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
             )
         case AssetRelocated(to_parent_id=to_parent_id):
             # Hierarchy mutation: only parent_id changes; lifecycle / level
-            # / name / capabilities / condition / settings carry over from
+            # / name / families / condition / settings carry over from
             # prior state. The from_parent_id and reason fields in the
             # event aren't read here (audit metadata; prior state's
             # parent_id is the source of truth for the read path).
@@ -175,7 +175,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 ports=prior.ports,
             )
         case AssetFamilyAdded(family_id=family_id):
-            # Family mutation: only `capabilities` changes; everything
+            # Family mutation: only `families` changes; everything
             # else carries over. Frozenset semantics: adding an already-
             # present id is a no-op AT THE EVOLVER LAYER (the decider's
             # strict-not-idempotent guard enforces "must not already be

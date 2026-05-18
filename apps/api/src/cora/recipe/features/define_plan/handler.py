@@ -19,7 +19,7 @@ sequential for 6e-1 simplicity — `asyncio.gather` is a future
 optimization if profiling shows it matters).
 
 The handler does NOT validate the loaded entities' state (Practice
-not Deprecated, Asset not Decommissioned, capabilities cover
+not Deprecated, Asset not Decommissioned, families cover
 needs) — those checks belong in the pure decider. Handler is
 responsible for *existence* (load returned non-None) and for
 *assembling* the context; decider is responsible for *binding

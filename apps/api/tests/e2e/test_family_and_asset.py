@@ -29,7 +29,7 @@ async def test_register_asset_then_add_capability_round_trips(
     asset_id = UUID(asset_response.json()["asset_id"])
 
     add = await e2e_client.post(
-        f"/assets/{asset_id}/add_capability",
+        f"/assets/{asset_id}/add_family",
         json={"family_id": str(family_id)},
     )
     assert add.status_code == 204

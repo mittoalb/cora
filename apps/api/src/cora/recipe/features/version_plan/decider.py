@@ -20,7 +20,7 @@ Invariants:
     -> PlanCannotVersionError(current_status=...)
 
 Note: this decider does NOT re-validate the bind-time invariants
-(capability superset, upstream-not-deprecated, no-decommissioned-
+(family superset, upstream-not-deprecated, no-decommissioned-
 asset). Versioning a Plan is a label change on an existing binding,
 not a re-bind. Re-validation against current upstream state is the
 job of a future ongoing-satisfiability projection (gate-review Q3

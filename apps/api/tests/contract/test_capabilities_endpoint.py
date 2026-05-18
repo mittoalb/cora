@@ -22,7 +22,7 @@ from cora.equipment.features.define_family.route import (
 
 
 @pytest.mark.contract
-def test_post_capabilities_returns_201_with_family_id() -> None:
+def test_post_families_returns_201_with_family_id() -> None:
     with TestClient(create_app()) as client:
         response = client.post("/families", json={"name": "Tomography", "affordances": []})
 
@@ -33,21 +33,21 @@ def test_post_capabilities_returns_201_with_family_id() -> None:
 
 
 @pytest.mark.contract
-def test_post_capabilities_trims_whitespace_in_name() -> None:
+def test_post_families_trims_whitespace_in_name() -> None:
     with TestClient(create_app()) as client:
         response = client.post("/families", json={"name": "  Tomography  ", "affordances": []})
     assert response.status_code == 201
 
 
 @pytest.mark.contract
-def test_post_capabilities_rejects_missing_name_with_422() -> None:
+def test_post_families_rejects_missing_name_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post("/families", json={})
     assert response.status_code == 422
 
 
 @pytest.mark.contract
-def test_post_capabilities_rejects_empty_name_with_422() -> None:
+def test_post_families_rejects_empty_name_with_422() -> None:
     """Pydantic min_length=1 catches empty strings before the domain layer."""
     with TestClient(create_app()) as client:
         response = client.post("/families", json={"name": "", "affordances": []})
@@ -55,7 +55,7 @@ def test_post_capabilities_rejects_empty_name_with_422() -> None:
 
 
 @pytest.mark.contract
-def test_post_capabilities_rejects_too_long_name_with_422() -> None:
+def test_post_families_rejects_too_long_name_with_422() -> None:
     """Pydantic max_length=200 catches over-length names."""
     with TestClient(create_app()) as client:
         response = client.post("/families", json={"name": "a" * 201, "affordances": []})
@@ -63,7 +63,7 @@ def test_post_capabilities_rejects_too_long_name_with_422() -> None:
 
 
 @pytest.mark.contract
-def test_post_capabilities_rejects_whitespace_only_name_with_400() -> None:
+def test_post_families_rejects_whitespace_only_name_with_400() -> None:
     """Whitespace-only passes Pydantic but the domain VO trims and rejects."""
     with TestClient(create_app()) as client:
         response = client.post("/families", json={"name": "   ", "affordances": []})
@@ -73,14 +73,14 @@ def test_post_capabilities_rejects_whitespace_only_name_with_400() -> None:
 
 
 @pytest.mark.contract
-def test_post_capabilities_rejects_non_string_name_with_422() -> None:
+def test_post_families_rejects_non_string_name_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post("/families", json={"name": 123, "affordances": []})
     assert response.status_code == 422
 
 
 @pytest.mark.contract
-def test_post_capabilities_uses_max_length_constant_from_domain() -> None:
+def test_post_families_uses_max_length_constant_from_domain() -> None:
     """Pydantic max_length must track the domain FAMILY_NAME_MAX_LENGTH constant."""
     with TestClient(create_app()) as client:
         response = client.post(
@@ -91,7 +91,7 @@ def test_post_capabilities_uses_max_length_constant_from_domain() -> None:
 
 
 @pytest.mark.contract
-def test_post_capabilities_returns_409_when_capability_already_exists() -> None:
+def test_post_families_returns_409_when_capability_already_exists() -> None:
     """Defensive guard: FamilyAlreadyExistsError -> 409. Same
     pattern as ActorAlreadyExistsError / SubjectAlreadyExistsError —
     essentially impossible in production with UUIDv7 ids, but the
@@ -127,7 +127,7 @@ def test_post_capabilities_returns_409_when_capability_already_exists() -> None:
 
 
 @pytest.mark.contract
-def test_post_capabilities_round_trips_non_empty_affordances_sorted() -> None:
+def test_post_families_round_trips_non_empty_affordances_sorted() -> None:
     """POST with multiple affordances → GET returns them sorted alphabetically."""
     with TestClient(create_app()) as client:
         post = client.post(
@@ -146,7 +146,7 @@ def test_post_capabilities_round_trips_non_empty_affordances_sorted() -> None:
 
 
 @pytest.mark.contract
-def test_post_capabilities_dedupes_duplicate_affordances_via_frozenset() -> None:
+def test_post_families_dedupes_duplicate_affordances_via_frozenset() -> None:
     """Duplicate affordance entries in the request body dedupe at the
     handler boundary (`frozenset(body.affordances)`); the response
     shows each affordance exactly once."""
@@ -165,7 +165,7 @@ def test_post_capabilities_dedupes_duplicate_affordances_via_frozenset() -> None
 
 
 @pytest.mark.contract
-def test_post_capabilities_rejects_unknown_affordance_with_422() -> None:
+def test_post_families_rejects_unknown_affordance_with_422() -> None:
     """Pydantic enum-validation catches an unknown affordance string
     at the API boundary, before the request reaches the handler."""
     with TestClient(create_app()) as client:
@@ -177,7 +177,7 @@ def test_post_capabilities_rejects_unknown_affordance_with_422() -> None:
 
 
 @pytest.mark.contract
-def test_post_capabilities_rejects_missing_affordances_field_with_422() -> None:
+def test_post_families_rejects_missing_affordances_field_with_422() -> None:
     """The affordances field is REQUIRED at define_family time per
     DLM-A Pattern P. Omitting it returns 422, never 201 with empty
     default."""
@@ -187,7 +187,7 @@ def test_post_capabilities_rejects_missing_affordances_field_with_422() -> None:
 
 
 @pytest.mark.contract
-def test_get_capabilities_renders_empty_affordances_as_list_not_null() -> None:
+def test_get_families_renders_empty_affordances_as_list_not_null() -> None:
     """An explicitly-empty affordance set serializes as `[]`, never
     `null`. Determinism for clients that filter on the field shape."""
     with TestClient(create_app()) as client:

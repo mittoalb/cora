@@ -27,7 +27,7 @@ from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
 
 @dataclass(frozen=True)
 class FamilySummaryItem:
-    """One row from the capability projection."""
+    """One row from the family projection."""
 
     family_id: UUID
     name: str
@@ -38,7 +38,7 @@ class FamilySummaryItem:
 
 @dataclass(frozen=True)
 class FamilyListPage:
-    """A page of capability summaries plus the cursor for the next page."""
+    """A page of family summaries plus the cursor for the next page."""
 
     items: list[FamilySummaryItem]
     next_cursor: str | None

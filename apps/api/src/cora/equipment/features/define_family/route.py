@@ -73,9 +73,9 @@ router = APIRouter(tags=["equipment"])
             ),
         },
     },
-    summary="Define a new technique-class capability",
+    summary="Define a new technique-class family",
 )
-async def post_capabilities(
+async def post_families(
     body: DefineFamilyRequest,
     handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
@@ -87,7 +87,7 @@ async def post_capabilities(
             description=(
                 "Optional client-supplied unique key per logical request. "
                 "Retries with the same key + same body return the cached "
-                "response instead of re-creating the capability."
+                "response instead of re-creating the family."
             ),
         ),
     ] = None,

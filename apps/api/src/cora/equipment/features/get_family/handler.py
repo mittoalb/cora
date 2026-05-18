@@ -78,7 +78,7 @@ def bind(deps: Kernel) -> Handler:
             )
             raise UnauthorizedError(decision.reason)
 
-        capability = await load_family(deps.event_store, query.family_id)
+        family = await load_family(deps.event_store, query.family_id)
 
         _log.info(
             "get_family.success",
@@ -86,8 +86,8 @@ def bind(deps: Kernel) -> Handler:
             family_id=str(query.family_id),
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
-            found=capability is not None,
+            found=family is not None,
         )
-        return capability
+        return family
 
     return handler

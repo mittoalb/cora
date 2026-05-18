@@ -1,4 +1,4 @@
-"""Contract tests for `POST /assets/{asset_id}/remove_capability`.
+"""Contract tests for `POST /assets/{asset_id}/remove_family`.
 
 Mirror of test_add_asset_family_endpoint.
 """
@@ -19,7 +19,7 @@ def _register_and_add_capability(client: TestClient, family_id: str) -> str:
     assert asset_response.status_code == 201
     asset_id: str = asset_response.json()["asset_id"]
     add_response = client.post(
-        f"/assets/{asset_id}/add_capability",
+        f"/assets/{asset_id}/add_family",
         json={"family_id": family_id},
     )
     assert add_response.status_code == 204
@@ -32,7 +32,7 @@ def test_post_remove_capability_returns_204_on_happy_path() -> None:
     with TestClient(create_app()) as client:
         asset_id = _register_and_add_capability(client, cap)
         response = client.post(
-            f"/assets/{asset_id}/remove_capability",
+            f"/assets/{asset_id}/remove_family",
             json={"family_id": cap},
         )
     assert response.status_code == 204
@@ -46,7 +46,7 @@ def test_post_remove_capability_drops_capability_from_get_asset_response() -> No
     cap = str(uuid4())
     with TestClient(create_app()) as client:
         asset_id = _register_and_add_capability(client, cap)
-        client.post(f"/assets/{asset_id}/remove_capability", json={"family_id": cap})
+        client.post(f"/assets/{asset_id}/remove_family", json={"family_id": cap})
         response = client.get(f"/assets/{asset_id}")
 
     assert response.status_code == 200
@@ -58,7 +58,7 @@ def test_post_remove_capability_returns_404_when_asset_does_not_exist() -> None:
     missing_id = str(uuid4())
     with TestClient(create_app()) as client:
         response = client.post(
-            f"/assets/{missing_id}/remove_capability",
+            f"/assets/{missing_id}/remove_family",
             json={"family_id": str(uuid4())},
         )
     assert response.status_code == 404
@@ -75,7 +75,7 @@ def test_post_remove_capability_returns_409_when_capability_not_present() -> Non
             json={"name": "APS-2BM", "level": "Unit", "parent_id": str(uuid4())},
         )
         asset_id: str = asset_response.json()["asset_id"]
-        response = client.post(f"/assets/{asset_id}/remove_capability", json={"family_id": cap})
+        response = client.post(f"/assets/{asset_id}/remove_family", json={"family_id": cap})
     assert response.status_code == 409
     assert "not in" in response.json()["detail"]
 
@@ -87,7 +87,7 @@ def test_post_remove_capability_returns_409_when_asset_is_decommissioned() -> No
         asset_id = _register_and_add_capability(client, cap)
         decom = client.post(f"/assets/{asset_id}/decommission")
         assert decom.status_code == 204
-        response = client.post(f"/assets/{asset_id}/remove_capability", json={"family_id": cap})
+        response = client.post(f"/assets/{asset_id}/remove_family", json={"family_id": cap})
     assert response.status_code == 409
     assert "Decommissioned" in response.json()["detail"]
 
@@ -96,7 +96,7 @@ def test_post_remove_capability_returns_409_when_asset_is_decommissioned() -> No
 def test_post_remove_capability_rejects_invalid_path_uuid_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
-            "/assets/not-a-uuid/remove_capability",
+            "/assets/not-a-uuid/remove_family",
             json={"family_id": str(uuid4())},
         )
     assert response.status_code == 422

@@ -6,7 +6,7 @@ Module-as-namespace surface, symmetric with command slices:
 
     q = get_family.GetFamily(family_id=...)
     handler = get_family.bind(deps)
-    capability = await handler(q, principal_id=..., correlation_id=...)
+    family = await handler(q, principal_id=..., correlation_id=...)
 """
 
 from cora.equipment.features.get_family import tool

@@ -22,9 +22,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     @mcp.tool(
         name="remove_asset_family",
         description=(
-            "Remove a Family from an existing asset's capability set. "
-            "Decommissioned assets cannot have capabilities removed; "
-            "removing a capability not in the set raises."
+            "Remove a Family from an existing asset's family set. "
+            "Decommissioned assets cannot have families removed; "
+            "removing a family not in the set raises."
         ),
     )
     async def remove_asset_family_tool(  # pyright: ignore[reportUnusedFunction]

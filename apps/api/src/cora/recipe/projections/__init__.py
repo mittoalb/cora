@@ -2,7 +2,7 @@
 
 Multi-aggregate BC: each of Method / Practice / Plan gets its own
 projection module under this package, mirroring Equipment's layout
-(asset.py + capability.py). Add a new projection by creating a new
+(asset.py + family.py). Add a new projection by creating a new
 module here + re-exporting its class + adding it to
 `register_recipe_projections`.
 """

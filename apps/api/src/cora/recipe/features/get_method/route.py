@@ -8,7 +8,7 @@ application errors raised deeper in the stack).
 
 `needed_families` serializes as a list of UUIDs in the response
 (JSON arrays don't have set semantics). The list is sorted by
-string form for determinism — same logical capability set, same
+string form for determinism — same logical family set, same
 response bytes (helps test reproducibility and any future ETag-
 style caching).
 """

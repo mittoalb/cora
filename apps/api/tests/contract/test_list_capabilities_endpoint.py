@@ -13,7 +13,7 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
 
 
 @pytest.mark.contract
-def test_get_capabilities_returns_empty_page_with_no_data(client: TestClient) -> None:
+def test_get_families_returns_empty_page_with_no_data(client: TestClient) -> None:
     with client:
         response = client.get("/families")
     assert response.status_code == 200
@@ -22,14 +22,14 @@ def test_get_capabilities_returns_empty_page_with_no_data(client: TestClient) ->
 
 @pytest.mark.contract
 @pytest.mark.parametrize("status_value", ["Defined", "Versioned", "Deprecated"])
-def test_get_capabilities_accepts_each_status(client: TestClient, status_value: str) -> None:
+def test_get_families_accepts_each_status(client: TestClient, status_value: str) -> None:
     with client:
         response = client.get(f"/families?status={status_value}")
     assert response.status_code == 200
 
 
 @pytest.mark.contract
-def test_get_capabilities_rejects_unknown_status_with_422(client: TestClient) -> None:
+def test_get_families_rejects_unknown_status_with_422(client: TestClient) -> None:
     """lowercase 'defined' is NOT in the Literal."""
     with client:
         response = client.get("/families?status=defined")
@@ -37,7 +37,7 @@ def test_get_capabilities_rejects_unknown_status_with_422(client: TestClient) ->
 
 
 @pytest.mark.contract
-def test_get_capabilities_rejects_invalid_cursor_with_422(
+def test_get_families_rejects_invalid_cursor_with_422(
     client: TestClient,
 ) -> None:
     with client:
@@ -46,14 +46,14 @@ def test_get_capabilities_rejects_invalid_cursor_with_422(
 
 
 @pytest.mark.contract
-def test_get_capabilities_rejects_limit_zero_with_422(client: TestClient) -> None:
+def test_get_families_rejects_limit_zero_with_422(client: TestClient) -> None:
     with client:
         response = client.get("/families?limit=0")
     assert response.status_code == 422
 
 
 @pytest.mark.contract
-def test_get_capabilities_rejects_limit_above_cap_with_422(
+def test_get_families_rejects_limit_above_cap_with_422(
     client: TestClient,
 ) -> None:
     with client:

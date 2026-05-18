@@ -32,23 +32,23 @@ router = APIRouter(tags=["equipment"])
         },
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
-            "description": "No capability exists with the given id.",
+            "description": "No family exists with the given id.",
         },
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
             "description": (
                 "Family is not in `Defined` or `Versioned` status "
                 "(deprecate requires one of those — re-deprecating a "
-                "Deprecated capability raises), OR a concurrent write "
-                "to the same capability stream conflicted (optimistic "
+                "Deprecated family raises), OR a concurrent write "
+                "to the same family stream conflicted (optimistic "
                 "concurrency)."
             ),
         },
     },
-    summary="Mark an existing capability as deprecated",
+    summary="Mark an existing family as deprecated",
 )
-async def post_capabilities_deprecate(
-    family_id: Annotated[UUID, Path(description="Target capability's id.")],
+async def post_families_deprecate(
+    family_id: Annotated[UUID, Path(description="Target family's id.")],
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],

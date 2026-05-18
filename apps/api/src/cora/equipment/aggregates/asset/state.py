@@ -383,8 +383,8 @@ class AssetCannotAddFamilyError(Exception):
     shape. They collapse into one error class with a diagnostic
     `reason` string that surfaces in the route's 409 body:
 
-      - asset is `Decommissioned` (retired; no further capability changes)
-      - capability already in `asset.families` (strict-not-idempotent;
+      - asset is `Decommissioned` (retired; no further family changes)
+      - family already in `asset.families` (strict-not-idempotent;
         same precedent as activate / mount-second-call-raises)
 
     Eventual-consistency: the decider does NOT verify the referenced
@@ -394,7 +394,7 @@ class AssetCannotAddFamilyError(Exception):
     """
 
     def __init__(self, asset_id: UUID, family_id: UUID, reason: str) -> None:
-        super().__init__(f"Asset {asset_id} cannot add capability {family_id}: {reason}")
+        super().__init__(f"Asset {asset_id} cannot add family {family_id}: {reason}")
         self.asset_id = asset_id
         self.family_id = family_id
         self.reason = reason
@@ -406,11 +406,11 @@ class AssetCannotRemoveFamilyError(Exception):
     Mirrors `AssetCannotAddFamilyError`. Disqualifying conditions:
 
       - asset is `Decommissioned` (retired)
-      - capability not in `asset.families` (strict-not-idempotent)
+      - family not in `asset.families` (strict-not-idempotent)
     """
 
     def __init__(self, asset_id: UUID, family_id: UUID, reason: str) -> None:
-        super().__init__(f"Asset {asset_id} cannot remove capability {family_id}: {reason}")
+        super().__init__(f"Asset {asset_id} cannot remove family {family_id}: {reason}")
         self.asset_id = asset_id
         self.family_id = family_id
         self.reason = reason
@@ -563,10 +563,10 @@ class Asset:
     # without runtime cost. Same trick used in Method.needed_families.
     families: frozenset[UUID] = field(default_factory=frozenset[UUID])
     # dict[str, Any] for runtime-typed operator-supplied settings.
-    # Same default_factory pattern as capabilities — the empty dict
+    # Same default_factory pattern as families — the empty dict
     # has no element types for pyright to infer, so the parametrized
     # `dict[str, Any]` callable is supplied as the factory.
     settings: dict[str, Any] = field(default_factory=dict[str, Any])
     # frozenset[AssetPort] for typed connection points (5h).
-    # Same parametrized-callable trick as capabilities.
+    # Same parametrized-callable trick as families.
     ports: frozenset[AssetPort] = field(default_factory=frozenset[AssetPort])

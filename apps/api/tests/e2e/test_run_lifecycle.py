@@ -101,7 +101,7 @@ async def test_full_run_cascade_to_completed(
     )
     plan_asset_id = plan_asset.json()["asset_id"]
     add = await e2e_client.post(
-        f"/assets/{plan_asset_id}/add_capability",
+        f"/assets/{plan_asset_id}/add_family",
         json={"family_id": family_id},
     )
     assert add.status_code == 204

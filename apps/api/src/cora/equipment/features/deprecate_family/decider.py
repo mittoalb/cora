@@ -2,7 +2,7 @@
 
 Multi-source-state transition: `Defined | Versioned -> Deprecated`.
 Same source-set as version_family but the target is terminal.
-Re-deprecating an already-Deprecated capability raises (strict-not-
+Re-deprecating an already-Deprecated family raises (strict-not-
 idempotent).
 
 Source-state guard uses tuple-membership (same precedent as
@@ -37,7 +37,7 @@ def decide(
     *,
     now: datetime,
 ) -> list[FamilyDeprecated]:
-    """Decide the events produced by deprecating an existing capability."""
+    """Decide the events produced by deprecating an existing family."""
     if state is None:
         raise FamilyNotFoundError(command.family_id)
     if state.status not in _DEPRECATABLE_STATUSES:

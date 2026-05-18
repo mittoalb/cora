@@ -24,7 +24,7 @@ def _setup_full_chain(client: TestClient) -> tuple[str, str]:
     asset_id = client.post(
         "/assets", json={"name": "A", "level": "Enterprise", "parent_id": None}
     ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
+    client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap_id})
     plan_id = client.post(
         "/plans",
         json={"name": "Plan", "practice_id": practice_id, "asset_ids": [asset_id]},

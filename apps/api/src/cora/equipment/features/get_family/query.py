@@ -17,6 +17,6 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class GetFamily:
-    """Read the current state of an existing capability by id."""
+    """Read the current state of an existing family by id."""
 
     family_id: UUID

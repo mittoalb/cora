@@ -4,7 +4,7 @@ Surfaces the same handler the REST route uses. Returns a structured
 FamilyOutput on hit. On miss raises an exception that FastMCP
 wraps as `isError: true` with a text diagnostic — matches the REST
 404 behaviour in MCP's error idiom (LLM consumers get a clear
-"capability not found" message rather than null structuredContent
+"family not found" message rather than null structuredContent
 they have to interpret).
 """
 
@@ -37,27 +37,27 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
 
     @mcp.tool(
         name="get_family",
-        description="Read the current state of an existing capability by id.",
+        description="Read the current state of an existing family by id.",
     )
     async def get_family_tool(  # pyright: ignore[reportUnusedFunction]
         family_id: Annotated[
             UUID,
-            Field(description="Target capability's id."),
+            Field(description="Target family's id."),
         ],
     ) -> FamilyOutput:
         handler = get_handler()
-        capability = await handler(
+        family = await handler(
             GetFamily(family_id=family_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
         )
-        if capability is None:
+        if family is None:
             msg = f"Family {family_id} not found"
             raise ValueError(msg)
         return FamilyOutput(
-            id=capability.id,
-            name=capability.name.value,
-            status=capability.status.value,
-            version=capability.version,
-            affordances=sorted(capability.affordances, key=lambda a: a.value),
+            id=family.id,
+            name=family.name.value,
+            status=family.status.value,
+            version=family.version,
+            affordances=sorted(family.affordances, key=lambda a: a.value),
         )

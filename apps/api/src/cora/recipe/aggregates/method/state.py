@@ -17,7 +17,7 @@ Minimal Method:
     Method requires. Composable: a "Fly Tomography" Method has
     needed_families = {Tomography_id, FlyScan_id}. At Plan
     binding time (6e), the operator picks an Asset whose
-    capabilities ⊇ method.needed_families.
+    families ⊇ method.needed_families.
   - `status` (defaults `Defined`).
 
 `Versioned` and `Deprecated` transitions land in 6b. Description /
@@ -34,7 +34,7 @@ day-one ergonomics this is fine; structural validation can be
 layered on at the API boundary later if pilot demand emerges.
 
 Empty `needed_families` is allowed (a Method that needs no
-specific equipment capability — rare but operationally valid for
+specific equipment family — rare but operationally valid for
 purely procedural Methods like "Sample Cleaning").
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
@@ -63,7 +63,7 @@ checks) and `list[UUID]` in event payloads (JSON-friendly, sorted
 for determinism). Same precedent as Trust's Policy
 `permitted_principals` / `permitted_commands`. The evolver bridges
 the two. Sorting in `to_payload` keeps the persisted bytes
-deterministic — same logical capability set, same payload, same
+deterministic — same logical family set, same payload, same
 idempotency hash.
 """
 

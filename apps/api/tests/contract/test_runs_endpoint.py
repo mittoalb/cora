@@ -38,7 +38,7 @@ def _setup_full_chain(client: TestClient) -> tuple[str, str]:
         "/assets",
         json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
-    add_resp = client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
+    add_resp = client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap_id})
     assert add_resp.status_code == 204
     plan_id = client.post(
         "/plans",
@@ -270,7 +270,7 @@ def test_post_runs_returns_409_when_asset_decommissioned_after_plan_bind() -> No
         asset_id = client.post(
             "/assets", json={"name": "A", "level": "Enterprise", "parent_id": None}
         ).json()["asset_id"]
-        client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
+        client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap_id})
         plan_id = client.post(
             "/plans",
             json={"name": "Plan", "practice_id": practice_id, "asset_ids": [asset_id]},
@@ -299,13 +299,13 @@ def test_post_runs_returns_409_when_asset_capabilities_drifted_off() -> None:
         asset_id = client.post(
             "/assets", json={"name": "A", "level": "Enterprise", "parent_id": None}
         ).json()["asset_id"]
-        client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
+        client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap_id})
         plan_id = client.post(
             "/plans",
             json={"name": "Plan", "practice_id": practice_id, "asset_ids": [asset_id]},
         ).json()["plan_id"]
         # Now remove the capability from the Asset (drift).
-        client.post(f"/assets/{asset_id}/remove_capability", json={"family_id": cap_id})
+        client.post(f"/assets/{asset_id}/remove_family", json={"family_id": cap_id})
         response = client.post("/runs", json={"name": "X", "plan_id": plan_id})
     assert response.status_code == 409
     assert "missing capabilities" in response.json()["detail"]

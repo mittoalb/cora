@@ -1,4 +1,4 @@
-"""Contract tests for `POST /assets/{asset_id}/add_capability`.
+"""Contract tests for `POST /assets/{asset_id}/add_family`.
 
 Action endpoint with body `{family_id}`. Mirrors the relocate
 endpoint contract (also two-id action endpoint) but for capability
@@ -29,7 +29,7 @@ def test_post_add_capability_returns_204_on_happy_path() -> None:
     with TestClient(create_app()) as client:
         asset_id = _register_asset(client)
         response = client.post(
-            f"/assets/{asset_id}/add_capability",
+            f"/assets/{asset_id}/add_family",
             json={"family_id": cap},
         )
     assert response.status_code == 204
@@ -44,8 +44,8 @@ def test_post_add_capability_round_trips_into_get_asset_response() -> None:
     cap2 = str(uuid4())
     with TestClient(create_app()) as client:
         asset_id = _register_asset(client)
-        client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap1})
-        client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap2})
+        client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap1})
+        client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap2})
         response = client.get(f"/assets/{asset_id}")
 
     assert response.status_code == 200
@@ -59,7 +59,7 @@ def test_post_add_capability_returns_404_when_asset_does_not_exist() -> None:
     missing_id = str(uuid4())
     with TestClient(create_app()) as client:
         response = client.post(
-            f"/assets/{missing_id}/add_capability",
+            f"/assets/{missing_id}/add_family",
             json={"family_id": str(uuid4())},
         )
     assert response.status_code == 404
@@ -71,9 +71,9 @@ def test_post_add_capability_returns_409_when_capability_already_present() -> No
     cap = str(uuid4())
     with TestClient(create_app()) as client:
         asset_id = _register_asset(client)
-        first = client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap})
+        first = client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap})
         assert first.status_code == 204
-        second = client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap})
+        second = client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap})
     assert second.status_code == 409
     assert "already" in second.json()["detail"]
 
@@ -85,7 +85,7 @@ def test_post_add_capability_returns_409_when_asset_is_decommissioned() -> None:
         asset_id = _register_asset(client)
         decom = client.post(f"/assets/{asset_id}/decommission")
         assert decom.status_code == 204
-        response = client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap})
+        response = client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap})
     assert response.status_code == 409
     assert "Decommissioned" in response.json()["detail"]
 
@@ -94,7 +94,7 @@ def test_post_add_capability_returns_409_when_asset_is_decommissioned() -> None:
 def test_post_add_capability_rejects_invalid_path_uuid_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
-            "/assets/not-a-uuid/add_capability",
+            "/assets/not-a-uuid/add_family",
             json={"family_id": str(uuid4())},
         )
     assert response.status_code == 422
@@ -104,7 +104,7 @@ def test_post_add_capability_rejects_invalid_path_uuid_with_422() -> None:
 def test_post_add_capability_rejects_missing_family_id_with_422() -> None:
     with TestClient(create_app()) as client:
         asset_id = _register_asset(client)
-        response = client.post(f"/assets/{asset_id}/add_capability", json={})
+        response = client.post(f"/assets/{asset_id}/add_family", json={})
     assert response.status_code == 422
 
 
@@ -113,7 +113,7 @@ def test_post_add_capability_rejects_non_uuid_capability_with_422() -> None:
     with TestClient(create_app()) as client:
         asset_id = _register_asset(client)
         response = client.post(
-            f"/assets/{asset_id}/add_capability",
+            f"/assets/{asset_id}/add_family",
             json={"family_id": "not-a-uuid"},
         )
     assert response.status_code == 422
@@ -125,7 +125,7 @@ def test_post_add_capability_with_x_principal_id_header_succeeds() -> None:
     with TestClient(create_app()) as client:
         asset_id = _register_asset(client)
         response = client.post(
-            f"/assets/{asset_id}/add_capability",
+            f"/assets/{asset_id}/add_family",
             json={"family_id": str(uuid4())},
             headers={"X-Principal-Id": pid},
         )

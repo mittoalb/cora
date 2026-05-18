@@ -56,7 +56,7 @@ def decide(
     *,
     now: datetime,
 ) -> list[FamilyVersioned]:
-    """Decide the events produced by versioning an existing capability."""
+    """Decide the events produced by versioning an existing family."""
     if state is None:
         raise FamilyNotFoundError(command.family_id)
     trimmed = command.version_tag.strip()

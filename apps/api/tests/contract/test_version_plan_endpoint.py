@@ -29,7 +29,7 @@ def _setup_plan(client: TestClient) -> str:
         "/assets",
         json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
+    client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap_id})
     plan_id = client.post(
         "/plans",
         json={"name": "32-ID FlyScan", "practice_id": practice_id, "asset_ids": [asset_id]},

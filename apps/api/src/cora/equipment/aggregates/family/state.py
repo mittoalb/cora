@@ -27,8 +27,8 @@ Method/Plan/Practice replace-on-version precedent), NOT a separate
 section 5 for the 28-item / 3-pattern starter list and the dropped
 parameter-shaped pseudo-affordances.
 
-The word "Capability" is reserved for the future Recipe BC operations-
-layer aggregate (DLM-B / phase 6k); after 5i ships, "Capability" must
+The word "Family" is reserved for the future Recipe BC operations-
+layer aggregate (DLM-B / phase 6k); after 5i ships, "Family" must
 not appear in Equipment BC except in dual-match evolver arms recognizing
 legacy event-type strings.
 

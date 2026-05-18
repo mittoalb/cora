@@ -54,34 +54,34 @@ router = APIRouter(tags=["equipment"])
     responses={
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
-            "description": "No capability exists with the given id.",
+            "description": "No family exists with the given id.",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Path parameter failed schema validation.",
         },
     },
-    summary="Get a capability by id",
+    summary="Get a family by id",
 )
-async def get_capabilities(
-    family_id: Annotated[UUID, Path(description="Target capability's id.")],
+async def get_families(
+    family_id: Annotated[UUID, Path(description="Target family's id.")],
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
 ) -> FamilyResponse:
-    capability = await handler(
+    family = await handler(
         GetFamily(family_id=family_id),
         principal_id=principal_id,
         correlation_id=cid,
     )
-    if capability is None:
+    if family is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Family {family_id} not found",
         )
     return FamilyResponse(
-        id=capability.id,
-        name=capability.name.value,
-        status=capability.status.value,
-        version=capability.version,
-        affordances=sorted(capability.affordances, key=lambda a: a.value),
+        id=family.id,
+        name=family.name.value,
+        status=family.status.value,
+        version=family.version,
+        affordances=sorted(family.affordances, key=lambda a: a.value),
     )

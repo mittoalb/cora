@@ -3,7 +3,7 @@
 Mirror of `add_asset_family`'s decider. Two disqualifying
 conditions both surface as `AssetCannotRemoveFamilyError`:
 
-  - asset is `Decommissioned` (retired; no further capability changes)
+  - asset is `Decommissioned` (retired; no further family changes)
   - family_id NOT in `state.families` (strict-not-idempotent;
     can't remove what isn't there)
 """
@@ -26,7 +26,7 @@ def decide(
     *,
     now: datetime,
 ) -> list[AssetFamilyRemoved]:
-    """Decide the events produced by removing a capability from an existing asset."""
+    """Decide the events produced by removing a family from an existing asset."""
     if state is None:
         raise AssetNotFoundError(command.asset_id)
 
@@ -36,7 +36,7 @@ def decide(
             command.family_id,
             reason=(
                 f"asset is currently {AssetLifecycle.DECOMMISSIONED.value} "
-                "(retired from service; capability changes are not allowed)"
+                "(retired from service; family changes are not allowed)"
             ),
         )
 
@@ -45,8 +45,8 @@ def decide(
             state.id,
             command.family_id,
             reason=(
-                f"capability {command.family_id} is not in this "
-                "asset's capability set (strict-not-idempotent)"
+                f"family {command.family_id} is not in this "
+                "asset's family set (strict-not-idempotent)"
             ),
         )
 

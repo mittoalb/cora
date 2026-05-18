@@ -42,7 +42,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     @mcp.tool(
         name="list_families",
         description=(
-            "Cursor-paginated list of capabilities. Optional `status` "
+            "Cursor-paginated list of families. Optional `status` "
             "filter accepts: Defined, Versioned, Deprecated. Pass "
             "`cursor` from a previous page's `next_cursor` to fetch "
             "the next page."

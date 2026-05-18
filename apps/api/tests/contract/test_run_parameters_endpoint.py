@@ -72,7 +72,7 @@ def _setup_run_chain(
         "/assets",
         json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
-    add_resp = client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
+    add_resp = client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap_id})
     assert add_resp.status_code == 204
     plan_id = client.post(
         "/plans",

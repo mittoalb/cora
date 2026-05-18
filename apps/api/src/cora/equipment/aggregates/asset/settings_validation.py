@@ -1,6 +1,6 @@
 """Cross-Family validation for Asset.settings (Phase 5g-c).
 
-`validate_settings_against_families(settings, capabilities)`:
+`validate_settings_against_families(settings, families)`:
 union all assigned Capabilities' settings_schemas (5g-a) and validate
 the proposed settings dict against the union via `jsonschema-rs`.
 Raises `InvalidAssetSettingsError(reason)` on failure with a clear
@@ -121,7 +121,7 @@ def validate_settings_against_families(
     settings: Mapping[str, Any],
     families: Sequence[Family],
 ) -> None:
-    """Validate `settings` against the union of `capabilities`'
+    """Validate `settings` against the union of `families`'
     settings_schemas. Raises InvalidAssetSettingsError on failure.
 
     Returns None on success. Strict-by-default (post-6g audit

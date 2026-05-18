@@ -17,9 +17,9 @@ ACTIVE -> MAINTENANCE and MAINTENANCE -> ACTIVE) and widened the
 `AssetDecommissioned` source-state set to also accept MAINTENANCE.
 Phase 5f-1 adds `AssetFamilyAdded` and `AssetFamilyRemoved`
 — first incremental-mutation event pair on Asset state
-(capabilities accumulate over the asset's lifetime as new techniques
+(families accumulate over the asset's lifetime as new techniques
 are commissioned / retired). Each carries a single `family_id`;
-the evolver folds each into the `capabilities` frozenset.
+the evolver folds each into the `families` frozenset.
 
 ## Payload conventions for Asset
 
@@ -131,9 +131,9 @@ class AssetRestoredFromMaintenance:
 
 @dataclass(frozen=True)
 class AssetFamilyAdded:
-    """A Family was added to an asset's capability set.
+    """A Family was added to an asset's family set.
 
-    Single-capability event (not bulk-update). Capabilities accumulate
+    Single-family event (not bulk-update). Capabilities accumulate
     as operators commission new techniques on the asset; each event
     captures a single addition for clean audit trails ("when did this
     asset gain XRF Mapping?"). The evolver inserts the family_id
@@ -154,9 +154,9 @@ class AssetFamilyAdded:
 
 @dataclass(frozen=True)
 class AssetFamilyRemoved:
-    """A Family was removed from an asset's capability set.
+    """A Family was removed from an asset's family set.
 
-    Mirror of `AssetFamilyAdded`. Single-capability event; the
+    Mirror of `AssetFamilyAdded`. Single-family event; the
     evolver removes the family_id from `state.families`. The
     decider's strict-not-idempotent guard enforces "must currently be
     present" at command time.

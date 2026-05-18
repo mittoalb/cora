@@ -9,7 +9,7 @@ Existence is verified at handler-load time (Practice / Method via
 Practice / each Asset). Misses surface as HTTP 404 via the
 respective aggregates' NotFoundError → exception handler. State-of-
 existing-thing checks (Deprecated upstream, Decommissioned Asset,
-capability superset) happen in the decider and surface as 409.
+family superset) happen in the decider and surface as 409.
 """
 
 from typing import Annotated
@@ -49,7 +49,7 @@ class DefinePlanRequest(BaseModel):
             "least one required. Each Asset's existence verified at "
             "handler-load time (missing → 404); decider checks no Asset "
             "is Decommissioned (→ 409) and that the union of bound "
-            "Assets' capabilities covers the Method's needed_families."
+            "Assets' families covers the Method's needed_families."
         ),
     )
 
@@ -90,7 +90,7 @@ router = APIRouter(tags=["recipe"])
             "description": (
                 "Binding rejected: upstream Practice or Method is "
                 "Deprecated, a bound Asset is Decommissioned, or the "
-                "bound Assets' capabilities don't cover the Method's "
+                "bound Assets' families don't cover the Method's "
                 "needed_families."
             ),
         },

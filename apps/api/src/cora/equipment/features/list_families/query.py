@@ -1,5 +1,5 @@
 """The `ListFamilies` query: intent dataclass for keyset-paginated
-list of capabilities from the projection.
+list of families from the projection.
 
 Single optional filter: status (Defined / Versioned / Deprecated).
 Family is flat (no hierarchy, no parent), so the shape is the
@@ -19,7 +19,7 @@ FamilyStatusFilter = Literal[
 
 @dataclass(frozen=True)
 class ListFamilies:
-    """Read a keyset-paginated page of capabilities from the projection."""
+    """Read a keyset-paginated page of families from the projection."""
 
     cursor: str | None = None
     """Opaque base64 cursor from a previous page's `next_cursor`."""

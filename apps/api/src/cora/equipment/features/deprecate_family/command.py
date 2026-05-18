@@ -10,6 +10,6 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class DeprecateFamily:
-    """Mark an existing capability as deprecated."""
+    """Mark an existing family as deprecated."""
 
     family_id: UUID

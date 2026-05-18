@@ -37,7 +37,7 @@ def _setup_plan_with_two_assets_and_ports(client: TestClient) -> dict[str, Any]:
         json={"name": "Camera", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
     for asset_id in (src_asset_id, tgt_asset_id):
-        client.post(f"/assets/{asset_id}/add_capability", json={"family_id": cap_id})
+        client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap_id})
     # Add ports to source: OUTPUT trigger_out
     client.post(
         f"/assets/{src_asset_id}/add_port",
@@ -121,7 +121,7 @@ def test_post_add_plan_wire_returns_409_on_fan_in_attempt() -> None:
         cap_id = client.post("/families", json={"name": "Trigger2", "affordances": []}).json()[
             "family_id"
         ]
-        client.post(f"/assets/{second_src_id}/add_capability", json={"family_id": cap_id})
+        client.post(f"/assets/{second_src_id}/add_family", json={"family_id": cap_id})
         client.post(
             f"/assets/{second_src_id}/add_port",
             json={

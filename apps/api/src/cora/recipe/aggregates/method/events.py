@@ -19,7 +19,7 @@ Equipment 5f-2.
 primitives per CONTRIBUTING.md; lists JSON-serialize cleanly). The
 evolver converts to `frozenset` when folding into Method state. The
 list is sorted by string form in `to_payload` so the same logical
-capability set serializes deterministically — important for
+family set serializes deterministically — important for
 hash-based idempotency and any future content-addressed lookup.
 Same precedent as Trust's PolicyDefined.
 
@@ -139,7 +139,7 @@ def to_payload(event: MethodEvent) -> dict[str, Any]:
     """Serialize a Method event to a JSON-friendly dict for jsonb storage.
 
     `needed_families` is sorted by UUID string form so the
-    persisted payload is deterministic — same logical capability
+    persisted payload is deterministic — same logical family
     set, same payload bytes, same idempotency hash. Same precedent
     as Trust's PolicyDefined.
     """

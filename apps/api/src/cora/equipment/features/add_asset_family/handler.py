@@ -8,7 +8,7 @@ transitions / Asset lifecycle transitions).
 **Stays longhand** (does not use `make_asset_update_handler`): the
 command carries `family_id` in addition to `asset_id`, and the
 handler logs `family_id` at start + success for diagnostic
-visibility ("which capability was added to which asset?"). Same
+visibility ("which family was added to which asset?"). Same
 justification as `relocate_asset`. The factory is reserved for the
 single-asset_id transition slices.
 """

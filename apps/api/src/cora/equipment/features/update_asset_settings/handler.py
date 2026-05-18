@@ -135,7 +135,7 @@ def bind(deps: Kernel) -> Handler:
 
         # Concurrently load every assigned Family's stream so we
         # can union their schemas. If the Asset doesn't exist yet
-        # (state is None), capabilities is empty — the decider will
+        # (state is None), families is empty — the decider will
         # raise AssetNotFoundError anyway.
         family_ids = list(state.families) if state is not None else []
         loaded: list[Family | None] = await asyncio.gather(

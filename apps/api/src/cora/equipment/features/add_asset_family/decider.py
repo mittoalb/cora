@@ -4,7 +4,7 @@ Family mutation, not a lifecycle transition. Two disqualifying
 conditions both surface as `AssetCannotAddFamilyError` with a
 diagnostic `reason` string:
 
-  - asset is `Decommissioned` (retired; no further capability changes)
+  - asset is `Decommissioned` (retired; no further family changes)
   - family_id already in `state.families` (strict-not-idempotent;
     same precedent as activate / mount-second-call-raises)
 
@@ -32,7 +32,7 @@ def decide(
     *,
     now: datetime,
 ) -> list[AssetFamilyAdded]:
-    """Decide the events produced by adding a capability to an existing asset."""
+    """Decide the events produced by adding a family to an existing asset."""
     if state is None:
         raise AssetNotFoundError(command.asset_id)
 
@@ -42,7 +42,7 @@ def decide(
             command.family_id,
             reason=(
                 f"asset is currently {AssetLifecycle.DECOMMISSIONED.value} "
-                "(retired from service; capability changes are not allowed)"
+                "(retired from service; family changes are not allowed)"
             ),
         )
 
@@ -51,8 +51,8 @@ def decide(
             state.id,
             command.family_id,
             reason=(
-                f"capability {command.family_id} is already in this "
-                "asset's capability set (strict-not-idempotent)"
+                f"family {command.family_id} is already in this "
+                "asset's family set (strict-not-idempotent)"
             ),
         )
 

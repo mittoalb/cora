@@ -29,7 +29,7 @@ Phase history (✅ all shipped except 6c, 6f):
   - 6d: Practice aggregate (define + get + version + deprecate)
   - 5f: Asset.families (just-in-time before Plan; Equipment side)
   - 6e: Plan aggregate (define + get + version + deprecate; binds
-    Practice + multi-asset set with capability-superset check via
+    Practice + multi-asset set with family-superset check via
     PlanBindingContext pattern)
   - 6c (deferred): Method/Practice/Plan enrichment (description,
     owner, default parameters) — defer-candidate

@@ -17,7 +17,7 @@ validation can be layered at the API boundary if pilot demand
 emerges.
 
 Empty `needed_families` is allowed (a Method that needs no
-specific equipment capability — operationally valid for purely
+specific equipment family — operationally valid for purely
 procedural Methods like "Sample Cleaning").
 """
 

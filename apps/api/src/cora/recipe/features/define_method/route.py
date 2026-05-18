@@ -30,7 +30,7 @@ class DefineMethodRequest(BaseModel):
     """Body for `POST /methods`.
 
     `needed_families` is required (use `[]` for procedural
-    Methods that need no specific equipment capability). Eventual-
+    Methods that need no specific equipment family). Eventual-
     consistency: each Family id is NOT verified against the
     Family stream; mismatch surfaces at Plan binding (6e).
 

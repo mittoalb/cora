@@ -41,7 +41,7 @@ def _register_asset(client: TestClient) -> UUID:
 
 def _add_capability(client: TestClient, asset_id: UUID, family_id: UUID) -> None:
     response = client.post(
-        f"/assets/{asset_id}/add_capability",
+        f"/assets/{asset_id}/add_family",
         json={"family_id": str(family_id)},
     )
     assert response.status_code == 204, response.text

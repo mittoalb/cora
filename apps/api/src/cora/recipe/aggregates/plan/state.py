@@ -29,11 +29,11 @@ of adding fields when the first mutating event arrives, not
 speculatively).
 
 Audit data captured at bind time (`method_id`, snapshots of the
-Method's needed_families and each bound Asset's capabilities)
+Method's needed_families and each bound Asset's families)
 lives in the `PlanDefined` event payload only — NOT in state.
 Slim Aggregate principle (gate-review Q4): state holds only what
 future deciders need to validate invariants. version_plan and
-deprecate_plan don't re-validate capabilities, so the snapshots
+deprecate_plan don't re-validate families, so the snapshots
 stay payload-only.
 
 Additional facets defer to a 6e-3+ sub-phase if pilot demand emerges:
@@ -279,24 +279,24 @@ class InvalidPlanVersionTagError(ValueError):
 
 
 class PlanCapabilitiesNotSatisfiedError(Exception):
-    """The bound Assets' capabilities don't cover the Method's needs.
+    """The bound Assets' families don't cover the Method's needs.
 
-    Carries the missing capability ids — those required by the
-    Method but not present in any bound Asset's `capabilities`.
+    Carries the missing family ids — those required by the
+    Method but not present in any bound Asset's `families`.
     Mapped to HTTP 409 (state-conflict family; the binding is
     structurally invalid given current Asset state).
 
     Per gate-review Q3: check is on each bound Asset's OWN
-    capabilities (no hierarchy traversal). Operators model
+    families (no hierarchy traversal). Operators model
     Asset.families at whatever granularity makes sense (Assembly
     level for composed devices, Device level for leaves) and bind
-    the Assets that actually carry the needed capabilities.
+    the Assets that actually carry the needed families.
     """
 
     def __init__(self, missing_family_ids: frozenset[UUID]) -> None:
         super().__init__(
-            f"Plan capabilities not satisfied: bound Assets are missing "
-            f"capabilities {sorted(str(c) for c in missing_family_ids)}"
+            f"Plan families not satisfied: bound Assets are missing "
+            f"families {sorted(str(c) for c in missing_family_ids)}"
         )
         self.missing_family_ids = missing_family_ids
 

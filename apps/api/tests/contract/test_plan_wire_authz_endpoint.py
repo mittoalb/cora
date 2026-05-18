@@ -140,7 +140,7 @@ def _setup_plan_with_two_wired_assets(client: TestClient, principal: UUID) -> di
     ).json()["asset_id"]
     for asset_id in (src_id, tgt_id):
         client.post(
-            f"/assets/{asset_id}/add_capability",
+            f"/assets/{asset_id}/add_family",
             json={"family_id": cap_id},
             headers=h,
         )

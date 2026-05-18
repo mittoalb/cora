@@ -1,12 +1,12 @@
 """HTTP route for the `remove_asset_family` slice.
 
-Action endpoint at `POST /assets/{asset_id}/remove_capability`. Body
+Action endpoint at `POST /assets/{asset_id}/remove_family`. Body
 carries `family_id`. 204 No Content on success.
 
 POST (not DELETE) for symmetry with `add_capability` and the rest of
 Equipment's action-endpoint convention. The semantics aren't really
 "REST collection management" — they're "operator decommissions a
-capability on this asset," which is a state-change verb.
+family on this asset," which is a state-change verb.
 """
 
 from typing import Annotated
@@ -21,11 +21,11 @@ from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_p
 
 
 class RemoveAssetFamilyRequest(BaseModel):
-    """Body for `POST /assets/{asset_id}/remove_capability`."""
+    """Body for `POST /assets/{asset_id}/remove_family`."""
 
     family_id: UUID = Field(
         ...,
-        description="Family id to remove from the asset's capability set.",
+        description="Family id to remove from the asset's family set.",
     )
 
 
@@ -38,7 +38,7 @@ router = APIRouter(tags=["equipment"])
 
 
 @router.post(
-    "/assets/{asset_id}/remove_capability",
+    "/assets/{asset_id}/remove_family",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN: {
@@ -52,9 +52,9 @@ router = APIRouter(tags=["equipment"])
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
             "description": (
-                "Asset cannot remove the capability under current "
-                "conditions (asset is Decommissioned, OR the capability "
-                "is not in the asset's capability set), OR a concurrent "
+                "Asset cannot remove the family under current "
+                "conditions (asset is Decommissioned, OR the family "
+                "is not in the asset's family set), OR a concurrent "
                 "write to the same asset stream conflicted (optimistic "
                 "concurrency)."
             ),
@@ -63,7 +63,7 @@ router = APIRouter(tags=["equipment"])
             "description": ("Path parameter or request body failed schema validation."),
         },
     },
-    summary="Remove a Family from an existing asset's capability set",
+    summary="Remove a Family from an existing asset's family set",
 )
 async def post_assets_remove_capability(
     asset_id: Annotated[UUID, Path(description="Target asset's id.")],

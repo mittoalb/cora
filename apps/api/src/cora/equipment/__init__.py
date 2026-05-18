@@ -1,9 +1,9 @@
 """Equipment bounded context.
 
-Owns the equipment-and-capability concerns of CORA:
+Owns the equipment-and-family concerns of CORA:
   - `Family` (technique-class catalog; what an equipment type
     can do, equipment-agnostic, cross-facility). Referenced by
-    `Recipe.Method.needs.capabilities` to express a Method's
+    `Recipe.Method.needs.families` to express a Method's
     hardware contract.
   - `Asset` (physical equipment instance; hierarchical, lifecycle-
     managed). Referenced by `Recipe.Plan` and `Operation.Procedure`.
@@ -11,7 +11,7 @@ Owns the equipment-and-capability concerns of CORA:
 
 Foundation-tier BC: every Track A and Track B BC depends on
 Family and/or Asset. Built before Recipe so Method's
-`needs.capabilities` resolves to real Family ids instead of
+`needs.families` resolves to real Family ids instead of
 bare UUIDs (the eventual-consistency fallback that Trust uses for
 Conduit's zone refs).
 

@@ -1,6 +1,6 @@
 """The `AddAssetFamily` command — intent dataclass for this slice.
 
-Family mutation: incremental add (single capability per call).
+Family mutation: incremental add (single family per call).
 The slice is a sibling of `remove_asset_family`. Operators add
 a Family to an Asset when commissioning a new technique on that
 asset; remove when retiring one.
@@ -17,7 +17,7 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class AddAssetFamily:
-    """Add a Family to an existing asset's capability set."""
+    """Add a Family to an existing asset's family set."""
 
     asset_id: UUID
     family_id: UUID

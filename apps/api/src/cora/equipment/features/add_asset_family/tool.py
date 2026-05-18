@@ -24,9 +24,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     @mcp.tool(
         name="add_asset_family",
         description=(
-            "Add a Family to an existing asset's capability set. "
-            "Decommissioned assets cannot accept new capabilities; "
-            "re-adding a capability already in the set raises."
+            "Add a Family to an existing asset's family set. "
+            "Decommissioned assets cannot accept new families; "
+            "re-adding a family already in the set raises."
         ),
     )
     async def add_asset_family_tool(  # pyright: ignore[reportUnusedFunction]

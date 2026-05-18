@@ -24,7 +24,7 @@ from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_p
 
 
 class FamilySummaryDTO(BaseModel):
-    """One capability in a paginated list."""
+    """One family in a paginated list."""
 
     family_id: UUID
     name: str = Field(..., max_length=FAMILY_NAME_MAX_LENGTH)
@@ -34,7 +34,7 @@ class FamilySummaryDTO(BaseModel):
 
 
 class FamilyListResponse(BaseModel):
-    """Page of capabilities plus opaque next-page cursor."""
+    """Page of families plus opaque next-page cursor."""
 
     items: list[FamilySummaryDTO]
     next_cursor: str | None = None
@@ -65,7 +65,7 @@ router = APIRouter(tags=["equipment"])
             ),
         },
     },
-    summary="List capabilities with cursor pagination + status filter",
+    summary="List families with cursor pagination + status filter",
 )
 async def list_families(
     handler: Annotated[Handler, Depends(_get_handler)],

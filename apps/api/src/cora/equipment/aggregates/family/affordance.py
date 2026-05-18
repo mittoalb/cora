@@ -21,7 +21,7 @@ the 4-round Stage 0 research [[project-capability-research]]:
 
 ## Why three patterns, not one
 
-The dominant computing-vocabulary convention is `-able` for capability
+The dominant computing-vocabulary convention is `-able` for family
 claims (Swift codifies it, .NET endorses it, Java/Python/Ruby follow
 informally). Action affordances follow this rule cleanly. But some
 device properties are NOT actions:
@@ -44,7 +44,7 @@ that belong elsewhere:
   - `BitDepthSelectable`, `ROIConfigurable`, `BadPixelMaskable` →
     `Family.settings_schema` (parameter values, not actions).
   - `BraggAddressable`, `EnergySelectable` → operations-layer
-    `Capability` (DLM-B / phase 6k), not Affordance.
+    `Family` (DLM-B / phase 6k), not Affordance.
 The grammatical test: if the candidate reads as "device supports
 being configured to set <noun>", it's parameter-shaped, not action-
 shaped. Compound `<noun>Selectable` / `<noun>Addressable` is the

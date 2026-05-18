@@ -1,6 +1,6 @@
 """HTTP route for the `add_asset_family` slice.
 
-Action endpoint at `POST /assets/{asset_id}/add_capability`. Body
+Action endpoint at `POST /assets/{asset_id}/add_family`. Body
 carries `family_id`. 204 No Content on success. Same action-
 endpoint pattern as the other Asset transition slices.
 """
@@ -17,7 +17,7 @@ from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_p
 
 
 class AddAssetFamilyRequest(BaseModel):
-    """Body for `POST /assets/{asset_id}/add_capability`.
+    """Body for `POST /assets/{asset_id}/add_family`.
 
     Eventual-consistency: `family_id` is NOT verified against the
     Family stream at decide time; mismatch surfaces at Plan
@@ -27,7 +27,7 @@ class AddAssetFamilyRequest(BaseModel):
     family_id: UUID = Field(
         ...,
         description=(
-            "Family id to add to the asset's capability set. "
+            "Family id to add to the asset's family set. "
             "Eventual-consistency: existence is NOT verified."
         ),
     )
@@ -42,7 +42,7 @@ router = APIRouter(tags=["equipment"])
 
 
 @router.post(
-    "/assets/{asset_id}/add_capability",
+    "/assets/{asset_id}/add_family",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN: {
@@ -56,9 +56,9 @@ router = APIRouter(tags=["equipment"])
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
             "description": (
-                "Asset cannot accept the capability under current "
-                "conditions (asset is Decommissioned, OR the capability "
-                "is already in the asset's capability set), OR a "
+                "Asset cannot accept the family under current "
+                "conditions (asset is Decommissioned, OR the family "
+                "is already in the asset's family set), OR a "
                 "concurrent write to the same asset stream conflicted "
                 "(optimistic concurrency)."
             ),
@@ -67,7 +67,7 @@ router = APIRouter(tags=["equipment"])
             "description": ("Path parameter or request body failed schema validation."),
         },
     },
-    summary="Add a Family to an existing asset's capability set",
+    summary="Add a Family to an existing asset's family set",
 )
 async def post_assets_add_capability(
     asset_id: Annotated[UUID, Path(description="Target asset's id.")],
