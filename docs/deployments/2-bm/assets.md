@@ -22,6 +22,7 @@
 
 | | |
 | --- | --- |
+| Name | `Shutter_2BM` |
 | Capability | `Shutter` |
 
 ## Rotary stages
@@ -30,14 +31,9 @@
 
 | | |
 | --- | --- |
+| Name | `Aerotech_ABRS_rotary` |
 | Capability | `RotaryStage` (Aerotech ABRS) |
-
-Cautions:
-
-- [Aerotech cold-start index miss](cautions.md#aerotech-cold-start-index-miss)
-
-| Property | Value |
-| --- | --- |
+| Caution | [Aerotech cold-start index miss](cautions.md#aerotech-cold-start-index-miss) |
 | `min_position` | `−360 deg` |
 | `max_position` | `360 deg` |
 | `max_speed` | `720 deg/s` |
@@ -50,11 +46,9 @@ Cautions:
 
 | | |
 | --- | --- |
+| Name | `Sample_top_X` |
 | Capability | `LinearStage` (Kohzu CYAT-070) |
 | Role | Lateral correction for rotation-axis alignment. |
-
-| Property | Value |
-| --- | --- |
 | `min_position` | `−10 mm` |
 | `max_position` | `10 mm` |
 | `max_speed` | `1 mm/s` |
@@ -64,6 +58,7 @@ Cautions:
 
 | | |
 | --- | --- |
+| Name | `Sample_top_Z` |
 | Capability | `LinearStage` |
 | Role | Sample-to-scintillator distance. |
 
@@ -71,6 +66,7 @@ Cautions:
 
 | | |
 | --- | --- |
+| Name | `Sample_top_Roll` |
 | Capability | `LinearStage` |
 | Role | Roll tilt for rotation-axis alignment. |
 
@@ -78,6 +74,7 @@ Cautions:
 
 | | |
 | --- | --- |
+| Name | `Sample_top_Pitch` |
 | Capability | `LinearStage` |
 | Role | Pitch tilt for rotation-axis alignment. |
 
@@ -85,6 +82,7 @@ Cautions:
 
 | | |
 | --- | --- |
+| Name | `Optique_Peter_focus_Z` |
 | Capability | `LinearStage` (Optique Peter microscope) |
 | Role | Lens-to-scintillator focus inside the microscope. |
 
@@ -94,11 +92,9 @@ Cautions:
 
 | | |
 | --- | --- |
+| Name | `Hexapod_2BM` |
 | Capability | `Hexapod` (PI) |
-
-Cautions:
-
-- [Hexapod controller lockup](cautions.md#hexapod-controller-lockup)
+| Caution | [Hexapod controller lockup](cautions.md#hexapod-controller-lockup) |
 
 ## Scintillators
 
@@ -106,10 +102,8 @@ Cautions:
 
 | | |
 | --- | --- |
+| Name | `Scintillator_LuAG` |
 | Capability | `Scintillator` (LuAG:Ce) |
-
-| Property | Value |
-| --- | --- |
 | `thickness` | `100 um` |
 | `decay_time` | `0.07 us` |
 
@@ -119,10 +113,8 @@ Cautions:
 
 | | |
 | --- | --- |
+| Name | `Oryx_5MP_camera` |
 | Capability | `Camera` (FLIR ORX-10G-51S5M-C) |
-
-| Property | Value |
-| --- | --- |
 | `sensor_width` | `2448 pixel` |
 | `sensor_height` | `2048 pixel` |
 | `pixel_size` | `3.45 um` |
@@ -134,7 +126,7 @@ Cautions:
 
 Every numeric property carries a `unit: {system, code}` annotation per the [units design](../../architecture/model.md). The same-unit-per-physical-dimension-per-Capability convention means all `RotaryStage` angles are in `deg`, all `LinearStage` lengths in `mm`, etc. Different physical dimensions in the same Capability use different unit codes (positions in `deg` plus `max_speed` in `deg/s`).
 
-Assets without a Settings table do not yet have their `Capability.settings_schema` declared in code; values land here when the schema does.
+Assets with no schema-keyed rows in their table do not yet have their `Capability.settings_schema` declared in code; values land when the schema does.
 
 ## Pending
 
