@@ -18,17 +18,20 @@ from cora.run.aggregates.run import (
 from cora.run.features.start_run.route import (
     _get_handler as _get_start_run_handler,  # pyright: ignore[reportPrivateUsage]
 )
+from tests.contract._helpers import create_capability_via_api
 from tests.contract._subject_helpers import register_active_asset
 
 
 def _setup_full_chain(client: TestClient) -> tuple[str, str]:
+    _cap_id = create_capability_via_api(client)
     """Seed Family + Method + Practice + Asset (with capability) +
     Plan + Subject (Mounted) via the public API. Returns (plan_id, subject_id)."""
     cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
         "family_id"
     ]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
+        "/methods",
+        json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [cap_id]},
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",
@@ -256,13 +259,14 @@ def test_post_runs_returns_409_when_subject_in_received_state() -> None:
 def test_post_runs_returns_409_when_asset_decommissioned_after_plan_bind() -> None:
     """Drift since Plan-bind: bound Asset got Decommissioned. Run-start re-validates."""
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         # Build chain manually so we have asset_id handle.
         cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
             "family_id"
         ]
-        method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
-            "method_id"
-        ]
+        method_id = client.post(
+            "/methods", json={"name": "M", "capability_id": _cap_id, "needed_families": [cap_id]}
+        ).json()["method_id"]
         practice_id = client.post(
             "/practices",
             json={"name": "P", "method_id": method_id, "site_id": str(uuid4())},
@@ -286,12 +290,13 @@ def test_post_runs_returns_409_when_asset_decommissioned_after_plan_bind() -> No
 def test_post_runs_returns_409_when_asset_capabilities_drifted_off() -> None:
     """Drift: Asset's capability got removed since Plan-bind. Run-start re-validates."""
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
             "family_id"
         ]
-        method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
-            "method_id"
-        ]
+        method_id = client.post(
+            "/methods", json={"name": "M", "capability_id": _cap_id, "needed_families": [cap_id]}
+        ).json()["method_id"]
         practice_id = client.post(
             "/practices",
             json={"name": "P", "method_id": method_id, "site_id": str(uuid4())},

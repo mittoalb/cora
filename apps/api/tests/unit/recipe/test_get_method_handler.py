@@ -23,7 +23,7 @@ from cora.recipe.aggregates.method import (
 from cora.recipe.features import define_method, get_method
 from cora.recipe.features.define_method import DefineMethod
 from cora.recipe.features.get_method import GetMethod
-from tests.unit._helpers import build_deps
+from tests.unit._helpers import build_deps, seed_capability
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000000ac01")
@@ -32,14 +32,20 @@ _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 _CAP1 = UUID("01900000-0000-7000-8000-000000000111")
 _CAP2 = UUID("01900000-0000-7000-8000-000000000222")
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-00000000ac0c")  # Phase 6l-strict
 
 
 @pytest.mark.unit
 async def test_handler_returns_method_for_known_id() -> None:
     """Round-trip: define + get."""
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
+    await seed_capability(deps.event_store, _CAPABILITY_ID)
     await define_method.bind(deps)(
-        DefineMethod(name="XRF Fly Mapping", needed_families=frozenset({_CAP1, _CAP2})),
+        DefineMethod(
+            name="XRF Fly Mapping",
+            capability_id=_CAPABILITY_ID,
+            needed_families=frozenset({_CAP1, _CAP2}),
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -55,6 +61,7 @@ async def test_handler_returns_method_for_known_id() -> None:
         id=_NEW_ID,
         name=MethodName("XRF Fly Mapping"),
         needed_families=frozenset({_CAP1, _CAP2}),
+        capability_id=_CAPABILITY_ID,
         status=MethodStatus.DEFINED,
     )
 
@@ -64,8 +71,9 @@ async def test_handler_returns_method_with_empty_needed_families() -> None:
     """Procedural Methods (no equipment requirement) round-trip
     through fold-on-read with empty frozenset preserved."""
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
+    await seed_capability(deps.event_store, _CAPABILITY_ID)
     await define_method.bind(deps)(
-        DefineMethod(name="Sample Cleaning", needed_families=frozenset()),
+        DefineMethod(name="Sample Cleaning", capability_id=_CAPABILITY_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

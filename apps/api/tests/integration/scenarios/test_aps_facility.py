@@ -76,7 +76,7 @@ from cora.safety.features.register_clearance import bind as bind_register_cleara
 from cora.supply.aggregates.supply import SupplyScope
 from cora.supply.features.register_supply import RegisterSupply
 from cora.supply.features.register_supply import bind as bind_register_supply
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 from tests.integration.scenarios._facility_fixture import RUN_DEBRIEF_ACTOR_ID
 
 _NOW = datetime(2026, 5, 17, 14, 0, 0, tzinfo=UTC)
@@ -93,6 +93,7 @@ _SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000a00701")
 _ACTOR_OPERATOR_ID = UUID("01900000-0000-7000-8000-000000a00a01")
 _CAP_PROBE_GENERIC_ID = UUID("01900000-0000-7000-8000-000000a00c01")
 _METHOD_FLAT_FIELD_ID = UUID("01900000-0000-7000-8000-000000a00d01")
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0ed79")  # Phase 6l-strict
 _PRACTICE_FLAT_FIELD_APS_ID = UUID("01900000-0000-7000-8000-000000a00d11")
 _CLEARANCE_ESAF_ID = UUID("01900000-0000-7000-8000-000000a00801")
 _SUPPLY_HELIUM_ID = UUID("01900000-0000-7000-8000-000000a00901")
@@ -210,8 +211,10 @@ async def test_facility_install_plays_out_end_to_end(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
+    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
     await bind_define_method(deps)(
         DefineMethod(
+            capability_id=_CAPABILITY_ID,
             name="flat_field_correction",
             needed_families=frozenset({_CAP_PROBE_GENERIC_ID}),
         ),

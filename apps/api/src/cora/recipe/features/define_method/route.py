@@ -51,17 +51,16 @@ class DefineMethodRequest(BaseModel):
         max_length=METHOD_NAME_MAX_LENGTH,
         description="Display name for the new method.",
     )
-    capability_id: UUID | None = Field(
-        default=None,
+    capability_id: UUID = Field(
+        ...,
         description=(
             "Universal Capability template (Recipe BC 6k) this Method "
-            "realizes as a Method-shaped executor. OPTIONAL at the "
-            "6l-additive sub-phase to let pre-6l clients keep working "
-            "without bulk migration; the 6l-strict follow-up will make "
-            "this REQUIRED per Pattern P. When supplied, the bound "
-            "Capability must declare `Method` in its executor_shapes "
-            "set; otherwise 409. Eventual-consistency: the Capability "
-            "stream is loaded at handler time, not API-boundary time."
+            "realizes as a Method-shaped executor. REQUIRED per "
+            "Pattern P (6l-strict). The bound Capability must declare "
+            "`Method` in its executor_shapes set; otherwise 409. "
+            "Eventual-consistency: the Capability stream is loaded at "
+            "handler time, not API-boundary time — a missing stream "
+            "surfaces as 404 via CapabilityNotFoundError."
         ),
     )
     needed_families: list[UUID] = Field(

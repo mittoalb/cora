@@ -12,18 +12,20 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._helpers import create_capability_via_api
 
 
 @pytest.mark.contract
 def test_post_methods_without_key_creates_distinct_methods_on_each_call() -> None:
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         r1 = client.post(
             "/methods",
-            json={"name": "XRF Mapping", "needed_families": []},
+            json={"name": "XRF Mapping", "capability_id": _cap_id, "needed_families": []},
         )
         r2 = client.post(
             "/methods",
-            json={"name": "XRF Mapping", "needed_families": []},
+            json={"name": "XRF Mapping", "capability_id": _cap_id, "needed_families": []},
         )
     assert r1.status_code == 201
     assert r2.status_code == 201
@@ -33,8 +35,9 @@ def test_post_methods_without_key_creates_distinct_methods_on_each_call() -> Non
 @pytest.mark.contract
 def test_post_methods_same_key_and_body_returns_same_method_id() -> None:
     cap1 = str(uuid4())
-    body = {"name": "XRF Mapping", "needed_families": [cap1]}
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
+        body = {"name": "XRF Mapping", "capability_id": _cap_id, "needed_families": [cap1]}
         headers = {"Idempotency-Key": "mk-1"}
         r1 = client.post("/methods", json=body, headers=headers)
         r2 = client.post("/methods", json=body, headers=headers)
@@ -47,15 +50,56 @@ def test_post_methods_same_key_and_body_returns_same_method_id() -> None:
 @pytest.mark.contract
 def test_post_methods_same_key_different_body_returns_422() -> None:
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         headers = {"Idempotency-Key": "mk-2"}
         r1 = client.post(
             "/methods",
-            json={"name": "XRF Mapping", "needed_families": []},
+            json={"name": "XRF Mapping", "capability_id": _cap_id, "needed_families": []},
             headers=headers,
         )
         r2 = client.post(
             "/methods",
-            json={"name": "Other", "needed_families": []},
+            json={"name": "Other", "capability_id": _cap_id, "needed_families": []},
+            headers=headers,
+        )
+
+    assert r1.status_code == 201
+    assert r2.status_code == 422
+    body = r2.json()
+    assert "detail" in body
+    assert "idempotency-key" in body["detail"].lower()
+
+
+@pytest.mark.contract
+def test_post_methods_same_key_different_capability_id_returns_422() -> None:
+    """Phase 6l-additive cross-BC additive payload safety pin (gate-
+    review P1): same Idempotency-Key + same `name`/`needed_families`
+    BUT different `capability_id` must surface as 422 (hash collision
+    detection). `_normalize_for_hash` SHA256s the full DefineMethod
+    dataclass including the new `capability_id` field, so the two
+    bodies hash differently and the second retry is rejected.
+
+    Pinned because the 6l-additive payload-shape change (adding the
+    `capability_id` key) creates a new dimension where idempotency-
+    key conflicts can land; without this pin a future regression
+    that omits `capability_id` from `_normalize_for_hash` would silently
+    serve a cached method_id for the wrong Capability binding."""
+    with TestClient(create_app()) as client:
+        # Two distinct Method-shaped Capabilities for the collision test
+        # — using create_capability_via_api directly so each call writes
+        # a fresh Capability stream.
+        cap_a = create_capability_via_api(client)
+        cap_b = create_capability_via_api(client)
+
+        headers = {"Idempotency-Key": "mk-cap-conflict"}
+        r1 = client.post(
+            "/methods",
+            json={"name": "XRF Mapping", "needed_families": [], "capability_id": cap_a},
+            headers=headers,
+        )
+        r2 = client.post(
+            "/methods",
+            json={"name": "XRF Mapping", "needed_families": [], "capability_id": cap_b},
             headers=headers,
         )
 
@@ -76,15 +120,16 @@ def test_post_methods_same_key_reordered_capabilities_returns_same_method_id() -
     cap2 = str(uuid4())
     cap3 = str(uuid4())
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         headers = {"Idempotency-Key": "mk-3"}
         r1 = client.post(
             "/methods",
-            json={"name": "X", "needed_families": [cap1, cap2, cap3]},
+            json={"name": "X", "capability_id": _cap_id, "needed_families": [cap1, cap2, cap3]},
             headers=headers,
         )
         r2 = client.post(
             "/methods",
-            json={"name": "X", "needed_families": [cap3, cap1, cap2]},
+            json={"name": "X", "capability_id": _cap_id, "needed_families": [cap3, cap1, cap2]},
             headers=headers,
         )
     assert r1.status_code == 201
@@ -95,14 +140,15 @@ def test_post_methods_same_key_reordered_capabilities_returns_same_method_id() -
 @pytest.mark.contract
 def test_post_methods_different_keys_create_distinct_methods() -> None:
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         r1 = client.post(
             "/methods",
-            json={"name": "X", "needed_families": []},
+            json={"name": "X", "capability_id": _cap_id, "needed_families": []},
             headers={"Idempotency-Key": "mk-A"},
         )
         r2 = client.post(
             "/methods",
-            json={"name": "X", "needed_families": []},
+            json={"name": "X", "capability_id": _cap_id, "needed_families": []},
             headers={"Idempotency-Key": "mk-B"},
         )
     assert r1.status_code == 201
@@ -113,15 +159,16 @@ def test_post_methods_different_keys_create_distinct_methods() -> None:
 @pytest.mark.contract
 def test_post_methods_cached_response_returns_valid_uuid() -> None:
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         headers = {"Idempotency-Key": "mk-uuid"}
         r1 = client.post(
             "/methods",
-            json={"name": "X", "needed_families": []},
+            json={"name": "X", "capability_id": _cap_id, "needed_families": []},
             headers=headers,
         )
         r2 = client.post(
             "/methods",
-            json={"name": "X", "needed_families": []},
+            json={"name": "X", "capability_id": _cap_id, "needed_families": []},
             headers=headers,
         )
 

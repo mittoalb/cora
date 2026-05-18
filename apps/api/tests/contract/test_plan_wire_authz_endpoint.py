@@ -31,6 +31,7 @@ from cora.trust.aggregates.policy.events import (
     event_type_name,
     to_payload,
 )
+from tests.contract._helpers import create_capability_via_api
 
 
 def _seed_policy(
@@ -68,6 +69,9 @@ _PERMITTED_SETUP_COMMANDS: frozenset[str] = frozenset(
     {
         # Setup chain to bring a Plan into being with bound Assets and ports.
         "DefineFamily",
+        # Phase 6l-strict: define_method requires a real Capability binding,
+        # so the per-principal authz policy must permit DefineCapability too.
+        "DefineCapability",
         "DefineMethod",
         "DefinePractice",
         "RegisterAsset",
@@ -115,12 +119,13 @@ def wire_authz_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient
 def _setup_plan_with_two_wired_assets(client: TestClient, principal: UUID) -> dict[str, Any]:
     """Helper: P1 sets up the full Plan + Assets + ports needed to wire."""
     h = {"X-Principal-Id": str(principal)}
+    _cap_id = create_capability_via_api(client, headers=h)
     cap_id = client.post(
         "/families", json={"name": "Trigger", "affordances": []}, headers=h
     ).json()["family_id"]
     method_id = client.post(
         "/methods",
-        json={"name": "Test Method", "needed_families": [cap_id]},
+        json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [cap_id]},
         headers=h,
     ).json()["method_id"]
     practice_id = client.post(

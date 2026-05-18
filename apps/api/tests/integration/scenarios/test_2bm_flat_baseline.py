@@ -109,7 +109,7 @@ from cora.recipe.features.define_plan import DefinePlan
 from cora.recipe.features.define_plan import bind as bind_define_plan
 from cora.recipe.features.define_practice import DefinePractice
 from cora.recipe.features.define_practice import bind as bind_define_practice
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 from tests.integration.scenarios._facility_fixture import (
     DeviceSpec,
     facility_id_prefix,
@@ -140,6 +140,7 @@ _ASSET_SCINTILLATOR_LUAG_ID = UUID("01900000-0000-7000-8000-00000035ba31")
 
 # Recipe ladder
 _METHOD_FLAT_ID = UUID("01900000-0000-7000-8000-00000035bd01")
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0e61f")  # Phase 6l-strict
 _PRACTICE_FLAT_ID = UUID("01900000-0000-7000-8000-00000035bd11")
 _PLAN_FLAT_ID = UUID("01900000-0000-7000-8000-00000035bd21")
 
@@ -312,8 +313,11 @@ async def test_flat_baseline_plays_out_end_to_end(
 
     # ----- Recipe BC: Method + Practice + Plan for the flat-baseline routine -----
 
+    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+
     await bind_define_method(deps)(
         DefineMethod(
+            capability_id=_CAPABILITY_ID,
             name="detector_flat_baseline",
             needed_families=frozenset({_CAP_SHUTTER_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}),
         ),

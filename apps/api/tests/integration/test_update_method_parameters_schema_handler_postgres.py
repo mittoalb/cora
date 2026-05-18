@@ -29,11 +29,12 @@ from cora.recipe.features.define_method import DefineMethod
 from cora.recipe.features.update_method_parameters_schema import (
     UpdateMethodParametersSchema,
 )
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d574")  # Phase 6l-strict
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
 
 
@@ -73,8 +74,13 @@ async def test_update_method_parameters_schema_round_trips_through_event_store_a
     method_id = uuid4()
     deps = _build_deps(db_pool, [method_id, uuid4(), uuid4()])  # method_id + 2 event_ids
 
+    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
     await define_method.bind(deps)(
-        DefineMethod(name="Phase-Contrast Micro-CT", needed_families=frozenset()),
+        DefineMethod(
+            capability_id=_CAPABILITY_ID,
+            name="Phase-Contrast Micro-CT",
+            needed_families=frozenset(),
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -112,8 +118,13 @@ async def test_clearing_schema_flips_projection_present_back_to_false(
         [method_id, uuid4(), uuid4(), uuid4()],
     )
 
+    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
     await define_method.bind(deps)(
-        DefineMethod(name="Phase-Contrast Micro-CT", needed_families=frozenset()),
+        DefineMethod(
+            capability_id=_CAPABILITY_ID,
+            name="Phase-Contrast Micro-CT",
+            needed_families=frozenset(),
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -150,8 +161,13 @@ async def test_no_op_on_unchanged_schema_does_not_emit_event(
     method_id = uuid4()
     deps = _build_deps(db_pool, [method_id, uuid4(), uuid4()])
 
+    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
     await define_method.bind(deps)(
-        DefineMethod(name="Phase-Contrast Micro-CT", needed_families=frozenset()),
+        DefineMethod(
+            capability_id=_CAPABILITY_ID,
+            name="Phase-Contrast Micro-CT",
+            needed_families=frozenset(),
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

@@ -13,16 +13,19 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._helpers import create_capability_via_api
 
 
 def _setup_plan_with_two_assets_and_ports(client: TestClient) -> dict[str, Any]:
+    _cap_id = create_capability_via_api(client)
     """Seed: 2 Assets each with one OUTPUT + one INPUT port, then a Plan
     binding both. Returns dict with plan_id, src_asset_id, tgt_asset_id."""
     cap_id = client.post("/families", json={"name": "Trigger", "affordances": []}).json()[
         "family_id"
     ]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
+        "/methods",
+        json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [cap_id]},
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",

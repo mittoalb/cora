@@ -22,16 +22,19 @@ from cora.recipe.aggregates.plan import (
 from cora.recipe.features.define_plan.route import (
     _get_handler as _get_define_plan_handler,  # pyright: ignore[reportPrivateUsage]
 )
+from tests.contract._helpers import create_capability_via_api
 
 
 def _setup_chain(client: TestClient) -> tuple[str, str, str]:
+    _cap_id = create_capability_via_api(client)
     """Seed Family + Method + Practice + Asset(with capability)
     via the public API. Returns (practice_id, asset_id, family_id)."""
     cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
         "family_id"
     ]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
+        "/methods",
+        json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [cap_id]},
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",
@@ -234,11 +237,13 @@ def test_post_plans_returns_409_when_practice_is_deprecated() -> None:
 @pytest.mark.contract
 def test_post_plans_returns_409_when_method_is_deprecated() -> None:
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
             "family_id"
         ]
         method_id = client.post(
-            "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
+            "/methods",
+            json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [cap_id]},
         ).json()["method_id"]
         practice_id = client.post(
             "/practices",
@@ -291,6 +296,7 @@ def test_post_plans_returns_409_when_asset_is_decommissioned() -> None:
 def test_post_plans_returns_409_when_capabilities_not_satisfied() -> None:
     """Method needs capability X but bound Asset has only Y."""
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         needed_cap = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
             "family_id"
         ]
@@ -299,7 +305,7 @@ def test_post_plans_returns_409_when_capabilities_not_satisfied() -> None:
         ).json()["family_id"]
         method_id = client.post(
             "/methods",
-            json={"name": "Test Method", "needed_families": [needed_cap]},
+            json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [needed_cap]},
         ).json()["method_id"]
         practice_id = client.post(
             "/practices",

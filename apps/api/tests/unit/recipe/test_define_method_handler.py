@@ -1,25 +1,16 @@
 """Unit tests for the `define_method` application handler."""
 
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 
-from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.recipe import RecipeHandlers, UnauthorizedError, wire_recipe
 from cora.recipe.aggregates.capability import (
-    CapabilityCode,
-    CapabilityName,
     CapabilityNotFoundError,
     ExecutorShape,
-    RecipeCapabilityDefined,
-)
-from cora.recipe.aggregates.capability import (
-    event_type_name as capability_event_type_name,
-)
-from cora.recipe.aggregates.capability import (
-    to_payload as capability_to_payload,
 )
 from cora.recipe.aggregates.method import InvalidMethodNameError
 from cora.recipe.features import define_method
@@ -27,7 +18,7 @@ from cora.recipe.features.define_method import DefineMethod
 from cora.recipe.features.define_method.decider import (
     MethodCapabilityExecutorMismatchError,
 )
-from tests.unit._helpers import build_deps
+from tests.unit._helpers import build_deps, seed_capability
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000000ab01")
@@ -36,47 +27,35 @@ _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 _CAP1 = UUID("01900000-0000-7000-8000-000000000111")
 _CAP2 = UUID("01900000-0000-7000-8000-000000000222")
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-00000000c0d1")
 
 
-async def _seed_capability(
-    store: InMemoryEventStore,
-    capability_id: UUID,
+async def _build_seeded_deps(
     *,
-    shapes: frozenset[ExecutorShape] = frozenset({ExecutorShape.METHOD}),
-) -> None:
-    """Seed a Capability stream so load_capability returns a real Capability."""
-    event = RecipeCapabilityDefined(
-        capability_id=capability_id,
-        code=CapabilityCode("cora.capability.x").value,
-        name=CapabilityName("X").value,
-        required_affordances=frozenset(),
-        executor_shapes=shapes,
-        occurred_at=_NOW,
+    ids: list[UUID] | None = None,
+    deny: bool = False,
+    capability_id: UUID = _CAPABILITY_ID,
+    capability_shapes: frozenset[ExecutorShape] | None = None,
+) -> tuple[InMemoryEventStore, Kernel]:
+    """Build deps with a seeded Method-shaped Capability so the
+    Phase 6l-strict handler can load it without raising
+    CapabilityNotFoundError. Returns (store, deps) for tests that
+    want both."""
+    store = InMemoryEventStore()
+    await seed_capability(
+        store, capability_id, shapes=capability_shapes or frozenset({ExecutorShape.METHOD})
     )
-    new_event = to_new_event(
-        event_type=capability_event_type_name(event),
-        payload=capability_to_payload(event),
-        occurred_at=_NOW,
-        event_id=uuid4(),
-        command_name="DefineCapability",
-        correlation_id=_CORRELATION_ID,
-        principal_id=_PRINCIPAL_ID,
-    )
-    await store.append(
-        stream_type="Capability",
-        stream_id=capability_id,
-        expected_version=0,
-        events=[new_event],
-    )
+    deps = build_deps(ids=ids or [_NEW_ID, _EVENT_ID], now=_NOW, event_store=store, deny=deny)
+    return store, deps
 
 
 @pytest.mark.unit
 async def test_handler_returns_generated_method_id() -> None:
-    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
+    _, deps = await _build_seeded_deps()
     handler = define_method.bind(deps)
 
     result = await handler(
-        DefineMethod(name="XRF Mapping", needed_families=frozenset()),
+        DefineMethod(name="XRF Mapping", capability_id=_CAPABILITY_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -86,12 +65,15 @@ async def test_handler_returns_generated_method_id() -> None:
 
 @pytest.mark.unit
 async def test_handler_appends_method_defined_event_to_store() -> None:
-    store = InMemoryEventStore()
-    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    store, deps = await _build_seeded_deps()
     handler = define_method.bind(deps)
 
     await handler(
-        DefineMethod(name="XRF Fly Mapping", needed_families=frozenset({_CAP1, _CAP2})),
+        DefineMethod(
+            name="XRF Fly Mapping",
+            capability_id=_CAPABILITY_ID,
+            needed_families=frozenset({_CAP1, _CAP2}),
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -111,9 +93,9 @@ async def test_handler_appends_method_defined_event_to_store() -> None:
         # Phase 10b additive: empty list when MethodDefined has no
         # needed_supplies. Pinned by test_method_needed_supplies.py.
         "needed_supplies": [],
-        # Phase 6l-additive: None when DefineMethod omits capability_id.
-        # 6l-strict will require capability_id at the command level.
-        "capability_id": None,
+        # Phase 6l-strict: capability_id is REQUIRED on DefineMethod
+        # and round-trips through MethodDefined as a UUID string.
+        "capability_id": str(_CAPABILITY_ID),
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.correlation_id == _CORRELATION_ID
@@ -127,12 +109,13 @@ async def test_handler_appends_method_defined_event_to_store() -> None:
 async def test_handler_handles_empty_needed_families() -> None:
     """Procedural Method (no equipment requirement) lands as
     payload `needed_families = []`."""
-    store = InMemoryEventStore()
-    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    store, deps = await _build_seeded_deps()
     handler = define_method.bind(deps)
 
     await handler(
-        DefineMethod(name="Sample Cleaning", needed_families=frozenset()),
+        DefineMethod(
+            name="Sample Cleaning", capability_id=_CAPABILITY_ID, needed_families=frozenset()
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -143,12 +126,11 @@ async def test_handler_handles_empty_needed_families() -> None:
 
 @pytest.mark.unit
 async def test_handler_trims_method_name_via_value_object() -> None:
-    store = InMemoryEventStore()
-    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    store, deps = await _build_seeded_deps()
     handler = define_method.bind(deps)
 
     await handler(
-        DefineMethod(name="  XRF Mapping  ", needed_families=frozenset()),
+        DefineMethod(name="  XRF Mapping  ", capability_id=_CAPABILITY_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -159,12 +141,12 @@ async def test_handler_trims_method_name_via_value_object() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_on_deny() -> None:
-    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, deny=True)
+    _, deps = await _build_seeded_deps(deny=True)
     handler = define_method.bind(deps)
 
     with pytest.raises(UnauthorizedError) as exc_info:
         await handler(
-            DefineMethod(name="X", needed_families=frozenset()),
+            DefineMethod(name="X", capability_id=_CAPABILITY_ID),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -173,13 +155,12 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 
 @pytest.mark.unit
 async def test_handler_does_not_append_when_denied() -> None:
-    store = InMemoryEventStore()
-    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store, deny=True)
+    store, deps = await _build_seeded_deps(deny=True)
     handler = define_method.bind(deps)
 
     with pytest.raises(UnauthorizedError):
         await handler(
-            DefineMethod(name="X", needed_families=frozenset()),
+            DefineMethod(name="X", capability_id=_CAPABILITY_ID),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -191,12 +172,12 @@ async def test_handler_does_not_append_when_denied() -> None:
 
 @pytest.mark.unit
 async def test_handler_propagates_invalid_method_name_error() -> None:
-    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
+    _, deps = await _build_seeded_deps()
     handler = define_method.bind(deps)
 
     with pytest.raises(InvalidMethodNameError):
         await handler(
-            DefineMethod(name="   ", needed_families=frozenset()),
+            DefineMethod(name="   ", capability_id=_CAPABILITY_ID),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -204,24 +185,22 @@ async def test_handler_propagates_invalid_method_name_error() -> None:
 
 @pytest.mark.unit
 async def test_handler_emits_byte_identical_payload_for_same_capability_id() -> None:
-    """Phase 6l-additive determinism pin (gate-review P0): two
-    DefineMethod calls with the same logical inputs — INCLUDING the
-    new `capability_id` key — must produce byte-identical persisted
-    `MethodDefined.payload` dicts. Required for idempotency-key
-    hashing to stay stable across the additive payload shape change
-    (see `with_idempotency` SHA256 over normalized request body)."""
-    capability_id = UUID("01900000-0000-7000-8000-00000000c0d1")
+    """Phase 6l-additive determinism pin (gate-review P0; survives
+    into 6l-strict): two DefineMethod calls with the same logical
+    inputs — INCLUDING the new `capability_id` key — must produce
+    byte-identical persisted `MethodDefined.payload` dicts. Required
+    for idempotency-key hashing to stay stable across the additive
+    payload shape change (see `with_idempotency` SHA256 over
+    normalized request body)."""
     needed_families = frozenset({_CAP1, _CAP2})
 
     # Run 1
-    store_a = InMemoryEventStore()
-    await _seed_capability(store_a, capability_id)
-    deps_a = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store_a)
+    store_a, deps_a = await _build_seeded_deps()
     await define_method.bind(deps_a)(
         DefineMethod(
             name="XRF Fly Mapping",
+            capability_id=_CAPABILITY_ID,
             needed_families=needed_families,
-            capability_id=capability_id,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -229,14 +208,12 @@ async def test_handler_emits_byte_identical_payload_for_same_capability_id() -> 
     events_a, _ = await store_a.load("Method", _NEW_ID)
 
     # Run 2 (fresh store + deps)
-    store_b = InMemoryEventStore()
-    await _seed_capability(store_b, capability_id)
-    deps_b = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store_b)
+    store_b, deps_b = await _build_seeded_deps()
     await define_method.bind(deps_b)(
         DefineMethod(
             name="XRF Fly Mapping",
+            capability_id=_CAPABILITY_ID,
             needed_families=needed_families,
-            capability_id=capability_id,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -244,40 +221,36 @@ async def test_handler_emits_byte_identical_payload_for_same_capability_id() -> 
     events_b, _ = await store_b.load("Method", _NEW_ID)
 
     assert events_a[0].payload == events_b[0].payload
-    assert events_a[0].payload["capability_id"] == str(capability_id)
+    assert events_a[0].payload["capability_id"] == str(_CAPABILITY_ID)
 
 
 @pytest.mark.unit
 async def test_handler_loads_and_validates_bound_capability_when_set() -> None:
-    """Phase 6l-additive happy path through the handler: when
-    DefineMethod.capability_id is set, the handler loads the
-    Capability stream via `load_capability`, passes the loaded state
-    to the decider, and the persisted MethodDefined payload carries
-    the bound capability_id."""
-    capability_id = UUID("01900000-0000-7000-8000-00000000c001")
-    store = InMemoryEventStore()
-    await _seed_capability(store, capability_id)
-    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    """Phase 6l-strict happy path through the handler: handler loads
+    the Capability stream via `load_capability`, passes the loaded
+    state to the decider, and the persisted MethodDefined payload
+    carries the bound capability_id."""
+    store, deps = await _build_seeded_deps()
     handler = define_method.bind(deps)
 
     await handler(
-        DefineMethod(name="X", capability_id=capability_id),
+        DefineMethod(name="X", capability_id=_CAPABILITY_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
     events, _ = await store.load("Method", _NEW_ID)
-    assert events[0].payload["capability_id"] == str(capability_id)
+    assert events[0].payload["capability_id"] == str(_CAPABILITY_ID)
 
 
 @pytest.mark.unit
 async def test_handler_raises_capability_not_found_when_stream_missing() -> None:
-    """Phase 6l-additive: capability_id set on the command but no
+    """Phase 6l-strict: capability_id set on the command but no
     Capability stream exists for it. load_capability returns None;
     the decider raises CapabilityNotFoundError (mapped to 404 at the
     HTTP boundary)."""
     bogus = UUID("01900000-0000-7000-8000-deadbeefcafe")
-    store = InMemoryEventStore()
+    store = InMemoryEventStore()  # intentionally NO seed for `bogus`
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_method.bind(deps)
 
@@ -295,15 +268,17 @@ async def test_handler_raises_capability_not_found_when_stream_missing() -> None
 
 @pytest.mark.unit
 async def test_handler_raises_executor_mismatch_when_capability_excludes_method() -> None:
-    """Phase 6l-additive: capability_id binds to a Procedure-only
+    """Phase 6l-strict: capability_id binds to a Procedure-only
     Capability. Handler propagates MethodCapabilityExecutorMismatchError
     (mapped to 409). Critical: no Method event should be persisted
     when the cross-BC guard fires."""
     capability_id = UUID("01900000-0000-7000-8000-00000000c002")
-    store = InMemoryEventStore()
-    await _seed_capability(store, capability_id, shapes=frozenset({ExecutorShape.PROCEDURE}))
-    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    _, deps = await _build_seeded_deps(
+        capability_id=capability_id, capability_shapes=frozenset({ExecutorShape.PROCEDURE})
+    )
     handler = define_method.bind(deps)
+    # Reuse the seeded store for the post-failure assertion.
+    store: InMemoryEventStore = deps.event_store  # type: ignore[assignment]
 
     with pytest.raises(MethodCapabilityExecutorMismatchError) as exc_info:
         await handler(
@@ -319,70 +294,22 @@ async def test_handler_raises_executor_mismatch_when_capability_excludes_method(
 
 
 @pytest.mark.unit
-async def test_handler_skips_capability_load_when_command_omits_capability_id() -> None:
-    """Phase 6l-additive: when capability_id is None on the command,
-    the handler does NOT call load_capability — the legacy pre-6l
-    define_method path stays cost-free. Pinned via a sentinel event
-    store that raises if load is invoked on the Capability stream."""
-
-    class _CapabilityLoadGuard(InMemoryEventStore):
-        async def load(self, stream_type: str, stream_id: UUID):  # type: ignore[override]
-            assert stream_type != "Capability", (
-                "load_capability should not run when DefineMethod.capability_id is None"
-            )
-            return await super().load(stream_type, stream_id)
-
-    store = _CapabilityLoadGuard()
-    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
-    handler = define_method.bind(deps)
-
-    await handler(
-        DefineMethod(name="X"),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-
-    events, _ = await store.load("Method", _NEW_ID)
-    assert events[0].payload["capability_id"] is None
-
-
-@pytest.mark.unit
-async def test_handler_propagates_causation_id_to_appended_event() -> None:
-    causation = UUID("01900000-0000-7000-8000-0000000000bb")
-    store = InMemoryEventStore()
-    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
-    handler = define_method.bind(deps)
-
-    await handler(
-        DefineMethod(name="X", needed_families=frozenset()),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-        causation_id=causation,
-    )
-
-    events, _ = await store.load("Method", _NEW_ID)
-    assert events[0].causation_id == causation
-
-
-@pytest.mark.unit
-def test_wire_recipe_returns_handlers_bundle() -> None:
+def test_wire_recipe_returns_handlers_bundle_with_define_method() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
     handlers = wire_recipe(deps)
     assert isinstance(handlers, RecipeHandlers)
     assert callable(handlers.define_method)
-    assert callable(handlers.get_method)
 
 
 @pytest.mark.unit
 async def test_wired_handler_propagates_causation_id_through_full_composition() -> None:
     """End-to-end: causation_id survives `with_tracing(with_idempotency(bare))`."""
     causation = UUID("01900000-0000-7000-8000-0000000000bb")
-    store = InMemoryEventStore()
-    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    store, deps = await _build_seeded_deps()
     handlers = wire_recipe(deps)
 
     await handlers.define_method(
-        DefineMethod(name="X", needed_families=frozenset()),
+        DefineMethod(name="X", capability_id=_CAPABILITY_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,

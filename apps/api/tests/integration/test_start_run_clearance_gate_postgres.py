@@ -61,12 +61,13 @@ from cora.safety.features.submit_clearance import SubmitClearance
 from cora.subject.features import mount_subject, register_subject
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 from tests.unit.subject._asset_helper import seed_active_asset
 
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-00000000c001")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-00000000c002")
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d6c2")  # Phase 6l-strict
 
 
 async def _seed_upstream_chain(
@@ -129,8 +130,11 @@ async def _seed_upstream_chain(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
+    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
     await define_method.bind(deps)(
-        DefineMethod(name="XRF Fly Scan", needed_families=frozenset({cap_id})),
+        DefineMethod(
+            capability_id=_CAPABILITY_ID, name="XRF Fly Scan", needed_families=frozenset({cap_id})
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

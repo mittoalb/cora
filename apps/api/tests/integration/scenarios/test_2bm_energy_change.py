@@ -144,7 +144,7 @@ from cora.subject.features.measure_subject import MeasureSubject
 from cora.subject.features.measure_subject import bind as bind_measure_subject
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.mount_subject import bind as bind_mount_subject
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 from tests.integration.scenarios._beamtime_fixture import (
     BeamtimeSpec,
     beamtime_id_prefix,
@@ -182,6 +182,7 @@ _SUBJECT_ID = UUID("01900000-0000-7000-8000-000000423b11")
 _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000423b21")
 
 _METHOD_TOMO_ID = UUID("01900000-0000-7000-8000-000000423d01")
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0ef80")  # Phase 6l-strict
 _PRACTICE_TOMO_ID = UUID("01900000-0000-7000-8000-000000423d11")
 _PLAN_LOW_ENERGY_ID = UUID("01900000-0000-7000-8000-000000423d21")
 _PLAN_HIGH_ENERGY_ID = UUID("01900000-0000-7000-8000-000000423d22")
@@ -324,8 +325,11 @@ async def test_energy_change_plays_out_end_to_end(
 
     # ----- One Method, one Practice, two Plans (differing on energy) -----
 
+    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+
     await bind_define_method(deps)(
         DefineMethod(
+            capability_id=_CAPABILITY_ID,
             name="tomography",
             needed_families=frozenset(
                 {

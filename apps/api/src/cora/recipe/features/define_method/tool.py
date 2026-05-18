@@ -51,6 +51,17 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 description="Display name for the new method.",
             ),
         ],
+        capability_id: Annotated[
+            UUID,
+            Field(
+                description=(
+                    "Universal Capability template this Method realizes. "
+                    "REQUIRED per Pattern P (6l-strict). The bound "
+                    "Capability must declare `Method` in its "
+                    "executor_shapes set; otherwise 409."
+                ),
+            ),
+        ],
         needed_families: Annotated[
             list[UUID],
             Field(
@@ -61,18 +72,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ],
-        capability_id: Annotated[
-            UUID | None,
-            Field(
-                description=(
-                    "Universal Capability template this Method realizes. "
-                    "OPTIONAL at 6l-additive to keep pre-6l MCP clients "
-                    "working; 6l-strict will make this REQUIRED per "
-                    "Pattern P. When supplied, the bound Capability "
-                    "must declare `Method` in its executor_shapes set."
-                ),
-            ),
-        ] = None,
         needed_supplies: Annotated[
             list[
                 Annotated[

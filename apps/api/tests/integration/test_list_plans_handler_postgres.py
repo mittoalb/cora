@@ -44,11 +44,12 @@ from cora.recipe.features.list_plans import ListPlans
 from cora.recipe.features.list_plans import bind as bind_list
 from cora.recipe.features.version_plan import VersionPlan
 from cora.recipe.features.version_plan import bind as bind_version
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 
 _NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d3ec")  # Phase 6l-strict
 
 
 def _build_deps(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:
@@ -87,8 +88,11 @@ async def _seed_chain(deps: Kernel) -> tuple[UUID, UUID, UUID]:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
+    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
     method_id = await bind_define_method(deps)(
-        DefineMethod(name="Tomography", needed_families=frozenset({cap_id})),
+        DefineMethod(
+            capability_id=_CAPABILITY_ID, name="Tomography", needed_families=frozenset({cap_id})
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

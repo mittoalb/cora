@@ -12,15 +12,18 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._helpers import create_capability_via_api
 
 
 def _setup_full_plan(client: TestClient) -> tuple[str, str, str]:
+    _cap_id = create_capability_via_api(client)
     """Seed all upstream then create a Plan. Returns (plan_id, practice_id, asset_id)."""
     cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
         "family_id"
     ]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
+        "/methods",
+        json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [cap_id]},
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",
@@ -66,12 +69,13 @@ def test_get_plan_returns_sorted_asset_ids_for_deterministic_response() -> None:
     """Multi-asset binding: response asset_ids are deterministically
     ordered for client diff stability."""
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
             "family_id"
         ]
         method_id = client.post(
             "/methods",
-            json={"name": "Test Method", "needed_families": [cap_id]},
+            json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [cap_id]},
         ).json()["method_id"]
         practice_id = client.post(
             "/practices",

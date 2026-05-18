@@ -36,18 +36,24 @@ class DefineMethod:
     (sample-cleaning Methods need no supplies). Same hashability +
     `_normalize_for_hash` story as needed_families.
 
-    `capability_id` (Phase 6l-additive) points to the universal
+    `capability_id` (Phase 6l-strict) points to the universal
     Capability template (Recipe BC 6k) this Method realizes as a
-    Method-shaped executor. OPTIONAL at this sub-phase to let
-    existing test fixtures continue to work without bulk migration;
-    the REQUIRED-at-define enforcement (Pattern P per
-    [[project-capability-aggregate-design]] DLM-B) ships in a
-    6l-strict follow-up. When supplied, the handler loads the
-    Capability via the cross-BC port + the decider validates that
-    `Capability.executor_shapes` contains Method.
+    Method-shaped executor. REQUIRED per Pattern P from
+    [[project-capability-aggregate-design]] DLM-B (was optional
+    during the 6l-additive transition window). The handler loads
+    the Capability via the cross-BC port + the decider validates
+    that `Capability.executor_shapes` contains Method, raising
+    `MethodCapabilityExecutorMismatchError` (409) otherwise. A
+    missing Capability stream raises `CapabilityNotFoundError`
+    (404) — eventual-consistency: existence is verified at handler
+    time, not API-boundary time.
+
+    Field order keeps `capability_id` before the default-factory
+    collections (kwargs-only at most callsites; positional callers
+    in code review get pyright-flagged on the type).
     """
 
     name: str
+    capability_id: UUID
     needed_families: frozenset[UUID] = field(default_factory=frozenset[UUID])
     needed_supplies: frozenset[str] = field(default_factory=frozenset[str])
-    capability_id: UUID | None = None

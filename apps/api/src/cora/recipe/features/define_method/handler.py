@@ -131,15 +131,11 @@ def bind(deps: Kernel) -> Handler:
         new_id = deps.id_generator.new_id()
         now = deps.clock.now()
 
-        # Phase 6l-additive: load the bound Capability via cross-BC
-        # port only when the command supplied one. None passes through
-        # to the decider; when capability_id is set but the stream
-        # doesn't exist, decider raises CapabilityNotFoundError.
-        capability = (
-            await load_capability(deps.event_store, command.capability_id)
-            if command.capability_id is not None
-            else None
-        )
+        # Phase 6l-strict: capability_id is REQUIRED on the command
+        # per Pattern P. Always load the bound Capability via the
+        # cross-BC port; pass through to the decider which raises
+        # CapabilityNotFoundError when the stream is missing.
+        capability = await load_capability(deps.event_store, command.capability_id)
 
         domain_events = decide(
             state=None,

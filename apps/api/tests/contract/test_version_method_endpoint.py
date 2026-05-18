@@ -11,10 +11,16 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._helpers import create_capability_via_api
 
 
 def _define_method(client: TestClient, name: str = "XRF Mapping") -> UUID:
-    response = client.post("/methods", json={"name": name, "needed_families": []})
+    """Phase 6l-strict: seed a fresh Capability per call."""
+    cap_id = create_capability_via_api(client)
+    response = client.post(
+        "/methods",
+        json={"name": name, "capability_id": cap_id, "needed_families": []},
+    )
     assert response.status_code == 201
     return UUID(response.json()["method_id"])
 

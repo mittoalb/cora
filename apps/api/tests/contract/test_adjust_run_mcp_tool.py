@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._helpers import create_capability_via_api
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 from tests.contract._subject_helpers import register_active_asset
 
@@ -29,12 +30,13 @@ def _energy_schema() -> dict[str, Any]:
 
 
 def _setup_full_run(client: TestClient) -> str:
+    _cap_id = create_capability_via_api(client)
     cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
         "family_id"
     ]
-    method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
-        "method_id"
-    ]
+    method_id = client.post(
+        "/methods", json={"name": "M", "capability_id": _cap_id, "needed_families": [cap_id]}
+    ).json()["method_id"]
     r = client.post(
         f"/methods/{method_id}/parameters-schema",
         json={"parameters_schema": _energy_schema()},

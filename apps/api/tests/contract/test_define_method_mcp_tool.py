@@ -12,6 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._helpers import create_capability_via_api
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 
@@ -34,6 +35,7 @@ def test_mcp_lists_define_method_tool() -> None:
 def test_mcp_define_method_tool_returns_structured_method_id() -> None:
     cap1 = str(uuid4())
     with TestClient(create_app()) as client:
+        cap_id = create_capability_via_api(client)
         session_headers = open_session(client)
         response = client.post(
             "/mcp",
@@ -45,6 +47,7 @@ def test_mcp_define_method_tool_returns_structured_method_id() -> None:
                     "name": "define_method",
                     "arguments": {
                         "name": "XRF Mapping",
+                        "capability_id": cap_id,
                         "needed_families": [cap1],
                     },
                 },
@@ -63,6 +66,7 @@ def test_mcp_define_method_tool_returns_structured_method_id() -> None:
 def test_mcp_define_method_tool_accepts_empty_needed_families() -> None:
     """Procedural Method via MCP."""
     with TestClient(create_app()) as client:
+        cap_id = create_capability_via_api(client)
         session_headers = open_session(client)
         response = client.post(
             "/mcp",
@@ -74,6 +78,7 @@ def test_mcp_define_method_tool_accepts_empty_needed_families() -> None:
                     "name": "define_method",
                     "arguments": {
                         "name": "Sample Cleaning",
+                        "capability_id": cap_id,
                         "needed_families": [],
                     },
                 },
@@ -90,6 +95,7 @@ def test_mcp_define_method_tool_returns_iserror_on_invalid_input() -> None:
     the domain VO; FastMCP wraps the raised InvalidMethodNameError as
     isError: true with a text diagnostic."""
     with TestClient(create_app()) as client:
+        cap_id = create_capability_via_api(client)
         session_headers = open_session(client)
         response = client.post(
             "/mcp",
@@ -99,7 +105,11 @@ def test_mcp_define_method_tool_returns_iserror_on_invalid_input() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "define_method",
-                    "arguments": {"name": "   ", "needed_families": []},
+                    "arguments": {
+                        "name": "   ",
+                        "capability_id": cap_id,
+                        "needed_families": [],
+                    },
                 },
             },
             headers=session_headers,

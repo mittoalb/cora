@@ -26,11 +26,12 @@ from cora.recipe.features.list_practices import ListPractices
 from cora.recipe.features.list_practices import bind as bind_list
 from cora.recipe.features.version_practice import VersionPractice
 from cora.recipe.features.version_practice import bind as bind_version
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 
 _NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0dec1")  # Phase 6l-strict
 
 
 def _build_deps(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:
@@ -47,8 +48,9 @@ async def _seed_method(deps: Kernel, name: str = "Tomography") -> UUID:
     """Define a Method (Practice's required upstream) and return its id.
     Practice's decider doesn't verify Method exists (eventual-consistency
     stance), but the integration test still seeds one for realism."""
+    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
     return await bind_define_method(deps)(
-        DefineMethod(name=name),
+        DefineMethod(capability_id=_CAPABILITY_ID, name=name),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

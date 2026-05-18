@@ -19,7 +19,7 @@ from cora.recipe.features import define_method, deprecate_method, version_method
 from cora.recipe.features.define_method import DefineMethod
 from cora.recipe.features.deprecate_method import DeprecateMethod
 from cora.recipe.features.version_method import VersionMethod
-from tests.unit._helpers import build_deps
+from tests.unit._helpers import build_deps, seed_capability
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _METHOD_ID = UUID("01900000-0000-7000-8000-00000000ae01")
@@ -28,11 +28,22 @@ _VERSIONED_EVENT_ID = UUID("01900000-0000-7000-8000-00000000ae03")
 _DEPRECATED_EVENT_ID = UUID("01900000-0000-7000-8000-00000000ae04")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+# Phase 6l-strict: Method.capability_id is REQUIRED. Each test
+# pre-seeds this Capability into its store before calling
+# `_define_method_helper`.
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-00000000ae0c")
 
 
 async def _define_method_helper(deps: Kernel) -> UUID:
+    """Seed the bound Capability + invoke define_method.
+
+    Phase 6l-strict: every define_method call requires a real
+    Capability stream to exist (handler raises CapabilityNotFoundError
+    otherwise). Seeding here keeps each test self-contained without
+    repeating the boilerplate at every call site."""
+    await seed_capability(deps.event_store, _CAPABILITY_ID)
     return await define_method.bind(deps)(
-        DefineMethod(name="XRF Mapping", needed_families=frozenset()),
+        DefineMethod(name="XRF Mapping", capability_id=_CAPABILITY_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

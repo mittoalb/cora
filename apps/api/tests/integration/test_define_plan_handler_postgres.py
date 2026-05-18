@@ -43,7 +43,7 @@ from cora.recipe.features.define_capability import DefineCapability
 from cora.recipe.features.define_method import DefineMethod
 from cora.recipe.features.define_plan import DefinePlan
 from cora.recipe.features.define_practice import DefinePractice
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -67,6 +67,9 @@ async def test_define_plan_persists_event_with_audit_snapshots_to_postgres(
     site_id = UUID("01900000-0000-7000-8000-00000060ae01")
     plan_id = UUID("01900000-0000-7000-8000-00000060af01")
     plan_event_id = UUID("01900000-0000-7000-8000-00000060af02")
+    # Phase 6l-strict: Method.capability_id REQUIRED; seed via the
+    # event-store API (bypasses the FixedIdGenerator queue).
+    method_capability_id = UUID("01900000-0000-7000-8000-00000060a0cc")
 
     deps = build_postgres_deps(
         db_pool,
@@ -102,8 +105,15 @@ async def test_define_plan_persists_event_with_audit_snapshots_to_postgres(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
+    await seed_capability_pg(
+        deps.event_store, method_capability_id, shapes=frozenset({ExecutorShape.METHOD})
+    )
     await define_method.bind(deps)(
-        DefineMethod(name="XRF Fly Scan Mapping", needed_families=frozenset({cap_id})),
+        DefineMethod(
+            name="XRF Fly Scan Mapping",
+            capability_id=method_capability_id,
+            needed_families=frozenset({cap_id}),
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

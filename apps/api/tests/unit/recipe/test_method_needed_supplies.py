@@ -23,6 +23,12 @@ from uuid import UUID, uuid4
 import pytest
 
 from cora.infrastructure.ports.event_store import StoredEvent
+from cora.recipe.aggregates.capability import (
+    Capability,
+    CapabilityCode,
+    CapabilityName,
+    ExecutorShape,
+)
 from cora.recipe.aggregates.method import (
     InvalidMethodNeededSuppliesError,
     Method,
@@ -40,6 +46,19 @@ from cora.recipe.aggregates.method import (
 )
 from cora.recipe.features import define_method
 from cora.recipe.features.define_method import DefineMethod
+
+
+def _capability() -> Capability:
+    """Phase 6l-strict: shared Capability fixture for these decider tests."""
+    return Capability(
+        id=UUID("01900000-0000-7000-8000-00000000c1da"),
+        code=CapabilityCode("cora.capability.x"),
+        name=CapabilityName("X"),
+        executor_shapes=frozenset({ExecutorShape.METHOD}),
+    )
+
+
+_CAP = _capability()
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 
@@ -79,10 +98,12 @@ def test_decider_accepts_empty_needed_supplies() -> None:
     events = define_method.decide(
         state=None,
         command=DefineMethod(
+            capability_id=_CAP.id,
             name="Sample Cleaning",
             needed_families=frozenset(),
             needed_supplies=frozenset(),
         ),
+        capability=_CAP,
         now=_NOW,
         new_id=uuid4(),
     )
@@ -94,10 +115,12 @@ def test_decider_accepts_populated_needed_supplies() -> None:
     events = define_method.decide(
         state=None,
         command=DefineMethod(
+            capability_id=_CAP.id,
             name="Tomography",
             needed_families=frozenset(),
             needed_supplies=frozenset({"PhotonBeam", "LiquidNitrogen"}),
         ),
+        capability=_CAP,
         now=_NOW,
         new_id=uuid4(),
     )
@@ -111,10 +134,12 @@ def test_decider_trims_each_kind_string() -> None:
     events = define_method.decide(
         state=None,
         command=DefineMethod(
+            capability_id=_CAP.id,
             name="X",
             needed_families=frozenset(),
             needed_supplies=frozenset({"  PhotonBeam  ", "LiquidNitrogen"}),
         ),
+        capability=_CAP,
         now=_NOW,
         new_id=uuid4(),
     )
@@ -128,10 +153,12 @@ def test_decider_rejects_whitespace_only_kind() -> None:
         define_method.decide(
             state=None,
             command=DefineMethod(
+                capability_id=_CAP.id,
                 name="X",
                 needed_families=frozenset(),
                 needed_supplies=frozenset({"   "}),
             ),
+            capability=_CAP,
             now=_NOW,
             new_id=uuid4(),
         )
@@ -143,10 +170,12 @@ def test_decider_rejects_empty_kind() -> None:
         define_method.decide(
             state=None,
             command=DefineMethod(
+                capability_id=_CAP.id,
                 name="X",
                 needed_families=frozenset(),
                 needed_supplies=frozenset({""}),
             ),
+            capability=_CAP,
             now=_NOW,
             new_id=uuid4(),
         )
@@ -159,10 +188,12 @@ def test_decider_rejects_oversized_kind() -> None:
         define_method.decide(
             state=None,
             command=DefineMethod(
+                capability_id=_CAP.id,
                 name="X",
                 needed_families=frozenset(),
                 needed_supplies=frozenset({"x" * 51}),
             ),
+            capability=_CAP,
             now=_NOW,
             new_id=uuid4(),
         )
@@ -174,10 +205,12 @@ def test_decider_accepts_max_length_kind() -> None:
     events = define_method.decide(
         state=None,
         command=DefineMethod(
+            capability_id=_CAP.id,
             name="X",
             needed_families=frozenset(),
             needed_supplies=frozenset({boundary}),
         ),
+        capability=_CAP,
         now=_NOW,
         new_id=uuid4(),
     )

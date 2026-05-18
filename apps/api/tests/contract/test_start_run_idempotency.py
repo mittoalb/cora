@@ -12,16 +12,18 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._helpers import create_capability_via_api
 from tests.contract._subject_helpers import register_active_asset
 
 
 def _setup_chain(client: TestClient) -> tuple[str, str]:
+    _cap_id = create_capability_via_api(client)
     cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
         "family_id"
     ]
-    method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
-        "method_id"
-    ]
+    method_id = client.post(
+        "/methods", json={"name": "M", "capability_id": _cap_id, "needed_families": [cap_id]}
+    ).json()["method_id"]
     practice_id = client.post(
         "/practices",
         json={"name": "P", "method_id": method_id, "site_id": str(uuid4())},

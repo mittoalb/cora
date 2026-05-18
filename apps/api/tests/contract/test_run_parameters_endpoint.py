@@ -18,6 +18,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._helpers import create_capability_via_api
 from tests.contract._subject_helpers import register_active_asset
 
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
@@ -49,6 +50,7 @@ def _setup_run_chain(
     method_schema: dict[str, Any] | None = None,
     plan_defaults: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
+    _cap_id = create_capability_via_api(client)
     """Seed Family + Method (optionally with schema) + Practice +
     Asset + Plan (optionally with defaults) + Subject (Mounted).
     Returns (plan_id, subject_id)."""
@@ -56,7 +58,8 @@ def _setup_run_chain(
         "family_id"
     ]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
+        "/methods",
+        json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [cap_id]},
     ).json()["method_id"]
     if method_schema is not None:
         r = client.post(

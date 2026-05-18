@@ -35,10 +35,11 @@ deps = build_deps(ids=[...], now=custom_clock_time)  # custom clock
 """
 
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import make_inmemory_kernel
+from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
@@ -49,6 +50,18 @@ from cora.infrastructure.ports import (
     FixedIdGenerator,
     FrozenClock,
     LLMPort,
+)
+from cora.recipe.aggregates.capability import (
+    CapabilityCode,
+    CapabilityName,
+    ExecutorShape,
+    RecipeCapabilityDefined,
+)
+from cora.recipe.aggregates.capability import (
+    event_type_name as capability_event_type_name,
+)
+from cora.recipe.aggregates.capability import (
+    to_payload as capability_to_payload,
 )
 
 DEFAULT_NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
@@ -108,4 +121,69 @@ def build_deps(
     )
 
 
-__all__ = ["DEFAULT_NOW", "DenyAllAuthorize", "build_deps"]
+async def seed_capability(
+    event_store: EventStore,
+    capability_id: UUID,
+    *,
+    code: str = "cora.capability.test",
+    name: str = "TestCapability",
+    shapes: frozenset[ExecutorShape] | None = None,
+    required_affordances: frozenset[object] | None = None,
+    now: datetime | None = None,
+) -> None:
+    """Seed a Capability stream so `load_capability` returns a real
+    Capability state.
+
+    Phase 6l-strict bulk-migration helper: hoisted to one shared
+    location so every test module that needs to seed a Capability
+    before calling `DefineMethod(...)` / `RegisterProcedure(...)`
+    uses the same shape (was duplicated across at least three test
+    files at the additive sub-phase). Defaults to `ExecutorShape.METHOD`
+    + `ExecutorShape.PROCEDURE` so the same seed serves both Method
+    and Procedure binding tests.
+
+    `required_affordances` is `frozenset[Affordance] | None` typed as
+    `frozenset[object]` here to avoid Equipment-BC re-import inside
+    the helpers module; callers pass `frozenset()` (default) or a
+    real frozenset of Affordance values.
+    """
+    occurred_at = now or DEFAULT_NOW
+    shapes_set: frozenset[ExecutorShape] = shapes or frozenset(
+        {ExecutorShape.METHOD, ExecutorShape.PROCEDURE}
+    )
+    # frozenset[object] -> frozenset[Affordance] cast: helper accepts
+    # untyped frozensets to avoid an Equipment-BC import in this
+    # module; the actual type is enforced by RecipeCapabilityDefined's
+    # dataclass annotation downstream.
+    event = RecipeCapabilityDefined(
+        capability_id=capability_id,
+        code=CapabilityCode(code).value,
+        name=CapabilityName(name).value,
+        required_affordances=required_affordances or frozenset(),  # type: ignore[arg-type]
+        executor_shapes=shapes_set,
+        occurred_at=occurred_at,
+    )
+    await event_store.append(
+        stream_type="Capability",
+        stream_id=capability_id,
+        expected_version=0,
+        events=[
+            to_new_event(
+                event_type=capability_event_type_name(event),
+                payload=capability_to_payload(event),
+                occurred_at=occurred_at,
+                event_id=uuid4(),
+                command_name="DefineCapability",
+                correlation_id=UUID("01900000-0000-7000-8000-0000000000aa"),
+                principal_id=UUID("01900000-0000-7000-8000-000000000099"),
+            )
+        ],
+    )
+
+
+__all__ = [
+    "DEFAULT_NOW",
+    "DenyAllAuthorize",
+    "build_deps",
+    "seed_capability",
+]

@@ -230,7 +230,14 @@ class RecipeSpec:
     `parameters_schema=None` skips the `update_method_parameters_schema`
     call; pass a dict to include it. The fixture parameter must be set
     consistently with the id-queue prefix produced by
-    `recipe_ladder_id_prefix()`."""
+    `recipe_ladder_id_prefix()`.
+
+    Phase 6l-strict: `capability_id` is REQUIRED on every Method. The
+    `define_recipe_ladder` factory seeds the Capability stream before
+    calling `define_method` (via `seed_capability_pg`-style direct
+    event-store append using uuid4 for the event_id, so the
+    FixedIdGenerator queue stays untouched). Tests pass any UUID;
+    the fixture handles the seeding."""
 
     method_id: UUID
     method_name: str
@@ -241,6 +248,7 @@ class RecipeSpec:
     plan_id: UUID
     plan_name: str
     plan_asset_ids: frozenset[UUID]
+    capability_id: UUID
     parameters_schema: dict[str, Any] | None = None
 
 
@@ -273,10 +281,20 @@ async def define_recipe_ladder(
 
     Calls `define_method`, optionally `update_method_parameters_schema`
     (when `spec.parameters_schema` is set), then `define_practice` and
-    `define_plan`. Order matches `recipe_ladder_id_prefix()` exactly."""
+    `define_plan`. Order matches `recipe_ladder_id_prefix()` exactly.
+
+    Phase 6l-strict: seeds the bound Capability stream before
+    `define_method` so the cross-BC `load_capability` succeeds. Uses
+    the event-store API directly (uuid4 for the event_id) so the
+    FixedIdGenerator queue stays untouched and id-prefix ordering
+    remains stable."""
+    from tests.integration._helpers import seed_capability_pg
+
+    await seed_capability_pg(deps.event_store, spec.capability_id)
     await bind_define_method(deps)(
         DefineMethod(
             name=spec.method_name,
+            capability_id=spec.capability_id,
             needed_families=spec.needed_families,
         ),
         principal_id=principal_id,

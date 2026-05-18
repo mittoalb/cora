@@ -6,17 +6,20 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._helpers import create_capability_via_api
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 
 def _setup_chain_via_rest(client: TestClient) -> tuple[str, str]:
+    _cap_id = create_capability_via_api(client)
     """Seed Method+Practice+Asset (with capability) via REST so the
     MCP define_plan call has valid upstream to bind."""
     cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
         "family_id"
     ]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
+        "/methods",
+        json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [cap_id]},
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",

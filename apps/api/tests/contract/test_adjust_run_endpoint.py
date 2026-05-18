@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._helpers import create_capability_via_api
 from tests.contract._subject_helpers import register_active_asset
 
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
@@ -46,13 +47,14 @@ def _setup_full_run(
     method_schema: dict[str, Any] | None = None,
     plan_defaults: dict[str, Any] | None = None,
 ) -> str:
+    _cap_id = create_capability_via_api(client)
     """Seed full upstream chain + start a Run. Returns the run_id."""
     cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
         "family_id"
     ]
-    method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
-        "method_id"
-    ]
+    method_id = client.post(
+        "/methods", json={"name": "M", "capability_id": _cap_id, "needed_families": [cap_id]}
+    ).json()["method_id"]
     if method_schema is not None:
         r = client.post(
             f"/methods/{method_id}/parameters-schema",

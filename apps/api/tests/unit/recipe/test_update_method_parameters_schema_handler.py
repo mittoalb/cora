@@ -19,10 +19,11 @@ from cora.recipe.aggregates.method import (
 from cora.recipe.features import define_method, update_method_parameters_schema
 from cora.recipe.features.define_method import DefineMethod
 from cora.recipe.features.update_method_parameters_schema import UpdateMethodParametersSchema
-from tests.unit._helpers import build_deps
+from tests.unit._helpers import build_deps, seed_capability
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _METHOD_ID = UUID("01900000-0000-7000-8000-00000000bd01")
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-00000000bd0c")  # Phase 6l-strict
 _DEFINED_EVENT_ID = UUID("01900000-0000-7000-8000-00000000bd02")
 _SCHEMA_EVENT_ID = UUID("01900000-0000-7000-8000-00000000bd03")
 _SCHEMA_EVENT_ID_2 = UUID("01900000-0000-7000-8000-00000000bd04")
@@ -47,8 +48,10 @@ def _valid_schema(min_val: int = 5) -> dict[str, Any]:
 
 
 async def _define_method_helper(deps: Kernel) -> UUID:
+    """Seed bound Capability + invoke define_method (Phase 6l-strict)."""
+    await seed_capability(deps.event_store, _CAPABILITY_ID)
     return await define_method.bind(deps)(
-        DefineMethod(name="XRF Mapping", needed_families=frozenset()),
+        DefineMethod(name="XRF Mapping", capability_id=_CAPABILITY_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

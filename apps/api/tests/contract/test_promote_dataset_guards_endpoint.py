@@ -27,6 +27,7 @@ from cora.trust.aggregates.policy.events import (
     event_type_name,
     to_payload,
 )
+from tests.contract._helpers import create_capability_via_api
 from tests.contract._subject_helpers import register_active_asset
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
@@ -45,6 +46,7 @@ def _dataset_body(**overrides: object) -> dict[str, object]:
 
 
 def _start_run_and_finish(client: TestClient, *, end_state: str) -> str:
+    _cap_id = create_capability_via_api(client)
     """Set up the upstream chain, start a Run, then drive it to a
     terminal state via the appropriate transition slice. Returns the
     run_id. `end_state` ∈ {'Completed', 'Aborted', 'Stopped',
@@ -52,9 +54,9 @@ def _start_run_and_finish(client: TestClient, *, end_state: str) -> str:
     cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
         "family_id"
     ]
-    method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
-        "method_id"
-    ]
+    method_id = client.post(
+        "/methods", json={"name": "M", "capability_id": _cap_id, "needed_families": [cap_id]}
+    ).json()["method_id"]
     practice_id = client.post(
         "/practices",
         json={"name": "P", "method_id": method_id, "site_id": str(uuid4())},

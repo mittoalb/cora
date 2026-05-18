@@ -56,11 +56,12 @@ from cora.run.features.stop_run import StopRun
 from cora.run.features.stop_run import bind as bind_stop
 from cora.run.features.truncate_run import TruncateRun
 from cora.run.features.truncate_run import bind as bind_truncate
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 
 _NOW = datetime(2026, 5, 13, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d93c")  # Phase 6l-strict
 
 
 def _build_deps(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:
@@ -96,8 +97,11 @@ async def _seed_plan(deps: Kernel) -> UUID:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
+    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
     method_id = await define_method.bind(deps)(
-        DefineMethod(name="Tomography", needed_families=frozenset({cap_id})),
+        DefineMethod(
+            capability_id=_CAPABILITY_ID, name="Tomography", needed_families=frozenset({cap_id})
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

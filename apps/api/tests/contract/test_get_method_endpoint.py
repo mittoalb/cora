@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._helpers import create_capability_via_api
 
 
 def _define_method(
@@ -22,6 +23,9 @@ def _define_method(
 ) -> UUID:
     body: dict[str, object] = {
         "name": name,
+        # Phase 6l-strict: capability_id is REQUIRED. Seed a fresh
+        # Capability per call so tests stay isolated.
+        "capability_id": create_capability_via_api(client),
         "needed_families": needed_families if needed_families is not None else [],
     }
     if needed_supplies is not None:
@@ -103,10 +107,12 @@ def test_get_method_returns_empty_needed_supplies_when_unspecified() -> None:
 def test_define_method_returns_422_for_oversized_supply_kind() -> None:
     """Pydantic per-element max_length=50 catches at the boundary."""
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
             json={
                 "name": "X",
+                "capability_id": _cap_id,
                 "needed_families": [],
                 "needed_supplies": ["x" * 51],
             },
@@ -118,10 +124,12 @@ def test_define_method_returns_422_for_oversized_supply_kind() -> None:
 def test_define_method_returns_422_for_empty_supply_kind() -> None:
     """Pydantic per-element min_length=1 catches at the boundary."""
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
             json={
                 "name": "X",
+                "capability_id": _cap_id,
                 "needed_families": [],
                 "needed_supplies": [""],
             },

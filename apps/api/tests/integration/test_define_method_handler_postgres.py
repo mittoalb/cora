@@ -4,30 +4,22 @@ Pinned: needed_families round-trips through jsonb as a sorted
 list of UUID strings. The frozenset[UUID] domain shape converts
 to list[UUID] at the events layer (see PolicyDefined precedent in
 Trust 3c).
+
+Phase 6l-strict: DefineMethod.capability_id is REQUIRED; every
+test seeds a Capability stream via `seed_capability_pg` before
+invoking the handler.
 """
 
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import asyncpg
 import pytest
 
-from cora.infrastructure.event_envelope import to_new_event
-from cora.recipe.aggregates.capability import (
-    CapabilityCode,
-    CapabilityName,
-    ExecutorShape,
-    RecipeCapabilityDefined,
-)
-from cora.recipe.aggregates.capability import (
-    event_type_name as capability_event_type_name,
-)
-from cora.recipe.aggregates.capability import (
-    to_payload as capability_to_payload,
-)
+from cora.recipe.aggregates.capability import ExecutorShape
 from cora.recipe.features import define_method
 from cora.recipe.features.define_method import DefineMethod
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -40,14 +32,19 @@ async def test_define_method_persists_event_to_postgres_with_capabilities(
 ) -> None:
     method_id = UUID("01900000-0000-7000-8000-00000056ed01")
     event_id = UUID("01900000-0000-7000-8000-00000056ed0e")
+    capability_id = UUID("01900000-0000-7000-8000-00000056ed0c")
     cap1 = UUID("01900000-0000-7000-8000-000000000111")
     cap2 = UUID("01900000-0000-7000-8000-000000000222")
 
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[method_id, event_id])
+    await seed_capability_pg(
+        deps.event_store, capability_id, shapes=frozenset({ExecutorShape.METHOD})
+    )
 
     returned_id = await define_method.bind(deps)(
         DefineMethod(
             name="XRF Fly Mapping",
+            capability_id=capability_id,
             needed_families=frozenset({cap2, cap1}),  # unsorted input
         ),
         principal_id=_PRINCIPAL_ID,
@@ -69,8 +66,9 @@ async def test_define_method_persists_event_to_postgres_with_capabilities(
         # Phase 10b additive: empty list when MethodDefined has no
         # needed_supplies. Pinned by tests/unit/recipe/test_method_needed_supplies.py.
         "needed_supplies": [],
-        # Phase 6l-additive: None when DefineMethod omits capability_id.
-        "capability_id": None,
+        # Phase 6l-strict: capability_id is REQUIRED on DefineMethod;
+        # MethodDefined.payload carries it as a UUID string.
+        "capability_id": str(capability_id),
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.correlation_id == _CORRELATION_ID
@@ -88,11 +86,17 @@ async def test_define_method_persists_procedural_method_with_empty_capabilities(
     through jsonb with `needed_families = []`."""
     method_id = UUID("01900000-0000-7000-8000-00000056ee01")
     event_id = UUID("01900000-0000-7000-8000-00000056ee0e")
+    capability_id = UUID("01900000-0000-7000-8000-00000056ee0c")
 
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[method_id, event_id])
+    await seed_capability_pg(
+        deps.event_store, capability_id, shapes=frozenset({ExecutorShape.METHOD})
+    )
 
     await define_method.bind(deps)(
-        DefineMethod(name="Sample Cleaning", needed_families=frozenset()),
+        DefineMethod(
+            name="Sample Cleaning", capability_id=capability_id, needed_families=frozenset()
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -105,44 +109,19 @@ async def test_define_method_persists_procedural_method_with_empty_capabilities(
 async def test_define_method_persists_bound_capability_id_to_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Phase 6l-additive PG round-trip (gate-review P1): when
-    `DefineMethod.capability_id` is set, the handler loads the
-    bound Capability from PG, validates `ExecutorShape.METHOD` is
-    declared, and persists the resolved capability_id into the
-    MethodDefined payload as a UUID string. Pinned because the
-    cross-BC capability load uses jsonb-serialized executor_shapes
-    via `to_payload` + the round-trip through Postgres."""
+    """Phase 6l-strict PG round-trip: capability_id is REQUIRED. The
+    handler loads the bound Capability from PG, validates
+    `ExecutorShape.METHOD` is declared, and persists the resolved
+    capability_id into the MethodDefined payload as a UUID string.
+    Pinned because the cross-BC capability load uses jsonb-serialized
+    executor_shapes via `to_payload` + the round-trip through Postgres."""
     method_id = UUID("01900000-0000-7000-8000-00000056ef01")
     event_id = UUID("01900000-0000-7000-8000-00000056ef0e")
     capability_id = UUID("01900000-0000-7000-8000-00000000c0d2")
 
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[method_id, event_id])
-
-    # Seed a Capability stream directly in PG so load_capability can
-    # find it. Mirrors the pattern unit tests use against InMemoryEventStore.
-    cap_event = RecipeCapabilityDefined(
-        capability_id=capability_id,
-        code=CapabilityCode("cora.capability.x").value,
-        name=CapabilityName("X").value,
-        required_affordances=frozenset(),
-        executor_shapes=frozenset({ExecutorShape.METHOD}),
-        occurred_at=_NOW,
-    )
-    await deps.event_store.append(
-        stream_type="Capability",
-        stream_id=capability_id,
-        expected_version=0,
-        events=[
-            to_new_event(
-                event_type=capability_event_type_name(cap_event),
-                payload=capability_to_payload(cap_event),
-                occurred_at=_NOW,
-                event_id=uuid4(),
-                command_name="DefineCapability",
-                correlation_id=_CORRELATION_ID,
-                principal_id=_PRINCIPAL_ID,
-            )
-        ],
+    await seed_capability_pg(
+        deps.event_store, capability_id, shapes=frozenset({ExecutorShape.METHOD})
     )
 
     await define_method.bind(deps)(

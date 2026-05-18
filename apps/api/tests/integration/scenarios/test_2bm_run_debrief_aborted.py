@@ -121,7 +121,7 @@ from cora.run.features.start_run import StartRun
 from cora.run.features.start_run import bind as bind_start_run
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.mount_subject import bind as bind_mount_subject
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 from tests.integration.scenarios._beamtime_fixture import (
     BeamtimeSpec,
     beamtime_id_prefix,
@@ -161,6 +161,7 @@ _SUBJECT_ID = UUID("01900000-0000-7000-8000-000000421b11")
 _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000421b21")
 
 _METHOD_TOMO_ID = UUID("01900000-0000-7000-8000-000000421d01")
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0e2be")  # Phase 6l-strict
 _PRACTICE_TOMO_ID = UUID("01900000-0000-7000-8000-000000421d11")
 _PLAN_TOMO_ID = UUID("01900000-0000-7000-8000-000000421d21")
 
@@ -305,8 +306,11 @@ async def test_run_debrief_agent_fires_on_equipment_abort(
         correlation_id=_CORRELATION_ID,
     )
 
+    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+
     await bind_define_method(deps)(
         DefineMethod(
+            capability_id=_CAPABILITY_ID,
             name="tomography",
             needed_families=frozenset(
                 {

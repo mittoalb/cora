@@ -122,7 +122,7 @@ from cora.recipe.features.define_plan import DefinePlan
 from cora.recipe.features.define_plan import bind as bind_define_plan
 from cora.recipe.features.define_practice import DefinePractice
 from cora.recipe.features.define_practice import bind as bind_define_practice
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 from tests.integration.scenarios._facility_fixture import (
     DeviceSpec,
     facility_id_prefix,
@@ -153,6 +153,7 @@ _ASSET_SCINTILLATOR_LUAG_ID = UUID("01900000-0000-7000-8000-000000359a31")
 
 # Recipe ladder
 _METHOD_FIRST_LIGHT_ID = UUID("01900000-0000-7000-8000-000000359d01")
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0e200")  # Phase 6l-strict
 _PRACTICE_FIRST_LIGHT_ID = UUID("01900000-0000-7000-8000-000000359d11")
 _PLAN_FIRST_LIGHT_ID = UUID("01900000-0000-7000-8000-000000359d21")
 
@@ -320,8 +321,11 @@ async def test_first_light_plays_out_end_to_end(
 
     # ----- Recipe BC: Method + Practice + Plan for the first-light routine -----
 
+    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+
     await bind_define_method(deps)(
         DefineMethod(
+            capability_id=_CAPABILITY_ID,
             name="first_light",
             needed_families=frozenset({_CAP_SHUTTER_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}),
         ),

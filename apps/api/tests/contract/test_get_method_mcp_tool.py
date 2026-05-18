@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._helpers import create_capability_via_api
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 
@@ -20,6 +21,8 @@ def _define_method_via_tool(
     name: str = "XRF Mapping",
     needed_families: list[str] | None = None,
 ) -> UUID:
+    # Phase 6l-strict: capability_id REQUIRED on MCP tool too.
+    cap_id = create_capability_via_api(client)
     response = client.post(
         "/mcp",
         json={
@@ -30,6 +33,7 @@ def _define_method_via_tool(
                 "name": "define_method",
                 "arguments": {
                     "name": name,
+                    "capability_id": cap_id,
                     "needed_families": (needed_families if needed_families is not None else []),
                 },
             },

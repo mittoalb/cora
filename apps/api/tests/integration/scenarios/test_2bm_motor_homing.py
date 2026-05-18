@@ -95,7 +95,7 @@ from cora.recipe.features.define_plan import DefinePlan
 from cora.recipe.features.define_plan import bind as bind_define_plan
 from cora.recipe.features.define_practice import DefinePractice
 from cora.recipe.features.define_practice import bind as bind_define_practice
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 from tests.integration.scenarios._facility_fixture import (
     DeviceSpec,
     facility_id_prefix,
@@ -125,6 +125,7 @@ _ASSET_SAMPLE_TOP_X_ID = UUID("01900000-0000-7000-8000-000000352a21")
 
 # Recipe ladder
 _METHOD_HOMING_ID = UUID("01900000-0000-7000-8000-000000352d01")
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0ec35")  # Phase 6l-strict
 _PRACTICE_HOMING_ID = UUID("01900000-0000-7000-8000-000000352d11")
 _PLAN_HOMING_ID = UUID("01900000-0000-7000-8000-000000352d21")
 
@@ -299,8 +300,11 @@ async def test_motor_homing_plays_out_end_to_end(
 
     # ----- Recipe BC: Method + Practice + Plan for the homing routine -----
 
+    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+
     await bind_define_method(deps)(
         DefineMethod(
+            capability_id=_CAPABILITY_ID,
             name="motor_homing",
             needed_families=frozenset({_CAP_ROTARY_STAGE_ID, _CAP_LINEAR_STAGE_ID}),
         ),

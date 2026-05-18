@@ -62,34 +62,30 @@ def decide(
     state: Method | None,
     command: DefineMethod,
     *,
-    capability: Capability | None = None,
+    capability: Capability | None,
     now: datetime,
     new_id: UUID,
 ) -> list[MethodDefined]:
     """Decide the events produced by defining a new method.
 
-    Phase 6l-additive adds optional `capability` parameter: the loaded
-    Capability state for `command.capability_id` (loaded by the
-    handler via the cross-BC port; None when command.capability_id is
-    None). When command.capability_id is supplied, the decider
-    validates:
+    Phase 6l-strict: `capability` is REQUIRED at the call boundary
+    (the command's `capability_id` is REQUIRED per Pattern P, so the
+    handler always loads it). The kwarg keeps `Capability | None`
+    so the decider can raise `CapabilityNotFoundError` directly
+    when the load returned None (cross-BC reference points at a
+    nonexistent stream). Validates:
       1. capability is not None (Capability stream exists)
-         -> CapabilityNotFoundError
+         -> CapabilityNotFoundError (404)
       2. capability.executor_shapes contains ExecutorShape.METHOD
          (this Capability accepts Method-shaped executors)
-         -> MethodCapabilityExecutorMismatchError
-
-    Pre-6l-strict: tests can omit capability_id, in which case
-    `capability` is None and these guards skip. 6l-strict will
-    REQUIRE capability_id at the command level + remove the skip.
+         -> MethodCapabilityExecutorMismatchError (409)
     """
     if state is not None:
         raise MethodAlreadyExistsError(state.id)
-    if command.capability_id is not None:
-        if capability is None:
-            raise CapabilityNotFoundError(command.capability_id)
-        if ExecutorShape.METHOD not in capability.executor_shapes:
-            raise MethodCapabilityExecutorMismatchError(new_id, command.capability_id)
+    if capability is None:
+        raise CapabilityNotFoundError(command.capability_id)
+    if ExecutorShape.METHOD not in capability.executor_shapes:
+        raise MethodCapabilityExecutorMismatchError(new_id, command.capability_id)
     name = MethodName(command.name)  # validates + trims; raises InvalidMethodNameError
     # Phase 10b: defensive per-element validation for needed_supplies
     # kind strings. Pydantic catches this at the API; this defensive

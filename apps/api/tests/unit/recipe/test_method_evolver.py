@@ -141,16 +141,35 @@ def test_decider_and_evolver_round_trip() -> None:
     new_id = uuid4()
     cap1 = UUID("01900000-0000-7000-8000-000000000111")
     cap2 = UUID("01900000-0000-7000-8000-000000000222")
+    # Phase 6l-strict: DefineMethod requires capability_id; build a
+    # local Capability fixture (decider takes the loaded state as kwarg).
+    from cora.recipe.aggregates.capability import (
+        Capability,
+        CapabilityCode,
+        CapabilityName,
+        ExecutorShape,
+    )
+
+    capability = Capability(
+        id=UUID("01900000-0000-7000-8000-00000000c1da"),
+        code=CapabilityCode("cora.capability.x"),
+        name=CapabilityName("X"),
+        executor_shapes=frozenset({ExecutorShape.METHOD}),
+    )
     command = DefineMethod(
         name="  XRF Fly Mapping  ",
+        capability_id=capability.id,
         needed_families=frozenset({cap1, cap2}),
     )
-    events = define_method.decide(state=None, command=command, now=_NOW, new_id=new_id)
+    events = define_method.decide(
+        state=None, command=command, capability=capability, now=_NOW, new_id=new_id
+    )
     rebuilt = fold(events)
     assert rebuilt == Method(
         id=new_id,
         name=MethodName("XRF Fly Mapping"),
         needed_families=frozenset({cap1, cap2}),
+        capability_id=capability.id,
         status=MethodStatus.DEFINED,
     )
 

@@ -14,6 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._helpers import create_capability_via_api
 
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
 
@@ -43,13 +44,15 @@ def _setup_plan_with_schema(
     *,
     method_schema: dict[str, Any] | None = None,
 ) -> str:
+    _cap_id = create_capability_via_api(client)
     """Seed all upstream + a Plan; optionally set a Method
     parameters_schema. Returns plan_id (str)."""
     cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
         "family_id"
     ]
     method_id = client.post(
-        "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
+        "/methods",
+        json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [cap_id]},
     ).json()["method_id"]
     if method_schema is not None:
         resp = client.post(

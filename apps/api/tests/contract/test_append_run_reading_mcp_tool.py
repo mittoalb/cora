@@ -13,19 +13,21 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from tests.contract._helpers import create_capability_via_api
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 from tests.contract._subject_helpers import register_active_asset
 
 
 def _setup_full_run(client: TestClient) -> str:
+    _cap_id = create_capability_via_api(client)
     """Seed full upstream chain + start a Run. Returns the run_id.
     Mirrors the helper in test_append_run_reading_endpoint.py."""
     cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
         "family_id"
     ]
-    method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
-        "method_id"
-    ]
+    method_id = client.post(
+        "/methods", json={"name": "M", "capability_id": _cap_id, "needed_families": [cap_id]}
+    ).json()["method_id"]
     practice_id = client.post(
         "/practices",
         json={"name": "P", "method_id": method_id, "site_id": str(uuid4())},

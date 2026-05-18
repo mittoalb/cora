@@ -21,15 +21,17 @@ from cora.recipe.aggregates.method import (
 from cora.recipe.features.define_method.route import (
     _get_handler as _get_define_method_handler,  # pyright: ignore[reportPrivateUsage]
 )
+from tests.contract._helpers import create_capability_via_api
 
 
 @pytest.mark.contract
 def test_post_methods_returns_201_with_method_id() -> None:
     cap1 = str(uuid4())
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
-            json={"name": "XRF Mapping", "needed_families": [cap1]},
+            json={"name": "XRF Mapping", "capability_id": _cap_id, "needed_families": [cap1]},
         )
 
     assert response.status_code == 201
@@ -42,9 +44,10 @@ def test_post_methods_returns_201_with_method_id() -> None:
 def test_post_methods_accepts_empty_needed_families() -> None:
     """Procedural Methods (no equipment requirement)."""
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
-            json={"name": "Sample Cleaning", "needed_families": []},
+            json={"name": "Sample Cleaning", "capability_id": _cap_id, "needed_families": []},
         )
     assert response.status_code == 201
 
@@ -52,9 +55,10 @@ def test_post_methods_accepts_empty_needed_families() -> None:
 @pytest.mark.contract
 def test_post_methods_trims_whitespace_in_name() -> None:
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
-            json={"name": "  XRF Mapping  ", "needed_families": []},
+            json={"name": "  XRF Mapping  ", "capability_id": _cap_id, "needed_families": []},
         )
     assert response.status_code == 201
 
@@ -62,6 +66,7 @@ def test_post_methods_trims_whitespace_in_name() -> None:
 @pytest.mark.contract
 def test_post_methods_rejects_missing_name_with_422() -> None:
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         response = client.post("/methods", json={"needed_families": []})
     assert response.status_code == 422
 
@@ -71,6 +76,7 @@ def test_post_methods_rejects_missing_needed_families_with_422() -> None:
     """needed_families is required (no default at the API
     boundary); use [] explicitly for procedural Methods."""
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         response = client.post("/methods", json={"name": "X"})
     assert response.status_code == 422
 
@@ -78,13 +84,17 @@ def test_post_methods_rejects_missing_needed_families_with_422() -> None:
 @pytest.mark.contract
 def test_post_methods_rejects_empty_name_with_422() -> None:
     with TestClient(create_app()) as client:
-        response = client.post("/methods", json={"name": "", "needed_families": []})
+        _cap_id = create_capability_via_api(client)
+        response = client.post(
+            "/methods", json={"name": "", "capability_id": _cap_id, "needed_families": []}
+        )
     assert response.status_code == 422
 
 
 @pytest.mark.contract
 def test_post_methods_rejects_too_long_name_with_422() -> None:
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
             json={"name": "a" * 201, "needed_families": []},
@@ -96,9 +106,10 @@ def test_post_methods_rejects_too_long_name_with_422() -> None:
 def test_post_methods_rejects_whitespace_only_name_with_400() -> None:
     """Whitespace-only passes Pydantic but the domain VO trims and rejects."""
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
-            json={"name": "   ", "needed_families": []},
+            json={"name": "   ", "capability_id": _cap_id, "needed_families": []},
         )
     assert response.status_code == 400
     body = response.json()
@@ -108,9 +119,10 @@ def test_post_methods_rejects_whitespace_only_name_with_400() -> None:
 @pytest.mark.contract
 def test_post_methods_rejects_non_uuid_capability_with_422() -> None:
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
-            json={"name": "X", "needed_families": ["not-a-uuid"]},
+            json={"name": "X", "capability_id": _cap_id, "needed_families": ["not-a-uuid"]},
         )
     assert response.status_code == 422
 
@@ -119,9 +131,14 @@ def test_post_methods_rejects_non_uuid_capability_with_422() -> None:
 def test_post_methods_uses_max_length_constant_from_domain() -> None:
     """Pydantic max_length must track the domain METHOD_NAME_MAX_LENGTH constant."""
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
-            json={"name": "a" * METHOD_NAME_MAX_LENGTH, "needed_families": []},
+            json={
+                "name": "a" * METHOD_NAME_MAX_LENGTH,
+                "capability_id": _cap_id,
+                "needed_families": [],
+            },
         )
     assert response.status_code == 201
 
@@ -133,9 +150,10 @@ def test_post_methods_accepts_family_ids_without_verifying_existence() -> None:
     to lock the no-verification contract end-to-end."""
     bogus_cap = "01900000-0000-7000-8000-deadbeefcafe"
     with TestClient(create_app()) as client:
+        _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
-            json={"name": "X", "needed_families": [bogus_cap]},
+            json={"name": "X", "capability_id": _cap_id, "needed_families": [bogus_cap]},
         )
     assert response.status_code == 201
 
@@ -154,9 +172,12 @@ def test_post_methods_returns_409_when_method_already_exists() -> None:
     app.dependency_overrides[_get_define_method_handler] = lambda: _stub
     try:
         with TestClient(app) as client:
+            # The handler is stubbed to raise MethodAlreadyExistsError
+            # before any Capability load, so capability_id can be any
+            # well-formed UUID (no Capability stream seeding required).
             response = client.post(
                 "/methods",
-                json={"name": "X", "needed_families": []},
+                json={"name": "X", "capability_id": str(uuid4()), "needed_families": []},
             )
     finally:
         app.dependency_overrides.clear()
