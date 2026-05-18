@@ -77,6 +77,10 @@ def test_to_payload_serializes_method_defined_to_primitives() -> None:
         # needed_supplies (default factory). Sorted lexically when
         # populated; pinned by tests/unit/recipe/test_method_needed_supplies.py.
         "needed_supplies": [],
+        # Phase 6l-additive: None when MethodDefined has no capability_id
+        # (default). 6l-strict will require the field on the command;
+        # the payload key stays additive for stream-replay compat.
+        "capability_id": None,
         "occurred_at": _NOW.isoformat(),
     }
 

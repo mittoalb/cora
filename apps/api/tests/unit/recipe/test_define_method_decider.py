@@ -5,6 +5,13 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.recipe.aggregates.capability import (
+    Capability,
+    CapabilityCode,
+    CapabilityName,
+    CapabilityNotFoundError,
+    ExecutorShape,
+)
 from cora.recipe.aggregates.method import (
     InvalidMethodNameError,
     Method,
@@ -13,8 +20,23 @@ from cora.recipe.aggregates.method import (
 )
 from cora.recipe.features import define_method
 from cora.recipe.features.define_method import DefineMethod
+from cora.recipe.features.define_method.decider import (
+    MethodCapabilityExecutorMismatchError,
+)
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
+
+
+def _capability(
+    *, shapes: frozenset[ExecutorShape] = frozenset({ExecutorShape.METHOD})
+) -> Capability:
+    """Build a Capability fixture for Phase 6l-additive cross-BC tests."""
+    return Capability(
+        id=uuid4(),
+        code=CapabilityCode("cora.capability.x"),
+        name=CapabilityName("X"),
+        executor_shapes=shapes,
+    )
 
 
 @pytest.mark.unit
@@ -119,6 +141,81 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
     assert first[0].name == second[0].name
     assert set(first[0].needed_families) == set(second[0].needed_families)
     assert first[0].occurred_at == second[0].occurred_at
+
+
+@pytest.mark.unit
+def test_decide_skips_capability_validation_when_command_omits_capability_id() -> None:
+    """Phase 6l-additive: pre-6l-strict shape. When `capability_id` is
+    None on the command, decider skips the Capability load + executor-
+    shape check entirely (capability=None passes through). Pinned so
+    that the additive shape never regresses into "capability required
+    even when not asked for". 6l-strict will drop both the default and
+    this test."""
+    events = define_method.decide(
+        state=None,
+        command=DefineMethod(name="X"),
+        capability=None,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].capability_id is None
+
+
+@pytest.mark.unit
+def test_decide_raises_capability_not_found_when_stream_missing() -> None:
+    """Phase 6l-additive: command supplied capability_id but the
+    handler couldn't load a Capability stream for it (capability=None).
+    Maps to 404 via routes.py registration. Mirrors the precedent on
+    AssetParentNotFoundError (5b)."""
+    bogus = UUID("01900000-0000-7000-8000-deadbeefcafe")
+    with pytest.raises(CapabilityNotFoundError) as exc_info:
+        define_method.decide(
+            state=None,
+            command=DefineMethod(name="X", capability_id=bogus),
+            capability=None,
+            now=_NOW,
+            new_id=uuid4(),
+        )
+    assert exc_info.value.capability_id == bogus
+
+
+@pytest.mark.unit
+def test_decide_raises_executor_mismatch_when_capability_excludes_method() -> None:
+    """Phase 6l-additive: bound Capability exists but its
+    `executor_shapes` set does NOT contain ExecutorShape.METHOD
+    (for example, a procedure-only Capability). Maps to 409 via
+    routes.py registration. Pinned because the asymmetry is the
+    whole point of the Method-vs-Procedure split (6m folded into 6k)."""
+    cap = _capability(shapes=frozenset({ExecutorShape.PROCEDURE}))
+    new_id = uuid4()
+    with pytest.raises(MethodCapabilityExecutorMismatchError) as exc_info:
+        define_method.decide(
+            state=None,
+            command=DefineMethod(name="X", capability_id=cap.id),
+            capability=cap,
+            now=_NOW,
+            new_id=new_id,
+        )
+    assert exc_info.value.method_id == new_id
+    assert exc_info.value.capability_id == cap.id
+
+
+@pytest.mark.unit
+def test_decide_accepts_method_shaped_capability_and_propagates_id() -> None:
+    """Phase 6l-additive: happy path. capability_id is set, the bound
+    Capability declares METHOD in its executor_shapes, and the
+    decided event carries the bound capability_id (so projections /
+    Plan binding can read it back)."""
+    cap = _capability(shapes=frozenset({ExecutorShape.METHOD, ExecutorShape.PROCEDURE}))
+    events = define_method.decide(
+        state=None,
+        command=DefineMethod(name="X", capability_id=cap.id),
+        capability=cap,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1
+    assert events[0].capability_id == cap.id
 
 
 @pytest.mark.unit

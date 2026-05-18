@@ -25,6 +25,11 @@ from datetime import datetime
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.recipe.aggregates.capability import (
+    Capability,
+    CapabilityNotFoundError,
+    ExecutorShape,
+)
 from cora.recipe.aggregates.method import (
     METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
     InvalidMethodNeededSuppliesError,
@@ -36,16 +41,55 @@ from cora.recipe.aggregates.method import (
 from cora.recipe.features.define_method.command import DefineMethod
 
 
+class MethodCapabilityExecutorMismatchError(Exception):
+    """Method.capability_id points at a Capability whose executor_shapes
+    do not include Method (Phase 6l cross-BC guard).
+
+    Mapped to HTTP 409. Surfaces when define_method binds to a
+    Capability that only declares ExecutorShape.PROCEDURE.
+    """
+
+    def __init__(self, method_id: UUID, capability_id: UUID) -> None:
+        super().__init__(
+            f"Method {method_id} cannot bind to Capability {capability_id}: "
+            f"Capability.executor_shapes does not include {ExecutorShape.METHOD.value}"
+        )
+        self.method_id = method_id
+        self.capability_id = capability_id
+
+
 def decide(
     state: Method | None,
     command: DefineMethod,
     *,
+    capability: Capability | None = None,
     now: datetime,
     new_id: UUID,
 ) -> list[MethodDefined]:
-    """Decide the events produced by defining a new method."""
+    """Decide the events produced by defining a new method.
+
+    Phase 6l-additive adds optional `capability` parameter: the loaded
+    Capability state for `command.capability_id` (loaded by the
+    handler via the cross-BC port; None when command.capability_id is
+    None). When command.capability_id is supplied, the decider
+    validates:
+      1. capability is not None (Capability stream exists)
+         -> CapabilityNotFoundError
+      2. capability.executor_shapes contains ExecutorShape.METHOD
+         (this Capability accepts Method-shaped executors)
+         -> MethodCapabilityExecutorMismatchError
+
+    Pre-6l-strict: tests can omit capability_id, in which case
+    `capability` is None and these guards skip. 6l-strict will
+    REQUIRE capability_id at the command level + remove the skip.
+    """
     if state is not None:
         raise MethodAlreadyExistsError(state.id)
+    if command.capability_id is not None:
+        if capability is None:
+            raise CapabilityNotFoundError(command.capability_id)
+        if ExecutorShape.METHOD not in capability.executor_shapes:
+            raise MethodCapabilityExecutorMismatchError(new_id, command.capability_id)
     name = MethodName(command.name)  # validates + trims; raises InvalidMethodNameError
     # Phase 10b: defensive per-element validation for needed_supplies
     # kind strings. Pydantic catches this at the API; this defensive
@@ -66,6 +110,7 @@ def decide(
             name=name.value,
             needed_families=list(command.needed_families),
             needed_supplies=trimmed_supplies,
+            capability_id=command.capability_id,
             occurred_at=now,
         )
     ]

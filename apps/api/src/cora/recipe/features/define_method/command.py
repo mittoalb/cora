@@ -35,8 +35,19 @@ class DefineMethod:
     Supply instance at Plan-bind time. Default empty frozenset
     (sample-cleaning Methods need no supplies). Same hashability +
     `_normalize_for_hash` story as needed_families.
+
+    `capability_id` (Phase 6l-additive) points to the universal
+    Capability template (Recipe BC 6k) this Method realizes as a
+    Method-shaped executor. OPTIONAL at this sub-phase to let
+    existing test fixtures continue to work without bulk migration;
+    the REQUIRED-at-define enforcement (Pattern P per
+    [[project-capability-aggregate-design]] DLM-B) ships in a
+    6l-strict follow-up. When supplied, the handler loads the
+    Capability via the cross-BC port + the decider validates that
+    `Capability.executor_shapes` contains Method.
     """
 
     name: str
     needed_families: frozenset[UUID] = field(default_factory=frozenset[UUID])
     needed_supplies: frozenset[str] = field(default_factory=frozenset[str])
+    capability_id: UUID | None = None

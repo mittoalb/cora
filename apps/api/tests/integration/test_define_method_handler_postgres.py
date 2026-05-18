@@ -56,6 +56,8 @@ async def test_define_method_persists_event_to_postgres_with_capabilities(
         # Phase 10b additive: empty list when MethodDefined has no
         # needed_supplies. Pinned by tests/unit/recipe/test_method_needed_supplies.py.
         "needed_supplies": [],
+        # Phase 6l-additive: None when DefineMethod omits capability_id.
+        "capability_id": None,
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.correlation_id == _CORRELATION_ID

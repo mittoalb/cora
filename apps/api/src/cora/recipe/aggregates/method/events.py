@@ -60,6 +60,11 @@ class MethodDefined:
     needed_families: list[UUID]
     occurred_at: datetime
     needed_supplies: list[str] = field(default_factory=list[str])
+    # Phase 6l additive evolution: capability_id points to the
+    # universal Capability template this Method realizes. Defaults
+    # None for pre-6l events (additive-state pattern); post-6l decider
+    # rejects None at define_method time per Pattern P.
+    capability_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -149,6 +154,7 @@ def to_payload(event: MethodEvent) -> dict[str, Any]:
             name=name,
             needed_families=needed_families,
             needed_supplies=needed_supplies,
+            capability_id=capability_id,
             occurred_at=occurred_at,
         ):
             return {
@@ -159,6 +165,10 @@ def to_payload(event: MethodEvent) -> dict[str, Any]:
                 # deterministic payload bytes (matches needed_families
                 # convention; same idempotency-hash story).
                 "needed_supplies": sorted(needed_supplies),
+                # Phase 6l additive: capability_id is None on pre-6l
+                # events; the from_stored fallback to None preserves
+                # legacy stream replay.
+                "capability_id": (str(capability_id) if capability_id is not None else None),
                 "occurred_at": occurred_at.isoformat(),
             }
         case MethodVersioned(
@@ -200,6 +210,7 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
     payload = stored.payload
     match stored.event_type:
         case "MethodDefined":
+            capability_raw = payload.get("capability_id")
             return MethodDefined(
                 method_id=UUID(payload["method_id"]),
                 name=payload["name"],
@@ -208,6 +219,10 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
                 # payloads have no needed_supplies key; default to empty
                 # list. Additive-evolution pattern.
                 needed_supplies=list(payload.get("needed_supplies", [])),
+                # Phase 6l forward-compat: pre-6l MethodDefined payloads
+                # have no capability_id key; default to None. Post-6l
+                # the decider enforces non-None at write time.
+                capability_id=(UUID(capability_raw) if capability_raw is not None else None),
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "MethodVersioned":

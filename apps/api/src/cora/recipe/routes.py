@@ -110,6 +110,9 @@ from cora.recipe.features import (
     version_plan,
     version_practice,
 )
+from cora.recipe.features.define_method.decider import (
+    MethodCapabilityExecutorMismatchError,
+)
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -236,6 +239,9 @@ def register_recipe_routes(app: FastAPI) -> None:
     for cannot_transition_cls in (
         CapabilityCannotVersionError,
         CapabilityCannotDeprecateError,
+        # Phase 6l cross-BC guard: Method binds to Capability whose
+        # executor_shapes does not include Method.
+        MethodCapabilityExecutorMismatchError,
         MethodCannotVersionError,
         MethodCannotDeprecateError,
         PracticeCannotVersionError,

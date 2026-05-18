@@ -287,6 +287,19 @@ class Method:
     status: MethodStatus = MethodStatus.DEFINED
     version: str | None = None
     parameters_schema: dict[str, Any] | None = field(default=None)
+    # Phase 6l: Method.capability_id points to the universal Capability
+    # template (Recipe BC 6k) this Method realizes as a Method-shaped
+    # executor. REQUIRED at define_method post-6l; defaults None at the
+    # STATE level for evolver-back-compat with pre-6l streams (additive-
+    # state pattern; same shape as Method.parameters_schema 6g).
+    # Distinct from `needed_families` (hardware compatibility, what
+    # Family classes the Method needs available) — both fields stay,
+    # answering DIFFERENT questions per [[project-capability-aggregate-design]]
+    # DLM-B watch item 10. The cross-BC validation that
+    # `Method.parameters_schema ⊂ Capability.parameter_schema` runs at
+    # define_method time via the capability_loader port (STRICT per
+    # [[project-asset-settings-design]] 5g-c anchor).
+    capability_id: UUID | None = field(default=None)
     # Phase 10b: needed_supplies references Supply.kind STRINGS (not
     # UUIDs). Asymmetric with needed_families (frozenset[UUID]) by
     # design: Family is a TYPE registry (one global definition,

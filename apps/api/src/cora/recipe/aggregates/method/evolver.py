@@ -82,6 +82,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
             name=name,
             needed_families=needed_families,
             needed_supplies=needed_supplies,
+            capability_id=capability_id,
         ):
             _ = state  # MethodDefined is the genesis event; prior state ignored
             return Method(
@@ -91,6 +92,9 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 status=MethodStatus.DEFINED,
                 # version defaults to None.
                 needed_supplies=frozenset(needed_supplies),
+                # Phase 6l: capability_id flows through genesis. None for
+                # pre-6l streams (additive-state default).
+                capability_id=capability_id,
             )
         case MethodVersioned(version_tag=version_tag):
             prior = require_state(state, "MethodVersioned")
@@ -102,6 +106,10 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 version=version_tag,
                 parameters_schema=prior.parameters_schema,
                 needed_supplies=prior.needed_supplies,
+                # capability_id PRESERVED across versioning (Method
+                # operates as the same Capability executor across
+                # revisions; rebinding would mean a new Method).
+                capability_id=prior.capability_id,
             )
         case MethodDeprecated():
             prior = require_state(state, "MethodDeprecated")
@@ -114,6 +122,10 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 version=prior.version,
                 parameters_schema=prior.parameters_schema,
                 needed_supplies=prior.needed_supplies,
+                # capability_id PRESERVED across deprecation; audit-
+                # critical (the historical Capability binding stays
+                # visible).
+                capability_id=prior.capability_id,
             )
         case MethodParametersSchemaUpdated(parameters_schema=parameters_schema):
             prior = require_state(state, "MethodParametersSchemaUpdated")
@@ -125,6 +137,10 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 version=prior.version,
                 parameters_schema=parameters_schema,
                 needed_supplies=prior.needed_supplies,
+                # capability_id PRESERVED across schema updates;
+                # parameter_schema and capability binding evolve
+                # independently.
+                capability_id=prior.capability_id,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

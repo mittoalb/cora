@@ -51,6 +51,19 @@ class DefineMethodRequest(BaseModel):
         max_length=METHOD_NAME_MAX_LENGTH,
         description="Display name for the new method.",
     )
+    capability_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Universal Capability template (Recipe BC 6k) this Method "
+            "realizes as a Method-shaped executor. OPTIONAL at the "
+            "6l-additive sub-phase to let pre-6l clients keep working "
+            "without bulk migration; the 6l-strict follow-up will make "
+            "this REQUIRED per Pattern P. When supplied, the bound "
+            "Capability must declare `Method` in its executor_shapes "
+            "set; otherwise 409. Eventual-consistency: the Capability "
+            "stream is loaded at handler time, not API-boundary time."
+        ),
+    )
     needed_families: list[UUID] = Field(
         ...,
         description=(
@@ -138,6 +151,7 @@ async def post_methods(
     method_id = await handler(
         DefineMethod(
             name=body.name,
+            capability_id=body.capability_id,
             needed_families=frozenset(body.needed_families),
             needed_supplies=frozenset(body.needed_supplies),
         ),
