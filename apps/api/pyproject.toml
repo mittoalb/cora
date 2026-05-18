@@ -52,6 +52,13 @@ dev = [
     "pre-commit>=4.0.0,<5",
     "testcontainers[postgres]>=4.14.2,<5",
     "tach>=0.35.0",
+    # pytest-xdist 3.7.0 (2025-05-26) made `--dist=worksteal` atomic and
+    # group/scope-aware; 3.8.0 (2025-06-30) added the `loadscope-reorder`
+    # toggle. The `worksteal` scheduler is the modern default for mixed-
+    # duration suites (50ms unit + 200ms+ integration). One Postgres
+    # container per worker (via session-scoped fixture, see tests/conftest)
+    # sidesteps testcontainers-python#567 contention.
+    "pytest-xdist>=3.8.0,<4",
 ]
 
 [build-system]
@@ -111,12 +118,17 @@ markers = [
     "e2e: full end-to-end tests",
 ]
 
-# Coverage configuration. Default trace core (NOT sys.monitoring) until
-# Python 3.14 lands and the FastAPI+asyncpg async-miss-line bugs close
-# (coveragepy#1240, #1082). Branch coverage on per modern best practice.
-# Switch `parallel = true` if pytest-xdist is adopted.
+# Coverage configuration. Default trace core (NOT sys.monitoring): on
+# Python 3.13 coverage.py silently falls back to ctrace when branch
+# coverage or mixed thread/greenlet concurrency is on (both apply here);
+# coveragepy#2172 (2026-05) reports sysmon is also slower than ctrace on
+# 3.14 in real suites. Revisit only after CORA moves to 3.14 AND
+# coveragepy#2150 lands sysmon+branch support. `parallel = true`
+# required for pytest-xdist: each worker writes a suffixed `.coverage.*`
+# file that pytest-cov combines at session end.
 [tool.coverage.run]
 branch = true
+parallel = true
 source = ["src/cora"]
 # Required by py-cov-action/python-coverage-comment-action: the action
 # runs from repo root while pytest runs from apps/api, so absolute paths

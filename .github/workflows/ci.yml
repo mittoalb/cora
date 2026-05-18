@@ -62,7 +62,22 @@ jobs:
         # XML report feeds diff-cover; term-missing surfaces uncovered
         # lines in the CI log. Total fail_under=80 (in pyproject) is the
         # soft floor; diff-cover (next step) is the hard gate on PRs.
-        run: uv run pytest --cov --cov-report=xml --cov-report=term-missing
+        #
+        # `-n 4 --dist=worksteal`: parallel via pytest-xdist. ubuntu-
+        # latest exposes 4 logical CPUs, so `-n 4` spawns one worker
+        # per core, each with its own Postgres container (per-worker
+        # session-scoped fixture in tests/conftest.py). Pinned to 4
+        # (rather than `auto`) so a future larger-class runner doesn't
+        # oversubscribe Docker — local benchmarking on the 8-core dev
+        # Mac showed `-n 8` was *slower* than `-n 4` (the suite is
+        # I/O-bound on per-worker Postgres) and surfaced a flaky
+        # asyncio concurrency test.
+        #
+        # `coverage.run.parallel = true` (in pyproject) makes each
+        # worker write a suffixed `.coverage.<host>.<pid>.<rand>` file
+        # and pytest-cov combines them at session end into the single
+        # coverage.xml that diff-cover reads downstream.
+        run: uv run pytest -n 4 --dist=worksteal --cov --cov-report=xml --cov-report=term-missing
 
       - name: Diff coverage (PRs only, hard gate at 90% on changed lines)
         # Modern best practice: diff coverage hard, total coverage soft.

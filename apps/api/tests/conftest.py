@@ -7,7 +7,7 @@ basis (integration: tests build their own Kernel against `db_pool`;
 e2e: the `e2e_app` fixture monkeypatches `APP_ENV` + `DATABASE_URL`
 so the lifespan picks the testcontainers Postgres branch).
 
-## Session-scoped Postgres container
+## Session-scoped Postgres container (per xdist worker)
 
 `postgres_container` and `template_database` live here (not in the
 integration tier's conftest) so the integration `db_pool` fixture and
@@ -16,6 +16,15 @@ template-DB clone strategy: migrations apply once into the container's
 default DB; each per-test database is created via `CREATE DATABASE
 ... TEMPLATE migrated_db`, which Postgres satisfies via file copy in
 tens of milliseconds.
+
+Under pytest-xdist, each worker is a separate process and runs its own
+session — so `scope="session"` naturally yields one container per
+worker. The `worker_id` (`"master"` when not under xdist, else `gw0`,
+`gw1`, ...) is woven into the container name purely for `docker ps`
+debuggability. Sharing one container across xdist workers is a known
+testcontainers-python footgun (issue #567: ports get reassigned to the
+wrong instance during overlapping start/stop); per-worker containers
+sidestep it entirely at the cost of ~2s container startup per worker.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -45,9 +54,16 @@ def _read_migration_statements() -> list[str]:
 
 
 @pytest.fixture(scope="session")
-def postgres_container() -> Generator[PostgresContainer]:
-    """One Postgres container per test session, shared by integration + e2e tiers."""
+def postgres_container(worker_id: str) -> Generator[PostgresContainer]:
+    """One Postgres container per xdist worker (or one for the whole session
+    when not under xdist). `worker_id` is `"master"` outside xdist; pytest-
+    xdist provides the fixture and resolves it to `gw0`, `gw1`, ... per
+    worker process."""
     container = PostgresContainer("pgvector/pgvector:pg18", driver=None)
+    # Distinct container names per worker make `docker ps` legible during
+    # debugging and prevent any accidental name collision if the suite is
+    # interrupted mid-run.
+    container.with_name(f"cora-pgtest-{worker_id}")
     container.start()
     try:
         yield container
@@ -57,7 +73,7 @@ def postgres_container() -> Generator[PostgresContainer]:
 
 @pytest_asyncio.fixture(scope="session")
 async def template_database(postgres_container: PostgresContainer) -> str:
-    """Apply migrations once; the resulting DB becomes the template for clones."""
+    """Apply migrations once per worker; the resulting DB is the clone template."""
     base_url = normalize_async_url(postgres_container.get_connection_url())
     template_name = urlparse(base_url).path.lstrip("/")
 

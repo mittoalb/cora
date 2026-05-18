@@ -64,20 +64,37 @@ fmt:
 typecheck:
 	cd $(API_DIR) && uv run pyright src tests
 
+# pytest-xdist with `--dist=worksteal -n 4`: worksteal is the
+# scheduler-of-choice for mixed-duration suites (50ms unit alongside
+# 200ms+ integration). Worker count is empirically tuned: on the 8-core
+# dev Mac, `-n 4` finished coverage in 9:08 while `-n 8` took 13:10
+# *and* tripped a flaky asyncio concurrency test — the suite is
+# I/O-bound on per-worker Postgres, so 8 workers oversubscribe Docker
+# and asyncpg. `-n 4` also matches ubuntu-latest CI's 4-core runner
+# exactly. Each worker brings up its own Postgres container (see
+# tests/conftest.py); the per-test template-DB clone parallelizes
+# cleanly. Raise the cap empirically if a future I/O speedup (tmpfs
+# Docker volume, faster runner class) unblocks worker scaling.
+#
+# Kept out of `[tool.pytest.ini_options].addopts` so ad-hoc single-file
+# runs (`uv run pytest tests/unit/foo.py`) stay sequential and avoid
+# worker-spawn overhead. Make targets opt in.
+PYTEST_PARALLEL := -n 4 --dist=worksteal
+
 test:
-	cd $(API_DIR) && uv run pytest
+	cd $(API_DIR) && uv run pytest $(PYTEST_PARALLEL)
 
 test-unit:
-	cd $(API_DIR) && uv run pytest -m unit
+	cd $(API_DIR) && uv run pytest $(PYTEST_PARALLEL) -m unit
 
 test-int:
-	cd $(API_DIR) && uv run pytest -m integration
+	cd $(API_DIR) && uv run pytest $(PYTEST_PARALLEL) -m integration
 
 test-contract:
-	cd $(API_DIR) && uv run pytest -m contract
+	cd $(API_DIR) && uv run pytest $(PYTEST_PARALLEL) -m contract
 
 test-coverage:
-	cd $(API_DIR) && uv run pytest --cov --cov-report=term-missing --cov-report=html --cov-report=xml
+	cd $(API_DIR) && uv run pytest $(PYTEST_PARALLEL) --cov --cov-report=term-missing --cov-report=html --cov-report=xml
 
 diff-coverage:
 	cd $(API_DIR) && uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under=90
