@@ -83,9 +83,25 @@ async def test_full_run_cascade_to_completed(
     cap = await e2e_client.post("/families", json={"name": "FlyMotion", "affordances": []})
     family_id = cap.json()["family_id"]
 
+    # Phase 6l-strict: DefineMethod requires a bound Capability.
+    cap_template = await e2e_client.post(
+        "/capabilities",
+        json={
+            "code": "cora.capability.e2e.run_lifecycle",
+            "name": "E2ERunLifecycle",
+            "required_affordances": [],
+            "executor_shapes": ["Method"],
+        },
+    )
+    capability_id = cap_template.json()["capability_id"]
+
     method = await e2e_client.post(
         "/methods",
-        json={"name": "Test Method", "needed_families": [family_id]},
+        json={
+            "name": "Test Method",
+            "capability_id": capability_id,
+            "needed_families": [family_id],
+        },
     )
     method_id = method.json()["method_id"]
 

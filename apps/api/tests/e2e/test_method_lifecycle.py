@@ -18,9 +18,22 @@ async def test_define_then_get_then_list_method(
     e2e_client: AsyncClient,
     e2e_drain: Callable[[], Awaitable[None]],
 ) -> None:
+    # Phase 6l-strict: DefineMethod requires a bound Capability.
+    cap_post = await e2e_client.post(
+        "/capabilities",
+        json={
+            "code": "cora.capability.e2e.method_lifecycle",
+            "name": "E2EMethodLifecycle",
+            "required_affordances": [],
+            "executor_shapes": ["Method"],
+        },
+    )
+    assert cap_post.status_code == 201
+    capability_id = cap_post.json()["capability_id"]
+
     define = await e2e_client.post(
         "/methods",
-        json={"name": "XRF Mapping", "needed_families": []},
+        json={"name": "XRF Mapping", "capability_id": capability_id, "needed_families": []},
     )
     assert define.status_code == 201
     method_id = UUID(define.json()["method_id"])
