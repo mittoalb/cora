@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.equipment.aggregates.family.affordance import Affordance
 from cora.equipment.aggregates.family.events import (
     FamilyDefined,
     FamilyDeprecated,
@@ -373,4 +374,95 @@ def test_from_stored_upcasts_legacy_settings_schema_updated_with_null_schema() -
     rebuilt = from_stored(stored)
     assert rebuilt == FamilySettingsSchemaUpdated(
         family_id=legacy_id, settings_schema=None, occurred_at=_NOW
+    )
+
+
+# ---------- Phase 5j: non-empty affordance round-trip ----------
+#
+# Gate review P0: the original 5j tests round-tripped EMPTY affordances
+# only. These tests pin to_payload + from_stored for non-empty sets,
+# the sorted-payload determinism, and legacy upcast with affordances.
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_non_empty_affordances_sorted() -> None:
+    """Affordances serialize as a sorted list of enum string values for
+    deterministic payload comparison. Sort key is the enum value
+    string (PascalCase)."""
+    family_id = uuid4()
+    event = FamilyDefined(
+        family_id=family_id,
+        name="RotaryStage",
+        occurred_at=_NOW,
+        affordances=frozenset({Affordance.ROTATABLE, Affordance.HOMEABLE, Affordance.BENDABLE}),
+    )
+    payload = to_payload(event)
+    assert payload["affordances"] == ["Bendable", "Homeable", "Rotatable"]
+
+
+@pytest.mark.unit
+def test_round_trip_family_defined_with_non_empty_affordances() -> None:
+    original = FamilyDefined(
+        family_id=uuid4(),
+        name="Camera",
+        occurred_at=_NOW,
+        affordances=frozenset({Affordance.IMAGEABLE, Affordance.TRIGGERABLE}),
+    )
+    stored = _stored("FamilyDefined", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_round_trip_family_versioned_with_non_empty_affordances() -> None:
+    original = FamilyVersioned(
+        family_id=uuid4(),
+        version_tag="v3",
+        occurred_at=_NOW,
+        affordances=frozenset(
+            {Affordance.IMAGEABLE, Affordance.STREAMABLE, Affordance.FILE_WRITABLE}
+        ),
+    )
+    stored = _stored("FamilyVersioned", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_load_affordances_raises_on_unknown_enum_string() -> None:
+    """Defensive guard: a corrupted payload with an unknown affordance
+    string fails loud on stream replay rather than silently dropping
+    the value."""
+    stored = _stored(
+        "FamilyDefined",
+        {
+            "family_id": str(uuid4()),
+            "name": "Test",
+            "occurred_at": _NOW.isoformat(),
+            "affordances": ["NotARealAffordance"],
+        },
+    )
+    with pytest.raises(ValueError, match="is not a valid Affordance"):
+        from_stored(stored)
+
+
+@pytest.mark.unit
+def test_legacy_capability_defined_with_affordances_payload_upcasts() -> None:
+    """A pre-5j payload that DID carry an affordances key (defensive
+    case for partial migration / future renames) upcasts correctly to
+    the new FamilyDefined dataclass with the non-empty set."""
+    legacy_id = uuid4()
+    stored = _stored(
+        "CapabilityDefined",
+        {
+            "capability_id": str(legacy_id),
+            "name": "LegacyRotary",
+            "occurred_at": _NOW.isoformat(),
+            "affordances": ["Rotatable"],
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == FamilyDefined(
+        family_id=legacy_id,
+        name="LegacyRotary",
+        occurred_at=_NOW,
+        affordances=frozenset({Affordance.ROTATABLE}),
     )

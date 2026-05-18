@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 
 from cora.equipment.aggregates.family import (
+    Affordance,
     Family,
     FamilyName,
     FamilyStatus,
@@ -357,3 +358,103 @@ def test_capability_settings_schema_updated_on_empty_state_raises() -> None:
                 ),
             ]
         )
+
+
+# ---------- Phase 5j: affordance folding semantics ----------
+#
+# Gate review P0 (test coverage): the original 5j commit had ZERO
+# tests asserting `state.affordances` for any non-empty value. These
+# tests pin the 4 evolver arms' affordance semantics:
+#   - FamilyDefined → state.affordances = event.affordances (genesis)
+#   - FamilyVersioned → state.affordances = event.affordances (REPLACES)
+#   - FamilyDeprecated → state.affordances PRESERVED
+#   - FamilySettingsSchemaUpdated → state.affordances PRESERVED
+
+
+@pytest.mark.unit
+def test_family_defined_folds_non_empty_affordances() -> None:
+    family_id = uuid4()
+    event = FamilyDefined(
+        family_id=family_id,
+        name="RotaryStage",
+        occurred_at=_NOW,
+        affordances=frozenset({Affordance.ROTATABLE, Affordance.HOMEABLE}),
+    )
+    state = evolve(None, event)
+    assert state.affordances == frozenset({Affordance.ROTATABLE, Affordance.HOMEABLE})
+
+
+@pytest.mark.unit
+def test_family_versioned_replaces_affordances_wholesale() -> None:
+    """Replace-on-version semantics per DLM-A: a new version IS a new
+    declaration. Versioning with `{Homeable}` over a prior `{Rotatable}`
+    yields `{Homeable}` only, NOT the merged union."""
+    family_id = uuid4()
+    initial = evolve(
+        None,
+        FamilyDefined(
+            family_id=family_id,
+            name="X",
+            occurred_at=_NOW,
+            affordances=frozenset({Affordance.ROTATABLE}),
+        ),
+    )
+    versioned = evolve(
+        initial,
+        FamilyVersioned(
+            family_id=family_id,
+            version_tag="v2",
+            occurred_at=_NOW,
+            affordances=frozenset({Affordance.HOMEABLE}),
+        ),
+    )
+    assert versioned.affordances == frozenset({Affordance.HOMEABLE})
+
+
+@pytest.mark.unit
+def test_family_deprecated_preserves_affordances() -> None:
+    """Affordances stay in state across deprecation — audit-critical:
+    operators reading a deprecated Family must still see what it
+    declared at its last version."""
+    family_id = uuid4()
+    initial = evolve(
+        None,
+        FamilyDefined(
+            family_id=family_id,
+            name="X",
+            occurred_at=_NOW,
+            affordances=frozenset({Affordance.ROTATABLE, Affordance.HOMEABLE}),
+        ),
+    )
+    deprecated = evolve(
+        initial,
+        FamilyDeprecated(family_id=family_id, occurred_at=_NOW),
+    )
+    assert deprecated.affordances == frozenset({Affordance.ROTATABLE, Affordance.HOMEABLE})
+
+
+@pytest.mark.unit
+def test_family_settings_schema_updated_preserves_affordances() -> None:
+    """Affordances and settings_schema evolve independently. Updating
+    one does not affect the other."""
+    family_id = uuid4()
+    schema = {"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object"}
+    initial = evolve(
+        None,
+        FamilyDefined(
+            family_id=family_id,
+            name="X",
+            occurred_at=_NOW,
+            affordances=frozenset({Affordance.ROTATABLE}),
+        ),
+    )
+    with_schema = evolve(
+        initial,
+        FamilySettingsSchemaUpdated(
+            family_id=family_id,
+            settings_schema=schema,
+            occurred_at=_NOW,
+        ),
+    )
+    assert with_schema.affordances == frozenset({Affordance.ROTATABLE})
+    assert with_schema.settings_schema == schema

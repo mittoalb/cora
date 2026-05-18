@@ -116,3 +116,85 @@ def test_post_capabilities_returns_409_when_capability_already_exists() -> None:
     body = response.json()
     assert "detail" in body
     assert str(existing_id) in body["detail"]
+
+
+# ---------- Phase 5j: non-empty affordance contract tests ----------
+#
+# Gate review P0 (contract symmetry): the existing endpoint tests
+# only exercise empty `"affordances": []`. These tests pin non-empty
+# affordance roundtrip, sorted response, dedup-via-frozenset, and
+# 422 paths for missing/invalid.
+
+
+@pytest.mark.contract
+def test_post_capabilities_round_trips_non_empty_affordances_sorted() -> None:
+    """POST with multiple affordances → GET returns them sorted alphabetically."""
+    with TestClient(create_app()) as client:
+        post = client.post(
+            "/families",
+            json={
+                "name": "RotaryStage",
+                "affordances": ["Rotatable", "Homeable", "Bendable"],
+            },
+        )
+        assert post.status_code == 201
+        family_id = post.json()["family_id"]
+
+        get = client.get(f"/families/{family_id}")
+        assert get.status_code == 200
+        assert get.json()["affordances"] == ["Bendable", "Homeable", "Rotatable"]
+
+
+@pytest.mark.contract
+def test_post_capabilities_dedupes_duplicate_affordances_via_frozenset() -> None:
+    """Duplicate affordance entries in the request body dedupe at the
+    handler boundary (`frozenset(body.affordances)`); the response
+    shows each affordance exactly once."""
+    with TestClient(create_app()) as client:
+        post = client.post(
+            "/families",
+            json={
+                "name": "DupTest",
+                "affordances": ["Rotatable", "Rotatable", "Homeable"],
+            },
+        )
+        assert post.status_code == 201
+        family_id = post.json()["family_id"]
+        get = client.get(f"/families/{family_id}")
+        assert get.json()["affordances"] == ["Homeable", "Rotatable"]
+
+
+@pytest.mark.contract
+def test_post_capabilities_rejects_unknown_affordance_with_422() -> None:
+    """Pydantic enum-validation catches an unknown affordance string
+    at the API boundary, before the request reaches the handler."""
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/families",
+            json={"name": "BadAffordance", "affordances": ["Bogus"]},
+        )
+    assert response.status_code == 422
+
+
+@pytest.mark.contract
+def test_post_capabilities_rejects_missing_affordances_field_with_422() -> None:
+    """The affordances field is REQUIRED at define_family time per
+    DLM-A Pattern P. Omitting it returns 422, never 201 with empty
+    default."""
+    with TestClient(create_app()) as client:
+        response = client.post("/families", json={"name": "MissingField"})
+    assert response.status_code == 422
+
+
+@pytest.mark.contract
+def test_get_capabilities_renders_empty_affordances_as_list_not_null() -> None:
+    """An explicitly-empty affordance set serializes as `[]`, never
+    `null`. Determinism for clients that filter on the field shape."""
+    with TestClient(create_app()) as client:
+        post = client.post("/families", json={"name": "Scintillator", "affordances": []})
+        family_id = post.json()["family_id"]
+        get = client.get(f"/families/{family_id}")
+
+    body = get.json()
+    assert body["affordances"] == []
+    assert body["affordances"] is not None
