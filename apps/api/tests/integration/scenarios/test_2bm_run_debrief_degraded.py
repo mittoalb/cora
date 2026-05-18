@@ -1,7 +1,7 @@
 """RunDebrief on a DegradedCompletion Run at APS 2-BM.
 
 cluster: Advisories
-archetype: agent-driven
+archetype: agent
 bc_primary: Decision
 bc_touches: Campaign, Decision, Equipment, Recipe, Run, Subject
 

@@ -1,7 +1,7 @@
 """Sibling Agent tool-grant / revoke / deprecation at APS 2-BM.
 
 cluster: Seed
-archetype: fsm-walk
+archetype: fsm
 bc_primary: Agent
 bc_touches: Agent
 

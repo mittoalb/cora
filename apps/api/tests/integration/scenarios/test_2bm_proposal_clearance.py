@@ -1,7 +1,7 @@
 """Proposal-clearance FSM walk at APS 2-BM.
 
 cluster: Staging
-archetype: fsm-walk
+archetype: fsm
 bc_primary: Safety
 bc_touches: Access, Safety
 
@@ -119,8 +119,6 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
-from cora.access.features.register_actor import RegisterActor
-from cora.access.features.register_actor import bind as bind_register_actor
 from cora.campaign.aggregates.campaign import CampaignIntent
 from cora.safety.aggregates.clearance import (
     ClearanceKind,
@@ -152,6 +150,8 @@ from tests.integration.scenarios._beamtime_fixture import (
     open_beamtime,
 )
 from tests.integration.scenarios._facility_fixture import (
+    BEAMLINE_SCIENTIST_ACTOR_ID,
+    ESRB_ACTOR_ID,
     DeviceSpec,
     facility_id_prefix,
     install_aps_unit,
@@ -180,8 +180,8 @@ _PI_ACTOR_ID = UUID("01900000-0000-7000-8000-000000440b01")
 _SUBJECT_ID = UUID("01900000-0000-7000-8000-000000440b11")
 _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000440b21")
 
-_BEAMLINE_SCIENTIST_ACTOR_ID = UUID("01900000-0000-7000-8000-000000440b31")
-_ESRB_ACTOR_ID = UUID("01900000-0000-7000-8000-000000440b41")
+# Review-chain reviewers (`BEAMLINE_SCIENTIST_ACTOR_ID`, `ESRB_ACTOR_ID`)
+# are registered by `install_aps_unit` (canonical fixture-owned UUIDs).
 _CLEARANCE_ID = UUID("01900000-0000-7000-8000-000000440f01")
 
 _DEVICES = (
@@ -218,11 +218,6 @@ def _id_queue() -> list[UUID]:
             devices=_DEVICES,
         ),
         *beamtime_id_prefix(spec=_BEAMTIME),
-        # register_actor x 2 (BeamlineScientist + ESRB reviewer Actors)
-        _BEAMLINE_SCIENTIST_ACTOR_ID,
-        e(),
-        _ESRB_ACTOR_ID,
-        e(),
         # register_clearance: clearance_id, event_id
         _CLEARANCE_ID,
         e(),
@@ -268,22 +263,6 @@ async def test_proposal_clearance_walks_to_active(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         spec=_BEAMTIME,
-    )
-
-    # ----- Register the two reviewer Actors (BeamlineScientist + ESRB) -----
-    # The reviewers need to exist as Actors so review-step actor_id refs
-    # resolve. Use register_actor inline; this is the only place in the
-    # scenario where reviewer identity matters.
-
-    await bind_register_actor(deps)(
-        RegisterActor(name="2-BM Beamline Scientist"),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    await bind_register_actor(deps)(
-        RegisterActor(name="APS Experiment Safety Review Board"),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
     )
 
     # ----- Safety BC: register ESAF for the proposal -----
@@ -370,7 +349,7 @@ async def test_proposal_clearance_walks_to_active(
             clearance_id=_CLEARANCE_ID,
             step_index=0,
             role="BeamlineScientist",
-            actor_id=_BEAMLINE_SCIENTIST_ACTOR_ID,
+            actor_id=BEAMLINE_SCIENTIST_ACTOR_ID,
             decision="Approved",
             decided_at=_NOW,
             notes=(
@@ -389,7 +368,7 @@ async def test_proposal_clearance_walks_to_active(
             clearance_id=_CLEARANCE_ID,
             step_index=1,
             role="ESRB",
-            actor_id=_ESRB_ACTOR_ID,
+            actor_id=ESRB_ACTOR_ID,
             decision="Approved",
             decided_at=_NOW,
             notes="Board concurrence; LGTM.",

@@ -1,7 +1,7 @@
 """Continuous-rotation sweep at APS 2-BM.
 
 cluster: Runs
-archetype: full-run-lifecycle
+archetype: cycle
 bc_primary: Run
 bc_touches: Campaign, Data, Equipment, Recipe, Run, Subject
 

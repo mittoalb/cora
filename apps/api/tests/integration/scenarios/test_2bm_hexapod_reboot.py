@@ -1,7 +1,7 @@
 """Hexapod reboot at APS 2-BM.
 
 cluster: Commissioning
-archetype: fsm-walk
+archetype: fsm
 bc_primary: Equipment
 bc_touches: Caution, Equipment, Operation, Recipe
 

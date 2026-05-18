@@ -1,7 +1,7 @@
 """Run.start cross-BC gate enforcement at APS 2-BM.
 
 cluster: Staging
-archetype: gate-enforcement
+archetype: gate
 bc_primary: Safety
 bc_touches: Access, Campaign, Equipment, Recipe, Run, Safety, Subject
 
@@ -106,8 +106,6 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
-from cora.access.features.register_actor import RegisterActor
-from cora.access.features.register_actor import bind as bind_register_actor
 from cora.campaign.aggregates.campaign import CampaignIntent
 from cora.campaign.features.add_run_to_campaign import AddRunToCampaign
 from cora.campaign.features.add_run_to_campaign import bind as bind_add_run_to_campaign
@@ -149,7 +147,10 @@ from tests.integration.scenarios._beamtime_fixture import (
     beamtime_id_prefix,
     open_beamtime,
 )
-from tests.integration.scenarios._facility_fixture import operator_for
+from tests.integration.scenarios._facility_fixture import (
+    BEAMLINE_SCIENTIST_ACTOR_ID,
+    operator_for,
+)
 from tests.integration.scenarios._tomography_fixture import (
     RecipeSpec,
     TomographyAssetIds,
@@ -182,7 +183,8 @@ _ASSET_SCINTILLATOR_LUAG_ID = UUID("01900000-0000-7000-8000-000000441a41")
 _PI_ACTOR_ID = UUID("01900000-0000-7000-8000-000000441b01")
 _SUBJECT_ID = UUID("01900000-0000-7000-8000-000000441b11")
 _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000441b21")
-_REVIEWER_ACTOR_ID = UUID("01900000-0000-7000-8000-000000441b31")
+# Reviewer Actor (`BEAMLINE_SCIENTIST_ACTOR_ID`) is registered by
+# `install_aps_unit` (canonical fixture-owned UUID).
 _CLEARANCE_ID = UUID("01900000-0000-7000-8000-000000441f01")
 _METHOD_ID = UUID("01900000-0000-7000-8000-000000441d01")
 _PRACTICE_ID = UUID("01900000-0000-7000-8000-000000441d11")
@@ -267,9 +269,6 @@ def _id_queue() -> list[UUID]:
         # though the decider raises and no event is emitted. (Event-id
         # is NOT consumed; only the run_id allocation runs first.)
         e(),  # consumed by the failed start_run's id_generator.new_id()
-        # register_actor (reviewer)
-        _REVIEWER_ACTOR_ID,
-        e(),
         # register_clearance + walk to Active (7 events)
         _CLEARANCE_ID,
         e(),  # register
@@ -376,12 +375,7 @@ async def test_run_start_blocked_then_unblocked_by_clearance_activation(
         )
 
     # ----- Register + walk the ESAF Clearance to Active -----
-
-    await bind_register_actor(deps)(
-        RegisterActor(name="2-BM Beamline Scientist + ESRB Reviewer"),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
+    # Reviewer (BS) is the canonical Actor registered by `install_aps_unit`.
 
     subject_binding = SubjectBinding(subject_id=_SUBJECT_ID)
 
@@ -413,7 +407,7 @@ async def test_run_start_blocked_then_unblocked_by_clearance_activation(
             clearance_id=_CLEARANCE_ID,
             step_index=0,
             role="BeamlineScientist",
-            actor_id=_REVIEWER_ACTOR_ID,
+            actor_id=BEAMLINE_SCIENTIST_ACTOR_ID,
             decision="Approved",
             decided_at=_NOW,
             notes="LGTM",

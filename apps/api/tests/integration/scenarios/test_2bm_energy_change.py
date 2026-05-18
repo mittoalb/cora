@@ -1,7 +1,7 @@
 """Mid-beamtime energy change at APS 2-BM.
 
 cluster: Runs
-archetype: full-run-lifecycle
+archetype: cycle
 bc_primary: Decision
 bc_touches: Campaign, Data, Decision, Equipment, Recipe, Run, Subject
 

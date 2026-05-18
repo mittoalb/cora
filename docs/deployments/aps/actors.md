@@ -1,17 +1,24 @@
 # Actors
 
-*Access BC Actors registered at APS by the canonical facility install (`test_aps_facility.py`). These are facility-wide principals: roles that work across any sector or beamline. Per-beamline staff Actors (the 2-BM operator pool, proposal PIs bound to a specific beamtime) live with their beamline. See [Model](../../architecture/model.md) for the aggregate shape.*
+*Access BC Actors that are conceptually facility-wide at APS.*
 
+APS User Office accounts (proposal PIs), facility safety-process reviewers (ESRB, Beamline Scientists in review-chain capacity), the canonical APS Operator identity, and the AI Agent's co-registered Actor row. Beamline-bound staff (the 2-BM operator pool) live with their beamline. See [Model](../../architecture/model.md) for the aggregate shape.
 
-| Actor | Kind | Role |
-| --- | --- | --- |
-| `APS Operator` | `human` | Facility-level operator principal; the canonical "anyone on shift at APS" identity, used by scenarios that are not beamline-specific |
-| `Run Debrief` | `agent` | The AI agent co-registered as an Actor by `define_agent` in one atomic cross-BC write (see [Agents](agents.md)); canonical UUID shared with the [2-BM Agent Policy](../2-bm/policies.md) |
+| Actor | Kind |
+| --- | --- |
+| `APS Operator` | `human` |
+| `Run Debrief` | `agent` |
+| `APS Experiment Safety Review Board` | `human` |
+| `2-BM Beamline Scientist` | `human` |
+| `Proposal 2026-1234 PI` | `human` |
+| `Proposal 2026-1235 PI` | `human` |
+| `Proposal 2026-1236 PI` | `human` |
+| `Proposal 2026-1237 PI` | `human` |
+| `Sample-of-opportunity PI` | `human` |
 
-Source of truth: [`apps/api/tests/integration/scenarios/test_aps_facility.py`](../../../apps/api/tests/integration/scenarios/test_aps_facility.py) (`RegisterActor(name="APS Operator")` at line 177; the cross-BC atomic Run Debrief Actor + Agent at lines 119-123 / 184-199), [`apps/api/tests/integration/scenarios/_facility_fixture.py`](../../../apps/api/tests/integration/scenarios/_facility_fixture.py) (canonical `RUN_DEBRIEF_ACTOR_ID`).
+## Pending
 
-For the beamline-bound principals these facility-wide rows do NOT cover (operator pool, proposal PIs, review-chain reviewers), see [2-BM Actors](../2-bm/actors.md).
-
-## Pending in code
-
-Additional facility-wide principals (named APS scientific staff with cross-beamline duties, additional sibling Agents beyond `RunDebrief`) are not yet registered. When they land they will be additional rows above.
+| Actor | Kind |
+| --- | --- |
+| Named APS scientific staff (cross-beamline duties) | `human` |
+| Real ESRB membership (vs committee-as-actor) | `human` |

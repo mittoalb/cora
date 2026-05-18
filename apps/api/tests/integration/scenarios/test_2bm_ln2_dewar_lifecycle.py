@@ -1,7 +1,7 @@
 """LN2 dewar Supply lifecycle at APS 2-BM.
 
 cluster: Seed
-archetype: fsm-walk
+archetype: fsm
 bc_primary: Supply
 bc_touches: Supply
 

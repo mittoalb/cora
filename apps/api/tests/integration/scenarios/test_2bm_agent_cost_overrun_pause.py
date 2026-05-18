@@ -1,7 +1,7 @@
 """Operator-paused RunDebrief agent at APS 2-BM (cost overrun).
 
 cluster: Seed
-archetype: fsm-walk
+archetype: fsm
 bc_primary: Agent
 bc_touches: Agent
 

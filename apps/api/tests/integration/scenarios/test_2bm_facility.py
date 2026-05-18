@@ -1,7 +1,7 @@
 """2-BM facility install (Unit + Devices + Trust shape).
 
 cluster: Seed
-archetype: setup-only
+archetype: setup
 bc_primary: Equipment
 bc_touches: Access, Equipment, Trust
 
@@ -17,7 +17,8 @@ this scenario fits into.
 ## Coverage
 
   - **Access BC**: 3 human operator Actors (operator pool: 2-BM Operator
-    1/2/3 with canonical fixture-owned UUIDs)
+    1/2/3 with canonical fixture-owned UUIDs) + 2 review-chain reviewer
+    Actors (2-BM Beamline Scientist + APS Experiment Safety Review Board)
   - **Equipment BC**: Argonne (Enterprise) + APS (Site) + Sector 2 (Area)
     + 2-BM (Unit) + 2 Devices (rotary + linear motor, with Capabilities)
   - **Trust BC**: 2-BM Zone + 2-BM Local Conduit (self-loop) + 2 Policies
@@ -48,10 +49,14 @@ from cora.trust.aggregates.policy import load_policy
 from cora.trust.aggregates.zone import load_zone
 from tests.integration._helpers import build_postgres_deps
 from tests.integration.scenarios._facility_fixture import (
+    BEAMLINE_SCIENTIST_ACTOR_ID,
+    BEAMLINE_SCIENTIST_NAME,
     BM2_AGENT_POLICY_ID,
     BM2_LOCAL_CONDUIT_ID,
     BM2_OPERATIONS_POLICY_ID,
     BM2_ZONE_ID,
+    ESRB_ACTOR_ID,
+    ESRB_NAME,
     OPERATOR_NAMES,
     OPERATOR_POOL_IDS,
     RUN_DEBRIEF_ACTOR_ID,
@@ -115,6 +120,8 @@ async def test_2bm_facility_install_plays_out_end_to_end(
 
     # ----- FacilityIds: canonical fixture-owned + scenario-supplied -----
     assert result.operator_pool_ids == OPERATOR_POOL_IDS
+    assert result.beamline_scientist_actor_id == BEAMLINE_SCIENTIST_ACTOR_ID
+    assert result.esrb_actor_id == ESRB_ACTOR_ID
     assert result.argonne_id == _ARGONNE_ENTERPRISE_ID
     assert result.aps_site_id == _APS_SITE_ID
     assert result.unit_id == _2BM_UNIT_ID
@@ -129,6 +136,17 @@ async def test_2bm_facility_install_plays_out_end_to_end(
         assert actor is not None
         assert actor.kind is ActorKind.HUMAN
         assert actor.name.value == name
+
+    # ----- Access BC: 2 review-chain reviewer Actors -----
+    bs_actor = await load_actor(deps.event_store, BEAMLINE_SCIENTIST_ACTOR_ID)
+    assert bs_actor is not None
+    assert bs_actor.kind is ActorKind.HUMAN
+    assert bs_actor.name.value == BEAMLINE_SCIENTIST_NAME
+
+    esrb_actor = await load_actor(deps.event_store, ESRB_ACTOR_ID)
+    assert esrb_actor is not None
+    assert esrb_actor.kind is ActorKind.HUMAN
+    assert esrb_actor.name.value == ESRB_NAME
 
     # ----- Equipment BC: Asset stream versions reflect register + add_capability -----
     _, argonne_version = await deps.event_store.load("Asset", _ARGONNE_ENTERPRISE_ID)

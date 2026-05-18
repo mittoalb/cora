@@ -37,13 +37,21 @@ CLUSTER_ORDER: tuple[str, ...] = (
 )
 
 ARCHETYPE_ORDER: tuple[str, ...] = (
-    "setup-only",
-    "single-routine",
-    "full-run-lifecycle",
-    "fsm-walk",
-    "gate-enforcement",
-    "agent-driven",
+    "setup",
+    "routine",
+    "cycle",
+    "fsm",
+    "gate",
+    "agent",
 )
+
+CLUSTER_BLURBS: dict[str, str] = {
+    "Seed": "Facility install + Agent BC config + Supply state",
+    "Commissioning": "Alignment chain + non-alignment bring-up + detector baselines",
+    "Staging": "Pre-Run intake + clearance gates",
+    "Runs": "Acquisition variants + lifecycle edges",
+    "Advisories": "Agent-driven subscriber output",
+}
 
 
 def _stem_to_label(stem: str) -> str:
@@ -110,26 +118,19 @@ def render_index(metas: list[ScenarioMeta]) -> str:
     cluster_counts = Counter(m.cluster for m in metas)
     lines: list[str] = ["# Scenarios", ""]
     lines.append(
-        "The operator routines CORA exercises end-to-end through its BC stack. "
-        "Each test here is also the source of truth for its corresponding entries "
-        "on the [Deployments](../deployments/index.md) inventory pages."
+        "Operator routines that CORA runs end-to-end. Each scenario here is also "
+        "the source of truth for its entries on the per-beamline "
+        "[Deployments](../deployments/index.md) pages."
     )
     lines.append("")
     lines.append("## Browse by purpose")
     lines.append("")
     lines.append("| Cluster | Today | What's in it |")
     lines.append("| --- | ---: | --- |")
-    cluster_blurbs = {
-        "Seed": "Facility install + Agent BC config + Supply state",
-        "Commissioning": "Alignment chain + non-alignment bring-up + detector baselines",
-        "Staging": "Pre-Run intake + clearance gates",
-        "Runs": "Acquisition variants + lifecycle edges",
-        "Advisories": "Agent-driven subscriber output",
-    }
     for cluster in CLUSTER_ORDER:
         count = cluster_counts.get(cluster, 0)
         lines.append(
-            f"| [{cluster}]({cluster.lower()}.md) | {count} | {cluster_blurbs[cluster]} |"
+            f"| [{cluster}]({cluster.lower()}.md) | {count} | {CLUSTER_BLURBS[cluster]} |"
         )
     lines.append("")
     lines.append("## Browse by other axes")
@@ -162,18 +163,13 @@ def render_cluster(cluster: str, metas: list[ScenarioMeta]) -> str:
     intro = _load_intro(cluster)
     if intro:
         lines.append(intro)
-        lines.append("")
-        lines.append(
-            "For domain instances these scenarios produce (Runs, Subjects, "
-            "Assets), see the per-beamline "
-            "[Deployments](../deployments/index.md) inventories."
-        )
     else:
-        lines.append(
-            f"*Auto-generated table of scenarios in the **{cluster}** cluster.* "
-            f"For Run instances and other domain state these scenarios produce, "
-            f"see the per-beamline [Deployments](../deployments/index.md) inventories."
-        )
+        lines.append(f"Scenarios in the {cluster} cluster.")
+    lines.append("")
+    lines.append(
+        "For the Runs, Subjects, and Assets these scenarios produce, see the "
+        "per-beamline [Deployments](../deployments/index.md) inventories."
+    )
     lines.append("")
     if not members:
         lines.append("_No scenarios in this cluster yet._")
@@ -195,9 +191,10 @@ def render_by_archetype(metas: list[ScenarioMeta]) -> str:
         by_arch[m.archetype].append(m)
     lines: list[str] = ["# Scenarios by shape", ""]
     lines.append(
-        "Pivot of the corpus by archetype (how each test is constructed). "
-        "Same scenarios are grouped by purpose under [Clusters](index.md#browse-by-purpose) "
-        "and by BC under [by-bc](by-bc.md)."
+        "Scenarios grouped by shape, meaning how each test is constructed. "
+        "Same scenarios are also browsable by "
+        "[purpose](index.md#browse-by-purpose) and by "
+        "[bounded context](by-bc.md)."
     )
     lines.append("")
     for archetype in ARCHETYPE_ORDER:
@@ -208,13 +205,8 @@ def render_by_archetype(metas: list[ScenarioMeta]) -> str:
             lines.append("_No scenarios with this shape yet._")
             lines.append("")
             continue
-        # Collapsible per-archetype section. md_in_html lets the
-        # markdown table inside render normally; the anchor on the
-        # <details> element keeps deep links from per-scenario stubs
-        # working, and mkdocs-material auto-opens the targeted section.
-        lines.append(f'<details markdown class="scenarios-section" id="{archetype}">')
         lines.append(
-            f"<summary><code>{archetype}</code> &middot; {len(members)} scenarios</summary>"
+            f"## `{archetype}` ({len(members)}) {{ #{archetype} }}"
         )
         lines.append("")
         lines.append("| Scenario | Cluster | Gist |")
@@ -225,8 +217,6 @@ def render_by_archetype(metas: list[ScenarioMeta]) -> str:
                 f"| [{label}]({_scenario_link(meta.stem)}) | "
                 f"[{meta.cluster}]({meta.cluster.lower()}.md) | {meta.gist} |"
             )
-        lines.append("")
-        lines.append("</details>")
         lines.append("")
     return "\n".join(lines) + "\n"
 
@@ -239,9 +229,10 @@ def render_by_bc(metas: list[ScenarioMeta]) -> str:
             touches_counts[bc] += 1
     lines: list[str] = ["# Scenarios by bounded context", ""]
     lines.append(
-        "All 14 BCs in CORA's codebase, with scenario coverage today. "
-        "BCs with zero `bc_primary` scenarios remain visible as coverage "
-        "gaps (OpenTelemetry registry pattern)."
+        "Scenarios grouped by bounded context. Every BC in CORA's codebase "
+        "appears, even those with no scenarios today, so coverage gaps stay "
+        "visible. Same scenarios are also browsable by "
+        "[purpose](index.md#browse-by-purpose) and by [shape](by-archetype.md)."
     )
     lines.append("")
     lines.append("| BC | Primary in | Touched in |")
@@ -266,15 +257,10 @@ def render_by_bc(metas: list[ScenarioMeta]) -> str:
             lines.append("_No scenarios touch this BC yet._")
             lines.append("")
             continue
-        # Collapsible per-BC section. Default-closed so the page reads as
-        # an overview; click a BC to expand. mkdocs-material auto-opens
-        # the targeted section when the URL fragment matches the id.
         primary_count = sum(1 for m in members if m.bc_primary == bc)
-        lines.append(f'<details markdown class="scenarios-section" id="{bc.lower()}">')
         lines.append(
-            f"<summary><strong>{bc}</strong> &middot; "
-            f"{len(members)} touches &middot; "
-            f"{primary_count} primary</summary>"
+            f"### {bc} ({len(members)} touches, {primary_count} primary) "
+            f"{{ #{bc.lower()} }}"
         )
         lines.append("")
         lines.append("| Scenario | Cluster | Gist |")
@@ -288,8 +274,6 @@ def render_by_bc(metas: list[ScenarioMeta]) -> str:
                 f"| [{meta.cluster}]({meta.cluster.lower()}.md) "
                 f"| {meta.gist} |"
             )
-        lines.append("")
-        lines.append("</details>")
         lines.append("")
     return "\n".join(lines) + "\n"
 
@@ -333,6 +317,7 @@ def render_all(metas: list[ScenarioMeta]) -> dict[str, str]:
 
 __all__ = [
     "ARCHETYPE_ORDER",
+    "CLUSTER_BLURBS",
     "CLUSTER_ORDER",
     "render_all",
     "render_by_archetype",

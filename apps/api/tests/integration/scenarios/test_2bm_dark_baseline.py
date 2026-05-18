@@ -1,7 +1,7 @@
 """Detector dark baseline at APS 2-BM.
 
 cluster: Commissioning
-archetype: single-routine
+archetype: routine
 bc_primary: Operation
 bc_touches: Data, Equipment, Operation, Recipe
 

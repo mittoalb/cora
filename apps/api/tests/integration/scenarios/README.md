@@ -37,22 +37,24 @@ Locked 2026-05-17 (see [`project_scenario_taxonomy`](../../../../../../.claude/p
 
 | Name | Theme | Growth |
 | --- | --- | --- |
-| `Seed` | Facility install + Agent BC config + Supply state | Moderate (per-deployment, per-agent-kind, per-supply-kind) |
-| `Commissioning` | Alignment chain + non-alignment bring-up + detector baselines | HIGH (open-ended per beamline + modality) |
+| `Seed` | Facility install + Agent config + Supply state | Moderate |
+| `Commissioning` | Alignment chain + bring-up + detector baselines | HIGH |
 | `Staging` | Pre-Run intake + clearance gates | Low-moderate |
-| `Runs` | Acquisition variants + lifecycle edges | HIGH (open-ended per scan mode) |
-| `Advisories` | Agent-driven subscriber output | Moderate (RunDebrief + CautionDrafter + future agents) |
+| `Runs` | Acquisition variants + lifecycle edges | HIGH |
+| `Advisories` | Agent-driven subscriber output | Moderate |
+
+Growth axes: `Seed` widens per-deployment / per-agent-kind / per-supply-kind. `Commissioning` and `Runs` are open-ended per beamline + modality / per scan mode. `Advisories` widens per agent (RunDebrief + CautionDrafter + future).
 
 Split trigger: when a cluster crosses 15 scenarios, split via its pre-organized H2 sections.
 
-### Archetypes (6, kebab-case, closed)
+### Archetypes (6, single-word, closed)
 
-- `setup-only` — registers entities, no Run
-- `single-routine` — one Procedure or one slice exercise
-- `full-run-lifecycle` — Plan → start → readings → terminal → Dataset
-- `fsm-walk` — deliberately walks an aggregate through full FSM
-- `gate-enforcement` — proves a cross-BC guard blocks/allows
-- `agent-driven` — writes via Agent BC subscriber
+- `setup` — registers entities, no Run
+- `routine` — one Procedure or one slice exercise
+- `cycle` — Plan → start → readings → terminal → Dataset
+- `fsm` — deliberately walks an aggregate through full FSM
+- `gate` — proves a cross-BC guard blocks/allows
+- `agent` — writes via Agent BC subscriber
 
 Cluster = theme (the operator-perceived purpose). Archetype = shape (how the test is constructed). Same scenario gets one of each.
 
@@ -68,7 +70,7 @@ Every scenario's module docstring carries:
 """<one-line gist of the operator routine>
 
 cluster: <Seed|Commissioning|Staging|Runs|Advisories>
-archetype: <setup-only|single-routine|full-run-lifecycle|fsm-walk|gate-enforcement|agent-driven>
+archetype: <setup|routine|cycle|fsm|gate|agent>
 bc_primary: <Equipment|Recipe|...>
 bc_touches: <Equipment, Recipe, ...>
 """

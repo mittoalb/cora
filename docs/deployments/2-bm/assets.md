@@ -1,140 +1,66 @@
 # Assets
 
-*Equipment BC Assets registered **under** the 2-BM Unit (the Devices that hang off it). The 2-BM Asset itself sits at the Unit level and is declared on the [2-BM index](index.md). See [Model](../../architecture/model.md) for the aggregate shape.*
+*Equipment BC Assets registered under the 2-BM Unit.*
 
+The Devices that hang off 2-BM. The 2-BM Asset itself sits at the Unit level and is declared on the [2-BM index](index.md). See [Model](../../architecture/model.md) for the aggregate shape.
 
 | Asset | Capability |
 | --- | --- |
-| [`Shutter_2BM`](#shutter_2bm) | `Shutter` |
-| [`Aerotech_ABRS_rotary`](#aerotech_abrs_rotary) | `RotaryStage` |
-| [`Sample_top_X`](#sample_top_x) | `LinearStage` |
-| [`Sample_top_Z`](#sample_top_z) | `LinearStage` |
-| [`Sample_top_Roll`](#sample_top_roll) | `LinearStage` |
-| [`Sample_top_Pitch`](#sample_top_pitch) | `LinearStage` |
-| [`Hexapod_2BM`](#hexapod_2bm) | `Hexapod` |
-| [`Optique_Peter_focus_Z`](#optique_peter_focus_z) | `LinearStage` |
-| [`Scintillator_LuAG`](#scintillator_luag) | `Scintillator` |
-| [`Oryx_5MP_camera`](#oryx_5mp_camera) | `Camera` |
+| `Shutter_2BM` | `Shutter` |
+| `Aerotech_ABRS_rotary` | `RotaryStage` |
+| `Sample_top_X` | `LinearStage` |
+| `Sample_top_Z` | `LinearStage` |
+| `Sample_top_Roll` | `LinearStage` |
+| `Sample_top_Pitch` | `LinearStage` |
+| `Hexapod_2BM` | `Hexapod` |
+| `Optique_Peter_focus_Z` | `LinearStage` |
+| `Scintillator_LuAG` | `Scintillator` |
+| `Oryx_5MP_camera` | `Camera` |
 
-## Shutters
-
-### `Shutter_2BM`
-
-| | |
-| --- | --- |
-| Name | `Shutter_2BM` |
-| Capability | `Shutter` |
-
-## Rotary stages
+## Settings
 
 ### `Aerotech_ABRS_rotary`
 
-| | |
+| Setting | Value |
 | --- | --- |
-| Name | `Aerotech_ABRS_rotary` |
-| Capability | `RotaryStage` (Aerotech ABRS) |
-| Caution | [Aerotech cold-start index miss](cautions.md#aerotech-cold-start-index-miss) |
 | `min_position` | `−360 deg` |
 | `max_position` | `360 deg` |
 | `max_speed` | `720 deg/s` |
 | `encoder_resolution` | `0.0001 deg` |
 | `homing_offset` | `0 deg` |
 
-## Linear stages
-
 ### `Sample_top_X`
 
-| | |
+| Setting | Value |
 | --- | --- |
-| Name | `Sample_top_X` |
-| Capability | `LinearStage` (Kohzu CYAT-070) |
-| Role | Lateral correction for rotation-axis alignment. |
 | `min_position` | `−10 mm` |
 | `max_position` | `10 mm` |
 | `max_speed` | `1 mm/s` |
 | `encoder_resolution` | `0.0005 mm` |
 
-### `Sample_top_Z`
-
-| | |
-| --- | --- |
-| Name | `Sample_top_Z` |
-| Capability | `LinearStage` |
-| Role | Sample-to-scintillator distance. |
-
-### `Sample_top_Roll`
-
-| | |
-| --- | --- |
-| Name | `Sample_top_Roll` |
-| Capability | `LinearStage` |
-| Role | Roll tilt for rotation-axis alignment. |
-
-### `Sample_top_Pitch`
-
-| | |
-| --- | --- |
-| Name | `Sample_top_Pitch` |
-| Capability | `LinearStage` |
-| Role | Pitch tilt for rotation-axis alignment. |
-
-### `Optique_Peter_focus_Z`
-
-| | |
-| --- | --- |
-| Name | `Optique_Peter_focus_Z` |
-| Capability | `LinearStage` (Optique Peter microscope) |
-| Role | Lens-to-scintillator focus inside the microscope. |
-
-## Hexapods
-
-### `Hexapod_2BM`
-
-| | |
-| --- | --- |
-| Name | `Hexapod_2BM` |
-| Capability | `Hexapod` (PI) |
-| Caution | [Hexapod controller lockup](cautions.md#hexapod-controller-lockup) |
-
-## Scintillators
-
 ### `Scintillator_LuAG`
 
-| | |
+| Setting | Value |
 | --- | --- |
-| Name | `Scintillator_LuAG` |
-| Capability | `Scintillator` (LuAG:Ce) |
 | `thickness` | `100 um` |
 | `decay_time` | `0.07 us` |
 
-## Cameras
-
 ### `Oryx_5MP_camera`
 
-| | |
+| Setting | Value |
 | --- | --- |
-| Name | `Oryx_5MP_camera` |
-| Capability | `Camera` (FLIR ORX-10G-51S5M-C) |
 | `sensor_width` | `2448 pixel` |
 | `sensor_height` | `2048 pixel` |
 | `pixel_size` | `3.45 um` |
 | `bit_depth` | `12 bit` |
 
-## About Settings
-
-`Capability.settings_schema` declares the per-class property contract (positions, encoder resolution, hardware envelope). `Asset.settings` carries this Device's values. Runtime parameters (exposure, energy, rotation step) live on `Method.parameters_schema` instead.
-
-Numeric properties carry a `unit` annotation per the [units design](../../architecture/model.md): one unit per physical dimension per Capability. Different dimensions in the same Capability use different unit codes (`deg` for position, `deg/s` for speed).
-
-Assets without schema-keyed rows have no `Capability.settings_schema` yet; rows land when the schema does.
-
 ## Pending
 
-Devices catalogued in 2-BM ops material but not yet registered in the inventory above.
-
-- **`Mirror_2BM`** — `Mirror` Capability. White-beam mirror with multi-stripe coating (Cr / Pt / W-Si multilayer / Rh).
-- **`softGlueZynq_FPGA`** — `TriggerFPGA` Capability. Hardware trigger generation for fly-scans.
-- **`PCO_Dimax_HS`** — `HighSpeedCamera`. High-speed detector for vibration baselines and continuous-rotation sweeps.
-- **Optique Peter triple-objective microscope** — `LinearStage` ×3 + `Scintillator` ×3. Three-objective swap stack (Mitutoyo 1.1x / 5x / 10x).
-- **Broader sample-stage motors** — `LinearStage` (X / Y / Z) + tilt motors. Used in mosaic and multi-tile acquisitions.
-- **IOC-hosted EPICS Devices** — 8 IOC pairs in `2bmb-bin`.
+| Asset | Capability |
+| --- | --- |
+| `Mirror_2BM` | `Mirror` |
+| `softGlueZynq_FPGA` | `TriggerFPGA` |
+| `PCO_Dimax_HS` | `HighSpeedCamera` |
+| Optique Peter triple-objective microscope | `LinearStage` ×3 + `Scintillator` ×3 |
+| Broader sample-stage motors | `LinearStage` + tilt motors |
+| IOC-hosted EPICS Devices | |

@@ -1,3 +1,1 @@
-Foundational scenarios that establish the runtime surface every other cluster depends on: the facility hierarchy (Argonne → APS → Sector → 2-BM), Agent BC configuration lifecycle (define, version, suspend, grant tools, deprecate), and facility-level Supply state (LN2 dewar walk through `Unknown → Available → Degraded → Unavailable → Recovering`). These scenarios are not operator-daily routines; they catalog the things that *exist* so commissioning, staging, and runs can refer to them.
-
-This cluster grows linearly: one facility scenario per new beamline, one Agent scenario per new Agent kind, one Supply scenario per new supply kind. None of it touches a Run.
+Facility-wide state established once, before any Run: facility hierarchy (Argonne → APS → 2-BM), Agent BC lifecycle (define, version, suspend, grant tools, deprecate), and Supply state (LN2 dewar through `Unknown → Available → Degraded → Unavailable → Recovering`).

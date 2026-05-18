@@ -210,6 +210,14 @@ body::before {
   white-space: nowrap;
 }
 
+/* One row = one line. Long-gist columns would otherwise wrap to 2-3 lines
+   and break the table's scan-rhythm; Material wraps the table in an
+   overflow-x container, so anything wider than the viewport horizontally
+   scrolls instead of wrapping. */
+.md-typeset table:not([class]) td {
+  white-space: nowrap;
+}
+
 /* ---- Modern table styling ----
    Stripe / Linear / Vercel pattern: borderless body, single header divider,
    subtle row hover. Material's default cell borders make data tables read
@@ -272,58 +280,6 @@ body::before {
 [data-md-color-scheme="slate"] .md-typeset table:not([class]) th,
 [data-md-color-scheme="slate"] .md-typeset table:not([class]) td {
   border-color: rgba(255, 255, 255, 0.08);
-}
-
-/* ---- Collapsible scenarios sections (by-bc / by-archetype) ----
-   The raw <details> default reads as a browser triangle widget; we want
-   each section to scan as a section header that happens to be clickable.
-   Hairline separator above, no chrome, accent color on hover, default-
-   closed so the page is browsable as an overview. */
-.md-typeset .scenarios-section {
-  border-top: 1px solid var(--md-default-fg-color--lightest);
-  margin: 0;
-  padding: 0;
-}
-
-.md-typeset .scenarios-section:last-of-type {
-  border-bottom: 1px solid var(--md-default-fg-color--lightest);
-}
-
-.md-typeset .scenarios-section > summary {
-  cursor: pointer;
-  padding: 0.55rem 0.7rem;
-  font-size: 0.92em;
-  color: var(--md-default-fg-color);
-  list-style: none;
-  transition: background-color 120ms ease;
-}
-
-.md-typeset .scenarios-section > summary::-webkit-details-marker {
-  display: none;
-}
-
-.md-typeset .scenarios-section > summary::before {
-  content: "▸";
-  display: inline-block;
-  width: 1rem;
-  color: var(--md-default-fg-color--lighter);
-  transition: transform 150ms ease;
-}
-
-.md-typeset .scenarios-section[open] > summary::before {
-  transform: rotate(90deg);
-}
-
-.md-typeset .scenarios-section > summary:hover {
-  background-color: var(--md-accent-fg-color--transparent);
-  color: var(--md-accent-fg-color);
-}
-
-/* When a section is open, the inner table needs a small top breath so it
-   doesn't collide with the summary row. */
-.md-typeset .scenarios-section[open] > table {
-  margin-top: 0.3rem;
-  margin-bottom: 0.8rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -527,13 +483,12 @@ body::before {
 }
 
 /* ---- Left-nav section-head breathing room ----
-   Material gives every nav row a uniform pitch, so when a tab's nested
-   subsections (Argonne / APS / 2-BM / 35-BM under Deployments) collapse,
-   the section heads stack against each other with no visual separation.
-   Add a small top margin between consecutive nested-inside-nested items
-   so section heads read as groups whether expanded or collapsed. */
-.md-nav--primary .md-nav__item--nested + .md-nav__item--nested {
-  margin-top: 0.5rem;
+   Add a small top margin to any sibling that follows a nested item, so the
+   boundary between a section head (Clusters under Scenarios; Argonne/APS/
+   2-BM/35-BM under Deployments) and the next row reads as a soft group
+   break regardless of whether the next sibling is nested or a leaf. */
+.md-nav--primary .md-nav__item--nested + .md-nav__item {
+  margin-top: 1rem;
 }
 
 /* ---- Right-rail TOC active accent ----

@@ -29,12 +29,12 @@ CLUSTERS: frozenset[str] = frozenset(
 
 ARCHETYPES: frozenset[str] = frozenset(
     {
-        "setup-only",
-        "single-routine",
-        "full-run-lifecycle",
-        "fsm-walk",
-        "gate-enforcement",
-        "agent-driven",
+        "setup",
+        "routine",
+        "cycle",
+        "fsm",
+        "gate",
+        "agent",
     }
 )
 

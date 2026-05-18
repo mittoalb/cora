@@ -1,7 +1,7 @@
 """Mount sample at APS 2-BM.
 
 cluster: Staging
-archetype: setup-only
+archetype: setup
 bc_primary: Subject
 bc_touches: Access, Campaign, Equipment, Subject
 

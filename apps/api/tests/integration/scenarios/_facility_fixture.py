@@ -14,7 +14,7 @@ both together: the prefix MUST sit at the head of `_id_queue()` and the
 install call MUST happen before any scenario-specific commands consume
 the queue. Drift between the two corrupts every downstream id allocation.
 
-## Operator pool + Trust shape (canonical, fixture-owned)
+## Operator pool + Reviewer Actors + Trust shape (canonical, fixture-owned)
 
 The fixture owns canonical UUIDs for:
 
@@ -29,6 +29,16 @@ The fixture owns canonical UUIDs for:
     reference it; the actual `Agent` aggregate is only defined in the
     APS facility scenario (Run Debrief subscribes facility-wide, not
     per-beamline).
+  - **Review-chain reviewers**:
+      - `BEAMLINE_SCIENTIST_ACTOR_ID` (`2-BM Beamline Scientist`) —
+        beamline-bound identity, but the role they play in ESAF review
+        is facility safety-process work; doc-placed at APS.
+      - `ESRB_ACTOR_ID` (`APS Experiment Safety Review Board`) — the
+        facility's central safety committee, one identity reused
+        across every beamline's ESAFs.
+    Both registered here as part of the facility-install ceremony so
+    proposal-clearance + Run.start-gate scenarios share one canonical
+    Actor.id per reviewer rather than each scenario minting its own.
   - **2-BM Trust shape** (Zone + self-loop Conduit + 2 Policies). The
     Operations Policy permits the 3 human operators on operator-driven
     commands; the Agent Policy permits Run Debrief on decision commands.
@@ -112,7 +122,7 @@ from cora.trust.features.define_zone import bind as bind_define_zone
 
 # ---------------------------------------------------------------------------
 # Canonical, fixture-owned UUIDs (shared identity across all 2-BM scenarios).
-# Mnemonic hex tags in last segment: a=actor (operator pool + agent),
+# Mnemonic hex tags in last segment: a=actor (operator pool + reviewers + agent),
 # b=trust shape (b01=zone, b02=conduit, b03=ops policy, b04=agent policy).
 # ---------------------------------------------------------------------------
 
@@ -121,6 +131,15 @@ OPERATOR_2_ID = UUID("01900000-0000-7000-8000-000000002a02")
 OPERATOR_3_ID = UUID("01900000-0000-7000-8000-000000002a03")
 OPERATOR_POOL_IDS: tuple[UUID, UUID, UUID] = (OPERATOR_1_ID, OPERATOR_2_ID, OPERATOR_3_ID)
 OPERATOR_NAMES: tuple[str, str, str] = ("2-BM Operator 1", "2-BM Operator 2", "2-BM Operator 3")
+
+# Review-chain reviewer Actors. Beamline Scientist is beamline-named because
+# each beamline has its own scientist roster, but the role the BS plays in
+# ESAF review is APS-scope safety process; the doc inventory row lives at APS.
+# ESRB is the facility's central safety committee — one identity facility-wide.
+BEAMLINE_SCIENTIST_ACTOR_ID = UUID("01900000-0000-7000-8000-000000002a04")
+ESRB_ACTOR_ID = UUID("01900000-0000-7000-8000-000000002a05")
+BEAMLINE_SCIENTIST_NAME = "2-BM Beamline Scientist"
+ESRB_NAME = "APS Experiment Safety Review Board"
 
 # Canonical Run Debrief actor id. Re-exported alias for the production
 # constant `RUN_DEBRIEF_AGENT_ID` from `cora.agent.seed` (Agent.id ==
@@ -216,10 +235,13 @@ class FacilityIds:
     """IDs of every aggregate registered by `install_aps_unit()`.
 
     Returned for callers that want to reference them post-install without
-    re-importing module-level constants. Operator + Trust-shape ids are
-    fixture-owned canonical constants; the rest are scenario-supplied."""
+    re-importing module-level constants. Operator + reviewer + Trust-shape
+    ids are fixture-owned canonical constants; the rest are scenario-
+    supplied."""
 
     operator_pool_ids: tuple[UUID, UUID, UUID]
+    beamline_scientist_actor_id: UUID
+    esrb_actor_id: UUID
     argonne_id: UUID
     aps_site_id: UUID
     sector_id: UUID
@@ -244,17 +266,18 @@ def facility_id_prefix(
 
     Ordering mirrors the ceremony exactly:
       1. register_actor x 3 (operator pool, canonical ids): actor_id, event
-      2. register_asset Argonne (Enterprise): argonne_id, event
-      3. register_asset APS (Site): aps_site_id, event
-      4. register_asset Sector (Area, parent=APS): sector_id, event
-      5. register_asset Unit (parent=Sector): unit_id, event
-      6. define_capability x N (in `devices` order): cap_id, event
-      7. register_asset + add_asset_capability x N: asset_id, register_event, addcap_event
-      8. define_zone (2-BM Zone, canonical id): zone_id, event
-      9. define_conduit (2-BM Local Conduit, self-loop): conduit_id, event
-     10. define_policy x 2 (Operations + Agent, canonical ids): policy_id, event
+      2. register_actor x 2 (BS + ESRB review-chain reviewers): actor_id, event
+      3. register_asset Argonne (Enterprise): argonne_id, event
+      4. register_asset APS (Site): aps_site_id, event
+      5. register_asset Sector (Area, parent=APS): sector_id, event
+      6. register_asset Unit (parent=Sector): unit_id, event
+      7. define_capability x N (in `devices` order): cap_id, event
+      8. register_asset + add_asset_capability x N: asset_id, register_event, addcap_event
+      9. define_zone (2-BM Zone, canonical id): zone_id, event
+     10. define_conduit (2-BM Local Conduit, self-loop): conduit_id, event
+     11. define_policy x 2 (Operations + Agent, canonical ids): policy_id, event
 
-    Anonymous event ids use `uuid4()`. Total length = 6 + 8 + 5 * N + 10 = 24 + 5 * N.
+    Anonymous event ids use `uuid4()`. Total length = 10 + 8 + 5 * N + 10 = 28 + 5 * N.
     (Trust block = 10: zone[2] + conduit[4 — agg + logbook + 2 events] + 2 policies[2 each].)
     """
     e = uuid4
@@ -265,6 +288,11 @@ def facility_id_prefix(
         OPERATOR_2_ID,
         e(),
         OPERATOR_3_ID,
+        e(),
+        # 2 review-chain reviewers (fixture-owned canonical UUIDs)
+        BEAMLINE_SCIENTIST_ACTOR_ID,
+        e(),
+        ESRB_ACTOR_ID,
         e(),
         # Asset hierarchy (scenario-supplied UUIDs)
         argonne_id,
@@ -320,10 +348,11 @@ async def install_aps_unit(
 ) -> FacilityIds:
     """Execute the canonical facility-install ceremony for a 2-BM-shape Unit.
 
-    Order matches `facility_id_prefix()` exactly: 3 operators, then
-    Argonne -> APS -> Sector -> Unit, then all Capabilities defined,
-    then all Devices registered + their Capabilities linked, then the
-    2-BM Trust shape (Zone + Conduit + Operations Policy + Agent Policy).
+    Order matches `facility_id_prefix()` exactly: 3 operators, BS + ESRB
+    reviewers, then Argonne -> APS -> Sector -> Unit, then all
+    Capabilities defined, then all Devices registered + their
+    Capabilities linked, then the 2-BM Trust shape (Zone + Conduit +
+    Operations Policy + Agent Policy).
 
     All install events are attributed to `OPERATOR_1_ID` (bootstrap
     convention; the first operator-registration event is self-attributed
@@ -347,6 +376,21 @@ async def install_aps_unit(
             principal_id=principal_id,
             correlation_id=correlation_id,
         )
+
+    # ----- Access BC: register review-chain reviewers (BS + ESRB) -----
+    # Doc-placed at APS even though BS is beamline-named; the role the
+    # BS plays in ESAF review is facility safety-process work. ESRB is
+    # the facility's central safety committee, one identity facility-wide.
+    await bind_register_actor(deps)(
+        RegisterActor(name=BEAMLINE_SCIENTIST_NAME),
+        principal_id=principal_id,
+        correlation_id=correlation_id,
+    )
+    await bind_register_actor(deps)(
+        RegisterActor(name=ESRB_NAME),
+        principal_id=principal_id,
+        correlation_id=correlation_id,
+    )
 
     # ----- Equipment BC: Asset hierarchy + Devices -----
     await bind_register_asset(deps)(
@@ -425,6 +469,8 @@ async def install_aps_unit(
 
     return FacilityIds(
         operator_pool_ids=OPERATOR_POOL_IDS,
+        beamline_scientist_actor_id=BEAMLINE_SCIENTIST_ACTOR_ID,
+        esrb_actor_id=ESRB_ACTOR_ID,
         argonne_id=argonne_id,
         aps_site_id=aps_site_id,
         sector_id=sector_id,
@@ -439,10 +485,14 @@ async def install_aps_unit(
 
 
 __all__ = [
+    "BEAMLINE_SCIENTIST_ACTOR_ID",
+    "BEAMLINE_SCIENTIST_NAME",
     "BM2_AGENT_POLICY_ID",
     "BM2_LOCAL_CONDUIT_ID",
     "BM2_OPERATIONS_POLICY_ID",
     "BM2_ZONE_ID",
+    "ESRB_ACTOR_ID",
+    "ESRB_NAME",
     "OPERATOR_1_ID",
     "OPERATOR_2_ID",
     "OPERATOR_3_ID",

@@ -1,7 +1,7 @@
 """Hold + Resume cycle on a long Run at APS 2-BM.
 
 cluster: Runs
-archetype: fsm-walk
+archetype: fsm
 bc_primary: Run
 bc_touches: Campaign, Equipment, Recipe, Run, Subject
 

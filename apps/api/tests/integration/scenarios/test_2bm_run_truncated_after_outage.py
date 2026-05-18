@@ -1,7 +1,7 @@
 """Retroactive Run.truncate after a control-room outage at APS 2-BM.
 
 cluster: Runs
-archetype: single-routine
+archetype: routine
 bc_primary: Run
 bc_touches: Campaign, Equipment, Recipe, Run, Subject
 

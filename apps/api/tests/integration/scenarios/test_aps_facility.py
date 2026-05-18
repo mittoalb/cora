@@ -1,7 +1,7 @@
 """APS facility hierarchy (Argonne + APS).
 
 cluster: Seed
-archetype: setup-only
+archetype: setup
 bc_primary: Equipment
 bc_touches: Access, Agent, Caution, Equipment, Recipe, Safety, Supply
 
@@ -234,7 +234,7 @@ async def test_facility_install_plays_out_end_to_end(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
             facility_asset_id=_APS_SITE_ID,
-            title="APS scenario ESAF (facility umbrella)",
+            title="Facility umbrella",
             bindings=frozenset({AssetBinding(asset_id=_APS_SITE_ID)}),
         ),
         principal_id=_PRINCIPAL_ID,

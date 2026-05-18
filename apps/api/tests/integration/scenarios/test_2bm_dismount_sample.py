@@ -1,7 +1,7 @@
 """Dismount sample at APS 2-BM.
 
 cluster: Runs
-archetype: setup-only
+archetype: setup
 bc_primary: Subject
 bc_touches: Equipment, Subject
 
