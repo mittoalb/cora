@@ -34,7 +34,14 @@ fundamental issues surface first:
    ids. Per gate-review Q3: bound-Asset-only check (no hierarchy
    traversal); operators model families at whichever
    granularity makes sense and bind the Assets that carry them.
-7. Name validation (via `PlanName` VO). Raises
+7. Phase 6l.B affordance-cover guard. When the bound Method points
+   at a Capability template, the union of each bound Asset's
+   Family.affordances must cover `Capability.required_affordances`.
+   Raises `PlanAffordancesNotSatisfiedError` with the missing
+   affordance string values. Skipped when `method.capability_id` is
+   None (pre-6l-strict shape; handler builds context with
+   `capability=None`).
+8. Name validation (via `PlanName` VO). Raises
    `InvalidPlanNameError`. Last because the name is a primitive
    the operator can fix without changing any binding state.
 
@@ -48,15 +55,20 @@ hashing. Sort applied here at decider construction AND in
 """
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from cora.equipment.aggregates.asset import AssetLifecycle
 from cora.recipe.aggregates.method import MethodStatus
+
+if TYPE_CHECKING:
+    from cora.equipment.aggregates.family import Affordance
 from cora.recipe.aggregates.plan import (
     AssetDecommissionedError,
     InvalidPlanError,
     MethodDeprecatedError,
     Plan,
+    PlanAffordancesNotSatisfiedError,
     PlanAlreadyExistsError,
     PlanCapabilitiesNotSatisfiedError,
     PlanDefined,
@@ -108,6 +120,22 @@ def decide(
     missing = context.method.needed_families - union_capabilities
     if missing:
         raise PlanCapabilitiesNotSatisfiedError(missing)
+
+    # Phase 6l.B cross-BC affordance-cover guard. Layered on top of the
+    # family-id check: even when every needed Family is bound, the union
+    # of those Families' `affordances` must cover the Method's bound
+    # Capability.required_affordances. SKIPPED when method.capability_id
+    # is None (pre-6l-strict shape; handler builds context with capability=None).
+    if context.capability is not None:
+        union_affordances: frozenset[Affordance] = frozenset(
+            affordance
+            for asset in context.assets.values()
+            for family_id in asset.families
+            for affordance in context.family_affordances.get(family_id, frozenset())
+        )
+        missing_affordances = context.capability.required_affordances - union_affordances
+        if missing_affordances:
+            raise PlanAffordancesNotSatisfiedError(frozenset(a.value for a in missing_affordances))
 
     name = PlanName(command.name)  # validates + trims; raises InvalidPlanNameError
     return [

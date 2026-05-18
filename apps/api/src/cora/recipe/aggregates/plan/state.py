@@ -301,6 +301,34 @@ class PlanCapabilitiesNotSatisfiedError(Exception):
         self.missing_family_ids = missing_family_ids
 
 
+class PlanAffordancesNotSatisfiedError(Exception):
+    """The bound Assets' Family.affordances don't cover the
+    Method.capability.required_affordances contract.
+
+    Phase 6l.B cross-BC guard. Layered on top of the family-id
+    check (PlanCapabilitiesNotSatisfiedError): even when every
+    needed Family is present, the union of those Families'
+    `affordances` must still cover the bound Method's
+    `capability.required_affordances` contract. Mapped to HTTP 409
+    (same state-conflict family as the prior check).
+
+    Carries the missing affordances as a sorted tuple of their
+    string values (Affordance is a StrEnum) so the diagnostic is
+    stable across runs and human-readable in HTTP responses.
+
+    Skipped entirely when Method has no `capability_id` (6l-additive
+    transition window). 6l-strict will REQUIRE capability_id on
+    DefineMethod per Pattern P, at which point this guard always runs.
+    """
+
+    def __init__(self, missing_affordances: frozenset[str]) -> None:
+        super().__init__(
+            f"Plan affordances not satisfied: bound Assets' Family.affordances "
+            f"miss {sorted(missing_affordances)}"
+        )
+        self.missing_affordances = missing_affordances
+
+
 @dataclass(frozen=True)
 class PlanName:
     """Display name for a plan. Trimmed; 1-200 chars.

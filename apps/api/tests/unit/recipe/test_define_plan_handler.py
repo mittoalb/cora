@@ -33,9 +33,32 @@ from cora.equipment.aggregates.asset.events import (
 from cora.equipment.aggregates.asset.events import (
     to_payload as asset_to_payload,
 )
+from cora.equipment.aggregates.family import Affordance, FamilyNotFoundError
+from cora.equipment.aggregates.family.events import (
+    FamilyDefined,
+)
+from cora.equipment.aggregates.family.events import (
+    event_type_name as family_event_type_name,
+)
+from cora.equipment.aggregates.family.events import (
+    to_payload as family_to_payload,
+)
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.recipe import RecipeHandlers, UnauthorizedError, wire_recipe
+from cora.recipe.aggregates.capability import (
+    CapabilityCode,
+    CapabilityName,
+    CapabilityNotFoundError,
+    ExecutorShape,
+    RecipeCapabilityDefined,
+)
+from cora.recipe.aggregates.capability import (
+    event_type_name as capability_event_type_name,
+)
+from cora.recipe.aggregates.capability import (
+    to_payload as capability_to_payload,
+)
 from cora.recipe.aggregates.method import MethodNotFoundError
 from cora.recipe.aggregates.method.events import (
     MethodDefined,
@@ -54,6 +77,7 @@ from cora.recipe.aggregates.plan import (
     InvalidPlanError,
     InvalidPlanNameError,
     MethodDeprecatedError,
+    PlanAffordancesNotSatisfiedError,
     PlanCapabilitiesNotSatisfiedError,
     PracticeDeprecatedError,
 )
@@ -116,12 +140,14 @@ async def _seed_method(
     method_id: UUID,
     *,
     needed_families: frozenset[UUID] = frozenset(),
+    capability_id: UUID | None = None,
     deprecated: bool = False,
 ) -> None:
     event = MethodDefined(
         method_id=method_id,
         name="Test Method",
         needed_families=sorted(needed_families, key=str),
+        capability_id=capability_id,
         occurred_at=_NOW,
     )
     await _append(
@@ -181,6 +207,57 @@ async def _seed_practice(
             payload=practice_to_payload(deprecated_event),
             command_name="DeprecatePractice",
         )
+
+
+async def _seed_capability(
+    store: InMemoryEventStore,
+    capability_id: UUID,
+    *,
+    required_affordances: frozenset[Affordance] = frozenset(),
+    shapes: frozenset[ExecutorShape] = frozenset({ExecutorShape.METHOD}),
+) -> None:
+    """Seed a Recipe Capability stream for Phase 6l.B cross-BC tests."""
+    event = RecipeCapabilityDefined(
+        capability_id=capability_id,
+        code=CapabilityCode("cora.capability.x").value,
+        name=CapabilityName("X").value,
+        required_affordances=required_affordances,
+        executor_shapes=shapes,
+        occurred_at=_NOW,
+    )
+    await _append(
+        store,
+        stream_type="Capability",
+        stream_id=capability_id,
+        expected_version=0,
+        event_type=capability_event_type_name(event),
+        payload=capability_to_payload(event),
+        command_name="DefineCapability",
+    )
+
+
+async def _seed_family(
+    store: InMemoryEventStore,
+    family_id: UUID,
+    *,
+    affordances: frozenset[Affordance] = frozenset(),
+) -> None:
+    """Seed an Equipment Family stream for Phase 6l.B cross-BC tests."""
+    event = FamilyDefined(
+        family_id=family_id,
+        name="TestFamily",
+        affordances=affordances,
+        occurred_at=_NOW,
+    )
+    await _append(
+        store,
+        stream_type="Family",
+        stream_id=family_id,
+        expected_version=0,
+        event_type=family_event_type_name(event),
+        payload=family_to_payload(event),
+        command_name="DefineFamily",
+    )
 
 
 async def _seed_asset(
@@ -620,3 +697,184 @@ async def test_wired_handler_propagates_causation_id_through_full_composition() 
 
     events, _ = await store.load("Plan", _NEW_ID)
     assert events[0].causation_id == causation
+
+
+# ---------- Phase 6l.B affordance-cover cross-BC tests ----------
+
+
+@pytest.mark.unit
+async def test_handler_skips_capability_and_family_loads_when_method_has_no_capability() -> None:
+    """Phase 6l.B compat path: pre-6l-strict Methods (no capability_id)
+    do NOT trigger Capability + Family loads. Pinned via a sentinel
+    event store that raises if either stream type is loaded; the Plan
+    creation still succeeds end-to-end."""
+
+    class _CapabilityFamilyLoadGuard(InMemoryEventStore):
+        async def load(self, stream_type: str, stream_id: UUID):  # type: ignore[override]
+            assert stream_type not in ("Capability", "Family"), (
+                f"Phase 6l.B should not load {stream_type} when Method.capability_id is None"
+            )
+            return await super().load(stream_type, stream_id)
+
+    method_id = uuid4()
+    practice_id = uuid4()
+    asset_id = uuid4()
+    store = _CapabilityFamilyLoadGuard()
+    await _seed_method(store, method_id)  # no capability_id → pre-6l-strict shape
+    await _seed_practice(store, practice_id, method_id=method_id)
+    await _seed_asset(store, asset_id)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    handler = define_plan.bind(deps)
+
+    plan_id = await handler(
+        DefinePlan(name="X", practice_id=practice_id, asset_ids=frozenset({asset_id})),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert plan_id == _NEW_ID
+
+
+@pytest.mark.unit
+async def test_handler_loads_capability_and_families_when_method_has_capability_id() -> None:
+    """Phase 6l.B happy path: when Method.capability_id is set, the
+    handler loads the Capability + every Family referenced by bound
+    Assets, the decider verifies affordance coverage, the Plan
+    persists. Affordance union here (single Family carrying ROTATABLE)
+    covers the single required affordance (ROTATABLE)."""
+    family_id = uuid4()
+    capability_id = uuid4()
+    method_id = uuid4()
+    practice_id = uuid4()
+    asset_id = uuid4()
+    store = InMemoryEventStore()
+    await _seed_capability(
+        store, capability_id, required_affordances=frozenset({Affordance.ROTATABLE})
+    )
+    await _seed_family(store, family_id, affordances=frozenset({Affordance.ROTATABLE}))
+    await _seed_method(
+        store,
+        method_id,
+        needed_families=frozenset({family_id}),
+        capability_id=capability_id,
+    )
+    await _seed_practice(store, practice_id, method_id=method_id)
+    await _seed_asset(store, asset_id, capabilities=frozenset({family_id}))
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    handler = define_plan.bind(deps)
+
+    plan_id = await handler(
+        DefinePlan(name="X", practice_id=practice_id, asset_ids=frozenset({asset_id})),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert plan_id == _NEW_ID
+
+
+@pytest.mark.unit
+async def test_handler_raises_capability_not_found_when_method_points_at_missing_stream() -> None:
+    """Phase 6l.B sad path: Method.capability_id references a
+    Capability stream that does not exist. Handler raises
+    `CapabilityNotFoundError` (mapped to 404). Pinned because the
+    cross-BC reference is eventual-consistency at the Method side
+    (decider didn't validate at define_method time when 6l-additive
+    is enabled), so the integrity check has to land here."""
+    family_id = uuid4()
+    bogus_capability = uuid4()
+    method_id = uuid4()
+    practice_id = uuid4()
+    asset_id = uuid4()
+    store = InMemoryEventStore()
+    # Note: NO _seed_capability for bogus_capability — that's the bug.
+    await _seed_family(store, family_id, affordances=frozenset({Affordance.ROTATABLE}))
+    await _seed_method(
+        store,
+        method_id,
+        needed_families=frozenset({family_id}),
+        capability_id=bogus_capability,
+    )
+    await _seed_practice(store, practice_id, method_id=method_id)
+    await _seed_asset(store, asset_id, capabilities=frozenset({family_id}))
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    handler = define_plan.bind(deps)
+
+    with pytest.raises(CapabilityNotFoundError):
+        await handler(
+            DefinePlan(name="X", practice_id=practice_id, asset_ids=frozenset({asset_id})),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+@pytest.mark.unit
+async def test_handler_raises_family_not_found_when_asset_references_missing_family() -> None:
+    """Phase 6l.B sad path: an Asset's `families` references a Family
+    UUID whose stream doesn't exist. With the 6l.B affordance-cover
+    fan-out enabled (Method has capability_id), the handler can't
+    compute the affordance union without the Family. Raises
+    `FamilyNotFoundError`; surfaces as 404."""
+    bogus_family = uuid4()
+    capability_id = uuid4()
+    method_id = uuid4()
+    practice_id = uuid4()
+    asset_id = uuid4()
+    store = InMemoryEventStore()
+    await _seed_capability(
+        store, capability_id, required_affordances=frozenset({Affordance.ROTATABLE})
+    )
+    # Note: NO _seed_family for bogus_family — that's the bug.
+    await _seed_method(
+        store,
+        method_id,
+        needed_families=frozenset({bogus_family}),
+        capability_id=capability_id,
+    )
+    await _seed_practice(store, practice_id, method_id=method_id)
+    await _seed_asset(store, asset_id, capabilities=frozenset({bogus_family}))
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    handler = define_plan.bind(deps)
+
+    with pytest.raises(FamilyNotFoundError):
+        await handler(
+            DefinePlan(name="X", practice_id=practice_id, asset_ids=frozenset({asset_id})),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+@pytest.mark.unit
+async def test_handler_propagates_affordances_not_satisfied_error() -> None:
+    """Phase 6l.B full-stack: every needed Family is bound (family-id
+    check passes), but the union of Family.affordances misses one of
+    Capability.required_affordances. Handler propagates
+    `PlanAffordancesNotSatisfiedError` (mapped to 409)."""
+    family_id = uuid4()
+    capability_id = uuid4()
+    method_id = uuid4()
+    practice_id = uuid4()
+    asset_id = uuid4()
+    store = InMemoryEventStore()
+    await _seed_capability(
+        store,
+        capability_id,
+        required_affordances=frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE}),
+    )
+    # Family carries only ROTATABLE; TRIGGERABLE is missing from the union.
+    await _seed_family(store, family_id, affordances=frozenset({Affordance.ROTATABLE}))
+    await _seed_method(
+        store,
+        method_id,
+        needed_families=frozenset({family_id}),
+        capability_id=capability_id,
+    )
+    await _seed_practice(store, practice_id, method_id=method_id)
+    await _seed_asset(store, asset_id, capabilities=frozenset({family_id}))
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    handler = define_plan.bind(deps)
+
+    with pytest.raises(PlanAffordancesNotSatisfiedError) as exc_info:
+        await handler(
+            DefinePlan(name="X", practice_id=practice_id, asset_ids=frozenset({asset_id})),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert exc_info.value.missing_affordances == frozenset({Affordance.TRIGGERABLE.value})

@@ -20,10 +20,12 @@ context dataclass; promote to a shared form only after the Rule of
 Three.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from uuid import UUID
 
 from cora.equipment.aggregates.asset import Asset
+from cora.equipment.aggregates.family import Affordance
+from cora.recipe.aggregates.capability import Capability
 from cora.recipe.aggregates.method import Method
 from cora.recipe.aggregates.practice import Practice
 
@@ -42,8 +44,28 @@ class PlanBindingContext:
     family-superset check uses each Asset's `families` and
     the Method's `needed_families` (gate-review Q3: bound-Asset-
     only, no hierarchy walk).
+
+    Phase 6l.B additive: `capability` and `family_affordances` carry
+    the Capability template + per-Family affordance summaries needed
+    for the affordance-cover guard.
+
+    - `capability` is the universal Capability template the bound
+      Method realizes (loaded via `method.capability_id`). None when
+      Method has no `capability_id` (pre-6l-strict shape) — in that
+      case the decider SKIPS the affordance-cover guard entirely.
+    - `family_affordances` maps Family.id → that Family's `affordances`
+      set. The handler loads every Family referenced by any bound
+      Asset's `families` set. Empty dict when `capability is None`
+      (no point loading Families if we won't validate them).
+
+    The decider unions `family_affordances` across `asset.families`
+    and asserts the union covers `capability.required_affordances`.
     """
 
     practice: Practice
     method: Method
     assets: dict[UUID, Asset]
+    capability: Capability | None = None
+    family_affordances: dict[UUID, frozenset[Affordance]] = field(
+        default_factory=dict[UUID, frozenset[Affordance]]
+    )

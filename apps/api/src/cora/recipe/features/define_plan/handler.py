@@ -41,10 +41,12 @@ from typing import Protocol
 from uuid import UUID
 
 from cora.equipment.aggregates.asset import Asset, AssetNotFoundError, load_asset
+from cora.equipment.aggregates.family import Affordance, FamilyNotFoundError, load_family
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
+from cora.recipe.aggregates.capability import CapabilityNotFoundError, load_capability
 from cora.recipe.aggregates.method import MethodNotFoundError, load_method
 from cora.recipe.aggregates.plan import event_type_name, to_payload
 from cora.recipe.aggregates.practice import PracticeNotFoundError, load_practice
@@ -151,7 +153,32 @@ def bind(deps: Kernel) -> Handler:
                 raise AssetNotFoundError(asset_id)
             assets[asset_id] = asset
 
-        context = PlanBindingContext(practice=practice, method=method, assets=assets)
+        # Phase 6l.B cross-BC affordance-cover guard: when the bound
+        # Method points at a Capability template, load the Capability +
+        # every Family referenced by any bound Asset so the decider can
+        # union Family.affordances and verify coverage of
+        # Capability.required_affordances. SKIPPED when method.capability_id
+        # is None (pre-6l-strict shape) — no extra loads, no guard.
+        capability = None
+        family_affordances: dict[UUID, frozenset[Affordance]] = {}
+        if method.capability_id is not None:
+            capability = await load_capability(deps.event_store, method.capability_id)
+            if capability is None:
+                raise CapabilityNotFoundError(method.capability_id)
+            unique_family_ids = {fid for asset in assets.values() for fid in asset.families}
+            for family_id in sorted(unique_family_ids, key=str):
+                family = await load_family(deps.event_store, family_id)
+                if family is None:
+                    raise FamilyNotFoundError(family_id)
+                family_affordances[family_id] = family.affordances
+
+        context = PlanBindingContext(
+            practice=practice,
+            method=method,
+            assets=assets,
+            capability=capability,
+            family_affordances=family_affordances,
+        )
 
         new_id = deps.id_generator.new_id()
         now = deps.clock.now()

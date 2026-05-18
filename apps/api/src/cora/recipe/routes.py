@@ -61,6 +61,7 @@ from cora.recipe.aggregates.plan import (
     InvalidPlanVersionTagError,
     InvalidWireError,
     MethodDeprecatedError,
+    PlanAffordancesNotSatisfiedError,
     PlanAlreadyExistsError,
     PlanCannotDeprecateError,
     PlanCannotVersionError,
@@ -255,6 +256,9 @@ def register_recipe_routes(app: FastAPI) -> None:
         MethodDeprecatedError,
         AssetDecommissionedError,
         PlanCapabilitiesNotSatisfiedError,
+        # Phase 6l.B cross-BC affordance-cover guard: bound Assets'
+        # Family.affordances don't union to Method.capability.required_affordances.
+        PlanAffordancesNotSatisfiedError,
         # 6h Plan.wires structural / cross-aggregate guards. All map
         # to 409 (state-conflict family; the wire is structurally
         # invalid given current Plan binding + Asset.ports state).

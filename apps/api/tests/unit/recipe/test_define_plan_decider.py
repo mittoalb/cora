@@ -26,6 +26,13 @@ from cora.equipment.aggregates.asset import (
     AssetLifecycle,
     AssetName,
 )
+from cora.equipment.aggregates.family import Affordance
+from cora.recipe.aggregates.capability import (
+    Capability,
+    CapabilityCode,
+    CapabilityName,
+    ExecutorShape,
+)
 from cora.recipe.aggregates.method import Method, MethodName, MethodStatus
 from cora.recipe.aggregates.plan import (
     AssetDecommissionedError,
@@ -33,6 +40,7 @@ from cora.recipe.aggregates.plan import (
     InvalidPlanNameError,
     MethodDeprecatedError,
     Plan,
+    PlanAffordancesNotSatisfiedError,
     PlanAlreadyExistsError,
     PlanCapabilitiesNotSatisfiedError,
     PlanDefined,
@@ -501,3 +509,183 @@ def test_decide_emits_deterministic_asset_id_ordering_for_idempotency() -> None:
         new_id=uuid4(),
     )
     assert events[0].asset_ids == sorted([a1, a2, a3], key=str)
+
+
+# ---------- Phase 6l.B affordance-cover guard ----------
+
+
+def _capability(
+    *, required: frozenset[Affordance] = frozenset(), capability_id: UUID | None = None
+) -> Capability:
+    """Build a Capability fixture for the Phase 6l.B affordance-cover guard."""
+    return Capability(
+        id=capability_id or uuid4(),
+        code=CapabilityCode("cora.capability.x"),
+        name=CapabilityName("X"),
+        required_affordances=required,
+        executor_shapes=frozenset({ExecutorShape.METHOD}),
+    )
+
+
+@pytest.mark.unit
+def test_decide_skips_affordance_guard_when_context_capability_is_none() -> None:
+    """Phase 6l.B compat: when Method has no `capability_id` (pre-6l-
+    strict shape), the handler builds the context with capability=None
+    and family_affordances={}. The decider must NOT raise even when
+    Family.affordances is empty — there's no contract to compare against.
+    Pinned because it locks the additive transition window."""
+    family_id = uuid4()
+    method = _method(needed_families=frozenset({family_id}))
+    practice = _practice(method_id=method.id)
+    asset_id = uuid4()
+    assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({family_id}))}
+    context = PlanBindingContext(
+        practice=practice,
+        method=method,
+        assets=assets,
+        capability=None,
+        family_affordances={},
+    )
+    events = define_plan.decide(
+        state=None,
+        command=DefinePlan(name="X", practice_id=practice.id, asset_ids=frozenset({asset_id})),
+        context=context,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1
+
+
+@pytest.mark.unit
+def test_decide_accepts_binding_when_family_affordances_cover_capability_requirements() -> None:
+    """Phase 6l.B happy path: bound Asset's single Family declares an
+    affordance set that covers the Capability's required affordances."""
+    family_id = uuid4()
+    capability = _capability(required=frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE}))
+    method = _method(needed_families=frozenset({family_id}))
+    practice = _practice(method_id=method.id)
+    asset_id = uuid4()
+    assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({family_id}))}
+    family_affordances = {
+        family_id: frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE, Affordance.HOMEABLE})
+    }
+    context = PlanBindingContext(
+        practice=practice,
+        method=method,
+        assets=assets,
+        capability=capability,
+        family_affordances=family_affordances,
+    )
+    events = define_plan.decide(
+        state=None,
+        command=DefinePlan(name="X", practice_id=practice.id, asset_ids=frozenset({asset_id})),
+        context=context,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1
+
+
+@pytest.mark.unit
+def test_decide_raises_affordances_not_satisfied_when_union_misses_required() -> None:
+    """Phase 6l.B sad path: every needed Family is bound (the family-id
+    check passes), but the union of Family.affordances misses one of
+    `capability.required_affordances`. Raises
+    PlanAffordancesNotSatisfiedError carrying the missing affordance
+    string values."""
+    family_id = uuid4()
+    capability = _capability(required=frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE}))
+    method = _method(needed_families=frozenset({family_id}))
+    practice = _practice(method_id=method.id)
+    asset_id = uuid4()
+    assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({family_id}))}
+    family_affordances = {family_id: frozenset({Affordance.ROTATABLE})}  # missing TRIGGERABLE
+    context = PlanBindingContext(
+        practice=practice,
+        method=method,
+        assets=assets,
+        capability=capability,
+        family_affordances=family_affordances,
+    )
+    with pytest.raises(PlanAffordancesNotSatisfiedError) as exc_info:
+        define_plan.decide(
+            state=None,
+            command=DefinePlan(name="X", practice_id=practice.id, asset_ids=frozenset({asset_id})),
+            context=context,
+            now=_NOW,
+            new_id=uuid4(),
+        )
+    assert exc_info.value.missing_affordances == frozenset({Affordance.TRIGGERABLE.value})
+
+
+@pytest.mark.unit
+def test_decide_unions_affordances_across_multiple_bound_assets() -> None:
+    """Phase 6l.B: the affordance-cover check unions across ALL bound
+    Assets' Families. Two Assets each carrying one Family that
+    contributes a distinct affordance together cover a 2-affordance
+    Capability. Pinned because the union semantics mirror the existing
+    family-id union (Q3 bound-Asset-only)."""
+    fam_rot = uuid4()
+    fam_trig = uuid4()
+    capability = _capability(required=frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE}))
+    method = _method(needed_families=frozenset({fam_rot, fam_trig}))
+    practice = _practice(method_id=method.id)
+    a_rot = uuid4()
+    a_trig = uuid4()
+    assets = {
+        a_rot: _asset(asset_id=a_rot, families=frozenset({fam_rot})),
+        a_trig: _asset(asset_id=a_trig, families=frozenset({fam_trig})),
+    }
+    family_affordances = {
+        fam_rot: frozenset({Affordance.ROTATABLE}),
+        fam_trig: frozenset({Affordance.TRIGGERABLE}),
+    }
+    context = PlanBindingContext(
+        practice=practice,
+        method=method,
+        assets=assets,
+        capability=capability,
+        family_affordances=family_affordances,
+    )
+    events = define_plan.decide(
+        state=None,
+        command=DefinePlan(name="X", practice_id=practice.id, asset_ids=frozenset({a_rot, a_trig})),
+        context=context,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1
+
+
+@pytest.mark.unit
+def test_decide_affordance_guard_runs_after_family_id_check() -> None:
+    """Phase 6l.B: ordering invariant. The family-id check (#6) fires
+    BEFORE the affordance-cover check (#7). When the operator binds
+    Assets that miss a required Family entirely, they get the
+    family-id error first, not the affordance error — that's the
+    more direct diagnostic. Pinned because reversing this order would
+    surface "missing affordance X" when the real issue is "missing
+    Family Y entirely"."""
+    needed_family = uuid4()
+    bound_family = uuid4()  # different from needed_family
+    capability = _capability(required=frozenset({Affordance.ROTATABLE}))
+    method = _method(needed_families=frozenset({needed_family}))
+    practice = _practice(method_id=method.id)
+    asset_id = uuid4()
+    assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({bound_family}))}
+    family_affordances = {bound_family: frozenset({Affordance.ROTATABLE})}
+    context = PlanBindingContext(
+        practice=practice,
+        method=method,
+        assets=assets,
+        capability=capability,
+        family_affordances=family_affordances,
+    )
+    with pytest.raises(PlanCapabilitiesNotSatisfiedError):
+        define_plan.decide(
+            state=None,
+            command=DefinePlan(name="X", practice_id=practice.id, asset_ids=frozenset({asset_id})),
+            context=context,
+            now=_NOW,
+            new_id=uuid4(),
+        )
