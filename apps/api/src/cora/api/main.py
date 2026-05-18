@@ -57,6 +57,13 @@ from cora.agent import (
 )
 from cora.api.mcp_gate import gate_mcp_write_tools
 from cora.api.middleware import BodySizeLimitMiddleware
+from cora.calibration import (
+    CalibrationHandlers,
+    register_calibration_projections,
+    register_calibration_routes,
+    register_calibration_tools,
+    wire_calibration,
+)
 from cora.campaign import (
     CampaignHandlers,
     register_campaign_projections,
@@ -266,6 +273,10 @@ def create_app() -> FastAPI:
         handlers: CautionHandlers = fastapi_app.state.caution
         return handlers
 
+    def _get_calibration_handlers() -> CalibrationHandlers:
+        handlers: CalibrationHandlers = fastapi_app.state.calibration
+        return handlers
+
     def _get_campaign_handlers() -> CampaignHandlers:
         handlers: CampaignHandlers = fastapi_app.state.campaign
         return handlers
@@ -286,6 +297,7 @@ def create_app() -> FastAPI:
     register_operation_tools(mcp, get_handlers=_get_operation_handlers)
     register_safety_tools(mcp, get_handlers=_get_safety_handlers)
     register_caution_tools(mcp, get_handlers=_get_caution_handlers)
+    register_calibration_tools(mcp, get_handlers=_get_calibration_handlers)
     register_campaign_tools(mcp, get_handlers=_get_campaign_handlers)
     register_agent_tools(mcp, get_handlers=_get_agent_handlers)
     # Phase A.1 post-review: fail-close MCP write-tools when running
@@ -320,6 +332,7 @@ def create_app() -> FastAPI:
             app.state.operation = wire_operation(deps)
             app.state.safety = wire_safety(deps)
             app.state.caution = wire_caution(deps)
+            app.state.calibration = wire_calibration(deps)
             app.state.campaign = wire_campaign(deps)
             app.state.agent = wire_agent(deps)
 
@@ -340,6 +353,7 @@ def create_app() -> FastAPI:
             register_operation_projections(registry, deps)
             register_safety_projections(registry, deps)
             register_caution_projections(registry, deps)
+            register_calibration_projections(registry, deps)
             register_campaign_projections(registry, deps)
             # Phase 8f-b iter 2b: side-effecting Agent BC subscribers
             # (RunDebrief). Conditional: only registered when
@@ -423,6 +437,7 @@ def create_app() -> FastAPI:
     register_operation_routes(fastapi_app)
     register_safety_routes(fastapi_app)
     register_caution_routes(fastapi_app)
+    register_calibration_routes(fastapi_app)
     register_campaign_routes(fastapi_app)
     register_agent_routes(fastapi_app)
     fastapi_app.mount("/mcp", mcp_app)

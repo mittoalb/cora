@@ -1,0 +1,114 @@
+"""HTTP setup for the Calibration BC.
+
+`register_calibration_routes(app)` includes every slice's router and
+registers exception handlers that translate the BC's domain /
+application errors to HTTP status codes. Called once at app
+construction.
+
+JSONResponse is used (not HTTPException) per FastAPI guidance to
+avoid nested-exception pitfalls.
+
+## Error families
+
+  - 400 (validation): InvalidCalibrationDescription,
+    InvalidCalibrationQuantity, InvalidOperatingPoint,
+    InvalidCalibrationValue, InvalidCalibrationSource,
+    SupersedesRevisionNotFound
+  - 404 (load miss): CalibrationNotFound
+  - 409 (defensive guard for AlreadyExists): CalibrationAlreadyExists,
+    DuplicateCalibrationIdentity (raised when the projection's
+    jsonb-UNIQUE catches a duplicate-identity insert; the slice itself
+    does NOT pre-check the projection per the design memo's deferred
+    lookup-port watch item)
+"""
+
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
+
+from cora.calibration.aggregates.calibration import (
+    CalibrationAlreadyExistsError,
+    CalibrationNotFoundError,
+    DuplicateCalibrationIdentityError,
+    InvalidCalibrationDescriptionError,
+    InvalidCalibrationQuantityError,
+    InvalidCalibrationSourceError,
+    InvalidCalibrationValueError,
+    InvalidOperatingPointError,
+    SupersedesRevisionNotFoundError,
+)
+from cora.calibration.errors import UnauthorizedError
+from cora.calibration.features import (
+    append_revision,
+    define_calibration,
+    get_calibration,
+    list_calibrations,
+)
+
+
+async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 400 handler for every domain validation error."""
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_unauthorized(request: Request, exc: Exception) -> JSONResponse:
+    _ = request
+    reason = exc.reason if isinstance(exc, UnauthorizedError) else str(exc)
+    return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN,
+        content={"detail": reason},
+    )
+
+
+async def _handle_not_found(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 404 handler for every aggregate's NotFoundError."""
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_already_exists(request: Request, exc: Exception) -> JSONResponse:
+    """Defensive 409 handler.
+
+    Covers both the stream-genesis collision (CalibrationAlreadyExists,
+    essentially impossible in production with UUIDv7 ids) and the
+    identity-tuple uniqueness collision (DuplicateCalibrationIdentity,
+    raised by the projection's jsonb-UNIQUE — the routes layer maps
+    both to 409 since both surface to the operator as "this
+    calibration already exists").
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+
+def register_calibration_routes(app: FastAPI) -> None:
+    """Attach Calibration slice routers and exception handlers to the FastAPI app."""
+    app.include_router(define_calibration.router)
+    app.include_router(append_revision.router)
+    app.include_router(get_calibration.router)
+    app.include_router(list_calibrations.router)
+    for validation_cls in (
+        InvalidCalibrationDescriptionError,
+        InvalidCalibrationQuantityError,
+        InvalidOperatingPointError,
+        InvalidCalibrationValueError,
+        InvalidCalibrationSourceError,
+        SupersedesRevisionNotFoundError,
+    ):
+        app.add_exception_handler(validation_cls, _handle_validation_error)
+    for not_found_cls in (CalibrationNotFoundError,):
+        app.add_exception_handler(not_found_cls, _handle_not_found)
+    for already_exists_cls in (
+        CalibrationAlreadyExistsError,
+        DuplicateCalibrationIdentityError,
+    ):
+        app.add_exception_handler(already_exists_cls, _handle_already_exists)
+    app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
