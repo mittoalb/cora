@@ -8,12 +8,12 @@ import pytest
 from cora.equipment.aggregates.family import Affordance
 from cora.recipe.aggregates.capability import (
     CapabilityCode,
-    CapabilityDefined,
-    CapabilityDeprecated,
     CapabilityName,
     CapabilityStatus,
-    CapabilityVersioned,
     ExecutorShape,
+    RecipeCapabilityDefined,
+    RecipeCapabilityDeprecated,
+    RecipeCapabilityVersioned,
     evolve,
     fold,
 )
@@ -21,7 +21,7 @@ from cora.recipe.aggregates.capability import (
 _NOW = datetime(2026, 5, 18, 12, 0, 0, tzinfo=UTC)
 
 
-def _defined(**overrides: object) -> CapabilityDefined:
+def _defined(**overrides: object) -> RecipeCapabilityDefined:
     base: dict[str, object] = dict(
         capability_id=uuid4(),
         code="cora.capability.x",
@@ -33,7 +33,7 @@ def _defined(**overrides: object) -> CapabilityDefined:
         occurred_at=_NOW,
     )
     base.update(overrides)
-    return CapabilityDefined(**base)  # type: ignore[arg-type]
+    return RecipeCapabilityDefined(**base)  # type: ignore[arg-type]
 
 
 @pytest.mark.unit
@@ -81,7 +81,7 @@ def test_capability_versioned_replaces_declarative_contract_wholesale() -> None:
     )
     versioned = evolve(
         initial,
-        CapabilityVersioned(
+        RecipeCapabilityVersioned(
             capability_id=cid,
             version_tag="v2",
             description="replaced",
@@ -116,7 +116,7 @@ def test_capability_deprecated_preserves_declarative_contract() -> None:
     )
     deprecated = evolve(
         initial,
-        CapabilityDeprecated(
+        RecipeCapabilityDeprecated(
             capability_id=cid,
             replaced_by_capability_id=None,
             occurred_at=_NOW,
@@ -136,7 +136,7 @@ def test_capability_deprecated_with_replaced_by_pointer() -> None:
     initial = evolve(None, _defined(capability_id=cid))
     deprecated = evolve(
         initial,
-        CapabilityDeprecated(
+        RecipeCapabilityDeprecated(
             capability_id=cid,
             replaced_by_capability_id=successor,
             occurred_at=_NOW,
@@ -152,7 +152,7 @@ def test_capability_versioned_preserves_replaced_by_field() -> None:
     initial = evolve(None, _defined(capability_id=cid))
     versioned = evolve(
         initial,
-        CapabilityVersioned(
+        RecipeCapabilityVersioned(
             capability_id=cid,
             version_tag="v2",
             required_affordances=frozenset[Affordance](),
@@ -174,14 +174,14 @@ def test_fold_full_lifecycle_chain() -> None:
     state = fold(
         [
             _defined(capability_id=cid),
-            CapabilityVersioned(
+            RecipeCapabilityVersioned(
                 capability_id=cid,
                 version_tag="v2",
                 required_affordances=frozenset({Affordance.ROTATABLE}),
                 executor_shapes=frozenset({ExecutorShape.METHOD}),
                 occurred_at=_NOW,
             ),
-            CapabilityDeprecated(
+            RecipeCapabilityDeprecated(
                 capability_id=cid,
                 replaced_by_capability_id=None,
                 occurred_at=_NOW,
@@ -197,10 +197,10 @@ def test_fold_full_lifecycle_chain() -> None:
 @pytest.mark.unit
 def test_versioned_event_on_empty_state_raises() -> None:
     """Transition events on empty state are stream contamination."""
-    with pytest.raises(ValueError, match="CapabilityVersioned"):
+    with pytest.raises(ValueError, match="RecipeCapabilityVersioned"):
         evolve(
             None,
-            CapabilityVersioned(
+            RecipeCapabilityVersioned(
                 capability_id=uuid4(),
                 version_tag="v2",
                 required_affordances=frozenset[Affordance](),
@@ -212,8 +212,8 @@ def test_versioned_event_on_empty_state_raises() -> None:
 
 @pytest.mark.unit
 def test_deprecated_event_on_empty_state_raises() -> None:
-    with pytest.raises(ValueError, match="CapabilityDeprecated"):
+    with pytest.raises(ValueError, match="RecipeCapabilityDeprecated"):
         evolve(
             None,
-            CapabilityDeprecated(capability_id=uuid4(), occurred_at=_NOW),
+            RecipeCapabilityDeprecated(capability_id=uuid4(), occurred_at=_NOW),
         )

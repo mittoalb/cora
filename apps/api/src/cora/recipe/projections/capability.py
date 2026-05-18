@@ -5,13 +5,13 @@ Distinct from `FamilySummaryProjection` (Equipment BC). Family =
 device-class; Capability = operations-layer template per DLM-B.
 
 Subscribed events:
-  - CapabilityDefined   -> INSERT (status=Defined, version_tag=NULL,
+  - RecipeCapabilityDefined   -> INSERT (status=Defined, version_tag=NULL,
                                    replaced_by_capability_id=NULL,
                                    declarative fields from payload)
-  - CapabilityVersioned -> UPDATE status=Versioned + version_tag +
+  - RecipeCapabilityVersioned -> UPDATE status=Versioned + version_tag +
                                    REFRESH declarative fields
                                    (a new version IS a new declaration)
-  - CapabilityDeprecated -> UPDATE status=Deprecated +
+  - RecipeCapabilityDeprecated -> UPDATE status=Deprecated +
                                    replaced_by_capability_id
                                    (declarative fields PRESERVED for audit)
 
@@ -68,9 +68,9 @@ class RecipeCapabilitySummaryProjection:
     name = "proj_recipe_capability_summary"
     subscribed_event_types = frozenset(
         {
-            "CapabilityDefined",
-            "CapabilityVersioned",
-            "CapabilityDeprecated",
+            "RecipeCapabilityDefined",
+            "RecipeCapabilityVersioned",
+            "RecipeCapabilityDeprecated",
         }
     )
 
@@ -80,7 +80,7 @@ class RecipeCapabilitySummaryProjection:
         conn: ConnectionLike,
     ) -> None:
         match event.event_type:
-            case "CapabilityDefined":
+            case "RecipeCapabilityDefined":
                 await conn.execute(
                     _INSERT_CAPABILITY_SQL,
                     UUID(event.payload["capability_id"]),
@@ -92,7 +92,7 @@ class RecipeCapabilitySummaryProjection:
                     event.payload.get("parameter_schema") is not None,
                     datetime.fromisoformat(event.payload["occurred_at"]),
                 )
-            case "CapabilityVersioned":
+            case "RecipeCapabilityVersioned":
                 await conn.execute(
                     _UPDATE_VERSIONED_SQL,
                     UUID(event.payload["capability_id"]),
@@ -102,7 +102,7 @@ class RecipeCapabilitySummaryProjection:
                     event.payload.get("executor_shapes", []),
                     event.payload.get("parameter_schema") is not None,
                 )
-            case "CapabilityDeprecated":
+            case "RecipeCapabilityDeprecated":
                 replaced_raw = event.payload.get("replaced_by_capability_id")
                 await conn.execute(
                     _UPDATE_DEPRECATED_SQL,

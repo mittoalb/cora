@@ -10,13 +10,13 @@ from cora.recipe.aggregates.capability import (
     Capability,
     CapabilityAlreadyExistsError,
     CapabilityCode,
-    CapabilityDefined,
     CapabilityName,
     ExecutorShape,
     InvalidCapabilityCodeError,
     InvalidCapabilityNameError,
     InvalidCapabilityParameterSchemaError,
     InvalidExecutorShapesError,
+    RecipeCapabilityDefined,
 )
 from cora.recipe.features.define_capability import DefineCapability, decide
 
@@ -40,7 +40,7 @@ def test_decide_emits_capability_defined_for_fresh_stream() -> None:
     events = decide(state=None, command=_cmd(), now=_NOW, new_id=new_id)
     assert len(events) == 1
     event = events[0]
-    assert isinstance(event, CapabilityDefined)
+    assert isinstance(event, RecipeCapabilityDefined)
     assert event.capability_id == new_id
     assert event.code == "cora.capability.flyscan"
     assert event.name == "FlyScan"

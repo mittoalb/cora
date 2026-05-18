@@ -9,11 +9,11 @@ from cora.recipe.aggregates.capability import (
     Capability,
     CapabilityCannotDeprecateError,
     CapabilityCode,
-    CapabilityDeprecated,
     CapabilityName,
     CapabilityNotFoundError,
     CapabilityStatus,
     ExecutorShape,
+    RecipeCapabilityDeprecated,
 )
 from cora.recipe.features.deprecate_capability import DeprecateCapability, decide
 
@@ -39,7 +39,7 @@ def test_decide_deprecates_from_defined() -> None:
         now=_NOW,
     )
     assert len(events) == 1
-    assert isinstance(events[0], CapabilityDeprecated)
+    assert isinstance(events[0], RecipeCapabilityDeprecated)
     assert events[0].replaced_by_capability_id is None
 
 

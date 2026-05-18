@@ -1,11 +1,11 @@
 """Evolver: replay events to reconstruct Capability state.
 
 Status mapping per event type:
-  - `CapabilityDefined`    -> DEFINED   (genesis; version=None)
-  - `CapabilityVersioned`  -> VERSIONED (version=event.version_tag;
+  - `RecipeCapabilityDefined`    -> DEFINED   (genesis; version=None)
+  - `RecipeCapabilityVersioned`  -> VERSIONED (version=event.version_tag;
                                          declarative contract REPLACES
                                          wholesale per DLM-B)
-  - `CapabilityDeprecated` -> DEPRECATED (declarative contract PRESERVED
+  - `RecipeCapabilityDeprecated` -> DEPRECATED (declarative contract PRESERVED
                                           for audit; replaced_by_capability_id
                                           captured if supplied)
 
@@ -15,15 +15,15 @@ precedent as `FamilyVersioned`.
 
 ## Replace vs preserve on each arm
 
-- CapabilityVersioned REPLACES required_affordances, executor_shapes,
+- RecipeCapabilityVersioned REPLACES required_affordances, executor_shapes,
   description, parameter_schema with the new event's values (a new
   version IS a new declaration).
-- CapabilityDeprecated PRESERVES all declarative fields and ADDS the
+- RecipeCapabilityDeprecated PRESERVES all declarative fields and ADDS the
   replaced_by_capability_id pointer. Operators reading a deprecated
   Capability still see what it declared (audit-critical).
 
 Transition events applied to empty state raise ValueError via
-`require_state` — they can never appear before `CapabilityDefined`
+`require_state` — they can never appear before `RecipeCapabilityDefined`
 in a well-formed stream.
 """
 
@@ -32,10 +32,10 @@ from typing import assert_never
 
 from cora.infrastructure.evolver import require_state
 from cora.recipe.aggregates.capability.events import (
-    CapabilityDefined,
-    CapabilityDeprecated,
-    CapabilityEvent,
-    CapabilityVersioned,
+    RecipeCapabilityDefined,
+    RecipeCapabilityDeprecated,
+    RecipeCapabilityEvent,
+    RecipeCapabilityVersioned,
 )
 from cora.recipe.aggregates.capability.state import (
     Capability,
@@ -45,10 +45,10 @@ from cora.recipe.aggregates.capability.state import (
 )
 
 
-def evolve(state: Capability | None, event: CapabilityEvent) -> Capability:
+def evolve(state: Capability | None, event: RecipeCapabilityEvent) -> Capability:
     """Apply one event to the current state."""
     match event:
-        case CapabilityDefined(
+        case RecipeCapabilityDefined(
             capability_id=capability_id,
             code=code,
             name=name,
@@ -68,14 +68,14 @@ def evolve(state: Capability | None, event: CapabilityEvent) -> Capability:
                 executor_shapes=executor_shapes,
                 parameter_schema=parameter_schema,
             )
-        case CapabilityVersioned(
+        case RecipeCapabilityVersioned(
             version_tag=version_tag,
             description=description,
             required_affordances=required_affordances,
             executor_shapes=executor_shapes,
             parameter_schema=parameter_schema,
         ):
-            prior = require_state(state, "CapabilityVersioned")
+            prior = require_state(state, "RecipeCapabilityVersioned")
             return Capability(
                 id=prior.id,
                 code=prior.code,
@@ -90,8 +90,8 @@ def evolve(state: Capability | None, event: CapabilityEvent) -> Capability:
                 parameter_schema=parameter_schema,
                 replaced_by_capability_id=prior.replaced_by_capability_id,
             )
-        case CapabilityDeprecated(replaced_by_capability_id=replaced_by_capability_id):
-            prior = require_state(state, "CapabilityDeprecated")
+        case RecipeCapabilityDeprecated(replaced_by_capability_id=replaced_by_capability_id):
+            prior = require_state(state, "RecipeCapabilityDeprecated")
             return Capability(
                 id=prior.id,
                 code=prior.code,
@@ -111,7 +111,7 @@ def evolve(state: Capability | None, event: CapabilityEvent) -> Capability:
             assert_never(event)
 
 
-def fold(events: Sequence[CapabilityEvent]) -> Capability | None:
+def fold(events: Sequence[RecipeCapabilityEvent]) -> Capability | None:
     """Replay a stream of events from the empty initial state."""
     state: Capability | None = None
     for event in events:

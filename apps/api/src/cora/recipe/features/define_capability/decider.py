@@ -29,8 +29,8 @@ from cora.recipe.aggregates.capability import (
     Capability,
     CapabilityAlreadyExistsError,
     CapabilityCode,
-    CapabilityDefined,
     CapabilityName,
+    RecipeCapabilityDefined,
     validate_capability_parameter_schema,
 )
 from cora.recipe.aggregates.capability.state import (
@@ -46,7 +46,7 @@ def decide(
     *,
     now: datetime,
     new_id: UUID,
-) -> list[CapabilityDefined]:
+) -> list[RecipeCapabilityDefined]:
     """Decide the events produced by defining a new Capability."""
     if state is not None:
         raise CapabilityAlreadyExistsError(state.id)
@@ -57,7 +57,7 @@ def decide(
     if command.parameter_schema is not None:
         validate_capability_parameter_schema(command.parameter_schema)
     return [
-        CapabilityDefined(
+        RecipeCapabilityDefined(
             capability_id=new_id,
             code=code.value,
             name=name.value,

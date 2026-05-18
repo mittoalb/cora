@@ -18,9 +18,9 @@ from datetime import datetime
 from cora.recipe.aggregates.capability import (
     Capability,
     CapabilityCannotDeprecateError,
-    CapabilityDeprecated,
     CapabilityNotFoundError,
     CapabilityStatus,
+    RecipeCapabilityDeprecated,
 )
 from cora.recipe.features.deprecate_capability.command import DeprecateCapability
 
@@ -35,14 +35,14 @@ def decide(
     command: DeprecateCapability,
     *,
     now: datetime,
-) -> list[CapabilityDeprecated]:
+) -> list[RecipeCapabilityDeprecated]:
     """Decide the events produced by deprecating an existing Capability."""
     if state is None:
         raise CapabilityNotFoundError(command.capability_id)
     if state.status not in _DEPRECATABLE_STATUSES:
         raise CapabilityCannotDeprecateError(state.id, current_status=state.status)
     return [
-        CapabilityDeprecated(
+        RecipeCapabilityDeprecated(
             capability_id=state.id,
             replaced_by_capability_id=command.replaced_by_capability_id,
             occurred_at=now,
