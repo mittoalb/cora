@@ -70,6 +70,12 @@ class ProcedureRegistered:
 
     `parent_run_id` carries the optional Run binding (None for
     standalone procedures, set for Phase-of-Run procedures).
+
+    `capability_id` (Phase 10d-additive) is the optional cross-BC
+    binding to the universal Capability template (Recipe BC 6k)
+    this Procedure realizes as a Procedure-shaped executor. None for
+    pre-10d Procedures and for ceremony Procedures with no template
+    binding. Same additive shape as Method.capability_id (6l-additive).
     """
 
     procedure_id: UUID
@@ -78,6 +84,7 @@ class ProcedureRegistered:
     target_asset_ids: list[UUID]
     parent_run_id: UUID | None
     occurred_at: datetime
+    capability_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -247,6 +254,7 @@ def to_payload(event: ProcedureEvent) -> dict[str, Any]:
             target_asset_ids=target_asset_ids,
             parent_run_id=parent_run_id,
             occurred_at=occurred_at,
+            capability_id=capability_id,
         ):
             return {
                 "procedure_id": str(procedure_id),
@@ -254,6 +262,10 @@ def to_payload(event: ProcedureEvent) -> dict[str, Any]:
                 "kind": kind,
                 "target_asset_ids": sorted(str(a) for a in target_asset_ids),
                 "parent_run_id": str(parent_run_id) if parent_run_id is not None else None,
+                # Phase 10d-additive: None when register_procedure omits
+                # capability_id. Pre-10d streams fold via `.get("capability_id")`
+                # in from_stored. Mirrors Method.capability_id (6l-additive).
+                "capability_id": str(capability_id) if capability_id is not None else None,
                 "occurred_at": occurred_at.isoformat(),
             }
         case ProcedureStarted(procedure_id=procedure_id, occurred_at=occurred_at):
@@ -323,12 +335,17 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
     match stored.event_type:
         case "ProcedureRegistered":
             raw_parent = payload["parent_run_id"]
+            # Phase 10d-additive: capability_id is OPTIONAL on the payload.
+            # Pre-10d streams omit the key entirely; fold via `.get` →
+            # None default. Mirrors Method.capability_id (6l-additive).
+            raw_capability = payload.get("capability_id")
             return ProcedureRegistered(
                 procedure_id=UUID(payload["procedure_id"]),
                 name=payload["name"],
                 kind=payload["kind"],
                 target_asset_ids=[UUID(a) for a in payload["target_asset_ids"]],
                 parent_run_id=UUID(raw_parent) if raw_parent is not None else None,
+                capability_id=UUID(raw_capability) if raw_capability is not None else None,
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
             )
         case "ProcedureStarted":

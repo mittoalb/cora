@@ -166,12 +166,20 @@ depends_on = [
 # Operation BC depends on its own aggregates plus Equipment aggregate
 # kernel for asset existence + lifecycle check at start_procedure time
 # (start_procedure context pre-loads the Asset before the pure decider).
+# Phase 10d adds `cora.recipe.aggregates` for `load_capability` +
+# `Capability` + `ExecutorShape` + `CapabilityNotFoundError`: the
+# register_procedure handler conditionally loads the bound Recipe
+# Capability when command.capability_id is supplied, and the decider
+# validates that ExecutorShape.PROCEDURE is in capability.executor_shapes.
+# Same cross-BC import direction Recipe→Operation as Capability template
+# →Procedure executor binding (lock per DLM-B / project_capability_aggregate_design).
 [[modules]]
 path = "cora.operation"
 depends_on = [
     "cora.infrastructure",
     "cora.operation.aggregates",
     "cora.equipment.aggregates",
+    "cora.recipe.aggregates",
 ]
 
 # Safety BC owns the Clearance aggregate (FSM authorising hazardous

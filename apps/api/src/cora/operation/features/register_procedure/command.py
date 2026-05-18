@@ -36,9 +36,23 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class RegisterProcedure:
-    """Register a new episodic operational procedure (lands in `Defined`)."""
+    """Register a new episodic operational procedure (lands in `Defined`).
+
+    `capability_id` (Phase 10d-additive) is the optional cross-BC
+    binding to the universal Capability template (Recipe BC 6k)
+    this Procedure realizes. OPTIONAL by design: many ceremony
+    Procedures (bakeouts, sample cleaning, calibration sweeps) have
+    no matching Capability template. When supplied, the handler
+    loads the bound Capability + the decider validates that
+    `Capability.executor_shapes` contains `Procedure`; otherwise
+    raises `ProcedureCapabilityExecutorMismatchError`. Same
+    additive shape as Method.capability_id (6l-additive). No
+    10d-strict follow-up planned today — Procedure binding stays
+    optional unless pilot demand justifies REQUIRED enforcement.
+    """
 
     name: str
     kind: str
     target_asset_ids: frozenset[UUID] = field(default_factory=frozenset[UUID])
     parent_run_id: UUID | None = None
+    capability_id: UUID | None = None

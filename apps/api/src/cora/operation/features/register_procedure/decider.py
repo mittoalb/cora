@@ -40,22 +40,51 @@ from cora.operation.aggregates.procedure import (
     InvalidProcedureKindError,
     Procedure,
     ProcedureAlreadyExistsError,
+    ProcedureCapabilityExecutorMismatchError,
     ProcedureName,
     ProcedureRegistered,
 )
 from cora.operation.features.register_procedure.command import RegisterProcedure
+from cora.recipe.aggregates.capability import (
+    Capability,
+    CapabilityNotFoundError,
+    ExecutorShape,
+)
 
 
 def decide(
     state: Procedure | None,
     command: RegisterProcedure,
     *,
+    capability: Capability | None = None,
     now: datetime,
     new_id: UUID,
 ) -> list[ProcedureRegistered]:
-    """Decide the events produced by registering a new procedure."""
+    """Decide the events produced by registering a new procedure.
+
+    Phase 10d-additive adds optional `capability` parameter: the
+    loaded Capability state for `command.capability_id` (loaded by
+    the handler via the cross-BC port; None when command.capability_id
+    is None). When command.capability_id is supplied, the decider
+    validates:
+      1. capability is not None (Capability stream exists)
+         -> CapabilityNotFoundError
+      2. capability.executor_shapes contains ExecutorShape.PROCEDURE
+         (this Capability accepts Procedure-shaped executors)
+         -> ProcedureCapabilityExecutorMismatchError
+
+    Pre-10d test fixtures may omit capability_id entirely; the
+    decider skips both guards in that case. Same shape as
+    Method.capability_id (6l-additive).
+    """
     if state is not None:
         raise ProcedureAlreadyExistsError(state.id)
+
+    if command.capability_id is not None:
+        if capability is None:
+            raise CapabilityNotFoundError(command.capability_id)
+        if ExecutorShape.PROCEDURE not in capability.executor_shapes:
+            raise ProcedureCapabilityExecutorMismatchError(new_id, command.capability_id)
 
     # validate + trim kind (bare str; not a VO per Supply.kind precedent)
     kind = validate_bounded_text(
@@ -73,6 +102,7 @@ def decide(
             kind=kind,
             target_asset_ids=list(command.target_asset_ids),
             parent_run_id=command.parent_run_id,
+            capability_id=command.capability_id,
             occurred_at=now,
         )
     ]

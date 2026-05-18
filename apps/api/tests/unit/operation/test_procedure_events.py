@@ -74,6 +74,10 @@ def test_to_payload_serializes_procedure_registered_to_primitives() -> None:
         # Sorted by string form for deterministic payload bytes.
         "target_asset_ids": sorted([str(asset1), str(asset2)]),
         "parent_run_id": str(parent_run),
+        # Phase 10d-additive: None when ProcedureRegistered has no
+        # capability_id (default). Pre-10d streams omit the key and
+        # fold via `.get("capability_id")` in from_stored.
+        "capability_id": None,
         "occurred_at": _NOW.isoformat(),
     }
 

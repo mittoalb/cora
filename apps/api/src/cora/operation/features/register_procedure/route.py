@@ -71,6 +71,19 @@ class RegisterProcedureRequest(BaseModel):
             "project_operation_design memo)."
         ),
     )
+    capability_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Optional cross-BC binding to the universal Capability "
+            "template (Recipe BC 6k) this Procedure realizes as a "
+            "Procedure-shaped executor. None for ceremony Procedures "
+            "with no matching template. When supplied, the bound "
+            "Capability must declare `Procedure` in its executor_shapes "
+            "set; otherwise 409. Eventual-consistency: the Capability "
+            "stream is loaded at handler time, not API-boundary time. "
+            "Same additive shape as Method.capability_id (6l-additive)."
+        ),
+    )
 
 
 class RegisterProcedureResponse(BaseModel):
@@ -141,6 +154,7 @@ async def post_procedures(
             kind=body.kind,
             target_asset_ids=frozenset(body.target_asset_ids),
             parent_run_id=body.parent_run_id,
+            capability_id=body.capability_id,
         ),
         principal_id=principal_id,
         correlation_id=cid,

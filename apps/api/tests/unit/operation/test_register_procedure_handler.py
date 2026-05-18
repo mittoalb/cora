@@ -6,15 +6,32 @@ we test the bare handler returned by `register_procedure.bind(deps)`.
 """
 
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
+from cora.operation.aggregates.procedure import (
+    ProcedureCapabilityExecutorMismatchError,
+)
 from cora.operation.errors import UnauthorizedError
 from cora.operation.features import register_procedure
 from cora.operation.features.register_procedure import RegisterProcedure
+from cora.recipe.aggregates.capability import (
+    CapabilityCode,
+    CapabilityName,
+    CapabilityNotFoundError,
+    ExecutorShape,
+    RecipeCapabilityDefined,
+)
+from cora.recipe.aggregates.capability import (
+    event_type_name as capability_event_type_name,
+)
+from cora.recipe.aggregates.capability import (
+    to_payload as capability_to_payload,
+)
 from tests.unit._helpers import build_deps as _build_deps_shared
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
@@ -35,6 +52,38 @@ def _build_deps(
         now=_NOW,
         event_store=event_store,
         deny=deny,
+    )
+
+
+async def _seed_capability(
+    store: InMemoryEventStore,
+    capability_id: UUID,
+    *,
+    shapes: frozenset[ExecutorShape] = frozenset({ExecutorShape.PROCEDURE}),
+) -> None:
+    """Seed a Recipe Capability stream so load_capability returns it."""
+    event = RecipeCapabilityDefined(
+        capability_id=capability_id,
+        code=CapabilityCode("cora.capability.x").value,
+        name=CapabilityName("X").value,
+        required_affordances=frozenset(),
+        executor_shapes=shapes,
+        occurred_at=_NOW,
+    )
+    new_event = to_new_event(
+        event_type=capability_event_type_name(event),
+        payload=capability_to_payload(event),
+        occurred_at=_NOW,
+        event_id=uuid4(),
+        command_name="DefineCapability",
+        correlation_id=_CORRELATION_ID,
+        principal_id=_PRINCIPAL_ID,
+    )
+    await store.append(
+        stream_type="Capability",
+        stream_id=capability_id,
+        expected_version=0,
+        events=[new_event],
     )
 
 
@@ -75,6 +124,8 @@ async def test_handler_appends_procedure_registered_event_to_store() -> None:
         "kind": "alignment",
         "target_asset_ids": [str(_ASSET_ID)],
         "parent_run_id": None,
+        # Phase 10d-additive: None when RegisterProcedure omits capability_id.
+        "capability_id": None,
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.correlation_id == _CORRELATION_ID
@@ -191,3 +242,104 @@ async def test_wired_handler_propagates_causation_id_through_full_composition() 
 
     events, _ = await store.load("Procedure", _NEW_ID)
     assert events[0].causation_id == causation
+
+
+# ---------- Phase 10d cross-BC capability tests ----------
+
+
+@pytest.mark.unit
+async def test_handler_loads_and_validates_bound_capability_when_set() -> None:
+    """Phase 10d-additive happy path: when RegisterProcedure.capability_id
+    is set, the handler loads the Capability stream via
+    `load_capability`, passes the loaded state to the decider, and the
+    persisted ProcedureRegistered payload carries the bound capability_id."""
+    capability_id = UUID("01900000-0000-7000-8000-0000000c00d1")
+    store = InMemoryEventStore()
+    await _seed_capability(store, capability_id)
+    deps = _build_deps(event_store=store)
+    handler = register_procedure.bind(deps)
+
+    await handler(
+        RegisterProcedure(name="X", kind="alignment", capability_id=capability_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    events, _ = await store.load("Procedure", _NEW_ID)
+    assert events[0].payload["capability_id"] == str(capability_id)
+
+
+@pytest.mark.unit
+async def test_handler_raises_capability_not_found_when_stream_missing() -> None:
+    """Phase 10d-additive: capability_id set on the command but no
+    Capability stream exists for it. Decider raises
+    `CapabilityNotFoundError` (mapped to 404 via operation routes)."""
+    bogus = UUID("01900000-0000-7000-8000-deadbeefcafe")
+    store = InMemoryEventStore()
+    deps = _build_deps(event_store=store)
+    handler = register_procedure.bind(deps)
+
+    with pytest.raises(CapabilityNotFoundError):
+        await handler(
+            RegisterProcedure(name="X", kind="alignment", capability_id=bogus),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+    procedure_events, version = await store.load("Procedure", _NEW_ID)
+    assert procedure_events == []
+    assert version == 0
+
+
+@pytest.mark.unit
+async def test_handler_raises_executor_mismatch_when_capability_excludes_procedure() -> None:
+    """Phase 10d-additive: capability_id binds to a Method-only
+    Capability. Handler propagates ProcedureCapabilityExecutorMismatchError
+    (mapped to 409). Critical: no Procedure event should be persisted
+    when the cross-BC guard fires."""
+    capability_id = UUID("01900000-0000-7000-8000-0000000c00d2")
+    store = InMemoryEventStore()
+    await _seed_capability(store, capability_id, shapes=frozenset({ExecutorShape.METHOD}))
+    deps = _build_deps(event_store=store)
+    handler = register_procedure.bind(deps)
+
+    with pytest.raises(ProcedureCapabilityExecutorMismatchError) as exc_info:
+        await handler(
+            RegisterProcedure(name="X", kind="alignment", capability_id=capability_id),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert exc_info.value.capability_id == capability_id
+
+    procedure_events, version = await store.load("Procedure", _NEW_ID)
+    assert procedure_events == []
+    assert version == 0
+
+
+@pytest.mark.unit
+async def test_handler_skips_capability_load_when_command_omits_capability_id() -> None:
+    """Phase 10d-additive: when capability_id is None on the command,
+    the handler does NOT call load_capability — pre-10d Procedures +
+    ceremony Procedures with no template binding stay cost-free.
+    Pinned via a sentinel event store that raises if Capability is
+    loaded."""
+
+    class _CapabilityLoadGuard(InMemoryEventStore):
+        async def load(self, stream_type: str, stream_id: UUID):  # type: ignore[override]
+            assert stream_type != "Capability", (
+                "load_capability should not run when RegisterProcedure.capability_id is None"
+            )
+            return await super().load(stream_type, stream_id)
+
+    store = _CapabilityLoadGuard()
+    deps = _build_deps(event_store=store)
+    handler = register_procedure.bind(deps)
+
+    await handler(
+        RegisterProcedure(name="Vessel-A bakeout", kind="bakeout"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    events, _ = await store.load("Procedure", _NEW_ID)
+    assert events[0].payload["capability_id"] is None

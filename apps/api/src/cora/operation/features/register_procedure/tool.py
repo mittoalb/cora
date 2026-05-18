@@ -78,6 +78,16 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ] = None,
+        capability_id: Annotated[
+            UUID | None,
+            Field(
+                description=(
+                    "Optional Capability template binding (Phase 10d-additive). "
+                    "When supplied, the bound Capability must declare "
+                    "`Procedure` in its executor_shapes set."
+                ),
+            ),
+        ] = None,
     ) -> RegisterProcedureOutput:
         handler = get_handler()
         procedure_id = await handler(
@@ -86,6 +96,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 kind=kind,
                 target_asset_ids=frozenset(target_asset_ids or []),
                 parent_run_id=parent_run_id,
+                capability_id=capability_id,
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),

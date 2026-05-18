@@ -29,6 +29,7 @@ from cora.operation.aggregates.procedure import event_type_name, to_payload
 from cora.operation.errors import UnauthorizedError
 from cora.operation.features.register_procedure.command import RegisterProcedure
 from cora.operation.features.register_procedure.decider import decide
+from cora.recipe.aggregates.capability import load_capability
 
 _STREAM_TYPE = "Procedure"
 _COMMAND_NAME = "RegisterProcedure"
@@ -110,9 +111,20 @@ def bind(deps: Kernel) -> Handler:
         new_id = deps.id_generator.new_id()
         now = deps.clock.now()
 
+        # Phase 10d-additive: load the bound Capability via cross-BC
+        # port only when the command supplied one. None passes through
+        # to the decider; when capability_id is set but the stream
+        # doesn't exist, decider raises CapabilityNotFoundError.
+        capability = (
+            await load_capability(deps.event_store, command.capability_id)
+            if command.capability_id is not None
+            else None
+        )
+
         domain_events = decide(
             state=None,
             command=command,
+            capability=capability,
             now=now,
             new_id=new_id,
         )

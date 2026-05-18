@@ -286,6 +286,24 @@ class ProcedureAssetDecommissionedError(Exception):
         self.asset_ids = asset_ids
 
 
+class ProcedureCapabilityExecutorMismatchError(Exception):
+    """Procedure.capability_id points at a Capability whose executor_shapes
+    do not include Procedure (Phase 10d cross-BC guard).
+
+    Mapped to HTTP 409. Mirrors `MethodCapabilityExecutorMismatchError`
+    (Phase 6l-additive). Surfaces when register_procedure binds to a
+    Capability that only declares `ExecutorShape.METHOD`.
+    """
+
+    def __init__(self, procedure_id: UUID, capability_id: UUID) -> None:
+        super().__init__(
+            f"Procedure {procedure_id} cannot bind to Capability {capability_id}: "
+            f"Capability.executor_shapes does not include Procedure"
+        )
+        self.procedure_id = procedure_id
+        self.capability_id = capability_id
+
+
 class ProcedureCannotStartError(Exception):
     """Attempted to start a Procedure not in `Defined`.
 
@@ -592,3 +610,11 @@ class Procedure:
     start_procedure, no Closed event (terminal Procedure.status
     implicitly closes via `ProcedureStepsLogbookClosedError`).
     """
+    capability_id: UUID | None = field(default=None)
+    """Phase 10d: optional binding to the universal Capability template
+    (Recipe BC 6k) this Procedure realizes as a Procedure-shaped
+    executor. OPTIONAL at this sub-phase to let pre-10d Procedures
+    keep working without bulk migration; a 10d-strict follow-up may
+    REQUIRE the binding per Pattern P (or accept that ceremony
+    Procedures stay un-bound when no Capability template applies).
+    Same additive-state shape as Method.capability_id (6l-additive)."""

@@ -8,11 +8,12 @@ folds back to the expected state.
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import asyncpg
 import pytest
 
+from cora.infrastructure.event_envelope import to_new_event
 from cora.operation.aggregates.procedure import (
     ProcedureStatus,
     fold,
@@ -20,6 +21,18 @@ from cora.operation.aggregates.procedure import (
 )
 from cora.operation.features.register_procedure import RegisterProcedure
 from cora.operation.features.register_procedure import bind as bind_register_procedure
+from cora.recipe.aggregates.capability import (
+    CapabilityCode,
+    CapabilityName,
+    ExecutorShape,
+    RecipeCapabilityDefined,
+)
+from cora.recipe.aggregates.capability import (
+    event_type_name as capability_event_type_name,
+)
+from cora.recipe.aggregates.capability import (
+    to_payload as capability_to_payload,
+)
 from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
@@ -60,6 +73,8 @@ async def test_register_procedure_persists_event_to_postgres_with_target_assets(
         # Sorted by UUID string form (deterministic).
         "target_asset_ids": sorted([str(asset1), str(asset2)]),
         "parent_run_id": None,
+        # Phase 10d-additive: None when RegisterProcedure omits capability_id.
+        "capability_id": None,
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.correlation_id == _CORRELATION_ID
@@ -126,3 +141,58 @@ async def test_register_procedure_persists_facility_envelope_with_empty_target_a
     events, _ = await deps.event_store.load("Procedure", procedure_id)
     assert events[0].payload["target_asset_ids"] == []
     assert events[0].payload["parent_run_id"] is None
+
+
+@pytest.mark.integration
+async def test_register_procedure_persists_bound_capability_id_to_postgres(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Phase 10d-additive PG round-trip: when capability_id is set,
+    the handler loads the bound Capability from PG, validates
+    `ExecutorShape.PROCEDURE` is declared, and persists the
+    capability_id into the ProcedureRegistered payload as a UUID
+    string. Mirrors test_define_method_persists_bound_capability_id_to_postgres
+    from 6l-additive."""
+    procedure_id = UUID("01900000-0000-7000-8000-0000000c0a41")
+    event_id = UUID("01900000-0000-7000-8000-0000000c0a42")
+    capability_id = UUID("01900000-0000-7000-8000-0000000c00d3")
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[procedure_id, event_id])
+
+    # Seed a Procedure-shaped Capability via the event-store API.
+    cap_event = RecipeCapabilityDefined(
+        capability_id=capability_id,
+        code=CapabilityCode("cora.capability.x").value,
+        name=CapabilityName("X").value,
+        required_affordances=frozenset(),
+        executor_shapes=frozenset({ExecutorShape.PROCEDURE}),
+        occurred_at=_NOW,
+    )
+
+    await deps.event_store.append(
+        stream_type="Capability",
+        stream_id=capability_id,
+        expected_version=0,
+        events=[
+            to_new_event(
+                event_type=capability_event_type_name(cap_event),
+                payload=capability_to_payload(cap_event),
+                occurred_at=_NOW,
+                event_id=uuid4(),
+                command_name="DefineCapability",
+                correlation_id=_CORRELATION_ID,
+                principal_id=_PRINCIPAL_ID,
+            )
+        ],
+    )
+
+    await bind_register_procedure(deps)(
+        RegisterProcedure(name="Hexapod reboot", kind="recovery", capability_id=capability_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    events, _ = await deps.event_store.load("Procedure", procedure_id)
+    assert events[0].payload["capability_id"] == str(capability_id)
+    state = fold([from_stored(s) for s in events])
+    assert state is not None
+    assert state.capability_id == capability_id

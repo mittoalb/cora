@@ -47,6 +47,7 @@ from cora.operation.aggregates.procedure import (
     ProcedureCannotCompleteError,
     ProcedureCannotStartError,
     ProcedureCannotTruncateError,
+    ProcedureCapabilityExecutorMismatchError,
     ProcedureNotFoundError,
     ProcedureStepsLogbookClosedError,
 )
@@ -61,6 +62,7 @@ from cora.operation.features import (
     start_procedure,
     truncate_procedure,
 )
+from cora.recipe.aggregates.capability import CapabilityNotFoundError
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -147,7 +149,13 @@ def register_operation_routes(app: FastAPI) -> None:
         InvalidStepKindError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
-    for not_found_cls in (ProcedureNotFoundError,):
+    for not_found_cls in (
+        ProcedureNotFoundError,
+        # Phase 10d cross-BC reference: Procedure.capability_id points
+        # at a Capability stream that doesn't exist (loaded at handler
+        # time per eventual-consistency stance).
+        CapabilityNotFoundError,
+    ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (ProcedureAlreadyExistsError,):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
@@ -158,6 +166,9 @@ def register_operation_routes(app: FastAPI) -> None:
         ProcedureCannotTruncateError,
         ProcedureAssetDecommissionedError,
         ProcedureStepsLogbookClosedError,
+        # Phase 10d cross-BC guard: Procedure binds to a Capability whose
+        # executor_shapes does not include Procedure.
+        ProcedureCapabilityExecutorMismatchError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

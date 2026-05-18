@@ -1,7 +1,7 @@
 """Pure-decider tests for `register_procedure` slice."""
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -10,13 +10,33 @@ from cora.operation.aggregates.procedure import (
     InvalidProcedureNameError,
     Procedure,
     ProcedureAlreadyExistsError,
+    ProcedureCapabilityExecutorMismatchError,
     ProcedureName,
     ProcedureStatus,
 )
 from cora.operation.features import register_procedure
 from cora.operation.features.register_procedure import RegisterProcedure
+from cora.recipe.aggregates.capability import (
+    Capability,
+    CapabilityCode,
+    CapabilityName,
+    CapabilityNotFoundError,
+    ExecutorShape,
+)
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
+
+
+def _capability(
+    *, shapes: frozenset[ExecutorShape] = frozenset({ExecutorShape.PROCEDURE})
+) -> Capability:
+    """Build a Capability fixture for Phase 10d cross-BC tests."""
+    return Capability(
+        id=uuid4(),
+        code=CapabilityCode("cora.capability.x"),
+        name=CapabilityName("X"),
+        executor_shapes=shapes,
+    )
 
 
 @pytest.mark.unit
@@ -214,3 +234,79 @@ def test_decide_does_not_mutate_input_state() -> None:
         existing.target_asset_ids,
         existing.status,
     ) == snapshot
+
+
+# ---------- Phase 10d cross-BC capability guard ----------
+
+
+@pytest.mark.unit
+def test_decide_skips_capability_validation_when_command_omits_capability_id() -> None:
+    """Phase 10d-additive: when capability_id is None on the command,
+    the decider skips the Capability + executor-shape check entirely.
+    Pre-10d Procedures + ceremony Procedures with no template binding
+    keep working with no extra context required."""
+    events = register_procedure.decide(
+        state=None,
+        command=RegisterProcedure(name="Bakeout", kind="bakeout"),
+        capability=None,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].capability_id is None
+
+
+@pytest.mark.unit
+def test_decide_raises_capability_not_found_when_stream_missing() -> None:
+    """Phase 10d-additive: command supplied capability_id but the
+    handler couldn't load a Capability stream for it (capability=None).
+    Maps to 404 via routes.py registration. Mirrors define_method
+    (6l-additive)."""
+    bogus = UUID("01900000-0000-7000-8000-deadbeefcafe")
+    with pytest.raises(CapabilityNotFoundError) as exc_info:
+        register_procedure.decide(
+            state=None,
+            command=RegisterProcedure(name="X", kind="alignment", capability_id=bogus),
+            capability=None,
+            now=_NOW,
+            new_id=uuid4(),
+        )
+    assert exc_info.value.capability_id == bogus
+
+
+@pytest.mark.unit
+def test_decide_raises_executor_mismatch_when_capability_excludes_procedure() -> None:
+    """Phase 10d-additive: bound Capability exists but its
+    `executor_shapes` does NOT contain ExecutorShape.PROCEDURE (for
+    example, a Method-only Capability template). Maps to 409 via
+    routes.py registration. Mirror of the 6l-additive sibling guard
+    that gates Method bindings on ExecutorShape.METHOD."""
+    cap = _capability(shapes=frozenset({ExecutorShape.METHOD}))
+    new_id = uuid4()
+    with pytest.raises(ProcedureCapabilityExecutorMismatchError) as exc_info:
+        register_procedure.decide(
+            state=None,
+            command=RegisterProcedure(name="X", kind="alignment", capability_id=cap.id),
+            capability=cap,
+            now=_NOW,
+            new_id=new_id,
+        )
+    assert exc_info.value.procedure_id == new_id
+    assert exc_info.value.capability_id == cap.id
+
+
+@pytest.mark.unit
+def test_decide_accepts_procedure_shaped_capability_and_propagates_id() -> None:
+    """Phase 10d-additive happy path: capability_id is set, the bound
+    Capability declares PROCEDURE in its executor_shapes, and the
+    decided event carries the bound capability_id (so projections /
+    Run binding can read it back)."""
+    cap = _capability(shapes=frozenset({ExecutorShape.METHOD, ExecutorShape.PROCEDURE}))
+    events = register_procedure.decide(
+        state=None,
+        command=RegisterProcedure(name="X", kind="alignment", capability_id=cap.id),
+        capability=cap,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1
+    assert events[0].capability_id == cap.id

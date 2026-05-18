@@ -25,12 +25,12 @@ layer (set semantics for ProcedureStartContext lookup); the payload
 already sorted in `to_payload` for persistence determinism.
 
 **Critical invariant**: every transition arm MUST carry `id`, `name`,
-`kind`, `target_asset_ids`, `parent_run_id`, AND `steps_logbook_id`
-through from prior state. Constructing `Procedure(id=..., name=...,
-status=...)` without explicitly passing the additive fields would
-silently WIPE them to defaults (empty frozenset / None). Pinned by
-the per-transition preserve-fields tests. Same lesson as Run BC's
-evolver docstring.
+`kind`, `target_asset_ids`, `parent_run_id`, `steps_logbook_id`,
+AND `capability_id` (Phase 10d-additive) through from prior state.
+Constructing `Procedure(id=..., name=..., status=...)` without
+explicitly passing the additive fields would silently WIPE them to
+defaults (empty frozenset / None). Pinned by the per-transition
+preserve-fields tests. Same lesson as Run BC's evolver docstring.
 
 `steps_logbook_id` (Phase 10c-b iter 2) is set by the
 `ProcedureStepsLogbookOpened` arm (lazy open-on-first-write
@@ -73,6 +73,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
             kind=kind,
             target_asset_ids=target_asset_ids,
             parent_run_id=parent_run_id,
+            capability_id=capability_id,
         ):
             _ = state  # ProcedureRegistered is the genesis event; prior state ignored
             return Procedure(
@@ -83,6 +84,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 status=ProcedureStatus.DEFINED,
                 parent_run_id=parent_run_id,
                 steps_logbook_id=None,
+                capability_id=capability_id,
             )
         case ProcedureStarted():
             prior = require_state(state, "ProcedureStarted")
@@ -94,6 +96,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 status=ProcedureStatus.RUNNING,
                 parent_run_id=prior.parent_run_id,
                 steps_logbook_id=prior.steps_logbook_id,
+                capability_id=prior.capability_id,
             )
         case ProcedureCompleted():
             prior = require_state(state, "ProcedureCompleted")
@@ -105,6 +108,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 status=ProcedureStatus.COMPLETED,
                 parent_run_id=prior.parent_run_id,
                 steps_logbook_id=prior.steps_logbook_id,
+                capability_id=prior.capability_id,
             )
         case ProcedureAborted():
             prior = require_state(state, "ProcedureAborted")
@@ -116,6 +120,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 status=ProcedureStatus.ABORTED,
                 parent_run_id=prior.parent_run_id,
                 steps_logbook_id=prior.steps_logbook_id,
+                capability_id=prior.capability_id,
             )
         case ProcedureTruncated():
             prior = require_state(state, "ProcedureTruncated")
@@ -127,6 +132,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 status=ProcedureStatus.TRUNCATED,
                 parent_run_id=prior.parent_run_id,
                 steps_logbook_id=prior.steps_logbook_id,
+                capability_id=prior.capability_id,
             )
         case ProcedureStepsLogbookOpened(logbook_id=logbook_id):
             # Lazy open-on-first-write (Phase 10c-b iter 2): preserve all
@@ -142,6 +148,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 status=prior.status,
                 parent_run_id=prior.parent_run_id,
                 steps_logbook_id=logbook_id,
+                capability_id=prior.capability_id,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
