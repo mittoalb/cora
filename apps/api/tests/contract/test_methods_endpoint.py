@@ -1,6 +1,6 @@
 """Contract tests for `POST /methods`.
 
-Mirror of `test_capabilities_endpoint.py`. Verifies request schema,
+Mirror of `test_families_endpoint.py`. Verifies request schema,
 response schema, status codes, and that the whitespace-only-name
 domain error maps to 400 via the BC's exception handler.
 
@@ -97,7 +97,7 @@ def test_post_methods_rejects_too_long_name_with_422() -> None:
         _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
-            json={"name": "a" * 201, "needed_families": []},
+            json={"name": "a" * 201, "capability_id": _cap_id, "needed_families": []},
         )
     assert response.status_code == 422
 
@@ -117,7 +117,7 @@ def test_post_methods_rejects_whitespace_only_name_with_400() -> None:
 
 
 @pytest.mark.contract
-def test_post_methods_rejects_non_uuid_capability_with_422() -> None:
+def test_post_methods_rejects_non_uuid_needed_family_with_422() -> None:
     with TestClient(create_app()) as client:
         _cap_id = create_capability_via_api(client)
         response = client.post(
