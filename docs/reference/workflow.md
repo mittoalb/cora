@@ -116,3 +116,33 @@ Marker is the category; name is the property. Don't repeat the category in the n
 - `test_<subject>_postgres.py` — anything else against real PG: full-FSM walks, cross-aggregate / multi-stream atomic writes, projection-worker behavior, race tests. Use a descriptive infix when the test's specialness needs to be named (`_cross_bc_`, `_atomic_`, `_full_fsm_cycle_`, `_fsm_walk_`, `_race_`); don't force one infix where several capture different scopes.
 
 The `_scenario` term follows DDD / BDD / Event-Storming vocabulary (Domain Storytelling, Gherkin scenarios). Avoid `_pilot` for the test tier — "pilot" decays as more beamlines integrate; the scenario shape is time-invariant. "Pilot" stays the right word for the real-world meaning (first beamline deployment) when it appears in domain text.
+
+## Test coverage per slice
+
+A fitness function in `tests/architecture/test_slice_test_coverage.py` enforces the slice-pyramid convention. New slices follow the matrix below or fail CI.
+
+| slice shape | decider | handler | endpoint | mcp_tool | handler_postgres |
+| --- | --- | --- | --- | --- | --- |
+| **command** | ✓ | ✓ | ✓ | ✓ | create-style only |
+| **entry-append** | — | ✓ | ✓ | ✓ | create-style only |
+| **query** | — | ✓ | ✓ | ✓ | — |
+
+**Create-style** = verb in `{define_*, register_*, add_*}`. These introduce a new aggregate or event stream, so the jsonb round-trip + ON CONFLICT + unique-constraint behavior gets pinned per-slice against real PG. **State-transition** slices (`abort_*`, `complete_*`, `resume_*`, `hold_*`, and so on) lean on cross-BC scenario coverage in `tests/integration/scenarios/` instead.
+
+Detection is lenient: a slice is considered covered if either the 1:1 file `test_<slice>_<suffix>.py` exists OR another test file in the right tier mentions the slice name as a substring (catches resource-plural grouped files like `test_actors_endpoint.py` covering `register_actor`, and bundles like `test_iter2_mcp_tools.py`). The `EXEMPT_FROM_*` allowlists in `test_slice_test_coverage.py` document existing divergences with citations.
+
+## Idempotency contract tests
+
+Create-style slices that accept `Idempotency-Key` get a dedicated `test_<slice>_idempotency.py` contract test. State-transition slices don't need them; the FSM rejects duplicate transitions naturally.
+
+## Event-sourcing aggregate conventions
+
+Three architecture tests pin the shape of every `cora/<bc>/aggregates/<agg>/events.py`:
+
+- **`test_decider_purity`** — every `decider.py` is referentially transparent (no I/O, no clock, no UUID generation).
+- **`test_from_stored_wraps_payload`** — every `case "X":` in `from_stored` wraps `KeyError` / `TypeError` / `AttributeError` as `raise ValueError(f"Malformed X payload {payload!r}: {exc}") from exc`. Decided 2026-05-18 after a 3-agent corpus survey (Marten, pyeventsourcing, Pydantic, msgspec, cattrs all wrap). Without the wrap, Sentry / Datadog group every aggregate's `KeyError` into one undifferentiated issue.
+- **`test_projection_idempotency`** — every projection's `apply()` is safe to re-run on the same event.
+
+## Per-BC test helpers
+
+When a BC accumulates its own seeding / setup helpers (typically at rule-of-three), they live in `tests/unit/<bc>/_helpers.py`, the same name as the shared `tests/unit/_helpers.py` and `tests/integration/_helpers.py`. The architecture test `test_helper_naming_convention.py` rejects divergent names like `_iter2_seed.py` or `_seed_helpers.py`.
