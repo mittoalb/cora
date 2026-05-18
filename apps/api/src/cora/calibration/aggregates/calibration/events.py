@@ -1,0 +1,323 @@
+"""Domain events emitted by the Calibration aggregate, plus the discriminated union.
+
+Two events ship in 12a:
+
+  - `CalibrationDefined`           -- genesis (no revisions yet)
+  - `CalibrationRevisionAppended`  -- append-only revision growth
+
+`operating_point` and `value` travel as JSON-friendly dicts (jsonb on
+disk). Postgres jsonb canonicalises key order + dedups duplicate keys
++ compares numbers by value (Q6 lock). The serialise / deserialise
+helpers bridge typed VOs <-> wire only for the polymorphic source.
+
+## Polymorphic source (Q5 lock): exclusive-arc serialization
+
+`CalibrationSource` is a 3-arm tagged union (MeasuredSource /
+ComputedSource / AssertedSource) on the aggregate. On the event
+payload it serialises as three nullable id fields with exactly one
+non-null (Postgres exclusive-arc consensus + Christensen/Hashrocket
+recommendation). The serialize / deserialize helpers below are
+PUBLIC cross-slice helpers (no leading underscore): the
+`append_revision` decider uses `serialize_source` to build the event
+payload; the evolver uses `deserialize_source` to reconstruct the
+typed union from the payload. Same convention as Safety's
+`serialize_binding` / Caution's `serialize_target`.
+"""
+
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, assert_never
+from uuid import UUID
+
+from cora.calibration.aggregates.calibration.state import (
+    AssertedSource,
+    CalibrationSource,
+    ComputedSource,
+    InvalidCalibrationSourceError,
+    MeasuredSource,
+)
+from cora.infrastructure.ports.event_store import StoredEvent
+
+# ---------------------------------------------------------------------------
+# CalibrationSource serialize / deserialize (public cross-slice helpers)
+# ---------------------------------------------------------------------------
+
+
+def serialize_source(source: CalibrationSource) -> dict[str, Any]:
+    """Encode a typed CalibrationSource into exclusive-arc payload fields.
+
+    Returns a dict with three keys, exactly one non-null:
+
+      MeasuredSource(procedure_id=X)  -> {procedure_id: str(X), dataset_id: None, actor_id: None}
+      ComputedSource(dataset_id=Y)    -> {procedure_id: None, dataset_id: str(Y), actor_id: None}
+      AssertedSource(actor_id=Z)      -> {procedure_id: None, dataset_id: None, actor_id: str(Z)}
+    """
+    match source:
+        case MeasuredSource(procedure_id=procedure_id):
+            return {
+                "source_procedure_id": str(procedure_id),
+                "source_dataset_id": None,
+                "source_actor_id": None,
+            }
+        case ComputedSource(dataset_id=dataset_id):
+            return {
+                "source_procedure_id": None,
+                "source_dataset_id": str(dataset_id),
+                "source_actor_id": None,
+            }
+        case AssertedSource(actor_id=actor_id):
+            return {
+                "source_procedure_id": None,
+                "source_dataset_id": None,
+                "source_actor_id": str(actor_id),
+            }
+        case _:  # pragma: no cover  # exhaustiveness guard
+            assert_never(source)
+
+
+def deserialize_source(payload: dict[str, Any]) -> CalibrationSource:
+    """Decode exclusive-arc payload fields into a typed CalibrationSource.
+
+    Validates that exactly one of `source_procedure_id` /
+    `source_dataset_id` / `source_actor_id` is non-null. Raises
+    `InvalidCalibrationSourceError` on violation (zero set, more than
+    one set, or all three missing keys) so a contaminated payload fails
+    loud rather than silently degrading to the first non-null match.
+    """
+    try:
+        procedure_id_raw = payload.get("source_procedure_id")
+        dataset_id_raw = payload.get("source_dataset_id")
+        actor_id_raw = payload.get("source_actor_id")
+        present = [
+            ("source_procedure_id", procedure_id_raw),
+            ("source_dataset_id", dataset_id_raw),
+            ("source_actor_id", actor_id_raw),
+        ]
+        non_null = [(k, v) for k, v in present if v is not None]
+        if len(non_null) != 1:
+            msg = (
+                f"CalibrationSource payload must have exactly one non-null "
+                f"source_*_id field; got {len(non_null)} non-null: "
+                f"{[k for k, _ in non_null]!r}"
+            )
+            raise InvalidCalibrationSourceError(msg)
+        key, value = non_null[0]
+        match key:
+            case "source_procedure_id":
+                return MeasuredSource(procedure_id=UUID(value))
+            case "source_dataset_id":
+                return ComputedSource(dataset_id=UUID(value))
+            case "source_actor_id":
+                return AssertedSource(actor_id=UUID(value))
+            case _:  # pragma: no cover  # exhaustiveness guard via len-check above
+                msg = f"Unknown source_*_id key {key!r}"
+                raise InvalidCalibrationSourceError(msg)
+    except (TypeError, AttributeError) as exc:
+        msg = f"Malformed CalibrationSource payload {payload!r}: {exc}"
+        raise InvalidCalibrationSourceError(msg) from exc
+
+
+# ---------------------------------------------------------------------------
+# Event classes
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CalibrationDefined:
+    """A new Calibration was defined (genesis; no revisions yet).
+
+    `operating_point` is the JSON-shaped dict identifying this
+    calibration's regime; validated against the quantity's
+    operating_point_schema at the decider.
+
+    `description` is optional operator-prose; `None` when absent
+    (matches Method/Plan/Family precedent).
+
+    `defined_by_actor_id` denorm of the envelope `principal_id` for
+    projection convenience; consumers querying "calibrations I
+    defined" don't need to join the envelope table.
+    """
+
+    calibration_id: UUID
+    subsystem_or_asset_id: UUID
+    quantity: str  # CalibrationQuantity value-string
+    operating_point: dict[str, Any]
+    description: str | None
+    defined_at: datetime
+    defined_by_actor_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class CalibrationRevisionAppended:
+    """A new revision was appended to an existing Calibration.
+
+    `value` is the JSON-shaped dict for the revision; validated against
+    the quantity's value_schema at the decider.
+
+    `status` is the per-revision CalibrationStatus value-string
+    (`Provisional` | `Verified`).
+
+    The three `source_*_id` fields are the exclusive-arc serialization
+    of the typed CalibrationSource union: exactly one non-null at
+    decoder time. See `serialize_source` / `deserialize_source`.
+
+    `decided_by_decision_id` mirrors the AdjustRun / StartRun /
+    AbortRun cross-BC eventual-consistency pattern: OPTIONAL; NOT
+    validated against the Decision BC at write time.
+
+    `supersedes_revision_id` is OPTIONAL; when set, must reference a
+    revision already on this aggregate (cross-aggregate supersession
+    is forbidden).
+
+    `established_by_actor_id` denorm of envelope `principal_id`.
+    """
+
+    revision_id: UUID
+    calibration_id: UUID
+    value: dict[str, Any]
+    status: str  # CalibrationStatus value-string
+    source_procedure_id: UUID | None
+    source_dataset_id: UUID | None
+    source_actor_id: UUID | None
+    established_at: datetime
+    established_by_actor_id: UUID
+    decided_by_decision_id: UUID | None
+    supersedes_revision_id: UUID | None
+    occurred_at: datetime
+
+
+# Discriminated union of every event the Calibration aggregate emits.
+CalibrationEvent = CalibrationDefined | CalibrationRevisionAppended
+
+
+def event_type_name(event: CalibrationEvent) -> str:
+    """Discriminator string written into StoredEvent.event_type."""
+    return type(event).__name__
+
+
+def to_payload(event: CalibrationEvent) -> dict[str, Any]:
+    """Serialise a Calibration event to a JSON-friendly dict for jsonb storage.
+
+    Primitives only: UUIDs become strings, datetimes become ISO-8601
+    strings. The `operating_point` and `value` dicts are written
+    verbatim (Postgres jsonb canonicalises on insert per Q6 lock).
+    """
+    match event:
+        case CalibrationDefined(
+            calibration_id=calibration_id,
+            subsystem_or_asset_id=subsystem_or_asset_id,
+            quantity=quantity,
+            operating_point=operating_point,
+            description=description,
+            defined_at=defined_at,
+            defined_by_actor_id=defined_by_actor_id,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "calibration_id": str(calibration_id),
+                "subsystem_or_asset_id": str(subsystem_or_asset_id),
+                "quantity": quantity,
+                "operating_point": operating_point,
+                "description": description,
+                "defined_at": defined_at.isoformat(),
+                "defined_by_actor_id": str(defined_by_actor_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case CalibrationRevisionAppended(
+            revision_id=revision_id,
+            calibration_id=calibration_id,
+            value=value,
+            status=status,
+            source_procedure_id=source_procedure_id,
+            source_dataset_id=source_dataset_id,
+            source_actor_id=source_actor_id,
+            established_at=established_at,
+            established_by_actor_id=established_by_actor_id,
+            decided_by_decision_id=decided_by_decision_id,
+            supersedes_revision_id=supersedes_revision_id,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "revision_id": str(revision_id),
+                "calibration_id": str(calibration_id),
+                "value": value,
+                "status": status,
+                "source_procedure_id": (
+                    str(source_procedure_id) if source_procedure_id is not None else None
+                ),
+                "source_dataset_id": (
+                    str(source_dataset_id) if source_dataset_id is not None else None
+                ),
+                "source_actor_id": (str(source_actor_id) if source_actor_id is not None else None),
+                "established_at": established_at.isoformat(),
+                "established_by_actor_id": str(established_by_actor_id),
+                "decided_by_decision_id": (
+                    str(decided_by_decision_id) if decided_by_decision_id is not None else None
+                ),
+                "supersedes_revision_id": (
+                    str(supersedes_revision_id) if supersedes_revision_id is not None else None
+                ),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case _:  # pragma: no cover  # exhaustiveness guard
+            assert_never(event)
+
+
+def from_stored(stored: StoredEvent) -> CalibrationEvent:
+    """Rebuild a Calibration event from a StoredEvent loaded from the event store.
+
+    Dispatches on `stored.event_type`; raises ValueError on unknown
+    discriminators so a stream contaminated with foreign event types
+    fails loud rather than silently being dropped by the evolver.
+    """
+    payload = stored.payload
+    match stored.event_type:
+        case "CalibrationDefined":
+            return CalibrationDefined(
+                calibration_id=UUID(payload["calibration_id"]),
+                subsystem_or_asset_id=UUID(payload["subsystem_or_asset_id"]),
+                quantity=payload["quantity"],
+                operating_point=payload["operating_point"],
+                description=payload.get("description"),
+                defined_at=datetime.fromisoformat(payload["defined_at"]),
+                defined_by_actor_id=UUID(payload["defined_by_actor_id"]),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case "CalibrationRevisionAppended":
+            raw_proc = payload.get("source_procedure_id")
+            raw_dataset = payload.get("source_dataset_id")
+            raw_actor = payload.get("source_actor_id")
+            raw_decided = payload.get("decided_by_decision_id")
+            raw_supersedes = payload.get("supersedes_revision_id")
+            return CalibrationRevisionAppended(
+                revision_id=UUID(payload["revision_id"]),
+                calibration_id=UUID(payload["calibration_id"]),
+                value=payload["value"],
+                status=payload["status"],
+                source_procedure_id=UUID(raw_proc) if raw_proc is not None else None,
+                source_dataset_id=UUID(raw_dataset) if raw_dataset is not None else None,
+                source_actor_id=UUID(raw_actor) if raw_actor is not None else None,
+                established_at=datetime.fromisoformat(payload["established_at"]),
+                established_by_actor_id=UUID(payload["established_by_actor_id"]),
+                decided_by_decision_id=UUID(raw_decided) if raw_decided is not None else None,
+                supersedes_revision_id=(
+                    UUID(raw_supersedes) if raw_supersedes is not None else None
+                ),
+                occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+            )
+        case unknown:
+            msg = f"Unknown Calibration event type: {unknown!r}"
+            raise ValueError(msg)
+
+
+__all__ = [
+    "CalibrationDefined",
+    "CalibrationEvent",
+    "CalibrationRevisionAppended",
+    "deserialize_source",
+    "event_type_name",
+    "from_stored",
+    "serialize_source",
+    "to_payload",
+]
