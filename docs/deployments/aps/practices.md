@@ -6,7 +6,7 @@ A Practice is ISA-88's Site Recipe, the facility-adapted form of a Method. See [
 
 | Practice | Method |
 | --- | --- |
-| `APS_standard_flat_field_practice` | [`flat_field_correction`](../../catalog/methods.md) |
+| `APS_standard_dark_baseline_practice` | [`dark_baseline`](../../catalog/methods.md) |
 | `APS_motor_homing_practice` | [`motor_homing`](../../catalog/methods.md) |
 | `2BM_resolution_practice` | [`resolution_alignment`](../../catalog/methods.md) |
 | `2BM_focus_practice` | [`focus_alignment`](../../catalog/methods.md) |
@@ -14,8 +14,8 @@ A Practice is ISA-88's Site Recipe, the facility-adapted form of a Method. See [
 | `2BM_roll_practice` | [`roll_alignment`](../../catalog/methods.md) |
 | `2BM_pitch_practice` | [`pitch_alignment`](../../catalog/methods.md) |
 | `2BM_first_light_practice` | [`first_light`](../../catalog/methods.md) |
-| `2BM_dark_baseline_practice` | [`detector_dark_baseline`](../../catalog/methods.md) |
-| `2BM_flat_baseline_practice` | [`detector_flat_baseline`](../../catalog/methods.md) |
+| `2BM_dark_baseline_practice` | [`dark_baseline`](../../catalog/methods.md) |
+| `2BM_flat_baseline_practice` | [`flat_baseline`](../../catalog/methods.md) |
 | `2BM_alignment_calibration_practice` | [`alignment_calibration`](../../catalog/methods.md) |
 | `2BM_hexapod_reboot_practice` | [`hexapod_reboot`](../../catalog/methods.md) |
 | `2BM_tomography_practice` | [`tomography_scan`](../../catalog/methods.md) |

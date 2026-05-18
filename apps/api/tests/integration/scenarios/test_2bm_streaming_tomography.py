@@ -192,6 +192,8 @@ _BEAMTIME = BeamtimeSpec(
 
 _RECIPE = RecipeSpec(
     capability_id=_CAPABILITY_ID,
+    capability_code="cora.capability.tomography",
+    capability_name="Tomography",
     method_id=_METHOD_STREAM_ID,
     method_name="streaming_tomography",
     needed_families=frozenset(

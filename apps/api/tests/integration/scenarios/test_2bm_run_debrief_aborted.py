@@ -306,7 +306,12 @@ async def test_run_debrief_agent_fires_on_equipment_abort(
         correlation_id=_CORRELATION_ID,
     )
 
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_pg(
+        deps.event_store,
+        _CAPABILITY_ID,
+        code="cora.capability.tomography",
+        name="Tomography",
+    )
 
     await bind_define_method(deps)(
         DefineMethod(

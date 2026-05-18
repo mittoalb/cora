@@ -92,9 +92,9 @@ _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000a00501")
 _SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000a00701")
 _ACTOR_OPERATOR_ID = UUID("01900000-0000-7000-8000-000000a00a01")
 _CAP_PROBE_GENERIC_ID = UUID("01900000-0000-7000-8000-000000a00c01")
-_METHOD_FLAT_FIELD_ID = UUID("01900000-0000-7000-8000-000000a00d01")
+_METHOD_DARK_BASELINE_ID = UUID("01900000-0000-7000-8000-000000a00d01")
 _CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0ed79")  # Phase 6l-strict
-_PRACTICE_FLAT_FIELD_APS_ID = UUID("01900000-0000-7000-8000-000000a00d11")
+_PRACTICE_DARK_BASELINE_APS_ID = UUID("01900000-0000-7000-8000-000000a00d11")
 _CLEARANCE_ESAF_ID = UUID("01900000-0000-7000-8000-000000a00801")
 _SUPPLY_HELIUM_ID = UUID("01900000-0000-7000-8000-000000a00901")
 _CAUTION_TOPOFF_ID = UUID("01900000-0000-7000-8000-000000a00f01")
@@ -131,11 +131,11 @@ def _id_queue() -> list[UUID]:
         # define_family (generic Probe, for Method to declare): cap_id, event_id
         _CAP_PROBE_GENERIC_ID,
         e(),
-        # define_method (flat_field_correction): method_id, event_id
-        _METHOD_FLAT_FIELD_ID,
+        # define_method (dark_baseline): method_id, event_id
+        _METHOD_DARK_BASELINE_ID,
         e(),
-        # define_practice (APS flat-field practice, site_id=APS): practice_id, event_id
-        _PRACTICE_FLAT_FIELD_APS_ID,
+        # define_practice (APS dark-baseline practice, site_id=APS): practice_id, event_id
+        _PRACTICE_DARK_BASELINE_APS_ID,
         e(),
         # register_clearance (APS ESAF): clearance_id, event_id
         _CLEARANCE_ESAF_ID,
@@ -211,11 +211,16 @@ async def test_facility_install_plays_out_end_to_end(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_pg(
+        deps.event_store,
+        _CAPABILITY_ID,
+        code="cora.capability.acquisition",
+        name="Acquisition",
+    )
     await bind_define_method(deps)(
         DefineMethod(
             capability_id=_CAPABILITY_ID,
-            name="flat_field_correction",
+            name="dark_baseline",
             needed_families=frozenset({_CAP_PROBE_GENERIC_ID}),
         ),
         principal_id=_PRINCIPAL_ID,
@@ -223,8 +228,8 @@ async def test_facility_install_plays_out_end_to_end(
     )
     await bind_define_practice(deps)(
         DefinePractice(
-            name="APS_standard_flat_field_practice",
-            method_id=_METHOD_FLAT_FIELD_ID,
+            name="APS_standard_dark_baseline_practice",
+            method_id=_METHOD_DARK_BASELINE_ID,
             site_id=_APS_SITE_ID,
         ),
         principal_id=_PRINCIPAL_ID,
@@ -312,7 +317,7 @@ async def test_facility_install_plays_out_end_to_end(
     assert agent_actor.name.value == "Run Debrief"
 
     practice_events, practice_version = await deps.event_store.load(
-        "Practice", _PRACTICE_FLAT_FIELD_APS_ID
+        "Practice", _PRACTICE_DARK_BASELINE_APS_ID
     )
     assert practice_version == 1
     assert [e.event_type for e in practice_events] == ["PracticeDefined"]

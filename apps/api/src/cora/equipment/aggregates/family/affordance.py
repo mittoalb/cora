@@ -8,34 +8,34 @@ the 4-round Stage 0 research [[project-capability-research]]:
   Family.affordances). Matches type-class membership semantics (Swift
   API Design Guidelines / .NET Framework Design Guidelines / Java
   java.lang / Python collections.abc / W3C SOSA ObservableProperty).
-- 28 starter items in 3 explicit patterns:
-    A. Action affordances (`-able` suffix): "device supports doing X"
-       — 24 items across Motion / Imaging / Triggering / Streaming /
-       Optics+Environment / Reporting.
-    B. Signal affordances (noun): "device exposes signal X" — 3 items.
+- 28 items in 2 patterns:
+    A. Operational affordances (`-able` / `-ible` / `-ing`): "device
+       supports doing X" or "device performs X" — 27 items across
+       Motion / Imaging / Triggering / Streaming / Optics+Environment /
+       Reporting.
     C. Lifecycle affordances (noun): "device has lifecycle property X"
        — 1 item.
 - Closed v1 enum. Add-only amendment path (never remove a published
   value). New values land via additive evolution; renames require the
   Marten/Axon dual-match dance and are explicitly out of scope at v1.
 
-## Why three patterns, not one
+## Why two patterns, not one
 
-The dominant computing-vocabulary convention is `-able` for family
-claims (Swift codifies it, .NET endorses it, Java/Python/Ruby follow
-informally). Action affordances follow this rule cleanly. But some
-device properties are NOT actions:
-  - `EncoderInput` / `EncoderOutput` / `PulseGenerator` are SIGNALS the
-    device exposes (data-flow shape, not "device supports doing X").
-  - `Consumable` is a LIFECYCLE property (passive parts that get
-    swapped, like the LuAG scintillator screen).
+The dominant computing-vocabulary convention is `-able`/`-ible`/`-ing`
+for capability claims (Swift codifies the full triad, .NET endorses it,
+Java/Python/Ruby follow informally). All 27 operational affordances
+follow this rule, mixing `-able`/`-ible` (action: "device supports
+doing X") and `-ing` gerund (role/flow: "device is X-ing"). Examples
+of the `-ing` form: `Marking` (device marks positions with output
+triggers), `Recording` (device records to durable storage),
+`Following` / `Leading` / `Pulsing` (device's role in a signal chain).
 
-Forcing `Encodable` or `Consumeable` would violate the read-aloud
-test ([[project-naming-conventions]] R1) and conceal the semantic
-difference. The mixed surface is honest, not a bug. See
-[[project-capability-research]] section 5a for the full precedent
-chain + the pre-empted critiques (Rust terseness rejection / AAS
-noun-only divergence / Bloch Cloneable trap).
+`Consumable` is the lone Pattern C noun — a LIFECYCLE property of
+passive parts that get swapped (LuAG scintillator screen, filters,
+target foils). Forcing `Consumeable` (`-able` form) would violate the
+read-aloud test and conceal that this is a part-tracking property,
+not an action the device performs. See [[project-capability-research]]
+section 5a for the full precedent chain.
 
 ## Drops vs the original v1 list
 
@@ -44,7 +44,7 @@ that belong elsewhere:
   - `BitDepthSelectable`, `ROIConfigurable`, `BadPixelMaskable` →
     `Family.settings_schema` (parameter values, not actions).
   - `BraggAddressable`, `EnergySelectable` → operations-layer
-    `Family` (DLM-B / phase 6k), not Affordance.
+    `Capability` (DLM-B / phase 6k), not Affordance.
 The grammatical test: if the candidate reads as "device supports
 being configured to set <noun>", it's parameter-shaped, not action-
 shaped. Compound `<noun>Selectable` / `<noun>Addressable` is the
@@ -65,33 +65,31 @@ on. Longer-form per-affordance reference docs live in
 
 Adapter authors (ros2_control, W3C WoT TD, NeXus, OPC UA LADS,
 PandABox, EPICS, areaDetector, SOSA) cross-walk via the mapping
-table in `CONTRIBUTING.md` alongside the enum definition. SOSA's
-key pattern inversion is documented there: SOSA puts `-able` on the
-*property being acted on* (`ObservableProperty`), CORA puts it on
-the *device that acts* (`Rotatable`). Both coherent.
+table in `docs/reference/affordances.md`. SOSA's key pattern
+inversion is documented there: SOSA puts `-able` on the *property
+being acted on* (`ObservableProperty`), CORA puts it on the *device
+that acts* (`Rotatable`). Both coherent.
 """
 
 from enum import StrEnum
 
 
 class Affordance(StrEnum):
-    """Device-level operational primitive. Closed v1 enum (28 items, 3 patterns).
+    """Device-level operational primitive. Closed v1 enum (28 items, 2 patterns).
 
     Values are PascalCase strings so they serialize naturally as JSON
     discriminators without translation.
 
-    Pattern A — Action affordances (`-able` / `-ible`):
-        "device supports doing X". Set-membership claim. 24 items.
-
-    Pattern B — Signal affordances (noun):
-        "device exposes signal X". Data-flow shape. 3 items.
+    Pattern A — Operational affordances (`-able` / `-ible` / `-ing`):
+        "device supports doing X" (action) or "device performs X"
+        (role/flow). Set-membership claim. 27 items.
 
     Pattern C — Lifecycle affordances (noun):
         "device has lifecycle property X". 1 item.
     """
 
-    # ---------- Pattern A: Action affordances ----------
-    # Motion (8)
+    # ---------- Pattern A: Operational affordances ----------
+    # Motion (9)
     ROTATABLE = "Rotatable"
     """Device supports a rotational degree of freedom with a set position command."""
     TRANSLATABLE = "Translatable"
@@ -100,16 +98,20 @@ class Affordance(StrEnum):
     """`home` operation drives to a reference position and zeros the encoder."""
     LIMITABLE = "Limitable"
     """Honors operator-configured software-limit min/max bounds; refuses motion past them."""
-    POSITION_TRIGGERABLE = "PositionTriggerable"
-    """Emits trigger pulses when its encoder crosses configured positions (PandA `PCOMP`)."""
-    POSITION_CAPTURABLE = "PositionCapturable"
-    """Latches encoder values into a buffer on external trigger edges (PandA `PCAP`)."""
+    CAPTURABLE = "Capturable"
+    """Latches encoder/ADC values into a buffer on external trigger edges (PandA `PCAP`)."""
     POSABLE = "Posable"
     """Accepts a coordinated multi-DOF pose command (6-DOF X/Y/Z/U/V/W) referred
     to a configurable pivot/tool/work frame; for hexapods + parallel kinematics."""
     INDEXABLE = "Indexable"
     """Finite enumerated set of mutually-exclusive named positions with a `go to
     named position` operation (filter wheel, mirror coating stripe, monochromator)."""
+    FOLLOWING = "Following"
+    """Follows an external encoder source as its position feedback (slave role in
+    master/slave chain). Replaces the EncoderInput signal noun."""
+    LEADING = "Leading"
+    """Emits its position as an encoder signal for downstream followers (master role
+    in master/slave chain). Replaces the EncoderOutput signal noun."""
 
     # Imaging (2)
     IMAGEABLE = "Imageable"
@@ -117,24 +119,30 @@ class Affordance(StrEnum):
     BINNABLE = "Binnable"
     """Supports on-sensor pixel binning (NxN combining) to trade resolution for SNR/speed."""
 
-    # Triggering and timing (3)
+    # Triggering and timing (5)
     TRIGGERABLE = "Triggerable"
     """Accepts an external edge trigger to start a single timed operation."""
     GATEABLE = "Gateable"
     """Integrates over the duration of an external level signal (gate high = active)."""
     SYNCHRONIZABLE = "Synchronizable"
     """Aligns its internal clock to an external master clock or sync signal."""
+    MARKING = "Marking"
+    """Emits trigger pulses when its encoder crosses configured positions (PandA `PCOMP`)."""
+    PULSING = "Pulsing"
+    """Generates configurable digital pulse trains (width, period, count) for downstream
+    timing. Replaces the PulseGenerator signal noun."""
 
     # Streaming and data (4)
     STREAMABLE = "Streamable"
     """Pushes data continuously over a transport without per-frame request/response."""
-    PRE_TRIGGER_BUFFERABLE = "PreTriggerBufferable"
-    """Internal ring buffer with configurable pre/post-trigger split; on trigger,
-    the past N frames are preserved."""
+    BUFFERABLE = "Bufferable"
+    """Exposes an internal buffer with operator-configurable size and behavior
+    (ring vs linear; pre/post-trigger split lives in parameter_schema)."""
     COMPRESSIBLE = "Compressible"
     """Applies a lossless or lossy codec to outgoing data (JPEG, LZ4, etc.) at runtime."""
-    FILE_WRITABLE = "FileWritable"
-    """Writes acquired data to a file path the operator configures (HDF5, TIFF, etc.)."""
+    RECORDING = "Recording"
+    """Records acquired data to durable storage at an operator-configured path
+    (HDF5, TIFF, ADF, etc.)."""
 
     # Optics and environment (5)
     COOLABLE = "Coolable"
@@ -154,14 +162,6 @@ class Affordance(StrEnum):
     """Returns a persistent identifier (serial number, MAC, etc.) on query."""
     REPORTABLE = "Reportable"
     """Returns a health/status reading on query (temperature, error count, etc.)."""
-
-    # ---------- Pattern B: Signal affordances (noun) ----------
-    ENCODER_INPUT = "EncoderInput"
-    """Accepts an external encoder signal as its position feedback source."""
-    ENCODER_OUTPUT = "EncoderOutput"
-    """Emits its position as an encoder signal that downstream devices can read."""
-    PULSE_GENERATOR = "PulseGenerator"
-    """Generates configurable digital pulse trains (width, period, count) for timing."""
 
     # ---------- Pattern C: Lifecycle affordances (noun) ----------
     CONSUMABLE = "Consumable"

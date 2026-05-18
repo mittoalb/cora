@@ -418,9 +418,7 @@ def test_round_trip_family_versioned_with_non_empty_affordances() -> None:
         family_id=uuid4(),
         version_tag="v3",
         occurred_at=_NOW,
-        affordances=frozenset(
-            {Affordance.IMAGEABLE, Affordance.STREAMABLE, Affordance.FILE_WRITABLE}
-        ),
+        affordances=frozenset({Affordance.IMAGEABLE, Affordance.STREAMABLE, Affordance.RECORDING}),
     )
     stored = _stored("FamilyVersioned", to_payload(original))
     assert from_stored(stored) == original

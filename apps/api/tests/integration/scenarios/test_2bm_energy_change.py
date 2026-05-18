@@ -325,7 +325,12 @@ async def test_energy_change_plays_out_end_to_end(
 
     # ----- One Method, one Practice, two Plans (differing on energy) -----
 
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_pg(
+        deps.event_store,
+        _CAPABILITY_ID,
+        code="cora.capability.tomography",
+        name="Tomography",
+    )
 
     await bind_define_method(deps)(
         DefineMethod(

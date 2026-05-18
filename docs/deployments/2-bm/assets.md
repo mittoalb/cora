@@ -24,11 +24,11 @@ Each Family declares a closed-enum set of operational primitives ([Affordances](
 | Family | Affordances |
 | --- | --- |
 | `Shutter` | `Shutterable` |
-| `RotaryStage` | `Rotatable`, `Homeable`, `Limitable`, `EncoderInput`, `PositionTriggerable` |
-| `LinearStage` | `Translatable`, `Homeable`, `Limitable`, `EncoderInput` |
+| `RotaryStage` | `Rotatable`, `Homeable`, `Limitable`, `Following`, `Marking` |
+| `LinearStage` | `Translatable`, `Homeable`, `Limitable`, `Following` |
 | `Hexapod` | `Posable`, `Homeable`, `Limitable` |
 | `Scintillator` | `Consumable` |
-| `Camera` | `Imageable`, `Binnable`, `Triggerable`, `Streamable`, `FileWritable` |
+| `Camera` | `Imageable`, `Binnable`, `Triggerable`, `Streamable`, `Recording` |
 
 `Scintillator` is the lone Pattern-C consumer at v1 (passive optical screen; tracked via `Consumable` lifecycle, no command surface).
 

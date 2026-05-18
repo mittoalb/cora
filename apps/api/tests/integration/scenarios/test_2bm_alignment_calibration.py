@@ -305,7 +305,12 @@ async def test_alignment_calibration_plays_out_end_to_end(
 
     # ----- Recipe BC: Method + Practice + Plan -----
 
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_pg(
+        deps.event_store,
+        _CAPABILITY_ID,
+        code="cora.capability.calibration",
+        name="Calibration",
+    )
 
     await bind_define_method(deps)(
         DefineMethod(

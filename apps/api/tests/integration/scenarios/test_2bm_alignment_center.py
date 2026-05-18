@@ -540,7 +540,12 @@ async def test_center_alignment_plays_out_end_to_end(
 
     # ----- Seed Recipe BC: Method + Practice + Plan describing the alignment recipe -----
 
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_pg(
+        deps.event_store,
+        _CAPABILITY_ID,
+        code="cora.capability.alignment",
+        name="Alignment",
+    )
 
     await bind_define_method(deps)(
         DefineMethod(

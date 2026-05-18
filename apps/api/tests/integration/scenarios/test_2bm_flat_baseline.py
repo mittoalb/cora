@@ -9,7 +9,7 @@ Scenario test for the flat-field baseline routine: with the shutter
 open and NO sample in the beam, acquire a stack of N flat frames,
 compute a pixel-wise mean, and register the resulting baseline as a
 Dataset for downstream reconstruction to divide by. Sibling to
-`detector_dark_baseline`; same structural shape with the shutter
+`dark_baseline`; same structural shape with the shutter
 state and analytic operation inverted.
 
 See [[project_pilot_docs_design]] for the phase / file-naming
@@ -27,7 +27,7 @@ beam-profile non-uniformity. Without both baselines registered as
 Datasets, the operations-phase science Runs have nothing to
 normalize against.
 
-## Distinction from `detector_dark_baseline`
+## Distinction from `dark_baseline`
 
   - Dark: shutter CLOSED, no beam reaches detector. Captures dark
     current + read noise.
@@ -59,7 +59,7 @@ confirming consistent beam delivery.
 
 ## Asset stack (shutter + image chain)
 
-Same as `first_light` and `detector_dark_baseline`:
+Same as `first_light` and `dark_baseline`:
 Shutter_2BM, Oryx_5MP_camera, Scintillator_LuAG.
 
 ## What this scenario surfaces (gap-finding intent)
@@ -313,12 +313,17 @@ async def test_flat_baseline_plays_out_end_to_end(
 
     # ----- Recipe BC: Method + Practice + Plan for the flat-baseline routine -----
 
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_pg(
+        deps.event_store,
+        _CAPABILITY_ID,
+        code="cora.capability.acquisition",
+        name="Acquisition",
+    )
 
     await bind_define_method(deps)(
         DefineMethod(
             capability_id=_CAPABILITY_ID,
-            name="detector_flat_baseline",
+            name="flat_baseline",
             needed_families=frozenset({_CAP_SHUTTER_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}),
         ),
         principal_id=_PRINCIPAL_ID,
@@ -350,7 +355,7 @@ async def test_flat_baseline_plays_out_end_to_end(
     await bind_register_procedure(deps)(
         RegisterProcedure(
             name="2-BM flat-field baseline (50 frames @ 200ms, Apr-2026 campaign)",
-            kind="detector_flat_baseline",
+            kind="flat_baseline",
             target_asset_ids=frozenset(
                 {_ASSET_SHUTTER_2BM_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID}
             ),

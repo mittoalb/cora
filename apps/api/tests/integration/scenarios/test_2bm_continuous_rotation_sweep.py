@@ -185,6 +185,8 @@ _BEAMTIME = BeamtimeSpec(
 
 _RECIPE = RecipeSpec(
     capability_id=_CAPABILITY_ID,
+    capability_code="cora.capability.tomography",
+    capability_name="Tomography",
     method_id=_METHOD_FLYSCAN_ID,
     method_name="continuous_rotation_tomography",
     needed_families=frozenset(

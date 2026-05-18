@@ -249,6 +249,8 @@ class RecipeSpec:
     plan_name: str
     plan_asset_ids: frozenset[UUID]
     capability_id: UUID
+    capability_code: str
+    capability_name: str
     parameters_schema: dict[str, Any] | None = None
 
 
@@ -290,7 +292,12 @@ async def define_recipe_ladder(
     remains stable."""
     from tests.integration._helpers import seed_capability_pg
 
-    await seed_capability_pg(deps.event_store, spec.capability_id)
+    await seed_capability_pg(
+        deps.event_store,
+        spec.capability_id,
+        code=spec.capability_code,
+        name=spec.capability_name,
+    )
     await bind_define_method(deps)(
         DefineMethod(
             name=spec.method_name,

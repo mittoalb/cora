@@ -319,7 +319,12 @@ async def test_focus_alignment_plays_out_end_to_end(
 
     # ----- Recipe BC: Method + Practice + Plan for the focus routine -----
 
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_pg(
+        deps.event_store,
+        _CAPABILITY_ID,
+        code="cora.capability.alignment",
+        name="Alignment",
+    )
 
     await bind_define_method(deps)(
         DefineMethod(

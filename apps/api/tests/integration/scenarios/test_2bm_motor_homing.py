@@ -300,7 +300,12 @@ async def test_motor_homing_plays_out_end_to_end(
 
     # ----- Recipe BC: Method + Practice + Plan for the homing routine -----
 
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_pg(
+        deps.event_store,
+        _CAPABILITY_ID,
+        code="cora.capability.maintenance",
+        name="Maintenance",
+    )
 
     await bind_define_method(deps)(
         DefineMethod(

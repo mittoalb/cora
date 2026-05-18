@@ -307,12 +307,17 @@ async def test_dark_baseline_plays_out_end_to_end(
 
     # ----- Recipe BC: Method + Practice + Plan for the dark-baseline routine -----
 
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_pg(
+        deps.event_store,
+        _CAPABILITY_ID,
+        code="cora.capability.acquisition",
+        name="Acquisition",
+    )
 
     await bind_define_method(deps)(
         DefineMethod(
             capability_id=_CAPABILITY_ID,
-            name="detector_dark_baseline",
+            name="dark_baseline",
             needed_families=frozenset({_CAP_SHUTTER_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}),
         ),
         principal_id=_PRINCIPAL_ID,
@@ -344,7 +349,7 @@ async def test_dark_baseline_plays_out_end_to_end(
     await bind_register_procedure(deps)(
         RegisterProcedure(
             name="2-BM dark baseline (50 frames @ 200ms, Apr-2026 campaign)",
-            kind="detector_dark_baseline",
+            kind="dark_baseline",
             target_asset_ids=frozenset(
                 {_ASSET_SHUTTER_2BM_ID, _ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID}
             ),

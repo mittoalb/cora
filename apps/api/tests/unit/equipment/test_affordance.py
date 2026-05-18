@@ -1,6 +1,6 @@
 """Unit tests for the Affordance closed StrEnum (Phase 5j).
 
-Pins the 28-item closed v1 list, the 3-pattern split, and the
+Pins the 28-item closed v1 list, the 2-pattern split, and the
 serialization shape used by event payloads and REST/MCP bodies.
 """
 
@@ -18,31 +18,34 @@ def test_affordance_v1_member_count() -> None:
 
 
 @pytest.mark.unit
-def test_affordance_pattern_a_action_count() -> None:
-    """Pattern A (Action affordances, -able/-ible suffix): 24 items."""
-    action_pattern = {
+def test_affordance_pattern_a_operational_count() -> None:
+    """Pattern A (Operational affordances, -able/-ible/-ing): 27 items.
+
+    Mixed action (`-able`/`-ible`, "device supports doing X") and
+    role/flow (`-ing` gerund, "device performs X"). Consumable ends
+    in `-able` but is Pattern C (lifecycle), so excluded here."""
+    operational = {
         a
         for a in Affordance
-        if a.value.endswith(("able", "ible")) and a is not Affordance.CONSUMABLE
+        if a.value.endswith(("able", "ible", "ing")) and a is not Affordance.CONSUMABLE
     }
-    assert len(action_pattern) == 24
+    assert len(operational) == 27
 
 
 @pytest.mark.unit
-def test_affordance_pattern_b_signal_count() -> None:
-    """Pattern B (Signal affordances, noun): 3 items.
-
-    EncoderInput / EncoderOutput / PulseGenerator.
-    """
-    signal_pattern = {
-        Affordance.ENCODER_INPUT,
-        Affordance.ENCODER_OUTPUT,
-        Affordance.PULSE_GENERATOR,
+def test_affordance_pattern_a_gerund_members() -> None:
+    """The `-ing` gerund subset of Pattern A. Five role/flow items where the
+    device IS the actor: Marking (PCOMP), Pulsing (pulse-train generator),
+    Following (encoder-input slave), Leading (encoder-output master),
+    Recording (file output)."""
+    gerunds = {a for a in Affordance if a.value.endswith("ing")}
+    assert gerunds == {
+        Affordance.MARKING,
+        Affordance.PULSING,
+        Affordance.FOLLOWING,
+        Affordance.LEADING,
+        Affordance.RECORDING,
     }
-    assert len(signal_pattern) == 3
-    # And none of these end in -able / -ible (verifies the rule)
-    for a in signal_pattern:
-        assert not a.value.endswith(("able", "ible"))
 
 
 @pytest.mark.unit
@@ -51,8 +54,8 @@ def test_affordance_pattern_c_lifecycle_count() -> None:
 
     Note: Consumable ends in -able but is classified as Pattern C
     because it names a lifecycle property (passive parts) rather
-    than an action the device supports. The pattern-classification
-    is documented in `cora.equipment.aggregates.family.affordance`
+    than an operational role. The pattern-classification is
+    documented in `cora.equipment.aggregates.family.affordance`
     docstring + `docs/reference/affordances.md`."""
     assert Affordance.CONSUMABLE.value == "Consumable"
 
@@ -113,18 +116,40 @@ def test_affordance_supports_set_membership_semantics() -> None:
 
 @pytest.mark.unit
 def test_affordance_motion_category_members() -> None:
-    """Pin the Motion category at 8 items so adds/drops are deliberate."""
+    """Pin the Motion category at 9 items so adds/drops are deliberate.
+
+    Following + Leading were absorbed from the dissolved Pattern B
+    (signal nouns) per the 2-pattern reframe; Capturable is the
+    rename of PositionCapturable (drop the overspecifying prefix)."""
     motion = {
         Affordance.ROTATABLE,
         Affordance.TRANSLATABLE,
         Affordance.HOMEABLE,
         Affordance.LIMITABLE,
-        Affordance.POSITION_TRIGGERABLE,
-        Affordance.POSITION_CAPTURABLE,
+        Affordance.CAPTURABLE,
         Affordance.POSABLE,
         Affordance.INDEXABLE,
+        Affordance.FOLLOWING,
+        Affordance.LEADING,
     }
-    assert len(motion) == 8
+    assert len(motion) == 9
+
+
+@pytest.mark.unit
+def test_affordance_triggering_category_members() -> None:
+    """Pin the Triggering+timing category at 5 items.
+
+    Marking (rename of PositionTriggerable, resolves direction overlap
+    with Triggerable-the-consumer) and Pulsing (absorbed from dissolved
+    Pattern B) sit alongside the originals."""
+    triggering = {
+        Affordance.TRIGGERABLE,
+        Affordance.GATEABLE,
+        Affordance.SYNCHRONIZABLE,
+        Affordance.MARKING,
+        Affordance.PULSING,
+    }
+    assert len(triggering) == 5
 
 
 @pytest.mark.unit
@@ -141,3 +166,20 @@ def test_affordance_dropped_pseudo_affordances_are_not_members() -> None:
     ):
         with pytest.raises(ValueError):
             Affordance(dropped)
+
+
+@pytest.mark.unit
+def test_affordance_renamed_legacy_names_are_not_members() -> None:
+    """Pre-rename Pattern B nouns + overspecifying Pattern A names are
+    gone — pin the renames so accidental re-introduction fails fast."""
+    for legacy in (
+        "PositionTriggerable",  # -> Marking
+        "PositionCapturable",  # -> Capturable
+        "PreTriggerBufferable",  # -> Bufferable
+        "FileWritable",  # -> Recording
+        "EncoderInput",  # -> Following
+        "EncoderOutput",  # -> Leading
+        "PulseGenerator",  # -> Pulsing
+    ):
+        with pytest.raises(ValueError):
+            Affordance(legacy)
