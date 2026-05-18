@@ -23,4 +23,12 @@ Slices ship per aggregate / per state transition:
     direction + signal_type + port-existence validation against
     Asset.ports; fan-in forbidden, fan-out allowed; see
     [[project_plan_wiring_design]])
+  - 6k: define_capability, version_capability, deprecate_capability,
+    get_capability — new universal operations-layer template
+    aggregate sitting above heterogeneous executor shapes (Method-
+    chain for science, Procedure for ceremony per 10c); ExecutorShape
+    closed v1 enum {Method, Procedure} ships here too (6m folded in
+    per DLM-B [[project_capability_aggregate_design]]). Method.capability_id
+    FK + Plan.activate cross-BC affordance-cover validation land in
+    6l next; Procedure.capability_id additive evolution in 10d.
 """

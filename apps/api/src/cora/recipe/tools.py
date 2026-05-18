@@ -12,12 +12,15 @@ from collections.abc import Callable
 from mcp.server.fastmcp import FastMCP
 
 from cora.recipe.features.add_plan_wire import tool as add_plan_wire_tool
+from cora.recipe.features.define_capability import tool as define_capability_tool
 from cora.recipe.features.define_method import tool as define_method_tool
 from cora.recipe.features.define_plan import tool as define_plan_tool
 from cora.recipe.features.define_practice import tool as define_practice_tool
+from cora.recipe.features.deprecate_capability import tool as deprecate_capability_tool
 from cora.recipe.features.deprecate_method import tool as deprecate_method_tool
 from cora.recipe.features.deprecate_plan import tool as deprecate_plan_tool
 from cora.recipe.features.deprecate_practice import tool as deprecate_practice_tool
+from cora.recipe.features.get_capability import tool as get_capability_tool
 from cora.recipe.features.get_method import tool as get_method_tool
 from cora.recipe.features.get_plan import tool as get_plan_tool
 from cora.recipe.features.get_practice import tool as get_practice_tool
@@ -31,6 +34,7 @@ from cora.recipe.features.update_method_parameters_schema import (
 from cora.recipe.features.update_plan_default_parameters import (
     tool as update_plan_default_parameters_tool,
 )
+from cora.recipe.features.version_capability import tool as version_capability_tool
 from cora.recipe.features.version_method import tool as version_method_tool
 from cora.recipe.features.version_plan import tool as version_plan_tool
 from cora.recipe.features.version_practice import tool as version_practice_tool
@@ -118,4 +122,20 @@ def register_recipe_tools(
     list_plans_tool.register(
         mcp,
         get_handler=lambda: get_handlers().list_plans,
+    )
+    define_capability_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().define_capability,
+    )
+    version_capability_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().version_capability,
+    )
+    deprecate_capability_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().deprecate_capability,
+    )
+    get_capability_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().get_capability,
     )

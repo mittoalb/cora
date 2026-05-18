@@ -32,12 +32,15 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.recipe.features import (
     add_plan_wire,
+    define_capability,
     define_method,
     define_plan,
     define_practice,
+    deprecate_capability,
     deprecate_method,
     deprecate_plan,
     deprecate_practice,
+    get_capability,
     get_method,
     get_plan,
     get_practice,
@@ -47,6 +50,7 @@ from cora.recipe.features import (
     remove_plan_wire,
     update_method_parameters_schema,
     update_plan_default_parameters,
+    version_capability,
     version_method,
     version_plan,
     version_practice,
@@ -83,6 +87,10 @@ class RecipeHandlers:
     list_methods: list_methods.Handler
     list_practices: list_practices.Handler
     list_plans: list_plans.Handler
+    define_capability: define_capability.IdempotentHandler
+    version_capability: version_capability.Handler
+    deprecate_capability: deprecate_capability.Handler
+    get_capability: get_capability.Handler
 
 
 def wire_recipe(deps: Kernel) -> RecipeHandlers:
@@ -209,6 +217,34 @@ def wire_recipe(deps: Kernel) -> RecipeHandlers:
         list_plans=with_tracing(
             list_plans.bind(deps),
             command_name="ListPlans",
+            bc=_BC,
+            kind="query",
+        ),
+        define_capability=with_tracing(
+            with_idempotency(
+                define_capability.bind(deps),
+                deps.idempotency_store,
+                command_name="DefineCapability",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="DefineCapability",
+            bc=_BC,
+        ),
+        version_capability=with_tracing(
+            version_capability.bind(deps),
+            command_name="VersionCapability",
+            bc=_BC,
+        ),
+        deprecate_capability=with_tracing(
+            deprecate_capability.bind(deps),
+            command_name="DeprecateCapability",
+            bc=_BC,
+        ),
+        get_capability=with_tracing(
+            get_capability.bind(deps),
+            command_name="GetCapability",
             bc=_BC,
             kind="query",
         ),

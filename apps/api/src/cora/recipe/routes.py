@@ -31,6 +31,18 @@ tuples are single-element today; future aggregates (Practice / Plan
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
+from cora.recipe.aggregates.capability import (
+    CapabilityAlreadyExistsError,
+    CapabilityCannotDeprecateError,
+    CapabilityCannotVersionError,
+    CapabilityNotFoundError,
+    InvalidCapabilityCodeError,
+    InvalidCapabilityDescriptionError,
+    InvalidCapabilityNameError,
+    InvalidCapabilityParameterSchemaError,
+    InvalidCapabilityVersionTagError,
+    InvalidExecutorShapesError,
+)
 from cora.recipe.aggregates.method import (
     InvalidMethodNameError,
     InvalidMethodNeededSuppliesError,
@@ -75,12 +87,15 @@ from cora.recipe.aggregates.practice import (
 from cora.recipe.errors import UnauthorizedError
 from cora.recipe.features import (
     add_plan_wire,
+    define_capability,
     define_method,
     define_plan,
     define_practice,
+    deprecate_capability,
     deprecate_method,
     deprecate_plan,
     deprecate_practice,
+    get_capability,
     get_method,
     get_plan,
     get_practice,
@@ -90,6 +105,7 @@ from cora.recipe.features import (
     remove_plan_wire,
     update_method_parameters_schema,
     update_plan_default_parameters,
+    version_capability,
     version_method,
     version_plan,
     version_practice,
@@ -173,7 +189,17 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(list_methods.router)
     app.include_router(list_practices.router)
     app.include_router(list_plans.router)
+    app.include_router(define_capability.router)
+    app.include_router(version_capability.router)
+    app.include_router(deprecate_capability.router)
+    app.include_router(get_capability.router)
     for validation_cls in (
+        InvalidCapabilityCodeError,
+        InvalidCapabilityDescriptionError,
+        InvalidCapabilityNameError,
+        InvalidCapabilityParameterSchemaError,
+        InvalidCapabilityVersionTagError,
+        InvalidExecutorShapesError,
         InvalidMethodNameError,
         InvalidMethodNeededSuppliesError,
         InvalidMethodParametersSchemaError,
@@ -188,6 +214,7 @@ def register_recipe_routes(app: FastAPI) -> None:
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
+        CapabilityNotFoundError,
         MethodNotFoundError,
         PracticeNotFoundError,
         PlanNotFoundError,
@@ -197,6 +224,7 @@ def register_recipe_routes(app: FastAPI) -> None:
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (
+        CapabilityAlreadyExistsError,
         MethodAlreadyExistsError,
         PracticeAlreadyExistsError,
         PlanAlreadyExistsError,
@@ -206,6 +234,8 @@ def register_recipe_routes(app: FastAPI) -> None:
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
+        CapabilityCannotVersionError,
+        CapabilityCannotDeprecateError,
         MethodCannotVersionError,
         MethodCannotDeprecateError,
         PracticeCannotVersionError,

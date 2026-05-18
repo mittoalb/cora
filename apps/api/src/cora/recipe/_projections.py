@@ -14,6 +14,7 @@ from cora.recipe.projections import (
     MethodSummaryProjection,
     PlanSummaryProjection,
     PracticeSummaryProjection,
+    RecipeCapabilitySummaryProjection,
 )
 
 
@@ -26,6 +27,7 @@ def register_recipe_projections(
     registry.register(MethodSummaryProjection())
     registry.register(PracticeSummaryProjection())
     registry.register(PlanSummaryProjection())
+    registry.register(RecipeCapabilitySummaryProjection())
 
 
 __all__ = ["register_recipe_projections"]
