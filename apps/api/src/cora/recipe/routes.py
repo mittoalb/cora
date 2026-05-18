@@ -52,6 +52,7 @@ from cora.recipe.aggregates.method import (
     MethodCannotDeprecateError,
     MethodCannotVersionError,
     MethodNotFoundError,
+    MethodParametersNotSubsetError,
 )
 from cora.recipe.aggregates.plan import (
     AssetDecommissionedError,
@@ -243,6 +244,9 @@ def register_recipe_routes(app: FastAPI) -> None:
         # Phase 6l cross-BC guard: Method binds to Capability whose
         # executor_shapes does not include Method.
         MethodCapabilityExecutorMismatchError,
+        # Phase 6l-strict-c: Method.parameters_schema is not a subset
+        # of the bound Capability.parameter_schema.
+        MethodParametersNotSubsetError,
         MethodCannotVersionError,
         MethodCannotDeprecateError,
         PracticeCannotVersionError,

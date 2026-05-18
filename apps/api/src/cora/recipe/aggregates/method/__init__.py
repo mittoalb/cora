@@ -34,6 +34,7 @@ from cora.recipe.aggregates.method.state import (
     MethodCannotVersionError,
     MethodName,
     MethodNotFoundError,
+    MethodParametersNotSubsetError,
     MethodStatus,
 )
 
@@ -54,6 +55,7 @@ __all__ = [
     "MethodEvent",
     "MethodName",
     "MethodNotFoundError",
+    "MethodParametersNotSubsetError",
     "MethodParametersSchemaUpdated",
     "MethodStatus",
     "MethodVersioned",

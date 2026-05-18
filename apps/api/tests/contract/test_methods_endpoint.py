@@ -186,3 +186,27 @@ def test_post_methods_returns_409_when_method_already_exists() -> None:
     body = response.json()
     assert "detail" in body
     assert str(existing_id) in body["detail"]
+
+
+@pytest.mark.contract
+def test_post_methods_openapi_schema_marks_capability_id_required() -> None:
+    """Phase 6l-strict OpenAPI surface pin (final-coverage gate-review P2).
+
+    Once 6l-strict flipped `DefineMethod.capability_id` to REQUIRED,
+    the generated OpenAPI request schema for `POST /methods` must list
+    `capability_id` in the `required` array of the
+    `DefineMethodRequest` component schema. A future regression that
+    re-defaults the field to None at the Pydantic layer would silently
+    accept missing-capability_id POSTs (rejected at the decider, but
+    with a less helpful 422 instead of the schema-validation 422).
+    Pinning the OpenAPI schema closes that surface."""
+    with TestClient(create_app()) as client:
+        openapi = client.get("/openapi.json").json()
+
+    component = openapi["components"]["schemas"]["DefineMethodRequest"]
+    assert "capability_id" in component["properties"], (
+        "DefineMethodRequest must expose capability_id at the OpenAPI surface"
+    )
+    assert "capability_id" in component["required"], (
+        "Phase 6l-strict: capability_id is REQUIRED at the API boundary"
+    )

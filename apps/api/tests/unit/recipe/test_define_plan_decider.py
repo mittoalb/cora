@@ -31,6 +31,7 @@ from cora.recipe.aggregates.capability import (
     Capability,
     CapabilityCode,
     CapabilityName,
+    CapabilityStatus,
     ExecutorShape,
 )
 from cora.recipe.aggregates.method import Method, MethodName, MethodStatus
@@ -515,7 +516,11 @@ def test_decide_emits_deterministic_asset_id_ordering_for_idempotency() -> None:
 
 
 def _capability(
-    *, required: frozenset[Affordance] = frozenset(), capability_id: UUID | None = None
+    *,
+    required: frozenset[Affordance] = frozenset(),
+    capability_id: UUID | None = None,
+    status: CapabilityStatus = CapabilityStatus.DEFINED,
+    version: str | None = None,
 ) -> Capability:
     """Build a Capability fixture for the Phase 6l.B affordance-cover guard."""
     return Capability(
@@ -524,6 +529,8 @@ def _capability(
         name=CapabilityName("X"),
         required_affordances=required,
         executor_shapes=frozenset({ExecutorShape.METHOD}),
+        status=status,
+        version=version,
     )
 
 
@@ -689,3 +696,95 @@ def test_decide_affordance_guard_runs_after_family_id_check() -> None:
             now=_NOW,
             new_id=uuid4(),
         )
+
+
+# ---------- Final-coverage gate-review watch items ----------
+
+
+@pytest.mark.unit
+def test_decide_uses_current_capability_state_when_versioned_between_method_and_plan() -> None:
+    """Watch item (final-coverage gate-review P1): the affordance-cover
+    guard reads CURRENT Capability state per the eventual-consistency
+    stance. When a Capability is versioned BETWEEN Method.define_method
+    and Plan.define_plan, the guard MUST use the NEW required_affordances
+    (the version-2 Capability the handler loaded at Plan-bind time),
+    not whatever shape was current at Method-define time.
+
+    Tested directly at the decider: pass a Versioned Capability with
+    a fresh `required_affordances` set, the affordance union covers
+    the NEW set → success. Pinned because the handler's load-at-Plan-bind
+    pattern is what makes this race resolvable without snapshots."""
+    family_id = uuid4()
+    # Capability moved from Defined → Versioned with a different
+    # required_affordances set (the v2 shape). Decider must validate
+    # against the CURRENT (v2) set, not whatever Method observed at
+    # Method-define time.
+    versioned_capability = _capability(
+        required=frozenset({Affordance.ROTATABLE}),
+        status=CapabilityStatus.VERSIONED,
+        version="v2",
+    )
+    method = _method(needed_families=frozenset({family_id}))
+    practice = _practice(method_id=method.id)
+    asset_id = uuid4()
+    assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({family_id}))}
+    family_affordances = {family_id: frozenset({Affordance.ROTATABLE})}
+    context = PlanBindingContext(
+        practice=practice,
+        method=method,
+        assets=assets,
+        capability=versioned_capability,
+        family_affordances=family_affordances,
+    )
+    events = define_plan.decide(
+        state=None,
+        command=DefinePlan(name="X", practice_id=practice.id, asset_ids=frozenset({asset_id})),
+        context=context,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1
+
+
+@pytest.mark.unit
+def test_decide_accepts_method_bound_to_deprecated_capability() -> None:
+    """Watch item (final-coverage gate-review P1): DLM-B anti-hook #10
+    pins that Capability deprecation is ADVISORY at the BC layer — no
+    cascade. A Method bound to a Deprecated Capability must still pass
+    Plan.bind so existing recipes keep working until operators
+    explicitly re-bind. Pinned because reversing this anti-hook would
+    break every Plan whose Method.capability_id points at a
+    LOINC/AAS-precedent superseded Capability.
+
+    Note: Deprecated Capabilities can still cover their affordance
+    contract — they're soft-deprecated, not invalidated. Operators
+    see the deprecation status via `get_capability` and choose when
+    to re-bind."""
+    family_id = uuid4()
+    deprecated_capability = _capability(
+        required=frozenset({Affordance.ROTATABLE}),
+        status=CapabilityStatus.DEPRECATED,
+        version="v1",
+    )
+    method = _method(needed_families=frozenset({family_id}))
+    practice = _practice(method_id=method.id)
+    asset_id = uuid4()
+    assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({family_id}))}
+    family_affordances = {family_id: frozenset({Affordance.ROTATABLE})}
+    context = PlanBindingContext(
+        practice=practice,
+        method=method,
+        assets=assets,
+        capability=deprecated_capability,
+        family_affordances=family_affordances,
+    )
+    events = define_plan.decide(
+        state=None,
+        command=DefinePlan(name="X", practice_id=practice.id, asset_ids=frozenset({asset_id})),
+        context=context,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1, (
+        "DLM-B anti-hook #10: Deprecated Capability must NOT block Plan binding"
+    )

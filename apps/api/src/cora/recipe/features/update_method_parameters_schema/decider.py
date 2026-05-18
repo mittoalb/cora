@@ -5,6 +5,12 @@ well-formedness; the only domain-level guard is "Method must exist".
 Schema can be updated in any lifecycle status (Defined / Versioned /
 Deprecated) so no source-state check.
 
+Phase 6l-strict-c adds a cross-BC subset guard: when the Method has
+a `capability_id` and the bound Capability has a `parameter_schema`,
+the proposed Method.parameters_schema MUST be a subset of the
+Capability's contract. Pinned per STRICT-by-default posture from
+[[project_schema_validated_values_pattern]].
+
 ## Idempotency: no-op on unchanged
 
 If the proposed parameters_schema is structurally equal to the
@@ -20,14 +26,21 @@ Invariants:
   - State must not be None -> MethodNotFoundError
   - parameters_schema (if non-None) must be a valid in-subset
     JSON Schema -> InvalidMethodParametersSchemaError
+  - parameters_schema (if non-None AND Method.capability_id is set
+    AND the loaded Capability has a parameter_schema) MUST be a
+    structural subset of Capability.parameter_schema ->
+    MethodParametersNotSubsetError (Phase 6l-strict-c)
   - If proposed == current, return [] (no event emitted)
 """
 
 from datetime import datetime
 
+from cora.infrastructure.json_schema_subset import check_schema_is_subset
+from cora.recipe.aggregates.capability import Capability, CapabilityNotFoundError
 from cora.recipe.aggregates.method import (
     Method,
     MethodNotFoundError,
+    MethodParametersNotSubsetError,
     MethodParametersSchemaUpdated,
     validate_parameters_schema,
 )
@@ -40,13 +53,51 @@ def decide(
     state: Method | None,
     command: UpdateMethodParametersSchema,
     *,
+    capability: Capability | None = None,
     now: datetime,
 ) -> list[MethodParametersSchemaUpdated]:
-    """Decide the events produced by updating a method's parameters_schema."""
+    """Decide the events produced by updating a method's parameters_schema.
+
+    Phase 6l-strict-c: `capability` is the loaded Capability state
+    when `state.capability_id` is set (loaded by the handler via the
+    cross-BC port). When None, the handler intentionally skipped the
+    load (either because Method.capability_id is None — pre-6l-strict
+    fixture — OR because the Capability stream is missing, in which
+    case CapabilityNotFoundError fires here). Subset check ONLY
+    fires when both Method.parameters_schema AND Capability.parameter_schema
+    are present; one-sided cases are unconstrained.
+    """
     if state is None:
         raise MethodNotFoundError(command.method_id)
+
+    # Phase 6l-strict-c cross-BC integrity: Method points at a
+    # capability_id but the Capability stream is missing — bubble up
+    # CapabilityNotFoundError as 404.
+    if state.capability_id is not None and capability is None:
+        raise CapabilityNotFoundError(state.capability_id)
+
     if command.parameters_schema is not None:
         validate_parameters_schema(command.parameters_schema)
+        # Phase 6l-strict-c subset guard. Only when BOTH schemas are
+        # present do we have something to compare; either side being
+        # None means "no contract on that side".
+        if (
+            capability is not None
+            and capability.parameter_schema is not None
+            and state.capability_id is not None
+        ):
+            try:
+                check_schema_is_subset(
+                    command.parameters_schema,
+                    capability.parameter_schema,
+                    path="$",
+                    error_class=ValueError,
+                )
+            except ValueError as exc:
+                raise MethodParametersNotSubsetError(
+                    state.id, state.capability_id, str(exc)
+                ) from exc
+
     if command.parameters_schema == state.parameters_schema:
         return []
     return [

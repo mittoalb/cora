@@ -312,3 +312,31 @@ class Method:
     # See [[project_supply_design]] §"Phase 10b — Method.needed_supplies
     # consumer" for the full design lock.
     needed_supplies: frozenset[str] = field(default_factory=frozenset[str])
+
+
+class MethodParametersNotSubsetError(ValueError):
+    """Phase 6l-strict-c: Method.parameters_schema is not a subset of
+    the bound Capability.parameter_schema.
+
+    Mapped to HTTP 409. Raised by `update_method_parameters_schema`'s
+    decider when the operator submits a parameters_schema that widens
+    the Capability's contract — e.g. introduces a property the
+    Capability doesn't declare, narrows a type, drops a Capability-
+    required field, or widens an enum/minimum/maximum/pattern/unit
+    constraint. Pinned per STRICT-by-default posture from
+    [[project_schema_validated_values_pattern]] +
+    [[project_asset_settings_design]] 5g-c cross-BC anchor.
+
+    `reason` is a descriptive string with the offending JSON Pointer
+    so operators can pinpoint the conflict (e.g.
+    `properties.energy.maximum`).
+    """
+
+    def __init__(self, method_id: UUID, capability_id: UUID, reason: str) -> None:
+        super().__init__(
+            f"Method {method_id} parameters_schema is not a subset of "
+            f"Capability {capability_id} parameter_schema: {reason}"
+        )
+        self.method_id = method_id
+        self.capability_id = capability_id
+        self.reason = reason
