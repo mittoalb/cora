@@ -523,6 +523,29 @@ def test_from_stored_rebuilds_run_aborted() -> None:
 
 
 @pytest.mark.unit
+def test_from_stored_rebuilds_run_aborted_without_decision_id_key_as_none() -> None:
+    """Forward-compat: pre-Phase-1 RunAborted payloads have no
+    decided_by_decision_id key. Dedicated name parallels
+    `test_from_stored_rebuilds_run_started_without_decision_id_key_as_none`
+    + `test_from_stored_rebuilds_run_adjusted_with_missing_decision_key_as_none`
+    so each of the 3 Decision→Run linkage event sites carries its own
+    forward-compat pin (cross-BC consistency review P1 #9)."""
+    run_id = uuid4()
+    stored = _stored(
+        "RunAborted",
+        {
+            "run_id": str(run_id),
+            "reason": "vacuum interlock fired",
+            "occurred_at": _NOW.isoformat(),
+            # NOTE: no decided_by_decision_id key — pre-Phase-1 shape.
+        },
+    )
+    event = from_stored(stored)
+    assert isinstance(event, RunAborted)
+    assert event.decided_by_decision_id is None
+
+
+@pytest.mark.unit
 def test_run_aborted_round_trips() -> None:
     original = RunAborted(
         run_id=uuid4(),

@@ -228,6 +228,26 @@ def test_revision_appended_round_trips_with_decision_link() -> None:
 
 
 @pytest.mark.unit
+def test_event_type_name_for_calibration_revision_appended() -> None:
+    """Mirror the genesis-event pin for the revision-appended discriminator."""
+    event = CalibrationRevisionAppended(
+        revision_id=_REVISION_ID,
+        calibration_id=_CALIBRATION_ID,
+        value={"center_px": 1024.5},
+        status=CalibrationStatus.PROVISIONAL,
+        source_procedure_id=_PROCEDURE_ID,
+        source_dataset_id=None,
+        source_actor_id=None,
+        established_at=_NOW,
+        established_by_actor_id=_ACTOR_ID,
+        decided_by_decision_id=None,
+        supersedes_revision_id=None,
+        occurred_at=_NOW,
+    )
+    assert event_type_name(event) == "CalibrationRevisionAppended"
+
+
+@pytest.mark.unit
 def test_from_stored_raises_on_unknown_event_type() -> None:
     with pytest.raises(ValueError, match="Unknown Calibration event type"):
         from_stored(_stored("RandomGarbage", {"k": "v"}))

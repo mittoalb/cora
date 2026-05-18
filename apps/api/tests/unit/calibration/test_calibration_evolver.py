@@ -143,3 +143,25 @@ def test_evolve_revision_without_prior_state_raises() -> None:
     """Transition events applied to empty state raise via require_state."""
     with pytest.raises(ValueError, match="CalibrationRevisionAppended"):
         evolve(None, _revision(revision_id=_REV_ID_1))
+
+
+@pytest.mark.unit
+def test_fold_equals_left_fold_via_evolve() -> None:
+    """Standard event-sourcing replay-determinism invariant: `fold(events)`
+    equals `evolve(evolve(evolve(None, e1), e2), e3)`.
+
+    Pins that `fold` is precisely the left-fold of `evolve` over the
+    initial empty state — no hidden state accumulation or branching."""
+    events = [
+        _defined(),
+        _revision(revision_id=_REV_ID_1, established_at=_NOW),
+        _revision(
+            revision_id=_REV_ID_2,
+            source_kind="computed",
+            supersedes=_REV_ID_1,
+            established_at=_LATER,
+        ),
+    ]
+    folded = fold(events)
+    manual = evolve(evolve(evolve(None, events[0]), events[1]), events[2])
+    assert folded == manual

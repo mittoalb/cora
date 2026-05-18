@@ -96,17 +96,6 @@ EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
         "cora.safety.features.reject_clearance",
         "cora.safety.features.start_review_clearance",
         "cora.safety.features.submit_clearance",
-        # --- Phase 12a-2 deferred to 12a-3 followup -------------------
-        # The 4 Calibration slices ship the BC end-to-end at the wire
-        # layer (REST + MCP) but their contract tests follow in 12a-3
-        # alongside the integration + projection-driven integration
-        # tests. Decider unit tests for define + append landed in 12a-2
-        # so the validation surface is locked at the in-memory tier.
-        # Remove from this allowlist when 12a-3 lands.
-        "cora.calibration.features.append_revision",
-        "cora.calibration.features.define_calibration",
-        "cora.calibration.features.get_calibration",
-        "cora.calibration.features.list_calibrations",
     }
 )
 
@@ -131,13 +120,6 @@ EXEMPT_FROM_MCP_CONTRACT: frozenset[str] = frozenset(
         "cora.recipe.features.update_plan_default_parameters",
         "cora.safety.features.activate_clearance",
         "cora.safety.features.expire_clearance",
-        # --- Phase 12a-2 deferred to 12a-3 followup --------------------
-        # The 4 Calibration MCP tools ship the wire surface but their
-        # contract tests follow in 12a-3. Remove on 12a-3.
-        "cora.calibration.features.append_revision",
-        "cora.calibration.features.define_calibration",
-        "cora.calibration.features.get_calibration",
-        "cora.calibration.features.list_calibrations",
     }
 )
 
@@ -155,25 +137,11 @@ EXEMPT_FROM_HANDLER_UNIT: frozenset[str] = frozenset(
         "cora.trust.features.list_conduits",
         "cora.trust.features.list_policies",
         "cora.trust.features.list_zones",
-        # --- Phase 12a-2 deferred to 12a-3 followup --------------------
-        # Calibration query slices have the same shape (list_query
-        # factory + thin authorize wrapper); covered transitively at
-        # 12a-3 integration tier. Remove on 12a-3.
-        "cora.calibration.features.get_calibration",
-        "cora.calibration.features.list_calibrations",
     }
 )
 
 
-EXEMPT_FROM_INTEGRATION: frozenset[str] = frozenset(
-    {
-        # --- Phase 12a-2 deferred to 12a-3 followup --------------------
-        # `define_calibration` is the only create-style slice in 12a-2;
-        # integration test lands in 12a-3 alongside the projection-
-        # driven integration suite. Remove on 12a-3.
-        "cora.calibration.features.define_calibration",
-    }
-)
+EXEMPT_FROM_INTEGRATION: frozenset[str] = frozenset()
 
 
 # ---------------------------------------------------------------------------
