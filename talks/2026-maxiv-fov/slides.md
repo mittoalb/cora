@@ -653,7 +653,7 @@ The CORA card, opened up. Three layers, each with a single job.
 </div>
 
 <div class="mt-6 text-center text-sm font-semibold bg-[#0A7E8C]/10 p-3 rounded-lg border border-[#0A7E8C]/20">
-Today: <span class="text-[#0A7E8C]">13 bounded contexts · 18 aggregates · 6,613 passing tests · pyright 0/0/0 strict · forward-only migrations</span>
+Today: <span class="text-[#0A7E8C]">14 bounded contexts · 20 aggregates · 9,963 passing tests · pyright 0/0/0 strict · forward-only migrations</span>
 </div>
 
 <div class="mt-4 text-sm opacity-80">
@@ -684,11 +684,11 @@ Architecture stable. Pilot in flight. Honest about both.
 <div class="flex flex-col gap-5">
 
 <div class="border-l-2 border-[#0A7E8C]/50 pl-5">
-  <div class="text-[11px] font-medium uppercase tracking-[0.22em] text-[#0A7E8C] mb-3">Built and stable · 13 bounded contexts</div>
+  <div class="text-[11px] font-medium uppercase tracking-[0.22em] text-[#0A7E8C] mb-3">Built and stable · 14 bounded contexts</div>
   <div class="space-y-1 text-xs">
     <div><span class="font-semibold text-[#0A7E8C]">Access</span> <span class="opacity-75">· actor identity (register, deactivate)</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Trust</span> <span class="opacity-75">· zones, conduits, policies</span></div>
-    <div><span class="font-semibold text-[#0A7E8C]">Equipment</span> <span class="opacity-75">· capability, settings, ports, condition</span></div>
+    <div><span class="font-semibold text-[#0A7E8C]">Equipment</span> <span class="opacity-75">· family, affordances, settings, ports, condition</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Recipe</span> <span class="opacity-75">· Method → Practice → Plan → Run → Dataset</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Subject</span> <span class="opacity-75">· sample identity across stations</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Run</span> <span class="opacity-75">· execution, readings, procedure</span></div>
@@ -699,6 +699,7 @@ Architecture stable. Pilot in flight. Honest about both.
     <div><span class="font-semibold text-[#0A7E8C]">Operation</span> <span class="opacity-75">· procedure execution (ISA-106 lens)</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Safety</span> <span class="opacity-75">· clearances, hazard classifications, approval chains</span></div>
     <div><span class="font-semibold text-[#0A7E8C]">Caution</span> <span class="opacity-75">· operator tribal-knowledge cautions and workarounds</span></div>
+    <div><span class="font-semibold text-[#0A7E8C]">Agent</span> <span class="opacity-75">· AI agents as principals (RunDebrief, CautionDrafter live)</span></div>
   </div>
 </div>
 
@@ -815,7 +816,7 @@ CORA is one honest attempt at that layer: <span class="font-semibold">event-sour
 <div class="flex gap-4">
 <div class="text-3xl font-bold text-[#0A7E8C] flex-shrink-0 w-10">3</div>
 <div>
-It exists today: <span class="font-semibold">13 bounded contexts, 6,613 tests, APS 35-BM pilot in progress.</span> Looking for collaborators who care about the same problem, including this room.
+It exists today: <span class="font-semibold">14 bounded contexts, 9,963 tests, APS 35-BM pilot in progress.</span> Looking for collaborators who care about the same problem, including this room.
 </div>
 </div>
 
