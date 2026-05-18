@@ -52,7 +52,7 @@ def test_decide_emits_capability_versioned_for_each_allowed_source_status(
     state = _capability(status=source)
     events = version_family.decide(
         state=state,
-        command=VersionFamily(family_id=state.id, version_tag="v2"),
+        command=VersionFamily(family_id=state.id, version_tag="v2", affordances=frozenset()),
         now=_NOW,
     )
     assert events == [FamilyVersioned(family_id=state.id, version_tag="v2", occurred_at=_NOW)]
@@ -65,7 +65,7 @@ def test_decide_trims_version_tag_via_decider() -> None:
     state = _capability()
     events = version_family.decide(
         state=state,
-        command=VersionFamily(family_id=state.id, version_tag="  v2  "),
+        command=VersionFamily(family_id=state.id, version_tag="  v2  ", affordances=frozenset()),
         now=_NOW,
     )
     assert events[0].version_tag == "v2"
@@ -77,7 +77,7 @@ def test_decide_raises_capability_not_found_when_state_is_none() -> None:
     with pytest.raises(FamilyNotFoundError) as exc_info:
         version_family.decide(
             state=None,
-            command=VersionFamily(family_id=target_id, version_tag="v2"),
+            command=VersionFamily(family_id=target_id, version_tag="v2", affordances=frozenset()),
             now=_NOW,
         )
     assert exc_info.value.family_id == target_id
@@ -89,7 +89,7 @@ def test_decide_raises_invalid_version_tag_for_empty_string() -> None:
     with pytest.raises(InvalidFamilyVersionTagError):
         version_family.decide(
             state=state,
-            command=VersionFamily(family_id=state.id, version_tag=""),
+            command=VersionFamily(family_id=state.id, version_tag="", affordances=frozenset()),
             now=_NOW,
         )
 
@@ -100,7 +100,7 @@ def test_decide_raises_invalid_version_tag_for_whitespace_only() -> None:
     with pytest.raises(InvalidFamilyVersionTagError):
         version_family.decide(
             state=state,
-            command=VersionFamily(family_id=state.id, version_tag="   "),
+            command=VersionFamily(family_id=state.id, version_tag="   ", affordances=frozenset()),
             now=_NOW,
         )
 
@@ -111,7 +111,9 @@ def test_decide_raises_invalid_version_tag_for_too_long() -> None:
     with pytest.raises(InvalidFamilyVersionTagError):
         version_family.decide(
             state=state,
-            command=VersionFamily(family_id=state.id, version_tag="v" * 51),
+            command=VersionFamily(
+                family_id=state.id, version_tag="v" * 51, affordances=frozenset()
+            ),
             now=_NOW,
         )
 
@@ -126,7 +128,7 @@ def test_decide_raises_cannot_version_for_deprecated_status() -> None:
     with pytest.raises(FamilyCannotVersionError) as exc_info:
         version_family.decide(
             state=state,
-            command=VersionFamily(family_id=state.id, version_tag="v2"),
+            command=VersionFamily(family_id=state.id, version_tag="v2", affordances=frozenset()),
             now=_NOW,
         )
     assert exc_info.value.family_id == state.id
@@ -139,7 +141,7 @@ def test_decide_error_message_lists_both_allowed_source_statuses() -> None:
     with pytest.raises(FamilyCannotVersionError) as exc_info:
         version_family.decide(
             state=state,
-            command=VersionFamily(family_id=state.id, version_tag="v2"),
+            command=VersionFamily(family_id=state.id, version_tag="v2", affordances=frozenset()),
             now=_NOW,
         )
     msg = str(exc_info.value)
@@ -151,7 +153,7 @@ def test_decide_error_message_lists_both_allowed_source_statuses() -> None:
 @pytest.mark.unit
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     state = _capability()
-    command = VersionFamily(family_id=state.id, version_tag="v2")
+    command = VersionFamily(family_id=state.id, version_tag="v2", affordances=frozenset())
     first = version_family.decide(state=state, command=command, now=_NOW)
     second = version_family.decide(state=state, command=command, now=_NOW)
     assert first == second
@@ -174,7 +176,7 @@ def test_decide_allows_versioning_with_same_tag_for_re_attestation() -> None:
     )
     events = version_family.decide(
         state=state,
-        command=VersionFamily(family_id=state.id, version_tag="v2"),
+        command=VersionFamily(family_id=state.id, version_tag="v2", affordances=frozenset()),
         now=_NOW,
     )
     assert events == [FamilyVersioned(family_id=state.id, version_tag="v2", occurred_at=_NOW)]

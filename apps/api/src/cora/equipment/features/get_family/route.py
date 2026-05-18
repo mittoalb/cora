@@ -13,7 +13,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from pydantic import BaseModel, Field
 
-from cora.equipment.aggregates.family import FAMILY_NAME_MAX_LENGTH
+from cora.equipment.aggregates.family import FAMILY_NAME_MAX_LENGTH, Affordance
 from cora.equipment.features.get_family.handler import Handler
 from cora.equipment.features.get_family.query import GetFamily
 from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
@@ -27,12 +27,16 @@ class FamilyResponse(BaseModel):
     `status` is the StrEnum's string value (Defined / Versioned /
     Deprecated). `version` is the operator-supplied label of the most
     recent version_family call (null until first version).
+    `affordances` (5j) serializes as a sorted list of Affordance
+    enum string values (frozenset semantics in domain state, list at
+    the JSON boundary; sorted alphabetically for response determinism).
     """
 
     id: UUID
     name: str = Field(..., max_length=FAMILY_NAME_MAX_LENGTH)
     status: str
     version: str | None
+    affordances: list[Affordance]
 
 
 def _get_handler(request: Request) -> Handler:
@@ -79,4 +83,5 @@ async def get_capabilities(
         name=capability.name.value,
         status=capability.status.value,
         version=capability.version,
+        affordances=sorted(capability.affordances, key=lambda a: a.value),
     )

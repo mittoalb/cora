@@ -59,6 +59,7 @@ from cora.equipment.aggregates.family import (
     FamilyCannotDeprecateError,
     FamilyCannotVersionError,
     FamilyNotFoundError,
+    InvalidAffordanceError,
     InvalidFamilyNameError,
     InvalidFamilySettingsSchemaError,
     InvalidFamilyVersionTagError,
@@ -177,6 +178,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(get_asset.router)
     app.include_router(list_assets.router)
     for validation_cls in (
+        InvalidAffordanceError,
         InvalidFamilyNameError,
         InvalidFamilySettingsSchemaError,
         InvalidFamilyVersionTagError,

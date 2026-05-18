@@ -18,7 +18,9 @@ from cora.api.main import create_app
 def _setup_plan_with_two_assets_and_ports(client: TestClient) -> dict[str, Any]:
     """Seed: 2 Assets each with one OUTPUT + one INPUT port, then a Plan
     binding both. Returns dict with plan_id, src_asset_id, tgt_asset_id."""
-    cap_id = client.post("/families", json={"name": "Trigger"}).json()["family_id"]
+    cap_id = client.post("/families", json={"name": "Trigger", "affordances": []}).json()[
+        "family_id"
+    ]
     method_id = client.post(
         "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]
@@ -116,7 +118,9 @@ def test_post_add_plan_wire_returns_409_on_fan_in_attempt() -> None:
             "/assets",
             json={"name": "PandABox2", "level": "Enterprise", "parent_id": None},
         ).json()["asset_id"]
-        cap_id = client.post("/families", json={"name": "Trigger2"}).json()["family_id"]
+        cap_id = client.post("/families", json={"name": "Trigger2", "affordances": []}).json()[
+            "family_id"
+        ]
         client.post(f"/assets/{second_src_id}/add_capability", json={"family_id": cap_id})
         client.post(
             f"/assets/{second_src_id}/add_port",

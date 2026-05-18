@@ -8,16 +8,27 @@ device-agnostic. Examples: "RotaryStage", "LinearStage", "Camera",
 resolved at `Plan` binding when the contract is matched against
 specific `Asset` instances.
 
-## Phase 5i scope (this aggregate)
+## Phase 5i + 5j scope (this aggregate)
 
-Direct rename of the prior `Family` aggregate (5a + 5f-2 + 5g-a)
-into `Family` per DLM-A [[family-affordance-design-phases-5i-5j-lock]].
-Pure rename: same FSM (Defined → Versioned → Deprecated), same
-settings_schema field, same lifecycle. Affordance binding lands in 5j
-as additive evolution.
+5i was a pure rename of the prior `Capability` aggregate (5a + 5f-2 +
+5g-a) into `Family` per DLM-A [[family-affordance-design-phases-5i-5j-lock]]:
+same FSM (Defined → Versioned → Deprecated), same settings_schema
+field, same lifecycle.
 
-The word "Family" is reserved for the future Recipe BC operations-
-layer aggregate (DLM-B / phase 6k); after 5i ships, "Family" must
+5j adds `affordances: frozenset[Affordance]` as a REQUIRED field at
+`define_family` time (per FHIR R5 minimum-cardinality criterion +
+Pattern P over Pattern Q per Round 5 corpus research). Empty
+`frozenset()` is a valid argument the caller must supply explicitly
+(Scintillator's case at v1, until the Consumable lifecycle affordance
+makes it non-empty). Affordance set changes flow through
+`version_family` (a new version IS a new declaration; matches
+Method/Plan/Practice replace-on-version precedent), NOT a separate
+`set_family_affordances` slice. See [[project-capability-research]]
+section 5 for the 28-item / 3-pattern starter list and the dropped
+parameter-shaped pseudo-affordances.
+
+The word "Capability" is reserved for the future Recipe BC operations-
+layer aggregate (DLM-B / phase 6k); after 5i ships, "Capability" must
 not appear in Equipment BC except in dual-match evolver arms recognizing
 legacy event-type strings.
 
@@ -47,6 +58,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
+from cora.equipment.aggregates.family.affordance import Affordance
 from cora.infrastructure.bounded_text import validate_bounded_text
 
 FAMILY_NAME_MAX_LENGTH = 200
@@ -164,14 +176,24 @@ class Family:
     holds the latest tag — past tags live in the event stream as
     `FamilyVersioned` events.
 
+    `affordances` is the closed-enum set of device-level operational
+    primitives this Family supports (5j). Required at `define_family`
+    time; empty `frozenset()` is a valid argument when no v1 Affordance
+    applies (Scintillator's case). Replaced wholesale by
+    `version_family` (a new version IS a new declaration). See
+    `cora.equipment.aggregates.family.affordance.Affordance` for the
+    28-item closed enum and the 3-pattern rule. Defaults to empty
+    frozenset for evolver-level back-compat with pre-5j `FamilyDefined`
+    events (additive-state pattern).
+
     `settings_schema` is the optional JSON Schema (Draft 2020-12,
     constrained subset) declaring the shape of `Asset.settings` keys
-    this Family "owns". Affordance binding lands in 5j as an
-    additional required field.
+    this Family "owns".
     """
 
     id: UUID
     name: FamilyName
     status: FamilyStatus = FamilyStatus.DEFINED
     version: str | None = None
+    affordances: frozenset[Affordance] = field(default_factory=frozenset[Affordance])
     settings_schema: dict[str, Any] | None = field(default=None)

@@ -49,7 +49,9 @@ def _start_run_and_finish(client: TestClient, *, end_state: str) -> str:
     terminal state via the appropriate transition slice. Returns the
     run_id. `end_state` ∈ {'Completed', 'Aborted', 'Stopped',
     'Truncated'}."""
-    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+        "family_id"
+    ]
     method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
         "method_id"
     ]

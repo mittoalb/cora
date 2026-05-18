@@ -53,7 +53,7 @@ def _build_deps(
 
 async def _define_family_helper(deps: Kernel) -> UUID:
     return await define_family.bind(deps)(
-        DefineFamily(name="Tomography"),
+        DefineFamily(name="Tomography", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -66,7 +66,7 @@ async def test_handler_returns_none_on_success() -> None:
     family_id = await _define_family_helper(deps)
 
     result = await version_family.bind(deps)(
-        VersionFamily(family_id=family_id, version_tag="v2"),
+        VersionFamily(family_id=family_id, version_tag="v2", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -80,7 +80,7 @@ async def test_handler_appends_capability_versioned_event_with_version_tag() -> 
     family_id = await _define_family_helper(deps)
 
     await version_family.bind(deps)(
-        VersionFamily(family_id=family_id, version_tag="v2"),
+        VersionFamily(family_id=family_id, version_tag="v2", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -106,12 +106,12 @@ async def test_handler_supports_re_versioning() -> None:
     handler = version_family.bind(deps)
 
     await handler(
-        VersionFamily(family_id=family_id, version_tag="v1"),
+        VersionFamily(family_id=family_id, version_tag="v1", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await handler(
-        VersionFamily(family_id=family_id, version_tag="v2"),
+        VersionFamily(family_id=family_id, version_tag="v2", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -134,7 +134,7 @@ async def test_handler_raises_capability_not_found_when_capability_does_not_exis
 
     with pytest.raises(FamilyNotFoundError):
         await handler(
-            VersionFamily(family_id=_CAPABILITY_ID, version_tag="v1"),
+            VersionFamily(family_id=_CAPABILITY_ID, version_tag="v1", affordances=frozenset()),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -149,7 +149,7 @@ async def test_handler_raises_invalid_version_tag_for_whitespace_only() -> None:
 
     with pytest.raises(InvalidFamilyVersionTagError):
         await version_family.bind(deps)(
-            VersionFamily(family_id=family_id, version_tag="   "),
+            VersionFamily(family_id=family_id, version_tag="   ", affordances=frozenset()),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -169,7 +169,7 @@ async def test_handler_raises_cannot_version_when_deprecated() -> None:
 
     with pytest.raises(FamilyCannotVersionError):
         await version_family.bind(deps)(
-            VersionFamily(family_id=family_id, version_tag="v2"),
+            VersionFamily(family_id=family_id, version_tag="v2", affordances=frozenset()),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -184,7 +184,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     deny_deps = _build_deps(event_store=store, deny=True)
     with pytest.raises(UnauthorizedError) as exc_info:
         await version_family.bind(deny_deps)(
-            VersionFamily(family_id=family_id, version_tag="v2"),
+            VersionFamily(family_id=family_id, version_tag="v2", affordances=frozenset()),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -199,7 +199,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     family_id = await _define_family_helper(deps)
 
     await version_family.bind(deps)(
-        VersionFamily(family_id=family_id, version_tag="v2"),
+        VersionFamily(family_id=family_id, version_tag="v2", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,

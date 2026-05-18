@@ -20,7 +20,9 @@ from tests.contract._subject_helpers import register_active_asset
 def _setup_full_run(client: TestClient) -> str:
     """Seed full upstream chain + start a Run. Returns the run_id.
     Mirrors the helper in test_append_run_reading_endpoint.py."""
-    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+        "family_id"
+    ]
     method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
         "method_id"
     ]

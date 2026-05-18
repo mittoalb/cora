@@ -24,7 +24,7 @@ async def test_define_family_persists_event_to_postgres(
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[_NEW_ID, _EVENT_ID])
 
     family_id = await define_family.bind(deps)(
-        DefineFamily(name="Continuous Rotation Tomography"),
+        DefineFamily(name="Continuous Rotation Tomography", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

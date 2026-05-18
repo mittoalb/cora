@@ -16,7 +16,9 @@ from cora.api.main import create_app
 
 def _setup_full_plan(client: TestClient) -> tuple[str, str, str]:
     """Seed all upstream then create a Plan. Returns (plan_id, practice_id, asset_id)."""
-    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+        "family_id"
+    ]
     method_id = client.post(
         "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]
@@ -64,7 +66,9 @@ def test_get_plan_returns_sorted_asset_ids_for_deterministic_response() -> None:
     """Multi-asset binding: response asset_ids are deterministically
     ordered for client diff stability."""
     with TestClient(create_app()) as client:
-        cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+        cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+            "family_id"
+        ]
         method_id = client.post(
             "/methods",
             json={"name": "Test Method", "needed_families": [cap_id]},

@@ -15,7 +15,9 @@ from cora.api.main import create_app
 def _setup_plan(client: TestClient) -> str:
     """Seed Family + Method + Practice + Asset (with capability) +
     Plan via the public API; return the plan_id as a string."""
-    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+        "family_id"
+    ]
     method_id = client.post(
         "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]
@@ -39,7 +41,9 @@ def _setup_plan(client: TestClient) -> str:
 def test_post_version_plan_returns_204_from_defined_state() -> None:
     with TestClient(create_app()) as client:
         plan_id = _setup_plan(client)
-        response = client.post(f"/plans/{plan_id}/version", json={"version_tag": "v2"})
+        response = client.post(
+            f"/plans/{plan_id}/version", json={"version_tag": "v2", "affordances": []}
+        )
     assert response.status_code == 204
 
 
@@ -48,9 +52,13 @@ def test_post_version_plan_returns_204_from_versioned_state() -> None:
     """Subsequent revision (Versioned → Versioned)."""
     with TestClient(create_app()) as client:
         plan_id = _setup_plan(client)
-        first = client.post(f"/plans/{plan_id}/version", json={"version_tag": "v1"})
+        first = client.post(
+            f"/plans/{plan_id}/version", json={"version_tag": "v1", "affordances": []}
+        )
         assert first.status_code == 204
-        second = client.post(f"/plans/{plan_id}/version", json={"version_tag": "v2"})
+        second = client.post(
+            f"/plans/{plan_id}/version", json={"version_tag": "v2", "affordances": []}
+        )
     assert second.status_code == 204
 
 
@@ -59,7 +67,7 @@ def test_post_version_plan_round_trips_into_get_plan_response() -> None:
     """End-to-end: version + get → status=Versioned, version=label."""
     with TestClient(create_app()) as client:
         plan_id = _setup_plan(client)
-        client.post(f"/plans/{plan_id}/version", json={"version_tag": "2026-Q3"})
+        client.post(f"/plans/{plan_id}/version", json={"version_tag": "2026-Q3", "affordances": []})
         response = client.get(f"/plans/{plan_id}")
 
     assert response.status_code == 200
@@ -72,7 +80,9 @@ def test_post_version_plan_round_trips_into_get_plan_response() -> None:
 def test_post_version_plan_returns_404_when_plan_does_not_exist() -> None:
     missing_id = str(uuid4())
     with TestClient(create_app()) as client:
-        response = client.post(f"/plans/{missing_id}/version", json={"version_tag": "v1"})
+        response = client.post(
+            f"/plans/{missing_id}/version", json={"version_tag": "v1", "affordances": []}
+        )
     assert response.status_code == 404
 
 
@@ -82,7 +92,9 @@ def test_post_version_plan_returns_409_when_deprecated() -> None:
         plan_id = _setup_plan(client)
         deprecate = client.post(f"/plans/{plan_id}/deprecate")
         assert deprecate.status_code == 204
-        response = client.post(f"/plans/{plan_id}/version", json={"version_tag": "v2"})
+        response = client.post(
+            f"/plans/{plan_id}/version", json={"version_tag": "v2", "affordances": []}
+        )
     assert response.status_code == 409
     assert "Deprecated" in response.json()["detail"]
 
@@ -91,7 +103,9 @@ def test_post_version_plan_returns_409_when_deprecated() -> None:
 def test_post_version_plan_rejects_empty_version_tag_with_422() -> None:
     with TestClient(create_app()) as client:
         plan_id = _setup_plan(client)
-        response = client.post(f"/plans/{plan_id}/version", json={"version_tag": ""})
+        response = client.post(
+            f"/plans/{plan_id}/version", json={"version_tag": "", "affordances": []}
+        )
     assert response.status_code == 422
 
 
@@ -100,7 +114,9 @@ def test_post_version_plan_rejects_whitespace_only_with_400() -> None:
     """Whitespace passes Pydantic but the decider trims and rejects."""
     with TestClient(create_app()) as client:
         plan_id = _setup_plan(client)
-        response = client.post(f"/plans/{plan_id}/version", json={"version_tag": "   "})
+        response = client.post(
+            f"/plans/{plan_id}/version", json={"version_tag": "   ", "affordances": []}
+        )
     assert response.status_code == 400
     assert "version tag" in response.json()["detail"].lower()
 
@@ -116,5 +132,7 @@ def test_post_version_plan_rejects_too_long_with_422() -> None:
 @pytest.mark.contract
 def test_post_version_plan_rejects_invalid_path_uuid_with_422() -> None:
     with TestClient(create_app()) as client:
-        response = client.post("/plans/not-a-uuid/version", json={"version_tag": "v1"})
+        response = client.post(
+            "/plans/not-a-uuid/version", json={"version_tag": "v1", "affordances": []}
+        )
     assert response.status_code == 422

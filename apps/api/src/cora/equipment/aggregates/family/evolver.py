@@ -39,20 +39,25 @@ from cora.infrastructure.evolver import require_state
 def evolve(state: Family | None, event: FamilyEvent) -> Family:
     """Apply one event to the current state."""
     match event:
-        case FamilyDefined(family_id=family_id, name=name):
+        case FamilyDefined(family_id=family_id, name=name, affordances=affordances):
             _ = state  # FamilyDefined is the genesis event; prior state ignored
             return Family(
                 id=family_id,
                 name=FamilyName(name),
                 status=FamilyStatus.DEFINED,
+                affordances=affordances,
             )
-        case FamilyVersioned(version_tag=version_tag):
+        case FamilyVersioned(version_tag=version_tag, affordances=affordances):
             prior = require_state(state, "FamilyVersioned")
             return Family(
                 id=prior.id,
                 name=prior.name,
                 status=FamilyStatus.VERSIONED,
                 version=version_tag,
+                # Affordance set REPLACES (5j semantics: a new version
+                # IS a new declaration). Matches Method/Plan/Practice
+                # replace-on-version precedent.
+                affordances=affordances,
                 settings_schema=prior.settings_schema,
             )
         case FamilyDeprecated():
@@ -62,6 +67,9 @@ def evolve(state: Family | None, event: FamilyEvent) -> Family:
                 name=prior.name,
                 status=FamilyStatus.DEPRECATED,
                 version=prior.version,
+                # Affordances PRESERVED across deprecation; the
+                # historical declaration stays visible for audit.
+                affordances=prior.affordances,
                 settings_schema=prior.settings_schema,
             )
         case FamilySettingsSchemaUpdated(settings_schema=settings_schema):
@@ -71,6 +79,9 @@ def evolve(state: Family | None, event: FamilyEvent) -> Family:
                 name=prior.name,
                 status=prior.status,
                 version=prior.version,
+                # Affordances PRESERVED across schema updates; settings
+                # schema and affordance set evolve independently.
+                affordances=prior.affordances,
                 settings_schema=settings_schema,
             )
         case _:  # pragma: no cover  # exhaustiveness guard

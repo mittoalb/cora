@@ -4,7 +4,7 @@ Module-as-namespace surface:
 
     from cora.equipment.features import version_family
 
-    cmd = version_family.VersionFamily(family_id=..., version_tag="v2")
+    cmd = version_family.VersionFamily(family_id=..., version_tag="v2", affordances=frozenset())
     handler = version_family.bind(deps)
     await handler(cmd, principal_id=..., correlation_id=...)
 """

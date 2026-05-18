@@ -35,6 +35,7 @@ def decide(
         FamilyDefined(
             family_id=new_id,
             name=name.value,
+            affordances=command.affordances,
             occurred_at=now,
         )
     ]

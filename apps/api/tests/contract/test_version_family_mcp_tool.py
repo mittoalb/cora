@@ -20,7 +20,7 @@ def _define_family_via_tool(
             "method": "tools/call",
             "params": {
                 "name": "define_family",
-                "arguments": {"name": name},
+                "arguments": {"name": name, "affordances": []},
             },
         },
         headers=headers,
@@ -59,6 +59,7 @@ def test_mcp_version_family_tool_succeeds_on_happy_path() -> None:
                     "arguments": {
                         "family_id": str(family_id),
                         "version_tag": "v2",
+                        "affordances": [],
                     },
                 },
             },
@@ -83,6 +84,7 @@ def test_mcp_version_family_tool_returns_iserror_for_unknown_capability() -> Non
                     "arguments": {
                         "family_id": str(uuid4()),
                         "version_tag": "v1",
+                        "affordances": [],
                     },
                 },
             },
@@ -123,6 +125,7 @@ def test_mcp_version_family_tool_returns_iserror_when_deprecated() -> None:
                     "arguments": {
                         "family_id": str(family_id),
                         "version_tag": "v2",
+                        "affordances": [],
                     },
                 },
             },

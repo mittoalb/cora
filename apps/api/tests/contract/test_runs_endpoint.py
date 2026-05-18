@@ -24,7 +24,9 @@ from tests.contract._subject_helpers import register_active_asset
 def _setup_full_chain(client: TestClient) -> tuple[str, str]:
     """Seed Family + Method + Practice + Asset (with capability) +
     Plan + Subject (Mounted) via the public API. Returns (plan_id, subject_id)."""
-    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+        "family_id"
+    ]
     method_id = client.post(
         "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]
@@ -255,7 +257,9 @@ def test_post_runs_returns_409_when_asset_decommissioned_after_plan_bind() -> No
     """Drift since Plan-bind: bound Asset got Decommissioned. Run-start re-validates."""
     with TestClient(create_app()) as client:
         # Build chain manually so we have asset_id handle.
-        cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+        cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+            "family_id"
+        ]
         method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
             "method_id"
         ]
@@ -282,7 +286,9 @@ def test_post_runs_returns_409_when_asset_decommissioned_after_plan_bind() -> No
 def test_post_runs_returns_409_when_asset_capabilities_drifted_off() -> None:
     """Drift: Asset's capability got removed since Plan-bind. Run-start re-validates."""
     with TestClient(create_app()) as client:
-        cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+        cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+            "family_id"
+        ]
         method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
             "method_id"
         ]

@@ -73,7 +73,7 @@ async def _seed_chain(deps: Kernel) -> tuple[UUID, UUID, UUID]:
     define_method, define_practice). Caller pre-allocates them in
     the FixedIdGenerator queue."""
     cap_id = await bind_define_family(deps)(
-        DefineFamily(name="Tomography"),
+        DefineFamily(name="Tomography", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

@@ -75,7 +75,7 @@ async def test_version_plan_persists_event_and_round_trips_through_fold(
     )
 
     await define_family.bind(deps)(
-        DefineFamily(name="FlyMotion"),
+        DefineFamily(name="FlyMotion", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

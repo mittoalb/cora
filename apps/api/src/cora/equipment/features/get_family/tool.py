@@ -16,7 +16,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
 from cora.equipment._bootstrap import SYSTEM_PRINCIPAL_ID
-from cora.equipment.aggregates.family import FAMILY_NAME_MAX_LENGTH
+from cora.equipment.aggregates.family import FAMILY_NAME_MAX_LENGTH, Affordance
 from cora.equipment.features.get_family.handler import Handler
 from cora.equipment.features.get_family.query import GetFamily
 from cora.infrastructure.observability import current_correlation_id
@@ -29,6 +29,7 @@ class FamilyOutput(BaseModel):
     name: str = Field(..., max_length=FAMILY_NAME_MAX_LENGTH)
     status: str
     version: str | None
+    affordances: list[Affordance]
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -58,4 +59,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             name=capability.name.value,
             status=capability.status.value,
             version=capability.version,
+            affordances=sorted(capability.affordances, key=lambda a: a.value),
         )

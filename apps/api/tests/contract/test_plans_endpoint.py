@@ -27,7 +27,9 @@ from cora.recipe.features.define_plan.route import (
 def _setup_chain(client: TestClient) -> tuple[str, str, str]:
     """Seed Family + Method + Practice + Asset(with capability)
     via the public API. Returns (practice_id, asset_id, family_id)."""
-    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+        "family_id"
+    ]
     method_id = client.post(
         "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]
@@ -232,7 +234,9 @@ def test_post_plans_returns_409_when_practice_is_deprecated() -> None:
 @pytest.mark.contract
 def test_post_plans_returns_409_when_method_is_deprecated() -> None:
     with TestClient(create_app()) as client:
-        cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+        cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+            "family_id"
+        ]
         method_id = client.post(
             "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
         ).json()["method_id"]
@@ -287,8 +291,12 @@ def test_post_plans_returns_409_when_asset_is_decommissioned() -> None:
 def test_post_plans_returns_409_when_capabilities_not_satisfied() -> None:
     """Method needs capability X but bound Asset has only Y."""
     with TestClient(create_app()) as client:
-        needed_cap = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
-        different_cap = client.post("/families", json={"name": "OtherCap"}).json()["family_id"]
+        needed_cap = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+            "family_id"
+        ]
+        different_cap = client.post(
+            "/families", json={"name": "OtherCap", "affordances": []}
+        ).json()["family_id"]
         method_id = client.post(
             "/methods",
             json={"name": "Test Method", "needed_families": [needed_cap]},

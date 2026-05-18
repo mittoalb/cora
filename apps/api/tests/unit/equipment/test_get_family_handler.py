@@ -46,7 +46,7 @@ async def test_handler_returns_capability_for_known_id() -> None:
     """Round-trip: define + get."""
     deps = _build_deps()
     await define_family.bind(deps)(
-        DefineFamily(name="Tomography"),
+        DefineFamily(name="Tomography", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

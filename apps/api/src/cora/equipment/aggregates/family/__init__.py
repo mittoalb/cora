@@ -1,14 +1,18 @@
-"""Family aggregate: state, status enum, errors, events, evolver, read repo.
+"""Family aggregate: state, status enum, affordance enum, errors, events, evolver, read repo.
 
 Vertical slices that operate on this aggregate live under
 `cora.equipment.features.<verb>_family/` and import from here for
 state and event types.
 
-Phase 5i renamed this aggregate from `Family` to `Family`. The
-old `cora.equipment.aggregates.family` module is a compat shim
-during the 5i sub-cuts and is removed in 5i.4.
+Phase 5i renamed this aggregate from `Capability` to `Family`. Phase
+5j added the `Affordance` closed StrEnum + `Family.affordances`
+required field per DLM-A [[family-affordance-design-phases-5i-5j-lock]].
 """
 
+from cora.equipment.aggregates.family.affordance import (
+    Affordance,
+    InvalidAffordanceError,
+)
 from cora.equipment.aggregates.family.events import (
     FamilyDefined,
     FamilyDeprecated,
@@ -42,6 +46,7 @@ from cora.equipment.aggregates.family.state import (
 __all__ = [
     "FAMILY_NAME_MAX_LENGTH",
     "FAMILY_VERSION_TAG_MAX_LENGTH",
+    "Affordance",
     "Family",
     "FamilyAlreadyExistsError",
     "FamilyCannotDeprecateError",
@@ -54,6 +59,7 @@ __all__ = [
     "FamilySettingsSchemaUpdated",
     "FamilyStatus",
     "FamilyVersioned",
+    "InvalidAffordanceError",
     "InvalidFamilyNameError",
     "InvalidFamilySettingsSchemaError",
     "InvalidFamilyVersionTagError",

@@ -113,6 +113,7 @@ nav:
     - Workflow: reference/workflow.md
     - Layout: reference/layout.md
     - Modeling: reference/modeling.md
+    - Affordances: reference/affordances.md
     - Patterns: reference/patterns.md
     - Runtime: reference/runtime.md
     - Glossary: reference/glossary.md

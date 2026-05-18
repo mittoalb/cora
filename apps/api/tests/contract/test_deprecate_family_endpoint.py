@@ -13,7 +13,7 @@ from cora.api.main import create_app
 
 
 def _define_family(client: TestClient, name: str = "Tomography") -> UUID:
-    response = client.post("/families", json={"name": name})
+    response = client.post("/families", json={"name": name, "affordances": []})
     assert response.status_code == 201
     return UUID(response.json()["family_id"])
 
@@ -45,7 +45,7 @@ def test_post_deprecate_family_round_trips_into_get_family_response() -> None:
         family_id = _define_family(client)
         client.post(
             f"/families/{family_id}/version",
-            json={"version_tag": "2026-Q2"},
+            json={"version_tag": "2026-Q2", "affordances": []},
         )
         client.post(f"/families/{family_id}/deprecate")
         response = client.get(f"/families/{family_id}")

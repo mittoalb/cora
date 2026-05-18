@@ -61,7 +61,9 @@ def test_fold_is_pure_same_input_same_output() -> None:
 def test_decider_and_evolver_round_trip() -> None:
     """The events the decider produces must rebuild the expected state."""
     new_id = uuid4()
-    command = DefineFamily(name="  Tomography  ")  # whitespace exercises the VO trim
+    command = DefineFamily(
+        name="  Tomography  ", affordances=frozenset()
+    )  # whitespace exercises the VO trim
 
     events = define_family.decide(state=None, command=command, now=_NOW, new_id=new_id)
     rebuilt = fold(events)

@@ -40,7 +40,7 @@ async def test_handler_returns_generated_family_id() -> None:
     handler = define_family.bind(deps)
 
     result = await handler(
-        DefineFamily(name="Tomography"),
+        DefineFamily(name="Tomography", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -55,7 +55,7 @@ async def test_handler_appends_capability_defined_event_to_store() -> None:
     handler = define_family.bind(deps)
 
     await handler(
-        DefineFamily(name="Tomography"),
+        DefineFamily(name="Tomography", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -70,6 +70,8 @@ async def test_handler_appends_capability_defined_event_to_store() -> None:
         "family_id": str(_NEW_ID),
         "name": "Tomography",
         "occurred_at": _NOW.isoformat(),
+        # Phase 5j: empty affordances serialized as [] (default factory).
+        "affordances": [],
     }
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None
@@ -85,7 +87,7 @@ async def test_handler_trims_capability_name_via_value_object() -> None:
     handler = define_family.bind(deps)
 
     await handler(
-        DefineFamily(name="  Tomography  "),
+        DefineFamily(name="  Tomography  ", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -101,7 +103,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 
     with pytest.raises(UnauthorizedError) as exc_info:
         await handler(
-            DefineFamily(name="Tomography"),
+            DefineFamily(name="Tomography", affordances=frozenset()),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -116,7 +118,7 @@ async def test_handler_does_not_append_when_denied() -> None:
 
     with pytest.raises(UnauthorizedError):
         await handler(
-            DefineFamily(name="Tomography"),
+            DefineFamily(name="Tomography", affordances=frozenset()),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -133,7 +135,7 @@ async def test_handler_propagates_invalid_capability_name_error() -> None:
 
     with pytest.raises(InvalidFamilyNameError):
         await handler(
-            DefineFamily(name="   "),
+            DefineFamily(name="   ", affordances=frozenset()),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -147,7 +149,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     handler = define_family.bind(deps)
 
     await handler(
-        DefineFamily(name="Tomography"),
+        DefineFamily(name="Tomography", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,
@@ -176,7 +178,7 @@ async def test_wired_handler_propagates_causation_id_through_full_composition() 
     handlers = wire_equipment(deps)
 
     await handlers.define_family(
-        DefineFamily(name="Tomography"),
+        DefineFamily(name="Tomography", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,

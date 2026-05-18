@@ -24,7 +24,7 @@ from cora.equipment.features.define_family.route import (
 @pytest.mark.contract
 def test_post_capabilities_returns_201_with_family_id() -> None:
     with TestClient(create_app()) as client:
-        response = client.post("/families", json={"name": "Tomography"})
+        response = client.post("/families", json={"name": "Tomography", "affordances": []})
 
     assert response.status_code == 201
     body = response.json()
@@ -35,7 +35,7 @@ def test_post_capabilities_returns_201_with_family_id() -> None:
 @pytest.mark.contract
 def test_post_capabilities_trims_whitespace_in_name() -> None:
     with TestClient(create_app()) as client:
-        response = client.post("/families", json={"name": "  Tomography  "})
+        response = client.post("/families", json={"name": "  Tomography  ", "affordances": []})
     assert response.status_code == 201
 
 
@@ -50,7 +50,7 @@ def test_post_capabilities_rejects_missing_name_with_422() -> None:
 def test_post_capabilities_rejects_empty_name_with_422() -> None:
     """Pydantic min_length=1 catches empty strings before the domain layer."""
     with TestClient(create_app()) as client:
-        response = client.post("/families", json={"name": ""})
+        response = client.post("/families", json={"name": "", "affordances": []})
     assert response.status_code == 422
 
 
@@ -58,7 +58,7 @@ def test_post_capabilities_rejects_empty_name_with_422() -> None:
 def test_post_capabilities_rejects_too_long_name_with_422() -> None:
     """Pydantic max_length=200 catches over-length names."""
     with TestClient(create_app()) as client:
-        response = client.post("/families", json={"name": "a" * 201})
+        response = client.post("/families", json={"name": "a" * 201, "affordances": []})
     assert response.status_code == 422
 
 
@@ -66,7 +66,7 @@ def test_post_capabilities_rejects_too_long_name_with_422() -> None:
 def test_post_capabilities_rejects_whitespace_only_name_with_400() -> None:
     """Whitespace-only passes Pydantic but the domain VO trims and rejects."""
     with TestClient(create_app()) as client:
-        response = client.post("/families", json={"name": "   "})
+        response = client.post("/families", json={"name": "   ", "affordances": []})
     assert response.status_code == 400
     body = response.json()
     assert "detail" in body
@@ -75,7 +75,7 @@ def test_post_capabilities_rejects_whitespace_only_name_with_400() -> None:
 @pytest.mark.contract
 def test_post_capabilities_rejects_non_string_name_with_422() -> None:
     with TestClient(create_app()) as client:
-        response = client.post("/families", json={"name": 123})
+        response = client.post("/families", json={"name": 123, "affordances": []})
     assert response.status_code == 422
 
 
@@ -85,7 +85,7 @@ def test_post_capabilities_uses_max_length_constant_from_domain() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/families",
-            json={"name": "a" * FAMILY_NAME_MAX_LENGTH},
+            json={"name": "a" * FAMILY_NAME_MAX_LENGTH, "affordances": []},
         )
     assert response.status_code == 201
 
@@ -108,7 +108,7 @@ def test_post_capabilities_returns_409_when_capability_already_exists() -> None:
     app.dependency_overrides[_get_define_family_handler] = lambda: _stub
     try:
         with TestClient(app) as client:
-            response = client.post("/families", json={"name": "Tomography"})
+            response = client.post("/families", json={"name": "Tomography", "affordances": []})
     finally:
         app.dependency_overrides.clear()
 

@@ -48,12 +48,12 @@ async def test_deprecate_family_persists_and_preserves_version_through_fold(
     )
 
     await define_family.bind(deps)(
-        DefineFamily(name="X-ray Fluorescence Mapping"),
+        DefineFamily(name="X-ray Fluorescence Mapping", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await version_family.bind(deps)(
-        VersionFamily(family_id=family_id, version_tag="2026-Q2"),
+        VersionFamily(family_id=family_id, version_tag="2026-Q2", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

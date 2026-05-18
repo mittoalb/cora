@@ -53,7 +53,7 @@ def _setup_asset_with_schemaful_capability(client: TestClient, headers: dict[str
         headers,
         call_id=10,
         name="define_family",
-        arguments={"name": "Tomography"},
+        arguments={"name": "Tomography", "affordances": []},
     )
     cap_id = UUID(cap_body["result"]["structuredContent"]["family_id"])  # type: ignore[index]
 

@@ -26,7 +26,7 @@ async def test_get_family_loads_state_from_real_postgres(
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[_CAPABILITY_ID, _EVENT_ID])
 
     await define_family.bind(deps)(
-        DefineFamily(name="X-ray Fluorescence Mapping"),
+        DefineFamily(name="X-ray Fluorescence Mapping", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

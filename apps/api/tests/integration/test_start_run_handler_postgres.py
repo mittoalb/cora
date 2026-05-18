@@ -96,7 +96,7 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
 
     # Seed full upstream chain.
     await define_family.bind(deps)(
-        DefineFamily(name="FlyMotion"),
+        DefineFamily(name="FlyMotion", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

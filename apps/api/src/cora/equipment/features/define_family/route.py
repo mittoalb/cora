@@ -11,7 +11,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
-from cora.equipment.aggregates.family import FAMILY_NAME_MAX_LENGTH
+from cora.equipment.aggregates.family import FAMILY_NAME_MAX_LENGTH, Affordance
 from cora.equipment.features.define_family.command import DefineFamily
 from cora.equipment.features.define_family.handler import IdempotentHandler
 from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
@@ -24,7 +24,18 @@ class DefineFamilyRequest(BaseModel):
         ...,
         min_length=1,
         max_length=FAMILY_NAME_MAX_LENGTH,
-        description="Display name for the new capability.",
+        description="Display name for the new Family.",
+    )
+    affordances: list[Affordance] = Field(
+        ...,
+        description=(
+            "Closed-enum set of device-level operational primitives this "
+            "Family supports (Phase 5j). Required at definition time; "
+            "supply `[]` explicitly when no v1 Affordance applies. "
+            "Deduplicated server-side. See "
+            "`cora.equipment.aggregates.family.affordance.Affordance` for "
+            "the 28-item closed enum and the 3-pattern rule."
+        ),
     )
 
 
@@ -82,7 +93,7 @@ async def post_capabilities(
     ] = None,
 ) -> DefineFamilyResponse:
     family_id = await handler(
-        DefineFamily(name=body.name),
+        DefineFamily(name=body.name, affordances=frozenset(body.affordances)),
         principal_id=principal_id,
         correlation_id=cid,
         idempotency_key=idempotency_key,

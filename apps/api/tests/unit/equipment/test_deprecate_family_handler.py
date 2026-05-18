@@ -52,7 +52,7 @@ def _build_deps(
 
 async def _define_family_helper(deps: Kernel) -> UUID:
     return await define_family.bind(deps)(
-        DefineFamily(name="Tomography"),
+        DefineFamily(name="Tomography", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -107,7 +107,7 @@ async def test_handler_appends_capability_deprecated_event_from_versioned() -> N
     family_id = await _define_family_helper(deps)
 
     await version_family.bind(deps)(
-        VersionFamily(family_id=family_id, version_tag="v2"),
+        VersionFamily(family_id=family_id, version_tag="v2", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

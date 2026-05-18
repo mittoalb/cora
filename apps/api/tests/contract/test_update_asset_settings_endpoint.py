@@ -17,7 +17,7 @@ _DRAFT = "https://json-schema.org/draft/2020-12/schema"
 
 
 def _define_family(client: TestClient, *, name: str = "Tomography") -> UUID:
-    response = client.post("/families", json={"name": name})
+    response = client.post("/families", json={"name": name, "affordances": []})
     assert response.status_code == 201, response.text
     return UUID(response.json()["family_id"])
 

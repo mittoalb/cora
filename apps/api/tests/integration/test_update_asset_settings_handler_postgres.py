@@ -69,7 +69,7 @@ async def test_update_asset_settings_persists_event_with_full_post_merge_dict(
     deps = _deps(db_pool, ids)
 
     await define_family.bind(deps)(
-        DefineFamily(name="Tomography"),
+        DefineFamily(name="Tomography", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -141,7 +141,7 @@ async def test_update_asset_settings_merges_across_two_patches(
     deps = _deps(db_pool, ids)
 
     await define_family.bind(deps)(
-        DefineFamily(name="Tomography"),
+        DefineFamily(name="Tomography", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -211,7 +211,7 @@ async def test_update_asset_settings_rejects_true_type_conflict_across_capabilit
     deps = _deps(db_pool, ids)
 
     await define_family.bind(deps)(
-        DefineFamily(name="A"),
+        DefineFamily(name="A", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -233,7 +233,7 @@ async def test_update_asset_settings_rejects_true_type_conflict_across_capabilit
         correlation_id=_CORRELATION_ID,
     )
     await define_family.bind(deps)(
-        DefineFamily(name="B"),
+        DefineFamily(name="B", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

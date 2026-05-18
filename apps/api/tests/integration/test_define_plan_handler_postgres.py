@@ -79,7 +79,7 @@ async def test_define_plan_persists_event_with_audit_snapshots_to_postgres(
 
     # Seed upstream chain: Family → Asset(+capability) → Method → Practice.
     await define_family.bind(deps)(
-        DefineFamily(name="FlyMotion"),
+        DefineFamily(name="FlyMotion", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

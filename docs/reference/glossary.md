@@ -61,12 +61,20 @@ Watch-only (not adopted as a glossary term, see [Deferred](../stack/deferred.md)
 - **Principal.** Authenticated identity attached to every command and event envelope. Required in production via `REQUIRE_AUTHENTICATED_PRINCIPAL=true`.
 - **Actor vs Profile.** `Actor` is the immutable identity in events; `Profile` is the mutable PII row, separately stored and erasable. GDPR-shaped.
 
+## Equipment
+
+*Assets, Families, Affordances. The device-classification side of Equipment BC.*
+
+- **Asset.** A physical equipment instance registered in the hierarchy (Enterprise / Site / Area / Unit / Device per ISA-95). Belongs to one or more Families.
+- **Family.** A device-class abstraction: WHAT kind of equipment this is, device-agnostic. Examples: `RotaryStage`, `LinearStage`, `Camera`, `Scintillator`, `Hexapod`, `Mirror`. Until phase 5i this aggregate was named `Capability`; the word `Capability` is reserved for the future Recipe BC operations-layer aggregate (phase 6k).
+- **Affordance.** A closed-enum primitive a Family declares it supports. Three patterns: action affordances (`-able` suffix, "device supports doing X"; 24 items), signal affordances (noun, "device exposes signal X"; 3 items), lifecycle affordances (noun, "device has lifecycle property X"; 1 item). Set membership (`Method.required_affordances ⊆ Family.affordances`) drives the matching engine. See [Affordances reference](affordances.md) for the 28-item v1 list.
+
 ## Recipe ladder
 
 *Method, practice, plan, run, logbook.*
 
 - **Method.** A reusable procedure template. Most abstract.
-- **Practice.** A Method bound to a site or capability set.
-- **Plan.** A Practice bound to specific assets and a window.
+- **Practice.** A Method bound to a site or set of Families.
+- **Plan.** A Practice bound to specific Assets and a window.
 - **Run.** An execution of a Plan. FSM: started, held, resumed, stopped, completed, aborted, truncated.
 - **Logbook.** Append-only narrative log on a Run or Decision. Used for OTel `gen_ai.*` reasoning entries on Decisions.

@@ -74,7 +74,7 @@ async def test_update_family_settings_schema_round_trips_through_event_store_and
 
     # Define
     await define_family.bind(deps)(
-        DefineFamily(name="phase-contrast micro-CT"),
+        DefineFamily(name="phase-contrast micro-CT", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -118,7 +118,7 @@ async def test_clearing_schema_flips_projection_present_back_to_false(
     )
 
     await define_family.bind(deps)(
-        DefineFamily(name="phase-contrast micro-CT"),
+        DefineFamily(name="phase-contrast micro-CT", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -163,7 +163,7 @@ async def test_no_op_on_unchanged_schema_does_not_emit_event(
     )
 
     await define_family.bind(deps)(
-        DefineFamily(name="phase-contrast micro-CT"),
+        DefineFamily(name="phase-contrast micro-CT", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

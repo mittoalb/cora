@@ -17,6 +17,21 @@ The Devices that hang off 2-BM. The 2-BM Asset itself sits at the Unit level and
 | `Scintillator_LuAG` | `Scintillator` |
 | `Oryx_5MP_camera` | `Camera` |
 
+## Family affordances
+
+Each Family declares a closed-enum set of operational primitives ([Affordances](../../reference/affordances.md)). The set is required at Family definition and replaces wholesale on `version_family`.
+
+| Family | Affordances |
+| --- | --- |
+| `Shutter` | `Shutterable` |
+| `RotaryStage` | `Rotatable`, `Homeable`, `Limitable`, `EncoderInput`, `PositionTriggerable` |
+| `LinearStage` | `Translatable`, `Homeable`, `Limitable`, `EncoderInput` |
+| `Hexapod` | `Posable`, `Homeable`, `Limitable` |
+| `Scintillator` | `Consumable` |
+| `Camera` | `Imageable`, `Binnable`, `Triggerable`, `Streamable`, `FileWritable` |
+
+`Scintillator` is the lone Pattern-C consumer at v1 (passive optical screen; tracked via `Consumable` lifecycle, no command surface).
+
 ## Settings
 
 ### `Aerotech_ABRS_rotary`

@@ -22,7 +22,7 @@ def _define_family_via_tool(
             "method": "tools/call",
             "params": {
                 "name": "define_family",
-                "arguments": {"name": name},
+                "arguments": {"name": name, "affordances": []},
             },
         },
         headers=headers,

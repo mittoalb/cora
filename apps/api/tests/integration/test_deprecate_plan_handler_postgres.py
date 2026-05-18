@@ -80,7 +80,7 @@ async def test_deprecate_plan_persists_and_preserves_version_through_fold(
     )
 
     await define_family.bind(deps)(
-        DefineFamily(name="FlyMotion"),
+        DefineFamily(name="FlyMotion", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

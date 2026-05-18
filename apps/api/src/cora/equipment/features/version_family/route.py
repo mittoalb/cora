@@ -11,7 +11,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Path, Request, status
 from pydantic import BaseModel, Field
 
-from cora.equipment.aggregates.family import FAMILY_VERSION_TAG_MAX_LENGTH
+from cora.equipment.aggregates.family import FAMILY_VERSION_TAG_MAX_LENGTH, Affordance
 from cora.equipment.features.version_family.command import VersionFamily
 from cora.equipment.features.version_family.handler import Handler
 from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
@@ -27,6 +27,16 @@ class VersionFamilyRequest(BaseModel):
         description=(
             "Operator-supplied label for this revision (for example "
             "'v2', '2026-Q3'). Free text; institution-specific."
+        ),
+    )
+    affordances: list[Affordance] = Field(
+        ...,
+        description=(
+            "Replacement affordance set for the new version. A new "
+            "version IS a new declaration; the supplied set REPLACES "
+            "the prior affordance set wholesale (no diff/merge "
+            "semantics). Supply `[]` explicitly to clear all "
+            "affordances at this version."
         ),
     )
 
@@ -78,7 +88,11 @@ async def post_capabilities_version(
     principal_id: Annotated[UUID, Depends(get_principal_id)],
 ) -> None:
     await handler(
-        VersionFamily(family_id=family_id, version_tag=body.version_tag),
+        VersionFamily(
+            family_id=family_id,
+            version_tag=body.version_tag,
+            affordances=frozenset(body.affordances),
+        ),
         principal_id=principal_id,
         correlation_id=cid,
     )

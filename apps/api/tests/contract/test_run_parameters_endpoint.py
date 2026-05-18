@@ -52,7 +52,9 @@ def _setup_run_chain(
     """Seed Family + Method (optionally with schema) + Practice +
     Asset + Plan (optionally with defaults) + Subject (Mounted).
     Returns (plan_id, subject_id)."""
-    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+        "family_id"
+    ]
     method_id = client.post(
         "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]

@@ -11,7 +11,9 @@ from tests.contract._subject_helpers import register_active_asset
 
 
 def _setup_full_run(client: TestClient) -> tuple[str, str, str]:
-    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+        "family_id"
+    ]
     method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
         "method_id"
     ]

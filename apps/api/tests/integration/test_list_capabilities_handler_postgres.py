@@ -56,7 +56,7 @@ async def test_define_emits_defined_status_with_null_version_tag(
     cap_id = uuid4()
     deps = _build_deps(db_pool, [cap_id, uuid4()])
     await bind_define(deps)(
-        DefineFamily(name="Continuous Rotation Tomography"),
+        DefineFamily(name="Continuous Rotation Tomography", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -82,12 +82,12 @@ async def test_version_writes_versioned_status_and_version_tag(
     cap_id = uuid4()
     deps = _build_deps(db_pool, [cap_id, uuid4(), uuid4()])
     await bind_define(deps)(
-        DefineFamily(name="Powder Diffraction"),
+        DefineFamily(name="Powder Diffraction", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await bind_version(deps)(
-        VersionFamily(family_id=cap_id, version_tag="v2.1.0"),
+        VersionFamily(family_id=cap_id, version_tag="v2.1.0", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -111,12 +111,12 @@ async def test_deprecate_preserves_version_tag(db_pool: asyncpg.Pool) -> None:
     cap_id = uuid4()
     deps = _build_deps(db_pool, [cap_id, uuid4(), uuid4(), uuid4()])
     await bind_define(deps)(
-        DefineFamily(name="X-ray Fluorescence Mapping"),
+        DefineFamily(name="X-ray Fluorescence Mapping", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await bind_version(deps)(
-        VersionFamily(family_id=cap_id, version_tag="2026-Q3"),
+        VersionFamily(family_id=cap_id, version_tag="2026-Q3", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -146,7 +146,7 @@ async def test_deprecate_without_version_keeps_version_tag_null(
     cap_id = uuid4()
     deps = _build_deps(db_pool, [cap_id, uuid4(), uuid4()])
     await bind_define(deps)(
-        DefineFamily(name="ObsoleteMethod"),
+        DefineFamily(name="ObsoleteMethod", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -191,22 +191,22 @@ async def test_status_filter_returns_only_matching_rows(
     )
     define = bind_define(deps)
     await define(
-        DefineFamily(name="DefinedOnly"),
+        DefineFamily(name="DefinedOnly", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await define(
-        DefineFamily(name="ToBeVersioned"),
+        DefineFamily(name="ToBeVersioned", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await bind_version(deps)(
-        VersionFamily(family_id=versioned_id, version_tag="v1"),
+        VersionFamily(family_id=versioned_id, version_tag="v1", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     await define(
-        DefineFamily(name="ToBeDeprecated"),
+        DefineFamily(name="ToBeDeprecated", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -242,7 +242,7 @@ async def test_cursor_walks_pages(db_pool: asyncpg.Pool) -> None:
     define = bind_define(deps)
     for i in range(5):
         await define(
-            DefineFamily(name=f"Cap{i:02d}"),
+            DefineFamily(name=f"Cap{i:02d}", affordances=frozenset()),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )

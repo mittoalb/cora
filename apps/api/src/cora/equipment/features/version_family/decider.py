@@ -68,6 +68,7 @@ def decide(
         FamilyVersioned(
             family_id=state.id,
             version_tag=trimmed,
+            affordances=command.affordances,
             occurred_at=now,
         )
     ]

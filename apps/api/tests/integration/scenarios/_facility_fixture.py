@@ -415,7 +415,7 @@ async def install_aps_unit(
     )
     for d in devices:
         await bind_define_family(deps)(
-            DefineFamily(name=d.cap_name),
+            DefineFamily(name=d.cap_name, affordances=frozenset()),
             principal_id=principal_id,
             correlation_id=correlation_id,
         )

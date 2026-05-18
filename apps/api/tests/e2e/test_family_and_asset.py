@@ -15,7 +15,9 @@ from httpx import AsyncClient
 async def test_register_asset_then_add_capability_round_trips(
     e2e_client: AsyncClient,
 ) -> None:
-    cap_response = await e2e_client.post("/families", json={"name": "Tomography"})
+    cap_response = await e2e_client.post(
+        "/families", json={"name": "Tomography", "affordances": []}
+    )
     assert cap_response.status_code == 201
     family_id = UUID(cap_response.json()["family_id"])
 

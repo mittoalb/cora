@@ -16,8 +16,8 @@ from cora.api.main import create_app
 @pytest.mark.contract
 def test_post_capabilities_without_key_creates_distinct_capabilities_on_each_call() -> None:
     with TestClient(create_app()) as client:
-        r1 = client.post("/families", json={"name": "Tomography"})
-        r2 = client.post("/families", json={"name": "Tomography"})
+        r1 = client.post("/families", json={"name": "Tomography", "affordances": []})
+        r2 = client.post("/families", json={"name": "Tomography", "affordances": []})
     assert r1.status_code == 201
     assert r2.status_code == 201
     assert r1.json()["family_id"] != r2.json()["family_id"]
@@ -27,8 +27,12 @@ def test_post_capabilities_without_key_creates_distinct_capabilities_on_each_cal
 def test_post_capabilities_same_key_and_body_returns_same_family_id() -> None:
     with TestClient(create_app()) as client:
         headers = {"Idempotency-Key": "ck-1"}
-        r1 = client.post("/families", json={"name": "Tomography"}, headers=headers)
-        r2 = client.post("/families", json={"name": "Tomography"}, headers=headers)
+        r1 = client.post(
+            "/families", json={"name": "Tomography", "affordances": []}, headers=headers
+        )
+        r2 = client.post(
+            "/families", json={"name": "Tomography", "affordances": []}, headers=headers
+        )
 
     assert r1.status_code == 201
     assert r2.status_code == 201
@@ -39,8 +43,10 @@ def test_post_capabilities_same_key_and_body_returns_same_family_id() -> None:
 def test_post_capabilities_same_key_different_body_returns_422() -> None:
     with TestClient(create_app()) as client:
         headers = {"Idempotency-Key": "ck-2"}
-        r1 = client.post("/families", json={"name": "Tomography"}, headers=headers)
-        r2 = client.post("/families", json={"name": "Other"}, headers=headers)
+        r1 = client.post(
+            "/families", json={"name": "Tomography", "affordances": []}, headers=headers
+        )
+        r2 = client.post("/families", json={"name": "Other", "affordances": []}, headers=headers)
 
     assert r1.status_code == 201
     assert r2.status_code == 422
@@ -54,12 +60,12 @@ def test_post_capabilities_different_keys_create_distinct_capabilities() -> None
     with TestClient(create_app()) as client:
         r1 = client.post(
             "/families",
-            json={"name": "Tomography"},
+            json={"name": "Tomography", "affordances": []},
             headers={"Idempotency-Key": "ck-A"},
         )
         r2 = client.post(
             "/families",
-            json={"name": "Tomography"},
+            json={"name": "Tomography", "affordances": []},
             headers={"Idempotency-Key": "ck-B"},
         )
     assert r1.status_code == 201
@@ -71,8 +77,12 @@ def test_post_capabilities_different_keys_create_distinct_capabilities() -> None
 def test_post_capabilities_cached_response_returns_valid_uuid() -> None:
     with TestClient(create_app()) as client:
         headers = {"Idempotency-Key": "ck-uuid"}
-        r1 = client.post("/families", json={"name": "Tomography"}, headers=headers)
-        r2 = client.post("/families", json={"name": "Tomography"}, headers=headers)
+        r1 = client.post(
+            "/families", json={"name": "Tomography", "affordances": []}, headers=headers
+        )
+        r2 = client.post(
+            "/families", json={"name": "Tomography", "affordances": []}, headers=headers
+        )
 
     UUID(r1.json()["family_id"])  # parses
     UUID(r2.json()["family_id"])  # parses

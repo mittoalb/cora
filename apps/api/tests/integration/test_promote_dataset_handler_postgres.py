@@ -147,7 +147,7 @@ async def test_register_dataset_persists_producing_run_end_state_in_payload(
 
     # Set up: Family → Method → Practice → Asset → Plan → Subject → Run
     cap_id = await define_family.bind(deps)(
-        DefineFamily(name="FlyMotion"),
+        DefineFamily(name="FlyMotion", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

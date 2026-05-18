@@ -39,7 +39,7 @@ def test_mcp_define_family_tool_returns_structured_family_id() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "define_family",
-                    "arguments": {"name": "Tomography"},
+                    "arguments": {"name": "Tomography", "affordances": []},
                 },
             },
             headers=session_headers,
@@ -67,7 +67,7 @@ def test_mcp_define_family_tool_returns_iserror_on_invalid_input() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "define_family",
-                    "arguments": {"name": "   "},
+                    "arguments": {"name": "   ", "affordances": []},
                 },
             },
             headers=session_headers,

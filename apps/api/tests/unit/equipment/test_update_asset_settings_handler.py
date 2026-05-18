@@ -103,7 +103,7 @@ async def _setup_asset_with_schemaful_capability(deps: Kernel) -> UUID:
     """Define a Family with a settings_schema, register an Asset,
     and add the Family to it. Returns the Asset id."""
     cap_id = await define_family.bind(deps)(
-        DefineFamily(name="Tomography"),
+        DefineFamily(name="Tomography", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

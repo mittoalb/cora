@@ -23,7 +23,7 @@ def test_decide_emits_capability_defined_when_stream_is_empty() -> None:
     new_id = uuid4()
     events = define_family.decide(
         state=None,
-        command=DefineFamily(name="Tomography"),
+        command=DefineFamily(name="Tomography", affordances=frozenset()),
         now=_NOW,
         new_id=new_id,
     )
@@ -35,7 +35,7 @@ def test_decide_trims_name_via_value_object() -> None:
     new_id = uuid4()
     events = define_family.decide(
         state=None,
-        command=DefineFamily(name="  X-ray Fluorescence  "),
+        command=DefineFamily(name="  X-ray Fluorescence  ", affordances=frozenset()),
         now=_NOW,
         new_id=new_id,
     )
@@ -47,7 +47,7 @@ def test_decide_rejects_invalid_name() -> None:
     with pytest.raises(InvalidFamilyNameError):
         define_family.decide(
             state=None,
-            command=DefineFamily(name=""),
+            command=DefineFamily(name="", affordances=frozenset()),
             now=_NOW,
             new_id=uuid4(),
         )
@@ -59,7 +59,7 @@ def test_decide_rejects_existing_state() -> None:
     with pytest.raises(FamilyAlreadyExistsError) as exc_info:
         define_family.decide(
             state=existing,
-            command=DefineFamily(name="Other"),
+            command=DefineFamily(name="Other", affordances=frozenset()),
             now=_NOW,
             new_id=uuid4(),
         )
@@ -69,7 +69,7 @@ def test_decide_rejects_existing_state() -> None:
 @pytest.mark.unit
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     new_id = uuid4()
-    command = DefineFamily(name="Tomography")
+    command = DefineFamily(name="Tomography", affordances=frozenset())
     first = define_family.decide(state=None, command=command, now=_NOW, new_id=new_id)
     second = define_family.decide(state=None, command=command, now=_NOW, new_id=new_id)
     assert first == second

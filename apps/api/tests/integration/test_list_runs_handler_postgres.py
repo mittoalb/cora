@@ -82,7 +82,7 @@ async def _seed_plan(deps: Kernel) -> UUID:
     Practice + Plan) needed for start_run cross-aggregate validation.
     Returns plan_id. Consumes 11 ids from the FixedIdGenerator."""
     cap_id = await define_family.bind(deps)(
-        DefineFamily(name="Tomography"),
+        DefineFamily(name="Tomography", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

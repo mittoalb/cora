@@ -80,7 +80,7 @@ async def test_full_run_cascade_to_completed(
     e2e_client: AsyncClient,
     e2e_drain: Callable[[], Awaitable[None]],
 ) -> None:
-    cap = await e2e_client.post("/families", json={"name": "FlyMotion"})
+    cap = await e2e_client.post("/families", json={"name": "FlyMotion", "affordances": []})
     family_id = cap.json()["family_id"]
 
     method = await e2e_client.post(

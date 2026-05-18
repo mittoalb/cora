@@ -56,6 +56,8 @@ def test_to_payload_serializes_capability_defined_to_primitives() -> None:
         "family_id": str(family_id),
         "name": "Tomography",
         "occurred_at": _NOW.isoformat(),
+        # Phase 5j: empty affordances serialized as [] (default factory).
+        "affordances": [],
     }
 
 
@@ -107,6 +109,8 @@ def test_to_payload_serializes_capability_versioned_with_version_tag() -> None:
         "family_id": str(family_id),
         "version_tag": "2026-Q3",
         "occurred_at": _NOW.isoformat(),
+        # Phase 5j: empty affordances serialized as [] (default factory).
+        "affordances": [],
     }
 
 

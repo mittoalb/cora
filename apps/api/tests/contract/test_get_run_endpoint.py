@@ -17,7 +17,9 @@ def _setup_full_run(
     client: TestClient, *, with_subject: bool = True
 ) -> tuple[str, str, str | None]:
     """Seed full upstream chain + start a Run. Returns (run_id, plan_id, subject_id)."""
-    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+        "family_id"
+    ]
     method_id = client.post("/methods", json={"name": "M", "needed_families": [cap_id]}).json()[
         "method_id"
     ]

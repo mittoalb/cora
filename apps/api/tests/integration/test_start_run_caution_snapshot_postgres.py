@@ -116,7 +116,7 @@ async def _seed_upstream_chain(
     cap_id = queue[0]
 
     await define_family.bind(deps)(
-        DefineFamily(name="FlyMotion"),
+        DefineFamily(name="FlyMotion", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

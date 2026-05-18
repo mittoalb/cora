@@ -24,11 +24,12 @@ encodes the state change. The evolver hardcodes the mapping per
 match arm.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.equipment.aggregates.family.affordance import Affordance
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -36,12 +37,18 @@ from cora.infrastructure.ports.event_store import StoredEvent
 class FamilyDefined:
     """A new device-class family was defined.
 
-    Status is implicit (`Defined`) — the evolver sets it.
+    Status is implicit (`Defined`) — the evolver sets it. `affordances`
+    is the closed-enum set of device-level primitives this Family
+    supports (5j; required at define_family time; empty frozenset
+    valid). Defaults to empty frozenset for evolver-level back-compat
+    with pre-5j and legacy `CapabilityDefined` events that don't carry
+    the field (additive-state pattern; see [[project-capability-research]]).
     """
 
     family_id: UUID
     name: str
     occurred_at: datetime
+    affordances: frozenset[Affordance] = field(default_factory=frozenset[Affordance])
 
 
 @dataclass(frozen=True)
@@ -50,11 +57,16 @@ class FamilyVersioned:
 
     Multi-source transition: `Defined | Versioned -> Versioned`.
     `version_tag` is operator-supplied free text (1-50 chars).
+    `affordances` is the REPLACEMENT affordance set declared at this
+    version (5j; a new version IS a new declaration). Defaults to empty
+    frozenset for evolver-level back-compat with pre-5j events
+    (additive-state pattern).
     """
 
     family_id: UUID
     version_tag: str
     occurred_at: datetime
+    affordances: frozenset[Affordance] = field(default_factory=frozenset[Affordance])
 
 
 @dataclass(frozen=True)
@@ -107,21 +119,30 @@ def to_payload(event: FamilyEvent) -> dict[str, Any]:
     log already carry `"capability_id"` and are NOT rewritten.
     """
     match event:
-        case FamilyDefined(family_id=family_id, name=name, occurred_at=occurred_at):
+        case FamilyDefined(
+            family_id=family_id,
+            name=name,
+            occurred_at=occurred_at,
+            affordances=affordances,
+        ):
             return {
                 "family_id": str(family_id),
                 "name": name,
                 "occurred_at": occurred_at.isoformat(),
+                # Sorted for deterministic payload serialization
+                "affordances": sorted(a.value for a in affordances),
             }
         case FamilyVersioned(
             family_id=family_id,
             version_tag=version_tag,
             occurred_at=occurred_at,
+            affordances=affordances,
         ):
             return {
                 "family_id": str(family_id),
                 "version_tag": version_tag,
                 "occurred_at": occurred_at.isoformat(),
+                "affordances": sorted(a.value for a in affordances),
             }
         case FamilyDeprecated(family_id=family_id, occurred_at=occurred_at):
             return {
@@ -142,6 +163,19 @@ def to_payload(event: FamilyEvent) -> dict[str, Any]:
             assert_never(event)
 
 
+def _load_affordances(payload: dict[str, Any]) -> frozenset[Affordance]:
+    """Load the affordance set from a payload's `affordances` list field.
+
+    Tolerates: missing key (pre-5j events; default empty), empty list,
+    or list of valid Affordance enum value strings. Unknown values
+    raise a defensive `ValueError` via the StrEnum constructor — same
+    fail-loud stance as the `from_stored` top-level dispatch on
+    unknown event types.
+    """
+    raw = payload.get("affordances", [])
+    return frozenset(Affordance(v) for v in raw)
+
+
 def from_stored(stored: StoredEvent) -> FamilyEvent:
     """Rebuild a Family event from a StoredEvent loaded from the event store.
 
@@ -153,18 +187,22 @@ def from_stored(stored: StoredEvent) -> FamilyEvent:
     payload = stored.payload
     match stored.event_type:
         # Legacy event type names from pre-5i. Payload key is
-        # `"capability_id"`. Stays forever.
+        # `"capability_id"`. Stays forever. Pre-5j events lack the
+        # `affordances` payload field; default to empty frozenset
+        # (additive-state pattern).
         case "CapabilityDefined":
             return FamilyDefined(
                 family_id=UUID(payload["capability_id"]),
                 name=payload["name"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                affordances=_load_affordances(payload),
             )
         case "CapabilityVersioned":
             return FamilyVersioned(
                 family_id=UUID(payload["capability_id"]),
                 version_tag=payload["version_tag"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                affordances=_load_affordances(payload),
             )
         case "CapabilityDeprecated":
             return FamilyDeprecated(
@@ -183,12 +221,14 @@ def from_stored(stored: StoredEvent) -> FamilyEvent:
                 family_id=UUID(payload["family_id"]),
                 name=payload["name"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                affordances=_load_affordances(payload),
             )
         case "FamilyVersioned":
             return FamilyVersioned(
                 family_id=UUID(payload["family_id"]),
                 version_tag=payload["version_tag"],
                 occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                affordances=_load_affordances(payload),
             )
         case "FamilyDeprecated":
             return FamilyDeprecated(

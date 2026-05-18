@@ -85,7 +85,7 @@ async def _seed_chain_and_start_run(
     raid: str | None = None,
 ) -> None:
     await define_family.bind(deps)(
-        DefineFamily(name="FlyMotion"),
+        DefineFamily(name="FlyMotion", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

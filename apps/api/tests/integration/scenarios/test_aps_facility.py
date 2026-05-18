@@ -206,7 +206,7 @@ async def test_facility_install_plays_out_end_to_end(
     # ----- Recipe BC: Method + Practice (Practice.site_id = APS Site Asset) -----
 
     await bind_define_family(deps)(
-        DefineFamily(name="ProbeGeneric"),
+        DefineFamily(name="ProbeGeneric", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

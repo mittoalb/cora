@@ -5,7 +5,7 @@ command slices:
 
     from cora.equipment.features import define_family
 
-    cmd = define_family.DefineFamily(name="...")
+    cmd = define_family.DefineFamily(name="...", affordances=frozenset())
     handler = define_family.bind(deps)
     family_id = await handler(cmd, principal_id=..., correlation_id=...)
 """

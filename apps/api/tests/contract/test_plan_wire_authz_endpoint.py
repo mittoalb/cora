@@ -115,7 +115,9 @@ def wire_authz_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient
 def _setup_plan_with_two_wired_assets(client: TestClient, principal: UUID) -> dict[str, Any]:
     """Helper: P1 sets up the full Plan + Assets + ports needed to wire."""
     h = {"X-Principal-Id": str(principal)}
-    cap_id = client.post("/families", json={"name": "Trigger"}, headers=h).json()["family_id"]
+    cap_id = client.post(
+        "/families", json={"name": "Trigger", "affordances": []}, headers=h
+    ).json()["family_id"]
     method_id = client.post(
         "/methods",
         json={"name": "Test Method", "needed_families": [cap_id]},

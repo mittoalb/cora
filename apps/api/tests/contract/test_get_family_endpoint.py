@@ -14,7 +14,7 @@ from cora.api.main import create_app
 
 
 def _define_family(client: TestClient, name: str = "Tomography") -> UUID:
-    response = client.post("/families", json={"name": name})
+    response = client.post("/families", json={"name": name, "affordances": []})
     assert response.status_code == 201
     return UUID(response.json()["family_id"])
 
@@ -33,6 +33,8 @@ def test_get_family_returns_200_with_defined_status_for_new_capability() -> None
         "status": "Defined",
         # Null until version_family runs (5f-2).
         "version": None,
+        # Phase 5j: empty frozenset at define_family time renders as [].
+        "affordances": [],
     }
 
 

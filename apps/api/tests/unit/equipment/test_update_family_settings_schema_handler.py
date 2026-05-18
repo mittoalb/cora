@@ -66,7 +66,7 @@ def _build_deps(
 
 async def _define_family_helper(deps: Kernel) -> UUID:
     return await define_family.bind(deps)(
-        DefineFamily(name="Tomography"),
+        DefineFamily(name="Tomography", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

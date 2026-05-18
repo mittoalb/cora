@@ -10,7 +10,9 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 
 def _setup_plan(client: TestClient) -> str:
-    cap_id = client.post("/families", json={"name": "FlyMotion"}).json()["family_id"]
+    cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+        "family_id"
+    ]
     method_id = client.post(
         "/methods", json={"name": "Test Method", "needed_families": [cap_id]}
     ).json()["method_id"]

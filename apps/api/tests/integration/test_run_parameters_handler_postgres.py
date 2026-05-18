@@ -106,7 +106,7 @@ async def _seed_full_chain(
     deps = _build_deps(db_pool, ids)
 
     cap_id = await define_family.bind(deps)(
-        DefineFamily(name="FlyMotion"),
+        DefineFamily(name="FlyMotion", affordances=frozenset()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
