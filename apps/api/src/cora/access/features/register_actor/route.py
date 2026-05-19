@@ -5,13 +5,13 @@ slice's BC-level wiring (`cora.access.routes.register_access_routes`)
 includes this router on the FastAPI app.
 """
 
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
-from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
+from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH, ActorKind
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.handler import IdempotentHandler
 from cora.infrastructure.routing import (
@@ -30,6 +30,21 @@ class RegisterActorRequest(BaseModel):
         min_length=1,
         max_length=ACTOR_NAME_MAX_LENGTH,
         description="Display name for the new actor.",
+    )
+    # `agent` is deliberately NOT in the closed set — agent Actors come
+    # from the cross-BC atomic write in /agents (define_agent slice) so
+    # the (Agent.id == Actor.id) lock holds. The decider also rejects
+    # kind="agent" with 400 as defense-in-depth.
+    kind: Literal["human", "service_account"] = Field(
+        default="human",
+        description=(
+            "Closed discriminator. 'human' (default) for operator "
+            "registration. 'service_account' for machine callers — "
+            "CI bridges, autonomous agent runtime processes, future "
+            "TomoScan / EPICS bridges. 'agent'-kind Actors are minted "
+            "exclusively via POST /agents (cross-BC atomic write); this "
+            "endpoint rejects it with 400."
+        ),
     )
 
 
@@ -89,7 +104,7 @@ async def post_actors(
     ] = None,
 ) -> RegisterActorResponse:
     actor_id = await handler(
-        RegisterActor(name=body.name),
+        RegisterActor(name=body.name, kind=ActorKind(body.kind)),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,

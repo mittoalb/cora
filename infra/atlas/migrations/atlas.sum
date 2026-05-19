@@ -1,4 +1,4 @@
-h1:9Io/Q0XgJyfM+Kp6zhJn39OdZ+UdAEJFdu1dILZ53vw=
+h1:1n8eX0hQoRJEy+nOUHx0fH0T1qChqL7Vm2/NIxR69kI=
 20260509120000_init_events.sql h1:GmgCZKfaqXu1m96/cKAks2vhaLWTdEaHTLkFtUo9FXg=
 20260509170000_init_idempotency.sql h1:Nbu8DIE4Sv1WiHw3G22+tYffPhKc5Jryw3PMK8wB2zY=
 20260510010000_add_event_id.sql h1:RbtYP6uMnOB20zhJ9dNXUi4YVqbmlEzf562pmygnRW8=
@@ -52,3 +52,4 @@ h1:9Io/Q0XgJyfM+Kp6zhJn39OdZ+UdAEJFdu1dILZ53vw=
 20260519100000_add_proj_data_dataset_summary_used_calibrations.sql h1:33RbhH2VHMAOAWh9feykKWfaCyECG8VM9D9DuBpwo80=
 20260519200000_seed_default_surfaces_and_v2_policy.sql h1:un9gipW3kLaF5+hvPGQ9OyG49fX7m160CV+FbxZ5+6A=
 20260519230000_add_surface_id_to_idempotency_keys.sql h1:seoZi9jo1jJCQHqlHN5CuwZh3vayTEwDAjk4XEvk3Bc=
+20260519233000_widen_proj_access_actor_summary_kind.sql h1:dfmouyRg2fhutQmNPSaUi4Ovo2XFJ8X0Xe+2ml56NGA=

@@ -241,3 +241,64 @@ async def test_wired_handler_propagates_causation_id_through_full_composition() 
 
     events, _ = await store.load("Actor", _NEW_ID)
     assert events[0].causation_id == causation
+
+
+# ---------- Phase C Iter B-2: kind discriminator ----------
+
+
+@pytest.mark.unit
+async def test_register_actor_persists_service_account_kind() -> None:
+    """register_actor(kind=SERVICE_ACCOUNT) emits an ActorRegistered
+    event whose kind round-trips through the store as service_account
+    (gate-review design#4 follow-up)."""
+    from cora.access.aggregates.actor import ActorKind
+
+    store = InMemoryEventStore()
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    handlers = wire_access(deps)
+
+    await handlers.register_actor(
+        RegisterActor(name="ci-bridge", kind=ActorKind.SERVICE_ACCOUNT),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    events, _ = await store.load("Actor", _NEW_ID)
+    assert len(events) == 1
+    assert events[0].payload["kind"] == "service_account"
+
+
+@pytest.mark.unit
+async def test_register_actor_default_kind_is_human() -> None:
+    """Backward compat: callers that don't set kind get HUMAN."""
+    store = InMemoryEventStore()
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    handlers = wire_access(deps)
+
+    await handlers.register_actor(
+        RegisterActor(name="Doga"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    events, _ = await store.load("Actor", _NEW_ID)
+    assert events[0].payload["kind"] == "human"
+
+
+@pytest.mark.unit
+async def test_register_actor_rejects_kind_agent_at_decider() -> None:
+    """Defense-in-depth: even if a caller bypasses the route's
+    closed-set validation, the decider raises. Agent-kind Actors come
+    from the cross-BC atomic write in define_agent only."""
+    from cora.access.aggregates.actor import ActorKind
+
+    store = InMemoryEventStore()
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
+    handlers = wire_access(deps)
+
+    with pytest.raises(ValueError, match=r"agent-kind Actors come from"):
+        await handlers.register_actor(
+            RegisterActor(name="ghost-agent", kind=ActorKind.AGENT),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )

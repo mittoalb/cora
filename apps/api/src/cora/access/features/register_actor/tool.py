@@ -12,14 +12,14 @@ per the MCP 2025-06 spec update.
 """
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
 from cora.access._bootstrap import SYSTEM_PRINCIPAL_ID
-from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
+from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH, ActorKind
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.handler import IdempotentHandler
 from cora.infrastructure.observability import current_correlation_id
@@ -58,10 +58,20 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 description="Display name for the new actor.",
             ),
         ],
+        kind: Annotated[
+            Literal["human", "service_account"],
+            Field(
+                description=(
+                    "Closed discriminator. 'human' (default) for operator "
+                    "registration. 'service_account' for machine callers. "
+                    "'agent'-kind Actors are minted via define_agent only."
+                ),
+            ),
+        ] = "human",
     ) -> RegisterActorOutput:
         handler = get_handler()
         actor_id = await handler(
-            RegisterActor(name=name),
+            RegisterActor(name=name, kind=ActorKind(kind)),
             principal_id=SYSTEM_PRINCIPAL_ID,
             # MCP tools run inside the FastAPI-instrumented `/mcp`
             # request, so the OTel context is already in scope here.

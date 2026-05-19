@@ -34,20 +34,30 @@ def decide(
 ) -> list[ActorRegistered]:
     """Decide the events produced by registering a new actor.
 
-    `kind` is hardcoded to `ActorKind.HUMAN` because the
-    `register_actor` slice is the human-actor path. Agent-kind
-    Actors are minted exclusively via the cross-BC atomic write in
-    `define_agent` (Agent BC, Phase 8f-a); see
-    [[project_agent_bc_design]] P0-4.
+    `kind` flows from the command (`human` default for backward
+    compat with all existing register_actor callers; `service_account`
+    opt-in for machine callers per Phase C Iter B-2). Per
+    [[project_agent_bc_design]] P0-4: agent-kind Actors MUST NOT be
+    minted via this slice — they go through the cross-BC atomic
+    write in `define_agent` so the (Agent.id == Actor.id) lock
+    holds.
     """
     if state is not None:
         raise ActorAlreadyExistsError(state.id)
+    if command.kind == ActorKind.AGENT:
+        msg = (
+            "register_actor cannot mint kind=agent Actors; agent-kind "
+            "Actors come from the cross-BC atomic write in define_agent "
+            "per project_agent_bc_design P0-4 (the Agent.id == Actor.id "
+            "lock requires the joint write)."
+        )
+        raise ValueError(msg)
     name = ActorName(command.name)  # validates + trims; raises InvalidActorNameError
     return [
         ActorRegistered(
             actor_id=new_id,
             name=name.value,
             occurred_at=now,
-            kind=ActorKind.HUMAN,
+            kind=command.kind,
         )
     ]

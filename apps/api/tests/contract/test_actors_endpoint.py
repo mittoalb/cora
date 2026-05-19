@@ -119,3 +119,48 @@ def test_post_actors_returns_409_when_actor_already_exists() -> None:
     body = response.json()
     assert "detail" in body
     assert str(existing_id) in body["detail"]
+
+
+# ---------- Phase C Iter B-2: kind discriminator ----------
+
+
+@pytest.mark.contract
+def test_post_actors_defaults_kind_to_human() -> None:
+    """Omitting `kind` registers a human Actor — backward compat."""
+    with TestClient(create_app()) as client:
+        response = client.post("/actors", json={"name": "Doga"})
+    assert response.status_code == 201
+
+
+@pytest.mark.contract
+def test_post_actors_accepts_kind_human_explicit() -> None:
+    with TestClient(create_app()) as client:
+        response = client.post("/actors", json={"name": "Doga", "kind": "human"})
+    assert response.status_code == 201
+
+
+@pytest.mark.contract
+def test_post_actors_accepts_kind_service_account() -> None:
+    """Phase C Iter B-2: service-account Actors (CI bridges, agent
+    runtime processes) come through register_actor with kind override."""
+    with TestClient(create_app()) as client:
+        response = client.post("/actors", json={"name": "ci-bridge", "kind": "service_account"})
+    assert response.status_code == 201
+
+
+@pytest.mark.contract
+def test_post_actors_rejects_kind_agent_with_422() -> None:
+    """`agent` is deliberately NOT in the route's closed set; agent
+    Actors come from the cross-BC atomic write in /agents only.
+    FastAPI/Pydantic rejects at request-schema layer before the
+    decider's defense-in-depth raise even fires."""
+    with TestClient(create_app()) as client:
+        response = client.post("/actors", json={"name": "ghost-agent", "kind": "agent"})
+    assert response.status_code == 422
+
+
+@pytest.mark.contract
+def test_post_actors_rejects_unknown_kind_with_422() -> None:
+    with TestClient(create_app()) as client:
+        response = client.post("/actors", json={"name": "x", "kind": "superuser"})
+    assert response.status_code == 422

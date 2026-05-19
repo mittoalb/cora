@@ -13,7 +13,7 @@ BOLA: command-name gating only. Per-row scoping deferred until ReBAC
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol, cast
 from uuid import UUID
 
 from cora.access.errors import UnauthorizedError
@@ -22,6 +22,13 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 
+# Mirrors the `proj_access_actor_summary.kind` / `.status` CHECK
+# constraints (migration 20260517130000). The cast in `_row_to_item`
+# trusts the CHECK as the runtime witness — narrower types here let
+# consumers (route DTO, MCP tool DTO) assign without a type: ignore.
+type _KindLiteral = Literal["human", "agent", "service_account"]
+type _StatusLiteral = Literal["active", "deactivated"]
+
 
 @dataclass(frozen=True)
 class ActorSummaryItem:
@@ -29,8 +36,8 @@ class ActorSummaryItem:
 
     actor_id: UUID
     name: str
-    kind: str
-    status: str
+    kind: _KindLiteral
+    status: _StatusLiteral
     created_at: datetime
 
 
@@ -66,8 +73,8 @@ def _row_to_item(row: Any) -> ActorSummaryItem:
     return ActorSummaryItem(
         actor_id=row["actor_id"],
         name=str(row["name"]),
-        kind=str(row["kind"]),
-        status=str(row["status"]),
+        kind=cast("_KindLiteral", str(row["kind"])),
+        status=cast("_StatusLiteral", str(row["status"])),
         created_at=row["created_at"],
     )
 
