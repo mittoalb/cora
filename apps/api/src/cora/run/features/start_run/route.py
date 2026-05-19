@@ -112,7 +112,7 @@ class StartRunRequest(BaseModel):
             "linkage)."
         ),
     )
-    calibration_pins: list[UUID] = Field(
+    pinned_calibrations: list[UUID] = Field(
         default_factory=list[UUID],
         description=(
             "Optional list of `CalibrationRevision.id`s pinned at this "
@@ -211,7 +211,7 @@ async def post_runs(
             triggered_by=body.triggered_by,
             campaign_id=body.campaign_id,
             decided_by_decision_id=body.decided_by_decision_id,
-            calibration_pins=frozenset(body.calibration_pins),
+            pinned_calibrations=frozenset(body.pinned_calibrations),
         ),
         principal_id=principal_id,
         correlation_id=cid,

@@ -8,7 +8,7 @@ history. Sibling to Safety (11a) + Caution (11b) per
 The Calibration aggregate captures what the alignment Procedure
 *measured* (Measured source), what numerical methods *computed* from
 acquired Datasets (Computed source), and what operators *asserted*
-directly (Asserted source). Run.calibration_pins records what was
+directly (Asserted source). Run.pinned_calibrations records what was
 live at scan start (AsShot anchor per DNG precedent); reconstructed
 Dataset.calibrations_used may cite later refined revisions (Current
 vs AsShot pattern).

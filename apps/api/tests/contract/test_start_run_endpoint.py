@@ -9,8 +9,8 @@ plus the Phase 12b Calibration AsShot anchor:
     does not exist.
   - 6i-c 409 path: POST /runs with a campaign_id for a Campaign in a
     terminal status (Closed) raises RunCannotJoinCampaignError.
-  - 12b happy path: POST /runs with calibration_pins returns 201 and
-    RunStarted carries the sorted-list calibration_pins on the
+  - 12b happy path: POST /runs with pinned_calibrations returns 201 and
+    RunStarted carries the sorted-list pinned_calibrations on the
     persisted payload (no cross-BC validation; eventual-consistency
     stance).
 
@@ -156,8 +156,8 @@ def test_post_runs_returns_409_when_campaign_terminal() -> None:
 
 
 @pytest.mark.contract
-def test_post_runs_with_calibration_pins_returns_201() -> None:
-    """POST /runs with calibration_pins returns 201 and the persisted
+def test_post_runs_with_pinned_calibrations_returns_201() -> None:
+    """POST /runs with pinned_calibrations returns 201 and the persisted
     RunStarted payload carries the sorted list of pins (no cross-BC
     validation of the CalibrationRevision ids — eventual-consistency
     stance per design memo Phase 12b)."""
@@ -173,18 +173,18 @@ def test_post_runs_with_calibration_pins_returns_201() -> None:
                 "plan_id": plan_id,
                 "subject_id": subject_id,
                 # Scrambled order; decider sorts before emit.
-                "calibration_pins": [str(pin_b), str(pin_a)],
+                "pinned_calibrations": [str(pin_b), str(pin_a)],
             },
         )
         assert response.status_code == 201, response.text
         run_id = UUID(response.json()["run_id"])
         payload = _load_run_payload(app, run_id)
-    assert payload["calibration_pins"] == sorted([str(pin_a), str(pin_b)])
+    assert payload["pinned_calibrations"] == sorted([str(pin_a), str(pin_b)])
 
 
 @pytest.mark.contract
-def test_post_runs_defaults_calibration_pins_to_empty_list() -> None:
-    """Omitted calibration_pins serializes as `[]` on the payload
+def test_post_runs_defaults_pinned_calibrations_to_empty_list() -> None:
+    """Omitted pinned_calibrations serializes as `[]` on the payload
     (forward-compat with pre-12b RunStarted readers)."""
     app = create_app()
     with TestClient(app) as client:
@@ -200,7 +200,7 @@ def test_post_runs_defaults_calibration_pins_to_empty_list() -> None:
         assert response.status_code == 201, response.text
         run_id = UUID(response.json()["run_id"])
         payload = _load_run_payload(app, run_id)
-    assert payload["calibration_pins"] == []
+    assert payload["pinned_calibrations"] == []
 
 
 @pytest.mark.contract
@@ -220,7 +220,7 @@ def test_post_runs_does_not_validate_calibration_pin_existence() -> None:
                 "name": "synthetic-pins-run",
                 "plan_id": plan_id,
                 "subject_id": subject_id,
-                "calibration_pins": [str(uuid4()) for _ in range(5)],
+                "pinned_calibrations": [str(uuid4()) for _ in range(5)],
             },
         )
     assert response.status_code == 201, response.text
@@ -238,7 +238,7 @@ def test_post_runs_rejects_malformed_calibration_pin_uuid_with_422() -> None:
                 "name": "bad-pin-uuid-run",
                 "plan_id": plan_id,
                 "subject_id": subject_id,
-                "calibration_pins": ["not-a-uuid"],
+                "pinned_calibrations": ["not-a-uuid"],
             },
         )
     assert response.status_code == 422

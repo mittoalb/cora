@@ -87,4 +87,4 @@ class StartRun:
     # existence check at the decider (cross-BC eventual-consistency
     # stance); a downstream consumer that needs to read the pinned
     # CalibrationRevision still goes through the Calibration BC.
-    calibration_pins: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    pinned_calibrations: frozenset[UUID] = field(default_factory=frozenset[UUID])

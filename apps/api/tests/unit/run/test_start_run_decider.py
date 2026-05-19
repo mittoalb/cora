@@ -1518,7 +1518,7 @@ def test_decide_threads_decided_by_decision_id_through_to_event() -> None:
 
 
 @pytest.mark.unit
-def test_decide_defaults_calibration_pins_to_empty_when_omitted() -> None:
+def test_decide_defaults_pinned_calibrations_to_empty_when_omitted() -> None:
     """Pin set defaults to empty frozenset; emitted event payload is `()`."""
     cap = uuid4()
     asset_id = uuid4()
@@ -1541,11 +1541,11 @@ def test_decide_defaults_calibration_pins_to_empty_when_omitted() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert decision.run_events[0].calibration_pins == ()
+    assert decision.run_events[0].pinned_calibrations == ()
 
 
 @pytest.mark.unit
-def test_decide_threads_calibration_pins_sorted_through_to_event() -> None:
+def test_decide_threads_pinned_calibrations_sorted_through_to_event() -> None:
     """The decider sorts the operator-supplied frozenset before
     emit so the event payload has deterministic bytes."""
     cap = uuid4()
@@ -1569,7 +1569,7 @@ def test_decide_threads_calibration_pins_sorted_through_to_event() -> None:
             plan_id=plan.id,
             subject_id=subject.id,
             # Frozenset has no order; the decider must sort.
-            calibration_pins=frozenset({pin_c, pin_a, pin_b}),
+            pinned_calibrations=frozenset({pin_c, pin_a, pin_b}),
         ),
         context=context,
         needed_families_snapshot=frozenset({cap}),
@@ -1578,4 +1578,4 @@ def test_decide_threads_calibration_pins_sorted_through_to_event() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert decision.run_events[0].calibration_pins == tuple(sorted([pin_a, pin_b, pin_c]))
+    assert decision.run_events[0].pinned_calibrations == tuple(sorted([pin_a, pin_b, pin_c]))

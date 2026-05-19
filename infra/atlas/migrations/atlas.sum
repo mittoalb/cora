@@ -1,4 +1,4 @@
-h1:MEM/CTonpWKcGsi7A/6nCoK58lFKMvnuIp1wcp2GYc8=
+h1:Yz8Pi23iHNkO2hPdgEJLugfhGOjVmTid2HkoV0IVt4I=
 20260509120000_init_events.sql h1:GmgCZKfaqXu1m96/cKAks2vhaLWTdEaHTLkFtUo9FXg=
 20260509170000_init_idempotency.sql h1:Nbu8DIE4Sv1WiHw3G22+tYffPhKc5Jryw3PMK8wB2zY=
 20260510010000_add_event_id.sql h1:RbtYP6uMnOB20zhJ9dNXUi4YVqbmlEzf562pmygnRW8=
@@ -47,3 +47,4 @@ h1:MEM/CTonpWKcGsi7A/6nCoK58lFKMvnuIp1wcp2GYc8=
 20260518210000_drop_proj_recipe_capability_summary_code_unique.sql h1:t3Alj410BuMOCC0zAekHNQ8txybqixX9WYEna4xQ0gs=
 20260518230000_init_proj_calibration_summary.sql h1:Qf9IPFQv85VGToQhJqkYEiYYuWrS6B0+L+Y1XaH69sw=
 20260518240000_add_proj_run_summary_calibration_pins.sql h1:nUay23jPCjKYil56CM3TE5aV149FSGqP0KsX05KUFng=
+20260518250000_rename_run_summary_calibration_pins.sql h1:qeCPjOoAZ+WHHNJ2kQmON5oqyh4illxFSOMg9H94jxU=

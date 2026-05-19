@@ -1010,15 +1010,15 @@ class Run:
     # transition arm in the evolver (RunHeld / RunResumed /
     # RunCompleted / RunAborted / RunStopped / RunTruncated /
     # RunAdjusted / RunCampaignAssigned / RunCampaignUnassigned /
-    # RunReadingLogbookOpened) preserves `prior.calibration_pins`
+    # RunReadingLogbookOpened) preserves `prior.pinned_calibrations`
     # verbatim. The AsShot anchor lets downstream consumers (Dataset
     # reconstruction in 12c, RunDebrief AI advisories) answer "what
     # calibration was this scan acquired against?" deterministically
     # months later, even if later refined revisions arrive on the
     # same Calibration aggregate. DNG AsShot vs Current precedent
     # (Q5/Q6 research). Defaults to empty frozenset so pre-12b
-    # streams fold cleanly via `payload.get("calibration_pins", [])`.
-    calibration_pins: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    # streams fold cleanly via `payload.get("pinned_calibrations", [])`.
+    pinned_calibrations: frozenset[UUID] = field(default_factory=frozenset[UUID])
 
 
 class InvalidRunParametersError(ValueError):

@@ -987,7 +987,7 @@ def test_legacy_pre_6j_stream_folds_with_default_adjustment_fields() -> None:
 
 
 @pytest.mark.unit
-def test_run_started_genesis_populates_calibration_pins_as_frozenset() -> None:
+def test_run_started_genesis_populates_pinned_calibrations_as_frozenset() -> None:
     """RunStarted carries the tuple-form on the event payload; the
     evolver coerces to frozenset for in-memory equality semantics."""
     pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
@@ -1001,17 +1001,17 @@ def test_run_started_genesis_populates_calibration_pins_as_frozenset() -> None:
                 plan_id=uuid4(),
                 subject_id=None,
                 occurred_at=_NOW,
-                calibration_pins=(pin_a, pin_b),
+                pinned_calibrations=(pin_a, pin_b),
             ),
         ]
     )
     assert state is not None
-    assert state.calibration_pins == frozenset({pin_a, pin_b})
+    assert state.pinned_calibrations == frozenset({pin_a, pin_b})
 
 
 @pytest.mark.unit
-def test_legacy_pre_12b_run_folds_with_empty_calibration_pins() -> None:
-    """Pre-12b Runs have no calibration_pins on RunStarted. They MUST
+def test_legacy_pre_12b_run_folds_with_empty_pinned_calibrations() -> None:
+    """Pre-12b Runs have no pinned_calibrations on RunStarted. They MUST
     fold to an empty frozenset — additive backward-compat contract."""
     run_id = uuid4()
     state = fold(
@@ -1026,7 +1026,7 @@ def test_legacy_pre_12b_run_folds_with_empty_calibration_pins() -> None:
         ]
     )
     assert state is not None
-    assert state.calibration_pins == frozenset()
+    assert state.pinned_calibrations == frozenset()
 
 
 @pytest.mark.unit
@@ -1034,11 +1034,11 @@ def test_legacy_pre_12b_run_folds_with_empty_calibration_pins() -> None:
     "terminal_factory",
     [_make_completed, _make_aborted, _make_stopped, _make_truncated],
 )
-def test_each_terminal_preserves_calibration_pins_asshot_invariant(
+def test_each_terminal_preserves_pinned_calibrations_asshot_invariant(
     terminal_factory: _TerminalFactory,
 ) -> None:
     """Phase 12b critical invariant: every terminal arm preserves the
-    calibration_pins set verbatim. A regression that wiped them would
+    pinned_calibrations set verbatim. A regression that wiped them would
     silently break "what calibration was this scan acquired against?"
     queries forever — DNG AsShot lesson."""
     pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
@@ -1052,17 +1052,17 @@ def test_each_terminal_preserves_calibration_pins_asshot_invariant(
                 plan_id=uuid4(),
                 subject_id=None,
                 occurred_at=_NOW,
-                calibration_pins=(pin_a, pin_b),
+                pinned_calibrations=(pin_a, pin_b),
             ),
             terminal_factory(run_id),
         ]
     )
     assert state is not None
-    assert state.calibration_pins == frozenset({pin_a, pin_b})
+    assert state.pinned_calibrations == frozenset({pin_a, pin_b})
 
 
 @pytest.mark.unit
-def test_hold_resume_cycle_preserves_calibration_pins() -> None:
+def test_hold_resume_cycle_preserves_pinned_calibrations() -> None:
     """Hold + Resume are routine mid-flight; they must NOT touch the
     AsShot anchor."""
     from cora.run.aggregates.run.events import RunHeld, RunResumed
@@ -1077,18 +1077,18 @@ def test_hold_resume_cycle_preserves_calibration_pins() -> None:
                 plan_id=uuid4(),
                 subject_id=None,
                 occurred_at=_NOW,
-                calibration_pins=(pin_a,),
+                pinned_calibrations=(pin_a,),
             ),
             RunHeld(run_id=run_id, occurred_at=_NOW),
             RunResumed(run_id=run_id, occurred_at=_NOW),
         ]
     )
     assert state is not None
-    assert state.calibration_pins == frozenset({pin_a})
+    assert state.pinned_calibrations == frozenset({pin_a})
 
 
 @pytest.mark.unit
-def test_adjust_run_preserves_calibration_pins() -> None:
+def test_adjust_run_preserves_pinned_calibrations() -> None:
     """Even mid-flight parameter steering (adjust_run) MUST preserve the
     AsShot anchor — the design memo's strongest form of the rule."""
     from cora.run.aggregates.run.events import RunAdjusted
@@ -1103,7 +1103,7 @@ def test_adjust_run_preserves_calibration_pins() -> None:
                 plan_id=uuid4(),
                 subject_id=None,
                 occurred_at=_NOW,
-                calibration_pins=(pin_a,),
+                pinned_calibrations=(pin_a,),
             ),
             RunAdjusted(
                 run_id=run_id,
@@ -1115,11 +1115,11 @@ def test_adjust_run_preserves_calibration_pins() -> None:
         ]
     )
     assert state is not None
-    assert state.calibration_pins == frozenset({pin_a})
+    assert state.pinned_calibrations == frozenset({pin_a})
 
 
 @pytest.mark.unit
-def test_reading_logbook_opened_preserves_calibration_pins() -> None:
+def test_reading_logbook_opened_preserves_pinned_calibrations() -> None:
     """Phase 12b orthogonal arm: lazy logbook open MUST preserve the
     AsShot anchor. Same silent-wipe risk as the terminal arms — pinned
     explicitly because the field-add review surface is in the evolver,
@@ -1135,7 +1135,7 @@ def test_reading_logbook_opened_preserves_calibration_pins() -> None:
                 plan_id=uuid4(),
                 subject_id=None,
                 occurred_at=_NOW,
-                calibration_pins=(pin_a, pin_b),
+                pinned_calibrations=(pin_a, pin_b),
             ),
             RunReadingLogbookOpened(
                 run_id=run_id,
@@ -1147,11 +1147,11 @@ def test_reading_logbook_opened_preserves_calibration_pins() -> None:
         ]
     )
     assert state is not None
-    assert state.calibration_pins == frozenset({pin_a, pin_b})
+    assert state.pinned_calibrations == frozenset({pin_a, pin_b})
 
 
 @pytest.mark.unit
-def test_run_campaign_assigned_preserves_calibration_pins() -> None:
+def test_run_campaign_assigned_preserves_pinned_calibrations() -> None:
     """Phase 12b orthogonal arm: post-hoc Campaign membership assignment
     MUST preserve the AsShot anchor."""
     from cora.run.aggregates.run.events import RunCampaignAssigned
@@ -1166,7 +1166,7 @@ def test_run_campaign_assigned_preserves_calibration_pins() -> None:
                 plan_id=uuid4(),
                 subject_id=None,
                 occurred_at=_NOW,
-                calibration_pins=(pin_a,),
+                pinned_calibrations=(pin_a,),
             ),
             RunCampaignAssigned(
                 run_id=run_id,
@@ -1176,11 +1176,11 @@ def test_run_campaign_assigned_preserves_calibration_pins() -> None:
         ]
     )
     assert state is not None
-    assert state.calibration_pins == frozenset({pin_a})
+    assert state.pinned_calibrations == frozenset({pin_a})
 
 
 @pytest.mark.unit
-def test_run_campaign_unassigned_preserves_calibration_pins() -> None:
+def test_run_campaign_unassigned_preserves_pinned_calibrations() -> None:
     """Phase 12b orthogonal arm: post-hoc Campaign membership removal
     MUST preserve the AsShot anchor."""
     from cora.run.aggregates.run.events import (
@@ -1199,7 +1199,7 @@ def test_run_campaign_unassigned_preserves_calibration_pins() -> None:
                 plan_id=uuid4(),
                 subject_id=None,
                 occurred_at=_NOW,
-                calibration_pins=(pin_a,),
+                pinned_calibrations=(pin_a,),
             ),
             RunCampaignAssigned(
                 run_id=run_id,
@@ -1215,4 +1215,4 @@ def test_run_campaign_unassigned_preserves_calibration_pins() -> None:
         ]
     )
     assert state is not None
-    assert state.calibration_pins == frozenset({pin_a})
+    assert state.pinned_calibrations == frozenset({pin_a})

@@ -7,7 +7,7 @@ aggregate membership transitions):
                                       subject_id? + raid? +
                                       override_parameters_present +
                                       campaign_id? +
-                                      calibration_pins from payload)
+                                      pinned_calibrations from payload)
   - RunHeld                -> UPDATE status=Held
   - RunResumed             -> UPDATE status=Running
   - RunCompleted           -> UPDATE status=Completed   (terminal)
@@ -20,9 +20,9 @@ aggregate membership transitions):
                               remove via remove_run_from_campaign)
 
 All branches idempotent. Genesis-event payload values (plan_id,
-subject_id, raid, override_parameters_present, calibration_pins)
+subject_id, raid, override_parameters_present, pinned_calibrations)
 land on INSERT and never change (AsShot invariant for
-calibration_pins per Phase 12b); lifecycle UPDATEs only touch
+pinned_calibrations per Phase 12b); lifecycle UPDATEs only touch
 `status`; membership UPDATEs only touch `campaign_id`.
 
 `override_parameters_present` (Phase 6g-c) is TRUE iff RunStarted's
@@ -42,12 +42,12 @@ Forward-compat: pre-6i-c RunStarted payloads lack the key entirely;
 `.get("campaign_id")` returns None and the column stays NULL. See
 [[project_campaign_design]] §"bidirectional composition".
 
-`calibration_pins` (Phase 12b-2) surfaces the AsShot pin set so
+`pinned_calibrations` (Phase 12b-2) surfaces the AsShot pin set so
 downstream consumers (12c Dataset back-fill, future RunDebrief /
 RotationCenterRefiner subscribers) can read "which calibrations
 was this Run acquired against?" without folding the Run stream.
 Forward-compat: pre-12b RunStarted payloads lack the key entirely;
-`.get("calibration_pins", [])` returns `[]` so legacy rows land
+`.get("pinned_calibrations", [])` returns `[]` so legacy rows land
 with an empty UUID array.
 """
 
@@ -62,7 +62,7 @@ from cora.infrastructure.projection.handler import ConnectionLike
 _INSERT_RUN_SQL = """
 INSERT INTO proj_run_summary
     (run_id, name, plan_id, subject_id, raid, status, created_at,
-     override_parameters_present, campaign_id, calibration_pins)
+     override_parameters_present, campaign_id, pinned_calibrations)
 VALUES ($1, $2, $3, $4, $5, 'Running', $6, $7, $8, $9::uuid[])
 ON CONFLICT (run_id) DO NOTHING
 """
@@ -125,9 +125,9 @@ class RunSummaryProjection:
             campaign_id_raw = payload.get("campaign_id")
             campaign_id = UUID(campaign_id_raw) if campaign_id_raw else None
             # Forward-compat: pre-12b RunStarted payloads have no
-            # calibration_pins key; .get(..., []) returns [] so legacy
+            # pinned_calibrations key; .get(..., []) returns [] so legacy
             # rows land with an empty UUID array.
-            calibration_pins = [UUID(p) for p in payload.get("calibration_pins", [])]
+            pinned_calibrations = [UUID(p) for p in payload.get("pinned_calibrations", [])]
             await conn.execute(
                 _INSERT_RUN_SQL,
                 UUID(payload["run_id"]),
@@ -138,7 +138,7 @@ class RunSummaryProjection:
                 datetime.fromisoformat(payload["occurred_at"]),
                 overrides_present,
                 campaign_id,
-                calibration_pins,
+                pinned_calibrations,
             )
             return
         if event.event_type == "RunCampaignAssigned":

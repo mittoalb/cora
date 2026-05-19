@@ -297,7 +297,7 @@ def decide(
             decided_by_decision_id=command.decided_by_decision_id,
             # Phase 12b: sort for deterministic byte-form on the event
             # payload (frozenset has no inherent order).
-            calibration_pins=tuple(sorted(command.calibration_pins)),
+            pinned_calibrations=tuple(sorted(command.pinned_calibrations)),
             occurred_at=now,
         )
     ]

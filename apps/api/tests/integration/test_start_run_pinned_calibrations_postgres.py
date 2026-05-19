@@ -1,11 +1,11 @@
 """End-to-end integration test for Phase 12b-2:
-`Run.calibration_pins` lands on `proj_run_summary.calibration_pins`
+`Run.pinned_calibrations` lands on `proj_run_summary.pinned_calibrations`
 after the projection drain.
 
 Pins:
   - genesis-event payload carries the sorted list
   - projection writes the uuid[] column verbatim
-  - the GIN index supports `WHERE calibration_pins @> ARRAY[$N]::uuid[]`
+  - the GIN index supports `WHERE pinned_calibrations @> ARRAY[$N]::uuid[]`
     membership lookup (the future 12c Dataset back-fill query path)
   - legacy pre-12b RunStarted payloads fold to empty array
 """
@@ -36,7 +36,7 @@ async def _drain_run_projections(db_pool: asyncpg.Pool) -> None:
 
 
 @pytest.mark.integration
-async def test_start_run_lands_calibration_pins_on_projection(
+async def test_start_run_lands_pinned_calibrations_on_projection(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Happy path: start_run with two pins lands them on the
@@ -54,7 +54,7 @@ async def test_start_run_lands_calibration_pins_on_projection(
             name="Pinned run",
             plan_id=plan_id,
             subject_id=subject_id,
-            calibration_pins=frozenset({pin_b, pin_a}),  # scrambled
+            pinned_calibrations=frozenset({pin_b, pin_a}),  # scrambled
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -62,18 +62,18 @@ async def test_start_run_lands_calibration_pins_on_projection(
 
     # Event payload carries the sorted list.
     events, _v = await deps.event_store.load("Run", run_id)
-    assert events[0].payload["calibration_pins"] == sorted([str(pin_a), str(pin_b)])
+    assert events[0].payload["pinned_calibrations"] == sorted([str(pin_a), str(pin_b)])
 
     # Drain projection; column lands the uuid[] array.
     await _drain_run_projections(db_pool)
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT calibration_pins FROM proj_run_summary WHERE run_id = $1",
+            "SELECT pinned_calibrations FROM proj_run_summary WHERE run_id = $1",
             run_id,
         )
     assert row is not None
     # asyncpg returns uuid[] as list[UUID]; ordering follows insert.
-    pins_on_row = list(row["calibration_pins"])
+    pins_on_row = list(row["pinned_calibrations"])
     assert sorted(pins_on_row) == sorted([pin_a, pin_b])
 
 
@@ -81,7 +81,7 @@ async def test_start_run_lands_calibration_pins_on_projection(
 async def test_start_run_default_pins_land_empty_array(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Omitted calibration_pins on the command land an empty uuid[] on
+    """Omitted pinned_calibrations on the command land an empty uuid[] on
     the projection (forward-compat-clean default)."""
     plan_id, subject_id = await seed_run_upstream_chain_pg(
         db_pool, now=_NOW, method_schema=None, plan_defaults=None
@@ -101,20 +101,20 @@ async def test_start_run_default_pins_land_empty_array(
     await _drain_run_projections(db_pool)
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT calibration_pins FROM proj_run_summary WHERE run_id = $1",
+            "SELECT pinned_calibrations FROM proj_run_summary WHERE run_id = $1",
             run_id,
         )
     assert row is not None
-    assert list(row["calibration_pins"]) == []
+    assert list(row["pinned_calibrations"]) == []
 
 
 @pytest.mark.integration
-async def test_calibration_pins_gin_index_supports_contains_membership_lookup(
+async def test_pinned_calibrations_gin_index_supports_contains_membership_lookup(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """The GIN index on calibration_pins powers the future 12c
+    """The GIN index on pinned_calibrations powers the future 12c
     Dataset back-fill + agent-subscriber replay query via the
-    array-contains operator: `WHERE calibration_pins @> ARRAY[$X]::uuid[]`.
+    array-contains operator: `WHERE pinned_calibrations @> ARRAY[$X]::uuid[]`.
 
     Pinning `@>` (not `= ANY(...)`): `= ANY` is rewritten internally
     and does NOT probe the GIN index on uuid[]; `@>` does. The query
@@ -138,7 +138,7 @@ async def test_calibration_pins_gin_index_supports_contains_membership_lookup(
             name="Run A",
             plan_id=plan_id,
             subject_id=subject_id,
-            calibration_pins=frozenset({pin_shared, pin_only_a}),
+            pinned_calibrations=frozenset({pin_shared, pin_only_a}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -151,7 +151,7 @@ async def test_calibration_pins_gin_index_supports_contains_membership_lookup(
             name="Run B",
             plan_id=plan_id,
             subject_id=subject_id,
-            calibration_pins=frozenset({pin_shared, pin_only_b}),
+            pinned_calibrations=frozenset({pin_shared, pin_only_b}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -162,12 +162,12 @@ async def test_calibration_pins_gin_index_supports_contains_membership_lookup(
     async with db_pool.acquire() as conn:
         # Query for the shared pin: both Runs match.
         shared_rows = await conn.fetch(
-            "SELECT run_id FROM proj_run_summary WHERE calibration_pins @> ARRAY[$1]::uuid[]",
+            "SELECT run_id FROM proj_run_summary WHERE pinned_calibrations @> ARRAY[$1]::uuid[]",
             pin_shared,
         )
         # Query for pin_only_a: only Run A matches.
         a_only_rows = await conn.fetch(
-            "SELECT run_id FROM proj_run_summary WHERE calibration_pins @> ARRAY[$1]::uuid[]",
+            "SELECT run_id FROM proj_run_summary WHERE pinned_calibrations @> ARRAY[$1]::uuid[]",
             pin_only_a,
         )
 
