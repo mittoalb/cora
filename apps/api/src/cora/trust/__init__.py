@@ -20,6 +20,10 @@ Layout:
 
 from cora.trust._bootstrap import (
     SYSTEM_BOOTSTRAP_POLICY_ID,
+    SYSTEM_BOOTSTRAP_POLICY_V2_ID,
+    SYSTEM_HTTP_SURFACE_ID,
+    SYSTEM_MCP_STDIO_SURFACE_ID,
+    SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID,
     verify_bootstrap_seed_present,
 )
 from cora.trust._projections import register_trust_projections
@@ -32,6 +36,10 @@ from cora.trust.wire import TrustHandlers, wire_trust
 
 __all__ = [
     "SYSTEM_BOOTSTRAP_POLICY_ID",
+    "SYSTEM_BOOTSTRAP_POLICY_V2_ID",
+    "SYSTEM_HTTP_SURFACE_ID",
+    "SYSTEM_MCP_STDIO_SURFACE_ID",
+    "SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID",
     "TrustAuthorize",
     "TrustHandlers",
     "UnauthorizedError",
