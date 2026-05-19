@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.architecture.conftest import BCS, CORA_ROOT
+from tests.architecture.conftest import BCS, CORA_ROOT, tracked_python_files
 
 _FORBIDDEN_TOP_LEVEL_IMPORTS: frozenset[str] = frozenset(
     {
@@ -86,12 +86,19 @@ _FORBIDDEN_BARE_CALLS: frozenset[str] = frozenset(
 
 
 def _decider_files() -> list[Path]:
+    tracked = tracked_python_files()
     out: list[Path] = []
     for bc in BCS:
         features = CORA_ROOT / bc / "features"
-        if not features.is_dir():
-            continue
-        out.extend(sorted(features.glob("*/decider.py")))
+        out.extend(
+            sorted(
+                f
+                for f in tracked
+                if f.name == "decider.py"
+                and f.parent.parent == features
+                and not f.parent.name.startswith("_")
+            )
+        )
     return out
 
 

@@ -17,21 +17,23 @@ import inspect
 
 import pytest
 
-from tests.architecture.conftest import BCS, CORA_ROOT
+from tests.architecture.conftest import BCS, CORA_ROOT, tracked_python_files
 
 
 def _shipped_slices_per_bc() -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
+    tracked = tracked_python_files()
     for bc in BCS:
         features = CORA_ROOT / bc / "features"
-        if not features.is_dir():
-            continue
-        for slice_dir in sorted(features.iterdir()):
-            if not slice_dir.is_dir() or slice_dir.name.startswith("_"):
-                continue
-            if not (slice_dir / "handler.py").is_file():
-                continue
-            out.append((bc, slice_dir.name))
+        handlers = sorted(
+            f
+            for f in tracked
+            if f.name == "handler.py"
+            and f.parent.parent == features
+            and not f.parent.name.startswith("_")
+        )
+        for handler in handlers:
+            out.append((bc, handler.parent.name))
     return out
 
 

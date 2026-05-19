@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.architecture.conftest import BCS, CORA_ROOT
+from tests.architecture.conftest import BCS, CORA_ROOT, tracked_python_files
 
 _COMMAND_SLICE_FILES: frozenset[str] = frozenset(
     {"__init__.py", "command.py", "decider.py", "handler.py", "route.py", "tool.py"}
@@ -59,15 +59,18 @@ def _qualified(slice_dir: Path) -> str:
 
 
 def _all_slices() -> list[Path]:
-    out: list[Path] = []
+    tracked = tracked_python_files()
+    dirs: set[Path] = set()
     for bc in BCS:
         features = CORA_ROOT / bc / "features"
-        if not features.is_dir():
-            continue
-        for child in sorted(features.iterdir()):
-            if child.is_dir() and not child.name.startswith("_"):
-                out.append(child)
-    return out
+        for f in tracked:
+            if f.parent.parent != features:
+                continue
+            slice_dir = f.parent
+            if slice_dir.name.startswith("_"):
+                continue
+            dirs.add(slice_dir)
+    return sorted(dirs)
 
 
 @pytest.mark.architecture

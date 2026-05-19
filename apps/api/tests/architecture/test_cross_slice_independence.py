@@ -16,19 +16,21 @@ from pathlib import Path
 
 import pytest
 
-from tests.architecture.conftest import BCS, CORA_ROOT
+from tests.architecture.conftest import BCS, CORA_ROOT, tracked_python_files
 
 
 def _slice_python_files() -> list[Path]:
+    tracked = tracked_python_files()
     out: list[Path] = []
     for bc in BCS:
         features = CORA_ROOT / bc / "features"
-        if not features.is_dir():
-            continue
-        for slice_dir in sorted(features.iterdir()):
-            if not slice_dir.is_dir() or slice_dir.name.startswith("_"):
-                continue
-            out.extend(sorted(slice_dir.glob("*.py")))
+        out.extend(
+            sorted(
+                f
+                for f in tracked
+                if f.parent.parent == features and not f.parent.name.startswith("_")
+            )
+        )
     return out
 
 
