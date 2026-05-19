@@ -129,6 +129,88 @@ async def test_append_streams_rolls_back_on_concurrency_mismatch(db_pool: asyncp
 
 
 @pytest.mark.integration
+async def test_append_streams_rolls_back_when_first_stream_version_mismatches(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Atomicity is order-independent. The sibling
+    `rolls_back_on_concurrency_mismatch` test puts the offending stream
+    second; this pins the symmetric case where the FIRST stream's
+    `expected_version` is wrong. The trailing stream's append would
+    succeed on its own but must not materialize."""
+    store = PostgresEventStore(db_pool)
+    parent_id, child_id = uuid4(), uuid4()
+    # Seed parent at version 1 so its expected_version=0 collides.
+    await store.append("OrderIndepTestParent", parent_id, expected_version=0, events=[_event()])
+
+    with pytest.raises(ConcurrencyError) as exc_info:
+        await store.append_streams(
+            [
+                # Parent claims expected_version=0 -- collides with the seeded
+                # version-1 row, must roll the whole batch back.
+                StreamAppend(
+                    "OrderIndepTestParent", parent_id, expected_version=0, events=[_event()]
+                ),
+                # Child is fresh; expected_version=0 is correct and would
+                # succeed alone -- but atomicity must keep it from landing.
+                StreamAppend(
+                    "OrderIndepTestChild", child_id, expected_version=0, events=[_event()]
+                ),
+            ]
+        )
+    assert exc_info.value.stream_id == parent_id
+    assert exc_info.value.expected == 0
+    assert exc_info.value.actual == 1
+
+    # Parent stayed at version 1; child never materialized.
+    _, parent_v = await store.load("OrderIndepTestParent", parent_id)
+    assert parent_v == 1
+    _, child_v = await store.load("OrderIndepTestChild", child_id)
+    assert child_v == 0
+
+
+@pytest.mark.integration
+async def test_append_streams_rolls_back_on_duplicate_event_id_within_batch(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """The `events_event_id_unique` constraint spans the entire batch.
+    If two StreamAppends share an event_id, the second insert trips the
+    constraint and the whole transaction rolls back -- neither stream
+    materializes. The PG adapter only maps the stream-version UNIQUE
+    constraint to `ConcurrencyError`; any other UNIQUE violation
+    surfaces unchanged. This is the silent failure mode that would
+    mask cross-aggregate writes (amend_clearance,
+    promote_caution_proposal) if the batch ever fell back to per-stream
+    transactions."""
+    store = PostgresEventStore(db_pool)
+    parent_id, child_id = uuid4(), uuid4()
+    shared = uuid4()
+
+    with pytest.raises(asyncpg.UniqueViolationError):
+        await store.append_streams(
+            [
+                StreamAppend(
+                    "DupEventIdTestParent",
+                    parent_id,
+                    expected_version=0,
+                    events=[_event(event_id=shared)],
+                ),
+                StreamAppend(
+                    "DupEventIdTestChild",
+                    child_id,
+                    expected_version=0,
+                    events=[_event(event_id=shared)],
+                ),
+            ]
+        )
+
+    # Neither stream landed (whole-batch rollback).
+    _, parent_v = await store.load("DupEventIdTestParent", parent_id)
+    _, child_v = await store.load("DupEventIdTestChild", child_id)
+    assert parent_v == 0
+    assert child_v == 0
+
+
+@pytest.mark.integration
 async def test_append_single_stream_delegates_through_append_streams(
     db_pool: asyncpg.Pool,
 ) -> None:
