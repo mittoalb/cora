@@ -40,7 +40,7 @@ through bounded-text validation; the helper is hoisted at
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import validate_bounded_text
@@ -277,6 +277,37 @@ class DuplicateCalibrationIdentityError(Exception):
         self.subsystem_or_asset_id = subsystem_or_asset_id
         self.quantity = quantity
         self.operating_point = operating_point
+
+
+# ---------------------------------------------------------------------------
+# Shared value-validation helper (used by both define_calibration and
+# append_revision deciders)
+# ---------------------------------------------------------------------------
+
+
+def reject_empty_against_required(
+    values: dict[str, Any],
+    schema: dict[str, Any],
+    *,
+    error_class: type[ValueError],
+) -> None:
+    """Raise when `values` is empty AND `schema` declares required keys.
+
+    `cora.infrastructure.json_schema_validation.validate_values_against_schema`
+    accepts empty + non-None schema by design (required-field enforcement
+    delegated to the per-aggregate consumer). For Calibration's
+    `operating_point` and revision `value` dicts we want empty rejected:
+    empty would either collide with another calibration on the UNIQUE
+    constraint or produce a value-less revision.
+    """
+    if values:
+        return
+    raw_required = schema.get("required")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    if not isinstance(raw_required, list) or not raw_required:  # pyright: ignore[reportUnknownArgumentType]
+        return
+    required = cast("list[str]", raw_required)  # pyright: ignore[reportUnknownArgumentType]
+    msg = f"cannot be empty; the schema requires keys: {sorted(required)!r}"
+    raise error_class(msg)
 
 
 # ---------------------------------------------------------------------------

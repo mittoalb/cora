@@ -1,7 +1,7 @@
 """Unit tests for the `append_revision` slice's pure decider.
 
 Pins the supersedes-must-exist invariant + STRICT value validation +
-source-arc round-trip through serialize_source.
+exclusive-arc source split into the three event-class id fields.
 """
 
 from datetime import UTC, datetime

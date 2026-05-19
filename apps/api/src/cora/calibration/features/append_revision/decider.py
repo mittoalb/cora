@@ -34,16 +34,19 @@ override (revisions inherit the calibration's quantity by definition).
 """
 
 from datetime import datetime
-from typing import Any, cast
+from typing import Any
 from uuid import UUID
 
 from cora.calibration.aggregates.calibration import (
+    AssertedSource,
     Calibration,
     CalibrationNotFoundError,
     CalibrationRevisionAppended,
+    ComputedSource,
     InvalidCalibrationValueError,
+    MeasuredSource,
     SupersedesRevisionNotFoundError,
-    serialize_source,
+    reject_empty_against_required,
 )
 from cora.calibration.features.append_revision.command import AppendRevision
 from cora.calibration.quantities import CalibrationQuantity, get_value_schema
@@ -74,9 +77,10 @@ def decide(
     ):
         raise SupersedesRevisionNotFoundError(state.id, command.supersedes_revision_id)
 
-    # Encode the polymorphic source into the exclusive-arc payload
-    # fields via the public cross-slice helper (Q5 lock).
-    arc = serialize_source(command.source)
+    # Split the polymorphic source into the exclusive-arc event-class
+    # fields (Q5 lock). The event dataclass carries typed UUIDs; the
+    # to_payload codec stringifies for the wire.
+    source_procedure_id, source_dataset_id, source_actor_id = _split_source(command.source)
 
     return [
         CalibrationRevisionAppended(
@@ -84,9 +88,9 @@ def decide(
             calibration_id=state.id,
             value=command.value,
             status=command.status,
-            source_procedure_id=_uuid_or_none(arc["source_procedure_id"]),
-            source_dataset_id=_uuid_or_none(arc["source_dataset_id"]),
-            source_actor_id=_uuid_or_none(arc["source_actor_id"]),
+            source_procedure_id=source_procedure_id,
+            source_dataset_id=source_dataset_id,
+            source_actor_id=source_actor_id,
             established_at=now,
             established_by_actor_id=established_by_actor_id,
             decided_by_decision_id=command.decided_by_decision_id,
@@ -107,36 +111,21 @@ def _validate_value(value: dict[str, Any], schema: dict[str, Any]) -> None:
             "(quantity registry invariant violated: keys={keys})"
         ),
     )
-    _reject_empty_against_required(value, schema, InvalidCalibrationValueError)
+    reject_empty_against_required(value, schema, error_class=InvalidCalibrationValueError)
 
 
-def _reject_empty_against_required(
-    values: dict[str, Any],
-    schema: dict[str, Any],
-    error_class: type[ValueError],
-) -> None:
-    """Raise when `values` is empty AND `schema` declares any required keys.
-
-    The shared `validate_values_against_schema` helper accepts empty +
-    non-None schema by design (required-field enforcement is delegated
-    to the per-aggregate consumer); for Calibration's operating_point
-    and value dicts we want empty rejected because empty would either
-    collide with another calibration on the UNIQUE constraint or
-    produce a value-less revision.
-    """
-    if values:
-        return
-    raw_required = schema.get("required")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-    if not isinstance(raw_required, list) or not raw_required:  # pyright: ignore[reportUnknownArgumentType]
-        return
-    required = cast("list[str]", raw_required)  # pyright: ignore[reportUnknownArgumentType]
-    msg = f"cannot be empty; the schema requires keys: {sorted(required)!r}"
-    raise error_class(msg)
-
-
-def _uuid_or_none(raw: str | None) -> UUID | None:
-    """Coerce the exclusive-arc string-id back to UUID for the event class."""
-    return UUID(raw) if raw is not None else None
+def _split_source(
+    source: AssertedSource | ComputedSource | MeasuredSource,
+) -> tuple[UUID | None, UUID | None, UUID | None]:
+    """Split the polymorphic source into (procedure_id, dataset_id, actor_id)
+    with exactly one non-None per Q5 exclusive-arc encoding."""
+    match source:
+        case MeasuredSource(procedure_id=procedure_id):
+            return procedure_id, None, None
+        case ComputedSource(dataset_id=dataset_id):
+            return None, dataset_id, None
+        case AssertedSource(actor_id=actor_id):
+            return None, None, actor_id
 
 
 __all__ = ["decide"]

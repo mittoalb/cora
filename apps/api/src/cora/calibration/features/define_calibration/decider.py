@@ -39,7 +39,7 @@ principal are equal by construction.
 """
 
 from datetime import datetime
-from typing import Any, cast
+from typing import Any
 from uuid import UUID
 
 from cora.calibration.aggregates.calibration import (
@@ -48,6 +48,7 @@ from cora.calibration.aggregates.calibration import (
     CalibrationDefined,
     CalibrationDescription,
     InvalidOperatingPointError,
+    reject_empty_against_required,
 )
 from cora.calibration.features.define_calibration.command import DefineCalibration
 from cora.calibration.quantities import get_operating_point_schema
@@ -96,10 +97,6 @@ def _validate_operating_point(operating_point: dict[str, Any], schema: dict[str,
     The schema is always non-None (closed enum + registry); we wrap
     the shared validator with the BC-specific error class.
     """
-    # The shared helper handles empty + non-empty cases; we always pass
-    # a non-None schema so the `no_schema_message` branch never fires.
-    # Use `validate_values_against_schema` to also catch required-field
-    # misses on empty dict.
     validate_values_against_schema(
         operating_point,
         schema,
@@ -109,16 +106,7 @@ def _validate_operating_point(operating_point: dict[str, Any], schema: dict[str,
             "(quantity registry invariant violated: keys={keys})"
         ),
     )
-    # Defensive: even with a schema, empty operating_point against schemas
-    # that declare `required` should reject. `validate_values_against_schema`
-    # currently accepts empty-against-schema; we re-check required keys
-    # explicitly to fail-loud on misuse.
-    if not operating_point:
-        raw_required = schema.get("required")  # pyright: ignore[reportUnknownMemberType]
-        if isinstance(raw_required, list) and raw_required:
-            required = cast("list[str]", raw_required)
-            msg = f"operating_point cannot be empty; the schema requires keys: {sorted(required)!r}"
-            raise InvalidOperatingPointError(msg)
+    reject_empty_against_required(operating_point, schema, error_class=InvalidOperatingPointError)
 
 
 def _coerce_description(value: str | None) -> str | None:

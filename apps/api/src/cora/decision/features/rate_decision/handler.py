@@ -93,11 +93,9 @@ def bind(deps: Kernel) -> Handler:
         # for the optimistic append, which `load_decision` does
         # not return; doing both inline avoids a redundant load.
         stored, version = await deps.event_store.load(_STREAM_TYPE, command.decision_id)
-        if version == 0:
+        state = fold([from_stored(s) for s in stored])
+        if state is None:
             raise DecisionNotFoundError(command.decision_id)
-        events = [from_stored(s) for s in stored]
-        state = fold(events)
-        assert state is not None  # version > 0 implies state non-None
 
         now = deps.clock.now()
         domain_events = decide(

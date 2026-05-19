@@ -19,7 +19,6 @@ from cora.calibration.aggregates.calibration import (
     CalibrationRevision,
     CalibrationStatus,
 )
-from cora.calibration.errors import UnauthorizedError
 from cora.calibration.features.get_calibration.handler import Handler
 from cora.calibration.features.get_calibration.query import GetCalibration
 from cora.infrastructure.observability import current_correlation_id
@@ -104,12 +103,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ],
     ) -> GetCalibrationOutput | None:
         handler = get_handler()
-        try:
-            calibration = await handler(
-                GetCalibration(calibration_id=calibration_id),
-                principal_id=principal_id,
-                correlation_id=current_correlation_id(),
-            )
-        except UnauthorizedError:
-            raise
+        calibration = await handler(
+            GetCalibration(calibration_id=calibration_id),
+            principal_id=principal_id,
+            correlation_id=current_correlation_id(),
+        )
         return _output_from_state(calibration) if calibration is not None else None

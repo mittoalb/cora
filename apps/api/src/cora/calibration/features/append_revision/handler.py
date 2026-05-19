@@ -119,11 +119,8 @@ def bind(deps: Kernel) -> Handler:
             raise UnauthorizedError(decision.reason)
 
         stored, version = await deps.event_store.load(_STREAM_TYPE, command.calibration_id)
-        if version == 0:
-            raise CalibrationNotFoundError(command.calibration_id)
-        events = [from_stored(s) for s in stored]
-        state = fold(events)
-        if state is None:  # pragma: no cover  # version > 0 implies state non-None
+        state = fold([from_stored(s) for s in stored])
+        if state is None:
             raise CalibrationNotFoundError(command.calibration_id)
 
         now = deps.clock.now()

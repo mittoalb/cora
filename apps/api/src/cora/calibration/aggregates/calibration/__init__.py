@@ -37,6 +37,7 @@ from cora.calibration.aggregates.calibration.state import (
     InvalidOperatingPointError,
     MeasuredSource,
     SupersedesRevisionNotFoundError,
+    reject_empty_against_required,
 )
 
 __all__ = [
@@ -67,6 +68,7 @@ __all__ = [
     "fold",
     "from_stored",
     "load_calibration",
+    "reject_empty_against_required",
     "serialize_source",
     "to_payload",
 ]

@@ -88,11 +88,8 @@ def bind(deps: Kernel) -> Handler:
             raise UnauthorizedError(decision.reason)
 
         stored, version = await deps.event_store.load(_STREAM_TYPE, command.caution_id)
-        if version == 0:
-            raise CautionNotFoundError(command.caution_id)
-        events = [from_stored(s) for s in stored]
-        state = fold(events)
-        if state is None:  # pragma: no cover  # version > 0 implies state non-None
+        state = fold([from_stored(s) for s in stored])
+        if state is None:
             raise CautionNotFoundError(command.caution_id)
 
         now = deps.clock.now()
