@@ -55,6 +55,14 @@ from cora.infrastructure.ports.token_verifier import (
     VerifiedPrincipal,
 )
 
+_MAX_TOKEN_LENGTH = 8192
+"""DoS guard (gate-review F11) — reject implausibly large tokens at the
+boundary before any base64-decode / parse work runs. Real OAuth tokens
+sit well under this: JWTs at most a few KB even with rich claims;
+opaque tokens are typically <256 chars. The cap stops an attacker from
+amplifying a single megabyte-string POST into expensive parse + JWKS
+fetch CPU."""
+
 
 class _RegistryEntry(Protocol):
     """Common Protocol both adapter types satisfy (issuer + verify)."""
@@ -128,6 +136,11 @@ class IdentityProviderRegistry:
         """
         if not token:
             raise InvalidTokenError("malformed", "empty token")
+        if len(token) > _MAX_TOKEN_LENGTH:
+            raise InvalidTokenError(
+                "malformed",
+                f"token length {len(token)} exceeds maximum {_MAX_TOKEN_LENGTH} bytes",
+            )
 
         verifier = self._choose_verifier(token)
         return await verifier.verify(token, expected_audience=expected_audience)
