@@ -69,6 +69,7 @@ from "our upstream is down."
   the trigger for revisiting OAuth-client capability.
 """
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Literal, Protocol
 from uuid import UUID
@@ -77,6 +78,28 @@ PrincipalKind = Literal["human", "service_account"]
 """Closed StrEnum-style discriminator. Aligned with `Actor.kind` in
 the Access BC. `service_account` joins the existing {"human", "agent"}
 set in Phase C Iter A (see Decision 9 of the design lock)."""
+
+
+SubjectMapper = Callable[[str, str], Awaitable[tuple[UUID, PrincipalKind]]]
+"""Resolve `(issuer, subject)` → `(principal_id, kind)`.
+
+The Access BC owns the IdP-subject → Actor.id mapping (Iter B
+`actor_idp_bindings` projection). Verifiers call this after token
+verification and surface the result on `VerifiedPrincipal`.
+
+Defined here on the port (not on each adapter) so the registry +
+both adapters import a single canonical alias. Promoted from per-
+adapter duplication at the Iter A gate review (3 reviewers concurred
+on the consolidation; rule-of-three triggered).
+
+Failure modes the adapter wraps:
+  - Mapper raises (unknown subject, projection lookup error, etc.) →
+    `InvalidTokenError("unknown_subject", str(exc))`.
+  - Mapper returns `principal_id == UUID(int=0)` (NIL_SENTINEL_ID) →
+    `InvalidTokenError("unknown_subject", "subject mapped to nil sentinel")`.
+  - Mapper returns `kind` not in the `PrincipalKind` closed set →
+    `InvalidTokenError("malformed", "subject mapper returned invalid kind")`.
+"""
 
 
 @dataclass(frozen=True)
@@ -193,6 +216,7 @@ __all__ = [
     "IntrospectionUnavailableError",
     "InvalidTokenError",
     "PrincipalKind",
+    "SubjectMapper",
     "TokenVerifier",
     "VerifiedPrincipal",
 ]

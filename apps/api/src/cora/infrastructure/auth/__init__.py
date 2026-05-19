@@ -11,10 +11,7 @@ Per the Phase C design lock library-vs-DIY decision: PyJWT is the
 one library dependency; everything else is hand-written.
 """
 
-from cora.infrastructure.auth.idp_registry import (
-    IdentityProviderRegistry,
-    SubjectMapper,
-)
+from cora.infrastructure.auth.idp_registry import IdentityProviderRegistry
 from cora.infrastructure.auth.introspection_verifier import IntrospectionVerifier
 from cora.infrastructure.auth.jwt_verifier import JWTVerifier
 
@@ -22,5 +19,4 @@ __all__ = [
     "IdentityProviderRegistry",
     "IntrospectionVerifier",
     "JWTVerifier",
-    "SubjectMapper",
 ]

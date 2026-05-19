@@ -1,3 +1,5 @@
+# pyright: reportPrivateUsage=false
+
 """Unit tests for `cora.infrastructure.auth.introspection_verifier`.
 
 Uses pytest-httpserver to stand up an in-process IdP introspection
@@ -58,6 +60,7 @@ def _make_verifier(introspection_url: str, *, cache_ttl_seconds: int = 30) -> In
         audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
         subject_mapper=_make_mapper(),
         cache_ttl_seconds=cache_ttl_seconds,
+        allow_insecure_introspection_url=True,
     )
 
 
@@ -338,7 +341,151 @@ async def test_injected_http_client_is_not_closed_by_verifier() -> None:
             audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
             subject_mapper=_make_mapper(),
             http_client=injected,
+            allow_insecure_introspection_url=True,
         )
         await verifier.aclose()
         # Injected client must still be usable.
         assert not injected.is_closed
+
+
+# ---------- gate-review fixes (BLOCKING F1 / F2 / F6 / F8 / impl#11) ----------
+
+
+@pytest.mark.unit
+async def test_cache_key_includes_audience_no_cross_surface_reuse(
+    httpserver: HTTPServer,
+) -> None:
+    """BLOCKING gate-review F1: cache must be bound by `(token, aud)` so
+    a token introspected for Surface A is NOT served from cache when
+    presented for Surface B. The IdP MUST be re-consulted because its
+    per-Surface aud policy may differ.
+
+    Without the fix, the second call returns a cached hit and the IdP
+    is never asked to validate the new audience."""
+    surf_mcp = UUID("00000000-0000-0000-0000-000000000022")
+    aud_mcp = "https://cora.test/mcp"
+
+    # IdP returns active for HTTP aud; SAME token for MCP aud returns
+    # `wrong_audience` because the IdP only authorized it for HTTP.
+    httpserver.expect_request(
+        "/introspect",
+        method="POST",
+    ).respond_with_json(
+        {
+            "active": True,
+            "sub": "user-abc",
+            "iss": _ISSUER,
+            "aud": _AUD_HTTP,  # IdP says token is for HTTP only
+        }
+    )
+    verifier = IntrospectionVerifier(
+        issuer=_ISSUER,
+        introspection_url=httpserver.url_for("/introspect"),
+        client_id=_CLIENT_ID,
+        client_secret=_CLIENT_SECRET,
+        audience_for_surface={_SURFACE_HTTP: _AUD_HTTP, surf_mcp: aud_mcp},
+        subject_mapper=_make_mapper(),
+        allow_insecure_introspection_url=True,
+    )
+    try:
+        # First call: HTTP surface succeeds.
+        await verifier.verify("opaque-token", expected_audience=_SURFACE_HTTP)
+        assert len(httpserver.log) == 1
+        # Second call: MCP surface. Pre-fix: cache hit, silently returns
+        # the HTTP-bound principal. Post-fix: cache miss (different key),
+        # IdP returns same `aud=HTTP`, our audience check raises.
+        with pytest.raises(InvalidTokenError) as exc:
+            await verifier.verify("opaque-token", expected_audience=surf_mcp)
+        assert exc.value.reason == "wrong_audience"
+        # Must have re-consulted the IdP (2 calls total, not 1).
+        assert len(httpserver.log) == 2
+    finally:
+        await verifier.aclose()
+
+
+@pytest.mark.unit
+def test_constructor_rejects_http_introspection_url_without_opt_in() -> None:
+    """Gate-review F2: introspection over HTTP would leak
+    client_secret via HTTP Basic to a MITM."""
+    with pytest.raises(ValueError, match=r"introspection_url must be HTTPS"):
+        IntrospectionVerifier(
+            issuer=_ISSUER,
+            introspection_url="http://example.com/introspect",
+            client_id=_CLIENT_ID,
+            client_secret=_CLIENT_SECRET,
+            audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
+            subject_mapper=_make_mapper(),
+        )
+
+
+@pytest.mark.unit
+def test_client_secret_not_in_repr() -> None:
+    """Gate-review F6: client_secret wrapped in SecretStr; never appears
+    in __repr__ / accidental log dumps / traceback chain."""
+    verifier = IntrospectionVerifier(
+        issuer=_ISSUER,
+        introspection_url="http://127.0.0.1:1/introspect",
+        client_id=_CLIENT_ID,
+        client_secret="super-secret-value",
+        audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
+        subject_mapper=_make_mapper(),
+        allow_insecure_introspection_url=True,
+    )
+    text = repr(vars(verifier))
+    assert "super-secret-value" not in text
+    assert "SecretStr" in text  # confirms wrap happened
+
+
+@pytest.mark.unit
+async def test_cache_expiry_capped_by_token_exp(
+    httpserver: HTTPServer,
+) -> None:
+    """Gate-review F8: if the IdP returns an `exp` field, the cache
+    must NOT outlive the token's actual expiry. A token that the IdP
+    says expires in 1s should NOT be served from cache after that
+    second, even if cache_ttl_seconds is 30."""
+    import time as time_mod
+
+    # Token expires 1 second from now (per the IdP's introspection response).
+    soon_exp = time_mod.time() + 1
+    httpserver.expect_request("/introspect", method="POST").respond_with_json(
+        {"active": True, "sub": "user-abc", "iss": _ISSUER, "exp": soon_exp}
+    )
+    verifier = _make_verifier(httpserver.url_for("/introspect"), cache_ttl_seconds=30)
+    try:
+        await verifier.verify("short-lived-token", expected_audience=_SURFACE_HTTP)
+        assert len(httpserver.log) == 1
+        # Wait past the token's exp.
+        await asyncio.sleep(1.2)
+        # Cache should NOT serve this — token's exp has past.
+        await verifier.verify("short-lived-token", expected_audience=_SURFACE_HTTP)
+        assert len(httpserver.log) == 2, "cache must not outlive the IdP-declared token exp"
+    finally:
+        await verifier.aclose()
+
+
+@pytest.mark.unit
+async def test_cache_bounded_under_token_flood(
+    httpserver: HTTPServer,
+) -> None:
+    """Gate-review impl#11: cache must be bounded under a flood of
+    unique tokens; otherwise long-lived process leaks memory."""
+    httpserver.expect_request("/introspect", method="POST").respond_with_json(
+        {"active": True, "sub": "user-abc", "iss": _ISSUER}
+    )
+    verifier = _make_verifier(httpserver.url_for("/introspect"), cache_ttl_seconds=30)
+    try:
+        # Set the cache cap low for the test.
+        from cora.infrastructure.auth import introspection_verifier as iv_module
+
+        original_cap = iv_module._MAX_CACHE_ENTRIES
+        iv_module._MAX_CACHE_ENTRIES = 5
+        try:
+            for i in range(20):
+                await verifier.verify(f"token-{i}", expected_audience=_SURFACE_HTTP)
+            # pyright: ignore[reportPrivateUsage]
+            assert len(verifier._cache) <= 5  # type: ignore[attr-defined]
+        finally:
+            iv_module._MAX_CACHE_ENTRIES = original_cap
+    finally:
+        await verifier.aclose()

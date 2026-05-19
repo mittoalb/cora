@@ -133,6 +133,7 @@ async def test_verify_valid_token_returns_verified_principal(
         audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
         subject_mapper=_make_mapper(),
         algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
     )
     token = _sign(private_key, kid, sub="user-abc")
     principal = await verifier.verify(token, expected_audience=_SURFACE_HTTP)
@@ -155,6 +156,7 @@ async def test_verify_extracts_scopes_from_space_delimited_string(
         audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
         subject_mapper=_make_mapper(),
         algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
     )
     token = _sign(private_key, kid, extra_claims={"scope": "runs:read plans:write"})
     principal = await verifier.verify(token, expected_audience=_SURFACE_HTTP)
@@ -172,6 +174,7 @@ async def test_verify_extracts_scopes_from_microsoft_scp_list(
         audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
         subject_mapper=_make_mapper(),
         algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
     )
     token = _sign(private_key, kid, extra_claims={"scp": ["runs:read", "plans:write"]})
     principal = await verifier.verify(token, expected_audience=_SURFACE_HTTP)
@@ -191,6 +194,7 @@ async def test_verify_rejects_audience_mismatch(
         audience_for_surface={_SURFACE_HTTP: _AUD_HTTP, _SURFACE_MCP: _AUD_MCP},
         subject_mapper=_make_mapper(),
         algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
     )
     http_token = _sign(private_key, kid, aud=_AUD_HTTP)
     with pytest.raises(InvalidTokenError) as exc:
@@ -213,6 +217,7 @@ async def test_verify_rejects_unknown_surface(
         audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},  # MCP NOT configured
         subject_mapper=_make_mapper(),
         algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
     )
     with pytest.raises(InvalidTokenError) as exc:
         await verifier.verify("any-token", expected_audience=_SURFACE_MCP)
@@ -230,6 +235,7 @@ async def test_verify_rejects_expired_token(
         audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
         subject_mapper=_make_mapper(),
         algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
     )
     token = _sign(private_key, kid, expires_in=-1)  # already expired
     with pytest.raises(InvalidTokenError) as exc:
@@ -248,6 +254,7 @@ async def test_verify_rejects_wrong_issuer(
         audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
         subject_mapper=_make_mapper(),
         algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
     )
     token = _sign(private_key, kid, iss="https://hostile-idp.example.com")
     with pytest.raises(InvalidTokenError) as exc:
@@ -269,6 +276,7 @@ async def test_verify_rejects_bad_signature(
         audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
         subject_mapper=_make_mapper(),
         algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
     )
     # Sign with different key but same kid the JWKS knows about —
     # the signing key matches kid but the cryptographic signature won't
@@ -307,6 +315,7 @@ async def test_verify_rejects_malformed_token(
         audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
         subject_mapper=_make_mapper(),
         algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
     )
     with pytest.raises(InvalidTokenError) as exc:
         await verifier.verify("not.a.jwt", expected_audience=_SURFACE_HTTP)
@@ -329,6 +338,7 @@ async def test_verify_rejects_unsupported_algorithm(
         audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
         subject_mapper=_make_mapper(),
         algorithms_allowed=["RS256"],  # only RS256
+        allow_insecure_jwks_url=True,
     )
     # Sign with HS256 using a guessed shared secret.
     now = int(time.time())
@@ -397,6 +407,7 @@ async def test_subject_mapper_receives_issuer_and_subject(
         audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
         subject_mapper=capturing_mapper,
         algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
     )
     token = _sign(private_key, kid, sub="user-xyz")
     await verifier.verify(token, expected_audience=_SURFACE_HTTP)
@@ -416,6 +427,7 @@ async def test_service_account_kind_overrides_default(
         audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
         subject_mapper=_make_mapper(kind="service_account"),
         algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
     )
     token = _sign(private_key, kid)
     principal = await verifier.verify(token, expected_audience=_SURFACE_HTTP)
@@ -430,8 +442,151 @@ def test_verifier_exposes_its_issuer() -> None:
         audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
         subject_mapper=_make_mapper(),
         algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
     )
     assert verifier.issuer == _ISSUER
+
+
+# ---------- gate-review F2 / F4 / F5 / `not_yet_valid` ----------
+
+
+@pytest.mark.unit
+def test_constructor_rejects_http_jwks_url_without_opt_in() -> None:
+    """Gate-review F2: HTTP JWKS is MITM-exploitable; require explicit opt-in."""
+    with pytest.raises(ValueError, match=r"jwks_url must be HTTPS"):
+        JWTVerifier(
+            issuer=_ISSUER,
+            jwks_url="http://example.com/jwks",
+            audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
+            subject_mapper=_make_mapper(),
+            algorithms_allowed=["RS256"],
+        )
+
+
+@pytest.mark.unit
+def test_constructor_accepts_http_jwks_url_with_opt_in() -> None:
+    """Localhost test fixtures legitimately use HTTP; the opt-in flag exists for them."""
+    JWTVerifier(
+        issuer=_ISSUER,
+        jwks_url="http://127.0.0.1:8000/jwks",
+        audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
+        subject_mapper=_make_mapper(),
+        algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
+    )
+
+
+@pytest.mark.unit
+def test_constructor_rejects_alg_none_case_insensitive() -> None:
+    """Gate-review extension of AH4: case variants of 'none' caught."""
+    for variant in ["none", "NONE", "NoNe", " none ", "None "]:
+        with pytest.raises(ValueError, match=r"alg=none|AH4"):
+            JWTVerifier(
+                issuer=_ISSUER,
+                jwks_url="https://example.com/jwks",
+                audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
+                subject_mapper=_make_mapper(),
+                algorithms_allowed=[variant, "RS256"],
+            )
+
+
+@pytest.mark.unit
+async def test_subject_mapper_returning_nil_uuid_rejected(
+    signing_fixture: tuple[rsa.RSAPrivateKey, str, str],
+) -> None:
+    """Gate-review F5: defense-in-depth — a buggy mapper returning
+    UUID(int=0) would silently escalate to SYSTEM_PRINCIPAL_ID."""
+
+    async def nil_mapper(issuer: str, subject: str) -> tuple[UUID, PrincipalKind]:
+        _ = (issuer, subject)
+        return (UUID(int=0), "human")
+
+    private_key, kid, jwks_url = signing_fixture
+    verifier = JWTVerifier(
+        issuer=_ISSUER,
+        jwks_url=jwks_url,
+        audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
+        subject_mapper=nil_mapper,
+        algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
+    )
+    token = _sign(private_key, kid)
+    with pytest.raises(InvalidTokenError) as exc:
+        await verifier.verify(token, expected_audience=_SURFACE_HTTP)
+    assert exc.value.reason == "unknown_subject"
+
+
+@pytest.mark.unit
+async def test_subject_mapper_returning_invalid_kind_rejected(
+    signing_fixture: tuple[rsa.RSAPrivateKey, str, str],
+) -> None:
+    """Gate-review F4: a mapper returning kind not in the closed set
+    must NOT silently degrade to 'human' via the `kind or default` path."""
+
+    async def bad_kind_mapper(issuer: str, subject: str) -> tuple[UUID, PrincipalKind]:
+        _ = (issuer, subject)
+        return (_FIXED_PRINCIPAL, "admin")  # type: ignore[return-value]
+
+    private_key, kid, jwks_url = signing_fixture
+    verifier = JWTVerifier(
+        issuer=_ISSUER,
+        jwks_url=jwks_url,
+        audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
+        subject_mapper=bad_kind_mapper,
+        algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
+    )
+    token = _sign(private_key, kid)
+    with pytest.raises(InvalidTokenError) as exc:
+        await verifier.verify(token, expected_audience=_SURFACE_HTTP)
+    assert exc.value.reason == "malformed"
+
+
+@pytest.mark.unit
+async def test_subject_mapper_raising_wraps_as_unknown_subject(
+    signing_fixture: tuple[rsa.RSAPrivateKey, str, str],
+) -> None:
+    """Gate-review Test#2: mapper exceptions wrap as `unknown_subject`
+    so the route layer sees 401, not raw 500."""
+
+    async def raising_mapper(issuer: str, subject: str) -> tuple[UUID, PrincipalKind]:
+        _ = (issuer, subject)
+        raise KeyError("no actor for this subject")
+
+    private_key, kid, jwks_url = signing_fixture
+    verifier = JWTVerifier(
+        issuer=_ISSUER,
+        jwks_url=jwks_url,
+        audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
+        subject_mapper=raising_mapper,
+        algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
+    )
+    token = _sign(private_key, kid)
+    with pytest.raises(InvalidTokenError) as exc:
+        await verifier.verify(token, expected_audience=_SURFACE_HTTP)
+    assert exc.value.reason == "unknown_subject"
+
+
+@pytest.mark.unit
+async def test_verify_rejects_token_with_future_nbf(
+    signing_fixture: tuple[rsa.RSAPrivateKey, str, str],
+) -> None:
+    """Gate-review Test#9: `not_yet_valid` reason code coverage."""
+    private_key, kid, jwks_url = signing_fixture
+    verifier = JWTVerifier(
+        issuer=_ISSUER,
+        jwks_url=jwks_url,
+        audience_for_surface={_SURFACE_HTTP: _AUD_HTTP},
+        subject_mapper=_make_mapper(),
+        algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
+    )
+    future_nbf = int(time.time()) + 3600
+    token = _sign(private_key, kid, extra_claims={"nbf": future_nbf})
+    with pytest.raises(InvalidTokenError) as exc:
+        await verifier.verify(token, expected_audience=_SURFACE_HTTP)
+    assert exc.value.reason == "not_yet_valid"
 
 
 # Suppress unused-import flags (uuid4 used by future tests).

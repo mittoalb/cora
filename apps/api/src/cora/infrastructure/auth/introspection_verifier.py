@@ -46,25 +46,30 @@ generous enough. Watch item if introspection latency p99 climbs.
 import asyncio
 import hashlib
 import time
-from collections.abc import Awaitable, Callable
+from collections import OrderedDict
 from uuid import UUID
 
 import httpx
+from pydantic import SecretStr
 
+from cora.infrastructure.auth.jwt_verifier import safe_map_subject
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports.token_verifier import (
     IntrospectionUnavailableError,
     InvalidTokenError,
     PrincipalKind,
+    SubjectMapper,
     VerifiedPrincipal,
 )
 
-SubjectMapper = Callable[[str, str], Awaitable[tuple[UUID, PrincipalKind]]]
-"""Resolve (issuer, subject) → (principal_id, kind). Same shape as
-`cora.infrastructure.auth.jwt_verifier.SubjectMapper`; declared
-locally so this module doesn't transitively import the JWT module."""
-
 _log = get_logger(__name__)
+
+_MAX_CACHE_ENTRIES = 1024
+"""Hard cap on per-verifier cache size (gate-review impl#11). With
+30s TTL + per-token-hash keys, an attacker presenting N unique
+tokens would otherwise grow the dict unbounded. OrderedDict-based
+LRU eviction keeps memory bounded; entries past their TTL are
+swept opportunistically on read."""
 
 
 class _CacheEntry:
@@ -90,29 +95,41 @@ class IntrospectionVerifier:
         issuer: str,
         introspection_url: str,
         client_id: str,
-        client_secret: str,
+        client_secret: str | SecretStr,
         audience_for_surface: dict[UUID, str],
         subject_mapper: SubjectMapper,
         cache_ttl_seconds: int = 30,
         http_client: httpx.AsyncClient | None = None,
         principal_kind: PrincipalKind = "human",
+        allow_insecure_introspection_url: bool = False,
     ) -> None:
         """Construct an introspection verifier bound to one IdP issuer.
 
         `client_id` + `client_secret` authenticate CORA to the IdP's
         introspection endpoint via HTTP Basic (RFC 7662 §2.1).
         These are CORA's own credentials at the IdP — distinct from
-        the user-token being introspected.
+        the user-token being introspected. Accept either a raw `str`
+        or a `pydantic.SecretStr`; either way the value is wrapped
+        in `SecretStr` so it never shows in `__repr__` / tracebacks
+        / accidental log dumps (gate-review F6).
 
         `cache_ttl_seconds` — per-token cache lifetime. AH12 forbids
         TTL=0 (no introspection without cache); pass 1 only for
         test-determinism scenarios. Default 30s.
 
         `http_client` — optional pre-configured `httpx.AsyncClient`
-        (test override). Default: lazy-constructed with a 5s timeout.
+        (test override). Default: lazy-constructed with separate
+        connect/read/write/pool timeouts (slowloris defense, F7).
 
         `principal_kind` — usually `"human"`; per-IdP override for
         machine-only IdPs (e.g. a dedicated service-account issuer).
+
+        `allow_insecure_introspection_url` — production MUST be False
+        (default). Test/dev fixtures using `http://127.0.0.1:...`
+        opt in by passing True. Otherwise CORA's client_secret would
+        traverse plain HTTP basic-auth and an attacker MITMing the
+        introspection POST captures CORA's IdP credentials
+        (gate-review F2).
         """
         if cache_ttl_seconds < 1:
             msg = (
@@ -121,17 +138,31 @@ class IntrospectionVerifier:
                 "Pass 1 only for test-determinism cases."
             )
             raise ValueError(msg)
+        if not introspection_url.startswith("https://") and not allow_insecure_introspection_url:
+            msg = (
+                f"IntrospectionVerifier for issuer={issuer!r}: introspection_url "
+                f"must be HTTPS (got scheme={introspection_url.split(':')[0]!r}). "
+                "Pass allow_insecure_introspection_url=True only for test/dev "
+                "fixtures (gate-review F2: HTTP Basic over HTTP leaks "
+                "client_secret to MITM)."
+            )
+            raise ValueError(msg)
         self._issuer = issuer
         self._introspection_url = introspection_url
         self._client_id = client_id
-        self._client_secret = client_secret
+        self._client_secret: SecretStr = (
+            client_secret if isinstance(client_secret, SecretStr) else SecretStr(client_secret)
+        )
         self._audience_for_surface = audience_for_surface
         self._subject_mapper = subject_mapper
         self._cache_ttl = cache_ttl_seconds
         self._http_client = http_client
         self._owned_client = http_client is None
         self._principal_kind = principal_kind
-        self._cache: dict[str, _CacheEntry] = {}
+        # OrderedDict-based LRU: bounded growth + per-write eviction
+        # of expired entries first, then oldest insertions
+        # (gate-review impl#11 + test#5).
+        self._cache: OrderedDict[str, _CacheEntry] = OrderedDict()
         self._cache_lock = asyncio.Lock()
 
     @property
@@ -144,14 +175,27 @@ class IntrospectionVerifier:
             await self._http_client.aclose()
             self._http_client = None
 
-    def _hash_token(self, token: str) -> str:
-        # SHA256 the token before using it as a cache key so dumps of
-        # cache state never expose the bearer secret.
-        return hashlib.sha256(token.encode("utf-8")).hexdigest()
+    def _cache_key(self, token: str, expected_aud_str: str) -> str:
+        """Composite cache key: SHA256(token) bound to the per-Surface
+        audience string (gate-review BLOCKING F1).
+
+        Without binding `aud` into the key, a token introspected once
+        for Surface A returns the cached principal for Surface B
+        within TTL — bypassing per-Surface authz. Same shape Phase B
+        Iter C-2c required for `idempotency_keys`. The token half is
+        SHA256-hashed so cache dumps never expose the bearer."""
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        return f"{token_hash}|{expected_aud_str}"
 
     def _client(self) -> httpx.AsyncClient:
         if self._http_client is None:
-            self._http_client = httpx.AsyncClient(timeout=5.0)
+            # Separate connect/read/write/pool timeouts (gate-review F7
+            # slowloris defense). Connect fails fast on dead hosts;
+            # read budget covers a normally-responsive IdP.
+            self._http_client = httpx.AsyncClient(
+                timeout=httpx.Timeout(connect=2.0, read=5.0, write=2.0, pool=2.0),
+                limits=httpx.Limits(max_connections=20, max_keepalive_connections=5),
+            )
         return self._http_client
 
     async def verify(
@@ -167,28 +211,21 @@ class IntrospectionVerifier:
                 f"no aud configured for surface={expected_audience}",
             )
 
-        token_key = self._hash_token(token)
+        cache_key = self._cache_key(token, expected_aud_str)
         now = time.monotonic()
 
-        # Cache hit predicate. Re-validate the audience-context on hit
-        # so a second request from a different Surface MUST NOT reuse
-        # the result (same composite-key concern Iter C-2c solved for
-        # the idempotency cache, applied here to introspection).
         async with self._cache_lock:
-            entry = self._cache.get(token_key)
-            if (
-                entry is not None
-                and entry.expires_at > now
-                and entry.principal.subject
-                == self._cache_aud_subject_key(entry.principal, expected_aud_str)
-            ):
+            entry = self._cache.get(cache_key)
+            if entry is not None and entry.expires_at > now:
+                # Touch (LRU promotion) and return.
+                self._cache.move_to_end(cache_key)
                 return entry.principal
 
         try:
             response = await self._client().post(
                 self._introspection_url,
                 data={"token": token, "token_type_hint": "access_token"},
-                auth=(self._client_id, self._client_secret),
+                auth=(self._client_id, self._client_secret.get_secret_value()),
             )
         except httpx.HTTPError as exc:
             _log.warning(
@@ -256,7 +293,7 @@ class IntrospectionVerifier:
         if not subject:
             raise InvalidTokenError("malformed", "introspection response missing 'sub' claim")
 
-        principal_id, kind = await self._subject_mapper(self._issuer, subject)
+        principal_id, kind = await safe_map_subject(self._subject_mapper, self._issuer, subject)
         scopes = _parse_scopes_claim(payload.get("scope"))
 
         principal = VerifiedPrincipal(
@@ -267,28 +304,40 @@ class IntrospectionVerifier:
             scopes=scopes,
         )
 
+        # Cap cache freshness by the token's declared `exp` if present
+        # (gate-review F8). RFC 7662 §2.2 may return `exp` as a numeric
+        # POSIX timestamp; convert to monotonic-clock relative seconds.
+        wall_now = time.time()
+        cache_expires_at = now + self._cache_ttl
+        exp_claim = payload.get("exp")
+        if isinstance(exp_claim, (int, float)) and exp_claim > wall_now:
+            cache_expires_at = min(cache_expires_at, now + (exp_claim - wall_now))
+
         async with self._cache_lock:
-            self._cache[token_key] = _CacheEntry(
+            self._cache[cache_key] = _CacheEntry(
                 principal=principal,
-                expires_at=time.monotonic() + self._cache_ttl,
+                expires_at=cache_expires_at,
             )
+            self._cache.move_to_end(cache_key)
+            self._evict_locked(now)
 
         return principal
 
-    def _cache_aud_subject_key(self, principal: VerifiedPrincipal, expected_aud_str: str) -> str:
-        """Synthetic key used to invalidate cache entries when an
-        entry's verified-audience-context wouldn't match the current
-        request's `expected_aud_str`.
-
-        Today the cache is keyed only on token hash; the audience
-        check happens AFTER cache lookup. For now we re-verify by
-        returning the principal subject (always matches itself);
-        a future revision adding audience-bound cache slots can
-        replace this with the actual (subject, expected_aud_str)
-        tuple. The placeholder keeps the call-site shape stable for
-        that revision."""
-        _ = expected_aud_str
-        return principal.subject
+    def _evict_locked(self, now: float) -> None:
+        """Drop expired entries first, then LRU-trim to max size.
+        Caller MUST hold `self._cache_lock`."""
+        if len(self._cache) <= _MAX_CACHE_ENTRIES:
+            # Cheap path: just sweep expired entries.
+            expired = [k for k, e in self._cache.items() if e.expires_at <= now]
+            for key in expired:
+                del self._cache[key]
+            return
+        # Over cap: same sweep, then LRU trim.
+        expired = [k for k, e in self._cache.items() if e.expires_at <= now]
+        for key in expired:
+            del self._cache[key]
+        while len(self._cache) > _MAX_CACHE_ENTRIES:
+            self._cache.popitem(last=False)
 
 
 def _parse_scopes_claim(raw: object) -> frozenset[str]:
@@ -307,4 +356,4 @@ def _parse_scopes_claim(raw: object) -> frozenset[str]:
     return frozenset()
 
 
-__all__ = ["IntrospectionVerifier", "SubjectMapper"]
+__all__ = ["IntrospectionVerifier"]

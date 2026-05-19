@@ -95,6 +95,7 @@ def _make_jwt_verifier(issuer: str, jwks_url: str) -> JWTVerifier:
         audience_for_surface={_SURFACE: _AUD},
         subject_mapper=_make_mapper(),
         algorithms_allowed=["RS256"],
+        allow_insecure_jwks_url=True,
     )
 
 
@@ -106,6 +107,7 @@ def _make_introspection_verifier(introspection_url: str) -> IntrospectionVerifie
         client_secret="rs-secret",
         audience_for_surface={_SURFACE: _AUD},
         subject_mapper=_make_mapper(),
+        allow_insecure_introspection_url=True,
     )
 
 

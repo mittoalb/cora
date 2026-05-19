@@ -43,7 +43,6 @@ used by tests. Iter B wires the production mapper that queries the
 access projection's `actor_idp_bindings` table.
 """
 
-from collections.abc import Awaitable, Callable
 from typing import Protocol
 from uuid import UUID
 
@@ -53,15 +52,8 @@ from cora.infrastructure.auth.introspection_verifier import IntrospectionVerifie
 from cora.infrastructure.auth.jwt_verifier import JWTVerifier
 from cora.infrastructure.ports.token_verifier import (
     InvalidTokenError,
-    PrincipalKind,
-    TokenVerifier,
     VerifiedPrincipal,
 )
-
-SubjectMapper = Callable[[str, str], Awaitable[tuple[UUID, PrincipalKind]]]
-"""Re-exported here so external callers can import a single name
-from `cora.infrastructure.auth` for the production mapper signature.
-Same shape as `cora.infrastructure.auth.jwt_verifier.SubjectMapper`."""
 
 
 class _RegistryEntry(Protocol):
@@ -142,13 +134,10 @@ class IdentityProviderRegistry:
 
     def _choose_verifier(self, token: str) -> _RegistryEntry:
         if _looks_like_jwt(token):
-            try:
-                unverified = jwt.get_unverified_header(token)
-            except jwt.DecodeError as exc:
-                raise InvalidTokenError("malformed", str(exc)) from exc
-            # `iss` lives in the payload, not the header. We re-decode
-            # without verification to peek it — PyJWT exposes this via
-            # decode(..., options={"verify_signature": False}).
+            # Peek `iss` from the JWT payload (signature unverified —
+            # the chosen JWTVerifier still strict-checks `iss` against
+            # its own configuration, so peeking only routes; trust is
+            # not taken from this decode).
             try:
                 payload = jwt.decode(
                     token,
@@ -156,7 +145,6 @@ class IdentityProviderRegistry:
                 )
             except jwt.DecodeError as exc:
                 raise InvalidTokenError("malformed", str(exc)) from exc
-            _ = unverified  # reserved: future per-header routing
             iss = payload.get("iss")
             if not isinstance(iss, str):
                 raise InvalidTokenError("malformed", "JWT missing string 'iss' claim")
@@ -188,11 +176,4 @@ def _looks_like_jwt(token: str) -> bool:
     return token.count(".") == 2
 
 
-# Type-equivalence sanity: the registry IS a TokenVerifier itself, so
-# downstream call sites can hold a `TokenVerifier` (the port) without
-# knowing whether it's a single adapter or the routing registry.
-_: TokenVerifier = IdentityProviderRegistry.__new__(IdentityProviderRegistry)  # type: ignore[misc, assignment]
-del _
-
-
-__all__ = ["IdentityProviderRegistry", "SubjectMapper"]
+__all__ = ["IdentityProviderRegistry"]

@@ -57,7 +57,7 @@ wrong_audience).
   for future use (WI6).
 """
 
-from collections.abc import Awaitable, Callable
+from typing import get_args
 from uuid import UUID
 
 import jwt
@@ -66,22 +66,12 @@ from jwt import PyJWKClient
 from cora.infrastructure.ports.token_verifier import (
     InvalidTokenError,
     PrincipalKind,
+    SubjectMapper,
     VerifiedPrincipal,
 )
 
-SubjectMapper = Callable[[str, str], Awaitable[tuple[UUID, PrincipalKind]]]
-"""Resolve an IdP subject claim to a CORA `principal_id` + kind.
-
-Called as `await mapper(issuer, subject) -> (principal_id, kind)`.
-The Access BC owns the underlying IdP-subject → Actor.id mapping
-(stored as `Actor.idp_bindings` per Phase C Iter B). Raises
-`InvalidTokenError("unknown_subject", ...)` when no Actor maps to
-the (issuer, subject) tuple — security-relevant default since an
-unmapped JWT means an Actor that was never registered.
-
-A trivial in-memory mapper backs unit tests; the production mapper
-queries the access projection.
-"""
+_NIL_SENTINEL_ID = UUID(int=0)
+_VALID_KINDS: frozenset[str] = frozenset(get_args(PrincipalKind))
 
 
 class JWTVerifier:
@@ -101,6 +91,7 @@ class JWTVerifier:
         subject_mapper: SubjectMapper,
         algorithms_allowed: list[str],
         principal_kind: PrincipalKind = "human",
+        allow_insecure_jwks_url: bool = False,
     ) -> None:
         """Construct a verifier bound to one IdP issuer.
 
@@ -120,6 +111,13 @@ class JWTVerifier:
         `principal_kind` — defaults `"human"`. Per-IdP override for
         deployments where the entire IdP issues only service-account
         tokens (e.g. a CI-only IdP).
+
+        `allow_insecure_jwks_url` — production MUST be False (default).
+        Test/dev fixtures using `http://127.0.0.1:...` JWKS endpoints
+        opt in by passing True. Without HTTPS, an attacker who MITMs
+        the JWKS fetch owns all signature verification for this issuer
+        (gate-review F2). Localhost is implicitly safe but explicit
+        opt-in > implicit allow.
         """
         if not algorithms_allowed:
             msg = (
@@ -128,10 +126,19 @@ class JWTVerifier:
                 "explicit > implicit."
             )
             raise ValueError(msg)
-        if "none" in (a.lower() for a in algorithms_allowed):
+        # Strip + lowercase so " None ", "NONE", "noNe" are all caught.
+        if "none" in (a.strip().lower() for a in algorithms_allowed):
             msg = (
                 f"JWTVerifier for issuer={issuer!r}: algorithms_allowed "
                 "must not include 'none' (AH4)."
+            )
+            raise ValueError(msg)
+        if not jwks_url.startswith("https://") and not allow_insecure_jwks_url:
+            msg = (
+                f"JWTVerifier for issuer={issuer!r}: jwks_url must be HTTPS "
+                f"(got scheme={jwks_url.split(':')[0]!r}). Pass "
+                "allow_insecure_jwks_url=True only for test/dev fixtures "
+                "(gate-review F2: HTTP JWKS is MITM-exploitable)."
             )
             raise ValueError(msg)
         self._issuer = issuer
@@ -192,7 +199,7 @@ class JWTVerifier:
             raise InvalidTokenError("malformed", str(exc)) from exc
 
         subject = str(claims["sub"])
-        principal_id, kind = await self._subject_mapper(self._issuer, subject)
+        principal_id, kind = await safe_map_subject(self._subject_mapper, self._issuer, subject)
         scopes = _parse_scopes_claim(claims.get("scope") or claims.get("scp"))
         return VerifiedPrincipal(
             principal_id=principal_id,
@@ -219,4 +226,38 @@ def _parse_scopes_claim(raw: object) -> frozenset[str]:
     return frozenset()
 
 
-__all__ = ["JWTVerifier", "SubjectMapper"]
+async def safe_map_subject(
+    mapper: SubjectMapper, issuer: str, subject: str
+) -> tuple[UUID, PrincipalKind]:
+    """Call the SubjectMapper with defense-in-depth (gate-review F4 + F5).
+
+    Wraps any exception from the mapper as
+    `InvalidTokenError("unknown_subject", ...)` so route-layer logs
+    distinguish "the subject isn't registered" from generic 500s.
+    Rejects nil-UUID returns (which would silently escalate to
+    SYSTEM_PRINCIPAL_ID) and invalid `kind` values (which would
+    silently degrade `service_account` → `human` via the
+    `kind or principal_kind` fallback).
+
+    Shared helper used by both JWT and Introspection adapters.
+    """
+    try:
+        principal_id, kind = await mapper(issuer, subject)
+    except InvalidTokenError:
+        raise
+    except Exception as exc:
+        raise InvalidTokenError("unknown_subject", f"subject mapper raised: {exc}") from exc
+    if principal_id == _NIL_SENTINEL_ID:
+        raise InvalidTokenError(
+            "unknown_subject",
+            "subject mapper returned nil sentinel (would escalate to SYSTEM)",
+        )
+    if kind not in _VALID_KINDS:
+        raise InvalidTokenError(
+            "malformed",
+            f"subject mapper returned kind={kind!r}; expected one of {sorted(_VALID_KINDS)}",
+        )
+    return principal_id, kind
+
+
+__all__ = ["JWTVerifier"]
