@@ -56,6 +56,8 @@ ci: add lint+typecheck+test workflow
 
 Solo: commit directly to `main`. CI must be green before pushing.
 
+**Cross-cutting work while WIP is in flight:** use a worktree. `git worktree add ../cora-<task> main`, work there, commit, return. Pre-commit stashes unstaged changes to tracked files but [never to untracked ones](https://github.com/pre-commit/pre-commit/issues/1212) — a half-staged WIP slice (untracked `handler.py` + unstaged `wire.py` edits hidden by stash) will false-fail architecture fitness functions and force `--no-verify` to land an otherwise-clean commit. Worktrees isolate the cleanup from the WIP entirely. Also avoid `git commit -- <paths>` with mixed staged/unstaged state — the path-form bypasses the index in a way pre-commit's stash flow doesn't expect.
+
 ## Migrations
 
 Schema changes in `infra/atlas/migrations/<timestamp>_<short_name>.sql`.
