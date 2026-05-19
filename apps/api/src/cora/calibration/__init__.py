@@ -10,8 +10,11 @@ The Calibration aggregate captures what the alignment Procedure
 acquired Datasets (Computed source), and what operators *asserted*
 directly (Asserted source). Run.pinned_calibrations records what was
 live at scan start (AsShot anchor per DNG precedent); reconstructed
-Dataset.calibrations_used may cite later refined revisions (Current
-vs AsShot pattern).
+Dataset.used_calibrations may cite later refined revisions (per the
+Calibration BC's revision-cited atomic-ID model — the Dataset's set
+is its own list of revision IDs, not an attribute-overlay on top of
+the Run's set; see [[project_calibration_design]] anti-hook #3 +
+#13).
 
 See `docs/projects/2-bm/calibration.md` (when written) for the
 operator-facing inventory; the design memo at
