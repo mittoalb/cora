@@ -127,25 +127,39 @@ def evaluate(
     first: conduit mismatch → surface mismatch → principal not in
     set → command not in set.
 
-    `surface_id` defaults to nil so existing callers (TrustAuthorize
-    pre-Iter-B + tests pre-Iter-B + handler call sites pre-Iter-C)
-    keep working unchanged. A V1 policy with `policy.surface_id ==
-    UUID(int=0)` matches a call with `surface_id=UUID(int=0)` (the
-    transitional state). Once Iter C ships real surface adapters,
-    nil-surface calls disappear and V1 policies cease to match
-    anything in production — operators promote V2 (per
-    SYSTEM_BOOTSTRAP_POLICY_V2_ID).
+    ## Surface wildcard semantic for legacy V1 policies (GR3 RISK-7)
+
+    A policy with `policy.surface_id == NIL_SENTINEL` is interpreted
+    as "matches any call's surface_id." This is a *time-bounded
+    legacy-fold compatibility shim*, not a wildcard feature: V1
+    PolicyDefined events on disk (pre-Iter-B) lack the surface_id
+    field; `from_stored` folds them to NIL_SENTINEL; without this
+    branch the V1→V2 deploy ordering has no safe path (handler call
+    sites flip to passing real surface_ids while operators still
+    point at V1 → all deny).
+
+    V2+ policies bind to a specific surface_id and `evaluate()`
+    enforces strict `==`. Anti-hook AH2 (revised post-GR3): no NEW
+    PolicyDefined events with NIL_SENTINEL surface_id; the sentinel
+    is reserved exclusively for this legacy-fold path. Sunset: once
+    V1 stream count goes to zero, delete this branch + the V1
+    deprecation WARN in the same PR.
+
+    Corpus convergence (GR3 RISK-7 research): Marten upcasters,
+    Stripe version transformers, OPA `default`, Cedar `has` all
+    recover missing fields at the read boundary, decide on concrete
+    values; this is the same shape applied to event-sourced authz.
 
     Living in `state.py` because it's a pure operation on Policy
-    state (no I/O, no awaits, no mutation). If `state.py` exceeds
-    ~200 lines or more pure operations land here, split into a
-    dedicated `aggregates/policy/evaluate.py`.
+    state (no I/O, no awaits, no mutation).
     """
     if conduit_id != policy.conduit_id:
         return Deny(
             reason=(f"Policy {policy.id} governs conduit {policy.conduit_id}, not {conduit_id}")
         )
-    if surface_id != policy.surface_id:
+    # GR3 RISK-7 wildcard branch: V1 legacy policies (folded with
+    # surface_id=NIL_SENTINEL) match any call's surface_id.
+    if policy.surface_id != _NIL_SENTINEL_ID and surface_id != policy.surface_id:
         return Deny(
             reason=(f"Policy {policy.id} governs surface {policy.surface_id}, not {surface_id}")
         )

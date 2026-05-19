@@ -1,8 +1,10 @@
 -- Seed default Surfaces + V2 Bootstrap Policy (Phase B Iter C).
--- Atomic via BEGIN/COMMIT per design lock AH14: partial-fail would
--- leave V2 policy referencing non-existent Surfaces — evaluate would
--- Allow on phantom, traversal audit silently skips. See
--- memory/project_conduit_injection_design.md.
+-- Atomic via Atlas's per-file outer transaction (default txmode=file;
+-- every other migration in this repo relies on it). Per GR3 AH-NEW-1:
+-- inner BEGIN/COMMIT would either error "transaction in progress" OR
+-- break atomicity by committing mid-file. Re-run idempotency comes
+-- from ON CONFLICT DO NOTHING. See memory/project_conduit_injection_design.md
+-- AH14.
 --
 -- Seeds:
 --   - SYSTEM_HTTP_SURFACE_ID                = ...0020 (kind=http)
@@ -13,8 +15,6 @@
 -- Constants live in cora.trust._bootstrap. Forward-only-migrations
 -- discipline: V1 policy stream (...0001) stays in the event log
 -- forever — operators flip TRUST_POLICY_ID env var to ...0002.
-
-BEGIN;
 
 -- HTTP surface
 INSERT INTO events (
@@ -99,5 +99,3 @@ INSERT INTO events (
     '2026-05-19 00:00:00+00'::timestamptz
 )
 ON CONFLICT (stream_type, stream_id, version) DO NOTHING;
-
-COMMIT;

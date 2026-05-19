@@ -190,3 +190,101 @@ def test_evaluate_is_pure_same_inputs_same_outputs() -> None:
     )
     assert isinstance(first, Allow)
     assert isinstance(second, Allow)
+
+
+# ---------- GR3 RISK-7: nil-surface wildcard for legacy V1 fold ----------
+
+
+_SURFACE_HTTP = UUID("00000000-0000-0000-0000-000000000020")
+_SURFACE_MCP = UUID("00000000-0000-0000-0000-000000000021")
+_NIL_SURFACE = UUID(int=0)
+
+
+def _v1_legacy_policy() -> Policy:
+    """A V1-shape policy: bound to nil-surface (the legacy-fold sentinel)."""
+    return Policy(
+        id=uuid4(),
+        name=PolicyName("V1 legacy"),
+        conduit_id=_CONDUIT_OK,
+        permitted_principals=frozenset({_PRINCIPAL_OK}),
+        permitted_commands=frozenset({"RegisterActor"}),
+        surface_id=_NIL_SURFACE,
+    )
+
+
+def _v2_http_policy() -> Policy:
+    """A V2-shape policy: bound to a specific HTTP surface."""
+    return Policy(
+        id=uuid4(),
+        name=PolicyName("V2 HTTP"),
+        conduit_id=_CONDUIT_OK,
+        permitted_principals=frozenset({_PRINCIPAL_OK}),
+        permitted_commands=frozenset({"RegisterActor"}),
+        surface_id=_SURFACE_HTTP,
+    )
+
+
+@pytest.mark.unit
+def test_v1_policy_nil_surface_matches_any_call_surface() -> None:
+    """The legacy-fold compatibility shim: a V1 policy folded to nil
+    surface_id matches any call's surface_id. Closes the V1→V2 deploy
+    ordering trap from GR3 RISK-7."""
+    policy = _v1_legacy_policy()
+    for call_surface in (_NIL_SURFACE, _SURFACE_HTTP, _SURFACE_MCP):
+        result = evaluate(
+            policy,
+            principal_id=_PRINCIPAL_OK,
+            command_name="RegisterActor",
+            conduit_id=_CONDUIT_OK,
+            surface_id=call_surface,
+        )
+        assert isinstance(result, Allow), f"V1 policy should match surface={call_surface}"
+
+
+@pytest.mark.unit
+def test_v2_policy_specific_surface_strictly_matches() -> None:
+    """V2+ policies bind to a specific surface and enforce strict ==.
+    Anti-hook AH2 (revised): no NEW PolicyDefined events with nil
+    surface_id; sentinel is reserved for V1 legacy fold only."""
+    policy = _v2_http_policy()
+    allow = evaluate(
+        policy,
+        principal_id=_PRINCIPAL_OK,
+        command_name="RegisterActor",
+        conduit_id=_CONDUIT_OK,
+        surface_id=_SURFACE_HTTP,
+    )
+    assert isinstance(allow, Allow)
+
+
+@pytest.mark.unit
+def test_v2_policy_denies_wrong_surface() -> None:
+    """V2 HTTP-bound policy denies an MCP call's surface_id."""
+    policy = _v2_http_policy()
+    result = evaluate(
+        policy,
+        principal_id=_PRINCIPAL_OK,
+        command_name="RegisterActor",
+        conduit_id=_CONDUIT_OK,
+        surface_id=_SURFACE_MCP,
+    )
+    assert isinstance(result, Deny)
+    assert "surface" in result.reason.lower()
+
+
+@pytest.mark.unit
+def test_v2_policy_denies_nil_surface_call() -> None:
+    """V2 HTTP-bound policy denies a nil-surface call (pre-Iter-C-2
+    handler that hasn't been migrated yet, or a misconfigured caller).
+    Strict == in this direction; only the policy side has wildcard
+    semantics via NIL_SENTINEL."""
+    policy = _v2_http_policy()
+    result = evaluate(
+        policy,
+        principal_id=_PRINCIPAL_OK,
+        command_name="RegisterActor",
+        conduit_id=_CONDUIT_OK,
+        surface_id=_NIL_SURFACE,
+    )
+    assert isinstance(result, Deny)
+    assert "surface" in result.reason.lower()

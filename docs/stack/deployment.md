@@ -31,11 +31,29 @@ CORA reads `X-Principal-Id` directly from the request. Without the strip step, a
 
 Phase C (edge-auth wiring) will land OIDC verification + JIT Actor provisioning inside CORA, reducing the proxy's contract to "verify identity" only. Until then, the proxy owns the identity → UUID mapping.
 
+## Phase B (Surface decomposition) — V1 vs V2 bootstrap policy
+
+Phase B introduced a `Surface` aggregate to the Trust BC (HTTP, MCP stdio, MCP streamable-http) and a V2 bootstrap policy bound to the HTTP Surface. Two well-known policy ids now coexist in the event log:
+
+| Id | Surface binding | Status |
+| --- | --- | --- |
+| `00000000-0000-0000-0000-000000000001` (V1) | nil (folded as legacy wildcard) | Deprecated. Still works under post-Phase-B code via the V1-legacy-fold wildcard branch in `evaluate()`. |
+| `00000000-0000-0000-0000-000000000002` (V2) | HTTP Surface (`...0020`) | **Recommended for new and existing deployments.** |
+
+**V1→V2 migration** is a single env-var flip:
+
+1. Apply the Phase B seed migration: `make migrate-apply`. Seeds the 3 default Surfaces + the V2 policy. Idempotent.
+2. Restart the API. The V1 verifier will log `trust.v1_bootstrap_policy_deprecation` WARN on every boot until you flip the env var.
+3. Set `TRUST_POLICY_ID=00000000-0000-0000-0000-000000000002`.
+4. Restart. V2 is now the gating policy. The verifier confirms V2 binds to `SYSTEM_HTTP_SURFACE_ID` and all 3 seeded Surfaces are present at lifespan start; boot fails loud if anything is missing.
+
+**Deploy ordering is safe in both directions** thanks to the V1-legacy-fold wildcard in `evaluate()`: V1 policies (`policy.surface_id == nil`) match any call's surface_id. You can deploy new code first or flip the env var first — neither produces a denial window. The wildcard is a *time-bounded legacy compatibility shim*, not a feature; once your fleet is on V2, the WARN goes silent. Sunset planned when V1 stream count reaches zero across all deployments.
+
 ## First-boot workflow
 
-A fresh deployment with `TRUST_POLICY_ID=00000000-0000-0000-0000-000000000001` (the seeded bootstrap policy) starts in a deliberate narrow-permissive state:
+A fresh deployment with `TRUST_POLICY_ID=00000000-0000-0000-0000-000000000002` (V2 bootstrap policy) starts in a deliberate narrow-permissive state:
 
-- The seed permits `SYSTEM_PRINCIPAL_ID` (the nil UUID `00000000-…0`) to call `DefinePolicy` and `RegisterActor`, both on the nil conduit (`UUID(int=0)`).
+- The seed permits `SYSTEM_PRINCIPAL_ID` (the nil UUID `00000000-…0`) to call `DefinePolicy` and `RegisterActor` on the nil conduit + the HTTP Surface.
 - That's it. Every other command Denies.
 
 The operator's bootstrap path:

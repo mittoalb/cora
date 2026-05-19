@@ -94,6 +94,20 @@ async def verify_bootstrap_seed_present(deps: Kernel) -> None:
                     "idempotent."
                 )
                 raise RuntimeError(msg)
+
+        # GR3 BC-7: also assert V2 policy's surface_id binding is correct.
+        # A typo'd / mis-wired V2 (folded surface_id != HTTP) would silently
+        # deny every request post-Iter-C-2.
+        if policy.surface_id != SYSTEM_HTTP_SURFACE_ID:
+            msg = (
+                f"trust_policy_id={SYSTEM_BOOTSTRAP_POLICY_V2_ID} (V2) "
+                f"was loaded but folded with surface_id={policy.surface_id} "
+                f"instead of the expected SYSTEM_HTTP_SURFACE_ID "
+                f"({SYSTEM_HTTP_SURFACE_ID}). The seed migration may have "
+                "been mutated post-seed, or a non-seed PolicyDefined event "
+                "was appended to this stream. Investigate the event log."
+            )
+            raise RuntimeError(msg)
         return
 
     if settings.trust_policy_id == SYSTEM_BOOTSTRAP_POLICY_ID:
