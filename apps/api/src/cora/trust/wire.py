@@ -26,8 +26,10 @@ from cora.infrastructure.observability import with_tracing
 from cora.trust.features import (
     define_conduit,
     define_policy,
+    define_surface,
     define_zone,
     evaluate_policy,
+    get_surface,
     list_conduits,
     list_permissions,
     list_policies,
@@ -54,7 +56,9 @@ class TrustHandlers:
     define_zone: define_zone.IdempotentHandler
     define_conduit: define_conduit.IdempotentHandler
     define_policy: define_policy.IdempotentHandler
+    define_surface: define_surface.IdempotentHandler
     evaluate_policy: evaluate_policy.Handler
+    get_surface: get_surface.Handler
     list_zones: list_zones.Handler
     list_conduits: list_conduits.Handler
     list_policies: list_policies.Handler
@@ -102,9 +106,27 @@ def wire_trust(deps: Kernel) -> TrustHandlers:
             command_name="DefinePolicy",
             bc=_BC,
         ),
+        define_surface=with_tracing(
+            with_idempotency(
+                define_surface.bind(deps),
+                deps.idempotency_store,
+                command_name="DefineSurface",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="DefineSurface",
+            bc=_BC,
+        ),
         evaluate_policy=with_tracing(
             evaluate_policy.bind(deps),
             command_name="EvaluatePolicy",
+            bc=_BC,
+            kind="query",
+        ),
+        get_surface=with_tracing(
+            get_surface.bind(deps),
+            command_name="GetSurface",
             bc=_BC,
             kind="query",
         ),

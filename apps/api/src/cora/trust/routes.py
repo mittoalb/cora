@@ -45,13 +45,16 @@ from cora.trust.aggregates.conduit import (
     InvalidConduitNameError,
 )
 from cora.trust.aggregates.policy import InvalidPolicyNameError, PolicyAlreadyExistsError
+from cora.trust.aggregates.surface import InvalidSurfaceNameError, SurfaceAlreadyExistsError
 from cora.trust.aggregates.zone import InvalidZoneNameError, ZoneAlreadyExistsError
 from cora.trust.errors import UnauthorizedError
 from cora.trust.features import (
     define_conduit,
     define_policy,
+    define_surface,
     define_zone,
     evaluate_policy,
+    get_surface,
     list_conduits,
     list_permissions,
     list_policies,
@@ -119,7 +122,9 @@ def register_trust_routes(app: FastAPI) -> None:
     app.include_router(define_zone.router)
     app.include_router(define_conduit.router)
     app.include_router(define_policy.router)
+    app.include_router(define_surface.router)
     app.include_router(evaluate_policy.router)
+    app.include_router(get_surface.router)
     app.include_router(list_zones.router)
     app.include_router(list_conduits.router)
     app.include_router(list_policies.router)
@@ -128,12 +133,14 @@ def register_trust_routes(app: FastAPI) -> None:
         InvalidZoneNameError,
         InvalidConduitNameError,
         InvalidPolicyNameError,
+        InvalidSurfaceNameError,
     ):
         app.add_exception_handler(invalid_name_cls, _handle_invalid_name)
     for already_exists_cls in (
         ZoneAlreadyExistsError,
         ConduitAlreadyExistsError,
         PolicyAlreadyExistsError,
+        SurfaceAlreadyExistsError,
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for logbook_state_cls in (

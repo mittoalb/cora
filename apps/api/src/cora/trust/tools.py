@@ -12,8 +12,10 @@ from mcp.server.fastmcp import FastMCP
 
 from cora.trust.features.define_conduit import tool as define_conduit_tool
 from cora.trust.features.define_policy import tool as define_policy_tool
+from cora.trust.features.define_surface import tool as define_surface_tool
 from cora.trust.features.define_zone import tool as define_zone_tool
 from cora.trust.features.evaluate_policy import tool as evaluate_policy_tool
+from cora.trust.features.get_surface import tool as get_surface_tool
 from cora.trust.features.list_conduits import tool as list_conduits_tool
 from cora.trust.features.list_permissions import tool as list_permissions_tool
 from cora.trust.features.list_policies import tool as list_policies_tool
@@ -39,9 +41,17 @@ def register_trust_tools(
         mcp,
         get_handler=lambda: get_handlers().define_policy,
     )
+    define_surface_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().define_surface,
+    )
     evaluate_policy_tool.register(
         mcp,
         get_handler=lambda: get_handlers().evaluate_policy,
+    )
+    get_surface_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().get_surface,
     )
     list_zones_tool.register(
         mcp,
