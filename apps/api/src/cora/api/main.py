@@ -57,6 +57,7 @@ from cora.agent import (
 )
 from cora.api.mcp_gate import gate_mcp_write_tools
 from cora.api.middleware import BodySizeLimitMiddleware
+from cora.api.protected_resource_metadata import register_protected_resource_metadata_route
 from cora.calibration import (
     CalibrationHandlers,
     register_calibration_projections,
@@ -232,13 +233,19 @@ def _enforce_production_principal_policy(settings: Settings) -> None:
         raise RuntimeError(msg)
 
 
-def create_app() -> FastAPI:
+def create_app(*, settings: Settings | None = None) -> FastAPI:
     """Build a fresh FastAPI app with its own FastMCP server instance.
 
     Production calls this once at module import; tests call it per
     `TestClient` context to get isolation.
+
+    `settings` is an optional injection point for tests that need
+    to override env-var-loaded config (e.g. contract tests for
+    edge-auth that need a specific `identity_providers` list).
+    Production callers pass nothing; `_settings_for_app()` reads
+    from env / .env as usual.
     """
-    settings = _settings_for_app()
+    settings = settings if settings is not None else _settings_for_app()
     _enforce_production_principal_policy(settings)
     # configure_tracing is a no-op when otel_exporter == "none" (the
     # default in tests), so calling it per create_app() is safe. In
@@ -355,6 +362,10 @@ def create_app() -> FastAPI:
                 clearance_lookup_factory=PostgresClearanceLookup,
                 caution_lookup_factory=PostgresCautionLookup,
                 llm_factory=build_llm,
+                # Pass the create_app-time Settings through so tests
+                # overriding identity_providers / require_auth / etc.
+                # see them in the kernel (Phase C Iter B).
+                settings=settings,
             )
             app.state.deps = deps
             app.state.access = wire_access(deps)
@@ -483,6 +494,11 @@ def create_app() -> FastAPI:
     register_calibration_routes(fastapi_app)
     register_campaign_routes(fastapi_app)
     register_agent_routes(fastapi_app)
+    # RFC 9728 Protected Resource Metadata (Phase C Iter B). Discoverable
+    # at /.well-known/oauth-protected-resource; clients dereference it
+    # after a 401 + WWW-Authenticate response to learn which IdPs issue
+    # tokens for which Surface.
+    register_protected_resource_metadata_route(fastapi_app)
     fastapi_app.mount("/mcp", mcp_app)
 
     @fastapi_app.get("/health")

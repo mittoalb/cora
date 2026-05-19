@@ -11,6 +11,8 @@ from uuid import UUID
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from cora.infrastructure.auth.config import IdentityProviderConfig
+
 _ALLOWED_DATABASE_SCHEMES = ("postgresql://", "postgres://")
 
 OtelExporter = Literal["otlp", "console", "none"]
@@ -149,6 +151,23 @@ class Settings(BaseSettings):
     # handler latency (~100ms) but short enough that a crashed worker's
     # locked rows recover within a minute.
     idempotency_lock_stale_seconds: int = 60
+
+    # Edge auth (Phase C)
+    # `identity_providers` is the list of IdPs CORA accepts tokens
+    # from. Empty (default) keeps the legacy X-Principal-Id-with-
+    # SYSTEM-fallback shape; Iter C wires the middleware to use this
+    # list when populated. Production deployments set this via env
+    # var as JSON, e.g.:
+    #
+    #   IDENTITY_PROVIDERS='[{"issuer":"https://idp.example.com",
+    #     "jwks_url":"https://idp.example.com/jwks.json",
+    #     "audiences":{"00000000-0000-0000-0000-000000000020":"https://cora.example/http"},
+    #     "algorithms_allowed":["RS256"]}]'
+    #
+    # pydantic-settings parses the JSON automatically when the env
+    # value starts with `[`. Schema validation runs at startup so
+    # malformed config fails fast, not on first auth attempt.
+    identity_providers: list[IdentityProviderConfig] = []
 
     @field_validator("database_url")
     @classmethod

@@ -301,6 +301,7 @@ async def build_kernel(
     clearance_lookup_factory: ClearanceLookupFactory | None = None,
     caution_lookup_factory: CautionLookupFactory | None = None,
     llm_factory: LLMPortFactory | None = None,
+    settings: Settings | None = None,
 ) -> tuple[Kernel, Teardown]:
     """Construct the kernel. Called once from the FastAPI lifespan.
 
@@ -310,8 +311,14 @@ async def build_kernel(
     it fail-fast at registration. Test mode (`app_env=test`) does
     NOT call the factory; tests inject `FakeLLMAdapter` directly
     via `make_inmemory_kernel(..., llm=...)`.
+
+    `settings` is an optional injection point for tests that need
+    to override env-var-loaded config (e.g. Phase C edge-auth
+    contract tests overriding `identity_providers`). Production
+    callers pass nothing; Settings reads from env / .env as usual.
     """
-    settings = Settings()  # type: ignore[call-arg]  # Pydantic loads from env
+    if settings is None:
+        settings = Settings()  # type: ignore[call-arg]  # Pydantic loads from env
     configure_logging(settings.log_level)
     clock = SystemClock()
     id_generator = UUIDv7Generator()
