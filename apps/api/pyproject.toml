@@ -36,6 +36,14 @@ dependencies = [
     # `FakeLLMAdapter`. Pin <1 to flag a future major SDK shift in CI
     # before it lands silently.
     "anthropic>=0.79.0,<1",
+    # PyJWT (Phase C Iter A): the one library dependency for the edge-auth
+    # JWT path — used by `JWTVerifier` for `Authorization: Bearer <JWT>`
+    # signature verification + JWKS rotation. `[crypto]` extra pulls in
+    # `cryptography` for RS256/ES256 (every real-world IdP uses one of
+    # these). Per the Phase C design lock library-vs-DIY decision: PyJWT
+    # is the one library we don't roll ourselves; everything else
+    # (introspection adapter, registry, middleware) is hand-written.
+    "pyjwt[crypto]>=2.10.0,<3",
 ]
 
 [dependency-groups]
@@ -59,6 +67,15 @@ dev = [
     # container per worker (via session-scoped fixture, see tests/conftest)
     # sidesteps testcontainers-python#567 contention.
     "pytest-xdist>=3.8.0,<4",
+    # pytest-httpserver (Phase C Iter A): spins up an in-process Werkzeug
+    # HTTP server per-test; used to serve fake JWKS endpoints + IdP
+    # introspection endpoints in `tests/unit/test_jwt_verifier.py` and
+    # `tests/unit/test_introspection_verifier.py`. Why a real HTTP server
+    # (not a httpx mock): PyJWKClient under the hood does its own HTTP
+    # fetch; exercising the full path catches more (kid-miss refetch,
+    # connection handling, etc) than mock-the-network. ~150ms startup
+    # cost per test class; acceptable for the ~30 Iter A unit tests.
+    "pytest-httpserver>=1.1.0,<2",
     # Per-test timeout enforcement. Without this, a single hung test
     # (e.g. an asyncpg call waiting on a connection that's never
     # returned, a deadlocked container, an unawaited future) stalls the

@@ -69,6 +69,13 @@ from cora.infrastructure.ports.llm import (
     ModelRef,
 )
 from cora.infrastructure.ports.logbook_mirror import LogbookMirrorPort
+from cora.infrastructure.ports.token_verifier import (
+    IntrospectionUnavailableError,
+    InvalidTokenError,
+    PrincipalKind,
+    TokenVerifier,
+    VerifiedPrincipal,
+)
 
 __all__ = [
     "Allow",
@@ -103,6 +110,8 @@ __all__ = [
     "IdempotencyClaimLostError",
     "IdempotencyConflictError",
     "IdempotencyStore",
+    "IntrospectionUnavailableError",
+    "InvalidTokenError",
     "LLMAuthenticationError",
     "LLMChatRequest",
     "LLMContentBlock",
@@ -120,7 +129,10 @@ __all__ = [
     "LogbookMirrorPort",
     "ModelRef",
     "NewEvent",
+    "PrincipalKind",
     "StoredEvent",
     "SystemClock",
+    "TokenVerifier",
     "UUIDv7Generator",
+    "VerifiedPrincipal",
 ]
