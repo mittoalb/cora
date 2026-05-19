@@ -24,6 +24,7 @@ from cora.data.aggregates.dataset import (
     DATASET_MEDIA_TYPE_MAX_LENGTH,
     DATASET_NAME_MAX_LENGTH,
     DATASET_URI_MAX_LENGTH,
+    DATASET_USED_CALIBRATIONS_MAX_ENTRIES,
 )
 from cora.data.features.register_dataset.command import RegisterDataset
 from cora.data.features.register_dataset.handler import IdempotentHandler
@@ -133,6 +134,24 @@ class RegisterDatasetRequest(BaseModel):
             "fusions / comparative derivations."
         ),
     )
+    used_calibrations: list[UUID] = Field(
+        default_factory=list[UUID],
+        max_length=DATASET_USED_CALIBRATIONS_MAX_ENTRIES,
+        description=(
+            "Optional list of CalibrationRevision ids the reconstruction "
+            "(or any derivative) actually used (Calibration BC AsShot "
+            "citation per Phase 12c). Symmetric to Run.pinned_calibrations "
+            "(Phase 12b) on the acquired-from Run; the two sets are "
+            "independent — reconstruction may legitimately cite refined "
+            "revisions not in the producing Run's pin set (Current vs "
+            "AsShot pattern). NO cross-BC existence check at the write "
+            "path (revision-cited atomic-ID model; eventual-consistency "
+            "stance per [[project_calibration_design]]). IMMUTABLE on the "
+            "aggregate after register. Order on the wire is not "
+            "significant — the aggregate carries a frozenset; the decider "
+            "sorts for deterministic event-payload bytes."
+        ),
+    )
 
     model_config = {"extra": "forbid"}
 
@@ -222,6 +241,7 @@ async def post_datasets(
             producing_run_id=body.producing_run_id,
             subject_id=body.subject_id,
             derived_from=frozenset(body.derived_from),
+            used_calibrations=frozenset(body.used_calibrations),
         ),
         principal_id=principal_id,
         correlation_id=cid,

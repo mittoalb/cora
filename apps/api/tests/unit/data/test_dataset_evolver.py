@@ -292,3 +292,127 @@ def test_evolve_promoted_preserves_producing_run_end_state() -> None:
     assert state is not None
     assert state.intent is Intent.PRODUCTION
     assert state.producing_run_end_state == "Completed"
+
+
+# ---------- Phase 12c: Dataset.used_calibrations AsShot citation ----------
+
+
+from uuid import UUID  # noqa: E402
+
+
+@pytest.mark.unit
+def test_register_genesis_populates_used_calibrations_as_frozenset() -> None:
+    """DatasetRegistered carries the tuple on the event payload; the
+    evolver coerces to frozenset for in-memory equality semantics
+    (mirrors Phase 12b Run.pinned_calibrations exactly)."""
+    cal_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    cal_b = UUID("01900000-0000-7000-8000-00000000ca02")
+    event = DatasetRegistered(
+        dataset_id=uuid4(),
+        name="D",
+        uri="s3://b/k",
+        checksum_algorithm="sha256",
+        checksum_value=_GOOD_SHA256,
+        byte_size=0,
+        media_type="application/x-hdf5",
+        conforms_to=frozenset(),
+        producing_run_id=None,
+        subject_id=None,
+        derived_from=frozenset(),
+        occurred_at=_NOW,
+        used_calibrations=(cal_a, cal_b),
+    )
+    state = evolve(state=None, event=event)
+    assert state.used_calibrations == frozenset({cal_a, cal_b})
+
+
+@pytest.mark.unit
+def test_legacy_pre_12c_register_folds_with_empty_used_calibrations() -> None:
+    """Pre-12c DatasetRegistered events have no used_calibrations
+    field (defaults to empty tuple via the additive-state pattern).
+    They MUST fold to an empty frozenset — additive backward-compat
+    contract mirrors derived_from / producing_run_end_state / intent
+    precedent."""
+    event = DatasetRegistered(
+        dataset_id=uuid4(),
+        name="D",
+        uri="s3://b/k",
+        checksum_algorithm="sha256",
+        checksum_value=_GOOD_SHA256,
+        byte_size=0,
+        media_type="application/x-hdf5",
+        conforms_to=frozenset(),
+        producing_run_id=None,
+        subject_id=None,
+        derived_from=frozenset(),
+        occurred_at=_NOW,
+    )
+    state = evolve(state=None, event=event)
+    assert state.used_calibrations == frozenset()
+
+
+@pytest.mark.unit
+def test_discard_preserves_used_calibrations_asshot_invariant() -> None:
+    """Phase 12c AsShot invariant: terminal discard MUST preserve the
+    citation set verbatim. A regression that wiped it would silently
+    break 'what calibration revisions did this Dataset use?' queries
+    forever even for the discarded-metadata audit trail."""
+    cal_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    cal_b = UUID("01900000-0000-7000-8000-00000000ca02")
+    register = DatasetRegistered(
+        dataset_id=uuid4(),
+        name="D",
+        uri="s3://b/k",
+        checksum_algorithm="sha256",
+        checksum_value=_GOOD_SHA256,
+        byte_size=0,
+        media_type="application/x-hdf5",
+        conforms_to=frozenset(),
+        producing_run_id=None,
+        subject_id=None,
+        derived_from=frozenset(),
+        occurred_at=_NOW,
+        used_calibrations=(cal_a, cal_b),
+    )
+    discarded = DatasetDiscarded(
+        dataset_id=register.dataset_id,
+        reason="bytes purged",
+        occurred_at=_NOW,
+    )
+    state = fold([register, discarded])
+    assert state is not None
+    assert state.status is DatasetStatus.DISCARDED
+    assert state.used_calibrations == frozenset({cal_a, cal_b})
+
+
+@pytest.mark.unit
+def test_promote_preserves_used_calibrations_asshot_invariant() -> None:
+    """Phase 12c AsShot invariant: intent flip MUST preserve the
+    citation set verbatim. Mirrors the discard-arm preserve test;
+    same silent-wipe risk if a future evolver refactor swaps to
+    dataclasses.replace and drops a field add."""
+    cal_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    register = DatasetRegistered(
+        dataset_id=uuid4(),
+        name="D",
+        uri="s3://b/k",
+        checksum_algorithm="sha256",
+        checksum_value=_GOOD_SHA256,
+        byte_size=0,
+        media_type="application/x-hdf5",
+        conforms_to=frozenset(),
+        producing_run_id=None,
+        subject_id=None,
+        derived_from=frozenset(),
+        occurred_at=_NOW,
+        used_calibrations=(cal_a,),
+    )
+    promoted = DatasetPromoted(
+        dataset_id=register.dataset_id,
+        reason="passed review",
+        occurred_at=_NOW,
+    )
+    state = fold([register, promoted])
+    assert state is not None
+    assert state.intent is Intent.PRODUCTION
+    assert state.used_calibrations == frozenset({cal_a})

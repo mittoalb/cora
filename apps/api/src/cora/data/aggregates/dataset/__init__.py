@@ -41,6 +41,7 @@ from cora.data.aggregates.dataset.state import (
     DATASET_PROMOTION_REASON_MAX_LENGTH,
     DATASET_URI_BLOCKED_SCHEMES,
     DATASET_URI_MAX_LENGTH,
+    DATASET_USED_CALIBRATIONS_MAX_ENTRIES,
     RUN_END_STATE_COMPLETED,
     Dataset,
     DatasetAlreadyExistsError,
@@ -65,11 +66,13 @@ from cora.data.aggregates.dataset.state import (
     InvalidDatasetUriError,
     InvalidDerivedFromError,
     InvalidPromotionReasonError,
+    InvalidUsedCalibrationsError,
     LinkedSubjectMissingError,
     ProducingRunMissingError,
     PromotionReason,
     validate_byte_size,
     validate_derived_from,
+    validate_used_calibrations,
 )
 
 __all__ = [
@@ -84,6 +87,7 @@ __all__ = [
     "DATASET_PROMOTION_REASON_MAX_LENGTH",
     "DATASET_URI_BLOCKED_SCHEMES",
     "DATASET_URI_MAX_LENGTH",
+    "DATASET_USED_CALIBRATIONS_MAX_ENTRIES",
     "RUN_END_STATE_COMPLETED",
     "Dataset",
     "DatasetAlreadyExistsError",
@@ -112,6 +116,7 @@ __all__ = [
     "InvalidDatasetUriError",
     "InvalidDerivedFromError",
     "InvalidPromotionReasonError",
+    "InvalidUsedCalibrationsError",
     "LinkedSubjectMissingError",
     "ProducingRunMissingError",
     "PromotionReason",
@@ -123,4 +128,5 @@ __all__ = [
     "to_payload",
     "validate_byte_size",
     "validate_derived_from",
+    "validate_used_calibrations",
 ]

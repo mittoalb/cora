@@ -88,6 +88,8 @@ def test_to_payload_serializes_all_fields_with_nulls_and_empties() -> None:
         # Phase 7e additive fields (default values when not specified):
         "producing_run_end_state": None,
         "intent": "Trial",
+        # Phase 12c additive field (default empty list when not specified):
+        "used_calibrations": [],
     }
 
 
@@ -360,3 +362,152 @@ def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:
     in the load path."""
     with pytest.raises(ValueError, match=f"Malformed {event_type} payload"):
         from_stored(_stored(event_type, {}))
+
+
+# ---------- Phase 12c: DatasetRegistered.used_calibrations AsShot citation ----------
+
+
+from uuid import UUID  # noqa: E402
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_used_calibrations_as_sorted_string_list() -> None:
+    """The aggregate carries `tuple[UUID, ...]` for deterministic
+    bytes; to_payload emits a sorted list of UUID strings. Matches
+    derived_from + Run.pinned_calibrations precedent. Mixed order
+    on the in-memory tuple must produce the same payload bytes as
+    any other ordering."""
+    cal_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    cal_b = UUID("01900000-0000-7000-8000-00000000ca02")
+    cal_c = UUID("01900000-0000-7000-8000-00000000ca03")
+    # Construct event with deliberately scrambled order:
+    event = DatasetRegistered(
+        dataset_id=uuid4(),
+        name="D",
+        uri="s3://b/k",
+        checksum_algorithm="sha256",
+        checksum_value=_GOOD_SHA256,
+        byte_size=0,
+        media_type="application/x-hdf5",
+        conforms_to=frozenset(),
+        producing_run_id=None,
+        subject_id=None,
+        derived_from=frozenset(),
+        occurred_at=_NOW,
+        used_calibrations=(cal_c, cal_a, cal_b),
+    )
+    payload = to_payload(event)
+    assert payload["used_calibrations"] == sorted([str(cal_a), str(cal_b), str(cal_c)])
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_empty_used_calibrations_as_empty_list() -> None:
+    """Default empty tuple serializes to empty list (NOT missing key)
+    so post-12c writers emit a uniform payload shape."""
+    event = DatasetRegistered(
+        dataset_id=uuid4(),
+        name="D",
+        uri="s3://b/k",
+        checksum_algorithm="sha256",
+        checksum_value=_GOOD_SHA256,
+        byte_size=0,
+        media_type="application/x-hdf5",
+        conforms_to=frozenset(),
+        producing_run_id=None,
+        subject_id=None,
+        derived_from=frozenset(),
+        occurred_at=_NOW,
+    )
+    payload = to_payload(event)
+    assert payload["used_calibrations"] == []
+
+
+@pytest.mark.unit
+def test_from_stored_pre_12c_dataset_registered_folds_with_empty_used_calibrations() -> None:
+    """Backward compat: pre-12c DatasetRegistered events (without
+    used_calibrations in the payload) fold cleanly via
+    `payload.get("used_calibrations", [])` returning an empty list
+    that becomes an empty tuple on the event dataclass."""
+    dataset_id = uuid4()
+    pre_12c_payload: dict[str, object] = {
+        "dataset_id": str(dataset_id),
+        "name": "D",
+        "uri": "s3://b/k",
+        "checksum": {"algorithm": "sha256", "value": _GOOD_SHA256},
+        "byte_size": 0,
+        "encoding": {"media_type": "application/x-hdf5", "conforms_to": []},
+        "producing_run_id": None,
+        "subject_id": None,
+        "derived_from": [],
+        "occurred_at": _NOW.isoformat(),
+        "producing_run_end_state": None,
+        "intent": "Trial",
+        # NOTE: used_calibrations deliberately ABSENT
+    }
+    stored = _stored("DatasetRegistered", pre_12c_payload)
+    event = from_stored(stored)
+    assert isinstance(event, DatasetRegistered)
+    assert event.used_calibrations == ()
+
+
+@pytest.mark.unit
+def test_used_calibrations_round_trip_through_stored_envelope() -> None:
+    """Full to_payload -> from_stored cycle preserves the citation
+    set verbatim (UUID identity is preserved; the on-the-wire form
+    is sorted but the rebuilt tuple holds UUID objects)."""
+    cal_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    cal_b = UUID("01900000-0000-7000-8000-00000000ca02")
+    event = DatasetRegistered(
+        dataset_id=uuid4(),
+        name="D",
+        uri="s3://b/k",
+        checksum_algorithm="sha256",
+        checksum_value=_GOOD_SHA256,
+        byte_size=0,
+        media_type="application/x-hdf5",
+        conforms_to=frozenset(),
+        producing_run_id=None,
+        subject_id=None,
+        derived_from=frozenset(),
+        occurred_at=_NOW,
+        used_calibrations=(cal_b, cal_a),  # scrambled
+    )
+    payload = to_payload(event)
+    stored = _stored("DatasetRegistered", payload)
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, DatasetRegistered)
+    # Tuple is sorted on the wire; rebuild keeps that order.
+    assert rebuilt.used_calibrations == (cal_a, cal_b)
+
+
+@pytest.mark.unit
+def test_used_calibrations_payload_bytes_are_order_independent() -> None:
+    """Two events with the same logical citation set in different
+    construction orders produce byte-identical jsonb payloads.
+    Pins the determinism-of-on-the-wire-bytes invariant that the
+    decider's sort guarantees."""
+    cal_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    cal_b = UUID("01900000-0000-7000-8000-00000000ca02")
+    cal_c = UUID("01900000-0000-7000-8000-00000000ca03")
+    dataset_id = uuid4()
+
+    def _build(used_calibrations: tuple[UUID, ...]) -> DatasetRegistered:
+        return DatasetRegistered(
+            dataset_id=dataset_id,
+            name="D",
+            uri="s3://b/k",
+            checksum_algorithm="sha256",
+            checksum_value=_GOOD_SHA256,
+            byte_size=0,
+            media_type="application/x-hdf5",
+            conforms_to=frozenset(),
+            producing_run_id=None,
+            subject_id=None,
+            derived_from=frozenset(),
+            occurred_at=_NOW,
+            used_calibrations=used_calibrations,
+        )
+
+    e1 = _build((cal_a, cal_b, cal_c))
+    e2 = _build((cal_c, cal_b, cal_a))
+    assert to_payload(e1)["used_calibrations"] == to_payload(e2)["used_calibrations"]

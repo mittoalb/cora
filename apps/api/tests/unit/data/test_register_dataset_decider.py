@@ -13,6 +13,7 @@ import pytest
 
 from cora.data.aggregates.dataset import (
     DATASET_CHECKSUM_SHA256_HEX_LENGTH,
+    DATASET_USED_CALIBRATIONS_MAX_ENTRIES,
     Dataset,
     DatasetAlreadyExistsError,
     DatasetChecksum,
@@ -26,6 +27,7 @@ from cora.data.aggregates.dataset import (
     InvalidDatasetNameError,
     InvalidDatasetUriError,
     InvalidDerivedFromError,
+    InvalidUsedCalibrationsError,
     LinkedSubjectMissingError,
     ProducingRunMissingError,
 )
@@ -437,3 +439,142 @@ def test_decide_defaults_intent_to_trial_in_event_payload() -> None:
         new_id=uuid4(),
     )
     assert events[0].intent == "Trial"
+
+
+# ---------- Phase 12c: used_calibrations AsShot citation ----------
+
+
+@pytest.mark.unit
+def test_decide_defaults_used_calibrations_to_empty_tuple_on_event_payload() -> None:
+    """Default command (no used_calibrations) lands an empty tuple
+    on the event payload — uniform shape; pre-12c readers fold via
+    `payload.get("used_calibrations", [])` either way."""
+    cmd = _good_command()
+    events = register_dataset.decide(
+        state=None,
+        command=cmd,
+        context=DatasetRegistrationContext(),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].used_calibrations == ()
+
+
+@pytest.mark.unit
+def test_decide_threads_used_calibrations_through_to_event() -> None:
+    """The decider threads the AsShot citation set verbatim from
+    command to event (after sort-before-emit)."""
+    cal_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    cal_b = UUID("01900000-0000-7000-8000-00000000ca02")
+    cmd = _good_command(used_calibrations=frozenset({cal_a, cal_b}))
+    events = register_dataset.decide(
+        state=None,
+        command=cmd,
+        context=DatasetRegistrationContext(),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert set(events[0].used_calibrations) == {cal_a, cal_b}
+
+
+@pytest.mark.unit
+def test_decide_sorts_used_calibrations_before_emit_for_deterministic_bytes() -> None:
+    """Phase 12c: decider sorts the AsShot citation set so the
+    event-payload bytes are deterministic regardless of frozenset
+    iteration order (mirrors Run.pinned_calibrations Phase 12b
+    decider-time treatment + derived_from sorted-list precedent)."""
+    cal_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    cal_b = UUID("01900000-0000-7000-8000-00000000ca02")
+    cal_c = UUID("01900000-0000-7000-8000-00000000ca03")
+    cmd = _good_command(used_calibrations=frozenset({cal_c, cal_a, cal_b}))
+    events = register_dataset.decide(
+        state=None,
+        command=cmd,
+        context=DatasetRegistrationContext(),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    # The decider emits sorted by UUID natural ordering — pin the
+    # exact tuple order (NOT just set equality) to defend against
+    # a future refactor dropping the sort.
+    assert events[0].used_calibrations == (cal_a, cal_b, cal_c)
+
+
+@pytest.mark.unit
+def test_decide_raises_invalid_used_calibrations_for_too_many_entries() -> None:
+    """Cardinality cap: more than DATASET_USED_CALIBRATIONS_MAX_ENTRIES
+    raises. Mirrors derived_from cardinality cap; same shape, same
+    error-class precedent."""
+    too_many = frozenset(uuid4() for _ in range(DATASET_USED_CALIBRATIONS_MAX_ENTRIES + 1))
+    cmd = _good_command(used_calibrations=too_many)
+    with pytest.raises(InvalidUsedCalibrationsError):
+        register_dataset.decide(
+            state=None,
+            command=cmd,
+            context=DatasetRegistrationContext(),
+            now=_NOW,
+            new_id=uuid4(),
+        )
+
+
+@pytest.mark.unit
+def test_decide_accepts_used_calibrations_at_cardinality_cap() -> None:
+    """Boundary: exactly at the cap is accepted (off-by-one guard)."""
+    exactly_at_cap = frozenset(uuid4() for _ in range(DATASET_USED_CALIBRATIONS_MAX_ENTRIES))
+    cmd = _good_command(used_calibrations=exactly_at_cap)
+    events = register_dataset.decide(
+        state=None,
+        command=cmd,
+        context=DatasetRegistrationContext(),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events[0].used_calibrations) == DATASET_USED_CALIBRATIONS_MAX_ENTRIES
+
+
+@pytest.mark.unit
+def test_decide_does_not_cross_bc_validate_used_calibrations() -> None:
+    """Phase 12c eventual-consistency stance per
+    [[project_calibration_design]] anti-hook #3: the write path
+    does NOT look up the CalibrationRevision ids; any well-formed
+    UUID set under the cardinality cap is accepted. Fully-synthetic
+    pin ids that will never exist in any Calibration BC stream
+    pass validation."""
+    synthetic = frozenset(uuid4() for _ in range(5))
+    cmd = _good_command(used_calibrations=synthetic)
+    events = register_dataset.decide(
+        state=None,
+        command=cmd,
+        context=DatasetRegistrationContext(),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(events) == 1
+    assert set(events[0].used_calibrations) == synthetic
+
+
+@pytest.mark.unit
+def test_decide_does_not_compare_used_calibrations_against_producing_run() -> None:
+    """Phase 12c-Stage-0 lock: the decider does NOT compare the
+    Dataset's used_calibrations against producing_run.pinned_
+    calibrations. The two sets are independent (Git-blob-reference
+    analog; "partial override" is a category error in the revision-
+    cited atomic-ID model). The decider trusts what command
+    supplies, even when the cited revisions are different from
+    anything the producing Run pinned."""
+    cal_dataset_only = UUID("01900000-0000-7000-8000-00000cd00001")
+    cmd = _good_command(
+        producing_run_id=uuid4(),
+        used_calibrations=frozenset({cal_dataset_only}),
+    )
+    fake_run = _fake_run()
+    # The Run pre-loaded in context has its own pinned_calibrations
+    # (irrelevant to this slice's decider, since we do NOT compare).
+    events = register_dataset.decide(
+        state=None,
+        command=cmd,
+        context=DatasetRegistrationContext(producing_run=fake_run),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].used_calibrations == (cal_dataset_only,)

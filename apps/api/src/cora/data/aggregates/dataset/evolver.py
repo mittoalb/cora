@@ -20,9 +20,13 @@ Dataset field through from prior state. Constructing
 encoding=..., status=...)` without explicitly passing the optional
 cross-aggregate refs (`producing_run_id`, `subject_id`,
 `derived_from`) AND the 7e additions (`producing_run_end_state`,
-`intent`) would silently WIPE them to defaults. Aligned to explicit
-construction post-domain-audit to match the documented pattern in
-Asset/Plan/Method/Practice/Family/Subject evolvers.
+`intent`) AND the 12c addition (`used_calibrations`) would silently
+WIPE them to defaults. Aligned to explicit construction post-domain-
+audit to match the documented pattern in Asset/Plan/Method/Practice/
+Family/Subject/Run evolvers. Phase 12c specifically: the
+`used_calibrations` AsShot citation set is IMMUTABLE after register
+— every transition arm preserves `prior.used_calibrations` verbatim
+(mirrors Run.pinned_calibrations AsShot immutability per Phase 12b).
 
 Defensive guard: `DatasetDiscarded` and `DatasetPromoted` arms raise
 on `state is None` (the parent Dataset must exist before any
@@ -69,6 +73,7 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
             derived_from=derived_from,
             producing_run_end_state=producing_run_end_state,
             intent=intent,
+            used_calibrations=used_calibrations,
         ):
             _ = state  # DatasetRegistered is the genesis event; prior state ignored.
             return Dataset(
@@ -92,6 +97,10 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 # via payload.get for pre-7e events in from_stored).
                 producing_run_end_state=producing_run_end_state,
                 intent=Intent(intent),
+                # Phase 12c: AsShot citation set at genesis (frozenset for
+                # in-memory equality semantics; the event carries a tuple
+                # for deterministic wire byte ordering).
+                used_calibrations=frozenset(used_calibrations),
             )
         case DatasetDiscarded():
             prior = require_state(state, "DatasetDiscarded")
@@ -110,6 +119,8 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 # producing_run_end_state (audit-relevant historical artifacts).
                 producing_run_end_state=prior.producing_run_end_state,
                 intent=prior.intent,
+                # Phase 12c AsShot invariant: never change after register.
+                used_calibrations=prior.used_calibrations,
             )
         case DatasetPromoted():
             prior = require_state(state, "DatasetPromoted")
@@ -128,6 +139,8 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 producing_run_end_state=prior.producing_run_end_state,
                 # The state change: intent flips Trial -> Production.
                 intent=Intent.PRODUCTION,
+                # Phase 12c AsShot invariant: never change after register.
+                used_calibrations=prior.used_calibrations,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

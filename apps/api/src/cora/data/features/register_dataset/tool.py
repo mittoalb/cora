@@ -25,6 +25,7 @@ from cora.data.aggregates.dataset import (
     DATASET_MEDIA_TYPE_MAX_LENGTH,
     DATASET_NAME_MAX_LENGTH,
     DATASET_URI_MAX_LENGTH,
+    DATASET_USED_CALIBRATIONS_MAX_ENTRIES,
 )
 from cora.data.features.register_dataset.command import RegisterDataset
 from cora.data.features.register_dataset.handler import IdempotentHandler
@@ -130,6 +131,22 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 description=("Optional lineage edges to upstream Datasets. Defaults to empty."),
             ),
         ] = None,
+        used_calibrations: Annotated[
+            list[UUID] | None,
+            Field(
+                default=None,
+                max_length=DATASET_USED_CALIBRATIONS_MAX_ENTRIES,
+                description=(
+                    "Optional CalibrationRevision ids the reconstruction "
+                    "actually used (Calibration BC AsShot citation per "
+                    "Phase 12c). Symmetric to Run.pinned_calibrations on "
+                    "the acquired-from Run; reconstruction may legitimately "
+                    "cite refined revisions not in the producing Run's "
+                    "pin set. NOT verified at the write path. Omit or "
+                    "null for an empty citation set."
+                ),
+            ),
+        ] = None,
     ) -> RegisterDatasetOutput:
         handler = get_handler()
         dataset_id = await handler(
@@ -144,6 +161,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 producing_run_id=producing_run_id,
                 subject_id=subject_id,
                 derived_from=frozenset(derived_from or []),
+                used_calibrations=frozenset(used_calibrations or []),
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),

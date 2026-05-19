@@ -36,6 +36,7 @@ other BC.
   - 409 (Dataset transition guards, 7b + 7e): DatasetCannotDiscardError,
     DatasetCannotPromoteError, DatasetAlreadyPromotedError
   - 400 (validation, 7e adds): InvalidPromotionReasonError
+  - 400 (validation, 12c adds): InvalidUsedCalibrationsError
 """
 
 from fastapi import FastAPI, Request, status
@@ -57,6 +58,7 @@ from cora.data.aggregates.dataset import (
     InvalidDatasetUriError,
     InvalidDerivedFromError,
     InvalidPromotionReasonError,
+    InvalidUsedCalibrationsError,
     LinkedSubjectMissingError,
     ProducingRunMissingError,
 )
@@ -159,6 +161,8 @@ def register_data_routes(app: FastAPI) -> None:
         InvalidDatasetDiscardReasonError,
         # 7e validation guard: free-form promotion reason length check.
         InvalidPromotionReasonError,
+        # 12c validation guard: cardinality cap on AsShot citation set.
+        InvalidUsedCalibrationsError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (DatasetNotFoundError,):

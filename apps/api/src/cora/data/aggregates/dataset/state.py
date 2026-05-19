@@ -95,6 +95,20 @@ identifiers (DOIs via DataCite, including the IGSN-via-DataCite
 flow for samples) land at the export layer when first needed; they
 are not part of the in-domain Dataset identity.
 
+## Phase 12c addition: Calibration BC AsShot citation (`used_calibrations`)
+
+`used_calibrations: frozenset[UUID]` records the CalibrationRevision
+IDs the reconstruction (or any derivative) actually used. Symmetric
+to Run.pinned_calibrations (Phase 12b AsShot anchor on the
+acquired-from Run); the two sets are independent — reconstruction
+may legitimately cite refined revisions not in the producing Run's
+pin set (e.g., a `tomopy.find_center_vo` refinement). NO write-time
+cross-BC enforcement of derivative-source set equality per
+[[project_calibration_design]] anti-hook #3 (revision-cited atomic
+IDs make "partial override" a category error in this model). The
+dual rule (anti-hook #13) is "no synthesis-by-omission" — every
+value used MUST be a cited revision.
+
 ## Twelfth bounded-name VO
 
 `DatasetName` calls the shared `validate_bounded_text` helper hoisted in
@@ -117,6 +131,7 @@ DATASET_MEDIA_TYPE_MAX_LENGTH = 200
 DATASET_CONFORMS_TO_ENTRY_MAX_LENGTH = 2048
 DATASET_CONFORMS_TO_MAX_ENTRIES = 16
 DATASET_DERIVED_FROM_MAX_ENTRIES = 64
+DATASET_USED_CALIBRATIONS_MAX_ENTRIES = 64
 DATASET_CHECKSUM_ALGORITHM_SHA256 = "sha256"
 DATASET_CHECKSUM_SHA256_HEX_LENGTH = 64
 DATASET_DISCARD_REASON_MAX_LENGTH = 500
@@ -268,6 +283,30 @@ class InvalidDerivedFromError(ValueError):
         super().__init__(
             f"Dataset derived_from must have at most "
             f"{DATASET_DERIVED_FROM_MAX_ENTRIES} entries (got: {count})"
+        )
+        self.count = count
+
+
+class InvalidUsedCalibrationsError(ValueError):
+    """The supplied used_calibrations set has too many entries.
+
+    Per-entry validation (each is a UUID) is type-enforced; the
+    set-cardinality cap protects against accidentally massive
+    AsShot-citation payloads on a single registration. Mirrors
+    InvalidDerivedFromError shape exactly (same precedent +
+    same default cap).
+
+    NO cross-BC existence check on the cited revision ids per
+    [[project_calibration_design]] anti-hook #3 (revision-cited
+    atomic-ID model) + canonical DDD eventual-consistency stance
+    on cross-aggregate rules (matches Run.pinned_calibrations
+    Phase 12b precedent exactly).
+    """
+
+    def __init__(self, count: int) -> None:
+        super().__init__(
+            f"Dataset used_calibrations must have at most "
+            f"{DATASET_USED_CALIBRATIONS_MAX_ENTRIES} entries (got: {count})"
         )
         self.count = count
 
@@ -671,6 +710,20 @@ def validate_derived_from(value: frozenset[UUID]) -> frozenset[UUID]:
     return value
 
 
+def validate_used_calibrations(value: frozenset[UUID]) -> frozenset[UUID]:
+    """Normalize / validate used_calibrations for the Dataset state and decider.
+
+    Cardinality-only check. NO per-element existence check (revision-
+    cited atomic-ID model; cross-BC eventual-consistency per
+    [[project_calibration_design]] anti-hook #3 + Vernon/Evans DDD
+    canon). Mirrors Run.pinned_calibrations decider-time treatment
+    in Phase 12b exactly.
+    """
+    if len(value) > DATASET_USED_CALIBRATIONS_MAX_ENTRIES:
+        raise InvalidUsedCalibrationsError(len(value))
+    return value
+
+
 @dataclass(frozen=True)
 class Dataset:
     """Aggregate root: one logical research data product.
@@ -711,3 +764,29 @@ class Dataset:
     # Phase 7e additions:
     producing_run_end_state: str | None = None
     intent: Intent = Intent.TRIAL
+    # Phase 12c: Calibration BC AsShot citation (revision-cited
+    # atomic-ID model per [[project_calibration_design]]). Each entry
+    # is a `CalibrationRevision.id` the reconstruction (or any
+    # derivative) actually used. Symmetric to Run.pinned_calibrations
+    # (Phase 12b AsShot anchor on the acquired-from Run); the two
+    # sets are independent — the Dataset cites whatever revisions it
+    # used (often the same as the producing Run's pin set, sometimes
+    # including post-acquisition refinements like a refined
+    # rotation_center revision computed by `tomopy.find_center_vo`,
+    # sometimes a fully different set). NO write-time cross-BC
+    # enforcement of derivative-source set equality per anti-hook #3
+    # (revision-cited atomic IDs make "partial override" a category
+    # error in this model) + canonical DDD eventual-consistency
+    # stance. Anti-hook #13 (no synthesis-by-omission) is the dual:
+    # every calibration value the reconstruction used MUST appear as
+    # a revision_id in this set; downstream code paths MUST NOT
+    # silently inject fallback values.
+    # IMMUTABLE after register_dataset by aggregate-level invariant
+    # (mirrors Run.pinned_calibrations AsShot immutability) — every
+    # transition arm in the evolver (DatasetDiscarded /
+    # DatasetPromoted) preserves `prior.used_calibrations` verbatim.
+    # Defaults to empty frozenset so pre-12c streams fold cleanly via
+    # `payload.get("used_calibrations", [])` (additive-state pattern;
+    # mirrors derived_from / producing_run_end_state / intent
+    # precedent).
+    used_calibrations: frozenset[UUID] = field(default_factory=frozenset[UUID])

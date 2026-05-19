@@ -63,6 +63,16 @@ class DatasetRegistered:
         to None (payload.get).
       - `intent: str`: trust level (Intent.value); defaults to "Trial"
         on register. Pre-7e events fold cleanly with default "Trial".
+
+    Phase 12c addition (additive, forward-compat):
+      - `used_calibrations: tuple[UUID, ...]`: revision-cited atomic
+        IDs naming the CalibrationRevisions the reconstruction
+        actually used (Calibration BC AsShot citation; symmetric to
+        Run.pinned_calibrations). Tuple on the event payload for
+        deterministic byte ordering on replay (the decider sorts
+        before emit); the evolver reconstructs the frozenset.
+        Pre-12c events fold cleanly with `payload.get(
+        "used_calibrations", [])` returning an empty list.
     """
 
     dataset_id: UUID
@@ -80,6 +90,16 @@ class DatasetRegistered:
     # Phase 7e additions:
     producing_run_end_state: str | None = None
     intent: str = "Trial"
+    # Phase 12c (Calibration BC AsShot citation; revision-cited
+    # atomic-ID model per [[project_calibration_design]]). See state.py
+    # for the full rationale. NO cross-BC existence check at the
+    # decider (operator/agent supplies the citation set; symmetry
+    # with Run.pinned_calibrations + the cross-BC eventual-
+    # consistency stance). IMMUTABLE after register by aggregate-
+    # level invariant (mirrors AsShot pattern). Forward-compat via
+    # `payload.get("used_calibrations", [])` returning an empty
+    # list for legacy pre-12c streams.
+    used_calibrations: tuple[UUID, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -154,6 +174,7 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
             occurred_at=occurred_at,
             producing_run_end_state=producing_run_end_state,
             intent=intent,
+            used_calibrations=used_calibrations,
         ):
             return {
                 "dataset_id": str(dataset_id),
@@ -177,6 +198,9 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
                 # Phase 7e additions:
                 "producing_run_end_state": producing_run_end_state,
                 "intent": intent,
+                # Phase 12c addition (sorted for deterministic jsonb bytes,
+                # mirrors derived_from + Run.pinned_calibrations precedent).
+                "used_calibrations": sorted(str(c) for c in used_calibrations),
             }
         case DatasetDiscarded(dataset_id=dataset_id, reason=reason, occurred_at=occurred_at):
             return {
@@ -230,6 +254,11 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
                     # construct Intent.TRIAL from the string).
                     producing_run_end_state=payload.get("producing_run_end_state"),
                     intent=payload.get("intent", "Trial"),
+                    # Phase 12c additive evolution: pre-12c events have no
+                    # used_calibrations key; .get(..., []) returns [] so
+                    # legacy streams fold to an empty tuple (evolver coerces
+                    # to frozenset for in-memory equality semantics).
+                    used_calibrations=tuple(UUID(c) for c in payload.get("used_calibrations", [])),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed DatasetRegistered payload {payload!r}: {exc}"
