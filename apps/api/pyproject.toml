@@ -72,6 +72,9 @@ packages = ["src/cora"]
 line-length = 100
 target-version = "py313"
 src = ["src", "tests"]
+# Parked directories are work-in-progress slices the user explicitly
+# shelved (suffix `.parked`); mirrors the same exclusion in [tool.pyright].
+extend-exclude = ["**/*.parked"]
 
 [tool.ruff.lint]
 select = [
@@ -101,6 +104,10 @@ known-first-party = ["cora", "tests"]
 
 [tool.pyright]
 include = ["src", "tests"]
+# Parked directories are work-in-progress slices the user explicitly
+# shelved (suffix `.parked`); they shouldn't block type-check on the
+# active codebase. Same convention applies to ruff (below).
+exclude = ["**/__pycache__", "**/*.parked"]
 pythonVersion = "3.13"
 typeCheckingMode = "strict"
 useLibraryCodeForTypes = true

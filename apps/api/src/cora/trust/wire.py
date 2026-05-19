@@ -29,6 +29,7 @@ from cora.trust.features import (
     define_zone,
     evaluate_policy,
     list_conduits,
+    list_permissions,
     list_policies,
     list_zones,
 )
@@ -57,6 +58,7 @@ class TrustHandlers:
     list_zones: list_zones.Handler
     list_conduits: list_conduits.Handler
     list_policies: list_policies.Handler
+    list_permissions: list_permissions.Handler
 
 
 def wire_trust(deps: Kernel) -> TrustHandlers:
@@ -121,6 +123,12 @@ def wire_trust(deps: Kernel) -> TrustHandlers:
         list_policies=with_tracing(
             list_policies.bind(deps),
             command_name="ListPolicies",
+            bc=_BC,
+            kind="query",
+        ),
+        list_permissions=with_tracing(
+            list_permissions.bind(deps),
+            command_name="ListPermissions",
             bc=_BC,
             kind="query",
         ),

@@ -53,6 +53,7 @@ from cora.trust.features import (
     define_zone,
     evaluate_policy,
     list_conduits,
+    list_permissions,
     list_policies,
     list_zones,
 )
@@ -122,6 +123,7 @@ def register_trust_routes(app: FastAPI) -> None:
     app.include_router(list_zones.router)
     app.include_router(list_conduits.router)
     app.include_router(list_policies.router)
+    app.include_router(list_permissions.router)
     for invalid_name_cls in (
         InvalidZoneNameError,
         InvalidConduitNameError,
