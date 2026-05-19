@@ -14,7 +14,12 @@ from pydantic import BaseModel, Field
 from cora.equipment.aggregates.family import FAMILY_VERSION_TAG_MAX_LENGTH, Affordance
 from cora.equipment.features.version_family.command import VersionFamily
 from cora.equipment.features.version_family.handler import Handler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class VersionFamilyRequest(BaseModel):
@@ -86,6 +91,7 @@ async def post_families_version(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         VersionFamily(
@@ -95,4 +101,5 @@ async def post_families_version(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

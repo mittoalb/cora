@@ -11,7 +11,12 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from pydantic import BaseModel, Field
 
 from cora.equipment.aggregates.family import Affordance
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.recipe.aggregates.capability import (
     CAPABILITY_CODE_MAX_LENGTH,
     CAPABILITY_NAME_MAX_LENGTH,
@@ -74,11 +79,13 @@ async def get_capabilities(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> CapabilityResponse:
     capability = await handler(
         GetCapability(capability_id=capability_id),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     if capability is None:
         raise HTTPException(

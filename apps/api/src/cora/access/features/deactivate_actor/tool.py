@@ -16,6 +16,7 @@ from cora.access._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.access.features.deactivate_actor.command import DeactivateActor
 from cora.access.features.deactivate_actor.handler import Handler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -40,4 +41,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             DeactivateActor(actor_id=actor_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )

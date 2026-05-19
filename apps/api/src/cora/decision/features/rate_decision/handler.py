@@ -49,6 +49,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _CONDUIT_DEFAULT_ID,
     ) -> None: ...
 
 
@@ -61,6 +62,7 @@ def bind(deps: Kernel) -> Handler:
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _CONDUIT_DEFAULT_ID,
     ) -> None:
         _log.info(
             "rate_decision.start",
@@ -76,6 +78,7 @@ def bind(deps: Kernel) -> Handler:
             principal_id=principal_id,
             command_name=_COMMAND_NAME,
             conduit_id=_CONDUIT_DEFAULT_ID,
+            surface_id=surface_id,
         )
         if isinstance(authz, Deny):
             _log.info(

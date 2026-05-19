@@ -16,7 +16,12 @@ from pydantic import BaseModel, Field
 from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.get_actor.handler import Handler
 from cora.access.features.get_actor.query import GetActor
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class ActorResponse(BaseModel):
@@ -67,11 +72,13 @@ async def get_actors(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> ActorResponse:
     actor = await handler(
         GetActor(actor_id=actor_id),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     if actor is None:
         raise HTTPException(

@@ -26,7 +26,12 @@ from cora.agent.aggregates.agent import (
 )
 from cora.agent.features.define_agent.command import DefineAgent
 from cora.agent.features.define_agent.handler import IdempotentHandler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class ModelRefRequest(BaseModel):
@@ -172,6 +177,7 @@ async def post_agents(
     handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> DefineAgentResponse:
     agent_id = await handler(
@@ -191,6 +197,7 @@ async def post_agents(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
         idempotency_key=idempotency_key,
     )
     return DefineAgentResponse(agent_id=agent_id)

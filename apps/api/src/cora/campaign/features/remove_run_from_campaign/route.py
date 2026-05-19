@@ -13,7 +13,12 @@ from pydantic import BaseModel, Field
 from cora.campaign.aggregates.campaign import CAMPAIGN_REASON_MAX_LENGTH
 from cora.campaign.features.remove_run_from_campaign.command import RemoveRunFromCampaign
 from cora.campaign.features.remove_run_from_campaign.handler import Handler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class RemoveRunFromCampaignRequest(BaseModel):
@@ -83,6 +88,7 @@ async def post_campaign_runs_remove(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         RemoveRunFromCampaign(
@@ -92,4 +98,5 @@ async def post_campaign_runs_remove(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

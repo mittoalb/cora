@@ -21,6 +21,7 @@ from cora.equipment.aggregates.asset import ASSET_NAME_MAX_LENGTH, AssetLevel
 from cora.equipment.features.register_asset.command import RegisterAsset
 from cora.equipment.features.register_asset.handler import IdempotentHandler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class RegisterAssetOutput(BaseModel):
@@ -74,5 +75,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             RegisterAsset(name=name, level=level, parent_id=parent_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return RegisterAssetOutput(asset_id=asset_id)

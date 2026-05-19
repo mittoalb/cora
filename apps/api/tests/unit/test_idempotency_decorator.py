@@ -34,6 +34,7 @@ from cora.infrastructure.ports import (
 
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+_NIL_SURFACE_ID = UUID(int=0)
 _LOCK_STALE = 60
 
 
@@ -57,8 +58,9 @@ def _make_handler(
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SURFACE_ID,
     ) -> UUID:
-        _ = (command, principal_id, correlation_id)
+        _ = (command, principal_id, correlation_id, surface_id)
         track_calls.append(1)
         if capture_causation is not None:
             capture_causation.append(causation_id)
@@ -320,8 +322,9 @@ async def test_concurrent_claim_race_one_wins_one_loses() -> None:
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SURFACE_ID,
     ) -> UUID:
-        _ = (command, principal_id, correlation_id, causation_id)
+        _ = (command, principal_id, correlation_id, causation_id, surface_id)
         calls.append(1)
         started.set()
         await proceed.wait()

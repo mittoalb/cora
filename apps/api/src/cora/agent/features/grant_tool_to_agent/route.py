@@ -14,7 +14,12 @@ from pydantic import BaseModel, Field
 from cora.agent.aggregates.agent import AGENT_TOOL_NAME_MAX_LENGTH
 from cora.agent.features.grant_tool_to_agent.command import GrantToolToAgent
 from cora.agent.features.grant_tool_to_agent.handler import Handler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class GrantToolToAgentRequest(BaseModel):
@@ -70,9 +75,11 @@ async def post_agents_grant_tool(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         GrantToolToAgent(agent_id=agent_id, tool_name=body.tool_name),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

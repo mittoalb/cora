@@ -12,6 +12,7 @@ from cora.calibration.features.define_calibration.command import DefineCalibrati
 from cora.calibration.features.define_calibration.handler import IdempotentHandler
 from cora.calibration.quantities import CalibrationQuantity
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class DefineCalibrationOutput(BaseModel):
@@ -82,5 +83,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             ),
             principal_id=principal_id,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return DefineCalibrationOutput(calibration_id=calibration_id)

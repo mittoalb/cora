@@ -19,7 +19,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from pydantic import BaseModel, Field
 
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.safety.aggregates.clearance import (
     CLEARANCE_EXTERNAL_ID_MAX_LENGTH,
     CLEARANCE_TITLE_MAX_LENGTH,
@@ -135,11 +140,13 @@ async def get_clearances(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> ClearanceResponse:
     clearance = await handler(
         GetClearance(clearance_id=clearance_id),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     if clearance is None:
         raise HTTPException(

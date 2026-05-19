@@ -59,6 +59,14 @@ dev = [
     # container per worker (via session-scoped fixture, see tests/conftest)
     # sidesteps testcontainers-python#567 contention.
     "pytest-xdist>=3.8.0,<4",
+    # Per-test timeout enforcement. Without this, a single hung test
+    # (e.g. an asyncpg call waiting on a connection that's never
+    # returned, a deadlocked container, an unawaited future) stalls the
+    # entire xdist session indefinitely — workers report nothing back
+    # and the controller waits forever. `thread` method dumps a
+    # traceback from the hung test before killing it, so the failure
+    # output points to the line responsible.
+    "pytest-timeout>=2.4.0,<3",
 ]
 
 [build-system]
@@ -117,6 +125,21 @@ reportMissingTypeStubs = false
 addopts = ["--import-mode=importlib", "--strict-markers"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# Hard upper bound per test. Most unit/architecture tests are <100ms;
+# integration tests with testcontainers stay well under 30s because the
+# Postgres container is session-scoped (one per xdist worker), so per-
+# test cost is just a transaction + a few queries. 60s is a generous
+# safety net that still catches genuine hangs in minutes rather than
+# the 50+ minutes we saw with no timeout. Use `@pytest.mark.timeout(N)`
+# to override for known-slow tests (none today).
+#
+# `thread` method spawns a watchdog thread that dumps tracebacks of
+# all threads in the worker process before raising — survives asyncio
+# event loops, doesn't rely on SIGALRM (which signal-based timeouts
+# need and which interacts poorly with asyncpg + uvloop). Works per-
+# worker under xdist.
+timeout = 60
+timeout_method = "thread"
 markers = [
     "unit: pure tests with no I/O",
     "architecture: structural fitness functions (AST/filesystem/SQL-text checks); no I/O",

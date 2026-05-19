@@ -19,6 +19,7 @@ from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.list_actors.handler import Handler
 from cora.access.features.list_actors.query import ListActors
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class ActorSummaryRow(BaseModel):
@@ -68,6 +69,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ListActors(cursor=cursor, limit=limit, status=status),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return ActorListOutput(
             items=[

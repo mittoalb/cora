@@ -12,7 +12,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Path, Request, status
 from pydantic import BaseModel, Field
 
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.recipe.aggregates.plan import WIRE_PORT_NAME_MAX_LENGTH
 from cora.recipe.features.remove_plan_wire.command import RemovePlanWire
 from cora.recipe.features.remove_plan_wire.handler import Handler
@@ -96,6 +101,7 @@ async def post_plans_remove_wire(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         RemovePlanWire(
@@ -107,4 +113,5 @@ async def post_plans_remove_wire(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

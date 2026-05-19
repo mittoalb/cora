@@ -12,6 +12,8 @@ from cora.agent.features.revoke_tool_from_agent.command import RevokeToolFromAge
 from cora.agent.features.revoke_tool_from_agent.decider import decide
 from cora.infrastructure.kernel import Kernel
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 class Handler(Protocol):
     """Callable interface every revoke_tool_from_agent handler implements."""
@@ -23,6 +25,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> None: ...
 
 

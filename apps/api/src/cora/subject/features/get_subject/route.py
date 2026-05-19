@@ -13,7 +13,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from pydantic import BaseModel, Field
 
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.subject.aggregates.subject import SUBJECT_NAME_MAX_LENGTH
 from cora.subject.features.get_subject.handler import Handler
 from cora.subject.features.get_subject.query import GetSubject
@@ -66,11 +71,13 @@ async def get_subjects(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> SubjectResponse:
     subject = await handler(
         GetSubject(subject_id=subject_id),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     if subject is None:
         raise HTTPException(

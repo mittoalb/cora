@@ -12,6 +12,7 @@ from cora.decision._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.decision.features.list_decisions.handler import Handler
 from cora.decision.features.list_decisions.query import ConfidenceBandFilter, ListDecisions
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class DecisionSummaryRow(BaseModel):
@@ -78,6 +79,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return DecisionListOutput(
             items=[

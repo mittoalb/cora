@@ -20,6 +20,8 @@ from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
 from cora.trust.errors import UnauthorizedError
 from cora.trust.features.list_conduits.query import ListConduits
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 @dataclass(frozen=True)
 class ConduitSummaryItem:
@@ -49,6 +51,7 @@ class Handler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> ConduitListPage: ...
 
 

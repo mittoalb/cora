@@ -15,7 +15,12 @@ from pydantic import BaseModel, Field
 
 from cora.equipment.features.fault_asset.command import FaultAsset
 from cora.equipment.features.fault_asset.handler import Handler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 _REASON_MAX_LENGTH = 500
 
@@ -78,9 +83,11 @@ async def post_assets_fault(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         FaultAsset(asset_id=asset_id, reason=body.reason),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

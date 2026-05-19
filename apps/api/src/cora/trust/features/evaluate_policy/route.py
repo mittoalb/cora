@@ -23,7 +23,12 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, sta
 from pydantic import BaseModel
 
 from cora.infrastructure.ports import Allow, Deny
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.trust.features.evaluate_policy.handler import Handler
 from cora.trust.features.evaluate_policy.query import EvaluatePolicy
 
@@ -89,6 +94,7 @@ async def get_policies_evaluate(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> EvaluatePolicyResponse:
     result = await handler(
         EvaluatePolicy(
@@ -99,6 +105,7 @@ async def get_policies_evaluate(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     if result is None:
         raise HTTPException(

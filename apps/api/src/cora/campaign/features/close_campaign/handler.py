@@ -12,6 +12,8 @@ from cora.campaign.features.close_campaign.command import CloseCampaign
 from cora.campaign.features.close_campaign.decider import decide
 from cora.infrastructure.kernel import Kernel
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 class Handler(Protocol):
     """Callable interface every close_campaign handler implements."""
@@ -23,6 +25,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> None: ...
 
 

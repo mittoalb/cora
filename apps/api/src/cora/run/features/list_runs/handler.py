@@ -28,6 +28,8 @@ from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
 from cora.run.errors import UnauthorizedError
 from cora.run.features.list_runs.query import ListRuns
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 @dataclass(frozen=True)
 class RunSummaryItem:
@@ -76,6 +78,7 @@ class Handler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> RunListPage: ...
 
 

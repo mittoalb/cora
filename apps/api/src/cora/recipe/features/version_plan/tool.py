@@ -8,6 +8,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 from cora.recipe._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.recipe.aggregates.plan import PLAN_VERSION_TAG_MAX_LENGTH
 from cora.recipe.features.version_plan.command import VersionPlan
@@ -47,4 +48,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             VersionPlan(plan_id=plan_id, version_tag=version_tag),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )

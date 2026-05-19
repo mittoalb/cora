@@ -21,7 +21,12 @@ from pydantic import BaseModel, Field
 from cora.equipment.aggregates.asset import ASSET_NAME_MAX_LENGTH
 from cora.equipment.features.get_asset.handler import Handler
 from cora.equipment.features.get_asset.query import GetAsset
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class AssetPortDTO(BaseModel):
@@ -86,11 +91,13 @@ async def get_assets(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> AssetResponse:
     asset = await handler(
         GetAsset(asset_id=asset_id),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     if asset is None:
         raise HTTPException(

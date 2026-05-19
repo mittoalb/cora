@@ -8,6 +8,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 from cora.supply._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.supply.aggregates.supply import SUPPLY_REASON_MAX_LENGTH
 from cora.supply.features.restore_supply.command import RestoreSupply
@@ -54,5 +55,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             RestoreSupply(supply_id=supply_id, reason=reason),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return RestoreSupplyOutput(supply_id=supply_id)

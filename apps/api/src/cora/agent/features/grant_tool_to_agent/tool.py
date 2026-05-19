@@ -12,6 +12,7 @@ from cora.agent.aggregates.agent import AGENT_TOOL_NAME_MAX_LENGTH
 from cora.agent.features.grant_tool_to_agent.command import GrantToolToAgent
 from cora.agent.features.grant_tool_to_agent.handler import Handler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class GrantToolToAgentOutput(BaseModel):
@@ -49,5 +50,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             GrantToolToAgent(agent_id=agent_id, tool_name=tool_name),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return GrantToolToAgentOutput(agent_id=agent_id, tool_name=tool_name)

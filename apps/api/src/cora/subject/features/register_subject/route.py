@@ -11,7 +11,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.subject.aggregates.subject import SUBJECT_NAME_MAX_LENGTH
 from cora.subject.features.register_subject.command import RegisterSubject
 from cora.subject.features.register_subject.handler import IdempotentHandler
@@ -69,6 +74,7 @@ async def post_subjects(
     handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     idempotency_key: Annotated[
         str | None,
         Header(
@@ -85,6 +91,7 @@ async def post_subjects(
         RegisterSubject(name=body.name),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
         idempotency_key=idempotency_key,
     )
     return RegisterSubjectResponse(subject_id=subject_id)

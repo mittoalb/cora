@@ -21,7 +21,12 @@ from pydantic import BaseModel, Field
 from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.list_actors.handler import Handler
 from cora.access.features.list_actors.query import ListActors
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class ActorSummaryDTO(BaseModel):
@@ -76,6 +81,7 @@ async def list_actors(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     cursor: Annotated[
         str | None,
         Query(description="Opaque cursor from a previous page's `next_cursor`."),
@@ -99,6 +105,7 @@ async def list_actors(
         ListActors(cursor=cursor, limit=limit, status=status_filter),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     return ActorListResponse(
         items=[

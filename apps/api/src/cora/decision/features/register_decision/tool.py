@@ -30,6 +30,7 @@ from cora.decision.aggregates.decision import (
 from cora.decision.features.register_decision.command import RegisterDecision
 from cora.decision.features.register_decision.handler import IdempotentHandler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class RegisterDecisionOutput(BaseModel):
@@ -174,5 +175,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return RegisterDecisionOutput(decision_id=decision_id)

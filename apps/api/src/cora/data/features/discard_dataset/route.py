@@ -13,7 +13,12 @@ from pydantic import BaseModel, Field
 from cora.data.aggregates.dataset import DATASET_DISCARD_REASON_MAX_LENGTH
 from cora.data.features.discard_dataset.command import DiscardDataset
 from cora.data.features.discard_dataset.handler import Handler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class DiscardDatasetRequest(BaseModel):
@@ -76,9 +81,11 @@ async def post_datasets_discard(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         DiscardDataset(dataset_id=dataset_id, reason=body.reason),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

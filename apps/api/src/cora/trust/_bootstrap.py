@@ -11,7 +11,12 @@ from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
-from cora.infrastructure.routing import SYSTEM_PRINCIPAL_ID
+from cora.infrastructure.routing import (
+    SYSTEM_HTTP_SURFACE_ID,
+    SYSTEM_MCP_STDIO_SURFACE_ID,
+    SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID,
+    SYSTEM_PRINCIPAL_ID,
+)
 from cora.trust.aggregates.policy import load_policy
 from cora.trust.aggregates.surface import load_surface
 
@@ -33,9 +38,12 @@ SYSTEM_BOOTSTRAP_POLICY_V2_ID = UUID("00000000-0000-0000-0000-000000000002")
 
 # Default Surfaces seeded by
 # `20260519200000_seed_default_surfaces_and_v2_policy.sql`.
-SYSTEM_HTTP_SURFACE_ID = UUID("00000000-0000-0000-0000-000000000020")
-SYSTEM_MCP_STDIO_SURFACE_ID = UUID("00000000-0000-0000-0000-000000000021")
-SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID = UUID("00000000-0000-0000-0000-000000000022")
+#
+# Re-exported above from `cora.infrastructure.routing` so historical
+# `from cora.trust._bootstrap import SYSTEM_HTTP_SURFACE_ID` callers
+# keep working. Canonical home is infrastructure so every BC's
+# route/tool can import the per-request resolvers without violating
+# tach BC-isolation.
 
 
 async def verify_bootstrap_seed_present(deps: Kernel) -> None:

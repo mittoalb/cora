@@ -17,7 +17,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.trust.aggregates.policy import POLICY_NAME_MAX_LENGTH
 from cora.trust.features.define_policy.command import DefinePolicy
 from cora.trust.features.define_policy.handler import IdempotentHandler
@@ -102,6 +107,7 @@ async def post_policies(
     handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     idempotency_key: Annotated[
         str | None,
         Header(
@@ -124,6 +130,7 @@ async def post_policies(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
         idempotency_key=idempotency_key,
     )
     return DefinePolicyResponse(policy_id=policy_id)

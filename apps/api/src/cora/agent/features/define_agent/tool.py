@@ -30,6 +30,7 @@ from cora.agent.aggregates.agent import (
 from cora.agent.features.define_agent.command import DefineAgent
 from cora.agent.features.define_agent.handler import IdempotentHandler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class ModelRefInput(BaseModel):
@@ -150,5 +151,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return DefineAgentOutput(agent_id=agent_id)

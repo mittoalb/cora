@@ -29,6 +29,8 @@ from cora.infrastructure.list_query import (
 from cora.safety.errors import UnauthorizedError
 from cora.safety.features.list_clearances.query import ListClearances
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 @dataclass(frozen=True)
 class ClearanceSummaryItem:
@@ -72,6 +74,7 @@ class Handler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> ClearanceListPage: ...
 
 

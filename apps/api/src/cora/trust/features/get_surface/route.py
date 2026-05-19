@@ -7,7 +7,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from pydantic import BaseModel, Field
 
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.trust.aggregates.surface import SURFACE_NAME_MAX_LENGTH, SurfaceKind, SurfaceStatus
 from cora.trust.features.get_surface.handler import Handler
 from cora.trust.features.get_surface.query import GetSurface
@@ -34,7 +39,7 @@ router = APIRouter(tags=["trust"])
 
 
 @router.get(
-    "/surfaces/{surface_id}",
+    "/surfaces/{target_surface_id}",
     status_code=status.HTTP_200_OK,
     response_model=SurfaceResponse,
     responses={
@@ -49,20 +54,22 @@ router = APIRouter(tags=["trust"])
     summary="Get a surface by id",
 )
 async def get_surfaces(
-    surface_id: Annotated[UUID, Path(description="Target surface's id.")],
+    target_surface_id: Annotated[UUID, Path(description="Target surface's id.")],
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> SurfaceResponse:
     surface = await handler(
-        GetSurface(surface_id=surface_id),
+        GetSurface(surface_id=target_surface_id),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     if surface is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Surface {surface_id} not found",
+            detail=f"Surface {target_surface_id} not found",
         )
     return SurfaceResponse(
         id=surface.id,

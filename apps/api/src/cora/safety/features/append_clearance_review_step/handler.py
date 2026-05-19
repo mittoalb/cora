@@ -10,6 +10,8 @@ from cora.safety.features.append_clearance_review_step.command import (
 )
 from cora.safety.features.append_clearance_review_step.decider import decide
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 class Handler(Protocol):
     """Callable interface every append_clearance_review_step handler implements."""
@@ -21,6 +23,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> None: ...
 
 

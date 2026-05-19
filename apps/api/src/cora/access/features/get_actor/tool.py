@@ -19,6 +19,7 @@ from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.get_actor.handler import Handler
 from cora.access.features.get_actor.query import GetActor
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class ActorOutput(BaseModel):
@@ -48,6 +49,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             GetActor(actor_id=actor_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         if actor is None:
             msg = f"Actor {actor_id} not found"

@@ -19,6 +19,8 @@ from cora.operation._procedure_update_handler import make_procedure_update_handl
 from cora.operation.features.truncate_procedure.command import TruncateProcedure
 from cora.operation.features.truncate_procedure.decider import decide
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 class Handler(Protocol):
     """Callable interface every truncate_procedure handler implements."""
@@ -30,6 +32,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> None: ...
 
 
@@ -43,6 +46,7 @@ class IdempotentHandler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
         idempotency_key: str | None = None,
     ) -> None: ...
 

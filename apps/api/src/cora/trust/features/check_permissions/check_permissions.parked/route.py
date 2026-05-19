@@ -20,6 +20,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.routing import get_surface_id
 from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
 from cora.trust.features.check_permissions.handler import Handler
 from cora.trust.features.check_permissions.query import CheckPermissions
@@ -125,6 +126,7 @@ async def post_policies_check(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> CheckPermissionsResponse:
     commands = _validate_commands(body.evaluated_commands)
     results = await handler(
@@ -136,6 +138,7 @@ async def post_policies_check(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     if results is None:
         raise HTTPException(

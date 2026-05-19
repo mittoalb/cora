@@ -20,6 +20,7 @@ from cora.decision.aggregates.decision import (
 from cora.decision.features.rate_decision.command import RateDecision
 from cora.decision.features.rate_decision.handler import Handler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class RateDecisionOutput(BaseModel):
@@ -61,5 +62,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             RateDecision(decision_id=decision_id, rating=rating, comment=comment),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return RateDecisionOutput(decision_id=decision_id)

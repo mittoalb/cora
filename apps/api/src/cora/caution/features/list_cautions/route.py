@@ -72,7 +72,12 @@ from cora.caution.features.list_cautions.query import (
     CautionTargetKindFilter,
     ListCautions,
 )
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 # Route-surface type: real status values plus the 'all' sentinel that
 # translates to "no filter" at this layer. The query dataclass +
@@ -222,6 +227,7 @@ async def list_cautions(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     cursor: Annotated[
         str | None,
         Query(description="Opaque cursor from a previous page's `next_cursor`."),
@@ -307,6 +313,7 @@ async def list_cautions(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     return CautionListPageResponse(
         items=[

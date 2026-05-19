@@ -16,6 +16,7 @@ from cora.equipment.aggregates.asset import (
 from cora.equipment.features.add_asset_port.command import AddAssetPort
 from cora.equipment.features.add_asset_port.handler import Handler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -67,4 +68,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )

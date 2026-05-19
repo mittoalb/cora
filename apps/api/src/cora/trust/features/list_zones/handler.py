@@ -21,6 +21,8 @@ from cora.infrastructure.list_query import make_list_query_handler
 from cora.trust.errors import UnauthorizedError
 from cora.trust.features.list_zones.query import ListZones
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 @dataclass(frozen=True)
 class ZoneSummaryItem:
@@ -48,6 +50,7 @@ class Handler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> ZoneListPage: ...
 
 

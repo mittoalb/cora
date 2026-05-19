@@ -59,6 +59,7 @@ class Handler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        surface_id: UUID = _CONDUIT_DEFAULT_ID,
     ) -> PermissionListing | None: ...
 
 
@@ -70,6 +71,7 @@ def bind(deps: Kernel) -> Handler:
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        surface_id: UUID = _CONDUIT_DEFAULT_ID,
     ) -> PermissionListing | None:
         _log.info(
             "list_permissions.start",
@@ -85,6 +87,7 @@ def bind(deps: Kernel) -> Handler:
             principal_id=principal_id,
             command_name=_QUERY_NAME,
             conduit_id=_CONDUIT_DEFAULT_ID,
+            surface_id=surface_id,
         )
         if isinstance(decision, Deny):
             _log.info(
@@ -107,6 +110,7 @@ def bind(deps: Kernel) -> Handler:
                 principal_id=principal_id,
                 command_name=_ON_BEHALF_QUERY_NAME,
                 conduit_id=_CONDUIT_DEFAULT_ID,
+                surface_id=surface_id,
             )
             if isinstance(on_behalf_decision, Deny):
                 _log.info(

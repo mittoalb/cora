@@ -16,6 +16,7 @@ from cora.equipment._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.equipment.features.relocate_asset.command import RelocateAsset
 from cora.equipment.features.relocate_asset.handler import Handler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 _REASON_MAX_LENGTH = 500
 
@@ -59,4 +60,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             RelocateAsset(asset_id=asset_id, to_parent_id=to_parent_id, reason=reason),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )

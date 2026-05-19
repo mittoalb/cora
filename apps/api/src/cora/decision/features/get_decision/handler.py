@@ -25,6 +25,7 @@ class Handler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        surface_id: UUID = _CONDUIT_DEFAULT_ID,
     ) -> Decision | None: ...
 
 
@@ -36,6 +37,7 @@ def bind(deps: Kernel) -> Handler:
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        surface_id: UUID = _CONDUIT_DEFAULT_ID,
     ) -> Decision | None:
         _log.info(
             "get_decision.start",
@@ -49,6 +51,7 @@ def bind(deps: Kernel) -> Handler:
             principal_id=principal_id,
             command_name=_QUERY_NAME,
             conduit_id=_CONDUIT_DEFAULT_ID,
+            surface_id=surface_id,
         )
         if isinstance(authz, Deny):
             _log.info(

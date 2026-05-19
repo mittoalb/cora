@@ -56,6 +56,24 @@ by `tests/contract/test_principal_header.py`.
 """
 
 
+SYSTEM_HTTP_SURFACE_ID = UUID("00000000-0000-0000-0000-000000000020")
+SYSTEM_MCP_STDIO_SURFACE_ID = UUID("00000000-0000-0000-0000-000000000021")
+SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID = UUID("00000000-0000-0000-0000-000000000022")
+"""Seeded arrival-Surface UUIDs.
+
+These three constants are written by the
+20260519200000_seed_default_surfaces_and_v2_policy.sql migration and
+referenced by `cora.trust._bootstrap` (verify_bootstrap_seed_present)
+and by `get_surface_id` / `get_mcp_surface_id` below.
+
+Lives in `cora.infrastructure.routing` rather than `cora.trust._bootstrap`
+so every BC's route / tool can import the resolver helpers without
+violating the tach BC-isolation rule (BCs may import infrastructure
+but not other BCs or `cora.api`). `cora.trust._bootstrap` re-exports
+these for backward compatibility with existing trust-internal callers.
+"""
+
+
 class ErrorResponse(BaseModel):
     """Shared error body for OpenAPI documentation."""
 
@@ -131,6 +149,38 @@ def get_principal_id(
             )
         return SYSTEM_PRINCIPAL_ID
     return x_principal_id
+
+
+def get_surface_id(request: Request) -> UUID:
+    """Resolve the arrival Surface for an HTTP request.
+
+    v1: static return. Process-derived (no client-asserted header /
+    query param) per Phase B Iter C-2 AH1. Phase C extends the body
+    to validate the bearer token's `aud` claim against the Surface's
+    expected audience before returning — `request: Request` is in
+    the signature today so Phase C extends the body without changing
+    the dependency API.
+    """
+    _ = request
+    return SYSTEM_HTTP_SURFACE_ID
+
+
+def get_mcp_surface_id() -> UUID:
+    """Resolve the arrival Surface for an MCP tool call.
+
+    CORA only serves MCP over streamable-http in production (per
+    `cora/api/main.py` mounting `streamable_http_app()`). Stdio is
+    unreachable in production. The adapter returns the streamable-
+    http constant unconditionally — no `ctx` parameter needed, so
+    existing MCP tool signatures don't change.
+
+    If stdio shipping is added later, pin the surface id on a
+    closure parameter at tool-registration time
+    (`register(mcp, *, surface_id=...)`) rather than inspecting
+    `ctx` — AH1 (no client-asserted surface) is preserved either
+    way. GR3 RISK-1 + RISK-4.
+    """
+    return SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID
 
 
 __all__ = [

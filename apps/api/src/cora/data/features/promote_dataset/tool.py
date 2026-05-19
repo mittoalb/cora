@@ -12,6 +12,7 @@ from cora.data.aggregates.dataset import DATASET_PROMOTION_REASON_MAX_LENGTH
 from cora.data.features.promote_dataset.command import PromoteDataset
 from cora.data.features.promote_dataset.handler import Handler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -48,4 +49,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             PromoteDataset(dataset_id=dataset_id, reason=reason),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )

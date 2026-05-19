@@ -6,7 +6,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.trust.aggregates.surface import SURFACE_NAME_MAX_LENGTH, SurfaceKind
 from cora.trust.features.define_surface.command import DefineSurface
 from cora.trust.features.define_surface.handler import IdempotentHandler
@@ -71,6 +76,7 @@ async def post_surfaces(
     handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     idempotency_key: Annotated[
         str | None,
         Header(
@@ -83,6 +89,7 @@ async def post_surfaces(
         DefineSurface(name=body.name, kind=body.kind),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
         idempotency_key=idempotency_key,
     )
     return DefineSurfaceResponse(surface_id=surface_id)

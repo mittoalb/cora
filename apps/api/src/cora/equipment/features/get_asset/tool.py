@@ -20,6 +20,7 @@ from cora.equipment.aggregates.asset import ASSET_NAME_MAX_LENGTH
 from cora.equipment.features.get_asset.handler import Handler
 from cora.equipment.features.get_asset.query import GetAsset
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class AssetPortOutput(BaseModel):
@@ -62,6 +63,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             GetAsset(asset_id=asset_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         if asset is None:
             msg = f"Asset {asset_id} not found"

@@ -21,6 +21,8 @@ from cora.equipment.features.list_assets.query import ListAssets
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 @dataclass(frozen=True)
 class AssetSummaryItem:
@@ -51,6 +53,7 @@ class Handler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> AssetListPage: ...
 
 

@@ -8,6 +8,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 from cora.run._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.run.aggregates.run import RUN_NAME_MAX_LENGTH
 from cora.run.features.start_run.command import StartRun
@@ -153,5 +154,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return StartRunOutput(run_id=run_id)

@@ -12,6 +12,7 @@ from cora.caution.aggregates.caution import CautionRetireReason
 from cora.caution.features.retire_caution.command import RetireCaution
 from cora.caution.features.retire_caution.handler import Handler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class RetireCautionOutput(BaseModel):
@@ -46,5 +47,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return RetireCautionOutput(caution_id=caution_id)

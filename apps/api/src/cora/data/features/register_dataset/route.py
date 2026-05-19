@@ -28,7 +28,12 @@ from cora.data.aggregates.dataset import (
 )
 from cora.data.features.register_dataset.command import RegisterDataset
 from cora.data.features.register_dataset.handler import IdempotentHandler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class ChecksumRequest(BaseModel):
@@ -217,6 +222,7 @@ async def post_datasets(
     handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     idempotency_key: Annotated[
         str | None,
         Header(
@@ -245,6 +251,7 @@ async def post_datasets(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
         idempotency_key=idempotency_key,
     )
     return RegisterDatasetResponse(dataset_id=dataset_id)

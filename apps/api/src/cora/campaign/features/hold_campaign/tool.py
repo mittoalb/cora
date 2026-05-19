@@ -12,6 +12,7 @@ from cora.campaign.aggregates.campaign import CAMPAIGN_REASON_MAX_LENGTH
 from cora.campaign.features.hold_campaign.command import HoldCampaign
 from cora.campaign.features.hold_campaign.handler import Handler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class HoldCampaignOutput(BaseModel):
@@ -47,5 +48,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             HoldCampaign(campaign_id=campaign_id, reason=reason),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return HoldCampaignOutput(campaign_id=campaign_id)

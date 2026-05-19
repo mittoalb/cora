@@ -27,6 +27,7 @@ from cora.caution.aggregates.caution import (
 from cora.caution.features.supersede_caution.command import SupersedeCaution
 from cora.caution.features.supersede_caution.handler import IdempotentHandler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 _TARGET_ADAPTER: TypeAdapter[TargetDTO] = TypeAdapter(TargetDTO)
 
@@ -108,5 +109,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return SupersedeCautionOutput(caution_id=child_caution_id)

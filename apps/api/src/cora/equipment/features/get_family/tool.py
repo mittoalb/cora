@@ -20,6 +20,7 @@ from cora.equipment.aggregates.family import FAMILY_NAME_MAX_LENGTH, Affordance
 from cora.equipment.features.get_family.handler import Handler
 from cora.equipment.features.get_family.query import GetFamily
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class FamilyOutput(BaseModel):
@@ -50,6 +51,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             GetFamily(family_id=family_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         if family is None:
             msg = f"Family {family_id} not found"

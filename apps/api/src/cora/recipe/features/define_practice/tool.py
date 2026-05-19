@@ -14,6 +14,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 from cora.recipe._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.recipe.aggregates.practice import PRACTICE_NAME_MAX_LENGTH
 from cora.recipe.features.define_practice.command import DefinePractice
@@ -61,5 +62,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             DefinePractice(name=name, method_id=method_id, site_id=site_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return DefinePracticeOutput(practice_id=practice_id)

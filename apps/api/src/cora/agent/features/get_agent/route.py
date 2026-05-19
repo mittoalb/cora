@@ -15,7 +15,12 @@ from pydantic import BaseModel
 from cora.agent.aggregates.agent import Agent, AgentStatus
 from cora.agent.features.get_agent.handler import Handler
 from cora.agent.features.get_agent.query import GetAgent
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class ModelRefResponse(BaseModel):
@@ -102,11 +107,13 @@ async def get_agents(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> AgentResponse:
     agent = await handler(
         GetAgent(agent_id=agent_id),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     if agent is None:
         raise HTTPException(

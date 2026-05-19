@@ -16,6 +16,7 @@ from cora.equipment._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.equipment.features.enter_maintenance.command import EnterMaintenance
 from cora.equipment.features.enter_maintenance.handler import Handler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -36,4 +37,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             EnterMaintenance(asset_id=asset_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )

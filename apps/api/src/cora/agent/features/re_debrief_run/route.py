@@ -19,7 +19,12 @@ from pydantic import BaseModel, Field
 
 from cora.agent.features.re_debrief_run.command import ReDebriefRun
 from cora.agent.features.re_debrief_run.handler import IdempotentHandler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class ReDebriefRunRequest(BaseModel):
@@ -97,6 +102,7 @@ async def post_re_debrief_run(
     handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> ReDebriefRunResponse:
     decision_id = await handler(
@@ -106,6 +112,7 @@ async def post_re_debrief_run(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
         idempotency_key=idempotency_key,
     )
     return ReDebriefRunResponse(decision_id=decision_id)

@@ -19,7 +19,12 @@ from cora.calibration.aggregates.calibration import CALIBRATION_DESCRIPTION_MAX_
 from cora.calibration.features.define_calibration.command import DefineCalibration
 from cora.calibration.features.define_calibration.handler import IdempotentHandler
 from cora.calibration.quantities import CalibrationQuantity
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class DefineCalibrationRequest(BaseModel):
@@ -128,6 +133,7 @@ async def post_calibrations(
     handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     idempotency_key: Annotated[
         str | None,
         Header(
@@ -149,6 +155,7 @@ async def post_calibrations(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
         idempotency_key=idempotency_key,
     )
     return DefineCalibrationResponse(calibration_id=calibration_id)

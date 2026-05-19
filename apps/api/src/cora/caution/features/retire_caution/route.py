@@ -14,7 +14,12 @@ from pydantic import BaseModel, Field
 from cora.caution.aggregates.caution import CautionRetireReason
 from cora.caution.features.retire_caution.command import RetireCaution
 from cora.caution.features.retire_caution.handler import Handler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class RetireCautionRequest(BaseModel):
@@ -69,6 +74,7 @@ async def post_cautions_retire(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         RetireCaution(
@@ -77,4 +83,5 @@ async def post_cautions_retire(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

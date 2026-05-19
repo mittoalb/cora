@@ -7,7 +7,12 @@ from fastapi import APIRouter, Depends, Path, Request, status
 from pydantic import BaseModel, Field
 
 from cora.equipment.aggregates.family import Affordance
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.recipe.aggregates.capability import (
     CAPABILITY_DESCRIPTION_MAX_LENGTH,
     CAPABILITY_VERSION_TAG_MAX_LENGTH,
@@ -100,6 +105,7 @@ async def post_capabilities_version(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         VersionCapability(
@@ -112,4 +118,5 @@ async def post_capabilities_version(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

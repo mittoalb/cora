@@ -16,7 +16,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 from pydantic import BaseModel, Field
 
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.trust.features.list_permissions.handler import Handler
 from cora.trust.features.list_permissions.query import ListPermissions
 
@@ -86,6 +91,7 @@ async def get_policies_permissions(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> ListPermissionsResponse:
     result = await handler(
         ListPermissions(
@@ -95,6 +101,7 @@ async def get_policies_permissions(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     if result is None:
         raise HTTPException(

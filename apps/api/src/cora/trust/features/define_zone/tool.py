@@ -16,6 +16,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 from cora.trust._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.trust.aggregates.zone import ZONE_NAME_MAX_LENGTH
 from cora.trust.features.define_zone.command import DefineZone
@@ -50,5 +51,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             DefineZone(name=name),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return DefineZoneOutput(zone_id=zone_id)

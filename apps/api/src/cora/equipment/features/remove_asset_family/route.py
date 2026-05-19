@@ -17,7 +17,12 @@ from pydantic import BaseModel, Field
 
 from cora.equipment.features.remove_asset_family.command import RemoveAssetFamily
 from cora.equipment.features.remove_asset_family.handler import Handler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class RemoveAssetFamilyRequest(BaseModel):
@@ -71,9 +76,11 @@ async def post_assets_remove_capability(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         RemoveAssetFamily(asset_id=asset_id, family_id=body.family_id),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

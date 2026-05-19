@@ -44,6 +44,7 @@ from cora.caution.features.list_cautions.query import (
     ListCautions,
 )
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 # Tool-surface type for status, matching the route's `_RouteStatusParam`
 # semantics: real values plus the 'all' sentinel.
@@ -237,6 +238,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return CautionListOutput(
             items=[

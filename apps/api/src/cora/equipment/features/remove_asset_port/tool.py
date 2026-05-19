@@ -12,6 +12,7 @@ from cora.equipment.aggregates.asset import PORT_NAME_MAX_LENGTH
 from cora.equipment.features.remove_asset_port.command import RemoveAssetPort
 from cora.equipment.features.remove_asset_port.handler import Handler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -44,4 +45,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             RemoveAssetPort(asset_id=asset_id, port_name=port_name),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )

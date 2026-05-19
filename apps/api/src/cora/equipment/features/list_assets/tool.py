@@ -17,6 +17,7 @@ from cora.equipment.features.list_assets.query import (
     ListAssets,
 )
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class AssetSummaryRow(BaseModel):
@@ -81,6 +82,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return AssetListOutput(
             items=[

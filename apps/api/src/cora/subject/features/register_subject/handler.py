@@ -52,6 +52,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _CONDUIT_DEFAULT_ID,
     ) -> UUID: ...
 
 
@@ -65,6 +66,7 @@ class IdempotentHandler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _CONDUIT_DEFAULT_ID,
         idempotency_key: str | None = None,
     ) -> UUID: ...
 
@@ -78,6 +80,7 @@ def bind(deps: Kernel) -> Handler:
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _CONDUIT_DEFAULT_ID,
     ) -> UUID:
         _log.info(
             "register_subject.start",
@@ -91,6 +94,7 @@ def bind(deps: Kernel) -> Handler:
             principal_id=principal_id,
             command_name=_COMMAND_NAME,
             conduit_id=_CONDUIT_DEFAULT_ID,
+            surface_id=surface_id,
         )
         if isinstance(decision, Deny):
             _log.info(

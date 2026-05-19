@@ -17,6 +17,7 @@ from cora.agent.aggregates.agent import AgentStatus
 from cora.agent.features.get_agent.handler import Handler
 from cora.agent.features.get_agent.query import GetAgent
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class ModelRefOutput(BaseModel):
@@ -69,6 +70,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             GetAgent(agent_id=agent_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         if agent is None:
             msg = f"Agent {agent_id} not found"

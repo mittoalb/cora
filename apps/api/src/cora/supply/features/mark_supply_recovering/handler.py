@@ -8,6 +8,8 @@ from cora.supply._supply_update_handler import make_supply_update_handler
 from cora.supply.features.mark_supply_recovering.command import MarkSupplyRecovering
 from cora.supply.features.mark_supply_recovering.decider import decide
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 class Handler(Protocol):
     """Callable interface every mark_supply_recovering handler implements."""
@@ -19,6 +21,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> None: ...
 
 

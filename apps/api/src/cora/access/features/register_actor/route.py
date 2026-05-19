@@ -14,7 +14,12 @@ from pydantic import BaseModel, Field
 from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.handler import IdempotentHandler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class RegisterActorRequest(BaseModel):
@@ -69,6 +74,7 @@ async def post_actors(
     handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     idempotency_key: Annotated[
         str | None,
         Header(
@@ -86,6 +92,7 @@ async def post_actors(
         RegisterActor(name=body.name),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
         idempotency_key=idempotency_key,
     )
     return RegisterActorResponse(actor_id=actor_id)

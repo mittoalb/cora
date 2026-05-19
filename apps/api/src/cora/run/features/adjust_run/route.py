@@ -13,7 +13,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Path, Request, status
 from pydantic import BaseModel, Field
 
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.run.aggregates.run import RUN_ADJUST_REASON_MAX_LENGTH
 from cora.run.features.adjust_run.command import AdjustRun
 from cora.run.features.adjust_run.handler import IdempotentHandler
@@ -114,6 +119,7 @@ async def post_runs_adjust(
     handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     idempotency_key: Annotated[
         str | None,
         Header(
@@ -135,5 +141,6 @@ async def post_runs_adjust(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
         idempotency_key=idempotency_key,
     )

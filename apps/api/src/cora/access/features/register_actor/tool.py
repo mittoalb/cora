@@ -23,6 +23,7 @@ from cora.access.aggregates.actor import ACTOR_NAME_MAX_LENGTH
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.handler import IdempotentHandler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class RegisterActorOutput(BaseModel):
@@ -65,5 +66,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             # MCP tools run inside the FastAPI-instrumented `/mcp`
             # request, so the OTel context is already in scope here.
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return RegisterActorOutput(actor_id=actor_id)

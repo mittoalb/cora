@@ -9,7 +9,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Request, status
 
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.recipe.features.deprecate_plan.command import DeprecatePlan
 from cora.recipe.features.deprecate_plan.handler import Handler
 
@@ -51,9 +56,11 @@ async def post_plans_deprecate(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         DeprecatePlan(plan_id=plan_id),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

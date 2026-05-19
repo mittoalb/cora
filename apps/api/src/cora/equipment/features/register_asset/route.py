@@ -19,7 +19,12 @@ from pydantic import BaseModel, Field
 from cora.equipment.aggregates.asset import ASSET_NAME_MAX_LENGTH, AssetLevel
 from cora.equipment.features.register_asset.command import RegisterAsset
 from cora.equipment.features.register_asset.handler import IdempotentHandler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class RegisterAssetRequest(BaseModel):
@@ -104,6 +109,7 @@ async def post_assets(
     handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     idempotency_key: Annotated[
         str | None,
         Header(
@@ -120,6 +126,7 @@ async def post_assets(
         RegisterAsset(name=body.name, level=body.level, parent_id=body.parent_id),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
         idempotency_key=idempotency_key,
     )
     return RegisterAssetResponse(asset_id=asset_id)

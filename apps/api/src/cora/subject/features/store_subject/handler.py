@@ -13,6 +13,8 @@ from cora.subject._update_handler import make_subject_update_handler
 from cora.subject.features.store_subject.command import StoreSubject
 from cora.subject.features.store_subject.decider import decide
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 class Handler(Protocol):
     """Callable interface every store_subject handler implements."""
@@ -24,6 +26,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> None: ...
 
 

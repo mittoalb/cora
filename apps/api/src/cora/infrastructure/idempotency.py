@@ -92,6 +92,7 @@ from cora.infrastructure.ports import (
 )
 
 _MAX_KEY_LENGTH = 255
+_NIL_SENTINEL_ID = UUID(int=0)
 
 _log = get_logger(__name__)
 
@@ -195,6 +196,7 @@ class _BareHandler[TCommand, TResult](Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> TResult: ...
 
 
@@ -206,6 +208,7 @@ class _IdempotentHandler[TCommand, TResult](Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
         idempotency_key: str | None = None,
     ) -> TResult: ...
 
@@ -232,6 +235,7 @@ def with_idempotency[TCommand, TResult](
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
         idempotency_key: str | None = None,
     ) -> TResult:
         if idempotency_key is None:
@@ -240,6 +244,7 @@ def with_idempotency[TCommand, TResult](
                 principal_id=principal_id,
                 correlation_id=correlation_id,
                 causation_id=causation_id,
+                surface_id=surface_id,
             )
 
         if len(idempotency_key) > _MAX_KEY_LENGTH:
@@ -271,6 +276,7 @@ def with_idempotency[TCommand, TResult](
                         principal_id=principal_id,
                         correlation_id=correlation_id,
                         causation_id=causation_id,
+                        surface_id=surface_id,
                     )
                 except Exception as exc:
                     status = classify_error_status(exc)

@@ -14,6 +14,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 from cora.operation._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.operation.aggregates.procedure import StepKind
 from cora.operation.features.append_procedure_step.command import (
@@ -84,4 +85,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )

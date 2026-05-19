@@ -19,7 +19,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Path, Request, status
 from pydantic import BaseModel, Field
 
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.safety._clearance_dtos import (
     BindingDTO,
     HazardDeclarationDTO,
@@ -155,6 +160,7 @@ async def post_clearances_amend(
     handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     idempotency_key: Annotated[
         str | None,
         Header(
@@ -171,6 +177,7 @@ async def post_clearances_amend(
         _command_from_request(parent_clearance_id, body),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
         idempotency_key=idempotency_key,
     )
     return AmendClearanceResponse(clearance_id=child_clearance_id)

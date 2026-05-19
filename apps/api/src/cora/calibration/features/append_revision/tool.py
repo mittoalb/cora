@@ -17,6 +17,7 @@ from cora.calibration.aggregates.calibration import CalibrationStatus
 from cora.calibration.features.append_revision.command import AppendRevision
 from cora.calibration.features.append_revision.handler import IdempotentHandler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class AppendRevisionOutput(BaseModel):
@@ -109,5 +110,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             ),
             principal_id=principal_id,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return AppendRevisionOutput(revision_id=revision_id)

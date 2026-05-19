@@ -13,7 +13,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Path, Request, status
 from pydantic import BaseModel, Field
 
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.run.aggregates.run import RUN_TRUNCATE_REASON_MAX_LENGTH
 from cora.run.features.truncate_run.command import TruncateRun
 from cora.run.features.truncate_run.handler import Handler
@@ -92,6 +97,7 @@ async def post_runs_truncate(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         TruncateRun(
@@ -101,4 +107,5 @@ async def post_runs_truncate(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

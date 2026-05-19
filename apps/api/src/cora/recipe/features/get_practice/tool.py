@@ -13,6 +13,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 from cora.recipe._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.recipe.aggregates.practice import PRACTICE_NAME_MAX_LENGTH
 from cora.recipe.features.get_practice.handler import Handler
@@ -48,6 +49,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             GetPractice(practice_id=practice_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         if practice is None:
             msg = f"Practice {practice_id} not found"

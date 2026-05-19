@@ -11,6 +11,7 @@ from cora.agent._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.agent.features.revise_agent_budget.command import ReviseAgentBudget
 from cora.agent.features.revise_agent_budget.handler import Handler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class ReviseAgentBudgetOutput(BaseModel):
@@ -62,6 +63,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return ReviseAgentBudgetOutput(
             agent_id=agent_id,

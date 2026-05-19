@@ -12,6 +12,7 @@ from cora.agent.aggregates.agent import AGENT_TOOL_NAME_MAX_LENGTH
 from cora.agent.features.revoke_tool_from_agent.command import RevokeToolFromAgent
 from cora.agent.features.revoke_tool_from_agent.handler import Handler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class RevokeToolFromAgentOutput(BaseModel):
@@ -48,5 +49,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             RevokeToolFromAgent(agent_id=agent_id, tool_name=tool_name),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return RevokeToolFromAgentOutput(agent_id=agent_id, tool_name=tool_name)

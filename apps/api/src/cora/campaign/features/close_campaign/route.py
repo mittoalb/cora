@@ -11,7 +11,12 @@ from fastapi import APIRouter, Depends, Path, Request, status
 
 from cora.campaign.features.close_campaign.command import CloseCampaign
 from cora.campaign.features.close_campaign.handler import Handler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 def _get_handler(request: Request) -> Handler:
@@ -50,9 +55,11 @@ async def post_campaigns_close(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         CloseCampaign(campaign_id=campaign_id),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

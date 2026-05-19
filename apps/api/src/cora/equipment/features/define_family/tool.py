@@ -18,6 +18,7 @@ from cora.equipment.aggregates.family import FAMILY_NAME_MAX_LENGTH, Affordance
 from cora.equipment.features.define_family.command import DefineFamily
 from cora.equipment.features.define_family.handler import IdempotentHandler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class DefineFamilyOutput(BaseModel):
@@ -60,5 +61,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             DefineFamily(name=name, affordances=frozenset(affordances)),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return DefineFamilyOutput(family_id=family_id)

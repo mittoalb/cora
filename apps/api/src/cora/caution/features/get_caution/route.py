@@ -24,7 +24,12 @@ from cora.caution.aggregates.caution import (
 )
 from cora.caution.features.get_caution.handler import Handler
 from cora.caution.features.get_caution.query import GetCaution
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class CautionResponse(BaseModel):
@@ -101,11 +106,13 @@ async def get_cautions(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> CautionResponse:
     caution = await handler(
         GetCaution(caution_id=caution_id),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     if caution is None:
         raise HTTPException(

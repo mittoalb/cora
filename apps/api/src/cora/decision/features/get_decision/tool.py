@@ -17,6 +17,7 @@ from cora.decision.aggregates.decision import (
 from cora.decision.features.get_decision.handler import Handler
 from cora.decision.features.get_decision.query import GetDecision
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class DecisionOutput(BaseModel):
@@ -63,6 +64,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             GetDecision(decision_id=decision_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         if decision is None:
             raise DecisionNotFoundError(decision_id)

@@ -20,6 +20,8 @@ from cora.equipment.features.restore_from_maintenance.command import RestoreFrom
 from cora.equipment.features.restore_from_maintenance.decider import decide
 from cora.infrastructure.kernel import Kernel
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 class Handler(Protocol):
     """Callable interface every restore_from_maintenance handler implements."""
@@ -31,6 +33,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> None: ...
 
 

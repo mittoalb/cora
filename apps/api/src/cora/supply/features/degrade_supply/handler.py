@@ -12,6 +12,8 @@ from cora.supply._supply_update_handler import make_supply_update_handler
 from cora.supply.features.degrade_supply.command import DegradeSupply
 from cora.supply.features.degrade_supply.decider import decide
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 class Handler(Protocol):
     """Callable interface every degrade_supply handler implements."""
@@ -23,6 +25,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> None: ...
 
 

@@ -11,6 +11,7 @@ from cora.campaign._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.campaign.features.close_campaign.command import CloseCampaign
 from cora.campaign.features.close_campaign.handler import Handler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class CloseCampaignOutput(BaseModel):
@@ -38,5 +39,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             CloseCampaign(campaign_id=campaign_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return CloseCampaignOutput(campaign_id=campaign_id)

@@ -11,7 +11,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Path, Request, status
 from pydantic import BaseModel, Field
 
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.recipe.aggregates.method import METHOD_VERSION_TAG_MAX_LENGTH
 from cora.recipe.features.version_method.command import VersionMethod
 from cora.recipe.features.version_method.handler import Handler
@@ -76,9 +81,11 @@ async def post_methods_version(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         VersionMethod(method_id=method_id, version_tag=body.version_tag),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

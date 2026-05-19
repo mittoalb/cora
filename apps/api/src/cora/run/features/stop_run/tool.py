@@ -8,6 +8,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 from cora.run._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.run.aggregates.run import RUN_STOP_REASON_MAX_LENGTH
 from cora.run.features.stop_run.command import StopRun
@@ -46,4 +47,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             StopRun(run_id=run_id, reason=reason),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )

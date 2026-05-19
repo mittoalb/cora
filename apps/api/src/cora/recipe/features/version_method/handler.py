@@ -17,6 +17,8 @@ from cora.recipe._method_update_handler import make_method_update_handler
 from cora.recipe.features.version_method.command import VersionMethod
 from cora.recipe.features.version_method.decider import decide
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 class Handler(Protocol):
     """Callable interface every version_method handler implements."""
@@ -28,6 +30,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> None: ...
 
 

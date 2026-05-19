@@ -14,6 +14,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 from cora.subject._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.subject.aggregates.subject import SUBJECT_DISCARD_REASON_MAX_LENGTH
 from cora.subject.features.discard_subject.command import DiscardSubject
@@ -50,4 +51,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             DiscardSubject(subject_id=subject_id, reason=reason),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )

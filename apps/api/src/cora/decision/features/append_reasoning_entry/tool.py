@@ -31,6 +31,7 @@ from cora.decision.features.append_reasoning_entry.command import (
 )
 from cora.decision.features.append_reasoning_entry.handler import Handler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class AppendReasoningEntryOutput(BaseModel):
@@ -156,5 +157,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             AppendReasoningEntries(decision_id=decision_id, entries=(entry,)),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return AppendReasoningEntryOutput(event_count=count)

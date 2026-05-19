@@ -24,7 +24,12 @@ from cora.calibration.aggregates.calibration import (
 )
 from cora.calibration.features.get_calibration.handler import Handler
 from cora.calibration.features.get_calibration.query import GetCalibration
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class RevisionResponse(BaseModel):
@@ -124,11 +129,13 @@ async def get_calibrations(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> CalibrationResponse:
     calibration = await handler(
         GetCalibration(calibration_id=calibration_id),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     if calibration is None:
         raise HTTPException(

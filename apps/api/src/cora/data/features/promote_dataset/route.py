@@ -14,7 +14,12 @@ from pydantic import BaseModel, Field
 from cora.data.aggregates.dataset import DATASET_PROMOTION_REASON_MAX_LENGTH
 from cora.data.features.promote_dataset.command import PromoteDataset
 from cora.data.features.promote_dataset.handler import Handler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class PromoteDatasetRequest(BaseModel):
@@ -84,9 +89,11 @@ async def post_datasets_promote(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         PromoteDataset(dataset_id=dataset_id, reason=body.reason),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

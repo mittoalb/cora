@@ -37,7 +37,12 @@ from cora.decision.features.append_reasoning_entry.command import (
     ReasoningEntryInput,
 )
 from cora.decision.features.append_reasoning_entry.handler import Handler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 _REASONING_ENTRY_BATCH_MAX = 100
 """Max entries per batch. Generous enough for AI-agent burst
@@ -196,6 +201,7 @@ async def post_decisions_reasoning_entries(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> AppendReasoningEntriesResponse:
     entries = tuple(
         ReasoningEntryInput(
@@ -229,5 +235,6 @@ async def post_decisions_reasoning_entries(
         AppendReasoningEntries(decision_id=decision_id, entries=entries),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     return AppendReasoningEntriesResponse(event_count=count)

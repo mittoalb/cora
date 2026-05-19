@@ -9,7 +9,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Request, status
 
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.operation.features.start_procedure.command import StartProcedure
 from cora.operation.features.start_procedure.handler import Handler
 
@@ -55,9 +60,11 @@ async def post_procedures_start(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         StartProcedure(procedure_id=procedure_id),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

@@ -8,6 +8,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 from cora.operation._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.operation.features.start_procedure.command import StartProcedure
 from cora.operation.features.start_procedure.handler import Handler
@@ -37,4 +38,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             StartProcedure(procedure_id=procedure_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )

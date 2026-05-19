@@ -11,7 +11,12 @@ from fastapi import APIRouter, Depends, Path, Request, status
 
 from cora.campaign.features.add_run_to_campaign.command import AddRunToCampaign
 from cora.campaign.features.add_run_to_campaign.handler import Handler
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 def _get_handler(request: Request) -> Handler:
@@ -53,9 +58,11 @@ async def post_campaign_runs(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
         AddRunToCampaign(campaign_id=campaign_id, run_id=run_id),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )

@@ -22,6 +22,7 @@ from cora.calibration.aggregates.calibration import (
 from cora.calibration.features.get_calibration.handler import Handler
 from cora.calibration.features.get_calibration.query import GetCalibration
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class RevisionOutput(BaseModel):
@@ -107,5 +108,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             GetCalibration(calibration_id=calibration_id),
             principal_id=principal_id,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return _output_from_state(calibration) if calibration is not None else None

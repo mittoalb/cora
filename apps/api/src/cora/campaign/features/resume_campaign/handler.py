@@ -12,6 +12,8 @@ from cora.campaign.features.resume_campaign.command import ResumeCampaign
 from cora.campaign.features.resume_campaign.decider import decide
 from cora.infrastructure.kernel import Kernel
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 class Handler(Protocol):
     """Callable interface every resume_campaign handler implements."""
@@ -23,6 +25,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> None: ...
 
 

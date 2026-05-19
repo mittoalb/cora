@@ -16,6 +16,7 @@ from cora.data.aggregates.dataset import (
 from cora.data.features.list_datasets.handler import Handler
 from cora.data.features.list_datasets.query import DatasetStatusFilter, ListDatasets
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class DatasetSummaryRow(BaseModel):
@@ -81,6 +82,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return DatasetListOutput(
             items=[

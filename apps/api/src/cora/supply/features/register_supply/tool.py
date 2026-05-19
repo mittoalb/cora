@@ -14,6 +14,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 from cora.supply._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.supply.aggregates.supply import (
     SUPPLY_KIND_MAX_LENGTH,
@@ -77,5 +78,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             RegisterSupply(scope=scope, kind=kind, name=name),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return RegisterSupplyOutput(supply_id=supply_id)

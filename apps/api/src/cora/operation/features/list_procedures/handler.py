@@ -30,6 +30,8 @@ from cora.infrastructure.list_query import (
 from cora.operation.errors import UnauthorizedError
 from cora.operation.features.list_procedures.query import ListProcedures
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 @dataclass(frozen=True)
 class ProcedureSummaryItem:
@@ -65,6 +67,7 @@ class Handler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> ProcedureListPage: ...
 
 

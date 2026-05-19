@@ -30,6 +30,7 @@ from cora.data.aggregates.dataset import (
 from cora.data.features.register_dataset.command import RegisterDataset
 from cora.data.features.register_dataset.handler import IdempotentHandler
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class RegisterDatasetOutput(BaseModel):
@@ -165,5 +166,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return RegisterDatasetOutput(dataset_id=dataset_id)

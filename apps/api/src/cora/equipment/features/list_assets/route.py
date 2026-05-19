@@ -18,7 +18,12 @@ from cora.equipment.features.list_assets.query import (
     AssetLifecycleFilter,
     ListAssets,
 )
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class AssetSummaryDTO(BaseModel):
@@ -70,6 +75,7 @@ async def list_assets(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     cursor: Annotated[
         str | None,
         Query(description="Opaque cursor from a previous page's `next_cursor`."),
@@ -101,6 +107,7 @@ async def list_assets(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     return AssetListResponse(
         items=[

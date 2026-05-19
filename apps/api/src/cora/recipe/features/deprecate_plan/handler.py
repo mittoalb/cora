@@ -13,6 +13,8 @@ from cora.recipe._plan_update_handler import make_plan_update_handler
 from cora.recipe.features.deprecate_plan.command import DeprecatePlan
 from cora.recipe.features.deprecate_plan.decider import decide
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 class Handler(Protocol):
     """Callable interface every deprecate_plan handler implements."""
@@ -24,6 +26,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> None: ...
 
 

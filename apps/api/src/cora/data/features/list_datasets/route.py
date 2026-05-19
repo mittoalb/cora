@@ -17,7 +17,12 @@ from cora.data.aggregates.dataset import (
 )
 from cora.data.features.list_datasets.handler import Handler
 from cora.data.features.list_datasets.query import DatasetStatusFilter, ListDatasets
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 
 class DatasetSummaryDTO(BaseModel):
@@ -70,6 +75,7 @@ async def list_datasets(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     cursor: Annotated[
         str | None,
         Query(description="Opaque cursor from a previous page's `next_cursor`."),
@@ -104,6 +110,7 @@ async def list_datasets(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     return DatasetListResponse(
         items=[

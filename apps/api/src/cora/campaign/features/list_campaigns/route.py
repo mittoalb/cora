@@ -41,7 +41,12 @@ from cora.campaign.features.list_campaigns.query import (
     CampaignStatusFilter,
     ListCampaigns,
 )
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 
 # Route-surface type: real status values plus the 'all' sentinel that
 # translates to "no filter" at this layer. The query dataclass +
@@ -145,6 +150,7 @@ async def list_campaigns(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     cursor: Annotated[
         str | None,
         Query(description="Opaque cursor from a previous page's `next_cursor`."),
@@ -202,6 +208,7 @@ async def list_campaigns(
         ),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     return CampaignListPageResponse(
         items=[

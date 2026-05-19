@@ -11,7 +11,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Request, status
 from pydantic import BaseModel, Field
 
-from cora.infrastructure.routing import ErrorResponse, get_correlation_id, get_principal_id
+from cora.infrastructure.routing import (
+    ErrorResponse,
+    get_correlation_id,
+    get_principal_id,
+    get_surface_id,
+)
 from cora.trust.aggregates.zone import ZONE_NAME_MAX_LENGTH
 from cora.trust.features.list_zones.handler import Handler
 from cora.trust.features.list_zones.query import ListZones
@@ -63,6 +68,7 @@ async def list_zones(
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
+    surface_id: Annotated[UUID, Depends(get_surface_id)],
     cursor: Annotated[
         str | None,
         Query(description="Opaque cursor from a previous page's `next_cursor`."),
@@ -76,6 +82,7 @@ async def list_zones(
         ListZones(cursor=cursor, limit=limit),
         principal_id=principal_id,
         correlation_id=cid,
+        surface_id=surface_id,
     )
     return ZoneListResponse(
         items=[

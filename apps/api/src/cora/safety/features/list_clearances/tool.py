@@ -9,6 +9,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 from cora.safety._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.safety.aggregates.clearance import ClearanceKind, ClearanceStatus
 from cora.safety.aggregates.clearance.hazard_classification import RiskBand
@@ -129,6 +130,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         return ListClearancesOutput(
             items=[

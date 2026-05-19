@@ -18,6 +18,7 @@ from cora.data.aggregates.dataset import DATASET_NAME_MAX_LENGTH, DatasetNotFoun
 from cora.data.features.get_dataset.handler import Handler
 from cora.data.features.get_dataset.query import GetDataset
 from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class ChecksumOutput(BaseModel):
@@ -68,6 +69,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             GetDataset(dataset_id=dataset_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
         )
         if dataset is None:
             raise DatasetNotFoundError(dataset_id)
