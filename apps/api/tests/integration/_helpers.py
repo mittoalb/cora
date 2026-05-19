@@ -28,6 +28,7 @@ back to the test that wrote it.
 """
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 import asyncpg
@@ -169,4 +170,150 @@ async def seed_capability_pg(
         )
 
 
-__all__ = ["build_postgres_deps", "seed_capability_pg"]
+_DEFAULT_RUN_CHAIN_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d9ea")
+
+
+async def seed_run_upstream_chain_pg(
+    pool: asyncpg.Pool,
+    *,
+    now: datetime,
+    method_schema: dict[str, Any] | None = None,
+    plan_defaults: dict[str, Any] | None = None,
+    capability_id: UUID = _DEFAULT_RUN_CHAIN_CAPABILITY_ID,
+    correlation_id: UUID = _DEFAULT_SEED_CORRELATION_ID,
+    principal_id: UUID = _DEFAULT_SEED_PRINCIPAL_ID,
+) -> tuple[UUID, UUID]:
+    """Seed the full upstream chain a Run needs against real Postgres.
+
+    Composition: Family + Capability + Method (optional schema) + Practice +
+    Asset (with Family) + Plan (optional defaults) + Subject (Mounted).
+    Returns `(plan_id, subject_id)` — the two ids `StartRun` needs.
+
+    Hoisted from `test_run_parameters_handler_postgres.py` once a second
+    integration test (12b `calibration_pins`) needed the same scaffold;
+    avoids the private-import + `# pyright: ignore` smell of cross-test
+    imports. The function uses fresh UUIDs (uuid4) on every call so
+    multiple test fns can call it in the same db_pool without colliding
+    on stream ids.
+
+    `method_schema`: optional JSON Schema dict passed to
+    `update_method_parameters_schema` — STRICT validation at Run start
+    requires this to be set for any test that supplies non-empty
+    `override_parameters` or `plan_defaults`. Pass `None` for the
+    parameter-less Run path (12b `calibration_pins` tests).
+
+    `plan_defaults`: optional dict patched into the Plan's
+    `default_parameters` via `update_plan_default_parameters`. Pass
+    `None` to leave defaults empty.
+    """
+    from uuid import uuid4
+
+    from cora.equipment.aggregates.asset import AssetLevel
+    from cora.equipment.features import (
+        add_asset_family,
+        define_family,
+        register_asset,
+    )
+    from cora.equipment.features.add_asset_family import AddAssetFamily
+    from cora.equipment.features.define_family import DefineFamily
+    from cora.equipment.features.register_asset import RegisterAsset
+    from cora.recipe.features import (
+        define_method,
+        define_plan,
+        define_practice,
+        update_method_parameters_schema,
+        update_plan_default_parameters,
+    )
+    from cora.recipe.features.define_method import DefineMethod
+    from cora.recipe.features.define_plan import DefinePlan
+    from cora.recipe.features.define_practice import DefinePractice
+    from cora.recipe.features.update_method_parameters_schema import (
+        UpdateMethodParametersSchema,
+    )
+    from cora.recipe.features.update_plan_default_parameters import (
+        UpdatePlanDefaultParameters,
+    )
+    from cora.subject.features import mount_subject, register_subject
+    from cora.subject.features.mount_subject import MountSubject
+    from cora.subject.features.register_subject import RegisterSubject
+    from tests.unit.subject._helpers import seed_active_asset
+
+    # Generate enough event ids for every step in the chain.
+    ids = [uuid4() for _ in range(40)]
+    deps = build_postgres_deps(pool, now=now, ids=ids)
+
+    family_id = await define_family.bind(deps)(
+        DefineFamily(name="FlyMotion", affordances=frozenset()),
+        principal_id=principal_id,
+        correlation_id=correlation_id,
+    )
+    await seed_capability_pg(deps.event_store, capability_id, now=now)
+    method_id = await define_method.bind(deps)(
+        DefineMethod(
+            capability_id=capability_id,
+            name="Test Method",
+            needed_families=frozenset({family_id}),
+        ),
+        principal_id=principal_id,
+        correlation_id=correlation_id,
+    )
+    if method_schema is not None:
+        await update_method_parameters_schema.bind(deps)(
+            UpdateMethodParametersSchema(method_id=method_id, parameters_schema=method_schema),
+            principal_id=principal_id,
+            correlation_id=correlation_id,
+        )
+    site_id = uuid4()
+    practice_id = await define_practice.bind(deps)(
+        DefinePractice(name="Test Practice", method_id=method_id, site_id=site_id),
+        principal_id=principal_id,
+        correlation_id=correlation_id,
+    )
+    asset_id = await register_asset.bind(deps)(
+        RegisterAsset(name="TestAsset", level=AssetLevel.ENTERPRISE, parent_id=None),
+        principal_id=principal_id,
+        correlation_id=correlation_id,
+    )
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=asset_id, family_id=family_id),
+        principal_id=principal_id,
+        correlation_id=correlation_id,
+    )
+    plan_id = await define_plan.bind(deps)(
+        DefinePlan(
+            name="32-ID FlyScan",
+            practice_id=practice_id,
+            asset_ids=frozenset({asset_id}),
+        ),
+        principal_id=principal_id,
+        correlation_id=correlation_id,
+    )
+    if plan_defaults:
+        await update_plan_default_parameters.bind(deps)(
+            UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch=plan_defaults),
+            principal_id=principal_id,
+            correlation_id=correlation_id,
+        )
+
+    subject_id = await register_subject.bind(deps)(
+        RegisterSubject(name="PorousCeramicSample-A"),
+        principal_id=principal_id,
+        correlation_id=correlation_id,
+    )
+    mount_asset_id = await seed_active_asset(
+        deps.event_store, now=now, correlation_id=correlation_id
+    )
+    await mount_subject.bind(deps)(
+        MountSubject(subject_id=subject_id, asset_id=mount_asset_id, reason="test"),
+        principal_id=principal_id,
+        correlation_id=correlation_id,
+    )
+
+    return plan_id, subject_id
+
+
+__all__ = [
+    "build_postgres_deps",
+    "seed_capability_pg",
+    "seed_run_upstream_chain_pg",
+]

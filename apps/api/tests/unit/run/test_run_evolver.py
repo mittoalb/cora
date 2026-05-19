@@ -1029,6 +1029,7 @@ def test_legacy_pre_12b_run_folds_with_empty_calibration_pins() -> None:
     assert state.calibration_pins == frozenset()
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize(
     "terminal_factory",
     [_make_completed, _make_aborted, _make_stopped, _make_truncated],
@@ -1109,6 +1110,106 @@ def test_adjust_run_preserves_calibration_pins() -> None:
                 parameter_patch={"a": 1},
                 effective_parameters={"a": 1},
                 reason="adjust",
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.calibration_pins == frozenset({pin_a})
+
+
+@pytest.mark.unit
+def test_reading_logbook_opened_preserves_calibration_pins() -> None:
+    """Phase 12b orthogonal arm: lazy logbook open MUST preserve the
+    AsShot anchor. Same silent-wipe risk as the terminal arms — pinned
+    explicitly because the field-add review surface is in the evolver,
+    not the slice."""
+    pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    pin_b = UUID("01900000-0000-7000-8000-00000000ca02")
+    run_id = uuid4()
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="Run",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+                calibration_pins=(pin_a, pin_b),
+            ),
+            RunReadingLogbookOpened(
+                run_id=run_id,
+                logbook_id=uuid4(),
+                kind=LOGBOOK_KIND_READING,
+                schema=READING_LOGBOOK_SCHEMA,
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.calibration_pins == frozenset({pin_a, pin_b})
+
+
+@pytest.mark.unit
+def test_run_campaign_assigned_preserves_calibration_pins() -> None:
+    """Phase 12b orthogonal arm: post-hoc Campaign membership assignment
+    MUST preserve the AsShot anchor."""
+    from cora.run.aggregates.run.events import RunCampaignAssigned
+
+    pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    run_id = uuid4()
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="Run",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+                calibration_pins=(pin_a,),
+            ),
+            RunCampaignAssigned(
+                run_id=run_id,
+                campaign_id=uuid4(),
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.calibration_pins == frozenset({pin_a})
+
+
+@pytest.mark.unit
+def test_run_campaign_unassigned_preserves_calibration_pins() -> None:
+    """Phase 12b orthogonal arm: post-hoc Campaign membership removal
+    MUST preserve the AsShot anchor."""
+    from cora.run.aggregates.run.events import (
+        RunCampaignAssigned,
+        RunCampaignUnassigned,
+    )
+
+    pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    run_id = uuid4()
+    campaign_id = uuid4()
+    state = fold(
+        [
+            RunStarted(
+                run_id=run_id,
+                name="Run",
+                plan_id=uuid4(),
+                subject_id=None,
+                occurred_at=_NOW,
+                calibration_pins=(pin_a,),
+            ),
+            RunCampaignAssigned(
+                run_id=run_id,
+                campaign_id=campaign_id,
+                occurred_at=_NOW,
+            ),
+            RunCampaignUnassigned(
+                run_id=run_id,
+                campaign_id=campaign_id,
+                reason="removed",
                 occurred_at=_NOW,
             ),
         ]

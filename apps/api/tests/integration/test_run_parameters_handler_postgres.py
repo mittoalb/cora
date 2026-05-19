@@ -18,52 +18,17 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
-from cora.equipment.aggregates.asset import AssetLevel
-from cora.equipment.features import (
-    add_asset_family,
-    define_family,
-    register_asset,
-)
-from cora.equipment.features.add_asset_family import AddAssetFamily
-from cora.equipment.features.define_family import DefineFamily
-from cora.equipment.features.register_asset import RegisterAsset
-from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
-from cora.recipe.features import (
-    define_method,
-    define_plan,
-    define_practice,
-    update_method_parameters_schema,
-    update_plan_default_parameters,
-)
-from cora.recipe.features.define_method import DefineMethod
-from cora.recipe.features.define_plan import DefinePlan
-from cora.recipe.features.define_practice import DefinePractice
-from cora.recipe.features.update_method_parameters_schema import (
-    UpdateMethodParametersSchema,
-)
-from cora.recipe.features.update_plan_default_parameters import (
-    UpdatePlanDefaultParameters,
-)
 from cora.run._projections import register_run_projections
 from cora.run.aggregates.run import InvalidRunParametersError, load_run
 from cora.run.features import start_run
 from cora.run.features.start_run import StartRun
-from cora.subject.features import mount_subject, register_subject
-from cora.subject.features.mount_subject import MountSubject
-from cora.subject.features.register_subject import RegisterSubject
-from tests.integration._helpers import build_postgres_deps, seed_capability_pg
-from tests.unit.subject._helpers import seed_active_asset
+from tests.integration._helpers import build_postgres_deps, seed_run_upstream_chain_pg
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d9ea")  # Phase 6l-strict
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
-
-
-def _build_deps(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:
-    return build_postgres_deps(db_pool, now=_NOW, ids=ids)
 
 
 async def _drain_run_projections(db_pool: asyncpg.Pool) -> None:
@@ -92,100 +57,20 @@ def _energy_schema() -> dict[str, Any]:
     }
 
 
-async def _seed_full_chain(
-    db_pool: asyncpg.Pool,
-    *,
-    method_schema: dict[str, Any] | None,
-    plan_defaults: dict[str, Any] | None,
-) -> tuple[UUID, UUID]:
-    """Seed Family + Method (with optional schema) + Practice +
-    Asset + Plan (with optional defaults) + Subject (Mounted) into PG.
-    Returns (plan_id, subject_id). Each call uses fresh UUIDs (uuid4)
-    so multiple test fns don't collide on the same streams."""
-    # Generate enough event ids for every step.
-    ids = [uuid4() for _ in range(40)]
-    deps = _build_deps(db_pool, ids)
-
-    cap_id = await define_family.bind(deps)(
-        DefineFamily(name="FlyMotion", affordances=frozenset()),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
-    method_id = await define_method.bind(deps)(
-        DefineMethod(
-            capability_id=_CAPABILITY_ID, name="Test Method", needed_families=frozenset({cap_id})
-        ),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    if method_schema is not None:
-        await update_method_parameters_schema.bind(deps)(
-            UpdateMethodParametersSchema(method_id=method_id, parameters_schema=method_schema),
-            principal_id=_PRINCIPAL_ID,
-            correlation_id=_CORRELATION_ID,
-        )
-    site_id = uuid4()
-    practice_id = await define_practice.bind(deps)(
-        DefinePractice(name="Test Practice", method_id=method_id, site_id=site_id),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    asset_id = await register_asset.bind(deps)(
-        RegisterAsset(name="TestAsset", level=AssetLevel.ENTERPRISE, parent_id=None),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    await add_asset_family.bind(deps)(
-        AddAssetFamily(asset_id=asset_id, family_id=cap_id),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    plan_id = await define_plan.bind(deps)(
-        DefinePlan(
-            name="32-ID FlyScan",
-            practice_id=practice_id,
-            asset_ids=frozenset({asset_id}),
-        ),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    if plan_defaults:
-        await update_plan_default_parameters.bind(deps)(
-            UpdatePlanDefaultParameters(plan_id=plan_id, default_parameters_patch=plan_defaults),
-            principal_id=_PRINCIPAL_ID,
-            correlation_id=_CORRELATION_ID,
-        )
-
-    subject_id = await register_subject.bind(deps)(
-        RegisterSubject(name="PorousCeramicSample-A"),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    mount_asset_id = await seed_active_asset(
-        deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID
-    )
-    await mount_subject.bind(deps)(
-        MountSubject(subject_id=subject_id, asset_id=mount_asset_id, reason="test"),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-
-    return plan_id, subject_id
-
-
 @pytest.mark.integration
 async def test_start_run_merges_defaults_and_overrides_into_effective_parameters(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Plan defaults + Run overrides merge per RFC 7396; resolved set
     persists in RunStarted and folds onto Run state."""
-    plan_id, subject_id = await _seed_full_chain(
+    plan_id, subject_id = await seed_run_upstream_chain_pg(
         db_pool,
+        now=_NOW,
         method_schema=_energy_schema(),
         plan_defaults={"energy": 12.0, "exposure": 100},
     )
-    deps = _build_deps(db_pool, [uuid4(), uuid4()])  # run id + RunStarted event id
+    # run id + RunStarted event id
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4(), uuid4()])
 
     run_id = await start_run.bind(deps)(
         StartRun(
@@ -221,12 +106,13 @@ async def test_start_run_with_no_overrides_uses_plan_defaults(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Operator omits overrides -> effective_parameters == Plan defaults."""
-    plan_id, subject_id = await _seed_full_chain(
+    plan_id, subject_id = await seed_run_upstream_chain_pg(
         db_pool,
+        now=_NOW,
         method_schema=_energy_schema(),
         plan_defaults={"energy": 12.0, "exposure": 100},
     )
-    deps = _build_deps(db_pool, [uuid4(), uuid4()])
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4(), uuid4()])
 
     run_id = await start_run.bind(deps)(
         StartRun(name="Run-defaults-only", plan_id=plan_id, subject_id=subject_id),
@@ -255,12 +141,13 @@ async def test_start_run_rejects_overrides_violating_method_schema(
 ) -> None:
     """Override pushes effective_parameters out of schema bounds ->
     InvalidRunParametersError; no event appended."""
-    plan_id, subject_id = await _seed_full_chain(
+    plan_id, subject_id = await seed_run_upstream_chain_pg(
         db_pool,
+        now=_NOW,
         method_schema=_energy_schema(),
         plan_defaults={"energy": 12.0},
     )
-    deps = _build_deps(db_pool, [uuid4(), uuid4()])
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4(), uuid4()])
 
     with pytest.raises(InvalidRunParametersError):
         await start_run.bind(deps)(
