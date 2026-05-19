@@ -1,10 +1,11 @@
 """In-memory `IdempotencyStore` for unit tests and the `test` app environment (Phase 9a).
 
-Mirrors the Postgres adapter's contract: same `(principal_id, key)`
-namespacing, same `claim` / `finalize_*` / `prune` semantics, same
-stale-lock recovery rules. A `threading.Lock` guards the dict so
-concurrent tasks see consistent state. Not durable across process
-restarts (use the Postgres adapter for production / integration).
+Mirrors the Postgres adapter's contract: same
+`(principal_id, key, surface_id)` namespacing (Phase B Iter C-2c),
+same `claim` / `finalize_*` / `prune` semantics, same stale-lock
+recovery rules. A `threading.Lock` guards the dict so concurrent
+tasks see consistent state. Not durable across process restarts
+(use the Postgres adapter for production / integration).
 """
 
 from dataclasses import dataclass
@@ -43,13 +44,14 @@ class InMemoryIdempotencyStore:
     """Thread-safe in-memory implementation of the IdempotencyStore port."""
 
     def __init__(self) -> None:
-        self._records: dict[tuple[UUID, str], _Row] = {}
+        self._records: dict[tuple[UUID, str, UUID], _Row] = {}
         self._lock = Lock()
 
     async def claim(
         self,
         principal_id: UUID,
         key: str,
+        surface_id: UUID,
         command_hash: str,
         command_name: str,
         *,
@@ -58,9 +60,9 @@ class InMemoryIdempotencyStore:
         now = datetime.now(tz=UTC)
         stale_cutoff = now - timedelta(seconds=lock_stale_seconds)
         with self._lock:
-            existing = self._records.get((principal_id, key))
+            existing = self._records.get((principal_id, key, surface_id))
             if existing is None:
-                self._records[(principal_id, key)] = _Row(
+                self._records[(principal_id, key, surface_id)] = _Row(
                     command_hash=command_hash,
                     command_name=command_name,
                     created_at=now,
@@ -110,10 +112,11 @@ class InMemoryIdempotencyStore:
         self,
         principal_id: UUID,
         key: str,
+        surface_id: UUID,
         result: Any,
     ) -> None:
         with self._lock:
-            row = self._records.get((principal_id, key))
+            row = self._records.get((principal_id, key, surface_id))
             if row is None:
                 return
             row.locked_at = None
@@ -125,11 +128,12 @@ class InMemoryIdempotencyStore:
         self,
         principal_id: UUID,
         key: str,
+        surface_id: UUID,
         error_type: str,
         error_msg: str,
     ) -> None:
         with self._lock:
-            row = self._records.get((principal_id, key))
+            row = self._records.get((principal_id, key, surface_id))
             if row is None:
                 return
             row.locked_at = None

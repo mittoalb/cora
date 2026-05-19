@@ -8,11 +8,11 @@ in-memory adapter. Pins:
     LockedRecent / HashConflict / stale-lock takeover
   - finalize_success / finalize_error
   - prune deletes only completed rows older than TTL
-  - per-principal namespacing
+  - per-principal and per-surface namespacing
 """
 
 import asyncio
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -25,11 +25,13 @@ from cora.infrastructure.ports import (
     LockedRecent,
 )
 
+_SURFACE = UUID("00000000-0000-0000-0000-000000000020")
+
 
 @pytest.mark.unit
 async def test_claim_returns_claimed_for_fresh_key() -> None:
     store = InMemoryIdempotencyStore()
-    outcome = await store.claim(uuid4(), "k", "h", "X", lock_stale_seconds=60)
+    outcome = await store.claim(uuid4(), "k", _SURFACE, "h", "X", lock_stale_seconds=60)
     assert isinstance(outcome, Claimed)
 
 
@@ -37,9 +39,9 @@ async def test_claim_returns_claimed_for_fresh_key() -> None:
 async def test_claim_returns_cached_success_after_finalize_success() -> None:
     store = InMemoryIdempotencyStore()
     p = uuid4()
-    await store.claim(p, "k", "h1", "X", lock_stale_seconds=60)
-    await store.finalize_success(p, "k", "result-1")
-    outcome = await store.claim(p, "k", "h1", "X", lock_stale_seconds=60)
+    await store.claim(p, "k", _SURFACE, "h1", "X", lock_stale_seconds=60)
+    await store.finalize_success(p, "k", _SURFACE, "result-1")
+    outcome = await store.claim(p, "k", _SURFACE, "h1", "X", lock_stale_seconds=60)
     assert isinstance(outcome, CachedSuccess)
     assert outcome.result == "result-1"
 
@@ -48,9 +50,9 @@ async def test_claim_returns_cached_success_after_finalize_success() -> None:
 async def test_claim_returns_cached_error_after_finalize_error() -> None:
     store = InMemoryIdempotencyStore()
     p = uuid4()
-    await store.claim(p, "k", "h1", "X", lock_stale_seconds=60)
-    await store.finalize_error(p, "k", "InvalidActorNameError", "name required")
-    outcome = await store.claim(p, "k", "h1", "X", lock_stale_seconds=60)
+    await store.claim(p, "k", _SURFACE, "h1", "X", lock_stale_seconds=60)
+    await store.finalize_error(p, "k", _SURFACE, "InvalidActorNameError", "name required")
+    outcome = await store.claim(p, "k", _SURFACE, "h1", "X", lock_stale_seconds=60)
     assert isinstance(outcome, CachedError)
     assert outcome.error_type == "InvalidActorNameError"
     assert outcome.error_msg == "name required"
@@ -60,9 +62,9 @@ async def test_claim_returns_cached_error_after_finalize_error() -> None:
 async def test_claim_returns_locked_recent_on_in_flight_collision() -> None:
     store = InMemoryIdempotencyStore()
     p = uuid4()
-    first = await store.claim(p, "k", "h1", "X", lock_stale_seconds=60)
+    first = await store.claim(p, "k", _SURFACE, "h1", "X", lock_stale_seconds=60)
     assert isinstance(first, Claimed)
-    second = await store.claim(p, "k", "h1", "X", lock_stale_seconds=60)
+    second = await store.claim(p, "k", _SURFACE, "h1", "X", lock_stale_seconds=60)
     assert isinstance(second, LockedRecent)
 
 
@@ -70,9 +72,9 @@ async def test_claim_returns_locked_recent_on_in_flight_collision() -> None:
 async def test_claim_takes_over_stale_lock() -> None:
     store = InMemoryIdempotencyStore()
     p = uuid4()
-    await store.claim(p, "k", "h1", "X", lock_stale_seconds=60)
+    await store.claim(p, "k", _SURFACE, "h1", "X", lock_stale_seconds=60)
     await asyncio.sleep(0.05)
-    second = await store.claim(p, "k", "h2", "X", lock_stale_seconds=0)
+    second = await store.claim(p, "k", _SURFACE, "h2", "X", lock_stale_seconds=0)
     assert isinstance(second, Claimed)
 
 
@@ -80,9 +82,9 @@ async def test_claim_takes_over_stale_lock() -> None:
 async def test_claim_returns_hash_conflict_on_different_command() -> None:
     store = InMemoryIdempotencyStore()
     p = uuid4()
-    await store.claim(p, "k", "h1", "X", lock_stale_seconds=60)
-    await store.finalize_success(p, "k", "result-1")
-    outcome = await store.claim(p, "k", "DIFF-HASH", "X", lock_stale_seconds=60)
+    await store.claim(p, "k", _SURFACE, "h1", "X", lock_stale_seconds=60)
+    await store.finalize_success(p, "k", _SURFACE, "result-1")
+    outcome = await store.claim(p, "k", _SURFACE, "DIFF-HASH", "X", lock_stale_seconds=60)
     assert isinstance(outcome, HashConflict)
     assert outcome.expected_hash == "h1"
     assert outcome.actual_hash == "DIFF-HASH"
@@ -92,23 +94,46 @@ async def test_claim_returns_hash_conflict_on_different_command() -> None:
 async def test_keys_namespaced_by_principal() -> None:
     store = InMemoryIdempotencyStore()
     p1, p2 = uuid4(), uuid4()
-    await store.claim(p1, "shared", "h1", "X", lock_stale_seconds=60)
-    await store.finalize_success(p1, "shared", "p1-result")
-    await store.claim(p2, "shared", "h2", "X", lock_stale_seconds=60)
-    await store.finalize_success(p2, "shared", "p2-result")
+    await store.claim(p1, "shared", _SURFACE, "h1", "X", lock_stale_seconds=60)
+    await store.finalize_success(p1, "shared", _SURFACE, "p1-result")
+    await store.claim(p2, "shared", _SURFACE, "h2", "X", lock_stale_seconds=60)
+    await store.finalize_success(p2, "shared", _SURFACE, "p2-result")
 
-    r1 = await store.claim(p1, "shared", "h1", "X", lock_stale_seconds=60)
-    r2 = await store.claim(p2, "shared", "h2", "X", lock_stale_seconds=60)
+    r1 = await store.claim(p1, "shared", _SURFACE, "h1", "X", lock_stale_seconds=60)
+    r2 = await store.claim(p2, "shared", _SURFACE, "h2", "X", lock_stale_seconds=60)
     assert isinstance(r1, CachedSuccess) and r1.result == "p1-result"
     assert isinstance(r2, CachedSuccess) and r2.result == "p2-result"
+
+
+@pytest.mark.unit
+async def test_keys_namespaced_by_surface() -> None:
+    """Same (principal_id, key, command_hash) under DIFFERENT surfaces
+    yields independent cache slots. Each Surface's policy authorizes
+    independently — V2 per-surface policies must not be bypassed by a
+    cache hit from a different arrival Surface (Phase B Iter C-2c +
+    IETF Idempotency-Key §5 server-side composite key)."""
+    store = InMemoryIdempotencyStore()
+    p = uuid4()
+    surf_http = UUID("00000000-0000-0000-0000-000000000020")
+    surf_mcp = UUID("00000000-0000-0000-0000-000000000022")
+
+    await store.claim(p, "shared", surf_http, "h1", "X", lock_stale_seconds=60)
+    await store.finalize_success(p, "shared", surf_http, "http-result")
+    await store.claim(p, "shared", surf_mcp, "h1", "X", lock_stale_seconds=60)
+    await store.finalize_success(p, "shared", surf_mcp, "mcp-result")
+
+    r_http = await store.claim(p, "shared", surf_http, "h1", "X", lock_stale_seconds=60)
+    r_mcp = await store.claim(p, "shared", surf_mcp, "h1", "X", lock_stale_seconds=60)
+    assert isinstance(r_http, CachedSuccess) and r_http.result == "http-result"
+    assert isinstance(r_mcp, CachedSuccess) and r_mcp.result == "mcp-result"
 
 
 @pytest.mark.unit
 async def test_prune_returns_zero_when_no_expired_rows() -> None:
     store = InMemoryIdempotencyStore()
     p = uuid4()
-    await store.claim(p, "k", "h", "X", lock_stale_seconds=60)
-    await store.finalize_success(p, "k", "v")
+    await store.claim(p, "k", _SURFACE, "h", "X", lock_stale_seconds=60)
+    await store.finalize_success(p, "k", _SURFACE, "v")
     deleted = await store.prune(ttl_hours=24)
     assert deleted == 0
 
@@ -124,7 +149,7 @@ async def test_prune_skips_in_flight_rows() -> None:
     store = InMemoryIdempotencyStore()
     p = uuid4()
     ancient = datetime.now(tz=UTC) - timedelta(days=365)
-    store._records[(p, "k")] = _Row(
+    store._records[(p, "k", _SURFACE)] = _Row(
         command_hash="h",
         command_name="X",
         created_at=ancient,

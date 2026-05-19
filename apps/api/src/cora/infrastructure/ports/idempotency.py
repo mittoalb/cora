@@ -1,4 +1,4 @@
-"""Idempotency-Key port: cache `(principal_id, key) -> claim outcome`.
+"""Idempotency-Key port: cache `(principal_id, key, surface_id) -> claim outcome`.
 
 Implements the IETF `Idempotency-Key` header pattern (Stripe / Adyen /
 PayPal style; tracks
@@ -7,6 +7,14 @@ The application-layer decorator
 `cora.infrastructure.idempotency.with_idempotency` wraps a command
 handler: on retry with the same key, the cached outcome is returned
 without re-executing the command.
+
+The cache namespace is `(principal_id, key, surface_id)` per IETF
+§5 server-side composite-key recommendation. `surface_id` joined the
+tuple in Phase B Iter C-2c: under V2 per-surface policies a retry
+from a different Surface must re-authorize, so each Surface gets an
+independent cache slot. The decorator threads surface_id from the
+HTTP/MCP resolver (`get_surface_id` / `get_mcp_surface_id`) all the
+way down to `claim()`.
 
 ## Phase 9a: two-phase claim + 4xx error caching
 
@@ -173,7 +181,7 @@ class CachedHandlerError(Exception):
 
 
 class IdempotencyStore(Protocol):
-    """Storage for `(principal_id, key) -> outcome` records.
+    """Storage for `(principal_id, key, surface_id) -> outcome` records.
 
     See module docstring for the full claim lifecycle.
     """
@@ -182,6 +190,7 @@ class IdempotencyStore(Protocol):
         self,
         principal_id: UUID,
         key: str,
+        surface_id: UUID,
         command_hash: str,
         command_name: str,
         *,
@@ -200,6 +209,7 @@ class IdempotencyStore(Protocol):
         self,
         principal_id: UUID,
         key: str,
+        surface_id: UUID,
         result: Any,
     ) -> None:
         """Clear `locked_at` and store the success result. The row
@@ -220,6 +230,7 @@ class IdempotencyStore(Protocol):
         self,
         principal_id: UUID,
         key: str,
+        surface_id: UUID,
         error_type: str,
         error_msg: str,
     ) -> None:

@@ -26,15 +26,21 @@ from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore, _Row
+from cora.infrastructure.routing import SYSTEM_HTTP_SURFACE_ID
 
 _PRINCIPAL_ID = UUID("00000000-0000-0000-0000-000000000099")
 
 
 def _seed_locked_row(store: InMemoryIdempotencyStore, key: str) -> None:
     """Inject a fresh in-flight row simulating a concurrent request
-    that has just claimed the lock and is mid-handler."""
+    that has just claimed the lock and is mid-handler.
+
+    Seeded under HTTP surface — the TestClient invokes the FastAPI
+    route which calls `get_surface_id` returning SYSTEM_HTTP_SURFACE_ID,
+    so the cache slot under which `with_idempotency` looks must
+    match this surface for the LockedRecent path to fire."""
     now = datetime.now(tz=UTC)
-    store._records[(_PRINCIPAL_ID, key)] = _Row(
+    store._records[(_PRINCIPAL_ID, key, SYSTEM_HTTP_SURFACE_ID)] = _Row(
         command_hash="seeded-hash",
         command_name="RegisterActor",
         created_at=now,

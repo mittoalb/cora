@@ -185,6 +185,7 @@ async def test_first_call_with_key_executes_and_finalizes_success() -> None:
     outcome = await store.claim(
         _PRINCIPAL_ID,
         "key-1",
+        _NIL_SURFACE_ID,
         hash_command(_DummyCommand(name="A")),
         "DummyCommand",
         lock_stale_seconds=_LOCK_STALE,
@@ -299,6 +300,7 @@ async def test_handler_5xx_error_is_not_cached_lock_remains() -> None:
     outcome = await store.claim(
         _PRINCIPAL_ID,
         "hiccup-key",
+        _NIL_SURFACE_ID,
         hash_command(_DummyCommand(name="A")),
         "DummyCommand",
         lock_stale_seconds=_LOCK_STALE,
@@ -369,7 +371,7 @@ async def test_stale_lock_is_taken_over_by_subsequent_claim() -> None:
     store = InMemoryIdempotencyStore()
     ancient = datetime.now(tz=UTC) - timedelta(hours=1)
     cmd_hash = hash_command(_DummyCommand(name="A"))
-    store._records[(_PRINCIPAL_ID, "stuck")] = _Row(
+    store._records[(_PRINCIPAL_ID, "stuck", _NIL_SURFACE_ID)] = _Row(
         command_hash=cmd_hash,
         command_name="DummyCommand",
         created_at=ancient,
@@ -388,6 +390,72 @@ async def test_stale_lock_is_taken_over_by_subsequent_claim() -> None:
 
     assert result == _FIXED_RESULT
     assert len(calls) == 1
+
+
+# ---------- decorator: surface_id namespace (Phase B Iter C-2c) ----------
+
+
+@pytest.mark.unit
+async def test_same_key_same_body_different_surface_yields_independent_cache_slots() -> None:
+    """Per IETF Idempotency-Key §5 + CORA AH1: surface_id is a
+    server-side composite component of the cache namespace. Two
+    invocations with the same (principal, key, body) but DIFFERENT
+    surface_id must each run the handler and cache their own slot —
+    a Surface's V2 policy must not be bypassed by a cache hit from
+    a different arrival Surface."""
+    store = InMemoryIdempotencyStore()
+    calls: list[int] = []
+    wrapped = _wrap(store, _make_handler(calls))
+    cmd = _DummyCommand(name="A")
+    surf_http = UUID("00000000-0000-0000-0000-000000000020")
+    surf_mcp = UUID("00000000-0000-0000-0000-000000000022")
+
+    r_http = await wrapped(  # type: ignore[operator]
+        cmd,
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+        surface_id=surf_http,
+        idempotency_key="shared",
+    )
+    r_mcp = await wrapped(  # type: ignore[operator]
+        cmd,
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+        surface_id=surf_mcp,
+        idempotency_key="shared",
+    )
+    assert r_http == _FIXED_RESULT
+    assert r_mcp == _FIXED_RESULT
+    assert len(calls) == 2, "handler should run once per surface, not be cache-shared"
+
+
+@pytest.mark.unit
+async def test_same_key_same_body_same_surface_replays_cached_result() -> None:
+    """Sanity: the per-surface partitioning still allows normal
+    cache replay when the same surface retries with the same body."""
+    store = InMemoryIdempotencyStore()
+    calls: list[int] = []
+    wrapped = _wrap(store, _make_handler(calls))
+    cmd = _DummyCommand(name="A")
+    surf = UUID("00000000-0000-0000-0000-000000000020")
+
+    r1 = await wrapped(  # type: ignore[operator]
+        cmd,
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+        surface_id=surf,
+        idempotency_key="shared",
+    )
+    r2 = await wrapped(  # type: ignore[operator]
+        cmd,
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+        surface_id=surf,
+        idempotency_key="shared",
+    )
+    assert r1 == _FIXED_RESULT
+    assert r2 == _FIXED_RESULT
+    assert len(calls) == 1, "second call on same surface should hit cache, not re-run"
 
 
 # ---------- decorator: validation + plumbing ----------
@@ -412,6 +480,7 @@ async def test_decorator_rejects_idempotency_key_over_255_chars() -> None:
     outcome = await store.claim(
         _PRINCIPAL_ID,
         too_long,
+        _NIL_SURFACE_ID,
         "any",
         "X",
         lock_stale_seconds=_LOCK_STALE,

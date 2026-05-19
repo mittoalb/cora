@@ -50,33 +50,34 @@ from cora.infrastructure.ports.idempotency import (
 )
 
 _CLAIM_SQL = """
-INSERT INTO idempotency_keys (principal_id, key, command_hash, command_name, locked_at)
-VALUES ($1, $2, $3, $4, now())
-ON CONFLICT (principal_id, key) DO UPDATE
+INSERT INTO idempotency_keys
+    (principal_id, key, surface_id, command_hash, command_name, locked_at)
+VALUES ($1, $2, $3, $4, $5, now())
+ON CONFLICT (principal_id, key, surface_id) DO UPDATE
     SET locked_at    = now(),
         command_hash = EXCLUDED.command_hash,
         command_name = EXCLUDED.command_name
     WHERE idempotency_keys.locked_at IS NOT NULL
-      AND idempotency_keys.locked_at < now() - make_interval(secs => $5::int)
+      AND idempotency_keys.locked_at < now() - make_interval(secs => $6::int)
 RETURNING locked_at
 """
 
 _INSPECT_SQL = """
 SELECT command_hash, command_name, locked_at, result, error_type, error_msg
 FROM idempotency_keys
-WHERE principal_id = $1 AND key = $2
+WHERE principal_id = $1 AND key = $2 AND surface_id = $3
 """
 
 _FINALIZE_SUCCESS_SQL = """
 UPDATE idempotency_keys
-SET locked_at = NULL, result = $3, error_type = NULL, error_msg = NULL
-WHERE principal_id = $1 AND key = $2
+SET locked_at = NULL, result = $4, error_type = NULL, error_msg = NULL
+WHERE principal_id = $1 AND key = $2 AND surface_id = $3
 """
 
 _FINALIZE_ERROR_SQL = """
 UPDATE idempotency_keys
-SET locked_at = NULL, result = NULL, error_type = $3, error_msg = $4
-WHERE principal_id = $1 AND key = $2
+SET locked_at = NULL, result = NULL, error_type = $4, error_msg = $5
+WHERE principal_id = $1 AND key = $2 AND surface_id = $3
 """
 
 _PRUNE_SQL = """
@@ -96,6 +97,7 @@ class PostgresIdempotencyStore:
         self,
         principal_id: UUID,
         key: str,
+        surface_id: UUID,
         command_hash: str,
         command_name: str,
         *,
@@ -106,6 +108,7 @@ class PostgresIdempotencyStore:
                 _CLAIM_SQL,
                 principal_id,
                 key,
+                surface_id,
                 command_hash,
                 command_name,
                 lock_stale_seconds,
@@ -114,7 +117,7 @@ class PostgresIdempotencyStore:
                 # Fresh INSERT or stale-lock takeover: we hold the lock now.
                 return Claimed()
             # Lost the race or row already completed; classify.
-            row = await conn.fetchrow(_INSPECT_SQL, principal_id, key)
+            row = await conn.fetchrow(_INSPECT_SQL, principal_id, key, surface_id)
 
         if row is None:
             # TOCTOU between INSERT...ON CONFLICT and INSPECT (extremely
@@ -153,20 +156,29 @@ class PostgresIdempotencyStore:
         self,
         principal_id: UUID,
         key: str,
+        surface_id: UUID,
         result: Any,
     ) -> None:
         async with self._pool.acquire() as conn:
-            await conn.execute(_FINALIZE_SUCCESS_SQL, principal_id, key, result)
+            await conn.execute(_FINALIZE_SUCCESS_SQL, principal_id, key, surface_id, result)
 
     async def finalize_error(
         self,
         principal_id: UUID,
         key: str,
+        surface_id: UUID,
         error_type: str,
         error_msg: str,
     ) -> None:
         async with self._pool.acquire() as conn:
-            await conn.execute(_FINALIZE_ERROR_SQL, principal_id, key, error_type, error_msg)
+            await conn.execute(
+                _FINALIZE_ERROR_SQL,
+                principal_id,
+                key,
+                surface_id,
+                error_type,
+                error_msg,
+            )
 
     async def prune(self, *, ttl_hours: int) -> int:
         async with self._pool.acquire() as conn:

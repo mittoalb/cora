@@ -255,6 +255,7 @@ def with_idempotency[TCommand, TResult](
         outcome = await store.claim(
             principal_id,
             idempotency_key,
+            surface_id,
             cmd_hash,
             command_name,
             lock_stale_seconds=lock_stale_seconds,
@@ -284,6 +285,7 @@ def with_idempotency[TCommand, TResult](
                         await store.finalize_error(
                             principal_id,
                             idempotency_key,
+                            surface_id,
                             error_type=_full_class_name(exc),
                             error_msg=str(exc),
                         )
@@ -306,6 +308,7 @@ def with_idempotency[TCommand, TResult](
                 await store.finalize_success(
                     principal_id,
                     idempotency_key,
+                    surface_id,
                     serialize_result(result),
                 )
                 _log.info("idempotency.cached_success", **log_ctx)

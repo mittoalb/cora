@@ -170,8 +170,9 @@ async def test_lifespan_real_inmemory_store_drops_expired_row_end_to_end() -> No
 
     store = InMemoryIdempotencyStore()
     # Seed one expired completed row + one fresh completed row.
-    expired_key = (UUID(int=1), "expired")
-    fresh_key = (UUID(int=2), "fresh")
+    surface = UUID("00000000-0000-0000-0000-000000000020")
+    expired_key = (UUID(int=1), "expired", surface)
+    fresh_key = (UUID(int=2), "fresh", surface)
     now = datetime.now(tz=UTC)
     store._records[expired_key] = _Row(  # pyright: ignore[reportPrivateUsage]
         command_hash="h",
