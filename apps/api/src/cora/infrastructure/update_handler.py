@@ -84,8 +84,7 @@ from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
-
-_NIL_SENTINEL_ID = UUID(int=0)
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 
 class _DomainEvent(Protocol):
@@ -120,7 +119,7 @@ class _UpdateHandler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> None: ...
 
 
@@ -151,7 +150,7 @@ def make_update_handler[TEvent: _DomainEvent](
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> None:
         target_id: UUID = getattr(command, target_id_attr)
         extras: dict[str, Any] = extra_log_fields(command) if extra_log_fields is not None else {}
@@ -169,7 +168,7 @@ def make_update_handler[TEvent: _DomainEvent](
         decision = await deps.authorize(
             principal_id=principal_id,
             command_name=command_name,
-            conduit_id=_NIL_SENTINEL_ID,
+            conduit_id=NIL_SENTINEL_ID,
             surface_id=surface_id,
         )
         if isinstance(decision, Deny):

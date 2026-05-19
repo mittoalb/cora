@@ -14,8 +14,7 @@ from cora.equipment._asset_update_handler import make_asset_update_handler
 from cora.equipment.features.restore_asset.command import RestoreAsset
 from cora.equipment.features.restore_asset.decider import decide
 from cora.infrastructure.kernel import Kernel
-
-_NIL_SENTINEL_ID = UUID(int=0)
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 
 class Handler(Protocol):
@@ -28,7 +27,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> None: ...
 
 

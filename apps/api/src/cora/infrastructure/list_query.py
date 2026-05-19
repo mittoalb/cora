@@ -178,8 +178,7 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 from cora.infrastructure.projection import decode_cursor, encode_cursor
-
-_NIL_SENTINEL_ID = UUID(int=0)
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 
 @dataclass(frozen=True)
@@ -262,7 +261,7 @@ class _ListQueryHandler[Q: _Query, Page](Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> Page: ...
 
 
@@ -365,7 +364,7 @@ def make_list_query_handler[Q: _Query, Item, Page](
         *,
         principal_id: UUID,
         correlation_id: UUID,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> Page:
         extras: dict[str, Any] = extract_log_fields(query) if extract_log_fields is not None else {}
 
@@ -382,7 +381,7 @@ def make_list_query_handler[Q: _Query, Item, Page](
         decision = await deps.authorize(
             principal_id=principal_id,
             command_name=query_name,
-            conduit_id=_NIL_SENTINEL_ID,
+            conduit_id=NIL_SENTINEL_ID,
             surface_id=surface_id,
         )
         if isinstance(decision, Deny):

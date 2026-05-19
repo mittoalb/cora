@@ -33,6 +33,7 @@ from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.operation.aggregates.procedure import (
     ProcedureNotFoundError,
     event_type_name,
@@ -47,7 +48,6 @@ from cora.operation.features.start_procedure.decider import decide
 
 _STREAM_TYPE = "Procedure"
 _COMMAND_NAME = "StartProcedure"
-_CONDUIT_DEFAULT_ID = UUID(int=0)
 
 _log = get_logger(__name__)
 
@@ -62,7 +62,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _CONDUIT_DEFAULT_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> None: ...
 
 
@@ -76,7 +76,7 @@ class IdempotentHandler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _CONDUIT_DEFAULT_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
         idempotency_key: str | None = None,
     ) -> None: ...
 
@@ -90,7 +90,7 @@ def bind(deps: Kernel) -> Handler:
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _CONDUIT_DEFAULT_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> None:
         _log.info(
             "start_procedure.start",
@@ -104,7 +104,7 @@ def bind(deps: Kernel) -> Handler:
         decision = await deps.authorize(
             principal_id=principal_id,
             command_name=_COMMAND_NAME,
-            conduit_id=_CONDUIT_DEFAULT_ID,
+            conduit_id=NIL_SENTINEL_ID,
             surface_id=surface_id,
         )
         if isinstance(decision, Deny):

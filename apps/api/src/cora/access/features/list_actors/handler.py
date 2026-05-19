@@ -20,8 +20,7 @@ from cora.access.errors import UnauthorizedError
 from cora.access.features.list_actors.query import ListActors
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
-
-_NIL_SENTINEL_ID = UUID(int=0)
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 
 @dataclass(frozen=True)
@@ -56,7 +55,7 @@ class Handler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> ActorListPage: ...
 
 

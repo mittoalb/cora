@@ -26,10 +26,9 @@ from cora.infrastructure.list_query import (
     ScalarFilter,
     make_list_query_handler,
 )
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.safety.errors import UnauthorizedError
 from cora.safety.features.list_clearances.query import ListClearances
-
-_NIL_SENTINEL_ID = UUID(int=0)
 
 
 @dataclass(frozen=True)
@@ -74,7 +73,7 @@ class Handler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> ClearanceListPage: ...
 
 

@@ -42,6 +42,7 @@ from uuid import UUID
 
 from cora.infrastructure.bounded_text import validate_bounded_text
 from cora.infrastructure.ports import Allow, AuthzResult, Deny
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 POLICY_NAME_MAX_LENGTH = 200
 
@@ -87,9 +88,6 @@ class PolicyName:
         object.__setattr__(self, "value", trimmed)
 
 
-_NIL_SENTINEL_ID = UUID(int=0)
-
-
 @dataclass(frozen=True)
 class Policy:
     """Aggregate root: an authorization rule attached to a Conduit + Surface pair.
@@ -108,7 +106,7 @@ class Policy:
     conduit_id: UUID
     permitted_principals: frozenset[UUID]
     permitted_commands: frozenset[str]
-    surface_id: UUID = _NIL_SENTINEL_ID
+    surface_id: UUID = NIL_SENTINEL_ID
 
 
 def evaluate(
@@ -117,7 +115,7 @@ def evaluate(
     principal_id: UUID,
     command_name: str,
     conduit_id: UUID,
-    surface_id: UUID = _NIL_SENTINEL_ID,
+    surface_id: UUID = NIL_SENTINEL_ID,
 ) -> AuthzResult:
     """Pure Policy Decision Point: does `policy` permit (principal, command, conduit, surface)?
 
@@ -159,7 +157,7 @@ def evaluate(
         )
     # GR3 RISK-7 wildcard branch: V1 legacy policies (folded with
     # surface_id=NIL_SENTINEL) match any call's surface_id.
-    if policy.surface_id != _NIL_SENTINEL_ID and surface_id != policy.surface_id:
+    if policy.surface_id != NIL_SENTINEL_ID and surface_id != policy.surface_id:
         return Deny(
             reason=(f"Policy {policy.id} governs surface {policy.surface_id}, not {surface_id}")
         )

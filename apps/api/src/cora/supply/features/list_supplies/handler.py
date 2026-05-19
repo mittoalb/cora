@@ -23,10 +23,9 @@ from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.supply.errors import UnauthorizedError
 from cora.supply.features.list_supplies.query import ListSupplies
-
-_NIL_SENTINEL_ID = UUID(int=0)
 
 
 @dataclass(frozen=True)
@@ -61,7 +60,7 @@ class Handler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> SupplyListPage: ...
 
 

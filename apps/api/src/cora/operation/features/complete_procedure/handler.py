@@ -11,11 +11,10 @@ from typing import Protocol
 from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.operation._procedure_update_handler import make_procedure_update_handler
 from cora.operation.features.complete_procedure.command import CompleteProcedure
 from cora.operation.features.complete_procedure.decider import decide
-
-_NIL_SENTINEL_ID = UUID(int=0)
 
 
 class Handler(Protocol):
@@ -28,7 +27,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> None: ...
 
 
@@ -42,7 +41,7 @@ class IdempotentHandler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
         idempotency_key: str | None = None,
     ) -> None: ...
 

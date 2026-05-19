@@ -4,11 +4,10 @@ from typing import Protocol
 from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.supply._supply_update_handler import make_supply_update_handler
 from cora.supply.features.restore_supply.command import RestoreSupply
 from cora.supply.features.restore_supply.decider import decide
-
-_NIL_SENTINEL_ID = UUID(int=0)
 
 
 class Handler(Protocol):
@@ -21,7 +20,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> None: ...
 
 

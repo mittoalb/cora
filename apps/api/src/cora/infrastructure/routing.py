@@ -56,6 +56,22 @@ by `tests/contract/test_principal_header.py`.
 """
 
 
+NIL_SENTINEL_ID = UUID(int=0)
+"""Canonical wildcard / unspecified-id sentinel.
+
+`UUID(int=0)` means "any" or "unspecified" wherever the Authorize
+port quadrant takes a UUID identifier (conduit_id, surface_id, and
+any future axis). Policy.evaluate honors it as a wildcard in the
+matching predicate: a policy bound to conduit_id=NIL matches any
+conduit on the call site, ditto for surface_id.
+
+Previously declared as `_NIL_SENTINEL_ID` / `_CONDUIT_DEFAULT_ID`
+per-file in ~80 slice handlers + 3 cross-BC factories. Consolidated
+here in Phase B Iter C-2c (post-sweep) so a single canonical name
+covers both axes — the prior `_CONDUIT_DEFAULT_ID` reading was a
+future-reader trap when used as a `surface_id` default."""
+
+
 SYSTEM_HTTP_SURFACE_ID = UUID("00000000-0000-0000-0000-000000000020")
 SYSTEM_MCP_STDIO_SURFACE_ID = UUID("00000000-0000-0000-0000-000000000021")
 SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID = UUID("00000000-0000-0000-0000-000000000022")
@@ -184,8 +200,14 @@ def get_mcp_surface_id() -> UUID:
 
 
 __all__ = [
+    "NIL_SENTINEL_ID",
+    "SYSTEM_HTTP_SURFACE_ID",
+    "SYSTEM_MCP_STDIO_SURFACE_ID",
+    "SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID",
     "SYSTEM_PRINCIPAL_ID",
     "ErrorResponse",
     "get_correlation_id",
+    "get_mcp_surface_id",
     "get_principal_id",
+    "get_surface_id",
 ]

@@ -11,8 +11,7 @@ from cora.agent._agent_update_handler import make_agent_update_handler
 from cora.agent.features.grant_tool_to_agent.command import GrantToolToAgent
 from cora.agent.features.grant_tool_to_agent.decider import decide
 from cora.infrastructure.kernel import Kernel
-
-_NIL_SENTINEL_ID = UUID(int=0)
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 
 class Handler(Protocol):
@@ -25,7 +24,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> None: ...
 
 

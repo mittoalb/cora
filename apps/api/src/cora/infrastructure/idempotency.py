@@ -90,9 +90,9 @@ from cora.infrastructure.ports import (
     IdempotencyStore,
     LockedRecent,
 )
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 _MAX_KEY_LENGTH = 255
-_NIL_SENTINEL_ID = UUID(int=0)
 
 _log = get_logger(__name__)
 
@@ -196,7 +196,7 @@ class _BareHandler[TCommand, TResult](Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> TResult: ...
 
 
@@ -208,7 +208,7 @@ class _IdempotentHandler[TCommand, TResult](Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
         idempotency_key: str | None = None,
     ) -> TResult: ...
 
@@ -235,7 +235,7 @@ def with_idempotency[TCommand, TResult](
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
         idempotency_key: str | None = None,
     ) -> TResult:
         if idempotency_key is None:

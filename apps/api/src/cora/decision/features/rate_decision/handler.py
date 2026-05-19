@@ -31,10 +31,10 @@ from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 _STREAM_TYPE = "Decision"
 _COMMAND_NAME = "RateDecision"
-_CONDUIT_DEFAULT_ID = UUID(int=0)
 
 _log = get_logger(__name__)
 
@@ -49,7 +49,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _CONDUIT_DEFAULT_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> None: ...
 
 
@@ -62,7 +62,7 @@ def bind(deps: Kernel) -> Handler:
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _CONDUIT_DEFAULT_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> None:
         _log.info(
             "rate_decision.start",
@@ -77,7 +77,7 @@ def bind(deps: Kernel) -> Handler:
         authz = await deps.authorize(
             principal_id=principal_id,
             command_name=_COMMAND_NAME,
-            conduit_id=_CONDUIT_DEFAULT_ID,
+            conduit_id=NIL_SENTINEL_ID,
             surface_id=surface_id,
         )
         if isinstance(authz, Deny):

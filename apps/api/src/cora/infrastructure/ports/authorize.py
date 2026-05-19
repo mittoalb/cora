@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
-_NIL_SENTINEL_ID = UUID(int=0)
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 
 @dataclass(frozen=True)
@@ -59,7 +59,7 @@ class Authorize(Protocol):
         principal_id: UUID,
         command_name: str,
         conduit_id: UUID,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> AuthzResult: ...
 
 
@@ -77,7 +77,7 @@ class AllowAllAuthorize:
         principal_id: UUID,
         command_name: str,
         conduit_id: UUID,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> AuthzResult:
         _ = (principal_id, command_name, conduit_id, surface_id)
         return Allow()

@@ -9,9 +9,9 @@ from cora.decision.features.get_decision.query import GetDecision
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 _QUERY_NAME = "GetDecision"
-_CONDUIT_DEFAULT_ID = UUID(int=0)
 
 _log = get_logger(__name__)
 
@@ -25,7 +25,7 @@ class Handler(Protocol):
         *,
         principal_id: UUID,
         correlation_id: UUID,
-        surface_id: UUID = _CONDUIT_DEFAULT_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> Decision | None: ...
 
 
@@ -37,7 +37,7 @@ def bind(deps: Kernel) -> Handler:
         *,
         principal_id: UUID,
         correlation_id: UUID,
-        surface_id: UUID = _CONDUIT_DEFAULT_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> Decision | None:
         _log.info(
             "get_decision.start",
@@ -50,7 +50,7 @@ def bind(deps: Kernel) -> Handler:
         authz = await deps.authorize(
             principal_id=principal_id,
             command_name=_QUERY_NAME,
-            conduit_id=_CONDUIT_DEFAULT_ID,
+            conduit_id=NIL_SENTINEL_ID,
             surface_id=surface_id,
         )
         if isinstance(authz, Deny):

@@ -17,7 +17,7 @@ referenced Conduit exists — same eventual-consistency stance as
 from dataclasses import dataclass
 from uuid import UUID
 
-_NIL_SENTINEL_ID = UUID(int=0)
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 
 @dataclass(frozen=True)
@@ -34,4 +34,4 @@ class DefinePolicy:
     conduit_id: UUID
     permitted_principals: frozenset[UUID]
     permitted_commands: frozenset[str]
-    surface_id: UUID = _NIL_SENTINEL_ID
+    surface_id: UUID = NIL_SENTINEL_ID

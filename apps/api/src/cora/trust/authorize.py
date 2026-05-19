@@ -115,6 +115,7 @@ from cora.infrastructure.ports import (
     EventStore,
     IdGenerator,
 )
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.trust.aggregates.conduit import LOGBOOK_KIND_TRAVERSALS, load_conduit
 from cora.trust.aggregates.conduit.entries import (
     ConduitTraversal,
@@ -124,7 +125,6 @@ from cora.trust.aggregates.conduit.entries import (
 from cora.trust.aggregates.policy import evaluate, load_policy
 
 _log = get_logger(__name__)
-_NIL_SENTINEL_ID = UUID(int=0)
 
 
 class TrustAuthorize:
@@ -155,7 +155,7 @@ class TrustAuthorize:
         principal_id: UUID,
         command_name: str,
         conduit_id: UUID,
-        surface_id: UUID = _NIL_SENTINEL_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> AuthzResult:
         policy = await load_policy(self._event_store, self._policy_id)
         if policy is None:

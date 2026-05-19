@@ -39,10 +39,10 @@ from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 _STREAM_TYPE = "Actor"
 _COMMAND_NAME = "DeactivateActor"
-_CONDUIT_DEFAULT_ID = UUID(int=0)
 
 # structlog loggers are lazy: get_logger() returns a proxy and config is
 # applied at first .info() call. Module-level binding is safe even though
@@ -66,7 +66,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _CONDUIT_DEFAULT_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> None: ...
 
 
@@ -79,7 +79,7 @@ def bind(deps: Kernel) -> Handler:
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _CONDUIT_DEFAULT_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> None:
         _log.info(
             "deactivate_actor.start",
@@ -93,7 +93,7 @@ def bind(deps: Kernel) -> Handler:
         decision = await deps.authorize(
             principal_id=principal_id,
             command_name=_COMMAND_NAME,
-            conduit_id=_CONDUIT_DEFAULT_ID,
+            conduit_id=NIL_SENTINEL_ID,
             surface_id=surface_id,
         )
         if isinstance(decision, Deny):

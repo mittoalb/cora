@@ -63,10 +63,10 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 from cora.infrastructure.ports.event_store import ConcurrencyError
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 _STREAM_TYPE = "Decision"
 _COMMAND_NAME = "AppendReasoningEntry"
-_CONDUIT_DEFAULT_ID = UUID(int=0)
 _LAZY_OPEN_MAX_RETRIES = 3
 """Bounded retry count for the lazy-open ConcurrencyError loop.
 
@@ -88,7 +88,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _CONDUIT_DEFAULT_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> int: ...
 
 
@@ -107,7 +107,7 @@ def bind(deps: Kernel, *, reasoning_store: ReasoningStore) -> Handler:
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _CONDUIT_DEFAULT_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> int:
         _log.info(
             "append_reasoning_entry.start",
@@ -122,7 +122,7 @@ def bind(deps: Kernel, *, reasoning_store: ReasoningStore) -> Handler:
         authz = await deps.authorize(
             principal_id=principal_id,
             command_name=_COMMAND_NAME,
-            conduit_id=_CONDUIT_DEFAULT_ID,
+            conduit_id=NIL_SENTINEL_ID,
             surface_id=surface_id,
         )
         if isinstance(authz, Deny):

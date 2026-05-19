@@ -44,6 +44,7 @@ from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.recipe.aggregates.capability import load_capability
 from cora.recipe.aggregates.method import event_type_name, to_payload
 from cora.recipe.errors import UnauthorizedError
@@ -52,7 +53,6 @@ from cora.recipe.features.define_method.decider import decide
 
 _STREAM_TYPE = "Method"
 _COMMAND_NAME = "DefineMethod"
-_CONDUIT_DEFAULT_ID = UUID(int=0)
 
 _log = get_logger(__name__)
 
@@ -77,7 +77,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _CONDUIT_DEFAULT_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> UUID: ...
 
 
@@ -91,7 +91,7 @@ class IdempotentHandler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _CONDUIT_DEFAULT_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
         idempotency_key: str | None = None,
     ) -> UUID: ...
 
@@ -105,7 +105,7 @@ def bind(deps: Kernel) -> Handler:
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
-        surface_id: UUID = _CONDUIT_DEFAULT_ID,
+        surface_id: UUID = NIL_SENTINEL_ID,
     ) -> UUID:
         _log.info(
             "define_method.start",
@@ -118,7 +118,7 @@ def bind(deps: Kernel) -> Handler:
         decision = await deps.authorize(
             principal_id=principal_id,
             command_name=_COMMAND_NAME,
-            conduit_id=_CONDUIT_DEFAULT_ID,
+            conduit_id=NIL_SENTINEL_ID,
             surface_id=surface_id,
         )
         if isinstance(decision, Deny):

@@ -21,8 +21,7 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.infrastructure.ports.event_store import StoredEvent
-
-_NIL_SENTINEL_ID = UUID(int=0)
+from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 
 @dataclass(frozen=True)
@@ -40,7 +39,7 @@ class PolicyDefined:
     permitted_principals: list[UUID]
     permitted_commands: list[str]
     occurred_at: datetime
-    surface_id: UUID = _NIL_SENTINEL_ID
+    surface_id: UUID = NIL_SENTINEL_ID
 
 
 # Discriminated union of every event the Policy aggregate emits.
@@ -99,7 +98,7 @@ def from_stored(stored: StoredEvent) -> PolicyEvent:
                     # surface_id is post-Phase-B-Iter-B-additive; V1 events
                     # on disk lack it. `.get` with nil default preserves
                     # backward compat without breaking V1 fold.
-                    surface_id=UUID(payload.get("surface_id", str(_NIL_SENTINEL_ID))),
+                    surface_id=UUID(payload.get("surface_id", str(NIL_SENTINEL_ID))),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed PolicyDefined payload {payload!r}: {exc}"
