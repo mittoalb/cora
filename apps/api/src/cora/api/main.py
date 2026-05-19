@@ -231,6 +231,27 @@ def _enforce_production_principal_policy(settings: Settings) -> None:
             "See memory/project_bootstrap_policy_design.md (F1)."
         )
         raise RuntimeError(msg)
+    # Iter B-1 gate-review HIGH F11: per-IdP allow_insecure_* opt-ins
+    # exist for localhost test fixtures. Under prod posture an operator
+    # (or an attacker with env-var-write access) could flip one IdP to
+    # plaintext HTTP, silently bypassing the per-adapter HTTPS gate.
+    # The per-adapter check in `JWTVerifier` / `IntrospectionVerifier`
+    # CAN'T see `app_env`; this Settings-level check refuses boot when
+    # any IdP entry opts in to insecure URLs under prod.
+    if settings.app_env in _PROD_APP_ENVS:
+        for idp in settings.identity_providers:
+            if idp.allow_insecure_jwks_url or idp.allow_insecure_introspection_url:
+                msg = (
+                    f"app_env={settings.app_env!r}: IdP issuer={idp.issuer!r} "
+                    "has allow_insecure_jwks_url or allow_insecure_introspection_url "
+                    "set to True. These opt-ins exist for localhost test fixtures; "
+                    "under prod posture, HTTP JWKS is MITM-exploitable and HTTP "
+                    "introspection leaks CORA's client_secret over plain Basic "
+                    "auth. Either remove the IdP entry, switch its URLs to "
+                    "https://, or disable the opt-ins. See "
+                    "memory/project_edge_auth_design.md gate-review F11."
+                )
+                raise RuntimeError(msg)
 
 
 def create_app(*, settings: Settings | None = None) -> FastAPI:

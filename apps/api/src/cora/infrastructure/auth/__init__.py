@@ -15,7 +15,7 @@ from cora.infrastructure.auth.config import IdentityProviderConfig, StaticSubjec
 from cora.infrastructure.auth.idp_registry import IdentityProviderRegistry
 from cora.infrastructure.auth.introspection_verifier import IntrospectionVerifier
 from cora.infrastructure.auth.jwt_verifier import JWTVerifier
-from cora.infrastructure.auth.registry_builder import build_idp_registry
+from cora.infrastructure.auth.registry_factory import build_idp_registry
 
 __all__ = [
     "IdentityProviderConfig",

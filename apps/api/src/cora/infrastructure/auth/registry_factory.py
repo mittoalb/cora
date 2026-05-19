@@ -6,13 +6,20 @@ FastAPI/MCP middleware (Iter C). Tests build the registry directly
 from `IdentityProviderConfig` instances via the helper to skip the
 Settings layer.
 
-## Why a builder
+## Why a factory module
 
 Each `IdentityProviderConfig` entry could produce a JWTVerifier
 adapter, an IntrospectionVerifier adapter, or both — depending on
 which URLs the operator supplied. The registry takes the constructed
 adapter instances; this module owns the "config row → adapter
 instance(s)" translation so the registry stays a thin router.
+
+Name matches the codebase factory convention (`agent/llm_factory.py`,
+`trust/authorize_factory.py`). Originally named `registry_builder.py`
+in Iter B-1 then renamed per impl-quality review #14 — `Builder`
+in DDD vocabulary implies an incremental/fluent shape; this is a
+one-shot `build_idp_registry(configs) -> IdentityProviderRegistry`
+which is the Factory shape.
 
 ## Subject mapper
 
@@ -89,8 +96,15 @@ def build_idp_registry(
                 raise ValueError(msg)
             # Iter B-1 narrow contract: introspection creds + url presence
             # validated by IdentityProviderConfig._introspection_creds_pair.
-            assert config.introspection_client_id is not None
-            assert config.introspection_client_secret is not None
+            # Explicit raise (not `assert`) so a future refactor that
+            # breaks the validator doesn't silently UB under `python -O`.
+            if config.introspection_client_id is None or config.introspection_client_secret is None:
+                msg = (
+                    f"build_idp_registry invariant violated: IdP {config.issuer!r} "
+                    "has introspection_url but missing creds; "
+                    "IdentityProviderConfig._introspection_creds_pair should have caught this."
+                )
+                raise RuntimeError(msg)
             introspection_verifier = IntrospectionVerifier(
                 issuer=config.issuer,
                 introspection_url=config.introspection_url,

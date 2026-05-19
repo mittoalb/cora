@@ -32,6 +32,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from cora.infrastructure.auth.config import IdentityProviderConfig
 from cora.infrastructure.routing import (
     SYSTEM_HTTP_SURFACE_ID,
     SYSTEM_MCP_STDIO_SURFACE_ID,
@@ -42,7 +43,7 @@ from cora.infrastructure.routing import (
 def build_protected_resource_metadata(
     *,
     resource: str,
-    identity_providers: list[Any],
+    identity_providers: list[IdentityProviderConfig],
     surface_audiences: dict[str, str | None],
 ) -> dict[str, Any]:
     """Build the RFC 9728 document body.
@@ -71,15 +72,18 @@ def build_protected_resource_metadata(
         "resource": resource,
         "authorization_servers": issuers,
         "bearer_methods_supported": ["header"],
-        "resource_signing_alg_values_supported": [],
-        "scopes_supported": [],
     }
     if aud_values:
         document["aud_values_supported"] = sorted(set(aud_values))
-    # Per-Surface audience map under an x-cora extension so clients
-    # that recognize CORA's Surface model can pick the right aud
-    # without out-of-band knowledge.
-    document["x-cora-surface-audiences"] = {
+    # Per-Surface audience map as a non-standard but namespaced CORA
+    # extension. Original Iter B-1 used `x-cora-` prefix; per RFC 6648
+    # (2012) the `X-`/`x-` convention is deprecated across IETF
+    # protocols and RFC 9728 itself doesn't reserve `x-` keys. Reverse-
+    # DNS namespacing (`io.cora.surface_audiences`) matches the JSON-
+    # Schema / OAuth-2.0 extension conventions and avoids both the
+    # deprecated prefix and accidental collision with future RFC 9728
+    # registered keys.
+    document["io.cora.surface_audiences"] = {
         name: aud for name, aud in surface_audiences.items() if aud is not None
     }
     return document
@@ -103,7 +107,7 @@ def register_protected_resource_metadata_route(app: FastAPI) -> None:
     async def protected_resource_metadata(  # pyright: ignore[reportUnusedFunction]
         request: Request,
     ) -> JSONResponse:
-        settings = request.app.state.deps.settings  # type: ignore[attr-defined]
+        settings = request.app.state.deps.settings
         # Build a per-Surface audience map by inverting the
         # identity_providers list. When multiple IdPs declare the
         # same Surface, the audience strings must agree (it's the
@@ -122,12 +126,18 @@ def register_protected_resource_metadata_route(app: FastAPI) -> None:
                 if name is not None:
                     surface_audiences[name] = aud_str
 
-        # Resource identifier: scheme + netloc of the inbound
-        # request, no path. Per RFC 9728 §3.1 the resource value
-        # SHOULD be the canonical URL of the resource server.
-        scheme = request.url.scheme
-        netloc = request.url.netloc
-        resource = f"{scheme}://{netloc}"
+        # Resource identifier: scheme + host of the inbound request,
+        # no path. Per RFC 9728 §3.1 the resource value SHOULD be the
+        # canonical URL of the resource server. Honor standard reverse-
+        # proxy headers (X-Forwarded-Proto + X-Forwarded-Host) because
+        # production CORA always sits behind one (Cloudflare / nginx /
+        # IAP) — without this, the `resource` field reads
+        # `http://internal-pod-name:8000` instead of the public URL
+        # and clients can't discover the auth flow correctly.
+        # Gate-review test#6 + security F4.
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+        host = request.headers.get("x-forwarded-host", request.url.netloc)
+        resource = f"{scheme}://{host}"
 
         document = build_protected_resource_metadata(
             resource=resource,

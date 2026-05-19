@@ -13,6 +13,7 @@ CORA extensions:
     `Authorization: Bearer`)
 """
 
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -98,8 +99,8 @@ def test_metadata_exposes_per_surface_audiences() -> None:
     with TestClient(create_app(settings=settings)) as client:
         response = client.get("/.well-known/oauth-protected-resource")
     body = response.json()
-    assert body["x-cora-surface-audiences"]["http"] == "https://cora.test/http"
-    assert body["x-cora-surface-audiences"]["mcp_streamable_http"] == "https://cora.test/mcp"
+    assert body["io.cora.surface_audiences"]["http"] == "https://cora.test/http"
+    assert body["io.cora.surface_audiences"]["mcp_streamable_http"] == "https://cora.test/mcp"
 
 
 @pytest.mark.contract
@@ -121,7 +122,7 @@ def test_metadata_endpoint_unauthenticated() -> None:
     with require_authenticated_principal=True, this endpoint is open."""
     settings = Settings(  # type: ignore[call-arg]
         app_env="test",
-        require_authenticated_principal=False,  # Iter C will wire the auth path
+        require_authenticated_principal=True,  # production posture (test#7 polarity)
     )
     with TestClient(create_app(settings=settings)) as client:
         response = client.get(
@@ -130,3 +131,92 @@ def test_metadata_endpoint_unauthenticated() -> None:
             # unauthenticated probe.
         )
     assert response.status_code == 200
+
+
+# ---------- Iter B-1 gate-review additions ----------
+
+
+@pytest.mark.contract
+def test_metadata_uses_extension_key_without_x_prefix() -> None:
+    """Gate-review security F10: RFC 6648 (2012) deprecated the `X-` /
+    `x-` prefix convention. Iter B-1 originally used `x-cora-...`;
+    renamed to a reverse-DNS namespace key without prefix."""
+    with TestClient(create_app()) as client:
+        response = client.get("/.well-known/oauth-protected-resource")
+    body = response.json()
+    assert "x-cora-surface-audiences" not in body, "must not use deprecated x- prefix"
+    assert "io.cora.surface_audiences" in body
+
+
+@pytest.mark.contract
+def test_metadata_resource_honors_x_forwarded_headers() -> None:
+    """Gate-review test#6 + security F4: behind a reverse proxy
+    (the production deployment shape) the metadata endpoint must
+    derive `resource` from X-Forwarded-Proto + X-Forwarded-Host so
+    the document points at the public URL, not the internal pod."""
+    with TestClient(create_app()) as client:
+        response = client.get(
+            "/.well-known/oauth-protected-resource",
+            headers={
+                "X-Forwarded-Proto": "https",
+                "X-Forwarded-Host": "aps-35bm.cora.example",
+            },
+        )
+    body = response.json()
+    assert body["resource"] == "https://aps-35bm.cora.example"
+
+
+@pytest.mark.contract
+def test_settings_injection_propagates_to_app_state() -> None:
+    """Gate-review test#8: pin that the `settings=` kwarg actually
+    reaches `app.state.deps.settings`. Without this, an env-var
+    pre-set in CI could silently mask the test override."""
+    settings = Settings(  # type: ignore[call-arg]
+        app_env="test",
+        identity_providers=[
+            IdentityProviderConfig(
+                issuer="https://injected.example.com",
+                jwks_url="https://injected.example.com/jwks",
+                audiences={_HTTP_SURFACE: "https://cora.injected/http"},
+            ),
+        ],
+    )
+    with TestClient(create_app(settings=settings)) as client:
+        deps_settings: Settings = client.app.state.deps.settings  # type: ignore[attr-defined]
+        assert deps_settings is settings, "settings= kwarg did not propagate"
+        # pydantic-settings type inference loses generic info on
+        # list[IdentityProviderConfig]; assert via cast for pyright.
+        raw_idps = cast("list[IdentityProviderConfig]", deps_settings.identity_providers)  # pyright: ignore[reportUnknownMemberType]
+        assert raw_idps[0].issuer == "https://injected.example.com"
+
+
+@pytest.mark.contract
+def test_metadata_last_wins_when_two_idps_declare_same_surface() -> None:
+    """Gate-review test#3: pin the multi-IdP-same-Surface contract.
+    Today the handler iterates identity_providers and overwrites,
+    so the LAST IdP's audience for a given Surface survives. This
+    test locks the current behavior so a future change to e.g.
+    raise-on-collision is explicit and intentional."""
+    settings = Settings(  # type: ignore[call-arg]
+        app_env="test",
+        identity_providers=[
+            IdentityProviderConfig(
+                issuer="https://idp-a.example.com",
+                jwks_url="https://idp-a.example.com/jwks",
+                audiences={_HTTP_SURFACE: "https://first.example/http"},
+            ),
+            IdentityProviderConfig(
+                issuer="https://idp-b.example.com",
+                jwks_url="https://idp-b.example.com/jwks",
+                audiences={_HTTP_SURFACE: "https://second.example/http"},
+            ),
+        ],
+    )
+    with TestClient(create_app(settings=settings)) as client:
+        response = client.get("/.well-known/oauth-protected-resource")
+    body = response.json()
+    # CURRENT contract: last-iterated wins. If future iteration adds
+    # raise-on-collision, this test gets flipped to pytest.raises.
+    assert body["io.cora.surface_audiences"]["http"] == "https://second.example/http", (
+        "current contract is last-wins; update intentionally if changing"
+    )

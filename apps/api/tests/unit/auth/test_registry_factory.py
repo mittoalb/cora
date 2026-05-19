@@ -1,4 +1,4 @@
-"""Unit tests for `cora.infrastructure.auth.registry_builder.build_idp_registry`.
+"""Unit tests for `cora.infrastructure.auth.registry_factory.build_idp_registry`.
 
 Pins config-row → adapter-instance translation. The adapter
 construction itself is exercised end-to-end by the existing
@@ -18,7 +18,7 @@ from pydantic import SecretStr
 
 from cora.infrastructure.auth.config import IdentityProviderConfig, StaticSubjectMapper
 from cora.infrastructure.auth.idp_registry import IdentityProviderRegistry
-from cora.infrastructure.auth.registry_builder import build_idp_registry
+from cora.infrastructure.auth.registry_factory import build_idp_registry
 from tests.unit.auth._helpers import TEST_AUD_HTTP, TEST_SURFACE_HTTP
 
 _MAPPER = StaticSubjectMapper({})
@@ -81,6 +81,11 @@ def test_both_paths_config_constructs_two_adapters() -> None:
     )
     registry = build_idp_registry([cfg], subject_mapper=_MAPPER)
     assert isinstance(registry, IdentityProviderRegistry)
+    # Gate-review test#10: assert internal shape, not just isinstance.
+    assert len(registry._jwt_by_issuer) == 1  # type: ignore[attr-defined]
+    assert "https://dual.example.com" in registry._jwt_by_issuer  # type: ignore[attr-defined]
+    assert registry._introspection is not None  # type: ignore[attr-defined]
+    assert registry._introspection.issuer == "https://dual.example.com"  # type: ignore[attr-defined]
 
 
 @pytest.mark.unit

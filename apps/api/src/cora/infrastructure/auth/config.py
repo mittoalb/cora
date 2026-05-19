@@ -21,6 +21,7 @@ satisfy `cora.infrastructure.ports.token_verifier.SubjectMapper`,
 so the registry doesn't know or care which is wired.
 """
 
+from collections.abc import Mapping
 from typing import Literal
 from uuid import UUID
 
@@ -191,6 +192,30 @@ class IdentityProviderConfig(BaseModel):
             raise ValueError(msg)
         return self
 
+    @model_validator(mode="after")
+    def _audiences_non_empty(self) -> "IdentityProviderConfig":
+        """Audiences map MUST have at least one entry (gate-review F12).
+
+        An IdP entry with `audiences={}` validates structurally but
+        produces a verifier that rejects every request with
+        `wrong_audience` — a fail-late mode that violates the
+        module-docstring promise of fail-fast startup validation.
+        Operators get a 401 with no clue why; this validator names
+        the missing config explicitly.
+        """
+        if not self.audiences:
+            msg = (
+                f"IdentityProviderConfig for issuer={self.issuer!r}: "
+                "audiences map must have at least one Surface UUID → "
+                "audience-string entry. An empty map produces a verifier "
+                "that rejects every request with wrong_audience. Map at "
+                "least one of the SYSTEM Surface UUIDs (HTTP=...0020, "
+                "MCP_STDIO=...0021, MCP_STREAMABLE_HTTP=...0022) to the "
+                "audience string the IdP signs into the 'aud' claim."
+            )
+            raise ValueError(msg)
+        return self
+
 
 class StaticSubjectMapper:
     """SubjectMapper backed by an in-memory `(issuer, subject) → (id, kind)` dict.
@@ -211,11 +236,20 @@ class StaticSubjectMapper:
     layer sees a clean 401 with the right reason code.
     """
 
-    def __init__(self, bindings: dict[tuple[str, str], tuple[UUID, _PrincipalKindLiteral]]) -> None:
-        """Construct with a fixed binding dict.
+    def __init__(
+        self,
+        bindings: Mapping[tuple[str, str], tuple[UUID, _PrincipalKindLiteral]],
+    ) -> None:
+        """Construct with a fixed binding mapping.
 
         Keys: `(issuer, subject)` tuple. Both strings exact-match.
         Values: `(principal_id, kind)` tuple.
+
+        Accepts any `Mapping` for the immutable-interface convention
+        widespread in the codebase (json_merge_patch.py, recipe/plan/
+        parameters_validation.py). The mapping is defensive-copied
+        into an internal dict at construction so callers can't mutate
+        live auth behavior between requests (gate-review impl#10).
 
         Usage:
             mapper = StaticSubjectMapper({
@@ -223,7 +257,7 @@ class StaticSubjectMapper:
                 ("https://idp.example.com", "ci-bot"): (UUID(...), "service_account"),
             })
         """
-        self._bindings = bindings
+        self._bindings: dict[tuple[str, str], tuple[UUID, _PrincipalKindLiteral]] = dict(bindings)
 
     async def __call__(self, issuer: str, subject: str) -> tuple[UUID, _PrincipalKindLiteral]:
         # Lazy import to avoid the Settings ↔ auth.config cycle (see

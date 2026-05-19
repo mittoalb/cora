@@ -91,6 +91,19 @@ def test_introspection_cache_ttl_floor() -> None:
 
 
 @pytest.mark.unit
+def test_empty_audiences_rejected_at_validation() -> None:
+    """Gate-review F12 / impl#11: empty audiences={} would produce a
+    dead verifier (rejects every request with wrong_audience). Boot
+    fails fast instead, naming the missing config."""
+    with pytest.raises(ValidationError, match=r"audiences map must have"):
+        IdentityProviderConfig(
+            issuer=TEST_ISSUER,
+            jwks_url="https://idp.example.com/jwks",
+            audiences={},
+        )
+
+
+@pytest.mark.unit
 def test_client_secret_never_in_repr() -> None:
     """SecretStr (Pydantic) redacts secrets in __repr__ + model_dump."""
     cfg = IdentityProviderConfig(
@@ -98,6 +111,7 @@ def test_client_secret_never_in_repr() -> None:
         introspection_url="https://idp.example.com/introspect",
         introspection_client_id="cora-rs",
         introspection_client_secret=SecretStr("super-secret-value"),
+        audiences={TEST_SURFACE_HTTP: TEST_AUD_HTTP},  # post-F12 requirement
     )
     assert "super-secret-value" not in repr(cfg)
     assert "super-secret-value" not in cfg.model_dump_json()

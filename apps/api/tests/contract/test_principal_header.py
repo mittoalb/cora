@@ -336,3 +336,99 @@ def test_create_app_boots_with_no_trust_policy_id(
     monkeypatch.delenv("REQUIRE_AUTHENTICATED_PRINCIPAL", raising=False)
     app = create_app()
     assert app is not None
+
+
+# ---------- Iter B-1 gate-review HIGH F11 ----------
+
+
+@pytest.mark.contract
+def test_create_app_refuses_prod_with_allow_insecure_jwks_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Gate-review HIGH F11: under app_env=prod, any IdP entry with
+    allow_insecure_jwks_url=True is rejected at boot. Per-adapter
+    HTTPS gate already raises when an http:// URL is paired without
+    the opt-in; this Settings-level check defends against an operator
+    (or env-var-write attacker) flipping the opt-in to True to
+    downgrade ONE IdP to plaintext under prod."""
+    import json
+
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.setenv("REQUIRE_AUTHENTICATED_PRINCIPAL", "true")
+    monkeypatch.setenv(
+        "IDENTITY_PROVIDERS",
+        json.dumps(
+            [
+                {
+                    "issuer": "https://idp.example.com",
+                    "jwks_url": "http://attacker.example.com/jwks",
+                    "allow_insecure_jwks_url": True,
+                    "audiences": {
+                        "00000000-0000-0000-0000-000000000020": "https://cora.example/http",
+                    },
+                }
+            ]
+        ),
+    )
+    with pytest.raises(RuntimeError, match=r"allow_insecure_jwks_url"):
+        create_app()
+
+
+@pytest.mark.contract
+def test_create_app_refuses_prod_with_allow_insecure_introspection_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Same F11 defense for the introspection URL — the higher-impact
+    case since HTTP Basic auth would expose CORA's client_secret."""
+    import json
+
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.setenv("REQUIRE_AUTHENTICATED_PRINCIPAL", "true")
+    monkeypatch.setenv(
+        "IDENTITY_PROVIDERS",
+        json.dumps(
+            [
+                {
+                    "issuer": "https://idp.example.com",
+                    "introspection_url": "http://attacker.example.com/introspect",
+                    "introspection_client_id": "cora-rs",
+                    "introspection_client_secret": "secret",
+                    "allow_insecure_introspection_url": True,
+                    "audiences": {
+                        "00000000-0000-0000-0000-000000000020": "https://cora.example/http",
+                    },
+                }
+            ]
+        ),
+    )
+    with pytest.raises(RuntimeError, match=r"allow_insecure_introspection_url"):
+        create_app()
+
+
+@pytest.mark.contract
+def test_create_app_allows_local_env_with_insecure_idps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Inverse sanity: app_env=local + allow_insecure_*=True boots fine.
+    The opt-ins exist for localhost test/dev fixtures."""
+    import json
+
+    monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.delenv("REQUIRE_AUTHENTICATED_PRINCIPAL", raising=False)
+    monkeypatch.setenv(
+        "IDENTITY_PROVIDERS",
+        json.dumps(
+            [
+                {
+                    "issuer": "https://idp.example.com",
+                    "jwks_url": "http://127.0.0.1:9999/jwks",
+                    "allow_insecure_jwks_url": True,
+                    "audiences": {
+                        "00000000-0000-0000-0000-000000000020": "https://cora.example/http",
+                    },
+                }
+            ]
+        ),
+    )
+    app = create_app()
+    assert app is not None
