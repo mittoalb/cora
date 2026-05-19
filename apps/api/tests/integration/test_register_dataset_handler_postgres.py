@@ -294,10 +294,18 @@ async def test_register_dataset_against_run_subject_and_lineage_round_trip(
     assert raw_events[0].payload["subject_id"] == str(subject_id)
     assert raw_events[0].payload["derived_from"] == []
     assert raw_events[0].payload["encoding"]["conforms_to"] == ["https://manual.nexusformat.org/"]
+    # Phase 12c backward-compat pin: callers that omit used_calibrations
+    # (the entire pre-12c API surface) get an empty list on the
+    # persisted payload. Locks the additive-state forward-compat
+    # contract — any regression that drops the field-default would
+    # break legacy from_stored fold + pre-12c read-path consumers.
+    assert raw_events[0].payload["used_calibrations"] == []
 
     derived_events, _ = await deps.event_store.load("Dataset", derived_id)
     assert len(derived_events) == 1
     assert derived_events[0].payload["derived_from"] == [str(raw_id)]
+    # Phase 12c backward-compat pin (mirror on the derived Dataset).
+    assert derived_events[0].payload["used_calibrations"] == []
 
     # Discard the raw Dataset (GDPR-shaped).
     await discard_dataset.bind(deps)(

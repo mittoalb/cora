@@ -173,3 +173,57 @@ def test_mcp_get_dataset_tool_returns_iserror_for_unknown_id() -> None:
     body = parse_sse_data(response.text)
     assert body["result"]["isError"] is True
     assert "not found" in body["result"]["content"][0]["text"].lower()
+
+
+# ---------- Phase 12c: Calibration BC AsShot citation ----------
+
+
+@pytest.mark.contract
+def test_mcp_register_dataset_tool_accepts_used_calibrations() -> None:
+    """Phase 12c: the MCP tool's `used_calibrations` arg is wired
+    through to the decider. Pins the wire-level contract on the
+    MCP surface (mirrors the REST endpoint contract test pattern).
+    NO cross-BC existence check at the write path per anti-hook #3."""
+    cal_a = str(uuid4())
+    cal_b = str(uuid4())
+    with TestClient(create_app()) as client:
+        headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 9,
+                "method": "tools/call",
+                "params": {
+                    "name": "register_dataset",
+                    "arguments": _register_args(used_calibrations=[cal_b, cal_a]),
+                },
+            },
+            headers=headers,
+        )
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is False, body["result"]
+
+
+@pytest.mark.contract
+def test_mcp_register_dataset_tool_omitting_used_calibrations_succeeds() -> None:
+    """Forward-compat: legacy MCP callers that omit `used_calibrations`
+    succeed; the optional arg defaults to empty (mirrors Phase 12b
+    Run.pinned_calibrations MCP-tool optional-arg shape)."""
+    with TestClient(create_app()) as client:
+        headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 10,
+                "method": "tools/call",
+                "params": {
+                    "name": "register_dataset",
+                    "arguments": _register_args(),
+                },
+            },
+            headers=headers,
+        )
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is False, body["result"]

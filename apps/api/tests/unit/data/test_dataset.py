@@ -16,6 +16,7 @@ from cora.data.aggregates.dataset import (
     DATASET_MEDIA_TYPE_MAX_LENGTH,
     DATASET_NAME_MAX_LENGTH,
     DATASET_URI_MAX_LENGTH,
+    DATASET_USED_CALIBRATIONS_MAX_ENTRIES,
     Dataset,
     DatasetAlreadyExistsError,
     DatasetChecksum,
@@ -31,10 +32,12 @@ from cora.data.aggregates.dataset import (
     InvalidDatasetNameError,
     InvalidDatasetUriError,
     InvalidDerivedFromError,
+    InvalidUsedCalibrationsError,
     LinkedSubjectMissingError,
     ProducingRunMissingError,
     validate_byte_size,
     validate_derived_from,
+    validate_used_calibrations,
 )
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
@@ -322,6 +325,51 @@ def test_validate_derived_from_rejects_over_cap() -> None:
     s = frozenset(uuid4() for _ in range(DATASET_DERIVED_FROM_MAX_ENTRIES + 1))
     with pytest.raises(InvalidDerivedFromError):
         validate_derived_from(s)
+
+
+# ---------- Phase 12c: used_calibrations validation ----------
+
+
+@pytest.mark.unit
+def test_validate_used_calibrations_accepts_empty() -> None:
+    """Empty citation set is the default (no calibrations cited)."""
+    assert validate_used_calibrations(frozenset()) == frozenset()
+
+
+@pytest.mark.unit
+def test_validate_used_calibrations_accepts_within_cap() -> None:
+    """A reasonable-size citation set (under the cap) is accepted
+    verbatim — no element-level existence check at this layer."""
+    s = frozenset(uuid4() for _ in range(10))
+    assert validate_used_calibrations(s) == s
+
+
+@pytest.mark.unit
+def test_validate_used_calibrations_accepts_exactly_at_cap() -> None:
+    """Boundary: exactly DATASET_USED_CALIBRATIONS_MAX_ENTRIES is
+    accepted (off-by-one guard mirrors validate_derived_from)."""
+    s = frozenset(uuid4() for _ in range(DATASET_USED_CALIBRATIONS_MAX_ENTRIES))
+    assert validate_used_calibrations(s) == s
+
+
+@pytest.mark.unit
+def test_validate_used_calibrations_rejects_over_cap() -> None:
+    """Cardinality cap rejects > DATASET_USED_CALIBRATIONS_MAX_ENTRIES;
+    raises InvalidUsedCalibrationsError. Mirrors InvalidDerivedFromError
+    shape exactly (same precedent + same default cap of 64)."""
+    s = frozenset(uuid4() for _ in range(DATASET_USED_CALIBRATIONS_MAX_ENTRIES + 1))
+    with pytest.raises(InvalidUsedCalibrationsError):
+        validate_used_calibrations(s)
+
+
+@pytest.mark.unit
+def test_invalid_used_calibrations_error_carries_count() -> None:
+    """The error class exposes `.count` for observability + debugging
+    (matches InvalidDerivedFromError contract)."""
+    bad_count = DATASET_USED_CALIBRATIONS_MAX_ENTRIES + 5
+    err = InvalidUsedCalibrationsError(bad_count)
+    assert err.count == bad_count
+    assert str(bad_count) in str(err)
 
 
 # ---------- DatasetStatus enum ----------

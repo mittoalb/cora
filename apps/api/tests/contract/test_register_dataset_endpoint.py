@@ -5,9 +5,11 @@ other register / define endpoint. Body carries nested checksum +
 encoding objects, plus the optional cross-aggregate refs.
 """
 
-from uuid import uuid4
+import asyncio
+from uuid import UUID, uuid4
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
@@ -257,4 +259,96 @@ def test_get_datasets_returns_404_for_unknown_id() -> None:
 def test_get_datasets_rejects_invalid_path_uuid_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.get("/datasets/not-a-uuid")
+    assert response.status_code == 422
+
+
+# ---------- Phase 12c: Calibration BC AsShot citation ----------
+
+
+def _load_dataset_payload(app: FastAPI, dataset_id: UUID) -> dict[str, object]:
+    """Load the DatasetRegistered payload directly from the in-memory event store.
+
+    The `GET /datasets/{id}` DTO does not expose `used_calibrations`
+    today, so we drop down to the event store to inspect the
+    persisted DatasetRegistered event. Same pattern as Phase 12b's
+    `_load_run_payload` in `test_start_run_endpoint.py`.
+    """
+    events, _ = asyncio.run(app.state.deps.event_store.load("Dataset", dataset_id))
+    assert events, "expected at least one Dataset event"
+    return dict(events[0].payload)
+
+
+@pytest.mark.contract
+def test_post_datasets_with_used_calibrations_returns_201() -> None:
+    """POST /datasets with used_calibrations returns 201 and the
+    persisted DatasetRegistered payload carries the sorted list of
+    citations (no cross-BC validation of the CalibrationRevision ids
+    — eventual-consistency stance per design memo Phase 12c, mirrors
+    Phase 12b's Run.pinned_calibrations exactly)."""
+    app = create_app()
+    cal_a = uuid4()
+    cal_b = uuid4()
+    with TestClient(app) as client:
+        response = client.post(
+            "/datasets",
+            json=_good_body(
+                name="cited-reconstruction",
+                # Scrambled order; decider sorts before emit.
+                used_calibrations=[str(cal_b), str(cal_a)],
+            ),
+        )
+        assert response.status_code == 201, response.text
+        dataset_id = UUID(response.json()["dataset_id"])
+        payload = _load_dataset_payload(app, dataset_id)
+    assert payload["used_calibrations"] == sorted([str(cal_a), str(cal_b)])
+
+
+@pytest.mark.contract
+def test_post_datasets_defaults_used_calibrations_to_empty_list() -> None:
+    """Omitted used_calibrations serializes as `[]` on the payload
+    (forward-compat-clean default; pre-12c DatasetRegistered readers
+    fold the same way via `payload.get(..., [])`)."""
+    app = create_app()
+    with TestClient(app) as client:
+        response = client.post("/datasets", json=_good_body(name="no-citation-dataset"))
+        assert response.status_code == 201, response.text
+        dataset_id = UUID(response.json()["dataset_id"])
+        payload = _load_dataset_payload(app, dataset_id)
+    assert payload["used_calibrations"] == []
+
+
+@pytest.mark.contract
+def test_post_datasets_does_not_validate_used_calibration_existence() -> None:
+    """Phase 12c eventual-consistency stance per
+    [[project_calibration_design]] anti-hook #3: the write path does
+    NOT look up the CalibrationRevision ids. Any well-formed UUID
+    list is accepted; downstream consumers that need to dereference
+    still go through the Calibration BC. Mirrors Phase 12b
+    Run.pinned_calibrations exactly."""
+    with TestClient(create_app()) as client:
+        # Fully synthetic citation ids that will never exist in any
+        # Calibration BC stream.
+        response = client.post(
+            "/datasets",
+            json=_good_body(
+                name="synthetic-citations-dataset",
+                used_calibrations=[str(uuid4()) for _ in range(5)],
+            ),
+        )
+    assert response.status_code == 201, response.text
+
+
+@pytest.mark.contract
+def test_post_datasets_rejects_malformed_used_calibration_uuid_with_422() -> None:
+    """Pydantic enforces UUID format at the wire layer (the decider
+    never sees malformed strings). Mirrors Phase 12b's malformed-UUID
+    422 guard for Run.pinned_calibrations."""
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/datasets",
+            json=_good_body(
+                name="bad-citation-uuid-dataset",
+                used_calibrations=["not-a-uuid"],
+            ),
+        )
     assert response.status_code == 422
