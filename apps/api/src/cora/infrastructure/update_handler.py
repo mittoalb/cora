@@ -85,7 +85,7 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 
-_CONDUIT_DEFAULT_ID = UUID(int=0)
+_NIL_SENTINEL_ID = UUID(int=0)
 
 
 class _DomainEvent(Protocol):
@@ -106,6 +106,11 @@ class _UpdateHandler(Protocol):
     Each slice's locally-declared `Handler` Protocol is narrower
     in `command` (which is contravariant), so the wider callable
     returned here assigns to it without an explicit cast.
+
+    `surface_id` (Phase B Iter C-2a): additive with nil default so
+    routes that don't pass it yet keep working. Iter C-2b sweeps
+    route layers to inject the real `Depends(get_surface_id)` value;
+    handlers forward whatever they receive to `deps.authorize`.
     """
 
     async def __call__(
@@ -115,6 +120,7 @@ class _UpdateHandler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> None: ...
 
 
@@ -145,6 +151,7 @@ def make_update_handler[TEvent: _DomainEvent](
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> None:
         target_id: UUID = getattr(command, target_id_attr)
         extras: dict[str, Any] = extra_log_fields(command) if extra_log_fields is not None else {}
@@ -162,7 +169,8 @@ def make_update_handler[TEvent: _DomainEvent](
         decision = await deps.authorize(
             principal_id=principal_id,
             command_name=command_name,
-            conduit_id=_CONDUIT_DEFAULT_ID,
+            conduit_id=_NIL_SENTINEL_ID,
+            surface_id=surface_id,
         )
         if isinstance(decision, Deny):
             log.info(
