@@ -157,6 +157,7 @@ from cora.trust import (
     register_trust_projections,
     register_trust_routes,
     register_trust_tools,
+    verify_bootstrap_seed_present,
     wire_trust,
 )
 
@@ -174,16 +175,37 @@ _PROD_APP_ENVS = frozenset({"prod", "production"})
 
 
 def _enforce_production_principal_policy(settings: Settings) -> None:
-    """Refuse to boot a production deployment with the permissive
-    SYSTEM-fallback principal mode.
+    """Refuse to boot deployments where the principal-fallback would
+    silently grant admin to header-less callers.
 
-    Phase-3e production-posture gate. Setting `app_env=prod` (or
-    `production`) without also setting
-    `require_authenticated_principal=True` would silently run
-    every header-less request as `SYSTEM_PRINCIPAL_ID` -- which,
-    under `AllowAllAuthorize`, is the entire API authenticated as
-    nobody. Failing fast at app construction is cheaper than
-    discovering this in production logs.
+    TWO failure conditions, both producing the same fail-fast:
+
+    1. `app_env in {prod, production}` without
+       `require_authenticated_principal=True`. The legacy Phase-3e
+       gate: header-less prod requests would otherwise run as
+       SYSTEM_PRINCIPAL_ID under whichever Authorize port is wired.
+
+    2. `trust_policy_id is not None` without
+       `require_authenticated_principal=True`, when `app_env` is
+       NOT `test`. Post-Phase-A: the seeded bootstrap policy permits
+       SYSTEM_PRINCIPAL_ID to call DefinePolicy + RegisterActor.
+       Without the principal-header check, ANY caller spoofing
+       `X-Principal-Id: 00000000-0000-0000-0000-000000000000`
+       becomes SYSTEM and gets standing admin. Staging/local
+       deployments with only TRUST_POLICY_ID set (forgetting the
+       second flag) would ship a wide-open API — gate-review F1.
+
+       Test env (`app_env=test`) is exempt because legitimate test
+       fixtures exercise "operator misconfigured" + "SYSTEM-fallback
+       under real policy" scenarios that REQUIRE this combo to be
+       constructible. The exemption is safe because `app_env=test`
+       is never operator-set in deployment configs.
+
+    Bootstrap workflow stays clean: a fresh deploy wanting AllowAll
+    leaves `trust_policy_id` unset (today's default). A deploy
+    wanting real authz sets BOTH env vars together — and operates
+    behind an auth proxy that strips/sets `X-Principal-Id` per the
+    routing.py contract.
     """
     if settings.app_env in _PROD_APP_ENVS and not settings.require_authenticated_principal:
         msg = (
@@ -191,6 +213,21 @@ def _enforce_production_principal_policy(settings: Settings) -> None:
             "require_authenticated_principal=True (set "
             "REQUIRE_AUTHENTICATED_PRINCIPAL=true). The permissive "
             "SYSTEM_PRINCIPAL_ID fallback is not safe for production."
+        )
+        raise RuntimeError(msg)
+    if (
+        settings.app_env != "test"
+        and settings.trust_policy_id is not None
+        and not settings.require_authenticated_principal
+    ):
+        msg = (
+            f"trust_policy_id={settings.trust_policy_id!r} requires "
+            "require_authenticated_principal=True (set "
+            "REQUIRE_AUTHENTICATED_PRINCIPAL=true). Without the "
+            "principal-header check, any caller can spoof "
+            "X-Principal-Id and become SYSTEM under the configured "
+            "Policy — bypassing the authz gate you just turned on. "
+            "See memory/project_bootstrap_policy_design.md (F1)."
         )
         raise RuntimeError(msg)
 
@@ -335,6 +372,12 @@ def create_app() -> FastAPI:
             app.state.calibration = wire_calibration(deps)
             app.state.campaign = wire_campaign(deps)
             app.state.agent = wire_agent(deps)
+
+            # Boot-time fail-fast when the deployment is pointed at the
+            # bootstrap seed but the seed's stream is missing. Without
+            # this check, a stale / unrestored DB silently 403s every
+            # API call instead of failing visibly at startup.
+            await verify_bootstrap_seed_present(deps)
 
             # Phase-8e-1a: projection worker. Each BC that owns
             # projections exports a `register_<bc>_projections`

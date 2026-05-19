@@ -290,3 +290,49 @@ def test_startup_gate_recognizes_both_prod_app_env_spellings(
     monkeypatch.delenv("REQUIRE_AUTHENTICATED_PRINCIPAL", raising=False)
     with pytest.raises(RuntimeError):
         create_app()
+
+
+@pytest.mark.contract
+def test_create_app_refuses_to_boot_when_trust_policy_set_without_require_auth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Gate-review F1: setting TRUST_POLICY_ID without also setting
+    REQUIRE_AUTHENTICATED_PRINCIPAL=true would let any caller spoof
+    `X-Principal-Id: 00000000-0000-0000-0000-000000000000` and become
+    SYSTEM under whichever Policy is wired (the bootstrap seed permits
+    SYSTEM to DefinePolicy + RegisterActor). The gate now fires
+    regardless of app_env — staging/local with TRUST_POLICY_ID set are
+    exactly where operators test auth before going live, and that's
+    where the misconfig is most likely to ship."""
+    monkeypatch.setenv("APP_ENV", "local")  # explicitly NOT prod
+    monkeypatch.setenv("TRUST_POLICY_ID", "00000000-0000-0000-0000-000000000001")
+    monkeypatch.delenv("REQUIRE_AUTHENTICATED_PRINCIPAL", raising=False)
+    with pytest.raises(RuntimeError, match="require_authenticated_principal"):
+        create_app()
+
+
+@pytest.mark.contract
+def test_create_app_boots_when_trust_policy_set_with_require_auth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Gate-review F1 inverse: TRUST_POLICY_ID + REQUIRE_AUTHENTICATED_PRINCIPAL=true
+    boots cleanly. Operator turns on authz by setting BOTH together."""
+    monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.setenv("TRUST_POLICY_ID", "00000000-0000-0000-0000-000000000001")
+    monkeypatch.setenv("REQUIRE_AUTHENTICATED_PRINCIPAL", "true")
+    app = create_app()
+    assert app is not None
+
+
+@pytest.mark.contract
+def test_create_app_boots_with_no_trust_policy_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sanity: today's default (trust_policy_id unset, AllowAllAuthorize)
+    still boots without REQUIRE_AUTHENTICATED_PRINCIPAL. Phase A's
+    runbook simplification kicks in only when TRUST_POLICY_ID is set."""
+    monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.delenv("TRUST_POLICY_ID", raising=False)
+    monkeypatch.delenv("REQUIRE_AUTHENTICATED_PRINCIPAL", raising=False)
+    app = create_app()
+    assert app is not None

@@ -38,17 +38,25 @@ injecting their own conduit_ids, deployments will define one Policy
 per conduit (single-policy-per-deployment shape stays; the operator
 picks which conduit to gate first, others fall through to deny).
 
-## Bootstrap problem
+## Bootstrap problem (Phase A: closed)
 
-If the configured policy doesn't permit `DefinePolicy`, you can't
-define new policies through the API. Deployment workflow:
+Without a seed, the configured policy must already permit
+`DefinePolicy` for someone to define new policies through the API —
+chicken-and-egg. The Atlas migration
+`20260519000000_seed_bootstrap_policy.sql` seeds the System Bootstrap
+Policy at a fixed UUID (`cora.trust._bootstrap.SYSTEM_BOOTSTRAP_POLICY_ID`)
+permitting `SYSTEM_PRINCIPAL_ID` to call `{DefinePolicy, RegisterActor}`
+on the nil conduit. Production deployments collapse the prior 3-step
+dance to a single env var:
 
-    1. Start with `trust_policy_id` unset (AllowAllAuthorize).
-    2. `POST /policies` with a permissive policy; record the id.
-    3. Restart with `trust_policy_id` = that id.
+    TRUST_POLICY_ID=00000000-0000-0000-0000-000000000001
 
-A "system bootstrap policy" auto-defined via migration would close
-this gap; deferred until modify_policy + status lifecycle land.
+Operators then register a real admin Actor and promote a real admin
+Policy via the API, and (optionally) re-point `TRUST_POLICY_ID` at
+the new policy. Design lock + anti-hooks:
+`memory/project_bootstrap_policy_design.md`. The Settings default
+flip to non-None is deferred (WI8) pending a test-fixture audit;
+~2400 tests rely on AllowAllAuthorize today.
 
 ## Caller authz vs evaluation result
 
@@ -155,6 +163,7 @@ class TrustAuthorize:
                 principal_id=str(principal_id),
                 command_name=command_name,
                 conduit_id=str(conduit_id),
+                correlation_id=str(current_correlation_id()),
             )
             result: AuthzResult = Deny(
                 reason=(
@@ -178,6 +187,7 @@ class TrustAuthorize:
                     policy_id=str(self._policy_id),
                     principal_id=str(principal_id),
                     command_name=command_name,
+                    correlation_id=str(current_correlation_id()),
                 )
             else:
                 _log.info(
@@ -186,6 +196,7 @@ class TrustAuthorize:
                     principal_id=str(principal_id),
                     command_name=command_name,
                     reason=result.reason,
+                    correlation_id=str(current_correlation_id()),
                 )
 
         if self._traversals_store is not None:
@@ -224,6 +235,7 @@ class TrustAuthorize:
                 "trust_authorize.skip_traversal",
                 conduit_id=str(conduit_id),
                 reason="conduit_not_found",
+                correlation_id=str(current_correlation_id()),
             )
             return
         logbook_id = conduit.logbooks.get(LOGBOOK_KIND_TRAVERSALS)
@@ -232,6 +244,7 @@ class TrustAuthorize:
                 "trust_authorize.skip_traversal",
                 conduit_id=str(conduit_id),
                 reason="no_open_traversals_logbook",
+                correlation_id=str(current_correlation_id()),
             )
             return
 

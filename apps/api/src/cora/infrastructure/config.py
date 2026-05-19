@@ -64,12 +64,21 @@ class Settings(BaseSettings):
     # set to a UUID, `TrustAuthorize` is wired and gates every command
     # through that single Policy aggregate. Multi-policy resolution
     # via projections lands in a later phase; until then this is one
-    # policy per deployment. Bootstrap workflow (chicken-and-egg with
-    # the policy being able to permit DefinePolicy):
-    #   1. Start with this unset.
-    #   2. POST a permissive policy via /policies; record its id.
-    #   3. Restart with this set to that id.
-    # See `cora/trust/authorize.py` docstring for the full rationale.
+    # policy per deployment.
+    #
+    # Phase A (2026-05-18) seeded the System Bootstrap Policy at a
+    # fixed UUID so production deployments can enable real authz with
+    # a single env var instead of the old 3-step dance:
+    #
+    #   TRUST_POLICY_ID=00000000-0000-0000-0000-000000000001
+    #
+    # The seed permits SYSTEM_PRINCIPAL_ID to call DefinePolicy +
+    # RegisterActor on the nil conduit — the minimum needed to
+    # register a real admin Actor and promote a real admin Policy.
+    # The default stays None (AllowAllAuthorize) for now because
+    # ~2400 tests pass arbitrary principal_ids; flipping the default
+    # is gated on a test-fixture audit (memory:
+    # project_bootstrap_policy_design.md, WI8).
     trust_policy_id: UUID | None = None
 
     # Production deployments behind an auth proxy that sets

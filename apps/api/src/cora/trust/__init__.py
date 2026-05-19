@@ -18,6 +18,10 @@ Layout:
     routes.py                 -- register_trust_routes(app)
 """
 
+from cora.trust._bootstrap import (
+    SYSTEM_BOOTSTRAP_POLICY_ID,
+    verify_bootstrap_seed_present,
+)
 from cora.trust._projections import register_trust_projections
 from cora.trust.authorize import TrustAuthorize
 from cora.trust.authorize_factory import build_authorize
@@ -27,6 +31,7 @@ from cora.trust.tools import register_trust_tools
 from cora.trust.wire import TrustHandlers, wire_trust
 
 __all__ = [
+    "SYSTEM_BOOTSTRAP_POLICY_ID",
     "TrustAuthorize",
     "TrustHandlers",
     "UnauthorizedError",
@@ -34,5 +39,6 @@ __all__ = [
     "register_trust_projections",
     "register_trust_routes",
     "register_trust_tools",
+    "verify_bootstrap_seed_present",
     "wire_trust",
 ]
