@@ -211,3 +211,9 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
     assert state.plan_id == plan_id
     assert state.subject_id == subject_id
     assert state.status is RunStatus.RUNNING
+    # Phase 12b-5 backward-compat pin (gate-review): legacy callers
+    # that omit pinned_calibrations get an empty frozenset on the
+    # folded state — locks the additive-state forward-compat contract
+    # end-to-end (event payload → PG round-trip → load_run fold).
+    # Mirror of Data BC's 12c-3 pin on test_register_dataset_handler_postgres.
+    assert state.pinned_calibrations == frozenset()

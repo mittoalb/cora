@@ -1579,3 +1579,79 @@ def test_decide_threads_pinned_calibrations_sorted_through_to_event() -> None:
         new_id=uuid4(),
     )
     assert decision.run_events[0].pinned_calibrations == tuple(sorted([pin_a, pin_b, pin_c]))
+
+
+def test_decide_rejects_pinned_calibrations_over_cap() -> None:
+    """Phase 12b-5: cardinality cap on the AsShot pin set. Symmetric
+    to Data BC's register_dataset decider rejecting > 64 entries on
+    used_calibrations. Mirrors the Phase 12c-3 cardinality boundary
+    test for the Data BC."""
+    from cora.run.aggregates.run import (
+        RUN_PINNED_CALIBRATIONS_MAX_ENTRIES,
+        InvalidPinnedCalibrationsError,
+    )
+
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    subject = _subject()
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
+    too_many = frozenset(uuid4() for _ in range(RUN_PINNED_CALIBRATIONS_MAX_ENTRIES + 1))
+    with pytest.raises(InvalidPinnedCalibrationsError):
+        start_run.decide(
+            state=None,
+            command=StartRun(
+                name="Too many pins",
+                plan_id=plan.id,
+                subject_id=subject.id,
+                pinned_calibrations=too_many,
+            ),
+            context=context,
+            needed_families_snapshot=frozenset({cap}),
+            effective_parameters={},
+            method_parameters_schema=None,
+            now=_NOW,
+            new_id=uuid4(),
+        )
+
+
+def test_decide_accepts_pinned_calibrations_exactly_at_cap() -> None:
+    """Phase 12b-5 boundary guard: exactly at the cap is accepted
+    (off-by-one mirror of Data BC's
+    test_decide_accepts_used_calibrations_at_cardinality_cap)."""
+    from cora.run.aggregates.run import RUN_PINNED_CALIBRATIONS_MAX_ENTRIES
+
+    cap = uuid4()
+    asset_id = uuid4()
+    plan = _plan(asset_ids=frozenset({asset_id}))
+    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    subject = _subject()
+    context = RunStartContext(
+        plan=plan,
+        subject=subject,
+        assets={asset_id: asset},
+        referencing_clearances=_active_clearance_stub(),
+    )
+    at_cap = frozenset(uuid4() for _ in range(RUN_PINNED_CALIBRATIONS_MAX_ENTRIES))
+    decision = start_run.decide(
+        state=None,
+        command=StartRun(
+            name="Cap pins",
+            plan_id=plan.id,
+            subject_id=subject.id,
+            pinned_calibrations=at_cap,
+        ),
+        context=context,
+        needed_families_snapshot=frozenset({cap}),
+        effective_parameters={},
+        method_parameters_schema=None,
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert len(decision.run_events[0].pinned_calibrations) == RUN_PINNED_CALIBRATIONS_MAX_ENTRIES

@@ -121,6 +121,15 @@ RUN_TRUNCATE_REASON_MAX_LENGTH = 500
 # after trim). Future-additive structured taxonomy parked behind the
 # same triggers as RunAbortReason.
 RUN_ADJUST_REASON_MAX_LENGTH = 500
+# Phase 12b-5: cardinality cap on the AsShot pin set
+# (Run.pinned_calibrations). Mirrors Data BC's
+# DATASET_USED_CALIBRATIONS_MAX_ENTRIES exactly (same default + same
+# precedent justification: per-entry existence is NOT checked at the
+# write path — revision-cited atomic IDs are cross-BC eventual-
+# consistency citations per [[project_calibration_design]]
+# anti-hook #3 — but unbounded set growth would still bloat events +
+# payloads with no domain justification).
+RUN_PINNED_CALIBRATIONS_MAX_ENTRIES = 64
 
 # Phase 11a-c-3 / Phase 6i-a hoist: ExternalRef carries (scheme, id) pairs
 # mirroring the Safety BC's ExternalBinding shape exactly (proposal /
@@ -1118,3 +1127,47 @@ class InvalidRunAdjustReasonError(ValueError):
             f"trimming (got: {value!r})"
         )
         self.value = value
+
+
+class InvalidPinnedCalibrationsError(ValueError):
+    """The supplied pinned_calibrations set has too many entries
+    (Phase 12b-5).
+
+    Per-entry validation (each is a UUID) is type-enforced; the
+    set-cardinality cap protects against accidentally massive AsShot-
+    pin payloads on a single Run start. Mirrors Data BC's
+    `InvalidUsedCalibrationsError` shape exactly (same precedent +
+    same default cap of 64). Validated at the decider; the API
+    boundary also enforces `max_length` via Pydantic for fast 422
+    failures on obviously-malformed input.
+
+    NO cross-BC existence check on the cited revision ids per
+    [[project_calibration_design]] anti-hook #3 (revision-cited
+    atomic-ID model) + canonical DDD eventual-consistency stance on
+    cross-aggregate rules (Vernon/Evans). Symmetric to Data BC's
+    register_dataset decider-time treatment.
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, count: int) -> None:
+        super().__init__(
+            f"Run pinned_calibrations must have at most "
+            f"{RUN_PINNED_CALIBRATIONS_MAX_ENTRIES} entries (got: {count})"
+        )
+        self.count = count
+
+
+def validate_pinned_calibrations(value: frozenset[UUID]) -> frozenset[UUID]:
+    """Normalize / validate pinned_calibrations for the Run state and decider.
+
+    Cardinality-only check (Phase 12b-5). NO per-element existence
+    check (revision-cited atomic-ID model; cross-BC eventual-
+    consistency per [[project_calibration_design]] anti-hook #3 +
+    Vernon/Evans DDD canon). Mirrors Data BC's
+    `validate_used_calibrations` exactly — same shape, same default
+    cap, same justification.
+    """
+    if len(value) > RUN_PINNED_CALIBRATIONS_MAX_ENTRIES:
+        raise InvalidPinnedCalibrationsError(len(value))
+    return value

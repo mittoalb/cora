@@ -92,6 +92,7 @@ from cora.run.aggregates.run import (
     RunStarted,
     SubjectNotMountableError,
     validate_effective_parameters_against_method_schema,
+    validate_pinned_calibrations,
 )
 from cora.run.features.start_run.command import StartRun
 from cora.run.features.start_run.context import RunStartContext
@@ -258,6 +259,13 @@ def decide(
 
     name = RunName(command.name)  # validates + trims; raises InvalidRunNameError
 
+    # Phase 12b-5: cardinality cap on the AsShot pin set. NO cross-BC
+    # existence check (revision-cited atomic-ID model; eventual-
+    # consistency stance per [[project_calibration_design]] anti-hook
+    # #3). Mirrors Data BC's register_dataset decider-time treatment
+    # for Dataset.used_calibrations exactly.
+    pinned_calibrations = validate_pinned_calibrations(command.pinned_calibrations)
+
     # Phase 11b-c: build the acknowledged_cautions snapshot for the
     # RunStarted event payload. Per the Caution design memo, this
     # snapshot IS the ack (anti-pattern #7: ack lives on the
@@ -296,8 +304,9 @@ def decide(
             campaign_id=command.campaign_id,
             decided_by_decision_id=command.decided_by_decision_id,
             # Phase 12b: sort for deterministic byte-form on the event
-            # payload (frozenset has no inherent order).
-            pinned_calibrations=tuple(sorted(command.pinned_calibrations)),
+            # payload (frozenset has no inherent order). The cardinality
+            # check ran earlier via validate_pinned_calibrations (12b-5).
+            pinned_calibrations=tuple(sorted(pinned_calibrations)),
             occurred_at=now,
         )
     ]

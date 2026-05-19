@@ -100,6 +100,13 @@ async def test_run_started_inserts_with_running_status_and_genesis_refs() -> Non
     # 6i-c follow-up: campaign_id defaults None for payloads without
     # the key (pre-6i-c streams or standalone Runs).
     assert args.args[8] is None
+    # Phase 12b-5 (gate-review P0 mirror of 12c-3 fix): pin args[9] so a
+    # regression that drops or misorders the projection's UUID[]
+    # parameter for pinned_calibrations fails loud at the unit tier
+    # instead of slipping through to integration. Pre-12b RunStarted
+    # payloads have no `pinned_calibrations` key; .get(..., []) lands
+    # an empty UUID list.
+    assert args.args[9] == []
 
 
 @pytest.mark.unit
@@ -297,3 +304,71 @@ async def test_unknown_event_type_falls_through() -> None:
     event = _stored("UnrelatedEvent", {})
     await proj.apply(event, conn)
     conn.execute.assert_not_awaited()
+
+
+# ---------- Phase 12b-5: pinned_calibrations args[9] binding ----------
+
+
+@pytest.mark.unit
+async def test_run_started_pre_12b_payload_falls_back_to_empty_pinned_calibrations() -> None:
+    """Pre-12b RunStarted events lack the `pinned_calibrations` key
+    in the payload entirely. The projection's `payload.get(
+    "pinned_calibrations", [])` fallback MUST land an empty UUID list
+    on the column so legacy rows backfill cleanly (matches the
+    in-memory frozenset default + the from_stored forward-compat
+    fold). Mirror of Data BC's
+    test_dataset_registered_pre_12c_payload_falls_back_to_empty_used_calibrations
+    that 12c-3 added."""
+    proj = RunSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "RunStarted",
+        {
+            "run_id": str(_RUN_ID),
+            "name": "legacy-run",
+            "plan_id": str(_PLAN_ID),
+            "subject_id": None,
+            "occurred_at": _NOW.isoformat(),
+            # NOTE: pinned_calibrations deliberately ABSENT
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[9] == []
+
+
+@pytest.mark.unit
+async def test_run_started_with_pinned_calibrations_inserts_uuid_array() -> None:
+    """Phase 12b-5: when the payload carries `pinned_calibrations`,
+    the projection parses each entry into a UUID and passes the list
+    as the 9th arg. The decider sorts before emit; the projection
+    passes through verbatim. Mirror of Data BC's
+    test_dataset_registered_with_citations_inserts_uuid_array."""
+    pin_a = uuid4()
+    pin_b = uuid4()
+    proj = RunSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "RunStarted",
+        {
+            "run_id": str(_RUN_ID),
+            "name": "pinned-run",
+            "plan_id": str(_PLAN_ID),
+            "subject_id": None,
+            "occurred_at": _NOW.isoformat(),
+            # Sorted (decider's responsibility); projection trusts.
+            "pinned_calibrations": sorted([str(pin_a), str(pin_b)]),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    # Each entry parsed back into UUID and passed to the SQL execute.
+    pinned: list[Any] = args.args[9]
+    assert isinstance(pinned, list)
+    assert set(pinned) == {pin_a, pin_b}

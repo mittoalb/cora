@@ -47,12 +47,14 @@ from cora.run.aggregates.run.state import (
     RUN_EXTERNAL_REF_ID_MAX_LENGTH,
     RUN_EXTERNAL_REF_SCHEME_MAX_LENGTH,
     RUN_NAME_MAX_LENGTH,
+    RUN_PINNED_CALIBRATIONS_MAX_ENTRIES,
     RUN_STOP_REASON_MAX_LENGTH,
     RUN_TRUNCATE_REASON_MAX_LENGTH,
     SAMPLING_PROCEDURE_VALUES,
     ChannelName,
     ExternalRef,
     InvalidChannelNameError,
+    InvalidPinnedCalibrationsError,
     InvalidReadingValueError,
     InvalidRunAbortReasonError,
     InvalidRunAdjustPatchError,
@@ -90,6 +92,7 @@ from cora.run.aggregates.run.state import (
     RunTruncateReason,
     SamplingProcedure,
     SubjectNotMountableError,
+    validate_pinned_calibrations,
 )
 
 __all__ = [
@@ -102,6 +105,7 @@ __all__ = [
     "RUN_EXTERNAL_REF_ID_MAX_LENGTH",
     "RUN_EXTERNAL_REF_SCHEME_MAX_LENGTH",
     "RUN_NAME_MAX_LENGTH",
+    "RUN_PINNED_CALIBRATIONS_MAX_ENTRIES",
     "RUN_STOP_REASON_MAX_LENGTH",
     "RUN_TRUNCATE_REASON_MAX_LENGTH",
     "SAMPLING_PROCEDURE_VALUES",
@@ -110,6 +114,7 @@ __all__ = [
     "ExternalRef",
     "InMemoryReadingStore",
     "InvalidChannelNameError",
+    "InvalidPinnedCalibrationsError",
     "InvalidReadingValueError",
     "InvalidRunAbortReasonError",
     "InvalidRunAdjustPatchError",
@@ -170,4 +175,5 @@ __all__ = [
     "to_payload",
     "validate_adjusted_parameters_against_method_schema",
     "validate_effective_parameters_against_method_schema",
+    "validate_pinned_calibrations",
 ]
