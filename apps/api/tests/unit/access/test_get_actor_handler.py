@@ -98,6 +98,7 @@ class _RecordingAuthorize:
         principal_id: UUID,
         command_name: str,
         conduit_id: UUID,
+        surface_id: UUID = UUID(int=0),  # noqa: B008
     ) -> AuthzResult:
         self.calls.append((principal_id, command_name, conduit_id))
         return Allow()

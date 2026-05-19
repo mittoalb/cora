@@ -124,6 +124,7 @@ from cora.trust.aggregates.conduit.entries import (
 from cora.trust.aggregates.policy import evaluate, load_policy
 
 _log = get_logger(__name__)
+_NIL_SENTINEL_ID = UUID(int=0)
 
 
 class TrustAuthorize:
@@ -154,6 +155,7 @@ class TrustAuthorize:
         principal_id: UUID,
         command_name: str,
         conduit_id: UUID,
+        surface_id: UUID = _NIL_SENTINEL_ID,
     ) -> AuthzResult:
         policy = await load_policy(self._event_store, self._policy_id)
         if policy is None:
@@ -163,6 +165,7 @@ class TrustAuthorize:
                 principal_id=str(principal_id),
                 command_name=command_name,
                 conduit_id=str(conduit_id),
+                surface_id=str(surface_id),
                 correlation_id=str(current_correlation_id()),
             )
             result: AuthzResult = Deny(
@@ -175,11 +178,14 @@ class TrustAuthorize:
             # Phase 3e). evaluate's conduit-mismatch check now meaningfully
             # gates calls — a policy bound to one conduit denies calls on
             # another instead of being evaluated as if it were governing.
+            # Phase B Iter B: additionally forward surface_id. Defaults to
+            # nil until Iter C ships surface adapters at the route layer.
             result = evaluate(
                 policy,
                 principal_id=principal_id,
                 command_name=command_name,
                 conduit_id=conduit_id,
+                surface_id=surface_id,
             )
             if isinstance(result, Allow):
                 _log.info(
@@ -187,6 +193,7 @@ class TrustAuthorize:
                     policy_id=str(self._policy_id),
                     principal_id=str(principal_id),
                     command_name=command_name,
+                    surface_id=str(surface_id),
                     correlation_id=str(current_correlation_id()),
                 )
             else:
@@ -195,6 +202,7 @@ class TrustAuthorize:
                     policy_id=str(self._policy_id),
                     principal_id=str(principal_id),
                     command_name=command_name,
+                    surface_id=str(surface_id),
                     reason=result.reason,
                     correlation_id=str(current_correlation_id()),
                 )

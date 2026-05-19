@@ -50,6 +50,15 @@ class DefinePolicyRequest(BaseModel):
             "conduit. Empty list yields a deny-all policy."
         ),
     )
+    surface_id: UUID = Field(
+        default_factory=lambda: UUID(int=0),
+        description=(
+            "UUID of the Surface this policy governs (Phase B Iter B). "
+            "Defaults to nil so V1-shape callers don't need to send it; "
+            "V2 bootstrap policy and Iter-C+ policies bind to a real "
+            "Surface seeded by the deployment."
+        ),
+    )
 
 
 class DefinePolicyResponse(BaseModel):
@@ -111,6 +120,7 @@ async def post_policies(
             conduit_id=body.conduit_id,
             permitted_principals=frozenset(body.permitted_principals),
             permitted_commands=frozenset(body.permitted_commands),
+            surface_id=body.surface_id,
         ),
         principal_id=principal_id,
         correlation_id=cid,

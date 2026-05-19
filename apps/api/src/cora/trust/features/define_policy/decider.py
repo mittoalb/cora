@@ -47,5 +47,6 @@ def decide(
             permitted_principals=list(command.permitted_principals),
             permitted_commands=list(command.permitted_commands),
             occurred_at=now,
+            surface_id=command.surface_id,
         )
     ]

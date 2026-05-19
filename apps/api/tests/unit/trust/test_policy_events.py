@@ -68,6 +68,10 @@ def test_to_payload_serializes_policy_defined_to_primitives() -> None:
         "policy_id": str(policy_id),
         "name": "Beam-team",
         "conduit_id": str(conduit),
+        # Phase B Iter B: surface_id additive on payload; defaults to nil
+        # for V1-shape callers. V1 events on disk lack the field and fold
+        # via `from_stored`'s `.get(..., nil)` default.
+        "surface_id": "00000000-0000-0000-0000-000000000000",
         "permitted_principals": [str(p1)],
         "permitted_commands": ["RegisterActor"],
         "occurred_at": _NOW.isoformat(),

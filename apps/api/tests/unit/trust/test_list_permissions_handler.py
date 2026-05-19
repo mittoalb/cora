@@ -37,6 +37,7 @@ class _AllowListPermissionsDenyOthers:
         principal_id: UUID,
         command_name: str,
         conduit_id: UUID,
+        surface_id: UUID = UUID(int=0),  # noqa: B008
     ) -> AuthzResult:
         _ = (principal_id, conduit_id)
         if command_name == "ListPermissionsOfOthers":

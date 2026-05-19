@@ -87,15 +87,28 @@ class PolicyName:
         object.__setattr__(self, "value", trimmed)
 
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
+
 @dataclass(frozen=True)
 class Policy:
-    """Aggregate root: an authorization rule attached to a specific Conduit."""
+    """Aggregate root: an authorization rule attached to a Conduit + Surface pair.
+
+    `surface_id` (Phase B Iter B): the process-level arrival point this
+    policy gates. Defaults to nil so V1 PolicyDefined events on disk
+    fold to a nil-surface policy (operationally a "match any surface"
+    policy until Iter C ships surface adapters that inject real IDs).
+    Once Iter C lands, the V2 bootstrap policy will bind to the
+    seeded HTTP Surface and V1 will become operationally inert (per
+    project_conduit_injection_design.md, V1 deprecation watch item).
+    """
 
     id: UUID
     name: PolicyName
     conduit_id: UUID
     permitted_principals: frozenset[UUID]
     permitted_commands: frozenset[str]
+    surface_id: UUID = _NIL_SENTINEL_ID
 
 
 def evaluate(
@@ -104,29 +117,37 @@ def evaluate(
     principal_id: UUID,
     command_name: str,
     conduit_id: UUID,
+    surface_id: UUID = _NIL_SENTINEL_ID,
 ) -> AuthzResult:
-    """Pure Policy Decision Point: does `policy` permit (principal, command, conduit)?
+    """Pure Policy Decision Point: does `policy` permit (principal, command, conduit, surface)?
 
     Returns `Allow()` or `Deny(reason=...)`. The reason string is
     diagnostic — meant to flow into structlog / API responses for
-    debugging, not for end-user display. The order of checks is
-    conduit-mismatch first (cheapest, scopes the policy) then
-    principal then command (both O(1) frozenset lookups).
+    debugging, not for end-user display. Check order is cheapest-
+    first: conduit mismatch → surface mismatch → principal not in
+    set → command not in set.
+
+    `surface_id` defaults to nil so existing callers (TrustAuthorize
+    pre-Iter-B + tests pre-Iter-B + handler call sites pre-Iter-C)
+    keep working unchanged. A V1 policy with `policy.surface_id ==
+    UUID(int=0)` matches a call with `surface_id=UUID(int=0)` (the
+    transitional state). Once Iter C ships real surface adapters,
+    nil-surface calls disappear and V1 policies cease to match
+    anything in production — operators promote V2 (per
+    SYSTEM_BOOTSTRAP_POLICY_V2_ID).
 
     Living in `state.py` because it's a pure operation on Policy
     state (no I/O, no awaits, no mutation). If `state.py` exceeds
     ~200 lines or more pure operations land here, split into a
     dedicated `aggregates/policy/evaluate.py`.
-
-    Returns `AuthzResult` (the cross-BC Allow|Deny union from
-    `cora.infrastructure.ports`). Domain code importing infra types
-    is acceptable here because Allow/Deny ARE the cross-BC contract
-    for authorization decisions; the eventual `TrustAuthorize`
-    adapter is a thin wrapper around this function.
     """
     if conduit_id != policy.conduit_id:
         return Deny(
             reason=(f"Policy {policy.id} governs conduit {policy.conduit_id}, not {conduit_id}")
+        )
+    if surface_id != policy.surface_id:
+        return Deny(
+            reason=(f"Policy {policy.id} governs surface {policy.surface_id}, not {surface_id}")
         )
     if principal_id not in policy.permitted_principals:
         return Deny(reason=f"Principal {principal_id} not in policy {policy.id}'s permitted set")

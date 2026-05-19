@@ -18,6 +18,8 @@ from cora.trust.aggregates.policy import POLICY_NAME_MAX_LENGTH
 from cora.trust.features.define_policy.command import DefinePolicy
 from cora.trust.features.define_policy.handler import IdempotentHandler
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 class DefinePolicyOutput(BaseModel):
     """Structured output of the `define_policy` MCP tool."""
@@ -61,6 +63,15 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 description=("Command names allowed via this conduit. Empty -> deny-all."),
             ),
         ],
+        surface_id: Annotated[
+            UUID,
+            Field(
+                description=(
+                    "UUID of the Surface this policy governs (Phase B Iter B). "
+                    "Defaults to nil for V1-shape callers."
+                ),
+            ),
+        ] = _NIL_SENTINEL_ID,
     ) -> DefinePolicyOutput:
         handler = get_handler()
         policy_id = await handler(
@@ -69,6 +80,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 conduit_id=conduit_id,
                 permitted_principals=frozenset(permitted_principals),
                 permitted_commands=frozenset(permitted_commands),
+                surface_id=surface_id,
             ),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),

@@ -22,10 +22,17 @@ from uuid import UUID
 
 from cora.infrastructure.ports.event_store import StoredEvent
 
+_NIL_SENTINEL_ID = UUID(int=0)
+
 
 @dataclass(frozen=True)
 class PolicyDefined:
-    """A new authorization Policy was defined for a Conduit."""
+    """A new authorization Policy was defined for a Conduit + Surface pair.
+
+    `surface_id` (Phase B Iter B): additive. V1 PolicyDefined events
+    on disk lack this field; `from_stored` defaults missing values to
+    `UUID(int=0)` so V1 events still fold cleanly.
+    """
 
     policy_id: UUID
     name: str
@@ -33,6 +40,7 @@ class PolicyDefined:
     permitted_principals: list[UUID]
     permitted_commands: list[str]
     occurred_at: datetime
+    surface_id: UUID = _NIL_SENTINEL_ID
 
 
 # Discriminated union of every event the Policy aggregate emits.
@@ -60,11 +68,13 @@ def to_payload(event: PolicyEvent) -> dict[str, Any]:
             permitted_principals=permitted_principals,
             permitted_commands=permitted_commands,
             occurred_at=occurred_at,
+            surface_id=surface_id,
         ):
             return {
                 "policy_id": str(policy_id),
                 "name": name,
                 "conduit_id": str(conduit_id),
+                "surface_id": str(surface_id),
                 "permitted_principals": sorted(str(p) for p in permitted_principals),
                 "permitted_commands": sorted(permitted_commands),
                 "occurred_at": occurred_at.isoformat(),
@@ -86,6 +96,10 @@ def from_stored(stored: StoredEvent) -> PolicyEvent:
                     permitted_principals=[UUID(p) for p in payload["permitted_principals"]],
                     permitted_commands=list(payload["permitted_commands"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    # surface_id is post-Phase-B-Iter-B-additive; V1 events
+                    # on disk lack it. `.get` with nil default preserves
+                    # backward compat without breaking V1 fold.
+                    surface_id=UUID(payload.get("surface_id", str(_NIL_SENTINEL_ID))),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed PolicyDefined payload {payload!r}: {exc}"
