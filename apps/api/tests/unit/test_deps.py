@@ -285,6 +285,67 @@ def test_build_static_subject_mapper_merges_bindings_across_idps() -> None:
 
 
 @pytest.mark.unit
+def test_build_static_subject_mapper_inherits_idp_principal_kind_when_binding_kind_unset() -> None:
+    """A binding with `kind=None` (default) inherits the enclosing IdP's
+    `principal_kind`. A binding with explicit `kind` wins. Pins the
+    resolution that lives in `build_static_subject_mapper` — the
+    static mapper always returns a truthy kind, so the verifier-level
+    `kind or principal_kind` fallback would never fire for this path
+    if inheritance weren't applied at merge time."""
+    from cora.infrastructure.auth import (
+        IdentityProviderConfig,
+        IdpSubjectBinding,
+        build_static_subject_mapper,
+    )
+
+    actor_default = UUID("01900000-0000-7000-8000-000000000b01")
+    actor_explicit = UUID("01900000-0000-7000-8000-000000000b02")
+    actor_ci = UUID("01900000-0000-7000-8000-000000000b03")
+    audiences = {UUID("00000000-0000-0000-0000-000000000020"): "https://cora.example/http"}
+
+    # Mixed-use IdP: default human, one binding overrides to service_account.
+    idp_humans = IdentityProviderConfig(
+        issuer="https://idp.example.com",
+        jwks_url="https://idp.example.com/jwks.json",
+        audiences=audiences,
+        principal_kind="human",
+        subject_bindings=[
+            IdpSubjectBinding(subject="alice", actor_id=actor_default),  # inherits "human"
+            IdpSubjectBinding(
+                subject="cron-bot",
+                actor_id=actor_explicit,
+                kind="service_account",  # explicit override
+            ),
+        ],
+    )
+    # CI-only IdP: IdP-wide default is service_account; bindings stay terse.
+    idp_ci = IdentityProviderConfig(
+        issuer="https://ci.example.com",
+        jwks_url="https://ci.example.com/jwks.json",
+        audiences=audiences,
+        principal_kind="service_account",
+        subject_bindings=[
+            # Inherits "service_account" from the IdP default.
+            IdpSubjectBinding(subject="release-bot", actor_id=actor_ci),
+        ],
+    )
+
+    mapper = build_static_subject_mapper([idp_humans, idp_ci])
+
+    import asyncio
+
+    assert asyncio.run(mapper("https://idp.example.com", "alice")) == (actor_default, "human")
+    assert asyncio.run(mapper("https://idp.example.com", "cron-bot")) == (
+        actor_explicit,
+        "service_account",
+    )
+    assert asyncio.run(mapper("https://ci.example.com", "release-bot")) == (
+        actor_ci,
+        "service_account",
+    )
+
+
+@pytest.mark.unit
 def test_build_static_subject_mapper_raises_on_duplicate_issuer_subject_pair() -> None:
     """Two IdPs with the SAME issuer URL declaring the same `subject`
     would let an operator's typo silently grant one IdP's sub to a

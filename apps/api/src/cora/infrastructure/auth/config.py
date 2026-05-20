@@ -34,8 +34,54 @@ from pydantic import BaseModel, Field, SecretStr, model_validator
 # imports through observability back to Settings. The values MUST
 # stay in sync with `PrincipalKind` on the port; the static
 # `StaticSubjectMapper` below imports the port lazily inside its
-# method (signature uses the local alias too).
+# method (signature uses the local alias too). Drift is pinned by
+# `tests/architecture/test_auth_principal_kind_sync.py`.
 _PrincipalKindLiteral = Literal["human", "service_account"]
+
+
+class IdpSubjectBinding(BaseModel):
+    """Single `(subject) -> (actor_id, kind?)` row for a single IdP.
+
+    Carried on `IdentityProviderConfig.subject_bindings`. The
+    composition root merges all bindings across all IdPs into a
+    single `StaticSubjectMapper` keyed on `(issuer, subject)`; the
+    issuer comes from the enclosing IdP config so it's not repeated
+    here.
+
+    `kind` is optional: when `None` (default), the merge step
+    inherits the enclosing IdP's `principal_kind`. Set explicitly
+    only to override that default for an individual subject — useful
+    when an IdP serves both humans and service accounts and a few
+    bindings need to disagree with the IdP-wide default.
+
+    Defined ABOVE `IdentityProviderConfig` deliberately so the
+    `subject_bindings` field annotation is a direct class reference
+    instead of a Pydantic forward-ref string; a typo or rename then
+    fails at module import rather than at first-validation time.
+    """
+
+    subject: str = Field(
+        ...,
+        description=(
+            "Raw `sub` claim string from the IdP — exact match. For "
+            "OIDC humans this is typically the IdP's stable user id "
+            "(e.g. an Entra GUID); for client_credentials service "
+            "accounts it's the OAuth client id."
+        ),
+    )
+    actor_id: UUID = Field(
+        ...,
+        description="The Access BC Actor UUID this subject maps to.",
+    )
+    kind: _PrincipalKindLiteral | None = Field(
+        default=None,
+        description=(
+            "Discriminates human vs service-account. When `None` "
+            "(default), the binding inherits the enclosing IdP's "
+            "`principal_kind`. Set explicitly only to override that "
+            "default for an individual subject."
+        ),
+    )
 
 
 class IdentityProviderConfig(BaseModel):
@@ -127,10 +173,11 @@ class IdentityProviderConfig(BaseModel):
     principal_kind: _PrincipalKindLiteral = Field(
         default="human",
         description=(
-            "Default kind applied to VerifiedPrincipal when the "
-            "SubjectMapper doesn't override it. Override per-IdP for "
-            "deployments where the entire IdP issues only service-"
-            "account tokens (e.g. a CI-only client_credentials IdP)."
+            "IdP-wide default kind. Applied to any "
+            "`IdpSubjectBinding` whose own `kind` is unset (the "
+            "common case). Set to `service_account` for IdPs that "
+            "issue only client-credentials tokens (e.g. a CI-only "
+            "IdP) so individual bindings can stay terse."
         ),
     )
 
@@ -162,18 +209,18 @@ class IdentityProviderConfig(BaseModel):
         ),
     )
 
-    subject_bindings: list["IdpSubjectBinding"] = Field(
+    subject_bindings: list[IdpSubjectBinding] = Field(
         default_factory=lambda: [],
         description=(
-            "Iter C wiring: static `(subject) -> (actor_id, kind)` map "
-            "for this IdP. The composition root merges these across all "
-            "IdPs into a single `StaticSubjectMapper` keyed on "
-            "`(issuer, subject)`. Empty (default) is valid for IdPs "
-            "that ship before any Actor is mapped — every bearer token "
-            "from this IdP then fails with `unknown_subject` until an "
-            "operator adds bindings. Iter B-2 (deferred) ships a "
-            "projection-backed mapper for deployments that mint Actors "
-            "at runtime; this static field is the small-deployment path."
+            "Static `(subject) -> Actor` map for this IdP. The "
+            "composition root merges these across all IdPs into a "
+            "single `StaticSubjectMapper` keyed on `(issuer, subject)`. "
+            "Empty (default) is valid for IdPs that ship before any "
+            "Actor is mapped — every bearer token from this IdP then "
+            "fails with `unknown_subject` until an operator adds "
+            "bindings. A future projection-backed mapper will replace "
+            "this for deployments that mint Actors at runtime; the "
+            "static field is the small-fixed-roster path."
         ),
     )
 
@@ -230,43 +277,6 @@ class IdentityProviderConfig(BaseModel):
             )
             raise ValueError(msg)
         return self
-
-
-class IdpSubjectBinding(BaseModel):
-    """Single `(subject) -> (actor_id, kind)` row for a single IdP.
-
-    Carried on `IdentityProviderConfig.subject_bindings`. The
-    composition root merges all bindings across all IdPs into a
-    single `StaticSubjectMapper` keyed on `(issuer, subject)`; the
-    issuer comes from the enclosing IdP config so it's not repeated
-    here.
-
-    `kind` is the same closed `_PrincipalKindLiteral` set used by
-    the rest of the auth layer. The token verifier may override at
-    issuance time via the IdP-level `principal_kind` default; the
-    static binding's kind takes precedence when present.
-    """
-
-    subject: str = Field(
-        ...,
-        description=(
-            "Raw `sub` claim string from the IdP — exact match. For "
-            "OIDC humans this is typically the IdP's stable user id "
-            "(e.g. an Entra GUID); for client_credentials service "
-            "accounts it's the OAuth client id."
-        ),
-    )
-    actor_id: UUID = Field(
-        ...,
-        description="The Access BC Actor UUID this subject maps to.",
-    )
-    kind: _PrincipalKindLiteral = Field(
-        default="human",
-        description=(
-            "Discriminates human vs service-account. Defaults to 'human'; "
-            "set 'service_account' for client_credentials subjects."
-        ),
-    )
 
 
 class StaticSubjectMapper:
@@ -335,6 +345,15 @@ def build_static_subject_mapper(
     `subject_bindings` list becomes one entry in the resulting map,
     keyed on `(idp.issuer, binding.subject)`.
 
+    A binding with `kind=None` (the common case) inherits the
+    enclosing IdP's `principal_kind` at merge time. A binding with
+    `kind` set explicitly wins over the IdP default for that
+    subject. Resolution happens here rather than in the verifier's
+    `kind or self._principal_kind` fallback because the static
+    mapper always returns a truthy kind, so that fallback never
+    fires for this path — the inheritance MUST be applied here or
+    the IdP-level default would be dead.
+
     Duplicate `(issuer, subject)` pairs across the configured IdPs
     raise `ValueError` at construction time — silent overwrite would
     let an operator's typo grant one IdP's `sub` to a different
@@ -352,7 +371,10 @@ def build_static_subject_mapper(
                     "from identity_providers config."
                 )
                 raise ValueError(msg)
-            bindings[key] = (binding.actor_id, binding.kind)
+            resolved_kind: _PrincipalKindLiteral = (
+                binding.kind if binding.kind is not None else idp.principal_kind
+            )
+            bindings[key] = (binding.actor_id, resolved_kind)
     return StaticSubjectMapper(bindings)
 
 
