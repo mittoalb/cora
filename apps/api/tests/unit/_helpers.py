@@ -42,6 +42,7 @@ from cora.infrastructure.deps import make_inmemory_kernel
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
+    Allow,
     AllowAllAuthorize,
     Authorize,
     AuthzResult,
@@ -83,6 +84,25 @@ class DenyAllAuthorize:
     ) -> AuthzResult:
         _ = (principal_id, command_name, conduit_id)
         return Deny(reason="denied for test")
+
+
+class RecordingAuthorize:
+    """Authorize stub that records every call so tests can assert the
+    shape (principal_id, command_name, conduit_id, surface_id) the
+    handler invokes the port with. Returns Allow on every call."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[UUID, str, UUID, UUID]] = []
+
+    async def __call__(
+        self,
+        principal_id: UUID,
+        command_name: str,
+        conduit_id: UUID,
+        surface_id: UUID = UUID(int=0),  # noqa: B008
+    ) -> AuthzResult:
+        self.calls.append((principal_id, command_name, conduit_id, surface_id))
+        return Allow()
 
 
 def build_deps(
@@ -185,6 +205,7 @@ async def seed_capability(
 __all__ = [
     "DEFAULT_NOW",
     "DenyAllAuthorize",
+    "RecordingAuthorize",
     "build_deps",
     "seed_capability",
 ]

@@ -10,10 +10,6 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.infrastructure.ports import (
-    Allow,
-    AuthzResult,
-)
 from cora.recipe import RecipeHandlers, UnauthorizedError, wire_recipe
 from cora.recipe.aggregates.method import (
     Method,
@@ -23,7 +19,7 @@ from cora.recipe.aggregates.method import (
 from cora.recipe.features import define_method, get_method
 from cora.recipe.features.define_method import DefineMethod
 from cora.recipe.features.get_method import GetMethod
-from tests.unit._helpers import build_deps, seed_capability
+from tests.unit._helpers import RecordingAuthorize, build_deps, seed_capability
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000000ac01")
@@ -106,24 +102,9 @@ async def test_handler_returns_none_for_unknown_id() -> None:
     assert view is None
 
 
-class _RecordingAuthorize:
-    def __init__(self) -> None:
-        self.calls: list[tuple[UUID, str, UUID, UUID]] = []
-
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-        surface_id: UUID = UUID(int=0),  # noqa: B008
-    ) -> AuthzResult:
-        self.calls.append((principal_id, command_name, conduit_id, surface_id))
-        return Allow()
-
-
 @pytest.mark.unit
 async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
-    tracking = _RecordingAuthorize()
+    tracking = RecordingAuthorize()
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, authorize=tracking)
 
     handler = get_method.bind(deps)

@@ -6,34 +6,20 @@ Test keys are short to stay below the gitleaks generic-API-key
 entropy threshold.
 """
 
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
-from tests.contract._helpers import create_capability_via_api
+from tests.contract._helpers import seed_method_chain
 
 
 def _setup_chain(client: TestClient) -> tuple[str, str]:
-    _cap_id = create_capability_via_api(client)
-    cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
-        "family_id"
-    ]
-    method_id = client.post(
-        "/methods",
-        json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [cap_id]},
-    ).json()["method_id"]
-    practice_id = client.post(
-        "/practices",
-        json={"name": "Test Practice", "method_id": method_id, "site_id": str(uuid4())},
-    ).json()["practice_id"]
-    asset_id = client.post(
-        "/assets",
-        json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
-    ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap_id})
-    return practice_id, asset_id
+    """Plan-idempotency tests POST `/plans` themselves to exercise the
+    idempotency wrap, so the helper stops one step short of Plan."""
+    chain = seed_method_chain(client)
+    return chain.practice_id, chain.asset_id
 
 
 @pytest.mark.contract

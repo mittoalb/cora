@@ -12,7 +12,6 @@ import pytest
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.ports import Allow, AuthzResult, Deny
 from cora.subject import SubjectHandlers, UnauthorizedError, wire_subject
 from cora.subject.aggregates.subject import Subject, SubjectName, SubjectStatus
 from cora.subject.features import (
@@ -27,6 +26,7 @@ from cora.subject.features.measure_subject import MeasureSubject
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
 from cora.subject.features.remove_subject import RemoveSubject
+from tests.unit._helpers import DenyAllAuthorize, RecordingAuthorize
 from tests.unit._helpers import build_deps as _build_deps_shared
 from tests.unit.subject._helpers import seed_active_asset
 
@@ -160,41 +160,12 @@ async def test_handler_reflects_status_through_full_lifecycle() -> None:
     assert subject.status is SubjectStatus.REMOVED
 
 
-class _RecordingAuthorize:
-    """Authorize stub that records every call so tests can assert shape."""
-
-    def __init__(self) -> None:
-        self.calls: list[tuple[UUID, str, UUID, UUID]] = []
-
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-        surface_id: UUID = UUID(int=0),  # noqa: B008
-    ) -> AuthzResult:
-        self.calls.append((principal_id, command_name, conduit_id, surface_id))
-        return Allow()
-
-
-class _DenyAllAuthorize:
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-        surface_id: UUID = UUID(int=0),  # noqa: B008
-    ) -> AuthzResult:
-        _ = (principal_id, command_name, conduit_id)
-        return Deny(reason="denied for test")
-
-
 @pytest.mark.unit
 async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
     """Phase 2 query handlers DO call authorize (with AllowAllAuthorize
     the decision is always Allow, but the call site is in place so the
     eventual TrustAuthorize swap is mechanical per handler)."""
-    tracking = _RecordingAuthorize()
+    tracking = RecordingAuthorize()
     deps = _build_deps_shared(
         ids=[_NEW_ID, _REGISTER_EVENT_ID],
         now=_NOW,
@@ -216,7 +187,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     deps = _build_deps_shared(
         ids=[_NEW_ID, _REGISTER_EVENT_ID],
         now=_NOW,
-        authorize=_DenyAllAuthorize(),
+        authorize=DenyAllAuthorize(),
     )
 
     handler = get_subject.bind(deps)

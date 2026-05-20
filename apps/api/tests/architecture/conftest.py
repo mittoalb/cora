@@ -66,8 +66,26 @@ def tracked_python_files() -> frozenset[Path]:
     Cached because pytest collection invokes the slice enumerators
     multiple times.
     """
+    return _tracked_python_files_under("src/cora")
+
+
+@cache
+def tracked_test_files() -> frozenset[Path]:
+    """Absolute paths to git-tracked `.py` files under `tests/`.
+
+    Sibling to `tracked_python_files()`. Same rationale: architecture
+    fitness functions that enumerate test-side files (helper-naming
+    conventions, kernel-construction sites, subscriber registries that
+    live alongside tests) must filter through git's tracked set rather
+    than scan the filesystem, because pre-commit only stashes unstaged
+    changes to **tracked** files.
+    """
+    return _tracked_python_files_under("tests")
+
+
+def _tracked_python_files_under(subdir: str) -> frozenset[Path]:
     result = subprocess.run(
-        ["git", "ls-files", "src/cora"],
+        ["git", "ls-files", subdir],
         cwd=_API_ROOT,
         capture_output=True,
         text=True,

@@ -21,20 +21,27 @@ from pathlib import Path
 
 import pytest
 
+from tests.architecture.conftest import tracked_test_files
+
 _TESTS_UNIT_ROOT = Path(__file__).resolve().parents[1] / "unit"
 
 _ALLOWED_HELPER_NAMES: frozenset[str] = frozenset({"_helpers.py", "__init__.py"})
 
 
 def _bc_helper_files() -> list[Path]:
-    """All underscore-prefixed `.py` files directly inside `tests/unit/<bc>/`."""
+    """All underscore-prefixed `.py` files directly inside `tests/unit/<bc>/`.
+
+    Enumerates from git's tracked-file set so a half-staged rename
+    (old `_seed_helpers.py` deleted-then-stashed, new `_helpers.py`
+    untracked) does not false-fail under pre-commit.
+    """
     out: list[Path] = []
-    for bc_dir in sorted(_TESTS_UNIT_ROOT.iterdir()):
-        if not bc_dir.is_dir() or bc_dir.name == "__pycache__":
+    for path in sorted(tracked_test_files()):
+        if path.parent.parent != _TESTS_UNIT_ROOT:
             continue
-        for child in sorted(bc_dir.iterdir()):
-            if child.is_file() and child.name.startswith("_") and child.suffix == ".py":
-                out.append(child)
+        if not (path.name.startswith("_") and path.suffix == ".py"):
+            continue
+        out.append(path)
     return out
 
 

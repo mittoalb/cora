@@ -11,10 +11,6 @@ import pytest
 
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.ports import (
-    Allow,
-    AuthzResult,
-)
 from cora.run import RunHandlers, UnauthorizedError, wire_run
 from cora.run.aggregates.run import (
     Run,
@@ -28,7 +24,7 @@ from cora.run.aggregates.run.events import (
 )
 from cora.run.features import get_run
 from cora.run.features.get_run import GetRun
-from tests.unit._helpers import build_deps
+from tests.unit._helpers import RecordingAuthorize, build_deps
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 _RUN_ID = UUID("01900000-0000-7000-8000-00000000ff01")
@@ -119,24 +115,9 @@ async def test_handler_returns_none_for_unknown_id() -> None:
     assert run is None
 
 
-class _RecordingAuthorize:
-    def __init__(self) -> None:
-        self.calls: list[tuple[UUID, str, UUID, UUID]] = []
-
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-        surface_id: UUID = UUID(int=0),  # noqa: B008
-    ) -> AuthzResult:
-        self.calls.append((principal_id, command_name, conduit_id, surface_id))
-        return Allow()
-
-
 @pytest.mark.unit
 async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
-    tracking = _RecordingAuthorize()
+    tracking = RecordingAuthorize()
     deps = build_deps(ids=[_RUN_ID], now=_NOW, authorize=tracking)
 
     handler = get_run.bind(deps)

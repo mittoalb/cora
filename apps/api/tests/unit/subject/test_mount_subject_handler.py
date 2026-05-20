@@ -10,18 +10,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.equipment.aggregates.asset import (
-    AssetActivated,
-    AssetNotFoundError,
-    AssetRegistered,
-)
-from cora.equipment.aggregates.asset import (
-    event_type_name as asset_event_type_name,
-)
-from cora.equipment.aggregates.asset import (
-    to_payload as asset_to_payload,
-)
-from cora.infrastructure.event_envelope import to_new_event
+from cora.equipment.aggregates.asset import AssetNotFoundError
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.ports import ConcurrencyError
@@ -36,6 +25,7 @@ from cora.subject.features import mount_subject, register_subject
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.register_subject import RegisterSubject
 from tests.unit._helpers import build_deps as _build_deps_shared
+from tests.unit.subject._helpers import seed_active_asset
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000005ab1")
@@ -43,7 +33,6 @@ _REGISTER_EVENT_ID = UUID("01900000-0000-7000-8000-000000005be1")
 _MOUNT_EVENT_ID = UUID("01900000-0000-7000-8000-000000005be2")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-_ASSET_ID = UUID("01900000-0000-7000-8000-00000000a55e")
 
 
 def _build_deps(
@@ -70,46 +59,12 @@ async def _register_subject(deps: Kernel) -> UUID:
     )
 
 
-async def _seed_asset(
-    store: InMemoryEventStore,
-    *,
-    asset_id: UUID = _ASSET_ID,
-    activated: bool = True,
-) -> UUID:
-    """Seed an Asset stream with AssetRegistered (+ optional AssetActivated)."""
-    registered = AssetRegistered(
-        asset_id=asset_id,
-        name="Goniometer-1",
-        level="Enterprise",
-        parent_id=None,
-        occurred_at=_NOW,
+async def _seed_asset(store: InMemoryEventStore, *, activated: bool = True) -> UUID:
+    """Thin per-file wrapper around the shared `seed_active_asset` that
+    pins this file's `_NOW` + `_CORRELATION_ID`."""
+    return await seed_active_asset(
+        store, now=_NOW, correlation_id=_CORRELATION_ID, activated=activated
     )
-    events = [
-        to_new_event(
-            event_type=asset_event_type_name(registered),
-            payload=asset_to_payload(registered),
-            occurred_at=_NOW,
-            event_id=uuid4(),
-            command_name="RegisterAsset",
-            correlation_id=_CORRELATION_ID,
-            principal_id=uuid4(),
-        )
-    ]
-    if activated:
-        activated_evt = AssetActivated(asset_id=asset_id, occurred_at=_NOW)
-        events.append(
-            to_new_event(
-                event_type=asset_event_type_name(activated_evt),
-                payload=asset_to_payload(activated_evt),
-                occurred_at=_NOW,
-                event_id=uuid4(),
-                command_name="ActivateAsset",
-                correlation_id=_CORRELATION_ID,
-                principal_id=uuid4(),
-            )
-        )
-    await store.append(stream_type="Asset", stream_id=asset_id, expected_version=0, events=events)
-    return asset_id
 
 
 @pytest.mark.unit

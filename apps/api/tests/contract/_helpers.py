@@ -16,12 +16,25 @@ Each call creates a UNIQUE Capability code (uuid-suffixed) so
 tests that issue many POSTs to /methods in the same TestClient
 session don't collide on the Recipe Capability uniqueness
 invariants (none today, but defensive).
+
+## Upstream-chain seeders
+
+`seed_method_chain` and `seed_run_upstream_chain` hoist the
+copy-pasted setup sequences from `test_abort_run_endpoint`,
+`test_adjust_run_idempotency`, and `test_define_plan_idempotency`.
+They mirror the integration-tier `seed_run_upstream_chain_pg` so
+the contract and integration tiers tell the same story about what
+"a Run needs upstream" — at the wire level via TestClient here,
+against real PG there.
 """
 
+from dataclasses import dataclass
 from typing import Any
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
+
+from tests.contract._subject_helpers import register_active_asset
 
 
 def create_capability_via_api(
@@ -58,4 +71,106 @@ def create_capability_via_api(
     return response.json()["capability_id"]
 
 
-__all__ = ["create_capability_via_api"]
+@dataclass(frozen=True)
+class MethodChainIds:
+    """Ids returned by `seed_method_chain`. Field names match the
+    JSON keys the upstream endpoints respond with."""
+
+    capability_id: str
+    family_id: str
+    method_id: str
+    practice_id: str
+    asset_id: str
+
+
+def seed_method_chain(
+    client: TestClient,
+    *,
+    parameters_schema: dict[str, Any] | None = None,
+) -> MethodChainIds:
+    """Seed Capability + Family + Method + Practice + Asset (with Family).
+
+    The prefix every Run-shaped contract test shares. Pass
+    `parameters_schema=` to additionally PATCH the Method's
+    `parameters_schema` — required when the test later supplies
+    `override_parameters` or `default_parameters_patch` per the
+    5g-c STRICT-validation anchor.
+    """
+    capability_id = create_capability_via_api(client)
+    family_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
+        "family_id"
+    ]
+    method_id = client.post(
+        "/methods",
+        json={
+            "name": "M",
+            "capability_id": capability_id,
+            "needed_families": [family_id],
+        },
+    ).json()["method_id"]
+    if parameters_schema is not None:
+        r = client.post(
+            f"/methods/{method_id}/parameters-schema",
+            json={"parameters_schema": parameters_schema},
+        )
+        assert r.status_code == 204, r.text
+    practice_id = client.post(
+        "/practices",
+        json={"name": "P", "method_id": method_id, "site_id": str(uuid4())},
+    ).json()["practice_id"]
+    asset_id = client.post(
+        "/assets", json={"name": "A", "level": "Enterprise", "parent_id": None}
+    ).json()["asset_id"]
+    client.post(f"/assets/{asset_id}/add_family", json={"family_id": family_id})
+    return MethodChainIds(
+        capability_id=capability_id,
+        family_id=family_id,
+        method_id=method_id,
+        practice_id=practice_id,
+        asset_id=asset_id,
+    )
+
+
+def seed_run_upstream_chain(
+    client: TestClient,
+    *,
+    parameters_schema: dict[str, Any] | None = None,
+    plan_defaults: dict[str, Any] | None = None,
+    run_name: str = "32-ID FlyScan",
+) -> str:
+    """Seed the full upstream chain a Run needs and start it. Returns the run_id.
+
+    Contract-tier sibling of `tests/integration/_helpers.seed_run_upstream_chain_pg`.
+    Builds on `seed_method_chain`, then defines a Plan (optionally with
+    `default_parameters`), registers + mounts a Subject onto a fresh
+    Active Asset, and POSTs `/runs` to start the Run.
+    """
+    chain = seed_method_chain(client, parameters_schema=parameters_schema)
+    plan_id = client.post(
+        "/plans",
+        json={"name": "Plan", "practice_id": chain.practice_id, "asset_ids": [chain.asset_id]},
+    ).json()["plan_id"]
+    if plan_defaults is not None:
+        r = client.patch(
+            f"/plans/{plan_id}/default-parameters",
+            json={"default_parameters_patch": plan_defaults},
+        )
+        assert r.status_code == 204, r.text
+    subject_id = client.post("/subjects", json={"name": "Sample"}).json()["subject_id"]
+    mount_asset_id = register_active_asset(client)
+    client.post(
+        f"/subjects/{subject_id}/mount",
+        json={"asset_id": mount_asset_id, "reason": "test"},
+    )
+    return client.post(
+        "/runs",
+        json={"name": run_name, "plan_id": plan_id, "subject_id": subject_id},
+    ).json()["run_id"]
+
+
+__all__ = [
+    "MethodChainIds",
+    "create_capability_via_api",
+    "seed_method_chain",
+    "seed_run_upstream_chain",
+]

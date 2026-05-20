@@ -6,11 +6,10 @@ we test the bare handler returned by `register_procedure.bind(deps)`.
 """
 
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 
-from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.operation.aggregates.procedure import (
@@ -20,19 +19,11 @@ from cora.operation.errors import UnauthorizedError
 from cora.operation.features import register_procedure
 from cora.operation.features.register_procedure import RegisterProcedure
 from cora.recipe.aggregates.capability import (
-    CapabilityCode,
-    CapabilityName,
     CapabilityNotFoundError,
     ExecutorShape,
-    RecipeCapabilityDefined,
-)
-from cora.recipe.aggregates.capability import (
-    event_type_name as capability_event_type_name,
-)
-from cora.recipe.aggregates.capability import (
-    to_payload as capability_to_payload,
 )
 from tests.unit._helpers import build_deps as _build_deps_shared
+from tests.unit._helpers import seed_capability as _seed_capability_shared
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-0000000c0a01")
@@ -59,31 +50,16 @@ async def _seed_capability(
     store: InMemoryEventStore,
     capability_id: UUID,
     *,
-    shapes: frozenset[ExecutorShape] = frozenset({ExecutorShape.PROCEDURE}),
+    shapes: frozenset[ExecutorShape] | None = None,
 ) -> None:
-    """Seed a Recipe Capability stream so load_capability returns it."""
-    event = RecipeCapabilityDefined(
-        capability_id=capability_id,
-        code=CapabilityCode("cora.capability.x").value,
-        name=CapabilityName("X").value,
-        required_affordances=frozenset(),
-        executor_shapes=shapes,
-        occurred_at=_NOW,
-    )
-    new_event = to_new_event(
-        event_type=capability_event_type_name(event),
-        payload=capability_to_payload(event),
-        occurred_at=_NOW,
-        event_id=uuid4(),
-        command_name="DefineCapability",
-        correlation_id=_CORRELATION_ID,
-        principal_id=_PRINCIPAL_ID,
-    )
-    await store.append(
-        stream_type="Capability",
-        stream_id=capability_id,
-        expected_version=0,
-        events=[new_event],
+    """Thin per-file wrapper around the shared `seed_capability` that
+    pins this file's `_NOW`. Defaults to `{Procedure}` (this slice
+    validates executor-shape membership for Procedure)."""
+    await _seed_capability_shared(
+        store,
+        capability_id,
+        shapes=shapes or frozenset({ExecutorShape.PROCEDURE}),
+        now=_NOW,
     )
 
 

@@ -39,10 +39,10 @@ from pathlib import Path
 
 import pytest
 
+from tests.architecture.conftest import tracked_python_files, tracked_test_files
+
 # tests/architecture/test_kernel_construction_single_site.py -> apps/api/
 _API_ROOT = Path(__file__).resolve().parents[2]
-_SRC_ROOT = _API_ROOT / "src"
-_TESTS_ROOT = _API_ROOT / "tests"
 
 # The single allowed Kernel-construction sites in each scanned tree.
 # Paths are relative to apps/api/.
@@ -56,19 +56,14 @@ _ALLOWLIST: frozenset[str] = frozenset(
 
 
 def _python_files() -> list[Path]:
-    """All Python files under src/ and tests/. Excludes __pycache__
-    and .venv. The `tests/unit/_helpers.py` is allowlisted but still
-    scanned so a stale allowlist (helper that no longer constructs
-    Kernel) fails the drift catcher."""
-    out: list[Path] = []
-    for root in (_SRC_ROOT, _TESTS_ROOT):
-        if not root.is_dir():
-            continue
-        for p in sorted(root.rglob("*.py")):
-            if "__pycache__" in p.parts or ".venv" in p.parts:
-                continue
-            out.append(p)
-    return out
+    """All git-tracked Python files under src/ and tests/.
+
+    Enumerates from git's tracked-file set rather than `rglob` so a
+    half-staged refactor (existing Kernel(...) call edited-then-
+    stashed, new construction site untracked) does not false-fail
+    under pre-commit.
+    """
+    return sorted(tracked_python_files() | tracked_test_files())
 
 
 def _candidate_files() -> list[Path]:

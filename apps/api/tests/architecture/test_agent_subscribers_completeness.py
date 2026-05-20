@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.architecture.conftest import CORA_ROOT
+from tests.architecture.conftest import CORA_ROOT, tracked_python_files
 
 _SUBSCRIBERS_DIR = CORA_ROOT / "agent" / "subscribers"
 _REGISTRY_FILE = CORA_ROOT / "agent" / "_subscribers.py"
@@ -41,10 +41,15 @@ def _subscriber_modules() -> list[Path]:
     """Every concrete subscriber module under `cora/agent/subscribers/`.
 
     Excludes `__init__.py` and leading-underscore helpers (those are
-    intra-package machinery, not subscribers themselves).
+    intra-package machinery, not subscribers themselves). Enumerates
+    from git's tracked-file set rather than the filesystem so that a
+    half-staged subscriber addition (new module untracked, registry
+    edit stashed) does not false-fail under pre-commit.
     """
     out: list[Path] = []
-    for path in sorted(_SUBSCRIBERS_DIR.glob("*.py")):
+    for path in sorted(tracked_python_files()):
+        if path.parent != _SUBSCRIBERS_DIR:
+            continue
         if path.name == "__init__.py" or path.name.startswith("_"):
             continue
         out.append(path)

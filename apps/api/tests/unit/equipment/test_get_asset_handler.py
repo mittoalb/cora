@@ -30,8 +30,8 @@ from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.relocate_asset import RelocateAsset
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.ports import Allow, AuthzResult
 from tests.unit._helpers import DenyAllAuthorize as _DenyAllAuthorize
+from tests.unit._helpers import RecordingAuthorize as _RecordingAuthorize
 from tests.unit._helpers import build_deps as _build_deps_shared
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
@@ -172,23 +172,6 @@ async def test_handler_returns_none_for_unknown_id() -> None:
         correlation_id=_CORRELATION_ID,
     )
     assert asset is None
-
-
-class _RecordingAuthorize:
-    """Authorize stub that records every call so tests can assert shape."""
-
-    def __init__(self) -> None:
-        self.calls: list[tuple[UUID, str, UUID, UUID]] = []
-
-    async def __call__(
-        self,
-        principal_id: UUID,
-        command_name: str,
-        conduit_id: UUID,
-        surface_id: UUID = UUID(int=0),  # noqa: B008
-    ) -> AuthzResult:
-        self.calls.append((principal_id, command_name, conduit_id, surface_id))
-        return Allow()
 
 
 @pytest.mark.unit

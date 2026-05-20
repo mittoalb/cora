@@ -8,14 +8,12 @@ double-apply).
 """
 
 from typing import Any
-from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
-from tests.contract._helpers import create_capability_via_api
-from tests.contract._subject_helpers import register_active_asset
+from tests.contract._helpers import seed_run_upstream_chain
 
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
 
@@ -36,45 +34,15 @@ def _energy_schema() -> dict[str, Any]:
 
 
 def _setup_full_run(client: TestClient) -> str:
-    _cap_id = create_capability_via_api(client)
-    cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
-        "family_id"
-    ]
-    method_id = client.post(
-        "/methods", json={"name": "M", "capability_id": _cap_id, "needed_families": [cap_id]}
-    ).json()["method_id"]
-    r = client.post(
-        f"/methods/{method_id}/parameters-schema",
-        json={"parameters_schema": _energy_schema()},
+    """Adjust-run idempotency needs a Method `parameters_schema` (so the
+    STRICT-validation path accepts `{energy: 12.0}` patches) and a Plan
+    `default_parameters` seed (`energy=10.0`) so the patch produces a
+    measurable diff. Otherwise identical to the canonical seed."""
+    return seed_run_upstream_chain(
+        client,
+        parameters_schema=_energy_schema(),
+        plan_defaults={"energy": 10.0},
     )
-    assert r.status_code == 204
-    practice_id = client.post(
-        "/practices",
-        json={"name": "P", "method_id": method_id, "site_id": str(uuid4())},
-    ).json()["practice_id"]
-    asset_id = client.post(
-        "/assets", json={"name": "A", "level": "Enterprise", "parent_id": None}
-    ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap_id})
-    plan_id = client.post(
-        "/plans",
-        json={"name": "Plan", "practice_id": practice_id, "asset_ids": [asset_id]},
-    ).json()["plan_id"]
-    client.patch(
-        f"/plans/{plan_id}/default-parameters",
-        json={"default_parameters_patch": {"energy": 10.0}},
-    )
-    subject_id = client.post("/subjects", json={"name": "Sample"}).json()["subject_id"]
-    mount_asset_id = register_active_asset(client)
-    client.post(
-        f"/subjects/{subject_id}/mount",
-        json={"asset_id": mount_asset_id, "reason": "test"},
-    )
-    run_id = client.post(
-        "/runs",
-        json={"name": "32-ID FlyScan", "plan_id": plan_id, "subject_id": subject_id},
-    ).json()["run_id"]
-    return run_id
 
 
 @pytest.mark.contract
