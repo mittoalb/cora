@@ -154,16 +154,29 @@ def register_auth_exception_handlers(app: FastAPI) -> None:
     Idempotent in practice (FastAPI overrides on re-register). Called
     once at app construction in `cora.api.main.create_app`.
 
-    Type system note: `add_exception_handler` is typed with
-    `type[Exception]` keyed; the runtime IdpRegistry / middleware
-    raises concrete subclasses that match.
+    Why this STILL exists when BearerAuthMiddleware calls the handlers
+    inline: routes / Depends that raise these errors AFTER middleware
+    runs (e.g. a future BC handler that re-verifies a token at a
+    sensitive boundary) need the standard exception-handler chain.
+    Belt-and-suspenders: the middleware handles the bearer-path
+    raises directly (BaseHTTPMiddleware quirk), and the registered
+    handlers catch any other raise site.
     """
-    # FastAPI's stub types `handler` as `(Request, Exception)` to be
-    # the most general; concrete handlers narrow via assert internally.
     handler_invalid: Any = _handle_invalid_token
     handler_unavailable: Any = _handle_introspection_unavailable
     app.add_exception_handler(InvalidTokenError, handler_invalid)
     app.add_exception_handler(IntrospectionUnavailableError, handler_unavailable)
 
 
-__all__ = ["register_auth_exception_handlers"]
+# Public aliases for direct invocation by the middleware (which has
+# to call them inline to work around BaseHTTPMiddleware's
+# exception-routing quirk; see the middleware module docstring).
+handle_invalid_token = _handle_invalid_token
+handle_introspection_unavailable = _handle_introspection_unavailable
+
+
+__all__ = [
+    "handle_introspection_unavailable",
+    "handle_invalid_token",
+    "register_auth_exception_handlers",
+]

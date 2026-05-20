@@ -248,21 +248,19 @@ def test_bearer_scheme_is_case_insensitive_per_rfc6750() -> None:
 
 
 @pytest.mark.unit
-def test_authorization_header_without_bearer_scheme_raises_invalid_token() -> None:
+def test_authorization_header_without_bearer_scheme_returns_401() -> None:
     """`Basic <creds>` or `Digest <creds>` are not bearer; reject so
     a misconfigured client doesn't silently flow as unauthenticated.
-    The middleware raises InvalidTokenError with reason=malformed;
-    the exception handler (Iter C-4) converts to 401."""
+    BearerAuthMiddleware catches InvalidTokenError(reason=malformed)
+    inline (Starlette BaseHTTPMiddleware doesn't route exceptions
+    through the app's registered handler chain) and returns 401 with
+    the RFC 6750 WWW-Authenticate challenge."""
     verifier = _FakeTokenVerifier(verify_call=_always_succeed)
     client = _client(verifier=verifier)
 
-    # `raise_server_exceptions=False` lets TestClient return the 500
-    # Starlette generates by default (no exception_handler registered
-    # at the unit-test app level) rather than re-raising in the test
-    # process. Iter C-7 contract tests pin the actual 401 behavior.
-    client = TestClient(_build_app(verifier=verifier), raise_server_exceptions=False)
     response = client.get("/", headers={"Authorization": "Basic dXNlcjpwYXNz"})
-    assert response.status_code == 500  # no handler -> Starlette default
+    assert response.status_code == 401
+    assert 'error="malformed"' in response.headers.get("WWW-Authenticate", "")
     # Verifier MUST NOT be called for a malformed header.
     assert verifier.last_call is None
 
@@ -276,39 +274,45 @@ def test_authorization_header_without_bearer_scheme_raises_invalid_token() -> No
         "Bearer  ",  # whitespace-only token
     ],
 )
-def test_empty_or_missing_bearer_token_raises_invalid_token(header_value: str) -> None:
+def test_empty_or_missing_bearer_token_returns_401(header_value: str) -> None:
     """An `Authorization: Bearer` with no token value is not a valid
-    presented credential; mapped to InvalidTokenError(malformed)."""
+    presented credential; mapped to 401 with error=malformed."""
     verifier = _FakeTokenVerifier(verify_call=_always_succeed)
-    client = TestClient(_build_app(verifier=verifier), raise_server_exceptions=False)
+    client = _client(verifier=verifier)
     response = client.get("/", headers={"Authorization": header_value})
-    assert response.status_code == 500  # propagates without Iter C-4 handler
+    assert response.status_code == 401
+    assert 'error="malformed"' in response.headers.get("WWW-Authenticate", "")
     assert verifier.last_call is None
 
 
-# ---------- Verifier failure propagation ----------
+# ---------- Verifier failure conversion ----------
 
 
 @pytest.mark.unit
-def test_invalid_token_error_propagates_unchanged() -> None:
-    """Middleware does NOT swallow InvalidTokenError. The route-layer
-    exception handler (Iter C-4) catches it and emits 401 + the
-    RFC 6750 WWW-Authenticate header."""
+def test_invalid_token_error_converted_to_401() -> None:
+    """Middleware catches InvalidTokenError inline (BaseHTTPMiddleware
+    quirk -- it can't propagate to FastAPI's add_exception_handler
+    chain) and converts via `handle_invalid_token` to 401 with the
+    reason short-code in the `error=` of the WWW-Authenticate
+    challenge."""
     verifier = _FakeTokenVerifier(verify_call=_always_invalid)
-    client = TestClient(_build_app(verifier=verifier), raise_server_exceptions=False)
+    client = _client(verifier=verifier)
     response = client.get("/", headers={"Authorization": "Bearer bad"})
-    assert response.status_code == 500  # no handler at unit-app level
+    assert response.status_code == 401
+    assert 'error="bad_signature"' in response.headers.get("WWW-Authenticate", "")
     assert verifier.last_call == ("bad", SYSTEM_HTTP_SURFACE_ID)
 
 
 @pytest.mark.unit
-def test_introspection_unavailable_error_propagates_unchanged() -> None:
-    """Same shape for the upstream-down case. Iter C-4 handler emits
-    503 + Retry-After; middleware just propagates."""
+def test_introspection_unavailable_error_converted_to_503() -> None:
+    """Upstream-down case: middleware converts to 503 + Retry-After: 5,
+    distinct from the 401 token-bad path so operators can separate
+    them in logs / dashboards."""
     verifier = _FakeTokenVerifier(verify_call=_always_unavailable)
-    client = TestClient(_build_app(verifier=verifier), raise_server_exceptions=False)
+    client = _client(verifier=verifier)
     response = client.get("/", headers={"Authorization": "Bearer x"})
-    assert response.status_code == 500
+    assert response.status_code == 503
+    assert response.headers.get("Retry-After") == "5"
     assert verifier.last_call == ("x", SYSTEM_HTTP_SURFACE_ID)
 
 

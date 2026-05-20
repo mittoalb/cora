@@ -120,6 +120,20 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
     middleware no-ops and the legacy `X-Principal-Id` path takes over.
     This is the "edge-auth disabled" mode; flipping it on is one
     `IDENTITY_PROVIDERS=[...]` env var away.
+
+    ## Why exceptions are caught inline (not propagated)
+
+    Starlette's `BaseHTTPMiddleware` has a known quirk: exceptions
+    raised in `dispatch()` are NOT routed through the app's
+    registered `add_exception_handler` chain (they short-circuit to
+    `ServerErrorMiddleware` and emit `500 Internal Server Error`
+    plaintext). To preserve the BC-style typed-error contract while
+    still emitting the RFC 6750 401 / RFC 7231 503 responses, the
+    middleware catches the two auth errors here and delegates to the
+    same handler functions used in `register_auth_exception_handlers`.
+    This keeps the response shape in exactly one place
+    (`exception_handlers.py`) and gives unit tests a single seam to
+    pin the wire format.
     """
 
     async def dispatch(
@@ -146,13 +160,29 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
             # `require_authenticated_principal` + `app_env`.
             return await call_next(request)
 
-        token = _extract_bearer_token(authorization)
-        # Raises InvalidTokenError or IntrospectionUnavailableError
-        # on failure -> propagated to exception handlers (Iter C-4).
-        principal = await verifier.verify(
-            token,
-            expected_audience=SYSTEM_HTTP_SURFACE_ID,
+        # Lazy imports: ports module + handler module both live in
+        # cora.infrastructure and would trigger the auth-package-init
+        # cycle if imported at module top-level (see module docstring).
+        from cora.infrastructure.auth.exception_handlers import (
+            handle_introspection_unavailable,
+            handle_invalid_token,
         )
+        from cora.infrastructure.ports import (
+            IntrospectionUnavailableError,
+            InvalidTokenError,
+        )
+
+        try:
+            token = _extract_bearer_token(authorization)
+            principal = await verifier.verify(
+                token,
+                expected_audience=SYSTEM_HTTP_SURFACE_ID,
+            )
+        except InvalidTokenError as exc:
+            return await handle_invalid_token(request, exc)
+        except IntrospectionUnavailableError as exc:
+            return await handle_introspection_unavailable(request, exc)
+
         # Stash on request.state so get_principal_id can pull it
         # without re-verifying. Per-request state; no cross-request
         # leakage even with worker reuse.
