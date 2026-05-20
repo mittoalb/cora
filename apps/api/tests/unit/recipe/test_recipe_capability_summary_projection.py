@@ -238,6 +238,71 @@ async def test_capability_deprecated_without_replaced_by_sets_null() -> None:
     assert args.args[2] is None
 
 
+# ---------- Iter B-4 gate-review fill-ins (Path C) ----------
+
+
+@pytest.mark.unit
+async def test_capability_versioned_replayed_overwrites_versioned_at() -> None:
+    """Path C: re-version replaces versioned_at wholesale (state-always-
+    holds-latest convention mirrored in projection). Mirrors Iter A on
+    Method."""
+    proj = RecipeCapabilitySummaryProjection()
+    conn = AsyncMock()
+    later = datetime(2026, 6, 1, 9, 30, 0, tzinfo=UTC)
+
+    first = _stored(
+        "RecipeCapabilityVersioned",
+        {
+            "capability_id": str(_CAPABILITY_ID),
+            "version_tag": "v1.0.0",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    second = _stored(
+        "RecipeCapabilityVersioned",
+        {
+            "capability_id": str(_CAPABILITY_ID),
+            "version_tag": "v2.0.0",
+            "occurred_at": later.isoformat(),
+        },
+    )
+
+    await proj.apply(first, conn)
+    await proj.apply(second, conn)
+
+    assert conn.execute.await_count == 2
+    second_args = conn.execute.await_args_list[1].args
+    # versioned_at sits at $7 (after version_tag, description,
+    # required_affordances, executor_shapes, parameter_schema_present).
+    assert second_args[2] == "v2.0.0"
+    assert second_args[7] == later
+
+
+@pytest.mark.unit
+async def test_capability_lifecycle_timestamps_is_immutable_dataclass() -> None:
+    """CapabilityLifecycleTimestamps is the projection-sourced VO read
+    by the route layer (Path C). Frozen so callers can't mutate it
+    under cached references; field shape pinned so future widening
+    shows up as a deliberate change. Distinct from
+    `replaced_by_capability_id` (intrinsic state field, DLM-B catalog
+    governance)."""
+    import dataclasses
+
+    from cora.recipe.aggregates.capability import CapabilityLifecycleTimestamps
+
+    assert dataclasses.is_dataclass(CapabilityLifecycleTimestamps)
+    field_names = {f.name for f in dataclasses.fields(CapabilityLifecycleTimestamps)}
+    assert field_names == {"created_at", "versioned_at", "deprecated_at"}
+
+    instance = CapabilityLifecycleTimestamps(
+        created_at=_NOW,
+        versioned_at=None,
+        deprecated_at=None,
+    )
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        instance.versioned_at = _NOW  # type: ignore[misc]
+
+
 @pytest.mark.unit
 async def test_unknown_event_type_falls_through_match() -> None:
     """The bare `case _: pass` arm is the safety net if the SQL-side

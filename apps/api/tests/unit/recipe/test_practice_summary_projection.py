@@ -135,6 +135,67 @@ async def test_practice_deprecated_does_not_touch_method_or_site() -> None:
     assert args.args[2] == _NOW
 
 
+# ---------- Iter B gate-review fill-ins (Path C) ----------
+
+
+@pytest.mark.unit
+async def test_practice_versioned_replayed_overwrites_versioned_at() -> None:
+    """Path C: re-version replaces versioned_at wholesale (state-always-
+    holds-latest convention mirrored in projection). Mirrors Iter A on
+    Method."""
+    proj = PracticeSummaryProjection()
+    conn = AsyncMock()
+    later = datetime(2026, 6, 1, 9, 30, 0, tzinfo=UTC)
+
+    first = _stored(
+        "PracticeVersioned",
+        {
+            "practice_id": str(_PRACTICE_ID),
+            "version_tag": "2025-Q4",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    second = _stored(
+        "PracticeVersioned",
+        {
+            "practice_id": str(_PRACTICE_ID),
+            "version_tag": "2026-Q1",
+            "occurred_at": later.isoformat(),
+        },
+    )
+
+    await proj.apply(first, conn)
+    await proj.apply(second, conn)
+
+    assert conn.execute.await_count == 2
+    second_args = conn.execute.await_args_list[1].args
+    assert second_args[2] == "2026-Q1"
+    assert second_args[3] == later
+
+
+@pytest.mark.unit
+async def test_practice_lifecycle_timestamps_is_immutable_dataclass() -> None:
+    """PracticeLifecycleTimestamps is the projection-sourced VO read by
+    the route layer (Path C). Frozen so callers can't mutate it under
+    cached references; field shape pinned so future widening shows up
+    as a deliberate change."""
+    import dataclasses
+
+    from cora.recipe.aggregates.practice import PracticeLifecycleTimestamps
+
+    assert dataclasses.is_dataclass(PracticeLifecycleTimestamps)
+    field_names = {f.name for f in dataclasses.fields(PracticeLifecycleTimestamps)}
+    assert field_names == {"created_at", "versioned_at", "deprecated_at"}
+
+    instance = PracticeLifecycleTimestamps(
+        created_at=_NOW,
+        versioned_at=None,
+        deprecated_at=None,
+    )
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        instance.versioned_at = _NOW  # type: ignore[misc]
+
+
 @pytest.mark.unit
 async def test_unknown_event_type_falls_through_match() -> None:
     proj = PracticeSummaryProjection()

@@ -155,6 +155,94 @@ async def test_capability_deprecated_updates_status_and_preserves_version_tag() 
     assert args.args[2] == _NOW
 
 
+# ---------- Iter B-3 gate-review fill-ins (Path C) ----------
+
+
+@pytest.mark.unit
+async def test_family_versioned_replayed_overwrites_versioned_at() -> None:
+    """Path C: re-version replaces versioned_at wholesale (state-always-
+    holds-latest convention mirrored in projection). Mirrors Iter A on
+    Method."""
+    proj = FamilySummaryProjection()
+    conn = AsyncMock()
+    later = datetime(2026, 6, 1, 9, 30, 0, tzinfo=UTC)
+
+    first = _stored(
+        "FamilyVersioned",
+        {
+            "family_id": str(_CAPABILITY_ID),
+            "version_tag": "v1.0.0",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    second = _stored(
+        "FamilyVersioned",
+        {
+            "family_id": str(_CAPABILITY_ID),
+            "version_tag": "v2.0.0",
+            "occurred_at": later.isoformat(),
+        },
+    )
+
+    await proj.apply(first, conn)
+    await proj.apply(second, conn)
+
+    assert conn.execute.await_count == 2
+    second_args = conn.execute.await_args_list[1].args
+    assert second_args[2] == "v2.0.0"
+    assert second_args[3] == later
+
+
+@pytest.mark.unit
+async def test_legacy_capability_versioned_also_overwrites_versioned_at() -> None:
+    """Phase 5i dual-match anti-hook: legacy CapabilityVersioned events
+    take the same versioned_at code path as the new FamilyVersioned
+    events. Re-version under the legacy name still writes the latest
+    timestamp."""
+    proj = FamilySummaryProjection()
+    conn = AsyncMock()
+    later = datetime(2026, 6, 1, 9, 30, 0, tzinfo=UTC)
+
+    event = _stored(
+        "CapabilityVersioned",
+        {
+            "capability_id": str(_CAPABILITY_ID),
+            "version_tag": "legacy-2024-Q3",
+            "occurred_at": later.isoformat(),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    assert "versioned_at = $3" in args.args[0]
+    assert args.args[3] == later
+
+
+@pytest.mark.unit
+async def test_family_lifecycle_timestamps_is_immutable_dataclass() -> None:
+    """FamilyLifecycleTimestamps is the projection-sourced VO read by
+    the route layer (Path C). Frozen so callers can't mutate it under
+    cached references; field shape pinned so future widening shows up
+    as a deliberate change."""
+    import dataclasses
+
+    from cora.equipment.aggregates.family import FamilyLifecycleTimestamps
+
+    assert dataclasses.is_dataclass(FamilyLifecycleTimestamps)
+    field_names = {f.name for f in dataclasses.fields(FamilyLifecycleTimestamps)}
+    assert field_names == {"created_at", "versioned_at", "deprecated_at"}
+
+    instance = FamilyLifecycleTimestamps(
+        created_at=_NOW,
+        versioned_at=None,
+        deprecated_at=None,
+    )
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        instance.versioned_at = _NOW  # type: ignore[misc]
+
+
 @pytest.mark.unit
 async def test_unknown_event_type_falls_through_match() -> None:
     proj = FamilySummaryProjection()
