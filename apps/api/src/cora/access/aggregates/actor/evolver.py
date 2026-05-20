@@ -41,10 +41,11 @@ def evolve(state: Actor | None, event: ActorEvent) -> Actor:
                 msg = "ActorDeactivated cannot be applied to empty state"  # pragma: no cover  # pragma: no mutate  # noqa: E501
                 raise ValueError(msg)  # pragma: no cover  # pragma: no mutate
             return Actor(id=state.id, name=state.name, is_active=False, kind=state.kind)
-        # Exhaustiveness guard. mutmut generates two mutants here: removing
-        # the whole block (rooted on `case _:`) and changing the argument
-        # to `assert_never`. Pragma both lines.
         case _:  # pragma: no cover  # pragma: no mutate
+            # Exhaustiveness guard (LibCST attaches leading comments to the
+            # next node, so the `# pragma: no mutate` only takes effect if
+            # the `case _:` line is the FIRST line of the case clause —
+            # keep this comment INSIDE the body, not above the case).
             assert_never(event)  # pragma: no cover  # pragma: no mutate
 
 
