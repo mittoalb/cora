@@ -19,6 +19,7 @@ BCs now import the same canonical implementation from infrastructure.
 from uuid import UUID, uuid4
 
 import pytest
+from fastapi import HTTPException
 
 from cora.infrastructure.routing import SYSTEM_PRINCIPAL_ID, get_principal_id
 
@@ -53,3 +54,110 @@ def test_system_principal_id_is_the_well_known_zero_uuid() -> None:
     invalidate every running deployment's Policy entries that
     reference SYSTEM_PRINCIPAL_ID, so the change must be deliberate."""
     assert UUID("00000000-0000-0000-0000-000000000000") == SYSTEM_PRINCIPAL_ID
+
+
+# ---------- Phase C Iter C-3: bearer-mode priority ----------
+
+
+@pytest.mark.unit
+def test_bearer_principal_id_wins_over_x_principal_id_header() -> None:
+    """When BearerAuthMiddleware has stashed a VerifiedPrincipal on
+    request.state, `get_principal_id` returns its principal_id even
+    if the legacy X-Principal-Id header is ALSO present. Pins the
+    no-fallback-via-cleartext invariant: a verified bearer always
+    wins; the cleartext header is silently ignored under bearer-auth
+    mode so a misconfigured client doesn't accidentally elevate."""
+    bearer_id = UUID("01900000-0000-7000-8000-000000000b01")
+    header_id = UUID("01900000-0000-7000-8000-000000000b02")
+    assert (
+        get_principal_id(
+            x_principal_id=header_id,
+            bearer_principal_id=bearer_id,
+            bearer_auth_enabled=True,
+        )
+        == bearer_id
+    )
+
+
+@pytest.mark.unit
+def test_bearer_auth_enabled_without_bearer_raises_401_with_www_authenticate() -> None:
+    """When `kernel.token_verifier` is wired (bearer-auth mode) and no
+    bearer was verified, the X-Principal-Id fallback is NOT allowed.
+    `get_principal_id` raises HTTP 401 with the RFC 6750 §3
+    `WWW-Authenticate: Bearer` challenge pointing at the RFC 9728
+    protected-resource metadata endpoint."""
+    with pytest.raises(HTTPException) as exc:
+        get_principal_id(
+            x_principal_id=None,
+            bearer_principal_id=None,
+            bearer_auth_enabled=True,
+        )
+    assert exc.value.status_code == 401
+    # The challenge MUST carry the WWW-Authenticate header per RFC 6750.
+    assert exc.value.headers is not None
+    assert "WWW-Authenticate" in exc.value.headers
+    assert exc.value.headers["WWW-Authenticate"].startswith("Bearer ")
+    assert "/.well-known/oauth-protected-resource" in exc.value.headers["WWW-Authenticate"]
+
+
+@pytest.mark.unit
+def test_bearer_auth_enabled_rejects_x_principal_id_fallback() -> None:
+    """Even with X-Principal-Id PRESENT, bearer-auth mode without a
+    verified bearer rejects the request. The cleartext header is
+    unauthenticated; honoring it would let a client downgrade past
+    the bearer gate by sending only X-Principal-Id."""
+    header_id = UUID("01900000-0000-7000-8000-000000000b03")
+    with pytest.raises(HTTPException) as exc:
+        get_principal_id(
+            x_principal_id=header_id,
+            bearer_principal_id=None,
+            bearer_auth_enabled=True,
+        )
+    assert exc.value.status_code == 401
+
+
+@pytest.mark.unit
+def test_legacy_mode_unchanged_when_bearer_auth_disabled() -> None:
+    """`bearer_auth_enabled=False` (no IdPs configured) preserves the
+    Phase 1 X-Principal-Id-with-SYSTEM-fallback shape. Existing
+    tests + deployments that never set IDENTITY_PROVIDERS remain on
+    the legacy path unchanged."""
+    # Header present + no bearer + legacy mode -> return header value.
+    pid = uuid4()
+    assert (
+        get_principal_id(
+            x_principal_id=pid,
+            bearer_principal_id=None,
+            bearer_auth_enabled=False,
+        )
+        == pid
+    )
+    # Header absent + no bearer + legacy mode + require=False -> SYSTEM.
+    assert (
+        get_principal_id(
+            x_principal_id=None,
+            bearer_principal_id=None,
+            bearer_auth_enabled=False,
+            require_authenticated=False,
+        )
+        == SYSTEM_PRINCIPAL_ID
+    )
+
+
+@pytest.mark.unit
+def test_legacy_mode_require_authenticated_raises_401_without_www_authenticate() -> None:
+    """Phase-3e legacy 401: `require_authenticated_principal=True`
+    with no header still raises 401 — but with the LEGACY error
+    message (no WWW-Authenticate header, since this isn't a bearer
+    challenge). Pins the two 401 paths stay distinguishable in logs
+    + client behavior."""
+    with pytest.raises(HTTPException) as exc:
+        get_principal_id(
+            x_principal_id=None,
+            bearer_principal_id=None,
+            bearer_auth_enabled=False,
+            require_authenticated=True,
+        )
+    assert exc.value.status_code == 401
+    # Legacy path: no WWW-Authenticate (not a bearer challenge).
+    assert exc.value.headers is None or "WWW-Authenticate" not in (exc.value.headers or {})

@@ -120,40 +120,115 @@ def _require_authenticated_principal(request: Request) -> bool:
     return bool(request.app.state.deps.settings.require_authenticated_principal)
 
 
+def _bearer_principal_id(request: Request) -> UUID | None:
+    """Return `request.state.principal.principal_id` if set, else None.
+
+    `BearerAuthMiddleware` (Phase C Iter C-2) populates
+    `request.state.principal` when an `Authorization: Bearer` header
+    verified successfully. `get_principal_id` reads through this
+    Depends so the existing in-isolation unit tests for
+    `get_principal_id` keep working without a Request object.
+    """
+    principal = getattr(request.state, "principal", None)
+    if principal is None:
+        return None
+    return principal.principal_id  # type: ignore[no-any-return]
+
+
+def _bearer_auth_enabled(request: Request) -> bool:
+    """Return True when `kernel.token_verifier` is non-None.
+
+    `BearerAuthMiddleware` populates `request.state.principal` from a
+    verified bearer when this is True. `get_principal_id` consults
+    this to refuse X-Principal-Id fallback under bearer-auth mode
+    (the cleartext header is unauthenticated in that posture, so
+    accepting it would defeat the bearer gate).
+    """
+    deps = getattr(request.app.state, "deps", None)
+    if deps is None:
+        return False
+    return deps.token_verifier is not None
+
+
 def get_principal_id(
     x_principal_id: Annotated[
         UUID | None,
         Header(
             alias="X-Principal-Id",
             description=(
-                "UUID of the calling principal. Production deployments MUST "
-                "front the API with an auth proxy that verifies the caller's "
-                "credentials, strips any client-supplied X-Principal-Id, and "
-                "sets it to the verified principal UUID. The application "
-                "TRUSTS this header (no cryptographic verification here). "
-                "Behavior when absent depends on "
-                "Settings.require_authenticated_principal: False (default) "
-                "falls back to SYSTEM_PRINCIPAL_ID; True returns 401."
+                "Legacy principal-id header (Phase 1 trust-the-proxy shape). "
+                "When IDENTITY_PROVIDERS is configured (bearer-auth mode, "
+                "Phase C Iter C+), this header is IGNORED and the verified "
+                "bearer token from `BearerAuthMiddleware` (Authorization: "
+                "Bearer) sets the principal. When no IdPs are configured "
+                "(legacy mode), the application TRUSTS this header (no "
+                "cryptographic verification) -- production deployments in "
+                "legacy mode MUST front the API with an auth proxy that "
+                "strips any client-supplied X-Principal-Id and sets it to "
+                "the verified principal UUID. Behavior when absent: see "
+                "Settings.require_authenticated_principal."
             ),
         ),
     ] = None,
+    bearer_principal_id: Annotated[
+        UUID | None,
+        Depends(_bearer_principal_id),
+    ] = None,
+    bearer_auth_enabled: Annotated[
+        bool,
+        Depends(_bearer_auth_enabled),
+    ] = False,
     require_authenticated: Annotated[
         bool,
         Depends(_require_authenticated_principal),
     ] = False,
 ) -> UUID:
-    """Resolve the calling principal's id from the X-Principal-Id header.
+    """Resolve the calling principal's id.
 
-    Trust-the-proxy extraction shape (Phase 3f). See the header
-    description above for the production deployment requirement.
-    Pydantic validates UUID format; malformed values surface as 422
-    before this function is even called. Behavior on missing header:
+    Three modes, in priority order:
 
-      - `require_authenticated_principal=False` (Phase 1 default):
-        fall back to `SYSTEM_PRINCIPAL_ID`.
-      - `require_authenticated_principal=True` (production posture):
-        raise HTTP 401.
+      1. **Bearer-auth mode + valid bearer**:
+         `BearerAuthMiddleware` (Phase C Iter C-2) verified an
+         `Authorization: Bearer <token>` and stashed the
+         `VerifiedPrincipal` on `request.state.principal`. Return its
+         `principal_id`. X-Principal-Id is silently IGNORED in this
+         mode (cleartext header is unauthenticated; honoring it
+         would defeat the bearer gate).
+
+      2. **Bearer-auth mode + no bearer**:
+         No verified principal on request.state. The middleware
+         already let the request through (it doesn't impose a 401
+         policy on its own). Refuse here with 401 -- the legacy
+         X-Principal-Id fallback is NOT allowed under bearer-auth
+         mode regardless of `require_authenticated_principal`.
+
+      3. **Legacy mode** (no IdPs configured):
+         - X-Principal-Id present -> use it.
+         - Absent + `require_authenticated_principal=True` -> 401.
+         - Absent + `require_authenticated_principal=False` ->
+           SYSTEM_PRINCIPAL_ID fallback (Phase 1 dev / test).
     """
+    # Mode 1: bearer-verified principal wins unconditionally.
+    if bearer_principal_id is not None:
+        return bearer_principal_id
+
+    # Mode 2: bearer-auth on but no bearer presented.
+    if bearer_auth_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=(
+                "Missing Authorization: Bearer header; this deployment "
+                "requires a verified bearer token. See "
+                "/.well-known/oauth-protected-resource for issuer metadata."
+            ),
+            headers={
+                "WWW-Authenticate": (
+                    'Bearer realm="cora", resource_metadata="/.well-known/oauth-protected-resource"'
+                )
+            },
+        )
+
+    # Mode 3: legacy X-Principal-Id path (unchanged from Phase 1).
     if x_principal_id is None:
         if require_authenticated:
             raise HTTPException(
