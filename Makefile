@@ -140,11 +140,9 @@ openapi-snapshot:
 # 3.5; copy explicitly here.
 MUTMUT_SCOPE ?= cora.access.aggregates.actor.evolver.* cora.access.features.register_actor.decider.* cora.access.features.deactivate_actor.decider.*
 mutmut-audit:
+	@mkdir -p $(API_DIR)/mutants
+	@cp -n $(API_DIR)/README.md $(API_DIR)/mutants/README.md 2>/dev/null || true
 	cd $(API_DIR) && uv run mutmut run $(MUTMUT_SCOPE)
-	@if [ -d $(API_DIR)/mutants ] && [ ! -f $(API_DIR)/mutants/README.md ]; then \
-		cp $(API_DIR)/README.md $(API_DIR)/mutants/README.md; \
-		echo "Seeded mutants/README.md (hatchling requires it; re-run mutmut-audit to retry)."; \
-	fi
 
 # Interactive triage: review surviving mutants, mark equivalents, retest
 # after fixing the suite. See https://mutmut.readthedocs.io for keys.

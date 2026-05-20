@@ -1,0 +1,126 @@
+name: Mutation audit (Access BC, nightly)
+
+# Audit-cadence mutation testing on the Access BC's pure-logic surface
+# (deciders + evolver). NOT per-PR — mutation testing is fundamentally
+# asynchronous: per-mutant pytest spawn × scoped suite = minutes, and the
+# product is a survivor LIST you triage offline, not a green/red gate on
+# the PR pipeline.
+#
+# Runs on Linux (ubuntu-latest). The local `make mutmut-audit` target works
+# on macOS too but mutmut 3.5's per-mutant subprocess wrapper reports every
+# result as `segfault` on darwin (fork plumbing); Linux is the reliable
+# venue. See apps/api/pyproject.toml [tool.mutmut] for the why.
+#
+# When this finds something useful (a survivor that should be killed),
+# triage flow:
+#   1. Download the `mutmut-audit-<N>` artifact from the run.
+#   2. Read survivors.txt; pick a mutant id.
+#   3. Locally: `cd apps/api && uv run mutmut show <mutant_id>` to see the diff.
+#   4. Either strengthen the test (preferred) or mark equivalent via
+#      `# pragma: no mutate` and document why.
+
+on:
+  schedule:
+    # 03:23 UTC daily. Off-peak globally; off the round-minute per the
+    # testing-techniques research-memo's "avoid :00 and :30" guidance
+    # (every robot in the world fires at :00, the fleet shares the load
+    # better with an off-minute time).
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+    # Manual trigger from the Actions UI. Useful after merging changes
+    # to deciders / evolvers to refresh the survivor list without
+    # waiting for the next nightly window.
+
+# Only one audit at a time. If the next nightly fires while the prior run
+# is still going (unlikely; would mean a >24h audit), let the running
+# one finish — cancelling a partial audit wastes the work already done.
+concurrency:
+  group: mutmut-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: mutmut audit (Access BC)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/api/uv.lock
+
+      - name: Sync dependencies (locked)
+        working-directory: apps/api
+        run: uv sync --locked --all-extras
+
+      - name: Run mutmut audit
+        # `make mutmut-audit` seeds mutants/README.md (hatchling
+        # package-metadata requirement) and invokes the scoped run.
+        # `continue-on-error: true` because surviving mutants are
+        # informational, not a failure condition — see the
+        # testing-techniques research-memo's explicit-skip list:
+        # "Don't set a global mutation score gate".
+        run: make mutmut-audit
+        continue-on-error: true
+
+      - name: Extract survivors + summarise
+        # Always run, even if the previous step exited non-zero, so
+        # we still get a report when mutmut hits transient issues.
+        if: always()
+        working-directory: apps/api
+        run: |
+          set +e
+          uv run mutmut results > all-results.txt 2>&1 || true
+          grep ': survived$' all-results.txt > survivors.txt || true
+          killed=$(grep -c ': killed$' all-results.txt || echo 0)
+          survived=$(grep -c ': survived$' all-results.txt || echo 0)
+          timeout=$(grep -c ': timeout$' all-results.txt || echo 0)
+          segfault=$(grep -c ': segfault$' all-results.txt || echo 0)
+          total=$((killed + survived + timeout + segfault))
+          score=0
+          if [ "$total" -gt 0 ]; then
+            score=$((killed * 100 / total))
+          fi
+          {
+            echo "## Mutation audit summary"
+            echo ""
+            echo "Scope: \`Access BC deciders + Actor evolver\`"
+            echo ""
+            echo "| Outcome | Count |"
+            echo "|---|---|"
+            echo "| Killed (good) | $killed |"
+            echo "| Survived (gap) | $survived |"
+            echo "| Timeout | $timeout |"
+            echo "| Segfault | $segfault |"
+            echo "| **Total** | **$total** |"
+            echo ""
+            echo "**Mutation score: ${score}% killed**"
+            echo ""
+            if [ "$survived" -gt 0 ]; then
+              echo "### First 10 surviving mutants"
+              echo ""
+              echo '```'
+              head -10 survivors.txt
+              echo '```'
+              echo ""
+              echo "Full list in the \`mutmut-audit-${{ github.run_number }}\` artifact."
+            else
+              echo "No surviving mutants. ✓"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: mutmut-audit-${{ github.run_number }}
+          path: |
+            apps/api/mutants/mutmut-stats.json
+            apps/api/survivors.txt
+            apps/api/all-results.txt
+          if-no-files-found: warn
+          retention-days: 30
