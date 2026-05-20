@@ -6,6 +6,7 @@ wraps as `isError: true` with a text diagnostic.
 """
 
 from collections.abc import Callable
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -21,7 +22,17 @@ from cora.recipe.features.get_practice.query import GetPractice
 
 
 class PracticeOutput(BaseModel):
-    """Structured output of the `get_practice` MCP tool."""
+    """Structured output of the `get_practice` MCP tool.
+
+    `created_at` / `versioned_at` / `deprecated_at` mirror the REST
+    `PracticeResponse` (Path C, audit-2026-05-20 Iter B-2): sourced
+    from the `proj_recipe_practice_summary` projection. Null
+    semantics: read together with `status` — a populated `status`
+    with a null timestamp means the projection has not yet folded
+    that lifecycle event, never a missing transition. A not-found
+    Practice raises (MCP `isError: true`) rather than returning null
+    timestamps.
+    """
 
     id: UUID
     name: str = Field(..., max_length=PRACTICE_NAME_MAX_LENGTH)
@@ -29,6 +40,9 @@ class PracticeOutput(BaseModel):
     site_id: UUID
     status: str
     version: str | None
+    created_at: datetime | None = None
+    versioned_at: datetime | None = None
+    deprecated_at: datetime | None = None
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -45,15 +59,17 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ],
     ) -> PracticeOutput:
         handler = get_handler()
-        practice = await handler(
+        view = await handler(
             GetPractice(practice_id=practice_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )
-        if practice is None:
+        if view is None:
             msg = f"Practice {practice_id} not found"
             raise ValueError(msg)
+        practice = view.practice
+        timestamps = view.timestamps
         return PracticeOutput(
             id=practice.id,
             name=practice.name.value,
@@ -61,4 +77,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             site_id=practice.site_id,
             status=practice.status.value,
             version=practice.version,
+            created_at=timestamps.created_at if timestamps is not None else None,
+            versioned_at=timestamps.versioned_at if timestamps is not None else None,
+            deprecated_at=timestamps.deprecated_at if timestamps is not None else None,
         )

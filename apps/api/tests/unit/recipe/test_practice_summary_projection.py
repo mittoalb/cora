@@ -102,8 +102,10 @@ async def test_practice_versioned_updates_status_and_version_tag() -> None:
     sql = args.args[0]
     assert "UPDATE proj_recipe_practice_summary" in sql
     assert "SET status = 'Versioned'" in sql
+    assert "versioned_at = $3" in sql
     assert args.args[1] == _PRACTICE_ID
     assert args.args[2] == "2026-Q3"
+    assert args.args[3] == _NOW
 
 
 @pytest.mark.unit
@@ -125,9 +127,12 @@ async def test_practice_deprecated_does_not_touch_method_or_site() -> None:
     sql = args.args[0]
     assert "UPDATE proj_recipe_practice_summary" in sql
     assert "SET status = 'Deprecated'" in sql
+    assert "deprecated_at = $2" in sql
     assert "method_id" not in sql
     assert "site_id" not in sql
     assert "version_tag" not in sql
+    assert args.args[1] == _PRACTICE_ID
+    assert args.args[2] == _NOW
 
 
 @pytest.mark.unit

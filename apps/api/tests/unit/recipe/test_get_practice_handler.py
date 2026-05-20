@@ -41,31 +41,34 @@ async def test_handler_returns_practice_for_known_id() -> None:
     )
 
     handler = get_practice.bind(deps)
-    practice = await handler(
+    view = await handler(
         GetPractice(practice_id=_NEW_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
-    assert practice == Practice(
+    assert view is not None
+    assert view.practice == Practice(
         id=_NEW_ID,
         name=PracticeName("APS Standard Tomography"),
         method_id=_METHOD_ID,
         site_id=_SITE_ID,
         status=PracticeStatus.DEFINED,
     )
+    # In-memory deps have no pool -> projection-sourced timestamps absent.
+    assert view.timestamps is None
 
 
 @pytest.mark.unit
 async def test_handler_returns_none_for_unknown_id() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
     handler = get_practice.bind(deps)
-    practice = await handler(
+    view = await handler(
         GetPractice(practice_id=uuid4()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    assert practice is None
+    assert view is None
 
 
 @pytest.mark.unit
