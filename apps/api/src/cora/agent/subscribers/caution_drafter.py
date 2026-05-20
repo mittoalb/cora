@@ -117,7 +117,7 @@ from cora.run.aggregates.run import load_run
 if TYPE_CHECKING:
     from cora.access.aggregates.actor import Actor
     from cora.infrastructure.kernel import Kernel
-    from cora.infrastructure.ports import CautionLookup, LLMPort
+    from cora.infrastructure.ports import LLM, CautionLookup
     from cora.infrastructure.ports.event_store import EventStore, StoredEvent
     from cora.infrastructure.projection.handler import ConnectionLike
 
@@ -172,7 +172,7 @@ class CautionDrafterSubscriber:
         self,
         *,
         event_store: EventStore,
-        llm: LLMPort,
+        llm: LLM,
         caution_lookup: CautionLookup,
     ) -> None:
         self.event_store = event_store

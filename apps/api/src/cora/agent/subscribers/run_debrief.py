@@ -82,7 +82,7 @@ event-store load per terminal event has measurable cost at
 facility scale and the Actor.is_active hop closes the same
 revoke-the-agent operator gesture.
 
-## LogbookMirrorPort
+## LogbookMirror
 
 If `kernel.logbook_mirror` is set (no production implementor at
 8f-b), the subscriber calls `mirror_decision` AFTER the Decision
@@ -155,7 +155,7 @@ from cora.run.aggregates.run import load_run
 if TYPE_CHECKING:
     from cora.access.aggregates.actor import Actor
     from cora.infrastructure.kernel import Kernel
-    from cora.infrastructure.ports import LLMPort, LogbookMirrorPort
+    from cora.infrastructure.ports import LLM, LogbookMirror
     from cora.infrastructure.ports.event_store import EventStore, StoredEvent
     from cora.infrastructure.projection.handler import ConnectionLike
 
@@ -255,8 +255,8 @@ class RunDebriefSubscriber:
         self,
         *,
         event_store: EventStore,
-        llm: LLMPort,
-        logbook_mirror: LogbookMirrorPort | None,
+        llm: LLM,
+        logbook_mirror: LogbookMirror | None,
     ) -> None:
         self.event_store = event_store
         self.llm = llm

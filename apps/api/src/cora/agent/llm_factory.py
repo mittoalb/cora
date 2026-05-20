@@ -1,4 +1,4 @@
-"""Agent BC's `LLMPortFactory` for the composition root.
+"""Agent BC's `LLMFactory` for the composition root.
 
 Phase 8f-b iter 2a. Bound from `cora.api.main` into `build_kernel`
 the same way `cora.trust.authorize_factory.build_authorize` is
@@ -17,11 +17,11 @@ fail-fast on `kernel.llm is None`.
 
 from cora.agent.adapters.anthropic_llm_adapter import AnthropicLLMAdapter
 from cora.infrastructure.config import Settings
-from cora.infrastructure.ports import LLMPort
+from cora.infrastructure.ports import LLM
 
 
-def build_llm(settings: Settings) -> LLMPort | None:
-    """Construct the production LLMPort or return `None` when unconfigured.
+def build_llm(settings: Settings) -> LLM | None:
+    """Construct the production LLM or return `None` when unconfigured.
 
     Today this branches on `settings.anthropic_api_key`; a future
     multi-provider deployment would branch on a `settings.llm_provider`

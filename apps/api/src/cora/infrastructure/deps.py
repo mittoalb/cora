@@ -29,7 +29,7 @@ and `make_inmemory_kernel` below. Production's `build_kernel` calls
 the appropriate primitive with `SystemClock` / `UUIDv7Generator` /
 env-loaded `Settings`; tests call the same primitives via thin
 wrappers in `tests/unit/_helpers.py` and `tests/integration/_helpers.py`
-that supply `FrozenClock` / `FixedIdGenerator` / test `Settings`.
+that supply `FakeClock` / `FixedIdGenerator` / test `Settings`.
 
 The architecture fitness function
 `tests/architecture/test_kernel_construction_single_site.py` enforces
@@ -50,6 +50,7 @@ from cora.infrastructure.logging import configure_logging
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
+    LLM,
     AlwaysCoveredClearanceLookup,
     AlwaysQuietCautionLookup,
     Authorize,
@@ -59,8 +60,7 @@ from cora.infrastructure.ports import (
     EventStore,
     IdempotencyStore,
     IdGenerator,
-    LLMPort,
-    LogbookMirrorPort,
+    LogbookMirror,
     SystemClock,
     TokenVerifier,
     UUIDv7Generator,
@@ -100,8 +100,8 @@ def make_postgres_kernel(
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
-    llm: LLMPort | None = None,
-    logbook_mirror: LogbookMirrorPort | None = None,
+    llm: LLM | None = None,
+    logbook_mirror: LogbookMirror | None = None,
     token_verifier: TokenVerifier | None = None,
 ) -> Kernel:
     """Postgres-backed Kernel primitive.
@@ -111,7 +111,7 @@ def make_postgres_kernel(
     `SystemClock` + `UUIDv7Generator` + env-loaded `Settings` + the
     `authorize` instance built around `event_store`. Integration tests
     call it via the `tests.integration._helpers.build_postgres_deps`
-    wrapper, which supplies `FrozenClock` + `FixedIdGenerator` + test
+    wrapper, which supplies `FakeClock` + `FixedIdGenerator` + test
     `Settings`.
 
     `event_store` / `idempotency_store` default to fresh
@@ -179,8 +179,8 @@ def make_inmemory_kernel(
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
-    llm: LLMPort | None = None,
-    logbook_mirror: LogbookMirrorPort | None = None,
+    llm: LLM | None = None,
+    logbook_mirror: LogbookMirror | None = None,
     token_verifier: TokenVerifier | None = None,
     pool: object | None = None,
 ) -> Kernel:
@@ -284,8 +284,8 @@ class CautionLookupFactory(Protocol):
     ) -> CautionLookup: ...
 
 
-class LLMPortFactory(Protocol):
-    """Builds the production LLMPort for the Kernel.
+class LLMFactory(Protocol):
+    """Builds the production LLM for the Kernel.
 
     Phase 8f-b iter 2a: Agent BC's
     `cora.agent.adapters.AnthropicLLMAdapter` is the only production
@@ -308,7 +308,7 @@ class LLMPortFactory(Protocol):
     def __call__(
         self,
         settings: Settings,
-    ) -> LLMPort | None: ...
+    ) -> LLM | None: ...
 
 
 async def build_kernel(
@@ -316,7 +316,7 @@ async def build_kernel(
     authorize_factory: AuthorizeFactory,
     clearance_lookup_factory: ClearanceLookupFactory | None = None,
     caution_lookup_factory: CautionLookupFactory | None = None,
-    llm_factory: LLMPortFactory | None = None,
+    llm_factory: LLMFactory | None = None,
     settings: Settings | None = None,
 ) -> tuple[Kernel, Teardown]:
     """Construct the kernel. Called once from the FastAPI lifespan.
@@ -398,7 +398,7 @@ async def build_kernel(
         if caution_lookup_factory is not None
         else AlwaysQuietCautionLookup()
     )
-    llm: LLMPort | None = llm_factory(settings) if llm_factory is not None else None
+    llm: LLM | None = llm_factory(settings) if llm_factory is not None else None
     kernel = make_postgres_kernel(
         pool,
         settings=settings,
@@ -426,7 +426,7 @@ def _make_pool_teardown(pool: asyncpg.Pool) -> Teardown:
     return teardown
 
 
-def _maybe_llm_teardown(llm: LLMPort | None) -> Teardown:
+def _maybe_llm_teardown(llm: LLM | None) -> Teardown:
     """Build a teardown that closes the LLM client if it exposes `aclose()`.
 
     Production `AnthropicLLMAdapter` has an `aclose()` method that
@@ -481,7 +481,7 @@ __all__ = [
     "AuthorizeFactory",
     "CautionLookupFactory",
     "ClearanceLookupFactory",
-    "LLMPortFactory",
+    "LLMFactory",
     "build_kernel",
     "make_inmemory_kernel",
     "make_postgres_kernel",

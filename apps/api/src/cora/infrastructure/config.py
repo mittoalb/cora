@@ -113,7 +113,7 @@ class Settings(BaseSettings):
     projection_poll_interval_seconds: float = 5.0
 
     # LLM provider — Agent BC wiring (Phase 8f-b iter 2a)
-    # When None, `build_kernel` wires no LLMPort and the Kernel
+    # When None, `build_kernel` wires no LLM and the Kernel
     # carries `llm=None`; subscribers that depend on the LLM (the
     # 8f-b RunDebrief subscriber) raise / log-and-skip when they
     # try to use it. The dev / test default of None matches the

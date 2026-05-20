@@ -1,11 +1,11 @@
 """Clock port: testable abstraction over wall-clock time."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 
 class Clock(Protocol):
-    """Returns the current time. Implementations may be system-backed or frozen."""
+    """Returns the current time. Implementations may be system-backed or fake."""
 
     def now(self) -> datetime: ...
 
@@ -17,14 +17,24 @@ class SystemClock:
         return datetime.now(tz=UTC)
 
 
-class FrozenClock:
-    """Test adapter: returns a fixed time. Mutate via `set` if needed."""
+class FakeClock:
+    """Test adapter: returns a controllable time.
 
-    def __init__(self, frozen_at: datetime) -> None:
-        self._frozen_at = frozen_at
+    Default semantic is "frozen at construction time" — `now()` returns
+    the same `datetime` until `set()` or `advance()` mutates it. Use
+    `advance(delta)` to move time forward by a `timedelta` (the common
+    case for stale-lock recovery and TTL tests); use `set(at)` to jump
+    to an absolute moment.
+    """
+
+    def __init__(self, at: datetime) -> None:
+        self._at = at
 
     def now(self) -> datetime:
-        return self._frozen_at
+        return self._at
 
-    def set(self, frozen_at: datetime) -> None:
-        self._frozen_at = frozen_at
+    def set(self, at: datetime) -> None:
+        self._at = at
+
+    def advance(self, delta: timedelta) -> None:
+        self._at += delta

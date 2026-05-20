@@ -1,4 +1,4 @@
-"""LLMPort: synchronous LLM-chat abstraction for agent BCs.
+"""LLM: synchronous LLM-chat abstraction for agent BCs.
 
 Phase 8f-b iter 2a. The first consumer is the RunDebrief subscriber
 (8f-b iter 2b); future agents (RecipeScreener at 8f-c, Strategy at
@@ -66,7 +66,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
-CacheTTL = Literal["5m", "1h"]
+type CacheTTL = Literal["5m", "1h"]
 """Anthropic prompt-cache TTL. Only two values supported as of 2026-02.
 
 `"5m"` is the default Anthropic cache TTL (no extra headers
@@ -88,9 +88,9 @@ class ModelRef:
         whitespace trim, `InvalidModelRefError` rejection at write
         time) because callers can supply arbitrary input via
         `define_agent`.
-      - This **wire shape** is what the LLMPort consumes; the agent
+      - This **wire shape** is what the LLM consumes; the agent
         BC's iter-2b subscriber translates `Agent.model_ref ->
-        LLMPort.ModelRef` per call. By that point the values are
+        LLM.ModelRef` per call. By that point the values are
         already validated; re-validating at the port would duplicate
         invariant enforcement.
 
@@ -174,7 +174,7 @@ class LLMUsage:
 
 @dataclass(frozen=True)
 class LLMResponse:
-    """Result of a single `LLMPort.chat()` call.
+    """Result of a single `LLM.chat()` call.
 
     `parsed` is the structured output already JSON-decoded and
     schema-validated by the adapter. `raw_text` is the assistant's
@@ -200,7 +200,7 @@ class LLMResponse:
 
 
 class LLMError(Exception):
-    """Base for every LLMPort failure surfaced to consumers.
+    """Base for every LLM failure surfaced to consumers.
 
     Subscriber-level retry logic in 8f-b iter 2b uses isinstance
     checks on the subclasses below to decide retryability and
@@ -256,7 +256,7 @@ class LLMChatRequest:
     max_output_tokens: int = 1024
 
 
-class LLMPort(Protocol):
+class LLM(Protocol):
     """Synchronous-style chat call against an LLM provider.
 
     "Synchronous-style" in the sense of one request -> one response;
@@ -284,7 +284,7 @@ class FakeLLMAdapter:
     """Test stub LLM adapter returning a fixed queue of responses.
 
     Mirrors the `AllowAllAuthorize` / `AlwaysQuietCautionLookup`
-    test-default convention for the LLMPort. Construct with a list
+    test-default convention for the LLM. Construct with a list
     of `FakeLLMResponse` (or `LLMError` instances to simulate
     failures); each `chat()` call pops one off the front. Empty
     queue raises `FakeLLMExhaustedError` so accidentally over-calling
@@ -335,6 +335,7 @@ class FakeLLMExhaustedError(LLMError):
 
 
 __all__ = [
+    "LLM",
     "CacheBreakpoint",
     "CacheTTL",
     "FakeLLMAdapter",
@@ -345,7 +346,6 @@ __all__ = [
     "LLMContentBlock",
     "LLMError",
     "LLMInvalidRequestError",
-    "LLMPort",
     "LLMRateLimitError",
     "LLMResponse",
     "LLMSchemaValidationError",

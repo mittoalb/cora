@@ -1,7 +1,7 @@
 """Unit tests for the `register_actor` application handler.
 
 The handler is exercised against in-memory adapters: InMemoryEventStore,
-FrozenClock, FixedIdGenerator, and either AllowAllAuthorize or a custom
+FakeClock, FixedIdGenerator, and either AllowAllAuthorize or a custom
 deny stub. No Postgres, no FastAPI, no async I/O beyond the adapters.
 """
 

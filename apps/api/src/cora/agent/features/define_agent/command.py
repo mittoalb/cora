@@ -1,7 +1,7 @@
 """The `DefineAgent` command -- intent dataclass for this slice.
 
 Carries the caller-controlled fields: kind, name, version, model_ref
-(required at definition time so 8f-b's LLMPort has model identity
+(required at definition time so 8f-b's LLM has model identity
 available immediately), and optional description / canonical_uri /
 prompt_template_id / capabilities.
 

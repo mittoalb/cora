@@ -48,6 +48,7 @@ collision between BCs is plausible without this rule. Keying on the
 pair pre-empts that whole class of silent-misroute bug.
 """
 
+from collections.abc import Sequence
 from typing import Protocol
 
 from cora.infrastructure.ports.event_store import StoredEvent
@@ -63,4 +64,4 @@ class EventPublisher(Protocol):
     deduplicate idempotently.
     """
 
-    async def publish(self, events: list[StoredEvent]) -> None: ...
+    async def publish(self, events: Sequence[StoredEvent]) -> None: ...

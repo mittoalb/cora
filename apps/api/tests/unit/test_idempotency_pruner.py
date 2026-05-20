@@ -30,8 +30,8 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
+    FakeClock,
     FixedIdGenerator,
-    FrozenClock,
 )
 from cora.infrastructure.ports.idempotency import ClaimOutcome
 
@@ -50,7 +50,7 @@ def _build_kernel(
             app_env="test",
             idempotency_ttl_hours=ttl_hours,
         ),
-        clock=FrozenClock(datetime(2026, 5, 13, 12, 0, 0, tzinfo=UTC)),
+        clock=FakeClock(datetime(2026, 5, 13, 12, 0, 0, tzinfo=UTC)),
         id_generator=FixedIdGenerator([]),
         authorize=AllowAllAuthorize(),
         idempotency_store=store,

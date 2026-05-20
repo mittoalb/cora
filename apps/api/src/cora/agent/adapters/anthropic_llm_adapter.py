@@ -1,4 +1,4 @@
-"""Anthropic implementation of `LLMPort`.
+"""Anthropic implementation of `LLM`.
 
 Phase 8f-b iter 2a. Lives under `cora.agent.adapters` per the
 cross-BC adapter-ownership convention (Safety BC owns
@@ -48,7 +48,7 @@ subscriber call.
 ## Error translation
 
 After the SDK exhausts inner retries, any remaining SDK error is
-translated to the `LLMPort` taxonomy so consumers depend only on
+translated to the `LLM` taxonomy so consumers depend only on
 the port-level error classes. Mapping:
 
   - `AuthenticationError` (401 / 403) -> `LLMAuthenticationError`
@@ -119,7 +119,7 @@ _tracer = trace.get_tracer("cora.agent.llm")
 
 
 class AnthropicLLMAdapter:
-    """Production `LLMPort` implementation backed by `anthropic.AsyncAnthropic`.
+    """Production `LLM` implementation backed by `anthropic.AsyncAnthropic`.
 
     Constructor accepts `api_key` directly (read from `Settings.anthropic_api_key`
     by the Kernel factory) rather than implicitly via the SDK's env-var

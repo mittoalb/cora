@@ -11,9 +11,9 @@ from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import make_inmemory_kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
+    FakeClock,
     FakeLLMAdapter,
     FixedIdGenerator,
-    FrozenClock,
 )
 from cora.infrastructure.projection.registry import ProjectionRegistry
 
@@ -22,7 +22,7 @@ def _kernel(*, llm: object | None) -> object:
     settings = Settings()  # type: ignore[call-arg]
     return make_inmemory_kernel(
         settings=settings,
-        clock=FrozenClock(datetime(2026, 5, 17, 14, 0, 0, tzinfo=UTC)),
+        clock=FakeClock(datetime(2026, 5, 17, 14, 0, 0, tzinfo=UTC)),
         id_generator=FixedIdGenerator([]),
         authorize=AllowAllAuthorize(),
         llm=llm,  # type: ignore[arg-type]

@@ -132,7 +132,7 @@ async def test_cursor_walks_three_pages_covering_all_actors(
 
     # Coverage: every actor appears exactly once, in the order
     # established by the projection's `created_at` (registration
-    # order matches insertion order; FrozenClock means created_at
+    # order matches insertion order; FakeClock means created_at
     # is identical across actors, so the secondary `actor_id`
     # ordering kicks in deterministically).
     seen = [item.actor_id for item in page1.items + page2.items + page3.items]

@@ -1,4 +1,4 @@
-"""Unit tests for the LogbookMirrorPort Protocol (Phase 8f-b iter 2a).
+"""Unit tests for the LogbookMirror Protocol (Phase 8f-b iter 2a).
 
 8f-b ships no production implementor. These tests pin the
 Protocol shape and verify that a minimal in-test implementor
@@ -12,11 +12,11 @@ from uuid import UUID, uuid4
 import pytest
 
 if TYPE_CHECKING:
-    from cora.infrastructure.ports import LogbookMirrorPort
+    from cora.infrastructure.ports import LogbookMirror
 
 
 class _RecordingMirror:
-    """Minimal in-test implementor of LogbookMirrorPort.
+    """Minimal in-test implementor of LogbookMirror.
 
     Captures every mirror_decision invocation; never raises.
     Mirrors the contract that 8f-b's port docstring locks: errors
@@ -45,7 +45,7 @@ def test_recording_mirror_satisfies_protocol_structurally() -> None:
     longer satisfies it, mypy / pyright would catch it; the
     runtime assert here keeps the test passing on a pyright-clean
     workspace and fails loudly on a Protocol drift."""
-    mirror: LogbookMirrorPort = _RecordingMirror()
+    mirror: LogbookMirror = _RecordingMirror()
     assert mirror is not None
 
 

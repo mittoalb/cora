@@ -1,4 +1,4 @@
-"""Unit tests for the LLMPort value types + FakeLLMAdapter (Phase 8f-b iter 2a).
+"""Unit tests for the LLM value types + FakeLLMAdapter (Phase 8f-b iter 2a).
 
 Pins the port-level contract that subscriber tests at iter 2b will
 rely on (queue semantics, error pass-through, request capture).

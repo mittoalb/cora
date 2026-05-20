@@ -59,10 +59,10 @@ the Plan validates.
     added after `close_campaign`. Whether the operator should be
     warned ("you're about to close; any in-flight Runs that
     haven't joined yet will need a new Campaign") is a watch item.
-  - **LogbookMirrorPort is exercised here in production, not in
+  - **LogbookMirror is exercised here in production, not in
     this scenario.** End-of-beamtime publishes the Campaign + child
     Runs + promoted Datasets to Olog / SciLog / SciCat via the
-    abstract `LogbookMirrorPort` (per `2bm-docs ops/item_030.rst`
+    abstract `LogbookMirror` (per `2bm-docs ops/item_030.rst`
     tomolog workflow). No implementor exists today; the scenario
     asserts only the promotion + close, not the mirror publication.
 """

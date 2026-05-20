@@ -7,7 +7,7 @@ the prompts live as Python module constants keyed by
 `prompt_template_id` (UUID).
 
 Each prompt module exposes a `build_chat_request(...)` builder that
-returns an `LLMChatRequest` ready for `LLMPort.chat()`. The
+returns an `LLMChatRequest` ready for `LLM.chat()`. The
 builders are pure (no I/O), so subscribers can construct requests
 in-memory and the LLM-cache layering stays a single design choice
 per agent.

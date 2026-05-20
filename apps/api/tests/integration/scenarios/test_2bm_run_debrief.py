@@ -35,7 +35,7 @@ First scenario-tier exercise of:
   - `RunDebriefSubscriber.apply(terminal_event)` — the side-
     effecting subscriber pathway that observes terminal Run events
     and emits Decisions
-  - `FakeLLMAdapter` (the stub LLMPort used in CI; no Anthropic API
+  - `FakeLLMAdapter` (the stub LLM used in CI; no Anthropic API
     key needed) being driven from a scenario-tier test
   - `Decision` aggregate genesis with `context=RunDebrief`,
     `decision_rule=agent:RunDebrief:v1`, `confidence_source=
@@ -78,8 +78,8 @@ scenario is self-contained.
     at N>=1000 rated). A recorded-cassette test with real
     Anthropic responses would complement this, but is itself
     deferred.
-  - **LogbookMirrorPort is None today.** The subscriber accepts a
-    LogbookMirrorPort that would publish the AAR to Olog / SciLog /
+  - **LogbookMirror is None today.** The subscriber accepts a
+    LogbookMirror that would publish the AAR to Olog / SciLog /
     SciCat; no implementor exists yet. This scenario passes None,
     matching production. When the first implementor lands, the
     scenario gains a third assertion (mirror published).
@@ -358,7 +358,7 @@ async def test_run_debrief_agent_fires_on_terminal_run(
     # StoredEvent instances.
     assert isinstance(terminal_event, StoredEvent)
 
-    # Build the subscriber with a canned LLM response. LogbookMirrorPort is
+    # Build the subscriber with a canned LLM response. LogbookMirror is
     # None today (no implementor; see [[project_run_debrief_design]]).
     llm = FakeLLMAdapter(responses=[_CANNED_AAR])
     subscriber = RunDebriefSubscriber(

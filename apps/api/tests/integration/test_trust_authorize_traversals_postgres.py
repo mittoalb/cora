@@ -29,8 +29,8 @@ from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.ports import (
     Allow,
     Deny,
+    FakeClock,
     FixedIdGenerator,
-    FrozenClock,
 )
 from cora.infrastructure.postgres.event_store import PostgresEventStore
 from cora.trust.aggregates.conduit.entries import (
@@ -154,7 +154,7 @@ async def test_trust_authorize_persists_traversals_against_postgres(
         event_store,
         policy_id=policy_id,
         traversals_store=traversals_store,
-        clock=FrozenClock(_NOW),
+        clock=FakeClock(_NOW),
         id_generator=FixedIdGenerator([allow_entry_id, deny_entry_id]),
     )
 

@@ -1,4 +1,4 @@
-"""LogbookMirrorPort: pluggable mirror for agent-emitted Decisions.
+"""LogbookMirror: pluggable mirror for agent-emitted Decisions.
 
 Phase 8f-b iter 2a. Defines the abstract Protocol; NO production
 implementor lands at 8f-b. The first concrete implementor is
@@ -22,9 +22,9 @@ adapter:
   - Keeps SciLog and SciCat as adapter swaps (not new ports) per
     the design lock: "SciLogMirrorPort and SciCatMirrorPort are
     not separate ports; they are alternate implementors of
-    `LogbookMirrorPort`."
+    `LogbookMirror`."
 
-The `Kernel.logbook_mirror` field is typed `LogbookMirrorPort |
+The `Kernel.logbook_mirror` field is typed `LogbookMirror |
 None` with a `None` default; the subscriber treats `None` as
 "mirror disabled" and skips the call. No-op in 8f-b; observable
 extension point in 8f-c+.
@@ -45,7 +45,7 @@ from typing import Protocol
 from uuid import UUID
 
 
-class LogbookMirrorPort(Protocol):
+class LogbookMirror(Protocol):
     """Optional mirror that pushes agent-emitted Decisions to an
     operator-facing logbook system (Olog / SciLog / SciCat).
 
@@ -85,4 +85,4 @@ class LogbookMirrorPort(Protocol):
         ...
 
 
-__all__ = ["LogbookMirrorPort"]
+__all__ = ["LogbookMirror"]

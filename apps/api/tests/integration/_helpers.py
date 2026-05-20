@@ -37,6 +37,7 @@ from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import make_postgres_kernel
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
+    LLM,
     AllowAllAuthorize,
     AlwaysCoveredClearanceLookup,
     AlwaysQuietCautionLookup,
@@ -44,10 +45,9 @@ from cora.infrastructure.ports import (
     CautionLookup,
     ClearanceLookup,
     EventStore,
+    FakeClock,
     FixedIdGenerator,
-    FrozenClock,
     IdempotencyStore,
-    LLMPort,
 )
 
 
@@ -61,7 +61,7 @@ def build_postgres_deps(
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
-    llm: LLMPort | None = None,
+    llm: LLM | None = None,
 ) -> Kernel:
     """Build a Kernel for integration-test handler invocation against real Postgres.
 
@@ -81,7 +81,7 @@ def build_postgres_deps(
     return make_postgres_kernel(
         pool,
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(now),
+        clock=FakeClock(now),
         id_generator=FixedIdGenerator(list(ids or [])),
         authorize=authorize or AllowAllAuthorize(),
         event_store=event_store,

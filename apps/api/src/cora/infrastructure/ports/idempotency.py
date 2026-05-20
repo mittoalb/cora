@@ -120,7 +120,7 @@ class HashConflict:
 
 
 # Discriminated union returned by claim()
-ClaimOutcome = Claimed | CachedSuccess | CachedError | LockedRecent | HashConflict
+type ClaimOutcome = Claimed | CachedSuccess | CachedError | LockedRecent | HashConflict
 
 
 class IdempotencyConflictError(Exception):

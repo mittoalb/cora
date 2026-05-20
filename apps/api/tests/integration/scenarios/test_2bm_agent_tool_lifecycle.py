@@ -101,7 +101,7 @@ motivating use cases, different downstream consumers.
     [[project_run_debrief_design]] security gate-review P1#1.
   - **`define_agent` model_ref is required at definition time.**
     Per [[project_agent_bc_design]], the model identity must be
-    known the moment the Agent exists so the LLMPort has an
+    known the moment the Agent exists so the LLM has an
     identity immediately. Changing model_ref later requires a
     new `define_agent` call with a new id (the rainbow-deploy
     pattern). This scenario does not exercise that re-definition

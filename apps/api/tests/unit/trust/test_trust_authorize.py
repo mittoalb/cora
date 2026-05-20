@@ -21,8 +21,8 @@ from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.ports import (
     Allow,
     Deny,
+    FakeClock,
     FixedIdGenerator,
-    FrozenClock,
 )
 from cora.trust.aggregates.conduit import (
     LOGBOOK_KIND_TRAVERSALS,
@@ -268,7 +268,7 @@ async def test_emits_traversal_on_allow_when_conduit_has_open_logbook() -> None:
         store,
         policy_id=_POLICY_ID,
         traversals_store=traversals,
-        clock=FrozenClock(_OBS_NOW),
+        clock=FakeClock(_OBS_NOW),
         id_generator=FixedIdGenerator([_OBS_EVENT_ID]),
     )
 
@@ -299,7 +299,7 @@ async def test_emits_traversal_on_deny_with_reason_attached() -> None:
         store,
         policy_id=_POLICY_ID,
         traversals_store=traversals,
-        clock=FrozenClock(_OBS_NOW),
+        clock=FakeClock(_OBS_NOW),
         id_generator=FixedIdGenerator([_OBS_EVENT_ID]),
     )
 
@@ -329,7 +329,7 @@ async def test_skips_traversal_emission_when_conduit_does_not_exist() -> None:
         store,
         policy_id=_POLICY_ID,
         traversals_store=traversals,
-        clock=FrozenClock(_OBS_NOW),
+        clock=FakeClock(_OBS_NOW),
         id_generator=FixedIdGenerator([_OBS_EVENT_ID]),
     )
 
@@ -374,7 +374,7 @@ async def test_skips_traversal_when_traversals_logbook_was_closed() -> None:
         store,
         policy_id=_POLICY_ID,
         traversals_store=traversals,
-        clock=FrozenClock(_OBS_NOW),
+        clock=FakeClock(_OBS_NOW),
         id_generator=FixedIdGenerator([_OBS_EVENT_ID]),
     )
 

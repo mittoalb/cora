@@ -8,7 +8,7 @@ import pytest
 from cora.infrastructure.ports import (
     Allow,
     AllowAllAuthorize,
-    FrozenClock,
+    FakeClock,
     SystemClock,
     UUIDv7Generator,
 )
@@ -24,7 +24,7 @@ def test_system_clock_returns_utc() -> None:
 @pytest.mark.unit
 def test_frozen_clock_returns_fixed_time() -> None:
     fixed = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
-    clock = FrozenClock(fixed)
+    clock = FakeClock(fixed)
     assert clock.now() == fixed
 
 

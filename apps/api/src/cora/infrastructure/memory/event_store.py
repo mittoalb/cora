@@ -11,6 +11,7 @@ tasks (we hold the lock only across pure in-memory work, never across
 awaits).
 """
 
+from collections.abc import Sequence
 from copy import deepcopy
 from datetime import UTC, datetime
 from itertools import count
@@ -55,7 +56,7 @@ class InMemoryEventStore:
         stream_type: str,
         stream_id: UUID,
         expected_version: int,
-        events: list[NewEvent],
+        events: Sequence[NewEvent],
     ) -> int:
         if not events:
             return expected_version
@@ -73,7 +74,7 @@ class InMemoryEventStore:
 
     async def append_streams(
         self,
-        streams: list[StreamAppend],
+        streams: Sequence[StreamAppend],
     ) -> dict[UUID, int]:
         non_empty = [s for s in streams if s.events]
         if not non_empty:

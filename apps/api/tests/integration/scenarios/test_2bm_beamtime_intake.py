@@ -67,7 +67,7 @@ but no Devices are registered.
     scheduling via `dmagic show`. This scenario records the PI
     name + Subject name + Campaign name as if they were
     operator-supplied; integrating `dmagic` as an external port
-    (mirroring the LogbookMirrorPort pattern) is a watch item.
+    (mirroring the LogbookMirror pattern) is a watch item.
   - **Subject genesis is in `Received` state.** Subject's lifecycle
     is `Received -> Mounted -> Measured -> Received` (per
     [[project_subject_mount_alignment_design]]); intake registers

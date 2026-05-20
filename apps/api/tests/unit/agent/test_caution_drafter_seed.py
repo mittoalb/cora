@@ -16,14 +16,14 @@ from cora.agent.seed_caution_drafter import (
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import make_inmemory_kernel
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.ports import AllowAllAuthorize, FixedIdGenerator, FrozenClock
+from cora.infrastructure.ports import AllowAllAuthorize, FakeClock, FixedIdGenerator
 
 
 def _kernel() -> Kernel:
     settings = Settings()  # type: ignore[call-arg]
     return make_inmemory_kernel(
         settings=settings,
-        clock=FrozenClock(datetime(2026, 5, 17, 14, 0, 0, tzinfo=UTC)),
+        clock=FakeClock(datetime(2026, 5, 17, 14, 0, 0, tzinfo=UTC)),
         id_generator=FixedIdGenerator([]),
         authorize=AllowAllAuthorize(),
     )

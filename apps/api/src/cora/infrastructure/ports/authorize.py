@@ -52,7 +52,16 @@ type AuthzResult = Allow | Deny
 
 
 class Authorize(Protocol):
-    """Authorization gate: called before every command."""
+    """Authorization gate: called before every command.
+
+    Spelled as `__call__` (not a named method like peers `Clock.now`,
+    `EventStore.load`, `CautionLookup.find_active_for_run`) because the
+    port is function-shaped: one operation, no companion state. Mirrors
+    the codebase's factory protocols (`AuthorizeFactory`,
+    `ClearanceLookupFactory`, `CautionLookupFactory`, `LLMFactory`) which
+    are all single-method `__call__`. Call sites read `deps.authorize(...)`
+    which is the intent: the port IS the operation.
+    """
 
     async def __call__(
         self,

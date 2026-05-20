@@ -40,6 +40,7 @@ until they commit (because `pg_snapshot_xmin` returns the lowest active
 xid8); this is by design (correctness) but worth knowing operationally.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Protocol
@@ -174,7 +175,7 @@ class StreamAppend:
     stream_type: str
     stream_id: UUID
     expected_version: int
-    events: list[NewEvent]
+    events: Sequence[NewEvent]
 
 
 class EventStore(Protocol):
@@ -197,7 +198,7 @@ class EventStore(Protocol):
         stream_type: str,
         stream_id: UUID,
         expected_version: int,
-        events: list[NewEvent],
+        events: Sequence[NewEvent],
     ) -> int:
         """Append events with optimistic concurrency.
 
@@ -209,7 +210,7 @@ class EventStore(Protocol):
 
     async def append_streams(
         self,
-        streams: list[StreamAppend],
+        streams: Sequence[StreamAppend],
     ) -> dict[UUID, int]:
         """Atomically append events to multiple streams in a single transaction.
 

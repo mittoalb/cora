@@ -16,22 +16,25 @@ from cora.infrastructure.ports.caution_lookup import (
     AlwaysQuietCautionLookup,
     CautionLookup,
     CautionReference,
+    MinSeverity,
 )
 from cora.infrastructure.ports.clearance_lookup import (
     AlwaysCoveredClearanceLookup,
     ClearanceLookup,
     ClearanceReference,
 )
-from cora.infrastructure.ports.clock import Clock, FrozenClock, SystemClock
+from cora.infrastructure.ports.clock import Clock, FakeClock, SystemClock
 from cora.infrastructure.ports.event_publisher import EventPublisher
 from cora.infrastructure.ports.event_store import (
     ConcurrencyError,
     EventStore,
     NewEvent,
     StoredEvent,
+    StreamAppend,
 )
 from cora.infrastructure.ports.id_generator import (
     FixedIdGenerator,
+    FixedIdGeneratorExhaustedError,
     IdGenerator,
     UUIDv7Generator,
 )
@@ -48,6 +51,7 @@ from cora.infrastructure.ports.idempotency import (
     LockedRecent,
 )
 from cora.infrastructure.ports.llm import (
+    LLM,
     CacheBreakpoint,
     CacheTTL,
     FakeLLMAdapter,
@@ -58,7 +62,6 @@ from cora.infrastructure.ports.llm import (
     LLMContentBlock,
     LLMError,
     LLMInvalidRequestError,
-    LLMPort,
     LLMRateLimitError,
     LLMResponse,
     LLMSchemaValidationError,
@@ -68,7 +71,7 @@ from cora.infrastructure.ports.llm import (
     LLMUsage,
     ModelRef,
 )
-from cora.infrastructure.ports.logbook_mirror import LogbookMirrorPort
+from cora.infrastructure.ports.logbook_mirror import LogbookMirror
 from cora.infrastructure.ports.token_verifier import (
     IntrospectionUnavailableError,
     InvalidTokenError,
@@ -78,6 +81,7 @@ from cora.infrastructure.ports.token_verifier import (
 )
 
 __all__ = [
+    "LLM",
     "Allow",
     "AllowAllAuthorize",
     "AlwaysCoveredClearanceLookup",
@@ -100,11 +104,12 @@ __all__ = [
     "Deny",
     "EventPublisher",
     "EventStore",
+    "FakeClock",
     "FakeLLMAdapter",
     "FakeLLMExhaustedError",
     "FakeLLMResponse",
     "FixedIdGenerator",
-    "FrozenClock",
+    "FixedIdGeneratorExhaustedError",
     "HashConflict",
     "IdGenerator",
     "IdempotencyClaimLostError",
@@ -117,7 +122,6 @@ __all__ = [
     "LLMContentBlock",
     "LLMError",
     "LLMInvalidRequestError",
-    "LLMPort",
     "LLMRateLimitError",
     "LLMResponse",
     "LLMSchemaValidationError",
@@ -126,11 +130,13 @@ __all__ = [
     "LLMTimeoutError",
     "LLMUsage",
     "LockedRecent",
-    "LogbookMirrorPort",
+    "LogbookMirror",
+    "MinSeverity",
     "ModelRef",
     "NewEvent",
     "PrincipalKind",
     "StoredEvent",
+    "StreamAppend",
     "SystemClock",
     "TokenVerifier",
     "UUIDv7Generator",

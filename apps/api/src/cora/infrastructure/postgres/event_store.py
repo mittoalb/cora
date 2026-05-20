@@ -25,6 +25,7 @@ missed notifications.
 # adapter file. The port + StoredEvent fields keep typing strict for
 # every caller above the boundary.
 
+from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
@@ -91,7 +92,7 @@ class PostgresEventStore:
         stream_type: str,
         stream_id: UUID,
         expected_version: int,
-        events: list[NewEvent],
+        events: Sequence[NewEvent],
     ) -> int:
         if not events:
             return expected_version
@@ -109,7 +110,7 @@ class PostgresEventStore:
 
     async def append_streams(
         self,
-        streams: list[StreamAppend],
+        streams: Sequence[StreamAppend],
     ) -> dict[UUID, int]:
         # Filter out empty-events StreamAppend entries (no-op rows still
         # report their expected_version so callers get a complete dict).

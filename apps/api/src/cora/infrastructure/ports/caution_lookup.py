@@ -66,7 +66,7 @@ from uuid import UUID
 # typing wins (callers get a checked enum-shaped set; indexing the
 # adapter's ordinal map raises KeyError instead of silently defaulting
 # on an unknown string) are the same as a typed enum import.
-MinSeverity = Literal["Notice", "Caution", "Warning"]
+type MinSeverity = Literal["Notice", "Caution", "Warning"]
 
 
 @dataclass(frozen=True)

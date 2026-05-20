@@ -88,7 +88,7 @@ class DefineAgentRequest(BaseModel):
         ...,
         description=(
             "Required model identity (provider + model + optional snapshot pin) "
-            "so 8f-b's LLMPort has the identity available immediately."
+            "so 8f-b's LLM has the identity available immediately."
         ),
     )
     description: str | None = Field(

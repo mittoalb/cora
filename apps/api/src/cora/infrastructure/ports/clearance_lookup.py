@@ -47,6 +47,8 @@ from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
+from cora.infrastructure.routing import NIL_SENTINEL_ID
+
 
 @dataclass(frozen=True)
 class ClearanceReference:
@@ -112,6 +114,14 @@ class AlwaysCoveredClearanceLookup:
     to seed real clearances. Tests that exercise the gate explicitly
     override with the real adapter (`PostgresClearanceLookup`) and
     seed clearances via `register_clearance` + transition handlers.
+
+    Contract drift vs the production adapter: the Protocol promises
+    "clearances in EVERY status" so the decider can distinguish
+    'no clearance at all' from 'clearance exists but none Active'.
+    This stub returns exactly one Active row and elides the
+    inactive-clearance distinction. Tests that depend on the
+    `Coverage…` vs `RequiresActive…` discrimination MUST use the
+    real `PostgresClearanceLookup` adapter, not this stub.
     """
 
     async def find_referencing_run(
@@ -128,7 +138,7 @@ class AlwaysCoveredClearanceLookup:
         # is never read in any decider path.
         return [
             ClearanceReference(
-                clearance_id=UUID(int=0),  # sentinel "test stub" id
+                clearance_id=NIL_SENTINEL_ID,  # sentinel "test stub" id
                 status="Active",
                 kind="ESAF",
                 facility_asset_id=run_id,

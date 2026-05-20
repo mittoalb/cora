@@ -56,7 +56,7 @@ async def test_kernel_teardown_no_op_when_llm_is_none() -> None:
 
 @pytest.mark.unit
 async def test_kernel_teardown_no_op_for_adapter_without_aclose() -> None:
-    """`FakeLLMAdapter` (and any other LLMPort impl without an
+    """`FakeLLMAdapter` (and any other LLM impl without an
     `aclose` method) skips the close step cleanly."""
     from cora.infrastructure.deps import _maybe_llm_teardown
     from cora.infrastructure.ports import FakeLLMAdapter

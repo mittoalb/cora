@@ -36,6 +36,17 @@ class UUIDv7Generator:
         return UUID(bytes=uuid_utils.uuid7().bytes)
 
 
+class FixedIdGeneratorExhaustedError(RuntimeError):
+    """`FixedIdGenerator.new_id()` called more times than IDs supplied.
+
+    Mirrors `FakeLLMExhaustedError` (the LLM port's stub-exhaustion
+    error) so tests can `pytest.raises(FixedIdGeneratorExhaustedError)`
+    without string-matching a bare `RuntimeError`. Subclasses
+    `RuntimeError` for backward-compat with any caller that pinned
+    the original base class.
+    """
+
+
 class FixedIdGenerator:
     """Test adapter: returns a sequence of pre-set IDs."""
 
@@ -45,5 +56,5 @@ class FixedIdGenerator:
     def new_id(self) -> UUID:
         if not self._ids:
             msg = "FixedIdGenerator exhausted"
-            raise RuntimeError(msg)
+            raise FixedIdGeneratorExhaustedError(msg)
         return self._ids.pop(0)

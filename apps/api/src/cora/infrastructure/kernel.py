@@ -35,6 +35,7 @@ import asyncpg
 
 from cora.infrastructure.config import Settings
 from cora.infrastructure.ports import (
+    LLM,
     Authorize,
     CautionLookup,
     ClearanceLookup,
@@ -42,8 +43,7 @@ from cora.infrastructure.ports import (
     EventStore,
     IdempotencyStore,
     IdGenerator,
-    LLMPort,
-    LogbookMirrorPort,
+    LogbookMirror,
     TokenVerifier,
 )
 
@@ -120,8 +120,8 @@ class Kernel:
     clearance_lookup: ClearanceLookup
     caution_lookup: CautionLookup
     pool: asyncpg.Pool | None = None
-    llm: LLMPort | None = None
-    logbook_mirror: LogbookMirrorPort | None = None
+    llm: LLM | None = None
+    logbook_mirror: LogbookMirror | None = None
     token_verifier: TokenVerifier | None = None
 
 

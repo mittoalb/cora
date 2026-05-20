@@ -125,7 +125,7 @@ async def test_kernel_logbook_mirror_is_none_by_default(
 def test_build_llm_returns_none_when_api_key_unset(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Agent BC's LLMPortFactory short-circuits cleanly when no
+    """Agent BC's LLMFactory short-circuits cleanly when no
     credential is configured; subscriber registration handles the
     fail-fast at iter 2b."""
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)

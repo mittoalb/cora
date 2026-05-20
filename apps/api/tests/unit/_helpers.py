@@ -42,15 +42,15 @@ from cora.infrastructure.deps import make_inmemory_kernel
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import (
+    LLM,
     Allow,
     AllowAllAuthorize,
     Authorize,
     AuthzResult,
     Deny,
     EventStore,
+    FakeClock,
     FixedIdGenerator,
-    FrozenClock,
-    LLMPort,
 )
 from cora.recipe.aggregates.capability import (
     CapabilityCode,
@@ -112,11 +112,11 @@ def build_deps(
     event_store: EventStore | None = None,
     deny: bool = False,
     authorize: Authorize | None = None,
-    llm: LLMPort | None = None,
+    llm: LLM | None = None,
 ) -> Kernel:
     """Build a Kernel for unit-test handler invocation.
 
-    Defaults: FrozenClock at DEFAULT_NOW, AllowAllAuthorize, fresh
+    Defaults: FakeClock at DEFAULT_NOW, AllowAllAuthorize, fresh
     InMemoryEventStore, fresh InMemoryIdempotencyStore, no pool. Pass
     `ids=` for the FixedIdGenerator queue (the handler consumes them
     in order: aggregate ids first, then event ids per emitted event).
@@ -125,7 +125,7 @@ def build_deps(
     tests injecting a recording / counting / specific-reason
     Authorize stub). When `authorize` is set, `deny` is ignored.
 
-    `llm` (Phase 8f-c iter 1) wires a test LLMPort (typically
+    `llm` (Phase 8f-c iter 1) wires a test LLM (typically
     `FakeLLMAdapter`) when the handler under test consumes one
     (eg. `re_debrief_run`). Defaults to None so the vast majority
     of tests that don't need an LLM stay LLM-free.
@@ -134,7 +134,7 @@ def build_deps(
         authorize = DenyAllAuthorize() if deny else AllowAllAuthorize()
     return make_inmemory_kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
-        clock=FrozenClock(now or DEFAULT_NOW),
+        clock=FakeClock(now or DEFAULT_NOW),
         id_generator=FixedIdGenerator(list(ids or [])),
         authorize=authorize,
         event_store=event_store,
