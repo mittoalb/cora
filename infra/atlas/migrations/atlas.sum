@@ -1,4 +1,4 @@
-h1:9H6ADbtT3+TT4u8C66lwyeKukq13PNH8Q+O6AgsPNxA=
+h1:P/76QejNHEpIMIuARhG9NbhjPHB52sphseZa7c1Ta2c=
 20260509120000_init_events.sql h1:GmgCZKfaqXu1m96/cKAks2vhaLWTdEaHTLkFtUo9FXg=
 20260509170000_init_idempotency.sql h1:Nbu8DIE4Sv1WiHw3G22+tYffPhKc5Jryw3PMK8wB2zY=
 20260510010000_add_event_id.sql h1:RbtYP6uMnOB20zhJ9dNXUi4YVqbmlEzf562pmygnRW8=
@@ -56,3 +56,4 @@ h1:9H6ADbtT3+TT4u8C66lwyeKukq13PNH8Q+O6AgsPNxA=
 20260520000000_add_method_summary_lifecycle_timestamps.sql h1:0p60vVlQE5cHReyImvzRBPUJsTLkqrrR+TqlU5rq8mM=
 20260520010000_add_plan_summary_lifecycle_timestamps.sql h1:O2Ylc386xbc0IXCd1qm00M6xvZSp7jHUfks6khsGQvk=
 20260520020000_add_practice_summary_lifecycle_timestamps.sql h1:3EqnykfOTdn/9IlnAAyJPh2SDhZUl5pMBalgOdeaiHw=
+20260520030000_add_family_summary_lifecycle_timestamps.sql h1:NtlOTyai5d9lcDMEtUJpjkzbHm6m61oPE9cuYCXWEiE=

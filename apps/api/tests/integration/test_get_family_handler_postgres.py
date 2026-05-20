@@ -1,4 +1,10 @@
-"""Integration test: get_family handler against real Postgres."""
+"""Integration test: get_family handler against real Postgres.
+
+Path C (audit-2026-05-20 Iter B-3): handler returns FamilyView
+bundling aggregate state + projection-sourced lifecycle timestamps.
+Exercises both pre-drain (timestamps None) and post-drain (timestamps
+populated) paths.
+"""
 
 from datetime import UTC, datetime
 from uuid import UUID
@@ -6,10 +12,12 @@ from uuid import UUID
 import asyncpg
 import pytest
 
+from cora.equipment._projections import register_equipment_projections
 from cora.equipment.aggregates.family import FamilyName, FamilyStatus
 from cora.equipment.features import define_family, get_family
 from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.get_family import GetFamily
+from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
@@ -31,13 +39,31 @@ async def test_get_family_loads_state_from_real_postgres(
         correlation_id=_CORRELATION_ID,
     )
 
-    capability = await get_family.bind(deps)(
+    view = await get_family.bind(deps)(
         GetFamily(family_id=_CAPABILITY_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
-    assert capability is not None
-    assert capability.id == _CAPABILITY_ID
-    assert capability.name == FamilyName("X-ray Fluorescence Mapping")
-    assert capability.status is FamilyStatus.DEFINED
+    assert view is not None
+    assert view.family.id == _CAPABILITY_ID
+    assert view.family.name == FamilyName("X-ray Fluorescence Mapping")
+    assert view.family.status is FamilyStatus.DEFINED
+    # Pre-drain: projection hasn't folded FamilyDefined yet -> no row.
+    assert view.timestamps is None
+
+    # Post-drain: projection catches up, lifecycle-timestamps surface.
+    registry = ProjectionRegistry()
+    register_equipment_projections(registry)
+    await drain_projections(db_pool, registry, deadline_seconds=2.0)
+
+    view = await get_family.bind(deps)(
+        GetFamily(family_id=_CAPABILITY_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert view is not None
+    assert view.timestamps is not None
+    assert view.timestamps.created_at == _NOW
+    assert view.timestamps.versioned_at is None
+    assert view.timestamps.deprecated_at is None

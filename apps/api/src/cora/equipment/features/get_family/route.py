@@ -1,12 +1,20 @@
 """HTTP route for the `get_family` query slice.
 
 `GET /families/{family_id}` returns 200 + FamilyResponse
-on hit, 404 on miss. The handler returns `Family | None`; the
+on hit, 404 on miss. The handler returns `FamilyView | None`; the
 route maps None to 404 via HTTPException (idiomatic in routes; the
 BC's exception-handler infrastructure stays focused on domain /
 application errors raised deeper in the stack).
+
+`created_at` / `versioned_at` / `deprecated_at` are sourced from the
+`proj_equipment_family_summary` projection, not from aggregate state
+(Path C, audit-2026-05-20 Iter B-3). Null semantics under eventual
+consistency: read together with `status`. A 200 with a populated
+`status` but null timestamp means projection lag, never a missing
+transition. A 404 means the Family aggregate itself does not exist.
 """
 
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -35,6 +43,9 @@ class FamilyResponse(BaseModel):
     `affordances` (5j) serializes as a sorted list of Affordance
     enum string values (frozenset semantics in domain state, list at
     the JSON boundary; sorted alphabetically for response determinism).
+    `created_at` / `versioned_at` / `deprecated_at` are projection-
+    sourced lifecycle timestamps (Path C, audit-2026-05-20 Iter B-3);
+    see module docstring for null-semantics.
     """
 
     id: UUID
@@ -42,6 +53,9 @@ class FamilyResponse(BaseModel):
     status: str
     version: str | None
     affordances: list[Affordance]
+    created_at: datetime | None = None
+    versioned_at: datetime | None = None
+    deprecated_at: datetime | None = None
 
 
 def _get_handler(request: Request) -> Handler:
@@ -74,21 +88,26 @@ async def get_families(
     principal_id: Annotated[UUID, Depends(get_principal_id)],
     surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> FamilyResponse:
-    family = await handler(
+    view = await handler(
         GetFamily(family_id=family_id),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,
     )
-    if family is None:
+    if view is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Family {family_id} not found",
         )
+    family = view.family
+    timestamps = view.timestamps
     return FamilyResponse(
         id=family.id,
         name=family.name.value,
         status=family.status.value,
         version=family.version,
         affordances=sorted(family.affordances, key=lambda a: a.value),
+        created_at=timestamps.created_at if timestamps is not None else None,
+        versioned_at=timestamps.versioned_at if timestamps is not None else None,
+        deprecated_at=timestamps.deprecated_at if timestamps is not None else None,
     )

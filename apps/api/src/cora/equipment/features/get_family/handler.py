@@ -1,26 +1,41 @@
 """Application handler for the `get_family` query slice.
 
 Cross-BC query-handler shape (Phase 2b precedent, mirrored from
-`get_actor` / `get_subject`):
+`get_actor` / `get_subject`); extended audit-2026-05-20 Iter B-3 to
+fold in projection-sourced lifecycle timestamps per Path C (mirrors
+Iter A on Method, Iter B-1/B-2 on Plan/Practice):
 
     1. authorize(principal_id, query_name, conduit_id) -> Allow | Deny
-    2. load_family(...)         -> Family | None  (fold-on-read)
-    3. return state                 -> caller maps None to 404 / isError
+    2. load_family(...)             -> Family | None  (fold-on-read)
+    3. load_family_timestamps(...)  -> FamilyLifecycleTimestamps | None
+                                       (None when projection lags or
+                                        pool not configured)
+    4. return FamilyView            -> caller maps None to 404 / isError;
+                                       maps view.timestamps fields onto
+                                       the response DTO
 
-Returns the domain `Family`, not a DTO. The route layer maps
-to `FamilyResponse` and the MCP tool maps to its own
-structured output. Handlers stay in domain types so non-HTTP/MCP
-consumers (other BCs, sagas, projections) get the rich object.
+`FamilyView` bundles the rich domain `Family` with the projection-
+sourced lifecycle metadata. State stays minimal per decider purity;
+the timestamps live on the projection per Dudycz read-side-
+pragmatism + K8s/GitHub/AIP-142 resource-API precedent. Non-HTTP/MCP
+consumers that only need the domain `Family` should call
+`load_family` directly — they sidestep the projection read entirely.
 
 Query handlers do NOT emit `causation_id` log fields — queries
 have no causation chain (they don't emit events that downstream
 commands react to). Same convention as `get_actor` / `get_subject`.
 """
 
+from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
-from cora.equipment.aggregates.family import Family, load_family
+from cora.equipment.aggregates.family import (
+    Family,
+    FamilyLifecycleTimestamps,
+    load_family,
+    load_family_timestamps,
+)
 from cora.equipment.errors import UnauthorizedError
 from cora.equipment.features.get_family.query import GetFamily
 from cora.infrastructure.kernel import Kernel
@@ -33,6 +48,18 @@ _QUERY_NAME = "GetFamily"
 _log = get_logger(__name__)
 
 
+@dataclass(frozen=True)
+class FamilyView:
+    """Read-side bundle: aggregate state + projection-sourced lifecycle
+    timestamps. `timestamps` is None when the projection hasn't caught
+    up yet OR when the deps lack a configured pool (in-memory test
+    mode); both are transient/contextual, not a Family-not-found
+    signal (use a None `FamilyView` for that)."""
+
+    family: Family
+    timestamps: FamilyLifecycleTimestamps | None
+
+
 class Handler(Protocol):
     """Callable interface every get_family handler implements."""
 
@@ -43,7 +70,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         surface_id: UUID = NIL_SENTINEL_ID,
-    ) -> Family | None: ...
+    ) -> FamilyView | None: ...
 
 
 def bind(deps: Kernel) -> Handler:
@@ -55,7 +82,7 @@ def bind(deps: Kernel) -> Handler:
         principal_id: UUID,
         correlation_id: UUID,
         surface_id: UUID = NIL_SENTINEL_ID,
-    ) -> Family | None:
+    ) -> FamilyView | None:
         _log.info(
             "get_family.start",
             query_name=_QUERY_NAME,
@@ -82,6 +109,20 @@ def bind(deps: Kernel) -> Handler:
             raise UnauthorizedError(decision.reason)
 
         family = await load_family(deps.event_store, query.family_id)
+        if family is None:
+            _log.info(
+                "get_family.success",
+                query_name=_QUERY_NAME,
+                family_id=str(query.family_id),
+                principal_id=str(principal_id),
+                correlation_id=str(correlation_id),
+                found=False,
+            )
+            return None
+
+        timestamps: FamilyLifecycleTimestamps | None = None
+        if deps.pool is not None:
+            timestamps = await load_family_timestamps(deps.pool, query.family_id)
 
         _log.info(
             "get_family.success",
@@ -89,8 +130,9 @@ def bind(deps: Kernel) -> Handler:
             family_id=str(query.family_id),
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
-            found=family is not None,
+            found=True,
+            timestamps_present=timestamps is not None,
         )
-        return family
+        return FamilyView(family=family, timestamps=timestamps)
 
     return handler

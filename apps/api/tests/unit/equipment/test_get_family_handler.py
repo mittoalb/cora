@@ -52,29 +52,32 @@ async def test_handler_returns_capability_for_known_id() -> None:
     )
 
     handler = get_family.bind(deps)
-    capability = await handler(
+    view = await handler(
         GetFamily(family_id=_NEW_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
-    assert capability == Family(
+    assert view is not None
+    assert view.family == Family(
         id=_NEW_ID,
         name=FamilyName("Tomography"),
         status=FamilyStatus.DEFINED,
     )
+    # In-memory deps have no pool -> projection-sourced timestamps absent.
+    assert view.timestamps is None
 
 
 @pytest.mark.unit
 async def test_handler_returns_none_for_unknown_id() -> None:
     deps = _build_deps()
     handler = get_family.bind(deps)
-    capability = await handler(
+    view = await handler(
         GetFamily(family_id=uuid4()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    assert capability is None
+    assert view is None
 
 
 @pytest.mark.unit

@@ -52,13 +52,18 @@ ON CONFLICT (family_id) DO NOTHING
 
 _UPDATE_VERSIONED_SQL = """
 UPDATE proj_equipment_family_summary
-SET status = 'Versioned', version_tag = $2, updated_at = now()
+SET status = 'Versioned',
+    version_tag = $2,
+    versioned_at = $3,
+    updated_at = now()
 WHERE family_id = $1
 """
 
 _UPDATE_DEPRECATED_SQL = """
 UPDATE proj_equipment_family_summary
-SET status = 'Deprecated', updated_at = now()
+SET status = 'Deprecated',
+    deprecated_at = $2,
+    updated_at = now()
 WHERE family_id = $1
 """
 
@@ -119,11 +124,13 @@ class FamilySummaryProjection:
                     _UPDATE_VERSIONED_SQL,
                     _id(event.payload),
                     event.payload["version_tag"],
+                    datetime.fromisoformat(event.payload["occurred_at"]),
                 )
             case "FamilyDeprecated" | "CapabilityDeprecated":
                 await conn.execute(
                     _UPDATE_DEPRECATED_SQL,
                     _id(event.payload),
+                    datetime.fromisoformat(event.payload["occurred_at"]),
                 )
             case "FamilySettingsSchemaUpdated" | "CapabilitySettingsSchemaUpdated":
                 await conn.execute(

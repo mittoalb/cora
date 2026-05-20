@@ -10,11 +10,12 @@ Module-as-namespace surface, symmetric with command slices:
 """
 
 from cora.equipment.features.get_family import tool
-from cora.equipment.features.get_family.handler import Handler, bind
+from cora.equipment.features.get_family.handler import FamilyView, Handler, bind
 from cora.equipment.features.get_family.query import GetFamily
 from cora.equipment.features.get_family.route import router
 
 __all__ = [
+    "FamilyView",
     "GetFamily",
     "Handler",
     "bind",

@@ -9,6 +9,7 @@ they have to interpret).
 """
 
 from collections.abc import Callable
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -24,13 +25,26 @@ from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class FamilyOutput(BaseModel):
-    """Structured output of the `get_family` MCP tool."""
+    """Structured output of the `get_family` MCP tool.
+
+    `created_at` / `versioned_at` / `deprecated_at` mirror the REST
+    `FamilyResponse` (Path C, audit-2026-05-20 Iter B-3): sourced
+    from the `proj_equipment_family_summary` projection. Null
+    semantics: read together with `status` — a populated `status`
+    with a null timestamp means the projection has not yet folded
+    that lifecycle event, never a missing transition. A not-found
+    Family raises (MCP `isError: true`) rather than returning null
+    timestamps.
+    """
 
     id: UUID
     name: str = Field(..., max_length=FAMILY_NAME_MAX_LENGTH)
     status: str
     version: str | None
     affordances: list[Affordance]
+    created_at: datetime | None = None
+    versioned_at: datetime | None = None
+    deprecated_at: datetime | None = None
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -47,19 +61,24 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ],
     ) -> FamilyOutput:
         handler = get_handler()
-        family = await handler(
+        view = await handler(
             GetFamily(family_id=family_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )
-        if family is None:
+        if view is None:
             msg = f"Family {family_id} not found"
             raise ValueError(msg)
+        family = view.family
+        timestamps = view.timestamps
         return FamilyOutput(
             id=family.id,
             name=family.name.value,
             status=family.status.value,
             version=family.version,
             affordances=sorted(family.affordances, key=lambda a: a.value),
+            created_at=timestamps.created_at if timestamps is not None else None,
+            versioned_at=timestamps.versioned_at if timestamps is not None else None,
+            deprecated_at=timestamps.deprecated_at if timestamps is not None else None,
         )
