@@ -102,6 +102,7 @@ from cora.equipment import (
     wire_equipment,
 )
 from cora.infrastructure.auth.bearer_middleware import BearerAuthMiddleware
+from cora.infrastructure.auth.exception_handlers import register_auth_exception_handlers
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import build_kernel
 from cora.infrastructure.idempotency_pruner import idempotency_pruner_lifespan
@@ -530,6 +531,11 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
     # after a 401 + WWW-Authenticate response to learn which IdPs issue
     # tokens for which Surface.
     register_protected_resource_metadata_route(fastapi_app)
+    # Phase C Iter C-4: install handlers that convert the bearer-auth
+    # typed errors raised by BearerAuthMiddleware / TokenVerifier into
+    # RFC 6750 401 (with WWW-Authenticate challenge) and RFC 7231 503
+    # (with Retry-After).
+    register_auth_exception_handlers(fastapi_app)
     fastapi_app.mount("/mcp", mcp_app)
 
     @fastapi_app.get("/health")
