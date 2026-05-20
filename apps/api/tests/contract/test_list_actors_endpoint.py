@@ -104,3 +104,12 @@ def test_get_actors_accepts_traceparent_header_without_error(
             headers={"traceparent": "00-12345678901234567890123456789012-1234567890123456-01"},
         )
     assert response.status_code == 200
+
+
+# list_actors round-trip (register kind=service_account -> list returns
+# kind="service_account") is exercised at the integration tier:
+# tests/integration/test_list_actors_handler_postgres.py::
+# test_register_service_account_actor_appears_in_list_with_kind.
+# The contract tier can't pin this because list_actors short-circuits
+# to "no pool" when running against the in-memory test kernel
+# (list_actors reads from a real PG projection, not the event store).

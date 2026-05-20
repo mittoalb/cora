@@ -288,15 +288,18 @@ async def test_register_actor_default_kind_is_human() -> None:
 @pytest.mark.unit
 async def test_register_actor_rejects_kind_agent_at_decider() -> None:
     """Defense-in-depth: even if a caller bypasses the route's
-    closed-set validation, the decider raises. Agent-kind Actors come
-    from the cross-BC atomic write in define_agent only."""
-    from cora.access.aggregates.actor import ActorKind
+    closed-set validation, the decider raises `InvalidActorKindError`
+    (subclass of ValueError) so the route-layer exception handler maps
+    it to 400 via the existing `Invalid*Error` convention (gate-review
+    security #3 + impl #2). Agent-kind Actors come from the cross-BC
+    atomic write in define_agent only."""
+    from cora.access.aggregates.actor import ActorKind, InvalidActorKindError
 
     store = InMemoryEventStore()
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handlers = wire_access(deps)
 
-    with pytest.raises(ValueError, match=r"agent-kind Actors come from"):
+    with pytest.raises(InvalidActorKindError, match=r"kind='agent'"):
         await handlers.register_actor(
             RegisterActor(name="ghost-agent", kind=ActorKind.AGENT),
             principal_id=_PRINCIPAL_ID,

@@ -109,6 +109,7 @@ def bind(deps: Kernel) -> Handler:
         _log.info(
             "register_actor.start",
             command_name=_COMMAND_NAME,
+            actor_kind=command.kind.value,
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             causation_id=str(causation_id) if causation_id is not None else None,
@@ -171,6 +172,7 @@ def bind(deps: Kernel) -> Handler:
             "register_actor.success",
             command_name=_COMMAND_NAME,
             actor_id=str(new_id),
+            actor_kind=command.kind.value,
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             causation_id=str(causation_id) if causation_id is not None else None,

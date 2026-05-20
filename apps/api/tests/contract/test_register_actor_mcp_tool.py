@@ -133,3 +133,32 @@ def test_mcp_register_actor_tool_rejects_missing_argument() -> None:
     assert response.status_code == 200
     body = parse_sse_data(response.text)
     assert body["result"]["isError"] is True
+
+
+@pytest.mark.contract
+def test_mcp_register_actor_tool_accepts_service_account_kind() -> None:
+    """BLOCKING gate-review (test#7): the new `kind` kwarg on the MCP
+    tool was shipped without a single test exercising kind=service_account.
+    Asymmetric vs REST coverage. Pin: tool call with kind='service_account'
+    returns structured actor_id, not isError."""
+    with TestClient(create_app()) as client:
+        session_headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 99,
+                "method": "tools/call",
+                "params": {
+                    "name": "register_actor",
+                    "arguments": {"name": "ci-bridge", "kind": "service_account"},
+                },
+            },
+            headers=session_headers,
+        )
+    assert response.status_code == 200
+    body = parse_sse_data(response.text)
+    assert body["result"].get("isError") is not True, body
+    structured = body["result"].get("structuredContent")
+    assert structured is not None
+    UUID(structured["actor_id"])  # parses

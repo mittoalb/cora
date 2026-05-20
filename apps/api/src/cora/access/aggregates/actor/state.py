@@ -70,6 +70,24 @@ class InvalidActorNameError(ValueError):
         self.value = value
 
 
+class InvalidActorKindError(ValueError):
+    """The supplied kind is not permitted for this registration path.
+
+    Raised by the `register_actor` decider when kind=AGENT is passed.
+    Agent-kind Actors come exclusively from the cross-BC atomic write
+    in `define_agent` per [[project_agent_bc_design]] P0-4.
+
+    Maps to HTTP 400 via the route-layer exception handler's
+    `Invalid*Error`-class convention. The message is redacted (no
+    internal-architecture detail leak) so 500-fallback-to-default-FastAPI
+    body would not expose the P0-4 lock rationale to non-HTTP callers.
+    """
+
+    def __init__(self, kind: str) -> None:
+        super().__init__(f"register_actor cannot mint kind={kind!r} Actors via this route.")
+        self.kind = kind
+
+
 class ActorAlreadyExistsError(Exception):
     """Attempted to register an actor whose stream already has events."""
 

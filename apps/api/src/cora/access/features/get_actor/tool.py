@@ -27,7 +27,7 @@ class ActorOutput(BaseModel):
 
     id: UUID
     name: str = Field(..., max_length=ACTOR_NAME_MAX_LENGTH)
-    kind: Literal["human", "agent"]
+    kind: Literal["human", "agent", "service_account"]
     is_active: bool
 
 
@@ -57,6 +57,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         return ActorOutput(
             id=actor.id,
             name=actor.name.value,
-            kind=actor.kind.value,  # type: ignore[arg-type]  # ActorKind StrEnum
+            kind=actor.kind.value,
             is_active=actor.is_active,
         )

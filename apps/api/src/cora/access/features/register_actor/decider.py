@@ -21,6 +21,7 @@ from cora.access.aggregates.actor import (
     ActorKind,
     ActorName,
     ActorRegistered,
+    InvalidActorKindError,
 )
 from cora.access.features.register_actor.command import RegisterActor
 
@@ -45,13 +46,12 @@ def decide(
     if state is not None:
         raise ActorAlreadyExistsError(state.id)
     if command.kind == ActorKind.AGENT:
-        msg = (
-            "register_actor cannot mint kind=agent Actors; agent-kind "
-            "Actors come from the cross-BC atomic write in define_agent "
-            "per project_agent_bc_design P0-4 (the Agent.id == Actor.id "
-            "lock requires the joint write)."
-        )
-        raise ValueError(msg)
+        # Typed error → 400 via the route layer's `Invalid*Error`
+        # convention (gate-review security #3 + impl #2). The message
+        # carried by InvalidActorKindError is redacted so any non-HTTP
+        # caller that bypasses the route's Literal-schema guard sees a
+        # clean 400, not a 500 with internal P0-4 lock detail leaked.
+        raise InvalidActorKindError("agent")
     name = ActorName(command.name)  # validates + trims; raises InvalidActorNameError
     return [
         ActorRegistered(

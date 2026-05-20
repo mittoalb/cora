@@ -23,6 +23,7 @@ from cora.access.aggregates.actor.state import (
     ActorKind,
     ActorName,
     ActorNotFoundError,
+    InvalidActorKindError,
     InvalidActorNameError,
 )
 
@@ -37,6 +38,7 @@ __all__ = [
     "ActorName",
     "ActorNotFoundError",
     "ActorRegistered",
+    "InvalidActorKindError",
     "InvalidActorNameError",
     "event_type_name",
     "evolve",

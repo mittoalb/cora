@@ -40,7 +40,7 @@ class ActorResponse(BaseModel):
 
     id: UUID
     name: str = Field(..., max_length=ACTOR_NAME_MAX_LENGTH)
-    kind: Literal["human", "agent"]
+    kind: Literal["human", "agent", "service_account"]
     is_active: bool
 
 
@@ -88,6 +88,6 @@ async def get_actors(
     return ActorResponse(
         id=actor.id,
         name=actor.name.value,
-        kind=actor.kind.value,  # type: ignore[arg-type]  # ActorKind StrEnum guarantees literal
+        kind=actor.kind.value,
         is_active=actor.is_active,
     )

@@ -252,3 +252,43 @@ async def test_limit_exactly_matches_total_returns_no_cursor(
     )
     assert len(page.items) == 3
     assert page.next_cursor is None
+
+
+@pytest.mark.integration
+async def test_register_service_account_actor_appears_in_list_with_kind(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Iter B-2 gate-review test#1 + test#2: end-to-end pin that
+    register_actor(kind=service_account) lands a row in the projection
+    AND list_actors returns kind='service_account' in the response.
+
+    Without this test, the CHECK widening (migration 20260519233000)
+    AND the list_actors DTO Literal widening were both unverified
+    against real Postgres. A typo in either would silently break in
+    prod."""
+    from cora.access.aggregates.actor import ActorKind
+
+    actor_id = uuid4()
+    event_id = uuid4()
+    deps = _build_deps(db_pool, [actor_id, event_id])
+    register = bind_register(deps)
+
+    await register(
+        RegisterActor(name="ci-bridge", kind=ActorKind.SERVICE_ACCOUNT),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    registry = ProjectionRegistry()
+    register_access_projections(registry)
+    await drain_projections(db_pool, registry, deadline_seconds=2.0)
+
+    handler = bind_list(deps)
+    page = await handler(
+        ListActors(),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert len(page.items) == 1
+    assert page.items[0].kind == "service_account"
+    assert page.items[0].actor_id == actor_id

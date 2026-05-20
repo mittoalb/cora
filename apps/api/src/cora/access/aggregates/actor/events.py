@@ -124,7 +124,7 @@ def from_stored(stored: StoredEvent) -> ActorEvent:
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     kind=ActorKind(payload.get("kind", ActorKind.HUMAN.value)),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
+            except (KeyError, TypeError, AttributeError, ValueError) as exc:
                 msg = f"Malformed ActorRegistered payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
         case "ActorDeactivated":
@@ -133,7 +133,7 @@ def from_stored(stored: StoredEvent) -> ActorEvent:
                     actor_id=UUID(payload["actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
+            except (KeyError, TypeError, AttributeError, ValueError) as exc:
                 msg = f"Malformed ActorDeactivated payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
         case _:

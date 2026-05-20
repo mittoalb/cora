@@ -56,3 +56,28 @@ def test_get_actor_returns_422_for_malformed_actor_id() -> None:
     with TestClient(create_app()) as client:
         response = client.get("/actors/not-a-uuid")
     assert response.status_code == 422
+
+
+# ---------- Iter B-2 fix: service_account kind round-trip ----------
+
+
+@pytest.mark.contract
+def test_get_actor_returns_service_account_kind_end_to_end() -> None:
+    """BLOCKING gate-review (design#1 + impl#1 + test#2): a
+    service-account Actor registered via POST /actors must be
+    successfully fetched via GET /actors/{id}. Pre-fix, the get_actor
+    route DTO declared kind: Literal['human', 'agent'] only — a
+    service_account row would fail Pydantic response validation -> 500."""
+    from uuid import UUID as _UUID
+
+    with TestClient(create_app()) as client:
+        post = client.post("/actors", json={"name": "ci-bridge", "kind": "service_account"})
+        assert post.status_code == 201
+        actor_id = post.json()["actor_id"]
+        _UUID(actor_id)  # parses
+
+        got = client.get(f"/actors/{actor_id}")
+        assert got.status_code == 200, got.text
+        body = got.json()
+        assert body["kind"] == "service_account"
+        assert body["name"] == "ci-bridge"

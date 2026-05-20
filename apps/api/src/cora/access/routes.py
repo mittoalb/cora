@@ -33,6 +33,7 @@ from cora.access.aggregates.actor import (
     ActorAlreadyDeactivatedError,
     ActorAlreadyExistsError,
     ActorNotFoundError,
+    InvalidActorKindError,
     InvalidActorNameError,
 )
 from cora.access.errors import UnauthorizedError
@@ -181,7 +182,7 @@ def register_access_routes(app: FastAPI) -> None:
     app.include_router(deactivate_actor.router)
     app.include_router(get_actor.router)
     app.include_router(list_actors.router)
-    for validation_cls in (InvalidActorNameError,):
+    for validation_cls in (InvalidActorNameError, InvalidActorKindError):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (ActorNotFoundError,):
         app.add_exception_handler(not_found_cls, _handle_not_found)
