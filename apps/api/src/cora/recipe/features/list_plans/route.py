@@ -122,7 +122,7 @@ async def list_plans(
                 name=item.name,
                 practice_id=item.practice_id,
                 method_id=item.method_id,
-                status=item.status,  # type: ignore[arg-type]
+                status=item.status,
                 version_tag=item.version_tag,
                 created_at=item.created_at,
                 default_parameters_present=item.default_parameters_present,

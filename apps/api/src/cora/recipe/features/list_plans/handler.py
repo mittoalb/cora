@@ -17,14 +17,14 @@ BOLA: command-name gating only. Per-row scoping deferred until ReBAC
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.recipe.errors import UnauthorizedError
-from cora.recipe.features.list_plans.query import ListPlans
+from cora.recipe.features.list_plans.query import ListPlans, PlanStatusFilter
 
 
 @dataclass(frozen=True)
@@ -43,7 +43,7 @@ class PlanSummaryItem:
     name: str
     practice_id: UUID
     method_id: UUID
-    status: str
+    status: PlanStatusFilter
     version_tag: str | None
     created_at: datetime
     default_parameters_present: bool
@@ -82,7 +82,7 @@ def _row_to_item(row: Any) -> PlanSummaryItem:
         name=str(row["name"]),
         practice_id=row["practice_id"],
         method_id=row["method_id"],
-        status=str(row["status"]),
+        status=cast("PlanStatusFilter", str(row["status"])),
         version_tag=str(row["version_tag"]) if row["version_tag"] is not None else None,
         created_at=row["created_at"],
         default_parameters_present=bool(row["default_parameters_present"]),

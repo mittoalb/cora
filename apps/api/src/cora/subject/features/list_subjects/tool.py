@@ -68,7 +68,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 SubjectSummaryRow(
                     subject_id=item.subject_id,
                     name=item.name,
-                    status=item.status,  # type: ignore[arg-type]
+                    status=item.status,
                     created_at=item.created_at,
                 )
                 for item in page.items

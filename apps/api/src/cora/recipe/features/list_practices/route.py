@@ -114,7 +114,7 @@ async def list_practices(
                 name=item.name,
                 method_id=item.method_id,
                 site_id=item.site_id,
-                status=item.status,  # type: ignore[arg-type]
+                status=item.status,
                 version_tag=item.version_tag,
                 created_at=item.created_at,
             )

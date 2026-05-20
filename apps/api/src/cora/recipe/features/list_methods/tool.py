@@ -80,7 +80,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 MethodSummaryRow(
                     method_id=item.method_id,
                     name=item.name,
-                    status=item.status,  # type: ignore[arg-type]
+                    status=item.status,
                     version_tag=item.version_tag,
                     created_at=item.created_at,
                     parameters_schema_present=item.parameters_schema_present,

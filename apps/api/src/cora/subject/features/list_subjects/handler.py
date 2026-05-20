@@ -13,14 +13,14 @@ BOLA: command-name gating only. Per-row scoping deferred until ReBAC
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.subject.errors import UnauthorizedError
-from cora.subject.features.list_subjects.query import ListSubjects
+from cora.subject.features.list_subjects.query import ListSubjects, SubjectStatusFilter
 
 
 @dataclass(frozen=True)
@@ -29,7 +29,7 @@ class SubjectSummaryItem:
 
     subject_id: UUID
     name: str
-    status: str
+    status: SubjectStatusFilter
     created_at: datetime
 
 
@@ -61,7 +61,7 @@ def _row_to_item(row: Any) -> SubjectSummaryItem:
     return SubjectSummaryItem(
         subject_id=row["subject_id"],
         name=str(row["name"]),
-        status=str(row["status"]),
+        status=cast("SubjectStatusFilter", str(row["status"])),
         created_at=row["created_at"],
     )
 

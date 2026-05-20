@@ -107,7 +107,7 @@ async def list_families(
             FamilySummaryDTO(
                 family_id=item.family_id,
                 name=item.name,
-                status=item.status,  # type: ignore[arg-type]
+                status=item.status,
                 version_tag=item.version_tag,
                 created_at=item.created_at,
             )

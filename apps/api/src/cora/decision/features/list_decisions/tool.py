@@ -89,7 +89,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                     decision_rule=item.decision_rule,
                     parent_id=item.parent_id,
                     confidence=item.confidence,
-                    confidence_band=item.confidence_band,  # type: ignore[arg-type]
+                    confidence_band=item.confidence_band,
                     created_at=item.created_at,
                 )
                 for item in page.items

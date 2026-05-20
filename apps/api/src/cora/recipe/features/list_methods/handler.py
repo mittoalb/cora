@@ -16,14 +16,14 @@ BOLA: command-name gating only. Per-row scoping deferred until ReBAC
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.recipe.errors import UnauthorizedError
-from cora.recipe.features.list_methods.query import ListMethods
+from cora.recipe.features.list_methods.query import ListMethods, MethodStatusFilter
 
 
 @dataclass(frozen=True)
@@ -40,7 +40,7 @@ class MethodSummaryItem:
 
     method_id: UUID
     name: str
-    status: str
+    status: MethodStatusFilter
     version_tag: str | None
     created_at: datetime
     parameters_schema_present: bool
@@ -74,7 +74,7 @@ def _row_to_item(row: Any) -> MethodSummaryItem:
     return MethodSummaryItem(
         method_id=row["method_id"],
         name=str(row["name"]),
-        status=str(row["status"]),
+        status=cast("MethodStatusFilter", str(row["status"])),
         version_tag=str(row["version_tag"]) if row["version_tag"] is not None else None,
         created_at=row["created_at"],
         parameters_schema_present=bool(row["parameters_schema_present"]),

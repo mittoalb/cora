@@ -108,7 +108,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                     plan_id=item.plan_id,
                     subject_id=item.subject_id,
                     raid=item.raid,
-                    status=item.status,  # type: ignore[arg-type]
+                    status=item.status,
                     created_at=item.created_at,
                     override_parameters_present=item.override_parameters_present,
                     campaign_id=item.campaign_id,

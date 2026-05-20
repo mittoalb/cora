@@ -20,14 +20,14 @@ BOLA: command-name gating only. Per-row scoping deferred until ReBAC
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.run.errors import UnauthorizedError
-from cora.run.features.list_runs.query import ListRuns
+from cora.run.features.list_runs.query import ListRuns, RunStatusFilter
 
 
 @dataclass(frozen=True)
@@ -54,7 +54,7 @@ class RunSummaryItem:
     plan_id: UUID
     subject_id: UUID | None
     raid: str | None
-    status: str
+    status: RunStatusFilter
     created_at: datetime
     override_parameters_present: bool
     campaign_id: UUID | None
@@ -94,7 +94,7 @@ def _row_to_item(row: Any) -> RunSummaryItem:
         plan_id=row["plan_id"],
         subject_id=row["subject_id"],
         raid=str(row["raid"]) if row["raid"] is not None else None,
-        status=str(row["status"]),
+        status=cast("RunStatusFilter", str(row["status"])),
         created_at=row["created_at"],
         override_parameters_present=bool(row["override_parameters_present"]),
         campaign_id=row["campaign_id"],

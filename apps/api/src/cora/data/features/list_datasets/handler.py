@@ -16,11 +16,11 @@ BOLA: command-name gating only. Per-row scoping deferred until ReBAC.
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from uuid import UUID
 
 from cora.data.errors import UnauthorizedError
-from cora.data.features.list_datasets.query import ListDatasets
+from cora.data.features.list_datasets.query import DatasetStatusFilter, ListDatasets
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
 from cora.infrastructure.routing import NIL_SENTINEL_ID
@@ -35,7 +35,7 @@ class DatasetSummaryItem:
     uri: str
     producing_run_id: UUID | None
     subject_id: UUID | None
-    status: str
+    status: DatasetStatusFilter
     created_at: datetime
 
 
@@ -70,7 +70,7 @@ def _row_to_item(row: Any) -> DatasetSummaryItem:
         uri=str(row["uri"]),
         producing_run_id=row["producing_run_id"],
         subject_id=row["subject_id"],
-        status=str(row["status"]),
+        status=cast("DatasetStatusFilter", str(row["status"])),
         created_at=row["created_at"],
     )
 

@@ -101,7 +101,7 @@ async def list_subjects(
             SubjectSummaryDTO(
                 subject_id=item.subject_id,
                 name=item.name,
-                status=item.status,  # type: ignore[arg-type]  # CHECK constraint guarantees enum membership
+                status=item.status,
                 created_at=item.created_at,
             )
             for item in page.items

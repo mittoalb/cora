@@ -92,7 +92,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                     uri=item.uri,
                     producing_run_id=item.producing_run_id,
                     subject_id=item.subject_id,
-                    status=item.status,  # type: ignore[arg-type]
+                    status=item.status,
                     created_at=item.created_at,
                 )
                 for item in page.items

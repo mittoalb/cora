@@ -16,11 +16,11 @@ BOLA: command-name gating only. Per-row scoping deferred until ReBAC.
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from uuid import UUID
 
 from cora.decision.errors import UnauthorizedError
-from cora.decision.features.list_decisions.query import ListDecisions
+from cora.decision.features.list_decisions.query import ConfidenceBandFilter, ListDecisions
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
 from cora.infrastructure.routing import NIL_SENTINEL_ID
@@ -35,7 +35,7 @@ class DecisionSummaryItem:
     decision_rule: str | None
     parent_id: UUID | None
     confidence: float | None
-    confidence_band: str | None
+    confidence_band: ConfidenceBandFilter | None
     created_at: datetime
 
 
@@ -73,7 +73,9 @@ def _row_to_item(row: Any) -> DecisionSummaryItem:
         parent_id=row["parent_id"],
         confidence=row["confidence"],
         confidence_band=(
-            str(row["confidence_band"]) if row["confidence_band"] is not None else None
+            cast("ConfidenceBandFilter", str(row["confidence_band"]))
+            if row["confidence_band"] is not None
+            else None
         ),
         created_at=row["created_at"],
     )

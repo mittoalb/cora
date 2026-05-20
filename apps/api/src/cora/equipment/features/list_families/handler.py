@@ -16,11 +16,11 @@ BOLA: command-name gating only. Per-row scoping deferred until ReBAC
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from uuid import UUID
 
 from cora.equipment.errors import UnauthorizedError
-from cora.equipment.features.list_families.query import ListFamilies
+from cora.equipment.features.list_families.query import FamilyStatusFilter, ListFamilies
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
 from cora.infrastructure.routing import NIL_SENTINEL_ID
@@ -32,7 +32,7 @@ class FamilySummaryItem:
 
     family_id: UUID
     name: str
-    status: str
+    status: FamilyStatusFilter
     version_tag: str | None
     created_at: datetime
 
@@ -65,7 +65,7 @@ def _row_to_item(row: Any) -> FamilySummaryItem:
     return FamilySummaryItem(
         family_id=row["family_id"],
         name=str(row["name"]),
-        status=str(row["status"]),
+        status=cast("FamilyStatusFilter", str(row["status"])),
         version_tag=str(row["version_tag"]) if row["version_tag"] is not None else None,
         created_at=row["created_at"],
     )

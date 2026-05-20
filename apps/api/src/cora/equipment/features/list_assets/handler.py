@@ -13,11 +13,15 @@ BOLA: command-name gating only. Per-row scoping deferred until ReBAC
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from uuid import UUID
 
 from cora.equipment.errors import UnauthorizedError
-from cora.equipment.features.list_assets.query import ListAssets
+from cora.equipment.features.list_assets.query import (
+    AssetLevelFilter,
+    AssetLifecycleFilter,
+    ListAssets,
+)
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
 from cora.infrastructure.routing import NIL_SENTINEL_ID
@@ -29,8 +33,8 @@ class AssetSummaryItem:
 
     asset_id: UUID
     name: str
-    level: str
-    lifecycle: str
+    level: AssetLevelFilter
+    lifecycle: AssetLifecycleFilter
     parent_id: UUID | None
     created_at: datetime
 
@@ -63,8 +67,8 @@ def _row_to_item(row: Any) -> AssetSummaryItem:
     return AssetSummaryItem(
         asset_id=row["asset_id"],
         name=str(row["name"]),
-        level=str(row["level"]),
-        lifecycle=str(row["lifecycle"]),
+        level=cast("AssetLevelFilter", str(row["level"])),
+        lifecycle=cast("AssetLifecycleFilter", str(row["lifecycle"])),
         parent_id=row["parent_id"],
         created_at=row["created_at"],
     )

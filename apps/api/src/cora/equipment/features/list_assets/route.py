@@ -114,8 +114,8 @@ async def list_assets(
             AssetSummaryDTO(
                 asset_id=item.asset_id,
                 name=item.name,
-                level=item.level,  # type: ignore[arg-type]
-                lifecycle=item.lifecycle,  # type: ignore[arg-type]
+                level=item.level,
+                lifecycle=item.lifecycle,
                 parent_id=item.parent_id,
                 created_at=item.created_at,
             )

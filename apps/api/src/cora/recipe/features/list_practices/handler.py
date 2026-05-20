@@ -17,14 +17,14 @@ BOLA: command-name gating only. Per-row scoping deferred until ReBAC
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.list_query import ScalarFilter, make_list_query_handler
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.recipe.errors import UnauthorizedError
-from cora.recipe.features.list_practices.query import ListPractices
+from cora.recipe.features.list_practices.query import ListPractices, PracticeStatusFilter
 
 
 @dataclass(frozen=True)
@@ -35,7 +35,7 @@ class PracticeSummaryItem:
     name: str
     method_id: UUID
     site_id: UUID
-    status: str
+    status: PracticeStatusFilter
     version_tag: str | None
     created_at: datetime
 
@@ -70,7 +70,7 @@ def _row_to_item(row: Any) -> PracticeSummaryItem:
         name=str(row["name"]),
         method_id=row["method_id"],
         site_id=row["site_id"],
-        status=str(row["status"]),
+        status=cast("PracticeStatusFilter", str(row["status"])),
         version_tag=str(row["version_tag"]) if row["version_tag"] is not None else None,
         created_at=row["created_at"],
     )
