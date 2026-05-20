@@ -24,11 +24,13 @@ graph + AST can prove WITHOUT running the test suite:
 
   4. Skip-path parity: the paths the contract tests assert as
      unauthenticated (/health, /metrics,
-     /.well-known/oauth-protected-resource, /mcp/*) match the
-     centralized `_UNAUTHENTICATED_PATHS` + `_is_unauthenticated_path`
-     in `bearer_middleware.py`. A future "add /readiness skip"
-     that updates only the test side without touching the
-     middleware (or vice versa) fails this fitness.
+     /.well-known/oauth-protected-resource) match the centralized
+     `_UNAUTHENTICATED_PATHS` + `_is_unauthenticated_path` in
+     `bearer_middleware.py`. A future "add /readiness skip" that
+     updates only the test side without touching the middleware
+     (or vice versa) fails this fitness. Phase 8f-d removed `/mcp/*`
+     from the skip set — MCP routes are now verified with audience-
+     per-Surface dispatch; positive probes pin the inversion.
 
 Gate-review trail: test-axis reviewer's 4 recommended fitness
 tests; see Iter D close-out memo for the discussion that led to
@@ -279,11 +281,11 @@ _EXPECTED_UNAUTHENTICATED_PATHS: frozenset[str] = frozenset(
         "/.well-known/oauth-protected-resource",
     }
 )
-_EXPECTED_UNAUTHENTICATED_PREFIXES: frozenset[str] = frozenset(
-    {
-        "/mcp/",
-    }
-)
+_EXPECTED_UNAUTHENTICATED_PREFIXES: frozenset[str] = frozenset()
+"""Phase 8f-d removed `/mcp/` from the skip prefix set. MCP routes
+are now verified with audience-per-Surface dispatch; the set is
+empty today but stays as a typed frozenset so future skip-prefixes
+can land here without changing the test shape."""
 
 
 @pytest.mark.architecture
@@ -323,10 +325,18 @@ def test_bearer_middleware_skip_paths_match_canonical_set() -> None:
             "drifted from the expected set."
         )
 
-    # Negative: confirm /mcp (exact, no trailing slash) IS skipped per
-    # Iter C-6 deferral.
-    assert _is_unauthenticated_path("/mcp"), (
-        "/mcp (exact, no trailing slash) must be skipped per Iter C-6."
+    # Positive verification probes (Phase 8f-d): MCP paths are NOT
+    # skipped any more. They get bearer-verified with the MCP Surface
+    # audience.
+    assert not _is_unauthenticated_path("/mcp"), (
+        "/mcp must be bearer-verified post Phase 8f-d (not skipped). "
+        "If a regression brings the skip back, MCP write tools silently "
+        "bypass token verification."
+    )
+    assert not _is_unauthenticated_path("/mcp/anything"), (
+        "/mcp/anything must be bearer-verified post Phase 8f-d (not skipped). "
+        "If a regression brings the prefix skip back, every MCP JSON-RPC "
+        "call goes through unauthenticated."
     )
 
     # Negative: an unrelated /.well-known/ MUST NOT be skipped just
@@ -336,11 +346,4 @@ def test_bearer_middleware_skip_paths_match_canonical_set() -> None:
         "specific RFC 9728 protected-resource-metadata path is unauthenticated. "
         "Over-skipping /.well-known/ in general would expose any future "
         "well-known endpoint."
-    )
-
-    # Negative: a /mcp-prefix-fake path MUST NOT be skipped.
-    assert not _is_unauthenticated_path("/mcp-fake/admin"), (
-        "/mcp-fake/admin must NOT be skipped; the /mcp prefix check is "
-        "for the MCP mount, not arbitrary paths starting with `/mcp`. The "
-        "startswith check requires `/mcp/` (trailing slash) to avoid this."
     )

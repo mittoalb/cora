@@ -33,7 +33,10 @@ from cora.infrastructure.ports import (
     TokenVerifier,
     VerifiedPrincipal,
 )
-from cora.infrastructure.routing import SYSTEM_HTTP_SURFACE_ID
+from cora.infrastructure.routing import (
+    SYSTEM_HTTP_SURFACE_ID,
+    SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID,
+)
 
 _ISSUER = "https://idp.example.com"
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000a01")
@@ -135,14 +138,17 @@ def _client(*, verifier: TokenVerifier | None) -> TestClient:
         "/health",
         "/metrics",
         "/.well-known/oauth-protected-resource",
-        "/mcp/anything",
     ],
 )
 def test_unauthenticated_paths_skip_verification_even_with_bearer(path: str) -> None:
     """The middleware's skip-list MUST short-circuit before calling
     the verifier, even if the request carries a Bearer header. This
     prevents the verifier from being called against probes (health /
-    metrics) and the unauthenticated OAuth discovery endpoint."""
+    metrics) and the unauthenticated OAuth discovery endpoint.
+
+    Phase 8f-d dropped `/mcp/*` from this list; MCP verification is
+    covered by the audience-dispatch tests below.
+    """
     verifier = _FakeTokenVerifier(verify_call=_always_invalid)
     client = _client(verifier=verifier)
 
@@ -153,11 +159,35 @@ def test_unauthenticated_paths_skip_verification_even_with_bearer(path: str) -> 
     assert verifier.last_call is None
 
 
+# ---------- MCP path audience dispatch (Phase 8f-d) ----------
+
+
 @pytest.mark.unit
-def test_mcp_root_path_is_also_skipped() -> None:
-    """`/mcp` (exact) and `/mcp/...` (prefix) both skip per Iter C-6
-    deferral. The exact match guards the bare mount root."""
-    verifier = _FakeTokenVerifier(verify_call=_always_invalid)
+def test_mcp_path_is_verified_with_mcp_surface_audience() -> None:
+    """`/mcp/anything` is no longer skipped (Phase 8f-d); the middleware
+    verifies the token against `SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID`,
+    NOT the HTTP Surface. AH5 (no shared `aud` across Surfaces): a
+    token issued for HTTP MUST NOT verify against the MCP Surface and
+    vice versa."""
+    verifier = _FakeTokenVerifier(verify_call=_always_succeed)
+    client = _client(verifier=verifier)
+
+    response = client.get(
+        "/mcp/anything",
+        headers={"Authorization": "Bearer good-token"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["principal_attached"] is True
+    assert verifier.last_call == ("good-token", SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID)
+
+
+@pytest.mark.unit
+def test_mcp_root_path_also_uses_mcp_surface_audience() -> None:
+    """`/mcp` (exact, no trailing slash) is the mount root; it MUST
+    also bind to the MCP Surface audience, not the HTTP one."""
+    verifier = _FakeTokenVerifier(verify_call=_always_succeed)
     app = Starlette(routes=[Route("/mcp", _echo_principal_handler)])
     app.add_middleware(BearerAuthMiddleware)
 
@@ -168,8 +198,53 @@ def test_mcp_root_path_is_also_skipped() -> None:
     app.state.deps = _StubKernel(token_verifier=verifier)
     client = TestClient(app)
 
-    response = client.get("/mcp", headers={"Authorization": "Bearer x"})
+    response = client.get("/mcp", headers={"Authorization": "Bearer good"})
+
     assert response.status_code == 200
+    assert verifier.last_call == ("good", SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID)
+
+
+@pytest.mark.unit
+def test_mcp_path_invalid_token_returns_401() -> None:
+    """A bad bearer on an MCP path returns the same 401 + RFC 6750
+    WWW-Authenticate challenge as a bad bearer on an HTTP path. The
+    response shape is symmetric across transports."""
+    verifier = _FakeTokenVerifier(verify_call=_always_invalid)
+    client = _client(verifier=verifier)
+
+    response = client.get(
+        "/mcp/anything",
+        headers={"Authorization": "Bearer bad"},
+    )
+
+    assert response.status_code == 401
+    assert 'error="bad_signature"' in response.headers.get("WWW-Authenticate", "")
+    assert verifier.last_call == ("bad", SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID)
+
+
+@pytest.mark.unit
+def test_mcp_prefix_fake_path_uses_http_surface_audience() -> None:
+    """`/mcp-fake/admin` and similar paths that share the `/mcp` prefix
+    but are NOT the MCP mount MUST bind to the HTTP Surface audience.
+    Only `/mcp` exact + `/mcp/` prefix route to the MCP Surface."""
+    verifier = _FakeTokenVerifier(verify_call=_always_succeed)
+    app = Starlette(routes=[Route("/mcp-fake/admin", _echo_principal_handler)])
+    app.add_middleware(BearerAuthMiddleware)
+
+    @dataclass
+    class _StubKernel:
+        token_verifier: TokenVerifier | None
+
+    app.state.deps = _StubKernel(token_verifier=verifier)
+    client = TestClient(app)
+
+    response = client.get(
+        "/mcp-fake/admin",
+        headers={"Authorization": "Bearer good"},
+    )
+
+    assert response.status_code == 200
+    assert verifier.last_call == ("good", SYSTEM_HTTP_SURFACE_ID)
 
 
 # ---------- No-verifier short-circuit ----------

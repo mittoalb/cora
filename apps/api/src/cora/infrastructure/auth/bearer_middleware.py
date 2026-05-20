@@ -48,26 +48,33 @@ If the project later adds a per-route marker, this list collapses to
 "check the marker on the matched route" without touching this file's
 shape.
 
-## MCP path skip
+## MCP path coverage (Phase 8f-d)
 
-`/mcp/...` is skipped here because FastMCP doesn't yet thread the
-`Authorization` header through to tools (MCP spec 2025-11-25 supports
-OAuth 2.1 but the python-sdk integration is still pending). Iter C-6
-documents the gap; until 8f-d wires MCP edge-auth, MCP tools continue
-to hardcode `SYSTEM_PRINCIPAL_ID` (mcp_gate.py refuses to register
-write tools under `require_authenticated_principal=True` so the gap
-is closed against accidental prod exposure).
+`/mcp/...` and `/mcp` (exact) are verified here just like REST routes.
+The middleware dispatches `expected_audience` per-path: MCP paths
+bind to `SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID`, other paths bind to
+`SYSTEM_HTTP_SURFACE_ID`. Tool handlers read the verified principal
+via `cora.api.mcp_principal.get_mcp_principal_id(ctx)`, which pulls
+`ctx.request_context.request.state.principal` — the same Starlette
+Request object this middleware stashed on.
+
+MCP_STDIO is NOT covered: stdio MCP servers inherit local OS identity
+per spec; bearer-token shape doesn't fit a subprocess transport.
 """
 
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from cora.infrastructure.logging import get_logger
-from cora.infrastructure.routing import SYSTEM_HTTP_SURFACE_ID
+from cora.infrastructure.routing import (
+    SYSTEM_HTTP_SURFACE_ID,
+    SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID,
+)
 
 if TYPE_CHECKING:
     from cora.infrastructure.ports import TokenVerifier
@@ -99,14 +106,28 @@ _UNAUTHENTICATED_PATHS: frozenset[str] = frozenset(
 def _is_unauthenticated_path(path: str) -> bool:
     """Return True if `path` MUST be skipped by the bearer middleware.
 
-    Exact-match for the three unauthenticated paths plus an
-    `/mcp/` prefix check (Iter C-6 deferral; see module docstring).
-    The prefix check is intentionally NOT applied to `/.well-known/`
-    in general — only the single RFC 9728 path is allowed through.
+    Exact-match against the three unauthenticated paths only. Phase
+    8f-d dropped the `/mcp/` prefix skip: MCP routes are now verified
+    with audience-per-Surface binding (see `_resolve_expected_audience`).
     """
-    if path in _UNAUTHENTICATED_PATHS:
-        return True
-    return path.startswith("/mcp/") or path == "/mcp"
+    return path in _UNAUTHENTICATED_PATHS
+
+
+def _resolve_expected_audience(path: str) -> UUID:
+    """Return the Surface UUID the bearer token's `aud` MUST match.
+
+    Per-path dispatch (Phase 8f-d Decision 2): MCP routes bind to the
+    `SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID` audience; everything else
+    binds to `SYSTEM_HTTP_SURFACE_ID`. A token issued for HTTP MUST
+    NOT verify against the MCP Surface and vice versa (AH5 from
+    Phase C: no shared `aud` across Surfaces).
+
+    MCP_STDIO is NOT routed here (stdio is a subprocess transport,
+    never reachable over HTTP).
+    """
+    if path == "/mcp" or path.startswith("/mcp/"):
+        return SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID
+    return SYSTEM_HTTP_SURFACE_ID
 
 
 class BearerAuthMiddleware(BaseHTTPMiddleware):
@@ -172,11 +193,12 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
             InvalidTokenError,
         )
 
+        expected_audience = _resolve_expected_audience(request.url.path)
         try:
             token = _extract_bearer_token(authorization)
             principal = await verifier.verify(
                 token,
-                expected_audience=SYSTEM_HTTP_SURFACE_ID,
+                expected_audience=expected_audience,
             )
         except InvalidTokenError as exc:
             return await handle_invalid_token(request, exc)
