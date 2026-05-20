@@ -110,8 +110,10 @@ async def test_method_versioned_updates_status_and_version_tag() -> None:
     assert "UPDATE proj_recipe_method_summary" in sql
     assert "SET status = 'Versioned'" in sql
     assert "version_tag = $2" in sql
+    assert "versioned_at = $3" in sql
     assert args.args[1] == _METHOD_ID
     assert args.args[2] == "v2.1.0"
+    assert args.args[3] == _NOW
 
 
 @pytest.mark.unit
@@ -131,7 +133,9 @@ async def test_method_deprecated_updates_status_and_preserves_version_tag() -> N
     assert "UPDATE proj_recipe_method_summary" in sql
     assert "SET status = 'Deprecated'" in sql
     assert "version_tag" not in sql
+    assert "deprecated_at = $2" in sql
     assert args.args[1] == _METHOD_ID
+    assert args.args[2] == _NOW
 
 
 @pytest.mark.unit

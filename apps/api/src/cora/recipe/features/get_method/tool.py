@@ -9,6 +9,7 @@ interpret).
 """
 
 from collections.abc import Callable
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -24,7 +25,13 @@ from cora.recipe.features.get_method.query import GetMethod
 
 
 class MethodOutput(BaseModel):
-    """Structured output of the `get_method` MCP tool."""
+    """Structured output of the `get_method` MCP tool.
+
+    `created_at` / `versioned_at` / `deprecated_at` mirror the REST
+    `MethodResponse` (Path C, audit-2026-05-20): sourced from the
+    `proj_recipe_method_summary` projection; null until the
+    corresponding lifecycle transition has folded.
+    """
 
     id: UUID
     name: str = Field(..., max_length=METHOD_NAME_MAX_LENGTH)
@@ -32,6 +39,9 @@ class MethodOutput(BaseModel):
     needed_supplies: list[str]
     status: str
     version: str | None
+    created_at: datetime | None = None
+    versioned_at: datetime | None = None
+    deprecated_at: datetime | None = None
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -48,15 +58,17 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ],
     ) -> MethodOutput:
         handler = get_handler()
-        method = await handler(
+        view = await handler(
             GetMethod(method_id=method_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )
-        if method is None:
+        if view is None:
             msg = f"Method {method_id} not found"
             raise ValueError(msg)
+        method = view.method
+        timestamps = view.timestamps
         return MethodOutput(
             id=method.id,
             name=method.name.value,
@@ -64,4 +76,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             needed_supplies=sorted(method.needed_supplies),
             status=method.status.value,
             version=method.version,
+            created_at=timestamps.created_at if timestamps is not None else None,
+            versioned_at=timestamps.versioned_at if timestamps is not None else None,
+            deprecated_at=timestamps.deprecated_at if timestamps is not None else None,
         )

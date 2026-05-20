@@ -1,4 +1,12 @@
-"""Integration test: get_method handler against real Postgres."""
+"""Integration test: get_method handler against real Postgres.
+
+Exercises (1) the fold-on-read state path, and (2) the Path C
+projection-sourced lifecycle-timestamps path
+(audit-2026-05-20 Iter A). Pre-drain assertion confirms timestamps
+are None when the projection hasn't caught up; post-drain assertion
+confirms `created_at` populates after `MethodSummaryProjection`
+folds `MethodDefined`.
+"""
 
 from datetime import UTC, datetime
 from uuid import UUID
@@ -6,6 +14,8 @@ from uuid import UUID
 import asyncpg
 import pytest
 
+from cora.infrastructure.projection import ProjectionRegistry, drain_projections
+from cora.recipe._projections import register_recipe_projections
 from cora.recipe.aggregates.method import MethodName, MethodStatus
 from cora.recipe.features import define_method, get_method
 from cora.recipe.features.define_method import DefineMethod
@@ -40,14 +50,32 @@ async def test_get_method_loads_state_from_real_postgres(
         correlation_id=_CORRELATION_ID,
     )
 
-    method = await get_method.bind(deps)(
+    view = await get_method.bind(deps)(
         GetMethod(method_id=method_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
-    assert method is not None
-    assert method.id == method_id
-    assert method.name == MethodName("XRF Fly Mapping")
-    assert method.needed_families == frozenset({cap1, cap2})
-    assert method.status is MethodStatus.DEFINED
+    assert view is not None
+    assert view.method.id == method_id
+    assert view.method.name == MethodName("XRF Fly Mapping")
+    assert view.method.needed_families == frozenset({cap1, cap2})
+    assert view.method.status is MethodStatus.DEFINED
+    # Pre-drain: projection hasn't folded MethodDefined yet -> no row.
+    assert view.timestamps is None
+
+    # Post-drain: projection catches up, lifecycle-timestamps surface.
+    registry = ProjectionRegistry()
+    register_recipe_projections(registry)
+    await drain_projections(db_pool, registry, deadline_seconds=2.0)
+
+    view = await get_method.bind(deps)(
+        GetMethod(method_id=method_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert view is not None
+    assert view.timestamps is not None
+    assert view.timestamps.created_at == _NOW
+    assert view.timestamps.versioned_at is None
+    assert view.timestamps.deprecated_at is None

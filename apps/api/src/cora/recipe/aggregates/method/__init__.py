@@ -20,7 +20,11 @@ from cora.recipe.aggregates.method.parameters_validation import (
     InvalidMethodParametersSchemaError,
     validate_parameters_schema,
 )
-from cora.recipe.aggregates.method.read import load_method
+from cora.recipe.aggregates.method.read import (
+    MethodLifecycleTimestamps,
+    load_method,
+    load_method_timestamps,
+)
 from cora.recipe.aggregates.method.state import (
     METHOD_NAME_MAX_LENGTH,
     METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
@@ -53,6 +57,7 @@ __all__ = [
     "MethodDefined",
     "MethodDeprecated",
     "MethodEvent",
+    "MethodLifecycleTimestamps",
     "MethodName",
     "MethodNotFoundError",
     "MethodParametersNotSubsetError",
@@ -64,6 +69,7 @@ __all__ = [
     "fold",
     "from_stored",
     "load_method",
+    "load_method_timestamps",
     "to_payload",
     "validate_parameters_schema",
 ]

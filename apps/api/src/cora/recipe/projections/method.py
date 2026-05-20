@@ -1,22 +1,36 @@
 """MethodSummaryProjection: folds the Method aggregate's
 4 events into the `proj_recipe_method_summary`
-read model that backs `GET /methods`.
+read model that backs `GET /methods` and (post-audit-2026-05-20 Iter A)
+also supplies lifecycle timestamps to `GET /methods/{id}`.
 
 Subscribed events:
   - MethodDefined                  -> INSERT (status=Defined,
                                               version_tag=NULL,
+                                              created_at=payload.occurred_at,
                                               parameters_schema_present=FALSE)
   - MethodVersioned                -> UPDATE status=Versioned + version_tag
-                                              from payload
-  - MethodDeprecated               -> UPDATE status=Deprecated (version_tag
-                                              preserved on purpose; the
-                                              audit trail of "last revised
-                                              at version X before
-                                              deprecation" stays visible)
+                                              from payload +
+                                              versioned_at=payload.occurred_at
+                                              (overwritten on each re-version
+                                              — state always holds latest
+                                              tag, projection mirrors that)
+  - MethodDeprecated               -> UPDATE status=Deprecated +
+                                              deprecated_at=payload.occurred_at
+                                              (version_tag preserved on
+                                              purpose; the audit trail of
+                                              "last revised at version X
+                                              before deprecation" stays
+                                              visible)
   - MethodParametersSchemaUpdated  -> UPDATE parameters_schema_present
                                               (TRUE if parameters_schema is
                                               non-NULL; FALSE if cleared
                                               via NULL) (Phase 6g-a)
+
+`versioned_at` / `deprecated_at` source: aggregate state stays minimal
+per Chassaing/Pellegrini/Reynhout decider-purity guidance; lifecycle
+timestamps live here on the projection per Dudycz "pragmatic redundancy"
+exception for read-side convenience + K8s ObjectMeta / GitHub /
+AIP-142 resource-API precedent (Path C lock).
 
 All branches idempotent. `version_tag` lands in the projection ONLY
 on MethodVersioned; the Defined INSERT leaves it NULL and the
@@ -51,13 +65,18 @@ ON CONFLICT (method_id) DO NOTHING
 
 _UPDATE_VERSIONED_SQL = """
 UPDATE proj_recipe_method_summary
-SET status = 'Versioned', version_tag = $2, updated_at = now()
+SET status = 'Versioned',
+    version_tag = $2,
+    versioned_at = $3,
+    updated_at = now()
 WHERE method_id = $1
 """
 
 _UPDATE_DEPRECATED_SQL = """
 UPDATE proj_recipe_method_summary
-SET status = 'Deprecated', updated_at = now()
+SET status = 'Deprecated',
+    deprecated_at = $2,
+    updated_at = now()
 WHERE method_id = $1
 """
 
@@ -99,11 +118,13 @@ class MethodSummaryProjection:
                     _UPDATE_VERSIONED_SQL,
                     UUID(event.payload["method_id"]),
                     event.payload["version_tag"],
+                    datetime.fromisoformat(event.payload["occurred_at"]),
                 )
             case "MethodDeprecated":
                 await conn.execute(
                     _UPDATE_DEPRECATED_SQL,
                     UUID(event.payload["method_id"]),
+                    datetime.fromisoformat(event.payload["occurred_at"]),
                 )
             case "MethodParametersSchemaUpdated":
                 await conn.execute(

@@ -152,3 +152,28 @@ def test_get_method_returns_422_for_malformed_method_id() -> None:
     with TestClient(create_app()) as client:
         response = client.get("/methods/not-a-uuid")
     assert response.status_code == 422
+
+
+# ---------- audit-2026-05-20 Iter A: lifecycle timestamps in response ----------
+
+
+@pytest.mark.contract
+def test_get_method_response_includes_lifecycle_timestamp_fields() -> None:
+    """Path C: response surfaces `created_at` / `versioned_at` /
+    `deprecated_at` keys regardless of whether the projection has
+    folded yet. Under the in-memory contract harness the values are
+    null because no projection runs; the postgres integration suite
+    pins the populated path."""
+    with TestClient(create_app()) as client:
+        method_id = _define_method(client, name="X", needed_families=[])
+        response = client.get(f"/methods/{method_id}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "created_at" in body
+    assert "versioned_at" in body
+    assert "deprecated_at" in body
+    # In-memory harness: no projection runs, so all three are null.
+    assert body["created_at"] is None
+    assert body["versioned_at"] is None
+    assert body["deprecated_at"] is None

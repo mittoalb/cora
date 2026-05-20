@@ -51,19 +51,24 @@ async def test_handler_returns_method_for_known_id() -> None:
     )
 
     handler = get_method.bind(deps)
-    method = await handler(
+    view = await handler(
         GetMethod(method_id=_NEW_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
-    assert method == Method(
+    assert view is not None
+    assert view.method == Method(
         id=_NEW_ID,
         name=MethodName("XRF Fly Mapping"),
         needed_families=frozenset({_CAP1, _CAP2}),
         capability_id=_CAPABILITY_ID,
         status=MethodStatus.DEFINED,
     )
+    # In-memory deps have no pool, so projection-sourced timestamps are
+    # absent (Path C handler behavior; Postgres integration suite
+    # exercises the populated path).
+    assert view.timestamps is None
 
 
 @pytest.mark.unit
@@ -79,26 +84,26 @@ async def test_handler_returns_method_with_empty_needed_families() -> None:
     )
 
     handler = get_method.bind(deps)
-    method = await handler(
+    view = await handler(
         GetMethod(method_id=_NEW_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
-    assert method is not None
-    assert method.needed_families == frozenset()
+    assert view is not None
+    assert view.method.needed_families == frozenset()
 
 
 @pytest.mark.unit
 async def test_handler_returns_none_for_unknown_id() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
     handler = get_method.bind(deps)
-    method = await handler(
+    view = await handler(
         GetMethod(method_id=uuid4()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    assert method is None
+    assert view is None
 
 
 class _RecordingAuthorize:

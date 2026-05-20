@@ -1,8 +1,8 @@
 """HTTP route for the `get_method` query slice.
 
 `GET /methods/{method_id}` returns 200 + MethodResponse on hit, 404
-on miss. The handler returns `Method | None`; the route maps None
-to 404 via HTTPException (idiomatic in routes; the BC's
+on miss. The handler returns `MethodView | None`; the route maps
+None to 404 via HTTPException (idiomatic in routes; the BC's
 exception-handler infrastructure stays focused on domain /
 application errors raised deeper in the stack).
 
@@ -11,8 +11,18 @@ application errors raised deeper in the stack).
 string form for determinism — same logical family set, same
 response bytes (helps test reproducibility and any future ETag-
 style caching).
+
+`created_at` / `versioned_at` / `deprecated_at` are sourced from the
+`proj_recipe_method_summary` projection, not from aggregate state
+(Path C, audit-2026-05-20). All three may be null: `created_at`
+when the projection hasn't caught up after a recent define;
+`versioned_at` until the first version_method; `deprecated_at` until
+deprecation. Operators should treat any null while `status` is
+already past the corresponding transition as a transient eventual-
+consistency window.
 """
 
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -41,6 +51,9 @@ class MethodResponse(BaseModel):
     `status` is the StrEnum's string value (Defined / Versioned /
     Deprecated). `version` is the operator-supplied label of the most
     recent version_method call (null until first version).
+    `created_at` / `versioned_at` / `deprecated_at` are projection-
+    sourced lifecycle timestamps (Path C, audit-2026-05-20); see
+    module docstring for null-semantics.
     """
 
     id: UUID
@@ -49,6 +62,9 @@ class MethodResponse(BaseModel):
     needed_supplies: list[str]
     status: str
     version: str | None
+    created_at: datetime | None = None
+    versioned_at: datetime | None = None
+    deprecated_at: datetime | None = None
 
 
 def _get_handler(request: Request) -> Handler:
@@ -81,17 +97,19 @@ async def get_methods(
     principal_id: Annotated[UUID, Depends(get_principal_id)],
     surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> MethodResponse:
-    method = await handler(
+    view = await handler(
         GetMethod(method_id=method_id),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,
     )
-    if method is None:
+    if view is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Method {method_id} not found",
         )
+    method = view.method
+    timestamps = view.timestamps
     return MethodResponse(
         id=method.id,
         name=method.name.value,
@@ -99,4 +117,7 @@ async def get_methods(
         needed_supplies=sorted(method.needed_supplies),
         status=method.status.value,
         version=method.version,
+        created_at=timestamps.created_at if timestamps is not None else None,
+        versioned_at=timestamps.versioned_at if timestamps is not None else None,
+        deprecated_at=timestamps.deprecated_at if timestamps is not None else None,
     )
