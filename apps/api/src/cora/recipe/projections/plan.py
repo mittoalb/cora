@@ -1,24 +1,36 @@
 """PlanSummaryProjection: folds the Plan aggregate's
 4 events into the `proj_recipe_plan_summary`
-read model that backs `GET /plans`.
+read model that backs `GET /plans` and (post-audit-2026-05-20 Iter B-1)
+also supplies lifecycle timestamps to `GET /plans/{id}`.
 
 Subscribed events:
   - PlanDefined                  -> INSERT (status=Defined,
                                             version_tag=NULL,
+                                            created_at=payload.occurred_at,
                                             default_parameters_present=FALSE,
                                             practice_id + method_id from
                                             payload)
   - PlanVersioned                -> UPDATE status=Versioned + version_tag
-                                            from payload
-  - PlanDeprecated               -> UPDATE status=Deprecated (version_tag
-                                            preserved on purpose; the
-                                            audit trail of "last revised
-                                            at version X before
-                                            deprecation" stays visible)
+                                            from payload +
+                                            versioned_at=payload.occurred_at
+                                            (overwritten on each re-version
+                                            — state always holds latest
+                                            tag, projection mirrors that)
+  - PlanDeprecated               -> UPDATE status=Deprecated +
+                                            deprecated_at=payload.occurred_at
+                                            (version_tag preserved on
+                                            purpose; the audit trail of
+                                            "last revised at version X
+                                            before deprecation" stays
+                                            visible)
   - PlanDefaultParametersUpdated -> UPDATE default_parameters_present
                                             (TRUE if default_parameters is
                                             non-empty; FALSE if cleared
                                             via {}) (Phase 6g-b)
+
+`versioned_at` / `deprecated_at` source: Path C lock — state stays
+decider-minimal, projections carry lifecycle metadata. Mirrors
+MethodSummaryProjection (audit-2026-05-20 Iter A).
 
 `practice_id` and `method_id` come from the genesis event and never
 change (no event re-issues them), so the INSERT carries them and
@@ -57,13 +69,18 @@ ON CONFLICT (plan_id) DO NOTHING
 
 _UPDATE_VERSIONED_SQL = """
 UPDATE proj_recipe_plan_summary
-SET status = 'Versioned', version_tag = $2, updated_at = now()
+SET status = 'Versioned',
+    version_tag = $2,
+    versioned_at = $3,
+    updated_at = now()
 WHERE plan_id = $1
 """
 
 _UPDATE_DEPRECATED_SQL = """
 UPDATE proj_recipe_plan_summary
-SET status = 'Deprecated', updated_at = now()
+SET status = 'Deprecated',
+    deprecated_at = $2,
+    updated_at = now()
 WHERE plan_id = $1
 """
 
@@ -107,11 +124,13 @@ class PlanSummaryProjection:
                     _UPDATE_VERSIONED_SQL,
                     UUID(event.payload["plan_id"]),
                     event.payload["version_tag"],
+                    datetime.fromisoformat(event.payload["occurred_at"]),
                 )
             case "PlanDeprecated":
                 await conn.execute(
                     _UPDATE_DEPRECATED_SQL,
                     UUID(event.payload["plan_id"]),
+                    datetime.fromisoformat(event.payload["occurred_at"]),
                 )
             case "PlanDefaultParametersUpdated":
                 # bool(...) on the dict: True iff non-empty. Clearing all

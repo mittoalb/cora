@@ -10,13 +10,14 @@ Module-as-namespace surface, symmetric with command slices:
 """
 
 from cora.recipe.features.get_plan import tool
-from cora.recipe.features.get_plan.handler import Handler, bind
+from cora.recipe.features.get_plan.handler import Handler, PlanView, bind
 from cora.recipe.features.get_plan.query import GetPlan
 from cora.recipe.features.get_plan.route import router
 
 __all__ = [
     "GetPlan",
     "Handler",
+    "PlanView",
     "bind",
     "router",
     "tool",
