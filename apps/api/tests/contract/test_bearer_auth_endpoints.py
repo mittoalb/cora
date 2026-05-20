@@ -27,6 +27,8 @@ gate doesn't refuse boot; the `allow_insecure_jwks_url=True`
 opt-in is set, valid under `app_env=test`.
 """
 
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportAttributeAccessIssue=false
+
 import json
 
 import pytest
@@ -213,3 +215,143 @@ def test_bearer_token_present_with_no_identity_providers_is_ignored(
         )
 
     assert response.status_code == 201
+
+
+# ---------- Happy-path bearer end-to-end (gate-review BLOCKING fill-in) ----------
+
+
+@pytest.mark.contract
+def test_bearer_verified_principal_reaches_event_store_via_full_stack(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Gate-review BLOCKING test gap: end-to-end pin that the bearer-
+    verified principal_id (NOT SYSTEM, NOT any X-Principal-Id value)
+    flows all the way through middleware -> get_principal_id -> route
+    handler -> append_to_event_store. Without this, a future drift
+    that silently routed legacy SYSTEM principal_id past a verified
+    bearer would not be caught at PR time.
+
+    Uses a monkeypatch seam that swaps `cora.infrastructure.deps.
+    build_kernel` so the constructed kernel has a STUB TokenVerifier
+    instead of the real `IdentityProviderRegistry` (which would need
+    a live JWKS server). The stub returns a fixed VerifiedPrincipal
+    for any bearer token, letting the test exercise the full
+    middleware + Depends + handler chain without crypto.
+    """
+    from dataclasses import replace
+    from uuid import UUID
+
+    from cora.infrastructure import deps as deps_module
+    from cora.infrastructure.ports import VerifiedPrincipal
+
+    verified_principal_id = UUID("01900000-0000-7000-8000-000000000d01")
+
+    class _StubVerifier:
+        async def verify(self, token: str, *, expected_audience: UUID) -> VerifiedPrincipal:
+            _ = token, expected_audience  # accept any token
+            return VerifiedPrincipal(
+                principal_id=verified_principal_id,
+                subject="user-test",
+                issuer="https://idp.example.com",
+                kind="human",
+            )
+
+    _original_build_kernel = deps_module.build_kernel
+
+    async def _build_kernel_with_stub(*args: object, **kwargs: object):  # type: ignore[no-untyped-def]
+        kernel, teardown = await _original_build_kernel(*args, **kwargs)  # type: ignore[arg-type]
+        # Swap the registry-built verifier for our stub (frozen
+        # dataclass -> dataclasses.replace).
+        return replace(kernel, token_verifier=_StubVerifier()), teardown
+
+    monkeypatch.setattr(deps_module, "build_kernel", _build_kernel_with_stub)
+    monkeypatch.setattr("cora.api.main.build_kernel", _build_kernel_with_stub)
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("IDENTITY_PROVIDERS", _IDPS_JSON)
+
+    with TestClient(create_app()) as client:
+        # Any bearer string works -- the stub returns the same
+        # principal regardless of token value.
+        response = client.post(
+            "/actors",
+            json={"name": "BearerUser"},
+            headers={"Authorization": "Bearer any-token-the-stub-accepts"},
+        )
+
+    assert response.status_code == 201
+    actor_id = UUID(response.json()["actor_id"])
+    # Read back the ActorRegistered event and assert its principal_id
+    # is the VERIFIED principal, NOT SYSTEM_PRINCIPAL_ID and NOT any
+    # value the client could have controlled.
+    deps = client.app.state.deps  # type: ignore[attr-defined]
+    import asyncio
+
+    events, _ = asyncio.run(deps.event_store.load("Actor", actor_id))
+    assert len(events) == 1
+    assert events[0].event_type == "ActorRegistered"
+    # The load-bearing invariant: bearer-verified principal_id lands
+    # on the persisted event's principal_id column.
+    assert events[0].principal_id == verified_principal_id
+
+
+@pytest.mark.contract
+def test_x_principal_id_ignored_when_bearer_present_end_to_end(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End-to-end variant of the unit-tier `wins_over_x_principal_id`
+    test: with BOTH a verified bearer AND an X-Principal-Id header,
+    the persisted event carries the BEARER's principal_id, not the
+    header's value. Pin: the silent-ignore design choice (Iter C-3
+    Mode 1) holds through the full middleware -> Depends -> route
+    chain."""
+    from dataclasses import replace
+    from uuid import UUID
+
+    from cora.infrastructure import deps as deps_module
+    from cora.infrastructure.ports import VerifiedPrincipal
+
+    verified_principal_id = UUID("01900000-0000-7000-8000-000000000d02")
+    spoofed_principal_id = UUID("01900000-0000-7000-8000-000000000d99")
+
+    class _StubVerifier:
+        async def verify(self, token: str, *, expected_audience: UUID) -> VerifiedPrincipal:
+            _ = token, expected_audience
+            return VerifiedPrincipal(
+                principal_id=verified_principal_id,
+                subject="user-test",
+                issuer="https://idp.example.com",
+                kind="human",
+            )
+
+    _original = deps_module.build_kernel
+
+    async def _wrap(*args: object, **kwargs: object):  # type: ignore[no-untyped-def]
+        kernel, teardown = await _original(*args, **kwargs)  # type: ignore[arg-type]
+        return replace(kernel, token_verifier=_StubVerifier()), teardown
+
+    monkeypatch.setattr(deps_module, "build_kernel", _wrap)
+    monkeypatch.setattr("cora.api.main.build_kernel", _wrap)
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("IDENTITY_PROVIDERS", _IDPS_JSON)
+
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/actors",
+            json={"name": "BearerUser"},
+            headers={
+                "Authorization": "Bearer any",
+                # Attempt to spoof a different principal via the
+                # legacy cleartext header.
+                "X-Principal-Id": str(spoofed_principal_id),
+            },
+        )
+
+    assert response.status_code == 201
+    actor_id = UUID(response.json()["actor_id"])
+    deps = client.app.state.deps  # type: ignore[attr-defined]
+    import asyncio
+
+    events, _ = asyncio.run(deps.event_store.load("Actor", actor_id))
+    # BEARER wins; X-Principal-Id silently ignored.
+    assert events[0].principal_id == verified_principal_id
+    assert events[0].principal_id != spoofed_principal_id

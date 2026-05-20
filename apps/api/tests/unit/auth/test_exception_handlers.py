@@ -8,7 +8,7 @@ contract-tier tests at `apps/api/tests/contract/test_bearer_auth_endpoints.py`
 chain against the real FastAPI app.
 """
 
-# pyright: reportUnknownMemberType=false, reportPrivateUsage=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportArgumentType=false
+# pyright: reportUnknownMemberType=false, reportPrivateUsage=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportArgumentType=false, reportAttributeAccessIssue=false
 
 import json
 
@@ -82,7 +82,12 @@ def test_bearer_challenge_includes_all_required_params() -> None:
 @pytest.mark.unit
 async def test_handle_invalid_token_returns_401_with_www_authenticate() -> None:
     """Happy-path 401 shape: status code, JSON detail body, and the
-    RFC 6750 challenge header."""
+    RFC 6750 challenge header.
+
+    Gate-review SEC M2: response body + error_description carry ONLY
+    the reason short-code; the free-form `detail` (which may include
+    IdP-controlled subject / audience strings) stays in the log.
+    """
     request = _fake_request("/actors")
     exc = InvalidTokenError("expired", "JWT exp 2026-01-01 in the past")
 
@@ -91,17 +96,40 @@ async def test_handle_invalid_token_returns_401_with_www_authenticate() -> None:
     assert response.status_code == 401
     assert response.headers["WWW-Authenticate"].startswith("Bearer ")
     assert 'error="expired"' in response.headers["WWW-Authenticate"]
-    assert (
-        'error_description="JWT exp 2026-01-01 in the past"' in response.headers["WWW-Authenticate"]
-    )
+    # error_description carries reason short-code only (no IdP detail).
+    assert 'error_description="expired"' in response.headers["WWW-Authenticate"]
     body = json.loads(response.body)
-    assert body == {"detail": "JWT exp 2026-01-01 in the past"}
+    # Body carries reason only -- the IdP-controlled detail does not
+    # leak to unauthenticated callers.
+    assert body == {"detail": "expired"}
+
+
+@pytest.mark.unit
+async def test_handle_invalid_token_response_redacts_detail_even_when_present() -> None:
+    """Gate-review SEC M2 pin: even with a populated detail, the
+    response NEVER includes it. Prevents subject enumeration via
+    `unknown_subject` and audience enumeration via `wrong_audience`.
+    The detail still appears in the structlog line."""
+    request = _fake_request("/actors")
+    exc = InvalidTokenError(
+        "unknown_subject",
+        "no Actor mapped for issuer='https://idp.example.com' subject='target-user-abc'",
+    )
+
+    response = await _handle_invalid_token(request, exc)
+
+    body = json.loads(response.body)
+    assert body == {"detail": "unknown_subject"}
+    # subject MUST NOT appear in the response body OR in any header.
+    assert "target-user-abc" not in response.body.decode()
+    assert "target-user-abc" not in str(response.headers)
 
 
 @pytest.mark.unit
 async def test_handle_invalid_token_falls_back_to_reason_when_detail_empty() -> None:
     """`detail=""` is permitted; the body MUST still carry a string,
-    so the handler falls back to the reason short-code."""
+    so the handler emits the reason short-code (which is also what
+    populated `detail` would yield post-redaction)."""
     request = _fake_request("/actors")
     exc = InvalidTokenError("malformed", "")
 
@@ -114,18 +142,38 @@ async def test_handle_invalid_token_falls_back_to_reason_when_detail_empty() -> 
 
 @pytest.mark.unit
 async def test_handle_invalid_token_escapes_quotes_in_reason() -> None:
-    """If a reason / detail somehow contains `"`, the header parser
-    needs the backslash-escape per RFC 7235 §2.2."""
+    """If a reason somehow contains `"`, the header parser needs the
+    backslash-escape per RFC 7235 §2.2."""
     request = _fake_request("/actors")
     # The closed reason set doesn't contain `"`, but a future addition
     # could; this pins the escape behavior at the boundary.
-    exc = InvalidTokenError('weird"reason', 'with "quotes" inside')
+    exc = InvalidTokenError('weird"reason', "")
 
     response = await _handle_invalid_token(request, exc)
 
     challenge = response.headers["WWW-Authenticate"]
     assert r'error="weird\"reason"' in challenge
-    assert r'error_description="with \"quotes\" inside"' in challenge
+    assert r'error_description="weird\"reason"' in challenge
+
+
+@pytest.mark.unit
+async def test_handle_invalid_token_strips_crlf_in_reason() -> None:
+    """Gate-review SEC M1: CR / LF / NUL / other CTLs in `reason`
+    are STRIPPED by `_quote` so they cannot split the WWW-Authenticate
+    header and inject another response header. Pin defensively even
+    though today's closed reason set doesn't contain CTLs."""
+    request = _fake_request("/actors")
+    exc = InvalidTokenError("bad\r\nSet-Cookie: evil=1", "")
+
+    response = await _handle_invalid_token(request, exc)
+
+    challenge = response.headers["WWW-Authenticate"]
+    # CR + LF replaced with single spaces; the injected Set-Cookie
+    # appears as a header VALUE, not as a separate response header.
+    assert "\r" not in challenge
+    assert "\n" not in challenge
+    # The challenge stays a valid single header value.
+    assert challenge.startswith("Bearer ")
 
 
 # ---------- _handle_introspection_unavailable ----------
@@ -135,7 +183,12 @@ async def test_handle_invalid_token_escapes_quotes_in_reason() -> None:
 async def test_handle_introspection_unavailable_returns_503_with_retry_after() -> None:
     """503 + Retry-After: 5 per the design lock. Distinct status from
     401 so operators can grep logs for "their token bad" vs "our IdP
-    down"."""
+    down".
+
+    Gate-review SEC M3: issuer URL MUST stay in the structured log
+    only; response body emits a generic message to prevent
+    unauthenticated attackers mapping which upstream IdP is degraded.
+    """
     request = _fake_request("/actors")
     exc = IntrospectionUnavailableError("https://idp.example.com", "connection timeout")
 
@@ -144,8 +197,10 @@ async def test_handle_introspection_unavailable_returns_503_with_retry_after() -
     assert response.status_code == 503
     assert response.headers["Retry-After"] == "5"
     body = json.loads(response.body)
-    assert "https://idp.example.com" in body["detail"]
+    # Generic message: NO issuer URL, NO detail string.
     assert "unavailable" in body["detail"].lower()
+    assert "https://idp.example.com" not in body["detail"]
+    assert "connection timeout" not in body["detail"]
 
 
 # ---------- register_auth_exception_handlers ----------

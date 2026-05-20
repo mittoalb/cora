@@ -71,15 +71,31 @@ _RESOURCE_METADATA_PATH = "/.well-known/oauth-protected-resource"
 
 
 def _quote(value: str) -> str:
-    """RFC 7235 §2.2 auth-param quoted-string: backslash-escape `"` and `\\`.
+    """RFC 7235 §2.2 auth-param quoted-string: backslash-escape `"` and `\\`,
+    then strip control chars (RFC 7230 §3.2.6 forbids CTL in quoted-string).
 
-    Keeps WWW-Authenticate parsers happy when reason / detail strings
-    contain shell-quote-eager characters. Values are operator-controlled
-    (closed reason set + curated detail strings) so the escape surface
-    is small, but the formal RFC compliance closes a class of header-
-    injection-style edge cases at the boundary.
+    Gate-review SEC M1: an IdP-controlled `subject` claim (which can
+    reach `error_description` via `InvalidTokenError.detail` on the
+    `unknown_subject` path) that contains CR / LF / NUL would split
+    the WWW-Authenticate header and enable response-header injection.
+    Strip CTL chars (0x00-0x1F + 0x7F minus SP / HTAB) BEFORE the
+    backslash-escape so a crafted token can never break out.
+
+    HTAB is preserved (legal in quoted-string per RFC 7230 §3.2.6
+    `qdtext` whitespace allowance). SP is preserved (also legal).
+    Every other CTL becomes a single space — visible-but-safe.
     """
-    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    sanitized_chars: list[str] = []
+    for ch in value:
+        code = ord(ch)
+        if code in (0x09, 0x20):  # HTAB + SP
+            sanitized_chars.append(ch)
+        elif code < 0x20 or code == 0x7F:  # CTL minus the two allowed
+            sanitized_chars.append(" ")
+        else:
+            sanitized_chars.append(ch)
+    sanitized = "".join(sanitized_chars)
+    escaped = sanitized.replace("\\", "\\\\").replace('"', '\\"')
     return f'"{escaped}"'
 
 
@@ -100,8 +116,35 @@ def _bearer_challenge(*, error: str, error_description: str) -> str:
     return ", ".join(parts)
 
 
+def missing_bearer_challenge() -> str:
+    """Format the bearer challenge for a missing-bearer 401.
+
+    Per RFC 6750 §3, when no credentials are presented the challenge
+    SHOULD omit `error=` (which is for failed verification of a
+    presented token). Just realm + resource_metadata so the client
+    knows where to fetch a token. Public helper so the routing
+    layer's Mode-2 401 path can format the header without
+    re-implementing the realm / metadata-path constants.
+    """
+    parts = [
+        f"Bearer realm={_quote(_REALM)}",
+        f"resource_metadata={_quote(_RESOURCE_METADATA_PATH)}",
+    ]
+    return ", ".join(parts)
+
+
 async def _handle_invalid_token(request: Request, exc: Exception) -> JSONResponse:
-    """Map `InvalidTokenError` to HTTP 401 with RFC 6750 challenge."""
+    """Map `InvalidTokenError` to HTTP 401 with RFC 6750 challenge.
+
+    Gate-review SEC M2: the response body + error_description carry
+    only the closed-set `reason` short-code (e.g. "bad_signature",
+    "unknown_subject", "wrong_audience"). The free-form `detail`
+    field stays in the structured log line ONLY -- it can contain
+    IdP-controlled values (subject string for `unknown_subject`,
+    audience strings for `wrong_audience`) that would enable
+    enumeration of registered subjects / IdP federation surface if
+    echoed back to unauthenticated callers.
+    """
     # Pyright sees Exception in the FastAPI handler signature; the
     # registered class IS InvalidTokenError so the cast is safe.
     assert isinstance(exc, InvalidTokenError)  # type-narrow for pyright
@@ -110,36 +153,44 @@ async def _handle_invalid_token(request: Request, exc: Exception) -> JSONRespons
         path=request.url.path,
         method=request.method,
         reason=exc.reason,
+        # `detail` may carry IdP-controlled values; logs are operator-
+        # only, so it stays here for forensic context.
+        detail=exc.detail,
     )
-    # Per RFC 6750 §3.1, error_description SHOULD provide additional
-    # detail. Use the curated `detail` field; fall back to the reason
-    # short-string if detail is empty.
-    description = exc.detail or exc.reason
-    challenge = _bearer_challenge(error=exc.reason, error_description=description)
+    # Use ONLY the reason short-code for the response body + challenge.
+    # Per RFC 6750 §3.1 error_description is optional; we still emit
+    # it (carrying the same reason) for clients that grep for it, but
+    # never include any caller-controlled or IdP-controlled value.
+    challenge = _bearer_challenge(error=exc.reason, error_description=exc.reason)
     return JSONResponse(
         status_code=401,
-        content={"detail": description},
+        content={"detail": exc.reason},
         headers={"WWW-Authenticate": challenge},
     )
 
 
 async def _handle_introspection_unavailable(request: Request, exc: Exception) -> JSONResponse:
-    """Map `IntrospectionUnavailableError` to HTTP 503 + Retry-After."""
+    """Map `IntrospectionUnavailableError` to HTTP 503 + Retry-After.
+
+    Gate-review SEC M3: the issuer URL stays in the structured log
+    line only; the response body emits a generic message. Echoing
+    the specific issuer back to an unauthenticated caller lets an
+    attacker map which upstream IdP is degraded -- useful for
+    timing credential-stuffing runs against the IdP itself.
+    """
     assert isinstance(exc, IntrospectionUnavailableError)
     _log.warning(
         "auth.introspection_unavailable",
         path=request.url.path,
         method=request.method,
+        # Issuer + detail stay in logs only (operator forensics).
         issuer=exc.issuer,
         detail=exc.detail,
     )
     return JSONResponse(
         status_code=503,
         content={
-            "detail": (
-                f"Token introspection endpoint for issuer {exc.issuer!r} "
-                "is currently unavailable. Retry shortly."
-            )
+            "detail": ("Token introspection upstream is currently unavailable. Retry shortly.")
         },
         # `Retry-After: 5` is RFC 7231 §7.1.3 in delta-seconds form.
         # Five seconds is short enough to feel responsive once the IdP
@@ -178,5 +229,6 @@ handle_introspection_unavailable = _handle_introspection_unavailable
 __all__ = [
     "handle_introspection_unavailable",
     "handle_invalid_token",
+    "missing_bearer_challenge",
     "register_auth_exception_handlers",
 ]

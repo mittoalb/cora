@@ -128,11 +128,22 @@ def _bearer_principal_id(request: Request) -> UUID | None:
     verified successfully. `get_principal_id` reads through this
     Depends so the existing in-isolation unit tests for
     `get_principal_id` keep working without a Request object.
+
+    Gate-review SEC S2: `isinstance(principal, VerifiedPrincipal)`
+    guard. Today only BearerAuthMiddleware writes to
+    `request.state.principal`, but a future middleware that
+    accidentally writes a duck-typed object with a `.principal_id`
+    attribute would silently authenticate callers. Pinning the type
+    here closes that footgun before it ships.
     """
+    # Lazy import: matches the cycle-break pattern in
+    # bearer_middleware.py + auth/config.py.
+    from cora.infrastructure.ports import VerifiedPrincipal
+
     principal = getattr(request.state, "principal", None)
-    if principal is None:
+    if not isinstance(principal, VerifiedPrincipal):
         return None
-    return principal.principal_id  # type: ignore[no-any-return]
+    return principal.principal_id
 
 
 def _bearer_auth_enabled(request: Request) -> bool:
@@ -214,6 +225,13 @@ def get_principal_id(
 
     # Mode 2: bearer-auth on but no bearer presented.
     if bearer_auth_enabled:
+        # Gate-review DESIGN M1: format the challenge via the shared
+        # helper so the realm + resource_metadata constants live in
+        # exactly one place (exception_handlers.py). A future rename
+        # (realm cluster naming, RFC 9728 path move) updates one site.
+        # Lazy import matches the established cycle-break pattern.
+        from cora.infrastructure.auth.exception_handlers import missing_bearer_challenge
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=(
@@ -221,11 +239,7 @@ def get_principal_id(
                 "requires a verified bearer token. See "
                 "/.well-known/oauth-protected-resource for issuer metadata."
             ),
-            headers={
-                "WWW-Authenticate": (
-                    'Bearer realm="cora", resource_metadata="/.well-known/oauth-protected-resource"'
-                )
-            },
+            headers={"WWW-Authenticate": missing_bearer_challenge()},
         )
 
     # Mode 3: legacy X-Principal-Id path (unchanged from Phase 1).

@@ -64,7 +64,7 @@ from typing import TYPE_CHECKING
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.routing import SYSTEM_HTTP_SURFACE_ID
@@ -182,6 +182,28 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
             return await handle_invalid_token(request, exc)
         except IntrospectionUnavailableError as exc:
             return await handle_introspection_unavailable(request, exc)
+        except Exception as exc:
+            # Gate-review IMPL M1: any unexpected exception from the
+            # verifier (httpx network blip, asyncpg failure, PyJWT
+            # internal bug) would otherwise escape BaseHTTPMiddleware
+            # and emit `500 Internal Server Error` plaintext via
+            # Starlette's ServerErrorMiddleware -- bypassing the
+            # FastAPI exception-handler chain AND the structured-log
+            # pipeline. Catch + log + return a structured 500 JSON so
+            # operators still get path/method context and clients see
+            # the same envelope as every other error response.
+            _log.exception(
+                "bearer_auth.verifier_unexpected_error",
+                path=request.url.path,
+                method=request.method,
+                error_type=type(exc).__name__,
+            )
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "detail": ("An unexpected error occurred while verifying the bearer token.")
+                },
+            )
 
         # Stash on request.state so get_principal_id can pull it
         # without re-verifying. Per-request state; no cross-request
