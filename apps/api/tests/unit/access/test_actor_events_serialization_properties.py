@@ -23,9 +23,7 @@ it's the pilot.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 from hypothesis import assume, given
@@ -39,36 +37,17 @@ from cora.access.aggregates.actor import (
     from_stored,
     to_payload,
 )
-from cora.infrastructure.ports.event_store import StoredEvent
-from tests._strategies import aware_datetimes, printable_ascii_text
+from tests._strategies import aware_datetimes, make_stored_event, printable_ascii_text
 
 if TYPE_CHECKING:
+    from datetime import datetime
     from uuid import UUID
 
 ACTOR_NAME_MAX_LENGTH = 200
-_FIXED_DT = datetime(2026, 1, 1, tzinfo=UTC)
 
 _NAME = printable_ascii_text(max_size=ACTOR_NAME_MAX_LENGTH)
 _KIND = st.sampled_from(list(ActorKind))
 _AWARE_DATETIME = aware_datetimes()
-
-
-def _wrap_as_stored(event_type: str, payload: dict[str, object]) -> StoredEvent:
-    """Minimal StoredEvent envelope; only event_type + payload matter for from_stored."""
-    return StoredEvent(
-        position=1,
-        event_id=uuid4(),
-        stream_type="Actor",
-        stream_id=uuid4(),
-        version=1,
-        event_type=event_type,
-        schema_version=1,
-        payload=payload,
-        correlation_id=uuid4(),
-        causation_id=None,
-        occurred_at=_FIXED_DT,
-        recorded_at=_FIXED_DT,
-    )
 
 
 @pytest.mark.unit
@@ -84,7 +63,11 @@ def test_actor_registered_payload_round_trip(
     """For any ActorRegistered, payload round-trips through StoredEvent."""
     assume(name == name.strip())
     original = ActorRegistered(actor_id=actor_id, name=name, occurred_at=occurred_at, kind=kind)
-    stored = _wrap_as_stored(event_type_name(original), to_payload(original))
+    stored = make_stored_event(
+        stream_type="Actor",
+        event_type=event_type_name(original),
+        payload=to_payload(original),
+    )
     reconstructed = from_stored(stored)
     assert reconstructed == original
 
@@ -94,7 +77,11 @@ def test_actor_registered_payload_round_trip(
 def test_actor_deactivated_payload_round_trip(actor_id: UUID, occurred_at: datetime) -> None:
     """For any ActorDeactivated, payload round-trips through StoredEvent."""
     original = ActorDeactivated(actor_id=actor_id, occurred_at=occurred_at)
-    stored = _wrap_as_stored(event_type_name(original), to_payload(original))
+    stored = make_stored_event(
+        stream_type="Actor",
+        event_type=event_type_name(original),
+        payload=to_payload(original),
+    )
     reconstructed = from_stored(stored)
     assert reconstructed == original
 
@@ -102,6 +89,6 @@ def test_actor_deactivated_payload_round_trip(actor_id: UUID, occurred_at: datet
 @pytest.mark.unit
 def test_from_stored_raises_on_unknown_event_type() -> None:
     """Stream contaminated with foreign event_type → ValueError, not silent drop."""
-    stored = _wrap_as_stored("NotAnActorEvent", {})
+    stored = make_stored_event(stream_type="Actor", event_type="NotAnActorEvent", payload={})
     with pytest.raises(ValueError, match="Unknown ActorEvent event_type"):
         from_stored(stored)

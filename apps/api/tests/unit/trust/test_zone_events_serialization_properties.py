@@ -14,15 +14,12 @@ the Access sibling file.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from cora.infrastructure.ports.event_store import StoredEvent
 from cora.trust.aggregates.zone import (
     ZONE_NAME_MAX_LENGTH,
     ZoneDefined,
@@ -30,32 +27,14 @@ from cora.trust.aggregates.zone import (
     from_stored,
     to_payload,
 )
-from tests._strategies import aware_datetimes, printable_ascii_text
+from tests._strategies import aware_datetimes, make_stored_event, printable_ascii_text
 
 if TYPE_CHECKING:
+    from datetime import datetime
     from uuid import UUID
-
-_FIXED_DT = datetime(2026, 1, 1, tzinfo=UTC)
 
 _NAME = printable_ascii_text(max_size=ZONE_NAME_MAX_LENGTH)
 _AWARE_DATETIME = aware_datetimes()
-
-
-def _wrap_as_stored(event_type: str, payload: dict[str, object]) -> StoredEvent:
-    return StoredEvent(
-        position=1,
-        event_id=uuid4(),
-        stream_type="Zone",
-        stream_id=uuid4(),
-        version=1,
-        event_type=event_type,
-        schema_version=1,
-        payload=payload,
-        correlation_id=uuid4(),
-        causation_id=None,
-        occurred_at=_FIXED_DT,
-        recorded_at=_FIXED_DT,
-    )
 
 
 @pytest.mark.unit
@@ -64,7 +43,11 @@ def test_zone_defined_payload_round_trip(zone_id: UUID, name: str, occurred_at: 
     """For any ZoneDefined, payload round-trips through StoredEvent."""
     assume(name == name.strip())
     original = ZoneDefined(zone_id=zone_id, name=name, occurred_at=occurred_at)
-    stored = _wrap_as_stored(event_type_name(original), to_payload(original))
+    stored = make_stored_event(
+        stream_type="Zone",
+        event_type=event_type_name(original),
+        payload=to_payload(original),
+    )
     reconstructed = from_stored(stored)
     assert reconstructed == original
 
@@ -72,6 +55,6 @@ def test_zone_defined_payload_round_trip(zone_id: UUID, name: str, occurred_at: 
 @pytest.mark.unit
 def test_from_stored_raises_on_unknown_event_type() -> None:
     """Stream contaminated with foreign event_type → ValueError, not silent drop."""
-    stored = _wrap_as_stored("NotAZoneEvent", {})
+    stored = make_stored_event(stream_type="Zone", event_type="NotAZoneEvent", payload={})
     with pytest.raises(ValueError, match="Unknown ZoneEvent event_type"):
         from_stored(stored)

@@ -24,9 +24,16 @@ home (e.g. `tests/_strategies/access.py` for `actor_kinds()` /
 
 from __future__ import annotations
 
-from datetime import UTC
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+from uuid import uuid4
 
 from hypothesis import strategies as st
+
+from cora.infrastructure.ports.event_store import StoredEvent
+
+if TYPE_CHECKING:
+    from typing import Any
 
 # Printable ASCII without whitespace (codepoints 0x21-0x7E). Matches the
 # alphabet every existing PBT file rebuilds inline; used for `name`,
@@ -56,3 +63,39 @@ def aware_datetimes() -> st.SearchStrategy:
     timezone-aware parsers.
     """
     return st.datetimes(timezones=st.just(UTC))
+
+
+_DEFAULT_DT = datetime(2026, 1, 1, tzinfo=UTC)
+
+
+def make_stored_event(
+    *,
+    stream_type: str,
+    event_type: str,
+    payload: dict[str, Any],
+) -> StoredEvent:
+    """Minimal StoredEvent envelope for serialization round-trip tests.
+
+    Only `event_type` + `payload` matter for `from_stored` deserialization;
+    the rest are stubbed with plausible values (uuid4 ids, fixed datetimes,
+    monotonic-ish position) so tests can focus on what's being asserted
+    without rebuilding the envelope inline.
+
+    Use when testing `<aggregate>.from_stored(stored)` invariants
+    (round-trip with `to_payload`, error on unknown event_type). For tests
+    that need real position/timestamp semantics, build StoredEvent directly.
+    """
+    return StoredEvent(
+        position=1,
+        event_id=uuid4(),
+        stream_type=stream_type,
+        stream_id=uuid4(),
+        version=1,
+        event_type=event_type,
+        schema_version=1,
+        payload=payload,
+        correlation_id=uuid4(),
+        causation_id=None,
+        occurred_at=_DEFAULT_DT,
+        recorded_at=_DEFAULT_DT,
+    )
