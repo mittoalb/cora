@@ -27,25 +27,26 @@ def evolve(state: Actor | None, event: ActorEvent) -> Actor:
     """Apply one event to the current state."""
     match event:
         case ActorRegistered(actor_id=actor_id, name=name, kind=kind):
-            # `is_active=True` is explicit-vs-default; mutmut flags omitting
-            # it as a surviving mutant (equivalent), so silence that line.
-            return Actor(
-                id=actor_id,
-                name=ActorName(name),
-                is_active=True,  # pragma: no mutate
-                kind=kind,
-            )
+            # `is_active` defaults to True on `Actor` — omit the explicit
+            # kwarg so mutmut can't generate a (trivially-equivalent)
+            # redundancy mutation. The ActorDeactivated branch below
+            # passes `is_active=False` explicitly (NOT the default).
+            return Actor(id=actor_id, name=ActorName(name), kind=kind)
         case ActorDeactivated():
-            if state is None:  # pragma: no cover  # corruption guard
-                # ActorDeactivated never appears before ActorRegistered in a
-                # well-formed stream; if it does, the stream is corrupted.
-                # Block is unreachable in well-formed streams (already `no
-                # cover`); silence mutmut on the message/raise too.
-                msg = "ActorDeactivated cannot be applied to empty state"  # pragma: no mutate
-                raise ValueError(msg)  # pragma: no mutate
+            if state is None:  # pragma: no cover  # pragma: no mutate
+                # Corruption guard: ActorDeactivated never appears before
+                # ActorRegistered in a well-formed stream. Block is
+                # unreachable in well-formed streams (already `no cover`);
+                # `no mutate` on the same line silences mutmut for the
+                # whole `if` body too (CST node spans the block).
+                msg = "ActorDeactivated cannot be applied to empty state"
+                raise ValueError(msg)
             return Actor(id=state.id, name=state.name, is_active=False, kind=state.kind)
-        case _:  # pragma: no cover  # exhaustiveness guard
-            assert_never(event)  # pragma: no mutate
+        case _:  # pragma: no cover  # pragma: no mutate
+            # Exhaustiveness guard. The mutation that removes this whole
+            # `case _:` block lives on the `case` line itself per LibCST
+            # positioning; pragma must go here, not on the body.
+            assert_never(event)
 
 
 def fold(events: Sequence[ActorEvent]) -> Actor | None:
