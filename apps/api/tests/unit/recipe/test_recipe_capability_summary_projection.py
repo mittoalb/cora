@@ -151,12 +151,14 @@ async def test_capability_versioned_updates_status_and_refreshes_declarative_fie
     assert "required_affordances = $4" in sql
     assert "executor_shapes = $5" in sql
     assert "parameter_schema_present = $6" in sql
+    assert "versioned_at = $7" in sql
     assert args.args[1] == _CAPABILITY_ID
     assert args.args[2] == "v2.1.0"
     assert args.args[3] == "Now with bonus features."
     assert args.args[4] == ["Rotatable", "Imageable", "Triggerable"]
     assert args.args[5] == ["Method", "Procedure"]
     assert args.args[6] is True
+    assert args.args[7] == _NOW
 
 
 @pytest.mark.unit
@@ -204,11 +206,13 @@ async def test_capability_deprecated_updates_status_and_replaced_by_id() -> None
     assert "UPDATE proj_recipe_capability_summary" in sql
     assert "SET status = 'Deprecated'" in sql
     assert "replaced_by_capability_id = $2" in sql
+    assert "deprecated_at = $3" in sql
     # Declarative fields are preserved for audit per the projection docstring.
     assert "description" not in sql
     assert "required_affordances" not in sql
     assert args.args[1] == _CAPABILITY_ID
     assert args.args[2] == replaced_by
+    assert args.args[3] == _NOW
 
 
 @pytest.mark.unit

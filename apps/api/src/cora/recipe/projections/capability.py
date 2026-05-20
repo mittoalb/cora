@@ -49,6 +49,7 @@ SET status = 'Versioned',
     required_affordances = $4,
     executor_shapes = $5,
     parameter_schema_present = $6,
+    versioned_at = $7,
     updated_at = now()
 WHERE capability_id = $1
 """
@@ -57,6 +58,7 @@ _UPDATE_DEPRECATED_SQL = """
 UPDATE proj_recipe_capability_summary
 SET status = 'Deprecated',
     replaced_by_capability_id = $2,
+    deprecated_at = $3,
     updated_at = now()
 WHERE capability_id = $1
 """
@@ -101,6 +103,7 @@ class RecipeCapabilitySummaryProjection:
                     event.payload.get("required_affordances", []),
                     event.payload.get("executor_shapes", []),
                     event.payload.get("parameter_schema") is not None,
+                    datetime.fromisoformat(event.payload["occurred_at"]),
                 )
             case "RecipeCapabilityDeprecated":
                 replaced_raw = event.payload.get("replaced_by_capability_id")
@@ -108,6 +111,7 @@ class RecipeCapabilitySummaryProjection:
                     _UPDATE_DEPRECATED_SQL,
                     UUID(event.payload["capability_id"]),
                     UUID(replaced_raw) if replaced_raw is not None else None,
+                    datetime.fromisoformat(event.payload["occurred_at"]),
                 )
             case _:
                 pass

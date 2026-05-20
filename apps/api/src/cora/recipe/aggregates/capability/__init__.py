@@ -27,7 +27,11 @@ from cora.recipe.aggregates.capability.parameter_schema_validation import (
     InvalidCapabilityParameterSchemaError,
     validate_capability_parameter_schema,
 )
-from cora.recipe.aggregates.capability.read import load_capability
+from cora.recipe.aggregates.capability.read import (
+    CapabilityLifecycleTimestamps,
+    load_capability,
+    load_capability_timestamps,
+)
 from cora.recipe.aggregates.capability.state import (
     CAPABILITY_CODE_MAX_LENGTH,
     CAPABILITY_CODE_NAMESPACE_PREFIX,
@@ -62,6 +66,7 @@ __all__ = [
     "CapabilityCannotDeprecateError",
     "CapabilityCannotVersionError",
     "CapabilityCode",
+    "CapabilityLifecycleTimestamps",
     "CapabilityName",
     "CapabilityNotFoundError",
     "CapabilityStatus",
@@ -81,6 +86,7 @@ __all__ = [
     "fold",
     "from_stored",
     "load_capability",
+    "load_capability_timestamps",
     "to_payload",
     "validate_capability_description",
     "validate_capability_parameter_schema",

@@ -1,6 +1,7 @@
 """MCP tool for the `get_capability` query slice."""
 
 from collections.abc import Callable
+from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -21,7 +22,17 @@ from cora.recipe.features.get_capability.query import GetCapability
 
 
 class CapabilityOutput(BaseModel):
-    """Structured output of the `get_capability` MCP tool."""
+    """Structured output of the `get_capability` MCP tool.
+
+    `created_at` / `versioned_at` / `deprecated_at` mirror the REST
+    `CapabilityResponse` (Path C, audit-2026-05-20 Iter B-4): sourced
+    from the `proj_recipe_capability_summary` projection. Null
+    semantics: read together with `status` — a populated `status`
+    with a null timestamp means the projection has not yet folded
+    that lifecycle event, never a missing transition. A not-found
+    Capability raises (MCP `isError: true`) rather than returning
+    null timestamps.
+    """
 
     id: UUID
     code: str = Field(..., max_length=CAPABILITY_CODE_MAX_LENGTH)
@@ -33,6 +44,9 @@ class CapabilityOutput(BaseModel):
     executor_shapes: list[ExecutorShape]
     parameter_schema: dict[str, Any] | None
     replaced_by_capability_id: UUID | None
+    created_at: datetime | None = None
+    versioned_at: datetime | None = None
+    deprecated_at: datetime | None = None
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -49,15 +63,17 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ],
     ) -> CapabilityOutput:
         handler = get_handler()
-        capability = await handler(
+        view = await handler(
             GetCapability(capability_id=capability_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )
-        if capability is None:
+        if view is None:
             msg = f"Capability {capability_id} not found"
             raise ValueError(msg)
+        capability = view.capability
+        timestamps = view.timestamps
         return CapabilityOutput(
             id=capability.id,
             code=capability.code.value,
@@ -69,4 +85,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             executor_shapes=sorted(capability.executor_shapes, key=lambda s: s.value),
             parameter_schema=capability.parameter_schema,
             replaced_by_capability_id=capability.replaced_by_capability_id,
+            created_at=timestamps.created_at if timestamps is not None else None,
+            versioned_at=timestamps.versioned_at if timestamps is not None else None,
+            deprecated_at=timestamps.deprecated_at if timestamps is not None else None,
         )

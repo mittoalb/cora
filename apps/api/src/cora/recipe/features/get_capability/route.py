@@ -2,8 +2,18 @@
 
 `GET /capabilities/{capability_id}` returns 200 + CapabilityResponse
 on hit, 404 on miss.
+
+`created_at` / `versioned_at` / `deprecated_at` are sourced from the
+`proj_recipe_capability_summary` projection (Path C,
+audit-2026-05-20 Iter B-4). Null semantics under eventual
+consistency: read together with `status`. A 200 with a populated
+`status` but null timestamp means projection lag, never a missing
+transition. A 404 means the Capability aggregate itself does not
+exist. `replaced_by_capability_id` (state field, DLM-B catalog
+governance) is distinct from `deprecated_at` — "to what" vs "when".
 """
 
+from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -36,7 +46,10 @@ class CapabilityResponse(BaseModel):
     `executor_shapes` serialize as sorted lists for response
     determinism. `replaced_by_capability_id` is null on Defined /
     Versioned / Deprecated-without-replacement; populated when a
-    deprecation supplied a successor pointer.
+    deprecation supplied a successor pointer. `created_at` /
+    `versioned_at` / `deprecated_at` are projection-sourced lifecycle
+    timestamps (Path C, audit-2026-05-20 Iter B-4); see module
+    docstring for null-semantics.
     """
 
     id: UUID
@@ -49,6 +62,9 @@ class CapabilityResponse(BaseModel):
     executor_shapes: list[ExecutorShape]
     parameter_schema: dict[str, Any] | None
     replaced_by_capability_id: UUID | None
+    created_at: datetime | None = None
+    versioned_at: datetime | None = None
+    deprecated_at: datetime | None = None
 
 
 def _get_handler(request: Request) -> Handler:
@@ -81,17 +97,19 @@ async def get_capabilities(
     principal_id: Annotated[UUID, Depends(get_principal_id)],
     surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> CapabilityResponse:
-    capability = await handler(
+    view = await handler(
         GetCapability(capability_id=capability_id),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,
     )
-    if capability is None:
+    if view is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Capability {capability_id} not found",
         )
+    capability = view.capability
+    timestamps = view.timestamps
     return CapabilityResponse(
         id=capability.id,
         code=capability.code.value,
@@ -103,4 +121,7 @@ async def get_capabilities(
         executor_shapes=sorted(capability.executor_shapes, key=lambda s: s.value),
         parameter_schema=capability.parameter_schema,
         replaced_by_capability_id=capability.replaced_by_capability_id,
+        created_at=timestamps.created_at if timestamps is not None else None,
+        versioned_at=timestamps.versioned_at if timestamps is not None else None,
+        deprecated_at=timestamps.deprecated_at if timestamps is not None else None,
     )
