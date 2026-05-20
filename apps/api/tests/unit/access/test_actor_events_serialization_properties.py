@@ -40,6 +40,7 @@ from cora.access.aggregates.actor import (
     to_payload,
 )
 from cora.infrastructure.ports.event_store import StoredEvent
+from tests._strategies import aware_datetimes, printable_ascii_text
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -47,17 +48,9 @@ if TYPE_CHECKING:
 ACTOR_NAME_MAX_LENGTH = 200
 _FIXED_DT = datetime(2026, 1, 1, tzinfo=UTC)
 
-_NAME = st.text(
-    alphabet=st.characters(min_codepoint=0x21, max_codepoint=0x7E),
-    min_size=1,
-    max_size=ACTOR_NAME_MAX_LENGTH,
-)
+_NAME = printable_ascii_text(max_size=ACTOR_NAME_MAX_LENGTH)
 _KIND = st.sampled_from(list(ActorKind))
-# Events carry tz-aware (UTC) timestamps in production (Clock port returns
-# UTC); restrict the strategy to match. Hypothesis' `datetimes()` defaults
-# to naive datetimes, which would not round-trip through `datetime.isoformat`
-# + `datetime.fromisoformat` identically in all cases.
-_AWARE_DATETIME = st.datetimes(timezones=st.just(UTC))
+_AWARE_DATETIME = aware_datetimes()
 
 
 def _wrap_as_stored(event_type: str, payload: dict[str, object]) -> StoredEvent:

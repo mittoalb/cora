@@ -30,18 +30,15 @@ from cora.trust.aggregates.zone import (
     from_stored,
     to_payload,
 )
+from tests._strategies import aware_datetimes, printable_ascii_text
 
 if TYPE_CHECKING:
     from uuid import UUID
 
 _FIXED_DT = datetime(2026, 1, 1, tzinfo=UTC)
 
-_NAME = st.text(
-    alphabet=st.characters(min_codepoint=0x21, max_codepoint=0x7E),
-    min_size=1,
-    max_size=ZONE_NAME_MAX_LENGTH,
-)
-_AWARE_DATETIME = st.datetimes(timezones=st.just(UTC))
+_NAME = printable_ascii_text(max_size=ZONE_NAME_MAX_LENGTH)
+_AWARE_DATETIME = aware_datetimes()
 
 
 def _wrap_as_stored(event_type: str, payload: dict[str, object]) -> StoredEvent:
