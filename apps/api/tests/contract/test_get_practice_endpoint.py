@@ -44,6 +44,11 @@ def test_get_practice_returns_200_with_defined_status_for_new_practice() -> None
         "status": "Defined",
         # Null until version_practice runs (6d-2).
         "version": None,
+        # Projection-sourced timestamps; null in contract tests (no DB pool).
+        # Populated values asserted in tests/integration/test_get_practice_handler_postgres.py.
+        "created_at": None,
+        "versioned_at": None,
+        "deprecated_at": None,
     }
 
 

@@ -63,5 +63,10 @@ def test_get_agents_after_version_returns_versioned_status() -> None:
         assert version_resp.status_code == 204
         get_resp = client.get(f"/agents/{agent_id}")
     assert get_resp.status_code == 200
-    assert get_resp.json()["status"] == "Versioned"
-    assert get_resp.json()["versioned_at"] is not None
+    body = get_resp.json()
+    assert body["status"] == "Versioned"
+    # versioned_at is projection-sourced (Path C, Iter C-2): always present as a
+    # key on the response, null in contract tests because no projection runs
+    # without a DB pool. Populated-value coverage lives in
+    # tests/unit/agent/test_agent_summary_projection.py.
+    assert "versioned_at" in body

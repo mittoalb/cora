@@ -35,6 +35,11 @@ def test_get_family_returns_200_with_defined_status_for_new_capability() -> None
         "version": None,
         # Phase 5j: empty frozenset at define_family time renders as [].
         "affordances": [],
+        # Projection-sourced timestamps; null in contract tests (no DB pool).
+        # Populated values asserted in tests/integration/test_get_family_handler_postgres.py.
+        "created_at": None,
+        "versioned_at": None,
+        "deprecated_at": None,
     }
 
 

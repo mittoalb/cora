@@ -68,6 +68,11 @@ def test_post_capabilities_round_trips_into_get_capability_response() -> None:
         "executor_shapes": ["Method"],
         "parameter_schema": None,
         "replaced_by_capability_id": None,
+        # Projection-sourced timestamps; null in contract tests (no DB pool).
+        # Populated values asserted in tests/integration/test_get_capability_handler_postgres.py.
+        "created_at": None,
+        "versioned_at": None,
+        "deprecated_at": None,
     }
 
 
