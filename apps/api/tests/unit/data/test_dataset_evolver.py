@@ -12,6 +12,7 @@ import pytest
 
 from cora.data.aggregates.dataset import (
     DATASET_CHECKSUM_SHA256_HEX_LENGTH,
+    DatasetDemoted,
     DatasetDiscarded,
     DatasetPromoted,
     DatasetRegistered,
@@ -226,6 +227,104 @@ def test_evolve_promoted_raises_on_empty_state() -> None:
     )
     with pytest.raises(ValueError, match="DatasetPromoted"):
         evolve(state=None, event=promoted)
+
+
+@pytest.mark.unit
+def test_evolve_demoted_flips_intent_to_retracted() -> None:
+    """DatasetDemoted arm: intent goes Production -> Retracted; status preserved."""
+    register = _registered_event()
+    promoted = DatasetPromoted(
+        dataset_id=register.dataset_id,
+        reason="passed review",
+        occurred_at=_NOW,
+    )
+    demoted = DatasetDemoted(
+        dataset_id=register.dataset_id,
+        reason="calibration error",
+        occurred_at=_NOW,
+    )
+    state = fold([register, promoted, demoted])
+    assert state is not None
+    assert state.intent is Intent.RETRACTED
+    # Status preserved (intent is orthogonal to lifecycle).
+    assert state.status is DatasetStatus.REGISTERED
+
+
+@pytest.mark.unit
+def test_evolve_discarded_after_demoted_preserves_intent() -> None:
+    """Carry-through invariant: DatasetDiscarded after demote preserves
+    Retracted intent (audit-relevant historical artifact: this dataset
+    was promoted, retracted, then bytes purged)."""
+    register = _registered_event()
+    promoted = DatasetPromoted(
+        dataset_id=register.dataset_id,
+        reason="passed review",
+        occurred_at=_NOW,
+    )
+    demoted = DatasetDemoted(
+        dataset_id=register.dataset_id,
+        reason="calibration error",
+        occurred_at=_NOW,
+    )
+    discarded = DatasetDiscarded(
+        dataset_id=register.dataset_id,
+        reason="bytes purged after retraction",
+        occurred_at=_NOW,
+    )
+    state = fold([register, promoted, demoted, discarded])
+    assert state is not None
+    assert state.status is DatasetStatus.DISCARDED
+    assert state.intent is Intent.RETRACTED
+
+
+@pytest.mark.unit
+def test_evolve_demoted_raises_on_empty_state() -> None:
+    """Defensive guard: DatasetDemoted requires prior state."""
+    demoted = DatasetDemoted(
+        dataset_id=uuid4(),
+        reason="trying",
+        occurred_at=_NOW,
+    )
+    with pytest.raises(ValueError, match="DatasetDemoted"):
+        evolve(state=None, event=demoted)
+
+
+@pytest.mark.unit
+def test_demote_preserves_used_calibrations_asshot_invariant() -> None:
+    """Phase 12c AsShot invariant: DatasetDemoted preserves
+    `used_calibrations` (the citation set never changes after
+    register — even when demoting the dataset's authority)."""
+    revision_id = uuid4()
+    register = DatasetRegistered(
+        dataset_id=uuid4(),
+        name="seed",
+        uri="s3://b/k",
+        checksum_algorithm="sha256",
+        checksum_value=_GOOD_SHA256,
+        byte_size=0,
+        media_type="application/x-hdf5",
+        conforms_to=frozenset(),
+        producing_run_id=None,
+        subject_id=None,
+        derived_from=frozenset(),
+        occurred_at=_NOW,
+        producing_run_end_state=None,
+        intent="Trial",
+        used_calibrations=(revision_id,),
+    )
+    promoted = DatasetPromoted(
+        dataset_id=register.dataset_id,
+        reason="passed review",
+        occurred_at=_NOW,
+    )
+    demoted = DatasetDemoted(
+        dataset_id=register.dataset_id,
+        reason="calibration error",
+        occurred_at=_NOW,
+    )
+    state = fold([register, promoted, demoted])
+    assert state is not None
+    assert state.used_calibrations == frozenset({revision_id})
 
 
 @pytest.mark.unit

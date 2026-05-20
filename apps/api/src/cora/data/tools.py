@@ -11,6 +11,7 @@ from collections.abc import Callable
 
 from mcp.server.fastmcp import FastMCP
 
+from cora.data.features.demote_dataset import tool as demote_dataset_tool
 from cora.data.features.discard_dataset import tool as discard_dataset_tool
 from cora.data.features.get_dataset import tool as get_dataset_tool
 from cora.data.features.list_datasets import tool as list_datasets_tool
@@ -36,6 +37,10 @@ def register_data_tools(
     promote_dataset_tool.register(
         mcp,
         get_handler=lambda: get_handlers().promote_dataset,
+    )
+    demote_dataset_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().demote_dataset,
     )
     get_dataset_tool.register(
         mcp,

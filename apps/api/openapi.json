@@ -3753,6 +3753,23 @@
         "title": "DegradeSupplyRequest",
         "type": "object"
       },
+      "DemoteDatasetRequest": {
+        "description": "Body for `POST /datasets/{dataset_id}/demote`.",
+        "properties": {
+          "reason": {
+            "description": "Free-form reason for the demotion (1-500 chars after trimming). Captured verbatim in the audit log immutably. Operationally: 'retracting authoritative status because <X>' (calibration error, methodology challenged, sample compromised, etc.). Today the field is unstructured; structured taxonomy is future-additive on the same triggers as DatasetPromoted reason.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "DemoteDatasetRequest",
+        "type": "object"
+      },
       "DeprecateAgentRequest": {
         "description": "Body for `POST /agents/{agent_id}/deprecate`.",
         "properties": {
@@ -6416,7 +6433,8 @@
                   "correction",
                   "exception",
                   "appeal",
-                  "supersession"
+                  "supersession",
+                  "invalidation"
                 ],
                 "type": "string"
               },
@@ -15597,6 +15615,106 @@
           }
         },
         "summary": "Get a dataset by id",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/datasets/{dataset_id}/demote": {
+      "post": {
+        "operationId": "post_datasets_demote_datasets__dataset_id__demote_post",
+        "parameters": [
+          {
+            "description": "Target dataset's id.",
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "description": "Target dataset's id.",
+              "format": "uuid",
+              "title": "Dataset Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (Phase 1 trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode, Phase C Iter C+), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (Phase 1 trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode, Phase C Iter C+), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemoteDatasetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: whitespace-only reason (InvalidDemotionReasonError)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No dataset exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Demotion guard rejected: dataset is Discarded (DatasetCannotDemoteError); already in Retracted intent (DatasetAlreadyRetractedError, strict-not-idempotent); dataset is in Trial intent (DatasetCannotDemoteError; use discard_dataset for Trial cleanup); OR a concurrent write to the same Dataset stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation."
+          }
+        },
+        "summary": "Demote a Dataset (Production intent \u2192 Retracted intent)",
         "tags": [
           "data"
         ]

@@ -7,6 +7,7 @@ import pytest
 
 from cora.data.aggregates.dataset import (
     DATASET_CHECKSUM_SHA256_HEX_LENGTH,
+    DatasetDemoted,
     DatasetPromoted,
     DatasetRegistered,
     event_type_name,
@@ -344,6 +345,63 @@ def test_dataset_promoted_round_trip_through_stored() -> None:
     assert rebuilt == original
 
 
+# ---------- Post-Q4 compensation primitive: DatasetDemoted ----------
+
+
+@pytest.mark.unit
+def test_dataset_demoted_event_type_name() -> None:
+    event = DatasetDemoted(dataset_id=uuid4(), reason="calibration error", occurred_at=_NOW)
+    assert event_type_name(event) == "DatasetDemoted"
+
+
+@pytest.mark.unit
+def test_dataset_demoted_to_payload_serializes_primitive_fields() -> None:
+    dataset_id = uuid4()
+    event = DatasetDemoted(dataset_id=dataset_id, reason="calibration error", occurred_at=_NOW)
+    payload = to_payload(event)
+    assert payload == {
+        "dataset_id": str(dataset_id),
+        "reason": "calibration error",
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_dataset_demoted_round_trip_through_stored() -> None:
+    """Full round-trip: original -> to_payload -> from_stored == original."""
+    original = DatasetDemoted(
+        dataset_id=uuid4(),
+        reason="discovered calibration error",
+        occurred_at=_NOW,
+    )
+    new_event = to_new_event(
+        event_type=event_type_name(original),
+        payload=to_payload(original),
+        occurred_at=original.occurred_at,
+        event_id=uuid4(),
+        command_name="DemoteDataset",
+        correlation_id=uuid4(),
+        principal_id=uuid4(),
+    )
+    stored = StoredEvent(
+        position=1,
+        event_id=new_event.event_id,
+        stream_type="Dataset",
+        stream_id=original.dataset_id,
+        version=1,
+        event_type="DatasetDemoted",
+        schema_version=1,
+        payload=new_event.payload,
+        correlation_id=new_event.correlation_id,
+        causation_id=new_event.causation_id,
+        occurred_at=new_event.occurred_at,
+        recorded_at=_NOW,
+        metadata=new_event.metadata,
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == original
+
+
 @pytest.mark.unit
 @pytest.mark.parametrize(
     "event_type",
@@ -351,6 +409,7 @@ def test_dataset_promoted_round_trip_through_stored() -> None:
         "DatasetRegistered",
         "DatasetDiscarded",
         "DatasetPromoted",
+        "DatasetDemoted",
     ],
 )
 def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:

@@ -39,6 +39,7 @@ from collections.abc import Sequence
 from typing import assert_never
 
 from cora.data.aggregates.dataset.events import (
+    DatasetDemoted,
     DatasetDiscarded,
     DatasetEvent,
     DatasetPromoted,
@@ -139,6 +140,28 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 producing_run_end_state=prior.producing_run_end_state,
                 # The state change: intent flips Trial -> Production.
                 intent=Intent.PRODUCTION,
+                # Phase 12c AsShot invariant: never change after register.
+                used_calibrations=prior.used_calibrations,
+            )
+        case DatasetDemoted():
+            prior = require_state(state, "DatasetDemoted")
+            return Dataset(
+                id=prior.id,
+                name=prior.name,
+                uri=prior.uri,
+                checksum=prior.checksum,
+                byte_size=prior.byte_size,
+                encoding=prior.encoding,
+                producing_run_id=prior.producing_run_id,
+                subject_id=prior.subject_id,
+                derived_from=prior.derived_from,
+                # Status preserved (intent is orthogonal to lifecycle).
+                status=prior.status,
+                producing_run_end_state=prior.producing_run_end_state,
+                # The state change: intent flips Production -> Retracted
+                # (terminal Intent value; no re-promote from Retracted per
+                # [[project-dataset-demote-design]] lock).
+                intent=Intent.RETRACTED,
                 # Phase 12c AsShot invariant: never change after register.
                 used_calibrations=prior.used_calibrations,
             )

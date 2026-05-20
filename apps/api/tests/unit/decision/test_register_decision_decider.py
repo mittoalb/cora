@@ -263,6 +263,44 @@ def test_decide_accepts_parent_without_override_kind() -> None:
     assert events[0].override_kind is None
 
 
+@pytest.mark.unit
+def test_decide_accepts_invalidation_override_kind() -> None:
+    """`invalidation` is the 5th override_kind value (post-Q4 compensation
+    primitive; see [[project-dataset-demote-design]] + Decision state.py).
+    Maps to PROV-O `wasInvalidatedBy` on the activity side. Used when a
+    new Decision's authorized action UNDOES the effect of the parent
+    Decision (e.g., demote_dataset paired with a Decision that points
+    back at the prior promote-driving Decision)."""
+    parent_id = uuid4()
+    cmd = _good_command(parent_id=parent_id, override_kind="invalidation")
+    events = register_decision.decide(
+        state=None,
+        command=cmd,
+        context=DecisionRegistrationContext(actor=_actor(), parent=_existing_decision()),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].override_kind == "invalidation"
+    assert events[0].parent_id == parent_id
+
+
+@pytest.mark.unit
+def test_decide_raises_invalidation_without_parent() -> None:
+    """`invalidation` follows the same parent_id-required rule as the
+    other 4 override_kind values: a Decision claiming to invalidate
+    another must reference WHICH Decision it invalidates."""
+    cmd = _good_command(override_kind="invalidation")
+    with pytest.raises(OverrideKindRequiresParentError) as exc_info:
+        register_decision.decide(
+            state=None,
+            command=cmd,
+            context=DecisionRegistrationContext(actor=_actor()),
+            now=_NOW,
+            new_id=uuid4(),
+        )
+    assert exc_info.value.override_kind == "invalidation"
+
+
 # ---------- Codified design choices (lax stances; intentional non-enforcement) ----------
 
 

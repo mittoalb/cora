@@ -90,10 +90,11 @@ See [[project_authz_future]] for the saga-propagation pattern.
 ## Aggregate is atomic-immutable; chains carry corrections
 
 Decisions' decision facts are append-only and never updated in
-place. Corrections, exceptions, appeals, and supersessions land
-as NEW Decisions with `parent_id` pointing at the original and
-`override_kind` explaining the transition. The "current" Decision
-in a chain is the latest entry; consumers use the `latest-in-chain
+place. Corrections, exceptions, appeals, supersessions, and
+invalidations land as NEW Decisions with `parent_id` pointing at
+the original and `override_kind` explaining the transition. The
+"current" Decision in a chain is the latest entry; consumers use
+the `latest-in-chain
 wins` projection rule (documented in this BC's `__init__.py`).
 
 See `Decision.ratings` for the additive operator-rating annotation
@@ -325,7 +326,26 @@ class ConfidenceBand(StrEnum):
 
 # `override_kind` discriminator. When `parent_id` is set, this
 # field says WHY the new Decision overrides the old one.
-DecisionOverrideKind = Literal["correction", "exception", "appeal", "supersession"]
+#
+# Values (closed Literal; each is an English noun describing the
+# *kind* of override):
+#   - `correction`: the parent Decision was wrong; this is the
+#     correct one.
+#   - `exception`: the parent Decision's rule still applies, but
+#     this Decision grants an exception.
+#   - `appeal`: the parent Decision is being reviewed via appeal.
+#   - `supersession`: the parent Decision is being replaced by a
+#     newer/improved version of the same conceptual choice.
+#   - `invalidation`: this Decision's authorized action UNDOES the
+#     effect of the parent Decision (additive compensation, never
+#     in-place mutation of the parent). Maps to PROV-O
+#     `wasInvalidatedBy` on the activity side; `parent_id` itself
+#     always carries the `wasInformedBy` semantic (informed-by the
+#     parent — same chain whether the relationship is correction,
+#     supersession, or invalidation). First concrete consumer:
+#     paired with `demote_dataset` slice writes per
+#     [[project-dataset-demote-design]] / Q4 compensation primitive.
+DecisionOverrideKind = Literal["correction", "exception", "appeal", "supersession", "invalidation"]
 
 
 class InvalidDecisionChoiceError(ValueError):

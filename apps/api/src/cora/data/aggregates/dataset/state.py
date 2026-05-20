@@ -136,6 +136,7 @@ DATASET_CHECKSUM_ALGORITHM_SHA256 = "sha256"
 DATASET_CHECKSUM_SHA256_HEX_LENGTH = 64
 DATASET_DISCARD_REASON_MAX_LENGTH = 500
 DATASET_PROMOTION_REASON_MAX_LENGTH = 500
+DATASET_DEMOTION_REASON_MAX_LENGTH = 500
 RUN_END_STATE_COMPLETED = "Completed"  # raw string match against Run BC's RunStatus.COMPLETED.value
 
 # URI schemes that are never legitimate Dataset URIs and that pose
@@ -173,7 +174,7 @@ class DatasetStatus(StrEnum):
 
 
 class Intent(StrEnum):
-    """The Dataset's trust level / promotion state (Phase 7e).
+    """The Dataset's trust level / promotion state (Phase 7e + post-Q4 demote).
 
     `Trial`: default on register. Working data — calibration scans,
     alignment runs, exposure tests, exploratory acquisitions. Not
@@ -183,17 +184,30 @@ class Intent(StrEnum):
     Publication-grade, citable. Operator's intent is "this is the
     keeper"; the audit log captures WHY (PromotionReason) immutably.
 
-    Open enum: future values (Calibration, Superseded, Retracted,
-    Authoritative) land additively without breaking existing payloads
-    (additive-state pattern). See [[project_dataset_lineage_design]].
+    `Retracted`: explicitly demoted from Production via
+    `demote_dataset`. Terminal Intent value — no re-promote from
+    Retracted (semantic: "this Dataset was authoritative, then
+    retracted; if you want to re-publish a corrected version,
+    register a NEW Dataset with `derived_from` pointing at this
+    one"). The audit log captures WHY (DemotionReason) immutably.
+    First concrete instantiation of the Q4 compensation-primitive
+    pattern (per [[project-dataset-demote-design]]; mirrors the
+    Crossref retraction model — additive notice, original
+    preserved + marked).
+
+    Open enum: future values (Calibration, Superseded, Authoritative)
+    land additively without breaking existing payloads (additive-
+    state pattern). See [[project_dataset_lineage_design]].
 
     Distinct from `DatasetStatus` (Registered | Discarded) which
     captures lifecycle. Intent captures trust level — orthogonal to
-    lifecycle, mutated by a separate slice (`promote_dataset`).
+    lifecycle, mutated by separate slices (`promote_dataset` /
+    `demote_dataset`).
     """
 
     TRIAL = "Trial"
     PRODUCTION = "Production"
+    RETRACTED = "Retracted"
 
 
 class InvalidDatasetNameError(ValueError):
@@ -522,6 +536,103 @@ class PromotionReason:
             self.value,
             max_length=DATASET_PROMOTION_REASON_MAX_LENGTH,
             error_class=InvalidPromotionReasonError,
+        )
+        object.__setattr__(self, "value", trimmed)
+
+
+class InvalidDemotionReasonError(ValueError):
+    """The supplied demotion reason is empty, whitespace-only, or too long.
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the decider via this error. Mirrors
+    InvalidPromotionReasonError shape exactly — same free-form `str`
+    (1-500 chars) posture, same future-additive structured-taxonomy
+    re-evaluation triggers.
+
+    Mapped to HTTP 400.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Dataset demotion reason must be 1-{DATASET_DEMOTION_REASON_MAX_LENGTH} chars "
+            f"after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+class DatasetAlreadyRetractedError(Exception):
+    """Attempted to demote a Dataset that's already in `Retracted` intent.
+
+    Strict-not-idempotent: re-demote raises rather than silent no-op
+    (same posture as DatasetAlreadyPromotedError + every other terminal-
+    mutation pattern in the codebase). Operators get clear feedback on
+    accidental double-demote.
+
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, dataset_id: UUID, current_intent: "Intent") -> None:
+        super().__init__(
+            f"Dataset {dataset_id} cannot be demoted: currently in intent "
+            f"{current_intent.value}, demotion requires {Intent.PRODUCTION.value}"
+        )
+        self.dataset_id = dataset_id
+        self.current_intent = current_intent
+
+
+class DatasetCannotDemoteError(Exception):
+    """A guard rejected the demotion from Production (post-Q4 compensation slice).
+
+    Two branches, both surfaced via this single error class with a
+    branch-specific reason string:
+
+      - `dataset is discarded; cannot demote` (status guard —
+        Discarded is a stronger terminal than Retracted; bytes
+        already gone)
+      - `dataset is in Trial intent; cannot demote` (semantic guard
+        — Trial→Retracted would conflate "never authoritative" with
+        "was authoritative but now isn't"; use discard_dataset for
+        the former)
+
+    Mapped to HTTP 409. Carries the offending dataset id in the
+    reason string for operator clarity.
+
+    NOT used for the strict-not-idempotent re-demote case (that's
+    DatasetAlreadyRetractedError); kept distinct so the rejection
+    families mirror the promote-side shape exactly
+    (DatasetCannotPromoteError + DatasetAlreadyPromotedError).
+    """
+
+    def __init__(self, dataset_id: UUID, reason: str) -> None:
+        super().__init__(f"Dataset {dataset_id} cannot be demoted: {reason}")
+        self.dataset_id = dataset_id
+        self.reason = reason
+
+
+@dataclass(frozen=True)
+class DemotionReason:
+    """Free-form demotion reason. Trimmed; 1-500 chars.
+
+    Mirrors PromotionReason / DatasetDiscardReason / RunStopReason
+    precedent. The on-the-wire representation in `DatasetDemoted.reason`
+    is `str` (post-trim); the VO exists at decider-input time only to
+    centralize the validation.
+
+    Free-form `str` shape with the same future-additive structured-
+    taxonomy posture (re-evaluation triggers documented at the Run BC's
+    reason-error classes apply identically here). Operationally this
+    records "we're retracting this dataset's authoritative status
+    because <X>" — typical X values: discovered calibration error,
+    methodology challenged in peer review, sample compromised post-hoc.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_bounded_text(
+            self.value,
+            max_length=DATASET_DEMOTION_REASON_MAX_LENGTH,
+            error_class=InvalidDemotionReasonError,
         )
         object.__setattr__(self, "value", trimmed)
 

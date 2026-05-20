@@ -142,8 +142,37 @@ class DatasetDiscarded:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class DatasetDemoted:
+    """A Dataset was demoted from Production to Retracted intent (post-Q4).
+
+    `reason` is a free-form string (1-500 chars after trimming),
+    captured verbatim from the operator. Mirrors DatasetPromoted /
+    DatasetDiscarded reason shape; same future-additive structured-
+    taxonomy posture.
+
+    Operationally this records "we're retracting this dataset's
+    authoritative status because <X>". The audit trail is immutable:
+    the WHY survives forever. First concrete instantiation of the
+    Q4 compensation-primitive pattern (per [[project-dataset-demote-
+    design]]; mirrors Crossref retraction model — additive notice,
+    original DatasetPromoted preserved + marked).
+
+    Audit linkage to the prior promote-driving Decision is OPTIONAL
+    and lives on a paired Decision aggregate (operator authoring a
+    Decision with `override_kind="invalidation"` + `parent_id` →
+    prior promote-Decision). This event does NOT carry a Decision
+    reference; the slice supports quick retraction during incident
+    response without requiring a paired Decision first.
+    """
+
+    dataset_id: UUID
+    reason: str
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Dataset aggregate emits.
-DatasetEvent = DatasetRegistered | DatasetDiscarded | DatasetPromoted
+DatasetEvent = DatasetRegistered | DatasetDiscarded | DatasetPromoted | DatasetDemoted
 
 
 def event_type_name(event: DatasetEvent) -> str:
@@ -209,6 +238,12 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
                 "occurred_at": occurred_at.isoformat(),
             }
         case DatasetPromoted(dataset_id=dataset_id, reason=reason, occurred_at=occurred_at):
+            return {
+                "dataset_id": str(dataset_id),
+                "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case DatasetDemoted(dataset_id=dataset_id, reason=reason, occurred_at=occurred_at):
             return {
                 "dataset_id": str(dataset_id),
                 "reason": reason,
@@ -283,12 +318,23 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed DatasetPromoted payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
+        case "DatasetDemoted":
+            try:
+                return DatasetDemoted(
+                    dataset_id=UUID(payload["dataset_id"]),
+                    reason=payload["reason"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed DatasetDemoted payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown DatasetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
 
 
 __all__ = [
+    "DatasetDemoted",
     "DatasetDiscarded",
     "DatasetEvent",
     "DatasetPromoted",

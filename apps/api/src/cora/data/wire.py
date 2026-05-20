@@ -22,12 +22,17 @@ strict-not-idempotent so retries are domain-safe via
 (update-style; bare handler; strict-not-idempotent via
 `DatasetAlreadyPromotedError`; loads peer Datasets via slice-local
 PromotionContext for the lineage-must-be-Production guard).
+Post-Q4 compensation-primitive ships `demote_dataset` (update-style;
+bare handler; strict-not-idempotent via `DatasetAlreadyRetractedError`;
+no peer loads — no cross-BC cascade per
+[[project-dataset-demote-design]] lock).
 """
 
 from dataclasses import dataclass
 from uuid import UUID
 
 from cora.data.features import (
+    demote_dataset,
     discard_dataset,
     get_dataset,
     list_datasets,
@@ -55,6 +60,7 @@ class DataHandlers:
     register_dataset: register_dataset.IdempotentHandler
     discard_dataset: discard_dataset.Handler
     promote_dataset: promote_dataset.Handler
+    demote_dataset: demote_dataset.Handler
     get_dataset: get_dataset.Handler
     list_datasets: list_datasets.Handler
 
@@ -84,6 +90,11 @@ def wire_data(deps: Kernel) -> DataHandlers:
         promote_dataset=with_tracing(
             promote_dataset.bind(deps),
             command_name="PromoteDataset",
+            bc=_BC,
+        ),
+        demote_dataset=with_tracing(
+            demote_dataset.bind(deps),
+            command_name="DemoteDataset",
             bc=_BC,
         ),
         get_dataset=with_tracing(

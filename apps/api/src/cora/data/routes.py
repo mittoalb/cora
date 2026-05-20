@@ -45,6 +45,8 @@ from fastapi.responses import JSONResponse
 from cora.data.aggregates.dataset import (
     DatasetAlreadyExistsError,
     DatasetAlreadyPromotedError,
+    DatasetAlreadyRetractedError,
+    DatasetCannotDemoteError,
     DatasetCannotDiscardError,
     DatasetCannotPromoteError,
     DatasetNotFoundError,
@@ -56,6 +58,7 @@ from cora.data.aggregates.dataset import (
     InvalidDatasetEncodingError,
     InvalidDatasetNameError,
     InvalidDatasetUriError,
+    InvalidDemotionReasonError,
     InvalidDerivedFromError,
     InvalidPromotionReasonError,
     InvalidUsedCalibrationsError,
@@ -64,6 +67,7 @@ from cora.data.aggregates.dataset import (
 )
 from cora.data.errors import UnauthorizedError
 from cora.data.features import (
+    demote_dataset,
     discard_dataset,
     get_dataset,
     list_datasets,
@@ -149,6 +153,7 @@ def register_data_routes(app: FastAPI) -> None:
     app.include_router(register_dataset.router)
     app.include_router(discard_dataset.router)
     app.include_router(promote_dataset.router)
+    app.include_router(demote_dataset.router)
     app.include_router(get_dataset.router)
     app.include_router(list_datasets.router)
     for validation_cls in (
@@ -161,6 +166,8 @@ def register_data_routes(app: FastAPI) -> None:
         InvalidDatasetDiscardReasonError,
         # 7e validation guard: free-form promotion reason length check.
         InvalidPromotionReasonError,
+        # post-Q4 compensation slice: free-form demotion reason length check.
+        InvalidDemotionReasonError,
         # 12c validation guard: cardinality cap on AsShot citation set.
         InvalidUsedCalibrationsError,
     ):
@@ -184,6 +191,11 @@ def register_data_routes(app: FastAPI) -> None:
         # promoted is the strict-not-idempotent re-promote rejection.
         DatasetCannotPromoteError,
         DatasetAlreadyPromotedError,
+        # post-Q4 compensation-slice demote guards. cannot-demote
+        # covers Discarded / Trial branches; already-retracted is the
+        # strict-not-idempotent re-demote rejection.
+        DatasetCannotDemoteError,
+        DatasetAlreadyRetractedError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

@@ -11,8 +11,11 @@ Pin:
 import pytest
 
 from cora.data.aggregates.dataset import (
+    DATASET_DEMOTION_REASON_MAX_LENGTH,
     DATASET_PROMOTION_REASON_MAX_LENGTH,
+    DemotionReason,
     Intent,
+    InvalidDemotionReasonError,
     InvalidPromotionReasonError,
     PromotionReason,
 )
@@ -26,15 +29,17 @@ def test_intent_values_match_locked_strings() -> None:
     payloads and breaking them is a payload-format change."""
     assert Intent.TRIAL.value == "Trial"
     assert Intent.PRODUCTION.value == "Production"
+    assert Intent.RETRACTED.value == "Retracted"
 
 
 @pytest.mark.unit
 def test_intent_string_round_trip() -> None:
-    """Intent("Trial") and Intent("Production") roundtrip cleanly via
-    the StrEnum constructor — used by the evolver to rebuild from
+    """Intent("Trial") / ("Production") / ("Retracted") roundtrip cleanly
+    via the StrEnum constructor — used by the evolver to rebuild from
     the raw string in the event payload."""
     assert Intent("Trial") is Intent.TRIAL
     assert Intent("Production") is Intent.PRODUCTION
+    assert Intent("Retracted") is Intent.RETRACTED
 
 
 @pytest.mark.unit
@@ -85,5 +90,49 @@ def test_promotion_reason_is_hashable_and_equatable() -> None:
     """Frozen dataclass: same trimmed value -> equal instances."""
     a = PromotionReason("passed review")
     b = PromotionReason("  passed review  ")  # trims to same
+    assert a == b
+    assert hash(a) == hash(b)
+
+
+# ---------- DemotionReason (post-Q4 compensation primitive) ----------
+
+
+@pytest.mark.unit
+def test_demotion_reason_trims_whitespace() -> None:
+    reason = DemotionReason("  calibration error  ")
+    assert reason.value == "calibration error"
+
+
+@pytest.mark.unit
+def test_demotion_reason_accepts_max_length() -> None:
+    at_max = "x" * DATASET_DEMOTION_REASON_MAX_LENGTH
+    reason = DemotionReason(at_max)
+    assert reason.value == at_max
+
+
+@pytest.mark.unit
+def test_demotion_reason_rejects_empty() -> None:
+    with pytest.raises(InvalidDemotionReasonError):
+        DemotionReason("")
+
+
+@pytest.mark.unit
+def test_demotion_reason_rejects_whitespace_only() -> None:
+    with pytest.raises(InvalidDemotionReasonError):
+        DemotionReason("   ")
+
+
+@pytest.mark.unit
+def test_demotion_reason_rejects_overlong() -> None:
+    overlong = "x" * (DATASET_DEMOTION_REASON_MAX_LENGTH + 1)
+    with pytest.raises(InvalidDemotionReasonError):
+        DemotionReason(overlong)
+
+
+@pytest.mark.unit
+def test_demotion_reason_is_hashable_and_equatable() -> None:
+    """Frozen dataclass: same trimmed value -> equal instances."""
+    a = DemotionReason("calibration error")
+    b = DemotionReason("  calibration error  ")  # trims to same
     assert a == b
     assert hash(a) == hash(b)
