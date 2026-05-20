@@ -11,10 +11,25 @@ Status FSM (`Defined → Versioned → Deprecated`) matches the
 Capability / Family / Practice / Method / Plan / Agent post-Phase-3
 convention. Lifecycle transitions are future-loadable; v1 ships
 genesis only (per AH8).
+
+Lifecycle timestamps removed (audit-2026-05-20 Iter D, Path C):
+Surface is a singleton-ish aggregate (exactly 3 instances —
+SYSTEM_HTTP / SYSTEM_MCP_STDIO / SYSTEM_MCP_STREAMABLE_HTTP — all
+seeded at boot from constants, no operator-defined Surfaces, no
+LIST endpoint, no version_surface / deprecate_surface slices today
+or planned). The `defined_at` field was set to boot-time on every
+pod restart and the `versioned_at` / `deprecated_at` fields would
+always be null in practice — they carried no observable read
+value. The cleanest unification is to drop them entirely rather
+than build a single-row projection just for timestamp passthrough.
+If a future fourth Surface kind ever becomes operator-defined
+(triggering a real LIST endpoint), revisit by building a Surface
+projection and re-introducing the timestamps there per the
+Path C pattern shipped for Method/Plan/Practice/Family/Capability/
+Agent.
 """
 
 from dataclasses import dataclass
-from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -76,6 +91,3 @@ class Surface:
     name: SurfaceName
     kind: SurfaceKind
     status: SurfaceStatus
-    defined_at: datetime
-    versioned_at: datetime | None = None
-    deprecated_at: datetime | None = None

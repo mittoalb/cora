@@ -15,14 +15,19 @@ from cora.trust.aggregates.surface.state import Surface, SurfaceName, SurfaceSta
 def evolve(state: Surface | None, event: SurfaceEvent) -> Surface:
     """Apply one event to the current state."""
     match event:
-        case SurfaceDefined(surface_id=surface_id, name=name, kind=kind, occurred_at=occurred_at):
+        case SurfaceDefined(surface_id=surface_id, name=name, kind=kind, occurred_at=_):
             _ = state  # SurfaceDefined is genesis; prior state ignored
+            # Path C (Iter D): lifecycle timestamps removed from state — Surface
+            # is a singleton-ish aggregate (3 hardcoded instances, no LIST,
+            # no operator-defined Surfaces) so `defined_at` carried no
+            # observable read value and is dropped entirely. Event payload's
+            # `occurred_at` is still in the immutable event log if a future
+            # audit slice ever needs it.
             return Surface(
                 id=surface_id,
                 name=SurfaceName(name),
                 kind=kind,
                 status=SurfaceStatus.DEFINED,
-                defined_at=occurred_at,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

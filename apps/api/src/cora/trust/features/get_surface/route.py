@@ -1,6 +1,15 @@
-"""HTTP route for the `get_surface` query slice."""
+"""HTTP route for the `get_surface` query slice.
 
-from datetime import datetime
+Surface is a singleton-ish aggregate (3 hardcoded instances seeded
+at boot). Audit-2026-05-20 Iter D dropped the lifecycle timestamps
+from this response entirely because they carried no observable read
+value (`defined_at` was boot-time on every pod restart;
+`versioned_at` / `deprecated_at` were always null in practice). No
+projection is built — if a future fourth Surface kind ever becomes
+operator-defined, revisit per the Path C pattern in Method/Plan/
+Practice/Family/Capability/Agent.
+"""
+
 from typing import Annotated
 from uuid import UUID
 
@@ -25,9 +34,6 @@ class SurfaceResponse(BaseModel):
     name: str = Field(..., max_length=SURFACE_NAME_MAX_LENGTH)
     kind: SurfaceKind
     status: SurfaceStatus
-    defined_at: datetime
-    versioned_at: datetime | None = None
-    deprecated_at: datetime | None = None
 
 
 def _get_handler(request: Request) -> Handler:
@@ -76,7 +82,4 @@ async def get_surfaces(
         name=surface.name.value,
         kind=surface.kind,
         status=surface.status,
-        defined_at=surface.defined_at,
-        versioned_at=surface.versioned_at,
-        deprecated_at=surface.deprecated_at,
     )

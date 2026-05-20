@@ -72,8 +72,12 @@ def test_get_surface_returns_200_after_define() -> None:
     assert body["name"] == "System HTTP"
     assert body["kind"] == "http"
     assert body["status"] == "defined"
-    assert body["versioned_at"] is None
-    assert body["deprecated_at"] is None
+    # Lifecycle timestamps were dropped from the Surface response shape
+    # in Iter D (Path C carve-out for singleton aggregate); see
+    # surface/state.py docstring.
+    assert "versioned_at" not in body
+    assert "deprecated_at" not in body
+    assert "defined_at" not in body
 
 
 @pytest.mark.contract

@@ -1,7 +1,11 @@
-"""MCP tool for the `get_surface` query slice."""
+"""MCP tool for the `get_surface` query slice.
+
+Lifecycle timestamps dropped per audit-2026-05-20 Iter D — Surface is
+a singleton-ish aggregate with no observable read value for those
+fields. See route.py docstring for the carve-out reasoning.
+"""
 
 from collections.abc import Callable
-from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -23,9 +27,6 @@ class SurfaceOutput(BaseModel):
     name: str = Field(..., max_length=SURFACE_NAME_MAX_LENGTH)
     kind: SurfaceKind
     status: SurfaceStatus
-    defined_at: datetime
-    versioned_at: datetime | None = None
-    deprecated_at: datetime | None = None
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -53,7 +54,4 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             name=surface.name.value,
             kind=surface.kind,
             status=surface.status,
-            defined_at=surface.defined_at,
-            versioned_at=surface.versioned_at,
-            deprecated_at=surface.deprecated_at,
         )

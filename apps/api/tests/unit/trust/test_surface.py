@@ -1,6 +1,5 @@
 """SurfaceName + SurfaceKind enum value pinning + Surface state shape."""
 
-from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -109,25 +108,9 @@ def test_surface_state_is_frozen() -> None:
         name=SurfaceName("System HTTP"),
         kind=SurfaceKind.HTTP,
         status=SurfaceStatus.DEFINED,
-        defined_at=datetime(2026, 5, 19, 12, 0, 0, tzinfo=UTC),
     )
     with pytest.raises(AttributeError):
         surface.name = SurfaceName("Other")  # type: ignore[misc]
-
-
-@pytest.mark.unit
-def test_surface_state_defaults_versioned_and_deprecated_to_none() -> None:
-    """v1 ships genesis only; versioned_at + deprecated_at default
-    None and stay None until lifecycle slices land."""
-    surface = Surface(
-        id=uuid4(),
-        name=SurfaceName("System HTTP"),
-        kind=SurfaceKind.HTTP,
-        status=SurfaceStatus.DEFINED,
-        defined_at=datetime(2026, 5, 19, 12, 0, 0, tzinfo=UTC),
-    )
-    assert surface.versioned_at is None
-    assert surface.deprecated_at is None
 
 
 # ---------- AlreadyExists error ----------
