@@ -84,6 +84,13 @@ dev = [
     # traceback from the hung test before killing it, so the failure
     # output points to the line responsible.
     "pytest-timeout>=2.4.0,<3",
+    # Hypothesis: property-based testing (Iter C of testing-techniques rollout).
+    # Used for value-object invariants today; planned to extend to per-command
+    # deciders in Iter D (PBT on Access BC). A `ci` profile is registered in
+    # tests/conftest.py and auto-activates on CI=true to derandomize the seed
+    # and disable the local example database, sidestepping xdist seed
+    # collisions across worker processes.
+    "hypothesis>=6.130,<7",
 ]
 
 [build-system]

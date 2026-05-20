@@ -37,11 +37,32 @@ from urllib.parse import urlparse
 import asyncpg
 import pytest
 import pytest_asyncio
+from hypothesis import HealthCheck, Verbosity, settings
 from testcontainers.postgres import PostgresContainer
 
 from tests._pg import normalize_async_url
 
 os.environ.setdefault("APP_ENV", "test")
+
+# Hypothesis profiles (registered for the testing-techniques rollout, Iter C).
+# `dev` (default locally): keep the example database on, allow shrinking, default
+#   max_examples — the fast feedback loop a developer wants.
+# `ci`: derandomize the seed so xdist workers don't collide on the example
+#   database, disable the example DB write entirely (avoids worker write
+#   contention), drop the deadline so a slow CI runner doesn't flake, and
+#   silence the function-scoped-fixture health check that trips on
+#   pytest-asyncio's per-test event loop. Auto-activates when CI=true.
+settings.register_profile("dev", deadline=None)
+settings.register_profile(
+    "ci",
+    deadline=None,
+    derandomize=True,
+    database=None,
+    print_blob=True,
+    suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture],
+    verbosity=Verbosity.normal,
+)
+settings.load_profile("ci" if os.environ.get("CI") == "true" else "dev")
 
 # Repo-root/infra/atlas/migrations relative to this conftest.
 _MIGRATIONS_DIR = Path(__file__).resolve().parents[3] / "infra" / "atlas" / "migrations"
