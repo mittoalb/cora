@@ -39,7 +39,6 @@ def _agent(
         name=AgentName("Run Debrief"),
         version=AgentVersion("v1"),
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
-        defined_at=_NOW,
         status=status,
         tools=tools,
     )

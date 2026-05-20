@@ -93,7 +93,6 @@ def test_genesis_collision_raises_already_exists() -> None:
         name=AgentName("Run Debrief"),
         version=AgentVersion("v1"),
         model_ref=_MODEL,
-        defined_at=_NOW,
     )
     assert existing.status is AgentStatus.DEFINED
     with pytest.raises(AgentAlreadyExistsError):

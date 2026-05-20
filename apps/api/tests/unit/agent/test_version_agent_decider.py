@@ -29,7 +29,6 @@ def _defined_agent(*, agent_id: object | None = None) -> Agent:
         name=AgentName("Run Debrief"),
         version=AgentVersion("v1"),
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
-        defined_at=_NOW,
         status=AgentStatus.DEFINED,
     )
 
@@ -60,9 +59,7 @@ def test_cannot_version_a_versioned_agent() -> None:
         name=agent.name,
         version=agent.version,
         model_ref=agent.model_ref,
-        defined_at=agent.defined_at,
         status=AgentStatus.VERSIONED,
-        versioned_at=_NOW,
     )
     with pytest.raises(AgentCannotVersionError):
         decide(state=versioned, command=VersionAgent(agent_id=versioned.id), now=_NOW)
@@ -77,9 +74,7 @@ def test_cannot_version_a_deprecated_agent() -> None:
         name=agent.name,
         version=agent.version,
         model_ref=agent.model_ref,
-        defined_at=agent.defined_at,
         status=AgentStatus.DEPRECATED,
-        deprecated_at=_NOW,
     )
     with pytest.raises(AgentCannotVersionError):
         decide(state=deprecated, command=VersionAgent(agent_id=deprecated.id), now=_NOW)

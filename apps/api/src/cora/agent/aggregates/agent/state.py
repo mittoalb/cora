@@ -28,7 +28,7 @@ All follow the `validate_bounded_text` + `object.__setattr__` pattern
 hoisted in 6e-1.
 
 `ModelRef` is a 3-field VO (`provider` + `model` + optional
-`snapshot_pin`); required at definition so 8f-b's LLMPort has the
+`snapshot_pin`); required at definition so 8f-b's LLM has the
 model identity available immediately.
 
 ## Cross-BC identity sharing
@@ -694,7 +694,7 @@ class ModelRef:
     """Model identity: provider + model + optional snapshot pin.
 
     Required at `define_agent` (NOT at version_agent) so 8f-b's
-    LLMPort has the model identity available the moment the Agent
+    LLM has the model identity available the moment the Agent
     exists. Different `model_ref` = different Agent (changing model
     requires defining a new Agent with a new `id`).
 
@@ -767,15 +767,23 @@ class Agent:
     Optional fields: `description`, `canonical_uri`,
     `prompt_template_id` (None at 8f-a if registry hasn't shipped a
     template; required by 8f-b's RunDebrief subscriber),
-    `capabilities` (defaults to empty frozenset),
-    `versioned_at` / `deprecated_at` (set by transition events).
-
-    `defined_at` is always present (set at genesis).
+    `capabilities` (defaults to empty frozenset).
 
     Phase 8f-c iter 2 additions: `tools` per-agent MCP tool
     allowlist; `budget` optional declarative caps (no enforcement
     at this iter); `suspended_at` / `resumed_at` / `suspension_reason`
     timestamps + reason for the new `Suspended` non-terminal state.
+    These STAY on aggregate state because `suspension_reason` is
+    invariant-bearing — deciders read it.
+
+    Lifecycle timestamps moved off state (audit-2026-05-20 Iter C-2,
+    Path C): `defined_at` / `versioned_at` / `deprecated_at` no
+    longer live here. The projection (`proj_agent_summary`, Iter C-1)
+    folds those from event-payload `occurred_at`; readers compose
+    them onto the response via `load_agent_timestamps`. Mirrors
+    Method / Plan / Practice / Family / Capability. Suspended/Resumed
+    timestamps stay because they pair with the invariant-bearing
+    suspension_reason field.
 
     Forward-compat fold: pre-8f-c-iter-2 `AgentDefined` events have
     no `tools` / `budget` keys; `from_stored` reads them via
@@ -793,14 +801,11 @@ class Agent:
     name: AgentName
     version: AgentVersion
     model_ref: ModelRef
-    defined_at: datetime
     description: AgentDescription | None = None
     canonical_uri: AgentCanonicalURI | None = None
     prompt_template_id: UUID | None = None
     capabilities: frozenset[AgentCapability] = field(default_factory=frozenset[AgentCapability])
     status: AgentStatus = AgentStatus.DEFINED
-    versioned_at: datetime | None = None
-    deprecated_at: datetime | None = None
     deprecation_reason: AgentDeprecationReason | None = None
     # Phase 8f-c iter 2: ToolGrant + Suspended + AgentBudget
     tools: frozenset[ToolName] = field(default_factory=frozenset[ToolName])

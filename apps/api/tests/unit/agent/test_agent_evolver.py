@@ -63,9 +63,7 @@ def test_genesis_folds_to_defined_state() -> None:
     assert state.description.value == "Synthesises terminal Runs."
     assert state.canonical_uri is not None
     assert state.capabilities == frozenset({AgentCapability("summarize")})
-    assert state.defined_at == _T0
-    assert state.versioned_at is None
-    assert state.deprecated_at is None
+    # Lifecycle timestamps moved to projection (Iter C-2); no longer on state.
 
 
 @pytest.mark.unit
@@ -76,10 +74,10 @@ def test_genesis_then_versioned_folds_to_versioned_state() -> None:
     state = fold([e1, e2])
     assert state is not None
     assert state.status is AgentStatus.VERSIONED
-    assert state.versioned_at == _T1
     # Other fields preserved.
     assert state.kind.value == "RunDebrief"
-    assert state.defined_at == _T0
+    # Lifecycle timestamps live on the projection (Iter C-2); status flip is
+    # the assertion that survives at the state level.
 
 
 @pytest.mark.unit
@@ -90,7 +88,7 @@ def test_genesis_then_deprecated_folds_to_deprecated_state() -> None:
     state = fold([e1, e2])
     assert state is not None
     assert state.status is AgentStatus.DEPRECATED
-    assert state.deprecated_at == _T1
+    # Lifecycle timestamps moved to projection (Iter C-2).
     assert state.deprecation_reason is not None
     assert state.deprecation_reason.value == "model retired"
 
@@ -105,8 +103,7 @@ def test_full_lifecycle_folds_to_deprecated_state() -> None:
     state = fold([e1, e2, e3])
     assert state is not None
     assert state.status is AgentStatus.DEPRECATED
-    assert state.versioned_at == _T1
-    assert state.deprecated_at == _T2
+    # Lifecycle timestamps moved to projection (Iter C-2).
     assert state.deprecation_reason is None
 
 
@@ -142,8 +139,9 @@ def test_versioned_then_suspended_folds_to_suspended_state() -> None:
     assert state.suspended_at == _T2
     assert state.suspension_reason is not None
     assert state.suspension_reason.value == "cost overrun"
-    # Versioned-at preserved as audit-trail historical record.
-    assert state.versioned_at == _T1
+    # `versioned_at` was previously preserved here as an audit-trail
+    # historical record on state. Iter C-2 moved lifecycle timestamps
+    # to `proj_agent_summary` — the audit trail lives there now.
 
 
 @pytest.mark.unit
@@ -238,16 +236,16 @@ def test_budget_revised_with_both_caps_none_clears_budget() -> None:
 
 @pytest.mark.unit
 def test_tool_grant_preserves_unrelated_fields() -> None:
-    """ToolGrant arm must not silently wipe deprecation_reason / suspended_at
-    / versioned_at. Guards the silent-wipe class of bugs caught at 8f-b iter 1
-    gate review."""
+    """ToolGrant arm must not silently wipe deprecation_reason / suspended_at.
+    Guards the silent-wipe class of bugs caught at 8f-b iter 1 gate review.
+    (`versioned_at` formerly checked here is now on the projection per
+    Iter C-2; status + tools cover the silent-wipe guard at state level.)"""
     agent_id = uuid4()
     e1 = _genesis(agent_id=agent_id)
     e2 = AgentVersioned(agent_id=agent_id, version="v1", occurred_at=_T1)
     e3 = AgentToolGranted(agent_id=agent_id, tool_name="read_run", occurred_at=_T2)
     state = fold([e1, e2, e3])
     assert state is not None
-    assert state.versioned_at == _T1
     assert state.status is AgentStatus.VERSIONED
     assert state.tools == frozenset({ToolName("read_run")})
 

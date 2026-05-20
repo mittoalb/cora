@@ -77,19 +77,20 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
             canonical_uri=canonical_uri,
             prompt_template_id=prompt_template_id,
             capabilities=capabilities,
-            occurred_at=occurred_at,
+            occurred_at=_,
             tools=tools,
             budget_monthly_usd_cap=budget_monthly_usd_cap,
             budget_daily_token_cap=budget_daily_token_cap,
         ):
             _ = state  # AgentDefined is the genesis event; prior state ignored
+            # Path C (Iter C-2): `defined_at` no longer on state — folded
+            # into `proj_agent_summary.created_at` by AgentSummaryProjection.
             return Agent(
                 id=agent_id,
                 kind=AgentKind(kind),
                 name=AgentName(name),
                 version=AgentVersion(version),
                 model_ref=model_ref,
-                defined_at=occurred_at,
                 description=AgentDescription(description) if description is not None else None,
                 canonical_uri=(
                     AgentCanonicalURI(canonical_uri) if canonical_uri is not None else None
@@ -100,22 +101,21 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
                 tools=frozenset(ToolName(t) for t in tools),
                 budget=_decode_budget(budget_monthly_usd_cap, budget_daily_token_cap),
             )
-        case AgentVersioned(occurred_at=occurred_at):
+        case AgentVersioned(occurred_at=_):
             prior = require_state(state, "AgentVersioned")
+            # Path C (Iter C-2): `versioned_at` no longer on state — folded
+            # into `proj_agent_summary.versioned_at` by AgentSummaryProjection.
             return Agent(
                 id=prior.id,
                 kind=prior.kind,
                 name=prior.name,
                 version=prior.version,
                 model_ref=prior.model_ref,
-                defined_at=prior.defined_at,
                 description=prior.description,
                 canonical_uri=prior.canonical_uri,
                 prompt_template_id=prior.prompt_template_id,
                 capabilities=prior.capabilities,
                 status=AgentStatus.VERSIONED,
-                versioned_at=occurred_at,
-                deprecated_at=prior.deprecated_at,
                 deprecation_reason=prior.deprecation_reason,
                 tools=prior.tools,
                 budget=prior.budget,
@@ -123,22 +123,23 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
                 resumed_at=prior.resumed_at,
                 suspension_reason=prior.suspension_reason,
             )
-        case AgentDeprecated(reason=reason, occurred_at=occurred_at):
+        case AgentDeprecated(reason=reason, occurred_at=_):
             prior = require_state(state, "AgentDeprecated")
+            # Path C (Iter C-2): `deprecated_at` no longer on state — folded
+            # into `proj_agent_summary.deprecated_at` by AgentSummaryProjection.
+            # `deprecation_reason` STAYS on state (decider-relevant for any
+            # future "cannot un-deprecate without rationale" rules).
             return Agent(
                 id=prior.id,
                 kind=prior.kind,
                 name=prior.name,
                 version=prior.version,
                 model_ref=prior.model_ref,
-                defined_at=prior.defined_at,
                 description=prior.description,
                 canonical_uri=prior.canonical_uri,
                 prompt_template_id=prior.prompt_template_id,
                 capabilities=prior.capabilities,
                 status=AgentStatus.DEPRECATED,
-                versioned_at=prior.versioned_at,
-                deprecated_at=occurred_at,
                 deprecation_reason=(AgentDeprecationReason(reason) if reason is not None else None),
                 tools=prior.tools,
                 budget=prior.budget,
@@ -148,20 +149,20 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
             )
         case AgentSuspended(reason=reason, occurred_at=occurred_at):
             prior = require_state(state, "AgentSuspended")
+            # `suspended_at` + `suspension_reason` STAY on state per Iter C-1
+            # scope decision: suspension_reason is invariant-bearing
+            # (decider-relevant), so its paired timestamp does too.
             return Agent(
                 id=prior.id,
                 kind=prior.kind,
                 name=prior.name,
                 version=prior.version,
                 model_ref=prior.model_ref,
-                defined_at=prior.defined_at,
                 description=prior.description,
                 canonical_uri=prior.canonical_uri,
                 prompt_template_id=prior.prompt_template_id,
                 capabilities=prior.capabilities,
                 status=AgentStatus.SUSPENDED,
-                versioned_at=prior.versioned_at,
-                deprecated_at=prior.deprecated_at,
                 deprecation_reason=prior.deprecation_reason,
                 tools=prior.tools,
                 budget=prior.budget,
@@ -177,14 +178,11 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
                 name=prior.name,
                 version=prior.version,
                 model_ref=prior.model_ref,
-                defined_at=prior.defined_at,
                 description=prior.description,
                 canonical_uri=prior.canonical_uri,
                 prompt_template_id=prior.prompt_template_id,
                 capabilities=prior.capabilities,
                 status=AgentStatus.VERSIONED,
-                versioned_at=prior.versioned_at,
-                deprecated_at=prior.deprecated_at,
                 deprecation_reason=prior.deprecation_reason,
                 tools=prior.tools,
                 budget=prior.budget,
@@ -206,14 +204,11 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
                 name=prior.name,
                 version=prior.version,
                 model_ref=prior.model_ref,
-                defined_at=prior.defined_at,
                 description=prior.description,
                 canonical_uri=prior.canonical_uri,
                 prompt_template_id=prior.prompt_template_id,
                 capabilities=prior.capabilities,
                 status=prior.status,
-                versioned_at=prior.versioned_at,
-                deprecated_at=prior.deprecated_at,
                 deprecation_reason=prior.deprecation_reason,
                 tools=prior.tools | {ToolName(tool_name)},
                 budget=prior.budget,
@@ -229,14 +224,11 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
                 name=prior.name,
                 version=prior.version,
                 model_ref=prior.model_ref,
-                defined_at=prior.defined_at,
                 description=prior.description,
                 canonical_uri=prior.canonical_uri,
                 prompt_template_id=prior.prompt_template_id,
                 capabilities=prior.capabilities,
                 status=prior.status,
-                versioned_at=prior.versioned_at,
-                deprecated_at=prior.deprecated_at,
                 deprecation_reason=prior.deprecation_reason,
                 tools=prior.tools - {ToolName(tool_name)},
                 budget=prior.budget,
@@ -256,14 +248,11 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
                 name=prior.name,
                 version=prior.version,
                 model_ref=prior.model_ref,
-                defined_at=prior.defined_at,
                 description=prior.description,
                 canonical_uri=prior.canonical_uri,
                 prompt_template_id=prior.prompt_template_id,
                 capabilities=prior.capabilities,
                 status=prior.status,
-                versioned_at=prior.versioned_at,
-                deprecated_at=prior.deprecated_at,
                 deprecation_reason=prior.deprecation_reason,
                 tools=prior.tools,
                 budget=_decode_budget(monthly_usd_cap, daily_token_cap),

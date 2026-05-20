@@ -84,9 +84,11 @@ async def test_handler_returns_agent_on_hit() -> None:
         correlation_id=_CORRELATION_ID,
     )
     assert result is not None
-    assert result.id == _AGENT_ID
-    assert result.kind.value == "RunDebrief"
-    assert result.status is AgentStatus.DEFINED
+    assert result.agent.id == _AGENT_ID
+    assert result.agent.kind.value == "RunDebrief"
+    assert result.agent.status is AgentStatus.DEFINED
+    # In-memory deps have no pool -> projection-sourced timestamps absent.
+    assert result.timestamps is None
 
 
 @pytest.mark.unit

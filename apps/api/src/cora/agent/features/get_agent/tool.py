@@ -2,6 +2,14 @@
 
 Surfaces the same handler the REST route uses. On miss raises
 ValueError so FastMCP wraps the response as `isError: true`.
+
+`defined_at` / `versioned_at` / `deprecated_at` mirror the REST
+`AgentResponse` (Path C, audit-2026-05-20 Iter C-2): sourced from
+the `proj_agent_summary` projection (Iter C-1). Null semantics: read
+together with `status` — a populated `status` with a null timestamp
+means the projection has not yet folded that lifecycle event,
+never a missing transition. A not-found Agent raises (MCP
+`isError: true`) rather than returning null timestamps.
 """
 
 from collections.abc import Callable
@@ -29,7 +37,13 @@ class ModelRefOutput(BaseModel):
 
 
 class AgentOutput(BaseModel):
-    """Structured output of the `get_agent` MCP tool (on hit)."""
+    """Structured output of the `get_agent` MCP tool (on hit).
+
+    `defined_at` is now nullable (changed from required at 8f-a):
+    the projection can lag right after a fresh `define_agent`. Once
+    the projection has folded `AgentDefined`, `defined_at` is
+    non-null on every response.
+    """
 
     id: UUID
     kind: str
@@ -37,7 +51,7 @@ class AgentOutput(BaseModel):
     version: str
     model_ref: ModelRefOutput
     status: AgentStatus
-    defined_at: datetime
+    defined_at: datetime | None = None
     description: str | None = None
     canonical_uri: str | None = None
     prompt_template_id: UUID | None = None
@@ -66,15 +80,17 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ],
     ) -> AgentOutput:
         handler = get_handler()
-        agent = await handler(
+        view = await handler(
             GetAgent(agent_id=agent_id),
             principal_id=SYSTEM_PRINCIPAL_ID,
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )
-        if agent is None:
+        if view is None:
             msg = f"Agent {agent_id} not found"
             raise ValueError(msg)
+        agent = view.agent
+        timestamps = view.timestamps
         return AgentOutput(
             id=agent.id,
             kind=agent.kind.value,
@@ -86,13 +102,13 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 snapshot_pin=agent.model_ref.snapshot_pin,
             ),
             status=agent.status,
-            defined_at=agent.defined_at,
+            defined_at=timestamps.created_at if timestamps is not None else None,
             description=agent.description.value if agent.description is not None else None,
             canonical_uri=agent.canonical_uri.value if agent.canonical_uri is not None else None,
             prompt_template_id=agent.prompt_template_id,
             capabilities=sorted(c.value for c in agent.capabilities),
-            versioned_at=agent.versioned_at,
-            deprecated_at=agent.deprecated_at,
+            versioned_at=timestamps.versioned_at if timestamps is not None else None,
+            deprecated_at=timestamps.deprecated_at if timestamps is not None else None,
             deprecation_reason=(
                 agent.deprecation_reason.value if agent.deprecation_reason is not None else None
             ),

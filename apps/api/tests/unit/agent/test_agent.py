@@ -295,15 +295,12 @@ def test_agent_defaults_to_defined_status_and_empty_capabilities() -> None:
         name=AgentName("Run Debrief"),
         version=AgentVersion("v1"),
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
-        defined_at=_NOW,
     )
     assert agent.status is AgentStatus.DEFINED
     assert agent.capabilities == frozenset()
     assert agent.description is None
     assert agent.canonical_uri is None
     assert agent.prompt_template_id is None
-    assert agent.versioned_at is None
-    assert agent.deprecated_at is None
     assert agent.deprecation_reason is None
 
 
@@ -323,7 +320,6 @@ def test_agent_capabilities_cap_is_enforced_at_decider_not_state() -> None:
         name=AgentName("Run Debrief"),
         version=AgentVersion("v1"),
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
-        defined_at=_NOW,
         capabilities=frozenset(AgentCapability(f"cap-{i}") for i in range(over_cap_count)),
     )
     assert len(agent.capabilities) == over_cap_count
@@ -452,7 +448,6 @@ def test_agent_defaults_to_empty_tools_and_none_budget() -> None:
         name=AgentName("Run Debrief"),
         version=AgentVersion("v1"),
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
-        defined_at=_NOW,
     )
     assert agent.tools == frozenset()
     assert agent.budget is None
