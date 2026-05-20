@@ -20,9 +20,10 @@ Public surface re-exported here:
   - `register_agent_routes`    (FastAPI route + exception handler registration)
   - `register_agent_tools`     (MCP tool registration)
   - `wire_agent`               (Kernel -> AgentHandlers factory)
-  - `build_llm`                (LLMPortFactory for `build_kernel`)
+  - `build_llm`                (LLMFactory for `build_kernel`)
 """
 
+from cora.agent._projections import register_agent_projections
 from cora.agent._subscribers import register_agent_subscribers
 from cora.agent.llm_factory import build_llm
 from cora.agent.routes import register_agent_routes
@@ -34,6 +35,7 @@ from cora.agent.wire import AgentHandlers, wire_agent
 __all__ = [
     "AgentHandlers",
     "build_llm",
+    "register_agent_projections",
     "register_agent_routes",
     "register_agent_subscribers",
     "register_agent_tools",

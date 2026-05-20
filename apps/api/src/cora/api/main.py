@@ -48,6 +48,7 @@ from cora.access import (
 from cora.agent import (
     AgentHandlers,
     build_llm,
+    register_agent_projections,
     register_agent_routes,
     register_agent_subscribers,
     register_agent_tools,
@@ -432,6 +433,10 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             register_caution_projections(registry, deps)
             register_calibration_projections(registry, deps)
             register_campaign_projections(registry, deps)
+            # audit-2026-05-20 Iter C-1: Agent BC's first projection
+            # (proj_agent_summary). Path C lock — state-side lifecycle
+            # timestamps move to the projection in Iter C-2.
+            register_agent_projections(registry, deps)
             # Phase 8f-b iter 2b: side-effecting Agent BC subscribers
             # (RunDebrief). Conditional: only registered when
             # `kernel.llm` is wired (ANTHROPIC_API_KEY configured).

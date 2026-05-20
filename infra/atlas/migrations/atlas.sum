@@ -1,4 +1,4 @@
-h1:RSq8+7aH6zJoGRZJJzm20NGF7FDXuZ8SCPDKbPZOj7o=
+h1:eP5ebf4+WB+YxxYYCppBo7oNM9WcbyNQUSEYx/bG9/E=
 20260509120000_init_events.sql h1:GmgCZKfaqXu1m96/cKAks2vhaLWTdEaHTLkFtUo9FXg=
 20260509170000_init_idempotency.sql h1:Nbu8DIE4Sv1WiHw3G22+tYffPhKc5Jryw3PMK8wB2zY=
 20260510010000_add_event_id.sql h1:RbtYP6uMnOB20zhJ9dNXUi4YVqbmlEzf562pmygnRW8=
@@ -58,3 +58,4 @@ h1:RSq8+7aH6zJoGRZJJzm20NGF7FDXuZ8SCPDKbPZOj7o=
 20260520020000_add_practice_summary_lifecycle_timestamps.sql h1:3EqnykfOTdn/9IlnAAyJPh2SDhZUl5pMBalgOdeaiHw=
 20260520030000_add_family_summary_lifecycle_timestamps.sql h1:NtlOTyai5d9lcDMEtUJpjkzbHm6m61oPE9cuYCXWEiE=
 20260520040000_add_recipe_capability_summary_lifecycle_timestamps.sql h1:FRWrIwK5No7I6R/iwPF1jkNc0uOpmZh7VlCK4AwKqwI=
+20260520050000_init_proj_agent_summary.sql h1:GpYZgCsfzQu6Dd5krTBNbZtqCkzlfImf28pofZXEXYQ=
