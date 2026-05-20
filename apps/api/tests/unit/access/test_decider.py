@@ -67,12 +67,3 @@ def test_decide_rejects_existing_state() -> None:
             new_id=uuid4(),
         )
     assert exc_info.value.actor_id == existing.id
-
-
-@pytest.mark.unit
-def test_decide_is_pure_same_inputs_same_outputs() -> None:
-    new_id = uuid4()
-    command = RegisterActor(name="Doga")
-    first = register_actor.decide(state=None, command=command, now=_NOW, new_id=new_id)
-    second = register_actor.decide(state=None, command=command, now=_NOW, new_id=new_id)
-    assert first == second

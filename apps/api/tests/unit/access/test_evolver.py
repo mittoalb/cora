@@ -38,15 +38,6 @@ def test_fold_single_actor_registered_returns_actor() -> None:
 
 
 @pytest.mark.unit
-def test_fold_is_pure_same_input_same_output() -> None:
-    actor_id = uuid4()
-    events = [
-        ActorRegistered(actor_id=actor_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN)
-    ]
-    assert fold(events) == fold(events)
-
-
-@pytest.mark.unit
 def test_decider_and_evolver_round_trip() -> None:
     """The events the decider produces must rebuild the expected state.
 

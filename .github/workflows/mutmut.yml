@@ -68,23 +68,47 @@ jobs:
         continue-on-error: true
 
       - name: Extract survivors + summarise
-        # Always run, even if the previous step exited non-zero, so
-        # we still get a report when mutmut hits transient issues.
+        # Always run, even if the previous step exited non-zero, so we
+        # still get a report when mutmut hits transient issues.
+        #
+        # Why `mutmut export-cicd-stats` and NOT `mutmut results`:
+        # `mutmut results` only reports SURVIVED + NOT_CHECKED entries
+        # — killed mutants are absent from its output, which silently
+        # zeroes out the "killed" count in any grep-based summary.
+        # `export-cicd-stats` writes the canonical structured counts
+        # (killed / survived / no_tests / skipped / suspicious / timeout
+        # / segfault / total) to JSON. Parse that for the summary.
         if: always()
         working-directory: apps/api
         run: |
           set +e
+          uv run mutmut export-cicd-stats > export-output.txt 2>&1 || true
           uv run mutmut results > all-results.txt 2>&1 || true
           grep ': survived$' all-results.txt > survivors.txt || true
-          killed=$(grep -c ': killed$' all-results.txt || echo 0)
-          survived=$(grep -c ': survived$' all-results.txt || echo 0)
-          timeout=$(grep -c ': timeout$' all-results.txt || echo 0)
-          segfault=$(grep -c ': segfault$' all-results.txt || echo 0)
-          total=$((killed + survived + timeout + segfault))
-          score=0
-          if [ "$total" -gt 0 ]; then
-            score=$((killed * 100 / total))
+
+          stats_file=mutants/mutmut-cicd-stats.json
+          if [ ! -f "$stats_file" ]; then
+            echo "## Mutation audit summary" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "⚠ stats file missing — mutmut export failed. See \`export-output.txt\` in the artifact." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
+
+          killed=$(python3 -c "import json; print(json.load(open('$stats_file'))['killed'])")
+          survived=$(python3 -c "import json; print(json.load(open('$stats_file'))['survived'])")
+          no_tests=$(python3 -c "import json; print(json.load(open('$stats_file'))['no_tests'])")
+          timeout=$(python3 -c "import json; print(json.load(open('$stats_file'))['timeout'])")
+          segfault=$(python3 -c "import json; print(json.load(open('$stats_file'))['segfault'])")
+          # `total` from export includes the entire mutant universe — we
+          # care about the scoped denominator (killed + survived + timeout
+          # + segfault), since "no_tests" mutants are out-of-scope ones
+          # that mutmut generated but never ran.
+          scoped_total=$((killed + survived + timeout + segfault))
+          score=0
+          if [ "$scoped_total" -gt 0 ]; then
+            score=$((killed * 100 / scoped_total))
+          fi
+
           {
             echo "## Mutation audit summary"
             echo ""
@@ -92,11 +116,12 @@ jobs:
             echo ""
             echo "| Outcome | Count |"
             echo "|---|---|"
-            echo "| Killed (good) | $killed |"
-            echo "| Survived (gap) | $survived |"
+            echo "| Killed (tests caught the mutation) | $killed |"
+            echo "| Survived (gap or equivalent) | $survived |"
             echo "| Timeout | $timeout |"
             echo "| Segfault | $segfault |"
-            echo "| **Total** | **$total** |"
+            echo "| Out of scope (no_tests) | $no_tests |"
+            echo "| **Scoped total** | **$scoped_total** |"
             echo ""
             echo "**Mutation score: ${score}% killed**"
             echo ""
@@ -107,7 +132,7 @@ jobs:
               head -10 survivors.txt
               echo '```'
               echo ""
-              echo "Full list in the \`mutmut-audit-${{ github.run_number }}\` artifact."
+              echo "Full list in the \`mutmut-audit-${{ github.run_number }}\` artifact. Triage via \`mutmut show <id>\` locally; annotate equivalents with \`# pragma: no mutate\`."
             else
               echo "No surviving mutants. ✓"
             fi
@@ -119,8 +144,10 @@ jobs:
         with:
           name: mutmut-audit-${{ github.run_number }}
           path: |
+            apps/api/mutants/mutmut-cicd-stats.json
             apps/api/mutants/mutmut-stats.json
             apps/api/survivors.txt
             apps/api/all-results.txt
+            apps/api/export-output.txt
           if-no-files-found: warn
           retention-days: 30

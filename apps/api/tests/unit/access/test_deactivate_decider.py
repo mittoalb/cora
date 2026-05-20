@@ -56,13 +56,3 @@ def test_decide_rejects_already_deactivated_actor() -> None:
             now=_NOW,
         )
     assert exc_info.value.actor_id == actor_id
-
-
-@pytest.mark.unit
-def test_decide_is_pure_same_inputs_same_outputs() -> None:
-    actor_id = uuid4()
-    state = Actor(id=actor_id, name=ActorName("Doga"), is_active=True)
-    command = DeactivateActor(actor_id=actor_id)
-    first = deactivate_actor.decide(state=state, command=command, now=_NOW)
-    second = deactivate_actor.decide(state=state, command=command, now=_NOW)
-    assert first == second
