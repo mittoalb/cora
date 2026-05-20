@@ -1,7 +1,7 @@
 .PHONY: install dev db-up db-down db-reset lint typecheck test test-unit test-int test-contract \
         test-coverage diff-coverage fmt clean help \
         migrate-status migrate-apply migrate-new migrate-hash precommit precommit-run \
-        arch-check arch-show docs-stage docs-build docs-serve
+        arch-check arch-show docs-stage docs-build docs-serve openapi-snapshot
 
 API_DIR := apps/api
 COMPOSE := docker compose -f infra/docker-compose.yml
@@ -30,6 +30,7 @@ help:
 	@echo "  diff-coverage   Run diff-cover against origin/main (fails if patch <90%)"
 	@echo "  arch-check      Tach dependency contract + architecture fitness-function tests"
 	@echo "  arch-show       Open the dependency graph (tach show)"
+	@echo "  openapi-snapshot Regenerate apps/api/openapi.json from create_app()"
 	@echo "  precommit       Install pre-commit hooks (one-time per clone)"
 	@echo "  precommit-run   Run all pre-commit hooks against all files"
 	@echo "  docs-stage      Stage README + CONTRIBUTING into docs/ (link rewrites for site)"
@@ -105,6 +106,13 @@ arch-check:
 
 arch-show:
 	cd $(API_DIR) && uv run tach show
+
+# Regenerate the committed OpenAPI snapshot after intentional API surface
+# changes. The drift test (tests/architecture/test_openapi_drift.py) fails
+# until this is run and the diff is reviewed in the PR.
+openapi-snapshot:
+	cd $(API_DIR) && APP_ENV=test uv run python -c "import json; from cora.api.main import create_app; \
+		f = open('openapi.json', 'w'); json.dump(create_app().openapi(), f, indent=2, sort_keys=True); f.write('\n'); f.close()"
 
 precommit:
 	cd $(API_DIR) && uv run pre-commit install

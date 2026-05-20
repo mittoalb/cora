@@ -13,6 +13,10 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=500]
+        # apps/api/openapi.json is an intentional snapshot artefact
+        # (~900 KB) committed for drift detection — see
+        # tests/architecture/test_openapi_drift.py.
+        exclude: ^apps/api/openapi\.json$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.12
