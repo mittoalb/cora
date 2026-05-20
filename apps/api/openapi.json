@@ -896,6 +896,97 @@
         "title": "ApproveClearanceRequest",
         "type": "object"
       },
+      "AssetIntegrationViewResponse": {
+        "description": "Read-side DTO at the API boundary.\n\nDecouples wire format from the domain `AssetIntegrationView`. Lists\nserialize in deterministic order (families/cautions/capabilities by\ntheir canonical sort; ports already sorted by name in the handler).\n\n`incomplete` is TRUE if any Family in `asset.families` failed to load\n(eventual-consistency tolerance per\n[[project-dataset-lineage-design]]); consumers should treat the\nbundle as partial in that case.",
+        "properties": {
+          "active_cautions": {
+            "items": {
+              "$ref": "#/components/schemas/CautionViewDTO"
+            },
+            "title": "Active Cautions",
+            "type": "array"
+          },
+          "applicable_capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/CapabilityViewDTO"
+            },
+            "title": "Applicable Capabilities",
+            "type": "array"
+          },
+          "asset_id": {
+            "format": "uuid",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "condition": {
+            "title": "Condition",
+            "type": "string"
+          },
+          "families": {
+            "items": {
+              "$ref": "#/components/schemas/FamilyViewDTO"
+            },
+            "title": "Families",
+            "type": "array"
+          },
+          "incomplete": {
+            "title": "Incomplete",
+            "type": "boolean"
+          },
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "lifecycle": {
+            "title": "Lifecycle",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "ports": {
+            "items": {
+              "$ref": "#/components/schemas/PortViewDTO"
+            },
+            "title": "Ports",
+            "type": "array"
+          },
+          "settings": {
+            "additionalProperties": true,
+            "title": "Settings",
+            "type": "object"
+          }
+        },
+        "required": [
+          "asset_id",
+          "name",
+          "level",
+          "lifecycle",
+          "condition",
+          "parent_id",
+          "families",
+          "ports",
+          "settings",
+          "active_cautions",
+          "applicable_capabilities",
+          "incomplete"
+        ],
+        "title": "AssetIntegrationViewResponse",
+        "type": "object"
+      },
       "AssetLevel": {
         "description": "The hierarchical level of an Asset.\n\nPer the BC map (ISA-88-derived, single-word convention):\n  - `Enterprise` \u2014 root; the institution itself\n  - `Site` \u2014 a facility (e.g., APS)\n  - `Area` \u2014 a section of a site (e.g., the experimental hall)\n  - `Unit` \u2014 an operational unit (e.g., a beamline)\n  - `Assembly` \u2014 a composed component (ISA-88 \"Equipment Module\")\n  - `Device` \u2014 an addressable control surface (ISA-88 \"Control Module\")\n\nCommon pattern is the strict ordering above, but Device-in-Device\nis allowed when reality demands it (smart instruments). Levels\nare conventional, not enforced \u2014 the decider does not check that\na Device's parent is an Assembly.",
         "enum": [
@@ -1870,6 +1961,36 @@
         "title": "CapabilityResponse",
         "type": "object"
       },
+      "CapabilityViewDTO": {
+        "description": "Read-side DTO for one applicable Capability on the integration-view bundle.",
+        "properties": {
+          "capability_id": {
+            "format": "uuid",
+            "title": "Capability Id",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "capability_id",
+          "code",
+          "name",
+          "status"
+        ],
+        "title": "CapabilityViewDTO",
+        "type": "object"
+      },
       "CautionCategory": {
         "description": "Closed controlled vocabulary, day-one lock at 6 values.\n\nDerived from synchrotron + EHS corpus 'observed in the wild' lists:\nmotion + thermal + electrical -> engineering quirks; calibration +\ninterlock; procedure. Tags absorb the rest (ICAT `ParameterType` +\nOlog `level` + `tags` precedent). Adding categories is cheap\n(additive StrEnum); pruning is expensive.",
         "enum": [
@@ -2189,6 +2310,36 @@
           "registered_at"
         ],
         "title": "CautionSummaryDTO",
+        "type": "object"
+      },
+      "CautionViewDTO": {
+        "description": "Read-side DTO for one active Caution on the integration-view bundle.",
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "caution_id": {
+            "format": "uuid",
+            "title": "Caution Id",
+            "type": "string"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "caution_id",
+          "category",
+          "severity",
+          "text"
+        ],
+        "title": "CautionViewDTO",
         "type": "object"
       },
       "ChecksumRequest": {
@@ -4182,6 +4333,34 @@
         "title": "FamilySummaryDTO",
         "type": "object"
       },
+      "FamilyViewDTO": {
+        "description": "Read-side DTO for one Family on the integration-view bundle.",
+        "properties": {
+          "affordances": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Affordances",
+            "type": "array"
+          },
+          "family_id": {
+            "format": "uuid",
+            "title": "Family Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "family_id",
+          "name",
+          "affordances"
+        ],
+        "title": "FamilyViewDTO",
+        "type": "object"
+      },
       "FaultAssetRequest": {
         "description": "Body for `POST /assets/{asset_id}/fault`.\n\n`reason` is operator-supplied free text (audit-log breadcrumb)\nexplaining why the asset is being marked Faulted. Examples:\n\"detector saturated, BIOS won't boot\", \"vacuum pump seized\",\n\"drive motor controller off-line per EPICS PV\".",
         "properties": {
@@ -5010,6 +5189,30 @@
           "created_at"
         ],
         "title": "PolicySummaryDTO",
+        "type": "object"
+      },
+      "PortViewDTO": {
+        "description": "Read-side DTO for one Asset port on the integration-view bundle.",
+        "properties": {
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "signal_type": {
+            "title": "Signal Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "direction",
+          "signal_type"
+        ],
+        "title": "PortViewDTO",
         "type": "object"
       },
       "PracticeListResponse": {
@@ -10799,6 +11002,83 @@
           }
         },
         "summary": "Mark an existing asset as Faulted (does not work, requires repair)",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/assets/{asset_id}/integration-view": {
+      "get": {
+        "operationId": "get_assets_integration_view_assets__asset_id__integration_view_get",
+        "parameters": [
+          {
+            "description": "Target asset's id.",
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "description": "Target asset's id.",
+              "format": "uuid",
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (Phase 1 trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode, Phase C Iter C+), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (Phase 1 trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode, Phase C Iter C+), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetIntegrationViewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the query."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No asset exists with the given id."
+          },
+          "422": {
+            "description": "Path parameter failed schema validation."
+          }
+        },
+        "summary": "Get the integration-view bundle for an asset",
         "tags": [
           "equipment"
         ]

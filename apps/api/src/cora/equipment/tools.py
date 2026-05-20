@@ -25,6 +25,9 @@ from cora.equipment.features.deprecate_family import (
 from cora.equipment.features.enter_maintenance import tool as enter_maintenance_tool
 from cora.equipment.features.fault_asset import tool as fault_asset_tool
 from cora.equipment.features.get_asset import tool as get_asset_tool
+from cora.equipment.features.get_asset_integration_view import (
+    tool as get_asset_integration_view_tool,
+)
 from cora.equipment.features.get_family import tool as get_family_tool
 from cora.equipment.features.list_assets import tool as list_assets_tool
 from cora.equipment.features.list_families import tool as list_families_tool
@@ -133,6 +136,10 @@ def register_equipment_tools(
     get_asset_tool.register(
         mcp,
         get_handler=lambda: get_handlers().get_asset,
+    )
+    get_asset_integration_view_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().get_asset_integration_view,
     )
     list_assets_tool.register(
         mcp,

@@ -76,6 +76,7 @@ from cora.equipment.features import (
     enter_maintenance,
     fault_asset,
     get_asset,
+    get_asset_integration_view,
     get_family,
     list_assets,
     list_families,
@@ -176,6 +177,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(add_asset_port.router)
     app.include_router(remove_asset_port.router)
     app.include_router(get_asset.router)
+    app.include_router(get_asset_integration_view.router)
     app.include_router(list_assets.router)
     for validation_cls in (
         InvalidAffordanceError,
