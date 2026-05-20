@@ -67,7 +67,15 @@ async def load_method_timestamps(
     pool: asyncpg.Pool,
     method_id: UUID,
 ) -> MethodLifecycleTimestamps | None:
-    """Read the lifecycle-timestamp triple from the projection."""
+    """Read the lifecycle-timestamp triple from the projection.
+
+    Contract: `pool` MUST be a live asyncpg pool — None-check belongs
+    to the caller, not this function (mirrors how
+    `make_list_query_handler` is invoked through bound handlers that
+    already validated `deps.pool`). Callers using this from a handler
+    should gate on `deps.pool is not None` before invocation; calling
+    with a closed/None pool raises an asyncpg runtime error.
+    """
     async with pool.acquire() as conn:
         row = await conn.fetchrow(_SELECT_TIMESTAMPS_SQL, method_id)
     if row is None:

@@ -52,8 +52,17 @@ class MethodResponse(BaseModel):
     Deprecated). `version` is the operator-supplied label of the most
     recent version_method call (null until first version).
     `created_at` / `versioned_at` / `deprecated_at` are projection-
-    sourced lifecycle timestamps (Path C, audit-2026-05-20); see
-    module docstring for null-semantics.
+    sourced lifecycle timestamps (Path C, audit-2026-05-20). Null
+    semantics under eventual consistency: read together with `status`.
+    If `status >= Defined` but `created_at` is null, the projection
+    has not yet folded `MethodDefined` (transient lag). If
+    `status == Versioned` but `versioned_at` is null, the projection
+    has not yet folded the latest `MethodVersioned`. If
+    `status == Deprecated` but `deprecated_at` is null, the projection
+    has not yet folded `MethodDeprecated`. A 404 means the Method
+    aggregate itself does not exist (fold-on-read miss); a 200 with
+    null timestamps always means projection lag, never a missing
+    transition.
     """
 
     id: UUID

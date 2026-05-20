@@ -201,3 +201,65 @@ async def test_practice_defined_is_silently_dropped() -> None:
     event = _stored("PracticeDefined", {"practice_id": str(uuid4())})
     await proj.apply(event, conn)
     conn.execute.assert_not_awaited()
+
+
+# ---------- Iter A gate-review test fill-ins (Path C) ----------
+
+
+@pytest.mark.unit
+async def test_method_versioned_replayed_overwrites_versioned_at() -> None:
+    """Path C: re-version replaces `versioned_at` wholesale (state-
+    always-holds-latest convention mirrored in projection). Two
+    `MethodVersioned` events in sequence both execute UPDATE; SQL
+    semantics ensure the second wins."""
+    proj = MethodSummaryProjection()
+    conn = AsyncMock()
+    later = datetime(2026, 6, 1, 9, 30, 0, tzinfo=UTC)
+
+    first = _stored(
+        "MethodVersioned",
+        {
+            "method_id": str(_METHOD_ID),
+            "version_tag": "v1.0.0",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    second = _stored(
+        "MethodVersioned",
+        {
+            "method_id": str(_METHOD_ID),
+            "version_tag": "v2.0.0",
+            "occurred_at": later.isoformat(),
+        },
+    )
+
+    await proj.apply(first, conn)
+    await proj.apply(second, conn)
+
+    assert conn.execute.await_count == 2
+    second_args = conn.execute.await_args_list[1].args
+    assert second_args[2] == "v2.0.0"
+    assert second_args[3] == later
+
+
+@pytest.mark.unit
+async def test_method_lifecycle_timestamps_is_immutable_dataclass() -> None:
+    """`MethodLifecycleTimestamps` is the projection-sourced VO read by
+    the route layer (Path C). Frozen so callers can't mutate it under
+    cached references; field shape pinned so future widening shows up
+    as a deliberate change."""
+    import dataclasses
+
+    from cora.recipe.aggregates.method import MethodLifecycleTimestamps
+
+    assert dataclasses.is_dataclass(MethodLifecycleTimestamps)
+    field_names = {f.name for f in dataclasses.fields(MethodLifecycleTimestamps)}
+    assert field_names == {"created_at", "versioned_at", "deprecated_at"}
+
+    instance = MethodLifecycleTimestamps(
+        created_at=_NOW,
+        versioned_at=None,
+        deprecated_at=None,
+    )
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        instance.versioned_at = _NOW  # type: ignore[misc]
