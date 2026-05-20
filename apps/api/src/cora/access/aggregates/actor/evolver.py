@@ -25,7 +25,13 @@ from cora.access.aggregates.actor.state import Actor, ActorName
 
 def evolve(state: Actor | None, event: ActorEvent) -> Actor:
     """Apply one event to the current state."""
-    match event:
+    # `pragma: no mutate` silences mutmut's `operator_match`, which removes
+    # one case clause at a time. The two reachable-case removals get killed
+    # by tests anyway; the unreachable `case _:` removal is the equivalent
+    # mutant we want to silence. mutmut's pragma is per-line + per-CST-node
+    # start_line, and the operator_match mutation is rooted on the `match`
+    # statement itself — so the pragma lives here, not on individual cases.
+    match event:  # pragma: no mutate
         case ActorRegistered(actor_id=actor_id, name=name, kind=kind):
             # `is_active` defaults to True on `Actor` — omit the explicit
             # kwarg so mutmut can't generate a redundancy mutation. The
