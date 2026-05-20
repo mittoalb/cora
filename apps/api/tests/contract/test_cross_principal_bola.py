@@ -21,10 +21,33 @@ configures `permitted_principals` correctly cannot leak a P1
 aggregate to a P2 read just because both are authenticated, even
 when both have valid X-Principal-Id headers.
 
-Parametrized across the most BOLA-exposed BCs (Access, Subject,
-Equipment) — each runs the same shape: P1 creates, P2 reads,
-expect 403. Adding a new BC to the parametrization is a one-line
-change.
+Parametrized across the BOLA-exposed BCs — each runs the same shape:
+P1 creates, P2 reads, expect 403. Adding a new BC to the parametrization
+is a one-line change.
+
+## Coverage policy
+
+The parametrization covers `(principal_id x command_name)` gating for
+aggregates with per-instance ownership semantics: Access (Actor),
+Subject, Equipment (Asset), Safety (Clearance), Campaign, Data
+(Dataset), Calibration, Caution, Decision, Operation (Procedure),
+Agent, Recipe (Method, Practice, Plan), Run.
+
+Recipe-ladder (Method/Practice/Plan) and Run scenarios share a
+`_seed_recipe_chain` helper that walks the Capability → Method →
+Practice → Asset → Plan dependency chain via the HTTP API as P1.
+Capability is seeded by the helper (not BOLA-scenario'd itself) so
+that Plan's FK validation (PracticeNotFoundError / MethodNotFoundError
+/ AssetNotFoundError) passes. Agent uses POST /agents which atomically
+writes ActorRegistered + AgentDefined via `EventStore.append_streams`
+(the cross-BC pattern described in [project_agent_bc_design] memo).
+
+Explicitly NOT covered: Family + Capability (Equipment + Recipe shared
+catalogs, governance-tier not user-owned), Supply (continuous facility
+resource, inherently shared), Surface (Trust BC platform config). These
+inherit the same command-level gating but the per-resource BOLA framing
+doesn't fit. Capability IS permitted in the fixture's command set
+because the recipe-chain helper needs it as a prereq for Method.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownArgumentType=false
@@ -111,11 +134,34 @@ def bola_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, UUID
                 "RegisterSubject",
                 "RegisterAsset",
                 "RegisterClearance",
+                "RegisterCampaign",
+                "RegisterDataset",
+                "DefineCalibration",
+                "RegisterCaution",
+                "RegisterDecision",
+                "RegisterProcedure",
+                "DefineAgent",
+                "DefineCapability",  # prereq for the recipe-chain helper
+                "DefineMethod",
+                "DefinePractice",
+                "DefinePlan",
+                "StartRun",
                 # Read-side (the gates this test exercises)
                 "GetActor",
                 "GetSubject",
                 "GetAsset",
                 "GetClearance",
+                "GetCampaign",
+                "GetDataset",
+                "GetCalibration",
+                "GetCaution",
+                "GetDecision",
+                "GetProcedure",
+                "GetAgent",
+                "GetMethod",
+                "GetPractice",
+                "GetPlan",
+                "GetRun",
                 # List-side (8e-1c, 8e-2a, 8e-3a, 8e-3b, 8e-4, 8e-5, 8e-6, 8e-7, 8e-8)
                 "ListActors",
                 "ListSubjects",
@@ -196,6 +242,272 @@ def _create_clearance_as(client: TestClient, principal: UUID) -> UUID:
     return UUID(response.json()["clearance_id"])
 
 
+def _create_campaign_as(client: TestClient, principal: UUID) -> UUID:
+    """Create a Campaign via POST /campaigns. `lead_actor_id` is a bare
+    UUID (no FK existence check at register time per the eventual-
+    consistency stance), so a uuid4() works without seeding an Actor."""
+    response = client.post(
+        "/campaigns",
+        json={
+            "name": "P1's campaign",
+            "intent": "Series",
+            "lead_actor_id": str(uuid4()),
+        },
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert response.status_code == 201, response.text
+    return UUID(response.json()["campaign_id"])
+
+
+def _create_dataset_as(client: TestClient, principal: UUID) -> UUID:
+    """Create a Dataset via POST /datasets. All cross-aggregate FKs
+    (producing_run_id, subject_id, derived_from, used_calibrations) are
+    optional and omitted here; checksum is a 64-char zero string
+    (well-formed sha256 hex)."""
+    response = client.post(
+        "/datasets",
+        json={
+            "name": "P1's dataset",
+            "uri": "file:///tmp/p1-dataset",
+            "checksum": {"algorithm": "sha256", "value": "0" * 64},
+            "byte_size": 1,
+            "encoding": {"media_type": "application/x-hdf5", "conforms_to": []},
+        },
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert response.status_code == 201, response.text
+    return UUID(response.json()["dataset_id"])
+
+
+def _create_calibration_as(client: TestClient, principal: UUID) -> UUID:
+    """Create a Calibration via POST /calibrations. `subsystem_or_asset_id`
+    is a bare UUID (no FK existence check), and `operating_point` validates
+    STRICT against the `rotation_center` quantity's JSON Schema (energy_keV +
+    optics_config required, no additional properties)."""
+    response = client.post(
+        "/calibrations",
+        json={
+            "subsystem_or_asset_id": str(uuid4()),
+            "quantity": "rotation_center",
+            "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
+        },
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert response.status_code == 201, response.text
+    return UUID(response.json()["calibration_id"])
+
+
+def _create_caution_as(client: TestClient, principal: UUID) -> UUID:
+    """Create a Caution via POST /cautions. `target` is the polymorphic
+    discriminated DTO (kind + id); we attach to a synthetic Asset id
+    since the target's existence is NOT verified at register time."""
+    response = client.post(
+        "/cautions",
+        json={
+            "target": {"kind": "Asset", "id": str(uuid4())},
+            "category": "Wear",
+            "severity": "Notice",
+            "text": "P1's caution",
+            "workaround": "Operator-asserted workaround",
+        },
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert response.status_code == 201, response.text
+    return UUID(response.json()["caution_id"])
+
+
+def _create_decision_as(client: TestClient, principal: UUID) -> UUID:
+    """Create a Decision via POST /decisions. Decision REQUIRES the
+    actor_id to exist (DeciderActorMissingError otherwise), so the
+    helper first creates an Actor as P1 and then references it. P1
+    therefore needs both `RegisterActor` and `RegisterDecision` in
+    the permitted-commands set; both are seeded in the fixture."""
+    actor_id = _create_actor_as(client, principal)
+    response = client.post(
+        "/decisions",
+        json={
+            "actor_id": str(actor_id),
+            "context": "RunAbort",
+            "choice": "abort: beam down",
+        },
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert response.status_code == 201, response.text
+    return UUID(response.json()["decision_id"])
+
+
+def _create_procedure_as(client: TestClient, principal: UUID) -> UUID:
+    """Create a Procedure via POST /procedures. `target_asset_ids` is
+    optional (empty list valid for facility-envelope procedures);
+    `parent_run_id` and `capability_id` are also optional and omitted."""
+    response = client.post(
+        "/procedures",
+        json={
+            "name": "P1's procedure",
+            "kind": "bakeout",
+        },
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert response.status_code == 201, response.text
+    return UUID(response.json()["procedure_id"])
+
+
+def _create_agent_as(client: TestClient, principal: UUID) -> UUID:
+    """Create an Agent via POST /agents. Agent.id is shared with Actor.id
+    for the same agent — the route handler atomically writes both
+    `ActorRegistered` and `AgentDefined` via `EventStore.append_streams`
+    (see [project_agent_bc_design] memo). The fixture permits DefineAgent
+    only; RegisterActor is not needed here because the atomic write
+    bypasses the standalone Access slice."""
+    response = client.post(
+        "/agents",
+        json={
+            "kind": "RunDebrief",
+            "name": "P1's agent",
+            "version": "v1",
+            "model_ref": {
+                "provider": "anthropic",
+                "model": "claude-sonnet-4-6",
+                "snapshot_pin": None,
+            },
+        },
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert response.status_code == 201, response.text
+    return UUID(response.json()["agent_id"])
+
+
+def _seed_recipe_chain(client: TestClient, principal: UUID) -> UUID:
+    """Walk the Capability → Method → Practice → Asset → Plan dependency
+    chain via the HTTP API as P1 and return the resulting plan_id.
+
+    All FK existence checks pass because each link is created as a real
+    aggregate. The Capability uses empty `required_affordances` so
+    Plan's affordance-cover validation is trivially satisfied even when
+    the seeded Asset has no families.
+
+    Used by `_create_plan_as` (returns plan_id directly) and
+    `_create_run_as` (starts a Run from the seeded plan_id)."""
+    capability_response = client.post(
+        "/capabilities",
+        json={
+            "code": "cora.capability.test_bola",
+            "name": "BOLA test capability",
+            "required_affordances": [],
+            "executor_shapes": ["Method"],
+        },
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert capability_response.status_code == 201, capability_response.text
+    capability_id = UUID(capability_response.json()["capability_id"])
+
+    method_response = client.post(
+        "/methods",
+        json={
+            "name": "BOLA test method",
+            "capability_id": str(capability_id),
+            "needed_families": [],
+        },
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert method_response.status_code == 201, method_response.text
+    method_id = UUID(method_response.json()["method_id"])
+
+    practice_response = client.post(
+        "/practices",
+        json={
+            "name": "BOLA test practice",
+            "method_id": str(method_id),
+            "site_id": str(uuid4()),
+        },
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert practice_response.status_code == 201, practice_response.text
+    practice_id = UUID(practice_response.json()["practice_id"])
+
+    asset_id = _create_asset_as(client, principal)
+
+    plan_response = client.post(
+        "/plans",
+        json={
+            "name": "BOLA test plan",
+            "practice_id": str(practice_id),
+            "asset_ids": [str(asset_id)],
+        },
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert plan_response.status_code == 201, plan_response.text
+    return UUID(plan_response.json()["plan_id"])
+
+
+def _create_method_as(client: TestClient, principal: UUID) -> UUID:
+    """Create a Method via POST /methods. Method validates Capability
+    existence (CapabilityNotFoundError otherwise), so the helper seeds
+    a Capability first as P1."""
+    capability_response = client.post(
+        "/capabilities",
+        json={
+            "code": "cora.capability.test_bola_method",
+            "name": "BOLA test capability",
+            "required_affordances": [],
+            "executor_shapes": ["Method"],
+        },
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert capability_response.status_code == 201, capability_response.text
+    capability_id = UUID(capability_response.json()["capability_id"])
+
+    response = client.post(
+        "/methods",
+        json={
+            "name": "P1's method",
+            "capability_id": str(capability_id),
+            "needed_families": [],
+        },
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert response.status_code == 201, response.text
+    return UUID(response.json()["method_id"])
+
+
+def _create_practice_as(client: TestClient, principal: UUID) -> UUID:
+    """Create a Practice via POST /practices. Practice does NOT FK-check
+    method_id at register time (validation lives at Plan/Run binding),
+    so a bare uuid4() for method_id is sufficient for the BOLA test."""
+    response = client.post(
+        "/practices",
+        json={
+            "name": "P1's practice",
+            "method_id": str(uuid4()),
+            "site_id": str(uuid4()),
+        },
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert response.status_code == 201, response.text
+    return UUID(response.json()["practice_id"])
+
+
+def _create_plan_as(client: TestClient, principal: UUID) -> UUID:
+    """Create a Plan via POST /plans. Plan FK-checks practice + method +
+    each asset; the recipe-chain helper seeds them all as P1."""
+    return _seed_recipe_chain(client, principal)
+
+
+def _create_run_as(client: TestClient, principal: UUID) -> UUID:
+    """Start a Run via POST /runs. Run FK-checks plan + practice + method
+    + assets; the recipe-chain helper seeds them all as P1. `subject_id`
+    is None (allowed; Run without bound Subject is valid for ceremony
+    Procedure-style executions)."""
+    plan_id = _seed_recipe_chain(client, principal)
+    response = client.post(
+        "/runs",
+        json={"name": "P1's run", "plan_id": str(plan_id), "subject_id": None},
+        headers={"X-Principal-Id": str(principal)},
+    )
+    assert response.status_code == 201, response.text
+    return UUID(response.json()["run_id"])
+
+
 CreateFn = Callable[[TestClient, UUID], UUID]
 """Shape of a BOLA-scenario factory: takes the test client and the
 principal to create-as, returns the new aggregate's id."""
@@ -206,6 +518,17 @@ _BOLA_SCENARIOS = [
     pytest.param(_create_subject_as, "/subjects", id="subject:subject"),
     pytest.param(_create_asset_as, "/assets", id="equipment:asset"),
     pytest.param(_create_clearance_as, "/clearances", id="safety:clearance"),
+    pytest.param(_create_campaign_as, "/campaigns", id="campaign:campaign"),
+    pytest.param(_create_dataset_as, "/datasets", id="data:dataset"),
+    pytest.param(_create_calibration_as, "/calibrations", id="calibration:calibration"),
+    pytest.param(_create_caution_as, "/cautions", id="caution:caution"),
+    pytest.param(_create_decision_as, "/decisions", id="decision:decision"),
+    pytest.param(_create_procedure_as, "/procedures", id="operation:procedure"),
+    pytest.param(_create_agent_as, "/agents", id="agent:agent"),
+    pytest.param(_create_method_as, "/methods", id="recipe:method"),
+    pytest.param(_create_practice_as, "/practices", id="recipe:practice"),
+    pytest.param(_create_plan_as, "/plans", id="recipe:plan"),
+    pytest.param(_create_run_as, "/runs", id="run:run"),
 ]
 
 
