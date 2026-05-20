@@ -10,19 +10,21 @@ CORA is a set of bounded contexts (BCs). Each owns its model, language, and API 
 
 | BC | Owns | Status |
 | --- | --- | --- |
-| `access` | Actors with identity and authentication | Active |
+| `access` | Actors (humans, agents, service accounts) with identity and authentication | Active |
 | `subject` | Subjects under measurement, custody, and hazard | Active |
-| `equipment` | Capabilities and Asset hierarchy | Active |
-| `recipe` | Methods, Practices, and Plans (the recipe ladder) | Active |
+| `equipment` | Families and Asset hierarchy | Active |
+| `recipe` | Capabilities, Methods, Practices, and Plans (the recipe ladder) | Active |
 | `run` | Run executions with lifecycle FSM and audit | Active |
 | `decision` | Decisions and provenance for consequential choices | Active |
 | `data` | Datasets and transfers (lineage, tiers) | Active |
-| `trust` | Zones, Conduits, and Policies | Active |
+| `trust` | Zones, Conduits, Surfaces, and Policies | Active |
 | `supply` | Continuous resources (beam, power, cooling, LN2) | Active |
-| `operation` | Episodic procedures (bakeout, calibration) | Active |
+| `operation` | Episodic procedures (bakeout, calibration ceremonies) | Active |
+| `calibration` | Calibration values (`AsShot` anchor, lineage to Run / Dataset) | Active |
 | `safety` | Clearances, hazard classifications, approval chains | Active |
 | `caution` | Operator tribal-knowledge cautions (workarounds, quirks) | Active |
 | `campaign` | Multi-Run studies (in-situ, operando, screening) | Active |
+| `agent` | Configured LLM agents (`RunDebrief`, `CautionDrafter`) | Active |
 | `strategy` | Decision-making policies (mode, thresholds, fallbacks) | Planned |
 | `budget` | Resource allocation (limits, circuit breakers) | Planned |
 

@@ -4,13 +4,14 @@ For operators bringing CORA up at a new facility (pilot target: APS 35-BM). Cove
 
 ## Env vars
 
-The three load-bearing auth vars (full list in `.env.example`):
+The load-bearing auth vars (full list in `.env.example`):
 
 | Var | Default | When you set it |
 | --- | --- | --- |
 | `DATABASE_URL` | `postgresql://cora:cora@localhost:5432/cora` | Always |
 | `TRUST_POLICY_ID` | unset → `AllowAllAuthorize` | When you want real authz |
 | `REQUIRE_AUTHENTICATED_PRINCIPAL` | `false` | Must be `true` whenever `TRUST_POLICY_ID` is set (the boot gate refuses otherwise — see below) |
+| `IDENTITY_PROVIDERS` | unset → legacy `X-Principal-Id` header mode | JSON list of `IdentityProviderConfig` entries (see [Auth](auth.md)); enables bearer-token mode at the HTTP edge |
 | `ANTHROPIC_API_KEY` | unset → AI subscribers log-and-skip | When you want RunDebrief / CautionDrafter live |
 
 ### Startup boot gate
@@ -19,17 +20,43 @@ If you set `TRUST_POLICY_ID` without `REQUIRE_AUTHENTICATED_PRINCIPAL=true`, `cr
 
 Test env (`APP_ENV=test`) is exempt — legitimate test fixtures exercise the SYSTEM-fallback-under-real-policy scenario.
 
-## Auth proxy contract
+## Edge authentication
 
-Production deployments MUST sit behind an auth proxy (nginx, Caddy, Cloud-IAP, AWS ALB, Globus Auth at APS) that:
+Two supported postures, picked by whether `IDENTITY_PROVIDERS` is configured.
+
+### Bearer mode (Phase C, recommended)
+
+When `IDENTITY_PROVIDERS` is set, `BearerAuthMiddleware` reads `Authorization: Bearer <token>` from every request, routes to the right `TokenVerifier` per the token's `iss` claim, and stashes a `VerifiedPrincipal` on `request.state.principal`. `get_principal_id` reads it from there.
+
+- **JWT IdPs** (Entra, Okta, Auth0, Helmholtz AAI): set `jwks_url`. PyJWT verifies signature + audience + expiry locally.
+- **Opaque-token IdPs** (Globus Auth): set `introspection_url` + `introspection_client_id` + `introspection_client_secret`. Verifier calls RFC 7662 introspection per request (per-token TTL cache).
+- **Subject mapping**: each IdP carries `subject_bindings: list[IdpSubjectBinding]` — `(subject, actor_id, kind?)`. Tokens whose subject is unbound get 401. JIT provisioning is deferred until the first concrete use case.
+- **Discovery**: `GET /.well-known/oauth-protected-resource` returns RFC 9728 metadata listing accepted IdPs.
+
+Token-related failures:
+
+| Outcome | HTTP | Headers |
+| --- | --- | --- |
+| Missing / malformed bearer | 401 | `WWW-Authenticate: Bearer realm="cora"` |
+| Invalid signature / expired / unknown issuer | 401 | `WWW-Authenticate: Bearer realm="cora", error="invalid_token", error_description="..."` |
+| Subject unbound in CORA | 401 | `WWW-Authenticate: Bearer realm="cora", error="invalid_token"` |
+| Introspection endpoint unavailable | 503 | `Retry-After: 5` |
+
+`Kernel.token_verifier=None` (no `IDENTITY_PROVIDERS`) leaves the middleware off and the legacy header-only path live. This is the path test fixtures take.
+
+### Legacy proxy mode (pre-Phase-C, fallback)
+
+Without `IDENTITY_PROVIDERS`, production MUST still sit behind a verifying proxy (nginx, Caddy, Cloud-IAP, AWS ALB, Globus Auth at APS) that:
 
 1. Verifies the caller's identity via your facility's identity protocol (OIDC / Globus / SAML / mTLS).
 2. **Strips any client-supplied `X-Principal-Id` header.** Critical — otherwise the boot gate's protection is bypassed by a header injection.
 3. Sets `X-Principal-Id: <verified-caller-uuid>` based on the verified identity.
 
-CORA reads `X-Principal-Id` directly from the request. Without the strip step, an unauthenticated client can claim to be anyone.
+The proxy owns the identity → UUID mapping in this mode. Migrating to bearer mode replaces the mapping step (and the strip step) with `subject_bindings`.
 
-Phase C (edge-auth wiring) will land OIDC verification + JIT Actor provisioning inside CORA, reducing the proxy's contract to "verify identity" only. Until then, the proxy owns the identity → UUID mapping.
+### MCP edge
+
+MCP write-tool gating (`mcp_gate`) is still proxy-shaped: under production posture it refuses write tools entirely. A spec-level MCP auth verb (FastMCP 2025-11-25 spec gap) is pending; until then, MCP is read-only at the trust boundary.
 
 ## Phase B (Surface decomposition) — V1 vs V2 bootstrap policy
 
@@ -131,14 +158,14 @@ GET /policies/{policy_id}/permissions?evaluated_principal_id=<me>&evaluated_cond
 
 This returns the sorted list of commands the named principal can run via the named conduit. The result is **not authoritative for authorization decisions** — it's a UX / debugging aid; only the PEP at each handler actually authorizes.
 
-## Deferred (Phase B/C)
+## Deferred
 
 | Concern | Status | Trigger |
 | --- | --- | --- |
 | Container image + registry | Deferred | First non-local deployment |
 | Runtime orchestrator (k8s / Cloud Run / ECS / bare VMs) | Deferred | First non-local deployment |
-| Real OIDC / Globus / JWT verifier inside CORA | Phase C | Pilot deployment at APS |
-| Per-surface conduit routing (HTTP / MCP / A2A) | Phase B | First mixed-surface deployment |
+| Event-sourced `ActorIdpBindings` (JIT Actor provisioning) | Deferred | First case where adding an operator is too high-friction via config-time bindings |
+| MCP edge-auth (spec-level) | Deferred | FastMCP closes the 2025-11-25 spec gap |
 | `trust.check_others` permission separation | Watch item | When ABAC lands or first cross-tenant deploy |
 
-See `memory/project_bootstrap_policy_design.md` + `memory/project_permissions_query_design.md` for design rationale + anti-hooks.
+Phase A (bootstrap policy), Phase B (Surface decomposition), Phase C (edge auth), and Phase D (permission queries) are shipped. See `memory/project_bootstrap_policy_design.md`, `memory/project_conduit_injection_design.md`, `memory/project_edge_auth_design.md`, and `memory/project_permissions_query_design.md` for design rationale + anti-hooks.

@@ -43,3 +43,9 @@ Reads are not the inverse of writes. The write path goes through a decider and e
 - **Projection workers.** List, filter, search. Background processes tail the store, maintain a per-projection denormalised table, and advance a bookmark. Per-projection logic plugs into a generic registry.
 
 </div>
+
+### Where lifecycle timestamps live
+
+Wall-clock timestamps (`created_at`, `versioned_at`, `deprecated_at`) belong on projections, not aggregate state. The envelope's `occurred_at` is the source of truth; projections derive timestamp columns from it as events arrive. State stays narrow and concerned with invariants; the read side answers "when did X happen?" by joining the projection row.
+
+Shipped across Method, Plan, Practice, Capability, Family, and Agent (Path C). The Surface aggregate goes one step further and carries no lifecycle timestamps at all — they're rarely useful for an immutable config-time registry.

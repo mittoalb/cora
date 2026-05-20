@@ -4,10 +4,22 @@
 
 Every command and query has one handler and as many surface adapters as needed. A new surface is a new adapter; the core does not move. For the adapters in service today, see [Stack/Backend](../stack/backend.md).
 
+## Surface aggregate
+
+The Trust BC carries a `Surface` aggregate (Phase B, shipped 2026-05-19) that names the ingress shape each call arrives through. Three seeded values today, modeled as a closed `SurfaceKind` enum:
+
+| Surface | Kind | Default policy binding |
+| --- | --- | --- |
+| HTTP | `HTTP` | V2 bootstrap policy |
+| MCP stdio | `MCP_STDIO` | — |
+| MCP streamable HTTP | `MCP_STREAMABLE_HTTP` | — |
+
+`surface_id` threads through every command + query handler, the `Authorize` port, Policy evaluation, and the idempotency-cache key namespace (so the same `Idempotency-Key` on different surfaces does not collide). The composition root injects the resolved `surface_id` per-request; tests use a canonical `NIL_SENTINEL_ID` from `cora.infrastructure.routing`.
+
 ## Cross-cutting
 
-- **Idempotency.** Create-style commands accept an idempotency key. The store remembers `(key, command_name, body_hash) → result` and replays on retry.
-- **Authentication.** Verified principal-id header from an upstream proxy. The proxy strips client-supplied headers and sets the verified value; production refuses to boot without one.
-- **Authorization.** Every command and query passes an `Authorize` port. Policy model is ReBAC, with cross-principal contract tests (BOLA) per read endpoint.
+- **Idempotency.** Create-style commands accept an `Idempotency-Key` header (IETF draft-07). The store remembers `(surface_id, key, command_name, body_hash) → result` and replays on retry. The composite key per draft-07 §5 keeps cross-surface keys isolated.
+- **Authentication.** Bearer-token at the HTTP edge (`BearerAuthMiddleware` + `TokenVerifier` per IdP); legacy `X-Principal-Id` from a verifying proxy when no IdPs are configured. See [Stack/Auth](../stack/auth.md).
+- **Authorization.** Every command and query calls an `Authorize` port (`authorize(subject, command_name, conduit_id, surface_id)`). Policy model is ReBAC; cross-principal contract tests (BOLA) cover read endpoints across 12 aggregates.
 - **Observability.** Structured logs, distributed tracing, and metrics on every handler. Trace context is the source of truth for correlation id.
 - **Migrations.** Forward-only. A rollback is a new compensating migration. CI verifies hash-sum integrity and runs a safety scan on net-new migrations.

@@ -41,7 +41,7 @@ features/list_<aggregates>/
 
 Reads `proj_<bc>_<name>` via `deps.pool`. Cursor is opaque base64 of `(created_at, UUID)` via `encode_cursor`/`decode_cursor`. Default page 50, max 100. Empty: `200 {"items": [], "next_cursor": null}`. Malformed cursor: 422 via `InvalidCursorError`.
 
-Query handlers DO call `authorize` with the query name as `command_name`. Per-row scoping needs ReBAC (deferred).
+Query handlers DO call `kernel.authz.authorize(...)` with the query name as `command_name`. Per-row scoping needs ReBAC (deferred). The port method is `authorize(subject, command_name, conduit_id, surface_id)`; the kernel attribute name is `authz` (short, less collision-prone than `authorize`).
 
 ## Projections
 
@@ -58,6 +58,15 @@ Tests use `await drain_projections(pool, registry, deadline=2.0)` instead of `as
 
 - `projection_use_listen_notify: bool = True`: NOTIFY wake-up (~tens of ms). Flip False if commit lock contends.
 - `projection_poll_interval_seconds: float = 5.0`: safety-net poll. Floor 0.1s.
+
+## Lifecycle timestamps
+
+Wall-clock timestamps on aggregates (`created_at`, `versioned_at`, `deprecated_at`) belong on the **projection**, not on aggregate state. Path C (shipped 2026-05-20) moved Method, Plan, Practice, Capability, Family, and Agent over; Surface dropped them entirely.
+
+- **State stays narrow.** Timestamps don't gate invariants, so a decider shouldn't carry them. Removing the field shrinks the from_stored / payload surface.
+- **Projection derives from envelope `occurred_at`.** Each genesis event sets `created_at`; subsequent transition events update the matching `<verb>_at` column. Apply remains idempotent.
+- **Contract tests source timestamps from the projection row.** A `*_summary` projection backs every list query; contract tests assert on that row, not on the aggregate.
+- **Single-record reads still fold the stream.** When the route needs a timestamp without joining the projection, derive it from envelope `occurred_at` at fold time rather than carrying it in state.
 
 ## Idempotency
 
@@ -77,6 +86,8 @@ register_actor=with_idempotency(
 ```
 
 Slice exposes `Handler` (bare) and `IdempotentHandler` (wrapped, optional `idempotency_key`). Tests use bare; production wires wrapped. Routes extract via `Header(alias="Idempotency-Key")`.
+
+The cache key is the composite `(surface_id, idempotency_key, command_name, body_hash)` per IETF draft-07 §5, so the same `Idempotency-Key` cannot collide across HTTP and MCP surfaces.
 
 `IdempotencyConflictError` (same key + different body) returns 422. Key max 255 chars. Single-phase MVP; concurrent-retry race documented in the port docstring. MCP tools pass `idempotency_key=None` (no MCP standard yet).
 

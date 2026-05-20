@@ -11,10 +11,12 @@ Shared vocabulary with the field, not a constraint on implementation. CORA borro
 | ISA-95 | asset hierarchy (Enterprise / Site / Area / Unit / Assembly / Device) | `equipment` |
 | ISA-88 | episodic procedures (recipe ladder: Method / Practice / Plan / Run) | `recipe`, `run` |
 | ISA-106 | continuous operations | `operation`, `supply` (planned) |
-| ISA-99 / IEC 62443 | trust topology (Zones, Conduits, Policies) | `trust` |
-| ISO/IEC 42001 + NIST AI RMF | AI governance frameworks | `decision`, `strategy` (planned) |
+| ISA-99 / IEC 62443 | trust topology (Zones, Conduits, Surfaces, Policies) | `trust` |
+| ISO/IEC 42001 + NIST AI RMF | AI governance frameworks | `decision`, `agent`, `strategy` (planned) |
 | W3C PROV-O | provenance vocabulary (Activity, Entity, Agent, used, wasGeneratedBy) | outbound API payloads |
 | RAiD (ISO 23527) | research activity identifier | `RunStarted` (forward-compat field) |
+| OAuth 2.0 + RFC 6750 + RFC 7662 + RFC 9068 + RFC 9728 | bearer-token edge auth (BearerAuthMiddleware, JWT / introspection verifiers, protected-resource metadata) | `infrastructure/auth` |
+| IETF `Idempotency-Key` (draft-07) | client-side retry safety on create-style commands | `infrastructure/idempotency` |
 
 PROV-O is treated as frozen 2013 bedrock vocabulary; the W3C Provenance Working Group is closed and the spec is not moving.
 

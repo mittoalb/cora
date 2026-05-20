@@ -6,15 +6,15 @@ For anyone reading CORA. Each term defined once and used the same way in code, c
 
 *BCs, aggregates, deciders, slices, FCIS, ports, kernel.*
 
-- **Bounded context (BC).** A self-contained slice of the domain with its own model, language, API surface. Examples: `access`, `equipment`, `recipe`, `run`, `data`, `decision`, `subject`, `trust`.
+- **Bounded context (BC).** A self-contained slice of the domain with its own model, language, API surface. Examples: `access`, `equipment`, `recipe`, `run`, `data`, `decision`, `subject`, `trust`, `agent`, `calibration`.
 - **Aggregate.** Consistency boundary inside a BC. Holds state, validates commands, emits events.
 - **Decider.** Pure `(state, command) -> events`. Business rules. No I/O.
 - **Evolver.** Pure `(state, event) -> state`. Folds events into state.
 - **Fold-on-read.** Rebuild aggregate state by replaying events on every command. No snapshots yet.
 - **Vertical slice.** One folder per command or query: `command.py`, `decider.py`, `handler.py`, `route.py`, `tool.py`.
 - **FCIS.** Functional core / imperative shell. Pure deciders and evolvers; all I/O at the shell via injected ports.
-- **Port.** A `Protocol` defining a side-effect seam (clock, ID generator, event store, authorize, idempotency).
-- **Kernel.** Shared kernel: cross-BC primitives (event envelope, deps wiring, authorize factory).
+- **Port.** A `Protocol` defining a side-effect seam (clock, ID generator, event store, `Authorize`, idempotency, `TokenVerifier`, `LLM`, `LogbookMirror`).
+- **Kernel.** Shared kernel: cross-BC primitives (event envelope, deps wiring, authorize factory, token-verifier registry).
 - **Slim vs Lifecycle aggregate.** Two patterns for cheap replay. Slim closes out and starts fresh; Lifecycle carries state across phases.
 
 ## Events
@@ -29,11 +29,12 @@ For anyone reading CORA. Each term defined once and used the same way in code, c
 
 ## Surfaces
 
-*REST, MCP, A2A.*
+*REST, MCP, A2A, Surface aggregate.*
 
 - **REST.** FastAPI HTTP endpoints under `/<resource>`. OpenAPI at `/docs`.
 - **MCP.** Model Context Protocol, the LLM-agent surface. Streamable HTTP at `/mcp`. Same handler as REST.
 - **A2A.** Agent-to-Agent protocol. Planned trust-boundary surface for cross-organization agent calls (deferred).
+- **Surface.** *(Trust BC, Phase B)* Aggregate naming the ingress shape a call arrives through. Closed `SurfaceKind` enum: `HTTP`, `MCP_STDIO`, `MCP_STREAMABLE_HTTP`. `surface_id` threads through every handler, the `Authorize` port, Policy evaluation, and the idempotency cache key namespace (IETF draft-07 §5 composite key).
 
 ## Standards
 
@@ -53,13 +54,16 @@ Watch-only (not adopted as a glossary term, see [Deferred](../stack/deferred.md)
 
 ## Authz
 
-*ReBAC, BOLA, Cedar, principal, actor vs profile.*
+*ReBAC, BOLA, Cedar, principal, actor vs profile, bearer-token edge auth.*
 
 - **ReBAC.** Relationship-based access control (planned: SpiceDB or OpenFGA). For multi-stakeholder ownership common in shared facilities.
-- **BOLA.** Broken Object-Level Authorization (OWASP API #1). Covered by a parametrized cross-principal contract test on every read endpoint.
+- **BOLA.** Broken Object-Level Authorization (OWASP API #1). Covered by a parametrized cross-principal contract test on every read endpoint (12 aggregates today).
 - **Cedar.** Policy language used in `decision` BC predicates.
 - **Principal.** Authenticated identity attached to every command and event envelope. Required in production via `REQUIRE_AUTHENTICATED_PRINCIPAL=true`.
-- **Actor vs Profile.** `Actor` is the immutable identity in events; `Profile` is the mutable PII row, separately stored and erasable. GDPR-shaped.
+- **Actor vs Profile.** `Actor` is the immutable identity in events; `Profile` is the mutable PII row, separately stored and erasable. GDPR-shaped. `Actor.kind ∈ {human, agent, service_account}` (Phase C widening).
+- **`Authorize` port.** Single seam: `authorize(subject, command_name, conduit_id, surface_id) → AuthorizeDecision`. Exposed on the kernel as `Kernel.authz`. Every command and query passes through it.
+- **`TokenVerifier` port.** Edge-auth seam: `verify(token) → VerifiedPrincipal`. Two adapters today — `JWTVerifier` (JWKS, RFC 9068) and `IntrospectionVerifier` (RFC 7662). `IdentityProviderRegistry` routes by `iss` claim.
+- **`BearerAuthMiddleware`.** ASGI middleware at the HTTP edge. Reads `Authorization: Bearer`, verifies via `Kernel.token_verifier`, stashes `VerifiedPrincipal` on `request.state.principal`.
 
 ## Equipment
 
@@ -80,3 +84,18 @@ Watch-only (not adopted as a glossary term, see [Deferred](../stack/deferred.md)
 - **Plan.** A Practice bound to specific Assets and a window.
 - **Run.** An execution of a Plan. FSM: started, held, resumed, stopped, completed, aborted, truncated.
 - **Logbook.** Append-only narrative log on a Run or Decision. Used for OTel `gen_ai.*` reasoning entries on Decisions.
+
+## Agents
+
+*Agent BC, RunDebrief, CautionDrafter.*
+
+- **Agent.** *(Agent BC, phase 8f-a)* Config-only aggregate naming a configured LLM agent: `kind` (free-form `AgentKind`), `name`, `version`, `model_ref`, `prompt_template_id`, `capabilities`, `tools`, `budget`. FSM `Defined → Versioned ⇄ Suspended → Deprecated`. `Agent.id` is shared with Access BC's `Actor.id` for the same agent (cross-BC atomic via `EventStore.append_streams`; every Agent.id is also an Actor.id with `kind="agent"`).
+- **RunDebrief.** First registered Agent. Subscribes to terminal Run events; proposes a debrief entry via the `LLM` port; result lands in the Run logbook.
+- **CautionDrafter.** Second registered Agent. Subscribes to terminal Run events; proposes a Caution (5-choice enum: NoAction / ProposeNotice / ProposeCaution / ProposeWarning / ProposeSupersede) and promotes via `promote_caution_proposal` (writes Caution BC events directly via `EventStore.append_streams`).
+
+## Calibration
+
+*Calibration BC, AsShot anchor, pinned vs used.*
+
+- **Calibration.** *(Calibration BC, phase 12a)* Aggregate carrying empirically-measured system constants (motor sensitivities, beam profiles, encoder offsets). Distinct from `operation/calibration` ceremonies — Operation runs the ceremony, Calibration stores the resulting values.
+- **AsShot anchor.** Snapshot of which Calibrations were in force at a given moment. `Run.pinned_calibrations` (Phase 12b) captures the Calibrations pinned at `start_run`; `Dataset.used_calibrations` (Phase 12c) captures which of those the resulting Dataset actually consumed. The pair separates "what was available" from "what was used," which the analysis chain needs for provenance.
