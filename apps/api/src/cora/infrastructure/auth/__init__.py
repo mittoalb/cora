@@ -22,6 +22,15 @@ from cora.infrastructure.auth.introspection_verifier import IntrospectionVerifie
 from cora.infrastructure.auth.jwt_verifier import JWTVerifier
 from cora.infrastructure.auth.registry_factory import build_idp_registry
 
+# NB: `BearerAuthMiddleware` (apps/api/src/cora/infrastructure/auth/
+# bearer_middleware.py) is intentionally NOT re-exported from this
+# package init. Re-exporting it would import bearer_middleware at
+# auth-package load time, which triggers a cycle: Settings ->
+# auth.config -> auth.__init__ -> bearer_middleware -> routing
+# (mid-load, on the path that started this whole chain via
+# observability -> Settings). main.py imports
+# `from cora.infrastructure.auth.bearer_middleware import
+# BearerAuthMiddleware` directly to side-step the package init.
 __all__ = [
     "IdentityProviderConfig",
     "IdentityProviderRegistry",

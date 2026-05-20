@@ -101,6 +101,7 @@ from cora.equipment import (
     register_equipment_tools,
     wire_equipment,
 )
+from cora.infrastructure.auth.bearer_middleware import BearerAuthMiddleware
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import build_kernel
 from cora.infrastructure.idempotency_pruner import idempotency_pruner_lifespan
@@ -482,6 +483,15 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         BodySizeLimitMiddleware,
         max_bytes=settings.max_request_body_size_bytes,
     )
+    # Phase C Iter C-2: bearer-token verification at the HTTP edge.
+    # Reads `Authorization: Bearer <token>`, verifies via
+    # `kernel.token_verifier` (None when no IdPs configured -> middleware
+    # no-ops and legacy X-Principal-Id path remains in effect). Stores
+    # the VerifiedPrincipal on request.state.principal; the route-layer
+    # `get_principal_id` Depends reads from there (Iter C-3). Added
+    # AFTER BodySizeLimit so the size cap runs first (cheap reject before
+    # any token verification work).
+    fastapi_app.add_middleware(BearerAuthMiddleware)
     # Prometheus instrumentation:
     # - per-app CollectorRegistry so multiple create_app() calls in the
     #   test process don't double-register collectors against the global
