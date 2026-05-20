@@ -44,6 +44,7 @@ from cora.infrastructure.ports import (
     IdGenerator,
     LLMPort,
     LogbookMirrorPort,
+    TokenVerifier,
 )
 
 
@@ -94,6 +95,20 @@ class Kernel:
     reserve the wiring slot and let the RunDebrief subscriber
     short-circuit cleanly on `is None`. Adapter lands when a
     pilot facility's logbook is wired.
+
+    `token_verifier` (Phase C Iter C): process-singleton
+    `TokenVerifier` (concretely `IdentityProviderRegistry`) built
+    from `Settings.identity_providers`. `None` when no IdPs are
+    configured (today's default): the legacy
+    `X-Principal-Id`-with-`SYSTEM`-fallback path stays in effect.
+    Non-`None` is the production-edge-auth posture: middleware
+    extracts `Authorization: Bearer <token>`, verifies via this
+    port, stores the resulting `VerifiedPrincipal` on the request
+    state. Typed as the port (not the registry adapter) so the
+    kernel-construction primitives can stay in
+    `cora.infrastructure.deps` without `cora.infrastructure.kernel`
+    importing `cora.infrastructure.auth` (kernel boundary: ports
+    only, no adapters).
     """
 
     settings: Settings
@@ -107,6 +122,7 @@ class Kernel:
     pool: asyncpg.Pool | None = None
     llm: LLMPort | None = None
     logbook_mirror: LogbookMirrorPort | None = None
+    token_verifier: TokenVerifier | None = None
 
 
 Teardown = Callable[[], Awaitable[None]]

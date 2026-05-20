@@ -162,6 +162,21 @@ class IdentityProviderConfig(BaseModel):
         ),
     )
 
+    subject_bindings: list["IdpSubjectBinding"] = Field(
+        default_factory=lambda: [],
+        description=(
+            "Iter C wiring: static `(subject) -> (actor_id, kind)` map "
+            "for this IdP. The composition root merges these across all "
+            "IdPs into a single `StaticSubjectMapper` keyed on "
+            "`(issuer, subject)`. Empty (default) is valid for IdPs "
+            "that ship before any Actor is mapped — every bearer token "
+            "from this IdP then fails with `unknown_subject` until an "
+            "operator adds bindings. Iter B-2 (deferred) ships a "
+            "projection-backed mapper for deployments that mint Actors "
+            "at runtime; this static field is the small-deployment path."
+        ),
+    )
+
     @model_validator(mode="after")
     def _at_least_one_verification_path(self) -> "IdentityProviderConfig":
         """An IdP entry must provide at least one verification path
@@ -215,6 +230,43 @@ class IdentityProviderConfig(BaseModel):
             )
             raise ValueError(msg)
         return self
+
+
+class IdpSubjectBinding(BaseModel):
+    """Single `(subject) -> (actor_id, kind)` row for a single IdP.
+
+    Carried on `IdentityProviderConfig.subject_bindings`. The
+    composition root merges all bindings across all IdPs into a
+    single `StaticSubjectMapper` keyed on `(issuer, subject)`; the
+    issuer comes from the enclosing IdP config so it's not repeated
+    here.
+
+    `kind` is the same closed `_PrincipalKindLiteral` set used by
+    the rest of the auth layer. The token verifier may override at
+    issuance time via the IdP-level `principal_kind` default; the
+    static binding's kind takes precedence when present.
+    """
+
+    subject: str = Field(
+        ...,
+        description=(
+            "Raw `sub` claim string from the IdP — exact match. For "
+            "OIDC humans this is typically the IdP's stable user id "
+            "(e.g. an Entra GUID); for client_credentials service "
+            "accounts it's the OAuth client id."
+        ),
+    )
+    actor_id: UUID = Field(
+        ...,
+        description="The Access BC Actor UUID this subject maps to.",
+    )
+    kind: _PrincipalKindLiteral = Field(
+        default="human",
+        description=(
+            "Discriminates human vs service-account. Defaults to 'human'; "
+            "set 'service_account' for client_credentials subjects."
+        ),
+    )
 
 
 class StaticSubjectMapper:
@@ -273,4 +325,40 @@ class StaticSubjectMapper:
         return mapping
 
 
-__all__ = ["IdentityProviderConfig", "StaticSubjectMapper"]
+def build_static_subject_mapper(
+    identity_providers: list[IdentityProviderConfig],
+) -> StaticSubjectMapper:
+    """Merge `subject_bindings` across all IdPs into one `StaticSubjectMapper`.
+
+    Called by `build_kernel` to construct the production subject
+    mapper. Each `IdpSubjectBinding` from each IdP's
+    `subject_bindings` list becomes one entry in the resulting map,
+    keyed on `(idp.issuer, binding.subject)`.
+
+    Duplicate `(issuer, subject)` pairs across the configured IdPs
+    raise `ValueError` at construction time — silent overwrite would
+    let an operator's typo grant one IdP's `sub` to a different
+    Actor's id without warning.
+    """
+    bindings: dict[tuple[str, str], tuple[UUID, _PrincipalKindLiteral]] = {}
+    for idp in identity_providers:
+        for binding in idp.subject_bindings:
+            key = (idp.issuer, binding.subject)
+            if key in bindings:
+                msg = (
+                    f"Duplicate IdP subject binding for issuer={idp.issuer!r} "
+                    f"subject={binding.subject!r}. Each `(issuer, subject)` "
+                    "pair must map to exactly one Actor; remove the duplicate "
+                    "from identity_providers config."
+                )
+                raise ValueError(msg)
+            bindings[key] = (binding.actor_id, binding.kind)
+    return StaticSubjectMapper(bindings)
+
+
+__all__ = [
+    "IdentityProviderConfig",
+    "IdpSubjectBinding",
+    "StaticSubjectMapper",
+    "build_static_subject_mapper",
+]

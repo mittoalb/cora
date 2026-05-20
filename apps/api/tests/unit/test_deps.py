@@ -14,6 +14,7 @@ exercise the production wiring without going through FastAPI.
 from uuid import UUID
 
 import pytest
+from pydantic import SecretStr
 
 from cora.agent import build_llm
 from cora.agent.adapters import AnthropicLLMAdapter
@@ -185,3 +186,165 @@ async def test_make_inmemory_kernel_accepts_fake_llm_override(
         llm=fake,
     )
     assert kernel.llm is fake
+
+
+# ---------- Phase C Iter C-1: token_verifier wiring ----------
+
+
+@pytest.mark.unit
+async def test_kernel_token_verifier_is_none_when_no_idps_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Today's default: no IDENTITY_PROVIDERS env var -> empty list ->
+    `build_idp_registry` returns None -> kernel.token_verifier is None.
+    The Iter C middleware short-circuits on None and falls through to
+    the legacy X-Principal-Id path, so existing deployments without
+    edge-auth configured stay on the trust-the-proxy posture."""
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.delenv("IDENTITY_PROVIDERS", raising=False)
+
+    deps, teardown = await build_kernel(authorize_factory=build_authorize)
+
+    assert deps.token_verifier is None
+    await teardown()
+
+
+@pytest.mark.unit
+async def test_kernel_token_verifier_built_when_identity_providers_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Operator sets IDENTITY_PROVIDERS -> kernel.token_verifier is a
+    non-None `IdentityProviderRegistry` ready to verify inbound bearer
+    tokens. The middleware (Iter C-2) uses this slot."""
+    import json
+
+    from cora.infrastructure.auth import IdentityProviderRegistry
+
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv(
+        "IDENTITY_PROVIDERS",
+        json.dumps(
+            [
+                {
+                    "issuer": "https://idp.example.com",
+                    "jwks_url": "https://idp.example.com/jwks.json",
+                    "audiences": {
+                        "00000000-0000-0000-0000-000000000020": "https://cora.example/http",
+                    },
+                }
+            ]
+        ),
+    )
+
+    deps, teardown = await build_kernel(authorize_factory=build_authorize)
+
+    assert isinstance(deps.token_verifier, IdentityProviderRegistry)
+    await teardown()
+
+
+@pytest.mark.unit
+def test_build_static_subject_mapper_merges_bindings_across_idps() -> None:
+    """Each IdP carries its own subject_bindings; the composition root
+    merges them into one StaticSubjectMapper keyed on (issuer, subject).
+    Two IdPs each with their own subjects produce one mapper that knows
+    both."""
+    from cora.infrastructure.auth import (
+        IdentityProviderConfig,
+        IdpSubjectBinding,
+        build_static_subject_mapper,
+    )
+
+    actor_a = UUID("01900000-0000-7000-8000-000000000a01")
+    actor_b = UUID("01900000-0000-7000-8000-000000000a02")
+    idp_a = IdentityProviderConfig(
+        issuer="https://idp-a.example.com",
+        jwks_url="https://idp-a.example.com/jwks.json",
+        audiences={UUID("00000000-0000-0000-0000-000000000020"): "https://cora.example/http"},
+        subject_bindings=[IdpSubjectBinding(subject="user-a", actor_id=actor_a, kind="human")],
+    )
+    idp_b = IdentityProviderConfig(
+        issuer="https://idp-b.example.com",
+        jwks_url="https://idp-b.example.com/jwks.json",
+        audiences={UUID("00000000-0000-0000-0000-000000000020"): "https://cora.example/http"},
+        subject_bindings=[
+            IdpSubjectBinding(subject="ci-bot", actor_id=actor_b, kind="service_account"),
+        ],
+    )
+
+    mapper = build_static_subject_mapper([idp_a, idp_b])
+
+    # The internal _bindings dict is private; we exercise the public
+    # __call__ instead. Both subjects must resolve through the merged map.
+    import asyncio
+
+    assert asyncio.run(mapper("https://idp-a.example.com", "user-a")) == (actor_a, "human")
+    assert asyncio.run(mapper("https://idp-b.example.com", "ci-bot")) == (
+        actor_b,
+        "service_account",
+    )
+
+
+@pytest.mark.unit
+def test_build_static_subject_mapper_raises_on_duplicate_issuer_subject_pair() -> None:
+    """Two IdPs with the SAME issuer URL declaring the same `subject`
+    would let an operator's typo silently grant one IdP's sub to a
+    different Actor. Reject at composition time with a named error so
+    boot fails loud before any bearer token is checked."""
+    from cora.infrastructure.auth import (
+        IdentityProviderConfig,
+        IdpSubjectBinding,
+        build_static_subject_mapper,
+    )
+
+    actor_a = UUID("01900000-0000-7000-8000-000000000a01")
+    actor_b = UUID("01900000-0000-7000-8000-000000000a02")
+    audiences = {UUID("00000000-0000-0000-0000-000000000020"): "https://cora.example/http"}
+    # Two entries with the SAME issuer URL but conflicting subject->actor maps.
+    idp_1 = IdentityProviderConfig(
+        issuer="https://idp.example.com",
+        jwks_url="https://idp.example.com/jwks.json",
+        audiences=audiences,
+        subject_bindings=[IdpSubjectBinding(subject="dup", actor_id=actor_a, kind="human")],
+    )
+    idp_2 = IdentityProviderConfig(
+        issuer="https://idp.example.com",
+        introspection_url="https://idp.example.com/introspect",
+        introspection_client_id="rs",
+        introspection_client_secret=SecretStr("secret"),
+        audiences=audiences,
+        subject_bindings=[IdpSubjectBinding(subject="dup", actor_id=actor_b, kind="human")],
+    )
+
+    with pytest.raises(ValueError, match=r"Duplicate IdP subject binding"):
+        build_static_subject_mapper([idp_1, idp_2])
+
+
+@pytest.mark.unit
+def test_make_inmemory_kernel_accepts_token_verifier_override() -> None:
+    """Bearer-auth contract tests inject a verifier via
+    make_inmemory_kernel(..., token_verifier=...). Pins the override seam
+    so the single-kernel-construction-site invariant doesn't grow a
+    test-only second site."""
+    from cora.infrastructure.deps import make_inmemory_kernel
+    from cora.infrastructure.ports import (
+        SystemClock,
+        TokenVerifier,
+        UUIDv7Generator,
+        VerifiedPrincipal,
+    )
+
+    class _StubVerifier:
+        async def verify(self, token: str, *, expected_audience: UUID) -> VerifiedPrincipal:
+            _ = token, expected_audience
+            raise NotImplementedError
+
+    stub: TokenVerifier = _StubVerifier()
+    settings = Settings()  # type: ignore[call-arg]
+    kernel = make_inmemory_kernel(
+        settings=settings,
+        clock=SystemClock(),
+        id_generator=UUIDv7Generator(),
+        authorize=AllowAllAuthorize(),
+        token_verifier=stub,
+    )
+    assert kernel.token_verifier is stub

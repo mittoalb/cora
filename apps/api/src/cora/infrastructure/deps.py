@@ -43,6 +43,7 @@ from typing import Protocol
 
 import asyncpg
 
+from cora.infrastructure.auth import build_idp_registry, build_static_subject_mapper
 from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel, Teardown
 from cora.infrastructure.logging import configure_logging
@@ -61,6 +62,7 @@ from cora.infrastructure.ports import (
     LLMPort,
     LogbookMirrorPort,
     SystemClock,
+    TokenVerifier,
     UUIDv7Generator,
 )
 from cora.infrastructure.postgres.event_store import PostgresEventStore
@@ -100,6 +102,7 @@ def make_postgres_kernel(
     caution_lookup: CautionLookup | None = None,
     llm: LLMPort | None = None,
     logbook_mirror: LogbookMirrorPort | None = None,
+    token_verifier: TokenVerifier | None = None,
 ) -> Kernel:
     """Postgres-backed Kernel primitive.
 
@@ -138,6 +141,11 @@ def make_postgres_kernel(
 
     `logbook_mirror` defaults to `None`; no production implementor
     exists at 8f-b. Subscribers short-circuit on `None`.
+
+    `token_verifier` (Phase C Iter C) defaults to `None`; production
+    `build_kernel` constructs it from `settings.identity_providers`
+    when that list is non-empty. Integration tests override only when
+    exercising the bearer-auth path.
     """
     return Kernel(
         settings=settings,
@@ -157,6 +165,7 @@ def make_postgres_kernel(
         pool=pool,
         llm=llm,
         logbook_mirror=logbook_mirror,
+        token_verifier=token_verifier,
     )
 
 
@@ -172,6 +181,7 @@ def make_inmemory_kernel(
     caution_lookup: CautionLookup | None = None,
     llm: LLMPort | None = None,
     logbook_mirror: LogbookMirrorPort | None = None,
+    token_verifier: TokenVerifier | None = None,
     pool: object | None = None,
 ) -> Kernel:
     """In-memory Kernel primitive.
@@ -206,6 +216,11 @@ def make_inmemory_kernel(
     `logbook_mirror` defaults to `None`; no production implementor
     at 8f-b. Subscriber tests inject a `FakeLogbookMirror` (when
     they care) or leave `None`.
+
+    `token_verifier` (Phase C Iter C) defaults to `None`; only
+    bearer-auth contract tests inject a verifier (a programmable
+    test stub or a real `IdentityProviderRegistry` against a fake
+    JWKS server). Production wiring lives in `build_kernel`.
     """
     return Kernel(
         settings=settings,
@@ -225,6 +240,7 @@ def make_inmemory_kernel(
         pool=pool,  # type: ignore[arg-type]
         llm=llm,
         logbook_mirror=logbook_mirror,
+        token_verifier=token_verifier,
     )
 
 
@@ -316,12 +332,26 @@ async def build_kernel(
     to override env-var-loaded config (e.g. Phase C edge-auth
     contract tests overriding `identity_providers`). Production
     callers pass nothing; Settings reads from env / .env as usual.
+
+    `token_verifier` (Phase C Iter C) is constructed from
+    `settings.identity_providers` via `build_idp_registry`. Empty
+    list -> `None` -> middleware falls through to the legacy
+    `X-Principal-Id` path. Non-empty -> a `TokenVerifier` that
+    middleware uses to verify every inbound `Authorization: Bearer`
+    header. Constructed in BOTH the test and Postgres branches so
+    contract tests for the bearer path can inject `identity_providers`
+    via Settings and exercise verification end-to-end (no Postgres
+    needed for the verifier itself).
     """
     if settings is None:
         settings = Settings()  # type: ignore[call-arg]  # Pydantic loads from env
     configure_logging(settings.log_level)
     clock = SystemClock()
     id_generator = UUIDv7Generator()
+    token_verifier: TokenVerifier | None = build_idp_registry(
+        settings.identity_providers,
+        subject_mapper=build_static_subject_mapper(settings.identity_providers),
+    )
 
     if settings.app_env == "test":
         event_store: EventStore = InMemoryEventStore()
@@ -340,6 +370,7 @@ async def build_kernel(
             authorize=authorize,
             event_store=event_store,
             idempotency_store=idempotency_store,
+            token_verifier=token_verifier,
         )
         return kernel, _noop_teardown
 
@@ -379,6 +410,7 @@ async def build_kernel(
         clearance_lookup=clearance_lookup,
         caution_lookup=caution_lookup,
         llm=llm,
+        token_verifier=token_verifier,
     )
     return kernel, _compose_teardowns([_maybe_llm_teardown(llm), _make_pool_teardown(pool)])
 
