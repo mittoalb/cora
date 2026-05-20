@@ -91,6 +91,14 @@ dev = [
     # and disable the local example database, sidestepping xdist seed
     # collisions across worker processes.
     "hypothesis>=6.130,<7",
+    # mutmut: mutation testing for the audit cadence (Iter G of the
+    # testing-techniques rollout). Audit-only, not per-PR — per-mutant
+    # pytest spawn cost makes per-commit CI intolerable at suite scale.
+    # 3.5+ adds type-checker mutant filtering, CI stat export, and async
+    # fixes; pinned >=3.5 to dodge earlier async-fixture rough edges.
+    # Configuration in `[tool.mutmut]` below scopes mutation to pure
+    # decider/evolver modules only.
+    "mutmut>=3.5,<4",
 ]
 
 [build-system]
@@ -217,3 +225,56 @@ directory = "htmlcov"
 
 [tool.coverage.xml]
 output = "coverage.xml"
+
+# Mutation testing — audit cadence (Iter G of testing-techniques rollout).
+#
+# Scope: pure decider + evolver modules in Access BC ONLY. Mutation testing
+# of integration-tier code (handlers that touch the EventStore adapter, route
+# code, etc.) is intractable: per-mutant pytest spawn × per-test Postgres
+# container spin-up = days per audit. The unit-tier Access BC tests run in
+# ~2s, so per-mutant cost stays in the seconds range.
+#
+# Rolling to more BCs: add their decider/evolver paths to `source_paths` and
+# extend `pytest_add_cli_args_test_selection`. Per-BC audits stay parallel-
+# safe because each runs against its own scoped test subset.
+#
+# DO NOT add this to per-PR CI. mutmut runs hundreds-to-thousands of mutants
+# end-to-end; even at ~1s/mutant on unit tests, a full audit is 5-15 min.
+# Run via `make mutmut-audit` on-demand or nightly, NOT every commit.
+#
+# Why `-p no:xdist` in the pytest args: mutmut runs its own subprocess
+# parallelism (one Python process per mutant); stacking xdist on top
+# oversubscribes the host and brings no speedup on a per-mutant <2s suite.
+[tool.mutmut]
+# `source_paths` tells mutmut where source CODE lives (the AST-mutated tree
+# is copied under `apps/api/mutants/`). The actual MUTATION scope is narrowed
+# at invocation time via the CLI wildcard pattern (see Makefile target
+# `mutmut-audit`); without that, every Python file under `source_paths`
+# would be mutated (~37k mutants at the apps/api scope, hours of compute).
+#
+# The `only_mutate` config key looked like the right filter from the README
+# but did not actually limit scope in mutmut 3.5 — the CLI wildcard
+# (`mutmut run "cora.access.*"`) is the working escape hatch.
+source_paths = [ "src/" ]
+# README.md needs to be present in the `mutants/` working tree so hatchling
+# can validate package metadata when pytest's subprocess runs. mutmut 3.5's
+# `also_copy = ["README.md"]` did not copy the file as documented; the
+# Makefile target `mutmut-audit` seeds it explicitly as a post-step.
+pytest_add_cli_args_test_selection = [
+    "tests/unit/access",
+]
+pytest_add_cli_args = [
+    "-x",
+    "-q",
+    "-p",
+    "no:xdist",
+    "-p",
+    "no:tach",
+]
+# `mutate_only_covered_lines = true` requires a pre-generated coverage.py
+# report; mutmut doesn't seed it itself. Left false here because the
+# scoped source_paths (3 small pure files) are fully covered by the unit
+# tests already — coverage filtering would prune nothing meaningful at
+# this scope. Flip to true if source_paths expands to include code paths
+# whose coverage is sparse.
+mutate_only_covered_lines = false

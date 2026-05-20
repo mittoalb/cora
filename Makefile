@@ -1,7 +1,8 @@
 .PHONY: install dev db-up db-down db-reset lint typecheck test test-unit test-int test-contract \
         test-coverage diff-coverage fmt clean help \
         migrate-status migrate-apply migrate-new migrate-hash precommit precommit-run \
-        arch-check arch-show docs-stage docs-build docs-serve openapi-snapshot
+        arch-check arch-show docs-stage docs-build docs-serve openapi-snapshot \
+        mutmut-audit mutmut-browse
 
 API_DIR := apps/api
 COMPOSE := docker compose -f infra/docker-compose.yml
@@ -31,6 +32,8 @@ help:
 	@echo "  arch-check      Tach dependency contract + architecture fitness-function tests"
 	@echo "  arch-show       Open the dependency graph (tach show)"
 	@echo "  openapi-snapshot Regenerate apps/api/openapi.json from create_app()"
+	@echo "  mutmut-audit    Run mutmut against Access BC deciders/evolver (audit cadence, ~5-15 min)"
+	@echo "  mutmut-browse   Open mutmut's interactive TUI to triage surviving mutants"
 	@echo "  precommit       Install pre-commit hooks (one-time per clone)"
 	@echo "  precommit-run   Run all pre-commit hooks against all files"
 	@echo "  docs-stage      Stage README + CONTRIBUTING into docs/ (link rewrites for site)"
@@ -113,6 +116,40 @@ arch-show:
 openapi-snapshot:
 	cd $(API_DIR) && APP_ENV=test uv run python -c "import json; from cora.api.main import create_app; \
 		f = open('openapi.json', 'w'); json.dump(create_app().openapi(), f, indent=2, sort_keys=True); f.write('\n'); f.close()"
+
+# Mutation testing audit. Pure-logic scope via the CLI wildcard pattern
+# (Access BC deciders + evolver only). [tool.mutmut] in apps/api/pyproject.toml
+# carries the test-selection + runner config. Audit-only — not per-PR.
+# Expect ~5-15 min for the first run on Linux; resumable across invocations
+# (state lives in apps/api/mutants/, gitignored). Override the wildcard via
+# `MUTMUT_SCOPE=cora.recipe.* make mutmut-audit` to audit a different BC.
+#
+# macOS caveat (observed 2026-05-20): mutmut's per-mutant subprocess wrapper
+# reports every result as `segfault` on darwin even when the same mutant
+# is killable by the test suite when invoked manually. The forks are not
+# clean on macOS (consistent with the mutmut README's macOS / setproctitle
+# warning). Run audits on a Linux runner (CI, devcontainer, or remote box)
+# to get meaningful survivor counts. The Makefile target works on both
+# OSes; only the reliability of the reported results differs.
+#
+# Pre-step: mutmut copies src/ + tests/ + pyproject.toml into mutants/ but
+# does NOT copy README.md, which hatchling requires for package metadata
+# validation. Seeding README.md keeps the subprocess pytest from crashing
+# on `OSError: Readme file does not exist` before tests start. The
+# `also_copy = ["README.md"]` setting in pyproject did NOT work in mutmut
+# 3.5; copy explicitly here.
+MUTMUT_SCOPE ?= cora.access.aggregates.actor.evolver.* cora.access.features.register_actor.decider.* cora.access.features.deactivate_actor.decider.*
+mutmut-audit:
+	cd $(API_DIR) && uv run mutmut run $(MUTMUT_SCOPE)
+	@if [ -d $(API_DIR)/mutants ] && [ ! -f $(API_DIR)/mutants/README.md ]; then \
+		cp $(API_DIR)/README.md $(API_DIR)/mutants/README.md; \
+		echo "Seeded mutants/README.md (hatchling requires it; re-run mutmut-audit to retry)."; \
+	fi
+
+# Interactive triage: review surviving mutants, mark equivalents, retest
+# after fixing the suite. See https://mutmut.readthedocs.io for keys.
+mutmut-browse:
+	cd $(API_DIR) && uv run mutmut browse
 
 precommit:
 	cd $(API_DIR) && uv run pre-commit install
