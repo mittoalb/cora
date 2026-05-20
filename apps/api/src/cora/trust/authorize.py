@@ -150,7 +150,7 @@ class TrustAuthorize:
         self._clock = clock
         self._id_generator = id_generator
 
-    async def __call__(
+    async def authorize(
         self,
         principal_id: UUID,
         command_name: str,

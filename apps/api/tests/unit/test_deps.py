@@ -53,7 +53,7 @@ async def test_build_kernel_populates_all_ports(
 
     assert deps.clock is not None
     assert deps.id_generator is not None
-    assert deps.authorize is not None
+    assert deps.authz is not None
     assert deps.event_store is not None
     assert deps.idempotency_store is not None
     await teardown()
@@ -70,7 +70,7 @@ async def test_build_kernel_uses_allow_all_authorize_when_no_policy_configured(
     monkeypatch.delenv("TRUST_POLICY_ID", raising=False)
 
     deps, teardown = await build_kernel(authorize_factory=build_authorize)
-    assert isinstance(deps.authorize, AllowAllAuthorize)
+    assert isinstance(deps.authz, AllowAllAuthorize)
     await teardown()
 
 
@@ -87,7 +87,7 @@ async def test_build_kernel_uses_trust_authorize_when_policy_configured(
     monkeypatch.setenv("TRUST_POLICY_ID", str(policy_id))
 
     deps, teardown = await build_kernel(authorize_factory=build_authorize)
-    assert isinstance(deps.authorize, TrustAuthorize)
+    assert isinstance(deps.authz, TrustAuthorize)
     await teardown()
 
 
@@ -182,7 +182,7 @@ async def test_make_inmemory_kernel_accepts_fake_llm_override(
         settings=settings,
         clock=SystemClock(),
         id_generator=UUIDv7Generator(),
-        authorize=AllowAllAuthorize(),
+        authz=AllowAllAuthorize(),
         llm=fake,
     )
     assert kernel.llm is fake
@@ -405,7 +405,7 @@ def test_make_inmemory_kernel_accepts_token_verifier_override() -> None:
         settings=settings,
         clock=SystemClock(),
         id_generator=UUIDv7Generator(),
-        authorize=AllowAllAuthorize(),
+        authz=AllowAllAuthorize(),
         token_verifier=stub,
     )
     assert kernel.token_verifier is stub

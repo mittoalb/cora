@@ -169,7 +169,7 @@ async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
     deps = _build_deps_shared(
         ids=[_NEW_ID, _REGISTER_EVENT_ID],
         now=_NOW,
-        authorize=tracking,
+        authz=tracking,
     )
 
     handler = get_subject.bind(deps)
@@ -187,7 +187,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     deps = _build_deps_shared(
         ids=[_NEW_ID, _REGISTER_EVENT_ID],
         now=_NOW,
-        authorize=DenyAllAuthorize(),
+        authz=DenyAllAuthorize(),
     )
 
     handler = get_subject.bind(deps)

@@ -95,7 +95,7 @@ def make_postgres_kernel(
     settings: Settings,
     clock: Clock,
     id_generator: IdGenerator,
-    authorize: Authorize,
+    authz: Authorize,
     event_store: EventStore | None = None,
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
@@ -151,7 +151,7 @@ def make_postgres_kernel(
         settings=settings,
         clock=clock,
         id_generator=id_generator,
-        authorize=authorize,
+        authz=authz,
         event_store=event_store if event_store is not None else PostgresEventStore(pool),
         idempotency_store=(
             idempotency_store if idempotency_store is not None else PostgresIdempotencyStore(pool)
@@ -174,7 +174,7 @@ def make_inmemory_kernel(
     settings: Settings,
     clock: Clock,
     id_generator: IdGenerator,
-    authorize: Authorize,
+    authz: Authorize,
     event_store: EventStore | None = None,
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
@@ -226,7 +226,7 @@ def make_inmemory_kernel(
         settings=settings,
         clock=clock,
         id_generator=id_generator,
-        authorize=authorize,
+        authz=authz,
         event_store=event_store if event_store is not None else InMemoryEventStore(),
         idempotency_store=(
             idempotency_store if idempotency_store is not None else InMemoryIdempotencyStore()
@@ -356,7 +356,7 @@ async def build_kernel(
     if settings.app_env == "test":
         event_store: EventStore = InMemoryEventStore()
         idempotency_store: IdempotencyStore = InMemoryIdempotencyStore()
-        authorize = authorize_factory(
+        authz = authorize_factory(
             settings,
             event_store,
             pool=None,
@@ -367,7 +367,7 @@ async def build_kernel(
             settings=settings,
             clock=clock,
             id_generator=id_generator,
-            authorize=authorize,
+            authz=authz,
             event_store=event_store,
             idempotency_store=idempotency_store,
             token_verifier=token_verifier,
@@ -381,7 +381,7 @@ async def build_kernel(
     )
     pg_event_store: EventStore = PostgresEventStore(pool)
     pg_idempotency_store: IdempotencyStore = PostgresIdempotencyStore(pool)
-    authorize = authorize_factory(
+    authz = authorize_factory(
         settings,
         pg_event_store,
         pool=pool,
@@ -404,7 +404,7 @@ async def build_kernel(
         settings=settings,
         clock=clock,
         id_generator=id_generator,
-        authorize=authorize,
+        authz=authz,
         event_store=pg_event_store,
         idempotency_store=pg_idempotency_store,
         clearance_lookup=clearance_lookup,

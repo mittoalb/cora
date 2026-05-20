@@ -159,9 +159,9 @@ async def test_trust_authorize_persists_traversals_against_postgres(
     )
 
     # 4. One Allow, one Deny against the Conduit.
-    allow_result = await authorize(_PRINCIPAL_ID, "RegisterActor", conduit_id)
+    allow_result = await authorize.authorize(_PRINCIPAL_ID, "RegisterActor", conduit_id)
     assert isinstance(allow_result, Allow)
-    deny_result = await authorize(_DENIED_PRINCIPAL, "RegisterActor", conduit_id)
+    deny_result = await authorize.authorize(_DENIED_PRINCIPAL, "RegisterActor", conduit_id)
     assert isinstance(deny_result, Deny)
 
     # 5. Read back from the entries table.

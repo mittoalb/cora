@@ -88,7 +88,7 @@ async def test_returns_allow_when_subject_matches_configured_policy() -> None:
     await _seed_policy(store)
     authorize = TrustAuthorize(store, policy_id=_POLICY_ID)
 
-    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
+    result = await authorize.authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(result, Allow)
 
 
@@ -98,7 +98,7 @@ async def test_returns_deny_when_principal_not_permitted() -> None:
     await _seed_policy(store)
     authorize = TrustAuthorize(store, policy_id=_POLICY_ID)
 
-    result = await authorize(_OTHER_PRINCIPAL, "RegisterActor", UUID(int=0))
+    result = await authorize.authorize(_OTHER_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(result, Deny)
     assert "principal" in result.reason.lower()
 
@@ -109,7 +109,7 @@ async def test_returns_deny_when_command_not_permitted() -> None:
     await _seed_policy(store)
     authorize = TrustAuthorize(store, policy_id=_POLICY_ID)
 
-    result = await authorize(_ALLOWED_PRINCIPAL, "DropDatabase", UUID(int=0))
+    result = await authorize.authorize(_ALLOWED_PRINCIPAL, "DropDatabase", UUID(int=0))
     assert isinstance(result, Deny)
     assert "command" in result.reason.lower()
 
@@ -122,7 +122,7 @@ async def test_returns_deny_when_configured_policy_does_not_exist() -> None:
     store = InMemoryEventStore()  # nothing seeded
     authorize = TrustAuthorize(store, policy_id=_POLICY_ID)
 
-    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
+    result = await authorize.authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(result, Deny)
     assert "not found" in result.reason.lower()
     assert str(_POLICY_ID) in result.reason
@@ -145,19 +145,19 @@ async def test_denies_when_caller_conduit_id_does_not_match_policy() -> None:
 
     # Caller passes the nil conduit_id → mismatch → Deny even though
     # principal + command are permitted.
-    denied_nil = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
+    denied_nil = await authorize.authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(denied_nil, Deny)
     assert "conduit" in denied_nil.reason.lower()
 
     # Caller passes a third, unrelated conduit_id → also Deny.
     third_conduit = UUID("01900000-0000-7000-8000-00000000bbbb")
-    denied_other = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", third_conduit)
+    denied_other = await authorize.authorize(_ALLOWED_PRINCIPAL, "RegisterActor", third_conduit)
     assert isinstance(denied_other, Deny)
     assert "conduit" in denied_other.reason.lower()
 
     # Caller passes the policy's own conduit_id → Allow (sanity check
     # that conduit-matching is what gates, not some other invariant).
-    allowed = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", _OTHER_CONDUIT_ID)
+    allowed = await authorize.authorize(_ALLOWED_PRINCIPAL, "RegisterActor", _OTHER_CONDUIT_ID)
     assert isinstance(allowed, Allow)
 
 
@@ -177,13 +177,13 @@ async def test_loads_policy_on_each_call_no_caching() -> None:
     await _seed_policy(store)
     authorize = TrustAuthorize(store, policy_id=_POLICY_ID)
 
-    first = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
+    first = await authorize.authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(first, Allow)
 
     # Drop the policy (white-box: InMemoryEventStore exposes its dict).
     store._streams.pop(("Policy", _POLICY_ID))  # type: ignore[attr-defined]  # pyright: ignore[reportUnknownMemberType]
 
-    second = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
+    second = await authorize.authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(second, Deny)
     assert "not found" in second.reason.lower()
 
@@ -253,7 +253,7 @@ async def test_skips_traversal_emission_when_traversals_store_is_unset() -> None
     store = InMemoryEventStore()
     await _seed_policy(store)
     authorize = TrustAuthorize(store, policy_id=_POLICY_ID)
-    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
+    result = await authorize.authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(result, Allow)
 
 
@@ -272,7 +272,7 @@ async def test_emits_traversal_on_allow_when_conduit_has_open_logbook() -> None:
         id_generator=FixedIdGenerator([_OBS_EVENT_ID]),
     )
 
-    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", _TARGET_CONDUIT_ID)
+    result = await authorize.authorize(_ALLOWED_PRINCIPAL, "RegisterActor", _TARGET_CONDUIT_ID)
     assert isinstance(result, Allow)
 
     rows = traversals.all()
@@ -303,7 +303,7 @@ async def test_emits_traversal_on_deny_with_reason_attached() -> None:
         id_generator=FixedIdGenerator([_OBS_EVENT_ID]),
     )
 
-    result = await authorize(_OTHER_PRINCIPAL, "RegisterActor", _TARGET_CONDUIT_ID)
+    result = await authorize.authorize(_OTHER_PRINCIPAL, "RegisterActor", _TARGET_CONDUIT_ID)
     assert isinstance(result, Deny)
 
     rows = traversals.all()
@@ -333,7 +333,7 @@ async def test_skips_traversal_emission_when_conduit_does_not_exist() -> None:
         id_generator=FixedIdGenerator([_OBS_EVENT_ID]),
     )
 
-    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
+    result = await authorize.authorize(_ALLOWED_PRINCIPAL, "RegisterActor", UUID(int=0))
     assert isinstance(result, Allow)
     # No traversal recorded because the target Conduit doesn't exist.
     assert traversals.all() == []
@@ -378,6 +378,6 @@ async def test_skips_traversal_when_traversals_logbook_was_closed() -> None:
         id_generator=FixedIdGenerator([_OBS_EVENT_ID]),
     )
 
-    result = await authorize(_ALLOWED_PRINCIPAL, "RegisterActor", _TARGET_CONDUIT_ID)
+    result = await authorize.authorize(_ALLOWED_PRINCIPAL, "RegisterActor", _TARGET_CONDUIT_ID)
     assert isinstance(result, Allow)
     assert traversals.all() == []

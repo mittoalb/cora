@@ -109,7 +109,7 @@ class _UpdateHandler(Protocol):
     `surface_id` (Phase B Iter C-2a): additive with nil default so
     routes that don't pass it yet keep working. Iter C-2b sweeps
     route layers to inject the real `Depends(get_surface_id)` value;
-    handlers forward whatever they receive to `deps.authorize`.
+    handlers forward whatever they receive to `deps.authz.authorize`.
     """
 
     async def __call__(
@@ -165,7 +165,7 @@ def make_update_handler[TEvent: _DomainEvent](
             causation_id=str(causation_id) if causation_id is not None else None,
         )
 
-        decision = await deps.authorize(
+        decision = await deps.authz.authorize(
             principal_id=principal_id,
             command_name=command_name,
             conduit_id=NIL_SENTINEL_ID,

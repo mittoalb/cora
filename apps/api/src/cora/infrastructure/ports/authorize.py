@@ -1,4 +1,4 @@
-"""Authorize port: gate every command behind authorize(principal, command, conduit_id, surface_id).
+"""Authorize port: gate every command behind authz.authorize(principal, command, conduit, surface).
 
 `principal_id` (not `actor_id`) names the invoker because the Access BC
 already owns an `Actor` aggregate; using `actor_id` for both the Actor
@@ -54,16 +54,24 @@ type AuthzResult = Allow | Deny
 class Authorize(Protocol):
     """Authorization gate: called before every command.
 
-    Spelled as `__call__` (not a named method like peers `Clock.now`,
-    `EventStore.load`, `CautionLookup.find_active_for_run`) because the
-    port is function-shaped: one operation, no companion state. Mirrors
-    the codebase's factory protocols (`AuthorizeFactory`,
-    `ClearanceLookupFactory`, `CautionLookupFactory`, `LLMFactory`) which
-    are all single-method `__call__`. Call sites read `deps.authorize(...)`
-    which is the intent: the port IS the operation.
+    Named-method (not `__call__`) per Python typing-community guidance
+    (PEP 544 + typing spec + mypy docs): `__call__` Protocols are for
+    callback signatures `Callable[...]` can't express (variadic,
+    overloaded, complex generic). A single-operation domain port uses
+    a regular method, matching CORA's other ports (`Clock.now`,
+    `EventStore.load`, `TokenVerifier.verify`, …) and the broader
+    authorization-library corpus (Spring Security 6's
+    `AuthorizationManager.authorize`, Pundit's `authorize`, Cedar's
+    `is_authorized`, Casbin's `enforce`).
+
+    The seam: `Kernel.authz: Authorize` with call sites reading
+    `await deps.authz.authorize(...)` — "use the authz port to
+    authorize this command." Factory protocols (`AuthorizeFactory`,
+    `LLMFactory`) DO use `__call__` because they ARE construction
+    functions; this port is not.
     """
 
-    async def __call__(
+    async def authorize(
         self,
         principal_id: UUID,
         command_name: str,
@@ -81,7 +89,7 @@ class AllowAllAuthorize:
     with TrustAuthorize wired against it).
     """
 
-    async def __call__(
+    async def authorize(
         self,
         principal_id: UUID,
         command_name: str,

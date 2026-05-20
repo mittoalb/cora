@@ -105,7 +105,7 @@ async def test_handler_returns_none_for_unknown_id() -> None:
 @pytest.mark.unit
 async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
     tracking = RecordingAuthorize()
-    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, authorize=tracking)
+    deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, authz=tracking)
 
     handler = get_method.bind(deps)
     await handler(

@@ -4,7 +4,7 @@ Both endpoints route Authorize-denied calls to HTTP 403 via Recipe BC's
 `_handle_unauthorized` (recipe/routes.py:96-101). The handler-level unit
 tests in `tests/unit/recipe/test_plan_wire_slices_handlers.py` already
 verify Deny -> UnauthorizedError; these contract tests pin the full
-stack: route -> handler -> deps.authorize -> 403 + JSON body.
+stack: route -> handler -> deps.authz.authorize -> 403 + JSON body.
 
 Uses the same TrustAuthorize-with-policy pattern as
 `test_cross_principal_bola.py`: a real policy permits P1 to do every
@@ -185,7 +185,7 @@ def test_p2_gets_403_when_adding_a_wire_to_p1s_plan(
 ) -> None:
     """Authz contract: P2 is not in `permitted_principals` for AddPlanWire,
     so POST /plans/{id}/add_wire returns 403 before any decider logic
-    runs. Pins the full route -> handler -> deps.authorize -> 403 stack."""
+    runs. Pins the full route -> handler -> deps.authz.authorize -> 403 stack."""
     client, p1, p2 = wire_authz_app
     ctx = _setup_plan_with_two_wired_assets(client, p1)
 

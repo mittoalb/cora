@@ -4,7 +4,7 @@ Mirrors the `update_handler.make_update_handler` precedent (hoisted
 post-7e at n=3). Every `list_*` query slice runs the same workflow:
 
   1. Emit `<log_prefix>.start` with the query's headline fields.
-  2. Authorize via `deps.authorize(command_name=<query_name>, ...)`;
+  2. Authorize via `deps.authz.authorize(command_name=<query_name>, ...)`;
      raise the BC-local `UnauthorizedError` on `Deny`.
   3. Decode the optional opaque cursor into `(time_at, item_id)`.
   4. If `deps.pool is None` (in-memory test mode), emit
@@ -378,7 +378,7 @@ def make_list_query_handler[Q: _Query, Item, Page](
             has_cursor=query.cursor is not None,
         )
 
-        decision = await deps.authorize(
+        decision = await deps.authz.authorize(
             principal_id=principal_id,
             command_name=query_name,
             conduit_id=NIL_SENTINEL_ID,

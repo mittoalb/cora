@@ -183,7 +183,7 @@ async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
     deps = _build_deps_shared(
         ids=[_NEW_ID],
         now=_NOW,
-        authorize=tracking,
+        authz=tracking,
     )
 
     handler = get_asset.bind(deps)
@@ -201,7 +201,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     deps = _build_deps_shared(
         ids=[_NEW_ID],
         now=_NOW,
-        authorize=_DenyAllAuthorize(),
+        authz=_DenyAllAuthorize(),
     )
 
     handler = get_asset.bind(deps)

@@ -32,7 +32,7 @@ class _AllowListPermissionsDenyOthers:
     on-behalf gate must fire when `evaluated_principal_id != caller`.
     """
 
-    async def __call__(
+    async def authorize(
         self,
         principal_id: UUID,
         command_name: str,
@@ -239,7 +239,7 @@ async def test_on_behalf_query_denied_when_caller_lacks_list_permissions_of_othe
         ids=[uuid4() for _ in range(8)],
         now=_NOW,
         event_store=store,
-        authorize=_AllowListPermissionsDenyOthers(),
+        authz=_AllowListPermissionsDenyOthers(),
     )
     await _seed_policy(store)
     handler = list_permissions.bind(deps)
@@ -265,7 +265,7 @@ async def test_self_query_allowed_even_when_list_permissions_of_others_denied() 
         ids=[uuid4() for _ in range(8)],
         now=_NOW,
         event_store=store,
-        authorize=_AllowListPermissionsDenyOthers(),
+        authz=_AllowListPermissionsDenyOthers(),
     )
     await _seed_policy(store, principals=frozenset({_PRINCIPAL_ID}))
     handler = list_permissions.bind(deps)

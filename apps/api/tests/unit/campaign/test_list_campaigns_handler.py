@@ -12,6 +12,7 @@ real query behavior is in the integration suite. These tests pin:
 """
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import UUID
 
@@ -123,7 +124,8 @@ async def test_handler_authorize_called_with_query_name_constant() -> None:
     """Pins the BOLA gating key: command_name == 'ListCampaigns'."""
     deps = _build_deps_shared(ids=[], now=_NOW)
     authorize_mock = AsyncMock(return_value=Allow())
-    object.__setattr__(deps, "authorize", authorize_mock)
+    authz_stub = SimpleNamespace(authorize=authorize_mock)
+    object.__setattr__(deps, "authz", authz_stub)
     handler = list_campaigns.bind(deps)
     await handler(
         ListCampaigns(),

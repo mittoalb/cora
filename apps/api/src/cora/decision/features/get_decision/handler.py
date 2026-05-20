@@ -47,7 +47,7 @@ def bind(deps: Kernel) -> Handler:
             correlation_id=str(correlation_id),
         )
 
-        authz = await deps.authorize(
+        authz = await deps.authz.authorize(
             principal_id=principal_id,
             command_name=_QUERY_NAME,
             conduit_id=NIL_SENTINEL_ID,

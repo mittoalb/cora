@@ -83,7 +83,7 @@ def bind(deps: Kernel) -> Handler:
             correlation_id=str(correlation_id),
         )
 
-        decision = await deps.authorize(
+        decision = await deps.authz.authorize(
             principal_id=principal_id,
             command_name=_QUERY_NAME,
             conduit_id=NIL_SENTINEL_ID,
@@ -106,7 +106,7 @@ def bind(deps: Kernel) -> Handler:
         # ListPermissionsOfOthers; operators grant the second one
         # explicitly via a real admin Policy when they want on-behalf.
         if query.evaluated_principal_id != principal_id:
-            on_behalf_decision = await deps.authorize(
+            on_behalf_decision = await deps.authz.authorize(
                 principal_id=principal_id,
                 command_name=_ON_BEHALF_QUERY_NAME,
                 conduit_id=NIL_SENTINEL_ID,

@@ -133,7 +133,7 @@ def bind(deps: Kernel, *, step_store: StepStore) -> Handler:
             causation_id=str(causation_id) if causation_id is not None else None,
         )
 
-        authz = await deps.authorize(
+        authz = await deps.authz.authorize(
             principal_id=principal_id,
             command_name=_COMMAND_NAME,
             conduit_id=NIL_SENTINEL_ID,

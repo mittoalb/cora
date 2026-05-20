@@ -94,7 +94,7 @@ def bind(deps: Kernel) -> Handler:
             quantity=command.quantity.value,
         )
 
-        decision = await deps.authorize(
+        decision = await deps.authz.authorize(
             principal_id=principal_id,
             command_name=_COMMAND_NAME,
             conduit_id=NIL_SENTINEL_ID,

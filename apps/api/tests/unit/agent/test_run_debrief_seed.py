@@ -25,7 +25,7 @@ def _kernel() -> Kernel:
         settings=settings,
         clock=FakeClock(datetime(2026, 5, 17, 14, 0, 0, tzinfo=UTC)),
         id_generator=FixedIdGenerator([]),
-        authorize=AllowAllAuthorize(),
+        authz=AllowAllAuthorize(),
     )
 
 

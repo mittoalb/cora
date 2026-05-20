@@ -75,7 +75,7 @@ class DenyAllAuthorize:
     reason `"denied for test"`. Tests asserting BC-specific deny
     reasons should construct their own Deny stub locally."""
 
-    async def __call__(
+    async def authorize(
         self,
         principal_id: UUID,
         command_name: str,
@@ -94,7 +94,7 @@ class RecordingAuthorize:
     def __init__(self) -> None:
         self.calls: list[tuple[UUID, str, UUID, UUID]] = []
 
-    async def __call__(
+    async def authorize(
         self,
         principal_id: UUID,
         command_name: str,
@@ -111,7 +111,7 @@ def build_deps(
     now: datetime | None = None,
     event_store: EventStore | None = None,
     deny: bool = False,
-    authorize: Authorize | None = None,
+    authz: Authorize | None = None,
     llm: LLM | None = None,
 ) -> Kernel:
     """Build a Kernel for unit-test handler invocation.
@@ -121,22 +121,22 @@ def build_deps(
     `ids=` for the FixedIdGenerator queue (the handler consumes them
     in order: aggregate ids first, then event ids per emitted event).
 
-    `authorize` overrides the default authorize port (use this for
+    `authz` overrides the default authorize port (use this for
     tests injecting a recording / counting / specific-reason
-    Authorize stub). When `authorize` is set, `deny` is ignored.
+    Authorize stub). When `authz` is set, `deny` is ignored.
 
     `llm` (Phase 8f-c iter 1) wires a test LLM (typically
     `FakeLLMAdapter`) when the handler under test consumes one
     (eg. `re_debrief_run`). Defaults to None so the vast majority
     of tests that don't need an LLM stay LLM-free.
     """
-    if authorize is None:
-        authorize = DenyAllAuthorize() if deny else AllowAllAuthorize()
+    if authz is None:
+        authz = DenyAllAuthorize() if deny else AllowAllAuthorize()
     return make_inmemory_kernel(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FakeClock(now or DEFAULT_NOW),
         id_generator=FixedIdGenerator(list(ids or [])),
-        authorize=authorize,
+        authz=authz,
         event_store=event_store,
         llm=llm,
     )

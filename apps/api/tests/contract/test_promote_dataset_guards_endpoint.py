@@ -250,7 +250,7 @@ def test_p2_gets_403_when_promoting_p1s_dataset(
     """Authz contract: P2 is not in `permitted_principals` for
     PromoteDataset, so POST /datasets/{id}/promote returns 403 before
     any decider logic runs. Pins the full route → handler →
-    deps.authorize → 403 stack for promote_dataset."""
+    deps.authz.authorize → 403 stack for promote_dataset."""
     client, p1, p2 = promote_authz_app
     dataset_id = client.post(
         "/datasets",

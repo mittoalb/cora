@@ -151,12 +151,12 @@ async def test_trust_authorize_against_bootstrap_policy_permits_define_policy(
 
     # The two permitted commands authorize Allow.
     for command in ("DefinePolicy", "RegisterActor"):
-        result = await authorize(SYSTEM_PRINCIPAL_ID, command, _NIL_CONDUIT)
+        result = await authorize.authorize(SYSTEM_PRINCIPAL_ID, command, _NIL_CONDUIT)
         assert isinstance(result, Allow), f"expected Allow for {command}, got {result!r}"
 
     # An unpermitted command Denies (this is the scope-creep guardrail:
     # anti-hook AH3).
-    denied = await authorize(SYSTEM_PRINCIPAL_ID, "DefineZone", _NIL_CONDUIT)
+    denied = await authorize.authorize(SYSTEM_PRINCIPAL_ID, "DefineZone", _NIL_CONDUIT)
     assert isinstance(denied, Deny)
 
 
@@ -181,7 +181,7 @@ async def test_bootstrap_policy_can_define_a_real_policy_end_to_end(
         now=_NOW,
         ids=[new_policy_id, new_event_id],
         event_store=event_store,
-        authorize=authorize,
+        authz=authorize,
     )
 
     # Under the bootstrap policy, SYSTEM_PRINCIPAL_ID is the only
@@ -218,7 +218,7 @@ async def test_bootstrap_policy_denies_non_system_principal(
     authorize = TrustAuthorize(event_store, policy_id=SYSTEM_BOOTSTRAP_POLICY_ID)
     rando = UUID("01900000-0000-7000-8000-000000000c01")
 
-    result = await authorize(rando, "DefinePolicy", _NIL_CONDUIT)
+    result = await authorize.authorize(rando, "DefinePolicy", _NIL_CONDUIT)
     assert isinstance(result, Deny)
 
 

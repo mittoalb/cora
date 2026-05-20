@@ -68,7 +68,7 @@ def bind(deps: Kernel) -> Handler:
             causation_id=str(causation_id) if causation_id is not None else None,
         )
 
-        decision = await deps.authorize(
+        decision = await deps.authz.authorize(
             principal_id=principal_id,
             command_name=_COMMAND_NAME,
             conduit_id=NIL_SENTINEL_ID,

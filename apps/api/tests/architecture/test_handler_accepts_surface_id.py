@@ -28,7 +28,7 @@ Protocols, the test skips with a categorized message:
       asserted set
 
 This test does NOT enforce that handlers FORWARD surface_id to
-`deps.authorize()`. That's covered by a separate test (planned) +
+`deps.authz.authorize()`. That's covered by a separate test (planned) +
 end-to-end coverage in `tests/unit/trust/test_policy.py`.
 """
 

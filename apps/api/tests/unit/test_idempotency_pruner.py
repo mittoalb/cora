@@ -52,7 +52,7 @@ def _build_kernel(
         ),
         clock=FakeClock(datetime(2026, 5, 13, 12, 0, 0, tzinfo=UTC)),
         id_generator=FixedIdGenerator([]),
-        authorize=AllowAllAuthorize(),
+        authz=AllowAllAuthorize(),
         idempotency_store=store,
         pool=pool,
     )

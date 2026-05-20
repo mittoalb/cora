@@ -10,7 +10,7 @@ testcontainers `db_pool` fixture from `tests/integration/conftest.py`.
 from tests.integration._helpers import build_postgres_deps
 
 deps = build_postgres_deps(db_pool, ids=[method_id, event_id], now=_NOW)
-deps = build_postgres_deps(db_pool, ids=[...], now=_NOW, authorize=RecordingAuthorize())
+deps = build_postgres_deps(db_pool, ids=[...], now=_NOW, authz=RecordingAuthorize())
 ```
 
 ## Why a separate factory from the unit helper
@@ -56,7 +56,7 @@ def build_postgres_deps(
     *,
     now: datetime,
     ids: list[UUID] | None = None,
-    authorize: Authorize | None = None,
+    authz: Authorize | None = None,
     event_store: EventStore | None = None,
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
@@ -83,7 +83,7 @@ def build_postgres_deps(
         settings=Settings(app_env="test"),  # type: ignore[call-arg]
         clock=FakeClock(now),
         id_generator=FixedIdGenerator(list(ids or [])),
-        authorize=authorize or AllowAllAuthorize(),
+        authz=authz or AllowAllAuthorize(),
         event_store=event_store,
         idempotency_store=idempotency_store,
         clearance_lookup=clearance_lookup or AlwaysCoveredClearanceLookup(),

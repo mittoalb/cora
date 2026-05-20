@@ -93,7 +93,7 @@ async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
     deps = build_deps(
         ids=[_NEW_ID, _EVENT_ID, _DEACTIVATE_EVENT_ID],
         now=_NOW,
-        authorize=tracking,
+        authz=tracking,
     )
 
     handler = get_actor.bind(deps)

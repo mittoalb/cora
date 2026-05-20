@@ -71,7 +71,7 @@ def _gated_deps(
         db_pool,
         now=_NOW,
         ids=ids,
-        authorize=TrustAuthorize(event_store, policy_id=policy_id),
+        authz=TrustAuthorize(event_store, policy_id=policy_id),
         event_store=event_store,
     )
 

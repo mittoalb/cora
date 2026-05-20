@@ -114,7 +114,7 @@ class Kernel:
     settings: Settings
     clock: Clock
     id_generator: IdGenerator
-    authorize: Authorize
+    authz: Authorize
     event_store: EventStore
     idempotency_store: IdempotencyStore
     clearance_lookup: ClearanceLookup

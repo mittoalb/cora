@@ -24,7 +24,7 @@ def _kernel(*, llm: object | None) -> object:
         settings=settings,
         clock=FakeClock(datetime(2026, 5, 17, 14, 0, 0, tzinfo=UTC)),
         id_generator=FixedIdGenerator([]),
-        authorize=AllowAllAuthorize(),
+        authz=AllowAllAuthorize(),
         llm=llm,  # type: ignore[arg-type]
     )
 

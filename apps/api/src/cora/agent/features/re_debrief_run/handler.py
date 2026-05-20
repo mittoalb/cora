@@ -149,7 +149,7 @@ def bind(deps: Kernel) -> Handler:
         )
         log.info("re_debrief_run.start")
 
-        authz = await deps.authorize(
+        authz = await deps.authz.authorize(
             principal_id=principal_id,
             command_name=_COMMAND_NAME,
             conduit_id=NIL_SENTINEL_ID,
