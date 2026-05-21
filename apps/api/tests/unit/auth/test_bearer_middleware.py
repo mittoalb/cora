@@ -269,11 +269,14 @@ def test_no_verifier_configured_skips_extraction() -> None:
 
 @pytest.mark.unit
 def test_no_authorization_header_passes_through_without_verify() -> None:
-    """Verifier configured + no Authorization header: middleware does
-    NOT raise 401; that decision belongs to get_principal_id (which
-    consults `require_authenticated_principal`). Pins the layering:
-    middleware verifies WHEN a bearer is presented; the route layer
-    decides WHETHER a bearer is required."""
+    """Verifier configured + no Authorization header on a NON-/mcp path:
+    middleware does NOT raise 401; that decision belongs to
+    `get_principal_id` (which consults `require_authenticated_principal`).
+    Pins the layering: middleware verifies WHEN a bearer is presented;
+    the route layer decides WHETHER a bearer is required. (Phase 8f-d
+    keeps this rule for non-MCP paths; `/mcp/*` gets explicit middleware
+    enforcement -- see below -- because FastMCP has no per-route
+    Depends seam.)"""
     verifier = _FakeTokenVerifier(verify_call=_always_invalid)
     client = _client(verifier=verifier)
 
@@ -281,6 +284,28 @@ def test_no_authorization_header_passes_through_without_verify() -> None:
 
     assert response.status_code == 200
     assert response.json()["principal_attached"] is False
+    assert verifier.last_call is None
+
+
+@pytest.mark.unit
+def test_mcp_path_without_bearer_returns_401_with_challenge() -> None:
+    """Phase 8f-d: under bearer-auth mode, /mcp paths MUST 401 at the
+    middleware on a missing Authorization header. FastMCP's framing
+    methods (initialize / tools/list / notifications/*) don't reach
+    tool-handler code where `get_mcp_principal_id(ctx)` would raise,
+    so without middleware-side enforcement they'd flow through
+    unauthenticated. Mirrors the per-route `Depends(get_principal_id)`
+    enforcement REST gets for free."""
+    verifier = _FakeTokenVerifier(verify_call=_always_succeed)
+    client = _client(verifier=verifier)
+
+    response = client.get("/mcp/anything")
+
+    assert response.status_code == 401
+    challenge = response.headers.get("WWW-Authenticate", "")
+    assert challenge.startswith("Bearer ")
+    assert "/.well-known/oauth-protected-resource" in challenge
+    # Verifier MUST NOT be called -- no token to verify.
     assert verifier.last_call is None
 
 

@@ -176,9 +176,36 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
 
         authorization = request.headers.get("authorization")
         if authorization is None:
-            # No bearer presented; defer the 401-or-fallback decision
-            # to get_principal_id which knows about
+            # For non-MCP paths: defer the 401-or-fallback decision to
+            # get_principal_id which knows about
             # `require_authenticated_principal` + `app_env`.
+            #
+            # For /mcp/* paths under bearer-auth mode the middleware
+            # MUST enforce here. FastMCP framing calls (initialize,
+            # tools/list, notifications/*) don't reach tool-handler
+            # code where `get_mcp_principal_id(ctx)` would raise, so
+            # without a middleware-side 401 they'd flow through
+            # unauthenticated. REST gets per-route `Depends(get_principal_id)`
+            # for free; MCP has no equivalent layer below the tool
+            # handler.
+            if request.url.path == "/mcp" or request.url.path.startswith("/mcp/"):
+                # Lazy import: see module-level cycle-break note.
+                from cora.infrastructure.auth.exception_handlers import (
+                    missing_bearer_challenge,
+                )
+
+                return JSONResponse(
+                    status_code=401,
+                    content={
+                        "detail": (
+                            "Missing Authorization: Bearer header for MCP. "
+                            "This deployment requires a verified bearer "
+                            "token; see /.well-known/oauth-protected-resource "
+                            "for issuer metadata."
+                        )
+                    },
+                    headers={"WWW-Authenticate": missing_bearer_challenge()},
+                )
             return await call_next(request)
 
         # Lazy imports: ports module + handler module both live in
