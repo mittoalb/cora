@@ -26,4 +26,3 @@ For implementers wiring authentication and authorization. Each row names a role,
 | Policy engine | Trust BC `evaluate()` over current Policy aggregate | Inline; no external engine yet | First non-Cedar rule forces SpiceDB or OpenFGA |
 | Authz model (planned) | ReBAC (SpiceDB or OpenFGA) | Multi-stakeholder ownership in shared facilities | Locked when first non-Cedar authz rule lands |
 | Decision-BC policy language | Cedar | Used in Decision predicates (`has_determining_policies`) | Stays |
-| Edge MCP gate | `mcp_gate` refuses write tools under prod posture | FastMCP 2025-11-25 spec gap; closes the door until A2A | First spec-level MCP auth verb lands |
