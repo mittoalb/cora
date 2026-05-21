@@ -1,21 +1,18 @@
 """MCP tool for the `mark_supply_available` slice.
 
 Surfaces the same handler the REST route uses, exposed as a Model
-Context Protocol tool. MCP tools currently bypass header extraction
-and use `SYSTEM_PRINCIPAL_ID` directly until the MCP auth-flow
-phase lands.
-"""
+Context Protocol tool."""
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.supply._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.supply.aggregates.supply import SUPPLY_REASON_MAX_LENGTH
 from cora.supply.features.mark_supply_available.command import MarkSupplyAvailable
 from cora.supply.features.mark_supply_available.handler import Handler
@@ -40,6 +37,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def mark_supply_available_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         supply_id: Annotated[
             UUID,
             Field(description="Target supply's id."),
@@ -59,7 +57,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         handler = get_handler()
         await handler(
             MarkSupplyAvailable(supply_id=supply_id, reason=reason),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

@@ -14,13 +14,12 @@ discipline.
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.caution._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.caution._caution_dtos import (
     TargetAssetDTO,
     TargetDTO,
@@ -43,6 +42,7 @@ from cora.caution.features.list_cautions.query import (
     CautionTargetKindFilter,
     ListCautions,
 )
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -159,6 +159,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def list_cautions_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         cursor: Annotated[
             str | None,
             Field(description="Opaque cursor from a previous response."),
@@ -236,7 +237,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 tag=tag,
                 author_actor_id=author_actor_id,
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

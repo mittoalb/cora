@@ -1,22 +1,19 @@
 """MCP tool for the `define_family` slice.
 
 Surfaces the same handler the REST route uses, exposed as a Model
-Context Protocol tool. MCP tools currently bypass header extraction
-and use `SYSTEM_PRINCIPAL_ID` directly until the MCP auth-flow
-phase lands.
-"""
+Context Protocol tool."""
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.equipment._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.equipment.aggregates.family import FAMILY_NAME_MAX_LENGTH, Affordance
 from cora.equipment.features.define_family.command import DefineFamily
 from cora.equipment.features.define_family.handler import IdempotentHandler
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -37,6 +34,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         ),
     )
     async def define_family_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         name: Annotated[
             str,
             Field(
@@ -59,7 +57,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         handler = get_handler()
         family_id = await handler(
             DefineFamily(name=name, affordances=frozenset(affordances)),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

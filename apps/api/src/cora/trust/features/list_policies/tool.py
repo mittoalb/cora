@@ -2,15 +2,15 @@
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.trust._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.trust.aggregates.policy import POLICY_NAME_MAX_LENGTH
 from cora.trust.features.list_policies.handler import Handler
 from cora.trust.features.list_policies.query import ListPolicies
@@ -43,6 +43,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def list_policies_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         cursor: Annotated[
             str | None,
             Field(description="Opaque cursor from a previous response."),
@@ -59,7 +60,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         handler = get_handler()
         page = await handler(
             ListPolicies(cursor=cursor, limit=limit, conduit_id=conduit_id),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

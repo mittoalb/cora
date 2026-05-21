@@ -27,11 +27,13 @@ Three modes, in priority order:
      is False (dev / test posture). Production deployments configure
      IdPs and run with the flag on.
 
-Lives at `cora/api/` (not `cora/infrastructure/routing.py`) because
-the resolver depends on FastMCP's `Context`, an API-layer concept
-the infrastructure tier MUST NOT import. Tools call through this
-helper rather than reaching into `ctx.request_context.request.state`
-directly so the 3-mode logic stays in exactly one place.
+Lives at `cora/infrastructure/` (sibling to `routing.py`) because
+BC `tool.py` modules consume it; per tach, BCs may depend on
+`cora.infrastructure` but NOT `cora.api`. Importing FastMCP's
+`Context` here is fine — the SDK is a leaf dependency, not part
+of CORA's BC layer. Tools call through this helper rather than
+reaching into `ctx.request_context.request.state` directly so the
+3-mode logic stays in exactly one place.
 
 `ctx` is typed `Any` at this boundary on purpose: FastMCP's `Context`
 is generic over server-session / lifespan / request type parameters
@@ -46,8 +48,6 @@ tests in Iter D pin the live SDK shape end-to-end.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
-
-from cora.infrastructure.routing import SYSTEM_PRINCIPAL_ID
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -84,6 +84,11 @@ def get_mcp_principal_id(ctx: Any) -> UUID:
             "This deployment requires a verified bearer token; see "
             "/.well-known/oauth-protected-resource for issuer metadata."
         )
+
+    # Lazy import breaks the cora.infrastructure.routing ->
+    # ports.authorize -> routing init cycle observed when this
+    # module is imported before routing's init completes.
+    from cora.infrastructure.routing import SYSTEM_PRINCIPAL_ID
 
     return SYSTEM_PRINCIPAL_ID
 

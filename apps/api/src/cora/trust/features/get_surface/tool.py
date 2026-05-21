@@ -6,15 +6,15 @@ fields. See route.py docstring for the carve-out reasoning.
 """
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.trust._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.trust.aggregates.surface import SURFACE_NAME_MAX_LENGTH, SurfaceKind, SurfaceStatus
 from cora.trust.features.get_surface.handler import Handler
 from cora.trust.features.get_surface.query import GetSurface
@@ -37,12 +37,13 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         description="Read the current state of an existing surface by id.",
     )
     async def get_surface_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         surface_id: Annotated[UUID, Field(description="Target surface's id.")],
     ) -> SurfaceOutput:
         handler = get_handler()
         surface = await handler(
             GetSurface(surface_id=surface_id),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

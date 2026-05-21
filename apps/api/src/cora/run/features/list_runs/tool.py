@@ -2,15 +2,15 @@
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.run._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.run.aggregates.run import RUN_NAME_MAX_LENGTH
 from cora.run.features.list_runs.handler import Handler
 from cora.run.features.list_runs.query import ListRuns, RunStatusFilter
@@ -66,6 +66,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def list_runs_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         cursor: Annotated[
             str | None,
             Field(description="Opaque cursor from a previous response."),
@@ -96,7 +97,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 plan_id=plan_id,
                 campaign_id=campaign_id,
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

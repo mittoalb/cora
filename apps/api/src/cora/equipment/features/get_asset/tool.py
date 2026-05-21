@@ -12,13 +12,13 @@ from collections.abc import Callable
 from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.equipment._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.equipment.aggregates.asset import ASSET_NAME_MAX_LENGTH
 from cora.equipment.features.get_asset.handler import Handler
 from cora.equipment.features.get_asset.query import GetAsset
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -53,6 +53,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         description="Read the current state of an existing asset by id.",
     )
     async def get_asset_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         asset_id: Annotated[
             UUID,
             Field(description="Target asset's id."),
@@ -61,7 +62,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         handler = get_handler()
         asset = await handler(
             GetAsset(asset_id=asset_id),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

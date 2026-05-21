@@ -2,15 +2,15 @@
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.safety._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.safety.aggregates.clearance import ClearanceKind, ClearanceStatus
 from cora.safety.aggregates.clearance.hazard_classification import RiskBand
 from cora.safety.aggregates.clearance.state import (
@@ -83,6 +83,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def list_clearances_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         cursor: Annotated[
             str | None, Field(default=None, description="Opaque pagination cursor.")
         ] = None,
@@ -128,7 +129,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 binds_to_run_id=binds_to_run_id,
                 binds_to_procedure_id=binds_to_procedure_id,
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

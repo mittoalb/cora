@@ -2,15 +2,15 @@
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.safety._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.safety.features.approve_clearance.command import ApproveClearance
 from cora.safety.features.approve_clearance.handler import Handler
 
@@ -34,6 +34,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def approve_clearance_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         clearance_id: Annotated[UUID, Field(description="Target clearance's id.")],
         valid_from: Annotated[
             datetime | None,
@@ -45,8 +46,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ] = None,
     ) -> ApproveClearanceOutput:
         handler = get_handler()
-        # TODO(MCP-auth): when MCP principal extraction lands (SEP-986),
-        # swap SYSTEM_PRINCIPAL_ID for the real authenticated principal.
         # Until then, MCP-issued approvals record SYSTEM as the approving
         # actor in the event envelope (StoredEvent.principal_id), which is
         # correct for unattended automation flows but wrong for human-
@@ -57,7 +56,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 valid_from=valid_from,
                 valid_until=valid_until,
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

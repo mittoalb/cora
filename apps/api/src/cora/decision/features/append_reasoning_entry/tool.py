@@ -21,15 +21,15 @@ from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.decision._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.decision.features.append_reasoning_entry.command import (
     AppendReasoningEntries,
     ReasoningEntryInput,
 )
 from cora.decision.features.append_reasoning_entry.handler import Handler
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -56,6 +56,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def append_reasoning_entry_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         decision_id: Annotated[UUID, Field(description="Target decision's id.")],
         event_id: Annotated[
             UUID,
@@ -155,7 +156,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         )
         count = await handler(
             AppendReasoningEntries(decision_id=decision_id, entries=(entry,)),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

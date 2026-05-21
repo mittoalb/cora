@@ -9,15 +9,15 @@ invoked with idempotency_key=None.
 """
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.trust._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.trust.aggregates.zone import ZONE_NAME_MAX_LENGTH
 from cora.trust.features.define_zone.command import DefineZone
 from cora.trust.features.define_zone.handler import IdempotentHandler
@@ -37,6 +37,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         description="Define a new Trust zone with the given display name.",
     )
     async def define_zone_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         name: Annotated[
             str,
             Field(
@@ -49,7 +50,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         handler = get_handler()
         zone_id = await handler(
             DefineZone(name=name),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

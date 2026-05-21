@@ -14,13 +14,12 @@ canonical list-typed filters per the
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.campaign._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.campaign.aggregates.campaign import (
     CAMPAIGN_NAME_MAX_LENGTH,
     CAMPAIGN_TAG_MAX_LENGTH,
@@ -33,6 +32,7 @@ from cora.campaign.features.list_campaigns.query import (
     CampaignStatusFilter,
     ListCampaigns,
 )
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -113,6 +113,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def list_campaigns_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         cursor: Annotated[
             str | None,
             Field(description="Opaque cursor from a previous response."),
@@ -164,7 +165,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 subject_id=subject_id,
                 tag=tag,
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

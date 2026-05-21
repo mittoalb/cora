@@ -19,7 +19,7 @@ from uuid import UUID
 
 import pytest
 
-from cora.api.mcp_principal import McpUnauthenticatedError, get_mcp_principal_id
+from cora.infrastructure.mcp_principal import McpUnauthenticatedError, get_mcp_principal_id
 from cora.infrastructure.ports import VerifiedPrincipal
 from cora.infrastructure.routing import SYSTEM_PRINCIPAL_ID
 

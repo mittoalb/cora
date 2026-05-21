@@ -5,13 +5,13 @@ from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
 from cora.equipment.aggregates.family import Affordance
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.recipe._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.recipe.aggregates.capability import (
     CAPABILITY_CODE_MAX_LENGTH,
     CAPABILITY_NAME_MAX_LENGTH,
@@ -57,6 +57,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         description="Read the current state of an existing Capability by id.",
     )
     async def get_capability_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         capability_id: Annotated[
             UUID,
             Field(description="Target Capability's id."),
@@ -65,7 +66,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         handler = get_handler()
         view = await handler(
             GetCapability(capability_id=capability_id),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

@@ -1,21 +1,18 @@
 """MCP tool for the `get_procedure` query slice.
 
 Surfaces the same handler the REST route uses, exposed as a Model
-Context Protocol tool. MCP tools currently bypass header extraction
-and use `SYSTEM_PRINCIPAL_ID` directly until the MCP auth-flow
-phase lands.
-"""
+Context Protocol tool."""
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.operation._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.operation.aggregates.procedure import (
     PROCEDURE_KIND_MAX_LENGTH,
     PROCEDURE_NAME_MAX_LENGTH,
@@ -56,6 +53,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def get_procedure_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         procedure_id: Annotated[
             UUID,
             Field(description="Target procedure's id."),
@@ -64,7 +62,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         handler = get_handler()
         procedure = await handler(
             GetProcedure(procedure_id=procedure_id),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

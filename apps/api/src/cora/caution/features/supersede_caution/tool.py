@@ -13,10 +13,9 @@ from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field, TypeAdapter
 
-from cora.caution._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.caution._caution_dtos import TargetDTO, target_from_dto
 from cora.caution.aggregates.caution import (
     CAUTION_TEXT_MAX_LENGTH,
@@ -26,6 +25,7 @@ from cora.caution.aggregates.caution import (
 )
 from cora.caution.features.supersede_caution.command import SupersedeCaution
 from cora.caution.features.supersede_caution.handler import IdempotentHandler
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -52,6 +52,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         ),
     )
     async def supersede_caution_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         parent_caution_id: Annotated[UUID, Field(description="Parent caution's id.")],
         target: Annotated[
             dict[str, Any],
@@ -107,7 +108,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 expires_at=expires_at,
                 propagate_to_children=propagate_to_children,
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

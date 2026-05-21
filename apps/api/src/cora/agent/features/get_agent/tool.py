@@ -14,16 +14,16 @@ never a missing transition. A not-found Agent raises (MCP
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.agent._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.agent.aggregates.agent import AgentStatus
 from cora.agent.features.get_agent.handler import Handler
 from cora.agent.features.get_agent.query import GetAgent
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -74,6 +74,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def get_agent_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         agent_id: Annotated[
             UUID,
             Field(description="Target agent's id."),
@@ -82,7 +83,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         handler = get_handler()
         view = await handler(
             GetAgent(agent_id=agent_id),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

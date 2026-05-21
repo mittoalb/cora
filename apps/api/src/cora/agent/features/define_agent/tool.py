@@ -2,18 +2,15 @@
 
 Surfaces the same handler the REST route uses, exposed as a Model
 Context Protocol tool. MCP tools currently bypass header extraction
-and use `SYSTEM_PRINCIPAL_ID` directly until the MCP auth-flow
-phase lands; for the same reason, `idempotency_key` defaults to None.
 """
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.agent._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.agent.aggregates.agent import (
     AGENT_CANONICAL_URI_MAX_LENGTH,
     AGENT_CAPABILITIES_MAX_COUNT,
@@ -29,6 +26,7 @@ from cora.agent.aggregates.agent import (
 )
 from cora.agent.features.define_agent.command import DefineAgent
 from cora.agent.features.define_agent.handler import IdempotentHandler
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -75,6 +73,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         ),
     )
     async def define_agent_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         kind: Annotated[
             str,
             Field(
@@ -149,7 +148,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 prompt_template_id=prompt_template_id,
                 capabilities=frozenset(capabilities or []),
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

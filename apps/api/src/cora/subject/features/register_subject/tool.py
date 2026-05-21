@@ -1,21 +1,19 @@
 """MCP tool for the `register_subject` slice.
 
 Surfaces the same handler the REST route uses, exposed as a Model
-Context Protocol tool. MCP tools currently bypass header extraction
-(see CONTRIBUTING.md "Production hardening" section) and use
-`SYSTEM_PRINCIPAL_ID` directly until the MCP auth-flow phase lands.
+Context Protocol tool.
 """
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.subject._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.subject.aggregates.subject import SUBJECT_NAME_MAX_LENGTH
 from cora.subject.features.register_subject.command import RegisterSubject
 from cora.subject.features.register_subject.handler import IdempotentHandler
@@ -35,6 +33,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         description="Register a new subject with the given display name.",
     )
     async def register_subject_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         name: Annotated[
             str,
             Field(
@@ -47,7 +46,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         handler = get_handler()
         subject_id = await handler(
             RegisterSubject(name=name),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

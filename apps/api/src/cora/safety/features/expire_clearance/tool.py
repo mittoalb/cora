@@ -1,15 +1,15 @@
 """MCP tool for the `expire_clearance` slice."""
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.safety._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.safety.aggregates.clearance.state import (
     CLEARANCE_EXPIRE_REASON_MAX_LENGTH,
 )
@@ -36,6 +36,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def expire_clearance_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         clearance_id: Annotated[UUID, Field(description="Target clearance's id.")],
         reason: Annotated[
             str,
@@ -47,14 +48,12 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ],
     ) -> ExpireClearanceOutput:
         handler = get_handler()
-        # TODO(MCP-auth): when MCP principal extraction lands (SEP-986),
-        # swap SYSTEM_PRINCIPAL_ID for the real authenticated principal.
         await handler(
             ExpireClearance(
                 clearance_id=clearance_id,
                 reason=reason,
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

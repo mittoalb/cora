@@ -1,21 +1,20 @@
 """MCP tool for the `re_debrief_run` slice.
 
 Surfaces the same handler the REST route uses. MCP tools currently
-bypass header extraction and use `SYSTEM_PRINCIPAL_ID` until the
-MCP auth-flow phase lands; for the same reason, `idempotency_key`
+        For the same reason, `idempotency_key`
 defaults to `None` so each MCP invocation is a fresh attempt.
 """
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.agent._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.agent.features.re_debrief_run.command import ReDebriefRun
 from cora.agent.features.re_debrief_run.handler import IdempotentHandler
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -41,6 +40,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         ),
     )
     async def re_debrief_run_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         run_id: Annotated[
             UUID,
             Field(description="The Run to re-debrief."),
@@ -62,7 +62,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 run_id=run_id,
                 parent_decision_id=parent_decision_id,
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

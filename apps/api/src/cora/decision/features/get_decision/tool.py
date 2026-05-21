@@ -4,10 +4,9 @@ from collections.abc import Callable
 from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.decision._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.decision.aggregates.decision import (
     DECISION_CHOICE_MAX_LENGTH,
     DECISION_CONTEXT_MAX_LENGTH,
@@ -16,6 +15,7 @@ from cora.decision.aggregates.decision import (
 )
 from cora.decision.features.get_decision.handler import Handler
 from cora.decision.features.get_decision.query import GetDecision
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -57,12 +57,13 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def get_decision_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         decision_id: Annotated[UUID, Field(description="Target decision's id.")],
     ) -> DecisionOutput:
         handler = get_handler()
         decision = await handler(
             GetDecision(decision_id=decision_id),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

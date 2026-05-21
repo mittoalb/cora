@@ -4,12 +4,12 @@ from collections.abc import Callable
 from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.recipe._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.recipe.features.update_plan_default_parameters.command import (
     UpdatePlanDefaultParameters,
 )
@@ -34,6 +34,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def update_plan_default_parameters_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         plan_id: Annotated[UUID, Field(description="Target plan's id.")],
         default_parameters_patch: Annotated[
             dict[str, Any],
@@ -51,7 +52,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             UpdatePlanDefaultParameters(
                 plan_id=plan_id, default_parameters_patch=default_parameters_patch
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

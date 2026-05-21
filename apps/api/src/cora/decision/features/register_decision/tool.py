@@ -1,7 +1,6 @@
 """MCP tool for the `register_decision` slice.
 
-Surfaces the same handler the REST route uses. Uses
-`SYSTEM_PRINCIPAL_ID` until the MCP auth-flow phase lands.
+Surfaces the same handler the REST route uses.
 
 The MCP tool exposes the same flat parameter set as the REST body
 (no flattening needed since the body is already mostly flat;
@@ -13,10 +12,9 @@ from collections.abc import Callable
 from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.decision._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.decision.aggregates.decision import (
     DECISION_ALTERNATIVES_MAX_ENTRIES,
     DECISION_CHOICE_MAX_LENGTH,
@@ -29,6 +27,7 @@ from cora.decision.aggregates.decision import (
 )
 from cora.decision.features.register_decision.command import RegisterDecision
 from cora.decision.features.register_decision.handler import IdempotentHandler
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -56,6 +55,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         ),
     )
     async def register_decision_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         actor_id: Annotated[UUID, Field(description="WHO made the decision (Actor.id).")],
         context: Annotated[
             str,
@@ -173,7 +173,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 decision_inputs=decision_inputs,
                 reasoning_signature=reasoning_signature,
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

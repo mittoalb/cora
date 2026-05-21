@@ -7,15 +7,15 @@ wraps as `isError: true` with a text diagnostic.
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.recipe._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.recipe.aggregates.practice import PRACTICE_NAME_MAX_LENGTH
 from cora.recipe.features.get_practice.handler import Handler
 from cora.recipe.features.get_practice.query import GetPractice
@@ -53,6 +53,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         description="Read the current state of an existing practice by id.",
     )
     async def get_practice_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         practice_id: Annotated[
             UUID,
             Field(description="Target practice's id."),
@@ -61,7 +62,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         handler = get_handler()
         view = await handler(
             GetPractice(practice_id=practice_id),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

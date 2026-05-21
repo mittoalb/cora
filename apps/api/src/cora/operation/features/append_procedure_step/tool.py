@@ -10,12 +10,12 @@ from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.operation._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.operation.aggregates.procedure import StepKind
 from cora.operation.features.append_procedure_step.command import (
     AppendProcedureSteps,
@@ -55,6 +55,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def append_procedure_step_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         procedure_id: Annotated[
             UUID,
             Field(description="Target procedure's id."),
@@ -83,7 +84,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                     for e in entries
                 ),
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

@@ -1,15 +1,15 @@
 """MCP tool for the `deprecate_method` slice."""
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.recipe._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.recipe.features.deprecate_method.command import DeprecateMethod
 from cora.recipe.features.deprecate_method.handler import Handler
 
@@ -26,6 +26,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def deprecate_method_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         method_id: Annotated[
             UUID,
             Field(description="Target method's id."),
@@ -34,7 +35,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         handler = get_handler()
         await handler(
             DeprecateMethod(method_id=method_id),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

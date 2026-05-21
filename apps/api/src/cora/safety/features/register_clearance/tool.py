@@ -1,9 +1,7 @@
 """MCP tool for the `register_clearance` slice.
 
 Surfaces the same handler the REST route uses, exposed as a Model
-Context Protocol tool. MCP tools currently bypass header extraction
-and use `SYSTEM_PRINCIPAL_ID` directly until the MCP auth-flow phase
-lands.
+Context Protocol tool.
 
 The discriminated-union shapes (HazardClassification, ClearanceBinding)
 are accepted as `kind`-tagged Pydantic models, mirroring the REST
@@ -12,15 +10,15 @@ route's wire shape exactly.
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.safety._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.safety.aggregates.clearance import (
     CLEARANCE_EXTERNAL_BINDING_ID_MAX_LENGTH,
     CLEARANCE_EXTERNAL_BINDING_SCHEME_MAX_LENGTH,
@@ -191,6 +189,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         ),
     )
     async def register_clearance_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         kind: Annotated[
             ClearanceKind,
             Field(description="Form-type (10 facility-independent form-types)."),
@@ -269,7 +268,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 valid_from=valid_from,
                 valid_until=valid_until,
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

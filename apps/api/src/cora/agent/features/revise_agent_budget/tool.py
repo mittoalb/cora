@@ -1,15 +1,15 @@
 """MCP tool for the `revise_agent_budget` slice."""
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.agent._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.agent.features.revise_agent_budget.command import ReviseAgentBudget
 from cora.agent.features.revise_agent_budget.handler import Handler
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -36,6 +36,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def revise_agent_budget_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         agent_id: Annotated[UUID, Field(description="Target agent's id.")],
         monthly_usd_cap: Annotated[
             float | None,
@@ -61,7 +62,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 monthly_usd_cap=monthly_usd_cap,
                 daily_token_cap=daily_token_cap,
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

@@ -1,15 +1,15 @@
 """MCP tool for the `add_plan_wire` slice (Phase 6h)."""
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.recipe._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.recipe.aggregates.plan import WIRE_PORT_NAME_MAX_LENGTH
 from cora.recipe.features.add_plan_wire.command import AddPlanWire
 from cora.recipe.features.add_plan_wire.handler import Handler
@@ -34,6 +34,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def add_plan_wire_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         plan_id: Annotated[UUID, Field(description="Target plan's id.")],
         source_asset_id: Annotated[
             UUID,
@@ -69,7 +70,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 target_asset_id=target_asset_id,
                 target_port_name=target_port_name,
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

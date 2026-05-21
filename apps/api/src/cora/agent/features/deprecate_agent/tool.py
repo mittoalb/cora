@@ -1,16 +1,16 @@
 """MCP tool for the `deprecate_agent` slice."""
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.agent._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.agent.aggregates.agent import AGENT_DEPRECATION_REASON_MAX_LENGTH
 from cora.agent.features.deprecate_agent.command import DeprecateAgent
 from cora.agent.features.deprecate_agent.handler import Handler
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -33,6 +33,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def deprecate_agent_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         agent_id: Annotated[UUID, Field(description="Target agent's id.")],
         reason: Annotated[
             str | None,
@@ -47,7 +48,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         handler = get_handler()
         await handler(
             DeprecateAgent(agent_id=agent_id, reason=reason),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

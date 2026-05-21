@@ -11,16 +11,16 @@ the EvaluatePolicy dataclass for consistency.
 """
 
 from collections.abc import Callable
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.ports import Allow, Deny
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.trust._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.trust.features.evaluate_policy.handler import Handler
 from cora.trust.features.evaluate_policy.query import EvaluatePolicy
 
@@ -43,6 +43,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def evaluate_policy_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         policy_id: Annotated[
             UUID,
             Field(description="Target policy's id."),
@@ -72,7 +73,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 evaluated_command_name=evaluated_command_name,
                 evaluated_conduit_id=evaluated_conduit_id,
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

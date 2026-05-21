@@ -1,15 +1,15 @@
 """MCP tool for the `activate_clearance` slice."""
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.safety._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.safety.features.activate_clearance.command import ActivateClearance
 from cora.safety.features.activate_clearance.handler import Handler
 
@@ -32,12 +32,13 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def activate_clearance_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         clearance_id: Annotated[UUID, Field(description="Target clearance's id.")],
     ) -> ActivateClearanceOutput:
         handler = get_handler()
         await handler(
             ActivateClearance(clearance_id=clearance_id),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

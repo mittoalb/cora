@@ -14,12 +14,12 @@ from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field, TypeAdapter
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.safety._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.safety._clearance_dtos import (
     BindingDTO,
     HazardDeclarationDTO,
@@ -59,6 +59,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         ),
     )
     async def amend_clearance_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         parent_clearance_id: Annotated[UUID, Field(description="Parent clearance's id.")],
         kind: Annotated[ClearanceKind, Field(description="Child form-type.")],
         facility_asset_id: Annotated[
@@ -109,9 +110,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         ] = None,
     ) -> AmendClearanceOutput:
         handler = get_handler()
-        # TODO(MCP-auth): when MCP principal extraction lands (SEP-986),
-        # swap SYSTEM_PRINCIPAL_ID for the real authenticated principal.
-
         # Re-validate the polymorphic dict args via the shared DTO adapter so
         # MCP-issued amend calls get the same kind-discriminator + length
         # checks as REST-issued calls.
@@ -131,7 +129,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 valid_from=valid_from,
                 valid_until=valid_until,
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

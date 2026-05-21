@@ -1,15 +1,15 @@
 """MCP tool for the `promote_caution_proposal` slice."""
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.agent._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.agent.features.promote_caution_proposal.command import PromoteCautionProposal
 from cora.agent.features.promote_caution_proposal.handler import IdempotentHandler
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -35,12 +35,13 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         ),
     )
     async def promote_caution_proposal_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         decision_id: Annotated[UUID, Field(description="Target CautionProposal Decision id.")],
     ) -> PromoteCautionProposalOutput:
         handler = get_handler()
         caution_id = await handler(
             PromoteCautionProposal(decision_id=decision_id),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

@@ -2,15 +2,15 @@
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.safety._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.safety.aggregates.clearance.state import (
     CLEARANCE_REVIEWER_NOTES_MAX_LENGTH,
     CLEARANCE_REVIEWER_ROLE_MAX_LENGTH,
@@ -42,6 +42,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def append_clearance_review_step_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         clearance_id: Annotated[UUID, Field(description="Target clearance's id.")],
         step_index: Annotated[
             int,
@@ -73,22 +74,17 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ] = None,
     ) -> AppendClearanceReviewStepOutput:
         handler = get_handler()
-        # TODO(MCP-auth): when MCP principal extraction lands (SEP-986),
-        # swap SYSTEM_PRINCIPAL_ID for the real authenticated principal.
-        # Until then, MCP-issued review-step appends record SYSTEM as the
-        # reviewer's actor_id in the chain entry, which is correct for
-        # unattended automation flows but wrong for human-mediated MCP calls.
         await handler(
             AppendClearanceReviewStep(
                 clearance_id=clearance_id,
                 step_index=step_index,
                 role=role,
-                actor_id=SYSTEM_PRINCIPAL_ID,
+                actor_id=get_mcp_principal_id(ctx),
                 decision=decision,
                 decided_at=decided_at,
                 notes=notes,
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

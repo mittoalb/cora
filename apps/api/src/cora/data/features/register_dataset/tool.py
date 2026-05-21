@@ -1,9 +1,7 @@
 """MCP tool for the `register_dataset` slice.
 
 Surfaces the same handler the REST route uses, exposed as a Model
-Context Protocol tool. Uses `SYSTEM_PRINCIPAL_ID` until the MCP
-auth-flow phase lands (cross-BC convention).
-
+Context Protocol tool. Uses
 The MCP tool flattens the nested `checksum` and `encoding` objects
 into discrete arguments because FastMCP's tool-arg JSON Schema is
 easier for LLM consumers to fill correctly when fields are flat;
@@ -11,13 +9,12 @@ the REST route preserves the nested shape for typed clients.
 """
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.data._bootstrap import SYSTEM_PRINCIPAL_ID
 from cora.data.aggregates.dataset import (
     DATASET_CHECKSUM_SHA256_HEX_LENGTH,
     DATASET_CONFORMS_TO_MAX_ENTRIES,
@@ -29,6 +26,7 @@ from cora.data.aggregates.dataset import (
 )
 from cora.data.features.register_dataset.command import RegisterDataset
 from cora.data.features.register_dataset.handler import IdempotentHandler
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -50,10 +48,10 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             "the URI. checksum_algorithm must be 'sha256' today. Optional "
             "cross-refs (producing_run_id, subject_id, derived_from) are "
             "validated for existence at registration. Idempotency-Key is "
-            "not exposed via MCP today (no MCP auth-flow yet)."
         ),
     )
     async def register_dataset_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
         name: Annotated[
             str,
             Field(
@@ -164,7 +162,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 derived_from=frozenset(derived_from or []),
                 used_calibrations=frozenset(used_calibrations or []),
             ),
-            principal_id=SYSTEM_PRINCIPAL_ID,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )
