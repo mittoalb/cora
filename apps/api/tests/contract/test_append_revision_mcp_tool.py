@@ -12,7 +12,6 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 def _define_args() -> dict[str, Any]:
     return {
-        "principal_id": str(uuid4()),
         "subsystem_or_asset_id": str(uuid4()),
         "quantity": "rotation_center",
         "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
@@ -21,7 +20,6 @@ def _define_args() -> dict[str, Any]:
 
 def _revision_args(*, calibration_id: str, **overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
-        "principal_id": str(uuid4()),
         "calibration_id": calibration_id,
         "value": {"center_px": 1024.5},
         "status": "Provisional",

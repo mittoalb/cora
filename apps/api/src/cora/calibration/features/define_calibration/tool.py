@@ -4,13 +4,14 @@ from collections.abc import Callable
 from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
 from cora.calibration.aggregates.calibration import CALIBRATION_DESCRIPTION_MAX_LENGTH
 from cora.calibration.features.define_calibration.command import DefineCalibration
 from cora.calibration.features.define_calibration.handler import IdempotentHandler
 from cora.calibration.quantities import CalibrationQuantity
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -35,10 +36,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         ),
     )
     async def define_calibration_tool(  # pyright: ignore[reportUnusedFunction]
-        principal_id: Annotated[
-            UUID,
-            Field(description="Actor id authoring this calibration definition."),
-        ],
+        ctx: Context[Any, Any, Any],
         subsystem_or_asset_id: Annotated[
             UUID,
             Field(description="What this calibration is OF (Asset id)."),
@@ -81,7 +79,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 operating_point=operating_point,
                 description=description,
             ),
-            principal_id=principal_id,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

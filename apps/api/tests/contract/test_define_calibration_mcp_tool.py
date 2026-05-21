@@ -12,7 +12,6 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 def _args(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
-        "principal_id": str(uuid4()),
         "subsystem_or_asset_id": str(uuid4()),
         "quantity": "rotation_center",
         "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},

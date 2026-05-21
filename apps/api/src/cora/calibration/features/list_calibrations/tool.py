@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
 from cora.calibration.features.list_calibrations.handler import Handler
@@ -15,6 +15,7 @@ from cora.calibration.features.list_calibrations.query import (
     ListCalibrations,
 )
 from cora.calibration.quantities import CalibrationQuantity
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -55,10 +56,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ),
     )
     async def list_calibrations_tool(  # pyright: ignore[reportUnusedFunction]
-        principal_id: Annotated[
-            UUID,
-            Field(description="Actor id reading the list."),
-        ],
+        ctx: Context[Any, Any, Any],
         cursor: Annotated[
             str | None,
             Field(default=None, description="Opaque cursor from a prior page."),
@@ -103,7 +101,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 latest_revision_statuses=latest_revision_statuses,
                 latest_revision_source_kinds=latest_revision_source_kinds,
             ),
-            principal_id=principal_id,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

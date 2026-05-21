@@ -1,7 +1,6 @@
 """Contract tests for the `list_calibrations` MCP tool."""
 
 from typing import Any
-from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,7 +10,7 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 
 def _args(**overrides: object) -> dict[str, Any]:
-    base: dict[str, Any] = {"principal_id": str(uuid4())}
+    base: dict[str, Any] = {}
     base.update(overrides)
     return base
 

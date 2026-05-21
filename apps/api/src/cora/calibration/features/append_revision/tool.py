@@ -9,13 +9,14 @@ from collections.abc import Callable
 from typing import Annotated, Any
 from uuid import UUID
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
 from cora.calibration._calibration_dtos import SourceDTO, source_from_dto
 from cora.calibration.aggregates.calibration import CalibrationStatus
 from cora.calibration.features.append_revision.command import AppendRevision
 from cora.calibration.features.append_revision.handler import IdempotentHandler
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
@@ -41,10 +42,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         ),
     )
     async def append_revision_tool(  # pyright: ignore[reportUnusedFunction]
-        principal_id: Annotated[
-            UUID,
-            Field(description="Actor id appending this revision."),
-        ],
+        ctx: Context[Any, Any, Any],
         calibration_id: Annotated[
             UUID,
             Field(description="Target calibration's id."),
@@ -108,7 +106,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 decided_by_decision_id=decided_by_decision_id,
                 supersedes_revision_id=supersedes_revision_id,
             ),
-            principal_id=principal_id,
+            principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )

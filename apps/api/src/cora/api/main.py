@@ -56,7 +56,6 @@ from cora.agent import (
     seed_run_debrief_agent,
     wire_agent,
 )
-from cora.api.mcp_gate import gate_mcp_write_tools
 from cora.api.middleware import BodySizeLimitMiddleware
 from cora.api.protected_resource_metadata import register_protected_resource_metadata_route
 from cora.calibration import (
@@ -368,12 +367,6 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
     register_calibration_tools(mcp, get_handlers=_get_calibration_handlers)
     register_campaign_tools(mcp, get_handlers=_get_campaign_handlers)
     register_agent_tools(mcp, get_handlers=_get_agent_handlers)
-    # Phase A.1 post-review: fail-close MCP write-tools when running
-    # under the prod auth posture, until MCP TokenVerifier integration
-    # ships (Phase 8f-d). See `cora.api.mcp_gate` for the full
-    # rationale; no-op when `require_authenticated_principal=False`
-    # (dev / test default).
-    gate_mcp_write_tools(mcp, settings)
     mcp_app = mcp.streamable_http_app()
 
     @asynccontextmanager

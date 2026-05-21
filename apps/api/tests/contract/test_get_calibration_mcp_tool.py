@@ -12,7 +12,6 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 def _define_args() -> dict[str, Any]:
     return {
-        "principal_id": str(uuid4()),
         "subsystem_or_asset_id": str(uuid4()),
         "quantity": "rotation_center",
         "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
@@ -64,7 +63,6 @@ def test_mcp_get_calibration_tool_returns_full_structured_state() -> None:
                 "params": {
                     "name": "get_calibration",
                     "arguments": {
-                        "principal_id": str(uuid4()),
                         "calibration_id": cid,
                     },
                 },
@@ -98,7 +96,6 @@ def test_mcp_get_calibration_tool_returns_null_on_miss() -> None:
                 "params": {
                     "name": "get_calibration",
                     "arguments": {
-                        "principal_id": str(uuid4()),
                         "calibration_id": str(uuid4()),
                     },
                 },
