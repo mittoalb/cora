@@ -6,31 +6,35 @@ The shape under every CORA feature: a BC owns a slice of the domain, an aggregat
 
 ## Bounded contexts
 
-CORA is a set of bounded contexts (BCs). Each owns its model, language, and API surface.
+CORA is a set of bounded contexts (BCs) organised into tracks. Each BC owns its model, language, and API surface. Each aggregate inside a BC owns one consistency boundary.
 
-| BC | Owns | Status |
-| --- | --- | --- |
-| `access` | Actors (humans, agents, service accounts) with identity and authentication | Active |
-| `subject` | Subjects under measurement, custody, and hazard | Active |
-| `equipment` | Families and Asset hierarchy | Active |
-| `recipe` | Capabilities, Methods, Practices, and Plans (the recipe ladder) | Active |
-| `run` | Run executions with lifecycle FSM and audit | Active |
-| `decision` | Decisions and provenance for consequential choices | Active |
-| `data` | Datasets and transfers (lineage, tiers) | Active |
-| `trust` | Zones, Conduits, Surfaces, and Policies | Active |
-| `supply` | Continuous resources (beam, power, cooling, LN2) | Active |
-| `operation` | Episodic procedures (bakeout, calibration ceremonies) | Active |
-| `calibration` | Calibration values (`AsShot` anchor, lineage to Run / Dataset) | Active |
-| `safety` | Clearances, hazard classifications, approval chains | Active |
-| `caution` | Operator tribal-knowledge cautions (workarounds, quirks) | Active |
-| `campaign` | Multi-Run studies (in-situ, operando, screening) | Active |
-| `agent` | Configured LLM agents (`RunDebrief`, `CautionDrafter`) | Active |
-| `strategy` | Decision-making policies (mode, thresholds, fallbacks) | Planned |
-| `budget` | Resource allocation (limits, circuit breakers) | Planned |
+Status legend: **Active** = aggregate is shipping and listed under [Modules](modules/index.md); **Planned** = scoped, not yet implemented.
+
+| Track | BC | Aggregates | Status |
+| --- | --- | --- | --- |
+| Foundation | `access` | `actor` | Active |
+| Foundation | `equipment` | `family`, `asset` | Active |
+| Track A (episodic procedures) | `recipe` | `capability`, `method`, `practice`, `plan` | Active |
+| Track A | `run` | `run` | Active |
+| Track A | `campaign` | `campaign` | Active |
+| Track B (continuous operations) | `supply` | `supply` | Active |
+| Track B | `operation` | `procedure` | Active |
+| Track C (trust topology) | `trust` | `zone`, `conduit`, `surface`, `policy` | Active |
+| Governance | `safety` | `clearance` | Active |
+| Governance | `caution` | `caution` | Active |
+| Governance | `calibration` | `calibration` | Active |
+| Decisions and agents | `decision` | `decision` | Active |
+| Decisions and agents | `agent` | `agent` | Active |
+| Independent | `subject` | `subject` | Active |
+| Independent | `data` | `dataset` | Active |
+| Decisions and agents | `strategy` | `strategy` | Planned |
+| Independent | `budget` | `budget` | Planned |
+
+Fifteen BCs and 22 aggregates ship today; two more BCs are reserved with single planned aggregates. Tracks group BCs by the lens they take on operations: Foundation owns the shared facts every other track refers to, Track A is the batch-shaped recipe ladder, Track B is the always-on resource and procedure side, Track C is the trust topology that gates the others, Governance owns the formal and informal operator controls, Decisions and agents own the audit and configuration of consequential choices, and Independent covers what doesn't sit on any single track.
 
 ## Aggregates
 
-The unit of consistency inside a BC: state, invariants, events.
+The unit of consistency inside a BC: state, invariants, events. Every aggregate is a stream in the event store, identified by `(stream_type, stream_id)` and folded from its events into an in-memory state per command. The same shape repeats across BCs: a `state.py` carries the fields and invariants, an `events.py` carries the closed union of events, and an `evolver.py` folds events back into state. See [Reference/Modeling](../reference/modeling.md) for the rules.
 
 ## Vertical slices
 

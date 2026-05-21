@@ -38,6 +38,14 @@ For humans and LLM agents writing CORA code, and for code reviewers. Not a tutor
 
     [Read →](patterns.md)
 
+-   :material-ruler-square-compass:{ .lg .middle } __Conventions__
+
+    ---
+
+    Identifiers, units of measurement, personal data, schema-validated values.
+
+    [Read →](conventions.md)
+
 -   :material-rocket-launch-outline:{ .lg .middle } __Runtime__
 
     ---

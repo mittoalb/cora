@@ -56,6 +56,23 @@ nav:
     - State: architecture/state.md
     - Surfaces: architecture/surfaces.md
     - Standards: architecture/standards.md
+    - Modules:
+      - architecture/modules/index.md
+      - Run: architecture/modules/run/index.md
+      - Safety: architecture/modules/safety/index.md
+      - Caution: architecture/modules/caution/index.md
+      - Calibration: architecture/modules/calibration/index.md
+      - Agent: architecture/modules/agent/index.md
+      - Campaign: architecture/modules/campaign/index.md
+      - Operation: architecture/modules/operation/index.md
+      - Supply: architecture/modules/supply/index.md
+      - Access: architecture/modules/access/index.md
+      - Equipment: architecture/modules/equipment/index.md
+      - Recipe: architecture/modules/recipe/index.md
+      - Trust: architecture/modules/trust/index.md
+      - Subject: architecture/modules/subject/index.md
+      - Data: architecture/modules/data/index.md
+      - Decision: architecture/modules/decision/index.md
   - Stack:
     - stack/index.md
     - Backend: stack/backend.md
@@ -116,6 +133,7 @@ nav:
     - Modeling: reference/modeling.md
     - Affordances: reference/affordances.md
     - Patterns: reference/patterns.md
+    - Conventions: reference/conventions.md
     - Runtime: reference/runtime.md
     - Glossary: reference/glossary.md
     - Contributing: reference/contributing.md
@@ -167,6 +185,7 @@ hooks:
 # nav would bloat it.
 not_in_nav: |
   scenarios/tests/*.md
+  architecture/modules/_template.md
 
 # Note: contributing.md is staged into docs/ at build time from the repo
 # root CONTRIBUTING.md by .github/workflows/docs.yml (see scripts/stage_docs.py).

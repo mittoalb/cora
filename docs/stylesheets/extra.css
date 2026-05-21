@@ -604,3 +604,74 @@ body::before {
   animation-duration: 280ms;
   animation-timing-function: ease-out;
 }
+
+/* ───────────────────────────────────────────────────────────────────────
+   Module-page maturity pill.
+
+   Surfaced just below the H1 on every docs/architecture/modules/<slug>/
+   page. Semantic color per the alpha / beta / stable / deprecated
+   convention (Kubernetes-style single-axis). Pill chip styling — small,
+   rounded, uppercase letterform — chosen over an admonition box so it sits
+   inline near the title without dominating the page.
+   ─────────────────────────────────────────────────────────────────────── */
+.md-maturity {
+  display: inline-block;
+  margin-left: 0.65em;
+  padding: 0.12em 0.55em;
+  font-size: 0.58rem;
+  font-weight: 600;
+  line-height: 1.5;
+  border-radius: 999px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+  vertical-align: middle;
+  white-space: nowrap;
+  cursor: help;
+}
+
+/* Inside the H1 the pill sits slightly above the baseline so the larger
+   line height doesn't drop it onto the descender row. */
+.md-typeset h1 > .md-maturity {
+  vertical-align: 0.35em;
+}
+
+.md-maturity--alpha {
+  color: #B45309;
+  background-color: rgba(217, 119, 6, 0.10);
+}
+
+.md-maturity--beta {
+  color: #1D4ED8;
+  background-color: rgba(59, 130, 246, 0.10);
+}
+
+.md-maturity--stable {
+  color: var(--md-primary-fg-color--dark);
+  background-color: var(--md-accent-fg-color--transparent);
+}
+
+.md-maturity--deprecated {
+  color: #4B5563;
+  background-color: rgba(107, 114, 128, 0.10);
+}
+
+[data-md-color-scheme="slate"] .md-maturity--alpha {
+  color: #FBBF24;
+  background-color: rgba(251, 191, 36, 0.12);
+}
+
+[data-md-color-scheme="slate"] .md-maturity--beta {
+  color: #93C5FD;
+  background-color: rgba(147, 197, 253, 0.12);
+}
+
+[data-md-color-scheme="slate"] .md-maturity--stable {
+  color: var(--md-accent-fg-color);
+  background-color: var(--md-accent-fg-color--transparent);
+}
+
+[data-md-color-scheme="slate"] .md-maturity--deprecated {
+  color: #9CA3AF;
+  background-color: rgba(156, 163, 175, 0.12);
+}

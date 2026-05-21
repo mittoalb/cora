@@ -10,7 +10,10 @@ useDefault = true
 [allowlist]
 description = "Allowlist machine-generated content that resembles high-entropy secrets."
 # Atlas migration sums are SHA256 base64 hashes that legitimately
-# look like API keys to entropy-based detectors.
+# look like API keys to entropy-based detectors. Module documentation
+# pages carry literal `Idempotency-Key: <uuid>` headers in REST/MCP
+# examples; the UUID body trips the entropy detector.
 paths = [
     '''infra/atlas/migrations/atlas\.sum''',
+    '''docs/architecture/modules/.*\.md''',
 ]

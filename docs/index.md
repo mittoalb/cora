@@ -4,28 +4,38 @@ template: home.html
 
 # CORA
 
-Most facility software lives forever as a slide-deck capability. CORA is the version that ships.
+Autonomous facilities make thousands of decisions a day. Some by humans, some by agents, most reasoned from prior runs. Without a place that records what was intended, what was decided, and what happened, the science cannot be trusted, reproduced, or handed off.
 
-## Problem
+CORA is that place. It does not move motors, does not run scans, does not host datasets. It records the work, end to end, in one append-only event log that survives every change of staff, vendor, and tool below it.
 
-Facilities run on stitched-together scripts, spreadsheets, tribal knowledge. Each instrument duplicates the same primitives in different shapes. Vendor platforms promise unification, deliver another silo. Five years in, no one trusts what the system says about its own state.
-
-## Approach
+## What CORA records
 
 <div class="cora-aside" markdown>
 
-Three commitments shape every choice
+Two intertwined streams, one event log
 {: .cora-kicker }
 
-- **Vertical before horizontal.** Build deeply for one deployment. Generalize only when a real second use case forces it.
-- **Agents are principals, not features.** Same identity, authz, audit as humans. The authz model grows once, not per-surface.
-- **Everything is replayable.** Postgres event sourcing. Any decision, human or agent, reconstructable from events alone.
+- **The recipe chain.** Method → Practice → Plan → Run. How a class of measurement works, how this facility does it, what was scheduled, what actually happened.
+- **The decisions around it.** Every choice that shaped a recipe, plan, or run, by a human or an agent, with the reason and the evidence captured at the moment of choice.
 
 </div>
 
-## Recipe ladder
+## Three commitments
 
-The mechanism that keeps the same engine portable across facilities:
+<div class="cora-aside" markdown>
+
+How CORA earns the claim
+{: .cora-kicker }
+
+- **No silent decisions.** Every choice, human or agent, carries its reason and evidence at the moment it is made.
+- **Agents are principals, not features.** Same identity, authorization, and operations as humans, exposed through REST and MCP alike.
+- **Everything is replayable.** Any decision, human or agent, reconstructable from a Postgres event log alone.
+
+</div>
+
+## Recipe chain and decisions
+
+The mechanism that keeps the same model portable across facilities:
 
 ```mermaid
 flowchart LR
@@ -36,9 +46,11 @@ A *method* names how a class of measurement works. A *practice* binds it to one 
 
 For 35-BM micro-CT this reads: **Method** tomography, **Practice** 35-BM tomography, **Plan** scan #2351, **Run** today's measurement events.
 
+A decision can attach at any stage: to propose a method, choose a practice, schedule a plan, or steer a run mid-flight. Each one carries who decided, what they chose, why, and the evidence they saw. Humans and agents register decisions the same way.
+
 ## Pilot
 
-Built first for white-beam micro-CT at **APS beamline 35-BM** (Argonne), a new dedicated greenfield instrument. CORA schedules, audits, and governs the existing open-source stack (TomoScan, TomoPy, mctOptics, Noise2Inverse360) without reimplementing it. 35-BM is planned / under-construction; CORA's scenario corpus is grounded today on the mechanically-similar operational analog at **APS beamline 2-BM**.
+Built first for white-beam micro-CT at **APS beamline 35-BM** (Argonne), a new dedicated greenfield instrument. CORA schedules, audits, and governs the existing open-source stack (TomoScan, TomoPy, mctOptics, Noise2Inverse360) without reimplementing it. 35-BM is planned and under construction; CORA's scenario corpus is grounded today on the mechanically similar operational analog at **APS beamline 2-BM**.
 
 [See the 35-BM pilot target →](deployments/35-bm/index.md) | [See the 2-BM operational analog →](deployments/2-bm/index.md)
 
@@ -54,7 +66,7 @@ Built first for white-beam micro-CT at **APS beamline 35-BM** (Argonne), a new d
 
 -   __Software architect__
 
-    DDD, event sourcing, agents-as-principals. Read how it's built.
+    Functional DDD, event sourcing, REST and MCP behind one model. Read how it's built.
 
     [Read the architecture →](architecture/index.md)
 
@@ -66,7 +78,7 @@ Built first for white-beam micro-CT at **APS beamline 35-BM** (Argonne), a new d
 
 -   __AI researcher__
 
-    Agents-as-principals, ReBAC, decision strategies, DCB. Got a pattern to try on a real facility? CORA can be a substrate.
+    Agents as principals, ReBAC, decision strategies, append-only ledger. Got a pattern to try on a real facility? CORA can be a substrate.
 
     [Read the contribution call →](reference/contributing.md)
 
