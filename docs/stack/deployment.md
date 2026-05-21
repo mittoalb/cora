@@ -56,7 +56,7 @@ The proxy owns the identity → UUID mapping in this mode. Migrating to bearer m
 
 ### MCP edge
 
-MCP write-tool gating (`mcp_gate`) is still proxy-shaped: under production posture it refuses write tools entirely. A spec-level MCP auth verb (FastMCP 2025-11-25 spec gap) is pending; until then, MCP is read-only at the trust boundary.
+MCP streamable-HTTP runs the same `BearerAuthMiddleware` as REST (Phase 8f-d, shipped 2026-05-20). Per-path audience dispatch binds `/mcp/*` to the MCP Surface UUID (`SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID`); a token issued for HTTP cannot replay against MCP. Under bearer-auth posture the middleware enforces bearer-required for every `/mcp/*` path including FastMCP framing methods (`initialize`, `tools/list`, `notifications/initialized`), so a missing-bearer request returns 401 before reaching the tool layer. Tool handlers resolve the calling `principal_id` via `get_mcp_principal_id(ctx)`, the MCP-side mirror of `get_principal_id`. Write tools remain visible in `tools/list` and are gated at call time, not by deregistration. MCP_STDIO (subprocess transport) inherits the operator's local OS identity per spec; bearer auth is HTTP-edge only.
 
 ## Phase B (Surface decomposition) — V1 vs V2 bootstrap policy
 
@@ -165,7 +165,6 @@ This returns the sorted list of commands the named principal can run via the nam
 | Container image + registry | Deferred | First non-local deployment |
 | Runtime orchestrator (k8s / Cloud Run / ECS / bare VMs) | Deferred | First non-local deployment |
 | Event-sourced `ActorIdpBindings` (JIT Actor provisioning) | Deferred | First case where adding an operator is too high-friction via config-time bindings |
-| MCP edge-auth (spec-level) | Deferred | FastMCP closes the 2025-11-25 spec gap |
 | `trust.check_others` permission separation | Watch item | When ABAC lands or first cross-tenant deploy |
 
-Phase A (bootstrap policy), Phase B (Surface decomposition), Phase C (edge auth), and Phase D (permission queries) are shipped. See `memory/project_bootstrap_policy_design.md`, `memory/project_conduit_injection_design.md`, `memory/project_edge_auth_design.md`, and `memory/project_permissions_query_design.md` for design rationale + anti-hooks.
+Phase A (bootstrap policy), Phase B (Surface decomposition), Phase C (HTTP edge auth), Phase D (permission queries), and Phase 8f-d (MCP edge-auth parity) are shipped. See `memory/project_bootstrap_policy_design.md`, `memory/project_conduit_injection_design.md`, `memory/project_edge_auth_design.md`, `memory/project_permissions_query_design.md`, and `memory/project_mcp_edge_auth_design.md` for design rationale + anti-hooks.

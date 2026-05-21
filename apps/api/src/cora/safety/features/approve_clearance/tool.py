@@ -46,10 +46,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ] = None,
     ) -> ApproveClearanceOutput:
         handler = get_handler()
-        # Until then, MCP-issued approvals record SYSTEM as the approving
-        # actor in the event envelope (StoredEvent.principal_id), which is
-        # correct for unattended automation flows but wrong for human-
-        # mediated MCP calls.
         await handler(
             ApproveClearance(
                 clearance_id=clearance_id,

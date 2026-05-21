@@ -19,9 +19,13 @@ Hosts the three pieces every BC's slice routes need:
     of error responses.
 
 Also exposes `SYSTEM_PRINCIPAL_ID`, the canonical fallback principal
-UUID. MCP tools import this directly to use as `principal_id` on
-their handler calls (FastMCP doesn't surface request headers cleanly;
-that gap is documented for a future MCP auth-flow phase).
+UUID. Post Phase 8f-d (2026-05-20), MCP tools resolve principals via
+`cora.infrastructure.mcp_principal.get_mcp_principal_id(ctx)` instead
+of importing this constant directly; the architecture fitness
+`test_no_system_principal_id_in_mcp_tool_principal_kwarg` enforces
+the swap. The constant is still imported by infra (bootstrap seed,
+event-store envelope construction in tests, MCP resolver's dev/test
+fallback path).
 
 Lives at `cora/infrastructure/` (not in any single BC) because both
 BCs need byte-identical implementations and a future BC-3 will too.

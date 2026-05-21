@@ -337,3 +337,138 @@ def test_mcp_tools_list_without_bearer_under_bearer_auth_returns_401(
         )
 
     assert response.status_code == 401
+
+
+# ---------- Iter E gap closures (gate-review test-axis MEDIUM 1, 4, 5) ----------
+
+
+@pytest.mark.contract
+def test_mcp_notifications_initialized_without_bearer_returns_401(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Iter E: closes the test-axis MEDIUM 1 gap. `notifications/initialized`
+    is one of the FastMCP framing methods explicitly cited in
+    `bearer_middleware.py:dispatch` as the reason for middleware-side
+    enforcement of bearer-required on `/mcp/*` (Decision 8). Without this
+    contract test, a regression that special-cased notifications back to
+    the no-Auth pass-through path would slip past the unit + initialize
+    contract tests.
+    """
+    _install_stub_verifier(
+        monkeypatch,
+        principal_id=UUID("01900000-0000-7000-8000-0000000000f2"),
+    )
+
+    with TestClient(create_app()) as client:
+        # Open a session with bearer so we have a session id; then drop the
+        # bearer on the follow-up notification.
+        session_headers = open_session(
+            client,
+            extra_headers={"Authorization": "Bearer good"},
+        )
+        bare = {k: v for k, v in session_headers.items() if k != "Authorization"}
+        response = client.post(
+            "/mcp",
+            json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+            headers=bare,
+        )
+
+    assert response.status_code == 401
+    challenge = response.headers.get("WWW-Authenticate", "")
+    assert challenge.startswith("Bearer ")
+
+
+@pytest.mark.contract
+def test_mcp_tools_list_under_legacy_mode_lists_every_write_tool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Iter E: closes the test-axis MEDIUM 4 gap. Pre-Phase-8f-d, the
+    `mcp_gate.py` shim deregistered write tools under prod posture. Iter
+    C deleted it. In LEGACY mode (no IDENTITY_PROVIDERS) the bearer
+    middleware short-circuits and `get_mcp_principal_id(ctx)` falls
+    through to SYSTEM, so write tools must remain registered. Pin
+    parity-across-modes so a regression that re-introduces conditional
+    deregistration in legacy mode would surface here.
+    """
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.delenv("IDENTITY_PROVIDERS", raising=False)
+
+    with TestClient(create_app()) as client:
+        session_headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+            headers=session_headers,
+        )
+
+    assert response.status_code == 200
+    body = parse_sse_data(response.text)
+    tool_names = {t["name"] for t in body["result"]["tools"]}
+    # Sample of write tools across multiple BCs. Each must be present
+    # under legacy mode just as it is under bearer-auth mode.
+    for write_tool in ("register_actor", "register_subject", "define_calibration"):
+        assert write_tool in tool_names, (
+            f"Write tool {write_tool!r} missing from tools/list under legacy mode; "
+            "mcp_gate deletion regression?"
+        )
+
+
+@pytest.mark.contract
+def test_mcp_invalid_token_on_tools_call_returns_401_with_challenge(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Iter E: closes the test-axis MEDIUM 5 gap. A bearer that fails
+    verification on `/mcp/*` MUST return 401 with the RFC 6750
+    `WWW-Authenticate: Bearer error="<reason>"` challenge at parity
+    with HTTP behavior. The unit-tier test_mcp_path_invalid_token_returns_401
+    covers the Starlette layer; this pins the same shape end-to-end
+    through the full FastAPI mount + FastMCP routing.
+    """
+    from cora.infrastructure import deps as deps_module
+    from cora.infrastructure.ports import InvalidTokenError, VerifiedPrincipal
+
+    _ = VerifiedPrincipal
+
+    class _AlwaysInvalid:
+        async def verify(self, token: str, *, expected_audience: UUID):  # type: ignore[no-untyped-def]
+            _ = token, expected_audience
+            raise InvalidTokenError("bad_signature", "stub denied")
+
+    original = deps_module.build_kernel
+
+    async def _wrap(*args: object, **kwargs: object):  # type: ignore[no-untyped-def]
+        from dataclasses import replace
+
+        kernel, teardown = await original(*args, **kwargs)  # type: ignore[arg-type]
+        return replace(kernel, token_verifier=_AlwaysInvalid()), teardown
+
+    monkeypatch.setattr(deps_module, "build_kernel", _wrap)
+    monkeypatch.setattr("cora.api.main.build_kernel", _wrap)
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("IDENTITY_PROVIDERS", _IDPS_JSON)
+
+    with TestClient(create_app()) as client:
+        # Send a bearer; the stub rejects it.
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-11-25",
+                    "capabilities": {},
+                    "clientInfo": {"name": "invalid-bearer", "version": "0.1"},
+                },
+            },
+            headers={
+                "Accept": "application/json, text/event-stream",
+                "Content-Type": "application/json",
+                "Authorization": "Bearer this-will-be-rejected",
+            },
+        )
+
+    assert response.status_code == 401
+    challenge = response.headers.get("WWW-Authenticate", "")
+    assert challenge.startswith("Bearer ")
+    assert 'error="bad_signature"' in challenge

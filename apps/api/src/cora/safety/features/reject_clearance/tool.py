@@ -48,10 +48,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ],
     ) -> RejectClearanceOutput:
         handler = get_handler()
-        # Until then, MCP-issued rejections record SYSTEM as the rejecting
-        # actor in the event envelope (StoredEvent.principal_id), which is
-        # correct for unattended automation flows but wrong for human-
-        # mediated MCP calls.
         await handler(
             RejectClearance(
                 clearance_id=clearance_id,
