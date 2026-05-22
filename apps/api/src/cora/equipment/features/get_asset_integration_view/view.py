@@ -1,6 +1,6 @@
 """Typed dataclasses for the AssetIntegrationView bundle.
 
-Phase 1B v1 of the MTP-style read-model bundle. Handler returns the
+v1 of the MTP-style read-model bundle. Handler returns the
 domain-typed `AssetIntegrationView` directly (not a JSON DTO); the
 route + MCP tool layers serialize independently. See
 [[project-asset-integration-view-design]] for the locked shape +
@@ -69,7 +69,7 @@ class CautionView:
 @dataclass(frozen=True)
 class CapabilityView:
     """One Capability whose required_affordances are covered by the Asset's
-    combined Family affordances (Recipe BC, DLM-B).
+    combined Family affordances (Recipe BC).
 
     Filtered to status IN ('Defined', 'Versioned') — Deprecated
     Capabilities EXCLUDED per the design lock.

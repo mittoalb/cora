@@ -8,8 +8,8 @@ Module-as-namespace surface:
     handler = dismount_subject.bind(deps)
     await handler(cmd, principal_id=..., correlation_id=...)
 
-Phase 4f. Mirror of `mount_subject` in the inverse direction:
-clears `Subject.mounted_on_asset_id` and returns status to
+Mirror of `mount_subject` in the inverse direction: clears
+`Subject.mounted_on_asset_id` and returns status to
 `Received`, enabling the multi-stage mount/dismount workflow that
 the cross-aggregate-binding audit identified as missing in 4b.
 Distinct from `remove_subject` (which is terminal-leading); this

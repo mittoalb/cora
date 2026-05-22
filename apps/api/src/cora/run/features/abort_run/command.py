@@ -20,7 +20,7 @@ from uuid import UUID
 class AbortRun:
     """Mark an existing Run as aborted (emergency-exit terminal).
 
-    `decided_by_decision_id` (Phase 1; mirrors AdjustRun + StartRun):
+    `decided_by_decision_id` (mirrors AdjustRun + StartRun):
     optional Decision BC reference to the record that justified this
     abort (most commonly an OperatorAbortDecision or
     EquipmentAbortDecision per [[project-run-debrief-design]]'s 5-value

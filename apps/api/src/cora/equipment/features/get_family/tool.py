@@ -28,7 +28,7 @@ class FamilyOutput(BaseModel):
     """Structured output of the `get_family` MCP tool.
 
     `created_at` / `versioned_at` / `deprecated_at` mirror the REST
-    `FamilyResponse` (Path C, audit-2026-05-20 Iter B-3): sourced
+    `FamilyResponse` (Path C): sourced
     from the `proj_equipment_family_summary` projection. Null
     semantics: read together with `status` — a populated `status`
     with a null timestamp means the projection has not yet folded

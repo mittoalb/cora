@@ -38,6 +38,6 @@ class ListRuns:
     Plan. Pass `None` (omit) for "any Plan"."""
 
     campaign_id: UUID | None = None
-    """Optional `campaign_id` filter (Phase 6i-c, Campaign Watch #10):
+    """Optional `campaign_id` filter (Campaign Watch #10):
     returns Runs that are members of the given Campaign. Pass `None`
     (omit) for "any Campaign or none"."""

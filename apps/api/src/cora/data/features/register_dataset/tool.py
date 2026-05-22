@@ -138,7 +138,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 description=(
                     "Optional CalibrationRevision ids the reconstruction "
                     "actually used (Calibration BC AsShot citation per "
-                    "Phase 12c). Symmetric to Run.pinned_calibrations on "
+                    "AsShot citation set). Symmetric to Run.pinned_calibrations on "
                     "the acquired-from Run; reconstruction may legitimately "
                     "cite refined revisions not in the producing Run's "
                     "pin set. NOT verified at the write path. Omit or "

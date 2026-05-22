@@ -46,7 +46,7 @@ class DefineCalibrationRequest(BaseModel):
             "The physical quantity being calibrated. Closed catalog at "
             "`cora.calibration.quantities`; each value has registered "
             "operating_point + value JSON Schemas. Adding a quantity = "
-            "PR. Phase 12a-2 ships: rotation_center, detector_pixel_size."
+            "PR. Day-one set: rotation_center, detector_pixel_size."
         ),
     )
     operating_point: dict[str, Any] = Field(

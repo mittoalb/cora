@@ -8,7 +8,7 @@ application errors raised deeper in the stack).
 
 `created_at` / `versioned_at` / `deprecated_at` are sourced from the
 `proj_equipment_family_summary` projection, not from aggregate state
-(Path C, audit-2026-05-20 Iter B-3). Null semantics under eventual
+(Path C). Null semantics under eventual
 consistency: read together with `status`. A 200 with a populated
 `status` but null timestamp means projection lag, never a missing
 transition. A 404 means the Family aggregate itself does not exist.
@@ -44,7 +44,7 @@ class FamilyResponse(BaseModel):
     enum string values (frozenset semantics in domain state, list at
     the JSON boundary; sorted alphabetically for response determinism).
     `created_at` / `versioned_at` / `deprecated_at` are projection-
-    sourced lifecycle timestamps (Path C, audit-2026-05-20 Iter B-3);
+    sourced lifecycle timestamps (Path C);
     see module docstring for null-semantics.
     """
 

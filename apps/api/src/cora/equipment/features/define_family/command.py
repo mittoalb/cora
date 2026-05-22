@@ -9,7 +9,7 @@ Status is implicit at definition (`Defined`) and not part of the
 command — see the Family aggregate's `state.py` docstring for the
 enum-in-state, str-in-event convention.
 
-`affordances` is REQUIRED at definition time per DLM-A Pattern P
+`affordances` is REQUIRED at definition time per Pattern P
 (FHIR R5 minimum-cardinality criterion: required iff necessary to
 any understanding of the resource — a Family without affordances has
 no operational meaning). Empty `frozenset()` is a valid argument the

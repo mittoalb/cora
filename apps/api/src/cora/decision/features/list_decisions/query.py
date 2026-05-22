@@ -3,7 +3,7 @@ list of decisions from the projection.
 
 Three optional filters: confidence_band (Low / Medium / High /
 Certain — denormalized from the stored confidence float at INSERT
-time per the Phase 8b ConfidenceBand stance), decision_rule (filter
+time per the ConfidenceBand stance), decision_rule (filter
 by categorical rule label from cora.decision.catalog), actor_id
 (who decided). Cursor encodes (created_at, decision_id).
 """

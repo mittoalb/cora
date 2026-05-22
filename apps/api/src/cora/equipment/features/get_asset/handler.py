@@ -1,7 +1,7 @@
 """Application handler for the `get_asset` query slice.
 
-Cross-BC query-handler shape (Phase 2b precedent, mirrored from
-`get_family` / `get_subject` / `get_actor`):
+Cross-BC query-handler shape, mirrored from
+`get_family` / `get_subject` / `get_actor`:
 
     1. authorize(principal_id, query_name, conduit_id) -> Allow | Deny
     2. load_asset(...)              -> Asset | None  (fold-on-read)

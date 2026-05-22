@@ -8,8 +8,8 @@ Module-as-namespace surface:
     handler = fault_asset.bind(deps)
     await handler(cmd, principal_id=..., correlation_id=...)
 
-Phase 5g-b. One of three condition-transition slices (degrade /
-fault / restore). Mirror of `degrade_asset` with target Faulted.
+One of three condition-transition slices (degrade / fault /
+restore). Mirror of `degrade_asset` with target Faulted.
 """
 
 from cora.equipment.features.fault_asset import tool

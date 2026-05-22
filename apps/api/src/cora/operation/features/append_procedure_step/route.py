@@ -1,4 +1,4 @@
-"""HTTP route for the `append_procedure_step` slice (Phase 10c-b iter 2).
+"""HTTP route for the `append_procedure_step` slice.
 
 `POST /procedures/{procedure_id}/steps` returns 200 OK with
 `{"event_count": N}` on success. Body shape carries a list of

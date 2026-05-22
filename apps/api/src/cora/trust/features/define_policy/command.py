@@ -24,9 +24,9 @@ from cora.infrastructure.routing import NIL_SENTINEL_ID
 class DefinePolicy:
     """Define a new authorization Policy for a Conduit + Surface pair.
 
-    `surface_id` (Phase B Iter B): defaults to nil so existing
-    callers (V1 bootstrap-shape tests + pre-Iter-C handlers) don't
-    need to pass it. V2 bootstrap policy (Iter C) sets a real
+    `surface_id`: defaults to nil so existing callers (V1
+    bootstrap-shape tests + pre-Surface handlers) don't need to
+    pass it. V2 bootstrap policy sets a real
     SYSTEM_HTTP_SURFACE_ID.
     """
 

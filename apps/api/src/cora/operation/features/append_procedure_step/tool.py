@@ -1,4 +1,4 @@
-"""MCP tool for the `append_procedure_step` slice (Phase 10c-b iter 2).
+"""MCP tool for the `append_procedure_step` slice.
 
 The MCP tool exposes the SAME contract as the HTTP route: a batch of
 polymorphic step entries, lazy open-on-first-write, dedup via Postgres

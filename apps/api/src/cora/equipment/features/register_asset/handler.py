@@ -5,8 +5,8 @@ Same shape as `register_actor` / `register_subject` / `define_zone`
 locked cross-BC create-style command pattern (now 7th instance).
 
 The cross-BC create-style template extraction stays parked per the
-post-Phase-4 review and the Phase 5a gate-review (defer until
-divergence pressure or ~10 instances; we're at 7).
+post-domain-audit (defer hoisting until divergence pressure or
+~10 instances; we're at 7).
 """
 
 from typing import Protocol

@@ -4,7 +4,7 @@ Multi-source transition: Defined | Versioned -> Versioned. Operators
 issue a new version_tag (free text like "v2", "2026-Q3") to mark a
 revision of the device-class definition.
 
-`affordances` is REQUIRED at version time per DLM-A: a new version
+`affordances` is REQUIRED at version time: a new version
 IS a new declaration. The supplied set REPLACES the prior affordance
 set wholesale (no diff/merge semantics). Empty `frozenset()` is a
 valid argument when the operator intends to clear all affordances at

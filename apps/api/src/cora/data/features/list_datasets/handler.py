@@ -7,7 +7,7 @@ plus cursor pagination on `(created_at, dataset_id)`.
 
 `producing_run_id` and `subject_id` are nullable in the projection
 (Datasets can exist without a producing Run or measured Subject per
-Phase 7's cross-track validation).
+Cross-track validation).
 
 BOLA: command-name gating only. Per-row scoping deferred until ReBAC.
 """

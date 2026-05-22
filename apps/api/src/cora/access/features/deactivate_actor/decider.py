@@ -28,8 +28,8 @@ review P1-2:
   - `status=Deprecated` on the Agent aggregate is the HARD
     end-of-life signal for an agent kind+version pair.
 
-Future Agent-BC invocation infrastructure (Phase 8f-b's
-RunDebrief subscriber and beyond) MUST treat
+The Agent-BC invocation infrastructure (RunDebrief and
+CautionDrafter subscribers and beyond) MUST treat
 `is_active=False` AND `kind=agent` as a soft-deprecation: do not
 invoke the agent even if its Agent.status is still Versioned.
 Decision-existence checks in Decision BC do NOT gate on

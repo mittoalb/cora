@@ -3,7 +3,7 @@
 Cross-BC query-handler shape — same as `get_actor`:
 
     1. authorize(principal_id, query_name, conduit) -> Allow | Deny
-       (caller authz; no-op under AllowAllAuthorize until Phase 3e)
+       (caller authz; no-op under AllowAllAuthorize until TrustAuthorize is wired)
     2. load_policy(...)             -> Policy | None  (fold-on-read)
     3. if None -> return None        (route maps to 404)
        else    -> evaluate(...)      (pure PDP from aggregate)

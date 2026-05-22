@@ -1,4 +1,4 @@
-"""Vertical slice for the `ListProcedures` query (Phase 10c-c iter 2).
+"""Vertical slice for the `ListProcedures` query.
 
     from cora.operation.features import list_procedures
 

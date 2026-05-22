@@ -1,4 +1,4 @@
-"""Pure decider for the `RateDecision` command (Phase 8f-b iter 1).
+"""Pure decider for the `RateDecision` command.
 
 Pure function: given the current Decision state (must exist) and a
 `RateDecision` command, returns a single `DecisionRated` event. No

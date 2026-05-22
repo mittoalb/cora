@@ -1,4 +1,4 @@
-"""HTTP route for the `get_asset_integration_view` query slice (Phase 1B).
+"""HTTP route for the `get_asset_integration_view` query slice.
 
 `GET /assets/{asset_id}/integration-view` returns 200 + AssetIntegrationViewResponse
 on hit, 404 on miss. The handler returns `AssetIntegrationView | None`;
@@ -6,8 +6,8 @@ the route maps None to 404 via HTTPException (idiomatic in routes;
 the BC's exception-handler infrastructure stays focused on domain /
 application errors raised deeper in the stack).
 
-Read-time composition slice (Phase 1B v1 of the MTP-style bundle).
-See [[project-asset-integration-view-design]] for the locked shape.
+Read-time composition slice (v1 of the MTP-style bundle). See
+[[project-asset-integration-view-design]] for the locked shape.
 """
 
 from typing import Annotated, Any

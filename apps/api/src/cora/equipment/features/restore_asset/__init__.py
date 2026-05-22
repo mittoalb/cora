@@ -8,8 +8,8 @@ Module-as-namespace surface:
     handler = restore_asset.bind(deps)
     await handler(cmd, principal_id=..., correlation_id=...)
 
-Phase 5g-b. One of three condition-transition slices (degrade /
-fault / restore). Mirror of `degrade_asset` with target Nominal.
+One of three condition-transition slices (degrade / fault /
+restore). Mirror of `degrade_asset` with target Nominal.
 
 Naming distinct from `restore_from_maintenance`: that slice
 restores a lifecycle state (Maintenance -> Active); this slice

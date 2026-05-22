@@ -1,10 +1,10 @@
 """Vertical slices for the Safety BC.
 
-Phase 11a-a ships:
+Slices:
   - `register_clearance` (genesis -> Defined; create-style)
   - `get_clearance`      (read; fold-on-read)
 
-Phase 11a-b adds the FSM-closure transitions:
+FSM-closure transitions:
   - `submit_clearance`               (Defined -> Submitted)
   - `start_review_clearance`         (Submitted -> UnderReview)
   - `append_clearance_review_step`   (UnderReview; appends review_steps tuple)
@@ -13,7 +13,7 @@ Phase 11a-b adds the FSM-closure transitions:
   - `activate_clearance`             (Approved -> Active)
   - `list_clearances`                (read; cursor-paginated over the projection)
 
-Phase 11a-c adds:
+Terminal / amendment slices:
   - `expire_clearance`               (Active -> Expired)
   - `amend_clearance`                (Active -> Superseded; atomic child registration)
 """

@@ -34,7 +34,7 @@ citation per Calibration BC's revision-cited atomic-ID model).
 NO cross-BC existence check at decider per
 [[project_calibration_design]] anti-hook #3 + canonical DDD
 eventual-consistency stance; mirrors `Run.pinned_calibrations`
-Phase 12b precedent. Cardinality cap only (64 entries).
+Mirrors Run.pinned_calibrations precedent. Cardinality cap only (64 entries).
 
 ## Encoding shape
 

@@ -1,6 +1,6 @@
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
-"""Application handler for the `get_asset_integration_view` query slice (Phase 1B).
+"""Application handler for the `get_asset_integration_view` query slice.
 
 Read-time composition handler. Assembles the integration-view bundle by:
 

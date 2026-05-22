@@ -32,7 +32,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             "Identity tuple is (subsystem_or_asset_id, quantity, "
             "operating_point); duplicates are rejected via Postgres jsonb "
             "UNIQUE on the projection. operating_point validates STRICT "
-            "against the quantity's registered schema. Phase 12a-2."
+            "against the quantity's registered schema."
         ),
     )
     async def define_calibration_tool(  # pyright: ignore[reportUnusedFunction]

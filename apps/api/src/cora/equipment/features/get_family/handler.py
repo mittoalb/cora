@@ -1,9 +1,8 @@
 """Application handler for the `get_family` query slice.
 
-Cross-BC query-handler shape (Phase 2b precedent, mirrored from
-`get_actor` / `get_subject`); extended audit-2026-05-20 Iter B-3 to
-fold in projection-sourced lifecycle timestamps per Path C (mirrors
-Iter A on Method, Iter B-1/B-2 on Plan/Practice):
+Cross-BC query-handler shape, mirrored from
+`get_actor` / `get_subject`; extended to fold in projection-sourced
+lifecycle timestamps per Path C (mirrors Method, Plan, Practice):
 
     1. authorize(principal_id, query_name, conduit_id) -> Allow | Deny
     2. load_family(...)             -> Family | None  (fold-on-read)

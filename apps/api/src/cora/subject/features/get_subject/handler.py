@@ -1,11 +1,10 @@
 """Application handler for the `get_subject` query slice.
 
-Cross-BC query-handler shape (Phase 2b precedent, mirrored from
-`get_actor`):
+Cross-BC query-handler shape, mirrored from `get_actor`:
 
     1. authorize(principal_id, query_name, conduit) -> Allow | Deny
        (under AllowAllAuthorize this is currently a no-op; the call
-       site is in place so Phase 3's Trust BC swap is mechanical
+       site is in place so a future Trust BC swap is mechanical
        per handler instead of a sweep that risks missing handlers.)
     2. load_subject(...)            -> Subject | None  (fold-on-read)
     3. return state                 -> caller maps None to 404 / isError

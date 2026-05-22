@@ -1,4 +1,4 @@
-"""Vertical slice for the `GetAssetIntegrationView` query (Phase 1B).
+"""Vertical slice for the `GetAssetIntegrationView` query.
 
 Module-as-namespace surface:
 

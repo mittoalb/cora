@@ -122,7 +122,7 @@ class RunStartEvents:
 
     Mirrors `amend_clearance`'s `AmendmentEvents`: the decider owns
     cross-aggregate event construction (FCIS), the handler owns I/O
-    routing. Phase 6i gate-review N9.
+    routing.
     """
 
     run_events: list[RunStarted]

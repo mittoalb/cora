@@ -1,14 +1,14 @@
 """Vertical slices for the Caution BC.
 
-Phase 11b-a ships:
+Slices:
   - `register_caution`   (genesis -> Active; create-style; idempotency-wrapped)
   - `supersede_caution`  (cross-aggregate; create-style; idempotency-wrapped;
                           two-stream atomic via EventStore.append_streams)
   - `retire_caution`     (Active -> Retired; terminal-good)
   - `get_caution`        (read)
 
-Phase 11b-b adds the projection + `list_cautions` slice.
-Phase 11b-c adds the Run.start non-blocking integration via a new
+A projection + `list_cautions` slice covers the read side; the
+Run.start non-blocking integration is wired through the
 `CautionLookup` port.
 """
 

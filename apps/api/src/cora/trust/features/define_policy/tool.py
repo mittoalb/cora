@@ -67,8 +67,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             UUID,
             Field(
                 description=(
-                    "UUID of the Surface this policy governs (Phase B Iter B). "
-                    "Defaults to nil for V1-shape callers."
+                    "UUID of the Surface this policy governs. Defaults to nil for V1-shape callers."
                 ),
             ),
         ] = NIL_SENTINEL_ID,

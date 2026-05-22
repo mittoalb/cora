@@ -1,8 +1,8 @@
 """HTTP route for the `get_surface` query slice.
 
 Surface is a singleton-ish aggregate (3 hardcoded instances seeded
-at boot). Audit-2026-05-20 Iter D dropped the lifecycle timestamps
-from this response entirely because they carried no observable read
+at boot). Path C dropped the lifecycle timestamps from this
+response entirely because they carried no observable read
 value (`defined_at` was boot-time on every pod restart;
 `versioned_at` / `deprecated_at` were always null in practice). No
 projection is built — if a future fourth Surface kind ever becomes

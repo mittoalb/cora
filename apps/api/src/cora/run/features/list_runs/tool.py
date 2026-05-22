@@ -37,8 +37,7 @@ class RunSummaryRow(BaseModel):
     campaign_id: UUID | None = Field(
         default=None,
         description=(
-            "Campaign this Run is a member of (at-start or post-hoc). "
-            "NULL for standalone Runs. Phase 6i-c."
+            "Campaign this Run is a member of (at-start or post-hoc). NULL for standalone Runs."
         ),
     )
 

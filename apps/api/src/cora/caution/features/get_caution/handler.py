@@ -1,7 +1,7 @@
 """Application handler for the `get_caution` query slice.
 
-Cross-BC query-handler shape (Phase 2b precedent, mirrored from
-`get_supply` / `get_clearance`):
+Cross-BC query-handler shape, mirrored from
+`get_supply` / `get_clearance`:
 
     1. authorize(principal_id, query_name, conduit_id) -> Allow | Deny
     2. load_caution(...)             -> Caution | None  (fold-on-read)

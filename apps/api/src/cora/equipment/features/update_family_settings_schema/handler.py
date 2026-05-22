@@ -1,6 +1,6 @@
 """Application handler for the `update_family_settings_schema` slice.
 
-Phase 5g-a. Update-style: load + fold + decide + append. Not
+Update-style: load + fold + decide + append. Not
 idempotency-wrapped (no-op-on-unchanged is handled at the decider
 layer; cross-process replay safety is the IdempotencyStore
 concern, not in scope for an update slice).

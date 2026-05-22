@@ -1,4 +1,4 @@
-"""MCP tool for the `get_asset_integration_view` query slice (Phase 1B).
+"""MCP tool for the `get_asset_integration_view` query slice.
 
 Surfaces the same handler the REST route uses. Returns a structured
 AssetIntegrationViewOutput on hit. On miss raises an exception that
@@ -7,8 +7,8 @@ REST 404 behaviour in MCP's error idiom (LLM consumers get a clear
 "asset not found" message rather than null structuredContent they have
 to interpret).
 
-Read-time composition slice (Phase 1B v1 of the MTP-style bundle).
-See [[project-asset-integration-view-design]] for the locked shape.
+Read-time composition slice (v1 of the MTP-style bundle). See
+[[project-asset-integration-view-design]] for the locked shape.
 """
 
 from collections.abc import Callable

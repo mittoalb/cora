@@ -38,7 +38,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             "supersedes_revision_id (when provided) exists on the same "
             "aggregate. Source is a tagged union: Measured / Computed / "
             "Asserted. Idempotency-Key wrapping recommended for agent "
-            "subscribers. Phase 12a-2."
+            "subscribers."
         ),
     )
     async def append_revision_tool(  # pyright: ignore[reportUnusedFunction]

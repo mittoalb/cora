@@ -8,7 +8,7 @@ batch-shaped handler.
 
 ## OpenTelemetry MCP semconv alignment (gate-review L12)
 
-Per the Phase 8c-b survey: OTel published gen_ai/mcp semconv that
+Per the survey corpus: OTel published gen_ai/mcp semconv that
 says MCP servers should propagate trace context via `params._meta`.
 This tool's gen_ai.* fields are already the right vocabulary; when
 the MCP server-side trace propagation lands as a separate phase,

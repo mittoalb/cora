@@ -26,8 +26,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "(JSON Schema Draft 2020-12, constrained subset). The "
             "schema declares the shape of Asset.settings keys this "
             "Family owns. Pass null for settings_schema to clear "
-            "an existing declaration. Phase 5g-a: pre-positions for "
-            "the Asset.settings runtime validation hook in 5g-c."
+            "an existing declaration. Pre-positions for the "
+            "Asset.settings runtime validation hook."
         ),
     )
     async def update_family_settings_schema_tool(  # pyright: ignore[reportUnusedFunction]

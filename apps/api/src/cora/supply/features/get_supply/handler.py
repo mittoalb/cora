@@ -1,7 +1,7 @@
 """Application handler for the `get_supply` query slice.
 
-Cross-BC query-handler shape (Phase 2b precedent, mirrored from
-`get_actor` / `get_subject` / `get_family`):
+Cross-BC query-handler shape, mirrored from
+`get_actor` / `get_subject` / `get_family`:
 
     1. authorize(principal_id, query_name, conduit_id) -> Allow | Deny
     2. load_supply(...)             -> Supply | None  (fold-on-read)

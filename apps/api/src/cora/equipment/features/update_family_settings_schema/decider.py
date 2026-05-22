@@ -1,6 +1,6 @@
 """Pure decider for the `UpdateFamilySettingsSchema` command.
 
-Phase 5g-a. Mostly delegates to `validate_settings_schema` for
+Mostly delegates to `validate_settings_schema` for
 well-formedness; the only domain-level guard is "Family must
 exist". Schema can be updated in any lifecycle status (Defined /
 Versioned / Deprecated) so no source-state check.

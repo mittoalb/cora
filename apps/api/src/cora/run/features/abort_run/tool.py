@@ -50,7 +50,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                     "Optional Decision id that justified this abort. "
                     "Maps to prov:wasInformedBy at the future PROV-O "
                     "export adapter. Not verified at the write path. "
-                    "Phase 1."
+                    "Decision→Run linkage."
                 ),
             ),
         ] = None,

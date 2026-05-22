@@ -3,7 +3,7 @@
 Cross-aggregate membership-remove slice: writes `CampaignRunRemoved`
 to the Campaign's stream AND `RunCampaignUnassigned` to the Run's
 stream atomically via `EventStore.append_streams` (mirrors Safety's
-`amend_clearance` shape from 11a-c-2). Phase 6i-c.
+`amend_clearance` shape).
 """
 
 from cora.campaign.features.remove_run_from_campaign import tool

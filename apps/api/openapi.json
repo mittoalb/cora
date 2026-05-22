@@ -48,7 +48,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional Decision id that justified this abort (most commonly an OperatorAbortDecision or EquipmentAbortDecision per RunDebrief's 5-value choice enum). Maps to `prov:wasInformedBy` at the future PROV-O export adapter. NOT verified at the write path (eventual-consistency stance). Operators can record ad-hoc / emergency aborts without a Decision. Phase 1 (Decision\u2192Run linkage).",
+            "description": "Optional Decision id that justified this abort (most commonly an OperatorAbortDecision or EquipmentAbortDecision per RunDebrief's 5-value choice enum). Maps to `prov:wasInformedBy` at the future PROV-O export adapter. NOT verified at the write path (eventual-consistency stance). Operators can record ad-hoc / emergency aborts without a Decision (Decision\u2192Run linkage).",
             "title": "Decided By Decision Id"
           },
           "reason": {
@@ -3378,7 +3378,7 @@
           },
           "quantity": {
             "$ref": "#/components/schemas/CalibrationQuantity",
-            "description": "The physical quantity being calibrated. Closed catalog at `cora.calibration.quantities`; each value has registered operating_point + value JSON Schemas. Adding a quantity = PR. Phase 12a-2 ships: rotation_center, detector_pixel_size."
+            "description": "The physical quantity being calibrated. Closed catalog at `cora.calibration.quantities`; each value has registered operating_point + value JSON Schemas. Adding a quantity = PR. Day-one set: rotation_center, detector_pixel_size."
           },
           "subsystem_or_asset_id": {
             "description": "What this calibration is OF (typically the Asset id whose behavior is being measured \u2014 for example, the rotary stage whose rotation-axis center is being tracked). Bare UUID reference; existence NOT verified at the write path per the cross-BC eventual-consistency stance.",
@@ -3725,7 +3725,7 @@
             "type": "array"
           },
           "surface_id": {
-            "description": "UUID of the Surface this policy governs (Phase B Iter B). Defaults to nil so V1-shape callers don't need to send it; V2 bootstrap policy and Iter-C+ policies bind to a real Surface seeded by the deployment.",
+            "description": "UUID of the Surface this policy governs. Defaults to nil so V1-shape callers don't need to send it; V2 bootstrap policy and Iter-C+ policies bind to a real Surface seeded by the deployment.",
             "format": "uuid",
             "title": "Surface Id",
             "type": "string"
@@ -4203,7 +4203,7 @@
         "type": "object"
       },
       "FamilyResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`status` is the StrEnum's string value (Defined / Versioned /\nDeprecated). `version` is the operator-supplied label of the most\nrecent version_family call (null until first version).\n`affordances` (5j) serializes as a sorted list of Affordance\nenum string values (frozenset semantics in domain state, list at\nthe JSON boundary; sorted alphabetically for response determinism).\n`created_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C, audit-2026-05-20 Iter B-3);\nsee module docstring for null-semantics.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`status` is the StrEnum's string value (Defined / Versioned /\nDeprecated). `version` is the operator-supplied label of the most\nrecent version_family call (null until first version).\n`affordances` (5j) serializes as a sorted list of Affordance\nenum string values (frozenset semantics in domain state, list at\nthe JSON boundary; sorted alphabetically for response determinism).\n`created_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C);\nsee module docstring for null-semantics.",
         "properties": {
           "affordances": {
             "items": {
@@ -7457,7 +7457,7 @@
                 "type": "null"
               }
             ],
-            "description": "Campaign this Run is a member of. Set at start time (StartRun.campaign_id) or post-hoc (add_run_to_campaign). NULL for standalone Runs. Phase 6i-c.",
+            "description": "Campaign this Run is a member of. Set at start time (StartRun.campaign_id) or post-hoc (add_run_to_campaign). NULL for standalone Runs. Campaign membership snapshot.",
             "title": "Campaign Id"
           },
           "created_at": {
@@ -7472,7 +7472,7 @@
           },
           "override_parameters_present": {
             "default": false,
-            "description": "True iff RunStarted's override_parameters payload was non-empty (operator customized parameters at start time). Phase 6g-c. The full overrides + effective_parameters dicts are loaded on demand via `get_run`.",
+            "description": "True iff RunStarted's override_parameters payload was non-empty (operator customized parameters at start time). The full overrides + effective_parameters dicts are loaded on demand via `get_run`.",
             "title": "Override Parameters Present",
             "type": "boolean"
           },
@@ -7664,7 +7664,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional Campaign id this Run joins at start time. When provided, the handler pre-loads the Campaign (404 if missing), verifies it is in Planned, Active, or Held (409 RunCannotJoinCampaign otherwise), and atomically writes both `RunStarted` (carrying campaign_id) on the Run stream AND `CampaignRunAdded` on the Campaign stream via `EventStore.append_streams`. Omit (or null) for a standalone Run; membership can also be added post-hoc via `POST /campaigns/{id}/runs/{run_id}`. Phase 6i-c.",
+            "description": "Optional Campaign id this Run joins at start time. When provided, the handler pre-loads the Campaign (404 if missing), verifies it is in Planned, Active, or Held (409 RunCannotJoinCampaign otherwise), and atomically writes both `RunStarted` (carrying campaign_id) on the Run stream AND `CampaignRunAdded` on the Campaign stream via `EventStore.append_streams`. Omit (or null) for a standalone Run; membership can also be added post-hoc via `POST /campaigns/{id}/runs/{run_id}`.",
             "title": "Campaign Id"
           },
           "decided_by_decision_id": {
@@ -7677,7 +7677,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional Decision id that justified starting this Run (most commonly a cross-Plan operator pivot: EnergyChange, PivotToHighResolution, etc.). Maps to `prov:wasInformedBy` at the future PROV-O export adapter (same export contract used by Decision.parent_id and AdjustRun.decided_by_decision_id). NOT verified at the write path (eventual-consistency stance per cross-BC reference precedent). Operators can start ad-hoc Runs without a Decision. Phase 1 (Decision\u2192Run linkage).",
+            "description": "Optional Decision id that justified starting this Run (most commonly a cross-Plan operator pivot: EnergyChange, PivotToHighResolution, etc.). Maps to `prov:wasInformedBy` at the future PROV-O export adapter (same export contract used by Decision.parent_id and AdjustRun.decided_by_decision_id). NOT verified at the write path (eventual-consistency stance per cross-BC reference precedent). Operators can start ad-hoc Runs without a Decision (Decision\u2192Run linkage).",
             "title": "Decided By Decision Id"
           },
           "name": {
@@ -7689,7 +7689,7 @@
           },
           "override_parameters": {
             "additionalProperties": true,
-            "description": "Operator-supplied overrides on top of `Plan.default_parameters` (RFC 7396 merge semantics). The post-merge result is validated against the owning Method's `parameters_schema`; STRICT when the Method declares no schema (non-empty effective parameters rejected with 400; declare an empty `{}` schema for parameter-less Methods, or omit overrides and ensure Plan defaults are empty). Phase 6g-c.",
+            "description": "Operator-supplied overrides on top of `Plan.default_parameters` (RFC 7396 merge semantics). The post-merge result is validated against the owning Method's `parameters_schema`; STRICT when the Method declares no schema (non-empty effective parameters rejected with 400; declare an empty `{}` schema for parameter-less Methods, or omit overrides and ensure Plan defaults are empty).",
             "title": "Override Parameters",
             "type": "object"
           },
@@ -7744,7 +7744,7 @@
                 "type": "null"
               }
             ],
-            "description": "Free-form text capturing what initiated this Run (operator-manual, scheduler id, prior-run id, automation). Optional. Phase 6g-c.",
+            "description": "Free-form text capturing what initiated this Run (operator-manual, scheduler id, prior-run id, automation). Optional.",
             "title": "Triggered By"
           }
         },
@@ -20408,7 +20408,7 @@
             }
           },
           {
-            "description": "Optional Campaign-id filter: returns Runs that are members of the given Campaign. Phase 6i-c.",
+            "description": "Optional Campaign-id filter: returns Runs that are members of the given Campaign.",
             "in": "query",
             "name": "campaign_id",
             "required": false,
@@ -20422,7 +20422,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Optional Campaign-id filter: returns Runs that are members of the given Campaign. Phase 6i-c.",
+              "description": "Optional Campaign-id filter: returns Runs that are members of the given Campaign.",
               "title": "Campaign Id"
             }
           },

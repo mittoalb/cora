@@ -1,4 +1,4 @@
-"""Vertical slice for the `RateDecision` command (Phase 8f-b iter 1).
+"""Vertical slice for the `RateDecision` command.
 
 Module-as-namespace surface:
 

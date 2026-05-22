@@ -1,7 +1,7 @@
 """MCP tool for the `get_surface` query slice.
 
-Lifecycle timestamps dropped per audit-2026-05-20 Iter D — Surface is
-a singleton-ish aggregate with no observable read value for those
+Lifecycle timestamps dropped per Path C — Surface is a
+singleton-ish aggregate with no observable read value for those
 fields. See route.py docstring for the carve-out reasoning.
 """
 

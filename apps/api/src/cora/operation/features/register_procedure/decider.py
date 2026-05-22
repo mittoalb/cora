@@ -62,8 +62,8 @@ def decide(
 ) -> list[ProcedureRegistered]:
     """Decide the events produced by registering a new procedure.
 
-    Phase 10d-additive adds optional `capability` parameter: the
-    loaded Capability state for `command.capability_id` (loaded by
+    Optional `capability` parameter (additive): the loaded
+    Capability state for `command.capability_id` (loaded by
     the handler via the cross-BC port; None when command.capability_id
     is None). When command.capability_id is supplied, the decider
     validates:

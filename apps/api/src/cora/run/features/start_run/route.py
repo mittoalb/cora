@@ -77,7 +77,7 @@ class StartRunRequest(BaseModel):
             "STRICT when the Method declares no schema (non-empty "
             "effective parameters rejected with 400; declare an empty "
             "`{}` schema for parameter-less Methods, or omit overrides "
-            "and ensure Plan defaults are empty). Phase 6g-c."
+            "and ensure Plan defaults are empty)."
         ),
     )
     triggered_by: str | None = Field(
@@ -86,7 +86,7 @@ class StartRunRequest(BaseModel):
         description=(
             "Free-form text capturing what initiated this Run "
             "(operator-manual, scheduler id, prior-run id, automation). "
-            "Optional. Phase 6g-c."
+            "Optional."
         ),
     )
     campaign_id: UUID | None = Field(
@@ -100,7 +100,7 @@ class StartRunRequest(BaseModel):
             "Run stream AND `CampaignRunAdded` on the Campaign stream "
             "via `EventStore.append_streams`. Omit (or null) for a "
             "standalone Run; membership can also be added post-hoc "
-            "via `POST /campaigns/{id}/runs/{run_id}`. Phase 6i-c."
+            "via `POST /campaigns/{id}/runs/{run_id}`."
         ),
     )
     decided_by_decision_id: UUID | None = Field(
@@ -113,8 +113,7 @@ class StartRunRequest(BaseModel):
             "used by Decision.parent_id and AdjustRun.decided_by_decision_id). "
             "NOT verified at the write path (eventual-consistency stance "
             "per cross-BC reference precedent). Operators can start "
-            "ad-hoc Runs without a Decision. Phase 1 (Decision→Run "
-            "linkage)."
+            "ad-hoc Runs without a Decision (Decision→Run linkage)."
         ),
     )
     pinned_calibrations: list[UUID] = Field(

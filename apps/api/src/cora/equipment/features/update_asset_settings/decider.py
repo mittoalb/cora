@@ -1,6 +1,6 @@
 """Pure decider for the `UpdateAssetSettings` command.
 
-Phase 5g-c. The decider:
+The decider:
   - Raises AssetNotFoundError on empty state
   - Merges the patch into prior settings via RFC 7396 semantics
   - Validates the merged result against the union of the supplied

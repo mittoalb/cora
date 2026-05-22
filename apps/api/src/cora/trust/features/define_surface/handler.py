@@ -1,9 +1,9 @@
 """Application handler for the `define_surface` slice.
 
 Mirrors `define_zone.handler` shape. The Surface stream gets a single
-`SurfaceDefined` event; Iter B widens authz to use real surface_id
-but Iter A's handler stays nil-conduit/nil-surface (the surface
-adapter isn't wired yet).
+`SurfaceDefined` event; authz widens to use real surface_id when
+the Surface adapter ships, but the handler stays
+nil-conduit/nil-surface until that point.
 """
 
 from typing import Protocol

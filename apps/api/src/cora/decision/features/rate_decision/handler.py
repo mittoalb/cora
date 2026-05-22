@@ -1,4 +1,4 @@
-"""Application handler for the `rate_decision` slice (Phase 8f-b iter 1).
+"""Application handler for the `rate_decision` slice.
 
 Update-style handler. Single-stream append on the Decision stream.
 Loads the target Decision, calls the pure decider, appends the

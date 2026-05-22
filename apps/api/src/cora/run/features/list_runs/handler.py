@@ -41,7 +41,7 @@ class RunSummaryItem:
     overrides + effective_parameters dicts live on the event;
     `get_run` surfaces them on demand.
 
-    `campaign_id` (Phase 6i-c, Campaign Watch #10) is the Campaign
+    `campaign_id` (Campaign Watch #10) is the Campaign
     this Run is a member of (at-start via `RunStarted.campaign_id`,
     or post-hoc via `RunCampaignAssigned`). NULL for standalone Runs
     and for Runs whose membership was removed via

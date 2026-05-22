@@ -9,8 +9,8 @@ state and emits an `AssetRelocated` event carrying both.
   - state is None                                  -> AssetNotFoundError
   - asset is `Enterprise` level                    -> AssetCannotRelocateError("...")
     (Enterprise is the root; cannot have a parent at all per the
-    Phase 5b hierarchy rule. Allowing relocate would force the
-    invariant to break.)
+    Hierarchy rule. Allowing relocate would force the invariant
+    to break.)
   - asset is `Decommissioned`                      -> AssetCannotRelocateError("...")
     (retired from service; no further hierarchy changes.)
   - target_parent_id == asset_id                   -> AssetCannotRelocateError("...")

@@ -30,7 +30,7 @@ precedent.
 The original memo §6 ("both allowed at v1, no extra permission")
 was overruled in gate-review F2: the rationale (PolicyDefined
 events already readable) is weak load-bearing on a side-channel
-that won't survive Phase 8h Budget BC or ABAC.
+that won't survive the future Budget BC or ABAC.
 """
 
 from typing import Protocol

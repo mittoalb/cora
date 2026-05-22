@@ -3,7 +3,7 @@
 Cross-aggregate membership-add slice: writes `CampaignRunAdded` to
 the Campaign's stream AND `RunCampaignAssigned` to the Run's stream
 atomically via `EventStore.append_streams` (mirrors Safety's
-`amend_clearance` shape from 11a-c-2). Phase 6i-c.
+`amend_clearance` shape).
 """
 
 from cora.campaign.features.add_run_to_campaign import tool

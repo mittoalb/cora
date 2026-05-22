@@ -37,7 +37,7 @@ def decide(
 
     `kind` flows from the command (`human` default for backward
     compat with all existing register_actor callers; `service_account`
-    opt-in for machine callers per Phase C Iter B-2). Per
+    opt-in for machine callers). Per
     [[project_agent_bc_design]] P0-4: agent-kind Actors MUST NOT be
     minted via this slice — they go through the cross-BC atomic
     write in `define_agent` so the (Agent.id == Actor.id) lock

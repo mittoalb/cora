@@ -58,7 +58,7 @@ class DefinePolicyRequest(BaseModel):
     surface_id: UUID = Field(
         default_factory=lambda: UUID(int=0),
         description=(
-            "UUID of the Surface this policy governs (Phase B Iter B). "
+            "UUID of the Surface this policy governs. "
             "Defaults to nil so V1-shape callers don't need to send it; "
             "V2 bootstrap policy and Iter-C+ policies bind to a real "
             "Surface seeded by the deployment."

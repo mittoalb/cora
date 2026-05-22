@@ -1,4 +1,4 @@
-"""HTTP route for the `rate_decision` slice (Phase 8f-b iter 1).
+"""HTTP route for the `rate_decision` slice.
 
 Action endpoint at `POST /decisions/{decision_id}/ratings`. Body
 carries `rating` (closed `DecisionRating` enum: useful / misleading

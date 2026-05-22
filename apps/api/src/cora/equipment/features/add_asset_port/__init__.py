@@ -13,8 +13,8 @@ Module-as-namespace surface:
     handler = add_asset_port.bind(deps)
     await handler(cmd, principal_id=..., correlation_id=...)
 
-Phase 5h. Ports declare what typed connection points the equipment
-exposes; Plan.wiring (6h) will reference these by name to declare
+Ports declare what typed connection points the equipment
+exposes; Plan.wiring will reference these by name to declare
 port-to-port connections.
 """
 

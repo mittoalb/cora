@@ -1,4 +1,4 @@
-"""Vertical slice for the `AppendProcedureSteps` command (Phase 10c-b iter 2).
+"""Vertical slice for the `AppendProcedureSteps` command.
 
 Module-as-namespace surface:
 

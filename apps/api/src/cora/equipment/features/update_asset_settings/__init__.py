@@ -10,8 +10,8 @@ Module-as-namespace surface:
     handler = update_asset_settings.bind(deps)
     await handler(cmd, principal_id=..., correlation_id=...)
 
-Phase 5g-c. The first slice that consumes 5g-a's
-`Family.settings_schema` declarations: the handler loads every
+The first slice that consumes `Family.settings_schema`
+declarations: the handler loads every
 Family assigned to the target Asset, unions their schemas, and
 validates the proposed (post-merge) settings against the union via
 `jsonschema-rs`. Atomicity is per-Asset (single stream append at

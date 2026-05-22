@@ -15,8 +15,8 @@ class RegisterActor:
     """Register a new actor with the given display name.
 
     `kind` discriminates `human` (default; UI-driven operator
-    registration) from `service_account` (Phase C Iter B-2; machine
-    callers — CI bridges, autonomous agent runtime processes, future
+    registration) from `service_account` (machine callers — CI
+    bridges, autonomous agent runtime processes, future
     TomoScan/EPICS bridges). `agent`-kind Actors are NOT minted via
     this slice — they go through the cross-BC atomic write in
     `define_agent` per [[project_agent_bc_design]] P0-4.

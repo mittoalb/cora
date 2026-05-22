@@ -43,7 +43,7 @@ class AbortRunRequest(BaseModel):
             "`prov:wasInformedBy` at the future PROV-O export adapter. "
             "NOT verified at the write path (eventual-consistency stance). "
             "Operators can record ad-hoc / emergency aborts without a "
-            "Decision. Phase 1 (Decision→Run linkage)."
+            "Decision (Decision→Run linkage)."
         ),
     )
 

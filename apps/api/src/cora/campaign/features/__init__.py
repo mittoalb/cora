@@ -5,9 +5,10 @@ __init__, command (or query), decider (commands only), handler,
 route, tool. See `cora.campaign` package docstring for the
 module-as-namespace surface.
 
-Phase 6i-a ships the 7 lifecycle slices (register, get, start, hold,
-resume, close, abandon). Phase 6i-b adds `list_campaigns` (projection-
-backed list). Phase 6i-c adds the cross-aggregate membership slices.
+Slices: the 7 lifecycle (register, get, start, hold, resume, close,
+abandon); `list_campaigns` (projection-backed list); the
+cross-aggregate membership slices (add_run_to_campaign /
+remove_run_from_campaign).
 """
 
 from cora.campaign.features import (

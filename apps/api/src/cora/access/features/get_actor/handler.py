@@ -4,7 +4,7 @@ Cross-BC query-handler shape:
 
     1. authorize(principal_id, query_name, conduit) -> Allow | Deny
        (under AllowAllAuthorize this is currently a no-op; the call
-       site is in place so Phase 3's Trust BC swap is mechanical
+       site is in place so a future Trust BC swap is mechanical
        per handler instead of a sweep that risks missing handlers.)
     2. load_<aggregate>(...)        -> Aggregate | None  (fold-on-read)
     3. return state                 -> caller maps None to 404 / isError

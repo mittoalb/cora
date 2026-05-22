@@ -39,7 +39,7 @@ class RunSummaryDTO(BaseModel):
         description=(
             "True iff RunStarted's override_parameters payload was "
             "non-empty (operator customized parameters at start time). "
-            "Phase 6g-c. The full overrides + effective_parameters "
+            "The full overrides + effective_parameters "
             "dicts are loaded on demand via `get_run`."
         ),
     )
@@ -49,7 +49,7 @@ class RunSummaryDTO(BaseModel):
             "Campaign this Run is a member of. Set at start time "
             "(StartRun.campaign_id) or post-hoc "
             "(add_run_to_campaign). NULL for standalone Runs. "
-            "Phase 6i-c."
+            "Campaign membership snapshot."
         ),
     )
 
@@ -119,8 +119,7 @@ async def list_runs(
         UUID | None,
         Query(
             description=(
-                "Optional Campaign-id filter: returns Runs that are "
-                "members of the given Campaign. Phase 6i-c."
+                "Optional Campaign-id filter: returns Runs that are members of the given Campaign."
             ),
         ),
     ] = None,

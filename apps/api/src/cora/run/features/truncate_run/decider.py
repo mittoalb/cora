@@ -16,8 +16,8 @@ operator should be marking a past interruption); the decider does
 NOT enforce a lower bound, on-the-wire serialization preserves
 whatever timezone-aware datetime the caller supplied.
 
-Phase 6f-4 today: the decider emits a single `RunTruncated` event.
-When the Run aggregate adds logbooks (6f-5b/c), the decider extends
+Today the decider emits a single `RunTruncated` event. When the
+Run aggregate adds logbooks, the decider extends
 to emit one `RunLogbookClosed` event per open logbook before the
 `RunTruncated` event, per gate-review L4. The single-event shape
 today is forward-compatible: the slim Run aggregate has no

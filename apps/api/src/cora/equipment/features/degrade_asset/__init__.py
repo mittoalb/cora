@@ -8,8 +8,8 @@ Module-as-namespace surface:
     handler = degrade_asset.bind(deps)
     await handler(cmd, principal_id=..., correlation_id=...)
 
-Phase 5g-b. One of three condition-transition slices (degrade /
-fault / restore). Each slice moves to a fixed target condition from
+One of three condition-transition slices (degrade / fault /
+restore). Each slice moves to a fixed target condition from
 ANY source (target-state semantics, not source-conditional). Reason
 is required free text validated 1-500 chars at the API boundary.
 """

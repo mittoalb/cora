@@ -84,7 +84,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                     "declares no schema (non-empty effective rejected; "
                     "declare an empty `{}` schema for parameter-less "
                     "Methods). Omit or null for an empty overrides dict. "
-                    "Phase 6g-c."
+                    "Effective-parameters resolution."
                 ),
             ),
         ] = None,
@@ -96,7 +96,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 description=(
                     "Free-form text capturing what initiated this Run "
                     "(operator-manual, scheduler id, prior-run id, "
-                    "automation). Optional. Phase 6g-c."
+                    "automation). Optional."
                 ),
             ),
         ] = None,
@@ -109,7 +109,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                     "provided, the handler atomically writes RunStarted "
                     "(carrying campaign_id) on the Run stream AND "
                     "CampaignRunAdded on the Campaign stream. The Campaign "
-                    "must be in Planned, Active, or Held. Phase 6i-c."
+                    "must be in Planned, Active, or Held."
                 ),
             ),
         ] = None,
@@ -121,7 +121,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                     "Optional Decision id that justified starting this Run "
                     "(cross-Plan pivots like EnergyChange). Maps to "
                     "prov:wasInformedBy at the future PROV-O export "
-                    "adapter. Not verified at the write path. Phase 1."
+                    "adapter. Not verified at the write path."
                 ),
             ),
         ] = None,
@@ -131,7 +131,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 default=None,
                 description=(
                     "Optional CalibrationRevision ids pinned at this Run's "
-                    "start time (Calibration BC AsShot anchor per Phase 12b). "
+                    "start time (Calibration BC AsShot anchor). "
                     "IMMUTABLE on the aggregate after start. NOT verified "
                     "at the write path. Omit or null for an empty pin set."
                 ),

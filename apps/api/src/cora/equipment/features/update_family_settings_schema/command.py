@@ -1,7 +1,7 @@
 """The `UpdateFamilySettingsSchema` command — intent dataclass for this slice.
 
-Phase 5g-a. Operators set, replace, or clear the JSON Schema
-declaring the shape of `Asset.settings` keys this Family owns.
+Operators set, replace, or clear the JSON Schema declaring the
+shape of `Asset.settings` keys this Family owns.
 Independent of the Defined / Versioned / Deprecated content
 lifecycle: schema iteration is its own audit stream.
 

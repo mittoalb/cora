@@ -1,4 +1,4 @@
-"""MCP tool for the `rate_decision` slice (Phase 8f-b iter 1).
+"""MCP tool for the `rate_decision` slice.
 
 Surfaces the same handler the REST route uses. Returns a structured
 ack with the rated decision_id (matches the 204-equivalent shape
