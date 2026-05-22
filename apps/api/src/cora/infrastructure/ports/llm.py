@@ -1,8 +1,8 @@
 """LLM: synchronous LLM-chat abstraction for agent BCs.
 
-Phase 8f-b iter 2a. The first consumer is the RunDebrief subscriber
-(8f-b iter 2b); future agents (RecipeScreener at 8f-c, Strategy at
-8g, Budget at 8h) consume the same port.
+Current consumers: the RunDebrief and CautionDrafter subscribers.
+Future agents (RecipeScreener, Strategy, Budget) consume the same
+port.
 
 ## Why a port
 

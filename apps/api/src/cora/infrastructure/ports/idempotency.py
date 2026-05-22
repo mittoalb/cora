@@ -9,17 +9,17 @@ handler: on retry with the same key, the cached outcome is returned
 without re-executing the command.
 
 The cache namespace is `(principal_id, key, surface_id)` per IETF
-§5 server-side composite-key recommendation. `surface_id` joined the
-tuple in Phase B Iter C-2c: under V2 per-surface policies a retry
-from a different Surface must re-authorize, so each Surface gets an
+§5 server-side composite-key recommendation. `surface_id` belongs
+in the tuple because under V2 per-surface policies a retry from a
+different Surface must re-authorize, so each Surface gets an
 independent cache slot. The decorator threads surface_id from the
 HTTP/MCP resolver (`get_surface_id` / `get_mcp_surface_id`) all the
 way down to `claim()`.
 
 ## Two-phase claim + 4xx error caching
 
-Replaces Phase 2d's single-phase `get + put` with a richer surface
-that captures the full claim lifecycle:
+The richer surface captures the full claim lifecycle (vs a naive
+single-phase `get + put`):
 
   - `claim()` is the only entry point. Atomically tries to win the
     in-flight lock for `(principal_id, key)`. Returns one of five

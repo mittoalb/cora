@@ -1,8 +1,8 @@
 """In-memory `IdempotencyStore` for unit tests and the `test` app environment.
 
 Mirrors the Postgres adapter's contract: same
-`(principal_id, key, surface_id)` namespacing (Phase B Iter C-2c),
-same `claim` / `finalize_*` / `prune` semantics, same stale-lock
+`(principal_id, key, surface_id)` namespacing, same
+`claim` / `finalize_*` / `prune` semantics, same stale-lock
 recovery rules. A `threading.Lock` guards the dict so concurrent
 tasks see consistent state. Not durable across process restarts
 (use the Postgres adapter for production / integration).

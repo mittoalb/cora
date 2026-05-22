@@ -1,9 +1,9 @@
 """LogbookMirror: pluggable mirror for agent-emitted Decisions.
 
-Phase 8f-b iter 2a. Defines the abstract Protocol; NO production
-implementor lands at 8f-b. The first concrete implementor is
-deferred until a pilot facility wires its operator logbook (Olog
-at APS; SciLog at PSI; SciCat at ESS / DESY / MAX IV).
+Defines the abstract Protocol; NO production implementor lands yet.
+The first concrete implementor is deferred until a pilot facility
+wires its operator logbook (Olog at APS; SciLog at PSI; SciCat at
+ESS / DESY / MAX IV).
 
 ## Why a port without an implementor
 

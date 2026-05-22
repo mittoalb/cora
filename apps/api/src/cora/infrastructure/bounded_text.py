@@ -1,9 +1,9 @@
 """Trimmed-bounded-text validation helper for value object `__post_init__`.
 
-Originally hoisted in Phase 6e-1 as `validate_name` after the 10th
-bounded-name VO landed (`PlanName`). Renamed to `validate_bounded_text`
-post-domain-audit once the helper picked up 8 non-name callers (Run /
-Subject / Dataset reason VOs + Decision choice/context/rule VOs) — the
+Originally hoisted as `validate_name` after the 10th bounded-name VO
+landed (`PlanName`). Renamed to `validate_bounded_text` once the
+helper picked up 8 non-name callers (Run / Subject / Dataset reason
+VOs + Decision choice/context/rule VOs) — the
 shared concept across all 21 sites is "trimmed string with a bounded
 length", not "name".
 

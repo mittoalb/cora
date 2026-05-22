@@ -426,9 +426,9 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             register_caution_projections(registry, deps)
             register_calibration_projections(registry, deps)
             register_campaign_projections(registry, deps)
-            # Agent BC's first projection
-            # (proj_agent_summary). Path C lock — state-side lifecycle
-            # timestamps move to the projection in Iter C-2.
+            # Agent BC's projection (proj_agent_summary). Path C
+            # lock — state-side lifecycle timestamps live on the
+            # projection.
             register_agent_projections(registry, deps)
             # side-effecting Agent BC subscribers
             # (RunDebrief). Conditional: only registered when
@@ -482,14 +482,15 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         BodySizeLimitMiddleware,
         max_bytes=settings.max_request_body_size_bytes,
     )
-    # Iter C-2: bearer-token verification at the HTTP edge.
-    # Reads `Authorization: Bearer <token>`, verifies via
-    # `kernel.token_verifier` (None when no IdPs configured -> middleware
-    # no-ops and legacy X-Principal-Id path remains in effect). Stores
-    # the VerifiedPrincipal on request.state.principal; the route-layer
-    # `get_principal_id` Depends reads from there (Iter C-3). Added
-    # AFTER BodySizeLimit so the size cap runs first (cheap reject before
-    # any token verification work).
+    # Bearer-token verification at the HTTP edge. Reads
+    # `Authorization: Bearer <token>`, verifies via
+    # `kernel.token_verifier` (None when no IdPs configured ->
+    # middleware no-ops and legacy X-Principal-Id path remains in
+    # effect). Stores the VerifiedPrincipal on
+    # request.state.principal; the route-layer `get_principal_id`
+    # Depends reads from there. Added AFTER BodySizeLimit so the
+    # size cap runs first (cheap reject before any token verification
+    # work).
     fastapi_app.add_middleware(BearerAuthMiddleware)
     # Prometheus instrumentation:
     # - per-app CollectorRegistry so multiple create_app() calls in the
@@ -529,10 +530,10 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
     # after a 401 + WWW-Authenticate response to learn which IdPs issue
     # tokens for which Surface.
     register_protected_resource_metadata_route(fastapi_app)
-    # Iter C-4: install handlers that convert the bearer-auth
-    # typed errors raised by BearerAuthMiddleware / TokenVerifier into
-    # RFC 6750 401 (with WWW-Authenticate challenge) and RFC 7231 503
-    # (with Retry-After).
+    # Install handlers that convert the bearer-auth typed errors
+    # raised by BearerAuthMiddleware / TokenVerifier into RFC 6750
+    # 401 (with WWW-Authenticate challenge) and RFC 7231 503 (with
+    # Retry-After).
     register_auth_exception_handlers(fastapi_app)
     fastapi_app.mount("/mcp", mcp_app)
 

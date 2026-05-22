@@ -66,10 +66,10 @@ class NewEvent:
     this event (the authenticated caller; same value the handler received
     as its `principal_id` kwarg and the same one the Authorize port gated
     on). Day-1 hook for the future ReBAC graph projection (see
-    `project_authz_future` memory). REQUIRED as of Phase 9b-c (the
-    application-layer contract is now enforced; the type stays
-    `UUID | None` so callers can pass `None` to simulate historical
-    pre-hook rows in tests, but pyright catches forgotten kwargs).
+    `project_authz_future` memory). REQUIRED at the application-layer
+    contract; the type stays `UUID | None` so callers can pass
+    `None` to simulate historical pre-hook rows in tests, but pyright
+    catches forgotten kwargs.
     Pre-hook events in storage stay legitimately None forever (no
     derivable historical value). Aligned with W3C PROV-O
     `prov:wasAssociatedWith.agent` at the envelope level; per-aggregate

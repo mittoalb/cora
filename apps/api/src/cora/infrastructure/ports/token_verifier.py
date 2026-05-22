@@ -1,4 +1,4 @@
-"""TokenVerifier port — Phase C edge auth (Iter A).
+"""TokenVerifier port — edge auth.
 
 Validates an inbound `Authorization: Bearer <token>` against a
 configured identity provider and resolves the calling principal.
@@ -76,21 +76,19 @@ from uuid import UUID
 
 PrincipalKind = Literal["human", "service_account"]
 """Closed StrEnum-style discriminator. Aligned with `Actor.kind` in
-the Access BC. `service_account` joins the existing {"human", "agent"}
-set in Phase C Iter A (see Decision 9 of the design lock)."""
+the Access BC; the three values are `human`, `agent`, and
+`service_account` (see Decision 9 of the edge-auth design lock)."""
 
 
 SubjectMapper = Callable[[str, str], Awaitable[tuple[UUID, PrincipalKind]]]
 """Resolve `(issuer, subject)` → `(principal_id, kind)`.
 
-The Access BC owns the IdP-subject → Actor.id mapping (Iter B
+The Access BC owns the IdP-subject → Actor.id mapping (the
 `actor_idp_bindings` projection). Verifiers call this after token
 verification and surface the result on `VerifiedPrincipal`.
 
 Defined here on the port (not on each adapter) so the registry +
-both adapters import a single canonical alias. Promoted from per-
-adapter duplication at the Iter A gate review (3 reviewers concurred
-on the consolidation; rule-of-three triggered).
+both adapters import a single canonical alias.
 
 Failure modes the adapter wraps:
   - Mapper raises (unknown subject, projection lookup error, etc.) →
@@ -124,8 +122,8 @@ class VerifiedPrincipal:
     + `client_credentials` grant → `service_account`).
 
     `scopes` carries the token's OAuth scopes if any (RFC 6749 §3.3).
-    Empty `frozenset()` is fine — Phase C ships without scope-aware
-    authorization (scope→capability mapping is a Phase C+ WI6).
+    Empty `frozenset()` is fine — edge-auth ships without scope-aware
+    authorization (scope→capability mapping is WI6).
     """
 
     principal_id: UUID

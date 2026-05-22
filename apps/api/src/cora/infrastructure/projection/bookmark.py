@@ -14,7 +14,7 @@ The worker's advance loop calls these inside its transaction:
      advance-loop transaction, which is rolling back). The bookmark
      position itself stays put so retry semantics are preserved.
 
-Phase 8e-9 added four observability columns to `projection_bookmarks`
+`projection_bookmarks` carries four observability columns
 (`last_event_recorded_at`, `last_error_at`, `last_error_message`,
 `consecutive_failures`). Success path resets failure columns to NULL
 + counter to 0 atomically with the position advance; failure path
@@ -135,9 +135,9 @@ async def write_bookmark_failure(
 ) -> None:
     """Record an advance-loop failure in a SEPARATE small transaction.
 
-    Phase 8e-9 observability hook. Called from the advance-loop
-    exception handler AFTER the failed batch has rolled back.
-    Increments `consecutive_failures` and records `last_error_at` +
+    Observability hook called from the advance-loop exception
+    handler AFTER the failed batch has rolled back. Increments
+    `consecutive_failures` and records `last_error_at` +
     `last_error_message`. Does NOT touch `last_transaction_id` or
     `last_position`, so retry semantics are preserved by leaving
     the cursor where it was.

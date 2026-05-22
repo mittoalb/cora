@@ -12,21 +12,22 @@ command would flow. Operationally inert at v1: every handler passes
 `UUID(int=0)` nil-sentinel. Reactivation tracked as
 project_conduit_injection_design.md WI10.
 
-`surface_id: UUID` (post-Phase-B Iter B) names the process-level
-arrival point (HTTP / MCP stdio / MCP streamable-http) through which
-the request entered CORA. Closed-StrEnum kind sits on the
+`surface_id: UUID` names the process-level arrival point (HTTP /
+MCP stdio / MCP streamable-http) through which the request entered
+CORA. Closed-StrEnum kind sits on the
 `cora.trust.aggregates.surface.Surface` aggregate; surface adapters
-in Iter C resolve concrete IDs per request, Phase C layers OAuth
-`aud` validation on top.
+resolve concrete IDs per request, and edge-auth layers OAuth `aud`
+validation on top.
 
 Defaults: both `conduit_id` and `surface_id` default to nil
 `UUID(int=0)` so existing handler call sites work unchanged. As real
-routing arrives at the HTTP / MCP / A2A boundaries (Iter C), routes
-inject concrete IDs and stop using the nil sentinel — the Phase B
-architecture fitness test pins the no-nil-leak invariant.
+routing arrives at the HTTP / MCP / A2A boundaries, routes inject
+concrete IDs and stop using the nil sentinel — the architecture
+fitness test pins the no-nil-leak invariant.
 
-Phase 1 shipped an `AllowAllAuthorize` stub. Phase 3e shipped the
-real `TrustAuthorize` adapter (in `cora.trust.authorize`).
+`AllowAllAuthorize` is the no-op stub used for dev/test and the
+documented bootstrap workflow; `TrustAuthorize`
+(in `cora.trust.authorize`) is the production adapter.
 """
 
 from dataclasses import dataclass
@@ -81,7 +82,7 @@ class Authorize(Protocol):
 
 
 class AllowAllAuthorize:
-    """Phase 1 stub: returns Allow for every call.
+    """No-op stub: returns Allow for every call.
 
     Production wiring uses `cora.trust.authorize.TrustAuthorize`;
     AllowAll remains for tests/dev and the documented bootstrap

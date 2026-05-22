@@ -9,10 +9,10 @@ and the payload dict differ per aggregate, and the caller already
 holds those.
 
 Extracted from per-aggregate `events.py` modules (Actor, Zone,
-Conduit) once a third byte-identical copy appeared in Phase 3b. Each
-aggregate's `events.py` now owns just the genuinely aggregate-
-specific pieces: the event classes, the `<Aggregate>Event` union,
-`event_type_name`, `to_payload`, and `from_stored`. Handlers wire the
+Conduit) once a third byte-identical copy appeared. Each aggregate's
+`events.py` now owns just the genuinely aggregate-specific pieces:
+the event classes, the `<Aggregate>Event` union, `event_type_name`,
+`to_payload`, and `from_stored`. Handlers wire the
 two together at the persistence step:
 
     new_events = [
@@ -67,11 +67,11 @@ def to_new_event(
 
     `principal_id` carries the UUID of the entity that pulled the
     trigger for the command that produced this event (the same value
-    the handler received as its `principal_id` kwarg). Required as of
-    Phase 9b-c: the day-1 ReBAC hook is now contract-enforced at the
-    application layer (the `events.principal_id` DB column stays
-    nullable so historical pre-hook rows remain valid). Day-1 hook
-    for the future ReBAC graph projection (see project_authz_future).
+    the handler received as its `principal_id` kwarg). Required by
+    the day-1 ReBAC hook, contract-enforced at the application layer
+    (the `events.principal_id` DB column stays nullable so historical
+    pre-hook rows remain valid). Day-1 hook for the future ReBAC
+    graph projection (see project_authz_future).
     """
     return NewEvent(
         event_id=event_id,

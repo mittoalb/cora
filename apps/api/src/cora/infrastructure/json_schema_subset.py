@@ -110,9 +110,9 @@ def check_schema_is_subset(
 ) -> None:
     """Recursively assert `inner` is a STRICT subset of `outer`.
 
-    Phase 6l-strict-c hoist: cross-schema subset relation used by
-    Recipe's `Method.parameters_schema ⊆ Capability.parameter_schema`
-    check at update_method_parameters_schema time. Same constrained
+    Cross-schema subset relation used by Recipe's
+    `Method.parameters_schema ⊆ Capability.parameter_schema` check
+    at `update_method_parameters_schema` time. Same constrained
     subset (`ALLOWED_SCHEMA_KEYS`) on both sides; the check verifies
     the inner schema doesn't widen the outer's contract.
 

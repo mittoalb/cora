@@ -11,9 +11,9 @@ the descriptor (here: `<Aggregate>LogbookOpened` event) declares the
 schema and lifecycle of a logbook; the per-row entries (here: rows in
 an `entries_<kind>` table) live elsewhere keyed by `logbook_id`.
 
-Phase 6f-5a ships this module + the Conduit aggregate's first use
-(traversals logbook). Run / Decision / Asset adopt the same pattern
-when their first observation kind ships.
+The Conduit aggregate is the first use site (traversals logbook).
+Run / Decision / Asset adopt the same pattern when their first
+observation kind ships.
 
 ## Why these types live in shared infrastructure
 

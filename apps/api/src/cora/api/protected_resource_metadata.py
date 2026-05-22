@@ -1,4 +1,4 @@
-"""RFC 9728 Protected Resource Metadata endpoint (Phase C Iter B).
+"""RFC 9728 Protected Resource Metadata endpoint.
 
 MCP spec 2025-11-25 (basic/authorization) mandates that OAuth-2.1
 resource servers expose a Protected Resource Metadata document at
@@ -11,8 +11,8 @@ CORA's RFC 9728 document is generated from
 `Settings.identity_providers` + the 3 SYSTEM Surface audience
 identifiers — no DB, no auth, just config-driven JSON.
 
-The 401 `WWW-Authenticate` header that the Iter C edge middleware
-returns includes `resource_metadata="https://<deployment>/.well-known/oauth-protected-resource"`
+The 401 `WWW-Authenticate` header that the edge middleware returns
+includes `resource_metadata="https://<deployment>/.well-known/oauth-protected-resource"`
 so clients can fetch this document programmatically on first-401
 and discover where to obtain a fresh token.
 
@@ -76,9 +76,10 @@ def build_protected_resource_metadata(
     if aud_values:
         document["aud_values_supported"] = sorted(set(aud_values))
     # Per-Surface audience map as a non-standard but namespaced CORA
-    # extension. Original Iter B-1 used `x-cora-` prefix; per RFC 6648
-    # (2012) the `X-`/`x-` convention is deprecated across IETF
-    # protocols and RFC 9728 itself doesn't reserve `x-` keys. Reverse-
+    # extension. The `x-cora-` prefix was considered first; per
+    # RFC 6648 (2012) the `X-`/`x-` convention is deprecated across
+    # IETF protocols and RFC 9728 itself doesn't reserve `x-` keys.
+    # Reverse-
     # DNS namespacing (`io.cora.surface_audiences`) matches the JSON-
     # Schema / OAuth-2.0 extension conventions and avoids both the
     # deprecated prefix and accidental collision with future RFC 9728

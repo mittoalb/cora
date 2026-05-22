@@ -1,9 +1,9 @@
 """GenAI telemetry helpers per OpenTelemetry semantic conventions.
 
-Phase 8f-b iter 2a. Used by `AnthropicLLMAdapter` (and any future
-LLM adapter) to set the standard `gen_ai.*` span attributes and
-emit token + cost metrics from one place. Keeps the adapter free
-of OTel imports beyond a single helper call.
+Used by `AnthropicLLMAdapter` (and any future LLM adapter) to set
+the standard `gen_ai.*` span attributes and emit token + cost
+metrics from one place. Keeps the adapter free of OTel imports
+beyond a single helper call.
 
 ## OTel GenAI semantic conventions
 
