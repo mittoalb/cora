@@ -1,4 +1,4 @@
-"""HTTP route for the `remove_asset_port` slice (Phase 5h).
+"""HTTP route for the `remove_asset_port` slice.
 
 Action endpoint at `POST /assets/{asset_id}/remove_port`. Body
 carries `port_name`. 204 No Content on success. Mirror of

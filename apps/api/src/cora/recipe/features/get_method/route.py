@@ -46,7 +46,7 @@ class MethodResponse(BaseModel):
     Carries primitives, not domain VOs. Decouples the wire format
     from the domain model so the two can evolve independently.
     `needed_families` is sorted by UUID string form.
-    `needed_supplies` (Phase 10b) is sorted lexically by kind string;
+    `needed_supplies` is sorted lexically by kind string;
     Supply.kind values (NOT instance UUIDs).
     `status` is the StrEnum's string value (Defined / Versioned /
     Deprecated). `version` is the operator-supplied label of the most

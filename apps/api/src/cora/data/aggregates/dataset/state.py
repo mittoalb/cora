@@ -493,7 +493,7 @@ class DatasetAlreadyPromotedError(Exception):
 
 
 class DatasetCannotPromoteError(Exception):
-    """A guard rejected the promotion to Production (Phase 7e).
+    """A guard rejected the promotion to Production.
 
     Three branches, all surfaced via this single error class with a
     branch-specific reason string:
@@ -848,7 +848,7 @@ class Dataset:
     `status` defaults to `Registered`; the lifecycle FSM expands in
     7b (Discarded terminal) and later phases.
 
-    `producing_run_end_state` (Phase 7e): captures the producing
+    `producing_run_end_state`: captures the producing
     Run's terminal status at the moment of Dataset registration
     (per non-determinism principle: capture, don't recompute). Null
     when there's no producing_run_id (standalone-upload Dataset) OR
@@ -856,7 +856,7 @@ class Dataset:
     fold cleanly via payload.get default). Powers the
     `promote_dataset` Run-must-be-Completed guard.
 
-    `intent` (Phase 7e): trust level / promotion state, orthogonal to
+    `intent`: trust level / promotion state, orthogonal to
     `status` (lifecycle). Defaults to `Trial`; flipped to `Production`
     by an explicit `promote_dataset` call with audit reason. See
     [[project_dataset_lineage_design]].

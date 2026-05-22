@@ -1,4 +1,4 @@
-"""HTTP route for the `dismount_subject` slice (Phase 4f).
+"""HTTP route for the `dismount_subject` slice.
 
 Action endpoint at `POST /subjects/{subject_id}/dismount`. Body
 carries `reason` (1-500 chars). 204 No Content on success.

@@ -1,4 +1,4 @@
-"""MCP tool for the `dismount_subject` slice (Phase 4f)."""
+"""MCP tool for the `dismount_subject` slice."""
 
 from collections.abc import Callable
 from typing import Annotated, Any

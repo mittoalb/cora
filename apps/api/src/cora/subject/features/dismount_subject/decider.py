@@ -1,4 +1,4 @@
-"""Pure decider for the `DismountSubject` command (Phase 4f).
+"""Pure decider for the `DismountSubject` command.
 
 Inverse of `mount_subject` for the physical-mount fact:
 `Mounted | Measured -> Received` with `mounted_on_asset_id` cleared.

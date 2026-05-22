@@ -1,6 +1,6 @@
 """ClearanceLookup port: cross-BC query for Safety BC's clearance projection.
 
-Used by Run BC's `start_run` handler (Phase 11a-c-3) to gate Run.start
+Used by Run BC's `start_run` handler to gate Run.start
 on the presence of an Active Safety Clearance whose bindings cover
 the Run's scope `(run_id, subject_id, asset_ids)`. Future Procedure
 BC's `start_procedure` is the next candidate consumer.

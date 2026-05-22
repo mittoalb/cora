@@ -2,7 +2,7 @@
 
 `load_policy(event_store, policy_id) -> Policy | None` mirrors
 `load_zone` / `load_conduit`. Used by the eventual evaluate_policy
-query slice (Phase 3d) and by `TrustAuthorize` (Phase 3e).
+query slice and by `TrustAuthorize`.
 """
 
 from uuid import UUID

@@ -1,4 +1,4 @@
-"""Vertical slice for the `DefineCalibration` command (Phase 12a-2).
+"""Vertical slice for the `DefineCalibration` command.
 
 Module-as-namespace surface, symmetric with the other create-style
 command slices:

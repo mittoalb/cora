@@ -1,6 +1,6 @@
 """Slice: issue a new version label for an existing Capability.
 
-Vertical slice (Phase 6k).
+Vertical slice.
 """
 
 from cora.recipe.features.version_capability import tool

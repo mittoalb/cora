@@ -1,4 +1,4 @@
-"""BC-application-layer errors for the Calibration BC (Phase 12).
+"""BC-application-layer errors for the Calibration BC.
 
 These errors are raised by application handlers (not domain logic)
 and mapped to HTTP / MCP responses by the BC's exception handlers in

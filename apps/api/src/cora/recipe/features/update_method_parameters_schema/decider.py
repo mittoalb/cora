@@ -29,7 +29,7 @@ Invariants:
   - parameters_schema (if non-None AND Method.capability_id is set
     AND the loaded Capability has a parameter_schema) MUST be a
     structural subset of Capability.parameter_schema ->
-    MethodParametersNotSubsetError (Phase 6l-strict-c)
+    MethodParametersNotSubsetError
   - If proposed == current, return [] (no event emitted)
 """
 

@@ -1,4 +1,4 @@
-"""Application handler for the `add_asset_port` slice (Phase 5h).
+"""Application handler for the `add_asset_port` slice.
 
 Update-style handler. The full canonical body lives in
 `make_asset_update_handler` (load + authorize + fold + decide +

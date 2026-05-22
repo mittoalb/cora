@@ -1,15 +1,15 @@
 """Shared constrained JSON Schema subset checker.
 
 CORA accepts a deliberately small subset of JSON Schema Draft 2020-12
-for Family.settings_schema (Phase 5g-a) and Method.parameters_schema
-(Phase 6g-a). Both surfaces want the same forbidden-keyword posture
-(no $ref, oneOf, allOf, conditionals, etc.), so the keyword whitelist
-and recursive subset checker live here once and are wrapped per BC
-with the appropriate domain error class.
+for Family.settings_schema and Method.parameters_schema. Both surfaces
+want the same forbidden-keyword posture (no $ref, oneOf, allOf,
+conditionals, etc.), so the keyword whitelist and recursive subset
+checker live here once and are wrapped per BC with the appropriate
+domain error class.
 
-Hoisted in 6g-a once the third use site landed (Family schema +
-Asset settings union compilation + Method parameters schema). Mirrors
-the `validate_bounded_text` hoist precedent at 6e-1.
+Hoisted once the third use site landed (Family schema + Asset settings
+union compilation + Method parameters schema). Mirrors the
+`validate_bounded_text` hoist precedent.
 
 ## Constrained subset (locked in [[project_capability_settings_schema]])
 

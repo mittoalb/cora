@@ -32,7 +32,7 @@ class MethodSummaryItem:
 
     `parameters_schema_present` reflects whether the most recent
     `MethodParametersSchemaUpdated` event for this Method carried a
-    non-NULL parameters_schema (Phase 6g-a). Default FALSE on legacy
+    non-NULL parameters_schema. Default FALSE on legacy
     rows + on Methods that have never had `update_method_parameters_schema`
     called. The schema content itself is not in this projection (load
     on demand via `get_method`).

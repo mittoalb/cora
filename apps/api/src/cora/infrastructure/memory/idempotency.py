@@ -1,4 +1,4 @@
-"""In-memory `IdempotencyStore` for unit tests and the `test` app environment (Phase 9a).
+"""In-memory `IdempotencyStore` for unit tests and the `test` app environment.
 
 Mirrors the Postgres adapter's contract: same
 `(principal_id, key, surface_id)` namespacing (Phase B Iter C-2c),

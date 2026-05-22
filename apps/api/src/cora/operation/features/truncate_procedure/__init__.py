@@ -1,4 +1,4 @@
-"""Vertical slice for the `TruncateProcedure` command (Phase 10c-c).
+"""Vertical slice for the `TruncateProcedure` command.
 
 from cora.operation.features import truncate_procedure
 

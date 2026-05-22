@@ -26,7 +26,7 @@ Subscribed events:
   - PlanDefaultParametersUpdated -> UPDATE default_parameters_present
                                             (TRUE if default_parameters is
                                             non-empty; FALSE if cleared
-                                            via {}) (Phase 6g-b)
+                                            via {})
 
 `versioned_at` / `deprecated_at` source: Path C lock — state stays
 decider-minimal, projections carry lifecycle metadata. Mirrors

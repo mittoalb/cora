@@ -1,4 +1,4 @@
-"""MCP tool for the `adjust_run` slice (Phase 6j)."""
+"""MCP tool for the `adjust_run` slice."""
 
 from collections.abc import Callable
 from typing import Annotated, Any

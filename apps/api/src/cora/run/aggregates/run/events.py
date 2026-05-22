@@ -92,7 +92,7 @@ from cora.infrastructure.ports.event_store import StoredEvent
 
 @dataclass(frozen=True)
 class CautionAcknowledgement:
-    """One entry in `RunStarted.acknowledged_cautions` (Phase 11b-c).
+    """One entry in `RunStarted.acknowledged_cautions`.
 
     Snapshot of a single Active caution that referenced the Run's
     scope (Asset / Procedure) at start time. The full caution lives
@@ -220,7 +220,7 @@ class RunStarted:
 
 @dataclass(frozen=True)
 class RunCampaignAssigned:
-    """A Run was added to a Campaign post-hoc (Phase 6i-c).
+    """A Run was added to a Campaign post-hoc.
 
     Written by the cross-aggregate `add_run_to_campaign` slice on the
     Campaign BC, atomically alongside `CampaignRunAdded` on the
@@ -243,7 +243,7 @@ class RunCampaignAssigned:
 
 @dataclass(frozen=True)
 class RunCampaignUnassigned:
-    """A Run was removed from its Campaign (Phase 6i-c).
+    """A Run was removed from its Campaign.
 
     Written by the cross-aggregate `remove_run_from_campaign` slice on
     the Campaign BC, atomically alongside `CampaignRunRemoved` on the
@@ -357,7 +357,7 @@ class RunStopped:
 
 @dataclass(frozen=True)
 class RunReadingLogbookOpened:
-    """A reading logbook was attached to this Run (Phase 6f-5b).
+    """A reading logbook was attached to this Run.
 
     Naming note: this event carries the entry-noun (`Reading`) in its
     name, vs. Conduit/Decision's bare `<Aggregate>LogbookOpened`. Why:
@@ -409,7 +409,7 @@ class RunReadingLogbookOpened:
 
 @dataclass(frozen=True)
 class RunAdjusted:
-    """A Run had its effective parameters steered mid-flight (Phase 6j).
+    """A Run had its effective parameters steered mid-flight.
 
     Payload carries BOTH the patch (operator intent / audit) AND the
     post-merge `effective_parameters` snapshot (replay efficiency).

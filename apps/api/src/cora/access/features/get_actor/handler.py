@@ -1,6 +1,6 @@
 """Application handler for the `get_actor` query slice.
 
-Cross-BC query-handler shape (Phase 2):
+Cross-BC query-handler shape:
 
     1. authorize(principal_id, query_name, conduit) -> Allow | Deny
        (under AllowAllAuthorize this is currently a no-op; the call

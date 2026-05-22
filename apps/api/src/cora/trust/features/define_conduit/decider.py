@@ -12,7 +12,7 @@ Does NOT verify that `source_zone_id` / `target_zone_id` reference
 existing Zones — see `cora.trust.aggregates.conduit.state` for the
 eventual-consistency rationale.
 
-## Auto-opens the traversals observation logbook (Phase 6f-5a)
+## Auto-opens the traversals observation logbook
 
 The decider emits TWO events in one append:
   1. `ConduitDefined` (genesis)

@@ -1,4 +1,4 @@
-"""MCP tool for the `add_asset_port` slice (Phase 5h)."""
+"""MCP tool for the `add_asset_port` slice."""
 
 from collections.abc import Callable
 from typing import Annotated, Any, Literal

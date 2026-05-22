@@ -31,7 +31,7 @@ class ActorResponse(BaseModel):
     the domain model so the two can evolve independently (for example
     an ActorName invariant change doesn't break older clients).
 
-    `kind` (Phase 8f-a) distinguishes human-registered Actors from
+    `kind` distinguishes human-registered Actors from
     agent-co-registered Actors (via the Agent BC `define_agent`
     cross-BC atomic write). Existing consumers that don't read `kind`
     are unaffected; consumers that need the distinction (Decision

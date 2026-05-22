@@ -146,7 +146,7 @@ RUN_EXTERNAL_REF_ID_MAX_LENGTH = EXTERNAL_REF_ID_MAX_LENGTH
 READING_CHANNEL_NAME_MAX_LENGTH = 255
 READING_UNITS_MAX_LENGTH = 64
 LOGBOOK_KIND_READING = "reading"
-"""Discriminator string for the Run's reading logbook (Phase 6f-5b).
+"""Discriminator string for the Run's reading logbook.
 
 Used as the `kind` value on `RunReadingLogbookOpened` events. One Run
 has at most one reading logbook (lazy open-on-first-write); future
@@ -1032,7 +1032,7 @@ class Run:
 
 class InvalidRunParametersError(ValueError):
     """The supplied Run effective_parameters (defaults + overrides) failed
-    validation against the owning Method's parameters_schema (Phase 6g-c).
+    validation against the owning Method's parameters_schema.
 
     Strict when Method.parameters_schema is None: non-empty effective
     parameters are rejected (Method declares no contract; operators
@@ -1050,7 +1050,7 @@ class InvalidRunParametersError(ValueError):
 
 
 class RunCannotAdjustError(Exception):
-    """Attempted to adjust a Run not in `Running` or `Held` (Phase 6j).
+    """Attempted to adjust a Run not in `Running` or `Held`.
 
     Multi-source guard: `adjust_run` accepts `Running | Held`. Idle /
     Starting use `override_parameters` at start time; terminal states
@@ -1071,8 +1071,7 @@ class RunCannotAdjustError(Exception):
 
 
 class InvalidRunAdjustPatchError(ValueError):
-    """The supplied `parameter_patch` is empty or otherwise unusable
-    (Phase 6j).
+    """The supplied `parameter_patch` is empty or otherwise unusable.
 
     Empty patches are rejected at the decider so the audit log never
     carries a no-op "operator adjusted with no change" entry. The API
@@ -1089,7 +1088,7 @@ class InvalidRunAdjustPatchError(ValueError):
 
 class InvalidRunAdjustSchemaError(ValueError):
     """The post-merge `effective_parameters` failed validation against
-    the owning Method's `parameters_schema` (Phase 6j).
+    the owning Method's `parameters_schema`.
 
     Sibling of `InvalidRunParametersError` (Phase 6g-c, raised by
     start_run). Kept as a distinct error class so API responses
@@ -1108,8 +1107,7 @@ class InvalidRunAdjustSchemaError(ValueError):
 
 
 class InvalidRunAdjustReasonError(ValueError):
-    """The supplied adjust reason is empty, whitespace-only, or too long
-    (Phase 6j).
+    """The supplied adjust reason is empty, whitespace-only, or too long.
 
     Validated at the API boundary via Pydantic min_length / max_length,
     AND defensively at the decider so direct in-process callers
@@ -1130,8 +1128,7 @@ class InvalidRunAdjustReasonError(ValueError):
 
 
 class InvalidPinnedCalibrationsError(ValueError):
-    """The supplied pinned_calibrations set has too many entries
-    (Phase 12b-5).
+    """The supplied pinned_calibrations set has too many entries.
 
     Per-entry validation (each is a UUID) is type-enforced; the
     set-cardinality cap protects against accidentally massive AsShot-
@@ -1161,7 +1158,7 @@ class InvalidPinnedCalibrationsError(ValueError):
 def validate_pinned_calibrations(value: frozenset[UUID]) -> frozenset[UUID]:
     """Normalize / validate pinned_calibrations for the Run state and decider.
 
-    Cardinality-only check (Phase 12b-5). NO per-element existence
+    Cardinality-only check. NO per-element existence
     check (revision-cited atomic-ID model; cross-BC eventual-
     consistency per [[project_calibration_design]] anti-hook #3 +
     Vernon/Evans DDD canon). Mirrors Data BC's

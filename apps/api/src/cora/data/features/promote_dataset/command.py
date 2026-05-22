@@ -1,4 +1,4 @@
-"""The `PromoteDataset` command — intent dataclass for this slice (Phase 7e).
+"""The `PromoteDataset` command — intent dataclass for this slice.
 
 Promotes a Dataset from `Trial` intent to `Production` intent. Carries
 the target dataset's id plus an operator-supplied free-form `reason`

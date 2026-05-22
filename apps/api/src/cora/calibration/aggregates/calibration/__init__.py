@@ -1,4 +1,4 @@
-"""Re-exports for the Calibration aggregate (Phase 12a).
+"""Re-exports for the Calibration aggregate.
 
 Pattern matches `cora.caution.aggregates.caution.__init__`: events,
 state, evolver, read, and helpers are all surfaced at the aggregate

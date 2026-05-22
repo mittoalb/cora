@@ -1,4 +1,4 @@
-"""Pure decider for the `AdjustRun` command (Phase 6j).
+"""Pure decider for the `AdjustRun` command.
 
 Mid-flight parameter steering: an in-progress Run keeps its identity
 + Subject + Plan + Method + Asset binding + Campaign membership +

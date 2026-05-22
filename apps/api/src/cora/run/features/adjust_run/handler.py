@@ -1,4 +1,4 @@
-"""Application handler for the `adjust_run` slice (Phase 6j).
+"""Application handler for the `adjust_run` slice.
 
 Longhand handler (not the `make_run_update_handler` factory): the
 factory loads ONLY the target Run stream, but adjust_run needs to

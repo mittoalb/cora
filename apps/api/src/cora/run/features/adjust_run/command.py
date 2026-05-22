@@ -1,4 +1,4 @@
-"""The `AdjustRun` command — intent dataclass for this slice (Phase 6j).
+"""The `AdjustRun` command — intent dataclass for this slice.
 
 Carries the caller-controlled inputs for mid-flight parameter steering:
   - `run_id` — the target Run (existence verified at handler-load time).
@@ -38,7 +38,7 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class AdjustRun:
-    """Adjust a Run's effective parameters mid-flight (Phase 6j)."""
+    """Adjust a Run's effective parameters mid-flight."""
 
     run_id: UUID
     parameter_patch: dict[str, Any]

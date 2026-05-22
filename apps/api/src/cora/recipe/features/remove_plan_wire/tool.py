@@ -1,4 +1,4 @@
-"""MCP tool for the `remove_plan_wire` slice (Phase 6h)."""
+"""MCP tool for the `remove_plan_wire` slice."""
 
 from collections.abc import Callable
 from typing import Annotated, Any

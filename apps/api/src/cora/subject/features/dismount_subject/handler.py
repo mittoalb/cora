@@ -1,4 +1,4 @@
-"""Application handler for the `dismount_subject` slice (Phase 4f).
+"""Application handler for the `dismount_subject` slice.
 
 Update-style handler. Delegates to `make_subject_update_handler`.
 

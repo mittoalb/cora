@@ -109,7 +109,7 @@ class MethodDeprecated:
 
 @dataclass(frozen=True)
 class MethodParametersSchemaUpdated:
-    """The Method's parameter-shape contract was updated (Phase 6g-a).
+    """The Method's parameter-shape contract was updated.
 
     `parameters_schema` is the new JSON Schema (Draft 2020-12,
     constrained subset) replacing whatever was on state. None clears

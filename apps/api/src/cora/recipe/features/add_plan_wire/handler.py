@@ -1,4 +1,4 @@
-"""Application handler for the `add_plan_wire` slice (Phase 6h).
+"""Application handler for the `add_plan_wire` slice.
 
 Update-style handler that loads the Plan stream PLUS the two Asset
 streams referenced by the proposed wire (deduplicated when source ==

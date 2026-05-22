@@ -1,4 +1,4 @@
-"""MCP tool for the `promote_dataset` slice (Phase 7e)."""
+"""MCP tool for the `promote_dataset` slice."""
 
 from collections.abc import Callable
 from typing import Annotated, Any

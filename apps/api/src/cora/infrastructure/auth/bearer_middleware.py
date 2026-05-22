@@ -48,7 +48,7 @@ If the project later adds a per-route marker, this list collapses to
 "check the marker on the matched route" without touching this file's
 shape.
 
-## MCP path coverage (Phase 8f-d)
+## MCP path coverage
 
 `/mcp/...` and `/mcp` (exact) are verified here just like REST routes.
 The middleware dispatches `expected_audience` per-path: MCP paths

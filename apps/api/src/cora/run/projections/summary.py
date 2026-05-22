@@ -25,7 +25,7 @@ land on INSERT and never change (AsShot invariant for
 pinned_calibrations per Phase 12b); lifecycle UPDATEs only touch
 `status`; membership UPDATEs only touch `campaign_id`.
 
-`override_parameters_present` (Phase 6g-c) is TRUE iff RunStarted's
+`override_parameters_present` is TRUE iff RunStarted's
 `override_parameters` payload was non-empty (operator customized
 parameters at start time vs. just used Plan defaults). The full
 overrides + effective_parameters dicts live on the event itself,
@@ -42,7 +42,7 @@ Forward-compat: pre-6i-c RunStarted payloads lack the key entirely;
 `.get("campaign_id")` returns None and the column stays NULL. See
 [[project_campaign_design]] §"bidirectional composition".
 
-`pinned_calibrations` (Phase 12b-2) surfaces the AsShot pin set so
+`pinned_calibrations` surfaces the AsShot pin set so
 downstream consumers (12c Dataset back-fill, future RunDebrief /
 RotationCenterRefiner subscribers) can read "which calibrations
 was this Run acquired against?" without folding the Run stream.

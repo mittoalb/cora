@@ -1,4 +1,4 @@
-"""The `AddPlanWire` command — intent dataclass for this slice (Phase 6h).
+"""The `AddPlanWire` command — intent dataclass for this slice.
 
 `plan_id` is the target Plan aggregate. The four port-reference
 fields together identify the Wire to add (no separate `wire_id` —

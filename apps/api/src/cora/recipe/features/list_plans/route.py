@@ -39,8 +39,8 @@ class PlanSummaryDTO(BaseModel):
         default=False,
         description=(
             "True iff the most recent `PlanDefaultParametersUpdated` event "
-            "for this Plan carried a non-empty default_parameters dict "
-            "(Phase 6g-b). The dict content itself is loaded on demand."
+            "for this Plan carried a non-empty default_parameters dict. "
+            "The dict content itself is loaded on demand."
         ),
     )
 

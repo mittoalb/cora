@@ -1,4 +1,4 @@
-"""Calibration BC (Phase 12).
+"""Calibration BC.
 
 Empirical instrument-value records keyed by `(subsystem_or_asset_id,
 CalibrationQuantity, operating_point)` with append-only revision

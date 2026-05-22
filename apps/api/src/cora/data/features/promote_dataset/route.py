@@ -1,4 +1,4 @@
-"""HTTP route for the `promote_dataset` slice (Phase 7e).
+"""HTTP route for the `promote_dataset` slice.
 
 Action endpoint at `POST /datasets/{dataset_id}/promote`. Body
 carries `reason` (1-500 chars). 204 No Content on success. Mirrors

@@ -1,5 +1,4 @@
-"""Cross-aggregate context the `adjust_run` decider validates against
-(Phase 6j).
+"""Cross-aggregate context the `adjust_run` decider validates against.
 
 `RunAdjustContext` is built by the `adjust_run` handler from
 `load_run` + `load_plan` + `load_practice` + `load_method` before

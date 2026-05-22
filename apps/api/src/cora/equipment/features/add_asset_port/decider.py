@@ -1,4 +1,4 @@
-"""Pure decider for the `AddAssetPort` command (Phase 5h).
+"""Pure decider for the `AddAssetPort` command.
 
 Two disqualifying conditions both surface as
 `AssetCannotAddPortError` with a diagnostic `reason`:

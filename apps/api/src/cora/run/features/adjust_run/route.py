@@ -1,4 +1,4 @@
-"""HTTP route for the `adjust_run` slice (Phase 6j).
+"""HTTP route for the `adjust_run` slice.
 
 Action endpoint at `POST /runs/{run_id}/adjust`. Body carries
 `parameter_patch`, `reason`, and optional `decided_by_decision_id`.

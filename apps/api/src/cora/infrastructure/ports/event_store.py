@@ -1,6 +1,6 @@
 """EventStore port: append + load events with optimistic concurrency.
 
-The Postgres adapter (Phase 1b) implements this against a single `events` table
+The Postgres adapter implements this against a single `events` table
 with `UNIQUE(stream_type, stream_id, version)` for optimistic concurrency. The
 load path returns raw stored events; callers fold them with their own evolver
 function.

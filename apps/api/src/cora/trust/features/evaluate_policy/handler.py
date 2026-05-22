@@ -1,6 +1,6 @@
 """Application handler for the `evaluate_policy` query slice.
 
-Cross-BC query-handler shape — same as `get_actor` (Phase 2b):
+Cross-BC query-handler shape — same as `get_actor`:
 
     1. authorize(principal_id, query_name, conduit) -> Allow | Deny
        (caller authz; no-op under AllowAllAuthorize until Phase 3e)

@@ -1,6 +1,6 @@
 """Postgres adapter implementing `ClearanceLookup` over `proj_safety_clearance_summary`.
 
-Consumed by Run BC's `start_run` handler (Phase 11a-c-3) via the
+Consumed by Run BC's `start_run` handler via the
 `Kernel.clearance_lookup` port. Reads the projection's UUID[] +
 status columns; returns every clearance whose bindings reference
 the Run's scope `(run_id, subject_id, asset_ids)`.

@@ -1,4 +1,4 @@
-"""Vertical slice for the `GetCalibration` query (Phase 12a-2)."""
+"""Vertical slice for the `GetCalibration` query."""
 
 from cora.calibration.features.get_calibration import tool
 from cora.calibration.features.get_calibration.handler import Handler, bind

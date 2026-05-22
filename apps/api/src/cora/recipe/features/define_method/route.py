@@ -39,7 +39,7 @@ class DefineMethodRequest(BaseModel):
     consistency: each Family id is NOT verified against the
     Family stream; mismatch surfaces at Plan binding (6e).
 
-    `needed_supplies` (Phase 10b) is optional; defaults to `[]` for
+    `needed_supplies` is optional; defaults to `[]` for
     backward-compat (pre-10b clients keep working). Each element is
     a Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.
     Asymmetric vs needed_families by design — see
@@ -74,7 +74,7 @@ class DefineMethodRequest(BaseModel):
             "Family ids this Method requires. May be empty. "
             "Eventual-consistency: ids are NOT verified against the "
             "Family stream at decide time; mismatch surfaces at "
-            "Plan binding (Phase 6e)."
+            "Plan binding."
         ),
     )
     needed_supplies: list[

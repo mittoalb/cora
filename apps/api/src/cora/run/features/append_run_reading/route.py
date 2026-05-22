@@ -1,4 +1,4 @@
-"""HTTP route for the `append_run_reading` slice (Phase 6f-5b).
+"""HTTP route for the `append_run_reading` slice.
 
 `POST /runs/{run_id}/readings` returns 200 OK with `{"event_count":
 N}` on success. Body shape carries a list of polymorphic Reading

@@ -71,7 +71,7 @@ class ProcedureRegistered:
     `parent_run_id` carries the optional Run binding (None for
     standalone procedures, set for Phase-of-Run procedures).
 
-    `capability_id` (Phase 10d-additive) is the optional cross-BC
+    `capability_id` is the optional cross-BC
     binding to the universal Capability template (Recipe BC 6k)
     this Procedure realizes as a Procedure-shaped executor. None for
     pre-10d Procedures and for ceremony Procedures with no template

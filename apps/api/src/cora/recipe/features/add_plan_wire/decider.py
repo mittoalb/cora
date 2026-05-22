@@ -1,4 +1,4 @@
-"""Pure decider for the `AddPlanWire` command (Phase 6h).
+"""Pure decider for the `AddPlanWire` command.
 
 Validation cascade (fail-fast, in order):
 

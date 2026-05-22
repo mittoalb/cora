@@ -1,6 +1,6 @@
 """Postgres adapter implementing `CautionLookup` over `proj_caution_summary`.
 
-Consumed by Run BC's `start_run` handler (Phase 11b-c) via the
+Consumed by Run BC's `start_run` handler via the
 `Kernel.caution_lookup` port. Reads the projection's
 `(target_kind, target_id, status, severity)` columns; returns every
 Active caution whose target references the Run's scope

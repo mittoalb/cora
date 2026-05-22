@@ -38,7 +38,7 @@ from uuid import UUID
 class RegisterProcedure:
     """Register a new episodic operational procedure (lands in `Defined`).
 
-    `capability_id` (Phase 10d-additive) is the optional cross-BC
+    `capability_id` is the optional cross-BC
     binding to the universal Capability template (Recipe BC 6k)
     this Procedure realizes. OPTIONAL by design: many ceremony
     Procedures (bakeouts, sample cleaning, calibration sweeps) have

@@ -24,7 +24,7 @@ Subscribed events:
   - MethodParametersSchemaUpdated  -> UPDATE parameters_schema_present
                                               (TRUE if parameters_schema is
                                               non-NULL; FALSE if cleared
-                                              via NULL) (Phase 6g-a)
+                                              via NULL)
 
 `versioned_at` / `deprecated_at` source: aggregate state stays minimal
 per Chassaing/Pellegrini/Reynhout decider-purity guidance; lifecycle

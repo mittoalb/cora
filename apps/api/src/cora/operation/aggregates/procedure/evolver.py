@@ -26,7 +26,7 @@ already sorted in `to_payload` for persistence determinism.
 
 **Critical invariant**: every transition arm MUST carry `id`, `name`,
 `kind`, `target_asset_ids`, `parent_run_id`, `steps_logbook_id`,
-AND `capability_id` (Phase 10d-additive) through from prior state.
+AND `capability_id` through from prior state.
 Constructing `Procedure(id=..., name=..., status=...)` without
 explicitly passing the additive fields would silently WIPE them to
 defaults (empty frozenset / None). Pinned by the per-transition

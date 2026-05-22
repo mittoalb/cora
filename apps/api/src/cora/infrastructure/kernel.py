@@ -58,7 +58,7 @@ class Kernel:
     their own `wire_<bc>(deps)` from this pool, keeping BC-specific
     stores out of the kernel.
 
-    `clearance_lookup` (Phase 11a-c-3): cross-BC port consumed by
+    `clearance_lookup`: cross-BC port consumed by
     Run BC's `start_run` handler to gate Run.start on the presence
     of an Active Safety Clearance covering the Run's scope. Safety
     BC ships `PostgresClearanceLookup` as the production adapter
@@ -69,7 +69,7 @@ class Kernel:
     adapter explicitly. Mirrors the `Authorize` / `AllowAllAuthorize`
     test-default pattern.
 
-    `caution_lookup` (Phase 11b-c): cross-BC port consumed by Run
+    `caution_lookup`: cross-BC port consumed by Run
     BC's `start_run` handler to snapshot operator-authored cautions
     onto the `RunStarted` event payload. Caution BC ships
     `PostgresCautionLookup` as the production adapter (reads

@@ -34,7 +34,7 @@ from cora.run.features.list_runs.query import ListRuns, RunStatusFilter
 class RunSummaryItem:
     """One row from the run projection.
 
-    `override_parameters_present` (Phase 6g-c) reflects whether
+    `override_parameters_present` reflects whether
     RunStarted's `override_parameters` payload was non-empty
     (operator customized parameters at start time). Default FALSE
     on legacy rows + on Runs started with no overrides. The full

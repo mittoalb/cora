@@ -1,4 +1,4 @@
-"""Pure decider for the `DefineCalibration` command (Phase 12a-2).
+"""Pure decider for the `DefineCalibration` command.
 
 Genesis-style decider: produces a `CalibrationDefined` event for a
 fresh stream. Identity-tuple uniqueness (no two Calibrations with the

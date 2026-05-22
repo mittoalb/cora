@@ -1,4 +1,4 @@
-"""Vertical slice for the `RemovePlanWire` command (Phase 6h).
+"""Vertical slice for the `RemovePlanWire` command.
 
 Module-as-namespace surface:
 

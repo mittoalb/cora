@@ -9,7 +9,7 @@ and event types. Two slice-local cross-aggregate context VOs:
   - `PromotionContext` at
     `cora.data.features.promote_dataset.context` — derived_from
     peers loaded at promotion-time for the lineage-must-be-Production
-    guard (Phase 7e).
+    guard.
 
 Phase 7e adds the trust-level dimension orthogonal to lifecycle:
 `Dataset.intent` (Trial | Production) flipped via the dedicated

@@ -1,4 +1,4 @@
-"""HTTP route for the `remove_plan_wire` slice (Phase 6h).
+"""HTTP route for the `remove_plan_wire` slice.
 
 Action endpoint at `POST /plans/{plan_id}/remove_wire`. Body
 carries the four port-reference fields (the Wire's identity).

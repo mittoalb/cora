@@ -1,4 +1,4 @@
-"""Cross-cutting idempotency decorator for command handlers (Phase 9a).
+"""Cross-cutting idempotency decorator for command handlers.
 
 `with_idempotency(handler, store, *, command_name, serialize_result,
 deserialize_result, lock_stale_seconds)` returns a wrapped handler

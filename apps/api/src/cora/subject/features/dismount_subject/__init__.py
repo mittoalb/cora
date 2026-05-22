@@ -1,4 +1,4 @@
-"""Vertical slice for the `DismountSubject` command (Phase 4f).
+"""Vertical slice for the `DismountSubject` command.
 
 Module-as-namespace surface:
 

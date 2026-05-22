@@ -1,4 +1,4 @@
-"""Pure decider for the `RemoveAssetPort` command (Phase 5h).
+"""Pure decider for the `RemoveAssetPort` command.
 
 Mirror of `add_asset_port.decide`. Two disqualifying conditions
 both surface as `AssetCannotRemovePortError`:

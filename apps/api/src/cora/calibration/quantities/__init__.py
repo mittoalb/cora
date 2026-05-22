@@ -36,7 +36,7 @@ from cora.calibration.quantities import detector_pixel_size, rotation_center
 
 
 class CalibrationQuantity(StrEnum):
-    """Closed catalog of supported calibration quantities (Phase 12a).
+    """Closed catalog of supported calibration quantities.
 
     Day-one set covers the 2-BM tomography pilot's load-bearing
     calibrations. Growth happens by PR per the Affordance enum precedent.

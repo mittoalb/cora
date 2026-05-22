@@ -4,7 +4,7 @@ Per ISA-99, a Policy is an authorization rule attached to a specific
 Conduit: it answers "may principal P issue command C via this
 Conduit". The Policy aggregate's `evaluate` function is the pure
 domain-level Policy Decision Point; the `TrustAuthorize` infra
-adapter (Phase 3e) wires it behind the cross-BC `Authorize` port.
+adapter wires it behind the cross-BC `Authorize` port.
 
 Phase 3c keeps Policy minimal:
   - `id` + `name`

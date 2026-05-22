@@ -29,14 +29,14 @@ from uuid import UUID
 class DefineMethod:
     """Define a new abstract technique-class recipe (Method).
 
-    `needed_supplies` (Phase 10b) is a frozenset of Supply.kind STRINGS
+    `needed_supplies` is a frozenset of Supply.kind STRINGS
     the Method requires (NOT Supply instance UUIDs). Methods are
     facility-portable; the kind label resolves to a per-facility
     Supply instance at Plan-bind time. Default empty frozenset
     (sample-cleaning Methods need no supplies). Same hashability +
     `_normalize_for_hash` story as needed_families.
 
-    `capability_id` (Phase 6l-strict) points to the universal
+    `capability_id` points to the universal
     Capability template (Recipe BC 6k) this Method realizes as a
     Method-shaped executor. REQUIRED per Pattern P from
     [[project-capability-aggregate-design]] DLM-B (was optional

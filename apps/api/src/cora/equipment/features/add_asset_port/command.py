@@ -1,4 +1,4 @@
-"""The `AddAssetPort` command — intent dataclass for this slice (Phase 5h).
+"""The `AddAssetPort` command — intent dataclass for this slice.
 
 `asset_id` is the target Asset aggregate. `port_name` is the
 operator-supplied port name (must be unique within the Asset's

@@ -30,7 +30,7 @@ class PlanSummaryRow(BaseModel):
     default_parameters_present: bool = Field(
         default=False,
         description=(
-            "True iff the Plan has default_parameters set (Phase 6g-b). "
+            "True iff the Plan has default_parameters set. "
             "The dict content itself is loaded on demand via `get_plan`."
         ),
     )

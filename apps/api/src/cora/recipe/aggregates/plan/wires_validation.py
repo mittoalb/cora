@@ -1,4 +1,4 @@
-"""Validate a `Wire` against the Plan's bound Assets and their ports (Phase 6h).
+"""Validate a `Wire` against the Plan's bound Assets and their ports.
 
 This is a structural / relational validator, NOT an instance of the
 schema-validated-values pattern (no JSON Schema involved). The

@@ -145,7 +145,7 @@ class Conduit:
     """Aggregate root: a governed comms path between two Trust zones.
 
     `logbooks` maps logbook kind → currently-open logbook id for each
-    observation logbook attached to this Conduit (Phase 6f-5a). The
+    observation logbook attached to this Conduit. The
     dict shape encodes the at-most-one-open-per-kind invariant: the
     evolver raises `ConduitLogbookAlreadyOpenError` on any attempt to
     open a second logbook of an existing kind. Empty for newly-defined

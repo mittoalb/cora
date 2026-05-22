@@ -1,5 +1,5 @@
 """Validate Plan.default_parameters against the owning Method's
-parameters_schema (Phase 6g-b).
+parameters_schema.
 
 The 6g-a Method-side checker validates the SHAPE of the schema
 itself. This module validates VALUES against that schema by

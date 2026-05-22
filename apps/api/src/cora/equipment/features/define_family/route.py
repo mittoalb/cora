@@ -35,7 +35,7 @@ class DefineFamilyRequest(BaseModel):
         ...,
         description=(
             "Closed-enum set of device-level operational primitives this "
-            "Family supports (Phase 5j). Required at definition time; "
+            "Family supports. Required at definition time: "
             "supply `[]` explicitly when no v1 Affordance applies. "
             "Deduplicated server-side. See "
             "`cora.equipment.aggregates.family.affordance.Affordance` for "

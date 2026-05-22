@@ -111,7 +111,7 @@ PROCEDURE_TRUNCATE_REASON_MAX_LENGTH = 500
 
 # Phase 10c-b: per-Procedure step logbook constants.
 LOGBOOK_KIND_STEPS = "steps"
-"""Discriminator for the Procedure's per-step logbook (Phase 10c-b).
+"""Discriminator for the Procedure's per-step logbook.
 
 Used as the `kind` value on `ProcedureStepsLogbookOpened` events. One
 Procedure has at most one steps logbook (lazy open-on-first-write);
@@ -290,8 +290,8 @@ class ProcedureCapabilityExecutorMismatchError(Exception):
     """Procedure.capability_id points at a Capability whose executor_shapes
     do not include Procedure (Phase 10d cross-BC guard).
 
-    Mapped to HTTP 409. Mirrors `MethodCapabilityExecutorMismatchError`
-    (Phase 6l-additive). Surfaces when register_procedure binds to a
+    Mapped to HTTP 409. Mirrors `MethodCapabilityExecutorMismatchError`.
+    Surfaces when register_procedure binds to a
     Capability that only declares `ExecutorShape.METHOD`.
     """
 

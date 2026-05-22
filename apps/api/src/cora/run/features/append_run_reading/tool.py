@@ -1,4 +1,4 @@
-"""MCP tool for the `append_run_reading` slice (Phase 6f-5b)."""
+"""MCP tool for the `append_run_reading` slice."""
 
 from collections.abc import Callable
 from datetime import datetime

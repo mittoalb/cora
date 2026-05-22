@@ -1,1 +1,1 @@
-"""Calibration BC aggregates (Phase 12a)."""
+"""Calibration BC aggregates."""

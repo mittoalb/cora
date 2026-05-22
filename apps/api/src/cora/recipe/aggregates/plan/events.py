@@ -120,7 +120,7 @@ class PlanDeprecated:
 
 @dataclass(frozen=True)
 class PlanWireAdded:
-    """A typed Wire was added to a Plan's wire set (Phase 6h).
+    """A typed Wire was added to a Plan's wire set.
 
     Single-wire event (not bulk-add); mirrors `AssetPortAdded` shape
     from 5h. Audit value: "when did this Plan gain the connection
@@ -147,7 +147,7 @@ class PlanWireAdded:
 
 @dataclass(frozen=True)
 class PlanWireRemoved:
-    """A typed Wire was removed from a Plan's wire set (Phase 6h).
+    """A typed Wire was removed from a Plan's wire set.
 
     Mirror of `PlanWireAdded`. Carries all 4 endpoint components
     because the Wire's identity IS the 4-tuple (no shorter unique
@@ -164,7 +164,7 @@ class PlanWireRemoved:
 
 @dataclass(frozen=True)
 class PlanDefaultParametersUpdated:
-    """The Plan's parameter defaults were updated (Phase 6g-b).
+    """The Plan's parameter defaults were updated.
 
     `default_parameters` is the POST-merge dict (RFC 7396 PATCH
     applied at the slice layer; the event payload carries the

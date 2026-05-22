@@ -1,5 +1,5 @@
 """Validate Method.parameters_schema against CORA's constrained
-JSON Schema subset (Phase 6g-a).
+JSON Schema subset.
 
 Method.parameters_schema declares the shape of parameter dicts that
 downstream Plans (6g-b) and Runs (6g-c) carry for this Method. This

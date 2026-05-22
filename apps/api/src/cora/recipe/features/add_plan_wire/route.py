@@ -1,4 +1,4 @@
-"""HTTP route for the `add_plan_wire` slice (Phase 6h).
+"""HTTP route for the `add_plan_wire` slice.
 
 Action endpoint at `POST /plans/{plan_id}/add_wire`. Body carries
 the four port-reference fields. 204 No Content on success. Same

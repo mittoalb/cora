@@ -1,4 +1,4 @@
-"""Slice: read the current state of a Capability by id (Phase 6k)."""
+"""Slice: read the current state of a Capability by id."""
 
 from cora.recipe.features.get_capability import tool
 from cora.recipe.features.get_capability.handler import CapabilityView, Handler, bind

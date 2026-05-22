@@ -29,7 +29,7 @@ the event log (folded events have already passed their decider).
 Transition events applied to empty state raise `ValueError` via the
 shared `require_state` helper at `cora.infrastructure.evolver`.
 
-Membership mutation arms (Phase 6i-c) preserve `status` and
+Membership mutation arms preserve `status` and
 `last_status_reason` (membership mutations are NOT status transitions
 per design memo lock).
 """

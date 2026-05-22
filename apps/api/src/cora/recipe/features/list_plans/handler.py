@@ -33,7 +33,7 @@ class PlanSummaryItem:
 
     `default_parameters_present` reflects whether the most recent
     `PlanDefaultParametersUpdated` event for this Plan carried a
-    non-empty default_parameters dict (Phase 6g-b). Default FALSE on
+    non-empty default_parameters dict. Default FALSE on
     legacy rows + on Plans that have never had
     `update_plan_default_parameters` called. The defaults dict
     itself is not in this projection (load on demand via `get_plan`).

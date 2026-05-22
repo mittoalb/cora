@@ -1,6 +1,6 @@
 """CautionLookup port: cross-BC query for Caution BC's active-cautions projection.
 
-Used by Run BC's `start_run` handler (Phase 11b-c) to surface
+Used by Run BC's `start_run` handler to surface
 operator-authored cautions whose target references the Run's scope
 `(asset_ids, procedure_ids)` as a snapshot on the `RunStarted` event
 payload. The snapshot serves three purposes (per the Caution design

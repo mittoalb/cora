@@ -185,7 +185,7 @@ class CampaignAbandoned:
 
 @dataclass(frozen=True)
 class CampaignRunAdded:
-    """A Run was added to this Campaign (Phase 6i-c).
+    """A Run was added to this Campaign.
 
     Written to the Campaign's stream by the cross-aggregate
     `add_run_to_campaign` slice, atomically alongside
@@ -207,7 +207,7 @@ class CampaignRunAdded:
 
 @dataclass(frozen=True)
 class CampaignRunRemoved:
-    """A Run was removed from this Campaign (Phase 6i-c).
+    """A Run was removed from this Campaign.
 
     Written to the Campaign's stream by the cross-aggregate
     `remove_run_from_campaign` slice, atomically alongside

@@ -1,4 +1,4 @@
-"""Application handler for the `promote_dataset` slice (Phase 7e).
+"""Application handler for the `promote_dataset` slice.
 
 Update-style handler that loads the Dataset stream PLUS each Dataset
 in `state.derived_from` (for the lineage-must-be-Production guard).

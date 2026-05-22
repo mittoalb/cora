@@ -165,7 +165,7 @@ router = APIRouter(tags=["run"])
             "model": ErrorResponse,
             "description": (
                 "Referenced Plan, Practice (via Plan), Method (via "
-                "Practice), Asset (via Plan), Subject, or (Phase 6i-c) "
+                "Practice), Asset (via Plan), Subject, or "
                 "Campaign (when campaign_id supplied) does not exist."
             ),
         },
@@ -175,7 +175,7 @@ router = APIRouter(tags=["run"])
                 "Run-start rejected: Plan is Deprecated, Subject is not "
                 "in Mounted or Measured, a bound Asset is Decommissioned, "
                 "the bound Assets' current capabilities don't cover "
-                "the Method's needed_families, OR (Phase 6i-c) the "
+                "the Method's needed_families, OR the "
                 "supplied Campaign is in a terminal status (Closed / "
                 "Abandoned) and refuses new members."
             ),

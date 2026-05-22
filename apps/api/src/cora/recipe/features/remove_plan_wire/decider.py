@@ -1,4 +1,4 @@
-"""Pure decider for the `RemovePlanWire` command (Phase 6h).
+"""Pure decider for the `RemovePlanWire` command.
 
 Mirror of `add_plan_wire.decide` minus the cross-aggregate validation:
 

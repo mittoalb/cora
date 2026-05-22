@@ -98,7 +98,7 @@ the `latest-in-chain
 wins` projection rule (documented in this BC's `__init__.py`).
 
 See `Decision.ratings` for the additive operator-rating annotation
-channel (Phase 8f-b); rating accrual does NOT change decision
+channel; rating accrual does NOT change decision
 facts and is folded latest-per-actor wins into the aggregate
 state. The atomic-immutability stance applies to the choice /
 reasoning / confidence / decision_inputs fields; ratings are an
@@ -261,7 +261,7 @@ CAUTION_PROPOSAL_CHOICES: Final = frozenset(
 # `ConfidenceCalibrator` adoption trigger that consumes the (rating,
 # context, confidence_at_emit_time) corpus this event accrues.
 class DecisionRating(StrEnum):
-    """How an operator rates a Decision after the fact (Phase 8f-b)."""
+    """How an operator rates a Decision after the fact."""
 
     USEFUL = "useful"
     MISLEADING = "misleading"
@@ -788,7 +788,7 @@ def validate_reasoning_signature(value: str | None) -> str | None:
 
 
 def validate_decision_rating_comment(value: str | None) -> str | None:
-    """Trim + bound-check the optional rating comment (Phase 8f-b).
+    """Trim + bound-check the optional rating comment.
 
     Returns None for None input (operator omitted the comment).
     Raises `InvalidDecisionRatingCommentError` for empty /
@@ -864,7 +864,7 @@ def has_determining_policies(decision: "Decision") -> bool:
 
 @dataclass(frozen=True)
 class DecisionRatingRecord:
-    """One operator's latest rating of a Decision (Phase 8f-b).
+    """One operator's latest rating of a Decision.
 
     Held in `Decision.ratings: dict[UUID, DecisionRatingRecord]`
     keyed by `rated_by_actor_id`. Multiple `DecisionRated` events
@@ -891,7 +891,7 @@ class Decision:
     explaining the transition. The 'current' Decision in a chain is
     the latest entry (latest-in-chain wins).
 
-    Operator ratings (Phase 8f-b) are an ADDITIVE annotation channel:
+    Operator ratings are an ADDITIVE annotation channel:
     they do NOT change the decision facts; they accrue alongside in
     `ratings` for downstream calibration consumption. Latest-per-
     actor wins (the audit trail keeps all rating events).

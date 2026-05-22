@@ -136,7 +136,7 @@ class Settings(BaseSettings):
     # whole Settings surface is repr-safe.
     anthropic_api_key: SecretStr | None = None
 
-    # Idempotency (Phase 9a)
+    # Idempotency
     # `idempotency_ttl_hours` is read by the pruner background task
     # which periodically deletes idempotency_keys rows older than this.
     # Stripe's industry default is 24h; clients are expected to retry

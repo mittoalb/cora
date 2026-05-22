@@ -1,4 +1,4 @@
-"""Vertical slice for the `AdjustRun` command (Phase 6j).
+"""Vertical slice for the `AdjustRun` command.
 
 Module-as-namespace surface, symmetric with the other Run slices:
 

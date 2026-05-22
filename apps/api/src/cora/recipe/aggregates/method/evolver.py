@@ -45,7 +45,7 @@ the existing `version` preservation tests, 6g-a's
 `test_evolve_<transition>_preserves_parameters_schema`, and 10b's
 `test_evolve_<transition>_preserves_needed_supplies` cases.
 
-`needed_supplies` (Phase 10b) is converted from `list[str]` (event
+`needed_supplies` is converted from `list[str]` (event
 payload) to `frozenset[str]` (state) here. Order doesn't matter at
 the state layer (set semantics); the payload sorted lexically in
 `to_payload` for persistence determinism.

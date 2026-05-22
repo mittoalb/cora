@@ -1,4 +1,4 @@
-"""The `RemoveAssetPort` command — intent dataclass for this slice (Phase 5h)."""
+"""The `RemoveAssetPort` command — intent dataclass for this slice."""
 
 from dataclasses import dataclass
 from uuid import UUID

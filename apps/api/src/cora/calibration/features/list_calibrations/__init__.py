@@ -1,4 +1,4 @@
-"""Vertical slice for the `ListCalibrations` query (Phase 12a-2).
+"""Vertical slice for the `ListCalibrations` query.
 
 Cursor-paginated; backed by `proj_calibration_summary`.
 """

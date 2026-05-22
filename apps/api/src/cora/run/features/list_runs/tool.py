@@ -30,7 +30,7 @@ class RunSummaryRow(BaseModel):
         default=False,
         description=(
             "True iff the Run was started with operator-supplied "
-            "override_parameters (Phase 6g-c). The full overrides + "
+            "override_parameters. The full overrides + "
             "effective_parameters dicts are loaded on demand via `get_run`."
         ),
     )
@@ -85,7 +85,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ] = None,
         campaign_id: Annotated[
             UUID | None,
-            Field(description="Optional Campaign-id filter (Phase 6i-c)."),
+            Field(description="Optional Campaign-id filter."),
         ] = None,
     ) -> RunListOutput:
         handler = get_handler()

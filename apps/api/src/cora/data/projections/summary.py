@@ -15,7 +15,7 @@ never change; the discard UPDATE only touches `status`. The audit
 trail of "what was the producing Run / Subject / cited calibrations
 for this discarded Dataset" stays visible in the projection.
 
-`used_calibrations` (Phase 12c-2) surfaces the AsShot citation set
+`used_calibrations` surfaces the AsShot citation set
 on the read model so downstream consumers (operator dashboards,
 future Decision-derived advisories, agent subscribers) can query
 "which reconstructions cited CalibrationRevision X" via the GIN-

@@ -1,4 +1,4 @@
-"""Pure decider for the `PromoteDataset` command (Phase 7e).
+"""Pure decider for the `PromoteDataset` command.
 
 Validation cascade (fail-fast in this order; cheap rejections first):
 

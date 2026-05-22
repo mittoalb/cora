@@ -1,4 +1,4 @@
-"""Vertical slice for the `AppendRevision` command (Phase 12a-2).
+"""Vertical slice for the `AppendRevision` command.
 
 Append-only revision growth on an existing Calibration. Idempotency-
 Key wrapped per the design memo (agent-subscriber caller pattern

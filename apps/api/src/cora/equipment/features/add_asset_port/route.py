@@ -1,4 +1,4 @@
-"""HTTP route for the `add_asset_port` slice (Phase 5h).
+"""HTTP route for the `add_asset_port` slice.
 
 Action endpoint at `POST /assets/{asset_id}/add_port`. Body
 carries `port_name`, `direction` (Input/Output), `signal_type`.

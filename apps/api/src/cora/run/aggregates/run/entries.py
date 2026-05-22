@@ -1,4 +1,4 @@
-"""RunReading entry: per-Run sensor / motor reading row (Phase 6f-5b).
+"""RunReading entry: per-Run sensor / motor reading row.
 
 Third concrete entry kind in CORA after `ConduitTraversal` (6f-5a)
 and `DecisionReasoning` (8c-b). Mirrors the same per-category writer

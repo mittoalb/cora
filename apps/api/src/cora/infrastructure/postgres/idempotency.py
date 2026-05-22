@@ -1,4 +1,4 @@
-"""Postgres-backed `IdempotencyStore` adapter (Phase 9a).
+"""Postgres-backed `IdempotencyStore` adapter.
 
 Implements the new port surface (`claim`, `finalize_success`,
 `finalize_error`, `prune`) on top of the `idempotency_keys` table.
@@ -88,7 +88,7 @@ WHERE created_at < now() - make_interval(hours => $1::int)
 
 
 class PostgresIdempotencyStore:
-    """asyncpg-backed `IdempotencyStore` implementation (Phase 9a)."""
+    """asyncpg-backed `IdempotencyStore` implementation."""
 
     def __init__(self, pool: asyncpg.Pool) -> None:
         self._pool = pool

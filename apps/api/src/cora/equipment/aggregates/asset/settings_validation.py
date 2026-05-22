@@ -1,4 +1,4 @@
-"""Cross-Family validation for Asset.settings (Phase 5g-c).
+"""Cross-Family validation for Asset.settings.
 
 `validate_settings_against_families(settings, families)`:
 union all assigned Capabilities' settings_schemas (5g-a) and validate

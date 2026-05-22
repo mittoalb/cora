@@ -1,4 +1,4 @@
-"""MCP tool-handler principal resolver (Phase 8f-d).
+"""MCP tool-handler principal resolver.
 
 Every MCP tool's `register()` closure calls `get_mcp_principal_id(ctx)`
 to resolve the calling principal's UUID, mirroring the HTTP-side

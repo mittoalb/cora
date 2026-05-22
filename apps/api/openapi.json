@@ -94,7 +94,7 @@
         "type": "object"
       },
       "ActorResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format from\nthe domain model so the two can evolve independently (for example\nan ActorName invariant change doesn't break older clients).\n\n`kind` (Phase 8f-a) distinguishes human-registered Actors from\nagent-co-registered Actors (via the Agent BC `define_agent`\ncross-BC atomic write). Existing consumers that don't read `kind`\nare unaffected; consumers that need the distinction (Decision\nprojections, audit-policy filters) gain it without polymorphism.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format from\nthe domain model so the two can evolve independently (for example\nan ActorName invariant change doesn't break older clients).\n\n`kind` distinguishes human-registered Actors from\nagent-co-registered Actors (via the Agent BC `define_agent`\ncross-BC atomic write). Existing consumers that don't read `kind`\nare unaffected; consumers that need the distinction (Decision\nprojections, audit-policy filters) gain it without polymorphism.",
         "properties": {
           "id": {
             "format": "uuid",
@@ -1370,7 +1370,7 @@
         "type": "object"
       },
       "CalibrationQuantity": {
-        "description": "Closed catalog of supported calibration quantities (Phase 12a).\n\nDay-one set covers the 2-BM tomography pilot's load-bearing\ncalibrations. Growth happens by PR per the Affordance enum precedent.\n\nString values are stable-by-design (event payloads carry them\nverbatim); renaming a value would orphan stored events. The enum\nmember name follows SCREAMING_SNAKE_CASE; the value follows\nsnake_case to match jsonb-key conventions in operating_point and\nvalue dicts.",
+        "description": "Closed catalog of supported calibration quantities.\n\nDay-one set covers the 2-BM tomography pilot's load-bearing\ncalibrations. Growth happens by PR per the Affordance enum precedent.\n\nString values are stable-by-design (event payloads carry them\nverbatim); renaming a value would orphan stored events. The enum\nmember name follows SCREAMING_SNAKE_CASE; the value follows\nsnake_case to match jsonb-key conventions in operating_point and\nvalue dicts.",
         "enum": [
           "rotation_center",
           "detector_pixel_size"
@@ -3009,7 +3009,7 @@
         "type": "object"
       },
       "DecisionRating": {
-        "description": "How an operator rates a Decision after the fact (Phase 8f-b).",
+        "description": "How an operator rates a Decision after the fact.",
         "enum": [
           "useful",
           "misleading",
@@ -3544,7 +3544,7 @@
         "description": "Body for `POST /families`.",
         "properties": {
           "affordances": {
-            "description": "Closed-enum set of device-level operational primitives this Family supports (Phase 5j). Required at definition time; supply `[]` explicitly when no v1 Affordance applies. Deduplicated server-side. See `cora.equipment.aggregates.family.affordance.Affordance` for the 28-item closed enum and the 3-pattern rule.",
+            "description": "Closed-enum set of device-level operational primitives this Family supports. Required at definition time: supply `[]` explicitly when no v1 Affordance applies. Deduplicated server-side. See `cora.equipment.aggregates.family.affordance.Affordance` for the 28-item closed enum and the 3-pattern rule.",
             "items": {
               "$ref": "#/components/schemas/Affordance"
             },
@@ -3582,7 +3582,7 @@
         "type": "object"
       },
       "DefineMethodRequest": {
-        "description": "Body for `POST /methods`.\n\n`needed_families` is required (use `[]` for procedural\nMethods that need no specific equipment family). Eventual-\nconsistency: each Family id is NOT verified against the\nFamily stream; mismatch surfaces at Plan binding (6e).\n\n`needed_supplies` (Phase 10b) is optional; defaults to `[]` for\nbackward-compat (pre-10b clients keep working). Each element is\na Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.\nAsymmetric vs needed_families by design \u2014 see\n[[project_supply_design]] \u00a7\"Phase 10b \u2014 Method.needed_supplies\nconsumer\" for the rationale (Family is TYPE registry,\nSupply is INSTANCE aggregate per facility sharing a `kind` label).\nEventual-consistency: kind strings are NOT verified against the\nSupply stream; mismatch surfaces at Plan binding (10c+).",
+        "description": "Body for `POST /methods`.\n\n`needed_families` is required (use `[]` for procedural\nMethods that need no specific equipment family). Eventual-\nconsistency: each Family id is NOT verified against the\nFamily stream; mismatch surfaces at Plan binding (6e).\n\n`needed_supplies` is optional; defaults to `[]` for\nbackward-compat (pre-10b clients keep working). Each element is\na Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.\nAsymmetric vs needed_families by design \u2014 see\n[[project_supply_design]] \u00a7\"Phase 10b \u2014 Method.needed_supplies\nconsumer\" for the rationale (Family is TYPE registry,\nSupply is INSTANCE aggregate per facility sharing a `kind` label).\nEventual-consistency: kind strings are NOT verified against the\nSupply stream; mismatch surfaces at Plan binding (10c+).",
         "properties": {
           "capability_id": {
             "description": "Universal Capability template (Recipe BC 6k) this Method realizes as a Method-shaped executor. REQUIRED per Pattern P (6l-strict). The bound Capability must declare `Method` in its executor_shapes set; otherwise 409. Eventual-consistency: the Capability stream is loaded at handler time, not API-boundary time \u2014 a missing stream surfaces as 404 via CapabilityNotFoundError.",
@@ -3598,7 +3598,7 @@
             "type": "string"
           },
           "needed_families": {
-            "description": "Family ids this Method requires. May be empty. Eventual-consistency: ids are NOT verified against the Family stream at decide time; mismatch surfaces at Plan binding (Phase 6e).",
+            "description": "Family ids this Method requires. May be empty. Eventual-consistency: ids are NOT verified against the Family stream at decide time; mismatch surfaces at Plan binding.",
             "items": {
               "format": "uuid",
               "type": "string"
@@ -3759,7 +3759,7 @@
         "description": "Body for `POST /practices`.",
         "properties": {
           "method_id": {
-            "description": "Method id this Practice adapts. Eventual-consistency: existence is NOT verified against the Method stream at decide time; mismatch surfaces at Plan binding (Phase 6e).",
+            "description": "Method id this Practice adapts. Eventual-consistency: existence is NOT verified against the Method stream at decide time; mismatch surfaces at Plan binding.",
             "format": "uuid",
             "title": "Method Id",
             "type": "string"
@@ -4662,7 +4662,7 @@
         "type": "object"
       },
       "MethodResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`needed_families` is sorted by UUID string form.\n`needed_supplies` (Phase 10b) is sorted lexically by kind string;\nSupply.kind values (NOT instance UUIDs).\n`status` is the StrEnum's string value (Defined / Versioned /\nDeprecated). `version` is the operator-supplied label of the most\nrecent version_method call (null until first version).\n`created_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C, audit-2026-05-20). Null\nsemantics under eventual consistency: read together with `status`.\nIf `status >= Defined` but `created_at` is null, the projection\nhas not yet folded `MethodDefined` (transient lag). If\n`status == Versioned` but `versioned_at` is null, the projection\nhas not yet folded the latest `MethodVersioned`. If\n`status == Deprecated` but `deprecated_at` is null, the projection\nhas not yet folded `MethodDeprecated`. A 404 means the Method\naggregate itself does not exist (fold-on-read miss); a 200 with\nnull timestamps always means projection lag, never a missing\ntransition.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`needed_families` is sorted by UUID string form.\n`needed_supplies` is sorted lexically by kind string;\nSupply.kind values (NOT instance UUIDs).\n`status` is the StrEnum's string value (Defined / Versioned /\nDeprecated). `version` is the operator-supplied label of the most\nrecent version_method call (null until first version).\n`created_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C, audit-2026-05-20). Null\nsemantics under eventual consistency: read together with `status`.\nIf `status >= Defined` but `created_at` is null, the projection\nhas not yet folded `MethodDefined` (transient lag). If\n`status == Versioned` but `versioned_at` is null, the projection\nhas not yet folded the latest `MethodVersioned`. If\n`status == Deprecated` but `deprecated_at` is null, the projection\nhas not yet folded `MethodDeprecated`. A 404 means the Method\naggregate itself does not exist (fold-on-read miss); a 200 with\nnull timestamps always means projection lag, never a missing\ntransition.",
         "properties": {
           "created_at": {
             "anyOf": [
@@ -5073,7 +5073,7 @@
           },
           "default_parameters_present": {
             "default": false,
-            "description": "True iff the most recent `PlanDefaultParametersUpdated` event for this Plan carried a non-empty default_parameters dict (Phase 6g-b). The dict content itself is loaded on demand.",
+            "description": "True iff the most recent `PlanDefaultParametersUpdated` event for this Plan carried a non-empty default_parameters dict. The dict content itself is loaded on demand.",
             "title": "Default Parameters Present",
             "type": "boolean"
           },
@@ -6509,7 +6509,7 @@
             "type": "string"
           },
           "used_calibrations": {
-            "description": "Optional list of CalibrationRevision ids the reconstruction (or any derivative) actually used (Calibration BC AsShot citation per Phase 12c). Symmetric to Run.pinned_calibrations (Phase 12b) on the acquired-from Run; the two sets are independent \u2014 reconstruction may legitimately cite refined revisions not in the producing Run's pin set (Current vs AsShot pattern). NO cross-BC existence check at the write path (revision-cited atomic-ID model; eventual-consistency stance per [[project_calibration_design]]). IMMUTABLE on the aggregate after register. Order on the wire is not significant \u2014 the aggregate carries a frozenset; the decider sorts for deterministic event-payload bytes.",
+            "description": "Optional list of CalibrationRevision ids the reconstruction (or any derivative) actually used (Calibration BC AsShot citation pattern). Symmetric to Run.pinned_calibrations on the acquired-from Run; the two sets are independent \u2014 reconstruction may legitimately cite refined revisions not in the producing Run's pin set (Current vs AsShot pattern). NO cross-BC existence check at the write path (revision-cited atomic-ID model; eventual-consistency stance per [[project_calibration_design]]). IMMUTABLE on the aggregate after register. Order on the wire is not significant \u2014 the aggregate carries a frozenset; the decider sorts for deterministic event-payload bytes.",
             "items": {
               "format": "uuid",
               "type": "string"
@@ -20566,7 +20566,7 @@
                 }
               }
             },
-            "description": "Referenced Plan, Practice (via Plan), Method (via Practice), Asset (via Plan), Subject, or (Phase 6i-c) Campaign (when campaign_id supplied) does not exist."
+            "description": "Referenced Plan, Practice (via Plan), Method (via Practice), Asset (via Plan), Subject, or Campaign (when campaign_id supplied) does not exist."
           },
           "409": {
             "content": {
@@ -20576,7 +20576,7 @@
                 }
               }
             },
-            "description": "Run-start rejected: Plan is Deprecated, Subject is not in Mounted or Measured, a bound Asset is Decommissioned, the bound Assets' current capabilities don't cover the Method's needed_families, OR (Phase 6i-c) the supplied Campaign is in a terminal status (Closed / Abandoned) and refuses new members."
+            "description": "Run-start rejected: Plan is Deprecated, Subject is not in Mounted or Measured, a bound Asset is Decommissioned, the bound Assets' current capabilities don't cover the Method's needed_families, OR the supplied Campaign is in a terminal status (Closed / Abandoned) and refuses new members."
           },
           "422": {
             "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."

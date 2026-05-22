@@ -1,4 +1,4 @@
-"""Slice: deprecate an existing Capability (Phase 6k)."""
+"""Slice: deprecate an existing Capability."""
 
 from cora.recipe.features.deprecate_capability import tool
 from cora.recipe.features.deprecate_capability.command import DeprecateCapability

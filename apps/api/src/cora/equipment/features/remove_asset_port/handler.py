@@ -1,4 +1,4 @@
-"""Application handler for the `remove_asset_port` slice (Phase 5h)."""
+"""Application handler for the `remove_asset_port` slice."""
 
 from typing import Protocol
 from uuid import UUID

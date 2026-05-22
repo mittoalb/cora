@@ -1,4 +1,4 @@
-"""Vertical slice for the `AppendRunReadings` command (Phase 6f-5b).
+"""Vertical slice for the `AppendRunReadings` command.
 
 Module-as-namespace surface:
 

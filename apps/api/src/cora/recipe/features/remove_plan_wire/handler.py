@@ -1,4 +1,4 @@
-"""Application handler for the `remove_plan_wire` slice (Phase 6h).
+"""Application handler for the `remove_plan_wire` slice.
 
 Update-style handler: load + fold + decide + append. Loads ONLY the
 Plan stream (no Asset loads needed; removal doesn't need cross-

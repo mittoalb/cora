@@ -1,4 +1,4 @@
-"""Vertical slice for the `RemoveAssetPort` command (Phase 5h).
+"""Vertical slice for the `RemoveAssetPort` command.
 
 Mirror of `add_asset_port`. Removes a port by name; rejects when
 the asset is Decommissioned or no port with that name exists.

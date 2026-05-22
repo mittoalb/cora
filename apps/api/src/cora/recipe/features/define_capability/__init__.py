@@ -1,6 +1,6 @@
 """Slice: define a new Capability.
 
-Vertical slice (Phase 6k). Mirrors `define_family` (Equipment BC,
+Vertical slice. Mirrors `define_family` (Equipment BC,
 5j) and `define_method` (Recipe BC, 6a) in shape and discipline.
 """
 

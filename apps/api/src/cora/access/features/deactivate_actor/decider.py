@@ -12,7 +12,7 @@ Unlike the create-style register_actor decider, no `new_id` is injected
 (we operate on an existing aggregate whose id the command already
 carries). `now` is still injected from the Clock port at handler time.
 
-## Orthogonality with agent-kind Actors (Phase 8f-a)
+## Orthogonality with agent-kind Actors
 
 `deactivate_actor` accepts ANY Actor regardless of `kind`. For
 agent-kind Actors (those co-registered by `define_agent` in the

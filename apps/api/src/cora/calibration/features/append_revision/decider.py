@@ -1,4 +1,4 @@
-"""Pure decider for the `AppendRevision` command (Phase 12a-2).
+"""Pure decider for the `AppendRevision` command.
 
 Append-only growth: takes the loaded Calibration state (loaded by the
 handler) and produces a single `CalibrationRevisionAppended` event.

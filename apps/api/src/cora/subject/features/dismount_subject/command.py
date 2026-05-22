@@ -1,4 +1,4 @@
-"""The `DismountSubject` command — intent dataclass for this slice (Phase 4f).
+"""The `DismountSubject` command — intent dataclass for this slice.
 
 `subject_id` is the target Subject aggregate. `reason` is operator-
 supplied free text (1-500 chars) captured on the

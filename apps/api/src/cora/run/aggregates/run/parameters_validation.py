@@ -1,6 +1,6 @@
 """Validate Run effective_parameters against the owning Method's
-parameters_schema (Phase 6g-c) and validate adjusted parameters
-against the schema for steering slices (Phase 6j).
+parameters_schema and validate adjusted parameters
+against the schema for steering slices.
 
 The 6g-a Method-side checker validates the SHAPE of the schema
 itself. The 6g-b Plan-side validator validates DEFAULTS. This

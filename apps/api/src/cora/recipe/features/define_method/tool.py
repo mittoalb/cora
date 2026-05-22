@@ -36,7 +36,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             "Define a new abstract technique-class recipe (Method). "
             "needed_families is a list of Family ids the Method "
             "requires; may be empty for purely procedural Methods. "
-            "needed_supplies (Phase 10b) is a list of Supply.kind STRINGS "
+            "needed_supplies is a list of Supply.kind STRINGS "
             "(for example 'PhotonBeam', 'LiquidNitrogen'); may be empty."
         ),
     )

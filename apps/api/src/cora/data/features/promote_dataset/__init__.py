@@ -1,4 +1,4 @@
-"""Vertical slice for the `PromoteDataset` command (Phase 7e).
+"""Vertical slice for the `PromoteDataset` command.
 
 Module-as-namespace surface:
 

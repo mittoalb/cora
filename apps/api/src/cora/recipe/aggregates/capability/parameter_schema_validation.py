@@ -1,5 +1,5 @@
 """Validate Capability.parameter_schema against CORA's constrained
-JSON Schema subset (Phase 6k).
+JSON Schema subset.
 
 Capability.parameter_schema declares the DECLARATIVE CONTRACT for
 the parameters any implementer (Method via 6l, Procedure via 10d)

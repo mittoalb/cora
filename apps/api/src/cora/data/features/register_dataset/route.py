@@ -145,8 +145,8 @@ class RegisterDatasetRequest(BaseModel):
         description=(
             "Optional list of CalibrationRevision ids the reconstruction "
             "(or any derivative) actually used (Calibration BC AsShot "
-            "citation per Phase 12c). Symmetric to Run.pinned_calibrations "
-            "(Phase 12b) on the acquired-from Run; the two sets are "
+            "citation pattern). Symmetric to Run.pinned_calibrations "
+            "on the acquired-from Run; the two sets are "
             "independent — reconstruction may legitimately cite refined "
             "revisions not in the producing Run's pin set (Current vs "
             "AsShot pattern). NO cross-BC existence check at the write "

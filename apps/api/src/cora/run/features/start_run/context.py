@@ -24,7 +24,7 @@ Slice-local module by design: only `start_run` uses it today.
     Decider rejects if any is Decommissioned, and re-validates
     capability superset against current Asset state (drift since
     Plan-bind is real; Run is the last gate).
-  - `referencing_clearances` (Phase 11a-c-3): every Safety clearance
+  - `referencing_clearances`: every Safety clearance
     whose bindings reference this Run's scope (run_id, subject_id,
     asset_ids), regardless of status. Loaded by the handler via
     `deps.clearance_lookup.find_referencing_run(...)` against the
@@ -32,7 +32,7 @@ Slice-local module by design: only `start_run` uses it today.
     on `status == "Active"` to distinguish "no clearance at all"
     (`RunRequiresActiveClearanceError`) from "clearance exists but
     none Active" (`RunClearanceCoverageMismatchError`).
-  - `active_cautions` (Phase 11b-c): every Active Caution whose
+  - `active_cautions`: every Active Caution whose
     target references the Run's scope (asset_ids + a future
     procedure_ids when a procedure-driven run shape lands). Loaded
     by the handler via
@@ -71,9 +71,9 @@ class RunStartContext:
     status; the decider applies the Active-coverage check.
     `active_cautions` carries every Active Caution attached to the
     Run's scope; the decider does NOT gate on this field, only
-    embeds it on the `RunStarted` event payload (Phase 11b-c).
+    embeds it on the `RunStarted` event payload.
 
-    `campaign` (Phase 6i-c) is None unless `StartRun.campaign_id` was
+    `campaign` is None unless `StartRun.campaign_id` was
     provided. When non-None the decider gates on `campaign.status`
     being in `{Planned, Active, Held}` (else
     `RunCannotJoinCampaignError`) and embeds the campaign_id on the

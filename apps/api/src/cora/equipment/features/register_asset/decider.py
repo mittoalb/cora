@@ -7,7 +7,7 @@ append. No I/O, no awaits, no side effects.
 `now` and `new_id` are injected by the application handler from
 the Clock and IdGenerator ports.
 
-## Hierarchy rule (Phase 5b)
+## Hierarchy rule
 
 Per the BC map's hierarchy semantics:
   - `Enterprise` is the root level — `parent_id` MUST be null.

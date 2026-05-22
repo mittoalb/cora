@@ -40,7 +40,7 @@ class DefinePracticeRequest(BaseModel):
         description=(
             "Method id this Practice adapts. Eventual-consistency: "
             "existence is NOT verified against the Method stream at "
-            "decide time; mismatch surfaces at Plan binding (Phase 6e)."
+            "decide time; mismatch surfaces at Plan binding."
         ),
     )
     site_id: UUID = Field(

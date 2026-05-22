@@ -65,7 +65,7 @@ module.
 This is the first decider in the codebase that takes cross-
 aggregate state as input. The pattern is documented in
 CONTRIBUTING.md as the canonical approach for cross-validating
-deciders. Second instance shipped in `start_run` (Phase 6f-1) with
+deciders. Second instance shipped in `start_run` with
 `RunStartContext` of the same shape.
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
@@ -243,7 +243,7 @@ class PlanCannotDeprecateError(Exception):
 
 class InvalidPlanDefaultParametersError(ValueError):
     """The supplied Plan default_parameters dict failed validation
-    against the owning Method's parameters_schema (Phase 6g-b).
+    against the owning Method's parameters_schema.
 
     Strict when Method.parameters_schema is None: non-empty defaults
     are rejected (Method declares no contract; operators wanting
@@ -387,7 +387,7 @@ class Plan:
     "state holds what future deciders need" precedent in the
     docstring above.
 
-    `default_parameters: dict[str, Any]` (Phase 6g-b) is the
+    `default_parameters: dict[str, Any]` is the
     operator-set defaults for parameters that downstream Runs
     (6g-c) merge with their per-run overrides. Validated against
     the owning Method's `parameters_schema` at decide time
@@ -400,7 +400,7 @@ class Plan:
     The full dict is persisted; PATCH semantics handled by the slice
     via RFC 7396 `merge_patch`. Mirrors `Asset.settings` shape from 5g-c.
 
-    `wires: frozenset[Wire]` (Phase 6h) is the typed graph of port-
+    `wires: frozenset[Wire]` is the typed graph of port-
     to-port connections between bound Assets. Each `Wire` carries
     a 4-tuple identifying source/target ports across two Assets.
     Mutated via `add_plan_wire` / `remove_plan_wire` slices (mirrors
@@ -445,7 +445,7 @@ class InvalidWireError(ValueError):
 
 @dataclass(frozen=True)
 class Wire:
-    """A typed port-to-port connection between two bound Assets (Phase 6h).
+    """A typed port-to-port connection between two bound Assets.
 
     Tuple `(source_asset_id, source_port_name, target_asset_id,
     target_port_name)` describes one connection. The 4-tuple IS the

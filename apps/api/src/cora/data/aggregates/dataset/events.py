@@ -104,7 +104,7 @@ class DatasetRegistered:
 
 @dataclass(frozen=True)
 class DatasetPromoted:
-    """A Dataset was promoted from Trial to Production intent (Phase 7e).
+    """A Dataset was promoted from Trial to Production intent.
 
     `reason` is a free-form string (1-500 chars after trimming),
     captured verbatim from the operator. Mirrors DatasetDiscarded /

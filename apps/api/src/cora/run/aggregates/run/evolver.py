@@ -15,9 +15,8 @@ Status mapping per event type:
   - `RunTruncated`          -> TRUNCATED (partial-data terminal)
   - `RunAdjusted`           -> status preserved; mutates effective_parameters
                                           + last_adjusted_at + adjustment_count
-                                          (Phase 6j)
-  - `RunCampaignAssigned`   -> status preserved; sets campaign_id (Phase 6i-c)
-  - `RunCampaignUnassigned` -> status preserved; clears campaign_id (Phase 6i-c)
+  - `RunCampaignAssigned`   -> status preserved; sets campaign_id
+  - `RunCampaignUnassigned` -> status preserved; clears campaign_id
 
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
@@ -41,12 +40,12 @@ status=...)` without explicitly passing the additive fields would
 silently WIPE them to defaults (empty dict / None / empty frozenset
 / 0). Pinned by the per-transition preserve-fields tests.
 
-`reading_logbook_id` (Phase 6f-5b) is set by the
+`reading_logbook_id` is set by the
 `RunReadingLogbookOpened` arm (lazy open-on-first-write triggered
 by `append_run_reading`); all other arms preserve whatever prior
 state held. Pre-6f-5b streams fold with `reading_logbook_id=None`.
 
-`campaign_id` (Phase 6i-c) is set at genesis from `RunStarted.
+`campaign_id` is set at genesis from `RunStarted.
 campaign_id` (None when StartRun.campaign_id was not provided), set
 to `event.campaign_id` by the `RunCampaignAssigned` arm, and cleared
 to None by the `RunCampaignUnassigned` arm. All other arms preserve
@@ -54,7 +53,7 @@ prior state's campaign_id (membership survives lifecycle transitions
 like running → held → completed). Pre-6i-c streams fold with
 `campaign_id=None` (forward-compat via payload.get in from_stored).
 
-`last_adjusted_at` and `adjustment_count` (Phase 6j) start at None / 0
+`last_adjusted_at` and `adjustment_count` start at None / 0
 at genesis. The `RunAdjusted` arm replaces `effective_parameters`,
 stamps `last_adjusted_at = event.occurred_at`, and increments
 `adjustment_count`. All other arms preserve prior state's values:
@@ -288,7 +287,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 pinned_calibrations=prior.pinned_calibrations,
             )
         case RunReadingLogbookOpened(logbook_id=logbook_id):
-            # Lazy open-on-first-write (Phase 6f-5b): preserve all
+            # Lazy open-on-first-write: preserve all
             # prior state, set reading_logbook_id. Status NOT touched
             # — the logbook is orthogonal to lifecycle.
             prior = require_state(state, "RunReadingLogbookOpened")

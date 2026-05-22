@@ -81,7 +81,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             UUID | None,
             Field(
                 description=(
-                    "Optional Capability template binding (Phase 10d-additive). "
+                    "Optional Capability template binding. "
                     "When supplied, the bound Capability must declare "
                     "`Procedure` in its executor_shapes set."
                 ),

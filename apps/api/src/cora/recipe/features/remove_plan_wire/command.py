@@ -1,4 +1,4 @@
-"""The `RemovePlanWire` command — intent dataclass for this slice (Phase 6h).
+"""The `RemovePlanWire` command — intent dataclass for this slice.
 
 `plan_id` is the target Plan aggregate. The four port-reference
 fields together identify the Wire to remove (the 4-tuple IS the
