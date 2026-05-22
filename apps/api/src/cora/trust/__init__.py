@@ -5,11 +5,12 @@ to do what, where. Authentication (who a principal *is*) lives in the
 Access BC. Trust answers "may this principal issue this command via
 this conduit" against `Zone` / `Conduit` / `Policy` aggregates.
 
-Phase 3a ships the `Zone` aggregate with `define_zone`. `Conduit` and
-`Policy` plus the real `TrustAuthorize` adapter (replacing
-`AllowAllAuthorize`) land in subsequent sub-phases. Until then the
-Authorize port stays at the AllowAll stub and Trust just owns its own
-Zone definitions.
+Four aggregates: `Zone` (security boundary), `Conduit` (a network
+path between principals and zones), `Surface` (an API surface like
+HTTP or MCP), and `Policy` (the permission grant). The real
+`TrustAuthorize` adapter replaces the `AllowAllAuthorize` stub once
+a `Policy` exists; `verify_bootstrap_seed_present` enforces seed
+presence at startup.
 
 Layout:
     aggregates/<aggregate>/   -- aggregate state, events union, evolver

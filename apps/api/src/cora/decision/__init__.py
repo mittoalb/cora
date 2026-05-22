@@ -6,13 +6,12 @@ override. Single aggregate (Decision), unified across deciders.
 
 ## Why "decisions" is its own BC
 
-The trigger fired in Phase 6f: 4 free-form `reason` fields shipped
-(RunAborted.reason, RunStopped.reason, RunTruncated.reason,
-DiscardDataset.reason) and the BC-map prose specifically named that
-threshold ("first non-trivial decision needing structured audit").
-Free text is enough for the moment of the action; structured audit
-is what the next regulator / AI-act audit / scientific-replicability
-review will demand.
+The Run BC introduced 4 free-form `reason` fields (RunAborted.reason,
+RunStopped.reason, RunTruncated.reason, DiscardDataset.reason) and
+the BC-map prose named that threshold as the "first non-trivial
+decision needing structured audit." Free text is enough for the
+moment of the action; structured audit is what the next regulator /
+AI-act audit / scientific-replicability review will demand.
 
 ## Aggregate is atomic-immutable; chains carry corrections
 

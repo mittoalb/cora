@@ -1,6 +1,6 @@
 """Aggregates owned by the Agent BC.
 
-Phase 8f-a ships one aggregate: `Agent` (config-only). Future Phase 8f-c
-may hoist `PromptTemplate` to a sibling aggregate per rule-of-three
-(deferred per [[project_agent_bc_research]] watch item #2).
+One aggregate: `Agent`. A sibling `PromptTemplate` aggregate is
+deferred per [[project_agent_bc_research]] watch item #2 until the
+rule-of-three trigger fires.
 """

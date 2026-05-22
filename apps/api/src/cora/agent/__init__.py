@@ -1,19 +1,21 @@
 """Agent bounded context.
 
-Phase 8f-a (config-only): one aggregate, `Agent`. Genesis aggregate
-plus 3-state lifecycle FSM (`Defined -> Versioned -> Deprecated`).
+One aggregate, `Agent`. Genesis plus a lifecycle FSM
+(`Defined -> Versioned -> Suspended? -> Deprecated`) with tool
+grants and budget envelopes.
 
-Phase 8f-b iter 2a (infrastructure): production `AnthropicLLMAdapter`
-ships at `cora.agent.adapters.AnthropicLLMAdapter` and is wired into
-the Kernel via `build_llm` (composition-root binding lives in
-`cora.api.main`). The subscriber that consumes it (RunDebrief)
-lands at 8f-b iter 2b.
+Production `AnthropicLLMAdapter` ships at
+`cora.agent.adapters.AnthropicLLMAdapter` and is wired into the
+Kernel via `build_llm` (composition-root binding lives in
+`cora.api.main`). Subscribers (RunDebrief, CautionDrafter) consume
+it to write Decisions and Caution proposals.
 
 `Agent.id` is SHARED with Access BC's `Actor.id` for the same agent.
 `define_agent` writes both `ActorRegistered(kind="agent")` (Access
 stream) and `AgentDefined` (Agent stream) atomically via
-`EventStore.append_streams`. Mirrors 11a-c-2 `amend_clearance` and
-11b-a `supersede_caution` cross-aggregate atomic-write patterns.
+`EventStore.append_streams`. Mirrors the cross-aggregate atomic-write
+pattern used by Safety BC's `amend_clearance` and Caution BC's
+`supersede_caution`.
 
 Public surface re-exported here:
   - `AgentHandlers`            (handler bundle)

@@ -7,22 +7,12 @@ Owns the equipment-and-family concerns of CORA:
     hardware contract.
   - `Asset` (physical equipment instance; hierarchical, lifecycle-
     managed). Referenced by `Recipe.Plan` and `Operation.Procedure`.
-    Lands in 5b+; not in 5a.
 
 Foundation-tier BC: every Track A and Track B BC depends on
 Family and/or Asset. Built before Recipe so Method's
 `needs.families` resolves to real Family ids instead of
 bare UUIDs (the eventual-consistency fallback that Trust uses for
 Conduit's zone refs).
-
-Phase 5a ships `Family` + `define_family` + `get_family`.
-Subsequent phases:
-  - 5b: Asset aggregate scaffold + register_asset
-  - 5c: Asset lifecycle (activate, decommission)
-  - 5d: Asset hierarchy (relocate)
-  - 5e: get_asset + maintenance lifecycle
-  - 5f+: Family transitions, Asset condition/settings/ports/
-    owner/PIDINST
 
 Layout:
     aggregates/<aggregate>/   -- aggregate state, events union, evolver, read

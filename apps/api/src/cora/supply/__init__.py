@@ -2,27 +2,25 @@
 
 Owns continuously-available resource state in CORA:
 
-  - `Supply` aggregate (10a-a): a continuously-available resource
-    that other aggregates depend on. Multiple instances at runtime,
-    one per resource: photon beam, LN2, compressed air, electrical
-    power, cooling water, vacuum, process gases, compute pool,
-    FEL pulses, neutrons. Per the BC map: physical infrastructure
-    delivering the resource (gas cabinets, compressors, mass-flow
-    controllers) stays as `Asset`s; the resource itself is `Supply`.
+  - `Supply` aggregate: a continuously-available resource that other
+    aggregates depend on. Multiple instances at runtime, one per
+    resource: photon beam, LN2, compressed air, electrical power,
+    cooling water, vacuum, process gases, compute pool, FEL pulses,
+    neutrons. Per the BC map: physical infrastructure delivering the
+    resource (gas cabinets, compressors, mass-flow controllers) stays
+    as `Asset`s; the resource itself is `Supply`.
 
 Track B intro BC. Independent of Track A (Recipe / Subject / Data) and
-of Trust / Decision foundation BCs. Method.needs.supplies wire-up
-ships in 10b; physical-equipment binding (Supply -> Asset, mirrors
-4f Subject -> Asset) is deferred-with-trigger to a later sub-phase.
+of Trust / Decision foundation BCs. Method.needs.supplies wires the
+consumer side; physical-equipment binding (Supply -> Asset, mirrors
+Subject -> Asset) is deferred-with-trigger.
 
-Phase 10a-a ships the BC scaffold + 4 slices:
-  - register_supply (genesis -> Unknown)
-  - mark_supply_available (Unknown -> Available, operator first observation)
-  - get_supply (read; fold-on-read)
-  - list_supplies (read; cursor-paginated over the projection)
-
-Phase 10a-b adds the full degradation/recovery cycle: degrade_supply
-+ mark_supply_unavailable + mark_supply_recovering + restore_supply.
+Slices: `register_supply` (genesis -> Unknown), `mark_supply_available`
+(Unknown -> Available; operator first observation), the full
+degradation / recovery cycle (`degrade_supply`,
+`mark_supply_unavailable`, `mark_supply_recovering`, `restore_supply`),
+plus `get_supply` (fold-on-read) and `list_supplies`
+(projection-backed, cursor-paginated).
 
 Layout:
     aggregates/<aggregate>/   -- aggregate state, events union, evolver, read

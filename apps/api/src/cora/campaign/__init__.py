@@ -5,10 +5,10 @@ container above Run (in-situ heating series, operando battery
 measurement, parametric sweep, multi-modal acquisition,
 proposal-block scheduling envelope).
 
-  - `Campaign` aggregate (6i-a): identity + name + closed intent
-    enum + lead actor + loose subject ref + tags + external refs +
-    optional external_id + run_ids (forward-compat empty) +
-    5-state FSM `Planned -> Active <-> Held -> Closed | Abandoned`.
+  - `Campaign` aggregate: identity + name + closed intent enum +
+    lead actor + loose subject ref + tags + external refs + optional
+    external_id + run_ids + 5-state FSM
+    `Planned -> Active <-> Held -> Closed | Abandoned`.
 
 Distinct BC from Recipe per `[[project_campaign_design]]`: audience-
 and-vocabulary separation. Recipe BC owns the pre-execution template
@@ -17,20 +17,15 @@ Campaign is a post-execution coordination layer (study surface for
 operators / PIs after Plans exist). Same operators, different mental
 modes.
 
-Phase 6i-a ships the BC scaffold + 7 slices:
-  - register_campaign  (genesis -> Planned)
-  - get_campaign       (read; fold-on-read)
-  - start_campaign     (Planned -> Active)
-  - hold_campaign      (Active -> Held; reason)
-  - resume_campaign    (Held -> Active)
-  - close_campaign     (Active | Held -> Closed; normal terminal)
-  - abandon_campaign   (Planned | Active | Held -> Abandoned;
-                        early terminal with REQUIRED reason)
-
-Phase 6i-b adds the projection + `list_campaigns` slice.
-Phase 6i-c adds the cross-aggregate membership slices
-(`add_run_to_campaign` / `remove_run_from_campaign`) plus Run
-aggregate evolution (additive `campaign_id` field).
+Lifecycle slices: `register_campaign` (genesis -> Planned),
+`start_campaign` (Planned -> Active), `hold_campaign` (Active -> Held),
+`resume_campaign` (Held -> Active), `close_campaign`
+(Active | Held -> Closed; normal terminal), `abandon_campaign`
+(Planned | Active | Held -> Abandoned; early terminal with REQUIRED
+reason). Membership is cross-aggregate via `add_run_to_campaign` /
+`remove_run_from_campaign` (also stamps the additive `campaign_id`
+field on Run). Reads: `get_campaign` (fold-on-read) + `list_campaigns`
+(projection-backed).
 
 Layout:
     aggregates/<aggregate>/   -- aggregate state, events union, evolver, read

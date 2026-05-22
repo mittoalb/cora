@@ -2,9 +2,9 @@
 
 Owns operator-authored tribal-knowledge cautions in CORA:
 
-  - `Caution` aggregate (11b-a): an operator-authored note attached
-    to an Asset or a Procedure (the hexapod-stalls-below-0.5mm/s
-    family). 3-state lightweight FSM (Active -> Superseded | Retired);
+  - `Caution` aggregate: an operator-authored note attached to an
+    Asset or a Procedure (the hexapod-stalls-below-0.5mm/s family).
+    3-state lightweight FSM (`Active -> Superseded | Retired`);
     supersession IS the edit path via cross-aggregate atomic write
     (mirrors Safety BC's `amend_clearance`).
 
@@ -13,16 +13,12 @@ separation (operator vocabulary vs ESH-officer vocabulary) and
 lifecycle weight asymmetry (3-state lightweight vs 8-state formal
 FSM) both forbid co-tenancy.
 
-Phase 11b-a ships the BC scaffold + 4 slices:
-  - register_caution   (genesis -> Active)
-  - supersede_caution  (cross-aggregate; parent Active -> Superseded,
-                        new child genesis with parent_caution_id)
-  - retire_caution     (Active -> Retired)
-  - get_caution        (read; fold-on-read)
-
-Phase 11b-b adds the projection + `list_cautions` slice.
-Phase 11b-c adds Run.start non-blocking integration via the
-`CautionLookup` port (mirrors `ClearanceLookup`).
+Slices: `register_caution` (genesis -> Active), `supersede_caution`
+(cross-aggregate; parent Active -> Superseded, new child genesis with
+`parent_caution_id`), `retire_caution` (Active -> Retired),
+`get_caution` (fold-on-read), `list_cautions` (projection-backed).
+Run-start integration is non-blocking via the `CautionLookup` port
+(mirrors `ClearanceLookup`).
 
 Layout:
     aggregates/<aggregate>/   -- aggregate state, events union, evolver, read

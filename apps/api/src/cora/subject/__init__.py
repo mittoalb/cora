@@ -6,14 +6,15 @@ manufactured parts (including in-flight AM prints being formed
 during the experiment), astronomical targets, computational subjects.
 Carries identity that crosses Run boundaries.
 
-Operationally complete as a state machine after Phase 4a-e:
-7 commands (`register_subject` + the 6 transitions
+Operationally complete as a state machine: 7 commands
+(`register_subject` + the 6 transitions
 `mount` / `measure` / `remove` / `return` / `store` / `discard`)
-plus `get_subject` (read side). Full lifecycle: `Received -> Mounted
--> Measured -> Removed -> Returned | Stored | Discarded`. Update-style
-handlers share `_update_handler.make_subject_update_handler` (see its
-docstring for the factory's contract). `hazard`, `custody`, `owner`,
-and the in-situ-during-Run observation channel defers to Phase 4f+.
+plus `get_subject` (read side). Full lifecycle:
+`Received -> Mounted -> Measured -> Removed -> Returned | Stored |
+Discarded`. Update-style handlers share
+`_update_handler.make_subject_update_handler` (see its docstring
+for the factory's contract). `hazard`, `custody`, `owner`, and the
+in-situ-during-Run observation channel are deferred.
 
 Layout:
     aggregates/<aggregate>/   -- aggregate state, events union, evolver
