@@ -5,7 +5,7 @@ Mirror of `cora/trust/aggregates/zone/evolver.py`. The terminal
 new event type is added to `ConduitEvent` without a matching match
 arm.
 
-Phase 6f-5a adds two logbook-lifecycle event arms over the
+Two logbook-lifecycle event arms operate over the
 `logbooks: dict[str, UUID]` state shape:
   - `ConduitLogbookOpened` adds `(kind, logbook_id)` to `logbooks`,
     enforcing the at-most-one-open-per-kind invariant — opening a

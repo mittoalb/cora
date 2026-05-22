@@ -1,7 +1,7 @@
-"""ProcedureStep entry: per-Procedure procedural step row (Phase 10c-b iter 2).
+"""ProcedureStep entry: per-Procedure procedural step row.
 
-Fourth concrete entry kind in CORA after `ConduitTraversal` (6f-5a),
-`DecisionReasoning` (8c-b), and `RunReading` (6f-5b). Same per-category
+Fourth concrete entry kind in CORA after `ConduitTraversal`,
+`DecisionReasoning`, and `RunReading`. Same per-category
 writer pattern: a typed dataclass + per-category Postgres adapter
 alongside the owning aggregate, with a category-local `StepStore`
 Protocol (NOT a shared cross-BC port).

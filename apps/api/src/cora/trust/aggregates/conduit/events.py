@@ -5,12 +5,13 @@ classes, discriminated union, `event_type_name`, `to_payload`,
 `from_stored`. The persistence-envelope construction (`NewEvent`)
 lives at `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 3b shipped `ConduitDefined`. Phase 6f-5a adds:
+Events:
+  - `ConduitDefined` — genesis.
   - `ConduitLogbookOpened` — declares a new observation logbook
     attached to the Conduit. Carries the logbook id, kind
     discriminator (e.g., `"traversals"`), and the schema declaration
-    documenting what columns the entry rows will have. Today
-    the only logbook kind is `traversals` (per-decision authz audit
+    documenting what columns the entry rows will have. Today the
+    only logbook kind is `traversals` (per-decision authz audit
     log), opened automatically at conduit-creation.
   - `ConduitLogbookClosed` — terminates a logbook. Future-additive;
     no current path emits it (the traversals logbook never closes

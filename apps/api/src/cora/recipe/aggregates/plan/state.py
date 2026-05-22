@@ -22,11 +22,9 @@ Plan state:
   - `version: str | None` — operator-supplied label of the most
     recent `version_plan` call (None until first version)
 
-Phase history: 6e-1 shipped scaffold + `define_plan` + `get_plan`;
-6e-2 added the `version` field with `version_plan` + `deprecate_plan`
-transitions (matches Method 6a→6b and Practice 6d-1→6d-2 precedent
-of adding fields when the first mutating event arrives, not
-speculatively).
+Field addition follows the additive convention: the `version`
+field landed when the first mutating event (`PlanVersioned`)
+arrived, not speculatively. Same precedent as Method and Practice.
 
 Audit data captured at bind time (`method_id`, snapshots of the
 Method's needed_families and each bound Asset's families)
@@ -102,7 +100,7 @@ class PlanStatus(StrEnum):
     """The Plan's lifecycle state.
 
     Mirrors Method's and Practice's lifecycle (and Family's).
-    Transitions land per-slice in Phase 6e-2:
+    Transitions land per-slice:
       - Defined -> Versioned        (version_plan)
       - (Defined | Versioned) -> Deprecated  (deprecate_plan)
 
@@ -305,9 +303,9 @@ class PlanAffordancesNotSatisfiedError(Exception):
     """The bound Assets' Family.affordances don't cover the
     Method.capability.required_affordances contract.
 
-    Phase 6l.B cross-BC guard. Layered on top of the family-id
-    check (PlanCapabilitiesNotSatisfiedError): even when every
-    needed Family is present, the union of those Families'
+    Cross-BC affordance-cover guard. Layered on top of the
+    family-id check (PlanCapabilitiesNotSatisfiedError): even when
+    every needed Family is present, the union of those Families'
     `affordances` must still cover the bound Method's
     `capability.required_affordances` contract. Mapped to HTTP 409
     (same state-conflict family as the prior check).

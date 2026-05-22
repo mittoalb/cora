@@ -10,16 +10,11 @@ Status mapping per event type:
   - `AgentVersioned`     -> VERSIONED  (single-source: Defined only)
   - `AgentDeprecated`    -> DEPRECATED (source: Defined | Versioned |
                                         Suspended)
-  - `AgentSuspended`     -> SUSPENDED  (single-source: Versioned only;
-                                        Phase 8f-c iter 2)
-  - `AgentResumed`       -> VERSIONED  (single-source: Suspended only;
-                                        Phase 8f-c iter 2)
-  - `AgentToolGranted`   -> status unchanged (additive set mutation;
-                                              Phase 8f-c iter 2)
-  - `AgentToolRevoked`   -> status unchanged (subtractive set mutation;
-                                              Phase 8f-c iter 2)
-  - `AgentBudgetRevised` -> status unchanged (budget field replace;
-                                              Phase 8f-c iter 2)
+  - `AgentSuspended`     -> SUSPENDED  (single-source: Versioned only)
+  - `AgentResumed`       -> VERSIONED  (single-source: Suspended only)
+  - `AgentToolGranted`   -> status unchanged (additive set mutation)
+  - `AgentToolRevoked`   -> status unchanged (subtractive set mutation)
+  - `AgentBudgetRevised` -> status unchanged (budget field replace)
 
 Source-state guards live at the decider, NOT here; the evolver trusts
 the event log (folded events have already passed their decider).
@@ -28,8 +23,8 @@ Transition events applied to empty state raise `ValueError` via the
 shared `require_state` helper at `cora.infrastructure.evolver`.
 
 Every arm explicitly carries forward EVERY field of the prior Agent
-to guard against the silent-wipe bug caught at the 8f-b iter 1 gate
-review (`DecisionLogbookOpened` / `Closed` arms silently wiped
+to guard against the silent-wipe bug class (e.g.
+`DecisionLogbookOpened` / `Closed` arms once silently wiped
 `Decision.ratings`).
 """
 
@@ -83,8 +78,8 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
             budget_daily_token_cap=budget_daily_token_cap,
         ):
             _ = state  # AgentDefined is the genesis event; prior state ignored
-            # Path C (Iter C-2): `defined_at` no longer on state — folded
-            # into `proj_agent_summary.created_at` by AgentSummaryProjection.
+            # Path C: `defined_at` no longer on state — folded into
+            # `proj_agent_summary.created_at` by AgentSummaryProjection.
             return Agent(
                 id=agent_id,
                 kind=AgentKind(kind),
@@ -103,8 +98,8 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
             )
         case AgentVersioned(occurred_at=_):
             prior = require_state(state, "AgentVersioned")
-            # Path C (Iter C-2): `versioned_at` no longer on state — folded
-            # into `proj_agent_summary.versioned_at` by AgentSummaryProjection.
+            # Path C: `versioned_at` no longer on state — folded into
+            # `proj_agent_summary.versioned_at` by AgentSummaryProjection.
             return Agent(
                 id=prior.id,
                 kind=prior.kind,
@@ -125,8 +120,8 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
             )
         case AgentDeprecated(reason=reason, occurred_at=_):
             prior = require_state(state, "AgentDeprecated")
-            # Path C (Iter C-2): `deprecated_at` no longer on state — folded
-            # into `proj_agent_summary.deprecated_at` by AgentSummaryProjection.
+            # Path C: `deprecated_at` no longer on state — folded into
+            # `proj_agent_summary.deprecated_at` by AgentSummaryProjection.
             # `deprecation_reason` STAYS on state (decider-relevant for any
             # future "cannot un-deprecate without rationale" rules).
             return Agent(
@@ -149,9 +144,9 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
             )
         case AgentSuspended(reason=reason, occurred_at=occurred_at):
             prior = require_state(state, "AgentSuspended")
-            # `suspended_at` + `suspension_reason` STAY on state per Iter C-1
-            # scope decision: suspension_reason is invariant-bearing
-            # (decider-relevant), so its paired timestamp does too.
+            # `suspended_at` + `suspension_reason` STAY on state:
+            # suspension_reason is invariant-bearing (decider-relevant),
+            # so its paired timestamp does too.
             return Agent(
                 id=prior.id,
                 kind=prior.kind,

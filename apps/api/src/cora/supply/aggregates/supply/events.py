@@ -5,14 +5,13 @@ union, `event_type_name`, `to_payload`, `from_stored`. The
 persistence-envelope construction (`NewEvent`) lives at
 `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 10a-a shipped `SupplyRegistered` (genesis -> Unknown) and
-`SupplyMarkedAvailable` (Unknown -> Available, operator-asserted
-first observation). Phase 10a-b adds `SupplyDegraded`,
-`SupplyMarkedUnavailable`, `SupplyMarkedRecovering`, and
-`SupplyRestored` for the full degradation/recovery cycle. All 5
-transition events share the same payload shape (`from_status, reason,
-trigger, occurred_at`) so the projection can fold them through one
-parameterized UPDATE.
+`SupplyRegistered` is the genesis (-> Unknown);
+`SupplyMarkedAvailable` covers the first-observation transition
+(Unknown -> Available); `SupplyDegraded`, `SupplyMarkedUnavailable`,
+`SupplyMarkedRecovering`, and `SupplyRestored` cover the full
+degradation/recovery cycle. All 5 transition events share the same
+payload shape (`from_status, reason, trigger, occurred_at`) so the
+projection can fold them through one parameterized UPDATE.
 
 Status is NOT carried in `SupplyRegistered`'s payload — the event
 type IS the state-change indicator (matches `FamilyDefined ->

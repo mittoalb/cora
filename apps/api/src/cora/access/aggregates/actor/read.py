@@ -9,10 +9,10 @@ aggregate's stream regardless of which command produced the events.
 Queries across multiple aggregates would live in a different module
 (deferred until needed).
 
-Phase 2b uses fold-on-read for single-aggregate GETs. List/filter/search
+Uses fold-on-read for single-aggregate GETs. List/filter/search
 endpoints (when they land) will need a projection-worker pattern with
-a denormalized table; fold-on-read scales O(events-per-stream) per read
-and doesn't support cross-aggregate queries efficiently.
+a denormalized table; fold-on-read scales O(events-per-stream) per
+read and doesn't support cross-aggregate queries efficiently.
 """
 
 from uuid import UUID

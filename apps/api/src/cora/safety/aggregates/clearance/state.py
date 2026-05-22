@@ -709,9 +709,8 @@ class Clearance:
     the facility approves and assigns. Mirrors PID landscape internal-
     opaque + lazy-external-mint pattern.
 
-    Phase 11a-a ships the Defined-only FSM; transition events are
-    declared in events.py but unreachable until 11a-b adds the FSM-
-    closure slices.
+    The Defined-only FSM is the genesis surface; transition events
+    declared in events.py reach via the FSM-closure slices.
     """
 
     id: UUID

@@ -32,11 +32,10 @@ explicitly passing the additive fields would silently WIPE them to
 defaults (empty frozenset / None). Pinned by the per-transition
 preserve-fields tests. Same lesson as Run BC's evolver docstring.
 
-`steps_logbook_id` (Phase 10c-b iter 2) is set by the
-`ProcedureStepsLogbookOpened` arm (lazy open-on-first-write
-triggered by `append_procedure_step`); all other arms preserve
-whatever prior state held. Pre-10c-b-iter-2 streams fold with
-`steps_logbook_id=None`.
+`steps_logbook_id` is set by the `ProcedureStepsLogbookOpened` arm
+(lazy open-on-first-write triggered by `append_procedure_step`);
+all other arms preserve whatever prior state held. Legacy streams
+without the logbook event fold with `steps_logbook_id=None`.
 
 The shared `require_state` helper at `cora.infrastructure.evolver`
 keeps per-arm bodies short. Hoisted post-7e once the 11th identical

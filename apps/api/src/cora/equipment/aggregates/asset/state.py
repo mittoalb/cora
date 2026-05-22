@@ -57,11 +57,11 @@ the evolver reconstructs via `AssetLevel(payload["level"])`.
 
 ## Seventh bounded-name VO
 
-`AssetName` is the **seventh** trimmed-bounded-name VO. Phase 6e-1
-hoisted the shared trim+length-check logic to
-`cora.infrastructure.bounded_text.validate_bounded_text` once the 10th VO (PlanName)
-landed; AssetName now calls that helper while keeping its own frozen
-dataclass type and per-aggregate error class.
+`AssetName` is the **seventh** trimmed-bounded-name VO. The shared
+trim+length-check logic was hoisted to
+`cora.infrastructure.bounded_text.validate_bounded_text` once the 10th
+VO (PlanName) landed; AssetName now calls that helper while keeping
+its own frozen dataclass type and per-aggregate error class.
 """
 
 from dataclasses import dataclass, field

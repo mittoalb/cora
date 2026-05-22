@@ -287,7 +287,7 @@ class ProcedureAssetDecommissionedError(Exception):
 
 class ProcedureCapabilityExecutorMismatchError(Exception):
     """Procedure.capability_id points at a Capability whose executor_shapes
-    do not include Procedure (Phase 10d cross-BC guard).
+    do not include Procedure (cross-BC guard).
 
     Mapped to HTTP 409. Mirrors `MethodCapabilityExecutorMismatchError`.
     Surfaces when register_procedure binds to a

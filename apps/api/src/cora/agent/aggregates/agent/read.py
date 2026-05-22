@@ -10,11 +10,11 @@ the decider).
 
 `load_agent_timestamps(pool, agent_id) -> AgentLifecycleTimestamps | None`
 reads the projection-row metadata that mirrors the FSM transitions
-(audit-2026-05-20 Iter C-2, Path C). State stays decider-minimal
-per Chassaing/Pellegrini/Reynhout; lifecycle timestamps live on the
+(Path C). State stays decider-minimal per
+Chassaing/Pellegrini/Reynhout; lifecycle timestamps live on the
 projection per Dudycz pragmatic-redundancy + K8s/GitHub/AIP-142
 resource-API precedent. Mirrors `load_method_timestamps` and the
-other 4 Iter B aggregates.
+other 4 Path C aggregates.
 """
 
 from dataclasses import dataclass
@@ -50,8 +50,7 @@ class AgentLifecycleTimestamps:
     Suspended/Resumed timestamps are intentionally NOT here — they
     stay on aggregate state because `suspension_reason` is invariant-
     bearing (deciders read it). Only the derivable lifecycle
-    timestamps move to the projection per the audit-2026-05-20
-    criterion.
+    timestamps move to the projection per the Path C criterion.
     """
 
     created_at: datetime

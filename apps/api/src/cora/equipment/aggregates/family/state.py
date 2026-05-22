@@ -10,7 +10,7 @@ specific `Asset` instances.
 
 ## Aggregate scope
 
-The Family aggregate was renamed from `Capability` per DLM-A
+The Family aggregate was renamed from `Capability` per
 [[family-affordance-design-phases-5i-5j-lock]]: same FSM (Defined →
 Versioned → Deprecated), same settings_schema field, same lifecycle.
 
@@ -26,10 +26,10 @@ Method/Plan/Practice replace-on-version precedent), NOT a separate
 section 5 for the 28-item / 3-pattern starter list and the dropped
 parameter-shaped pseudo-affordances.
 
-The word "Family" is reserved for the future Recipe BC operations-
-layer aggregate (DLM-B / phase 6k); after 5i ships, "Family" must
-not appear in Equipment BC except in dual-match evolver arms recognizing
-legacy event-type strings.
+The word "Capability" is reserved for the Recipe BC operations-layer
+aggregate (see [[project-capability-aggregate-design]]); "Capability"
+must not appear in Equipment BC except in dual-match evolver arms
+recognizing legacy event-type strings.
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
 

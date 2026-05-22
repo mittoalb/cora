@@ -1,11 +1,10 @@
 """Domain events emitted by the Clearance aggregate, plus the discriminated union.
 
-Phase 11a-a ships only `ClearanceRegistered` (genesis -> Defined).
-Phase 11a-b adds the 6 FSM-closure events (Submitted / ReviewStarted /
-ReviewStepAppended / Approved / Rejected / Activated). Phase 11a-c
-adds the 3 terminal/amendment events (Expired / AmendmentInitiated /
-Superseded). Per the per-sub-phase event-introduction precedent
-(Supply 10a-a/b, Operation 10c-a/b/c).
+Event catalog: `ClearanceRegistered` (genesis -> Defined); the 6
+FSM-closure events (Submitted / ReviewStarted / ReviewStepAppended /
+Approved / Rejected / Activated); the 3 terminal/amendment events
+(Expired / AmendmentInitiated / Superseded). Same
+event-introduction-per-cohort precedent as Supply and Operation.
 
 Status is NOT carried in `ClearanceRegistered`'s payload -- the event
 type IS the state-change indicator (matches `FamilyDefined ->

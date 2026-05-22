@@ -130,10 +130,9 @@ class AgentVersioned:
 class AgentDeprecated:
     """An Agent was deprecated (terminal).
 
-    Source set is `{Defined, Versioned, Suspended}` (Phase 8f-c
-    iter 2 added `Suspended` so an operator who paused an agent
-    can still retire it). `reason` is an optional operator-supplied
-    bounded-text value (1-500 chars).
+    Source set is `{Defined, Versioned, Suspended}` — operators
+    can retire a paused agent without resuming first. `reason` is
+    an optional operator-supplied bounded-text value (1-500 chars).
 
     The deprecating actor's id lives on the envelope
     (`StoredEvent.principal_id`); no actor field on the payload.
@@ -220,7 +219,7 @@ class AgentBudgetRevised:
     and "clear all" cases. When both fields are None the Agent's
     `budget` field is set to None (no budget).
 
-    Declaration only at Phase 8f-c iter 2; enforcement deferred
+    Declaration only at this layer; enforcement deferred
     to 8h Budget BC adoption.
     """
 

@@ -17,8 +17,8 @@ Status lifecycle (the full transitions) shipped 4b-4d:
   - 4b: Received -> Mounted
   - 4c: Mounted -> Measured; Mounted | Measured -> Removed
   - 4d: Removed -> Returned | Stored | Discarded   (terminal disposition)
-`hazard`, `custody`, `owner`, and the in-situ-during-Run observation channel
-defer to Phase 4f+.
+`hazard`, `custody`, `owner`, and the in-situ-during-Run observation
+channel are deferred.
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
 
@@ -53,11 +53,11 @@ with a default; no event upcaster needed).
 ## Fifth bounded-name VO
 
 `SubjectName` is the **fifth** trimmed-bounded-name VO after
-`ActorName`, `ZoneName`, `ConduitName`, `PolicyName`. Phase 6e-1
-hoisted the shared trim+length-check logic to
-`cora.infrastructure.bounded_text.validate_bounded_text` once the 10th VO (PlanName)
-landed; SubjectName now calls that helper while keeping its own
-frozen dataclass type and per-aggregate error class.
+`ActorName`, `ZoneName`, `ConduitName`, `PolicyName`. The shared
+trim+length-check logic was hoisted to
+`cora.infrastructure.bounded_text.validate_bounded_text` once the
+10th VO (PlanName) landed; SubjectName now calls that helper while
+keeping its own frozen dataclass type and per-aggregate error class.
 """
 
 from dataclasses import dataclass

@@ -11,7 +11,7 @@ and event types. Two slice-local cross-aggregate context VOs:
     peers loaded at promotion-time for the lineage-must-be-Production
     guard.
 
-Phase 7e adds the trust-level dimension orthogonal to lifecycle:
+The trust-level dimension is orthogonal to lifecycle:
 `Dataset.intent` (Trial | Production) flipped via the dedicated
 `promote_dataset` slice. `Dataset.producing_run_end_state` (str |
 None) is captured at registration to support the Run-must-be-

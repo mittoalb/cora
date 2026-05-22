@@ -21,12 +21,10 @@ Minimal Practice:
     same precedent as Method.needed_families and Trust 3b)
   - `site_id: UUID` — the Site-level Asset this Practice belongs to
     (institutional ownership; eventual-consistency: not verified)
-  - `status: PracticeStatus` (Defined initially; Versioned /
-    Deprecated land in 6d-2)
+  - `status: PracticeStatus` (Defined → Versioned → Deprecated FSM)
   - `version: str | None` (None until first version_practice)
 
-Additional facets defer to a 6d-3 equivalent if pilot demand
-emerges:
+Additional facets are deferred if pilot demand emerges:
   - `additional_families: frozenset[FamilyId]` (facility-
     specific Family requirements that go beyond Method's
     needed_families — for example a facility that always pairs
@@ -62,10 +60,11 @@ mirrors Method's: Defined → Versioned → Deprecated.
 
 `PracticeName` is the **ninth** trimmed-bounded-name VO after
 Actor / Zone / Conduit / Policy / Subject / Family / Asset /
-Method. Phase 6e-1 hoisted the shared trim+length-check logic to
-`cora.infrastructure.bounded_text.validate_bounded_text` once the 10th VO (PlanName)
-landed; PracticeName now calls that helper while keeping its own
-frozen dataclass type and per-aggregate error class.
+Method. The shared trim+length-check logic was hoisted to
+`cora.infrastructure.bounded_text.validate_bounded_text` once the
+10th VO (PlanName) landed; PracticeName now calls that helper
+while keeping its own frozen dataclass type and per-aggregate
+error class.
 """
 
 from dataclasses import dataclass
@@ -82,7 +81,7 @@ class PracticeStatus(StrEnum):
     """The Practice's lifecycle state.
 
     Mirrors Method's lifecycle (and Family's). Transitions land
-    per-slice in Phase 6d-2:
+    per-slice:
       - Defined -> Versioned        (version_practice)
       - (Defined | Versioned) -> Deprecated  (deprecate_practice)
 

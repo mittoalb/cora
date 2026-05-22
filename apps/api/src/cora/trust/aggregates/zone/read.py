@@ -2,9 +2,9 @@
 
 `load_zone(event_store, zone_id) -> Zone | None` mirrors
 `cora.access.aggregates.actor.read.load_actor`. No GET slice for Zone
-ships in Phase 3a, but the read repo lives here so future query
-slices (or sagas / projections) have one canonical fold-on-read path
-per the cross-BC pattern documented in CONTRIBUTING.md.
+ships today, but the read repo lives here so future query slices
+(or sagas / projections) have one canonical fold-on-read path per
+the cross-BC pattern documented in CONTRIBUTING.md.
 """
 
 from uuid import UUID

@@ -66,7 +66,7 @@ legitimately differ:
     AI that made the choice. PROV-O `prov:wasAssociatedWith.agent`.
     Lives on the Decision aggregate's state and is captured in the
     DecisionRegistered event payload.
-  - `events.principal_id` (Phase 9b envelope hook) is the WHO of
+  - `events.principal_id` (envelope-level ReBAC hook) is the WHO of
     the COMMAND: the authenticated caller that triggered the
     register_decision command. Lives on the persistence envelope,
     independent of payload.

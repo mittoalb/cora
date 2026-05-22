@@ -4,18 +4,18 @@ Per ISA-99, a Conduit is a governed communications path between two
 Zones. Each Conduit has its own SL-T (Security Level Target) and an
 agreed contract describing what may flow through it; runtime
 traversal events accumulate against the Conduit's traversals
-observation logbook (see Phase 6f-5a).
+observation logbook.
 
-Phase 3b kept Conduit minimal: `id` + `name` + the two endpoint zone
-IDs. SL-T, contract, and remaining lifecycle (`Defined → Active →
-Modified → Archived`, per BC-map) follow the same additive-state
+Conduit is intentionally minimal: `id` + `name` + the two endpoint
+zone IDs. SL-T, contract, and remaining lifecycle (`Defined → Active
+→ Modified → Archived`, per BC-map) follow the same additive-state
 pattern as Zone — fields default in the evolver when added.
 
-Phase 6f-5a adds **logbook state**: `logbooks: dict[str, UUID]`
-mapping logbook kind → currently-open logbook id for each observation
-logbook attached to this Conduit. The traversals logbook is opened
-automatically at conduit-creation (gate-review locked: per-Conduit
-logbook scoping). The state encodes the
+**Logbook state**: `logbooks: dict[str, UUID]` maps logbook kind →
+currently-open logbook id for each observation logbook attached to
+this Conduit. The traversals logbook is opened automatically at
+conduit-creation (gate-review locked: per-Conduit logbook scoping).
+The state encodes the
 **at-most-one-open-per-kind invariant** directly — opening a second
 logbook of an existing kind raises rather than orphaning the first.
 The slim-aggregate principle keeps state to invariant-relevant

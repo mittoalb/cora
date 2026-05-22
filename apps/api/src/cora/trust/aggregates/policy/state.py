@@ -6,11 +6,11 @@ Conduit". The Policy aggregate's `evaluate` function is the pure
 domain-level Policy Decision Point; the `TrustAuthorize` infra
 adapter wires it behind the cross-BC `Authorize` port.
 
-Phase 3c keeps Policy minimal:
+Policy is intentionally minimal:
   - `id` + `name`
   - `conduit_id` — the single Conduit this policy governs (one
-    policy per conduit in 3c; cross-policy resolution is 3e's
-    `TrustAuthorize` problem)
+    policy per conduit; cross-policy resolution is the
+    `TrustAuthorize` adapter's problem)
   - `permitted_principals: frozenset[UUID]` — explicit allow-list
   - `permitted_commands: frozenset[str]` — command-name allow-list
     (matches the discriminator string used by the Authorize port and
@@ -92,13 +92,13 @@ class PolicyName:
 class Policy:
     """Aggregate root: an authorization rule attached to a Conduit + Surface pair.
 
-    `surface_id` (Phase B Iter B): the process-level arrival point this
-    policy gates. Defaults to nil so V1 PolicyDefined events on disk
-    fold to a nil-surface policy (operationally a "match any surface"
-    policy until Iter C ships surface adapters that inject real IDs).
-    Once Iter C lands, the V2 bootstrap policy will bind to the
-    seeded HTTP Surface and V1 will become operationally inert (per
-    project_conduit_injection_design.md, V1 deprecation watch item).
+    `surface_id`: the process-level arrival point this policy gates.
+    Defaults to nil so V1 PolicyDefined events on disk fold to a
+    nil-surface policy (operationally a "match any surface" policy
+    while route layers don't yet inject real Surface IDs). The V2
+    bootstrap policy binds to the seeded HTTP Surface and V1 becomes
+    operationally inert (per project_conduit_injection_design.md, V1
+    deprecation watch item).
     """
 
     id: UUID

@@ -11,7 +11,7 @@ kinds may implement it via `executor_shapes`. Method (Recipe BC) and
 Procedure (Operation BC) carry `capability_id` FKs pointing back at
 this aggregate.
 
-Distinct from Equipment BC's `Family` aggregate (renamed in 5i):
+Distinct from Equipment BC's `Family` aggregate:
 - `Family` is the device-class abstraction (RotaryStage / Camera /
   Scintillator). Carries an `Affordance` set declaring what the
   device CAN DO at the physics layer.
@@ -29,9 +29,8 @@ vs Procedural Control Model precedent).
 Genesis + FSM (Defined → Versioned → Deprecated, matching
 Method/Plan/Practice/Family precedent). 4 slices: `define_capability`,
 `version_capability`, `deprecate_capability`, `get_capability`.
-ExecutorShape ships with Capability (6m folded in per DLM-B). The
-trajectory / PaNET / plan_signature granularity facets defer to
-DLM-C when pilot demands.
+ExecutorShape ships with Capability. The trajectory / PaNET /
+plan_signature granularity facets are deferred when pilot demands.
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
 

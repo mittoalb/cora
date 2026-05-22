@@ -10,9 +10,9 @@
 
 `load_method_timestamps(pool, method_id) -> MethodLifecycleTimestamps | None`
 reads the projection-row metadata that mirrors the FSM transitions
-(audit-2026-05-20 Iter A, Path C). State stays minimal per decider
-purity (Chassaing/Pellegrini/Reynhout); lifecycle timestamps live on
-the projection per Dudycz pragmatic-redundancy + K8s/GitHub/AIP-142
+(Path C). State stays minimal per decider purity
+(Chassaing/Pellegrini/Reynhout); lifecycle timestamps live on the
+projection per Dudycz pragmatic-redundancy + K8s/GitHub/AIP-142
 resource-API precedent. Returns None when no projection row exists
 (eventual consistency: the row appears after the projection worker
 folds MethodDefined; callers should treat the absence as a transient

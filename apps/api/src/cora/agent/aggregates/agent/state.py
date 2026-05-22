@@ -772,13 +772,13 @@ class Agent:
     These STAY on aggregate state because `suspension_reason` is
     invariant-bearing — deciders read it.
 
-    Lifecycle timestamps moved off state (audit-2026-05-20 Iter C-2,
-    Path C): `defined_at` / `versioned_at` / `deprecated_at` no
-    longer live here. The projection (`proj_agent_summary`, Iter C-1)
-    folds those from event-payload `occurred_at`; readers compose
-    them onto the response via `load_agent_timestamps`. Mirrors
-    Method / Plan / Practice / Family / Capability. Suspended/Resumed
-    timestamps stay because they pair with the invariant-bearing
+    Lifecycle timestamps moved off state (Path C):
+    `defined_at` / `versioned_at` / `deprecated_at` no longer live
+    here. The projection (`proj_agent_summary`) folds those from
+    event-payload `occurred_at`; readers compose them onto the
+    response via `load_agent_timestamps`. Mirrors Method / Plan /
+    Practice / Family / Capability. Suspended/Resumed timestamps
+    stay because they pair with the invariant-bearing
     suspension_reason field.
 
     Forward-compat fold: pre-8f-c-iter-2 `AgentDefined` events have

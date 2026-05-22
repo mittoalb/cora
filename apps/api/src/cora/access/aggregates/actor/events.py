@@ -40,8 +40,8 @@ from cora.infrastructure.ports.event_store import StoredEvent
 class ActorRegistered:
     """A new actor was registered.
 
-    `kind` discriminates `human` vs `agent` (Phase 8f-a additive
-    evolution). REQUIRED at construction: both callsites
+    `kind` discriminates `human` vs `agent` (additive evolution).
+    REQUIRED at construction: both callsites
     (`register_actor` in Access BC, `define_agent` in Agent BC)
     MUST pass it explicitly so drift between them surfaces as a
     pyright error rather than silently minting an agent-kind Actor

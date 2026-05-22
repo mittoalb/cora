@@ -1,8 +1,8 @@
 """DecisionReasoning entry: per-AI-trace observation row.
 
-Phase 8c-a's first concrete entry type for the Decision BC.
-Mirrors the Conduit BC's `ConduitTraversal` precedent (6f-5a) and
-the per-category writer pattern locked there.
+The Decision BC's first concrete entry type. Mirrors the Conduit
+BC's `ConduitTraversal` precedent and the per-category writer
+pattern locked there.
 
 Each entry captures one OpenTelemetry GenAI semantic-convention
 event: an LLM call, a tool invocation, or an agent span. The

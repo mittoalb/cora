@@ -7,8 +7,8 @@ and event types.
 Public surface: status FSM + VOs + ModelRef + errors + events +
 evolver + load_agent.
 
-Phase 8f-a ships the foundation (define + version + deprecate + get);
-no projection or list slice yet (deferred until per-kind active-agent
+Ships the foundation (define + version + deprecate + get); no
+projection or list slice yet (deferred until per-kind active-agent
 queries surface).
 """
 

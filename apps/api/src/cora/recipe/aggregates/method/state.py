@@ -48,11 +48,12 @@ derives the new status from the event TYPE — same precedent as
 
 `MethodName` is the **eighth** trimmed-bounded-name VO after
 `ActorName`, `ZoneName`, `ConduitName`, `PolicyName`, `SubjectName`,
-`FamilyName`, `AssetName`. Phase 6e-1 hoisted the shared
-trim+length-check logic to `cora.infrastructure.bounded_text.validate_bounded_text`
-once the 10th VO (PlanName) landed; MethodName now calls that helper
-while keeping its own frozen dataclass type and per-aggregate error
-class. See the helper module's docstring for the design rationale.
+`FamilyName`, `AssetName`. The shared trim+length-check logic was
+hoisted to `cora.infrastructure.bounded_text.validate_bounded_text`
+once the 10th VO (PlanName) landed; MethodName now calls that
+helper while keeping its own frozen dataclass type and per-aggregate
+error class. See the helper module's docstring for the design
+rationale.
 
 ## Frozensets in state, lists in payloads
 
@@ -79,7 +80,7 @@ METHOD_VERSION_TAG_MAX_LENGTH = 50
 # (cora.supply.aggregates.supply.state.SUPPLY_KIND_MAX_LENGTH = 50)
 # so per-element validation in the Method decider stays consistent
 # with what Supply itself accepts at register_supply time. See
-# [[project_supply_design]] §"Phase 10b — Method.needed_supplies consumer"
+# [[project_supply_design]] §"Method.needed_supplies consumer"
 # for the design lock.
 METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH = 50
 
@@ -87,7 +88,7 @@ METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH = 50
 class MethodStatus(StrEnum):
     """The Method's lifecycle state.
 
-    Transitions land per-slice in Phase 6b:
+    Transitions land per-slice:
       - Defined -> Versioned        (version_method)
       - (Defined | Versioned) -> Deprecated   (deprecate_method)
 
@@ -185,7 +186,7 @@ class InvalidMethodNeededSuppliesError(ValueError):
     """One of the supplied needed_supplies kind strings is empty,
     whitespace-only, or too long.
 
-    Phase 10b. Validated at the API boundary via Pydantic per-element
+    Validated at the API boundary via Pydantic per-element
     `min_length=1, max_length=50`, AND defensively at the decider via
     this error so direct in-process callers (sagas, tests) get the
     same protection. The diagnostic carries the offending element.
@@ -193,12 +194,11 @@ class InvalidMethodNeededSuppliesError(ValueError):
     Per-element bound mirrors `InvalidSupplyKindError` from the Supply
     BC (the kind is the abstract label; Method's needed_supplies
     references kind values that Supply registrations carry). See
-    [[project_supply_design]] §"Phase 10b — Method.needed_supplies
-    consumer" for the design lock + asymmetry rationale (frozenset[str]
-    on Method vs frozenset[UUID] for needed_families: Supply is
-    INSTANCE-aggregate per facility, sharing a `kind` label;
-    Family is TYPE-aggregate, one global definition referenced
-    by UUID).
+    [[project_supply_design]] §"Method.needed_supplies consumer" for
+    the design lock + asymmetry rationale (frozenset[str] on Method
+    vs frozenset[UUID] for needed_families: Supply is INSTANCE-aggregate
+    per facility, sharing a `kind` label; Family is TYPE-aggregate,
+    one global definition referenced by UUID).
     """
 
     def __init__(self, value: str) -> None:
@@ -294,7 +294,7 @@ class Method:
     # Distinct from `needed_families` (hardware compatibility, what
     # Family classes the Method needs available) — both fields stay,
     # answering DIFFERENT questions per [[project-capability-aggregate-design]]
-    # DLM-B watch item 10. The cross-BC validation that
+    # see [[project-capability-aggregate-design]] watch item 10. The cross-BC validation that
     # `Method.parameters_schema ⊂ Capability.parameter_schema` runs at
     # define_method time via the capability_loader port (STRICT per
     # [[project-asset-settings-design]] 5g-c anchor).
@@ -306,16 +306,16 @@ class Method:
     # per facility, each with its own availability state, sharing a
     # `kind` label). Methods are facility-portable so they reference
     # the abstract kind, not a per-facility instance UUID. Defaults
-    # to empty frozenset (additive-state pattern; pre-10b
+    # to empty frozenset (additive-state pattern; legacy
     # MethodDefined-only streams fold cleanly via payload.get default).
-    # See [[project_supply_design]] §"Phase 10b — Method.needed_supplies
-    # consumer" for the full design lock.
+    # See [[project_supply_design]] §"Method.needed_supplies consumer"
+    # for the full design lock.
     needed_supplies: frozenset[str] = field(default_factory=frozenset[str])
 
 
 class MethodParametersNotSubsetError(ValueError):
-    """Phase 6l-strict-c: Method.parameters_schema is not a subset of
-    the bound Capability.parameter_schema.
+    """Method.parameters_schema is not a subset of the bound
+    Capability.parameter_schema.
 
     Mapped to HTTP 409. Raised by `update_method_parameters_schema`'s
     decider when the operator submits a parameters_schema that widens

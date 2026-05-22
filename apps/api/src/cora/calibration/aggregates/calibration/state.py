@@ -3,7 +3,7 @@
 A `Calibration` is an empirical record of an instrument value (rotation
 center, detector pixel size, beam alignment) keyed by
 `(subsystem_or_asset_id, quantity, operating_point)`. Per
-[[project_calibration_design]] (Stage 1 lock, Phase 12), revisions
+[[project_calibration_design]] (Stage 1 lock), revisions
 accumulate append-only on the aggregate; status lives per-revision; no
 aggregate-level FSM transitions.
 

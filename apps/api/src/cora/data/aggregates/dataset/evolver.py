@@ -19,14 +19,14 @@ Dataset field through from prior state. Constructing
 `Dataset(id=..., name=..., uri=..., checksum=..., byte_size=...,
 encoding=..., status=...)` without explicitly passing the optional
 cross-aggregate refs (`producing_run_id`, `subject_id`,
-`derived_from`) AND the 7e additions (`producing_run_end_state`,
-`intent`) AND the 12c addition (`used_calibrations`) would silently
-WIPE them to defaults. Aligned to explicit construction post-domain-
-audit to match the documented pattern in Asset/Plan/Method/Practice/
-Family/Subject/Run evolvers. Phase 12c specifically: the
-`used_calibrations` AsShot citation set is IMMUTABLE after register
-— every transition arm preserves `prior.used_calibrations` verbatim
-(mirrors Run.pinned_calibrations AsShot immutability per Phase 12b).
+`derived_from`) AND the additive fields (`producing_run_end_state`,
+`intent`, `used_calibrations`) would silently WIPE them to defaults.
+Aligned to explicit construction post-domain-audit to match the
+documented pattern in Asset/Plan/Method/Practice/Family/Subject/Run
+evolvers. The `used_calibrations` AsShot citation set is IMMUTABLE
+after register — every transition arm preserves
+`prior.used_calibrations` verbatim (mirrors Run.pinned_calibrations
+AsShot immutability).
 
 Defensive guard: `DatasetDiscarded` and `DatasetPromoted` arms raise
 on `state is None` (the parent Dataset must exist before any

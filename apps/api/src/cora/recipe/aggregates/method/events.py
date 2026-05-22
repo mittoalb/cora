@@ -5,13 +5,13 @@ union, `event_type_name`, `to_payload`, `from_stored`. The
 persistence-envelope construction (`NewEvent`) lives at
 `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 6a shipped `MethodDefined`. Phase 6b adds `MethodVersioned`
-and `MethodDeprecated` per the `Defined → Versioned → Deprecated`
+`MethodDefined` is the genesis; `MethodVersioned` and
+`MethodDeprecated` cover the `Defined → Versioned → Deprecated`
 lifecycle. MethodVersioned carries an operator-supplied
 `version_tag` (free-text label like "v2" or "2026-Q3"; precedent:
 AssetRelocated.reason and FamilyVersioned). MethodDeprecated
 carries no extra fields. Mirrors Family's transition shape from
-Equipment 5f-2.
+the Equipment BC.
 
 ## Payload conventions
 

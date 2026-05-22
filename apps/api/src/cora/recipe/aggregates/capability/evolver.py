@@ -4,7 +4,7 @@ Status mapping per event type:
   - `RecipeCapabilityDefined`    -> DEFINED   (genesis; version=None)
   - `RecipeCapabilityVersioned`  -> VERSIONED (version=event.version_tag;
                                          declarative contract REPLACES
-                                         wholesale per DLM-B)
+                                         wholesale)
   - `RecipeCapabilityDeprecated` -> DEPRECATED (declarative contract PRESERVED
                                           for audit; replaced_by_capability_id
                                           captured if supplied)
@@ -82,8 +82,8 @@ def evolve(state: Capability | None, event: RecipeCapabilityEvent) -> Capability
                 name=prior.name,
                 status=CapabilityStatus.VERSIONED,
                 version=version_tag,
-                # Declarative contract REPLACES wholesale (a new version
-                # IS a new declaration per DLM-B Pattern P).
+                # Declarative contract REPLACES wholesale (a new
+                # version IS a new declaration per Pattern P).
                 description=description,
                 required_affordances=required_affordances,
                 executor_shapes=executor_shapes,

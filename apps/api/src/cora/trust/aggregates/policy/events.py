@@ -28,7 +28,7 @@ from cora.infrastructure.routing import NIL_SENTINEL_ID
 class PolicyDefined:
     """A new authorization Policy was defined for a Conduit + Surface pair.
 
-    `surface_id` (Phase B Iter B): additive. V1 PolicyDefined events
+    `surface_id`: additive. V1 PolicyDefined events
     on disk lack this field; `from_stored` defaults missing values to
     `UUID(int=0)` so V1 events still fold cleanly.
     """

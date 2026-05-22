@@ -18,10 +18,10 @@ Status mapping per event type (8 arms across 6i-a + 6i-c):
   - `CampaignAbandoned`  -> ABANDONED (multi-source: Planned | Active |
                               Held; sets `last_status_reason`)
   - `CampaignRunAdded`   -> status preserved; unions run_id into run_ids
-                              (Phase 6i-c; membership mutation)
+                              (membership mutation)
   - `CampaignRunRemoved` -> status preserved; removes run_id from run_ids
-                              (Phase 6i-c; reason on event is per-
-                              membership audit, NOT last_status_reason)
+                              (reason on event is per-membership audit,
+                              NOT last_status_reason)
 
 Source-state guards live at the decider, NOT here; the evolver trusts
 the event log (folded events have already passed their decider).

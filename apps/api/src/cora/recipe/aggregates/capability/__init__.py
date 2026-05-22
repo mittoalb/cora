@@ -1,11 +1,10 @@
 """Capability aggregate: state, status, executor-shape, errors, events, evolver, read.
 
-Phase 6k. The universal declarative template at the operations
-layer per [[project-capability-aggregate-design]]; sits above
-heterogeneous executor shapes (Method-chain for science, Procedure
-for ceremony) per the universal-template-above-heterogeneous-
-executors pattern locked in [[project-capability-research]]
-Round 3.
+The universal declarative template at the operations layer per
+[[project-capability-aggregate-design]]; sits above heterogeneous
+executor shapes (Method-chain for science, Procedure for ceremony)
+per the universal-template-above-heterogeneous-executors pattern
+locked in [[project-capability-research]] Round 3.
 
 Vertical slices that operate on this aggregate live under
 `cora.recipe.features.<verb>_capability/` and import from here for

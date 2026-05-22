@@ -17,7 +17,7 @@ def evolve(state: Surface | None, event: SurfaceEvent) -> Surface:
     match event:
         case SurfaceDefined(surface_id=surface_id, name=name, kind=kind, occurred_at=_):
             _ = state  # SurfaceDefined is genesis; prior state ignored
-            # Path C (Iter D): lifecycle timestamps removed from state — Surface
+            # Path C: lifecycle timestamps removed from state — Surface
             # is a singleton-ish aggregate (3 hardcoded instances, no LIST,
             # no operator-defined Surfaces) so `defined_at` carried no
             # observable read value and is dropped entirely. Event payload's

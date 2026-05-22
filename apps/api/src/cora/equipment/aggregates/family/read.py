@@ -7,9 +7,9 @@
 
 `load_family_timestamps(pool, family_id) -> FamilyLifecycleTimestamps | None`
 reads the projection-row metadata that mirrors the FSM transitions
-(audit-2026-05-20 Iter B-3, Path C). State stays minimal per decider
-purity (Chassaing/Pellegrini/Reynhout); lifecycle timestamps live on
-the projection per Dudycz pragmatic-redundancy + K8s/GitHub/AIP-142
+(Path C). State stays minimal per decider purity
+(Chassaing/Pellegrini/Reynhout); lifecycle timestamps live on the
+projection per Dudycz pragmatic-redundancy + K8s/GitHub/AIP-142
 resource-API precedent. Mirrors `load_method_timestamps` /
 `load_plan_timestamps` / `load_practice_timestamps`.
 
@@ -17,13 +17,14 @@ resource-API precedent. Mirrors `load_method_timestamps` /
 
 `_STREAM_TYPE = "Family"`. The stream-type string is the event store's
 internal categorization key. CORA is greenfield (no production
-deployments at 5i lock time), so changing the stream key to match the
+deployments at rename time), so changing the stream key to match the
 new aggregate name is the simpler choice; if a future deployment ever
-needs to read pre-5i streams written under the old `"Capability"`
+needs to read legacy streams written under the old `"Capability"`
 stream type, add a one-time migration that updates `events.stream_type`
 to `"Family"` (the event payloads themselves stay untouched per
 [[project-immutability-guarantee]]; only the categorization label
-changes). Watch item documented in DLM-A.
+changes). Watch item documented in
+[[family-affordance-design-phases-5i-5j-lock]].
 """
 
 from dataclasses import dataclass

@@ -9,9 +9,9 @@ commands (6d-2).
 
 `load_practice_timestamps(pool, practice_id) -> PracticeLifecycleTimestamps | None`
 reads the projection-row metadata that mirrors the FSM transitions
-(audit-2026-05-20 Iter B-2, Path C). State stays minimal per decider
-purity (Chassaing/Pellegrini/Reynhout); lifecycle timestamps live on
-the projection per Dudycz pragmatic-redundancy + K8s/GitHub/AIP-142
+(Path C). State stays minimal per decider purity
+(Chassaing/Pellegrini/Reynhout); lifecycle timestamps live on the
+projection per Dudycz pragmatic-redundancy + K8s/GitHub/AIP-142
 resource-API precedent. Mirrors `load_method_timestamps` /
 `load_plan_timestamps`.
 """

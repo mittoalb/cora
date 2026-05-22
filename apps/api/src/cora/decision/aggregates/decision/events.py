@@ -118,7 +118,7 @@ class DecisionLogbookClosed:
 
 @dataclass(frozen=True)
 class DecisionRated:
-    """An operator rated a Decision (Phase 8f-b acceptance-signal capture).
+    """An operator rated a Decision (acceptance-signal capture).
 
     Multiple `DecisionRated` events per (decision, actor) pair are
     allowed; the evolver folds latest-per-actor wins into

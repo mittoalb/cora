@@ -5,12 +5,11 @@ union, `event_type_name`, `to_payload`, `from_stored`. The
 persistence-envelope construction (`NewEvent`) lives at
 `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 6d-1 shipped `PracticeDefined`. Phase 6d-2 adds
-`PracticeVersioned` and `PracticeDeprecated` per the
-`Defined → Versioned → Deprecated` lifecycle. PracticeVersioned
-carries an operator-supplied `version_tag`. PracticeDeprecated
-carries no extra fields. Mirrors Method's transition shape (Recipe
-6b) and Family's (Equipment 5f-2).
+`PracticeDefined` is the genesis; `PracticeVersioned` and
+`PracticeDeprecated` cover the `Defined → Versioned → Deprecated`
+lifecycle. PracticeVersioned carries an operator-supplied
+`version_tag`. PracticeDeprecated carries no extra fields. Mirrors
+Method's transition shape and Family's.
 
 ## Payload conventions
 

@@ -4,12 +4,12 @@ Vertical slices that operate on this aggregate live under
 `cora.trust.features.<verb>_conduit/` and import from here for state
 and event types.
 
-Phase 6f-5a adds logbook-lifecycle infrastructure: `logbooks`
-(dict mapping kind → currently-open logbook id) on the aggregate
-state, `ConduitLogbookOpened` / `ConduitLogbookClosed` events on
-the main stream, and the `traversals` logbook kind constant.
-Per-decision authz audit entries live in the sibling `entries.py`
-module (separate from the aggregate event-store path).
+Logbook-lifecycle infrastructure: `logbooks` (dict mapping kind →
+currently-open logbook id) on the aggregate state,
+`ConduitLogbookOpened` / `ConduitLogbookClosed` events on the main
+stream, and the `traversals` logbook kind constant. Per-decision
+authz audit entries live in the sibling `entries.py` module
+(separate from the aggregate event-store path).
 """
 
 from cora.trust.aggregates.conduit.events import (

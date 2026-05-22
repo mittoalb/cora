@@ -55,15 +55,15 @@ class DatasetRegistered:
     reconstructed by the evolver on fold; the decider unwraps VOs
     before constructing the event.
 
-    Phase 7e additions (additive, forward-compat):
+    Trust-level additions (additive, forward-compat):
       - `producing_run_end_state: str | None`: Run's terminal status
         captured at registration when producing_run_id is set; None
-        otherwise. Pre-7e events fold cleanly with this defaulting
+        otherwise. Legacy events fold cleanly with this defaulting
         to None (payload.get).
       - `intent: str`: trust level (Intent.value); defaults to "Trial"
-        on register. Pre-7e events fold cleanly with default "Trial".
+        on register. Legacy events fold cleanly with default "Trial".
 
-    Phase 12c addition (additive, forward-compat):
+    Calibration-citation addition (additive, forward-compat):
       - `used_calibrations: tuple[UUID, ...]`: revision-cited atomic
         IDs naming the CalibrationRevisions the reconstruction
         actually used (Calibration BC AsShot citation; symmetric to

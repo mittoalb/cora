@@ -7,17 +7,18 @@ mirrors `load_family` / `load_method` / `load_plan` / etc.
 
 `load_capability_timestamps(pool, capability_id) -> CapabilityLifecycleTimestamps | None`
 reads the projection-row metadata that mirrors the FSM transitions
-(audit-2026-05-20 Iter B-4, Path C). State stays minimal per decider
-purity (Chassaing/Pellegrini/Reynhout); lifecycle timestamps live on
-the projection per Dudycz pragmatic-redundancy + K8s/GitHub/AIP-142
+(Path C). State stays minimal per decider purity
+(Chassaing/Pellegrini/Reynhout); lifecycle timestamps live on the
+projection per Dudycz pragmatic-redundancy + K8s/GitHub/AIP-142
 resource-API precedent. Mirrors `load_method_timestamps` /
 `load_plan_timestamps` / `load_practice_timestamps` /
 `load_family_timestamps`.
 
-Note: `Capability.replaced_by_capability_id` STATE field (DLM-B
-catalog governance) is unaffected — it's an intrinsic deprecation
-pointer that the decider may read on future commands, distinct from
-the lifecycle-when timestamp surfaced here.
+Note: `Capability.replaced_by_capability_id` STATE field (catalog
+governance per [[project-capability-aggregate-design]]) is
+unaffected — it's an intrinsic deprecation pointer that the decider
+may read on future commands, distinct from the lifecycle-when
+timestamp surfaced here.
 """
 
 from dataclasses import dataclass

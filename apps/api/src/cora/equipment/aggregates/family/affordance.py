@@ -1,7 +1,7 @@
 """Affordance closed StrEnum: device-level operational primitives a Family supports.
 
-Phase 5j. Per DLM-A [[family-affordance-design-phases-5i-5j-lock]] and
-the 4-round Stage 0 research [[project-capability-research]]:
+Per [[family-affordance-design-phases-5i-5j-lock]] and the 4-round
+Stage 0 research [[project-capability-research]]:
 
 - An Affordance is a CLAIM about what the device can do, set-membership-
   shaped (a Family `affords` Rotatable iff Rotatable is in
@@ -44,7 +44,7 @@ that belong elsewhere:
   - `BitDepthSelectable`, `ROIConfigurable`, `BadPixelMaskable` →
     `Family.settings_schema` (parameter values, not actions).
   - `BraggAddressable`, `EnergySelectable` → operations-layer
-    `Capability` (DLM-B / phase 6k), not Affordance.
+    `Capability` (Recipe BC), not Affordance.
 The grammatical test: if the candidate reads as "device supports
 being configured to set <noun>", it's parameter-shaped, not action-
 shaped. Compound `<noun>Selectable` / `<noun>Addressable` is the

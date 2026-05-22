@@ -9,15 +9,15 @@ update-style commands (6e-2).
 
 `load_plan_timestamps(pool, plan_id) -> PlanLifecycleTimestamps | None`
 reads the projection-row metadata that mirrors the FSM transitions
-(audit-2026-05-20 Iter B-1, Path C). State stays minimal per decider
-purity (Chassaing/Pellegrini/Reynhout); lifecycle timestamps live on
-the projection per Dudycz pragmatic-redundancy + K8s/GitHub/AIP-142
+(Path C). State stays minimal per decider purity
+(Chassaing/Pellegrini/Reynhout); lifecycle timestamps live on the
+projection per Dudycz pragmatic-redundancy + K8s/GitHub/AIP-142
 resource-API precedent. Returns None when no projection row exists
 (eventual consistency: the row appears after the projection worker
 folds PlanDefined; callers should treat the absence as a transient
 "projection hasn't caught up yet" rather than "Plan doesn't exist"
 — that distinction belongs to `load_plan`). Mirrors
-`load_method_timestamps` (Iter A pilot).
+`load_method_timestamps`.
 """
 
 from dataclasses import dataclass

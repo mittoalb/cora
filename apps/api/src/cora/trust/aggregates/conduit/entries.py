@@ -1,9 +1,8 @@
 """ConduitTraversal entry: per-decision authz audit row.
 
-Phase 6f-5a's first concrete entry type. Every call to the
-`Authorize` port that this Conduit governs produces one
-`ConduitTraversal` entry row, persisted to the
-`entries_conduit_traversals` table.
+The first concrete entry type. Every call to the `Authorize` port
+that this Conduit governs produces one `ConduitTraversal` entry
+row, persisted to the `entries_conduit_traversals` table.
 
 This is the first instance of the **per-category writer pattern**
 locked at gate-review L8: each entry kind has its own typed

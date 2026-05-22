@@ -2,8 +2,8 @@
 
 ## Rename + dual-match
 
-Phase 5i (direct rename of Capability → Family per DLM-A
-[[family-affordance-design-phases-5i-5j-lock]]):
+Direct rename of Capability → Family per
+[[family-affordance-design-phases-5i-5j-lock]]:
 
 - New event type names: `FamilyDefined`, `FamilyVersioned`,
   `FamilyDeprecated`, `FamilySettingsSchemaUpdated`.
@@ -86,11 +86,12 @@ class FamilyDeprecated:
 class FamilySettingsSchemaUpdated:
     """The Family's `settings_schema` was set, replaced, or cleared.
 
-    Phase 5g-a (originally CapabilitySettingsSchemaUpdated; renamed in
-    5i). Carries the FULL replacement schema. Independent of the
-    Defined/Versioned/Deprecated lifecycle: schema can be updated in
-    any non-terminal state. The validator runs at decider time, so
-    this event ALWAYS carries a valid schema or None.
+    Originally `CapabilitySettingsSchemaUpdated` before the rename;
+    dual-matched in `from_stored`. Carries the FULL replacement
+    schema. Independent of the Defined/Versioned/Deprecated lifecycle:
+    schema can be updated in any non-terminal state. The validator
+    runs at decider time, so this event ALWAYS carries a valid schema
+    or None.
     """
 
     family_id: UUID

@@ -12,12 +12,12 @@ Capability / Family / Practice / Method / Plan / Agent post-Phase-3
 convention. Lifecycle transitions are future-loadable; v1 ships
 genesis only (per AH8).
 
-Lifecycle timestamps removed (audit-2026-05-20 Iter D, Path C):
-Surface is a singleton-ish aggregate (exactly 3 instances —
-SYSTEM_HTTP / SYSTEM_MCP_STDIO / SYSTEM_MCP_STREAMABLE_HTTP — all
-seeded at boot from constants, no operator-defined Surfaces, no
-LIST endpoint, no version_surface / deprecate_surface slices today
-or planned). The `defined_at` field was set to boot-time on every
+Lifecycle timestamps removed (Path C): Surface is a singleton-ish
+aggregate (exactly 3 instances — SYSTEM_HTTP / SYSTEM_MCP_STDIO /
+SYSTEM_MCP_STREAMABLE_HTTP — all seeded at boot from constants, no
+operator-defined Surfaces, no LIST endpoint, no version_surface /
+deprecate_surface slices today or planned). The `defined_at` field
+was set to boot-time on every
 pod restart and the `versioned_at` / `deprecated_at` fields would
 always be null in practice — they carried no observable read
 value. The cleanest unification is to drop them entirely rather

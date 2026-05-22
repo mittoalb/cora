@@ -1,15 +1,13 @@
 """ExecutorShape closed v1 StrEnum: which executor kinds may implement a Capability.
 
-Phase 6m (folded into 6k per DLM-B). Per
-[[project-capability-aggregate-design]] and Round 3 of
+Per [[project-capability-aggregate-design]] and Round 3 of
 [[project-capability-research]]:
 
 - A `Capability` is the universal declarative template; concrete
   implementations come in heterogeneous executor shapes.
 - Closed v1: exactly two shapes: `Method` (Recipe BC, heavyweight
   science chain — Method→Plan→Run) and `Procedure` (Operation BC,
-  lightweight ceremony chain per 10c, ISA-106 Setpoint/Action/Check
-  atoms).
+  lightweight ceremony chain, ISA-106 Setpoint/Action/Check atoms).
 - New shapes only via explicit rule-of-three trigger (three concrete
   candidates of a new shape attested in production); never ad-hoc
   per [[project-capability-research]] anti-hook 17.
@@ -27,9 +25,9 @@ gating them behind rule-of-three keeps the catalog disciplined.
 
 Lives in Recipe BC alongside Capability (`cora.recipe.aggregates
 .capability.executor_shape`). Operation BC's Procedure imports
-this cross-BC at 10d's Procedure.start guard. The dependency
-direction is Recipe → Operation (Operation depends on Recipe's
-enum), NOT the reverse. Tach enforces.
+this cross-BC at Procedure.start's guard. The dependency direction
+is Recipe → Operation (Operation depends on Recipe's enum), NOT
+the reverse. Tach enforces.
 """
 
 from enum import StrEnum

@@ -1,7 +1,6 @@
 """Domain events emitted by the Capability aggregate, plus the discriminated union.
 
-Phase 6k. New aggregate (no rename history → no dual-match arms).
-Events:
+New aggregate (no rename history → no dual-match arms). Events:
 
   - RecipeCapabilityDefined (genesis)
   - RecipeCapabilityVersioned (declarative replacement at new version)
@@ -14,12 +13,13 @@ encodes the state change. Same precedent as `FamilyStatus` in
 
 ## Replacement semantics
 
-Per [[project-capability-aggregate-design]] DLM-B and Pattern P from
-DLM-A: a new version IS a new declaration. RecipeCapabilityVersioned
-carries the FULL declarative contract (required_affordances,
-parameter_schema, executor_shapes) — every field REPLACES the prior
-value wholesale. No diff/merge semantics. Matches Method/Plan/
-Practice/Family replace-on-version precedent.
+Per [[project-capability-aggregate-design]] and the Pattern P lock
+in [[project-family-affordance-design]]: a new version IS a new
+declaration. RecipeCapabilityVersioned carries the FULL declarative
+contract (required_affordances, parameter_schema, executor_shapes)
+— every field REPLACES the prior value wholesale. No diff/merge
+semantics. Matches Method/Plan/Practice/Family replace-on-version
+precedent.
 
 ## Payload field ordering
 
@@ -62,7 +62,7 @@ class RecipeCapabilityVersioned:
 
     Multi-source transition: `Defined | Versioned -> Versioned`. The
     full declarative contract REPLACES wholesale (a new version IS a
-    new declaration per DLM-B Pattern P).
+    new declaration per Pattern P).
     """
 
     capability_id: UUID

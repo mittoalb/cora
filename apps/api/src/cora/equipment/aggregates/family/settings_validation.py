@@ -1,5 +1,5 @@
 """Validate Family.settings_schema against CORA's constrained
-JSON Schema subset (Phase 5g-a, renamed in 5i).
+JSON Schema subset.
 
 Family.settings_schema declares the shape of Asset.settings keys
 this Family "owns". This module is the write-time guard via the

@@ -5,11 +5,10 @@ union, `event_type_name`, `to_payload`, `from_stored`. The
 persistence-envelope construction (`NewEvent`) lives at
 `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 6e-1 shipped `PlanDefined`. Phase 6e-2 adds `PlanVersioned`
-and `PlanDeprecated` per the `Defined → Versioned → Deprecated`
-lifecycle, mirroring Method 6b and Practice 6d-2. PlanVersioned
-carries an operator-supplied `version_tag`; PlanDeprecated carries
-no extra fields.
+`PlanDefined` is the genesis; `PlanVersioned` and `PlanDeprecated`
+cover the `Defined → Versioned → Deprecated` lifecycle, mirroring
+Method and Practice. PlanVersioned carries an operator-supplied
+`version_tag`; PlanDeprecated carries no extra fields.
 
 ## Payload conventions
 

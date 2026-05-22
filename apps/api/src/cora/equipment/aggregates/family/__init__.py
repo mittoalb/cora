@@ -4,9 +4,10 @@ Vertical slices that operate on this aggregate live under
 `cora.equipment.features.<verb>_family/` and import from here for
 state and event types.
 
-Phase 5i renamed this aggregate from `Capability` to `Family`. Phase
-5j added the `Affordance` closed StrEnum + `Family.affordances`
-required field per DLM-A [[family-affordance-design-phases-5i-5j-lock]].
+The aggregate was renamed from `Capability` to `Family` and the
+`Affordance` closed StrEnum + `Family.affordances` required field
+were added per the design lock at
+[[family-affordance-design-phases-5i-5j-lock]].
 """
 
 from cora.equipment.aggregates.family.affordance import (
