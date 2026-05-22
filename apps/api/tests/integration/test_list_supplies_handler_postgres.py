@@ -84,7 +84,7 @@ async def test_register_inserts_unknown_status_with_null_audit_columns(
 async def test_mark_available_updates_status_and_audit_triple(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """register -> mark_available: status flips Available + audit triple lands."""
+    """Register -> mark_available: status flips Available + audit triple lands."""
     sup_id = uuid4()
     deps = _build_deps(db_pool, [sup_id, uuid4()])
     await bind_register(deps)(
@@ -316,7 +316,9 @@ async def test_list_cursor_with_filter_paginates_within_filtered_set(
 async def test_list_unique_address_swallows_second_insert_and_keeps_worker_running(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Two supplies with the same (scope, kind, name) trip the projection's
+    """Duplicate-key UniqueViolation in the projection is caught and logged.
+
+    Two supplies with the same (scope, kind, name) trip the projection's
     UNIQUE INDEX on the second INSERT. The projection catches the
     UniqueViolation, logs a structured warning, and advances the bookmark
     so the worker keeps running. Operational behavior verified:

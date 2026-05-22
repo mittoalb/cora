@@ -130,7 +130,7 @@ async def test_full_lifecycle_truncate_path_lands_in_projection(
 
 @pytest.mark.integration
 async def test_list_filters_by_status(db_pool: asyncpg.Pool) -> None:
-    """status filter narrows results to one ProcedureStatus value."""
+    """Status filter narrows results to one ProcedureStatus value."""
     defined_id = uuid4()
     completed_id = uuid4()
     deps = _build_deps(
@@ -173,7 +173,7 @@ async def test_list_filters_by_status(db_pool: asyncpg.Pool) -> None:
 
 @pytest.mark.integration
 async def test_list_filters_by_kind(db_pool: asyncpg.Pool) -> None:
-    """kind filter narrows results to one bare-str discriminator."""
+    """Kind filter narrows results to one bare-str discriminator."""
     bakeout_id = uuid4()
     alignment_id = uuid4()
     deps = _build_deps(db_pool, [bakeout_id, uuid4(), alignment_id, uuid4()])

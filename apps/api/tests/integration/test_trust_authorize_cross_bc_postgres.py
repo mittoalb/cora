@@ -288,8 +288,9 @@ async def test_trust_policy_gates_access_handler_with_distinct_error_class(
 async def test_documented_bootstrap_workflow_produces_working_authz(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Pin the bootstrap workflow documented in
-    `cora/trust/authorize.py`'s docstring:
+    """Pin the bootstrap workflow documented in `cora/trust/authorize.py`.
+
+    The documented sequence:
 
         1. Start with `trust_policy_id` unset (AllowAllAuthorize).
         2. Define a permissive policy via the API; record the id.

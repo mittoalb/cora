@@ -93,7 +93,7 @@ async def test_capability_defined_inserts_with_defined_status_and_null_version()
 
 @pytest.mark.unit
 async def test_capability_defined_tolerates_optional_fields_omitted() -> None:
-    """description and parameter_schema are both optional at define time;
+    """Description and parameter_schema are both optional at define time;
     payload may omit them entirely (legacy / minimal Capabilities)."""
     proj = RecipeCapabilitySummaryProjection()
     conn = AsyncMock()

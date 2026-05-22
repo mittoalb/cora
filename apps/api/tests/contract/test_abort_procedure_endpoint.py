@@ -49,7 +49,7 @@ def test_post_abort_returns_404_for_unknown_id() -> None:
 
 @pytest.mark.contract
 def test_post_abort_returns_409_for_defined_procedure() -> None:
-    """abort requires Running; from Defined raises CannotAbort."""
+    """Abort requires Running; from Defined raises CannotAbort."""
     with TestClient(create_app()) as client:
         body: dict[str, Any] = {"name": "X", "kind": "bakeout"}
         pid = UUID(client.post("/procedures", json=body).json()["procedure_id"])

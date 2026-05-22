@@ -129,6 +129,26 @@ select = [
     "TC",   # flake8-type-checking
     "N",    # pep8-naming
     "ASYNC",
+    # Documentation guardrails (see docs/reference/conventions.md#documentation).
+    # Selective subset of pydocstyle — broader D-rules (D205, D209, D213) would
+    # require ~3,000+ retroactive rewrites against an established convention.
+    # D401 (imperative mood) is heuristic and conflicts with the "True iff X"
+    # predicate idiom. D1xx (require docstring presence) is left to reviewer
+    # judgment; the codebase runs at ~100% module / ~74% class docstrings
+    # already without enforcement.
+    "D200",     # one-line docstring fits on one line
+    "D201",     # no blank lines before docstring
+    "D202",     # no blank lines after function docstring
+    "D210",     # no whitespace surrounding docstring text
+    "D211",     # no blank lines before class docstring
+    "D212",     # multi-line summary on the first line (vs D213)
+    "D300",     # triple double quotes
+    "D403",     # first word capitalized
+    "D404",     # first word not "This"
+    "D415",     # first line ends with .  ?  or !
+    # TODO hygiene — `git log` + PR description carry context, not source.
+    "TD002",    # require TODO author
+    "TD003",    # require TODO issue link
 ]
 ignore = []
 

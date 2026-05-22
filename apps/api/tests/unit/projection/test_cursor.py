@@ -26,7 +26,7 @@ def test_round_trip_preserves_created_at_and_id() -> None:
 
 @pytest.mark.unit
 def test_round_trip_handles_microsecond_precision() -> None:
-    """asyncpg returns timestamps with microsecond precision; the
+    """Asyncpg returns timestamps with microsecond precision; the
     cursor must preserve it so keyset pagination doesn't double-fetch
     or skip rows at microsecond boundaries."""
     created_at = datetime(2026, 5, 12, 14, 30, 45, 999999, tzinfo=UTC)

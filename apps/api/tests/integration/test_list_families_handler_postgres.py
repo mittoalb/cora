@@ -78,7 +78,7 @@ async def test_define_emits_defined_status_with_null_version_tag(
 async def test_version_writes_versioned_status_and_version_tag(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """define -> version: status flips Versioned and version_tag lands."""
+    """Define -> version: status flips Versioned and version_tag lands."""
     cap_id = uuid4()
     deps = _build_deps(db_pool, [cap_id, uuid4(), uuid4()])
     await bind_define(deps)(
@@ -105,7 +105,7 @@ async def test_version_writes_versioned_status_and_version_tag(
 
 @pytest.mark.integration
 async def test_deprecate_preserves_version_tag(db_pool: asyncpg.Pool) -> None:
-    """define -> version -> deprecate: status flips Deprecated, but
+    """Define -> version -> deprecate: status flips Deprecated, but
     version_tag stays so the audit trail of "what was the last
     revision before deprecation?" is visible in the projection."""
     cap_id = uuid4()
@@ -141,7 +141,7 @@ async def test_deprecate_preserves_version_tag(db_pool: asyncpg.Pool) -> None:
 async def test_deprecate_without_version_keeps_version_tag_null(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """define -> deprecate (skip version): status=Deprecated and
+    """Define -> deprecate (skip version): status=Deprecated and
     version_tag stays NULL because nothing ever wrote it."""
     cap_id = uuid4()
     deps = _build_deps(db_pool, [cap_id, uuid4(), uuid4()])

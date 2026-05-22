@@ -277,7 +277,7 @@ def test_evolve_run_started_preserves_raid() -> None:
 
 @pytest.mark.unit
 def test_evolve_run_started_without_raid_yields_state_with_raid_none() -> None:
-    """raid is optional; pre-7d-style RunStarted folds with raid=None."""
+    """Raid is optional; pre-7d-style RunStarted folds with raid=None."""
     state = evolve(None, _run_started())
     assert state.raid is None
 

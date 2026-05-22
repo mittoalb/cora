@@ -1,5 +1,6 @@
-"""End-to-end: `list_assets` handler against real Postgres
-projection table. Stresses the framework against:
+"""End-to-end `list_assets` handler against the real Postgres projection table.
+
+Stresses the framework against:
 
   - Multi-aggregate BC (Equipment has Asset + Family; we project
     only Asset events here)

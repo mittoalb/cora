@@ -130,12 +130,12 @@ async def test_returns_deny_when_configured_policy_does_not_exist() -> None:
 
 @pytest.mark.unit
 async def test_denies_when_caller_conduit_id_does_not_match_policy() -> None:
-    """Phase 3h behavior: TrustAuthorize forwards the caller's
-    `conduit_id` to `evaluate`, so a policy bound to one conduit
-    denies calls on another. Pinned because this is the whole point
-    of 3h — without it the conduit_id parameter on the port shape
-    would be cosmetic. (3g had it ignored; 3g's no-op test was
-    replaced by this one.)
+    """TrustAuthorize forwards the caller's conduit_id to `evaluate`.
+
+    A policy bound to one conduit denies calls on another. Pinned
+    because this is the whole point of 3h — without it the
+    conduit_id parameter on the port shape would be cosmetic.
+    (3g had it ignored; 3g's no-op test was replaced by this one.)
     """
     store = InMemoryEventStore()
     # Policy governs `_OTHER_CONDUIT_ID`, NOT the nil conduit handlers
@@ -163,10 +163,11 @@ async def test_denies_when_caller_conduit_id_does_not_match_policy() -> None:
 
 @pytest.mark.unit
 async def test_loads_policy_on_each_call_no_caching() -> None:
-    """Pin the no-caching contract: changing the policy in the store
-    between calls is reflected on the very next call. (Future caching
-    + LISTEN/NOTIFY invalidation would change this; should be a
-    deliberate change.)
+    """Pin the no-caching contract for TrustAuthorize policy loads.
+
+    Changing the policy in the store between calls is reflected on
+    the very next call. (Future caching + LISTEN/NOTIFY invalidation
+    would change this; should be a deliberate change.)
 
     Reseeding is awkward here (PolicyDefined is genesis-only); instead
     we verify the load happens by deleting the seeded event and

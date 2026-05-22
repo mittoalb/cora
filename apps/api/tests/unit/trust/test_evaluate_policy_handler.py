@@ -228,8 +228,10 @@ def test_wire_trust_returns_handlers_bundle_with_evaluate_policy() -> None:
 
 @pytest.mark.unit
 async def test_wired_handler_evaluates_through_full_composition() -> None:
-    """End-to-end check that evaluate_policy survives the `with_tracing`
-    wrap in wire.py. (No idempotency wrap on queries.)"""
+    """End-to-end check that evaluate_policy survives the `with_tracing` wrap in wire.py.
+
+    No idempotency wrap on queries.
+    """
     store = InMemoryEventStore()
     deps = build_deps(ids=[uuid4() for _ in range(8)], now=_NOW, event_store=store)
     await _seed_policy(store)

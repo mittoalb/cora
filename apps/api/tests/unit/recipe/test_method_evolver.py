@@ -242,7 +242,7 @@ def test_evolve_method_versioned_on_empty_state_raises() -> None:
 
 @pytest.mark.unit
 def test_evolve_method_deprecated_flips_status_and_preserves_version() -> None:
-    """version is preserved across deprecation. Mirrors
+    """Version is preserved across deprecation. Mirrors
     Family's preserve-on-deprecate semantics from Equipment 5f-2."""
     method_id = uuid4()
     cap1 = uuid4()

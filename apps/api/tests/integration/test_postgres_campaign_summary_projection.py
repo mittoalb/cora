@@ -127,7 +127,7 @@ async def test_register_inserts_planned_with_null_audit_columns(db_pool: asyncpg
 
 @pytest.mark.integration
 async def test_start_flips_status_active_and_sets_started_at(db_pool: asyncpg.Pool) -> None:
-    """register -> start -> status Active + started_at + last_status_changed_at."""
+    """Register -> start -> status Active + started_at + last_status_changed_at."""
     campaign_id = uuid4()
     deps = _build_deps(db_pool, [campaign_id, uuid4()])
     await register_campaign.bind(deps)(
@@ -158,7 +158,7 @@ async def test_start_flips_status_active_and_sets_started_at(db_pool: asyncpg.Po
 
 @pytest.mark.integration
 async def test_hold_sets_status_held_with_reason_and_audit_ts(db_pool: asyncpg.Pool) -> None:
-    """register -> start -> hold -> status Held + last_status_reason."""
+    """Register -> start -> hold -> status Held + last_status_reason."""
     campaign_id = uuid4()
     deps = _build_deps(db_pool, [campaign_id, uuid4()])
     await register_campaign.bind(deps)(
@@ -196,7 +196,7 @@ async def test_hold_sets_status_held_with_reason_and_audit_ts(db_pool: asyncpg.P
 
 @pytest.mark.integration
 async def test_resume_preserves_reason_and_started_at(db_pool: asyncpg.Pool) -> None:
-    """register -> start -> hold(reason X) -> resume -> status Active;
+    """Register -> start -> hold(reason X) -> resume -> status Active;
     last_status_reason preserved (audit value); started_at preserved."""
     campaign_id = uuid4()
     deps = _build_deps(db_pool, [campaign_id, uuid4()])
@@ -241,7 +241,7 @@ async def test_resume_preserves_reason_and_started_at(db_pool: asyncpg.Pool) -> 
 
 @pytest.mark.integration
 async def test_close_flips_status_closed(db_pool: asyncpg.Pool) -> None:
-    """register -> start -> close -> status Closed."""
+    """Register -> start -> close -> status Closed."""
     campaign_id = uuid4()
     deps = _build_deps(db_pool, [campaign_id, uuid4()])
     await register_campaign.bind(deps)(
@@ -279,7 +279,7 @@ async def test_close_flips_status_closed(db_pool: asyncpg.Pool) -> None:
 async def test_abandon_from_planned_flips_status_abandoned_with_reason(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """register -> abandon (from Planned, never started) -> status Abandoned;
+    """Register -> abandon (from Planned, never started) -> status Abandoned;
     started_at stays NULL; last_status_reason set."""
     campaign_id = uuid4()
     deps = _build_deps(db_pool, [campaign_id, uuid4()])
@@ -518,7 +518,7 @@ async def test_list_filters_by_intent_lead_actor_subject_and_tag(
 
 @pytest.mark.integration
 async def test_list_tags_round_trip_preserves_array(db_pool: asyncpg.Pool) -> None:
-    """tags TEXT[] survives the projection round-trip; payload sorts the values."""
+    """Tags TEXT[] survives the projection round-trip; payload sorts the values."""
     campaign_id = uuid4()
     deps = _build_deps(db_pool, [campaign_id, uuid4()])
     await register_campaign.bind(deps)(

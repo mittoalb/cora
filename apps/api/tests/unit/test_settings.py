@@ -34,7 +34,7 @@ def test_settings_reads_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.unit
 def test_settings_accepts_postgres_scheme(monkeypatch: pytest.MonkeyPatch) -> None:
-    """asyncpg accepts both 'postgresql://' and 'postgres://'."""
+    """Asyncpg accepts both 'postgresql://' and 'postgres://'."""
     monkeypatch.setenv("DATABASE_URL", "postgres://test:test@host/db")
     settings = Settings()
     assert settings.database_url == "postgres://test:test@host/db"

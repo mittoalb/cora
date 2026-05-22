@@ -237,9 +237,11 @@ def test_budget_revised_with_both_caps_none_clears_budget() -> None:
 @pytest.mark.unit
 def test_tool_grant_preserves_unrelated_fields() -> None:
     """ToolGrant arm must not silently wipe deprecation_reason / suspended_at.
+
     Guards the silent-wipe class of bugs caught at 8f-b iter 1 gate review.
     (`versioned_at` formerly checked here is now on the projection per
-    Iter C-2; status + tools cover the silent-wipe guard at state level.)"""
+    Iter C-2; status + tools cover the silent-wipe guard at state level.)
+    """
     agent_id = uuid4()
     e1 = _genesis(agent_id=agent_id)
     e2 = AgentVersioned(agent_id=agent_id, version="v1", occurred_at=_T1)

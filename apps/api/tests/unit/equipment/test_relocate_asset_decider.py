@@ -134,7 +134,7 @@ def test_decide_raises_cannot_relocate_when_asset_is_decommissioned() -> None:
 
 @pytest.mark.unit
 def test_decide_raises_cannot_relocate_for_self_loop() -> None:
-    """target == asset_id is the trivial cycle case (single-parent tree
+    """Target == asset_id is the trivial cycle case (single-parent tree
     cannot allow self-parenthood). Pinned because cycle detection
     beyond this case is deferred to projection-worker era; this is
     the only structural cycle guard that exists."""

@@ -117,7 +117,7 @@ def test_verified_principal_wins_even_when_verifier_not_present() -> None:
 
 @pytest.mark.unit
 def test_non_verified_principal_on_state_is_not_honored() -> None:
-    """isinstance guard: a future middleware that accidentally writes
+    """Isinstance guard: a future middleware that accidentally writes
     a duck-typed object with a `.principal_id` attribute to
     request.state.principal MUST NOT silently authenticate. Without
     bearer-auth enabled, this falls through to SYSTEM."""

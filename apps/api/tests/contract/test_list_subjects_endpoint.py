@@ -35,7 +35,7 @@ def test_get_subjects_accepts_each_subject_status(client: TestClient, status_val
 
 @pytest.mark.contract
 def test_get_subjects_rejects_unknown_status_with_422(client: TestClient) -> None:
-    """lowercase 'mounted' is NOT in the Literal (PascalCase per the
+    """Lowercase 'mounted' is NOT in the Literal (PascalCase per the
     BC-map vocabulary). Pydantic rejects."""
     with client:
         response = client.get("/subjects?status=mounted")

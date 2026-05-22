@@ -346,7 +346,7 @@ def test_post_adjust_run_returns_422_for_null_parameter_patch() -> None:
 
 @pytest.mark.contract
 def test_post_adjust_run_returns_422_for_reason_over_max_length() -> None:
-    """reason is Field(max_length=500) at the API boundary; over-limit
+    """Reason is Field(max_length=500) at the API boundary; over-limit
     bodies surface as 422 before the decider's defensive 1-500 gate."""
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(

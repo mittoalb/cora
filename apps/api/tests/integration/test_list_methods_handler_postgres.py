@@ -80,7 +80,7 @@ async def test_define_emits_defined_status_with_null_version_tag(
 
 @pytest.mark.integration
 async def test_full_lifecycle_define_version_deprecate(db_pool: asyncpg.Pool) -> None:
-    """define -> version -> deprecate; status flips through and
+    """Define -> version -> deprecate; status flips through and
     version_tag is preserved on deprecate."""
     method_id = uuid4()
     deps = _build_deps(db_pool, [method_id, uuid4(), uuid4(), uuid4()])

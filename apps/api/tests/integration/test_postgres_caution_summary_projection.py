@@ -121,7 +121,7 @@ async def test_register_inserts_active_with_null_audit_columns(db_pool: asyncpg.
 
 @pytest.mark.integration
 async def test_retire_updates_status_reason_and_audit_ts(db_pool: asyncpg.Pool) -> None:
-    """register -> retire flips status Retired, sets retired_reason +
+    """Register -> retire flips status Retired, sets retired_reason +
     last_status_changed_at."""
     caution_id = uuid4()
     asset_id = uuid4()
@@ -155,7 +155,7 @@ async def test_retire_updates_status_reason_and_audit_ts(db_pool: asyncpg.Pool) 
 async def test_supersede_updates_parent_row_and_inserts_child_with_parent_link(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """supersede atomic write -> parent row's status='Superseded' +
+    """Supersede atomic write -> parent row's status='Superseded' +
     superseded_by_caution_id, child genesis lands with parent_caution_id."""
     parent_id = uuid4()
     asset_id = uuid4()
@@ -454,7 +454,7 @@ async def test_list_filters_by_category_severity_min_severity_author_and_tag(
 
 @pytest.mark.integration
 async def test_list_tags_round_trip_preserves_array(db_pool: asyncpg.Pool) -> None:
-    """tags TEXT[] survives the projection round-trip with original ordering."""
+    """Tags TEXT[] survives the projection round-trip with original ordering."""
     caution_id = uuid4()
     deps = _build_deps(db_pool, [caution_id, uuid4()])
     await register_caution.bind(deps)(

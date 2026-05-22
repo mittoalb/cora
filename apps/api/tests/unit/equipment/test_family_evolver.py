@@ -138,7 +138,7 @@ def test_evolve_capability_versioned_on_empty_state_raises() -> None:
 
 @pytest.mark.unit
 def test_evolve_capability_deprecated_flips_status_and_preserves_version() -> None:
-    """version is preserved across deprecation — the
+    """Version is preserved across deprecation — the
     historical label of when the capability was last revised remains
     visible. Pinned: a future change that wiped version on
     deprecation would lose the audit signal."""
@@ -323,9 +323,11 @@ def test_settings_schema_preserved_across_versioning() -> None:
 
 @pytest.mark.unit
 def test_settings_schema_preserved_across_deprecation() -> None:
-    """Same independence: FamilyDeprecated preserves the schema
-    so audit can answer 'what shape did this capability declare at
-    its last update?'"""
+    """FamilyDeprecated preserves the settings_schema for audit reconstruction.
+
+    Same independence as the version arm: audit needs to answer
+    'what shape did this capability declare at its last update?'
+    """
     family_id = uuid4()
     state = fold(
         [

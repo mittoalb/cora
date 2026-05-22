@@ -95,8 +95,10 @@ def test_post_mount_with_x_principal_id_header_succeeds() -> None:
 
 @pytest.mark.contract
 def test_subject_response_uuid_is_parseable() -> None:
-    """Sanity check that the registration response we relied on for
-    other tests yields a parseable UUID. (Defensive cross-check.)"""
+    """Sanity check that the registration response yields a parseable UUID.
+
+    Defensive cross-check on the value other tests in this file rely on.
+    """
     with TestClient(create_app()) as client:
         subject_id = _register_subject(client)
     UUID(subject_id)

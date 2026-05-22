@@ -269,14 +269,17 @@ def test_no_verifier_configured_skips_extraction() -> None:
 
 @pytest.mark.unit
 def test_no_authorization_header_passes_through_without_verify() -> None:
-    """Verifier configured + no Authorization header on a NON-/mcp path:
+    """Middleware passes through when no Authorization header is present on a non-/mcp path.
+
+    Verifier configured + no Authorization header on a NON-/mcp path:
     middleware does NOT raise 401; that decision belongs to
     `get_principal_id` (which consults `require_authenticated_principal`).
     Pins the layering: middleware verifies WHEN a bearer is presented;
     the route layer decides WHETHER a bearer is required. (Phase 8f-d
     keeps this rule for non-MCP paths; `/mcp/*` gets explicit middleware
     enforcement -- see below -- because FastMCP has no per-route
-    Depends seam.)"""
+    Depends seam.)
+    """
     verifier = _FakeTokenVerifier(verify_call=_always_invalid)
     client = _client(verifier=verifier)
 

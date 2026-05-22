@@ -30,7 +30,7 @@ def test_get_families_accepts_each_status(client: TestClient, status_value: str)
 
 @pytest.mark.contract
 def test_get_families_rejects_unknown_status_with_422(client: TestClient) -> None:
-    """lowercase 'defined' is NOT in the Literal."""
+    """Lowercase 'defined' is NOT in the Literal."""
     with client:
         response = client.get("/families?status=defined")
     assert response.status_code == 422

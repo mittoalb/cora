@@ -44,7 +44,7 @@ def test_get_assets_accepts_each_lifecycle(client: TestClient, lifecycle: str) -
 
 @pytest.mark.contract
 def test_get_assets_rejects_unknown_level_with_422(client: TestClient) -> None:
-    """lowercase 'site' is NOT in the Literal."""
+    """Lowercase 'site' is NOT in the Literal."""
     with client:
         response = client.get("/assets?level=site")
     assert response.status_code == 422

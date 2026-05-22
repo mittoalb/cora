@@ -290,8 +290,10 @@ def test_wire_subject_includes_mount_subject() -> None:
 
 @pytest.mark.unit
 async def test_wired_handler_propagates_causation_id_through_full_composition() -> None:
-    """End-to-end check that causation_id survives the `with_tracing(bare)`
-    chain in wire.py. (No idempotency wrap on update-style commands.)"""
+    """End-to-end check that causation_id survives the `with_tracing(bare)` chain in wire.py.
+
+    No idempotency wrap on update-style commands.
+    """
     causation = UUID("01900000-0000-7000-8000-0000000000bb")
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)

@@ -203,7 +203,7 @@ def test_evolve_plan_versioned_preserves_practice_id_and_asset_ids() -> None:
 
 @pytest.mark.unit
 def test_evolve_plan_deprecated_flips_status_and_preserves_version() -> None:
-    """version preserved across deprecation. Mirrors Practice/Method/
+    """Version preserved across deprecation. Mirrors Practice/Method/
     Family shape — audit signal of the last revision before
     deprecation stays visible on the Deprecated state."""
     plan_id = uuid4()

@@ -47,11 +47,14 @@ def _asset(*, lifecycle: AssetLifecycle = AssetLifecycle.COMMISSIONED) -> Asset:
 def test_decide_emits_asset_decommissioned_for_each_allowed_source_lifecycle(
     source: AssetLifecycle,
 ) -> None:
-    """Commissioned, Active, and Maintenance are all valid sources;
+    """Decommission emits an identical event from any valid source lifecycle.
+
+    Commissioned, Active, and Maintenance are all valid sources;
     the emitted event is identical regardless of which one preceded
     — no `from_lifecycle` on the event payload. (5e widened the
     source set from the original 5c {Commissioned, Active} to add
-    Maintenance.)"""
+    Maintenance.)
+    """
     state = _asset(lifecycle=source)
     events = decommission_asset.decide(
         state=state,

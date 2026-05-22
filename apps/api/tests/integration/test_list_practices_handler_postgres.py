@@ -138,7 +138,7 @@ async def test_method_id_filter_narrows_results(db_pool: asyncpg.Pool) -> None:
 async def test_lifecycle_deprecate_preserves_method_and_site(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """define -> version -> deprecate; method_id, site_id, version_tag
+    """Define -> version -> deprecate; method_id, site_id, version_tag
     all preserved through deprecation (audit-trail invariant)."""
     method_id = uuid4()
     site_id = uuid4()

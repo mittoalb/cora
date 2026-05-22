@@ -66,7 +66,7 @@ async def test_handler_accepts_well_formed_cursor() -> None:
 
 @pytest.mark.unit
 async def test_handler_accepts_combined_filters() -> None:
-    """status + method_id filter together."""
+    """Status + method_id filter together."""
     handler = bind(build_deps())
     page = await handler(
         ListPractices(status="Versioned", method_id=uuid4()),

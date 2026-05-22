@@ -66,12 +66,13 @@ def test_decide_raises_asset_not_found_when_state_is_none() -> None:
 def test_decide_raises_cannot_activate_for_every_non_commissioned_lifecycle(
     current: AssetLifecycle,
 ) -> None:
-    """Strict semantics, not idempotent: re-activating an already-`Active`
-    asset also raises (rather than no-op or always-emit). Three wrong
-    states tested explicitly so a future relaxation has to flip every
+    """Strict semantics, not idempotent: re-activating an already-Active asset raises.
+
+    Three wrong states tested explicitly so a future relaxation has to flip every
     parametrized case deliberately. (Maintenance and Decommissioned
     aren't reachable yet in 5c but the lifecycle enum vocabulary is
-    complete; pinning them now means 5e additions don't surprise.)"""
+    complete; pinning them now means 5e additions don't surprise.)
+    """
     state = _asset(lifecycle=current)
     with pytest.raises(AssetCannotActivateError) as exc_info:
         activate_asset.decide(

@@ -128,7 +128,7 @@ def test_post_runs_accepts_raid_and_round_trips_into_get_run_response() -> None:
 
 @pytest.mark.contract
 def test_post_runs_accepts_omitted_raid_and_get_returns_null() -> None:
-    """raid is optional (defaults to None) for pre-7d-style requests."""
+    """Raid is optional (defaults to None) for pre-7d-style requests."""
     with TestClient(create_app()) as client:
         plan_id, subject_id = _setup_full_chain(client)
         create = client.post(
