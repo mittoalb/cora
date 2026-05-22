@@ -75,8 +75,8 @@ class AgentStatus(StrEnum):
                         deploy-style signal. Multiple Versioned
                         Agents may exist concurrently (different
                         `id`s sharing `kind`).
-      - `Suspended`  -- (Phase 8f-c iter 2) non-terminal operator-
-                        pause from `Versioned`. Returns to
+      - `Suspended`  -- non-terminal operator-pause from
+                        `Versioned`. Returns to
                         `Versioned` via `resume_agent`. Config
                         changes (tools, budget) still permitted so
                         the operator can fix permissions while
@@ -309,9 +309,8 @@ class AgentCannotDeprecateError(Exception):
 
     Source set is `{Defined, Versioned, Suspended}`. Cannot re-
     deprecate an already-Deprecated agent (strict-not-idempotent).
-    Phase 8f-c iter 2 added `Suspended` to the source set so an
-    operator who paused an agent can still retire it without
-    resuming first.
+    `Suspended` is in the source set so an operator who paused an
+    agent can still retire it without resuming first.
     """
 
     def __init__(self, agent_id: UUID, current_status: "AgentStatus") -> None:
@@ -330,7 +329,7 @@ class AgentCannotSuspendError(Exception):
     Source set is `{Versioned}` only. `Defined` agents aren't yet
     invocable so suspension is meaningless; `Suspended` agents are
     already paused (strict-not-idempotent); `Deprecated` agents are
-    terminal. Phase 8f-c iter 2.
+    terminal.
     """
 
     def __init__(self, agent_id: UUID, current_status: "AgentStatus") -> None:
@@ -347,7 +346,7 @@ class AgentCannotResumeError(Exception):
 
     Source set is `{Suspended}` only. Resume's contract is
     "return a paused agent to active"; any other current state
-    means the operator is doing the wrong thing. Phase 8f-c iter 2.
+    means the operator is doing the wrong thing.
     """
 
     def __init__(self, agent_id: UUID, current_status: "AgentStatus") -> None:
@@ -365,7 +364,7 @@ class AgentCannotGrantToolError(Exception):
     Tool grants are allowed from `Defined`, `Versioned`, AND
     `Suspended` so operators can fix permissions while an agent is
     paused. `Deprecated` is the only blocking state (terminal, no
-    config changes). Phase 8f-c iter 2.
+    config changes).
     """
 
     def __init__(self, agent_id: UUID, current_status: "AgentStatus") -> None:
@@ -380,8 +379,7 @@ class AgentCannotGrantToolError(Exception):
 class AgentCannotRevokeToolError(Exception):
     """Attempted `revoke_tool_from_agent` against a `Deprecated` agent.
 
-    Same source-set rule as `AgentCannotGrantToolError`. Phase 8f-c
-    iter 2.
+    Same source-set rule as `AgentCannotGrantToolError`.
     """
 
     def __init__(self, agent_id: UUID, current_status: "AgentStatus") -> None:
@@ -397,8 +395,7 @@ class AgentCannotRevokeToolError(Exception):
 class AgentCannotReviseBudgetError(Exception):
     """Attempted `revise_agent_budget` against a `Deprecated` agent.
 
-    Same source-set rule as `AgentCannotGrantToolError`. Phase 8f-c
-    iter 2.
+    Same source-set rule as `AgentCannotGrantToolError`.
     """
 
     def __init__(self, agent_id: UUID, current_status: "AgentStatus") -> None:
@@ -610,9 +607,9 @@ class AgentDeprecationReason:
 class AgentSuspensionReason:
     """Operator-supplied reason at suspension time. Trimmed; 1-500 chars.
 
-    Phase 8f-c iter 2. Mirrors `AgentDeprecationReason` shape;
-    carries cost-overrun / output-spike / model-regression context
-    operators reading the audit log later need.
+    Mirrors `AgentDeprecationReason` shape; carries cost-overrun /
+    output-spike / model-regression context operators reading the
+    audit log later need.
     """
 
     value: str
@@ -630,10 +627,10 @@ class AgentSuspensionReason:
 class ToolName:
     """One MCP tool name the agent is authorized to invoke.
 
-    Phase 8f-c iter 2. Bounded text 1-100 chars (matches MCP
-    tool-naming convention; tightening to a formal BNF is a watch
-    item). The aggregate carries `frozenset[ToolName]`. Cardinality
-    cap enforced separately by `grant_tool_to_agent` decider.
+    Bounded text 1-100 chars (matches MCP tool-naming convention;
+    tightening to a formal BNF is a watch item). The aggregate
+    carries `frozenset[ToolName]`. Cardinality cap enforced
+    separately by `grant_tool_to_agent` decider.
     """
 
     value: str
@@ -649,20 +646,19 @@ class ToolName:
 
 @dataclass(frozen=True)
 class AgentBudget:
-    """Optional per-agent budget caps (declaration only at iter 2).
+    """Optional per-agent budget caps (declaration only at this layer).
 
-    Phase 8f-c iter 2. Both `monthly_usd_cap` and
-    `daily_token_cap` are independently nullable so the same VO
-    covers "set both", "set one, clear the other", and "set new
-    monthly while keeping daily" cases. At least one must be
-    non-None at construction (the no-budget shape is
+    Both `monthly_usd_cap` and `daily_token_cap` are independently
+    nullable so the same VO covers "set both", "set one, clear the
+    other", and "set new monthly while keeping daily" cases. At least
+    one must be non-None at construction (the no-budget shape is
     `Agent.budget = None` directly).
 
-    Enforcement is deferred to 8h Budget BC adoption (watch item
-    in [[project-agent-lifecycle-grants-design]]); at iter 2 these
-    are declaration-only fields. Cost telemetry already lands on
-    `gen_ai.cost.usd` (Phase 8f-b iter 2a gen_ai helper) so the
-    8h BC can begin enforcement without further per-agent surface
+    Enforcement is deferred to a future Budget BC (watch item in
+    [[project-agent-lifecycle-grants-design]]); these are
+    declaration-only fields today. Cost telemetry already lands on
+    `gen_ai.cost.usd` via the `gen_ai` observability helper so the
+    Budget BC can begin enforcement without further per-agent surface
     work.
 
     Zero caps allowed (interpretation: "no spend permitted today");
@@ -765,14 +761,14 @@ class Agent:
     explicitly).
 
     Optional fields: `description`, `canonical_uri`,
-    `prompt_template_id` (None at 8f-a if registry hasn't shipped a
-    template; required by 8f-b's RunDebrief subscriber),
-    `capabilities` (defaults to empty frozenset).
+    `prompt_template_id` (None if no template registry entry exists;
+    required by the RunDebrief subscriber), `capabilities` (defaults
+    to empty frozenset).
 
-    Phase 8f-c iter 2 additions: `tools` per-agent MCP tool
-    allowlist; `budget` optional declarative caps (no enforcement
-    at this iter); `suspended_at` / `resumed_at` / `suspension_reason`
-    timestamps + reason for the new `Suspended` non-terminal state.
+    Lifecycle additions: `tools` per-agent MCP tool allowlist;
+    `budget` optional declarative caps (no enforcement at this
+    layer); `suspended_at` / `resumed_at` / `suspension_reason`
+    timestamps + reason for the `Suspended` non-terminal state.
     These STAY on aggregate state because `suspension_reason` is
     invariant-bearing — deciders read it.
 

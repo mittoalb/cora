@@ -83,13 +83,13 @@ from Run 6f-1).
 
 ## Parent_run_id -- standalone or Phase-of-Run
 
-`parent_run_id: UUID | None` resolves the Phase aggregate question
-flagged in [[project_run_parameters_design]] §6g-c (which said "the
-Phase aggregate (10c, Operation BC) will hold the start/stop event
-pair"). Resolution: a Phase IS a Procedure with `parent_run_id`
-set. Standalone Procedures (bakeouts, calibration sweeps run
-between Runs) have `parent_run_id = None`. The aggregate is one;
-the binding is the discriminator.
+`parent_run_id: UUID | None` resolves the "Phase aggregate" question
+flagged in [[project_run_parameters_design]] (which said "a Phase
+aggregate in Operation BC will hold the start/stop event pair").
+Resolution: a Phase IS a Procedure with `parent_run_id` set.
+Standalone Procedures (bakeouts, calibration sweeps run between Runs)
+have `parent_run_id = None`. The aggregate is one; the binding is
+the discriminator.
 """
 
 from dataclasses import dataclass, field
@@ -600,20 +600,20 @@ class Procedure:
     status: ProcedureStatus = ProcedureStatus.DEFINED
     parent_run_id: UUID | None = None
     steps_logbook_id: UUID | None = None
-    """Phase 10c-b: lazy-opened on first append_procedure_step.
+    """Lazy-opened on first `append_procedure_step`.
 
     None until the first step is appended; populated by the
     `ProcedureStepsLogbookOpened` envelope event the handler emits
-    on the Procedure stream. Mirrors `Run.reading_logbook_id`
-    (6f-5b). Per the lazy-open pattern: no eager open at
-    start_procedure, no Closed event (terminal Procedure.status
-    implicitly closes via `ProcedureStepsLogbookClosedError`).
+    on the Procedure stream. Mirrors `Run.reading_logbook_id`.
+    Per the lazy-open pattern: no eager open at start_procedure,
+    no Closed event (terminal Procedure.status implicitly closes
+    via `ProcedureStepsLogbookClosedError`).
     """
     capability_id: UUID | None = field(default=None)
-    """Phase 10d: optional binding to the universal Capability template
-    (Recipe BC 6k) this Procedure realizes as a Procedure-shaped
-    executor. OPTIONAL at this sub-phase to let pre-10d Procedures
-    keep working without bulk migration; a 10d-strict follow-up may
-    REQUIRE the binding per Pattern P (or accept that ceremony
-    Procedures stay un-bound when no Capability template applies).
-    Same additive-state shape as Method.capability_id (6l-additive)."""
+    """Optional binding to the universal Capability template (Recipe
+    BC) this Procedure realizes as a Procedure-shaped executor.
+    OPTIONAL so pre-binding Procedures keep working without bulk
+    migration; a strict follow-up may REQUIRE the binding per
+    Pattern P (or accept that ceremony Procedures stay un-bound when
+    no Capability template applies). Same additive-state shape as
+    Method.capability_id."""

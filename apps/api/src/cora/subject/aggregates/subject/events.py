@@ -5,17 +5,18 @@ classes, discriminated union, `event_type_name`, `to_payload`,
 `from_stored`. The persistence-envelope construction (`NewEvent`)
 lives at `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 4a shipped `SubjectRegistered`. Phase 4b added `SubjectMounted`.
-Phase 4c added `SubjectMeasured` and `SubjectRemoved`. Phase 4d added
-the three terminal disposition events (`SubjectReturned` /
-`SubjectStored` / `SubjectDiscarded`), all transitioning from
-`Removed`. Phase 4f aligns the Subject<->Asset binding to LIMS /
-PROV-O / DDD modern patterns the cross-aggregate-binding audit
-surfaced as gaps: `SubjectMounted` gains a `reason` field (additive
-evolution; pre-4f stored events fold via `payload.get("reason", "")`);
-new `SubjectDismounted(subject_id, from_asset_id, reason, occurred_at)`
-event captures explicit dismount narrative and enables the multi-
-stage mount/dismount workflow (Mounted | Measured -> Received cycle).
+Event catalog: `SubjectRegistered` (genesis); the active-phase
+transitions (`SubjectMounted`, `SubjectMeasured`, `SubjectRemoved`,
+`SubjectDismounted`); and the three terminal disposition events
+(`SubjectReturned` / `SubjectStored` / `SubjectDiscarded`), all
+transitioning from `Removed`.
+
+The Subject<->Asset binding aligns with LIMS / PROV-O / DDD modern
+patterns: `SubjectMounted` carries an optional `reason` field
+(additive; legacy stored events fold via `payload.get("reason", "")`)
+and `SubjectDismounted(subject_id, from_asset_id, reason, occurred_at)`
+captures explicit dismount narrative for the multi-stage
+mount/dismount workflow (Mounted | Measured -> Received cycle).
 
 Status is NOT carried in event payloads — the event type itself
 encodes the state change (e.g., `SubjectMounted -> status=MOUNTED`).
@@ -58,11 +59,10 @@ class SubjectMounted:
     load time (404 on missing); decider validates Asset lifecycle is
     `Active` at mount time (409 on non-Active).
 
-    `reason` (4f): operator-supplied free text (1-500 chars), captures
+    `reason`: operator-supplied free text (1-500 chars), captures
     why the mount happened (loaded for run X, calibration, transport
-    break completed). Pre-4f stored events without the field fold via
-    `payload.get("reason", "")` (additive-evolution pattern, same as
-    5g-c's settings field).
+    break completed). Legacy stored events without the field fold
+    via `payload.get("reason", "")` (additive-evolution pattern).
     """
 
     subject_id: UUID
@@ -76,7 +76,7 @@ class SubjectDismounted:
     """A subject was physically removed from the sample-environment
     apparatus, but is still pre-terminal in its lifecycle.
 
-    Phase 4f. Status transition: `Mounted | Measured -> Received`.
+    Status transition: `Mounted | Measured -> Received`.
     Sample is back to "in the lab, not currently mounted"; can be
     re-mounted via a subsequent `SubjectMounted` event. Distinct from
     `SubjectRemoved` (which is terminal-leading; sample is done with

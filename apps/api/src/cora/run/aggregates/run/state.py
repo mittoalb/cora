@@ -368,7 +368,7 @@ InvalidRunExternalRefError = InvalidExternalRefError
 class RunCannotJoinCampaignError(Exception):
     """Attempted to start a Run against a Campaign in a non-membership-eligible status.
 
-    Phase 6i-c cross-BC gate: when `StartRun.campaign_id` is provided
+    Cross-BC gate: when `StartRun.campaign_id` is provided
     the handler pre-loads the Campaign and the decider verifies its
     status is in `{Planned, Active, Held}` (the membership-eligible
     set). Closed and Abandoned Campaigns refuse new members
@@ -391,7 +391,7 @@ class RunCannotJoinCampaignError(Exception):
 class RunAlreadyAssignedToCampaignError(Exception):
     """Attempted to add a Run already assigned to a (different) Campaign.
 
-    Phase 6i-c invariant: a Run participates in at most one Campaign
+    Invariant: a Run participates in at most one Campaign
     at a time. The cross-aggregate `add_run_to_campaign` slice refuses
     when the loaded Run already carries a non-None `campaign_id` that
     differs from the requested target Campaign. Removing the Run from
@@ -419,8 +419,8 @@ class RunAlreadyAssignedToCampaignError(Exception):
 class RunRequiresActiveClearanceError(Exception):
     """No Safety clearance references this Run's scope at all.
 
-    Phase 11a-c-3 cross-BC gate: `start_run` requires at least ONE
-    Active Safety Clearance whose bindings cover the Run's
+    Cross-BC gate: `start_run` requires at least ONE Active Safety
+    Clearance whose bindings cover the Run's
     `(run_id, subject_id, asset_ids)`. This error fires when ZERO
     clearances reference any of these — operator must
     `register_clearance` + walk it to Active first.
@@ -443,7 +443,7 @@ class RunRequiresActiveClearanceError(Exception):
 class RunClearanceCoverageMismatchError(Exception):
     """Clearances reference this Run's scope but none are Active.
 
-    Phase 11a-c-3 cross-BC gate: clearances exist referencing the Run's
+    Cross-BC gate: clearances exist referencing the Run's
     `(run_id, subject_id, asset_ids)` but their statuses are all
     non-Active (Defined / Submitted / UnderReview / Approved / Expired
     / Rejected / Superseded). Operator must walk a referencing
@@ -1089,8 +1089,8 @@ class InvalidRunAdjustSchemaError(ValueError):
     """The post-merge `effective_parameters` failed validation against
     the owning Method's `parameters_schema`.
 
-    Sibling of `InvalidRunParametersError` (Phase 6g-c, raised by
-    start_run). Kept as a distinct error class so API responses
+    Sibling of `InvalidRunParametersError` (raised by `start_run`).
+    Kept as a distinct error class so API responses
     unambiguously identify the adjust path. RELAXED-by-design for
     schemaless Methods: when Method.parameters_schema is None the
     decider skips validation (an adjustment to a schemaless Method

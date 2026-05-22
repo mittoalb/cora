@@ -32,14 +32,14 @@ class ActorKind(StrEnum):
 
     Three values:
 
-      - `human` -- registered via `register_actor` (Access BC, Phase 1).
-                   Default for pre-8f-a Actor streams (forward-compat).
-      - `agent` -- registered via `define_agent` (Agent BC, Phase 8f-a)
-                   as part of the cross-BC atomic write.
+      - `human` -- registered via `register_actor` (Access BC).
+                   Default for legacy Actor streams (forward-compat).
+      - `agent` -- registered via `define_agent` (Agent BC) as part
+                   of the cross-BC atomic write.
       - `service_account` -- registered via `register_actor(kind=...)`
                    for machine callers (CI bridges, autonomous agent
                    runtime processes, future TomoScan/EPICS bridges).
-                   Added in Phase C Iter B-2 to align with
+                   Aligns with the closed set on
                    `cora.infrastructure.ports.token_verifier.PrincipalKind`
                    which carries the same closed set on the edge-auth
                    side. Service-account Actors are functionally
@@ -140,8 +140,8 @@ class Actor:
     upcaster needed (the field exists in derived state, not in the
     serialized event payload).
 
-    `kind` defaults to `ActorKind.HUMAN` (Phase 8f-a additive evolution).
-    Pre-8f-a events fold via `payload.get("kind", "human")` in the events
+    `kind` defaults to `ActorKind.HUMAN` (additive evolution). Legacy
+    events fold via `payload.get("kind", "human")` in the events
     deserializer; this default is the in-memory analogue. Forward-compat.
     """
 

@@ -5,33 +5,32 @@ union, `event_type_name`, `to_payload`, `from_stored`. The
 persistence-envelope construction (`NewEvent`) lives at
 `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 6f-1 shipped `RunStarted`. Phase 6f-2 added:
+Lifecycle events:
+  - `RunStarted` — genesis. Payload + lifecycle context for the
+    other transitions to depend on.
   - `RunCompleted` — happy-path terminal (Running → Completed).
     Payload is `run_id` + `occurred_at` only; substantive run
-    summary (frame_count, duration, final detector positions,
-    etc.) is deferred to 6f-5+ when DAQ-channel integration
-    arrives. Per the fold-cost principles, the completion event
-    SHOULD eventually carry summary state so consumers don't have
-    to re-fold per-step history just to ask "what happened in
-    Run X?" — but the substantive shape only crystallizes once
-    the observation-channel infrastructure exists to source it.
+    summary (frame_count, duration, final detector positions, etc.)
+    will land when DAQ-channel integration arrives. Per the
+    fold-cost principles, the completion event SHOULD eventually
+    carry summary state so consumers don't have to re-fold per-step
+    history just to ask "what happened in Run X?" — but the
+    substantive shape only crystallizes once the observation-channel
+    infrastructure exists to source it.
   - `RunAborted` — emergency-exit terminal (Running | Held → Aborted).
     Payload carries `run_id` + free-form `reason: str` (1-500 chars)
     + `occurred_at`. Reason is stored as primitive string today;
     future-additive structured taxonomy is documented at
-    `InvalidRunAbortReasonError` along with its three re-evaluation
-    triggers. (Source set widened in 6f-3 to include `Held`.)
-
-Phase 6f-3 adds the bidirectional pause cycle plus the controlled
-exit terminal:
+    `InvalidRunAbortReasonError` along with its re-evaluation
+    triggers.
   - `RunHeld` — pause transition (Running → Held). Payload is
     `run_id` + `occurred_at` only. No reason field — matches PackML
     / Bluesky precedent (Hold / pause carries no domain reason in
     either standard). Holds are routine (alignment, brief beam
-    dropout, operator break); reason field would be friction without
-    audit value at this layer. Future-additive on the same triggers
-    as RunAborted's reason if vocabulary / Decision BC integration /
-    compliance demand crystallize.
+    dropout, operator break); a reason field would be friction
+    without audit value at this layer. Future-additive on the same
+    triggers as RunAborted's reason if vocabulary / Decision BC
+    integration / compliance demand crystallize.
   - `RunResumed` — resume transition (Held → Running). Payload is
     `run_id` + `occurred_at` only. Resume is just permission to
     proceed; no reason field.
@@ -41,8 +40,8 @@ exit terminal:
     terminal exit deserves audit explanation. Distinct from Aborted:
     Stopped data is valid up to the stop point; Aborted data is
     flagged as potentially invalid (PackML + Bluesky semantic
-    distinction at the lifecycle layer; observation-channel cleanup semantics
-    materialize in 6f-5+).
+    distinction at the lifecycle layer; observation-channel cleanup
+    semantics materialize on the observation channel).
 
 Hold ⇄ Resume is a bidirectional cycle with unlimited repeats; the
 event stream may interleave [RunStarted, RunHeld, RunResumed, RunHeld,
@@ -50,23 +49,20 @@ RunResumed, RunCompleted] with arbitrary cycle counts. The fold
 preserves only the latest status; per-cycle audit lives in the
 event stream itself.
 
-Phase 6f-4 closes the lifecycle FSM with the partial-data terminal:
-  - `RunTruncated` — cleanup terminal (Running | Held → Truncated).
-    Payload carries `run_id` + free-form `reason: str` (1-500 chars)
-    + optional `interrupted_at: datetime | None` (operator's best
-    guess at when the actual interruption occurred, separate from
-    `occurred_at` which is when truncation was processed) +
-    `occurred_at`. Mirrors RunStopped's reason shape; adds the
-    interrupted_at field because Truncated is uniquely retroactive
-    among the terminals (the Run was already de-facto over before
-    the operator could mark it).
+`RunTruncated` — cleanup terminal (Running | Held → Truncated).
+Payload carries `run_id` + free-form `reason: str` (1-500 chars)
++ optional `interrupted_at: datetime | None` (operator's best guess
+at when the actual interruption occurred, separate from
+`occurred_at` which is when truncation was processed) + `occurred_at`.
+Mirrors RunStopped's reason shape; adds the interrupted_at field
+because Truncated is uniquely retroactive among the terminals (the
+Run was already de-facto over before the operator could mark it).
 
-Subsequent phases:
-  - 6f-5: observation events (per-frame triggers, motor positions,
-    NOT on the main Run stream; observation-channel territory).
-    When Run aggregate adds logbooks, the truncate_run decider
-    extends to emit RunLogbookClosed events for each open logbook
-    before RunTruncated (gate-review L4).
+Observation events (per-frame triggers, motor positions) do NOT live
+on the main Run stream; they're observation-channel territory. When
+the Run aggregate adds logbooks, the truncate_run decider extends to
+emit RunLogbookClosed events for each open logbook before
+RunTruncated (gate-review L4).
 
 ## Payload conventions
 
@@ -312,12 +308,11 @@ class RunAborted:
     taxonomy is parked at `InvalidRunAbortReasonError`'s docstring
     along with three concrete triggers for re-evaluation.
 
-    Source set widened in 6f-3 to include `Held` — emergencies
-    during a hold are real and should not require an intervening
-    Resume.
+    The source set includes `Held` — emergencies during a hold are
+    real and should not require an intervening Resume.
 
-    `decided_by_decision_id` (Phase 1; mirrors RunAdjusted +
-    RunStarted): optional Decision-causation link to the Decision BC
+    `decided_by_decision_id` (mirrors RunAdjusted + RunStarted):
+    optional Decision-causation link to the Decision BC
     record that justified this abort (most commonly an
     OperatorAbortDecision or EquipmentAbortDecision per
     [[project-run-debrief-design]]'s 5-value choice enum). OPTIONAL:

@@ -330,7 +330,7 @@ class CampaignCannotAddRunError(Exception):
 
     Multi-source guard: source set is `{Planned, Active, Held}`. Terminal
     Campaigns (Closed / Abandoned) refuse new members per the design memo
-    membership lock. Phase 6i-c cross-aggregate slice.
+    membership lock.
     """
 
     def __init__(self, campaign_id: UUID, current_status: "CampaignStatus") -> None:
@@ -350,7 +350,7 @@ class CampaignRunAlreadyMemberError(Exception):
     Membership idempotency violation: `add_run_to_campaign` rejects when
     the Run is already a member of THIS Campaign. (A Run already member
     of a DIFFERENT Campaign raises `RunAlreadyAssignedToCampaignError`
-    from the Run BC instead.) Phase 6i-c.
+    from the Run BC instead.)
     """
 
     def __init__(self, campaign_id: UUID, run_id: UUID) -> None:
@@ -364,7 +364,7 @@ class CampaignCannotRemoveRunError(Exception):
 
     Multi-source guard: source set is `{Planned, Active, Held}`. Terminal
     Campaigns refuse membership mutation (membership frozen at Closed /
-    Abandoned per the design memo lock). Phase 6i-c.
+    Abandoned per the design memo lock).
     """
 
     def __init__(self, campaign_id: UUID, current_status: "CampaignStatus") -> None:
@@ -382,7 +382,7 @@ class CampaignRunNotMemberError(Exception):
     """Attempted to remove a Run that is not in the Campaign's run_ids set.
 
     `remove_run_from_campaign` rejects when the supplied run_id is not
-    a current member. Phase 6i-c.
+    a current member.
     """
 
     def __init__(self, campaign_id: UUID, run_id: UUID) -> None:
@@ -396,7 +396,7 @@ class InvalidCampaignRunRemoveReasonError(ValueError):
 
     Bare-str validated at the `remove_run_from_campaign` decider. REQUIRED
     on the remove path: an operator must say WHY they ungroup a Run
-    (ungrouping is meaningful). Phase 6i-c.
+    (ungrouping is meaningful).
     """
 
     def __init__(self, value: str) -> None:

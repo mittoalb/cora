@@ -5,21 +5,20 @@ discriminated union, `event_type_name`, `to_payload`,
 `from_stored`. The persistence-envelope construction (`NewEvent`)
 lives at `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 5b shipped `AssetRegistered`. Phase 5c added `AssetActivated`
-and `AssetDecommissioned` (lifecycle transitions). Phase 5d added
-`AssetRelocated` — the **first event whose payload carries source
-AND target state** (`from_parent_id` + `to_parent_id`), needed
-because parent_id is mutable and the audit log should record both
-sides of the change without requiring readers to walk the prior
-event. Phase 5e added `AssetMaintenanceEntered` and
-`AssetRestoredFromMaintenance` (single-source paired transitions:
-ACTIVE -> MAINTENANCE and MAINTENANCE -> ACTIVE) and widened the
-`AssetDecommissioned` source-state set to also accept MAINTENANCE.
-Phase 5f-1 adds `AssetFamilyAdded` and `AssetFamilyRemoved`
-— first incremental-mutation event pair on Asset state
-(families accumulate over the asset's lifetime as new techniques
-are commissioned / retired). Each carries a single `family_id`;
-the evolver folds each into the `families` frozenset.
+Event catalog: `AssetRegistered` (genesis), the lifecycle transitions
+(`AssetActivated`, `AssetDecommissioned`, `AssetMaintenanceEntered`,
+`AssetRestoredFromMaintenance`), the hierarchy mutation
+(`AssetRelocated` — the first event whose payload carries source
+AND target state, `from_parent_id` + `to_parent_id`, since `parent_id`
+is mutable and the audit log should record both sides without
+forcing readers to walk the prior event), and the incremental
+family-set mutations (`AssetFamilyAdded` / `AssetFamilyRemoved`,
+each carrying a single `family_id` that the evolver folds into the
+`families` frozenset as new techniques are commissioned or retired).
+
+`AssetDecommissioned`'s source set accepts both ACTIVE and
+MAINTENANCE so a faulted asset can be retired without first being
+restored.
 
 ## Payload conventions for Asset
 

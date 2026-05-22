@@ -98,8 +98,8 @@ are not part of the in-domain Dataset identity.
 
 `used_calibrations: frozenset[UUID]` records the CalibrationRevision
 IDs the reconstruction (or any derivative) actually used. Symmetric
-to Run.pinned_calibrations (Phase 12b AsShot anchor on the
-acquired-from Run); the two sets are independent — reconstruction
+to Run.pinned_calibrations (AsShot anchor on the acquired-from Run);
+the two sets are independent — reconstruction
 may legitimately cite refined revisions not in the producing Run's
 pin set (e.g., a `tomopy.find_center_vo` refinement). NO write-time
 cross-BC enforcement of derivative-source set equality per
@@ -173,7 +173,7 @@ class DatasetStatus(StrEnum):
 
 
 class Intent(StrEnum):
-    """The Dataset's trust level / promotion state (Phase 7e + post-Q4 demote).
+    """The Dataset's trust level / promotion state.
 
     `Trial`: default on register. Working data — calibration scans,
     alignment runs, exposure tests, exploratory acquisitions. Not
@@ -313,7 +313,7 @@ class InvalidUsedCalibrationsError(ValueError):
     [[project_calibration_design]] anti-hook #3 (revision-cited
     atomic-ID model) + canonical DDD eventual-consistency stance
     on cross-aggregate rules (matches Run.pinned_calibrations
-    Phase 12b precedent exactly).
+    precedent exactly).
     """
 
     def __init__(self, count: int) -> None:
@@ -827,7 +827,7 @@ def validate_used_calibrations(value: frozenset[UUID]) -> frozenset[UUID]:
     cited atomic-ID model; cross-BC eventual-consistency per
     [[project_calibration_design]] anti-hook #3 + Vernon/Evans DDD
     canon). Mirrors Run.pinned_calibrations decider-time treatment
-    in Phase 12b exactly.
+    exactly.
     """
     if len(value) > DATASET_USED_CALIBRATIONS_MAX_ENTRIES:
         raise InvalidUsedCalibrationsError(len(value))

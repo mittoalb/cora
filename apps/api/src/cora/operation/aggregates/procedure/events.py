@@ -5,8 +5,7 @@ union, `event_type_name`, `to_payload`, `from_stored`. The
 persistence-envelope construction (`NewEvent`) lives at
 `cora.infrastructure.event_envelope.to_new_event`.
 
-Phase 10c-a shipped `ProcedureRegistered`. Phase 10c-b adds the
-three FSM-closure transition events:
+`ProcedureRegistered` is the genesis event. FSM-closure transitions:
   - `ProcedureStarted` -- single-source genesis transition (Defined ->
     Running). Slim payload: procedure_id + occurred_at. Mirrors
     `RunStarted`'s no-status convention; the start fact is what the
@@ -22,10 +21,10 @@ three FSM-closure transition events:
     additive on the same triggers documented at
     `InvalidProcedureAbortReasonError`).
 
-Phase 10c-b also adds `ProcedureStepsLogbookOpened` (lazy envelope
-event for the per-step logbook table). Phase 10c-c adds
-`ProcedureTruncated` (mirrors RunTruncated from 6f-4) and possibly
-`ProcedureHeld / ProcedureResumed` if pilot needs surface.
+`ProcedureStepsLogbookOpened` is the lazy envelope event for the
+per-step logbook table. `ProcedureTruncated` mirrors RunTruncated.
+`ProcedureHeld` / `ProcedureResumed` are deferred until the pilot
+needs the surface.
 
 ## Payload conventions
 
@@ -123,7 +122,7 @@ class ProcedureCompleted:
 
 @dataclass(frozen=True)
 class ProcedureStepsLogbookOpened:
-    """A steps logbook was attached to this Procedure (Phase 10c-b iter 2).
+    """A steps logbook was attached to this Procedure.
 
     Naming note: this event carries the entry-noun (`Steps`) in its name,
     vs. Conduit/Decision's bare `<Aggregate>LogbookOpened`. Same rationale
