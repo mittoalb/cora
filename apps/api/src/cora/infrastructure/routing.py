@@ -9,7 +9,7 @@ Hosts the three pieces every BC's slice routes need:
   - `get_principal_id` — FastAPI Depends that extracts the calling
     principal's UUID from the `X-Principal-Id` header (Pydantic
     UUID-validates -> 422 on malformed). When
-    `Settings.require_authenticated_principal` is False (Phase 1
+    `Settings.require_authenticated_principal` is False (legacy
     dev / test default), an absent header falls back to
     `SYSTEM_PRINCIPAL_ID`. When True (production posture), an
     absent header raises HTTP 401 instead. See the "Production
@@ -19,7 +19,7 @@ Hosts the three pieces every BC's slice routes need:
     of error responses.
 
 Also exposes `SYSTEM_PRINCIPAL_ID`, the canonical fallback principal
-UUID. Post Phase 8f-d (2026-05-20), MCP tools resolve principals via
+UUID. MCP tools resolve principals via
 `cora.infrastructure.mcp_principal.get_mcp_principal_id(ctx)` instead
 of importing this constant directly; the architecture fitness
 `test_no_system_principal_id_in_mcp_tool_principal_kwarg` enforces
@@ -50,7 +50,7 @@ SYSTEM_PRINCIPAL_ID = UUID("00000000-0000-0000-0000-000000000000")
 """Fallback principal used when no `X-Principal-Id` header is supplied.
 
 Used only when `Settings.require_authenticated_principal` is False
-(Phase 1 dev / test posture). Production deployments behind an auth
+(legacy dev / test posture). Production deployments behind an auth
 proxy set the header on every request and turn the setting on so
 header-absent requests are rejected at the boundary instead of
 silently running as SYSTEM. Under `TrustAuthorize` with a real
@@ -71,9 +71,9 @@ conduit on the call site, ditto for surface_id.
 
 Previously declared as `_NIL_SENTINEL_ID` / `_CONDUIT_DEFAULT_ID`
 per-file in ~80 slice handlers + 3 cross-BC factories. Consolidated
-here in Phase B Iter C-2c (post-sweep) so a single canonical name
-covers both axes — the prior `_CONDUIT_DEFAULT_ID` reading was a
-future-reader trap when used as a `surface_id` default."""
+here so a single canonical name covers both axes — the prior
+`_CONDUIT_DEFAULT_ID` reading was a future-reader trap when used as
+a `surface_id` default."""
 
 
 SYSTEM_HTTP_SURFACE_ID = UUID("00000000-0000-0000-0000-000000000020")
@@ -127,11 +127,11 @@ def _require_authenticated_principal(request: Request) -> bool:
 def _bearer_principal_id(request: Request) -> UUID | None:
     """Return `request.state.principal.principal_id` if set, else None.
 
-    `BearerAuthMiddleware` (Phase C Iter C-2) populates
-    `request.state.principal` when an `Authorization: Bearer` header
-    verified successfully. `get_principal_id` reads through this
-    Depends so the existing in-isolation unit tests for
-    `get_principal_id` keep working without a Request object.
+    `BearerAuthMiddleware` populates `request.state.principal` when
+    an `Authorization: Bearer` header verified successfully.
+    `get_principal_id` reads through this Depends so the existing
+    in-isolation unit tests for `get_principal_id` keep working
+    without a Request object.
 
     Gate-review SEC S2: `isinstance(principal, VerifiedPrincipal)`
     guard. Today only BearerAuthMiddleware writes to
@@ -171,10 +171,10 @@ def get_principal_id(
         Header(
             alias="X-Principal-Id",
             description=(
-                "Legacy principal-id header (Phase 1 trust-the-proxy shape). "
-                "When IDENTITY_PROVIDERS is configured (bearer-auth mode, "
-                "Phase C Iter C+), this header is IGNORED and the verified "
-                "bearer token from `BearerAuthMiddleware` (Authorization: "
+                "Legacy principal-id header (trust-the-proxy shape). "
+                "When IDENTITY_PROVIDERS is configured (bearer-auth mode), "
+                "this header is IGNORED and the verified bearer token "
+                "from `BearerAuthMiddleware` (Authorization: "
                 "Bearer) sets the principal. When no IdPs are configured "
                 "(legacy mode), the application TRUSTS this header (no "
                 "cryptographic verification) -- production deployments in "
@@ -203,9 +203,9 @@ def get_principal_id(
     Three modes, in priority order:
 
       1. **Bearer-auth mode + valid bearer**:
-         `BearerAuthMiddleware` (Phase C Iter C-2) verified an
-         `Authorization: Bearer <token>` and stashed the
-         `VerifiedPrincipal` on `request.state.principal`. Return its
+         `BearerAuthMiddleware` verified an `Authorization: Bearer
+         <token>` and stashed the `VerifiedPrincipal` on
+         `request.state.principal`. Return its
          `principal_id`. X-Principal-Id is silently IGNORED in this
          mode (cleartext header is unauthenticated; honoring it
          would defeat the bearer gate).
@@ -221,7 +221,7 @@ def get_principal_id(
          - X-Principal-Id present -> use it.
          - Absent + `require_authenticated_principal=True` -> 401.
          - Absent + `require_authenticated_principal=False` ->
-           SYSTEM_PRINCIPAL_ID fallback (Phase 1 dev / test).
+           SYSTEM_PRINCIPAL_ID fallback (legacy dev / test).
     """
     # Mode 1: bearer-verified principal wins unconditionally.
     if bearer_principal_id is not None:
@@ -264,11 +264,11 @@ def get_surface_id(request: Request) -> UUID:
     """Resolve the arrival Surface for an HTTP request.
 
     v1: static return. Process-derived (no client-asserted header /
-    query param) per Phase B Iter C-2 AH1. Phase C extends the body
-    to validate the bearer token's `aud` claim against the Surface's
+    query param) per AH1. A future revision extends the body to
+    validate the bearer token's `aud` claim against the Surface's
     expected audience before returning — `request: Request` is in
-    the signature today so Phase C extends the body without changing
-    the dependency API.
+    the signature today so the body can extend without changing the
+    dependency API.
     """
     _ = request
     return SYSTEM_HTTP_SURFACE_ID

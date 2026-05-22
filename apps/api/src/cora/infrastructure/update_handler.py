@@ -106,10 +106,10 @@ class _UpdateHandler(Protocol):
     in `command` (which is contravariant), so the wider callable
     returned here assigns to it without an explicit cast.
 
-    `surface_id` (Phase B Iter C-2a): additive with nil default so
-    routes that don't pass it yet keep working. Iter C-2b sweeps
-    route layers to inject the real `Depends(get_surface_id)` value;
-    handlers forward whatever they receive to `deps.authz.authorize`.
+    `surface_id`: additive with nil default so routes that don't
+    pass it yet keep working. Routes that have been swept to inject
+    the real `Depends(get_surface_id)` value pass it; handlers
+    forward whatever they receive to `deps.authz.authorize`.
     """
 
     async def __call__(

@@ -140,12 +140,12 @@ def make_postgres_kernel(
     inject `FakeLLMAdapter` explicitly.
 
     `logbook_mirror` defaults to `None`; no production implementor
-    exists at 8f-b. Subscribers short-circuit on `None`.
+    exists yet. Subscribers short-circuit on `None`.
 
-    `token_verifier` (Phase C Iter C) defaults to `None`; production
-    `build_kernel` constructs it from `settings.identity_providers`
-    when that list is non-empty. Integration tests override only when
-    exercising the bearer-auth path.
+    `token_verifier` defaults to `None`; production `build_kernel`
+    constructs it from `settings.identity_providers` when that list
+    is non-empty. Integration tests override only when exercising
+    the bearer-auth path.
     """
     return Kernel(
         settings=settings,
@@ -214,13 +214,13 @@ def make_inmemory_kernel(
     explicitly.
 
     `logbook_mirror` defaults to `None`; no production implementor
-    at 8f-b. Subscriber tests inject a `FakeLogbookMirror` (when
-    they care) or leave `None`.
+    yet. Subscriber tests inject a `FakeLogbookMirror` (when they
+    care) or leave `None`.
 
-    `token_verifier` (Phase C Iter C) defaults to `None`; only
-    bearer-auth contract tests inject a verifier (a programmable
-    test stub or a real `IdentityProviderRegistry` against a fake
-    JWKS server). Production wiring lives in `build_kernel`.
+    `token_verifier` defaults to `None`; only bearer-auth contract
+    tests inject a verifier (a programmable test stub or a real
+    `IdentityProviderRegistry` against a fake JWKS server).
+    Production wiring lives in `build_kernel`.
     """
     return Kernel(
         settings=settings,
@@ -247,11 +247,11 @@ def make_inmemory_kernel(
 class ClearanceLookupFactory(Protocol):
     """Builds the production ClearanceLookup port for the Kernel.
 
-    Phase 11a-c-3: Safety BC's `cora.safety.adapters.PostgresClearanceLookup`
-    is the production factory; `cora.api.main` binds it. Same factory-
-    injection shape as `AuthorizeFactory` so `cora.infrastructure.deps`
-    doesn't import from any BC (tach module rule:
-    `cora.infrastructure depends_on = []`).
+    Safety BC's `cora.safety.adapters.PostgresClearanceLookup` is
+    the production factory; `cora.api.main` binds it. Same
+    factory-injection shape as `AuthorizeFactory` so
+    `cora.infrastructure.deps` doesn't import from any BC (tach
+    module rule: `cora.infrastructure depends_on = []`).
 
     `pool` is `None` only when `app_env=test`; the production factory
     requires a real pool. Test mode falls back to
@@ -267,11 +267,12 @@ class ClearanceLookupFactory(Protocol):
 class CautionLookupFactory(Protocol):
     """Builds the production CautionLookup port for the Kernel.
 
-    Phase 11b-c: Caution BC's `cora.caution.adapters.PostgresCautionLookup`
-    is the production factory; `cora.api.main` binds it. Same factory-
-    injection shape as `AuthorizeFactory` / `ClearanceLookupFactory` so
-    `cora.infrastructure.deps` doesn't import from any BC (tach module
-    rule: `cora.infrastructure depends_on = []`).
+    Caution BC's `cora.caution.adapters.PostgresCautionLookup` is
+    the production factory; `cora.api.main` binds it. Same
+    factory-injection shape as `AuthorizeFactory` /
+    `ClearanceLookupFactory` so `cora.infrastructure.deps` doesn't
+    import from any BC (tach module rule:
+    `cora.infrastructure depends_on = []`).
 
     `pool` is `None` only when `app_env=test`; the production factory
     requires a real pool. Test mode falls back to
@@ -287,9 +288,8 @@ class CautionLookupFactory(Protocol):
 class LLMFactory(Protocol):
     """Builds the production LLM for the Kernel.
 
-    Phase 8f-b iter 2a: Agent BC's
-    `cora.agent.adapters.AnthropicLLMAdapter` is the only production
-    factory today; `cora.api.main` binds it when
+    Agent BC's `cora.agent.adapters.AnthropicLLMAdapter` is the
+    only production factory today; `cora.api.main` binds it when
     `Settings.anthropic_api_key` is set. Same factory-injection
     shape as `AuthorizeFactory` / `ClearanceLookupFactory` /
     `CautionLookupFactory` so `cora.infrastructure.deps` doesn't
@@ -321,19 +321,19 @@ async def build_kernel(
 ) -> tuple[Kernel, Teardown]:
     """Construct the kernel. Called once from the FastAPI lifespan.
 
-    `llm_factory` (Phase 8f-b iter 2a): when provided, called with
-    `Settings` and the result wired into `kernel.llm`. When `None`,
-    `kernel.llm` is `None` and Agent BC subscribers that depend on
-    it fail-fast at registration. Test mode (`app_env=test`) does
-    NOT call the factory; tests inject `FakeLLMAdapter` directly
-    via `make_inmemory_kernel(..., llm=...)`.
+    `llm_factory`: when provided, called with `Settings` and the
+    result wired into `kernel.llm`. When `None`, `kernel.llm` is
+    `None` and Agent BC subscribers that depend on it fail-fast at
+    registration. Test mode (`app_env=test`) does NOT call the
+    factory; tests inject `FakeLLMAdapter` directly via
+    `make_inmemory_kernel(..., llm=...)`.
 
     `settings` is an optional injection point for tests that need
-    to override env-var-loaded config (e.g. Phase C edge-auth
-    contract tests overriding `identity_providers`). Production
-    callers pass nothing; Settings reads from env / .env as usual.
+    to override env-var-loaded config (e.g. edge-auth contract
+    tests overriding `identity_providers`). Production callers pass
+    nothing; Settings reads from env / .env as usual.
 
-    `token_verifier` (Phase C Iter C) is constructed from
+    `token_verifier` is constructed from
     `settings.identity_providers` via `build_idp_registry`. Empty
     list -> `None` -> middleware falls through to the legacy
     `X-Principal-Id` path. Non-empty -> a `TokenVerifier` that

@@ -155,8 +155,8 @@ class Settings(BaseSettings):
     # Edge auth
     # `identity_providers` is the list of IdPs CORA accepts tokens
     # from. Empty (default) keeps the legacy X-Principal-Id-with-
-    # SYSTEM-fallback shape; Iter C wires the middleware to use this
-    # list when populated. Production deployments set this via env
+    # SYSTEM-fallback shape; the bearer middleware uses this list
+    # when populated. Production deployments set this via env
     # var as JSON, e.g.:
     #
     #   IDENTITY_PROVIDERS='[{"issuer":"https://idp.example.com",
