@@ -1,5 +1,5 @@
 """DecisionRatingsProjection: folds `DecisionRated` events into the
-`proj_decision_ratings` read model (Phase 8f-b iter 1).
+`proj_decision_ratings` read model.
 
 Subscribed events:
   - DecisionRated -> UPSERT one row per (decision_id, rated_by_actor_id)

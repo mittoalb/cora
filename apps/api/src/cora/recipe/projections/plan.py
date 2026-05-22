@@ -1,7 +1,6 @@
-"""PlanSummaryProjection: folds the Plan aggregate's
-4 events into the `proj_recipe_plan_summary`
-read model that backs `GET /plans` and (post-audit-2026-05-20 Iter B-1)
-also supplies lifecycle timestamps to `GET /plans/{id}`.
+"""PlanSummaryProjection: folds the Plan aggregate's 4 events into
+the `proj_recipe_plan_summary` read model that backs `GET /plans`
+and supplies lifecycle timestamps to `GET /plans/{id}` (Path C).
 
 Subscribed events:
   - PlanDefined                  -> INSERT (status=Defined,
@@ -30,7 +29,7 @@ Subscribed events:
 
 `versioned_at` / `deprecated_at` source: Path C lock — state stays
 decider-minimal, projections carry lifecycle metadata. Mirrors
-MethodSummaryProjection (audit-2026-05-20 Iter A).
+MethodSummaryProjection.
 
 `practice_id` and `method_id` come from the genesis event and never
 change (no event re-issues them), so the INSERT carries them and

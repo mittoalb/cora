@@ -1,11 +1,11 @@
 """Agent BC's `LLMFactory` for the composition root.
 
-Phase 8f-b iter 2a. Bound from `cora.api.main` into `build_kernel`
-the same way `cora.trust.authorize_factory.build_authorize` is
-bound. Lives in Agent BC because the production implementor
-(`AnthropicLLMAdapter`) lives here too (cross-BC adapter-ownership
-convention; Safety BC owns `PostgresClearanceLookup`, Caution BC
-owns `PostgresCautionLookup`).
+Bound from `cora.api.main` into `build_kernel` the same way
+`cora.trust.authorize_factory.build_authorize` is bound. Lives in
+Agent BC because the production implementor (`AnthropicLLMAdapter`)
+lives here too (cross-BC adapter-ownership convention; Safety BC
+owns `PostgresClearanceLookup`, Caution BC owns
+`PostgresCautionLookup`).
 
 When `Settings.anthropic_api_key` is unset, returns `None` so the
 Kernel ends up with `llm=None` and Agent subscribers fail-fast at

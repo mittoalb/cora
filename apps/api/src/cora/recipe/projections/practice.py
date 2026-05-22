@@ -1,7 +1,7 @@
-"""PracticeSummaryProjection: folds the Practice aggregate's
-3 lifecycle events into the `proj_recipe_practice_summary`
-read model that backs `GET /practices` and (post-audit-2026-05-20
-Iter B-2) supplies lifecycle timestamps to `GET /practices/{id}`.
+"""PracticeSummaryProjection: folds the Practice aggregate's 3
+lifecycle events into the `proj_recipe_practice_summary` read model
+that backs `GET /practices` and supplies lifecycle timestamps to
+`GET /practices/{id}` (Path C).
 
 Subscribed events:
   - PracticeDefined    -> INSERT (status=Defined, version_tag=NULL,
@@ -21,8 +21,7 @@ aggregate filter ("show me all Practices implementing Method X").
 
 `versioned_at` / `deprecated_at` source: Path C lock — state stays
 decider-minimal, projections carry lifecycle metadata. Mirrors
-MethodSummaryProjection (audit-2026-05-20 Iter A) and
-PlanSummaryProjection (Iter B-1).
+MethodSummaryProjection and PlanSummaryProjection.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false

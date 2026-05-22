@@ -17,9 +17,8 @@ does not re-register them.
 ## Loop-collapse pattern
 
 Mirrors Equipment / Subject. Generic error handlers per family,
-tuple loops to register them. Phase 6a only ships Method, so the
-tuples are single-element today; future aggregates (Practice / Plan
-/ Run) and transition errors append entries without restructuring.
+tuple loops to register them. New aggregates and transition errors
+append entries without restructuring.
 
   - 400 (validation): InvalidMethodNameError, InvalidMethodParametersSchemaError,
     InvalidMethodNeededSuppliesError

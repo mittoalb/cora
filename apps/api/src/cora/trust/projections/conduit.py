@@ -14,9 +14,8 @@ events. A future `proj_trust_conduit_logbooks` join projection
 covers "list conduits with N+ traversals in window" if that use
 case crystallizes.
 
-Conduit is immutable-once-defined for Phase 8e-8 (lifecycle
-additions deferred per the additive-state pattern in
-conduit/state.py).
+Conduit is immutable-once-defined today (lifecycle additions
+deferred per the additive-state pattern in conduit/state.py).
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false

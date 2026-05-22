@@ -1,13 +1,12 @@
 """AgentSummaryProjection: folds the Agent aggregate's 3 lifecycle
 events into the `proj_agent_summary` read model.
 
-Agent BC's first projection. Built in audit-2026-05-20 Iter C-1 per
-the Path C lock: state stays decider-minimal; lifecycle timestamps
-live on the projection. Mirrors MethodSummaryProjection (Iter A) +
-the Iter B projections (Plan/Practice/Family/Capability) — same
-state-always-holds-latest convention, same `(created_at,
-versioned_at, deprecated_at)` triple, same null semantics on
-read-side response composition.
+Agent BC's first projection. Built per the Path C lock: state stays
+decider-minimal; lifecycle timestamps live on the projection.
+Mirrors MethodSummaryProjection + the Plan/Practice/Family/
+Capability projections — same state-always-holds-latest convention,
+same `(created_at, versioned_at, deprecated_at)` triple, same null
+semantics on read-side response composition.
 
 Subscribed events:
   - AgentDefined    -> INSERT (status=Defined,

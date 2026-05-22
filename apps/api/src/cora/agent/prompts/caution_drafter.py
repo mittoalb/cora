@@ -1,5 +1,5 @@
 # Long lines intentional in the system prompt; splitting changes cache bytes.
-"""CautionDrafter prompt template (Phase 8f-c iter 3).
+"""CautionDrafter prompt template.
 
 Builds the `LLMChatRequest` for the CautionDrafter agent's per-Run
 Caution-proposal call. Output is a structured Decision payload with

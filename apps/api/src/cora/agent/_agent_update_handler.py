@@ -1,12 +1,12 @@
 """Agent's update-handler factory (thin wrapper).
 
-Phase 8f-c iter 2. Hoisted at the rule-of-three trigger: pre-iter-2
-the Agent BC had 2 transition slices (`version_agent` +
-`deprecate_agent`); iter 2 takes that to 7 (+ `suspend_agent` +
-`resume_agent` + `grant_tool_to_agent` + `revoke_tool_from_agent`
-+ `revise_agent_budget`), well past the n=3 threshold that triggered
-the same hoist for Recipe's Method / Plan / Practice + Subject +
-Asset + Supply + Procedure + Caution + Clearance + Run + Campaign.
+Hoisted at the rule-of-three trigger: the Agent BC started with 2
+transition slices (`version_agent` + `deprecate_agent`); growth to
+7 (+ `suspend_agent` + `resume_agent` + `grant_tool_to_agent` +
+`revoke_tool_from_agent` + `revise_agent_budget`) put it well past
+the n=3 threshold that triggered the same hoist for Recipe's
+Method / Plan / Practice + Subject + Asset + Supply + Procedure +
+Caution + Clearance + Run + Campaign.
 
 Per-aggregate scoping (not BC-wide) mirrors the Equipment / Recipe
 precedent: Agent BC owns ONE aggregate today (Agent), but the

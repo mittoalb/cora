@@ -1,7 +1,7 @@
-"""MethodSummaryProjection: folds the Method aggregate's
-4 events into the `proj_recipe_method_summary`
-read model that backs `GET /methods` and (post-audit-2026-05-20 Iter A)
-also supplies lifecycle timestamps to `GET /methods/{id}`.
+"""MethodSummaryProjection: folds the Method aggregate's 4 events
+into the `proj_recipe_method_summary` read model that backs
+`GET /methods` and supplies lifecycle timestamps to
+`GET /methods/{id}` (Path C).
 
 Subscribed events:
   - MethodDefined                  -> INSERT (status=Defined,

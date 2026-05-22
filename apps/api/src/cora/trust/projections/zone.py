@@ -4,8 +4,8 @@ the `proj_trust_zone_summary` read model that backs `GET /zones`.
 Subscribed events:
   - ZoneDefined  -> INSERT (id + name + occurred_at)
 
-Zone is immutable-once-defined for Phase 8e-8 (lifecycle Defined ->
-Active -> Modified -> Archived per BC-map deferred per the
+Zone is immutable-once-defined today (the Defined -> Active ->
+Modified -> Archived lifecycle per BC-map is deferred per the
 additive-state pattern documented in zone/state.py). Same shape as
 the Decision projection: one event, one INSERT, no UPDATE path.
 """

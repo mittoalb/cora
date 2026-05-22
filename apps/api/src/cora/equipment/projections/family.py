@@ -3,13 +3,13 @@
 that backs `GET /families`.
 
 Subscribed events (BOTH new + legacy names per Marten/Axon dual-match
-contract — Phase 5i renamed `Capability` → `Family`, but legacy
-`Capability*` events stay in the log forever; the projection must
-subscribe to both so a replay-from-zero on a deployment with
+contract — the aggregate was renamed `Capability` → `Family`, but
+legacy `Capability*` events stay in the log forever; the projection
+must subscribe to both so a replay-from-zero on a deployment with
 historical data produces a correct summary table. The apply path
 reads `family_id` from new payloads and `capability_id` from legacy
-payloads. See [[project_family_affordance_design]] DLM-A "Locks"
-section + [[project_capability_research]] dual-match anti-hooks.):
+payloads. See [[project_family_affordance_design]] "Locks" section
++ [[project_capability_research]] dual-match anti-hooks.):
 
   - FamilyDefined / CapabilityDefined        -> INSERT
         (status=Defined, version_tag=NULL,
@@ -23,7 +23,7 @@ section + [[project_capability_research]] dual-match anti-hooks.):
   - FamilySettingsSchemaUpdated /
     CapabilitySettingsSchemaUpdated          -> UPDATE
         settings_schema_present (TRUE if settings_schema is
-        non-NULL; FALSE if cleared via NULL; Phase 5g-a)
+        non-NULL; FALSE if cleared via NULL)
 
 All branches idempotent. `version_tag` lands in the projection ONLY
 on Versioned events; the Defined INSERT leaves it NULL and the

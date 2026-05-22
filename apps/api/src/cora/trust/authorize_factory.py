@@ -14,7 +14,7 @@ the composition root wires BCs into the kernel.
 ## Adapter selection
 
   - `Settings.trust_policy_id is None` -> `AllowAllAuthorize`
-    (Phase 1 permissive default; matches dev/test posture).
+    (permissive default; matches dev/test posture).
   - `Settings.trust_policy_id` set -> `TrustAuthorize` gates every
     command through that single Policy aggregate. See
     `cora/trust/authorize.py` for the bootstrap workflow when

@@ -17,9 +17,9 @@ does not re-register them.
 ## Loop-collapse pattern
 
 Mirrors Recipe / Equipment / Subject. Generic error handlers per
-family, tuple loops to register them. Phase 6f-4 adds the truncate
-transition handler + its guard errors (RunCannotTruncateError +
-two validation errors: InvalidRunTruncateReasonError +
+family, tuple loops to register them. The truncate transition has
+its own handler + guard errors (RunCannotTruncateError + two
+validation errors: InvalidRunTruncateReasonError +
 InvalidRunInterruptedAtError).
 
   - 400 (validation): InvalidRunNameError, InvalidRunAbortReasonError,

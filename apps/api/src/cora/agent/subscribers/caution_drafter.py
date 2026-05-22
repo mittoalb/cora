@@ -1,10 +1,10 @@
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 """CautionDrafter subscriber: CORA's second side-effecting subscriber.
 
-Phase 8f-c iter 3. Subscribes to the four terminal Run events
-(`RunCompleted`, `RunAborted`, `RunStopped`, `RunTruncated`),
-loads the terminated Run + Plan (for candidate Assets) + existing
-Active Cautions for those Assets, asks the LLM for a structured
+Subscribes to the four terminal Run events (`RunCompleted`,
+`RunAborted`, `RunStopped`, `RunTruncated`), loads the terminated
+Run + Plan (for candidate Assets) + existing Active Cautions for
+those Assets, asks the LLM for a structured
 Caution-proposal Decision (`choice` + `confidence` + `confidence_band`
 + `reasoning` + optional `proposed_caution` tuple), and emits one
 `DecisionRegistered` per terminal event with

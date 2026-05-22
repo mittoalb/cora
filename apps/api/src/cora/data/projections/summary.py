@@ -22,7 +22,7 @@ future Decision-derived advisories, agent subscribers) can query
 indexed `@>` operator without folding the Dataset stream.
 `.get("used_calibrations", [])` returns `[]` so legacy pre-12c
 rows backfill cleanly to an empty UUID array (additive-state
-pattern mirroring Run.pinned_calibrations Phase 12b-2 precedent).
+pattern mirroring Run.pinned_calibrations precedent).
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false

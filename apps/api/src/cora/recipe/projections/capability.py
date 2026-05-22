@@ -2,7 +2,8 @@
 lifecycle events into `proj_recipe_capability_summary`.
 
 Distinct from `FamilySummaryProjection` (Equipment BC). Family =
-device-class; Capability = operations-layer template per DLM-B.
+device-class; Capability = operations-layer template per
+[[project-capability-aggregate-design]].
 
 Subscribed events:
   - RecipeCapabilityDefined   -> INSERT (status=Defined, version_tag=NULL,
@@ -21,7 +22,7 @@ Defined INSERT leaves it NULL and Deprecated UPDATE doesn't touch it.
 parameter_schema payload was non-NULL; the schema content itself
 lives in the event stream (loaded on demand to keep summary small).
 `required_affordances` and `executor_shapes` ship as text[] for
-future filter consumers (deferred per DLM-B locks).
+future filter consumers (deferred per the Capability design lock).
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false

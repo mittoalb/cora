@@ -2,7 +2,7 @@
 
 Today: `PostgresClearanceLookup` implementing
 `cora.infrastructure.ports.ClearanceLookup` (consumed by Run BC's
-`start_run` handler from Phase 11a-c-3).
+`start_run` handler).
 """
 
 from cora.safety.adapters.clearance_lookup_pg import PostgresClearanceLookup

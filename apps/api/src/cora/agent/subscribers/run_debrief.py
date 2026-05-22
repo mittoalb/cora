@@ -1,10 +1,10 @@
 """RunDebrief subscriber: CORA's first side-effecting subscriber.
 
-Phase 8f-b iter 2b. Subscribes to the four terminal Run events
-(`RunCompleted`, `RunAborted`, `RunStopped`, `RunTruncated`),
-loads the terminated Run, asks the LLM for a structured Decision
-(choice + confidence + reasoning), and emits one
-`DecisionRegistered` per terminal event.
+Subscribes to the four terminal Run events (`RunCompleted`,
+`RunAborted`, `RunStopped`, `RunTruncated`), loads the terminated
+Run, asks the LLM for a structured Decision (choice + confidence
++ reasoning), and emits one `DecisionRegistered` per terminal
+event.
 
 ## Side-effecting subscriber pattern (NEW)
 

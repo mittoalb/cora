@@ -1,7 +1,7 @@
 """Bootstrap-time seed for the RunDebrief Agent.
 
-Phase 8f-b iter 2b. The RunDebrief subscriber needs an Agent
-record (and its co-registered Actor) to exist at the pinned
+The RunDebrief subscriber needs an Agent record (and its
+co-registered Actor) to exist at the pinned
 `RUN_DEBRIEF_AGENT_ID` so it can set `Decision.actor_id` without
 a lookup. This module provides:
 

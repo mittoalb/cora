@@ -4,7 +4,7 @@
 # broken across lines. Splitting these would either change the
 # prompt bytes (cache-key drift) or introduce implicit-concat string
 # stitching that's harder to read.
-"""RunDebrief prompt template (Phase 8f-b iter 2b).
+"""RunDebrief prompt template.
 
 Builds the `LLMChatRequest` for the RunDebrief agent's per-Run
 debrief call. The output is a structured Decision payload with a

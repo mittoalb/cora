@@ -1,10 +1,9 @@
 """Agent BC prompt registry (Python module).
 
-Phase 8f-b iter 2b. Per [[project-agent-bc-research]] the
-event-sourced `PromptTemplate` aggregate is deferred to
-rule-of-three trigger ("second prompt revision ships"); pre-trigger
-the prompts live as Python module constants keyed by
-`prompt_template_id` (UUID).
+Per [[project-agent-bc-research]] the event-sourced
+`PromptTemplate` aggregate is deferred to rule-of-three trigger
+("second prompt revision ships"); pre-trigger the prompts live as
+Python module constants keyed by `prompt_template_id` (UUID).
 
 Each prompt module exposes a `build_chat_request(...)` builder that
 returns an `LLMChatRequest` ready for `LLM.chat()`. The
@@ -12,9 +11,9 @@ builders are pure (no I/O), so subscribers can construct requests
 in-memory and the LLM-cache layering stays a single design choice
 per agent.
 
-Phase 8f-c iter 3 adds a SECOND entry for the `CautionDrafter`
-agent. The registry now has two entries; PromptTemplate-aggregate
-trigger is "3rd prompt-revision event ships" per
+A SECOND entry covers the `CautionDrafter` agent. The registry
+now has two entries; the PromptTemplate-aggregate trigger is
+"3rd prompt-revision event ships" per
 [[project-caution-drafter-design]] Watch item #7.
 """
 

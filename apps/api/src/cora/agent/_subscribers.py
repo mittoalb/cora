@@ -1,10 +1,11 @@
 """Agent BC subscriber registration for the projection worker.
 
-Phase 8f-b iter 2b. ROLE: This module is the REGISTRATION HELPER
+ROLE: This module is the REGISTRATION HELPER
 (`register_agent_subscribers(registry, deps)`), NOT the home for
-the subscribers themselves. Subscribers live in `cora.agent.subscribers/`
-(the sub-package); this leading-underscore module is the bridge
-between that package and the projection worker's `ProjectionRegistry`.
+the subscribers themselves. Subscribers live in
+`cora.agent.subscribers/` (the sub-package); this leading-underscore
+module is the bridge between that package and the projection
+worker's `ProjectionRegistry`.
 
 The split mirrors the per-BC `register_<bc>_projections` convention
 (`cora.<bc>._projections` registers what lives in `cora.<bc>.projections/`).

@@ -11,9 +11,9 @@ and a future `proj_trust_policy_principals` join projection covers
 (analog to the deferred `proj_recipe_method_capabilities` join
 documented in recipe/projections/method.py).
 
-Policy is immutable-once-defined for Phase 8e-8 (lifecycle
-Drafted -> Approved -> Active -> Superseded per BC-map deferred
-per the additive-state pattern in policy/state.py).
+Policy is immutable-once-defined today (the
+Drafted -> Approved -> Active -> Superseded lifecycle per BC-map
+is deferred per the additive-state pattern in policy/state.py).
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false

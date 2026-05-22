@@ -27,11 +27,10 @@ class UnauthorizedError(Exception):
 class DecisionNotCautionProposalError(Exception):
     """Operator tried to promote a Decision whose context is not `CautionProposal`.
 
-    Phase 8f-c iter 3. Raised by the `promote_caution_proposal`
-    slice when the loaded Decision exists but its context value
-    indicates it was authored by a different agent or for a
-    different purpose (eg. a `RunDebrief` Decision passed in
-    error). Maps to HTTP 400.
+    Raised by the `promote_caution_proposal` slice when the loaded
+    Decision exists but its context value indicates it was authored
+    by a different agent or for a different purpose (e.g. a
+    `RunDebrief` Decision passed in error). Maps to HTTP 400.
     """
 
     def __init__(self, *, decision_id: UUID, actual_context: str) -> None:
@@ -45,9 +44,9 @@ class DecisionNotCautionProposalError(Exception):
 class CautionProposalNotActionableError(Exception):
     """Operator tried to promote a `NoAction` CautionProposal Decision.
 
-    Phase 8f-c iter 3. `NoAction` is the agent's refusal verdict
-    (the Decision exists for audit + telemetry but carries no
-    proposed-Caution payload). Maps to HTTP 400.
+    `NoAction` is the agent's refusal verdict (the Decision exists
+    for audit + telemetry but carries no proposed-Caution payload).
+    Maps to HTTP 400.
     """
 
     def __init__(self, *, decision_id: UUID, choice: str) -> None:
@@ -62,10 +61,9 @@ class CautionProposalNotActionableError(Exception):
 class CautionProposalMalformedError(Exception):
     """The CautionProposal Decision's `inputs.proposed_caution` payload is malformed.
 
-    Phase 8f-c iter 3. Catches schema-violations that the LLM
-    structured-output adapter missed (eg. missing required field,
-    invalid UUID, ProposeSupersede missing supersedes_caution_id).
-    Maps to HTTP 400.
+    Catches schema-violations that the LLM structured-output adapter
+    missed (e.g. missing required field, invalid UUID,
+    ProposeSupersede missing supersedes_caution_id). Maps to HTTP 400.
     """
 
     def __init__(self, *, decision_id: UUID, reason: str) -> None:
@@ -77,9 +75,9 @@ class CautionProposalMalformedError(Exception):
 class DecisionNotEmittedByCautionDrafterError(Exception):
     """Provenance check failed: the Decision's actor is not a CautionDrafter agent.
 
-    Phase A.2 of the post-review hardening plan. Closes the
-    authority-to-emit gap: a Decision's `context=CautionProposal`
-    is necessary but not sufficient. The promote slice must also
+    Closes the authority-to-emit gap: a Decision's
+    `context=CautionProposal` is necessary but not sufficient. The
+    promote slice must also
     verify the producing actor is a registered Agent of kind
     `CautionDrafter`. Without this check, any actor able to write
     a `DecisionRegistered` envelope with `context=CautionProposal`

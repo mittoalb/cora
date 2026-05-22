@@ -14,16 +14,16 @@ aggregate membership transitions):
   - RunAborted             -> UPDATE status=Aborted     (terminal)
   - RunStopped             -> UPDATE status=Stopped     (terminal)
   - RunTruncated           -> UPDATE status=Truncated   (terminal)
-  - RunCampaignAssigned    -> UPDATE campaign_id = $2   (Phase 6i-c
-                              post-hoc add via add_run_to_campaign)
-  - RunCampaignUnassigned  -> UPDATE campaign_id = NULL (Phase 6i-c
-                              remove via remove_run_from_campaign)
+  - RunCampaignAssigned    -> UPDATE campaign_id = $2
+                              (post-hoc add via add_run_to_campaign)
+  - RunCampaignUnassigned  -> UPDATE campaign_id = NULL
+                              (remove via remove_run_from_campaign)
 
 All branches idempotent. Genesis-event payload values (plan_id,
 subject_id, raid, override_parameters_present, pinned_calibrations)
 land on INSERT and never change (AsShot invariant for
-pinned_calibrations per Phase 12b); lifecycle UPDATEs only touch
-`status`; membership UPDATEs only touch `campaign_id`.
+pinned_calibrations); lifecycle UPDATEs only touch `status`;
+membership UPDATEs only touch `campaign_id`.
 
 `override_parameters_present` is TRUE iff RunStarted's
 `override_parameters` payload was non-empty (operator customized
@@ -35,9 +35,9 @@ list-endpoint filter primitive. See
 the future JSONB-column trigger (promote when key-level value
 filtering becomes a pilot need).
 
-`campaign_id` (Phase 6i-c follow-up, Campaign Watch #10) serves the
-"list Runs in Campaign X" query path without folding individual Run
-streams or 2-hop-joining through `proj_campaign_summary.run_ids`.
+`campaign_id` (Campaign Watch #10) serves the "list Runs in
+Campaign X" query path without folding individual Run streams or
+2-hop-joining through `proj_campaign_summary.run_ids`.
 Forward-compat: pre-6i-c RunStarted payloads lack the key entirely;
 `.get("campaign_id")` returns None and the column stays NULL. See
 [[project_campaign_design]] §"bidirectional composition".

@@ -1,7 +1,7 @@
 """Anthropic implementation of `LLM`.
 
-Phase 8f-b iter 2a. Lives under `cora.agent.adapters` per the
-cross-BC adapter-ownership convention (Safety BC owns
+Lives under `cora.agent.adapters` per the cross-BC
+adapter-ownership convention (Safety BC owns
 `PostgresClearanceLookup`, Caution BC owns `PostgresCautionLookup`,
 Agent BC owns this).
 

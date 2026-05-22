@@ -3,7 +3,7 @@
 Implements `cora.infrastructure.ports.Authorize` by loading a single
 configured Policy aggregate and delegating to the pure
 `evaluate(policy, ...)` function from `aggregates/policy/state.py`.
-This is the structural moment where Phase 3's pure domain logic
+This is the structural moment where the Trust BC's pure domain logic
 (Zone / Conduit / Policy + define + evaluate) gates real commands
 across every BC.
 
@@ -23,9 +23,8 @@ in later phases when projection-worker infrastructure exists.
 
 ## Conduit semantics (post-3h)
 
-The port passes `conduit_id: UUID` (was `conduit: str` in Phase 3e —
-3g typed the parameter, 3h activates it). TrustAuthorize forwards
-the caller's `conduit_id` to `evaluate`, which means a policy bound
+The port passes `conduit_id: UUID`. TrustAuthorize forwards the
+caller's `conduit_id` to `evaluate`, which means a policy bound
 to one conduit naturally denies calls on another via evaluate's
 existing conduit-mismatch check.
 
@@ -178,8 +177,8 @@ class TrustAuthorize:
             # evaluate's conduit-mismatch check now meaningfully
             # gates calls — a policy bound to one conduit denies calls on
             # another instead of being evaluated as if it were governing.
-            # Iter B: additionally forward surface_id. Defaults to
-            # nil until Iter C ships surface adapters at the route layer.
+            # Forward surface_id; defaults to nil where the route
+            # layer hasn't been swept to inject the real Surface ID.
             result = evaluate(
                 policy,
                 principal_id=principal_id,

@@ -2,9 +2,9 @@
 boot-time seed-verification helper.
 
 See `cora/trust/authorize.py` for the bootstrap workflow,
-`memory/project_bootstrap_policy_design.md` for Phase A rationale,
-and `memory/project_conduit_injection_design.md` for the Phase B
-Surface decomposition and the V1→V2 bootstrap-policy transition.
+`memory/project_bootstrap_policy_design.md` for the bootstrap rationale,
+and `memory/project_conduit_injection_design.md` for the Surface
+decomposition and the V1→V2 bootstrap-policy transition.
 """
 
 from uuid import UUID
@@ -30,7 +30,7 @@ _log = get_logger(__name__)
 SYSTEM_BOOTSTRAP_POLICY_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 # V2 Bootstrap Policy id. Bound to (conduit=nil, surface=HTTP).
-# Production deployments running Iter C+ set
+# Production deployments set
 # `TRUST_POLICY_ID=00000000-0000-0000-0000-000000000002` to point at
 # this; the verifier below catches operators still on V1 and logs a
 # deprecation WARN.
@@ -60,9 +60,9 @@ async def verify_bootstrap_seed_present(deps: Kernel) -> None:
 
     2. `trust_policy_id == SYSTEM_BOOTSTRAP_POLICY_ID` (V1): verify
        the V1 stream exists AND log a deprecation WARN. V1 is
-       operationally inert post-Phase-B Iter C (binds to nil-surface;
-       new handler call sites pass real surface_id). Operators should
-       migrate to V2 via `TRUST_POLICY_ID=…0002`. R2B R-1 mitigation.
+       operationally inert today (binds to nil-surface; new handler
+       call sites pass real surface_id). Operators should migrate to
+       V2 via `TRUST_POLICY_ID=…0002`. R2B R-1 mitigation.
 
     3. Otherwise no-op (custom operator policies are the operator's
        responsibility to verify).
@@ -137,9 +137,9 @@ async def verify_bootstrap_seed_present(deps: Kernel) -> None:
             recommended_replacement=str(SYSTEM_BOOTSTRAP_POLICY_V2_ID),
             runbook="docs/stack/deployment.md",
             reason=(
-                "V1 bootstrap policy is operationally inert post-Phase-B "
-                "Iter C (binds to nil-surface; new handler call sites "
-                "pass real surface_id). Set TRUST_POLICY_ID to the V2 id."
+                "V1 bootstrap policy is operationally inert (binds "
+                "to nil-surface; new handler call sites pass real "
+                "surface_id). Set TRUST_POLICY_ID to the V2 id."
             ),
         )
 
