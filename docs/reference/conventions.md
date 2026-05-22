@@ -1,6 +1,6 @@
 # Conventions
 
-*Identifiers, units of measurement, personal data, schema-validated values.*
+*Identifiers, units of measurement, personal data, schema-validated values, documentation.*
 
 Cross-cutting shapes that recur in every BC. Each family below has one chosen pattern and a short list of anti-patterns that the codebase has settled on. Adopt the pattern when adding a field of that shape; deviate only with a reason.
 
@@ -120,6 +120,61 @@ Operators wanting "this Capability or Method genuinely has no values to constrai
 - Do not collapse the settings and parameters vocabularies into one name. They are two domain families that happen to share an implementation; the names carry the lifecycle distinction.
 - Do not extend the JSON Schema subset to allow `$ref`, `oneOf`, `allOf`, or conditionals without adding the corresponding evolver and projection support. The constrained subset is what lets the declarer's schema be stored, evolved, and rebuilt deterministically.
 
+## Documentation
+
+Docstrings carry intent. Comments carry hidden constraints. Test names carry scenarios. Everything else is noise.
+
+### Docstrings
+
+Every public module, class, function, and method gets a docstring. Style is prose, not Sphinx.
+
+- **One imperative summary line.** Single-line docstrings stay on one line: `"""Load and fold a Caution's event stream into current state."""`. End with a period.
+- **Prose body when more is needed.** Blank line after the summary, then narrative paragraphs. Use Markdown subheaders (`## Section`) for distinct concerns.
+- **Domain vocabulary matches the [glossary](glossary.md).** A slice handler is a handler, not an endpoint. An aggregate is an aggregate, not a model. An evolver is an evolver, not a reducer.
+- **Cross-references**:
+    - Backticks for in-module symbols: `` `ActorName` ``, `` `evolve()` ``.
+    - Dotted path for cross-BC symbols: `` `cora.infrastructure.evolver.require_state` ``.
+    - Wiki link only for design memos: `[[project_fold_cost_principles]]`.
+
+**Role-type templates** (established by precedent; copy rather than improvise):
+
+| Role | Module summary | Function summary |
+| --- | --- | --- |
+| Evolver | "Evolver: replay events to reconstruct `<Aggregate>` state." | `evolve()`: "Apply one event to the current state." / `fold()`: "Replay a stream of events from the empty initial state." |
+| Read repo | "Read repository for the `<Aggregate>` aggregate." | `load_<aggregate>()`: "Load and fold a `<Aggregate>`'s event stream into current state." |
+| Slice file header | "<role> for the `<slice>` slice." (one each in `route.py`, `tool.py`, `decider.py`, `handler.py`, `command.py`) | n/a |
+
+**Anti-patterns:**
+
+- Do not use `Args:` / `Returns:` / `Raises:` sections. Type annotations are the parameter contract; raised exceptions belong in prose when non-obvious.
+- Do not restate the type signature in prose (`"""name (str): The name."""`).
+- Do not write `>>>` doctest examples. CORA's tests are external.
+- Do not name a phase, iteration, or audit (`Phase 5h`, `Iter B-3`, `DLM-A`, `audit-2026-05-20`) in a docstring. Those rot. The current code is what is true; phase ordering lives in `project_phase_plan.md` and git history. Name the precedent itself (`mirrors get_actor`), not the phase that shipped it.
+
+### Comments
+
+Default to none. Well-named identifiers carry WHAT.
+
+Add a `#` comment only when the WHY is non-obvious: a hidden constraint, a subtle invariant, a workaround for a specific bug, behavior that would surprise a reader. State the constraint, not the history.
+
+**Anti-patterns:**
+
+- Do not narrate WHAT the next line does (`# Set the replaced_by pointer`). The code says that.
+- Do not annotate the current task, fix, or caller (`# added for X flow`, `# used by Y`, `# Phase 6i-c membership guard`). Git log and PR description are the right home.
+- Do not leave dead-code markers (`# was`, `# previously`, `# old`). Delete the dead code.
+- Do not leave `# TODO`, `# FIXME`, `# HACK` without an owner and a trigger. File an issue or drop it.
+- Do not use `# noqa: <code>` without a trailing comment explaining the suppression.
+- Do not draw section dividers (`# === STATE ===`) when whitespace and the next docstring already separate the section.
+
+### Tests
+
+Test names carry scenarios. Per-test docstrings stay rare.
+
+- **`test_<subject>_<scenario>_<expectation>`** is the naming convention. Long is fine: `test_deactivate_with_none_state_always_raises_not_found`.
+- **Property-based tests document the property**, not the test shape. The `@given` body is the test; the docstring is the invariant being verified.
+- **Architecture tests document the rule, the rationale, and the exception.** They are the project's structural guardrails; future contributors need to know why each rule exists.
+- **Fixture docstrings only when non-obvious.** Per-worker Postgres containers, kernel-construction sites, template-database cloning, and similar subtleties get one paragraph in `conftest.py`. Simple fixtures stay bare.
+
 ## Where each family is enforced
 
 | Family | Domain entry point | Shared infrastructure |
@@ -128,5 +183,6 @@ Operators wanting "this Capability or Method genuinely has no values to constrai
 | Units of measurement | declarer's JSON Schema; allowlist of `system` namespaces | `cora.infrastructure.json_schema_validation` |
 | Personal data | `Actor` state; `profile` table | `cora.access.aggregates.actor.profile` |
 | Schema-validated values | declarer's schema field; carrier's values field | `cora.infrastructure.json_schema_validation`, `cora.infrastructure.json_schema_subset` |
+| Documentation | docstring on every public symbol; sparse `#` comments | [Glossary](glossary.md) for vocabulary |
 
 For the deeper rules each family inherits from (event sourcing, value-object scope, field grouping), see [Modeling](modeling.md). For the read-side, idempotency, and cross-aggregate validation patterns, see [Patterns](patterns.md).
