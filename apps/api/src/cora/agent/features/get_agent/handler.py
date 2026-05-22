@@ -1,12 +1,11 @@
 """Application handler for the `get_agent` query slice.
 
-Path C (audit-2026-05-20 Iter C-2): handler returns AgentView
+Path C: handler returns AgentView
 bundling aggregate state + projection-sourced lifecycle timestamps.
 State stays decider-minimal; lifecycle timestamps live on the
-projection (`proj_agent_summary`, Iter C-1) per Dudycz read-side-
-pragmatism + K8s/GitHub/AIP-142 resource-API precedent. Mirrors
-the pattern from Iter A (Method) + Iter B-1/B-2/B-3/B-4
-(Plan/Practice/Family/Capability).
+projection (`proj_agent_summary`) per Dudycz read-side-pragmatism
++ K8s/GitHub/AIP-142 resource-API precedent. Mirrors the pattern
+from Method, Plan, Practice, Family, and Capability.
 
 Workflow:
 

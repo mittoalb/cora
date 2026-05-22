@@ -1,6 +1,6 @@
 """Application handler for the `resume_agent` slice.
 
-Phase 8f-c iter 2. Built on the hoisted `make_agent_update_handler`
+Built on the hoisted `make_agent_update_handler`
 factory.
 """
 

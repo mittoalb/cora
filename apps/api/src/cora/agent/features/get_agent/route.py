@@ -5,7 +5,7 @@ on miss. The handler returns `AgentView | None`; the route maps None
 to 404 via HTTPException.
 
 `defined_at` / `versioned_at` / `deprecated_at` are sourced from the
-`proj_agent_summary` projection (Path C, audit-2026-05-20 Iter C-2),
+`proj_agent_summary` projection (Path C),
 NOT from aggregate state (previously they lived on Agent state at
 8f-a; the audit moved them to the projection so the Agent BC follows
 the same pattern as Method/Plan/Practice/Family/Capability). Null
@@ -51,7 +51,7 @@ class AgentResponse(BaseModel):
     from the domain model so the two can evolve independently.
 
     `defined_at` / `versioned_at` / `deprecated_at` are projection-
-    sourced lifecycle timestamps (Path C, audit-2026-05-20 Iter C-2);
+    sourced lifecycle timestamps (Path C);
     see module docstring for null-semantics. `defined_at` is now
     nullable (changed from required at 8f-a) because the projection
     can lag — once the projection has folded `AgentDefined`,

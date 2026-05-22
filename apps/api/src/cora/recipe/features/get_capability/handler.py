@@ -1,11 +1,11 @@
 """Application handler for the `get_capability` query slice.
 
-Path C (audit-2026-05-20 Iter B-4): handler returns CapabilityView
+Path C: handler returns CapabilityView
 bundling aggregate state + projection-sourced lifecycle timestamps.
 State stays minimal per decider purity; timestamps live on the
 projection per Dudycz read-side-pragmatism + K8s/GitHub/AIP-142
-resource-API precedent. Mirrors the pattern from Iter A (Method) +
-Iter B-1/B-2/B-3 (Plan/Practice/Family).
+resource-API precedent. Mirrors the pattern from Method, Plan,
+Practice, and Family.
 """
 
 from dataclasses import dataclass

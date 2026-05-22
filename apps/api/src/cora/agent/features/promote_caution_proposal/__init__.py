@@ -1,4 +1,4 @@
-"""Vertical slice for the `PromoteCautionProposal` command (Phase 8f-c iter 3).
+"""Vertical slice for the `PromoteCautionProposal` command.
 
 Operator-triggered cross-BC promotion: reads a
 `DecisionRegistered(context="CautionProposal")` Decision and writes

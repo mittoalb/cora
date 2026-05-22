@@ -338,7 +338,7 @@
         "type": "string"
       },
       "AgentResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n\n`defined_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C, audit-2026-05-20 Iter C-2);\nsee module docstring for null-semantics. `defined_at` is now\nnullable (changed from required at 8f-a) because the projection\ncan lag \u2014 once the projection has folded `AgentDefined`,\n`defined_at` is non-null on every response.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n\n`defined_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C);\nsee module docstring for null-semantics. `defined_at` is now\nnullable (changed from required at 8f-a) because the projection\ncan lag \u2014 once the projection has folded `AgentDefined`,\n`defined_at` is non-null on every response.",
         "properties": {
           "canonical_uri": {
             "anyOf": [
@@ -1828,7 +1828,7 @@
         "type": "object"
       },
       "CapabilityResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. `status` is the StrEnum's\nstring value (Defined / Versioned / Deprecated). `version` is\nthe operator-supplied label of the most recent version_capability\ncall (null until first version). `required_affordances` and\n`executor_shapes` serialize as sorted lists for response\ndeterminism. `replaced_by_capability_id` is null on Defined /\nVersioned / Deprecated-without-replacement; populated when a\ndeprecation supplied a successor pointer. `created_at` /\n`versioned_at` / `deprecated_at` are projection-sourced lifecycle\ntimestamps (Path C, audit-2026-05-20 Iter B-4); see module\ndocstring for null-semantics.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. `status` is the StrEnum's\nstring value (Defined / Versioned / Deprecated). `version` is\nthe operator-supplied label of the most recent version_capability\ncall (null until first version). `required_affordances` and\n`executor_shapes` serialize as sorted lists for response\ndeterminism. `replaced_by_capability_id` is null on Defined /\nVersioned / Deprecated-without-replacement; populated when a\ndeprecation supplied a successor pointer. `created_at` /\n`versioned_at` / `deprecated_at` are projection-sourced lifecycle\ntimestamps (Path C); see module\ndocstring for null-semantics.",
         "properties": {
           "code": {
             "maxLength": 200,
@@ -3582,7 +3582,7 @@
         "type": "object"
       },
       "DefineMethodRequest": {
-        "description": "Body for `POST /methods`.\n\n`needed_families` is required (use `[]` for procedural\nMethods that need no specific equipment family). Eventual-\nconsistency: each Family id is NOT verified against the\nFamily stream; mismatch surfaces at Plan binding (6e).\n\n`needed_supplies` is optional; defaults to `[]` for\nbackward-compat (pre-10b clients keep working). Each element is\na Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.\nAsymmetric vs needed_families by design \u2014 see\n[[project_supply_design]] \u00a7\"Phase 10b \u2014 Method.needed_supplies\nconsumer\" for the rationale (Family is TYPE registry,\nSupply is INSTANCE aggregate per facility sharing a `kind` label).\nEventual-consistency: kind strings are NOT verified against the\nSupply stream; mismatch surfaces at Plan binding (10c+).",
+        "description": "Body for `POST /methods`.\n\n`needed_families` is required (use `[]` for procedural\nMethods that need no specific equipment family). Eventual-\nconsistency: each Family id is NOT verified against the\nFamily stream; mismatch surfaces at Plan binding (6e).\n\n`needed_supplies` is optional; defaults to `[]` for\nbackward-compat (pre-10b clients keep working). Each element is\na Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.\nAsymmetric vs needed_families by design \u2014 see\n[[project_supply_design]] \u00a7\"Method.needed_supplies consumer\"\nfor the rationale (Family is TYPE registry,\nSupply is INSTANCE aggregate per facility sharing a `kind` label).\nEventual-consistency: kind strings are NOT verified against the\nSupply stream; mismatch surfaces at Plan binding (10c+).",
         "properties": {
           "capability_id": {
             "description": "Universal Capability template (Recipe BC 6k) this Method realizes as a Method-shaped executor. REQUIRED per Pattern P (6l-strict). The bound Capability must declare `Method` in its executor_shapes set; otherwise 409. Eventual-consistency: the Capability stream is loaded at handler time, not API-boundary time \u2014 a missing stream surfaces as 404 via CapabilityNotFoundError.",
@@ -4662,7 +4662,7 @@
         "type": "object"
       },
       "MethodResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`needed_families` is sorted by UUID string form.\n`needed_supplies` is sorted lexically by kind string;\nSupply.kind values (NOT instance UUIDs).\n`status` is the StrEnum's string value (Defined / Versioned /\nDeprecated). `version` is the operator-supplied label of the most\nrecent version_method call (null until first version).\n`created_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C, audit-2026-05-20). Null\nsemantics under eventual consistency: read together with `status`.\nIf `status >= Defined` but `created_at` is null, the projection\nhas not yet folded `MethodDefined` (transient lag). If\n`status == Versioned` but `versioned_at` is null, the projection\nhas not yet folded the latest `MethodVersioned`. If\n`status == Deprecated` but `deprecated_at` is null, the projection\nhas not yet folded `MethodDeprecated`. A 404 means the Method\naggregate itself does not exist (fold-on-read miss); a 200 with\nnull timestamps always means projection lag, never a missing\ntransition.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`needed_families` is sorted by UUID string form.\n`needed_supplies` is sorted lexically by kind string;\nSupply.kind values (NOT instance UUIDs).\n`status` is the StrEnum's string value (Defined / Versioned /\nDeprecated). `version` is the operator-supplied label of the most\nrecent version_method call (null until first version).\n`created_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C). Null\nsemantics under eventual consistency: read together with `status`.\nIf `status >= Defined` but `created_at` is null, the projection\nhas not yet folded `MethodDefined` (transient lag). If\n`status == Versioned` but `versioned_at` is null, the projection\nhas not yet folded the latest `MethodVersioned`. If\n`status == Deprecated` but `deprecated_at` is null, the projection\nhas not yet folded `MethodDeprecated`. A 404 means the Method\naggregate itself does not exist (fold-on-read miss); a 200 with\nnull timestamps always means projection lag, never a missing\ntransition.",
         "properties": {
           "created_at": {
             "anyOf": [
@@ -4975,7 +4975,7 @@
         "type": "object"
       },
       "PlanResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. `status` is the StrEnum's\nstring value (Defined / Versioned / Deprecated). `asset_ids`\nis sorted by UUID string form (deterministic). `version` is the\noperator-supplied label of the most recent version_plan call\n(null until first version). `created_at` / `versioned_at` /\n`deprecated_at` are projection-sourced lifecycle timestamps\n(Path C, audit-2026-05-20 Iter B-1); see module docstring for\nnull-semantics.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. `status` is the StrEnum's\nstring value (Defined / Versioned / Deprecated). `asset_ids`\nis sorted by UUID string form (deterministic). `version` is the\noperator-supplied label of the most recent version_plan call\n(null until first version). `created_at` / `versioned_at` /\n`deprecated_at` are projection-sourced lifecycle timestamps\n(Path C); see module docstring for\nnull-semantics.",
         "properties": {
           "asset_ids": {
             "items": {
@@ -5244,7 +5244,7 @@
         "type": "object"
       },
       "PracticeResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. `status` is the StrEnum's\nstring value (Defined / Versioned / Deprecated). `version` is the\noperator-supplied label of the most recent version_practice call\n(null until first version). `created_at` / `versioned_at` /\n`deprecated_at` are projection-sourced lifecycle timestamps\n(Path C, audit-2026-05-20 Iter B-2); see module docstring for\nnull-semantics.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. `status` is the StrEnum's\nstring value (Defined / Versioned / Deprecated). `version` is the\noperator-supplied label of the most recent version_practice call\n(null until first version). `created_at` / `versioned_at` /\n`deprecated_at` are projection-sourced lifecycle timestamps\n(Path C); see module docstring for\nnull-semantics.",
         "properties": {
           "created_at": {
             "anyOf": [

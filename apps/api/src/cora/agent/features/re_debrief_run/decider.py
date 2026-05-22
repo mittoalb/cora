@@ -1,4 +1,4 @@
-"""Pure decider for the `re_debrief_run` slice (Phase 8f-c iter 1).
+"""Pure decider for the `re_debrief_run` slice.
 
 Composes the `DecisionRegistered` event for an on-demand RunDebrief
 invocation. Pure function: given the operator inputs + LLM response

@@ -1,11 +1,9 @@
 """Application handler for the `deprecate_agent` slice.
 
-Phase 8f-c iter 2: migrated to the hoisted
-`make_agent_update_handler` factory. Zero behavior change.
-
-Phase 8f-c iter 2 also expanded the source set: `Suspended` is now
-a valid source state for deprecation (the decider's guard is what
-enforces this; the handler factory is source-set-agnostic).
+Built on the hoisted `make_agent_update_handler` factory. Source
+set is `{Defined, Versioned, Suspended}` — `Suspended` is a valid
+source state for deprecation (the decider's guard enforces this;
+the handler factory is source-set-agnostic).
 """
 
 from typing import Protocol

@@ -26,7 +26,7 @@ class PlanOutput(BaseModel):
     """Structured output of the `get_plan` MCP tool.
 
     `created_at` / `versioned_at` / `deprecated_at` mirror the REST
-    `PlanResponse` (Path C, audit-2026-05-20 Iter B-1): sourced from
+    `PlanResponse` (Path C): sourced from
     the `proj_recipe_plan_summary` projection. Null semantics: read
     together with `status` — a populated `status` with a null
     timestamp means the projection has not yet folded that lifecycle

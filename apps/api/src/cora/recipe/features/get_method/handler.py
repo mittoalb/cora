@@ -1,8 +1,8 @@
 """Application handler for the `get_method` query slice.
 
-Cross-BC query-handler shape (Phase 2b precedent, mirrored from
-`get_family` / `get_asset` / `get_subject` / `get_actor`; extended
-audit-2026-05-20 Iter A to fold in projection-sourced lifecycle
+Cross-BC query-handler shape, mirrored from `get_family` /
+`get_asset` / `get_subject` / `get_actor`; extended to fold in
+projection-sourced lifecycle
 timestamps per Path C):
 
     1. authorize(principal_id, query_name, conduit_id) -> Allow | Deny

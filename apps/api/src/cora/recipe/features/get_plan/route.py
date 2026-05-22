@@ -15,7 +15,7 @@ ordering for client diffs / cache validation).
 
 `created_at` / `versioned_at` / `deprecated_at` are sourced from the
 `proj_recipe_plan_summary` projection, not from aggregate state
-(Path C, audit-2026-05-20 Iter B-1). Null semantics under eventual
+(Path C). Null semantics under eventual
 consistency: read together with `status`. A 200 with a populated
 `status` but null timestamp means projection lag, never a missing
 transition. A 404 means the Plan aggregate itself does not exist.
@@ -48,7 +48,7 @@ class PlanResponse(BaseModel):
     operator-supplied label of the most recent version_plan call
     (null until first version). `created_at` / `versioned_at` /
     `deprecated_at` are projection-sourced lifecycle timestamps
-    (Path C, audit-2026-05-20 Iter B-1); see module docstring for
+    (Path C); see module docstring for
     null-semantics.
     """
 

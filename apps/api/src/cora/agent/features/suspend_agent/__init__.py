@@ -1,4 +1,4 @@
-"""Vertical slice for the `SuspendAgent` command (Phase 8f-c iter 2).
+"""Vertical slice for the `SuspendAgent` command.
 
 Operator-pause from `Versioned -> Suspended`. Non-terminal: returns
 via `resume_agent`. `reason` is REQUIRED (high-information signal

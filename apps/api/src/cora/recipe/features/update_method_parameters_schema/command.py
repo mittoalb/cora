@@ -1,6 +1,6 @@
 """The `UpdateMethodParametersSchema` command — intent dataclass for this slice.
 
-Phase 6g-a. Operators set, replace, or clear the JSON Schema declaring
+Operators set, replace, or clear the JSON Schema declaring
 the shape of parameter dicts that downstream Plans (6g-b) and Runs
 (6g-c) carry for this Method. Independent of the Defined / Versioned
 / Deprecated content lifecycle: schema iteration is its own audit

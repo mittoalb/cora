@@ -1,6 +1,6 @@
 """The `UpdatePlanDefaultParameters` command — intent dataclass for this slice.
 
-Phase 6g-b. `plan_id` is the target Plan aggregate.
+`plan_id` is the target Plan aggregate.
 `default_parameters_patch` is a dict applied to current
 `default_parameters` via RFC 7396 (JSON Merge Patch) semantics:
 keys with non-null values are set/replaced; keys with null are

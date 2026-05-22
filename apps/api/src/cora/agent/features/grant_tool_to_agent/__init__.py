@@ -1,4 +1,4 @@
-"""Vertical slice for the `GrantToolToAgent` command (Phase 8f-c iter 2).
+"""Vertical slice for the `GrantToolToAgent` command.
 
 Adds one MCP tool to the Agent's allowlist. Idempotent: granting
 a tool the Agent already has emits NO event. Source set is

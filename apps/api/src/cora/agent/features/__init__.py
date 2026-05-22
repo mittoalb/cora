@@ -1,6 +1,6 @@
 """Vertical slices for the Agent BC.
 
-Phase 8f-a ships:
+Foundation:
   - `define_agent`    (cross-BC atomic via EventStore.append_streams;
                        writes ActorRegistered(kind="agent") + AgentDefined;
                        create-style; idempotency-wrapped)
@@ -8,13 +8,13 @@ Phase 8f-a ships:
   - `deprecate_agent` (Defined | Versioned -> Deprecated; single-stream)
   - `get_agent`       (read; fold-on-read)
 
-Phase 8f-c iter 1 adds:
+On-demand re-invocation:
   - `re_debrief_run`  (operator-triggered on-demand RunDebrief
                        re-invocation; cross-BC writes a Decision;
                        idempotency-wrapped; Pattern C from the
                        design memo)
 
-Phase 8f-c iter 2 adds:
+Lifecycle + grants + budget:
   - `suspend_agent`         (Versioned -> Suspended; non-terminal)
   - `resume_agent`          (Suspended -> Versioned)
   - `grant_tool_to_agent`   (Defined | Versioned | Suspended;
@@ -24,7 +24,7 @@ Phase 8f-c iter 2 adds:
   - `revise_agent_budget`   (Defined | Versioned | Suspended;
                              PUT-semantics; idempotent no-op)
 
-Phase 8f-c iter 3 adds:
+Caution-proposal promotion:
   - `promote_caution_proposal` (operator-triggered cross-BC
                                 promotion of a CautionDrafter-authored
                                 Decision into a real Caution via

@@ -1,8 +1,8 @@
 """Pure decider for the `DeprecateAgent` command.
 
-Source set is `{Defined, Versioned, Suspended}` (Phase 8f-c iter 2
-added `Suspended` so an operator who paused an agent can still
-retire it without resuming first). Strict-not-idempotent: re-
+Source set is `{Defined, Versioned, Suspended}` — `Suspended` is
+in the set so an operator who paused an agent can still retire it
+without resuming first. Strict-not-idempotent: re-
 deprecating an already-Deprecated Agent raises
 `AgentCannotDeprecateError`.
 

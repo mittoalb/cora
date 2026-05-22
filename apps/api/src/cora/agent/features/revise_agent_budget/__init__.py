@@ -1,4 +1,4 @@
-"""Vertical slice for the `ReviseAgentBudget` command (Phase 8f-c iter 2).
+"""Vertical slice for the `ReviseAgentBudget` command.
 
 Revises the Agent's declarative budget caps. Both
 `monthly_usd_cap` and `daily_token_cap` are independently

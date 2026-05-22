@@ -1,6 +1,6 @@
 """Application handler for the `update_plan_default_parameters` slice.
 
-Phase 6g-b. Update-style: load + fold + decide + append. NOT
+Update-style: load + fold + decide + append. NOT
 idempotency-wrapped (no-op-on-unchanged at the decider; HTTP-layer
 caching adds no value).
 

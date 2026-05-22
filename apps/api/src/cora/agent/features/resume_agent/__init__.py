@@ -1,4 +1,4 @@
-"""Vertical slice for the `ResumeAgent` command (Phase 8f-c iter 2).
+"""Vertical slice for the `ResumeAgent` command.
 
 Returns a `Suspended` Agent back to `Versioned`. NO `reason` field
 by design: the act of resuming is its own signal. Asymmetry with

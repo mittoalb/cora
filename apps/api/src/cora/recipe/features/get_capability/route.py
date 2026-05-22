@@ -5,11 +5,11 @@ on hit, 404 on miss.
 
 `created_at` / `versioned_at` / `deprecated_at` are sourced from the
 `proj_recipe_capability_summary` projection (Path C,
-audit-2026-05-20 Iter B-4). Null semantics under eventual
+Path C). Null semantics under eventual
 consistency: read together with `status`. A 200 with a populated
 `status` but null timestamp means projection lag, never a missing
 transition. A 404 means the Capability aggregate itself does not
-exist. `replaced_by_capability_id` (state field, DLM-B catalog
+exist. `replaced_by_capability_id` (state field, catalog
 governance) is distinct from `deprecated_at` — "to what" vs "when".
 """
 
@@ -48,7 +48,7 @@ class CapabilityResponse(BaseModel):
     Versioned / Deprecated-without-replacement; populated when a
     deprecation supplied a successor pointer. `created_at` /
     `versioned_at` / `deprecated_at` are projection-sourced lifecycle
-    timestamps (Path C, audit-2026-05-20 Iter B-4); see module
+    timestamps (Path C); see module
     docstring for null-semantics.
     """
 

@@ -1,6 +1,6 @@
 """Pure decider for the `UpdatePlanDefaultParameters` command.
 
-Phase 6g-b. The decider:
+The decider:
   - Raises PlanNotFoundError on empty state
   - Merges the patch into prior default_parameters via RFC 7396 semantics
   - Validates the merged result against the supplied

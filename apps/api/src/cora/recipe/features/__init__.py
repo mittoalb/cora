@@ -28,7 +28,7 @@ Slices ship per aggregate / per state transition:
     aggregate sitting above heterogeneous executor shapes (Method-
     chain for science, Procedure for ceremony per 10c); ExecutorShape
     closed v1 enum {Method, Procedure} ships here too (6m folded in
-    per DLM-B [[project_capability_aggregate_design]]). Method.capability_id
+    [[project_capability_aggregate_design]]). Method.capability_id
     FK + Plan.activate cross-BC affordance-cover validation land in
     6l next; Procedure.capability_id additive evolution in 10d.
 """

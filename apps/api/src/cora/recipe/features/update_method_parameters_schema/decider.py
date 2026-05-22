@@ -1,12 +1,12 @@
 """Pure decider for the `UpdateMethodParametersSchema` command.
 
-Phase 6g-a. Mostly delegates to `validate_parameters_schema` for
+Mostly delegates to `validate_parameters_schema` for
 well-formedness; the only domain-level guard is "Method must exist".
 Schema can be updated in any lifecycle status (Defined / Versioned /
 Deprecated) so no source-state check.
 
-Phase 6l-strict-c adds a cross-BC subset guard: when the Method has
-a `capability_id` and the bound Capability has a `parameter_schema`,
+A cross-BC subset guard runs: when the Method has a `capability_id`
+and the bound Capability has a `parameter_schema`,
 the proposed Method.parameters_schema MUST be a subset of the
 Capability's contract. Pinned per STRICT-by-default posture from
 [[project_schema_validated_values_pattern]].
@@ -58,8 +58,8 @@ def decide(
 ) -> list[MethodParametersSchemaUpdated]:
     """Decide the events produced by updating a method's parameters_schema.
 
-    Phase 6l-strict-c: `capability` is the loaded Capability state
-    when `state.capability_id` is set (loaded by the handler via the
+    `capability` is the loaded Capability state when
+    `state.capability_id` is set (loaded by the handler via the
     cross-BC port). When None, the handler intentionally skipped the
     load (either because Method.capability_id is None — pre-6l-strict
     fixture — OR because the Capability stream is missing, in which

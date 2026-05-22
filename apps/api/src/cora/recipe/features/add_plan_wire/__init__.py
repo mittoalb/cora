@@ -14,7 +14,7 @@ Module-as-namespace surface:
     handler = add_plan_wire.bind(deps)
     await handler(cmd, principal_id=..., correlation_id=...)
 
-Phase 6h. Plan.wires declares port-to-port connections between
+Plan.wires declares port-to-port connections between
 bound Assets. See [[project_plan_wiring_design]].
 """
 

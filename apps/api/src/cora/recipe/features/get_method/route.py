@@ -14,7 +14,7 @@ style caching).
 
 `created_at` / `versioned_at` / `deprecated_at` are sourced from the
 `proj_recipe_method_summary` projection, not from aggregate state
-(Path C, audit-2026-05-20). All three may be null: `created_at`
+(Path C). All three may be null: `created_at`
 when the projection hasn't caught up after a recent define;
 `versioned_at` until the first version_method; `deprecated_at` until
 deprecation. Operators should treat any null while `status` is
@@ -52,7 +52,7 @@ class MethodResponse(BaseModel):
     Deprecated). `version` is the operator-supplied label of the most
     recent version_method call (null until first version).
     `created_at` / `versioned_at` / `deprecated_at` are projection-
-    sourced lifecycle timestamps (Path C, audit-2026-05-20). Null
+    sourced lifecycle timestamps (Path C). Null
     semantics under eventual consistency: read together with `status`.
     If `status >= Defined` but `created_at` is null, the projection
     has not yet folded `MethodDefined` (transient lag). If

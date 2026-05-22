@@ -1,4 +1,4 @@
-"""The `ReDebriefRun` command (Phase 8f-c iter 1).
+"""The `ReDebriefRun` command.
 
 Operator-supplied intent dataclass for on-demand RunDebrief
 re-invocation. Carries:

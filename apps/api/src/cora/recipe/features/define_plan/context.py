@@ -45,8 +45,9 @@ class PlanBindingContext:
     the Method's `needed_families` (gate-review Q3: bound-Asset-
     only, no hierarchy walk).
 
-    Phase 6l.B additive: `capability` and `family_affordances` carry
-    the Capability template + per-Family affordance summaries needed
+    Cross-BC affordance-cover additive: `capability` and
+    `family_affordances` carry the Capability template + per-Family
+    affordance summaries needed
     for the affordance-cover guard.
 
     - `capability` is the universal Capability template the bound

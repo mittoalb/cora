@@ -1,4 +1,4 @@
-"""Vertical slice: `re_debrief_run` (Phase 8f-c iter 1).
+"""Vertical slice: `re_debrief_run`.
 
 Operator-triggered on-demand RunDebrief. Pattern C from the design
 memo: re-invoke the RunDebrief agent against a specific Run and

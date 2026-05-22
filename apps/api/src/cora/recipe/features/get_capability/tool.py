@@ -25,7 +25,7 @@ class CapabilityOutput(BaseModel):
     """Structured output of the `get_capability` MCP tool.
 
     `created_at` / `versioned_at` / `deprecated_at` mirror the REST
-    `CapabilityResponse` (Path C, audit-2026-05-20 Iter B-4): sourced
+    `CapabilityResponse` (Path C): sourced
     from the `proj_recipe_capability_summary` projection. Null
     semantics: read together with `status` — a populated `status`
     with a null timestamp means the projection has not yet folded

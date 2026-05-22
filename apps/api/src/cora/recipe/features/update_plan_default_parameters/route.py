@@ -1,6 +1,6 @@
 """HTTP route for the `update_plan_default_parameters` slice.
 
-Phase 6g-b. Action endpoint at
+Action endpoint at
 `PATCH /plans/{plan_id}/default-parameters`. Body carries
 `default_parameters_patch` — a partial dict applied with RFC 7396
 JSON Merge Patch semantics. 204 No Content on success.

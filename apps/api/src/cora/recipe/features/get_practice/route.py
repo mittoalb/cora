@@ -6,7 +6,7 @@ route maps None to 404 via HTTPException.
 
 `created_at` / `versioned_at` / `deprecated_at` are sourced from the
 `proj_recipe_practice_summary` projection, not from aggregate state
-(Path C, audit-2026-05-20 Iter B-2). Null semantics under eventual
+(Path C). Null semantics under eventual
 consistency: read together with `status`. A 200 with a populated
 `status` but null timestamp means projection lag, never a missing
 transition. A 404 means the Practice aggregate itself does not exist.
@@ -38,7 +38,7 @@ class PracticeResponse(BaseModel):
     operator-supplied label of the most recent version_practice call
     (null until first version). `created_at` / `versioned_at` /
     `deprecated_at` are projection-sourced lifecycle timestamps
-    (Path C, audit-2026-05-20 Iter B-2); see module docstring for
+    (Path C); see module docstring for
     null-semantics.
     """
 

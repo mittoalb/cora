@@ -28,7 +28,7 @@ class MethodOutput(BaseModel):
     """Structured output of the `get_method` MCP tool.
 
     `created_at` / `versioned_at` / `deprecated_at` mirror the REST
-    `MethodResponse` (Path C, audit-2026-05-20): sourced from the
+    `MethodResponse` (Path C): sourced from the
     `proj_recipe_method_summary` projection. Null semantics: read
     together with `status` — a populated `status` with a null
     timestamp means the projection has not yet folded that lifecycle

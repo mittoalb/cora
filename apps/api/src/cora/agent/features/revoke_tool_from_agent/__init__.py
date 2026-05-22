@@ -1,4 +1,4 @@
-"""Vertical slice for the `RevokeToolFromAgent` command (Phase 8f-c iter 2).
+"""Vertical slice for the `RevokeToolFromAgent` command.
 
 Removes one MCP tool from the Agent's allowlist. Idempotent:
 revoking a tool the Agent doesn't have emits NO event. Source

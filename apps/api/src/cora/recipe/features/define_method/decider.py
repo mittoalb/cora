@@ -43,7 +43,7 @@ from cora.recipe.features.define_method.command import DefineMethod
 
 class MethodCapabilityExecutorMismatchError(Exception):
     """Method.capability_id points at a Capability whose executor_shapes
-    do not include Method (Phase 6l cross-BC guard).
+    do not include Method (cross-BC guard).
 
     Mapped to HTTP 409. Surfaces when define_method binds to a
     Capability that only declares ExecutorShape.PROCEDURE.
@@ -68,9 +68,9 @@ def decide(
 ) -> list[MethodDefined]:
     """Decide the events produced by defining a new method.
 
-    Phase 6l-strict: `capability` is REQUIRED at the call boundary
-    (the command's `capability_id` is REQUIRED per Pattern P, so the
-    handler always loads it). The kwarg keeps `Capability | None`
+    `capability` is REQUIRED at the call boundary (the command's
+    `capability_id` is REQUIRED per Pattern P, so the handler always
+    loads it). The kwarg keeps `Capability | None`
     so the decider can raise `CapabilityNotFoundError` directly
     when the load returned None (cross-BC reference points at a
     nonexistent stream). Validates:

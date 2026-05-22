@@ -4,8 +4,8 @@ Surfaces the same handler the REST route uses. On miss raises
 ValueError so FastMCP wraps the response as `isError: true`.
 
 `defined_at` / `versioned_at` / `deprecated_at` mirror the REST
-`AgentResponse` (Path C, audit-2026-05-20 Iter C-2): sourced from
-the `proj_agent_summary` projection (Iter C-1). Null semantics: read
+`AgentResponse` (Path C): sourced from
+the `proj_agent_summary` projection. Null semantics: read
 together with `status` — a populated `status` with a null timestamp
 means the projection has not yet folded that lifecycle event,
 never a missing transition. A not-found Agent raises (MCP

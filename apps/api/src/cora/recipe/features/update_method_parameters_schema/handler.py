@@ -1,8 +1,8 @@
 """Application handler for the `update_method_parameters_schema` slice.
 
 Custom update-style handler (does NOT use the generic
-`make_method_update_handler` factory): Phase 6l-strict-c adds a
-cross-BC Capability load between Method-load and decide, so the
+`make_method_update_handler` factory): a cross-BC Capability load
+runs between Method-load and decide, so the
 decider can enforce `Method.parameters_schema ⊆ Capability.parameter_schema`
 without doing I/O itself.
 
@@ -60,8 +60,8 @@ class Handler(Protocol):
 def bind(deps: Kernel) -> Handler:
     """Build an update_method_parameters_schema handler closed over the shared deps.
 
-    Phase 6l-strict-c: between Method-load and decide we conditionally
-    load the bound Recipe Capability (when the Method's `capability_id`
+    Between Method-load and decide we conditionally load the bound
+    Recipe Capability (when the Method's `capability_id`
     is set) so the decider can run the cross-BC subset guard. When
     `capability_id` is None (pre-6l-strict Methods in lingering test
     fixtures or future un-bound code paths), `capability=None`

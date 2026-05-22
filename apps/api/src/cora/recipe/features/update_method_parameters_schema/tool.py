@@ -27,8 +27,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "schema declares the shape of parameter dicts that "
             "downstream Plans (6g-b) and Runs (6g-c) carry for this "
             "Method. Pass null for parameters_schema to clear an "
-            "existing declaration. Phase 6g-a: pre-positions for "
-            "Plan defaults + Run override validation in 6g-b/6g-c."
+            "existing declaration. Pre-positions for Plan defaults "
+            "and Run override validation."
         ),
     )
     async def update_method_parameters_schema_tool(  # pyright: ignore[reportUnusedFunction]

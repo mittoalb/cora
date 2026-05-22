@@ -1,8 +1,7 @@
 """Application handler for the `version_agent` slice.
 
-Phase 8f-c iter 2: migrated to the hoisted
-`make_agent_update_handler` factory along with the 4 other Agent
-transition slices that landed in iter 2 (suspend / resume /
+Built on the hoisted `make_agent_update_handler` factory along
+with the 4 other Agent transition slices (suspend / resume /
 grant_tool / revoke_tool / revise_budget). Pre-hoist this slice
 had a longhand body; the migration is zero behavior change.
 """

@@ -1,6 +1,6 @@
 """Application handler for the `define_capability` slice.
 
-Phase 6k. Mirrors the locked create-style template body used by
+Mirrors the locked create-style template body used by
 `define_family` / `define_method` / `define_practice` / `define_plan`
 etc.
 """

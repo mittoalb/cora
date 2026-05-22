@@ -6,7 +6,7 @@ revision of the declarative contract.
 
 The supplied required_affordances, executor_shapes, description, and
 parameter_schema REPLACE the prior wholesale (a new version IS a new
-declaration per DLM-B Pattern P; matches Method/Plan/Practice/Family
+declaration Pattern P; matches Method/Plan/Practice/Family
 replace-on-version precedent). All declarative fields are REQUIRED on
 version_capability (executor_shapes must be non-empty; the others can
 be empty/None).

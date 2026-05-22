@@ -39,7 +39,7 @@ class DefineMethod:
     `capability_id` points to the universal
     Capability template (Recipe BC 6k) this Method realizes as a
     Method-shaped executor. REQUIRED per Pattern P from
-    [[project-capability-aggregate-design]] DLM-B (was optional
+    [[project-capability-aggregate-design]] (was optional
     during the 6l-additive transition window). The handler loads
     the Capability via the cross-BC port + the decider validates
     that `Capability.executor_shapes` contains Method, raising

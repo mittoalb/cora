@@ -34,7 +34,7 @@ fundamental issues surface first:
    ids. Per gate-review Q3: bound-Asset-only check (no hierarchy
    traversal); operators model families at whichever
    granularity makes sense and bind the Assets that carry them.
-7. Phase 6l.B affordance-cover guard. When the bound Method points
+7. Cross-BC affordance-cover guard. When the bound Method points
    at a Capability template, the union of each bound Asset's
    Family.affordances must cover `Capability.required_affordances`.
    Raises `PlanAffordancesNotSatisfiedError` with the missing

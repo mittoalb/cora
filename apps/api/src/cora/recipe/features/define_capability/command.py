@@ -1,6 +1,6 @@
 """The `DefineCapability` command — intent dataclass for this slice.
 
-Phase 6k. Carries the FULL declarative contract the caller controls
+Carries the FULL declarative contract the caller controls
 (code, name, optional description, required_affordances,
 executor_shapes, optional parameter_schema). Server-side concerns
 (new id, wall-clock timestamp, correlation id, per-event ids) are
@@ -11,7 +11,7 @@ command — see the Capability aggregate's `state.py` docstring for
 the enum-in-state, str-in-event convention.
 
 `required_affordances` and `executor_shapes` are REQUIRED per
-Pattern P from [[project-capability-aggregate-design]] DLM-B (FHIR
+Pattern P from [[project-capability-aggregate-design]] (FHIR
 R5 minimum-cardinality criterion: required iff necessary to any
 understanding of the resource). `executor_shapes` must be non-empty
 (a Capability with no executor kinds has no operational meaning);

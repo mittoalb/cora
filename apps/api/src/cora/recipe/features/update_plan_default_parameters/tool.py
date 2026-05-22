@@ -29,8 +29,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "parameters_schema (6g-a); STRICT when the Method declares "
             "no schema (non-empty defaults rejected; declare an empty "
             "`{}` schema for parameter-less Methods, or omit defaults). "
-            "Phase 6g-b: pre-positions Run.override_parameters + "
-            "effective_parameters resolution in 6g-c."
+            "Pre-positions Run.override_parameters + "
+            "effective_parameters resolution."
         ),
     )
     async def update_plan_default_parameters_tool(  # pyright: ignore[reportUnusedFunction]
