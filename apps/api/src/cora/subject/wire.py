@@ -17,15 +17,12 @@ Cross-cutting decorators applied here mirror Access and Trust
 3. `with_tracing` — OTel span around every handler call. Records
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
-Phase 4a shipped `register_subject`. Phase 4b added `mount_subject`.
-Phase 4c added `measure_subject` and `remove_subject`. Phase 4d added
-the three terminal disposition handlers (`return_subject` /
-`store_subject` / `discard_subject`). Phase 4e adds the read side
-(`get_subject`). All transition handlers are bare (no idempotency
-wrap) — update-style commands are inherently domain-idempotent via
-the corresponding `SubjectCannot<X>Error` on retry (see
-CONTRIBUTING.md). Queries skip idempotency: a re-read returning
-the same state is the desired behavior, no Idempotency-Key needed.
+Update-style transitions (mount / measure / remove / return / store /
+discard) are bare (no idempotency wrap) — they're inherently
+domain-idempotent via the corresponding `SubjectCannot<X>Error` on
+retry (see CONTRIBUTING.md). Queries skip idempotency: a re-read
+returning the same state is the desired behavior, no Idempotency-Key
+needed.
 """
 
 from dataclasses import dataclass
@@ -54,14 +51,12 @@ _BC = "subject"
 class SubjectHandlers:
     """The Subject BC's handler bundle, each closed over Kernel.
 
-    Phase 4a shipped `register_subject` (create-style; idempotency-
-    wrapped). Phases 4b-c added the active-phase transitions
-    (`mount_subject`, `measure_subject`, `remove_subject`) — all
-    update-style with bare Handler protocols. Phase 4d added the
-    three terminal disposition handlers (`return_subject`,
-    `store_subject`, `discard_subject`) — all also update-style
-    with bare Handler protocols. Phase 4e added the read side
-    (`get_subject`).
+    `register_subject` is the create-style genesis (idempotency-
+    wrapped). The active-phase transitions (`mount` / `dismount` /
+    `measure` / `remove`) and the three terminal dispositions
+    (`return` / `store` / `discard`) are all update-style with bare
+    Handler protocols. Reads (`get_subject`, `list_subjects`) skip
+    idempotency.
     """
 
     register_subject: register_subject.IdempotentHandler

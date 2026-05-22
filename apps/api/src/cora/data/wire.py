@@ -14,17 +14,13 @@ Cross-cutting decorators applied here mirror every other BC
    both attribute to the tracing span.
 3. `with_tracing`: OTel span around every handler call.
 
-Phase 7a ships `register_dataset` (create-style; idempotency-
-wrapped) and `get_dataset` (read side; no idempotency). Phase 7b
-adds the `discard_dataset` transition (update-style; bare handler;
-strict-not-idempotent so retries are domain-safe via
-`DatasetCannotDiscardError`). Phase 7e adds `promote_dataset`
-(update-style; bare handler; strict-not-idempotent via
-`DatasetAlreadyPromotedError`; loads peer Datasets via slice-local
-PromotionContext for the lineage-must-be-Production guard).
-Post-Q4 compensation-primitive ships `demote_dataset` (update-style;
-bare handler; strict-not-idempotent via `DatasetAlreadyRetractedError`;
-no peer loads — no cross-BC cascade per
+`register_dataset` is the create-style genesis (idempotency-wrapped).
+The transitions (`discard`, `promote`, `demote`) are update-style
+with bare handlers, strict-not-idempotent via their respective
+`DatasetCannot*Error` / `DatasetAlready*Error` errors. `promote_dataset`
+cross-loads peer Datasets via slice-local `PromotionContext` for the
+lineage-must-be-Production guard; `demote_dataset` is the compensation
+primitive and does no peer loads (no cross-BC cascade per
 [[project-dataset-demote-design]] lock).
 """
 
@@ -48,14 +44,7 @@ _BC = "data"
 
 @dataclass(frozen=True)
 class DataHandlers:
-    """The Data BC's handler bundle, each closed over Kernel.
-
-    Phase 7a shipped `register_dataset` (create-style; idempotency-
-    wrapped) plus `get_dataset` (read-side; no idempotency). Phase
-    7b adds `discard_dataset` (update-style transition; bare handler).
-    Phase 7e adds `promote_dataset` (Trial → Production intent;
-    update-style; bare handler).
-    """
+    """The Data BC's handler bundle, each closed over Kernel."""
 
     register_dataset: register_dataset.IdempotentHandler
     discard_dataset: discard_dataset.Handler

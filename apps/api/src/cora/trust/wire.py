@@ -43,14 +43,10 @@ _BC = "trust"
 class TrustHandlers:
     """The Trust BC's handler bundle, each closed over Kernel.
 
-    Phase 3d ships `define_zone` + `define_conduit` + `define_policy` +
-    `evaluate_policy` (first Trust query slice). Phase 8e-8 adds
-    `list_zones` + `list_conduits` + `list_policies` (projection-
-    backed list slices closing read-side coverage across all 8 BCs).
-    Future fields (activate/modify slices, etc.) land per slice.
-
-    Query slices are bare (`Handler` not `IdempotentHandler`):
-    queries don't mutate state and aren't idempotency-wrapped.
+    Four aggregates: `Zone`, `Conduit`, `Surface`, `Policy`. Genesis
+    commands (`define_*`) are idempotency-wrapped; query slices
+    (`evaluate_policy`, `get_surface`, `list_*`) are bare
+    (`Handler` not `IdempotentHandler`) since queries don't mutate.
     """
 
     define_zone: define_zone.IdempotentHandler

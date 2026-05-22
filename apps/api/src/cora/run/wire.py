@@ -17,35 +17,33 @@ first):
    double-submit case at the persistence layer.
 3. `with_tracing` — OTel span around every handler call.
 
-Phase 6f-1 shipped `start_run` (idempotency-wrapped) + `get_run`
-(read side). Phase 6f-2 added `complete_run` + `abort_run` (terminal
-transitions). Phase 6f-3 added `hold_run` + `resume_run` + `stop_run`
-(the bidirectional pause cycle plus the controlled-exit terminal).
-Phase 6f-4 closes the FSM with `truncate_run` (partial-data terminal
-for known-dead Runs being closed retroactively).
+`start_run` is the create-style genesis (idempotency-wrapped). The
+FSM closes via four terminal transitions (`complete` / `abort` /
+`stop` / `truncate`) and a bidirectional pause cycle
+(`hold` / `resume`) — all update-style with bare Handler protocols,
+strict-not-idempotent (the guard rejects double-application and
+ConcurrencyError catches the persistence-layer double-submit case).
 
-Phase 6f-5b adds `append_run_reading` (polymorphic sensor / motor
-reading logbook with SOSA `sampling_procedure` discriminator; lazy
-open-on-first-write). Not idempotency-wrapped: natural idempotence
-via the at-most-one-open-logbook invariant + entry-store PK
-(mirrors 8c-b's `append_reasoning_entry`).
+`append_run_reading` writes the polymorphic sensor / motor reading
+logbook (SOSA `sampling_procedure` discriminator; lazy open-on-first-
+write). Not idempotency-wrapped: natural idempotence via the
+at-most-one-open-logbook invariant + entry-store PK.
 
-Phase 6j adds `adjust_run` (mid-flight parameter steering for in-progress
-Runs). Idempotency-wrapped per the create-style retry-safe convention
-(operator retries on flaky network must NOT double-apply patches; same
-logic as `amend_clearance` + `add_run_to_campaign`). The handler is
-longhand (not the update-handler factory) because it cross-loads Plan
-→ Practice → Method to surface the Method's parameters_schema for
-merged-result validation.
+`adjust_run` is mid-flight parameter steering for in-progress Runs.
+Idempotency-wrapped per the create-style retry-safe convention
+(operator retries on flaky network must NOT double-apply patches;
+same logic as `amend_clearance` and `add_run_to_campaign`). The
+handler is longhand (not the update-handler factory) because it
+cross-loads Plan → Practice → Method to surface the Method's
+`parameters_schema` for merged-result validation.
 
-## BC-internal ReadingStore wiring (mirrors Decision BC's L9 pattern)
+## BC-internal ReadingStore wiring
 
-The 6f-5b `append_run_reading` slice needs a `ReadingStore` adapter.
-Per the per-category-writer pattern locked at gate-review L8/L9 from
-6f-5a (Conduit's TraversalStore), the store is built LOCALLY here
-from `deps.pool` (Postgres in production) or as
-`InMemoryReadingStore` in `app_env=test`. NOT promoted to Kernel
-fields. Mirrors how Decision BC wires its ReasoningStore.
+`append_run_reading` needs a `ReadingStore` adapter. Per the
+per-category-writer pattern (mirrors Decision BC's ReasoningStore
+and Conduit's TraversalStore), the store is built LOCALLY here from
+`deps.pool` (Postgres in production) or as `InMemoryReadingStore`
+in `app_env=test`. NOT promoted to Kernel fields.
 """
 
 from dataclasses import dataclass

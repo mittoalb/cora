@@ -43,12 +43,12 @@ _BC = "access"
 class AccessHandlers:
     """The Access BC's handler bundle, each closed over Kernel.
 
-    Field types reflect what's stored: register_actor is the
+    Field types reflect what's stored: `register_actor` is the
     idempotency-wrapped variant (signature gains optional
-    idempotency_key kwarg); deactivate_actor and get_actor remain
-    bare handlers (no idempotency in Phase 2d). All three are
-    additionally wrapped with `with_tracing`, which preserves the
-    underlying call signature.
+    `idempotency_key` kwarg); `deactivate_actor` and `get_actor`
+    remain bare handlers (no idempotency on update-style commands or
+    queries). All are additionally wrapped with `with_tracing`,
+    which preserves the underlying call signature.
     """
 
     register_actor: register_actor.IdempotentHandler

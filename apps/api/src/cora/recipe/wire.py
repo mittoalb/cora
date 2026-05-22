@@ -16,12 +16,10 @@ Subject / Equipment (composition order matters — innermost first):
 3. `with_tracing` — OTel span around every handler call. Records
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
-Phase 6a ships `define_method` + `get_method`. Subsequent phases:
-  - 6b: Method transitions (version, deprecate)
-  - 6c: Method enrichment (description, owner)
-  - 6d: Practice aggregate slices
-  - 6e: Plan aggregate slices (depends on 5f Asset.families)
-  - 6f: Run aggregate slices
+The BC currently owns four aggregates: `Method` (the technique
+contract), `Practice` (a Method adaptation), `Plan` (an executable
+Recipe binding Practices to Assets), and `Capability` (the universal
+template that Methods and Procedures realize as executors).
 """
 
 from dataclasses import dataclass
@@ -61,12 +59,7 @@ _BC = "recipe"
 
 @dataclass(frozen=True)
 class RecipeHandlers:
-    """The Recipe BC's handler bundle, each closed over Kernel.
-
-    Phase 6a ships `define_method` (create-style; idempotency-
-    wrapped) and `get_method` (read side). Subsequent slices
-    (transitions, Practice, Plan, Run) land per-phase.
-    """
+    """The Recipe BC's handler bundle, each closed over Kernel."""
 
     define_method: define_method.IdempotentHandler
     get_method: get_method.Handler

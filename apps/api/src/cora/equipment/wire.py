@@ -16,22 +16,16 @@ Subject (composition order matters — innermost first):
 3. `with_tracing` — OTel span around every handler call. Records
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
-Phase 5a shipped `define_family` + `get_family`. Phase 5b
-added `register_asset`. Phase 5c added `activate_asset` +
-`decommission_asset`. Phase 5d adds `relocate_asset` (hierarchy
-mutation; first event in the codebase whose payload carries source
-AND target state). All transitions are update-style; not
-idempotency-wrapped (domain-idempotent via `AssetCannot<X>Error`
-on retry; same precedent as Subject's transitions). Queries skip
-idempotency.
+Update-style transitions are not idempotency-wrapped: they're
+domain-idempotent via `AssetCannot<X>Error` on retry (same precedent
+as Subject's transitions). Queries skip idempotency.
 
-The per-aggregate `make_asset_update_handler` factory was extracted
-in 5e (4 byte-identical Asset transitions; relocate stays longhand
-because its log shape carries an extra to_parent_id field). Per-BC
-naming was rejected because Equipment owns two aggregates: a
-future Family lifecycle factory will be a sibling
-`make_capability_update_handler` rather than a parameterization of
-this one.
+The per-aggregate `make_asset_update_handler` factory (see
+`cora.equipment._asset_update_handler`) absorbs the byte-identical
+Asset transitions; `relocate_asset` stays longhand because its
+event payload carries an extra `to_parent_id` field. A future
+`make_capability_update_handler` would be a sibling for Family
+lifecycle slices.
 """
 
 from dataclasses import dataclass
@@ -73,14 +67,12 @@ _BC = "equipment"
 class EquipmentHandlers:
     """The Equipment BC's handler bundle, each closed over Kernel.
 
-    Phase 5a shipped `define_family` (create-style; idempotency-
-    wrapped) and `get_family` (read side). Phase 5b added
-    `register_asset` (create-style; idempotency-wrapped). Phase 5c
-    added the first two Asset lifecycle transitions: `activate_asset`
-    and `decommission_asset`. Phase 5d adds `relocate_asset`
-    (hierarchy mutation). All transition handlers are update-style
-    with bare Handler protocols. The get_asset query (5e) and
-    Family transitions (5f+) land subsequently.
+    Two aggregates: `Family` (technique-class catalog; lifecycle
+    Defined → Versioned → Deprecated) and `Asset` (instance with
+    hierarchy + lifecycle + family-set + condition + settings + ports).
+    Genesis commands (`define_family`, `register_asset`) are
+    idempotency-wrapped; everything else is update-style with bare
+    Handler protocols.
     """
 
     define_family: define_family.IdempotentHandler
