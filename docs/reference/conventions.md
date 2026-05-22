@@ -124,6 +124,8 @@ Operators wanting "this Capability or Method genuinely has no values to constrai
 
 Docstrings carry intent. Comments carry hidden constraints. Test names carry scenarios. Everything else is noise.
 
+No emoji anywhere in source — comments, docstrings, log strings, error messages, `Field(description=...)`. Emoji in source is a documented LLM tell ([LLM Slop Taxonomy](https://github.com/nokusukun/sublime/blob/main/llm-slop-taxonomy.md) Cat 4.5 and 7.1) that accumulates as noise across reviews. Mirrors the no-em-dash rule applied to prose.
+
 ### Docstrings
 
 Every public module, class, function, and method gets a docstring. Style is prose, not Sphinx.
@@ -164,7 +166,7 @@ Add a `#` comment only when the WHY is non-obvious: a hidden constraint, a subtl
 - Do not leave dead-code markers (`# was`, `# previously`, `# old`). Delete the dead code.
 - Do not leave `# TODO`, `# FIXME`, `# HACK` without an owner and a trigger. File an issue or drop it.
 - Do not use `# noqa: <code>` without a trailing comment explaining the suppression.
-- Do not draw section dividers (`# === STATE ===`) when whitespace and the next docstring already separate the section.
+- Do not draw section dividers (`# === STATE ===`). The role-typed file layout — one aggregate per file, one slice per directory — already provides navigation. ([antirez](https://antirez.com/news/124) defends "guide comments" as cognitive-load reduction for long single-purpose files; CORA's files don't reach that length.)
 
 ### Tests
 
