@@ -1,6 +1,6 @@
 """Domain events emitted by the Family aggregate, plus the discriminated union.
 
-## Phase 5i: rename + dual-match
+## Rename + dual-match
 
 Phase 5i (direct rename of Capability → Family per DLM-A
 [[family-affordance-design-phases-5i-5j-lock]]):

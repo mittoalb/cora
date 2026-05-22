@@ -327,7 +327,7 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
     match stored.event_type:
         case "PlanDefined":
             try:
-                # Phase 5i dual-key fallback: pre-5i PlanDefined payloads carry
+                # dual-key fallback: pre-5i PlanDefined payloads carry
                 # `method_needed_capabilities_snapshot` and
                 # `asset_capabilities_snapshot`; post-5i payloads carry the
                 # `*_families_snapshot` equivalents. Read the new key first,

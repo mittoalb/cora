@@ -94,7 +94,7 @@ def build_idp_registry(
                     "pattern) before this is removed."
                 )
                 raise ValueError(msg)
-            # Iter B-1 narrow contract: introspection creds + url presence
+            # narrow contract: introspection creds + url presence
             # validated by IdentityProviderConfig._introspection_creds_pair.
             # Explicit raise (not `assert`) so a future refactor that
             # breaks the validator doesn't silently UB under `python -O`.

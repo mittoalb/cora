@@ -25,7 +25,6 @@ The two-aggregate split was the core lock of
 vs operations template are orthogonal axes (ISA-88 Physical Model
 vs Procedural Control Model precedent).
 
-## Phase 6k scope
 
 Genesis + FSM (Defined → Versioned → Deprecated, matching
 Method/Plan/Practice/Family precedent). 4 slices: `define_capability`,

@@ -167,7 +167,7 @@ def evolve(state: Campaign | None, event: CampaignEvent) -> Campaign:
                 last_status_reason=reason,
             )
         case CampaignRunAdded(run_id=run_id):
-            # Phase 6i-c: membership add. Idempotency invariant is
+            # membership add. Idempotency invariant is
             # enforced at the decider; the evolver trusts the event log
             # and unions the run_id into state.run_ids. Status NOT
             # touched -- membership is orthogonal to lifecycle.
@@ -189,7 +189,7 @@ def evolve(state: Campaign | None, event: CampaignEvent) -> Campaign:
                 last_status_reason=prior.last_status_reason,
             )
         case CampaignRunRemoved(run_id=run_id):
-            # Phase 6i-c: membership remove. Per design memo lock, the
+            # membership remove. Per design memo lock, the
             # `reason` on CampaignRunRemoved is a per-membership audit
             # breadcrumb (lives on the event payload only); it does NOT
             # populate last_status_reason (that field is for status

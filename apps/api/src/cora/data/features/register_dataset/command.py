@@ -26,7 +26,7 @@ already-existing artefact). Same convention as `register_actor`,
 All three are validated by the handler at load time (existence
 only, no status check; gate-review Q2 lock B).
 
-## Phase 12c addition: `used_calibrations`
+## Addition: `used_calibrations`
 
 `used_calibrations: frozenset[UUID]` is an optional set of
 CalibrationRevision IDs the reconstruction actually used (AsShot
@@ -63,6 +63,6 @@ class RegisterDataset:
     producing_run_id: UUID | None = None
     subject_id: UUID | None = None
     derived_from: frozenset[UUID] = field(default_factory=frozenset[UUID])
-    # Phase 12c: optional Calibration BC AsShot citation set
+    # optional Calibration BC AsShot citation set
     # (revision-cited atomic IDs; see state.py for full rationale).
     used_calibrations: frozenset[UUID] = field(default_factory=frozenset[UUID])

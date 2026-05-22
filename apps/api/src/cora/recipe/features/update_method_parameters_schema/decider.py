@@ -70,7 +70,7 @@ def decide(
     if state is None:
         raise MethodNotFoundError(command.method_id)
 
-    # Phase 6l-strict-c cross-BC integrity: Method points at a
+    # cross-BC integrity: Method points at a
     # capability_id but the Capability stream is missing — bubble up
     # CapabilityNotFoundError as 404.
     if state.capability_id is not None and capability is None:
@@ -78,7 +78,7 @@ def decide(
 
     if command.parameters_schema is not None:
         validate_parameters_schema(command.parameters_schema)
-        # Phase 6l-strict-c subset guard. Only when BOTH schemas are
+        # subset guard. Only when BOTH schemas are
         # present do we have something to compare; either side being
         # None means "no contract on that side".
         if (

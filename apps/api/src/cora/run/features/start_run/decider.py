@@ -160,7 +160,7 @@ def decide(
     if state is not None:
         raise RunAlreadyExistsError(state.id)
 
-    # Phase 11a-c-3 cross-BC clearance gate: at least one Safety
+    # cross-BC clearance gate: at least one Safety
     # Clearance must be Active AND reference this Run's scope. The
     # handler pre-loaded every clearance whose bindings reference
     # the Run/Subject/Asset ids via deps.clearance_lookup. Partition
@@ -234,7 +234,7 @@ def decide(
             assets_by_id=context.assets,
         )
 
-    # Phase 6i-c: if the caller supplied campaign_id, the handler pre-
+    # if the caller supplied campaign_id, the handler pre-
     # loaded the Campaign into the context. Verify the Campaign is in a
     # membership-eligible status (Planned / Active / Held); reject
     # terminal Campaigns (Closed / Abandoned) per the design memo
@@ -259,14 +259,14 @@ def decide(
 
     name = RunName(command.name)  # validates + trims; raises InvalidRunNameError
 
-    # Phase 12b-5: cardinality cap on the AsShot pin set. NO cross-BC
+    # cardinality cap on the AsShot pin set. NO cross-BC
     # existence check (revision-cited atomic-ID model; eventual-
     # consistency stance per [[project_calibration_design]] anti-hook
     # #3). Mirrors Data BC's register_dataset decider-time treatment
     # for Dataset.used_calibrations exactly.
     pinned_calibrations = validate_pinned_calibrations(command.pinned_calibrations)
 
-    # Phase 11b-c: build the acknowledged_cautions snapshot for the
+    # build the acknowledged_cautions snapshot for the
     # RunStarted event payload. Per the Caution design memo, this
     # snapshot IS the ack (anti-pattern #7: ack lives on the
     # consumption event, never per-operator on the Caution
@@ -303,7 +303,7 @@ def decide(
             acknowledged_cautions=acknowledged_cautions,
             campaign_id=command.campaign_id,
             decided_by_decision_id=command.decided_by_decision_id,
-            # Phase 12b: sort for deterministic byte-form on the event
+            # sort for deterministic byte-form on the event
             # payload (frozenset has no inherent order). The cardinality
             # check ran earlier via validate_pinned_calibrations (12b-5).
             pinned_calibrations=tuple(sorted(pinned_calibrations)),
@@ -311,7 +311,7 @@ def decide(
         )
     ]
 
-    # Phase 6i-c FCIS: when campaign_id is set, the decider also emits
+    # FCIS: when campaign_id is set, the decider also emits
     # the inverse `CampaignRunAdded` event for the Campaign stream. The
     # handler hands both lists to `EventStore.append_streams` as a
     # single atomic batch. When campaign_id is None, this list is empty

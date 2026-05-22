@@ -120,7 +120,6 @@ class IdempotentHandler(Protocol):
 
 def bind(deps: Kernel) -> Handler:
     """Build a re_debrief_run handler closed over the shared deps."""
-
     if deps.llm is None:
         msg = (
             "re_debrief_run handler requires kernel.llm to be set; "

@@ -22,7 +22,6 @@ Per [[project_safety_clearance_design]], the design locks:
   - Discriminated-union `HazardClassification` VO at
     `cora.safety.aggregates.clearance.hazard_classification`
 
-## Phase 11a-a scope
 
 State + ClearanceStatus / ClearanceKind StrEnums + ClearanceTitle VO +
 ClearanceBinding union + HazardDeclaration + ReviewStep + 7 errors.

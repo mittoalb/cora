@@ -116,12 +116,12 @@ RUN_NAME_MAX_LENGTH = 200
 RUN_ABORT_REASON_MAX_LENGTH = 500
 RUN_STOP_REASON_MAX_LENGTH = 500
 RUN_TRUNCATE_REASON_MAX_LENGTH = 500
-# Phase 6j: mid-flight steering reason bound. Mirrors the abort /
+# mid-flight steering reason bound. Mirrors the abort /
 # stop / truncate / clearance-reject reason convention (1-500 chars
 # after trim). Future-additive structured taxonomy parked behind the
 # same triggers as RunAbortReason.
 RUN_ADJUST_REASON_MAX_LENGTH = 500
-# Phase 12b-5: cardinality cap on the AsShot pin set
+# cardinality cap on the AsShot pin set
 # (Run.pinned_calibrations). Mirrors Data BC's
 # DATASET_USED_CALIBRATIONS_MAX_ENTRIES exactly (same default + same
 # precedent justification: per-entry existence is NOT checked at the
@@ -131,18 +131,17 @@ RUN_ADJUST_REASON_MAX_LENGTH = 500
 # payloads with no domain justification).
 RUN_PINNED_CALIBRATIONS_MAX_ENTRIES = 64
 
-# Phase 11a-c-3 / Phase 6i-a hoist: ExternalRef carries (scheme, id) pairs
-# mirroring the Safety BC's ExternalBinding shape exactly (proposal /
-# btr / lab_visit / session / cycle / visit, etc.). Same bounded lengths
-# so the round-trip with `ExternalBinding`-keyed clearance coverage
-# queries stays symmetric. Phase 6i-a hoisted the VO + bounds to
-# `cora.infrastructure.external_ref`; the Run BC keeps the
-# `RUN_EXTERNAL_REF_*` names as aliases for backward-compat (existing
-# routes / tools / tests reference them).
+# ExternalRef carries (scheme, id) pairs mirroring the Safety BC's
+# ExternalBinding shape exactly (proposal / btr / lab_visit / session /
+# cycle / visit, etc.). Same bounded lengths so the round-trip with
+# `ExternalBinding`-keyed clearance coverage queries stays symmetric.
+# The VO + bounds were hoisted to `cora.infrastructure.external_ref`;
+# the Run BC keeps the `RUN_EXTERNAL_REF_*` names as aliases for
+# backward-compat (existing routes / tools / tests reference them).
 RUN_EXTERNAL_REF_SCHEME_MAX_LENGTH = EXTERNAL_REF_SCHEME_MAX_LENGTH
 RUN_EXTERNAL_REF_ID_MAX_LENGTH = EXTERNAL_REF_ID_MAX_LENGTH
 
-# Phase 6f-5b: RunReading polymorphic logbook constants.
+# RunReading polymorphic logbook constants.
 READING_CHANNEL_NAME_MAX_LENGTH = 255
 READING_UNITS_MAX_LENGTH = 64
 LOGBOOK_KIND_READING = "reading"
@@ -357,7 +356,7 @@ class RunAssetDecommissionedError(Exception):
         self.asset_ids = asset_ids
 
 
-# Phase 6i-a hoist alias: `InvalidRunExternalRefError` is the cross-BC
+# hoist alias: `InvalidRunExternalRefError` is the cross-BC
 # `InvalidExternalRefError` from `cora.infrastructure.external_ref`.
 # Kept as a Run-scoped alias so the BC's routes / tools / re-exports
 # (which name the symbol `InvalidRunExternalRefError`) stay unchanged.
@@ -930,7 +929,7 @@ class RunName:
         object.__setattr__(self, "value", trimmed)
 
 
-# Phase 6i-a hoist: `ExternalRef` lives at `cora.infrastructure.external_ref`.
+# hoist: `ExternalRef` lives at `cora.infrastructure.external_ref`.
 # The Run BC re-exports the typed VO here (via the top-of-file import
 # alongside `InvalidExternalRefError` / `EXTERNAL_REF_*` bounds) so
 # existing imports of `cora.run.aggregates.run.state.ExternalRef` keep
@@ -978,13 +977,13 @@ class Run:
     override_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     effective_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     triggered_by: str | None = None
-    # Phase 6f-5b: lazily populated when first reading is appended
+    # lazily populated when first reading is appended
     # (RunReadingLogbookOpened event sets this field). None on Runs
     # that never recorded readings; legacy pre-6f-5b streams fold
     # cleanly with this default. See [[project_run_reading_design]]
     # for the lazy-open rationale.
     reading_logbook_id: UUID | None = None
-    # Phase 11a-c-3: anti-corruption refs to upstream-deferred concepts
+    # anti-corruption refs to upstream-deferred concepts
     # CORA does NOT model as aggregates (proposal / btr / lab_visit /
     # session). Mirrors Safety BC's ExternalBinding shape. Populated at
     # register time from StartRun.external_refs; legacy pre-11a-c-3 Runs
@@ -993,7 +992,7 @@ class Run:
     # [[project_safety_clearance_design]] watch item; for 11a-c-3 the
     # field is forward-compat only (gate uses Run/Subject/Asset bindings).
     external_refs: frozenset["ExternalRef"] = field(default_factory=frozenset["ExternalRef"])
-    # Phase 6i-c: optional Campaign membership. None means the Run is
+    # optional Campaign membership. None means the Run is
     # standalone (not part of any Campaign). Set on RunStarted (when
     # `StartRun.campaign_id` was provided) or via the post-hoc
     # `add_run_to_campaign` slice (RunCampaignAssigned event); cleared
@@ -1003,7 +1002,7 @@ class Run:
     # legacy pre-6i-c streams fold via `payload.get("campaign_id")`
     # returning None.
     campaign_id: UUID | None = None
-    # Phase 6j: mid-flight parameter steering denorm. `last_adjusted_at`
+    # mid-flight parameter steering denorm. `last_adjusted_at`
     # carries the occurred_at of the most recent `RunAdjusted` event;
     # `adjustment_count` is the cumulative count of accepted adjust
     # operations. Defaults to None / 0 so legacy pre-6j streams fold
@@ -1012,7 +1011,7 @@ class Run:
     # history lives on the event log; aggregate state stays slim.
     last_adjusted_at: datetime | None = None
     adjustment_count: int = 0
-    # Phase 12b: AsShot calibration pin set (Calibration BC integration
+    # AsShot calibration pin set (Calibration BC integration
     # per [[project_calibration_design]]). Each entry is a
     # CalibrationRevision.id that was live at start_run time.
     # IMMUTABLE after start_run by aggregate-level invariant — every

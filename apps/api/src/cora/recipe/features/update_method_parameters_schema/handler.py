@@ -115,7 +115,7 @@ def bind(deps: Kernel) -> Handler:
         history = [from_stored(s) for s in stored]
         state = fold(history)
 
-        # Phase 6l-strict-c: pre-load the bound Capability via the
+        # pre-load the bound Capability via the
         # cross-BC port when the Method declares one. The decider
         # raises `CapabilityNotFoundError` (404) if the stream is
         # missing, or `MethodParametersNotSubsetError` (409) if the

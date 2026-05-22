@@ -214,9 +214,9 @@ class ClearanceSuperseded:
 
 
 # Discriminated union of every event the Clearance aggregate emits.
-# Phase 11a-a: ClearanceRegistered (genesis).
-# Phase 11a-b: 6 FSM-closure events (Submit/StartReview/AppendReviewStep/Approve/Reject/Activate).
-# Phase 11a-c-2: 2 terminal events (Expired/Superseded). The amend slice
+# ClearanceRegistered (genesis).
+# 6 FSM-closure events (Submit/StartReview/AppendReviewStep/Approve/Reject/Activate).
+# 2 terminal events (Expired/Superseded). The amend slice
 # atomically writes parent's Superseded + child's Registered via
 # EventStore.append_streams; the originally-planned AmendmentInitiated
 # event was dropped as redundant (Superseded.by_clearance_id carries

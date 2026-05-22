@@ -151,7 +151,7 @@ def register_operation_routes(app: FastAPI) -> None:
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
         ProcedureNotFoundError,
-        # Phase 10d cross-BC reference: Procedure.capability_id points
+        # cross-BC reference: Procedure.capability_id points
         # at a Capability stream that doesn't exist (loaded at handler
         # time per eventual-consistency stance).
         CapabilityNotFoundError,
@@ -166,7 +166,7 @@ def register_operation_routes(app: FastAPI) -> None:
         ProcedureCannotTruncateError,
         ProcedureAssetDecommissionedError,
         ProcedureStepsLogbookClosedError,
-        # Phase 10d cross-BC guard: Procedure binds to a Capability whose
+        # cross-BC guard: Procedure binds to a Capability whose
         # executor_shapes does not include Procedure.
         ProcedureCapabilityExecutorMismatchError,
     ):

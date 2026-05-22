@@ -12,7 +12,6 @@ applies uniformly to every BC's command handlers and depends only on
 the IdempotencyStore port + the cross-BC handler-call convention
 (`(command, *, principal_id, correlation_id, causation_id) -> TResult`).
 
-## Phase 9a flow
 
 For each call with a key, the decorator:
 

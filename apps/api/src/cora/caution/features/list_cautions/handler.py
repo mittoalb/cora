@@ -18,7 +18,7 @@ acceptable status values.
 BOLA: command-name gating only. Per-row scoping deferred until ReBAC
 (per `memory/project_authz_future.md`).
 
-## propagate_to_children: NOT walked at query time
+## Propagate_to_children: NOT walked at query time
 
 The projection's `propagate_to_children` column flows through to each
 row unchanged. The handler does NOT walk Asset.parent_id chains to

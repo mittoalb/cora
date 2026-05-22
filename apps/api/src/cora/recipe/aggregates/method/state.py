@@ -9,7 +9,6 @@ Per the BC map's recipe ladder, Method ≈ ISA-88 General Recipe. The
 facility's adapted version lives in `Practice` (6d), and the
 concrete Asset binding lives in `Plan` (6e).
 
-## Phase 6a scope
 
 Minimal Method:
   - `id` + `name`
@@ -23,7 +22,7 @@ Minimal Method:
 `Versioned` and `Deprecated` transitions land in 6b. Description /
 owner / additional facets defer to 6c.
 
-## needed_families — eventual-consistency stance
+## Needed_families — eventual-consistency stance
 
 The decider does NOT verify each Family id refers to a real
 Family stream in the event store. Same precedent as Trust's
@@ -76,7 +75,7 @@ from cora.infrastructure.bounded_text import validate_bounded_text
 
 METHOD_NAME_MAX_LENGTH = 200
 METHOD_VERSION_TAG_MAX_LENGTH = 50
-# Phase 10b: needed_supplies element bounds. Mirrors Supply.kind shape
+# needed_supplies element bounds. Mirrors Supply.kind shape
 # (cora.supply.aggregates.supply.state.SUPPLY_KIND_MAX_LENGTH = 50)
 # so per-element validation in the Method decider stays consistent
 # with what Supply itself accepts at register_supply time. See
@@ -287,7 +286,7 @@ class Method:
     status: MethodStatus = MethodStatus.DEFINED
     version: str | None = None
     parameters_schema: dict[str, Any] | None = field(default=None)
-    # Phase 6l: Method.capability_id points to the universal Capability
+    # Method.capability_id points to the universal Capability
     # template (Recipe BC 6k) this Method realizes as a Method-shaped
     # executor. REQUIRED at define_method post-6l; defaults None at the
     # STATE level for evolver-back-compat with pre-6l streams (additive-
@@ -300,7 +299,7 @@ class Method:
     # define_method time via the capability_loader port (STRICT per
     # [[project-asset-settings-design]] 5g-c anchor).
     capability_id: UUID | None = field(default=None)
-    # Phase 10b: needed_supplies references Supply.kind STRINGS (not
+    # needed_supplies references Supply.kind STRINGS (not
     # UUIDs). Asymmetric with needed_families (frozenset[UUID]) by
     # design: Family is a TYPE registry (one global definition,
     # referenced by UUID); Supply is an INSTANCE aggregate (multiple

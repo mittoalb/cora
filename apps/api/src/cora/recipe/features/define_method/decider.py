@@ -87,7 +87,7 @@ def decide(
     if ExecutorShape.METHOD not in capability.executor_shapes:
         raise MethodCapabilityExecutorMismatchError(new_id, command.capability_id)
     name = MethodName(command.name)  # validates + trims; raises InvalidMethodNameError
-    # Phase 10b: defensive per-element validation for needed_supplies
+    # defensive per-element validation for needed_supplies
     # kind strings. Pydantic catches this at the API; this defensive
     # pass protects direct in-process callers (sagas, tests) AND
     # trims each kind so persisted bytes are deterministic. Bound

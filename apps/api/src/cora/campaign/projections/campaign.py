@@ -42,7 +42,7 @@ INDEX; campaign_id PK alone is sufficient and idempotent via
 SAVEPOINT. The supply projection's pattern is reused verbatim for
 forward-compat even though the failure mode is narrower here.
 
-## started_at semantics
+## Started_at semantics
 
 `started_at` is set on the FIRST CampaignStarted only (Planned ->
 Active transition). Per design memo: CampaignStarted is the
@@ -51,13 +51,13 @@ CampaignResumed (Held -> Active) does NOT touch `started_at`: the
 first-start timestamp is preserved as audit truth for "when did this
 campaign begin work" and is not the same concept as "resumed".
 
-## last_status_reason preservation on resume
+## Last_status_reason preservation on resume
 
 CampaignResumed does NOT clear `last_status_reason`. Per design memo:
 "Keep it -- audit value". The breadcrumb "why was it held before the
 resume" stays readable after the resume lands.
 
-## run_count
+## Run_count
 
 `run_count` is denormalized from the Campaign aggregate's
 `run_ids: frozenset[UUID]` (full set lives on the aggregate stream;
@@ -176,7 +176,7 @@ class CampaignSummaryProjection:
             "CampaignResumed",
             "CampaignClosed",
             "CampaignAbandoned",
-            # Phase 6i-c: membership arms maintain run_count denormalization.
+            # membership arms maintain run_count denormalization.
             "CampaignRunAdded",
             "CampaignRunRemoved",
         }
@@ -253,7 +253,7 @@ class CampaignSummaryProjection:
             return
 
         if event.event_type == "CampaignRunAdded":
-            # Phase 6i-c: membership add. Increments run_count denorm.
+            # membership add. Increments run_count denorm.
             # Status / last_status_reason unchanged (membership mutations
             # are NOT status transitions per design memo lock).
             await conn.execute(
@@ -263,7 +263,7 @@ class CampaignSummaryProjection:
             return
 
         if event.event_type == "CampaignRunRemoved":
-            # Phase 6i-c: membership remove. Decrements run_count denorm.
+            # membership remove. Decrements run_count denorm.
             # `reason` lives only on the event payload (per-membership
             # audit breadcrumb); does NOT update last_status_reason.
             await conn.execute(

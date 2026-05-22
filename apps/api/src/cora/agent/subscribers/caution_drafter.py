@@ -24,7 +24,7 @@ framework section): widen at 3rd side-effecting subscriber OR
 per-event work exceeds 50ms OR first cross-subscriber ordering
 dependency materializes. None of those hold at iter 3.
 
-## v1 simplifications
+## V1 simplifications
 
   - Read scope = Run + Plan (for asset_ids) + existing Cautions
     via CautionLookup. Deferred: RunReading + ConduitTraversal +

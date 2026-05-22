@@ -1,6 +1,5 @@
 """Domain events emitted by the Decision aggregate.
 
-## Phase 8a/8c-a scope
 
 Three events:
 

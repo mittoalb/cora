@@ -167,13 +167,13 @@ class RunStarted:
     override_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     effective_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     triggered_by: str | None = None
-    # Phase 11a-c-3: anti-corruption refs to upstream-deferred concepts
+    # anti-corruption refs to upstream-deferred concepts
     # (proposal / btr / lab_visit / session). Each entry is a dict
     # `{"scheme": str, "id": str}` mirroring Safety BC's ExternalBinding
     # wire shape. Defaults to () for legacy pre-11a-c-3 streams; the
     # evolver reconstructs typed `ExternalRef` VOs.
     external_refs: tuple[dict[str, Any], ...] = ()
-    # Phase 11b-c: snapshot of Active cautions whose target referenced
+    # snapshot of Active cautions whose target referenced
     # this Run's scope at start time. Audit-trail proof + operator-
     # facing banner data; NON-BLOCKING by construction (anti-pattern
     # #5: the decider never partitions on this field). Lives on the
@@ -183,7 +183,7 @@ class RunStarted:
     # forward-compat via `payload.get("acknowledged_cautions", [])` in
     # `from_stored`.
     acknowledged_cautions: tuple[CautionAcknowledgement, ...] = ()
-    # Phase 6i-c: optional Campaign membership stamped at Run-start.
+    # optional Campaign membership stamped at Run-start.
     # None when the Run is standalone or when membership is established
     # post-hoc (via `add_run_to_campaign` → RunCampaignAssigned). When
     # `StartRun.campaign_id` is provided the handler atomically writes
@@ -192,7 +192,7 @@ class RunStarted:
     # shape). Forward-compat via `payload.get("campaign_id")` returning
     # None for legacy pre-6i-c streams.
     campaign_id: UUID | None = None
-    # Phase 1 (Decision→Run linkage): optional Decision-causation link
+    # Decision→Run linkage: optional Decision-causation link
     # mirroring RunAdjusted.decided_by_decision_id. Lets operators link
     # the Run's start to the Decision BC record that justified it (most
     # commonly an EnergyChange / PivotToHighResolution / similar
@@ -202,9 +202,9 @@ class RunStarted:
     # existence check at the decider per the cross-BC eventual-
     # consistency stance. Forward-compat via
     # `payload.get("decided_by_decision_id")` returning None for legacy
-    # pre-Phase-1 streams.
+    # streams that pre-date the field.
     decided_by_decision_id: UUID | None = None
-    # Phase 12b (Calibration AsShot anchor): set of CalibrationRevision
+    # Calibration AsShot anchor: set of CalibrationRevision
     # ids that were live at start_run time per
     # [[project_calibration_design]]. Tuple (not frozenset) on the
     # event payload for deterministic byte ordering during replay; the
@@ -558,7 +558,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "decided_by_decision_id": (
                     str(decided_by_decision_id) if decided_by_decision_id is not None else None
                 ),
-                # Phase 12b: CalibrationRevision ids sorted lexicographically for
+                # CalibrationRevision ids sorted lexicographically for
                 # deterministic byte ordering (the typed in-memory shape is
                 # frozenset; the wire shape is a sorted list for stable bytes).
                 "pinned_calibrations": sorted(str(pin) for pin in pinned_calibrations),
@@ -685,9 +685,9 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 # Forward-compat additive evolution: `raid` was added in 7d,
                 # `override_parameters` / `effective_parameters` /
                 # `triggered_by` in 6g-c, `external_refs` in 11a-c-3,
-                # `acknowledged_cautions` in 11b-c, `campaign_id` in 6i-c,
-                # `decided_by_decision_id` in Phase 1 (Decision→Run linkage),
-                # `pinned_calibrations` in Phase 12b (Calibration AsShot anchor).
+                # `acknowledged_cautions`, `campaign_id`,
+                # `decided_by_decision_id` (Decision→Run linkage),
+                # `pinned_calibrations` (Calibration AsShot anchor).
                 # Each .get(...) returns the field's default when the key
                 # isn't in the jsonb payload, so pre-additive streams replay
                 # without an upcaster.
@@ -756,7 +756,7 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 raise ValueError(msg) from exc
         case "RunAborted":
             try:
-                # Phase 1: `decided_by_decision_id` optional. Forward-compat
+                # `decided_by_decision_id` optional. Forward-compat
                 # additive evolution: pre-Phase-1 streams replay without the
                 # key via `.get(..., None)`.
                 raw_decided_by_abort = payload.get("decided_by_decision_id")
@@ -799,7 +799,7 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 raise ValueError(msg) from exc
         case "RunAdjusted":
             try:
-                # Phase 6j: `decided_by_decision_id` is optional on the
+                # `decided_by_decision_id` is optional on the
                 # event payload. Forward-compat additive: synthetic / future
                 # callers omitting the key (None semantically) deserialize
                 # as decided_by_decision_id=None. `parameter_patch` and

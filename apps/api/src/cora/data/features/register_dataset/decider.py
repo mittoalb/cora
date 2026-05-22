@@ -92,11 +92,11 @@ def decide(
         conforms_to=command.conforms_to,
     )
     derived_from = validate_derived_from(command.derived_from)
-    # Phase 12c: cardinality-only check on the AsShot citation set.
+    # cardinality-only check on the AsShot citation set.
     # NO cross-BC existence check (revision-cited atomic-ID model;
     # eventual-consistency stance per [[project_calibration_design]]
-    # anti-hook #3; mirrors Run.pinned_calibrations Phase 12b
-    # decider-time treatment exactly).
+    # anti-hook #3; mirrors Run.pinned_calibrations decider-time
+    # treatment exactly).
     used_calibrations = validate_used_calibrations(command.used_calibrations)
 
     # Cross-aggregate checks (existence-only per Q2 lock B).
@@ -128,7 +128,7 @@ def decide(
     if discarded_derived:
         raise DerivedFromDatasetsDiscardedError(discarded_derived)
 
-    # Phase 7e: capture producing Run's terminal status at registration
+    # capture producing Run's terminal status at registration
     # (per non-determinism principle: capture, don't recompute). The
     # Run is in some end state by the time a Dataset references it
     # — production scenario expects Completed, but the Run may be
@@ -157,8 +157,8 @@ def decide(
             producing_run_end_state=producing_run_end_state,
             # intent defaults to "Trial" on the dataclass; promotion is a
             # separate explicit slice (promote_dataset).
-            # Phase 12c: sort before emit so the event-payload bytes are
-            # deterministic (matches Run.pinned_calibrations Phase 12b
+            # sort before emit so the event-payload bytes are
+            # deterministic (matches Run.pinned_calibrations
             # decider-time treatment + the derived_from sorted-list
             # precedent on the same payload).
             used_calibrations=tuple(sorted(used_calibrations)),

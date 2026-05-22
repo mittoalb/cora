@@ -135,7 +135,7 @@ def bind(deps: Kernel) -> Handler:
         new_id = deps.id_generator.new_id()
         now = deps.clock.now()
 
-        # Phase 6l-strict: capability_id is REQUIRED on the command
+        # capability_id is REQUIRED on the command
         # per Pattern P. Always load the bound Capability via the
         # cross-BC port; pass through to the decider which raises
         # CapabilityNotFoundError when the stream is missing.

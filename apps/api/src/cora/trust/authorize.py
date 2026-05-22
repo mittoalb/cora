@@ -7,7 +7,7 @@ This is the structural moment where Phase 3's pure domain logic
 (Zone / Conduit / Policy + define + evaluate) gates real commands
 across every BC.
 
-## Phase 3e shape: single configured policy
+## Shape: single configured policy
 
 The constructor takes one `policy_id`. Every `__call__(...)` loads
 that policy via `load_policy` (fold-on-read; O(events-per-stream)
@@ -38,7 +38,7 @@ injecting their own conduit_ids, deployments will define one Policy
 per conduit (single-policy-per-deployment shape stays; the operator
 picks which conduit to gate first, others fall through to deny).
 
-## Bootstrap problem (Phase A: closed)
+## Bootstrap problem (closed)
 
 Without a seed, the configured policy must already permit
 `DefinePolicy` for someone to define new policies through the API —
@@ -71,7 +71,7 @@ If the configured policy is missing from the event store, this
 adapter returns Deny — fail-closed. A Settings-time check that the
 policy exists at startup would surface this earlier; deferred.
 
-## Phase 6f-5a: optional traversal entry emission
+## Optional traversal entry emission
 
 When constructed with a `TraversalStore`, every Allow / Deny
 decision additionally writes one `ConduitTraversal` entry row
@@ -174,11 +174,11 @@ class TrustAuthorize:
                 )
             )
         else:
-            # 3h: forward caller's conduit_id (was policy.conduit_id in
-            # Phase 3e). evaluate's conduit-mismatch check now meaningfully
+            # Forward caller's conduit_id (was policy.conduit_id previously).
+            # evaluate's conduit-mismatch check now meaningfully
             # gates calls — a policy bound to one conduit denies calls on
             # another instead of being evaluated as if it were governing.
-            # Phase B Iter B: additionally forward surface_id. Defaults to
+            # Iter B: additionally forward surface_id. Defaults to
             # nil until Iter C ships surface adapters at the route layer.
             result = evaluate(
                 policy,

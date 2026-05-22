@@ -176,7 +176,7 @@ def register_agent_routes(app: FastAPI) -> None:
         AgentDeactivatedError,
         ParentDecisionAgentMismatchError,
         ParentDecisionRunMismatchError,
-        # Phase 8f-c iter 3: promote_caution_proposal validation errors.
+        # promote_caution_proposal validation errors.
         DecisionNotCautionProposalError,
         CautionProposalNotActionableError,
         CautionProposalMalformedError,
@@ -197,7 +197,7 @@ def register_agent_routes(app: FastAPI) -> None:
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
-    # Phase A.2: provenance gate on promote_caution_proposal. Treated
+    # provenance gate on promote_caution_proposal. Treated
     # as an authorization failure (403) because the caller is not
     # authorized to promote a Decision they did not originate
     # through a CautionDrafter agent.

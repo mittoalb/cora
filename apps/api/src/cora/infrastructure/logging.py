@@ -46,7 +46,6 @@ if TYPE_CHECKING:
 
 def configure_logging(level: str = "INFO") -> None:
     """Configure structlog and bridge stdlib logging to it. Call once at startup."""
-
     timestamper = structlog.processors.TimeStamper(fmt="iso", utc=True)
     shared_processors: list[Processor] = [
         merge_contextvars,

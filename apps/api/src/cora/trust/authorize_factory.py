@@ -20,7 +20,7 @@ the composition root wires BCs into the kernel.
     `cora/trust/authorize.py` for the bootstrap workflow when
     first enabling real auth in a deployment.
 
-## Phase 6f-5a: TraversalStore wiring
+## TraversalStore wiring
 
 When `TrustAuthorize` is constructed, it receives the Trust BC's
 `TraversalStore` so it can emit one `ConduitTraversal` row per

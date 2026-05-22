@@ -262,7 +262,7 @@ def to_payload(event: ProcedureEvent) -> dict[str, Any]:
                 "kind": kind,
                 "target_asset_ids": sorted(str(a) for a in target_asset_ids),
                 "parent_run_id": str(parent_run_id) if parent_run_id is not None else None,
-                # Phase 10d-additive: None when register_procedure omits
+                # None when register_procedure omits
                 # capability_id. Pre-10d streams fold via `.get("capability_id")`
                 # in from_stored. Mirrors Method.capability_id (6l-additive).
                 "capability_id": str(capability_id) if capability_id is not None else None,
@@ -336,7 +336,7 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
         case "ProcedureRegistered":
             try:
                 raw_parent = payload["parent_run_id"]
-                # Phase 10d-additive: capability_id is OPTIONAL on the payload.
+                # capability_id is OPTIONAL on the payload.
                 # Pre-10d streams omit the key entirely; fold via `.get` →
                 # None default. Mirrors Method.capability_id (6l-additive).
                 raw_capability = payload.get("capability_id")

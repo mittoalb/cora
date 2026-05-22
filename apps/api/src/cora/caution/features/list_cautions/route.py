@@ -35,7 +35,7 @@ The application handler sees only the canonical `severities`
 list; both UX shapes converge to the same internal contract per
 the `cora.infrastructure.list_query` growth-rule discipline.
 
-## propagate_to_children is hint-only
+## Propagate_to_children is hint-only
 
 The flag rides through each row unchanged; the endpoint does NOT
 walk Asset.parent_id chains to return cautions inherited from

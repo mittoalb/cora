@@ -5,7 +5,6 @@ union, `event_type_name`, `to_payload`, `from_stored`. The
 persistence-envelope construction (`NewEvent`) lives at
 `cora.infrastructure.event_envelope.to_new_event`.
 
-## Phase 7a/7b scope
 
   - `DatasetRegistered` (7a, genesis): identity, URI, checksum
     (algorithm + value), byte_size, encoding (media_type + sorted
@@ -87,11 +86,11 @@ class DatasetRegistered:
     subject_id: UUID | None
     derived_from: frozenset[UUID]
     occurred_at: datetime
-    # Phase 7e additions:
+    # additions:
     producing_run_end_state: str | None = None
     intent: str = "Trial"
-    # Phase 12c (Calibration BC AsShot citation; revision-cited
-    # atomic-ID model per [[project_calibration_design]]). See state.py
+    # Calibration BC AsShot citation; revision-cited
+    # atomic-ID model per [[project_calibration_design]]. See state.py
     # for the full rationale. NO cross-BC existence check at the
     # decider (operator/agent supplies the citation set; symmetry
     # with Run.pinned_calibrations + the cross-BC eventual-
@@ -224,10 +223,10 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
                 "subject_id": str(subject_id) if subject_id is not None else None,
                 "derived_from": sorted(str(d) for d in derived_from),
                 "occurred_at": occurred_at.isoformat(),
-                # Phase 7e additions:
+                # additions:
                 "producing_run_end_state": producing_run_end_state,
                 "intent": intent,
-                # Phase 12c addition (sorted for deterministic jsonb bytes,
+                # addition (sorted for deterministic jsonb bytes,
                 # mirrors derived_from + Run.pinned_calibrations precedent).
                 "used_calibrations": sorted(str(c) for c in used_calibrations),
             }
@@ -283,13 +282,13 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
                     subject_id=UUID(raw_subject_id) if raw_subject_id is not None else None,
                     derived_from=frozenset(UUID(d) for d in payload["derived_from"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                    # Phase 7e additive evolution: pre-7e events have no
+                    # additive evolution: pre-7e events have no
                     # producing_run_end_state or intent in payload; default
                     # to None and "Trial" respectively (state evolver will
                     # construct Intent.TRIAL from the string).
                     producing_run_end_state=payload.get("producing_run_end_state"),
                     intent=payload.get("intent", "Trial"),
-                    # Phase 12c additive evolution: pre-12c events have no
+                    # additive evolution: pre-12c events have no
                     # used_calibrations key; .get(..., []) returns [] so
                     # legacy streams fold to an empty tuple (evolver coerces
                     # to frozenset for in-memory equality semantics).

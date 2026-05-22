@@ -233,7 +233,7 @@ def _enforce_production_principal_policy(settings: Settings) -> None:
             "See memory/project_bootstrap_policy_design.md (F1)."
         )
         raise RuntimeError(msg)
-    # Iter B-1 gate-review HIGH F11: per-IdP allow_insecure_* opt-ins
+    # gate-review HIGH F11: per-IdP allow_insecure_* opt-ins
     # exist for localhost test fixtures. Under prod posture an operator
     # (or an attacker with env-var-write access) could flip one IdP to
     # plaintext HTTP, silently bypassing the per-adapter HTTPS gate.
@@ -381,7 +381,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                 llm_factory=build_llm,
                 # Pass the create_app-time Settings through so tests
                 # overriding identity_providers / require_auth / etc.
-                # see them in the kernel (Phase C Iter B).
+                # see them in the kernel.
                 settings=settings,
             )
             app.state.deps = deps
@@ -426,21 +426,21 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             register_caution_projections(registry, deps)
             register_calibration_projections(registry, deps)
             register_campaign_projections(registry, deps)
-            # audit-2026-05-20 Iter C-1: Agent BC's first projection
+            # Agent BC's first projection
             # (proj_agent_summary). Path C lock — state-side lifecycle
             # timestamps move to the projection in Iter C-2.
             register_agent_projections(registry, deps)
-            # Phase 8f-b iter 2b: side-effecting Agent BC subscribers
+            # side-effecting Agent BC subscribers
             # (RunDebrief). Conditional: only registered when
             # `kernel.llm` is wired (ANTHROPIC_API_KEY configured).
             register_agent_subscribers(registry, deps)
             app.state.projections = registry
 
-            # Phase 8f-b iter 2b: seed the RunDebrief Agent record so
+            # seed the RunDebrief Agent record so
             # the subscriber can resolve `actor_id` at apply()-time.
             # Idempotent across restarts; safe to re-run forever.
             await seed_run_debrief_agent(deps)
-            # Phase 8f-c iter 3: same shape for CautionDrafter.
+            # same shape for CautionDrafter.
             await seed_caution_drafter_agent(deps)
 
             try:
@@ -482,7 +482,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         BodySizeLimitMiddleware,
         max_bytes=settings.max_request_body_size_bytes,
     )
-    # Phase C Iter C-2: bearer-token verification at the HTTP edge.
+    # Iter C-2: bearer-token verification at the HTTP edge.
     # Reads `Authorization: Bearer <token>`, verifies via
     # `kernel.token_verifier` (None when no IdPs configured -> middleware
     # no-ops and legacy X-Principal-Id path remains in effect). Stores
@@ -524,12 +524,12 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
     register_calibration_routes(fastapi_app)
     register_campaign_routes(fastapi_app)
     register_agent_routes(fastapi_app)
-    # RFC 9728 Protected Resource Metadata (Phase C Iter B). Discoverable
+    # RFC 9728 Protected Resource Metadata. Discoverable
     # at /.well-known/oauth-protected-resource; clients dereference it
     # after a 401 + WWW-Authenticate response to learn which IdPs issue
     # tokens for which Surface.
     register_protected_resource_metadata_route(fastapi_app)
-    # Phase C Iter C-4: install handlers that convert the bearer-auth
+    # Iter C-4: install handlers that convert the bearer-auth
     # typed errors raised by BearerAuthMiddleware / TokenVerifier into
     # RFC 6750 401 (with WWW-Authenticate challenge) and RFC 7231 503
     # (with Retry-After).

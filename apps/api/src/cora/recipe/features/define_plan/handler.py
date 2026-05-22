@@ -157,7 +157,7 @@ def bind(deps: Kernel) -> Handler:
                 raise AssetNotFoundError(asset_id)
             assets[asset_id] = asset
 
-        # Phase 6l.B cross-BC affordance-cover guard: when the bound
+        # cross-BC affordance-cover guard: when the bound
         # Method points at a Capability template, load the Capability +
         # every Family referenced by any bound Asset so the decider can
         # union Family.affordances and verify coverage of

@@ -62,13 +62,13 @@ class Settings(BaseSettings):
 
     # Authorization — Trust BC wiring
     # When None, `build_kernel` wires `AllowAllAuthorize` and every
-    # command is permitted (Phase 1 default; matches dev/test). When
+    # command is permitted (legacy default; matches dev/test). When
     # set to a UUID, `TrustAuthorize` is wired and gates every command
     # through that single Policy aggregate. Multi-policy resolution
     # via projections lands in a later phase; until then this is one
     # policy per deployment.
     #
-    # Phase A (2026-05-18) seeded the System Bootstrap Policy at a
+    # The 2026-05-18 bootstrap migration seeded the System Bootstrap Policy at a
     # fixed UUID so production deployments can enable real authz with
     # a single env var instead of the old 3-step dance:
     #
@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     # `X-Principal-Id` should set this true: requests without the
     # header are then rejected with 401 instead of silently falling
     # back to `SYSTEM_PRINCIPAL_ID`. Default false matches the
-    # Phase 1 dev / test posture where the fallback is convenient.
+    # dev / test posture where the fallback is convenient.
     # The startup check in `create_app()` refuses to boot when
     # `app_env in {"prod", "production"}` and this is False, so a
     # production deployment cannot accidentally launch with the
@@ -112,7 +112,7 @@ class Settings(BaseSettings):
     # 0.1s prevents accidental tight-loop misconfiguration.
     projection_poll_interval_seconds: float = 5.0
 
-    # LLM provider — Agent BC wiring (Phase 8f-b iter 2a)
+    # LLM provider — Agent BC wiring
     # When None, `build_kernel` wires no LLM and the Kernel
     # carries `llm=None`; subscribers that depend on the LLM (the
     # 8f-b RunDebrief subscriber) raise / log-and-skip when they
@@ -152,7 +152,7 @@ class Settings(BaseSettings):
     # locked rows recover within a minute.
     idempotency_lock_stale_seconds: int = 60
 
-    # Edge auth (Phase C)
+    # Edge auth
     # `identity_providers` is the list of IdPs CORA accepts tokens
     # from. Empty (default) keeps the legacy X-Principal-Id-with-
     # SYSTEM-fallback shape; Iter C wires the middleware to use this

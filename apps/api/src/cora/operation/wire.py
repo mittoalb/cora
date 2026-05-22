@@ -30,7 +30,7 @@ Subject / Equipment / Recipe / Run / Data / Decision / Supply
   - `get_procedure` (query; fold-on-read)
   - `list_procedures` (query; reads from `proj_operation_procedure_summary`)
 
-## make_procedure_update_handler factory (10c-c iter 1 hoist)
+## Make_procedure_update_handler factory (10c-c iter 1 hoist)
 
 `complete_procedure` + `abort_procedure` + `truncate_procedure` all
 use `cora.operation._procedure_update_handler.make_procedure_update_handler`

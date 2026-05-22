@@ -68,7 +68,7 @@ def register_agent_tools(
         mcp,
         get_handler=lambda: get_handlers().get_agent,
     )
-    # Phase 8f-c iter 3: operator-triggered cross-BC promotion.
+    # operator-triggered cross-BC promotion.
     promote_caution_proposal_tool.register(
         mcp,
         get_handler=lambda: get_handlers().promote_caution_proposal,

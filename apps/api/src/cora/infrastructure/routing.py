@@ -246,7 +246,7 @@ def get_principal_id(
             headers={"WWW-Authenticate": missing_bearer_challenge()},
         )
 
-    # Mode 3: legacy X-Principal-Id path (unchanged from Phase 1).
+    # Mode 3: legacy X-Principal-Id path.
     if x_principal_id is None:
         if require_authenticated:
             raise HTTPException(

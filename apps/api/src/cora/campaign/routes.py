@@ -140,7 +140,7 @@ def register_campaign_routes(app: FastAPI) -> None:
         InvalidCampaignHoldReasonError,
         InvalidCampaignAbandonReasonError,
         InvalidCampaignExternalIdError,
-        # Phase 6i-c membership-mutation validation guard.
+        # membership-mutation validation guard.
         InvalidCampaignRunRemoveReasonError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
@@ -154,7 +154,7 @@ def register_campaign_routes(app: FastAPI) -> None:
         CampaignCannotResumeError,
         CampaignCannotCloseError,
         CampaignCannotAbandonError,
-        # Phase 6i-c membership-mutation guards (Campaign-side).
+        # membership-mutation guards (Campaign-side).
         CampaignCannotAddRunError,
         CampaignCannotRemoveRunError,
         CampaignRunAlreadyMemberError,

@@ -121,7 +121,7 @@ def decide(
     if missing:
         raise PlanCapabilitiesNotSatisfiedError(missing)
 
-    # Phase 6l.B cross-BC affordance-cover guard. Layered on top of the
+    # cross-BC affordance-cover guard. Layered on top of the
     # family-id check: even when every needed Family is bound, the union
     # of those Families' `affordances` must cover the Method's bound
     # Capability.required_affordances. SKIPPED when method.capability_id

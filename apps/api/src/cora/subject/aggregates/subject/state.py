@@ -11,7 +11,6 @@ measurements, etc.). Sample-environment rigs and sample changers are
 `Equipment.Asset`s; the thing being formed/imaged/observed is the
 `Subject`.
 
-## Phase 4a scope
 
 Minimal Subject: `id` + `name` + `status` (defaults `Received`).
 Status lifecycle (the full transitions) shipped 4b-4d:

@@ -5,7 +5,7 @@ object that enforces the display-name invariants (non-empty, trimmed,
 length-bounded). All errors raised by the domain layer are
 `Exception` subclasses defined here so callers can catch them by type.
 
-## Phase 8f-a additive evolution: `kind` field
+## Additive evolution: `kind` field
 
 `Actor.kind` discriminates `human` from `agent` Actors. Per
 [[project_agent_bc_design]], every Agent in the Agent BC has a

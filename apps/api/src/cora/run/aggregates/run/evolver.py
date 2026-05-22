@@ -130,7 +130,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=campaign_id,
                 last_adjusted_at=None,
                 adjustment_count=0,
-                # Phase 12b: AsShot anchor set at genesis (frozenset for in-
+                # AsShot anchor set at genesis (frozenset for in-
                 # memory equality semantics; the event carries a tuple for
                 # deterministic wire byte ordering).
                 pinned_calibrations=frozenset(pinned_calibrations),
@@ -152,7 +152,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
-                # Phase 12b AsShot invariant: never change after start.
+                # AsShot invariant: never change after start.
                 pinned_calibrations=prior.pinned_calibrations,
             )
         case RunResumed():
@@ -172,7 +172,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
-                # Phase 12b AsShot invariant: never change after start.
+                # AsShot invariant: never change after start.
                 pinned_calibrations=prior.pinned_calibrations,
             )
         case RunCompleted():
@@ -192,7 +192,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
-                # Phase 12b AsShot invariant: never change after start.
+                # AsShot invariant: never change after start.
                 pinned_calibrations=prior.pinned_calibrations,
             )
         case RunAborted():
@@ -212,7 +212,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
-                # Phase 12b AsShot invariant: never change after start.
+                # AsShot invariant: never change after start.
                 pinned_calibrations=prior.pinned_calibrations,
             )
         case RunStopped():
@@ -232,7 +232,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
-                # Phase 12b AsShot invariant: never change after start.
+                # AsShot invariant: never change after start.
                 pinned_calibrations=prior.pinned_calibrations,
             )
         case RunTruncated():
@@ -252,14 +252,14 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
-                # Phase 12b AsShot invariant: never change after start.
+                # AsShot invariant: never change after start.
                 pinned_calibrations=prior.pinned_calibrations,
             )
         case RunAdjusted(
             effective_parameters=effective_parameters,
             occurred_at=adjusted_at,
         ):
-            # Phase 6j: mid-flight steering. Status NOT touched
+            # mid-flight steering. Status NOT touched
             # (membership-orthogonal pattern, same as the logbook +
             # campaign arms). Replace effective_parameters with the
             # post-merge snapshot from the event payload; stamp
@@ -280,7 +280,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=adjusted_at,
                 adjustment_count=prior.adjustment_count + 1,
-                # Phase 12b AsShot invariant: adjust_run never touches the
+                # AsShot invariant: adjust_run never touches the
                 # pinned_calibrations; per the design memo this is the strongest
                 # form of the AsShot rule (even mid-flight steering can't
                 # change what calibration the Run was acquired against).
@@ -306,11 +306,11 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
-                # Phase 12b AsShot invariant: never change after start.
+                # AsShot invariant: never change after start.
                 pinned_calibrations=prior.pinned_calibrations,
             )
         case RunCampaignAssigned(campaign_id=campaign_id):
-            # Phase 6i-c: post-hoc membership assignment from
+            # post-hoc membership assignment from
             # `add_run_to_campaign` slice. One-Campaign-per-Run invariant
             # is enforced at the decider (prior campaign_id must be
             # None); the evolver trusts the event log. Status NOT
@@ -331,11 +331,11 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
-                # Phase 12b AsShot invariant: never change after start.
+                # AsShot invariant: never change after start.
                 pinned_calibrations=prior.pinned_calibrations,
             )
         case RunCampaignUnassigned():
-            # Phase 6i-c: post-hoc membership removal from
+            # post-hoc membership removal from
             # `remove_run_from_campaign` slice. Clears campaign_id back
             # to None. The decider enforces that the prior campaign_id
             # matches the event's campaign_id; the evolver trusts the
@@ -356,7 +356,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 campaign_id=None,
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
-                # Phase 12b AsShot invariant: never change after start.
+                # AsShot invariant: never change after start.
                 pinned_calibrations=prior.pinned_calibrations,
             )
         case _:  # pragma: no cover  # exhaustiveness guard

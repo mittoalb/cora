@@ -519,7 +519,7 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed AssetRestoredFromMaintenance payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
-        # Phase 5i dual-match: pre-5i Asset events used "AssetCapabilityAdded"
+        # dual-match: pre-5i Asset events used "AssetCapabilityAdded"
         # / "AssetCapabilityRemoved" type strings with "capability_id" payload
         # key. Post-5i emits "AssetFamilyAdded" / "AssetFamilyRemoved" with
         # "family_id". Both type strings produce the new Family-shaped

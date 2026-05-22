@@ -178,7 +178,7 @@ def bind(deps: Kernel) -> Handler:
             if subject is None:
                 raise SubjectNotFoundError(command.subject_id)
 
-        # Phase 6i-c: if the caller wants the Run to land as a Campaign
+        # if the caller wants the Run to land as a Campaign
         # member at start time, pre-load the Campaign + its stream
         # version. The decider gates on Campaign status; the handler
         # writes the inverse CampaignRunAdded event to the Campaign
@@ -200,7 +200,7 @@ def bind(deps: Kernel) -> Handler:
         # into the decider + the genesis event.
         new_id = deps.id_generator.new_id()
 
-        # Phase 11a-c-3 cross-BC clearance gate: query Safety's
+        # cross-BC clearance gate: query Safety's
         # clearance projection for every clearance whose bindings
         # reference this Run's scope. Decider partitions on Active.
         referencing_clearances = tuple(
@@ -211,7 +211,7 @@ def bind(deps: Kernel) -> Handler:
             )
         )
 
-        # Phase 11b-c cross-BC caution snapshot: query the Caution
+        # cross-BC caution snapshot: query the Caution
         # projection for Active cautions referencing the Run's scope.
         # NON-BLOCKING by construction (anti-pattern #5: cautions
         # WARN, never BLOCK; that authority belongs to Safety BC
@@ -271,7 +271,7 @@ def bind(deps: Kernel) -> Handler:
         ]
 
         if decision.campaign_events:
-            # Phase 6i-c: cross-aggregate atomic write. The decider built
+            # cross-aggregate atomic write. The decider built
             # both event lists (FCIS: cross-aggregate event construction
             # belongs in the pure decider per the amend_clearance
             # precedent + N9 gate-review nit). Handler routes them to

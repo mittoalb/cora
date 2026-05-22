@@ -15,7 +15,6 @@ to 6f-5b RunReading (CORA's concrete realisation of the substream
 concept; see [[project_logbook_entry_storage]] §Terminology); step
 bodies do NOT fold into Procedure state.
 
-## Phase 10c-a scope
 
 Minimal Procedure: id + name + kind + target_asset_ids +
 parent_run_id (optional) + status. Two slices ship in 10c-a:
@@ -71,7 +70,7 @@ optical_alignment, vacuum_regeneration.
 shared `validate_bounded_text` helper hoisted in 6e-1
 (`cora.infrastructure.bounded_text`).
 
-## target_asset_ids -- eventual-consistency stance
+## Target_asset_ids -- eventual-consistency stance
 
 The decider does NOT verify each Asset id refers to a real Asset
 stream. Same precedent as Trust's Conduit zone refs (3b), Asset
@@ -82,7 +81,7 @@ specific Asset, e.g. facility-envelope beam-mode change). Existence
 in 10c-b via `ProcedureStartContext` (mirrors `RunStartContext`
 from Run 6f-1).
 
-## parent_run_id -- standalone or Phase-of-Run
+## Parent_run_id -- standalone or Phase-of-Run
 
 `parent_run_id: UUID | None` resolves the Phase aggregate question
 flagged in [[project_run_parameters_design]] §6g-c (which said "the
@@ -109,7 +108,7 @@ PROCEDURE_KIND_MAX_LENGTH = 50
 PROCEDURE_ABORT_REASON_MAX_LENGTH = 500
 PROCEDURE_TRUNCATE_REASON_MAX_LENGTH = 500
 
-# Phase 10c-b: per-Procedure step logbook constants.
+# per-Procedure step logbook constants.
 LOGBOOK_KIND_STEPS = "steps"
 """Discriminator for the Procedure's per-step logbook.
 

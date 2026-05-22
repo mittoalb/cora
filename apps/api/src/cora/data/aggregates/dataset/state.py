@@ -15,7 +15,6 @@ references back to whatever produced or describes the data.
   - Not a Transfer record (Transfer is a separate aggregate,
     deferred to its own phase)
 
-## Phase 7a/7b scope
 
 Minimal Dataset: id + name + uri + checksum + byte_size + encoding
 + optional cross-refs (producing_run_id, subject_id, derived_from)
@@ -95,7 +94,7 @@ identifiers (DOIs via DataCite, including the IGSN-via-DataCite
 flow for samples) land at the export layer when first needed; they
 are not part of the in-domain Dataset identity.
 
-## Phase 12c addition: Calibration BC AsShot citation (`used_calibrations`)
+## Addition: Calibration BC AsShot citation (`used_calibrations`)
 
 `used_calibrations: frozenset[UUID]` records the CalibrationRevision
 IDs the reconstruction (or any derivative) actually used. Symmetric
@@ -872,15 +871,14 @@ class Dataset:
     subject_id: UUID | None = None
     derived_from: frozenset[UUID] = field(default_factory=frozenset[UUID])
     status: DatasetStatus = DatasetStatus.REGISTERED
-    # Phase 7e additions:
+    # additions:
     producing_run_end_state: str | None = None
     intent: Intent = Intent.TRIAL
-    # Phase 12c: Calibration BC AsShot citation (revision-cited
+    # Calibration BC AsShot citation (revision-cited
     # atomic-ID model per [[project_calibration_design]]). Each entry
     # is a `CalibrationRevision.id` the reconstruction (or any
-    # derivative) actually used. Symmetric to Run.pinned_calibrations
-    # (Phase 12b AsShot anchor on the acquired-from Run); the two
-    # sets are independent — the Dataset cites whatever revisions it
+    # derivative) actually used. Symmetric to Run.pinned_calibrations;
+    # the two sets are independent — the Dataset cites whatever revisions it
     # used (often the same as the producing Run's pin set, sometimes
     # including post-acquisition refinements like a refined
     # rotation_center revision computed by `tomopy.find_center_vo`,

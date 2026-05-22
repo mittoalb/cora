@@ -60,7 +60,7 @@ class MethodDefined:
     needed_families: list[UUID]
     occurred_at: datetime
     needed_supplies: list[str] = field(default_factory=list[str])
-    # Phase 6l additive evolution: capability_id points to the
+    # additive evolution: capability_id points to the
     # universal Capability template this Method realizes. Defaults
     # None for pre-6l events (additive-state pattern); post-6l decider
     # rejects None at define_method time per Pattern P.
@@ -161,11 +161,11 @@ def to_payload(event: MethodEvent) -> dict[str, Any]:
                 "method_id": str(method_id),
                 "name": name,
                 "needed_families": sorted(str(c) for c in needed_families),
-                # Phase 10b additive: kind strings sorted lexically for
+                # additive: kind strings sorted lexically for
                 # deterministic payload bytes (matches needed_families
                 # convention; same idempotency-hash story).
                 "needed_supplies": sorted(needed_supplies),
-                # Phase 6l additive: capability_id is None on pre-6l
+                # additive: capability_id is None on pre-6l
                 # events; the from_stored fallback to None preserves
                 # legacy stream replay.
                 "capability_id": (str(capability_id) if capability_id is not None else None),
@@ -216,11 +216,11 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
                     method_id=UUID(payload["method_id"]),
                     name=payload["name"],
                     needed_families=[UUID(c) for c in payload["needed_families"]],
-                    # Phase 10b forward-compat: pre-10b MethodDefined
+                    # forward-compat: pre-10b MethodDefined
                     # payloads have no needed_supplies key; default to empty
                     # list. Additive-evolution pattern.
                     needed_supplies=list(payload.get("needed_supplies", [])),
-                    # Phase 6l forward-compat: pre-6l MethodDefined payloads
+                    # forward-compat: pre-6l MethodDefined payloads
                     # have no capability_id key; default to None. Post-6l
                     # the decider enforces non-None at write time.
                     capability_id=(UUID(capability_raw) if capability_raw is not None else None),

@@ -16,7 +16,7 @@ directly with `event_type=event_type_name(event)` and
 `payload=to_payload(event)` arguments. This module owns only the
 genuinely aggregate-specific pieces.
 
-## Phase 8f-a additive evolution: `kind` on `ActorRegistered`
+## Additive evolution: `kind` on `ActorRegistered`
 
 `ActorRegistered.kind` discriminates `human` from `agent` Actors.
 Per [[project_agent_bc_design]], every Agent in the Agent BC has a

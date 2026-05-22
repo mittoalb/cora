@@ -21,7 +21,6 @@ Track A BC. Depends on:
   - `Subject.Subject` (referenced by `Run.subject_id` if non-null;
     must be in Mounted or Measured state)
 
-## Phase 6f-4 scope
 
 Full lifecycle FSM closed:
   - `id` + `name` (RunName: 11th bounded-name VO)

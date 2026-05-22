@@ -22,14 +22,14 @@ from cora.trust.aggregates.surface import load_surface
 
 _log = get_logger(__name__)
 
-# Phase A V1 Bootstrap Policy id. Bound to (conduit=nil, surface=nil).
-# Operationally inert post-Phase-B (handler call sites pass real
-# surface_id starting Iter C; V1's nil-surface no longer matches).
-# Kept as the named export for backward compat with Phase A tests +
+# V1 Bootstrap Policy id. Bound to (conduit=nil, surface=nil).
+# Operationally inert: handler call sites pass real surface_id
+# starting with the V2 bootstrap; V1's nil-surface no longer matches.
+# Kept as the named export for backward compat with existing tests +
 # any deployments not yet migrated.
 SYSTEM_BOOTSTRAP_POLICY_ID = UUID("00000000-0000-0000-0000-000000000001")
 
-# Phase B V2 Bootstrap Policy id. Bound to (conduit=nil, surface=HTTP).
+# V2 Bootstrap Policy id. Bound to (conduit=nil, surface=HTTP).
 # Production deployments running Iter C+ set
 # `TRUST_POLICY_ID=00000000-0000-0000-0000-000000000002` to point at
 # this; the verifier below catches operators still on V1 and logs a

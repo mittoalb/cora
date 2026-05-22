@@ -16,7 +16,7 @@ independent cache slot. The decorator threads surface_id from the
 HTTP/MCP resolver (`get_surface_id` / `get_mcp_surface_id`) all the
 way down to `claim()`.
 
-## Phase 9a: two-phase claim + 4xx error caching
+## Two-phase claim + 4xx error caching
 
 Replaces Phase 2d's single-phase `get + put` with a richer surface
 that captures the full claim lifecycle:

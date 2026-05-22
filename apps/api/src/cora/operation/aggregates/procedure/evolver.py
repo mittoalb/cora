@@ -135,7 +135,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 capability_id=prior.capability_id,
             )
         case ProcedureStepsLogbookOpened(logbook_id=logbook_id):
-            # Lazy open-on-first-write (Phase 10c-b iter 2): preserve all
+            # Lazy open-on-first-write: preserve all
             # prior state, set steps_logbook_id. Status NOT touched -- the
             # logbook is orthogonal to lifecycle. Mirrors Run BC's
             # RunReadingLogbookOpened arm exactly.

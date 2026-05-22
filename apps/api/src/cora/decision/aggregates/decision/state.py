@@ -25,7 +25,6 @@ AI-recommends-then-human-overrides flow.
     carrying OpenTelemetry `gen_ai.*` semantic-convention
     attributes.
 
-## Phase 8a scope
 
 Genesis aggregate: id + actor_id + context + choice + reasoning +
 confidence + confidence_source + parent_id + decision_rule +
@@ -57,7 +56,7 @@ parent_id set, parent Decision exists).
     encrypted summary) for tamper-evidence beyond the row-level
     INSERT-only guarantee.
 
-## `actor_id` vs envelope `principal_id` (Phase 9b clarification)
+## `actor_id` vs envelope `principal_id`
 
 These are distinct fields with overlapping but non-identical
 semantics. They will TYPICALLY hold the same UUID but can
@@ -164,7 +163,7 @@ DECISION_CONTEXT_RESOURCE_ALLOCATION = "ResourceAllocation"
 DECISION_CONTEXT_POLICY_GRANT = "PolicyGrant"
 DECISION_CONTEXT_PROCEDURE_EXECUTION = "ProcedureExecution"
 DECISION_CONTEXT_DATASET_DISCARD = "DatasetDiscard"
-# Phase 8f-b: RunDebrief agent writes one Decision per terminal Run
+# RunDebrief agent writes one Decision per terminal Run
 # event. Open-ended convention; the choice value lives in the
 # `RunDebriefChoice` Literal below.
 DECISION_CONTEXT_RUN_DEBRIEF = "RunDebrief"
@@ -197,7 +196,7 @@ RUN_DEBRIEF_CHOICES: Final = frozenset(
 )
 
 
-# Phase 8f-c iter 3: CautionDrafter agent writes one Decision per
+# CautionDrafter agent writes one Decision per
 # terminal Run event proposing (or refusing to propose) a Caution.
 # Open-ended convention identical to `DECISION_CONTEXT_RUN_DEBRIEF`;
 # the closed choice vocabulary lives in the `CautionProposalChoice`
@@ -252,7 +251,7 @@ CAUTION_PROPOSAL_CHOICES: Final = frozenset(
 )
 
 
-# Phase 8f-b acceptance-signal capture: closed 3-value rating set on
+# acceptance-signal capture: closed 3-value rating set on
 # the new `DecisionRated` event. `useful` and `misleading` are
 # operator-affirmative; `ignored` is a positive marker ("operator saw
 # it and chose not to act"), distinct from no-rating ("never seen").

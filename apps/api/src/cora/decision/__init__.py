@@ -51,7 +51,6 @@ override.
     `gen_ai.tool.*` etc. Aligning at carrier-time costs nothing,
     retrofitting later is painful.
 
-## Phase 8a/b/c scope
 
 Single aggregate (Decision). Three slices planned:
   - `register_decision` (8a, create-style; idempotency-wrapped;

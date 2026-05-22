@@ -44,7 +44,7 @@ supersession child genesis written atomically alongside the parent's
 parent-pointer + the parent's `superseded_by_caution_id` together form
 the supersession lineage chain.
 
-## propagate_to_children: hint-only today
+## Propagate_to_children: hint-only today
 
 `propagate_to_children` is stored as-is on the projection row. The
 column does NOT trigger any walk over `Asset.parent_id` at projection

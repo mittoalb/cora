@@ -18,7 +18,7 @@ are registered and a warning is logged. The alternative (raising at
 app startup) would refuse to boot a deployment that wants to defer
 Agent rollout.
 
-## Registered subscribers (Phase 8f-c iter 3)
+## Registered subscribers
 
   - `RunDebriefSubscriber` (8f-b iter 2b) — terminal Run -> one
     advisory Decision with AAR narrative + 6-value choice.

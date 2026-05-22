@@ -105,7 +105,7 @@ class AgentDefined:
     prompt_template_id: UUID | None
     capabilities: frozenset[str]
     occurred_at: datetime
-    # Phase 8f-c iter 2: additive payload fields (default to
+    # additive payload fields (default to
     # empty / None for backward-compat with 8f-a / 8f-b streams).
     tools: frozenset[str] = frozenset()
     budget_monthly_usd_cap: float | None = None
@@ -145,7 +145,7 @@ class AgentDeprecated:
 
 
 # ---------------------------------------------------------------------------
-# Phase 8f-c iter 2 events: Suspended FSM expansion + ToolGrant + Budget
+# events: Suspended FSM expansion + ToolGrant + Budget
 # ---------------------------------------------------------------------------
 
 
@@ -285,7 +285,7 @@ def to_payload(event: AgentEvent) -> dict[str, Any]:
                 ),
                 "capabilities": sorted(capabilities),
                 "occurred_at": occurred_at.isoformat(),
-                # Phase 8f-c iter 2: additive payload fields. Always
+                # additive payload fields. Always
                 # written so the wire shape is uniform; from_stored
                 # falls back to defaults on pre-iter-2 streams.
                 "tools": sorted(tools),
@@ -372,7 +372,7 @@ def from_stored(stored: StoredEvent) -> AgentEvent:
                     ),
                     capabilities=frozenset(payload.get("capabilities", [])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                    # Phase 8f-c iter 2: forward-compat reads for pre-
+                    # forward-compat reads for pre-
                     # iter-2 streams (default to empty / None).
                     tools=frozenset(payload.get("tools", [])),
                     budget_monthly_usd_cap=payload.get("budget_monthly_usd_cap"),

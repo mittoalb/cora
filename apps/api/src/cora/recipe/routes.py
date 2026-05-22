@@ -241,10 +241,10 @@ def register_recipe_routes(app: FastAPI) -> None:
     for cannot_transition_cls in (
         CapabilityCannotVersionError,
         CapabilityCannotDeprecateError,
-        # Phase 6l cross-BC guard: Method binds to Capability whose
+        # cross-BC guard: Method binds to Capability whose
         # executor_shapes does not include Method.
         MethodCapabilityExecutorMismatchError,
-        # Phase 6l-strict-c: Method.parameters_schema is not a subset
+        # Method.parameters_schema is not a subset
         # of the bound Capability.parameter_schema.
         MethodParametersNotSubsetError,
         MethodCannotVersionError,
@@ -260,7 +260,7 @@ def register_recipe_routes(app: FastAPI) -> None:
         MethodDeprecatedError,
         AssetDecommissionedError,
         PlanCapabilitiesNotSatisfiedError,
-        # Phase 6l.B cross-BC affordance-cover guard: bound Assets'
+        # cross-BC affordance-cover guard: bound Assets'
         # Family.affordances don't union to Method.capability.required_affordances.
         PlanAffordancesNotSatisfiedError,
         # 6h Plan.wires structural / cross-aggregate guards. All map

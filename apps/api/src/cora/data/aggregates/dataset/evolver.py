@@ -94,11 +94,11 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 subject_id=subject_id,
                 derived_from=derived_from,
                 status=DatasetStatus.REGISTERED,
-                # Phase 7e: carry from event payload (default-handled
+                # carry from event payload (default-handled
                 # via payload.get for pre-7e events in from_stored).
                 producing_run_end_state=producing_run_end_state,
                 intent=Intent(intent),
-                # Phase 12c: AsShot citation set at genesis (frozenset for
+                # AsShot citation set at genesis (frozenset for
                 # in-memory equality semantics; the event carries a tuple
                 # for deterministic wire byte ordering).
                 used_calibrations=frozenset(used_calibrations),
@@ -116,11 +116,11 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 subject_id=prior.subject_id,
                 derived_from=prior.derived_from,
                 status=DatasetStatus.DISCARDED,
-                # Phase 7e carry-through: discard preserves intent +
+                # carry-through: discard preserves intent +
                 # producing_run_end_state (audit-relevant historical artifacts).
                 producing_run_end_state=prior.producing_run_end_state,
                 intent=prior.intent,
-                # Phase 12c AsShot invariant: never change after register.
+                # AsShot invariant: never change after register.
                 used_calibrations=prior.used_calibrations,
             )
         case DatasetPromoted():
@@ -140,7 +140,7 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 producing_run_end_state=prior.producing_run_end_state,
                 # The state change: intent flips Trial -> Production.
                 intent=Intent.PRODUCTION,
-                # Phase 12c AsShot invariant: never change after register.
+                # AsShot invariant: never change after register.
                 used_calibrations=prior.used_calibrations,
             )
         case DatasetDemoted():
@@ -162,7 +162,7 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 # (terminal Intent value; no re-promote from Retracted per
                 # [[project-dataset-demote-design]] lock).
                 intent=Intent.RETRACTED,
-                # Phase 12c AsShot invariant: never change after register.
+                # AsShot invariant: never change after register.
                 used_calibrations=prior.used_calibrations,
             )
         case _:  # pragma: no cover  # exhaustiveness guard

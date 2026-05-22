@@ -92,7 +92,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 status=MethodStatus.DEFINED,
                 # version defaults to None.
                 needed_supplies=frozenset(needed_supplies),
-                # Phase 6l: capability_id flows through genesis. None for
+                # capability_id flows through genesis. None for
                 # pre-6l streams (additive-state default).
                 capability_id=capability_id,
             )

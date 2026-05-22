@@ -115,7 +115,7 @@ def bind(deps: Kernel) -> Handler:
         new_id = deps.id_generator.new_id()
         now = deps.clock.now()
 
-        # Phase 10d-additive: load the bound Capability via cross-BC
+        # load the bound Capability via cross-BC
         # port only when the command supplied one. None passes through
         # to the decider; when capability_id is set but the stream
         # doesn't exist, decider raises CapabilityNotFoundError.

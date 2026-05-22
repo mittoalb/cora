@@ -807,7 +807,7 @@ class Agent:
     capabilities: frozenset[AgentCapability] = field(default_factory=frozenset[AgentCapability])
     status: AgentStatus = AgentStatus.DEFINED
     deprecation_reason: AgentDeprecationReason | None = None
-    # Phase 8f-c iter 2: ToolGrant + Suspended + AgentBudget
+    # ToolGrant + Suspended + AgentBudget
     tools: frozenset[ToolName] = field(default_factory=frozenset[ToolName])
     budget: AgentBudget | None = None
     suspended_at: datetime | None = None

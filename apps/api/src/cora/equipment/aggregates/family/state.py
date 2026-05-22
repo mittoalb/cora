@@ -8,12 +8,11 @@ device-agnostic. Examples: "RotaryStage", "LinearStage", "Camera",
 resolved at `Plan` binding when the contract is matched against
 specific `Asset` instances.
 
-## Phase 5i + 5j scope (this aggregate)
+## Aggregate scope
 
-5i was a pure rename of the prior `Capability` aggregate (5a + 5f-2 +
-5g-a) into `Family` per DLM-A [[family-affordance-design-phases-5i-5j-lock]]:
-same FSM (Defined → Versioned → Deprecated), same settings_schema
-field, same lifecycle.
+The Family aggregate was renamed from `Capability` per DLM-A
+[[family-affordance-design-phases-5i-5j-lock]]: same FSM (Defined →
+Versioned → Deprecated), same settings_schema field, same lifecycle.
 
 5j adds `affordances: frozenset[Affordance]` as a REQUIRED field at
 `define_family` time (per FHIR R5 minimum-cardinality criterion +

@@ -33,7 +33,6 @@ first-scrape, BACnet out_of_service, PackML STOPPED, PI Pt Created).
 The optimistic-Available default is an anti-pattern across all three
 research corpora.
 
-## Phase 10a-a + 10a-b scope
 
 Minimal Supply: id + scope + kind + name + status (defaults Unknown
 implicitly via genesis evolver) + registered_at. 10a-a shipped

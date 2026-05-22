@@ -13,7 +13,6 @@ Per the BC map's recipe ladder:
   - Plan ≈ Master / Control Recipe (concrete Asset binding; 6e)
   - Run ≈ batch execution (6f)
 
-## Phase 6d-1 scope
 
 Minimal Practice:
   - `id` + `name`

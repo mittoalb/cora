@@ -20,7 +20,6 @@ What `Dataset` is NOT:
     samples logbook with the dataset URI as a column)
   - Not a Transfer (separate aggregate, deferred to its own phase)
 
-## Phase 7a/7b scope
 
 Minimal Dataset: id + name + uri + checksum + byte_size + encoding
 + optional cross-refs + status (defaults `Registered`).

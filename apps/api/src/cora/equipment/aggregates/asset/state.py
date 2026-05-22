@@ -14,7 +14,6 @@ points for trigger / encoder / sync / network signals; declarations
 of what ports the equipment HAS — Plan.wiring (6h) carries the
 actual port-to-port connections).
 
-## Phase 5b scope
 
 Minimal Asset: `id` + `name` + `level` + `lifecycle` (defaults
 `Commissioned`) + `parent_id: UUID | None`. Lifecycle transitions

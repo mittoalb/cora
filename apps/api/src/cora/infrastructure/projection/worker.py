@@ -197,7 +197,7 @@ class ProjectionWorker:
                     projection=projection.name,
                     backoff_seconds=backoff,
                 )
-                # Phase 8e-9: persist failure state in a separate
+                # persist failure state in a separate
                 # small transaction so the operator can see "this
                 # projection has failed N times since last success
                 # with this error" without log-spelunking. If THIS

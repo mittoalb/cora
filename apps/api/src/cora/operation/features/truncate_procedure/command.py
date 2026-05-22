@@ -21,7 +21,7 @@ open, marks the Friday-evening crash retroactively). The system
 itself does not detect de-facto-dead Procedures; operators must
 invoke truncate explicitly.
 
-## interrupted_at semantics
+## Interrupted_at semantics
 
 `interrupted_at` is operator-supplied and optional. When provided,
 must not be in the future relative to `now` (defensive guard at the
