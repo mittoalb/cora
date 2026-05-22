@@ -8,11 +8,11 @@ MCP boundary.
 Three modes, in priority order:
 
   1. **Bearer-auth mode + valid bearer**:
-     `BearerAuthMiddleware` (Phase C Iter C-2, extended to /mcp/* in
-     Phase 8f-d Iter A) verified an `Authorization: Bearer <token>`
-     against the MCP Surface audience and stashed the
-     `VerifiedPrincipal` on the Starlette `request.state.principal`.
-     FastMCP keeps the same Starlette `Request` reachable via
+     `BearerAuthMiddleware` verified an `Authorization: Bearer <token>`
+     against the MCP Surface audience (the middleware applies to
+     both REST and `/mcp/*`) and stashed the `VerifiedPrincipal` on
+     the Starlette `request.state.principal`. FastMCP keeps the same
+     Starlette `Request` reachable via
      `ctx.request_context.request`; we read through.
 
   2. **Bearer-auth mode + no bearer**:
@@ -42,7 +42,7 @@ transport at runtime. Pinning the concrete generic parameters here
 would couple the resolver to SDK-internal type variables that don't
 have a stable public re-export. The 3-mode logic is structural and
 defensive (every attribute access is wrapped); the contract-tier
-tests in Iter D pin the live SDK shape end-to-end.
+tests pin the live SDK shape end-to-end.
 """
 
 from __future__ import annotations

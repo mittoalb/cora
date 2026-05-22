@@ -26,7 +26,7 @@ request it:
 
 `InvalidTokenError` + `IntrospectionUnavailableError` propagate out of
 the middleware and are converted to HTTP responses by the BC-style
-exception handlers registered at app construction (Iter C-4 wires
+exception handlers registered at app construction (see
 `register_auth_exception_handlers(app)`).
 
 ## Why BaseHTTPMiddleware over raw ASGI
@@ -106,9 +106,9 @@ _UNAUTHENTICATED_PATHS: frozenset[str] = frozenset(
 def _is_unauthenticated_path(path: str) -> bool:
     """Return True if `path` MUST be skipped by the bearer middleware.
 
-    Exact-match against the three unauthenticated paths only. Phase
-    8f-d dropped the `/mcp/` prefix skip: MCP routes are now verified
-    with audience-per-Surface binding (see `_resolve_expected_audience`).
+    Exact-match against the three unauthenticated paths only. MCP
+    routes are verified with audience-per-Surface binding (see
+    `_resolve_expected_audience`).
     """
     return path in _UNAUTHENTICATED_PATHS
 
@@ -116,11 +116,11 @@ def _is_unauthenticated_path(path: str) -> bool:
 def _resolve_expected_audience(path: str) -> UUID:
     """Return the Surface UUID the bearer token's `aud` MUST match.
 
-    Per-path dispatch (Phase 8f-d Decision 2): MCP routes bind to the
+    Per-path dispatch: MCP routes bind to the
     `SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID` audience; everything else
     binds to `SYSTEM_HTTP_SURFACE_ID`. A token issued for HTTP MUST
-    NOT verify against the MCP Surface and vice versa (AH5 from
-    Phase C: no shared `aud` across Surfaces).
+    NOT verify against the MCP Surface and vice versa (AH5: no
+    shared `aud` across Surfaces).
 
     MCP_STDIO is NOT routed here (stdio is a subprocess transport,
     never reachable over HTTP).
@@ -135,7 +135,7 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
 
     Stateless: every request reads `kernel.token_verifier` off
     `request.app.state.deps`. The verifier is process-singleton built
-    once at lifespan start (Iter C-1); the middleware just dispatches.
+    once at lifespan start; the middleware just dispatches.
 
     When `kernel.token_verifier is None` (no IdPs configured) the
     middleware no-ops and the legacy `X-Principal-Id` path takes over.

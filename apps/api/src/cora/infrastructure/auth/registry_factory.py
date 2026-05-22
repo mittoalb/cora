@@ -2,8 +2,8 @@
 
 Composition-root factory. Called once at lifespan start; the
 resulting registry is held on the Kernel and injected into the
-FastAPI/MCP middleware (Iter C). Tests build the registry directly
-from `IdentityProviderConfig` instances via the helper to skip the
+FastAPI/MCP middleware. Tests build the registry directly from
+`IdentityProviderConfig` instances via the helper to skip the
 Settings layer.
 
 ## Why a factory module
@@ -15,18 +15,17 @@ adapter instances; this module owns the "config row → adapter
 instance(s)" translation so the registry stays a thin router.
 
 Name matches the codebase factory convention (`agent/llm_factory.py`,
-`trust/authorize_factory.py`). Originally named `registry_builder.py`
-in Iter B-1 then renamed per impl-quality review #14 — `Builder`
-in DDD vocabulary implies an incremental/fluent shape; this is a
-one-shot `build_idp_registry(configs) -> IdentityProviderRegistry`
-which is the Factory shape.
+`trust/authorize_factory.py`). `Builder` in DDD vocabulary implies
+an incremental/fluent shape; this is a one-shot
+`build_idp_registry(configs) -> IdentityProviderRegistry` which is
+the Factory shape.
 
 ## Subject mapper
 
 The factory takes a single SubjectMapper that all constructed
 verifiers share (the Access BC owns one IdP-subject → Actor.id
-mapping table across all IdPs). Iter B-1 ships `StaticSubjectMapper`
-as the default; Iter B-2 swaps in the projection-backed mapper.
+mapping table across all IdPs). Default is `StaticSubjectMapper`;
+the projection-backed mapper is the alternative.
 """
 
 from cora.infrastructure.auth.config import IdentityProviderConfig
@@ -49,7 +48,7 @@ def build_idp_registry(
     `trust_policy_id: UUID | None = None` shape where None disables
     `TrustAuthorize` in favor of `AllowAllAuthorize`.
 
-    Per the Iter A registry contract: at least ONE adapter must be
+    Per the registry contract: at least ONE adapter must be
     constructed across all providers, or the registry constructor
     raises. An IdP entry can produce both a JWTVerifier AND an
     IntrospectionVerifier if both URLs are configured (uncommon but

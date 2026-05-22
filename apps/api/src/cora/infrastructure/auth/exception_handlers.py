@@ -1,4 +1,4 @@
-"""HTTP exception handlers for the Phase C edge-auth errors.
+"""HTTP exception handlers for the edge-auth errors.
 
 Two handlers are registered globally on the FastAPI app at startup
 via `register_auth_exception_handlers(app)`:

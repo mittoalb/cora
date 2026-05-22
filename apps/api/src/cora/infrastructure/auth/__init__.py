@@ -1,4 +1,4 @@
-"""Phase C edge-auth adapter package.
+"""Edge-auth adapter package.
 
 Implementations of `cora.infrastructure.ports.TokenVerifier`:
 
@@ -7,7 +7,7 @@ Implementations of `cora.infrastructure.ports.TokenVerifier`:
   - `IdentityProviderRegistry` — process-singleton routing inbound
     tokens to the right verifier per their issuer.
 
-Per the Phase C design lock library-vs-DIY decision: PyJWT is the
+Per the edge-auth design lock library-vs-DIY decision: PyJWT is the
 one library dependency; everything else is hand-written.
 """
 

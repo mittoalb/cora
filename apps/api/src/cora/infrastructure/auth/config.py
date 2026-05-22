@@ -1,4 +1,4 @@
-"""Settings-loadable schema for Phase C edge-auth identity providers.
+"""Settings-loadable schema for edge-auth identity providers.
 
 Defines the typed shape that `Settings.identity_providers` carries
 (loaded from env vars in `cora.infrastructure.config.Settings`).
@@ -6,12 +6,12 @@ Production deployments configure one entry per IdP that mints tokens
 for CORA — Globus Auth (introspection-only), Microsoft Entra (JWT),
 etc.
 
-Also defines `StaticSubjectMapper`, the Iter B-1 SubjectMapper
-implementation. Holds a fixed `(issuer, subject) → (principal_id, kind)`
-dict — sufficient for small deployments (single beamline, ~10 humans
-+ 1-2 service accounts). Iter B-2 ships the projection-backed
-`ActorIdpBindingsSubjectMapper` for larger deployments that mint
-Actors at runtime.
+Also defines `StaticSubjectMapper`, a SubjectMapper that holds a
+fixed `(issuer, subject) → (principal_id, kind)` dict — sufficient
+for small deployments (single beamline, ~10 humans + 1-2 service
+accounts). The projection-backed `ActorIdpBindingsSubjectMapper`
+is the alternative for larger deployments that mint Actors at
+runtime.
 
 ## Why two mappers (precedent)
 
@@ -286,7 +286,7 @@ class StaticSubjectMapper:
     humans + 1-2 service accounts) where the Actor set is fixed at
     deployment time and rarely changes.
 
-    Iter B-2 ships `ActorIdpBindingsSubjectMapper` which queries an
+    `ActorIdpBindingsSubjectMapper` is the sibling that queries an
     access-projection table for deployments with dynamic Actor
     registration. Both satisfy the SubjectMapper protocol; the
     registry doesn't care.

@@ -1,4 +1,4 @@
-"""`JWTVerifier` — local JWKS-based JWT verification (Phase C Iter A).
+"""`JWTVerifier` — local JWKS-based JWT verification.
 
 Implements `cora.infrastructure.ports.TokenVerifier` for IdPs that
 issue self-describing JWT access tokens — the industry default:
@@ -8,8 +8,8 @@ Tokens in JWT").
 
 ## Library choice
 
-PyJWT (`pyjwt[crypto]` dep) is the one library dependency for Phase
-C; rationale captured in `memory/project_edge_auth_design.md` §2.
+PyJWT (`pyjwt[crypto]` dep) is the one library dependency for
+edge-auth; rationale captured in `memory/project_edge_auth_design.md` §2.
 The `[crypto]` extra pulls `cryptography` for RS256/ES256 — every
 real-world IdP uses one of these two. CORA does NOT roll its own
 signature verify or JOSE parsing; that's the library's whole job.
@@ -52,7 +52,7 @@ wrong_audience).
   passive-revocation pattern per RFC 6819 §5.1.5.3). When a
   must-revoke-immediately need lands, that subject moves to
   introspection-required (WI5).
-- Token **scope→capability** mapping. Phase C ships without
+- Token **scope→capability** mapping. Edge-auth ships without
   scope-aware authorization; scopes flow into `VerifiedPrincipal.scopes`
   for future use (WI6).
 """

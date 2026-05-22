@@ -1,4 +1,4 @@
-"""`IntrospectionVerifier` — RFC 7662 token introspection adapter (Phase C Iter A).
+"""`IntrospectionVerifier` — RFC 7662 token introspection adapter.
 
 Implements `cora.infrastructure.ports.TokenVerifier` for IdPs that
 issue opaque tokens — primarily Globus Auth (APS pilot), which is
@@ -181,9 +181,9 @@ class IntrospectionVerifier:
 
         Without binding `aud` into the key, a token introspected once
         for Surface A returns the cached principal for Surface B
-        within TTL — bypassing per-Surface authz. Same shape Phase B
-        Iter C-2c required for `idempotency_keys`. The token half is
-        SHA256-hashed so cache dumps never expose the bearer."""
+        within TTL — bypassing per-Surface authz. Same shape that
+        `idempotency_keys` required. The token half is SHA256-hashed
+        so cache dumps never expose the bearer."""
         token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
         return f"{token_hash}|{expected_aud_str}"
 

@@ -1,8 +1,8 @@
-"""`IdentityProviderRegistry` — process-singleton verifier router (Phase C Iter A).
+"""`IdentityProviderRegistry` — process-singleton verifier router.
 
 Owns the per-issuer `TokenVerifier` mapping at the composition root.
-The HTTP/MCP middleware (Iter C) hands the registry a raw bearer
-token; the registry routes to the right adapter by:
+The HTTP/MCP middleware hands the registry a raw bearer token; the
+registry routes to the right adapter by:
 
   1. **Token shape**: if the token parses as 3 base64url chunks
      separated by `.` it's a JWT; otherwise it's opaque.
@@ -39,8 +39,8 @@ an `iss` claim still has to forge a signature the chosen
 
 A `SubjectMapper` is required at construction. Today the only
 implementation is the trivial in-memory `dict` (`StaticSubjectMapper`)
-used by tests. Iter B wires the production mapper that queries the
-access projection's `actor_idp_bindings` table.
+used by tests. The production mapper that queries the access
+projection's `actor_idp_bindings` table is the planned sibling.
 """
 
 from typing import Protocol
@@ -81,8 +81,8 @@ class _RegistryEntry(Protocol):
 class IdentityProviderRegistry:
     """Process-singleton router from inbound token → matching `TokenVerifier`.
 
-    Constructed once at lifespan start from `Settings.identity_providers`
-    (Iter B); held on the `Kernel` and used by the middleware (Iter C).
+    Constructed once at lifespan start from `Settings.identity_providers`;
+    held on the `Kernel` and used by the middleware.
     """
 
     def __init__(
