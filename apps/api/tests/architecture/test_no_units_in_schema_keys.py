@@ -122,8 +122,13 @@ def test_schema_property_keys_have_no_unit_suffix(path: Path) -> None:
 
 
 @pytest.mark.architecture
-def test_grandfathered_property_keys_actually_exist() -> None:
-    """``GRANDFATHERED_PROPERTY_KEYS`` entries must still appear in the schemas."""
+def test_grandfathered_property_keys_still_have_unit_suffix() -> None:
+    """``GRANDFATHERED_PROPERTY_KEYS`` entries must still carry a unit suffix.
+
+    Drift catcher: once Phase δ migrates a key to its unit-agnostic form,
+    its allowlist entry becomes dead weight. Re-running the unit-suffix
+    regex here forces the entry to be removed alongside the rename.
+    """
     for entry in GRANDFATHERED_PROPERTY_KEYS:
         qualified, _, key = entry.partition(":")
         parts = qualified.split(".")
@@ -135,4 +140,7 @@ def test_grandfathered_property_keys_actually_exist() -> None:
         assert key in found_keys, (
             f"{entry}: property key no longer present; remove allowlist entry "
             "(Phase δ rename shipped)"
+        )
+        assert _UNIT_SUFFIX.search(key), (
+            f"{entry}: key no longer matches a unit suffix; remove allowlist entry"
         )

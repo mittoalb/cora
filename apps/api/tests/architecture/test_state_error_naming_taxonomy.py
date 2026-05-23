@@ -112,8 +112,13 @@ def test_error_names_follow_canonical_taxonomy(state_file: Path) -> None:
 
 
 @pytest.mark.architecture
-def test_grandfathered_names_actually_exist() -> None:
-    """``GRANDFATHERED_NAMES`` entries must point at real class defs."""
+def test_grandfathered_names_still_match_forbidden_pattern() -> None:
+    """``GRANDFATHERED_NAMES`` entries must still match a forbidden regex.
+
+    Drift catcher: once Phase ε renames a class to the canonical form,
+    its allowlist entry becomes dead weight. Re-running the regex check
+    here forces the entry to be removed alongside the rename.
+    """
     for entry in GRANDFATHERED_NAMES:
         qualified, _, cls = entry.partition(":")
         parts = qualified.split(".")
@@ -124,4 +129,7 @@ def test_grandfathered_names_actually_exist() -> None:
         names = {n.name for n in tree.body if isinstance(n, ast.ClassDef)}
         assert cls in names, (
             f"{entry}: class no longer defined; remove allowlist entry (Phase ε rename shipped)"
+        )
+        assert any(pattern.match(cls) for pattern, _ in _FORBIDDEN_PATTERNS), (
+            f"{entry}: class name no longer matches a forbidden pattern; remove allowlist entry"
         )

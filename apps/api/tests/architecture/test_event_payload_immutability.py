@@ -17,6 +17,13 @@ document intent without enforcing runtime immutability. The companion
 defence for dict aliasing (B1 from the audit) is shallow-copy on fold
 in the evolver, addressed in Phase β.
 
+Known scope gap: a ``list`` / ``set`` nested INSIDE a ``dict`` value
+(such as ``dict[UUID, list[UUID]]``) carries the same alias risk but
+isn't currently detected. ``asset_families_snapshot`` is the lone
+known case today; it lives in ``MUTABLE_COLLECTION_EVENT_FIELDS`` as
+documentation. Phase β can either extend the AST walk to recurse into
+``dict`` value parameters or migrate the offending field by hand.
+
 ``MUTABLE_COLLECTION_EVENT_FIELDS`` is the explicit work-tracker for
 known list/set fields awaiting migration. Phase β migrates the types
 and removes the matching allowlist entries.
@@ -48,6 +55,10 @@ MUTABLE_COLLECTION_EVENT_FIELDS: frozenset[str] = frozenset(
         "cora.recipe.aggregates.plan.events.PlanDefined.method_needed_families_snapshot",
         "cora.trust.aggregates.policy.events.PolicyDefined.permitted_principals",
         "cora.trust.aggregates.policy.events.PolicyDefined.permitted_commands",
+        # Nested mutability: dict[UUID, list[UUID]] — outer dict is out
+        # of this test's scope, but the inner list[UUID] is fold-aliased
+        # the same way. Documented here for Phase β review.
+        "cora.recipe.aggregates.plan.events.PlanDefined.asset_families_snapshot",
     }
 )
 
@@ -124,8 +135,21 @@ def test_event_payload_collection_fields_are_immutable(events_file: Path) -> Non
 
 
 @pytest.mark.architecture
-def test_allowlisted_event_fields_actually_exist() -> None:
-    """``MUTABLE_COLLECTION_EVENT_FIELDS`` entries must point at real fields."""
+def test_allowlisted_event_fields_still_mutable() -> None:
+    """``MUTABLE_COLLECTION_EVENT_FIELDS`` entries must still be mutable types.
+
+    Drift catcher: once a field migrates to ``tuple[X, ...]`` /
+    ``frozenset[X]``, its allowlist entry becomes dead weight. Re-running
+    the mutable-type check here forces the entry to be removed alongside
+    the fix. Entries containing a known nested-mutability shape
+    (``asset_families_snapshot`` today) are exempt: the outer type is
+    ``dict``, so the per-key mutability check doesn't apply.
+    """
+    nested_mutability_entries = frozenset(
+        {
+            "cora.recipe.aggregates.plan.events.PlanDefined.asset_families_snapshot",
+        }
+    )
     for entry in MUTABLE_COLLECTION_EVENT_FIELDS:
         # entry format: cora.<bc>.aggregates.<agg>.events.<Class>.<field>
         module_parts = entry.split(".")
@@ -142,11 +166,21 @@ def test_allowlisted_event_fields_actually_exist() -> None:
         assert cls is not None, (
             f"{entry}: class {class_name} no longer defined; remove allowlist entry"
         )
-        fields = {
-            s.target.id
-            for s in cls.body
-            if isinstance(s, ast.AnnAssign) and isinstance(s.target, ast.Name)
-        }
-        assert field_name in fields, (
+        field_stmt = next(
+            (
+                s
+                for s in cls.body
+                if isinstance(s, ast.AnnAssign)
+                and isinstance(s.target, ast.Name)
+                and s.target.id == field_name
+            ),
+            None,
+        )
+        assert field_stmt is not None, (
             f"{entry}: field {field_name} no longer declared; remove allowlist entry"
+        )
+        if entry in nested_mutability_entries:
+            continue
+        assert _mutable_collection_name(field_stmt.annotation) is not None, (
+            f"{entry}: field is no longer list/set typed; remove allowlist entry"
         )

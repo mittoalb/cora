@@ -41,15 +41,18 @@ if TYPE_CHECKING:
 # Each entry cites the cross-package consistency audit (2026-05-22)
 # finding and the phase that will fix it. Empty entries when the
 # corresponding finding ships.
+#
+# Note on B7: promote_caution_proposal is NOT in this allowlist even
+# though it's a B7 violator. Its signature IS `(state, command)` which
+# the canonical-args check accepts; the B7 issue is the return type
+# (ProposedCautionView, not list[E]). Return type is intentionally not
+# pinned by this test (see module docstring). Phase β addresses the
+# return-shape rewrite via manual review.
 WIP_DECIDERS: frozenset[str] = frozenset(
     {
         # B7: returns DecisionRegistered directly + kwargs-only signature.
         # Phase β will conform to (state, command, *, now, new_id) shape.
         "cora.agent.features.re_debrief_run.decider",
-        # B7: returns ProposedCautionView (validate-and-extract).
-        # Phase β will rewrite as event-emitting decider + extract the
-        # validation into a sibling helper.
-        "cora.agent.features.promote_caution_proposal.decider",
         # D10: `context` declared positional rather than keyword-only.
         # Phase ζ will move them after the `*` marker.
         "cora.subject.features.mount_subject.decider",
@@ -114,10 +117,25 @@ def test_decide_signature_is_canonical(decider: Path) -> None:
 
 
 @pytest.mark.architecture
-def test_wip_deciders_actually_exist() -> None:
-    """WIP_DECIDERS entries must point at real files. Drift catcher."""
+def test_wip_deciders_still_violate() -> None:
+    """``WIP_DECIDERS`` entries must still have non-canonical signatures.
+
+    Drift catcher: once a slice is conformed to ``(state, command, *, ...)``,
+    its WIP entry becomes dead weight. Re-running the detector here forces
+    the allowlist entry to be removed alongside the fix.
+    """
     for qualified in WIP_DECIDERS:
         parts = qualified.split(".")
         assert parts[0] == "cora", f"{qualified}: must start with 'cora.'"
         path = CORA_ROOT.joinpath(*parts[1:]).with_suffix(".py")
-        assert path.is_file(), f"WIP_DECIDERS entry {qualified} no longer exists; remove it"
+        assert path.is_file(), f"WIP_DECIDERS entry {qualified}: file no longer exists; remove it"
+        tree = ast.parse(path.read_text())
+        func = _find_decide_function(tree)
+        assert func is not None, (
+            f"WIP_DECIDERS entry {qualified}: decide function gone; remove allowlist entry"
+        )
+        positional = _positional_arg_names(func)
+        assert positional != ["state", "command"], (
+            f"WIP_DECIDERS entry {qualified}: signature is now canonical "
+            f"({positional!r}); remove allowlist entry"
+        )
