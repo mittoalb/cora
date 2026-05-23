@@ -313,6 +313,23 @@ class Method:
     needed_supplies: frozenset[str] = field(default_factory=frozenset[str])
 
 
+class MethodCapabilityExecutorMismatchError(Exception):
+    """Method.capability_id points at a Capability whose executor_shapes
+    do not include Method (cross-BC guard).
+
+    Mapped to HTTP 409. Surfaces when define_method binds to a
+    Capability that only declares ExecutorShape.PROCEDURE.
+    """
+
+    def __init__(self, method_id: UUID, capability_id: UUID) -> None:
+        super().__init__(
+            f"Method {method_id} cannot bind to Capability {capability_id}: "
+            "Capability.executor_shapes does not include Method"
+        )
+        self.method_id = method_id
+        self.capability_id = capability_id
+
+
 class MethodParametersNotSubsetError(ValueError):
     """Method.parameters_schema is not a subset of the bound
     Capability.parameter_schema.

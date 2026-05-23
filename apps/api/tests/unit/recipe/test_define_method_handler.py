@@ -12,12 +12,12 @@ from cora.recipe.aggregates.capability import (
     CapabilityNotFoundError,
     ExecutorShape,
 )
-from cora.recipe.aggregates.method import InvalidMethodNameError
-from cora.recipe.features import define_method
-from cora.recipe.features.define_method import DefineMethod
-from cora.recipe.features.define_method.decider import (
+from cora.recipe.aggregates.method import (
+    InvalidMethodNameError,
     MethodCapabilityExecutorMismatchError,
 )
+from cora.recipe.features import define_method
+from cora.recipe.features.define_method import DefineMethod
 from tests.unit._helpers import build_deps, seed_capability
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)

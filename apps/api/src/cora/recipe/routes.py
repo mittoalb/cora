@@ -50,6 +50,7 @@ from cora.recipe.aggregates.method import (
     MethodAlreadyExistsError,
     MethodCannotDeprecateError,
     MethodCannotVersionError,
+    MethodCapabilityExecutorMismatchError,
     MethodNotFoundError,
     MethodParametersNotSubsetError,
 )
@@ -110,9 +111,6 @@ from cora.recipe.features import (
     version_method,
     version_plan,
     version_practice,
-)
-from cora.recipe.features.define_method.decider import (
-    MethodCapabilityExecutorMismatchError,
 )
 
 

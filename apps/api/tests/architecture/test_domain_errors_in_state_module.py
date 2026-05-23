@@ -38,13 +38,7 @@ if TYPE_CHECKING:
 
 
 # Each entry is "qualified_module:ClassName".
-WIP_SLICE_ERRORS: frozenset[str] = frozenset(
-    {
-        # B6: domain error defined inside the slice's decider.
-        # Phase β moves it to cora/recipe/aggregates/method/state.py.
-        "cora.recipe.features.define_method.decider:MethodCapabilityExecutorMismatchError",
-    }
-)
+WIP_SLICE_ERRORS: frozenset[str] = frozenset()
 
 
 def _is_exempt_path(path: Path) -> bool:

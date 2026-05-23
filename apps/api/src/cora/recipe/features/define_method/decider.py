@@ -35,27 +35,11 @@ from cora.recipe.aggregates.method import (
     InvalidMethodNeededSuppliesError,
     Method,
     MethodAlreadyExistsError,
+    MethodCapabilityExecutorMismatchError,
     MethodDefined,
     MethodName,
 )
 from cora.recipe.features.define_method.command import DefineMethod
-
-
-class MethodCapabilityExecutorMismatchError(Exception):
-    """Method.capability_id points at a Capability whose executor_shapes
-    do not include Method (cross-BC guard).
-
-    Mapped to HTTP 409. Surfaces when define_method binds to a
-    Capability that only declares ExecutorShape.PROCEDURE.
-    """
-
-    def __init__(self, method_id: UUID, capability_id: UUID) -> None:
-        super().__init__(
-            f"Method {method_id} cannot bind to Capability {capability_id}: "
-            f"Capability.executor_shapes does not include {ExecutorShape.METHOD.value}"
-        )
-        self.method_id = method_id
-        self.capability_id = capability_id
 
 
 def decide(
