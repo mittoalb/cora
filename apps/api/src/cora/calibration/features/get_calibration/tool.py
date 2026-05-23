@@ -42,7 +42,13 @@ class RevisionOutput(BaseModel):
 
 
 class GetCalibrationOutput(BaseModel):
-    """Structured output of the `get_calibration` MCP tool."""
+    """Structured output of the `get_calibration` MCP tool.
+
+    Per Path C, `defined_at` / `last_revised_at` are projection-
+    sourced (not aggregate state) and nullable on the wire when
+    the projection lags or the deps lack a pool (in-memory test
+    mode). Mirrors the REST `CalibrationResponse` shape.
+    """
 
     id: UUID
     target_id: UUID
@@ -50,8 +56,8 @@ class GetCalibrationOutput(BaseModel):
     operating_point: dict[str, Any]
     description: str | None
     revisions: list[RevisionOutput]
-    defined_at: datetime
-    last_revised_at: datetime
+    defined_at: datetime | None = None
+    last_revised_at: datetime | None = None
     defined_by_actor_id: UUID
 
 
@@ -68,7 +74,11 @@ def _revision_output(revision: CalibrationRevision) -> RevisionOutput:
     )
 
 
-def _output_from_state(calibration: Calibration) -> GetCalibrationOutput:
+def _output_from_view(
+    calibration: Calibration,
+    defined_at: datetime | None,
+    last_revised_at: datetime | None,
+) -> GetCalibrationOutput:
     return GetCalibrationOutput(
         id=calibration.id,
         target_id=calibration.target_id,
@@ -76,8 +86,8 @@ def _output_from_state(calibration: Calibration) -> GetCalibrationOutput:
         operating_point=calibration.operating_point,
         description=calibration.description,
         revisions=[_revision_output(r) for r in calibration.revisions],
-        defined_at=calibration.defined_at,
-        last_revised_at=calibration.last_revised_at,
+        defined_at=defined_at,
+        last_revised_at=last_revised_at,
         defined_by_actor_id=calibration.defined_by_actor_id,
     )
 
@@ -102,10 +112,16 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ],
     ) -> GetCalibrationOutput | None:
         handler = get_handler()
-        calibration = await handler(
+        view = await handler(
             GetCalibration(calibration_id=calibration_id),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )
-        return _output_from_state(calibration) if calibration is not None else None
+        if view is None:
+            return None
+        return _output_from_view(
+            view.calibration,
+            view.timestamps.defined_at if view.timestamps is not None else None,
+            view.timestamps.last_revised_at if view.timestamps is not None else None,
+        )

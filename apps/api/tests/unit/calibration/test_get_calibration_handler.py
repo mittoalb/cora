@@ -34,7 +34,6 @@ async def _seed(store: InMemoryEventStore) -> None:
         quantity="rotation_center",
         operating_point={"energy_keV": 25.0, "optics_config": "5x"},
         description="vessel-A pre-scan",
-        defined_at=_NOW,
         defined_by_actor_id=_ACTOR_ID,
         occurred_at=_NOW,
     )
@@ -57,23 +56,27 @@ async def _seed(store: InMemoryEventStore) -> None:
 
 
 @pytest.mark.unit
-async def test_handler_returns_calibration_on_hit() -> None:
+async def test_handler_returns_calibration_view_on_hit() -> None:
     store = InMemoryEventStore()
     await _seed(store)
     deps = _build_deps_shared(ids=[], now=_NOW, event_store=store)
     handler = get_calibration.bind(deps)
-    calibration = await handler(
+    view = await handler(
         GetCalibration(calibration_id=_CAL_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    assert calibration is not None
-    assert calibration.id == _CAL_ID
-    assert calibration.target_id == _SUBSYSTEM_ID
-    assert calibration.quantity == "rotation_center"
-    assert calibration.operating_point == {"energy_keV": 25.0, "optics_config": "5x"}
-    assert calibration.description == "vessel-A pre-scan"
-    assert calibration.revisions == ()
+    assert view is not None
+    assert view.calibration.id == _CAL_ID
+    assert view.calibration.target_id == _SUBSYSTEM_ID
+    assert view.calibration.quantity == "rotation_center"
+    assert view.calibration.operating_point == {"energy_keV": 25.0, "optics_config": "5x"}
+    assert view.calibration.description == "vessel-A pre-scan"
+    assert view.calibration.revisions == ()
+    # No pool in this in-memory test, so projection-sourced timestamps
+    # are absent. Pin the contract: the handler returns CalibrationView
+    # with timestamps=None rather than failing.
+    assert view.timestamps is None
 
 
 @pytest.mark.unit
@@ -81,12 +84,12 @@ async def test_handler_returns_none_on_miss() -> None:
     store = InMemoryEventStore()
     deps = _build_deps_shared(ids=[], now=_NOW, event_store=store)
     handler = get_calibration.bind(deps)
-    calibration = await handler(
+    view = await handler(
         GetCalibration(calibration_id=uuid4()),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    assert calibration is None
+    assert view is None
 
 
 @pytest.mark.unit

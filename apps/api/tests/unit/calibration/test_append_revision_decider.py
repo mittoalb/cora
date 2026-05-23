@@ -42,8 +42,6 @@ def _state(*, revisions: tuple[CalibrationRevision, ...] = ()) -> Calibration:
         operating_point={"energy_keV": 25.0, "optics_config": "5x"},
         description=None,
         revisions=revisions,
-        defined_at=_NOW,
-        last_revised_at=_NOW,
         defined_by_actor_id=_PRINCIPAL_ID,
     )
 

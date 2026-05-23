@@ -1379,12 +1379,19 @@
         "type": "string"
       },
       "CalibrationResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives + the polymorphic-source wire shape. Decouples\nthe wire format from the domain model so the two can evolve\nindependently.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives + the polymorphic-source wire shape. Decouples\nthe wire format from the domain model so the two can evolve\nindependently.\n\nPer Path C, `defined_at` / `last_revised_at` are projection-\nsourced (not aggregate state) and therefore nullable on the\nwire: the projection may transiently lag behind the event store,\nor the deps may lack a configured pool (in-memory test mode).\nMirrors the Method / Plan / Family read DTOs.",
         "properties": {
           "defined_at": {
-            "format": "date-time",
-            "title": "Defined At",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defined At"
           },
           "defined_by_actor_id": {
             "format": "uuid",
@@ -1408,9 +1415,16 @@
             "type": "string"
           },
           "last_revised_at": {
-            "format": "date-time",
-            "title": "Last Revised At",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Revised At"
           },
           "operating_point": {
             "additionalProperties": true,
@@ -1441,8 +1455,6 @@
           "operating_point",
           "description",
           "revisions",
-          "defined_at",
-          "last_revised_at",
           "defined_by_actor_id"
         ],
         "title": "CalibrationResponse",

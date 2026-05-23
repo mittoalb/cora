@@ -134,7 +134,6 @@ def test_event_type_name_for_calibration_defined() -> None:
         quantity="rotation_center",
         operating_point={"energy_keV": 25, "optics_config": "5x"},
         description=None,
-        defined_at=_NOW,
         defined_by_actor_id=_ACTOR_ID,
         occurred_at=_NOW,
     )
@@ -149,17 +148,17 @@ def test_to_payload_serializes_calibration_defined_to_primitives() -> None:
         quantity="rotation_center",
         operating_point={"energy_keV": 25, "optics_config": "5x"},
         description="vessel-A bakeout pre-scan",
-        defined_at=_NOW,
         defined_by_actor_id=_ACTOR_ID,
         occurred_at=_NOW,
     )
+    # Path C: no `defined_at` field on the V2 payload; the projection
+    # derives it from envelope `occurred_at`.
     assert to_payload(event) == {
         "calibration_id": str(_CALIBRATION_ID),
         "target_id": str(_SUBSYSTEM_ID),
         "quantity": "rotation_center",
         "operating_point": {"energy_keV": 25, "optics_config": "5x"},
         "description": "vessel-A bakeout pre-scan",
-        "defined_at": _NOW.isoformat(),
         "defined_by_actor_id": str(_ACTOR_ID),
         "occurred_at": _NOW.isoformat(),
     }
@@ -173,7 +172,6 @@ def test_calibration_defined_round_trips_through_event_log() -> None:
         quantity="rotation_center",
         operating_point={"energy_keV": 25, "optics_config": "5x"},
         description=None,
-        defined_at=_NOW,
         defined_by_actor_id=_ACTOR_ID,
         occurred_at=_NOW,
     )

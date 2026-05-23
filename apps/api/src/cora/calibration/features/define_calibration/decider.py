@@ -84,7 +84,6 @@ def decide(
             quantity=command.quantity.value,
             operating_point=command.operating_point,
             description=trimmed_description,
-            defined_at=now,
             defined_by_actor_id=defined_by_actor_id,
             occurred_at=now,
         )

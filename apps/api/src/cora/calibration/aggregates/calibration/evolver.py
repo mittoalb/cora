@@ -7,7 +7,16 @@ is added to `CalibrationEvent` without a matching match arm here.
 Two events fold:
 
   - `CalibrationDefined`           -> genesis (revisions empty)
-  - `CalibrationRevisionAppended`  -> append revision; update last_revised_at
+  - `CalibrationRevisionAppended`  -> append revision
+
+Per Path C (`project_template_aggregate_timestamps`), aggregate
+state carries no lifecycle-bookkeeping timestamps; `defined_at` /
+`last_revised_at` are derived at projection-apply time from each
+event's envelope `occurred_at`. The evolver therefore folds events
+without persisting timestamps onto `Calibration`. Per-revision
+`established_at` STAYS on `CalibrationRevision` — it is a
+domain-meaningful timestamp (when the revision was decided, may
+differ from when the event was recorded).
 
 Source-state guards live at the decider, NOT here; the evolver trusts
 the event log (folded events have already passed their decider).
@@ -41,7 +50,6 @@ def evolve(state: Calibration | None, event: CalibrationEvent) -> Calibration:
             quantity=quantity,
             operating_point=operating_point,
             description=description,
-            defined_at=defined_at,
             defined_by_actor_id=defined_by_actor_id,
         ):
             _ = state  # CalibrationDefined is the genesis event; prior state ignored
@@ -53,8 +61,6 @@ def evolve(state: Calibration | None, event: CalibrationEvent) -> Calibration:
                 operating_point=dict(operating_point),
                 description=description,
                 revisions=(),
-                defined_at=defined_at,
-                last_revised_at=defined_at,
                 defined_by_actor_id=defined_by_actor_id,
             )
         case CalibrationRevisionAppended(
@@ -104,8 +110,6 @@ def evolve(state: Calibration | None, event: CalibrationEvent) -> Calibration:
                 operating_point=prior.operating_point,
                 description=prior.description,
                 revisions=(*prior.revisions, revision),
-                defined_at=prior.defined_at,
-                last_revised_at=established_at,
                 defined_by_actor_id=prior.defined_by_actor_id,
             )
         case _:  # pragma: no cover  # exhaustiveness guard

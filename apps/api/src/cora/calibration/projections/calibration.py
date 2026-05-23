@@ -116,6 +116,13 @@ class CalibrationSummaryProjection:
             # (cross-stream invariant) is recoverable at the worker
             # layer rather than poisoning the bookmark transaction.
             async with conn.transaction():
+                # Path C: lifecycle timestamps come from envelope
+                # `occurred_at`, not a redundant `defined_at` payload
+                # field (which is now gone from CalibrationDefined).
+                # `last_revised_at` seeds to the same value at
+                # genesis and is bumped on each CalibrationRevisionAppended
+                # to the revision's `established_at`.
+                defined_at = datetime.fromisoformat(payload["occurred_at"])
                 await conn.execute(
                     _INSERT_CALIBRATION_SQL,
                     UUID(payload["calibration_id"]),
@@ -123,8 +130,8 @@ class CalibrationSummaryProjection:
                     payload["quantity"],
                     json.dumps(payload["operating_point"]),
                     payload.get("description"),
-                    datetime.fromisoformat(payload["defined_at"]),
-                    datetime.fromisoformat(payload["defined_at"]),
+                    defined_at,
+                    defined_at,
                     UUID(payload["defined_by_actor_id"]),
                 )
             return

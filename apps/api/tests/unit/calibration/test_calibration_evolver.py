@@ -39,7 +39,6 @@ def _defined() -> CalibrationDefined:
         quantity="rotation_center",
         operating_point={"energy_keV": 25, "optics_config": "5x"},
         description=None,
-        defined_at=_NOW,
         defined_by_actor_id=_ACTOR_ID,
         occurred_at=_NOW,
     )
@@ -80,8 +79,6 @@ def test_evolve_genesis_creates_aggregate_with_empty_revisions() -> None:
     assert state.quantity == "rotation_center"
     assert state.operating_point == {"energy_keV": 25, "optics_config": "5x"}
     assert state.revisions == ()
-    assert state.defined_at == _NOW
-    assert state.last_revised_at == _NOW
     assert state.defined_by_actor_id == _ACTOR_ID
 
 
@@ -93,7 +90,12 @@ def test_evolve_revision_append_grows_revisions_tuple() -> None:
     assert state.revisions[0].status is CalibrationStatus.PROVISIONAL
     assert isinstance(state.revisions[0].source, MeasuredSource)
     assert len(state.revisions) == 1
-    assert state.last_revised_at == _NOW
+    # Per Path C, `last_revised_at` lives on the projection, not state;
+    # the projection-level test in test_projection_worker_postgres
+    # asserts the projection column gets bumped. Here we only pin
+    # state — that the new revision is appended with the right
+    # `established_at` on the CalibrationRevision itself.
+    assert state.revisions[0].established_at == _NOW
 
 
 @pytest.mark.unit
@@ -113,7 +115,9 @@ def test_evolve_multiple_revisions_append_in_order() -> None:
     assert [r.revision_id for r in state.revisions] == [_REV_ID_1, _REV_ID_2]
     assert isinstance(state.revisions[1].source, ComputedSource)
     assert state.revisions[1].supersedes_revision_id == _REV_ID_1
-    assert state.last_revised_at == _LATER
+    # Latest revision's established_at is the read-side surface for
+    # last_revised_at; the projection mirrors that.
+    assert state.revisions[1].established_at == _LATER
 
 
 @pytest.mark.unit

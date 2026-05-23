@@ -402,6 +402,15 @@ class Calibration:
     `revisions` is an append-only ordered tuple; new revisions are
     appended at the end. The latest revision per-status (or per-source-
     kind) is recomputed at read time via `read.py` helpers.
+
+    Per the locked Path C convention (`project_template_aggregate_timestamps`),
+    lifecycle bookkeeping timestamps (`defined_at`, `last_revised_at`)
+    do NOT live on aggregate state; they are derived at projection-
+    apply time from each event's envelope `occurred_at`. The 7th
+    aggregate to follow the pattern. The `established_at` field on
+    individual `CalibrationRevision` instances STAYS — it is the
+    domain-meaningful timestamp of when the revision was decided
+    (may legitimately differ from when the event was recorded).
     """
 
     id: UUID
@@ -410,6 +419,4 @@ class Calibration:
     operating_point: dict[str, Any]
     description: str | None
     revisions: tuple[CalibrationRevision, ...]
-    defined_at: datetime
-    last_revised_at: datetime
     defined_by_actor_id: UUID

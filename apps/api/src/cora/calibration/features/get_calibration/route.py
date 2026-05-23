@@ -61,6 +61,12 @@ class CalibrationResponse(BaseModel):
     Carries primitives + the polymorphic-source wire shape. Decouples
     the wire format from the domain model so the two can evolve
     independently.
+
+    Per Path C, `defined_at` / `last_revised_at` are projection-
+    sourced (not aggregate state) and therefore nullable on the
+    wire: the projection may transiently lag behind the event store,
+    or the deps may lack a configured pool (in-memory test mode).
+    Mirrors the Method / Plan / Family read DTOs.
     """
 
     id: UUID
@@ -69,8 +75,8 @@ class CalibrationResponse(BaseModel):
     operating_point: dict[str, Any]
     description: str | None
     revisions: list[RevisionResponse]
-    defined_at: datetime
-    last_revised_at: datetime
+    defined_at: datetime | None = None
+    last_revised_at: datetime | None = None
     defined_by_actor_id: UUID
 
 
@@ -87,7 +93,11 @@ def _revision_response_from_state(revision: CalibrationRevision) -> RevisionResp
     )
 
 
-def _response_from_state(calibration: Calibration) -> CalibrationResponse:
+def _response_from_view(
+    calibration: Calibration,
+    defined_at: datetime | None,
+    last_revised_at: datetime | None,
+) -> CalibrationResponse:
     return CalibrationResponse(
         id=calibration.id,
         target_id=calibration.target_id,
@@ -95,8 +105,8 @@ def _response_from_state(calibration: Calibration) -> CalibrationResponse:
         operating_point=calibration.operating_point,
         description=calibration.description,
         revisions=[_revision_response_from_state(r) for r in calibration.revisions],
-        defined_at=calibration.defined_at,
-        last_revised_at=calibration.last_revised_at,
+        defined_at=defined_at,
+        last_revised_at=last_revised_at,
         defined_by_actor_id=calibration.defined_by_actor_id,
     )
 
@@ -131,15 +141,19 @@ async def get_calibrations(
     principal_id: Annotated[UUID, Depends(get_principal_id)],
     surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> CalibrationResponse:
-    calibration = await handler(
+    view = await handler(
         GetCalibration(calibration_id=calibration_id),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,
     )
-    if calibration is None:
+    if view is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Calibration {calibration_id} not found",
         )
-    return _response_from_state(calibration)
+    return _response_from_view(
+        view.calibration,
+        view.timestamps.defined_at if view.timestamps is not None else None,
+        view.timestamps.last_revised_at if view.timestamps is not None else None,
+    )

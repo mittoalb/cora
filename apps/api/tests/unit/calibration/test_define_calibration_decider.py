@@ -38,8 +38,6 @@ def _existing_state() -> Calibration:
         operating_point=_op_point(),
         description=None,
         revisions=(),
-        defined_at=_NOW,
-        last_revised_at=_NOW,
         defined_by_actor_id=_PRINCIPAL_ID,
     )
 

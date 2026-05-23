@@ -159,7 +159,6 @@ class CalibrationDefined:
     quantity: str  # CalibrationQuantity value-string
     operating_point: dict[str, Any]
     description: str | None
-    defined_at: datetime
     defined_by_actor_id: UUID
     occurred_at: datetime
 
@@ -226,7 +225,6 @@ def to_payload(event: CalibrationEvent) -> dict[str, Any]:
             quantity=quantity,
             operating_point=operating_point,
             description=description,
-            defined_at=defined_at,
             defined_by_actor_id=defined_by_actor_id,
             occurred_at=occurred_at,
         ):
@@ -236,7 +234,6 @@ def to_payload(event: CalibrationEvent) -> dict[str, Any]:
                 "quantity": quantity,
                 "operating_point": operating_point,
                 "description": description,
-                "defined_at": defined_at.isoformat(),
                 "defined_by_actor_id": str(defined_by_actor_id),
                 "occurred_at": occurred_at.isoformat(),
             }
@@ -297,7 +294,6 @@ def from_stored(stored: StoredEvent) -> CalibrationEvent:
                     quantity=payload["quantity"],
                     operating_point=payload["operating_point"],
                     description=payload.get("description"),
-                    defined_at=datetime.fromisoformat(payload["defined_at"]),
                     defined_by_actor_id=UUID(payload["defined_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )

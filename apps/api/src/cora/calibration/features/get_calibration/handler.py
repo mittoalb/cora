@@ -1,20 +1,38 @@
 """Application handler for the `get_calibration` query slice.
 
-Cross-BC query-handler shape:
+Cross-BC query-handler shape, extended to fold in projection-sourced
+lifecycle timestamps per Path C (`project_template_aggregate_timestamps`):
 
     1. authorize(principal_id, query_name, conduit_id) -> Allow | Deny
-    2. load_calibration(...)         -> Calibration | None  (fold-on-read)
-    3. return state                  -> caller maps None to 404 / isError
+    2. load_calibration(...)              -> Calibration | None  (fold-on-read)
+    3. load_calibration_timestamps(...)   -> CalibrationLifecycleTimestamps | None
+                                             (None when projection lags or
+                                              pool not configured)
+    4. return CalibrationView             -> caller maps None to 404 / isError;
+                                             maps view.timestamps fields onto
+                                             the response DTO
 
-Returns the domain `Calibration`, not a DTO. The route layer maps to
-`CalibrationResponse` and the MCP tool maps to its own structured
-output.
+`CalibrationView` bundles the rich domain `Calibration` with the
+projection-sourced lifecycle metadata. The aggregate state stays
+minimal per the Path C convention; timestamps live on the projection.
+Non-HTTP/MCP consumers that only need the domain `Calibration` should
+call `load_calibration` directly, sidestepping the projection read
+entirely.
+
+Query handlers do NOT emit `causation_id` log fields, queries have
+no causation chain.
 """
 
+from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
-from cora.calibration.aggregates.calibration import Calibration, load_calibration
+from cora.calibration.aggregates.calibration import (
+    Calibration,
+    CalibrationLifecycleTimestamps,
+    load_calibration,
+    load_calibration_timestamps,
+)
 from cora.calibration.errors import UnauthorizedError
 from cora.calibration.features.get_calibration.query import GetCalibration
 from cora.infrastructure.kernel import Kernel
@@ -27,6 +45,18 @@ _QUERY_NAME = "GetCalibration"
 _log = get_logger(__name__)
 
 
+@dataclass(frozen=True)
+class CalibrationView:
+    """Read-side bundle: aggregate state + projection-sourced lifecycle
+    timestamps. `timestamps` is None when the projection hasn't caught
+    up yet OR when the deps lack a configured pool (in-memory test
+    mode); both are transient/contextual, not a Calibration-not-found
+    signal (use a None `CalibrationView` for that)."""
+
+    calibration: Calibration
+    timestamps: CalibrationLifecycleTimestamps | None
+
+
 class Handler(Protocol):
     """Callable interface every get_calibration handler implements."""
 
@@ -37,7 +67,7 @@ class Handler(Protocol):
         principal_id: UUID,
         correlation_id: UUID,
         surface_id: UUID = NIL_SENTINEL_ID,
-    ) -> Calibration | None: ...
+    ) -> CalibrationView | None: ...
 
 
 def bind(deps: Kernel) -> Handler:
@@ -49,7 +79,7 @@ def bind(deps: Kernel) -> Handler:
         principal_id: UUID,
         correlation_id: UUID,
         surface_id: UUID = NIL_SENTINEL_ID,
-    ) -> Calibration | None:
+    ) -> CalibrationView | None:
         _log.info(
             "get_calibration.start",
             query_name=_QUERY_NAME,
@@ -76,6 +106,20 @@ def bind(deps: Kernel) -> Handler:
             raise UnauthorizedError(decision.reason)
 
         calibration = await load_calibration(deps.event_store, query.calibration_id)
+        if calibration is None:
+            _log.info(
+                "get_calibration.success",
+                query_name=_QUERY_NAME,
+                calibration_id=str(query.calibration_id),
+                principal_id=str(principal_id),
+                correlation_id=str(correlation_id),
+                found=False,
+            )
+            return None
+
+        timestamps: CalibrationLifecycleTimestamps | None = None
+        if deps.pool is not None:
+            timestamps = await load_calibration_timestamps(deps.pool, query.calibration_id)
 
         _log.info(
             "get_calibration.success",
@@ -83,8 +127,9 @@ def bind(deps: Kernel) -> Handler:
             calibration_id=str(query.calibration_id),
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
-            found=calibration is not None,
+            found=True,
+            timestamps_present=timestamps is not None,
         )
-        return calibration
+        return CalibrationView(calibration=calibration, timestamps=timestamps)
 
     return handler

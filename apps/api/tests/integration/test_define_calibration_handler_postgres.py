@@ -56,13 +56,14 @@ async def test_define_calibration_persists_event_to_postgres(
     stored = events[0]
     assert stored.event_type == "CalibrationDefined"
     assert stored.schema_version == 1
+    # Path C: `defined_at` is no longer on the event payload — the
+    # projection derives it from envelope `occurred_at`.
     assert stored.payload == {
         "calibration_id": str(_NEW_ID),
         "target_id": str(_SUBSYSTEM_ID),
         "quantity": "rotation_center",
         "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
         "description": "vessel-A bakeout pre-scan",
-        "defined_at": _NOW.isoformat(),
         "defined_by_actor_id": str(_PRINCIPAL_ID),
         "occurred_at": _NOW.isoformat(),
     }
