@@ -9018,6 +9018,104 @@
         ]
       }
     },
+    "/actors/{actor_id}/profile": {
+      "delete": {
+        "operationId": "delete_actor_profile_actors__actor_id__profile_delete",
+        "parameters": [
+          {
+            "description": "Target actor's id.",
+            "in": "path",
+            "name": "actor_id",
+            "required": true,
+            "schema": {
+              "description": "Target actor's id.",
+              "format": "uuid",
+              "title": "Actor Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional client-supplied unique key per logical erasure request. Retries with the same key short-circuit so a double-click does not append two audit events.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical erasure request. Retries with the same key short-circuit so a double-click does not append two audit events.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No actor exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Concurrent write to the same actor stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter failed schema validation OR Idempotency-Key was reused with a different request."
+          }
+        },
+        "summary": "Erase an actor's PII vault row (right to be forgotten)",
+        "tags": [
+          "access"
+        ]
+      }
+    },
     "/agents": {
       "post": {
         "operationId": "post_agents_agents_post",

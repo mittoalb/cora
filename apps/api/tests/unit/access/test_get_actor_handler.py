@@ -116,7 +116,7 @@ async def test_handler_returns_tombstone_display_name_when_profile_is_erased() -
     )
     # Simulate post-erasure: pop the profile row via the in-memory
     # adapter's scrub_and_delete (conn is ignored in-memory).
-    await profile_store.scrub_and_delete(None, _NEW_ID)  # type: ignore[arg-type]
+    await profile_store.scrub_and_delete(None, _NEW_ID)
 
     handler = get_actor.bind(deps, profile_store=profile_store)
     view = await handler(

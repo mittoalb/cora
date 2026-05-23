@@ -211,6 +211,8 @@ class EventStore(Protocol):
     async def append_streams(
         self,
         streams: Sequence[StreamAppend],
+        *,
+        conn: object | None = None,
     ) -> dict[UUID, int]:
         """Atomically append events to multiple streams in a single transaction.
 
@@ -229,5 +231,15 @@ class EventStore(Protocol):
         UNIQUE constraint as `append` (raises `ValueError` /
         `UniqueViolationError` on duplicate event_id within or across
         streams in the same batch).
+
+        `conn` (optional, asyncpg.Connection): when provided, runs the
+        appends against that connection without opening a nested
+        transaction — used by `forget_actor` to bundle the event
+        append with a `ProfileStore.scrub_and_delete` call in ONE
+        Postgres transaction so the PII scrub + audit event commit
+        atomically. When `None`, the adapter acquires its own
+        connection and transaction (the default for every other
+        caller). Typed as `object | None` so the Protocol stays
+        asyncpg-agnostic; InMemoryEventStore ignores the parameter.
         """
         ...

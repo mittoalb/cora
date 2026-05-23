@@ -111,6 +111,8 @@ class PostgresEventStore:
     async def append_streams(
         self,
         streams: Sequence[StreamAppend],
+        *,
+        conn: object | None = None,
     ) -> dict[UUID, int]:
         # Filter out empty-events StreamAppend entries (no-op rows still
         # report their expected_version so callers get a complete dict).
@@ -121,6 +123,20 @@ class PostgresEventStore:
         new_versions: dict[UUID, int] = {
             s.stream_id: s.expected_version for s in streams if not s.events
         }
+        # Caller-supplied conn (forget_actor): run inside their
+        # transaction; do NOT open a nested one. None: acquire from
+        # pool + open the adapter's own transaction (every other
+        # caller's path). Both branches share the same INSERT body +
+        # ConcurrencyError mapping below.
+        if conn is not None:
+            # Caller owns the transaction; if their outer block aborts
+            # for any reason after this call returns, the appends roll
+            # back too.
+            return await self._append_in_conn(
+                conn,  # type: ignore[arg-type]
+                non_empty,
+                new_versions,
+            )
         try:
             async with self._pool.acquire() as conn, conn.transaction():
                 for stream in non_empty:
@@ -169,6 +185,61 @@ class PostgresEventStore:
                         ) from exc
             # Defensive: a stream-version UniqueViolation must map to a
             # mismatch somewhere; re-raise if we somehow can't pin it.
+            raise
+
+    async def _append_in_conn(
+        self,
+        conn: asyncpg.Connection,
+        non_empty: Sequence[StreamAppend],
+        new_versions: dict[UUID, int],
+    ) -> dict[UUID, int]:
+        # Same INSERT body as `append_streams` but runs against the
+        # caller's connection without opening a nested transaction.
+        # The caller (forget_actor) wraps the call in its own
+        # `conn.transaction()` so the scrub+delete+append commit
+        # atomically. ConcurrencyError mapping is identical (the
+        # UniqueViolationError still names `_STREAM_VERSION_CONSTRAINT`);
+        # the lookup uses a SEPARATE pool connection because the
+        # caller's transaction is aborted by the exception and can't
+        # be reused.
+        try:
+            for stream in non_empty:
+                next_version = stream.expected_version
+                for event in stream.events:
+                    next_version += 1
+                    await conn.execute(
+                        _APPEND_SQL,
+                        event.event_id,
+                        stream.stream_type,
+                        stream.stream_id,
+                        next_version,
+                        event.event_type,
+                        event.schema_version,
+                        event.payload,
+                        event.metadata,
+                        event.correlation_id,
+                        event.causation_id,
+                        event.occurred_at,
+                        event.principal_id,
+                    )
+                new_versions[stream.stream_id] = next_version
+            return new_versions
+        except asyncpg.UniqueViolationError as exc:
+            if getattr(exc, "constraint_name", None) != _STREAM_VERSION_CONSTRAINT:
+                raise
+            async with self._pool.acquire() as fresh:
+                for stream in non_empty:
+                    actual = await fresh.fetchval(
+                        _CURRENT_VERSION_SQL, stream.stream_type, stream.stream_id
+                    )
+                    actual_int = int(actual or 0)
+                    if actual_int != stream.expected_version:
+                        raise ConcurrencyError(
+                            stream_type=stream.stream_type,
+                            stream_id=stream.stream_id,
+                            expected=stream.expected_version,
+                            actual=actual_int,
+                        ) from exc
             raise
 
 

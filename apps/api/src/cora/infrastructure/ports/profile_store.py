@@ -46,8 +46,6 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-import asyncpg
-
 
 @dataclass(frozen=True)
 class Profile:
@@ -105,12 +103,16 @@ class ProfileStore(Protocol):
         from the result."""
         ...
 
-    async def scrub_and_delete(self, conn: asyncpg.Connection, actor_id: UUID) -> None:
+    async def scrub_and_delete(self, conn: object, actor_id: UUID) -> None:
         """Scrub PII columns then DELETE the row, IN the caller's transaction.
 
         Used by `forget_actor` so the erasure is atomic with the
-        `ActorProfileForgotten` event append. The `conn` parameter
-        is the asyncpg `Connection` inside the open transaction.
+        `ActorProfileForgotten` event append. `conn` is the asyncpg
+        `Connection` (or pool-acquired `PoolConnectionProxy`)
+        inside the open transaction; typed as `object` so the
+        Protocol stays asyncpg-agnostic, matching the
+        `EventStore.append_streams(conn=...)` convention.
+        InMemoryProfileStore ignores the parameter (no transaction).
 
         Scrub-then-DELETE shape (UPDATE name='' before DELETE)
         ensures the dead-tuple bytes (linger until VACUUM

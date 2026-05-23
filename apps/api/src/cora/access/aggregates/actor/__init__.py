@@ -8,6 +8,7 @@ event, and profile types.
 from cora.access.aggregates.actor.events import (
     ActorDeactivated,
     ActorEvent,
+    ActorProfileForgotten,
     ActorRegistered,
     event_type_name,
     from_stored,
@@ -52,6 +53,7 @@ __all__ = [
     "ActorKind",
     "ActorName",
     "ActorNotFoundError",
+    "ActorProfileForgotten",
     "ActorRegistered",
     "InMemoryProfileStore",
     "InvalidActorKindError",

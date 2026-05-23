@@ -39,6 +39,7 @@ from cora.access.aggregates.actor import (
 from cora.access.errors import UnauthorizedError
 from cora.access.features import (
     deactivate_actor,
+    forget_actor,
     get_actor,
     list_actors,
     register_actor,
@@ -180,6 +181,7 @@ def register_access_routes(app: FastAPI) -> None:
     """Attach Access slice routers and exception handlers to the FastAPI app."""
     app.include_router(register_actor.router)
     app.include_router(deactivate_actor.router)
+    app.include_router(forget_actor.router)
     app.include_router(get_actor.router)
     app.include_router(list_actors.router)
     for validation_cls in (InvalidActorNameError, InvalidActorKindError):

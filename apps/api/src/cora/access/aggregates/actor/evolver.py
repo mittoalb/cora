@@ -18,6 +18,7 @@ from typing import assert_never
 from cora.access.aggregates.actor.events import (
     ActorDeactivated,
     ActorEvent,
+    ActorProfileForgotten,
     ActorRegistered,
 )
 from cora.access.aggregates.actor.state import Actor
@@ -47,6 +48,17 @@ def evolve(state: Actor | None, event: ActorEvent) -> Actor:
                 msg = "ActorDeactivated cannot be applied to empty state"  # pragma: no cover  # pragma: no mutate  # noqa: E501
                 raise ValueError(msg)  # pragma: no cover  # pragma: no mutate
             return Actor(id=state.id, is_active=False, kind=state.kind)
+        case ActorProfileForgotten():
+            # PII erasure event: aggregate state is unchanged. The
+            # event records the audit fact ("operator scrubbed this
+            # actor's profile row on this date"); the actual side-
+            # table mutation lives in the handler's same-transaction
+            # `ProfileStore.scrub_and_delete` call. Corruption guard
+            # mirrors ActorDeactivated.
+            if state is None:  # pragma: no cover  # pragma: no mutate
+                msg = "ActorProfileForgotten cannot be applied to empty state"  # pragma: no cover  # pragma: no mutate  # noqa: E501
+                raise ValueError(msg)  # pragma: no cover  # pragma: no mutate
+            return state
         case _:  # pragma: no cover  # pragma: no mutate
             # Exhaustiveness guard (LibCST attaches leading comments to the
             # next node, so the `# pragma: no mutate` only takes effect if

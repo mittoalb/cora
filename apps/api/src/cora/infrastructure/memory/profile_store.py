@@ -18,8 +18,6 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from uuid import UUID
 
-import asyncpg
-
 from cora.infrastructure.ports.profile_store import Profile
 
 
@@ -58,7 +56,7 @@ class InMemoryProfileStore:
     async def get_many(self, actor_ids: Sequence[UUID]) -> dict[UUID, Profile]:
         return {aid: self._rows[aid] for aid in actor_ids if aid in self._rows}
 
-    async def scrub_and_delete(self, conn: asyncpg.Connection, actor_id: UUID) -> None:
+    async def scrub_and_delete(self, conn: object, actor_id: UUID) -> None:
         _ = conn  # in-memory: no transaction; contract preserved at type level
         self._rows.pop(actor_id, None)
 

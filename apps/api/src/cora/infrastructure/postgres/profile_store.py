@@ -102,13 +102,19 @@ class PostgresProfileStore:
             rows = await conn.fetch(_GET_MANY_SQL, list(actor_ids))
         return {row["actor_id"]: _row_to_profile(row) for row in rows}
 
-    async def scrub_and_delete(self, conn: asyncpg.Connection, actor_id: UUID) -> None:
+    async def scrub_and_delete(self, conn: object, actor_id: UUID) -> None:
         # Scrub first (UPDATE name = '') so the dead tuple bytes that
         # linger until VACUUM no longer contain PII. Then DELETE marks
         # the scrubbed version dead. Both statements idempotent on
         # missing row (rowcount = 0).
-        await conn.execute(_SCRUB_SQL, actor_id)
-        await conn.execute(_DELETE_SQL, actor_id)
+        #
+        # `conn` is typed as `object` on the Protocol; the adapter
+        # narrows at runtime by calling `conn.execute(...)`, which both
+        # asyncpg.Connection and PoolConnectionProxy expose with the
+        # same signature.
+        pg_conn: asyncpg.Connection = conn  # type: ignore[assignment]
+        await pg_conn.execute(_SCRUB_SQL, actor_id)
+        await pg_conn.execute(_DELETE_SQL, actor_id)
 
 
 __all__ = ["PostgresProfileStore"]

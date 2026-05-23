@@ -71,9 +71,29 @@ class ActorDeactivated:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class ActorProfileForgotten:
+    """Audit event for PII erasure (GDPR / PIPL / LGPD / CCPA "right to
+    be forgotten").
+
+    Carries NO PII — only `actor_id` + the timestamp when the
+    erasure landed. Emitted by the `forget_actor` slice in the same
+    Postgres transaction that scrubs + deletes the corresponding
+    `actor_profile` row, so the event log carries a permanent audit
+    trail of "this actor's PII was erased on this date" without
+    re-introducing any identifying data. Aggregate state is
+    unchanged by this event; the event exists purely for downstream
+    subscribers (the projection swaps the cached `name` for the
+    tombstone literal).
+    """
+
+    actor_id: UUID
+    forgotten_at: datetime
+
+
 # Discriminated union of every event the Actor aggregate emits. Add new
 # event classes above and extend this alias when new slices land.
-ActorEvent = ActorRegistered | ActorDeactivated
+ActorEvent = ActorRegistered | ActorDeactivated | ActorProfileForgotten
 
 
 def event_type_name(event: ActorEvent) -> str:
@@ -105,6 +125,11 @@ def to_payload(event: ActorEvent) -> dict[str, Any]:
             return {
                 "actor_id": str(actor_id),
                 "occurred_at": occurred_at.isoformat(),
+            }
+        case ActorProfileForgotten(actor_id=actor_id, forgotten_at=forgotten_at):
+            return {
+                "actor_id": str(actor_id),
+                "forgotten_at": forgotten_at.isoformat(),
             }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
@@ -166,6 +191,15 @@ def from_stored(stored: StoredEvent) -> ActorEvent:
             except (KeyError, TypeError, AttributeError, ValueError) as exc:
                 msg = f"Malformed ActorDeactivated payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
+        case "ActorProfileForgotten":
+            try:
+                return ActorProfileForgotten(
+                    actor_id=UUID(payload["actor_id"]),
+                    forgotten_at=datetime.fromisoformat(payload["forgotten_at"]),
+                )
+            except (KeyError, TypeError, AttributeError, ValueError) as exc:
+                msg = f"Malformed ActorProfileForgotten payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown ActorEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -174,6 +208,7 @@ def from_stored(stored: StoredEvent) -> ActorEvent:
 __all__ = [
     "ActorDeactivated",
     "ActorEvent",
+    "ActorProfileForgotten",
     "ActorRegistered",
     "event_type_name",
     "from_stored",

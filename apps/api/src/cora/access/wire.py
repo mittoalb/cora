@@ -20,7 +20,11 @@ innermost first):
 Update-style commands (deactivate_actor) skip idempotency: they are
 inherently idempotent at the domain level (second call hits
 ActorAlreadyDeactivatedError). Queries (get_actor) skip idempotency:
-no state mutation.
+no state mutation. `forget_actor` IS idempotency-wrapped because
+the slice is destructive (PII erasure) and an Idempotency-Key
+double-click must not append two audit events; the inner
+scrub_and_delete is itself idempotent on missing row, but the
+event-append is not.
 """
 
 from dataclasses import dataclass
@@ -28,6 +32,7 @@ from uuid import UUID
 
 from cora.access.features import (
     deactivate_actor,
+    forget_actor,
     get_actor,
     list_actors,
     register_actor,
@@ -53,6 +58,7 @@ class AccessHandlers:
 
     register_actor: register_actor.IdempotentHandler
     deactivate_actor: deactivate_actor.Handler
+    forget_actor: forget_actor.IdempotentHandler
     get_actor: get_actor.Handler
     list_actors: list_actors.Handler
 
@@ -84,6 +90,20 @@ def wire_access(deps: Kernel) -> AccessHandlers:
         deactivate_actor=with_tracing(
             deactivate_actor.bind(deps),
             command_name="DeactivateActor",
+            bc=_BC,
+        ),
+        forget_actor=with_tracing(
+            with_idempotency(
+                forget_actor.bind(deps),
+                deps.idempotency_store,
+                command_name="ForgetActor",
+                # Handler returns None; the idempotency cache stores
+                # the empty-result sentinel, replays it on duplicate.
+                serialize_result=lambda _: "",
+                deserialize_result=lambda _: None,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="ForgetActor",
             bc=_BC,
         ),
         get_actor=with_tracing(

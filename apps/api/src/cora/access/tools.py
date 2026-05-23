@@ -15,6 +15,7 @@ from collections.abc import Callable
 from mcp.server.fastmcp import FastMCP
 
 from cora.access.features.deactivate_actor import tool as deactivate_actor_tool
+from cora.access.features.forget_actor import tool as forget_actor_tool
 from cora.access.features.get_actor import tool as get_actor_tool
 from cora.access.features.list_actors import tool as list_actors_tool
 from cora.access.features.register_actor import tool as register_actor_tool
@@ -34,6 +35,10 @@ def register_access_tools(
     deactivate_actor_tool.register(
         mcp,
         get_handler=lambda: get_handlers().deactivate_actor,
+    )
+    forget_actor_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().forget_actor,
     )
     get_actor_tool.register(
         mcp,

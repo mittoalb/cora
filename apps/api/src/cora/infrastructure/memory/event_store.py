@@ -75,7 +75,14 @@ class InMemoryEventStore:
     async def append_streams(
         self,
         streams: Sequence[StreamAppend],
+        *,
+        conn: object | None = None,
     ) -> dict[UUID, int]:
+        # `conn` parameter on the EventStore port lets forget_actor
+        # bundle a profile_store.scrub_and_delete + this append in one
+        # Postgres transaction. In-memory has no transaction concept;
+        # the contract is preserved at the type level.
+        _ = conn
         non_empty = [s for s in streams if s.events]
         if not non_empty:
             return {s.stream_id: s.expected_version for s in streams}
