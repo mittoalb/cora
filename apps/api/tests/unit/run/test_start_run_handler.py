@@ -121,7 +121,7 @@ async def _seed_method(
     event = MethodDefined(
         method_id=method_id,
         name="Test Method",
-        needed_families=sorted(needed_families, key=str),
+        needed_families=tuple(sorted(needed_families, key=str)),
         occurred_at=_NOW,
     )
     await _append(
@@ -215,7 +215,7 @@ async def _seed_plan(
     plan_id: UUID,
     *,
     practice_id: UUID,
-    asset_ids: list[UUID],
+    asset_ids: tuple[UUID, ...],
     method_id: UUID,
     deprecated: bool = False,
 ) -> None:
@@ -223,9 +223,9 @@ async def _seed_plan(
         plan_id=plan_id,
         name="Test Plan",
         practice_id=practice_id,
-        asset_ids=sorted(asset_ids, key=str),
+        asset_ids=tuple(sorted(asset_ids, key=str)),
         method_id=method_id,
-        method_needed_families_snapshot=[],
+        method_needed_families_snapshot=(),
         asset_families_snapshot={},
         occurred_at=_NOW,
     )
@@ -309,7 +309,7 @@ async def _seed_full_chain(
         store,
         plan_id,
         practice_id=practice_id,
-        asset_ids=[asset_id],
+        asset_ids=(asset_id,),
         method_id=method_id,
         deprecated=plan_deprecated,
     )
@@ -462,7 +462,7 @@ async def test_handler_raises_practice_not_found_when_referenced_practice_missin
         store,
         plan_id,
         practice_id=bogus_practice_id,
-        asset_ids=[asset_id],
+        asset_ids=(asset_id,),
         method_id=method_id,
     )
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
@@ -489,7 +489,7 @@ async def test_handler_raises_method_not_found_when_referenced_method_missing() 
         store,
         plan_id,
         practice_id=practice_id,
-        asset_ids=[asset_id],
+        asset_ids=(asset_id,),
         method_id=bogus_method_id,
     )
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
@@ -517,7 +517,7 @@ async def test_handler_raises_asset_not_found_when_bound_asset_missing() -> None
         store,
         plan_id,
         practice_id=practice_id,
-        asset_ids=[bogus_asset_id],
+        asset_ids=(bogus_asset_id,),
         method_id=method_id,
     )
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)

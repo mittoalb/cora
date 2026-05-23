@@ -87,8 +87,8 @@ def _seed_policy(
         policy_id=policy_id,
         name="Bola-test-policy",
         conduit_id=UUID(int=0),
-        permitted_principals=[permitted_principal],
-        permitted_commands=list(permitted_commands),
+        permitted_principals=(permitted_principal,),
+        permitted_commands=tuple(permitted_commands),
         occurred_at=datetime.now(tz=UTC),
     )
     new_event = to_new_event(

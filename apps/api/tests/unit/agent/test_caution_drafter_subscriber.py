@@ -135,9 +135,9 @@ async def _seed_plan(store: InMemoryEventStore, *, plan_id: UUID = _PLAN_ID) -> 
         plan_id=plan_id,
         name="Test Plan",
         practice_id=_PRACTICE_ID,
-        asset_ids=[_ASSET_ID],
+        asset_ids=(_ASSET_ID,),
         method_id=_METHOD_ID,
-        method_needed_families_snapshot=[],
+        method_needed_families_snapshot=(),
         asset_families_snapshot={_ASSET_ID: []},
         occurred_at=_NOW,
     )

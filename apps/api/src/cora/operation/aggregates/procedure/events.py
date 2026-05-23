@@ -28,13 +28,14 @@ needs the surface.
 
 ## Payload conventions
 
-`target_asset_ids` is stored as `list[UUID]` in payloads (events
-carry primitives; lists JSON-serialize cleanly). The evolver
-converts to `frozenset` when folding into Procedure state. The list
-is sorted by string form in `to_payload` so the same logical Asset
+`target_asset_ids` is stored as `tuple[UUID, ...]` in payloads (events
+carry primitives; tuples JSON-serialize cleanly and are immutable
+so the fold step can't alias a mutable list into state). The evolver
+converts to `frozenset` when folding into Procedure state. The values
+are sorted by string form in `to_payload` so the same logical Asset
 set serializes deterministically -- important for hash-based
-idempotency. Same precedent as Method's needed_families (6a) and
-Plan's asset_ids (6e-1).
+idempotency. Same precedent as Method's needed_families and Plan's
+asset_ids.
 
 `parent_run_id` is stored as `str | None` in payloads (UUID
 serialized via `str()` when present). Optional binding: standalone
@@ -79,7 +80,7 @@ class ProcedureRegistered:
     procedure_id: UUID
     name: str
     kind: str
-    target_asset_ids: list[UUID]
+    target_asset_ids: tuple[UUID, ...]
     parent_run_id: UUID | None
     occurred_at: datetime
     capability_id: UUID | None = None
@@ -343,7 +344,7 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
                     procedure_id=UUID(payload["procedure_id"]),
                     name=payload["name"],
                     kind=payload["kind"],
-                    target_asset_ids=[UUID(a) for a in payload["target_asset_ids"]],
+                    target_asset_ids=tuple(UUID(a) for a in payload["target_asset_ids"]),
                     parent_run_id=UUID(raw_parent) if raw_parent is not None else None,
                     capability_id=UUID(raw_capability) if raw_capability is not None else None,
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),

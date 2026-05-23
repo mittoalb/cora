@@ -300,8 +300,8 @@ async def test_concurrent_writes_against_bootstrap_stream_fail_loud(
         policy_id=SYSTEM_BOOTSTRAP_POLICY_ID,
         name="Accidental Overwrite Attempt",
         conduit_id=_NIL_CONDUIT,
-        permitted_principals=[UUID("01900000-0000-7000-8000-000000000d01")],
-        permitted_commands=["DefineEverything"],
+        permitted_principals=(UUID("01900000-0000-7000-8000-000000000d01"),),
+        permitted_commands=("DefineEverything",),
         occurred_at=_NOW,
     )
     new_event = to_new_event(

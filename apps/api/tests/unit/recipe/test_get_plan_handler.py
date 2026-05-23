@@ -53,9 +53,9 @@ async def _seed_plan(
         plan_id=plan_id,
         name=name,
         practice_id=practice_id,
-        asset_ids=[asset_id],
+        asset_ids=(asset_id,),
         method_id=method_id,
-        method_needed_families_snapshot=[],
+        method_needed_families_snapshot=(),
         asset_families_snapshot={asset_id: []},
         occurred_at=_NOW,
     )

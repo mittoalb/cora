@@ -56,9 +56,9 @@ def test_event_type_name_returns_class_name() -> None:
         plan_id=uuid4(),
         name="X",
         practice_id=uuid4(),
-        asset_ids=[],
+        asset_ids=(),
         method_id=uuid4(),
-        method_needed_families_snapshot=[],
+        method_needed_families_snapshot=(),
         asset_families_snapshot={},
         occurred_at=_NOW,
     )
@@ -76,9 +76,9 @@ def test_to_payload_serializes_plan_defined_to_primitives() -> None:
         plan_id=plan_id,
         name="32-ID FlyScan",
         practice_id=practice_id,
-        asset_ids=[asset_id],
+        asset_ids=(asset_id,),
         method_id=method_id,
-        method_needed_families_snapshot=[cap_id],
+        method_needed_families_snapshot=(cap_id,),
         asset_families_snapshot={asset_id: [cap_id]},
         occurred_at=_NOW,
     )
@@ -104,9 +104,9 @@ def test_to_payload_sorts_asset_ids_for_determinism() -> None:
         plan_id=uuid4(),
         name="X",
         practice_id=uuid4(),
-        asset_ids=[a1, a2, a3],
+        asset_ids=(a1, a2, a3),
         method_id=uuid4(),
-        method_needed_families_snapshot=[],
+        method_needed_families_snapshot=(),
         asset_families_snapshot={},
         occurred_at=_NOW,
     )
@@ -114,9 +114,9 @@ def test_to_payload_sorts_asset_ids_for_determinism() -> None:
         plan_id=forward.plan_id,
         name=forward.name,
         practice_id=forward.practice_id,
-        asset_ids=[a3, a2, a1],
+        asset_ids=(a3, a2, a1),
         method_id=forward.method_id,
-        method_needed_families_snapshot=[],
+        method_needed_families_snapshot=(),
         asset_families_snapshot={},
         occurred_at=_NOW,
     )
@@ -132,9 +132,9 @@ def test_to_payload_sorts_method_needed_families_snapshot_for_determinism() -> N
         plan_id=uuid4(),
         name="X",
         practice_id=uuid4(),
-        asset_ids=[],
+        asset_ids=(),
         method_id=uuid4(),
-        method_needed_families_snapshot=[c1, c2],
+        method_needed_families_snapshot=(c1, c2),
         asset_families_snapshot={},
         occurred_at=_NOW,
     )
@@ -142,9 +142,9 @@ def test_to_payload_sorts_method_needed_families_snapshot_for_determinism() -> N
         plan_id=forward.plan_id,
         name=forward.name,
         practice_id=forward.practice_id,
-        asset_ids=[],
+        asset_ids=(),
         method_id=forward.method_id,
-        method_needed_families_snapshot=[c2, c1],
+        method_needed_families_snapshot=(c2, c1),
         asset_families_snapshot={},
         occurred_at=_NOW,
     )
@@ -170,9 +170,9 @@ def test_to_payload_sorts_asset_families_snapshot_keys_and_values() -> None:
         plan_id=uuid4(),
         name="X",
         practice_id=uuid4(),
-        asset_ids=[],
+        asset_ids=(),
         method_id=uuid4(),
-        method_needed_families_snapshot=[],
+        method_needed_families_snapshot=(),
         asset_families_snapshot=snapshot_unsorted,
         occurred_at=_NOW,
     )
@@ -211,9 +211,9 @@ def test_from_stored_rebuilds_plan_defined() -> None:
         plan_id=plan_id,
         name="32-ID FlyScan",
         practice_id=practice_id,
-        asset_ids=[asset_id],
+        asset_ids=(asset_id,),
         method_id=method_id,
-        method_needed_families_snapshot=[cap_id],
+        method_needed_families_snapshot=(cap_id,),
         asset_families_snapshot={asset_id: [cap_id]},
         occurred_at=_NOW,
     )
@@ -228,9 +228,9 @@ def test_to_payload_then_from_stored_round_trips() -> None:
         plan_id=uuid4(),
         name="X",
         practice_id=uuid4(),
-        asset_ids=[asset_id],
+        asset_ids=(asset_id,),
         method_id=uuid4(),
-        method_needed_families_snapshot=[cap_id],
+        method_needed_families_snapshot=(cap_id,),
         asset_families_snapshot={asset_id: [cap_id]},
         occurred_at=_NOW,
     )
@@ -591,7 +591,7 @@ def test_from_stored_reads_legacy_asset_capabilities_snapshot_payload_key() -> N
     )
     rebuilt = from_stored(stored)
     assert isinstance(rebuilt, PlanDefined)
-    assert rebuilt.method_needed_families_snapshot == [legacy_cap_id]
+    assert rebuilt.method_needed_families_snapshot == (legacy_cap_id,)
     assert rebuilt.asset_families_snapshot == {asset_id: [legacy_cap_id]}
 
 
@@ -624,7 +624,7 @@ def test_from_stored_prefers_new_families_snapshot_over_legacy_key() -> None:
     )
     rebuilt = from_stored(stored)
     assert isinstance(rebuilt, PlanDefined)
-    assert rebuilt.method_needed_families_snapshot == [new_id]
+    assert rebuilt.method_needed_families_snapshot == (new_id,)
     assert rebuilt.asset_families_snapshot == {asset_id: [new_id]}
 
 

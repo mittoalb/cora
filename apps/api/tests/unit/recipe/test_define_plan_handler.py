@@ -146,7 +146,7 @@ async def _seed_method(
     event = MethodDefined(
         method_id=method_id,
         name="Test Method",
-        needed_families=sorted(needed_families, key=str),
+        needed_families=tuple(sorted(needed_families, key=str)),
         capability_id=capability_id,
         occurred_at=_NOW,
     )

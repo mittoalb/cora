@@ -112,7 +112,7 @@ async def _seed_asset_with_port(
 async def _seed_plan(
     store: InMemoryEventStore,
     *,
-    asset_ids: list[UUID],
+    asset_ids: tuple[UUID, ...],
 ) -> None:
     """Seed a Plan binding the given Asset ids."""
     event = PlanDefined(
@@ -121,7 +121,7 @@ async def _seed_plan(
         practice_id=_PRACTICE_ID,
         asset_ids=asset_ids,
         method_id=_METHOD_ID,
-        method_needed_families_snapshot=[],
+        method_needed_families_snapshot=(),
         asset_families_snapshot={a: [] for a in asset_ids},
         occurred_at=_NOW,
     )
@@ -162,7 +162,7 @@ async def _setup_two_asset_plan(store: InMemoryEventStore) -> None:
         direction="Input",
         signal_type="TTL",
     )
-    await _seed_plan(store, asset_ids=[_SRC_ASSET_ID, _TGT_ASSET_ID])
+    await _seed_plan(store, asset_ids=(_SRC_ASSET_ID, _TGT_ASSET_ID))
 
 
 # ---------- add_plan_wire handler ----------
@@ -290,7 +290,7 @@ async def test_add_plan_wire_handler_dedupes_loads_when_source_equals_target() -
     await store.append(
         stream_type="Asset", stream_id=_SRC_ASSET_ID, expected_version=0, events=events
     )
-    await _seed_plan(store, asset_ids=[_SRC_ASSET_ID])
+    await _seed_plan(store, asset_ids=(_SRC_ASSET_ID,))
     deps = _build_deps(event_store=store)
 
     await add_plan_wire.bind(deps)(
@@ -341,7 +341,7 @@ async def test_add_plan_wire_handler_surfaces_asset_not_bound_for_unbound_target
         signal_type="TTL",
     )
     # Plan binds source only — extra_asset_id is NOT in asset_ids.
-    await _seed_plan(store, asset_ids=[_SRC_ASSET_ID])
+    await _seed_plan(store, asset_ids=(_SRC_ASSET_ID,))
     deps = _build_deps(event_store=store)
 
     with pytest.raises(PlanWireAssetNotBoundError) as exc_info:

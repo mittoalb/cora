@@ -32,7 +32,7 @@ async def _seed_procedure_registered(
         procedure_id=procedure_id,
         name="Vessel-A bakeout",
         kind="bakeout",
-        target_asset_ids=[],
+        target_asset_ids=(),
         parent_run_id=None,
         occurred_at=_NOW,
     )

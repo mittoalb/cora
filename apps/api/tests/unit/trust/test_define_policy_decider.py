@@ -117,8 +117,8 @@ def test_decide_allows_empty_permission_sets() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].permitted_principals == []
-    assert events[0].permitted_commands == []
+    assert events[0].permitted_principals == ()
+    assert events[0].permitted_commands == ()
 
 
 @pytest.mark.unit

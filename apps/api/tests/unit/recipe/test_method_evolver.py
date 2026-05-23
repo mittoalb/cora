@@ -41,7 +41,7 @@ def test_evolve_method_defined_sets_status_to_defined() -> None:
         MethodDefined(
             method_id=method_id,
             name="XRF Fly Mapping",
-            needed_families=[cap1],
+            needed_families=(cap1,),
             occurred_at=_NOW,
         ),
     )
@@ -68,7 +68,7 @@ def test_evolve_converts_list_to_frozenset() -> None:
         MethodDefined(
             method_id=uuid4(),
             name="X",
-            needed_families=[cap1, cap2, cap3, cap1],  # duplicate
+            needed_families=(cap1, cap2, cap3, cap1),  # duplicate
             occurred_at=_NOW,
         ),
     )
@@ -86,7 +86,7 @@ def test_evolve_handles_empty_needed_families() -> None:
         MethodDefined(
             method_id=uuid4(),
             name="Sample Cleaning",
-            needed_families=[],
+            needed_families=(),
             occurred_at=_NOW,
         ),
     )
@@ -107,7 +107,7 @@ def test_fold_single_method_defined_returns_method() -> None:
             MethodDefined(
                 method_id=method_id,
                 name="Step Tomography",
-                needed_families=[cap1],
+                needed_families=(cap1,),
                 occurred_at=_NOW,
             )
         ]
@@ -127,7 +127,7 @@ def test_fold_is_pure_same_input_same_output() -> None:
         MethodDefined(
             method_id=uuid4(),
             name="X",
-            needed_families=[cap1],
+            needed_families=(cap1,),
             occurred_at=_NOW,
         )
     ]
@@ -184,7 +184,7 @@ def test_evolve_method_defined_starts_with_null_version() -> None:
     an upcaster)."""
     state = evolve(
         None,
-        MethodDefined(method_id=uuid4(), name="X", needed_families=[], occurred_at=_NOW),
+        MethodDefined(method_id=uuid4(), name="X", needed_families=(), occurred_at=_NOW),
     )
     assert state.version is None
 
@@ -290,7 +290,7 @@ def test_fold_define_version_yields_versioned_method() -> None:
     method_id = uuid4()
     state = fold(
         [
-            MethodDefined(method_id=method_id, name="X", needed_families=[], occurred_at=_NOW),
+            MethodDefined(method_id=method_id, name="X", needed_families=(), occurred_at=_NOW),
             MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW),
         ]
     )
@@ -305,7 +305,7 @@ def test_fold_define_version_version_yields_latest_version_tag() -> None:
     method_id = uuid4()
     state = fold(
         [
-            MethodDefined(method_id=method_id, name="X", needed_families=[], occurred_at=_NOW),
+            MethodDefined(method_id=method_id, name="X", needed_families=(), occurred_at=_NOW),
             MethodVersioned(method_id=method_id, version_tag="v1", occurred_at=_NOW),
             MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW),
             MethodVersioned(method_id=method_id, version_tag="v3", occurred_at=_NOW),
@@ -320,7 +320,7 @@ def test_fold_define_deprecate_yields_deprecated_method() -> None:
     method_id = uuid4()
     state = fold(
         [
-            MethodDefined(method_id=method_id, name="X", needed_families=[], occurred_at=_NOW),
+            MethodDefined(method_id=method_id, name="X", needed_families=(), occurred_at=_NOW),
             MethodDeprecated(method_id=method_id, occurred_at=_NOW),
         ]
     )
@@ -335,7 +335,7 @@ def test_fold_define_version_deprecate_preserves_version_through_deprecation() -
     method_id = uuid4()
     state = fold(
         [
-            MethodDefined(method_id=method_id, name="X", needed_families=[], occurred_at=_NOW),
+            MethodDefined(method_id=method_id, name="X", needed_families=(), occurred_at=_NOW),
             MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW),
             MethodDeprecated(method_id=method_id, occurred_at=_NOW),
         ]
@@ -382,7 +382,7 @@ def test_evolve_method_defined_starts_with_null_parameters_schema() -> None:
     an upcaster)."""
     state = evolve(
         None,
-        MethodDefined(method_id=uuid4(), name="X", needed_families=[], occurred_at=_NOW),
+        MethodDefined(method_id=uuid4(), name="X", needed_families=(), occurred_at=_NOW),
     )
     assert state.parameters_schema is None
 
@@ -477,7 +477,7 @@ def test_fold_define_update_schema_yields_state_with_schema() -> None:
     method_id = uuid4()
     state = fold(
         [
-            MethodDefined(method_id=method_id, name="X", needed_families=[], occurred_at=_NOW),
+            MethodDefined(method_id=method_id, name="X", needed_families=(), occurred_at=_NOW),
             MethodParametersSchemaUpdated(
                 method_id=method_id, parameters_schema=_SCHEMA_A, occurred_at=_NOW
             ),
@@ -494,7 +494,7 @@ def test_fold_define_update_schema_version_carries_schema_through_versioning() -
     method_id = uuid4()
     state = fold(
         [
-            MethodDefined(method_id=method_id, name="X", needed_families=[], occurred_at=_NOW),
+            MethodDefined(method_id=method_id, name="X", needed_families=(), occurred_at=_NOW),
             MethodParametersSchemaUpdated(
                 method_id=method_id, parameters_schema=_SCHEMA_A, occurred_at=_NOW
             ),

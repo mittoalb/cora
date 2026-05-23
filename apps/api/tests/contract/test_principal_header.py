@@ -109,8 +109,8 @@ def _seed_policy_in_store(
         policy_id=policy_id,
         name="Test-policy",
         conduit_id=conduit_id,
-        permitted_principals=list(permitted_principals),
-        permitted_commands=list(permitted_commands),
+        permitted_principals=tuple(permitted_principals),
+        permitted_commands=tuple(permitted_commands),
         occurred_at=datetime.now(tz=UTC),
     )
     new_event = to_new_event(

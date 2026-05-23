@@ -71,9 +71,9 @@ class PlanDefined:
     plan_id: UUID
     name: str
     practice_id: UUID
-    asset_ids: list[UUID]
+    asset_ids: tuple[UUID, ...]
     method_id: UUID
-    method_needed_families_snapshot: list[UUID]
+    method_needed_families_snapshot: tuple[UUID, ...]
     asset_families_snapshot: dict[UUID, list[UUID]]
     occurred_at: datetime
 
@@ -344,9 +344,9 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
                     plan_id=UUID(payload["plan_id"]),
                     name=payload["name"],
                     practice_id=UUID(payload["practice_id"]),
-                    asset_ids=[UUID(a) for a in payload["asset_ids"]],
+                    asset_ids=tuple(UUID(a) for a in payload["asset_ids"]),
                     method_id=UUID(payload["method_id"]),
-                    method_needed_families_snapshot=[UUID(c) for c in needed_snap],
+                    method_needed_families_snapshot=tuple(UUID(c) for c in needed_snap),
                     asset_families_snapshot=_deserialize_asset_families_snapshot(asset_snap),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )

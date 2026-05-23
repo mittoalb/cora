@@ -15,12 +15,13 @@ the Equipment BC.
 
 ## Payload conventions
 
-`needed_families` is stored as `list[UUID]` here (events carry
-primitives per CONTRIBUTING.md; lists JSON-serialize cleanly). The
-evolver converts to `frozenset` when folding into Method state. The
-list is sorted by string form in `to_payload` so the same logical
-family set serializes deterministically — important for
-hash-based idempotency and any future content-addressed lookup.
+`needed_families` is stored as `tuple[UUID, ...]` here (events carry
+primitives per CONTRIBUTING.md; tuples JSON-serialize cleanly and are
+immutable so the fold step can't accidentally alias a mutable list
+into state). The evolver converts to `frozenset` when folding into
+Method state. The values are sorted by string form in `to_payload` so
+the same logical family set serializes deterministically — important
+for hash-based idempotency and any future content-addressed lookup.
 Same precedent as Trust's PolicyDefined.
 
 Status is NOT carried in event payloads — the event type itself
@@ -30,7 +31,7 @@ arm. Same precedent as `FamilyDefined → DEFINED` /
 `SubjectMounted → MOUNTED`.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
@@ -50,16 +51,16 @@ class MethodDefined:
 
     `needed_supplies` (additive evolution) carries Supply
     KIND strings the Method requires, NOT Supply instance ids.
-    Older events without the field fold via `payload.get("needed_supplies", [])`. The
-    list is sorted by string form in `to_payload` for persistence
-    determinism (matches needed_families). Default empty list.
+    Older events without the field fold via `payload.get("needed_supplies", ())`. The
+    values are sorted by string form in `to_payload` for persistence
+    determinism (matches needed_families). Default empty tuple.
     """
 
     method_id: UUID
     name: str
-    needed_families: list[UUID]
+    needed_families: tuple[UUID, ...]
     occurred_at: datetime
-    needed_supplies: list[str] = field(default_factory=list[str])
+    needed_supplies: tuple[str, ...] = ()
     # additive evolution: capability_id points to the
     # universal Capability template this Method realizes. Defaults
     # None for older events without the field (additive-state pattern); current decider
@@ -215,11 +216,11 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
                 return MethodDefined(
                     method_id=UUID(payload["method_id"]),
                     name=payload["name"],
-                    needed_families=[UUID(c) for c in payload["needed_families"]],
+                    needed_families=tuple(UUID(c) for c in payload["needed_families"]),
                     # forward-compat: older MethodDefined
                     # payloads have no needed_supplies key; default to empty
-                    # list. Additive-evolution pattern.
-                    needed_supplies=list(payload.get("needed_supplies", [])),
+                    # tuple. Additive-evolution pattern.
+                    needed_supplies=tuple(payload.get("needed_supplies", ())),
                     # forward-compat: older MethodDefined payloads
                     # have no capability_id key; default to None. Currently
                     # the decider enforces non-None at write time.

@@ -36,8 +36,8 @@ class PolicyDefined:
     policy_id: UUID
     name: str
     conduit_id: UUID
-    permitted_principals: list[UUID]
-    permitted_commands: list[str]
+    permitted_principals: tuple[UUID, ...]
+    permitted_commands: tuple[str, ...]
     occurred_at: datetime
     surface_id: UUID = NIL_SENTINEL_ID
 
@@ -92,8 +92,8 @@ def from_stored(stored: StoredEvent) -> PolicyEvent:
                     policy_id=UUID(payload["policy_id"]),
                     name=payload["name"],
                     conduit_id=UUID(payload["conduit_id"]),
-                    permitted_principals=[UUID(p) for p in payload["permitted_principals"]],
-                    permitted_commands=list(payload["permitted_commands"]),
+                    permitted_principals=tuple(UUID(p) for p in payload["permitted_principals"]),
+                    permitted_commands=tuple(payload["permitted_commands"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     # surface_id is post-Phase-B-Iter-B-additive; V1 events
                     # on disk lack it. `.get` with nil default preserves

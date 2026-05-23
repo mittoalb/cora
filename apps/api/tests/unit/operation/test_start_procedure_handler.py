@@ -74,14 +74,14 @@ async def _seed_procedure(
     store: InMemoryEventStore,
     *,
     procedure_id: UUID = _PROCEDURE_ID,
-    target_asset_ids: list[UUID] | None = None,
+    target_asset_ids: tuple[UUID, ...] | None = None,
 ) -> None:
     """Seed a registered (Defined) Procedure into the store."""
     event = ProcedureRegistered(
         procedure_id=procedure_id,
         name="Vessel-A bakeout",
         kind="bakeout",
-        target_asset_ids=target_asset_ids or [],
+        target_asset_ids=target_asset_ids or (),
         parent_run_id=None,
         occurred_at=_PRIOR,
     )
@@ -159,7 +159,7 @@ async def test_handler_loads_target_assets_and_starts_with_active_assets() -> No
     asset_id = UUID("01900000-0000-7000-8000-0000000c0b11")
     store = InMemoryEventStore()
     await _seed_asset(store, asset_id)
-    await _seed_procedure(store, target_asset_ids=[asset_id])
+    await _seed_procedure(store, target_asset_ids=(asset_id,))
     deps = _build_deps_shared(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
     handler = start_procedure.bind(deps)
 
@@ -190,7 +190,7 @@ async def test_handler_raises_when_target_asset_not_found() -> None:
     asset_id = UUID("01900000-0000-7000-8000-0000000c0b21")
     store = InMemoryEventStore()
     # Procedure references asset_id but Asset stream is missing.
-    await _seed_procedure(store, target_asset_ids=[asset_id])
+    await _seed_procedure(store, target_asset_ids=(asset_id,))
     deps = _build_deps_shared(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
     handler = start_procedure.bind(deps)
     with pytest.raises(AssetNotFoundError):
@@ -206,7 +206,7 @@ async def test_handler_raises_when_target_asset_decommissioned() -> None:
     asset_id = UUID("01900000-0000-7000-8000-0000000c0b31")
     store = InMemoryEventStore()
     await _seed_asset(store, asset_id, decommissioned=True)
-    await _seed_procedure(store, target_asset_ids=[asset_id])
+    await _seed_procedure(store, target_asset_ids=(asset_id,))
     deps = _build_deps_shared(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
     handler = start_procedure.bind(deps)
     with pytest.raises(ProcedureAssetDecommissionedError) as exc:

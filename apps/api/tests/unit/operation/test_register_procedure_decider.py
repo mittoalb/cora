@@ -92,7 +92,7 @@ def test_decide_accepts_empty_target_asset_ids() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].target_asset_ids == []
+    assert events[0].target_asset_ids == ()
 
 
 @pytest.mark.unit

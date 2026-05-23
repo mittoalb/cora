@@ -143,9 +143,9 @@ def decide(
             plan_id=new_id,
             name=name.value,
             practice_id=command.practice_id,
-            asset_ids=sorted(command.asset_ids, key=str),
+            asset_ids=tuple(sorted(command.asset_ids, key=str)),
             method_id=context.method.id,
-            method_needed_families_snapshot=sorted(context.method.needed_families, key=str),
+            method_needed_families_snapshot=tuple(sorted(context.method.needed_families, key=str)),
             asset_families_snapshot={
                 asset_id: sorted(context.assets[asset_id].families, key=str)
                 for asset_id in sorted(context.assets.keys(), key=str)

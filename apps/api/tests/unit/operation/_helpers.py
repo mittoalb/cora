@@ -33,7 +33,7 @@ async def seed_registered_procedure(
     procedure_id: UUID,
     name: str = "Vessel-A bakeout",
     kind: str = "bakeout",
-    target_asset_ids: list[UUID] | None = None,
+    target_asset_ids: tuple[UUID, ...] | None = None,
     parent_run_id: UUID | None = None,
     when: datetime,
     correlation_id: UUID,
@@ -44,7 +44,7 @@ async def seed_registered_procedure(
         procedure_id=procedure_id,
         name=name,
         kind=kind,
-        target_asset_ids=target_asset_ids or [],
+        target_asset_ids=target_asset_ids or (),
         parent_run_id=parent_run_id,
         occurred_at=when,
     )

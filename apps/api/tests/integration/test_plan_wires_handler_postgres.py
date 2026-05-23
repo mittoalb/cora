@@ -88,7 +88,7 @@ async def _seed_plan(
     deps: Kernel,
     plan_id: UUID,
     *,
-    asset_ids: list[UUID],
+    asset_ids: tuple[UUID, ...],
 ) -> None:
     """Seed a Plan binding the given Asset ids."""
     practice_id = uuid4()
@@ -99,7 +99,7 @@ async def _seed_plan(
         practice_id=practice_id,
         asset_ids=asset_ids,
         method_id=method_id,
-        method_needed_families_snapshot=[],
+        method_needed_families_snapshot=(),
         asset_families_snapshot={a: [] for a in asset_ids},
         occurred_at=_NOW,
     )
@@ -148,7 +148,7 @@ async def test_add_plan_wire_round_trips_event_against_postgres(
         direction="Input",
         signal_type="TTL",
     )
-    await _seed_plan(deps, plan_id, asset_ids=[src_asset_id, tgt_asset_id])
+    await _seed_plan(deps, plan_id, asset_ids=(src_asset_id, tgt_asset_id))
 
     await add_plan_wire.bind(deps)(
         AddPlanWire(
@@ -199,7 +199,7 @@ async def test_remove_plan_wire_clears_wire_from_state_against_postgres(
         direction="Input",
         signal_type="TTL",
     )
-    await _seed_plan(deps, plan_id, asset_ids=[src_asset_id, tgt_asset_id])
+    await _seed_plan(deps, plan_id, asset_ids=(src_asset_id, tgt_asset_id))
 
     add_handler = add_plan_wire.bind(deps)
     remove_handler = remove_plan_wire.bind(deps)

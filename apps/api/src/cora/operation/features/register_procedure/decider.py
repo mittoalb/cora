@@ -100,7 +100,7 @@ def decide(
             procedure_id=new_id,
             name=name.value,
             kind=kind,
-            target_asset_ids=list(command.target_asset_ids),
+            target_asset_ids=tuple(command.target_asset_ids),
             parent_run_id=command.parent_run_id,
             capability_id=command.capability_id,
             occurred_at=now,

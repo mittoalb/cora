@@ -88,8 +88,8 @@ def decide(
         MethodDefined(
             method_id=new_id,
             name=name.value,
-            needed_families=list(command.needed_families),
-            needed_supplies=trimmed_supplies,
+            needed_families=tuple(command.needed_families),
+            needed_supplies=tuple(trimmed_supplies),
             capability_id=command.capability_id,
             occurred_at=now,
         )

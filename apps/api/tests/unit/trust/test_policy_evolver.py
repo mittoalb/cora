@@ -24,8 +24,8 @@ def test_evolve_policy_defined_from_empty_state() -> None:
             policy_id=policy_id,
             name="Beam-team",
             conduit_id=conduit,
-            permitted_principals=[p1],
-            permitted_commands=["RegisterActor"],
+            permitted_principals=(p1,),
+            permitted_commands=("RegisterActor",),
             occurred_at=_NOW,
         ),
     )
@@ -50,8 +50,8 @@ def test_evolve_converts_lists_to_frozensets() -> None:
             policy_id=policy_id,
             name="X",
             conduit_id=uuid4(),
-            permitted_principals=[p1, p2, p1],  # duplicate intentionally
-            permitted_commands=["A", "B", "A"],
+            permitted_principals=(p1, p2, p1),  # duplicate intentionally
+            permitted_commands=("A", "B", "A"),
             occurred_at=_NOW,
         ),
     )
@@ -74,8 +74,8 @@ def test_fold_single_policy_defined_returns_policy() -> None:
                 policy_id=policy_id,
                 name="Beam-team",
                 conduit_id=conduit,
-                permitted_principals=[],
-                permitted_commands=[],
+                permitted_principals=(),
+                permitted_commands=(),
                 occurred_at=_NOW,
             )
         ]
@@ -96,8 +96,8 @@ def test_fold_is_pure_same_input_same_output() -> None:
             policy_id=uuid4(),
             name="X",
             conduit_id=uuid4(),
-            permitted_principals=[uuid4()],
-            permitted_commands=["X"],
+            permitted_principals=(uuid4(),),
+            permitted_commands=("X",),
             occurred_at=_NOW,
         )
     ]

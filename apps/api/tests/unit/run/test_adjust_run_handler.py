@@ -92,7 +92,7 @@ async def _seed_method(
     define_event = MethodDefined(
         method_id=method_id,
         name="Test Method",
-        needed_families=[],
+        needed_families=(),
         occurred_at=_NOW,
     )
     await _append(
@@ -150,16 +150,16 @@ async def _seed_plan(
     plan_id: UUID,
     *,
     practice_id: UUID,
-    asset_ids: list[UUID],
+    asset_ids: tuple[UUID, ...],
     method_id: UUID,
 ) -> None:
     event = PlanDefined(
         plan_id=plan_id,
         name="Test Plan",
         practice_id=practice_id,
-        asset_ids=sorted(asset_ids, key=str),
+        asset_ids=tuple(sorted(asset_ids, key=str)),
         method_id=method_id,
-        method_needed_families_snapshot=[],
+        method_needed_families_snapshot=(),
         asset_families_snapshot={},
         occurred_at=_NOW,
     )
@@ -232,7 +232,7 @@ async def _seed_full_chain(
 
     await _seed_method(store, method_id, parameters_schema=schema)
     await _seed_practice(store, practice_id, method_id=method_id)
-    await _seed_plan(store, plan_id, practice_id=practice_id, asset_ids=[], method_id=method_id)
+    await _seed_plan(store, plan_id, practice_id=practice_id, asset_ids=(), method_id=method_id)
     await _seed_run_started(
         store, run_id, plan_id=plan_id, effective_parameters=effective_parameters
     )
@@ -371,7 +371,7 @@ async def test_handler_raises_practice_not_found_when_practice_stream_empty() ->
     plan_id = uuid4()
     practice_id = uuid4()
     method_id = uuid4()
-    await _seed_plan(store, plan_id, practice_id=practice_id, asset_ids=[], method_id=method_id)
+    await _seed_plan(store, plan_id, practice_id=practice_id, asset_ids=(), method_id=method_id)
     await _seed_run_started(store, _RUN_ID, plan_id=plan_id)
     deps = build_deps(ids=[_ADJUSTED_EVENT_ID], now=_NOW, event_store=store)
 
@@ -396,7 +396,7 @@ async def test_handler_raises_method_not_found_when_method_stream_empty() -> Non
     practice_id = uuid4()
     method_id = uuid4()
     await _seed_practice(store, practice_id, method_id=method_id)
-    await _seed_plan(store, plan_id, practice_id=practice_id, asset_ids=[], method_id=method_id)
+    await _seed_plan(store, plan_id, practice_id=practice_id, asset_ids=(), method_id=method_id)
     await _seed_run_started(store, _RUN_ID, plan_id=plan_id)
     deps = build_deps(ids=[_ADJUSTED_EVENT_ID], now=_NOW, event_store=store)
 

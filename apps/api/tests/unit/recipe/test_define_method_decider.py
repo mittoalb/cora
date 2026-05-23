@@ -94,7 +94,7 @@ def test_decide_accepts_empty_needed_families() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].needed_families == []
+    assert events[0].needed_families == ()
 
 
 @pytest.mark.unit
@@ -242,5 +242,5 @@ def test_decide_returns_event_when_command_has_only_required_fields() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].needed_families == []
+    assert events[0].needed_families == ()
     assert events[0].capability_id == cap.id

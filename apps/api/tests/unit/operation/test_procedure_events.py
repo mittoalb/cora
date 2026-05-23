@@ -46,7 +46,7 @@ def test_event_type_name_for_procedure_registered() -> None:
         procedure_id=uuid4(),
         name="X",
         kind="bakeout",
-        target_asset_ids=[],
+        target_asset_ids=(),
         parent_run_id=None,
         occurred_at=_NOW,
     )
@@ -63,7 +63,7 @@ def test_to_payload_serializes_procedure_registered_to_primitives() -> None:
         procedure_id=procedure_id,
         name="35-BM rotation-axis alignment",
         kind="alignment",
-        target_asset_ids=[asset2, asset1],  # unsorted input
+        target_asset_ids=(asset2, asset1),  # unsorted input
         parent_run_id=parent_run,
         occurred_at=_NOW,
     )
@@ -88,7 +88,7 @@ def test_to_payload_serializes_standalone_procedure_with_null_parent() -> None:
         procedure_id=uuid4(),
         name="Vessel-A bakeout",
         kind="bakeout",
-        target_asset_ids=[],
+        target_asset_ids=(),
         parent_run_id=None,
         occurred_at=_NOW,
     )
@@ -118,7 +118,7 @@ def test_from_stored_rebuilds_procedure_registered() -> None:
     assert rebuilt.procedure_id == procedure_id
     assert rebuilt.name == "X"
     assert rebuilt.kind == "bakeout"
-    assert rebuilt.target_asset_ids == [asset1]
+    assert rebuilt.target_asset_ids == (asset1,)
     assert rebuilt.parent_run_id == parent_run
 
 
@@ -139,7 +139,7 @@ def test_from_stored_rebuilds_standalone_procedure_with_null_parent() -> None:
     rebuilt = from_stored(stored)
     assert isinstance(rebuilt, ProcedureRegistered)
     assert rebuilt.parent_run_id is None
-    assert rebuilt.target_asset_ids == []
+    assert rebuilt.target_asset_ids == ()
 
 
 @pytest.mark.unit
@@ -201,7 +201,7 @@ def test_procedure_registered_round_trips() -> None:
         procedure_id=uuid4(),
         name="35-BM rotation-axis alignment",
         kind="alignment",
-        target_asset_ids=[asset1, asset2],
+        target_asset_ids=(asset1, asset2),
         parent_run_id=parent_run,
         occurred_at=_NOW,
     )

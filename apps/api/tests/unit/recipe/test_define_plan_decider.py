@@ -151,9 +151,9 @@ def test_decide_emits_plan_defined_for_valid_binding() -> None:
             plan_id=new_id,
             name="32-ID FlyScan Plan",
             practice_id=practice.id,
-            asset_ids=[asset_id],
+            asset_ids=(asset_id,),
             method_id=method.id,
-            method_needed_families_snapshot=[cap],
+            method_needed_families_snapshot=(cap,),
             asset_families_snapshot={asset_id: [cap]},
             occurred_at=_NOW,
         )
@@ -509,7 +509,7 @@ def test_decide_emits_deterministic_asset_id_ordering_for_idempotency() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].asset_ids == sorted([a1, a2, a3], key=str)
+    assert events[0].asset_ids == tuple(sorted([a1, a2, a3], key=str))
 
 
 # ---------- Affordance-cover guard ----------

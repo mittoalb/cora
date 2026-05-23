@@ -46,18 +46,9 @@ if TYPE_CHECKING:
 # Phase β migrates the type to tuple[...] / frozenset[...].
 MUTABLE_COLLECTION_EVENT_FIELDS: frozenset[str] = frozenset(
     {
-        # D15 (audit-explicit): list[UUID] / list[str] in MethodDefined.
-        "cora.recipe.aggregates.method.events.MethodDefined.needed_families",
-        "cora.recipe.aggregates.method.events.MethodDefined.needed_supplies",
-        # Found by this fitness function (audit-implicit; same rule).
-        "cora.operation.aggregates.procedure.events.ProcedureRegistered.target_asset_ids",
-        "cora.recipe.aggregates.plan.events.PlanDefined.asset_ids",
-        "cora.recipe.aggregates.plan.events.PlanDefined.method_needed_families_snapshot",
-        "cora.trust.aggregates.policy.events.PolicyDefined.permitted_principals",
-        "cora.trust.aggregates.policy.events.PolicyDefined.permitted_commands",
         # Nested mutability: dict[UUID, list[UUID]] — outer dict is out
         # of this test's scope, but the inner list[UUID] is fold-aliased
-        # the same way. Documented here for Phase β review.
+        # the same way. Documented here pending the per-key migration.
         "cora.recipe.aggregates.plan.events.PlanDefined.asset_families_snapshot",
     }
 )

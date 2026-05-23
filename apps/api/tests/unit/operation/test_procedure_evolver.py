@@ -28,7 +28,7 @@ def _defined(
     procedure_id: UUID | None = None,
     name: str = "Vessel-A bakeout",
     kind: str = "bakeout",
-    target_asset_ids: list[UUID] | None = None,
+    target_asset_ids: tuple[UUID, ...] | None = None,
     parent_run_id: UUID | None = None,
     capability_id: UUID | None = None,
 ) -> Procedure:
@@ -39,7 +39,7 @@ def _defined(
                 procedure_id=procedure_id or uuid4(),
                 name=name,
                 kind=kind,
-                target_asset_ids=target_asset_ids or [],
+                target_asset_ids=target_asset_ids or (),
                 parent_run_id=parent_run_id,
                 capability_id=capability_id,
                 occurred_at=_NOW,
@@ -61,7 +61,7 @@ def test_evolve_procedure_registered_sets_status_to_defined() -> None:
             procedure_id=procedure_id,
             name="35-BM rotation-axis alignment",
             kind="alignment",
-            target_asset_ids=[asset1, asset2],
+            target_asset_ids=(asset1, asset2),
             parent_run_id=None,
             occurred_at=_NOW,
         ),
@@ -86,7 +86,7 @@ def test_evolve_procedure_registered_with_parent_run_id() -> None:
             procedure_id=procedure_id,
             name="Mid-run calibration sweep",
             kind="calibration",
-            target_asset_ids=[],
+            target_asset_ids=(),
             parent_run_id=parent_run,
             occurred_at=_NOW,
         ),
@@ -105,7 +105,7 @@ def test_evolve_procedure_registered_converts_target_assets_to_frozenset() -> No
             procedure_id=uuid4(),
             name="X",
             kind="bakeout",
-            target_asset_ids=[asset1, asset1],  # dup
+            target_asset_ids=(asset1, asset1),  # dup
             parent_run_id=None,
             occurred_at=_NOW,
         ),
@@ -128,7 +128,7 @@ def test_fold_single_procedure_registered_returns_procedure() -> None:
                 procedure_id=procedure_id,
                 name="X",
                 kind="bakeout",
-                target_asset_ids=[],
+                target_asset_ids=(),
                 parent_run_id=None,
                 occurred_at=_NOW,
             )
@@ -146,7 +146,7 @@ def test_fold_is_pure_same_input_same_output() -> None:
             procedure_id=uuid4(),
             name="X",
             kind="bakeout",
-            target_asset_ids=[],
+            target_asset_ids=(),
             parent_run_id=None,
             occurred_at=_NOW,
         )
@@ -194,7 +194,7 @@ def test_evolve_procedure_started_preserves_all_fields() -> None:
     prior = _defined(
         name="35-BM rotation-axis alignment",
         kind="alignment",
-        target_asset_ids=[asset],
+        target_asset_ids=(asset,),
         parent_run_id=parent_run,
     )
     state = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
@@ -212,7 +212,7 @@ def test_evolve_procedure_completed_preserves_all_fields() -> None:
     prior = _defined(
         name="35-BM rotation-axis alignment",
         kind="alignment",
-        target_asset_ids=[asset],
+        target_asset_ids=(asset,),
         parent_run_id=parent_run,
     )
     started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
@@ -227,7 +227,7 @@ def test_evolve_procedure_completed_preserves_all_fields() -> None:
 @pytest.mark.unit
 def test_evolve_procedure_aborted_preserves_all_fields() -> None:
     asset = uuid4()
-    prior = _defined(target_asset_ids=[asset])
+    prior = _defined(target_asset_ids=(asset,))
     started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
     state = evolve(started, ProcedureAborted(procedure_id=prior.id, reason="x", occurred_at=_NOW))
     assert state.id == prior.id
@@ -244,7 +244,7 @@ def test_fold_full_happy_path_yields_completed() -> None:
             procedure_id=pid,
             name="X",
             kind="bakeout",
-            target_asset_ids=[],
+            target_asset_ids=(),
             parent_run_id=None,
             occurred_at=_NOW,
         ),
@@ -264,7 +264,7 @@ def test_fold_aborted_path_yields_aborted() -> None:
             procedure_id=pid,
             name="X",
             kind="bakeout",
-            target_asset_ids=[],
+            target_asset_ids=(),
             parent_run_id=None,
             occurred_at=_NOW,
         ),
@@ -348,7 +348,7 @@ def test_evolve_steps_logbook_opened_preserves_all_other_fields() -> None:
     prior = _defined(
         name="35-BM rotation-axis alignment",
         kind="alignment",
-        target_asset_ids=[asset],
+        target_asset_ids=(asset,),
         parent_run_id=parent_run,
     )
     started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
@@ -408,7 +408,7 @@ def test_fold_lazy_open_then_complete_yields_completed_with_logbook_id() -> None
             procedure_id=pid,
             name="X",
             kind="bakeout",
-            target_asset_ids=[],
+            target_asset_ids=(),
             parent_run_id=None,
             occurred_at=_NOW,
         ),
@@ -469,7 +469,7 @@ def test_evolve_procedure_truncated_preserves_all_fields() -> None:
     prior = _defined(
         name="35-BM rotation-axis alignment",
         kind="alignment",
-        target_asset_ids=[asset],
+        target_asset_ids=(asset,),
         parent_run_id=parent_run,
     )
     started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
@@ -519,7 +519,7 @@ def test_fold_truncated_path_yields_truncated() -> None:
             procedure_id=pid,
             name="X",
             kind="bakeout",
-            target_asset_ids=[],
+            target_asset_ids=(),
             parent_run_id=None,
             occurred_at=_NOW,
         ),

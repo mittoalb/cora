@@ -107,7 +107,7 @@ def test_decider_accepts_empty_needed_supplies() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].needed_supplies == []
+    assert events[0].needed_supplies == ()
 
 
 @pytest.mark.unit
@@ -228,8 +228,8 @@ def test_to_payload_sorts_needed_supplies_lexically() -> None:
     event = MethodDefined(
         method_id=uuid4(),
         name="X",
-        needed_families=[],
-        needed_supplies=["LiquidNitrogen", "PhotonBeam", "ComputePool"],
+        needed_families=(),
+        needed_supplies=("LiquidNitrogen", "PhotonBeam", "ComputePool"),
         occurred_at=_NOW,
     )
     payload = to_payload(event)
@@ -241,8 +241,8 @@ def test_event_round_trips_with_needed_supplies() -> None:
     original = MethodDefined(
         method_id=uuid4(),
         name="Tomography",
-        needed_families=[],
-        needed_supplies=["LiquidNitrogen", "PhotonBeam"],
+        needed_families=(),
+        needed_supplies=("LiquidNitrogen", "PhotonBeam"),
         occurred_at=_NOW,
     )
     stored = _stored("MethodDefined", to_payload(original))
@@ -271,7 +271,7 @@ def test_legacy_event_payload_folds_with_empty_needed_supplies() -> None:
     stored = _stored("MethodDefined", legacy_payload)
     rebuilt = from_stored(stored)
     assert isinstance(rebuilt, MethodDefined)
-    assert rebuilt.needed_supplies == []
+    assert rebuilt.needed_supplies == ()
     state = evolve(None, rebuilt)
     assert state.needed_supplies == frozenset()
 
@@ -285,8 +285,8 @@ def test_evolve_method_defined_sets_needed_supplies() -> None:
     event = MethodDefined(
         method_id=method_id,
         name="Tomography",
-        needed_families=[],
-        needed_supplies=["PhotonBeam", "LiquidNitrogen"],
+        needed_families=(),
+        needed_supplies=("PhotonBeam", "LiquidNitrogen"),
         occurred_at=_NOW,
     )
     state = evolve(None, event)
@@ -302,8 +302,8 @@ def _seed_state(supplies: frozenset[str]) -> Method:
         MethodDefined(
             method_id=uuid4(),
             name="Tomography",
-            needed_families=[],
-            needed_supplies=list(supplies),
+            needed_families=(),
+            needed_supplies=tuple(supplies),
             occurred_at=_NOW,
         ),
     )
@@ -350,8 +350,8 @@ def test_fold_full_lifecycle_preserves_needed_supplies() -> None:
             MethodDefined(
                 method_id=method_id,
                 name="Tomography",
-                needed_families=[],
-                needed_supplies=["PhotonBeam", "LiquidNitrogen"],
+                needed_families=(),
+                needed_supplies=("PhotonBeam", "LiquidNitrogen"),
                 occurred_at=_NOW,
             ),
             MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW),
@@ -398,8 +398,8 @@ def test_event_type_name_for_method_defined_unchanged() -> None:
     event = MethodDefined(
         method_id=uuid4(),
         name="X",
-        needed_families=[],
-        needed_supplies=[],
+        needed_families=(),
+        needed_supplies=(),
         occurred_at=_NOW,
     )
     assert event_type_name(event) == "MethodDefined"

@@ -44,8 +44,8 @@ def test_event_type_name_returns_class_name() -> None:
         policy_id=uuid4(),
         name="X",
         conduit_id=uuid4(),
-        permitted_principals=[],
-        permitted_commands=[],
+        permitted_principals=(),
+        permitted_commands=(),
         occurred_at=_NOW,
     )
     assert event_type_name(event) == "PolicyDefined"
@@ -60,8 +60,8 @@ def test_to_payload_serializes_policy_defined_to_primitives() -> None:
         policy_id=policy_id,
         name="Beam-team",
         conduit_id=conduit,
-        permitted_principals=[p1],
-        permitted_commands=["RegisterActor"],
+        permitted_principals=(p1,),
+        permitted_commands=("RegisterActor",),
         occurred_at=_NOW,
     )
     assert to_payload(event) == {
@@ -91,8 +91,8 @@ def test_to_payload_sorts_permission_lists_deterministically() -> None:
         policy_id=uuid4(),
         name="X",
         conduit_id=uuid4(),
-        permitted_principals=[p3, p1, p2],
-        permitted_commands=["Z", "A", "M"],
+        permitted_principals=(p3, p1, p2),
+        permitted_commands=("Z", "A", "M"),
         occurred_at=_NOW,
     )
     payload = to_payload(event_in_one_order)
@@ -122,8 +122,8 @@ def test_from_stored_rebuilds_policy_defined() -> None:
         policy_id=policy_id,
         name="Beam-team",
         conduit_id=conduit,
-        permitted_principals=[p1],
-        permitted_commands=["RegisterActor"],
+        permitted_principals=(p1,),
+        permitted_commands=("RegisterActor",),
         occurred_at=_NOW,
     )
 
@@ -135,8 +135,8 @@ def test_to_payload_then_from_stored_round_trips() -> None:
         policy_id=uuid4(),
         name="Beam-team",
         conduit_id=uuid4(),
-        permitted_principals=[uuid4(), uuid4()],
-        permitted_commands=["X", "Y"],
+        permitted_principals=(uuid4(), uuid4()),
+        permitted_commands=("X", "Y"),
         occurred_at=_NOW,
     )
     stored = _stored("PolicyDefined", to_payload(original))

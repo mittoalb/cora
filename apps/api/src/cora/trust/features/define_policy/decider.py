@@ -44,8 +44,8 @@ def decide(
             policy_id=new_id,
             name=name.value,
             conduit_id=command.conduit_id,
-            permitted_principals=list(command.permitted_principals),
-            permitted_commands=list(command.permitted_commands),
+            permitted_principals=tuple(command.permitted_principals),
+            permitted_commands=tuple(command.permitted_commands),
             occurred_at=now,
             surface_id=command.surface_id,
         )

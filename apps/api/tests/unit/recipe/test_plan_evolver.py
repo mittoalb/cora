@@ -29,16 +29,16 @@ def _plan_defined(
     *,
     plan_id: UUID | None = None,
     practice_id: UUID | None = None,
-    asset_ids: list[UUID] | None = None,
+    asset_ids: tuple[UUID, ...] | None = None,
 ) -> PlanDefined:
     """Test helper: PlanDefined with sensible defaults for non-relevant fields."""
     return PlanDefined(
         plan_id=plan_id or uuid4(),
         name="32-ID FlyScan",
         practice_id=practice_id or uuid4(),
-        asset_ids=asset_ids if asset_ids is not None else [uuid4()],
+        asset_ids=asset_ids if asset_ids is not None else (uuid4(),),
         method_id=uuid4(),
-        method_needed_families_snapshot=[uuid4()],
+        method_needed_families_snapshot=(uuid4(),),
         asset_families_snapshot={},
         occurred_at=_NOW,
     )
@@ -61,9 +61,9 @@ def test_evolve_plan_defined_sets_status_to_defined() -> None:
             plan_id=plan_id,
             name="32-ID FlyScan",
             practice_id=practice_id,
-            asset_ids=[asset_id],
+            asset_ids=(asset_id,),
             method_id=method_id,
-            method_needed_families_snapshot=[uuid4()],
+            method_needed_families_snapshot=(uuid4(),),
             asset_families_snapshot={asset_id: [uuid4()]},
             occurred_at=_NOW,
         ),
@@ -85,7 +85,7 @@ def test_evolve_plan_defined_converts_asset_ids_list_to_frozenset() -> None:
     precedent as Method's needed_families."""
     a1 = uuid4()
     a2 = uuid4()
-    state = evolve(None, _plan_defined(asset_ids=[a1, a2, a1]))  # duplicate
+    state = evolve(None, _plan_defined(asset_ids=(a1, a2, a1)))  # duplicate
     assert state.asset_ids == frozenset({a1, a2})
     assert isinstance(state.asset_ids, frozenset)
 
@@ -339,9 +339,9 @@ def test_evolve_plan_defined_folds_method_id_from_payload() -> None:
             plan_id=plan_id,
             name="X",
             practice_id=uuid4(),
-            asset_ids=[uuid4()],
+            asset_ids=(uuid4(),),
             method_id=method_id,
-            method_needed_families_snapshot=[],
+            method_needed_families_snapshot=(),
             asset_families_snapshot={},
             occurred_at=_NOW,
         ),
@@ -562,9 +562,9 @@ def test_fold_full_wire_lifecycle_yields_empty_wire_set() -> None:
             plan_id=plan_id,
             name="X",
             practice_id=practice_id,
-            asset_ids=[src_id, tgt_id],
+            asset_ids=(src_id, tgt_id),
             method_id=method_id,
-            method_needed_families_snapshot=[],
+            method_needed_families_snapshot=(),
             asset_families_snapshot={},
             occurred_at=_NOW,
         ),
