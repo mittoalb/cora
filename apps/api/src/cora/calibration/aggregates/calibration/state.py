@@ -253,7 +253,7 @@ class CalibrationNotFoundError(Exception):
         self.calibration_id = calibration_id
 
 
-class DuplicateCalibrationIdentityError(Exception):
+class CalibrationIdentityAlreadyExistsError(Exception):
     """A Calibration with the same (subsystem_or_asset_id, quantity,
     operating_point) already exists.
 

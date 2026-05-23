@@ -16,9 +16,9 @@ from cora.calibration.aggregates.calibration import (
     CALIBRATION_DESCRIPTION_MAX_LENGTH,
     CalibrationAlreadyExistsError,
     CalibrationDescription,
+    CalibrationIdentityAlreadyExistsError,
     CalibrationNotFoundError,
     CalibrationStatus,
-    DuplicateCalibrationIdentityError,
     InvalidCalibrationDescriptionError,
     InvalidCalibrationQuantityError,
     InvalidCalibrationSourceError,
@@ -139,7 +139,7 @@ def test_supersedes_revision_not_found_error_carries_both_ids() -> None:
 def test_duplicate_calibration_identity_error_carries_identity_tuple() -> None:
     asset_id = uuid4()
     op_point: dict[str, Any] = {"energy_keV": 25.0, "optics_config": "5x"}
-    err = DuplicateCalibrationIdentityError(
+    err = CalibrationIdentityAlreadyExistsError(
         subsystem_or_asset_id=asset_id,
         quantity="rotation_center",
         operating_point=op_point,

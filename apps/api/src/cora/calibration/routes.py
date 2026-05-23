@@ -27,8 +27,8 @@ from fastapi.responses import JSONResponse
 
 from cora.calibration.aggregates.calibration import (
     CalibrationAlreadyExistsError,
+    CalibrationIdentityAlreadyExistsError,
     CalibrationNotFoundError,
-    DuplicateCalibrationIdentityError,
     InvalidCalibrationDescriptionError,
     InvalidCalibrationQuantityError,
     InvalidCalibrationSourceError,
@@ -108,7 +108,7 @@ def register_calibration_routes(app: FastAPI) -> None:
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (
         CalibrationAlreadyExistsError,
-        DuplicateCalibrationIdentityError,
+        CalibrationIdentityAlreadyExistsError,
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

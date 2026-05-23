@@ -15,7 +15,7 @@ import asyncpg
 import pytest
 
 from cora.calibration.aggregates.calibration import (
-    DuplicateCalibrationIdentityError,
+    CalibrationIdentityAlreadyExistsError,
 )
 from cora.calibration.features import define_calibration
 from cora.calibration.features.define_calibration import DefineCalibration
@@ -180,4 +180,4 @@ async def test_define_calibration_projection_rejects_duplicate_identity(
     assert "unique" in msg or "constraint" in msg or "duplicate" in msg
 
     # Silence unused-import warning when this test runs in isolation.
-    _ = DuplicateCalibrationIdentityError
+    _ = CalibrationIdentityAlreadyExistsError
