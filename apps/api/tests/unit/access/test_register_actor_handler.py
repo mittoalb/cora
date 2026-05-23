@@ -3,6 +3,10 @@
 The handler is exercised against in-memory adapters: InMemoryEventStore,
 FakeClock, FixedIdGenerator, and either AllowAllAuthorize or a custom
 deny stub. No Postgres, no FastAPI, no async I/O beyond the adapters.
+
+PII vault: every test that exercises the bare `register_actor.bind`
+injects an `InMemoryProfileStore` via the helper; tests that go
+through `wire_access` get one constructed inside the wiring factory.
 """
 
 from datetime import UTC, datetime
@@ -15,7 +19,7 @@ from cora.access.aggregates.actor import InvalidActorNameError
 from cora.access.features import register_actor
 from cora.access.features.register_actor import RegisterActor
 from cora.infrastructure.memory.event_store import InMemoryEventStore
-from tests.unit._helpers import build_deps
+from tests.unit._helpers import build_deps, make_profile_store
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000000001")
@@ -27,7 +31,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 @pytest.mark.unit
 async def test_handler_returns_generated_actor_id() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
-    handler = register_actor.bind(deps)
+    handler = register_actor.bind(deps, profile_store=make_profile_store())
 
     result = await handler(
         RegisterActor(name="Doga"),
@@ -42,7 +46,7 @@ async def test_handler_returns_generated_actor_id() -> None:
 async def test_handler_appends_actor_registered_event_to_store() -> None:
     store = InMemoryEventStore()
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
-    handler = register_actor.bind(deps)
+    handler = register_actor.bind(deps, profile_store=make_profile_store())
 
     await handler(
         RegisterActor(name="Doga"),
@@ -54,11 +58,12 @@ async def test_handler_appends_actor_registered_event_to_store() -> None:
     assert version == 1
     assert len(events) == 1
     stored = events[0]
-    assert stored.event_type == "ActorRegistered"
+    # V2 discriminator (post-PII-vault). Payload carries no `name` —
+    # display name lives in actor_profile (verified below).
+    assert stored.event_type == "ActorRegisteredV2"
     assert stored.schema_version == 1
     assert stored.payload == {
         "actor_id": str(_NEW_ID),
-        "name": "Doga",
         "occurred_at": _NOW.isoformat(),
         "kind": "human",
     }
@@ -70,10 +75,17 @@ async def test_handler_appends_actor_registered_event_to_store() -> None:
 
 
 @pytest.mark.unit
-async def test_handler_trims_actor_name_via_value_object() -> None:
+async def test_handler_upserts_display_name_into_profile_vault() -> None:
+    """The handler writes the trimmed display name into actor_profile.
+
+    PII vault contract: events carry no name; the vault row carries
+    it and is the single source of truth for display reads. Verified
+    by reading back via the InMemoryProfileStore the test injects.
+    """
     store = InMemoryEventStore()
+    profile_store = make_profile_store()
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
-    handler = register_actor.bind(deps)
+    handler = register_actor.bind(deps, profile_store=profile_store)
 
     await handler(
         RegisterActor(name="  Doga  "),
@@ -81,14 +93,16 @@ async def test_handler_trims_actor_name_via_value_object() -> None:
         correlation_id=_CORRELATION_ID,
     )
 
-    events, _ = await store.load("Actor", _NEW_ID)
-    assert events[0].payload["name"] == "Doga"
+    profile = await profile_store.get(_NEW_ID)
+    assert profile is not None
+    assert profile.name == "Doga"  # trimmed via ActorName VO
+    assert profile.created_at == _NOW
 
 
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_on_deny() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, deny=True)
-    handler = register_actor.bind(deps)
+    handler = register_actor.bind(deps, profile_store=make_profile_store())
 
     with pytest.raises(UnauthorizedError) as exc_info:
         await handler(
@@ -102,8 +116,9 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 @pytest.mark.unit
 async def test_handler_does_not_append_when_denied() -> None:
     store = InMemoryEventStore()
+    profile_store = make_profile_store()
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store, deny=True)
-    handler = register_actor.bind(deps)
+    handler = register_actor.bind(deps, profile_store=profile_store)
 
     with pytest.raises(UnauthorizedError):
         await handler(
@@ -115,13 +130,16 @@ async def test_handler_does_not_append_when_denied() -> None:
     events, version = await store.load("Actor", _NEW_ID)
     assert events == []
     assert version == 0
+    # The profile vault is untouched too — deny gates the whole write,
+    # both halves of the two-step path.
+    assert await profile_store.get(_NEW_ID) is None
 
 
 @pytest.mark.unit
 async def test_handler_propagates_invalid_actor_name_error() -> None:
     """Domain InvalidActorNameError bubbles unchanged through the handler."""
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
-    handler = register_actor.bind(deps)
+    handler = register_actor.bind(deps, profile_store=make_profile_store())
 
     with pytest.raises(InvalidActorNameError):
         await handler(
@@ -134,8 +152,9 @@ async def test_handler_propagates_invalid_actor_name_error() -> None:
 @pytest.mark.unit
 async def test_handler_does_not_append_when_decider_rejects() -> None:
     store = InMemoryEventStore()
+    profile_store = make_profile_store()
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
-    handler = register_actor.bind(deps)
+    handler = register_actor.bind(deps, profile_store=profile_store)
 
     with pytest.raises(InvalidActorNameError):
         await handler(
@@ -147,6 +166,9 @@ async def test_handler_does_not_append_when_decider_rejects() -> None:
     events, version = await store.load("Actor", _NEW_ID)
     assert events == []
     assert version == 0
+    # The decider raises before any I/O so the profile vault is
+    # also untouched.
+    assert await profile_store.get(_NEW_ID) is None
 
 
 @pytest.mark.unit
@@ -161,7 +183,7 @@ async def test_handler_generates_event_id_via_id_generator() -> None:
     sentinel_event_id = UUID("01900000-0000-7000-8000-0000000000ee")
     store = InMemoryEventStore()
     deps = build_deps(ids=[_NEW_ID, sentinel_event_id], now=_NOW, event_store=store)
-    handler = register_actor.bind(deps)
+    handler = register_actor.bind(deps, profile_store=make_profile_store())
 
     await handler(
         RegisterActor(name="Doga"),
@@ -185,7 +207,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     causation = UUID("01900000-0000-7000-8000-0000000000bb")
     store = InMemoryEventStore()
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
-    handler = register_actor.bind(deps)
+    handler = register_actor.bind(deps, profile_store=make_profile_store())
 
     await handler(
         RegisterActor(name="Doga"),

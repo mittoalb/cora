@@ -163,9 +163,21 @@ async def seed_run_debriefer_agent(kernel: Kernel) -> None:
     )
     actor_event = ActorRegistered(
         actor_id=RUN_DEBRIEFER_AGENT_ID,
-        name=name.value,
         occurred_at=now,
         kind=ActorKind.AGENT,
+    )
+
+    # PII vault upsert (idempotent on actor_id PK). Pre-append so a
+    # ConcurrencyError on the second boot still leaves the profile
+    # row in place; pre-append on the FIRST boot establishes the
+    # display name before any read path could observe a tombstone.
+    # Uses the shared `kernel.profile_store` singleton so the
+    # in-memory adapter (under `app_env=test`) is the SAME dict
+    # that wire_access + wire_agent read from.
+    await kernel.profile_store.upsert(
+        actor_id=RUN_DEBRIEFER_AGENT_ID,
+        name=name.value,
+        created_at=now,
     )
 
     agent_new_event = to_new_event(

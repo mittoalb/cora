@@ -143,7 +143,7 @@ from cora.safety.features.start_review_clearance import StartReviewClearance
 from cora.safety.features.start_review_clearance import bind as bind_start_review
 from cora.safety.features.submit_clearance import SubmitClearance
 from cora.safety.features.submit_clearance import bind as bind_submit_clearance
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 from tests.integration.scenarios._beamtime_fixture import (
     BeamtimeSpec,
     beamtime_id_prefix,
@@ -250,6 +250,7 @@ async def test_proposal_clearance_walks_to_active(
 
     await install_aps_unit(
         deps,
+        profile_store=make_pg_profile_store(db_pool),
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ENTERPRISE_ID,
         aps_site_id=_APS_SITE_ID,
@@ -260,6 +261,7 @@ async def test_proposal_clearance_walks_to_active(
 
     await open_beamtime(
         deps,
+        profile_store=make_pg_profile_store(db_pool),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         spec=_BEAMTIME,

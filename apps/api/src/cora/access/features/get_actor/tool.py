@@ -46,18 +46,18 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ],
     ) -> ActorOutput:
         handler = get_handler()
-        actor = await handler(
+        view = await handler(
             GetActor(actor_id=actor_id),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )
-        if actor is None:
+        if view is None:
             msg = f"Actor {actor_id} not found"
             raise ValueError(msg)
         return ActorOutput(
-            id=actor.id,
-            name=actor.name.value,
-            kind=actor.kind.value,
-            is_active=actor.is_active,
+            id=view.actor.id,
+            name=view.display_name,
+            kind=view.actor.kind.value,
+            is_active=view.actor.is_active,
         )

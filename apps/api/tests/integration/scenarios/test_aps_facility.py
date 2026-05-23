@@ -76,7 +76,11 @@ from cora.safety.features.register_clearance import bind as bind_register_cleara
 from cora.supply.aggregates.supply import SupplyScope
 from cora.supply.features.register_supply import RegisterSupply
 from cora.supply.features.register_supply import bind as bind_register_supply
-from tests.integration._helpers import build_postgres_deps, seed_capability_pg
+from tests.integration._helpers import (
+    build_postgres_deps,
+    make_pg_profile_store,
+    seed_capability_pg,
+)
 from tests.integration.scenarios._facility_fixture import RUN_DEBRIEF_ACTOR_ID
 
 _NOW = datetime(2026, 5, 17, 14, 0, 0, tzinfo=UTC)
@@ -179,7 +183,7 @@ async def test_facility_install_plays_out_end_to_end(
 
     # ----- Access BC: register one human Actor (the operator principal) -----
 
-    await bind_register_actor(deps)(
+    await bind_register_actor(deps, profile_store=make_pg_profile_store(db_pool))(
         RegisterActor(name="APS Operator"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -187,7 +191,7 @@ async def test_facility_install_plays_out_end_to_end(
 
     # ----- Agent BC: define one Agent (cross-BC: co-registers a kind=agent Actor) -----
 
-    agent_id = await bind_define_agent(deps)(
+    agent_id = await bind_define_agent(deps, profile_store=make_pg_profile_store(db_pool))(
         DefineAgent(
             kind="RunDebriefer",
             name="Run Debrief",
@@ -302,7 +306,6 @@ async def test_facility_install_plays_out_end_to_end(
     operator = await load_actor(deps.event_store, _ACTOR_OPERATOR_ID)
     assert operator is not None
     assert operator.kind is ActorKind.HUMAN
-    assert operator.name.value == "APS Operator"
 
     assert agent_id == RUN_DEBRIEF_ACTOR_ID  # canonical, shared with 2-BM Agent Policy
     agent = await load_agent(deps.event_store, agent_id)
@@ -314,7 +317,6 @@ async def test_facility_install_plays_out_end_to_end(
     agent_actor = await load_actor(deps.event_store, agent_id)
     assert agent_actor is not None
     assert agent_actor.kind is ActorKind.AGENT
-    assert agent_actor.name.value == "Run Debrief"
 
     practice_events, practice_version = await deps.event_store.load(
         "Practice", _PRACTICE_DARK_BASELINE_APS_ID

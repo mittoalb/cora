@@ -53,9 +53,13 @@ _NEW_DECISION_ID = UUID("01900000-0000-7000-8000-00000000fc01")
 
 
 async def _seed_actor(store: InMemoryEventStore, *, deactivated: bool = False) -> None:
+    # PII vault: V2 payload carries no `name`; the display name lives
+    # in actor_profile. These tests don't read the display surface, so
+    # they don't seed the vault — RUN_DEBRIEFER_AGENT_NAME stays unused
+    # by the event itself.
+    _ = RUN_DEBRIEFER_AGENT_NAME
     event = ActorRegistered(
         actor_id=RUN_DEBRIEFER_AGENT_ID,
-        name=RUN_DEBRIEFER_AGENT_NAME,
         occurred_at=_NOW,
         kind=ActorKind.AGENT,
     )

@@ -122,7 +122,11 @@ from cora.recipe.features.define_plan import DefinePlan
 from cora.recipe.features.define_plan import bind as bind_define_plan
 from cora.recipe.features.define_practice import DefinePractice
 from cora.recipe.features.define_practice import bind as bind_define_practice
-from tests.integration._helpers import build_postgres_deps, seed_capability_pg
+from tests.integration._helpers import (
+    build_postgres_deps,
+    make_pg_profile_store,
+    seed_capability_pg,
+)
 from tests.integration.scenarios._facility_fixture import (
     DeviceSpec,
     facility_id_prefix,
@@ -302,6 +306,7 @@ async def test_first_light_plays_out_end_to_end(
 
     await install_aps_unit(
         deps,
+        profile_store=make_pg_profile_store(db_pool),
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ENTERPRISE_ID,
         aps_site_id=_APS_SITE_ID,

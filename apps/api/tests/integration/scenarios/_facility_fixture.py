@@ -102,6 +102,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
+from cora.access.aggregates.actor import ProfileStore
 from cora.access.features.register_actor import RegisterActor
 from cora.access.features.register_actor import bind as bind_register_actor
 from cora.agent.seed import RUN_DEBRIEFER_AGENT_ID
@@ -337,6 +338,7 @@ def facility_id_prefix(
 async def install_aps_unit(
     deps: Kernel,
     *,
+    profile_store: ProfileStore,
     correlation_id: UUID,
     argonne_id: UUID,
     aps_site_id: UUID,
@@ -371,7 +373,7 @@ async def install_aps_unit(
 
     # ----- Access BC: register the 3-operator pool -----
     for actor_name in OPERATOR_NAMES:
-        await bind_register_actor(deps)(
+        await bind_register_actor(deps, profile_store=profile_store)(
             RegisterActor(name=actor_name),
             principal_id=principal_id,
             correlation_id=correlation_id,
@@ -381,12 +383,12 @@ async def install_aps_unit(
     # Doc-placed at APS even though BS is beamline-named; the role the
     # BS plays in ESAF review is facility safety-process work. ESRB is
     # the facility's central safety committee, one identity facility-wide.
-    await bind_register_actor(deps)(
+    await bind_register_actor(deps, profile_store=profile_store)(
         RegisterActor(name=BEAMLINE_SCIENTIST_NAME),
         principal_id=principal_id,
         correlation_id=correlation_id,
     )
-    await bind_register_actor(deps)(
+    await bind_register_actor(deps, profile_store=profile_store)(
         RegisterActor(name=ESRB_NAME),
         principal_id=principal_id,
         correlation_id=correlation_id,

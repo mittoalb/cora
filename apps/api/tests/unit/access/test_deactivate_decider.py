@@ -9,7 +9,6 @@ from cora.access.aggregates.actor import (
     Actor,
     ActorAlreadyDeactivatedError,
     ActorDeactivated,
-    ActorName,
     ActorNotFoundError,
 )
 from cora.access.features import deactivate_actor
@@ -21,7 +20,7 @@ _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 @pytest.mark.unit
 def test_decide_emits_actor_deactivated_for_active_actor() -> None:
     actor_id = uuid4()
-    state = Actor(id=actor_id, name=ActorName("Doga"), is_active=True)
+    state = Actor(id=actor_id, is_active=True)
 
     events = deactivate_actor.decide(
         state=state,
@@ -47,7 +46,7 @@ def test_decide_rejects_unknown_actor() -> None:
 @pytest.mark.unit
 def test_decide_rejects_already_deactivated_actor() -> None:
     actor_id = uuid4()
-    state = Actor(id=actor_id, name=ActorName("Doga"), is_active=False)
+    state = Actor(id=actor_id, is_active=False)
 
     with pytest.raises(ActorAlreadyDeactivatedError) as exc_info:
         deactivate_actor.decide(

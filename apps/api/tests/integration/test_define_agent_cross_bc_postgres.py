@@ -32,7 +32,7 @@ from cora.access.aggregates.actor import ActorKind, load_actor
 from cora.agent.aggregates.agent import AgentStatus, ModelRef, load_agent
 from cora.agent.features import define_agent
 from cora.agent.features.define_agent import DefineAgent
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 
 _NOW = datetime(2026, 5, 17, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-00000000e001")
@@ -44,8 +44,9 @@ async def test_define_agent_writes_both_streams_atomically(
     db_pool: asyncpg.Pool,
 ) -> None:
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(5)])
+    profile_store = make_pg_profile_store(db_pool)
 
-    agent_id = await define_agent.bind(deps)(
+    agent_id = await define_agent.bind(deps, profile_store=profile_store)(
         DefineAgent(
             kind="RunDebriefer",
             name="Run Debrief",
@@ -73,13 +74,18 @@ async def test_define_agent_writes_both_streams_atomically(
     assert agent.canonical_uri is not None
     assert agent.canonical_uri.value == "https://example.org/agents/run-debrief"
 
-    # Access stream is populated with the SAME id and kind=agent.
+    # Access stream is populated with the SAME id and kind=agent. PII
+    # vault: the display name lives in actor_profile (not on the
+    # aggregate); verified via profile_store below.
     actor = await load_actor(deps.event_store, agent_id)
     assert actor is not None
     assert actor.id == agent_id
     assert actor.kind is ActorKind.AGENT
-    assert actor.name.value == "Run Debrief"
     assert actor.is_active is True
+
+    profile = await profile_store.get(agent_id)
+    assert profile is not None
+    assert profile.name == "Run Debrief"
 
 
 @pytest.mark.integration
@@ -94,8 +100,9 @@ async def test_define_agent_shared_xid8_across_streams(
     and Actor events share the same `transaction_id` value.
     """
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(5)])
+    profile_store = make_pg_profile_store(db_pool)
 
-    agent_id = await define_agent.bind(deps)(
+    agent_id = await define_agent.bind(deps, profile_store=profile_store)(
         DefineAgent(
             kind="RunDebriefer",
             name="Run Debrief",

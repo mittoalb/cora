@@ -79,9 +79,12 @@ async def _seed_run_debrief_actor(
     so the loaded Actor has `is_active=False` (exercise the security
     deactivated-actor gate).
     """
+    # PII vault: event payload carries no `name`; display name lives
+    # in actor_profile. The subscriber doesn't read the display
+    # surface, so the legacy seed-name constant stays unused here.
+    _ = RUN_DEBRIEFER_AGENT_NAME
     event = ActorRegistered(
         actor_id=RUN_DEBRIEFER_AGENT_ID,
-        name=RUN_DEBRIEFER_AGENT_NAME,
         occurred_at=_NOW,
         kind=ActorKind.AGENT,
     )

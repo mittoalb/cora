@@ -16,8 +16,6 @@ from cora.access.aggregates.actor.events import (
 from cora.access.aggregates.actor.evolver import evolve, fold
 from cora.access.aggregates.actor.profile import (
     DELETED_ACTOR_DISPLAY_NAME,
-    InMemoryProfileStore,
-    PostgresProfileStore,
     Profile,
     ProfileStore,
     load_actor_display_name,
@@ -34,6 +32,14 @@ from cora.access.aggregates.actor.state import (
     InvalidActorKindError,
     InvalidActorNameError,
 )
+
+# Adapters live in `cora.infrastructure.{memory,postgres}.profile_store`
+# (mirroring EventStore + IdempotencyStore placement); re-exported here
+# so existing imports of
+# `from cora.access.aggregates.actor import InMemoryProfileStore` keep
+# working.
+from cora.infrastructure.memory.profile_store import InMemoryProfileStore
+from cora.infrastructure.postgres.profile_store import PostgresProfileStore
 
 __all__ = [
     "ACTOR_NAME_MAX_LENGTH",

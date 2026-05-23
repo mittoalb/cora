@@ -94,6 +94,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID, uuid4
 
+from cora.access.aggregates.actor import ProfileStore
 from cora.equipment.features.activate_asset import ActivateAsset
 from cora.equipment.features.activate_asset import bind as bind_activate_asset
 from cora.infrastructure.kernel import Kernel
@@ -187,6 +188,7 @@ def tomography_install_id_prefix(*, asset_ids: TomographyAssetIds) -> list[UUID]
 async def install_and_activate_tomography_assets(
     deps: Kernel,
     *,
+    profile_store: ProfileStore,
     principal_id: UUID,
     correlation_id: UUID,
     asset_ids: TomographyAssetIds,
@@ -199,6 +201,7 @@ async def install_and_activate_tomography_assets(
     """
     facility_ids = await install_aps_unit(
         deps,
+        profile_store=profile_store,
         correlation_id=correlation_id,
         argonne_id=asset_ids.argonne_id,
         aps_site_id=asset_ids.aps_site_id,

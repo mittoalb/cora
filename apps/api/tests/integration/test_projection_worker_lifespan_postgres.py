@@ -34,7 +34,7 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry
 from cora.infrastructure.projection.wakeup import PollOnlyWakeup
 from cora.infrastructure.projection.worker import ProjectionWorker
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 
 _NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -78,7 +78,7 @@ async def test_worker_run_processes_events_until_cancelled(
     event_id = uuid4()
     deps = _build_deps(db_pool, [actor_id, event_id])
 
-    await bind_register(deps)(
+    await bind_register(deps, profile_store=make_pg_profile_store(db_pool))(
         RegisterActor(name="WorkerTest"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

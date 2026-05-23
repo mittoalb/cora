@@ -29,7 +29,7 @@ from cora.access.features.register_actor import RegisterActor
 from cora.access.features.register_actor import bind as bind_register
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 
 _NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -56,7 +56,7 @@ async def test_register_actor_event_advances_into_proj_table(
     actor_event_id = UUID("01900000-0000-7000-8000-00000000a002")
 
     deps = _build_deps(db_pool, [actor_id, actor_event_id])
-    handler = bind_register(deps)
+    handler = bind_register(deps, profile_store=make_pg_profile_store(db_pool))
     await handler(
         RegisterActor(name="Doga"),
         principal_id=_PRINCIPAL_ID,
@@ -88,7 +88,7 @@ async def test_deactivate_after_register_flips_status(
     deactivate_event_id = UUID("01900000-0000-7000-8000-00000000b003")
 
     deps = _build_deps(db_pool, [actor_id, register_event_id, deactivate_event_id])
-    await bind_register(deps)(
+    await bind_register(deps, profile_store=make_pg_profile_store(db_pool))(
         RegisterActor(name="Doga"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -157,7 +157,7 @@ async def test_bookmark_advances_when_subscribed_event_arrives(
     actor_event_id = UUID("01900000-0000-7000-8000-00000000c002")
 
     deps = _build_deps(db_pool, [actor_id, actor_event_id])
-    await bind_register(deps)(
+    await bind_register(deps, profile_store=make_pg_profile_store(db_pool))(
         RegisterActor(name="Asli"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -185,7 +185,7 @@ async def test_idempotent_re_application(
     actor_id = uuid4()
     actor_event_id = uuid4()
     deps = _build_deps(db_pool, [actor_id, actor_event_id])
-    await bind_register(deps)(
+    await bind_register(deps, profile_store=make_pg_profile_store(db_pool))(
         RegisterActor(name="Repeat"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -220,7 +220,7 @@ async def test_bookmark_advances_across_multiple_actors(
     deps = _build_deps(db_pool, deps_ids)
 
     for i, _ in enumerate(actors):
-        await bind_register(deps)(
+        await bind_register(deps, profile_store=make_pg_profile_store(db_pool))(
             RegisterActor(name=f"Actor{i}"),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,

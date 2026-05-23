@@ -10,21 +10,18 @@ to plain dicts of primitives. `to_payload` and `from_stored` are the
 single home for the (de)serialization logic; per-slice handlers no
 longer carry their own serializers.
 
-The persistence envelope (`NewEvent` construction) lives at
-`cora.infrastructure.event_envelope.to_new_event` -- handlers call it
-directly with `event_type=event_type_name(event)` and
-`payload=to_payload(event)` arguments. This module owns only the
-genuinely aggregate-specific pieces.
+## V1/V2 dispatch for ActorRegistered (PII vault)
 
-## Additive evolution: `kind` on `ActorRegistered`
-
-`ActorRegistered.kind` discriminates `human` from `agent` Actors.
-Per [[project_agent_bc_design]], every Agent in the Agent BC has a
-corresponding Actor in Access BC sharing the same `id`, written
-atomically via `EventStore.append_streams` from `define_agent`.
-Pre-8f-a `ActorRegistered` events lack the `kind` field;
-`from_stored` falls back to `"human"` via `payload.get("kind",
-"human")` for forward-compat replay (no upcaster needed).
+`ActorRegistered` events written before the PII vault landed carry a
+`name` field in the payload (V1). Post-vault writes emit the event with
+the new `event_type` string `"ActorRegisteredV2"` and no `name` field;
+display names live in the `actor_profile` table. Both `event_type`
+arms produce the same modern `ActorRegistered` dataclass (no `name`).
+The Marten / Axon legacy-rename precedent mirrors
+`cora/equipment/aggregates/asset/events.py` (Capability→Family
+rename). Backfill migration `20260523120100_backfill_actor_profile.sql`
+copies V1 names into `actor_profile` before the new code ships, so
+read paths find the right display name even for legacy actors.
 """
 
 from dataclasses import dataclass
@@ -40,22 +37,27 @@ from cora.infrastructure.ports.event_store import StoredEvent
 class ActorRegistered:
     """A new actor was registered.
 
-    `kind` discriminates `human` vs `agent` (additive evolution).
+    Carries NO PII -- display name and future PII fields live in the
+    `actor_profile` table per the PII vault pattern. The cross-BC
+    invariant `Agent.id == Actor.id` still holds: `register_actor` and
+    `define_agent` both emit this event with the same `actor_id` they
+    use to upsert the profile row.
+
+    `kind` discriminates `human` from `agent` from `service_account`.
     REQUIRED at construction: both callsites
     (`register_actor` in Access BC, `define_agent` in Agent BC)
-    MUST pass it explicitly so drift between them surfaces as a
-    pyright error rather than silently minting an agent-kind Actor
-    through the human path. See [[project_agent_bc_design]] P0-4
-    cleanup pass.
+    MUST pass it explicitly so drift between them surfaces as a pyright
+    error rather than silently minting an agent-kind Actor through the
+    human path. See [[project_agent_bc_design]] P0-4 cleanup pass.
 
-    Forward-compat replay of legacy `ActorRegistered` payloads
-    (which lack the `kind` field) is handled in `from_stored` via
-    `payload.get("kind", "human")`. The dataclass has no default;
-    the payload deserializer supplies it.
+    New writes emit `event_type = "ActorRegisteredV2"`; legacy V1
+    writes (carrying `name` in the payload) keep their `event_type =
+    "ActorRegistered"` string and replay via the legacy arm in
+    `from_stored`, which drops the `name` on rebuild (the backfill
+    migration copied legacy names into actor_profile already).
     """
 
     actor_id: UUID
-    name: str
     occurred_at: datetime
     kind: ActorKind
 
@@ -75,7 +77,14 @@ ActorEvent = ActorRegistered | ActorDeactivated
 
 
 def event_type_name(event: ActorEvent) -> str:
-    """Discriminator string written into StoredEvent.event_type."""
+    """Discriminator string written into StoredEvent.event_type.
+
+    `ActorRegistered` writes use the V2 string; the V1 string lives
+    only in `from_stored` for legacy replay. `ActorDeactivated` has
+    one shape forever.
+    """
+    if isinstance(event, ActorRegistered):
+        return "ActorRegisteredV2"
     return type(event).__name__
 
 
@@ -83,14 +92,12 @@ def to_payload(event: ActorEvent) -> dict[str, Any]:
     """Serialize an Actor event to a JSON-friendly dict for jsonb storage.
 
     Primitives only: UUIDs become strings, datetimes become ISO-8601 strings.
-    The evolver re-validates by reconstructing value objects on the read
-    path; this round-trip is the safety net for schema evolution.
+    No PII -- display name lives in actor_profile table.
     """
     match event:
-        case ActorRegistered(actor_id=actor_id, name=name, occurred_at=occurred_at, kind=kind):
+        case ActorRegistered(actor_id=actor_id, occurred_at=occurred_at, kind=kind):
             return {
                 "actor_id": str(actor_id),
-                "name": name,
                 "occurred_at": occurred_at.isoformat(),
                 "kind": kind.value,
             }
@@ -110,22 +117,45 @@ def from_stored(stored: StoredEvent) -> ActorEvent:
     discriminators so a stream contaminated with foreign event types
     fails loud rather than silently being dropped by the evolver.
 
-    `kind` field on `ActorRegistered` is forward-compat: legacy
-    events lack it, so `payload.get("kind", "human")` supplies the
-    default.
+    `ActorRegistered` has two `event_type` strings (Marten / Axon
+    legacy-rename pattern; mirrors
+    `cora/equipment/aggregates/asset/events.py` Capability→Family):
+
+      - `"ActorRegisteredV2"`: post-PII-vault writes; payload has no
+        `name` field.
+      - `"ActorRegistered"` (legacy V1): pre-vault writes carry a
+        `name` field in the payload. The arm drops the name on rebuild
+        (the backfill migration copied legacy names into actor_profile
+        before the new code went live).
+
+    Both arms produce the same modern `ActorRegistered` dataclass.
     """
     payload = stored.payload
     match stored.event_type:
-        case "ActorRegistered":
+        case "ActorRegisteredV2":
             try:
                 return ActorRegistered(
                     actor_id=UUID(payload["actor_id"]),
-                    name=payload["name"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    kind=ActorKind(payload["kind"]),
+                )
+            except (KeyError, TypeError, AttributeError, ValueError) as exc:
+                msg = f"Malformed ActorRegisteredV2 payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
+        case "ActorRegistered":
+            # Legacy V1: payload still carries `name`. Drop it on
+            # rebuild; the backfill migration copied the legacy name
+            # into actor_profile before this arm started replaying.
+            # `kind` may also be absent on the oldest legacy payloads;
+            # fall back to HUMAN.
+            try:
+                return ActorRegistered(
+                    actor_id=UUID(payload["actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     kind=ActorKind(payload.get("kind", ActorKind.HUMAN.value)),
                 )
             except (KeyError, TypeError, AttributeError, ValueError) as exc:
-                msg = f"Malformed ActorRegistered payload {payload!r}: {exc}"
+                msg = f"Malformed ActorRegistered payload (V1) {payload!r}: {exc}"
                 raise ValueError(msg) from exc
         case "ActorDeactivated":
             try:

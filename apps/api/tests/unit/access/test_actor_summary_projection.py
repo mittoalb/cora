@@ -2,6 +2,12 @@
 
 Pins per-event-type apply() dispatch + idempotency. Postgres-side
 behavior is exercised in `tests/integration/test_projection_worker_postgres.py`.
+
+Post PII vault: the projection subscribes to BOTH the V1 legacy
+"ActorRegistered" discriminator (payload carries `name`) and the
+post-vault "ActorRegisteredV2" discriminator (payload omits `name`;
+projection pulls the name from `actor_profile` via sub-SELECT in
+the INSERT SQL).
 """
 
 from datetime import UTC, datetime
@@ -41,12 +47,48 @@ def _stored(event_type: str, payload: dict[str, Any]) -> StoredEvent:
 def test_projection_metadata() -> None:
     proj = ActorSummaryProjection()
     assert proj.name == "proj_access_actor_summary"
-    assert proj.subscribed_event_types == frozenset({"ActorRegistered", "ActorDeactivated"})
+    assert proj.subscribed_event_types == frozenset(
+        {"ActorRegistered", "ActorRegisteredV2", "ActorDeactivated"}
+    )
 
 
 @pytest.mark.unit
-async def test_actor_registered_inserts_with_active_status() -> None:
-    """Current-shape payload (with kind=human or kind=agent) inserts that value."""
+async def test_actor_registered_v2_inserts_with_subquery_to_actor_profile() -> None:
+    """V2 (PII vault) payload has no `name`; the projection's INSERT
+    SQL pulls `name` from actor_profile via a sub-SELECT bound at
+    apply-time (the upsert runs before the event becomes visible
+    via the handler's pre-append vault write)."""
+    proj = ActorSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "ActorRegisteredV2",
+        {
+            "actor_id": str(_ACTOR_ID),
+            "occurred_at": _NOW.isoformat(),
+            "kind": "human",
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    conn.execute.assert_awaited_once()
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "INSERT INTO proj_access_actor_summary" in sql
+    assert "actor_profile" in sql
+    assert "ON CONFLICT (actor_id) DO NOTHING" in sql
+    # V2 binds 3 positional args: actor_id, kind, created_at.
+    assert args.args[1] == _ACTOR_ID
+    assert args.args[2] == "human"
+    assert args.args[3] == _NOW
+
+
+@pytest.mark.unit
+async def test_actor_registered_v1_legacy_inserts_with_payload_name() -> None:
+    """V1 legacy payload still carries `name` — the legacy arm uses
+    it directly (no JOIN). Mirrors `from_stored`'s legacy arm
+    dropping the field; same pattern, two homes."""
     proj = ActorSummaryProjection()
     conn = AsyncMock()
     event = _stored(
@@ -74,15 +116,14 @@ async def test_actor_registered_inserts_with_active_status() -> None:
 
 
 @pytest.mark.unit
-async def test_actor_registered_agent_kind_inserts_correctly() -> None:
-    """Co-write: kind=agent flows through the projection."""
+async def test_actor_registered_v2_agent_kind_inserts_correctly() -> None:
+    """Cross-BC define_agent V2 write: kind=agent flows through the projection."""
     proj = ActorSummaryProjection()
     conn = AsyncMock()
     event = _stored(
-        "ActorRegistered",
+        "ActorRegisteredV2",
         {
             "actor_id": str(_ACTOR_ID),
-            "name": "RunDebriefer",
             "occurred_at": _NOW.isoformat(),
             "kind": "agent",
         },
@@ -93,12 +134,14 @@ async def test_actor_registered_agent_kind_inserts_correctly() -> None:
     conn.execute.assert_awaited_once()
     args = conn.execute.await_args
     assert args is not None
-    assert args.args[3] == "agent"
+    assert args.args[2] == "agent"
 
 
 @pytest.mark.unit
-async def test_actor_registered_payload_without_kind_falls_back_to_human() -> None:
-    """Forward-compat: payloads without the `kind` field get kind=human."""
+async def test_actor_registered_v1_payload_without_kind_falls_back_to_human() -> None:
+    """Forward-compat: the oldest legacy V1 payloads without the
+    `kind` field fall back to kind=human (matches `from_stored`'s
+    default)."""
     proj = ActorSummaryProjection()
     conn = AsyncMock()
     event = _stored(
@@ -107,7 +150,7 @@ async def test_actor_registered_payload_without_kind_falls_back_to_human() -> No
             "actor_id": str(_ACTOR_ID),
             "name": "Doga",
             "occurred_at": _NOW.isoformat(),
-            # No "kind" field; legacy payload shape.
+            # No "kind" field; oldest legacy payload shape.
         },
     )
 
@@ -157,19 +200,19 @@ async def test_unknown_event_type_falls_through_match() -> None:
 
 
 @pytest.mark.unit
-async def test_apply_is_idempotent_for_actor_registered() -> None:
+async def test_apply_is_idempotent_for_actor_registered_v2() -> None:
     """ON CONFLICT DO NOTHING means re-applying the same
-    ActorRegistered event a second time runs the same SQL again,
+    ActorRegisteredV2 event a second time runs the same SQL again,
     which Postgres handles as a no-op. The projection author doesn't
     need to track which events have been seen."""
     proj = ActorSummaryProjection()
     conn = AsyncMock()
     event = _stored(
-        "ActorRegistered",
+        "ActorRegisteredV2",
         {
             "actor_id": str(_ACTOR_ID),
-            "name": "Doga",
             "occurred_at": _NOW.isoformat(),
+            "kind": "human",
         },
     )
 

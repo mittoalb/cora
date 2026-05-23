@@ -58,11 +58,18 @@ class AccessHandlers:
 
 
 def wire_access(deps: Kernel) -> AccessHandlers:
-    """Build the Access BC handlers from shared dependencies."""
+    """Build the Access BC handlers from shared dependencies.
+
+    `profile_store` (the PII vault) is read from the shared
+    `deps.profile_store` singleton. The same instance is used by
+    Agent BC's `define_agent` cross-BC atomic write so both BCs
+    write through one in-memory dict (under `app_env=test`) or one
+    Postgres-backed adapter (production).
+    """
     return AccessHandlers(
         register_actor=with_tracing(
             with_idempotency(
-                register_actor.bind(deps),
+                register_actor.bind(deps, profile_store=deps.profile_store),
                 deps.idempotency_store,
                 command_name="RegisterActor",
                 # Handler returns UUID; cache as str (jsonb-friendly) and
@@ -80,7 +87,7 @@ def wire_access(deps: Kernel) -> AccessHandlers:
             bc=_BC,
         ),
         get_actor=with_tracing(
-            get_actor.bind(deps),
+            get_actor.bind(deps, profile_store=deps.profile_store),
             command_name="GetActor",
             bc=_BC,
             kind="query",

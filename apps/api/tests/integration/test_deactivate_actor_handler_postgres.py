@@ -14,7 +14,7 @@ import pytest
 from cora.access.features import deactivate_actor, register_actor
 from cora.access.features.deactivate_actor import DeactivateActor
 from cora.access.features.register_actor import RegisterActor
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _ACTOR_ID = UUID("01900000-0000-7000-8000-00000000cafe")
@@ -35,7 +35,7 @@ async def test_handler_deactivates_actor_against_real_postgres(
     )
 
     # First register, then deactivate.
-    await register_actor.bind(deps)(
+    await register_actor.bind(deps, profile_store=make_pg_profile_store(db_pool))(
         RegisterActor(name="Doga"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -48,7 +48,8 @@ async def test_handler_deactivates_actor_against_real_postgres(
 
     events, version = await deps.event_store.load("Actor", _ACTOR_ID)
     assert version == 2
-    assert [e.event_type for e in events] == ["ActorRegistered", "ActorDeactivated"]
+    # PII vault: V2 discriminator for the post-vault registration.
+    assert [e.event_type for e in events] == ["ActorRegisteredV2", "ActorDeactivated"]
     assert events[1].payload == {
         "actor_id": str(_ACTOR_ID),
         "occurred_at": _NOW.isoformat(),

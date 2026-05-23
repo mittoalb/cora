@@ -72,6 +72,7 @@ from cora.infrastructure.ports.llm import (
     ModelRef,
 )
 from cora.infrastructure.ports.logbook_mirror import LogbookMirror
+from cora.infrastructure.ports.profile_store import Profile, ProfileStore
 from cora.infrastructure.ports.token_verifier import (
     IntrospectionUnavailableError,
     InvalidTokenError,
@@ -135,6 +136,8 @@ __all__ = [
     "ModelRef",
     "NewEvent",
     "PrincipalKind",
+    "Profile",
+    "ProfileStore",
     "StoredEvent",
     "StreamAppend",
     "SystemClock",

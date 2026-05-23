@@ -47,17 +47,14 @@ from cora.access.aggregates.actor import ActorKind, load_actor
 from cora.trust.aggregates.conduit import load_conduit
 from cora.trust.aggregates.policy import load_policy
 from cora.trust.aggregates.zone import load_zone
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 from tests.integration.scenarios._facility_fixture import (
     BEAMLINE_SCIENTIST_ACTOR_ID,
-    BEAMLINE_SCIENTIST_NAME,
     BM2_AGENT_POLICY_ID,
     BM2_LOCAL_CONDUIT_ID,
     BM2_OPERATIONS_POLICY_ID,
     BM2_ZONE_ID,
     ESRB_ACTOR_ID,
-    ESRB_NAME,
-    OPERATOR_NAMES,
     OPERATOR_POOL_IDS,
     RUN_DEBRIEF_ACTOR_ID,
     DeviceSpec,
@@ -110,6 +107,7 @@ async def test_2bm_facility_install_plays_out_end_to_end(
 
     result = await install_aps_unit(
         deps,
+        profile_store=make_pg_profile_store(db_pool),
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ENTERPRISE_ID,
         aps_site_id=_APS_SITE_ID,
@@ -131,22 +129,21 @@ async def test_2bm_facility_install_plays_out_end_to_end(
     assert result.bm2_agent_policy_id == BM2_AGENT_POLICY_ID
 
     # ----- Access BC: 3 named human operators -----
-    for actor_id, name in zip(OPERATOR_POOL_IDS, OPERATOR_NAMES, strict=True):
+    # Names live in actor_profile (PII vault); dedicated tests cover that
+    # contract. Here we pin the aggregate-level identity + kind.
+    for actor_id in OPERATOR_POOL_IDS:
         actor = await load_actor(deps.event_store, actor_id)
         assert actor is not None
         assert actor.kind is ActorKind.HUMAN
-        assert actor.name.value == name
 
     # ----- Access BC: 2 review-chain reviewer Actors -----
     bs_actor = await load_actor(deps.event_store, BEAMLINE_SCIENTIST_ACTOR_ID)
     assert bs_actor is not None
     assert bs_actor.kind is ActorKind.HUMAN
-    assert bs_actor.name.value == BEAMLINE_SCIENTIST_NAME
 
     esrb_actor = await load_actor(deps.event_store, ESRB_ACTOR_ID)
     assert esrb_actor is not None
     assert esrb_actor.kind is ActorKind.HUMAN
-    assert esrb_actor.name.value == ESRB_NAME
 
     # ----- Equipment BC: Asset stream versions reflect register + add_capability -----
     _, argonne_version = await deps.event_store.load("Asset", _ARGONNE_ENTERPRISE_ID)

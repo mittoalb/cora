@@ -30,6 +30,7 @@ from uuid import UUID
 from cora.access.aggregates.actor import (
     ActorKind,
     ActorRegistered,
+    ProfileStore,
 )
 from cora.access.aggregates.actor import (
     event_type_name as actor_event_type_name,
@@ -89,8 +90,20 @@ class IdempotentHandler(Protocol):
     ) -> UUID: ...
 
 
-def bind(deps: Kernel) -> Handler:
-    """Build a define_agent handler closed over the shared deps."""
+def bind(deps: Kernel, *, profile_store: ProfileStore) -> Handler:
+    """Build a define_agent handler closed over the shared deps.
+
+    `profile_store` is the Access BC PII vault adapter; the cross-BC
+    atomic write upserts the display name into `actor_profile` BEFORE
+    appending both event streams. Order rationale: the profile upsert
+    is idempotent on actor_id PK (a retry replays cleanly), so writing
+    it first means that if append_streams fails the worst case is an
+    orphan profile row tied to an `actor_id` that never got an event.
+    The reverse order would risk leaving an Agent + Actor in the event
+    log with no display name — and `load_actor_display_name` would
+    surface the tombstone for a freshly-defined agent, which is a
+    surprising UX.
+    """
 
     async def handler(
         command: DefineAgent,
@@ -139,20 +152,14 @@ def bind(deps: Kernel) -> Handler:
         )
 
         # Build the Access BC co-write event directly in the handler.
-        # The Actor's display name mirrors the Agent's display name at
-        # definition time; future name divergence is allowed (no
-        # invariant says they must stay in sync) but the genesis write
-        # establishes them as equal.
-        #
-        # Route the name through `AgentName(...)` (the same VO the
-        # decider used to validate it) so the Actor side gets a
-        # genuinely validated name, not a parallel ad-hoc `.strip()`.
-        # If `AgentName.value` semantics ever change (Unicode-aware
-        # trim, casefold, etc.) the Actor name and Agent name stay
-        # in lock-step. See gate-review P1-1 (8f-a cleanup).
+        # Per the PII vault pattern the event carries no display name;
+        # the name lands in `actor_profile` via profile_store.upsert
+        # below. Route the validated name through `AgentName(...)` (the
+        # same VO the decider used) so both the upsert and any future
+        # diagnostic surface see one canonical trimmed value.
+        validated_name = AgentName(command.name).value
         actor_event = ActorRegistered(
             actor_id=new_id,
-            name=AgentName(command.name).value,
             occurred_at=now,
             kind=ActorKind.AGENT,
         )
@@ -182,6 +189,15 @@ def bind(deps: Kernel) -> Handler:
                 principal_id=principal_id,
             )
         ]
+
+        # Vault upsert FIRST per the order rationale in `bind`. If
+        # this fails the caller retries the whole command and the
+        # idempotent upsert + version-0 append both replay cleanly.
+        await profile_store.upsert(
+            actor_id=new_id,
+            name=validated_name,
+            created_at=now,
+        )
 
         await deps.event_store.append_streams(
             [

@@ -9,7 +9,6 @@ from cora.access.aggregates.actor import (
     Actor,
     ActorAlreadyExistsError,
     ActorKind,
-    ActorName,
     InvalidActorNameError,
 )
 from cora.access.aggregates.actor.events import ActorRegistered
@@ -28,13 +27,15 @@ def test_decide_emits_actor_registered_when_stream_is_empty() -> None:
         now=_NOW,
         new_id=new_id,
     )
-    assert events == [
-        ActorRegistered(actor_id=new_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN)
-    ]
+    assert events == [ActorRegistered(actor_id=new_id, occurred_at=_NOW, kind=ActorKind.HUMAN)]
 
 
 @pytest.mark.unit
-def test_decide_trims_name_via_value_object() -> None:
+def test_decide_validates_name_synchronously_but_drops_it_from_event() -> None:
+    # The decider validates the name via ActorName (so an invalid name
+    # surfaces as InvalidActorNameError before any I/O) but the emitted
+    # event carries no name — the display name lives in the actor_profile
+    # PII vault, written by the handler.
     new_id = uuid4()
     events = register_actor.decide(
         state=None,
@@ -42,7 +43,8 @@ def test_decide_trims_name_via_value_object() -> None:
         now=_NOW,
         new_id=new_id,
     )
-    assert events[0].name == "Doga"
+    assert len(events) == 1
+    assert events[0].actor_id == new_id
 
 
 @pytest.mark.unit
@@ -58,7 +60,7 @@ def test_decide_rejects_invalid_name() -> None:
 
 @pytest.mark.unit
 def test_decide_rejects_existing_state() -> None:
-    existing = Actor(id=uuid4(), name=ActorName("Doga"))
+    existing = Actor(id=uuid4())
     with pytest.raises(ActorAlreadyExistsError) as exc_info:
         register_actor.decide(
             state=existing,

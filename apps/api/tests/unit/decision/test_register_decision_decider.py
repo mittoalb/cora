@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from cora.access.aggregates.actor import Actor, ActorName
+from cora.access.aggregates.actor import Actor
 from cora.decision.aggregates.decision import (
     Decision,
     DecisionAlreadyExistsError,
@@ -33,7 +33,7 @@ _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 
 
 def _actor() -> Actor:
-    return Actor(id=uuid4(), name=ActorName("Operator"))
+    return Actor(id=uuid4())
 
 
 def _good_command(**overrides: Any) -> RegisterDecision:

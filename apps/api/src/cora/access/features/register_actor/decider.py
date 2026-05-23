@@ -52,11 +52,15 @@ def decide(
         # caller that bypasses the route's Literal-schema guard sees a
         # clean 400, not a 500 with internal P0-4 lock detail leaked.
         raise InvalidActorKindError("agent")
-    name = ActorName(command.name)  # validates + trims; raises InvalidActorNameError
+    # Validate-and-trim the display name here so the decider raises
+    # InvalidActorNameError synchronously before the handler attempts
+    # any I/O. The trimmed value is dropped: per the PII vault pattern
+    # the event carries no name; the handler reads command.name (which
+    # we re-trim there for the profile_store.upsert call).
+    ActorName(command.name)
     return [
         ActorRegistered(
             actor_id=new_id,
-            name=name.value,
             occurred_at=now,
             kind=command.kind,
         )

@@ -19,6 +19,7 @@ from cora.agent.features.define_agent import DefineAgent
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from tests.unit._helpers import build_deps as _build_deps_shared
+from tests.unit._helpers import make_profile_store
 
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000000a001")
@@ -56,7 +57,7 @@ def _command(**overrides: object) -> DefineAgent:
 @pytest.mark.unit
 async def test_handler_returns_generated_agent_id() -> None:
     deps = _build_deps()
-    handler = define_agent.bind(deps)
+    handler = define_agent.bind(deps, profile_store=make_profile_store())
     result = await handler(
         _command(),
         principal_id=_PRINCIPAL_ID,
@@ -71,7 +72,7 @@ async def test_handler_appends_to_both_agent_and_actor_streams() -> None:
     ActorRegistered on Actor stream with the SAME id."""
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
-    handler = define_agent.bind(deps)
+    handler = define_agent.bind(deps, profile_store=make_profile_store())
     await handler(
         _command(),
         principal_id=_PRINCIPAL_ID,
@@ -86,7 +87,9 @@ async def test_handler_appends_to_both_agent_and_actor_streams() -> None:
     assert len(agent_events) == 1
     assert len(actor_events) == 1
     assert agent_events[0].event_type == "AgentDefined"
-    assert actor_events[0].event_type == "ActorRegistered"
+    # PII vault: post-vault writes use the V2 discriminator
+    # (legacy "ActorRegistered" string lives only in `from_stored`).
+    assert actor_events[0].event_type == "ActorRegisteredV2"
 
 
 @pytest.mark.unit
@@ -94,7 +97,7 @@ async def test_handler_writes_kind_agent_on_actor_event() -> None:
     """The co-written Actor MUST be kind=agent (not human)."""
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
-    handler = define_agent.bind(deps)
+    handler = define_agent.bind(deps, profile_store=make_profile_store())
     await handler(
         _command(),
         principal_id=_PRINCIPAL_ID,
@@ -105,25 +108,37 @@ async def test_handler_writes_kind_agent_on_actor_event() -> None:
 
 
 @pytest.mark.unit
-async def test_handler_actor_name_mirrors_agent_name() -> None:
-    """At genesis the Actor's display name matches the Agent's display name."""
+async def test_handler_actor_display_name_mirrors_agent_name_via_pii_vault() -> None:
+    """At genesis the co-registered Actor's display name (in the
+    actor_profile vault) matches the trimmed Agent display name.
+
+    PII vault: the ActorRegistered event itself carries no name;
+    the handler upserts the validated AgentName into actor_profile
+    before append_streams. Verified via the InMemoryProfileStore.
+    """
     store = InMemoryEventStore()
+    profile_store = make_profile_store()
     deps = _build_deps(event_store=store)
-    handler = define_agent.bind(deps)
+    handler = define_agent.bind(deps, profile_store=profile_store)
     await handler(
         _command(name="  Run Debrief  "),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
+
     actor_events, _ = await store.load("Actor", _NEW_ID)
-    assert actor_events[0].payload["name"] == "Run Debrief"
+    assert "name" not in actor_events[0].payload  # PII not on the event
+
+    profile = await profile_store.get(_NEW_ID)
+    assert profile is not None
+    assert profile.name == "Run Debrief"  # trimmed via AgentName VO
 
 
 @pytest.mark.unit
 async def test_handler_agent_event_carries_full_command() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
-    handler = define_agent.bind(deps)
+    handler = define_agent.bind(deps, profile_store=make_profile_store())
     await handler(
         _command(
             description="Synthesises terminal Runs.",
@@ -152,7 +167,7 @@ async def test_handler_agent_event_carries_full_command() -> None:
 async def test_handler_propagates_envelope_fields_to_both_streams() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
-    handler = define_agent.bind(deps)
+    handler = define_agent.bind(deps, profile_store=make_profile_store())
     await handler(
         _command(),
         principal_id=_PRINCIPAL_ID,
@@ -169,7 +184,7 @@ async def test_handler_propagates_envelope_fields_to_both_streams() -> None:
 @pytest.mark.unit
 async def test_handler_denies_via_authorize_port() -> None:
     deps = _build_deps(deny=True)
-    handler = define_agent.bind(deps)
+    handler = define_agent.bind(deps, profile_store=make_profile_store())
     with pytest.raises(UnauthorizedError):
         await handler(
             _command(),
@@ -183,7 +198,7 @@ async def test_handler_denied_does_not_write_either_stream() -> None:
     """Authorize-denial MUST NOT leave events on either stream."""
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store, deny=True)
-    handler = define_agent.bind(deps)
+    handler = define_agent.bind(deps, profile_store=make_profile_store())
     with pytest.raises(UnauthorizedError):
         await handler(
             _command(),

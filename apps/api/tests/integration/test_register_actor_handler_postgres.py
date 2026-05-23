@@ -14,7 +14,7 @@ import pytest
 
 from cora.access.features import register_actor
 from cora.access.features.register_actor import RegisterActor
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000000beef")
@@ -28,7 +28,8 @@ async def test_handler_persists_actor_registered_to_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[_NEW_ID, _EVENT_ID])
-    handler = register_actor.bind(deps)
+    profile_store = make_pg_profile_store(db_pool)
+    handler = register_actor.bind(deps, profile_store=profile_store)
 
     actor_id = await handler(
         RegisterActor(name="Doga"),
@@ -42,11 +43,11 @@ async def test_handler_persists_actor_registered_to_postgres(
     assert len(events) == 1
 
     stored = events[0]
-    assert stored.event_type == "ActorRegistered"
+    # PII vault: V2 discriminator + payload carries no `name`.
+    assert stored.event_type == "ActorRegisteredV2"
     assert stored.schema_version == 1
     assert stored.payload == {
         "actor_id": str(_NEW_ID),
-        "name": "Doga",
         "occurred_at": _NOW.isoformat(),
         "kind": "human",
     }
@@ -56,3 +57,9 @@ async def test_handler_persists_actor_registered_to_postgres(
     assert stored.metadata == {"command": "RegisterActor"}
     assert stored.occurred_at == _NOW
     assert stored.position > 0
+
+    # Display name landed in the actor_profile vault.
+    profile = await profile_store.get(_NEW_ID)
+    assert profile is not None
+    assert profile.name == "Doga"
+    assert profile.created_at == _NOW

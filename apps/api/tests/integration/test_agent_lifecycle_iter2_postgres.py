@@ -48,16 +48,16 @@ from cora.agent.features.revise_agent_budget import ReviseAgentBudget
 from cora.agent.features.revoke_tool_from_agent import RevokeToolFromAgent
 from cora.agent.features.suspend_agent import SuspendAgent
 from cora.agent.features.version_agent import VersionAgent
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 
 _NOW = datetime(2026, 5, 17, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-00000000a201")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-00000000a202")
 
 
-async def _define_and_version(deps) -> UUID:  # type: ignore[no-untyped-def]
+async def _define_and_version(deps, db_pool: asyncpg.Pool) -> UUID:  # type: ignore[no-untyped-def]
     """Common setup: define + version an Agent, return its id."""
-    agent_id = await define_agent.bind(deps)(
+    agent_id = await define_agent.bind(deps, profile_store=make_pg_profile_store(db_pool))(
         DefineAgent(
             kind="RunDebriefer",
             name="Run Debrief",
@@ -79,7 +79,7 @@ async def _define_and_version(deps) -> UUID:  # type: ignore[no-untyped-def]
 async def test_suspend_resume_cycle_persists(db_pool: asyncpg.Pool) -> None:
     """Versioned -> Suspended -> Versioned cycle re-loads with correct state."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(8)])
-    agent_id = await _define_and_version(deps)
+    agent_id = await _define_and_version(deps, db_pool)
 
     await suspend_agent.bind(deps)(
         SuspendAgent(agent_id=agent_id, reason="cost overrun"),
@@ -111,7 +111,7 @@ async def test_suspend_resume_cycle_persists(db_pool: asyncpg.Pool) -> None:
 @pytest.mark.integration
 async def test_grant_then_revoke_round_trip_persists(db_pool: asyncpg.Pool) -> None:
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(8)])
-    agent_id = await _define_and_version(deps)
+    agent_id = await _define_and_version(deps, db_pool)
 
     await grant_tool_to_agent.bind(deps)(
         GrantToolToAgent(agent_id=agent_id, tool_name="read_run"),
@@ -143,7 +143,7 @@ async def test_grant_idempotent_does_not_advance_stream(
 ) -> None:
     """Re-granting the same tool MUST NOT append a new event."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(8)])
-    agent_id = await _define_and_version(deps)
+    agent_id = await _define_and_version(deps, db_pool)
 
     await grant_tool_to_agent.bind(deps)(
         GrantToolToAgent(agent_id=agent_id, tool_name="read_run"),
@@ -165,7 +165,7 @@ async def test_grant_idempotent_does_not_advance_stream(
 @pytest.mark.integration
 async def test_budget_set_then_clear_persists(db_pool: asyncpg.Pool) -> None:
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(8)])
-    agent_id = await _define_and_version(deps)
+    agent_id = await _define_and_version(deps, db_pool)
 
     await revise_agent_budget.bind(deps)(
         ReviseAgentBudget(agent_id=agent_id, monthly_usd_cap=100.0, daily_token_cap=500_000),
@@ -190,7 +190,7 @@ async def test_budget_set_then_clear_persists(db_pool: asyncpg.Pool) -> None:
 async def test_deprecate_from_suspended_persists(db_pool: asyncpg.Pool) -> None:
     """Iter 2 widens deprecate's source set to include Suspended."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(8)])
-    agent_id = await _define_and_version(deps)
+    agent_id = await _define_and_version(deps, db_pool)
 
     await suspend_agent.bind(deps)(
         SuspendAgent(agent_id=agent_id, reason="needs retirement"),

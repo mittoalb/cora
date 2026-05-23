@@ -121,7 +121,7 @@ from cora.run.features.truncate_run import TruncateRun
 from cora.run.features.truncate_run import bind as bind_truncate_run
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.mount_subject import bind as bind_mount_subject
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 from tests.integration.scenarios._beamtime_fixture import (
     BeamtimeSpec,
     beamtime_id_prefix,
@@ -268,6 +268,7 @@ async def test_run_truncate_after_outage_lands_with_interrupted_at(
 
     await install_and_activate_tomography_assets(
         deps,
+        profile_store=make_pg_profile_store(db_pool),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         asset_ids=_TOMO_ASSETS,
@@ -275,6 +276,7 @@ async def test_run_truncate_after_outage_lands_with_interrupted_at(
 
     await open_beamtime(
         deps,
+        profile_store=make_pg_profile_store(db_pool),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         spec=_BEAMTIME,

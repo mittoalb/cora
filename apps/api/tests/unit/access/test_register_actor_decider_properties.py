@@ -29,7 +29,6 @@ from cora.access.aggregates.actor import (
     Actor,
     ActorAlreadyExistsError,
     ActorKind,
-    ActorName,
     ActorRegistered,
     InvalidActorKindError,
 )
@@ -51,8 +50,8 @@ _NON_AGENT_KIND = st.sampled_from([ActorKind.HUMAN, ActorKind.SERVICE_ACCOUNT])
 _ANY_DATETIME = st.datetimes()
 
 
-def _actor(actor_id: UUID, name: str = "x", kind: ActorKind = ActorKind.HUMAN) -> Actor:
-    return Actor(id=actor_id, name=ActorName(name), is_active=True, kind=kind)
+def _actor(actor_id: UUID, kind: ActorKind = ActorKind.HUMAN) -> Actor:
+    return Actor(id=actor_id, is_active=True, kind=kind)
 
 
 @pytest.mark.unit
@@ -66,7 +65,7 @@ def test_register_emits_exactly_one_event_with_injected_fields(
     name: str, kind: ActorKind, now: datetime, new_id: UUID
 ) -> None:
     """Empty stream + valid command → single ActorRegistered with id=new_id,
-    occurred_at=now, kind=command.kind, name=trimmed input.
+    occurred_at=now, kind=command.kind. PII vault: no name on event.
     """
     assume(name == name.strip())  # generator alphabet excludes whitespace
     events = register_actor.decide(
@@ -75,7 +74,7 @@ def test_register_emits_exactly_one_event_with_injected_fields(
         now=now,
         new_id=new_id,
     )
-    assert events == [ActorRegistered(actor_id=new_id, name=name, occurred_at=now, kind=kind)]
+    assert events == [ActorRegistered(actor_id=new_id, occurred_at=now, kind=kind)]
 
 
 @pytest.mark.unit

@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from cora.access.aggregates.actor import Actor, ActorKind, ActorName, evolve, fold
+from cora.access.aggregates.actor import Actor, ActorKind, evolve, fold
 from cora.access.aggregates.actor.events import ActorRegistered
 from cora.access.features import register_actor
 from cora.access.features.register_actor import RegisterActor
@@ -18,9 +18,9 @@ def test_evolve_actor_registered_from_empty_state() -> None:
     actor_id = uuid4()
     state = evolve(
         None,
-        ActorRegistered(actor_id=actor_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN),
+        ActorRegistered(actor_id=actor_id, occurred_at=_NOW, kind=ActorKind.HUMAN),
     )
-    assert state == Actor(id=actor_id, name=ActorName("Doga"))
+    assert state == Actor(id=actor_id)
 
 
 @pytest.mark.unit
@@ -31,10 +31,8 @@ def test_fold_empty_event_list_returns_none() -> None:
 @pytest.mark.unit
 def test_fold_single_actor_registered_returns_actor() -> None:
     actor_id = uuid4()
-    state = fold(
-        [ActorRegistered(actor_id=actor_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN)]
-    )
-    assert state == Actor(id=actor_id, name=ActorName("Doga"))
+    state = fold([ActorRegistered(actor_id=actor_id, occurred_at=_NOW, kind=ActorKind.HUMAN)])
+    assert state == Actor(id=actor_id)
 
 
 @pytest.mark.unit
@@ -47,9 +45,9 @@ def test_decider_and_evolver_round_trip() -> None:
     Mirror this test for every BC's first slice.
     """
     new_id = uuid4()
-    command = RegisterActor(name="  Doga  ")  # whitespace exercises the VO trim
+    command = RegisterActor(name="  Doga  ")  # whitespace still exercises the VO trim in decide
 
     events = register_actor.decide(state=None, command=command, now=_NOW, new_id=new_id)
     rebuilt = fold(events)
 
-    assert rebuilt == Actor(id=new_id, name=ActorName("Doga"))
+    assert rebuilt == Actor(id=new_id)

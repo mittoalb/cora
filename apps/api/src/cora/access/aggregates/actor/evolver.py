@@ -20,7 +20,7 @@ from cora.access.aggregates.actor.events import (
     ActorEvent,
     ActorRegistered,
 )
-from cora.access.aggregates.actor.state import Actor, ActorName
+from cora.access.aggregates.actor.state import Actor
 
 
 def evolve(state: Actor | None, event: ActorEvent) -> Actor:
@@ -32,12 +32,12 @@ def evolve(state: Actor | None, event: ActorEvent) -> Actor:
     # start_line, and the operator_match mutation is rooted on the `match`
     # statement itself — so the pragma lives here, not on individual cases.
     match event:  # pragma: no mutate
-        case ActorRegistered(actor_id=actor_id, name=name, kind=kind):
+        case ActorRegistered(actor_id=actor_id, kind=kind):
             # `is_active` defaults to True on `Actor` — omit the explicit
             # kwarg so mutmut can't generate a redundancy mutation. The
             # ActorDeactivated branch below passes `is_active=False`
             # explicitly (NOT the default).
-            return Actor(id=actor_id, name=ActorName(name), kind=kind)
+            return Actor(id=actor_id, kind=kind)
         case ActorDeactivated():
             # Corruption guard: ActorDeactivated never appears before
             # ActorRegistered in a well-formed stream. Block is
@@ -46,7 +46,7 @@ def evolve(state: Actor | None, event: ActorEvent) -> Actor:
             if state is None:  # pragma: no cover  # pragma: no mutate
                 msg = "ActorDeactivated cannot be applied to empty state"  # pragma: no cover  # pragma: no mutate  # noqa: E501
                 raise ValueError(msg)  # pragma: no cover  # pragma: no mutate
-            return Actor(id=state.id, name=state.name, is_active=False, kind=state.kind)
+            return Actor(id=state.id, is_active=False, kind=state.kind)
         case _:  # pragma: no cover  # pragma: no mutate
             # Exhaustiveness guard (LibCST attaches leading comments to the
             # next node, so the `# pragma: no mutate` only takes effect if

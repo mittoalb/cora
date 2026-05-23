@@ -26,7 +26,6 @@ from cora.access.aggregates.actor import event_type_name as actor_event_type_nam
 from cora.access.aggregates.actor import to_payload as actor_to_payload
 from cora.agent.seed import (
     RUN_DEBRIEFER_AGENT_ID,
-    RUN_DEBRIEFER_AGENT_NAME,
     seed_run_debriefer_agent,
 )
 from cora.agent.subscribers.run_debriefer import (
@@ -199,7 +198,6 @@ async def test_seed_does_not_collide_with_pre_existing_actor(
     # Manually seed JUST the Actor (no Agent record).
     actor_event = ActorRegistered(
         actor_id=RUN_DEBRIEFER_AGENT_ID,
-        name=RUN_DEBRIEFER_AGENT_NAME,
         occurred_at=_NOW,
         kind=ActorKind.AGENT,
     )

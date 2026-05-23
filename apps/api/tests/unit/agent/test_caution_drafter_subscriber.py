@@ -81,10 +81,15 @@ async def _seed_caution_drafter_actor(
     *,
     deactivated: bool = False,
 ) -> None:
-    """Write the minimum Actor for the seeded CautionDrafter agent."""
+    """Write the minimum Actor for the seeded CautionDrafter agent.
+
+    PII vault: V2 payload carries no `name`; display name lives in
+    `actor_profile`. Subscriber tests don't read the display
+    surface, so the seed name stays unused at the event layer.
+    """
+    _ = CAUTION_DRAFTER_AGENT_NAME
     event = ActorRegistered(
         actor_id=CAUTION_DRAFTER_AGENT_ID,
-        name=CAUTION_DRAFTER_AGENT_NAME,
         occurred_at=_NOW,
         kind=ActorKind.AGENT,
     )

@@ -132,7 +132,7 @@ from cora.agent.features.revoke_tool_from_agent import RevokeToolFromAgent
 from cora.agent.features.revoke_tool_from_agent import bind as bind_revoke_tool
 from cora.agent.features.version_agent import VersionAgent
 from cora.agent.features.version_agent import bind as bind_version_agent
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 from tests.integration.scenarios._facility_fixture import operator_for
 
 _NOW = datetime(2026, 5, 17, 23, 0, 0, tzinfo=UTC)
@@ -184,7 +184,7 @@ async def test_agent_tool_lifecycle_plays_out_end_to_end(
     # define_agent writes ActorRegistered (Access BC) + AgentDefined
     # (Agent BC) in one append_streams call; the Agent.id == Actor.id.
 
-    new_agent_id = await bind_define_agent(deps)(
+    new_agent_id = await bind_define_agent(deps, profile_store=make_pg_profile_store(db_pool))(
         DefineAgent(
             kind="DatasetIntegrityAuditor",
             name="DatasetIntegrityAuditor",
@@ -307,9 +307,8 @@ async def test_agent_tool_lifecycle_plays_out_end_to_end(
 
     actor_events, _actor_version = await deps.event_store.load("Actor", _AUDITOR_AGENT_ID)
     actor_event_types = [e.event_type for e in actor_events]
-    assert actor_event_types == ["ActorRegistered"]
+    assert actor_event_types == ["ActorRegisteredV2"]
     actor_payload = actor_events[0].payload
-    assert actor_payload["name"] == "DatasetIntegrityAuditor"
     assert actor_payload["kind"] == "agent"
 
     # ----- Assert: deprecate reason captured verbatim for audit -----

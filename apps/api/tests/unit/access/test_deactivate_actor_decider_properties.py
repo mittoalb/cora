@@ -29,7 +29,6 @@ from cora.access.aggregates.actor import (
     ActorAlreadyDeactivatedError,
     ActorDeactivated,
     ActorKind,
-    ActorName,
     ActorNotFoundError,
 )
 from cora.access.features import deactivate_actor
@@ -45,7 +44,7 @@ def _actor(
     is_active: bool = True,
     kind: ActorKind = ActorKind.HUMAN,
 ) -> Actor:
-    return Actor(id=actor_id, name=ActorName("x"), is_active=is_active, kind=kind)
+    return Actor(id=actor_id, is_active=is_active, kind=kind)
 
 
 @pytest.mark.unit

@@ -44,6 +44,7 @@ from cora.infrastructure.ports import (
     IdempotencyStore,
     IdGenerator,
     LogbookMirror,
+    ProfileStore,
     TokenVerifier,
 )
 
@@ -108,6 +109,19 @@ class Kernel:
     `cora.infrastructure.deps` without `cora.infrastructure.kernel`
     importing `cora.infrastructure.auth` (kernel boundary: ports
     only, no adapters).
+
+    `profile_store`: process-singleton `ProfileStore` for the
+    `actor_profile` PII vault. Required (not optional) because
+    BOTH Access BC (`register_actor`) AND Agent BC (`define_agent`)
+    upsert through it on the genesis path — a missing
+    profile_store breaks the cross-BC atomic write. Constructed in
+    `make_*_kernel` as `PostgresProfileStore(pool)` (production)
+    or `InMemoryProfileStore()` (tests / `app_env=test`). The
+    Protocol lives in `cora.infrastructure.ports.profile_store`;
+    adapters in `cora.access.aggregates.actor.profile`. Sibling-
+    BC instances all read this one field so the in-memory dict is
+    shared across slices, mirroring how `EventStore` and
+    `IdempotencyStore` are shared.
     """
 
     settings: Settings
@@ -118,6 +132,7 @@ class Kernel:
     idempotency_store: IdempotencyStore
     clearance_lookup: ClearanceLookup
     caution_lookup: CautionLookup
+    profile_store: ProfileStore
     pool: asyncpg.Pool | None = None
     llm: LLM | None = None
     logbook_mirror: LogbookMirror | None = None

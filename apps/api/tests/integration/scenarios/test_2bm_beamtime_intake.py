@@ -89,7 +89,7 @@ from cora.campaign.features.register_campaign import RegisterCampaign
 from cora.campaign.features.register_campaign import bind as bind_register_campaign
 from cora.subject.features.register_subject import RegisterSubject
 from cora.subject.features.register_subject import bind as bind_register_subject
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 from tests.integration.scenarios._facility_fixture import (
     facility_id_prefix,
     install_aps_unit,
@@ -157,6 +157,7 @@ async def test_beamtime_intake_plays_out_end_to_end(
 
     await install_aps_unit(
         deps,
+        profile_store=make_pg_profile_store(db_pool),
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ENTERPRISE_ID,
         aps_site_id=_APS_SITE_ID,
@@ -171,7 +172,7 @@ async def test_beamtime_intake_plays_out_end_to_end(
     # scientist who never logs into CORA directly. PI Actor is the
     # operator-assigned Campaign lead.
 
-    await bind_register_actor(deps)(
+    await bind_register_actor(deps, profile_store=make_pg_profile_store(db_pool))(
         RegisterActor(name="Proposal 2026-1234 PI"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -215,13 +216,12 @@ async def test_beamtime_intake_plays_out_end_to_end(
     # Operator Actor (registered by install_aps_unit, principal_id == actor_id)
     operator_events, operator_version = await deps.event_store.load("Actor", _PRINCIPAL_ID)
     assert operator_version == 1
-    assert [e.event_type for e in operator_events] == ["ActorRegistered"]
+    assert [e.event_type for e in operator_events] == ["ActorRegisteredV2"]
 
     # PI Actor (registered separately by this scenario)
     pi_events, pi_version = await deps.event_store.load("Actor", _PI_ACTOR_ID)
     assert pi_version == 1
-    assert [e.event_type for e in pi_events] == ["ActorRegistered"]
-    assert pi_events[0].payload["name"] == "Proposal 2026-1234 PI"
+    assert [e.event_type for e in pi_events] == ["ActorRegisteredV2"]
 
     # Subject (lands in Received state)
     subject_events, subject_version = await deps.event_store.load("Subject", _SUBJECT_ID)

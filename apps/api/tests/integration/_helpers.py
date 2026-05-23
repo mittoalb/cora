@@ -48,7 +48,9 @@ from cora.infrastructure.ports import (
     FakeClock,
     FixedIdGenerator,
     IdempotencyStore,
+    ProfileStore,
 )
+from cora.infrastructure.postgres.profile_store import PostgresProfileStore
 
 
 def build_postgres_deps(
@@ -61,6 +63,7 @@ def build_postgres_deps(
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
+    profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
 ) -> Kernel:
     """Build a Kernel for integration-test handler invocation against real Postgres.
@@ -88,6 +91,7 @@ def build_postgres_deps(
         idempotency_store=idempotency_store,
         clearance_lookup=clearance_lookup or AlwaysCoveredClearanceLookup(),
         caution_lookup=caution_lookup or AlwaysQuietCautionLookup(),
+        profile_store=profile_store,
         llm=llm,
     )
 
@@ -312,8 +316,21 @@ async def seed_run_upstream_chain_pg(
     return plan_id, subject_id
 
 
+def make_pg_profile_store(pool: asyncpg.Pool) -> ProfileStore:
+    """Fresh `PostgresProfileStore` for integration-test handler invocation.
+
+    Mirrors `tests.unit._helpers.make_profile_store` but builds the
+    real adapter over the testcontainers `db_pool`. Use this for
+    `register_actor.bind`, `get_actor.bind`, `define_agent.bind`
+    invocations in integration tests so writes land in the actual
+    `actor_profile` table (the same one production reads).
+    """
+    return PostgresProfileStore(pool)
+
+
 __all__ = [
     "build_postgres_deps",
+    "make_pg_profile_store",
     "seed_capability_pg",
     "seed_run_upstream_chain_pg",
 ]

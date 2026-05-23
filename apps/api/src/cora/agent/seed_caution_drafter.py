@@ -125,9 +125,19 @@ async def seed_caution_drafter_agent(kernel: Kernel) -> None:
     )
     actor_event = ActorRegistered(
         actor_id=CAUTION_DRAFTER_AGENT_ID,
-        name=name.value,
         occurred_at=now,
         kind=ActorKind.AGENT,
+    )
+
+    # PII vault upsert (idempotent on actor_id PK). Pre-append so the
+    # display name is in place before any read path could observe a
+    # tombstone for this freshly-seeded agent. Uses the shared
+    # `kernel.profile_store` so the in-memory adapter (under
+    # `app_env=test`) is the SAME dict the BC wires consume.
+    await kernel.profile_store.upsert(
+        actor_id=CAUTION_DRAFTER_AGENT_ID,
+        name=name.value,
+        created_at=now,
     )
 
     agent_new_event = to_new_event(

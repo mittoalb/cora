@@ -1,9 +1,14 @@
 """Actor aggregate state, value objects, and domain errors.
 
-`Actor` is the aggregate root for the Access BC. `ActorName` is a value
-object that enforces the display-name invariants (non-empty, trimmed,
-length-bounded). All errors raised by the domain layer are
-`Exception` subclasses defined here so callers can catch them by type.
+`Actor` is the aggregate root for the Access BC. The aggregate carries
+no PII -- human-facing display data lives in the `actor_profile` table
+per [[project_pii_vault]] / [[project_pii_vault_implementation_design]].
+`ActorName` is a write-time value object that validates the display-
+name invariants (1-200 chars, trimmed) before the handler passes the
+string to `ProfileStore.upsert`; it is NOT part of aggregate state.
+
+All errors raised by the domain layer are `Exception` subclasses
+defined here so callers can catch them by type.
 
 ## Additive evolution: `kind` field
 
@@ -12,10 +17,7 @@ length-bounded). All errors raised by the domain layer are
 corresponding Actor in Access BC sharing the same `id`, with
 `kind="agent"`; the cross-BC atomic write in `define_agent` emits
 both `ActorRegistered(kind="agent")` and `AgentDefined` in one
-transaction. Pre-8f-a `ActorRegistered` events lack the `kind`
-field; the evolver folds them with the default `"human"` via
-`payload.get("kind", "human")`. Forward-compat additive evolution
-per the established convention (no upcaster needed).
+transaction.
 """
 
 from dataclasses import dataclass
@@ -133,19 +135,18 @@ class ActorName:
 class Actor:
     """Aggregate root: an identified principal known to CORA.
 
+    Carries NO PII. Display name and future PII fields (email, phone,
+    ORCID, affiliation) live in the `actor_profile` table; read paths
+    compose the display surface via `load_actor_display_name` from
+    `cora.access.aggregates.actor.profile`.
+
     `is_active` defaults to True at construction; the evolver sets it
     explicitly when folding ActorRegistered (active) and ActorDeactivated
-    (inactive). Old ActorRegistered events from before the field existed
-    replay correctly because the evolver supplies the default -- no event
-    upcaster needed (the field exists in derived state, not in the
-    serialized event payload).
-
-    `kind` defaults to `ActorKind.HUMAN` (additive evolution). Legacy
-    events fold via `payload.get("kind", "human")` in the events
-    deserializer; this default is the in-memory analogue. Forward-compat.
+    (inactive). `kind` defaults to `ActorKind.HUMAN`; legacy
+    ActorRegistered V1 events lacking the field fold to the default
+    via `payload.get("kind", "human")` in `from_stored`.
     """
 
     id: UUID
-    name: ActorName
     is_active: bool = True
     kind: ActorKind = ActorKind.HUMAN

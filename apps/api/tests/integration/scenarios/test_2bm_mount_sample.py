@@ -85,7 +85,7 @@ from cora.equipment.features.activate_asset import ActivateAsset
 from cora.equipment.features.activate_asset import bind as bind_activate_asset
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.mount_subject import bind as bind_mount_subject
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 from tests.integration.scenarios._beamtime_fixture import (
     BeamtimeSpec,
     beamtime_id_prefix,
@@ -170,6 +170,7 @@ async def test_mount_sample_plays_out_end_to_end(
 
     await install_aps_unit(
         deps,
+        profile_store=make_pg_profile_store(db_pool),
         correlation_id=_CORRELATION_ID,
         argonne_id=_ARGONNE_ENTERPRISE_ID,
         aps_site_id=_APS_SITE_ID,
@@ -191,6 +192,7 @@ async def test_mount_sample_plays_out_end_to_end(
 
     await open_beamtime(
         deps,
+        profile_store=make_pg_profile_store(db_pool),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         spec=_BEAMTIME,

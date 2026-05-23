@@ -78,6 +78,10 @@ def wire_agent(deps: Kernel) -> AgentHandlers:
     is unwired (eg. dev startup without ANTHROPIC_API_KEY), the
     handler bundle carries `re_debrief_run=None`; the REST route
     + MCP tool guard on the None to return HTTP 503.
+
+    `define_agent` reads the PII vault from `deps.profile_store`
+    (the shared singleton Access BC also uses) so the in-memory
+    test adapter is the SAME dict across both BCs.
     """
     re_debrief_run_handler: re_debrief_run.IdempotentHandler | None
     if deps.llm is None:
@@ -100,7 +104,7 @@ def wire_agent(deps: Kernel) -> AgentHandlers:
     return AgentHandlers(
         define_agent=with_tracing(
             with_idempotency(
-                define_agent.bind(deps),
+                define_agent.bind(deps, profile_store=deps.profile_store),
                 deps.idempotency_store,
                 command_name="DefineAgent",
                 # Handler returns UUID; cache as str (jsonb-friendly) and

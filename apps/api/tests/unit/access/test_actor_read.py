@@ -13,11 +13,14 @@ import pytest
 from cora.access.aggregates.actor import (
     Actor,
     ActorKind,
-    ActorName,
     load_actor,
     to_payload,
 )
-from cora.access.aggregates.actor.events import ActorDeactivated, ActorRegistered
+from cora.access.aggregates.actor.events import (
+    ActorDeactivated,
+    ActorRegistered,
+    event_type_name,
+)
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.ports import NewEvent
 
@@ -28,7 +31,7 @@ def _new_event(event: ActorRegistered | ActorDeactivated) -> NewEvent:
     """Wrap a domain event for direct event-store insertion (bypasses handlers)."""
     return NewEvent(
         event_id=uuid4(),
-        event_type=type(event).__name__,
+        event_type=event_type_name(event),
         schema_version=1,
         payload=to_payload(event),
         occurred_at=event.occurred_at,
@@ -54,18 +57,12 @@ async def test_load_actor_rebuilds_active_actor_from_single_event() -> None:
         "Actor",
         actor_id,
         0,
-        [
-            _new_event(
-                ActorRegistered(
-                    actor_id=actor_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN
-                )
-            )
-        ],
+        [_new_event(ActorRegistered(actor_id=actor_id, occurred_at=_NOW, kind=ActorKind.HUMAN))],
     )
 
     actor = await load_actor(store, actor_id)
 
-    assert actor == Actor(id=actor_id, name=ActorName("Doga"), is_active=True)
+    assert actor == Actor(id=actor_id, is_active=True)
 
 
 @pytest.mark.unit
@@ -77,18 +74,14 @@ async def test_load_actor_rebuilds_deactivated_actor_after_replay() -> None:
         actor_id,
         0,
         [
-            _new_event(
-                ActorRegistered(
-                    actor_id=actor_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN
-                )
-            ),
+            _new_event(ActorRegistered(actor_id=actor_id, occurred_at=_NOW, kind=ActorKind.HUMAN)),
             _new_event(ActorDeactivated(actor_id=actor_id, occurred_at=_NOW)),
         ],
     )
 
     actor = await load_actor(store, actor_id)
 
-    assert actor == Actor(id=actor_id, name=ActorName("Doga"), is_active=False)
+    assert actor == Actor(id=actor_id, is_active=False)
 
 
 @pytest.mark.unit
@@ -101,13 +94,7 @@ async def test_load_actor_only_reads_target_stream() -> None:
         "Actor",
         other_id,
         0,
-        [
-            _new_event(
-                ActorRegistered(
-                    actor_id=other_id, name="Other", occurred_at=_NOW, kind=ActorKind.HUMAN
-                )
-            )
-        ],
+        [_new_event(ActorRegistered(actor_id=other_id, occurred_at=_NOW, kind=ActorKind.HUMAN))],
     )
 
     actor = await load_actor(store, target_id)

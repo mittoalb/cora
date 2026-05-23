@@ -49,6 +49,7 @@ from cora.infrastructure.kernel import Kernel, Teardown
 from cora.infrastructure.logging import configure_logging
 from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
+from cora.infrastructure.memory.profile_store import InMemoryProfileStore
 from cora.infrastructure.ports import (
     LLM,
     AlwaysCoveredClearanceLookup,
@@ -61,6 +62,7 @@ from cora.infrastructure.ports import (
     IdempotencyStore,
     IdGenerator,
     LogbookMirror,
+    ProfileStore,
     SystemClock,
     TokenVerifier,
     UUIDv7Generator,
@@ -68,6 +70,7 @@ from cora.infrastructure.ports import (
 from cora.infrastructure.postgres.event_store import PostgresEventStore
 from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.infrastructure.postgres.pool import create_pool
+from cora.infrastructure.postgres.profile_store import PostgresProfileStore
 
 
 class AuthorizeFactory(Protocol):
@@ -100,6 +103,7 @@ def make_postgres_kernel(
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
+    profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
     token_verifier: TokenVerifier | None = None,
@@ -162,6 +166,7 @@ def make_postgres_kernel(
         caution_lookup=(
             caution_lookup if caution_lookup is not None else AlwaysQuietCautionLookup()
         ),
+        profile_store=(profile_store if profile_store is not None else PostgresProfileStore(pool)),
         pool=pool,
         llm=llm,
         logbook_mirror=logbook_mirror,
@@ -179,6 +184,7 @@ def make_inmemory_kernel(
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
+    profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
     token_verifier: TokenVerifier | None = None,
@@ -237,6 +243,7 @@ def make_inmemory_kernel(
         caution_lookup=(
             caution_lookup if caution_lookup is not None else AlwaysQuietCautionLookup()
         ),
+        profile_store=profile_store if profile_store is not None else InMemoryProfileStore(),
         pool=pool,  # type: ignore[arg-type]
         llm=llm,
         logbook_mirror=logbook_mirror,

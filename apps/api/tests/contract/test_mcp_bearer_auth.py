@@ -176,7 +176,8 @@ def test_mcp_register_actor_tool_under_bearer_persists_verified_principal_id(
         deps = client.app.state.deps  # type: ignore[attr-defined]
         events, _ = asyncio.run(deps.event_store.load("Actor", actor_id))
         assert len(events) == 1
-        assert events[0].event_type == "ActorRegistered"
+        # V2 discriminator (post PII vault); see project_pii_vault.
+        assert events[0].event_type == "ActorRegisteredV2"
         assert events[0].principal_id == verified_principal_id
 
 

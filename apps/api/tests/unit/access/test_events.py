@@ -41,20 +41,22 @@ def _stored(
 
 
 @pytest.mark.unit
-def test_event_type_name_returns_class_name() -> None:
+def test_event_type_name_returns_v2_discriminator_for_actor_registered() -> None:
+    """Per the PII vault Marten/Axon legacy-rename pattern, new
+    writes use the V2 discriminator string. The legacy
+    "ActorRegistered" string only appears in `from_stored`."""
     actor_id = uuid4()
-    event = ActorRegistered(actor_id=actor_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN)
-    assert event_type_name(event) == "ActorRegistered"
+    event = ActorRegistered(actor_id=actor_id, occurred_at=_NOW, kind=ActorKind.HUMAN)
+    assert event_type_name(event) == "ActorRegisteredV2"
 
 
 @pytest.mark.unit
-def test_to_payload_serializes_actor_registered_to_primitives() -> None:
-    """Default human-actor payload now carries `kind` per 8f-a additive evolution."""
+def test_to_payload_serializes_actor_registered_without_pii() -> None:
+    """V2 payload carries no `name` — display name lives in actor_profile."""
     actor_id = uuid4()
-    event = ActorRegistered(actor_id=actor_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN)
+    event = ActorRegistered(actor_id=actor_id, occurred_at=_NOW, kind=ActorKind.HUMAN)
     assert to_payload(event) == {
         "actor_id": str(actor_id),
-        "name": "Doga",
         "occurred_at": _NOW.isoformat(),
         "kind": "human",
     }
@@ -62,89 +64,94 @@ def test_to_payload_serializes_actor_registered_to_primitives() -> None:
 
 @pytest.mark.unit
 def test_to_payload_serializes_agent_kind() -> None:
-    """ActorRegistered with kind=agent serializes correctly."""
+    """ActorRegistered with kind=agent serializes correctly (still no PII)."""
     actor_id = uuid4()
-    event = ActorRegistered(
-        actor_id=actor_id, name="RunDebriefer", occurred_at=_NOW, kind=ActorKind.AGENT
-    )
+    event = ActorRegistered(actor_id=actor_id, occurred_at=_NOW, kind=ActorKind.AGENT)
     assert to_payload(event) == {
         "actor_id": str(actor_id),
-        "name": "RunDebriefer",
         "occurred_at": _NOW.isoformat(),
         "kind": "agent",
     }
 
 
 @pytest.mark.unit
-def test_from_stored_rebuilds_actor_registered_with_kind() -> None:
-    """A current-shape payload with `kind` round-trips correctly."""
+def test_from_stored_rebuilds_v2_actor_registered() -> None:
+    """A V2 payload (no name) round-trips correctly via the
+    "ActorRegisteredV2" event_type discriminator."""
     actor_id = uuid4()
     stored = _stored(
-        "ActorRegistered",
+        "ActorRegisteredV2",
         {
             "actor_id": str(actor_id),
-            "name": "Doga",
             "occurred_at": _NOW.isoformat(),
             "kind": "human",
         },
     )
     rebuilt = from_stored(stored)
-    assert rebuilt == ActorRegistered(
-        actor_id=actor_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN
-    )
+    assert rebuilt == ActorRegistered(actor_id=actor_id, occurred_at=_NOW, kind=ActorKind.HUMAN)
 
 
 @pytest.mark.unit
-def test_from_stored_payload_without_kind_folds_to_human_kind() -> None:
-    """Payloads without the `kind` field MUST fold to kind=human.
-
-    This is the forward-compat additive-evolution guarantee. Existing
-    Actor streams written before the kind-field addition have payloads
-    without `kind`; the evolver supplies the default to keep replay working.
-    """
+def test_from_stored_legacy_v1_drops_name_field_on_rebuild() -> None:
+    """V1 (pre-PII-vault) payloads carry `name`; the legacy arm
+    drops it on rebuild. The backfill migration copied legacy
+    names into actor_profile before this arm started replaying,
+    so display reads still find the right name via load_actor_display_name."""
     actor_id = uuid4()
     stored = _stored(
         "ActorRegistered",
         {
             "actor_id": str(actor_id),
-            "name": "Doga",
+            "name": "Doga (legacy V1)",
             "occurred_at": _NOW.isoformat(),
-            # No "kind" field; legacy payload shape.
+            "kind": "human",
         },
     )
     rebuilt = from_stored(stored)
-    assert rebuilt == ActorRegistered(
-        actor_id=actor_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN
+    assert rebuilt == ActorRegistered(actor_id=actor_id, occurred_at=_NOW, kind=ActorKind.HUMAN)
+
+
+@pytest.mark.unit
+def test_from_stored_legacy_v1_payload_without_kind_folds_to_human() -> None:
+    """Pre-8f-a V1 payloads lack both `kind` and the post-vault
+    discriminator — the legacy arm still rebuilds them, defaulting
+    kind to human."""
+    actor_id = uuid4()
+    stored = _stored(
+        "ActorRegistered",
+        {
+            "actor_id": str(actor_id),
+            "name": "Doga (pre-kind V1)",
+            "occurred_at": _NOW.isoformat(),
+            # No "kind" field; oldest legacy shape.
+        },
     )
+    rebuilt = from_stored(stored)
+    assert rebuilt == ActorRegistered(actor_id=actor_id, occurred_at=_NOW, kind=ActorKind.HUMAN)
 
 
 @pytest.mark.unit
 def test_from_stored_rebuilds_agent_kind_actor() -> None:
-    """An agent-kind Actor replays correctly."""
+    """An agent-kind Actor V2 payload replays correctly."""
     actor_id = uuid4()
     stored = _stored(
-        "ActorRegistered",
+        "ActorRegisteredV2",
         {
             "actor_id": str(actor_id),
-            "name": "RunDebriefer",
             "occurred_at": _NOW.isoformat(),
             "kind": "agent",
         },
     )
     rebuilt = from_stored(stored)
-    assert rebuilt == ActorRegistered(
-        actor_id=actor_id, name="RunDebriefer", occurred_at=_NOW, kind=ActorKind.AGENT
-    )
+    assert rebuilt == ActorRegistered(actor_id=actor_id, occurred_at=_NOW, kind=ActorKind.AGENT)
 
 
 @pytest.mark.unit
-def test_to_payload_then_from_stored_round_trips() -> None:
-    """Round-trip safety net: the (de)serialization pair must be each other's inverse."""
+def test_to_payload_then_from_stored_round_trips_v2() -> None:
+    """Round-trip safety net: V2 (de)serialization pair must be each other's inverse."""
     actor_id = uuid4()
-    original = ActorRegistered(
-        actor_id=actor_id, name="Doga", occurred_at=_NOW, kind=ActorKind.HUMAN
-    )
-    stored = _stored("ActorRegistered", to_payload(original))
+    original = ActorRegistered(actor_id=actor_id, occurred_at=_NOW, kind=ActorKind.HUMAN)
+    stored = _stored(event_type_name(original), to_payload(original))
     assert from_stored(stored) == original
 
 
@@ -157,7 +164,10 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("event_type", ["ActorRegistered", "ActorDeactivated"])
+@pytest.mark.parametrize(
+    "event_type",
+    ["ActorRegisteredV2", "ActorRegistered", "ActorDeactivated"],
+)
 def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:
     """Per the convention adopted post-corpus-survey (Marten /
     pyeventsourcing / Pydantic / msgspec all wrap), each event-type case
@@ -176,35 +186,28 @@ def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:
 # the envelope shape end-to-end against a real event store.
 
 
-# ---------- fix: service_account kind + invalid-kind wrap ----------
+# ---------- service_account kind + invalid-kind wrap ----------
 
 
 @pytest.mark.unit
-def test_from_stored_rebuilds_service_account_kind_actor() -> None:
+def test_from_stored_rebuilds_service_account_kind_actor_v2() -> None:
     """ActorKind includes SERVICE_ACCOUNT. Pin the
-    serialize → from_stored round-trip end-to-end."""
+    V2 serialize → from_stored round-trip end-to-end."""
     actor_id = UUID("01900000-0000-7000-8000-000000000099")
     event = ActorRegistered(
         actor_id=actor_id,
-        name="ci-bridge",
         occurred_at=_NOW,
         kind=ActorKind.SERVICE_ACCOUNT,
     )
-    stored = _stored("ActorRegistered", to_payload(event))
+    stored = _stored(event_type_name(event), to_payload(event))
     rebuilt = from_stored(stored)
-    expected = ActorRegistered(
-        actor_id=actor_id,
-        name="ci-bridge",
-        occurred_at=_NOW,
-        kind=ActorKind.SERVICE_ACCOUNT,
-    )
-    assert rebuilt == expected
+    assert rebuilt == event
 
 
 @pytest.mark.unit
 def test_from_stored_wraps_invalid_kind_value() -> None:
     """Gate-review test#11 (pre-existing convention bug surfaced by
-    the SERVICE_ACCOUNT enum widening): a corrupted payload with
+    the SERVICE_ACCOUNT enum widening): a corrupted V2 payload with
     kind='superuser' triggers ActorKind() to raise bare ValueError,
     which the previous except clause did NOT catch, leaking a raw
     uncaught ValueError out of from_stored instead of the tagged
@@ -212,10 +215,9 @@ def test_from_stored_wraps_invalid_kind_value() -> None:
     actor_id = UUID("01900000-0000-7000-8000-0000000000ab")
     payload: dict[str, object] = {
         "actor_id": str(actor_id),
-        "name": "x",
         "occurred_at": _NOW.isoformat(),
         "kind": "superuser",  # not in ActorKind
     }
-    stored = _stored("ActorRegistered", payload)
-    with pytest.raises(ValueError, match="Malformed ActorRegistered payload"):
+    stored = _stored("ActorRegisteredV2", payload)
+    with pytest.raises(ValueError, match="Malformed ActorRegisteredV2 payload"):
         from_stored(stored)

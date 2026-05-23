@@ -288,7 +288,8 @@ def test_bearer_verified_principal_reaches_event_store_via_full_stack(
 
     events, _ = asyncio.run(deps.event_store.load("Actor", actor_id))
     assert len(events) == 1
-    assert events[0].event_type == "ActorRegistered"
+    # V2 discriminator (post PII vault); see project_pii_vault.
+    assert events[0].event_type == "ActorRegisteredV2"
     # The load-bearing invariant: bearer-verified principal_id lands
     # on the persisted event's principal_id column.
     assert events[0].principal_id == verified_principal_id

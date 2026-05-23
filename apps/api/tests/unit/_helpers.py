@@ -41,6 +41,7 @@ from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import make_inmemory_kernel
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
+from cora.infrastructure.memory.profile_store import InMemoryProfileStore
 from cora.infrastructure.ports import (
     LLM,
     Allow,
@@ -51,6 +52,7 @@ from cora.infrastructure.ports import (
     EventStore,
     FakeClock,
     FixedIdGenerator,
+    ProfileStore,
 )
 from cora.recipe.aggregates.capability import (
     CapabilityCode,
@@ -113,13 +115,15 @@ def build_deps(
     deny: bool = False,
     authz: Authorize | None = None,
     llm: LLM | None = None,
+    profile_store: ProfileStore | None = None,
 ) -> Kernel:
     """Build a Kernel for unit-test handler invocation.
 
     Defaults: FakeClock at DEFAULT_NOW, AllowAllAuthorize, fresh
-    InMemoryEventStore, fresh InMemoryIdempotencyStore, no pool. Pass
-    `ids=` for the FixedIdGenerator queue (the handler consumes them
-    in order: aggregate ids first, then event ids per emitted event).
+    InMemoryEventStore, fresh InMemoryIdempotencyStore, fresh
+    InMemoryProfileStore, no pool. Pass `ids=` for the
+    FixedIdGenerator queue (the handler consumes them in order:
+    aggregate ids first, then event ids per emitted event).
 
     `authz` overrides the default authorize port (use this for
     tests injecting a recording / counting / specific-reason
@@ -129,6 +133,11 @@ def build_deps(
     `FakeLLMAdapter`) when the handler under test consumes one
     (eg. `re_debrief_run`). Defaults to None so the vast majority
     of tests that don't need an LLM stay LLM-free.
+
+    `profile_store` injects a pre-built PII vault adapter (typically
+    when a test wants to seed the vault before invoking the handler,
+    or wants to assert on the vault state afterwards via the same
+    instance). Defaults to a fresh `InMemoryProfileStore` per call.
     """
     if authz is None:
         authz = DenyAllAuthorize() if deny else AllowAllAuthorize()
@@ -139,6 +148,7 @@ def build_deps(
         authz=authz,
         event_store=event_store,
         llm=llm,
+        profile_store=profile_store,
     )
 
 
@@ -200,10 +210,24 @@ async def seed_capability(
     )
 
 
+def make_profile_store() -> InMemoryProfileStore:
+    """Fresh InMemoryProfileStore for unit-test handler invocation.
+
+    Per the PII vault pattern, the Access BC `register_actor` and
+    `get_actor` slices plus the Agent BC `define_agent` slice take a
+    `ProfileStore` via the `bind(deps, *, profile_store=...)`
+    keyword. Tests construct a per-test in-memory store via this
+    helper and assert on it directly when they need to (e.g.
+    "register_actor upserts the display name into the vault").
+    """
+    return InMemoryProfileStore()
+
+
 __all__ = [
     "DEFAULT_NOW",
     "DenyAllAuthorize",
     "RecordingAuthorize",
     "build_deps",
+    "make_profile_store",
     "seed_capability",
 ]

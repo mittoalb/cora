@@ -23,7 +23,7 @@ from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.ports import (
     ConcurrencyError,
 )
-from tests.unit._helpers import build_deps
+from tests.unit._helpers import build_deps, make_profile_store
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000000001")
@@ -35,7 +35,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 async def _register_actor(deps: Kernel) -> UUID:
     """Helper: register an actor and return its id."""
-    handler = register_actor.bind(deps)
+    handler = register_actor.bind(deps, profile_store=make_profile_store())
     return await handler(
         RegisterActor(name="Doga"),
         principal_id=_PRINCIPAL_ID,
@@ -170,10 +170,11 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
             correlation_id=_CORRELATION_ID,
         )
 
-    # Stream still has only the ActorRegistered event from setup.
+    # Stream still has only the ActorRegisteredV2 event from setup
+    # (V2 = post-PII-vault discriminator string).
     events, version = await deny_deps.event_store.load("Actor", actor_id)
     assert version == 1
-    assert events[0].event_type == "ActorRegistered"
+    assert events[0].event_type == "ActorRegisteredV2"
 
 
 @pytest.mark.unit

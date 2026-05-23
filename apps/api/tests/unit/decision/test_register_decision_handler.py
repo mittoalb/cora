@@ -59,9 +59,7 @@ def _good_command(**overrides: Any) -> RegisterDecision:
 
 
 async def _seed_actor(store: InMemoryEventStore, actor_id: UUID) -> None:
-    event = ActorRegistered(
-        actor_id=actor_id, name="Test Operator", occurred_at=_NOW, kind=ActorKind.HUMAN
-    )
+    event = ActorRegistered(actor_id=actor_id, occurred_at=_NOW, kind=ActorKind.HUMAN)
     new_event = to_new_event(
         event_type=actor_event_type_name(event),
         payload=actor_to_payload(event),

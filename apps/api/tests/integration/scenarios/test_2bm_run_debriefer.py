@@ -110,7 +110,7 @@ from cora.run.features.start_run import StartRun
 from cora.run.features.start_run import bind as bind_start_run
 from cora.subject.features.mount_subject import MountSubject
 from cora.subject.features.mount_subject import bind as bind_mount_subject
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 from tests.integration.scenarios._beamtime_fixture import (
     BeamtimeSpec,
     beamtime_id_prefix,
@@ -287,6 +287,7 @@ async def test_run_debrief_agent_fires_on_terminal_run(
 
     await install_and_activate_tomography_assets(
         deps,
+        profile_store=make_pg_profile_store(db_pool),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         asset_ids=_TOMO_ASSETS,
@@ -294,6 +295,7 @@ async def test_run_debrief_agent_fires_on_terminal_run(
 
     await open_beamtime(
         deps,
+        profile_store=make_pg_profile_store(db_pool),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         spec=_BEAMTIME,

@@ -35,7 +35,7 @@ from cora.access.features.register_actor import RegisterActor
 from cora.access.features.register_actor import bind as bind_register
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 
 _NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -66,7 +66,7 @@ async def _seed_actors_and_drain(
     fixed_ids.extend([uuid4() for _ in deactivate_indices])
 
     deps = _build_deps(db_pool, fixed_ids)
-    register = bind_register(deps)
+    register = bind_register(deps, profile_store=make_pg_profile_store(db_pool))
     for i, actor_id in enumerate(ids):
         await register(
             RegisterActor(name=f"Actor{i:02d}"),
@@ -271,7 +271,7 @@ async def test_register_service_account_actor_appears_in_list_with_kind(
     actor_id = uuid4()
     event_id = uuid4()
     deps = _build_deps(db_pool, [actor_id, event_id])
-    register = bind_register(deps)
+    register = bind_register(deps, profile_store=make_pg_profile_store(db_pool))
 
     await register(
         RegisterActor(name="ci-bridge", kind=ActorKind.SERVICE_ACCOUNT),

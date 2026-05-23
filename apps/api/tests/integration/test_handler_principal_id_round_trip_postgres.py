@@ -34,7 +34,7 @@ from cora.access.features.register_actor import bind as bind_register_actor
 from cora.infrastructure.kernel import Kernel
 from cora.trust.features.define_conduit import DefineConduit
 from cora.trust.features.define_conduit import bind as bind_define_conduit
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 
 _NOW = datetime(2026, 5, 13, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-00000000bb55")
@@ -54,7 +54,7 @@ async def test_register_actor_handler_writes_principal_id_on_event(
     actor_id = uuid4()
     event_id = uuid4()
     deps = _build_deps(db_pool, [actor_id, event_id])
-    handler = bind_register_actor(deps)
+    handler = bind_register_actor(deps, profile_store=make_pg_profile_store(db_pool))
     await handler(
         RegisterActor(name="Alice"),
         principal_id=_PRINCIPAL_ID,
@@ -64,7 +64,7 @@ async def test_register_actor_handler_writes_principal_id_on_event(
     events, version = await deps.event_store.load("Actor", actor_id)
     assert version == 1
     assert len(events) == 1
-    assert events[0].event_type == "ActorRegistered"
+    assert events[0].event_type == "ActorRegisteredV2"
     assert events[0].principal_id == _PRINCIPAL_ID, (
         f"register_actor handler wrote principal_id="
         f"{events[0].principal_id!r}, expected {_PRINCIPAL_ID!r}. "

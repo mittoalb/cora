@@ -32,7 +32,7 @@ from cora.decision.features.register_decision import RegisterDecision
 from cora.decision.features.register_decision import bind as bind_register
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
-from tests.integration._helpers import build_postgres_deps
+from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 
 _NOW = datetime(2026, 5, 13, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -53,10 +53,10 @@ async def _drain(db_pool: asyncpg.Pool) -> None:
     await drain_projections(db_pool, registry, deadline_seconds=2.0)
 
 
-async def _seed_actor(deps: Kernel) -> UUID:
+async def _seed_actor(deps: Kernel, db_pool: asyncpg.Pool) -> UUID:
     """Register an Actor so register_decision's cross-aggregate
     existence check passes. Consumes 2 ids from FixedIdGenerator."""
-    return await bind_register_actor(deps)(
+    return await bind_register_actor(deps, profile_store=make_pg_profile_store(db_pool))(
         RegisterActor(name="Decider"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -97,7 +97,7 @@ async def test_every_band_value_writes_a_check_constraint_accepted_string(
     actor_id = uuid4()
     actor_event_id = uuid4()
     deps_actor = _build_deps(db_pool, [actor_id, actor_event_id])
-    actor_id_holder.append(await _seed_actor(deps_actor))
+    actor_id_holder.append(await _seed_actor(deps_actor, db_pool))
 
     for label, confidence in bands_under_test:
         decision_id = uuid4()
@@ -162,7 +162,7 @@ async def test_confidence_band_filter_narrows_results(
     handler's filter SQL behavior, not the planner's choice."""
     actor_id = uuid4()
     deps_actor = _build_deps(db_pool, [actor_id, uuid4()])
-    actor_real_id = await _seed_actor(deps_actor)
+    actor_real_id = await _seed_actor(deps_actor, db_pool)
 
     high_id = uuid4()
     deps_high = _build_deps(db_pool, [high_id, uuid4()])
@@ -233,7 +233,7 @@ async def test_cursor_walks_pages(db_pool: asyncpg.Pool) -> None:
     actor_id_holder: list[UUID] = []
     actor_id = uuid4()
     deps_actor = _build_deps(db_pool, [actor_id, uuid4()])
-    actor_id_holder.append(await _seed_actor(deps_actor))
+    actor_id_holder.append(await _seed_actor(deps_actor, db_pool))
 
     decision_ids: list[UUID] = []
     for i in range(5):

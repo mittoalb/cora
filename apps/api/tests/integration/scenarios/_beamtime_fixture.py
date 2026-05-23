@@ -65,6 +65,7 @@ async def test_...(db_pool):
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
+from cora.access.aggregates.actor import ProfileStore
 from cora.access.features.register_actor import RegisterActor
 from cora.access.features.register_actor import bind as bind_register_actor
 from cora.campaign.aggregates.campaign import CampaignIntent
@@ -129,6 +130,7 @@ def beamtime_id_prefix(*, spec: BeamtimeSpec) -> list[UUID]:
 async def open_beamtime(
     deps: Kernel,
     *,
+    profile_store: ProfileStore,
     principal_id: UUID,
     correlation_id: UUID,
     spec: BeamtimeSpec,
@@ -142,7 +144,7 @@ async def open_beamtime(
 
     Order matches `beamtime_id_prefix()` exactly.
     """
-    await bind_register_actor(deps)(
+    await bind_register_actor(deps, profile_store=profile_store)(
         RegisterActor(name=spec.pi_actor_name),
         principal_id=principal_id,
         correlation_id=correlation_id,

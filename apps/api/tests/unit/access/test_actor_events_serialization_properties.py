@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 
 ACTOR_NAME_MAX_LENGTH = 200
 
-_NAME = printable_ascii_text(max_size=ACTOR_NAME_MAX_LENGTH)
+_LEGACY_NAME = printable_ascii_text(max_size=ACTOR_NAME_MAX_LENGTH)
 _KIND = st.sampled_from(list(ActorKind))
 _AWARE_DATETIME = aware_datetimes()
 
@@ -52,16 +52,19 @@ _AWARE_DATETIME = aware_datetimes()
 @pytest.mark.unit
 @given(
     actor_id=st.uuids(),
-    name=_NAME,
     occurred_at=_AWARE_DATETIME,
     kind=_KIND,
 )
-def test_actor_registered_payload_round_trip(
-    actor_id: UUID, name: str, occurred_at: datetime, kind: ActorKind
+def test_actor_registered_v2_payload_round_trip(
+    actor_id: UUID, occurred_at: datetime, kind: ActorKind
 ) -> None:
-    """For any ActorRegistered, payload round-trips through StoredEvent."""
-    assume(name == name.strip())
-    original = ActorRegistered(actor_id=actor_id, name=name, occurred_at=occurred_at, kind=kind)
+    """For any ActorRegistered, V2 payload round-trips through StoredEvent.
+
+    PII vault: V2 payloads carry no `name` — display name lives in
+    the `actor_profile` table. The (de)serialization pair on the
+    event itself is invariant under name absence.
+    """
+    original = ActorRegistered(actor_id=actor_id, occurred_at=occurred_at, kind=kind)
     stored = make_stored_event(
         stream_type="Actor",
         event_type=event_type_name(original),
@@ -69,6 +72,38 @@ def test_actor_registered_payload_round_trip(
     )
     reconstructed = from_stored(stored)
     assert reconstructed == original
+
+
+@pytest.mark.unit
+@given(
+    actor_id=st.uuids(),
+    legacy_name=_LEGACY_NAME,
+    occurred_at=_AWARE_DATETIME,
+    kind=_KIND,
+)
+def test_actor_registered_v1_legacy_payload_drops_name_on_rebuild(
+    actor_id: UUID, legacy_name: str, occurred_at: datetime, kind: ActorKind
+) -> None:
+    """V1 legacy payloads carry `name` — the legacy arm drops it on
+    rebuild (the backfill migration copied legacy names into
+    actor_profile before this arm started replaying). The rebuilt
+    event matches the modern dataclass shape regardless of which
+    legacy name flowed through the payload.
+    """
+    assume(legacy_name == legacy_name.strip())
+    legacy_payload: dict[str, object] = {
+        "actor_id": str(actor_id),
+        "name": legacy_name,
+        "occurred_at": occurred_at.isoformat(),
+        "kind": kind.value,
+    }
+    stored = make_stored_event(
+        stream_type="Actor",
+        event_type="ActorRegistered",  # legacy discriminator
+        payload=legacy_payload,
+    )
+    reconstructed = from_stored(stored)
+    assert reconstructed == ActorRegistered(actor_id=actor_id, occurred_at=occurred_at, kind=kind)
 
 
 @pytest.mark.unit

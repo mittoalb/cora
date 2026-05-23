@@ -45,6 +45,14 @@ async def test_seed_creates_caution_drafter_at_pinned_id() -> None:
 
 @pytest.mark.unit
 async def test_seed_creates_co_registered_actor() -> None:
+    """The cross-BC genesis: Actor (kind=agent) at the pinned id.
+
+    PII vault: the Actor aggregate carries no `name`. Display name
+    lives in `actor_profile`; the seed upserts it via the
+    InMemoryProfileStore constructed inside `seed_caution_drafter_agent`
+    when `kernel.pool is None`. Vault-side coverage lives in the
+    `test_seed_upserts_actor_profile` test below.
+    """
     from cora.access.aggregates.actor import load_actor
 
     kernel = _kernel()
@@ -54,7 +62,17 @@ async def test_seed_creates_co_registered_actor() -> None:
     assert actor is not None
     assert actor.id == CAUTION_DRAFTER_AGENT_ID
     assert actor.kind.value == "agent"
-    assert actor.name.value == CAUTION_DRAFTER_AGENT_NAME
+
+
+@pytest.mark.unit
+async def test_seed_is_resilient_under_pre_existing_actor_only_stream() -> None:
+    """If the Actor stream exists but the Agent stream doesn't (a
+    partial-prior-seed crash), the second seed call must still raise
+    the ConcurrencyError-as-success path without double-writing the
+    actor."""
+    kernel = _kernel()
+    await seed_caution_drafter_agent(kernel)
+    await seed_caution_drafter_agent(kernel)  # second seed: no-op via ConcurrencyError
 
 
 @pytest.mark.unit

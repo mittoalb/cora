@@ -26,7 +26,12 @@ provably has no prior events, so the load is wasteful.
 from typing import Protocol
 from uuid import UUID
 
-from cora.access.aggregates.actor import event_type_name, to_payload
+from cora.access.aggregates.actor import (
+    ActorName,
+    ProfileStore,
+    event_type_name,
+    to_payload,
+)
 from cora.access.errors import UnauthorizedError
 from cora.access.features.register_actor.command import RegisterActor
 from cora.access.features.register_actor.decider import decide
@@ -95,8 +100,24 @@ class IdempotentHandler(Protocol):
     ) -> UUID: ...
 
 
-def bind(deps: Kernel) -> Handler:
-    """Build a register_actor handler closed over the shared deps."""
+def bind(deps: Kernel, *, profile_store: ProfileStore) -> Handler:
+    """Build a register_actor handler closed over the shared deps.
+
+    `profile_store` is the BC-internal PII vault adapter
+    (`PostgresProfileStore` in prod, `InMemoryProfileStore` in tests);
+    wire.py constructs it from `deps.pool` and passes it here.
+
+    Write order: profile upsert FIRST, then event append. This
+    matches `define_agent` and guarantees that any downstream
+    subscriber (the actor-summary projection in particular) can
+    read the actor_profile row by `actor_id` the instant the
+    event becomes visible. A crash between upsert and append
+    leaves an orphan profile row tied to an `actor_id` that has
+    no event stream — recovered on the next retry because both
+    steps are idempotent (upsert ON CONFLICT DO UPDATE; append
+    at `expected_version=0` raises ConcurrencyError on already-
+    written streams which the caller swallows).
+    """
 
     async def handler(
         command: RegisterActor,
@@ -140,6 +161,17 @@ def bind(deps: Kernel) -> Handler:
             command=command,
             now=now,
             new_id=new_id,
+        )
+
+        # Profile vault upsert FIRST so the projection worker
+        # always sees the actor_profile row by the time the V2
+        # event becomes visible (see `bind` docstring for the order
+        # rationale). Re-trim through `ActorName` here so the
+        # canonical trim/strip logic lives in one place.
+        await profile_store.upsert(
+            actor_id=new_id,
+            name=ActorName(command.name).value,
+            created_at=now,
         )
 
         # One event_id per emitted event, generated via the IdGenerator

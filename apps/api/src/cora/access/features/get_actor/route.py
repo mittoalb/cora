@@ -74,20 +74,20 @@ async def get_actors(
     principal_id: Annotated[UUID, Depends(get_principal_id)],
     surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> ActorResponse:
-    actor = await handler(
+    view = await handler(
         GetActor(actor_id=actor_id),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,
     )
-    if actor is None:
+    if view is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Actor {actor_id} not found",
         )
     return ActorResponse(
-        id=actor.id,
-        name=actor.name.value,
-        kind=actor.kind.value,
-        is_active=actor.is_active,
+        id=view.actor.id,
+        name=view.display_name,
+        kind=view.actor.kind.value,
+        is_active=view.actor.is_active,
     )

@@ -53,11 +53,10 @@ async def _drain(db_pool: asyncpg.Pool) -> None:
     await drain_projections(db_pool, registry, deadline_seconds=2.0)
 
 
-async def _seed_actor(db_pool: asyncpg.Pool, actor_id: UUID, name: str = "Op") -> None:
+async def _seed_actor(db_pool: asyncpg.Pool, actor_id: UUID) -> None:
     store = PostgresEventStore(db_pool)
     event = ActorRegistered(
         actor_id=actor_id,
-        name=name,
         occurred_at=_NOW,
         kind=ActorKind.HUMAN,
     )
