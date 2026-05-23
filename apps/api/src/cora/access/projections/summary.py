@@ -8,15 +8,20 @@ Subscribed events:
     pulled from the `actor_profile` PII vault (the writer upserts
     the profile row BEFORE appending the V2 event, so the row is
     always visible by the time the projection applies).
-  - ActorDeactivated -> UPDATE status to 'deactivated'
+  - ActorDeactivated -> UPDATE status to 'deactivated'.
+  - ActorProfileForgotten -> UPDATE the cached display name to the
+    tombstone literal so list reads see "<deleted user>" without
+    a JOIN against actor_profile. The audit event records WHEN the
+    erasure happened; the projection rewrites the read-side cached
+    display surface to match the post-erasure actor_profile state.
 
-Both apply branches are idempotent (the framework delivers at-least-
+Every apply branch is idempotent (the framework delivers at-least-
 once; re-applying the same event must produce the same row state):
 
   - INSERT uses `ON CONFLICT (actor_id) DO NOTHING` so re-application
     of the same registration event is a no-op.
-  - UPDATE writes the same `status='deactivated'` value regardless of
-    how many times the event lands; idempotent by construction.
+  - UPDATEs write the same target value regardless of how many times
+    the event lands; idempotent by construction.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -24,6 +29,7 @@ once; re-applying the same event must produce the same row state):
 from datetime import datetime
 from uuid import UUID
 
+from cora.access.aggregates.actor import DELETED_ACTOR_DISPLAY_NAME
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.infrastructure.projection.handler import ConnectionLike
 
@@ -57,6 +63,18 @@ SET status = 'deactivated', updated_at = now()
 WHERE actor_id = $1
 """
 
+# Post-erasure tombstone: overwrite the cached display name with the
+# locale-neutral English literal. Idempotent: repeated applies set the
+# same value. WHERE actor_id = $1 makes it a no-op if the row is
+# absent (race-tolerant: an out-of-order ActorProfileForgotten before
+# ActorRegistered* would silently do nothing rather than insert a
+# tombstone row out of thin air).
+_FORGET_ACTOR_SQL = """
+UPDATE proj_access_actor_summary
+SET name = $2, updated_at = now()
+WHERE actor_id = $1
+"""
+
 
 class ActorSummaryProjection:
     """Maintains the `proj_access_actor_summary` read model.
@@ -68,7 +86,14 @@ class ActorSummaryProjection:
     """
 
     name = "proj_access_actor_summary"
-    subscribed_event_types = frozenset({"ActorRegistered", "ActorRegisteredV2", "ActorDeactivated"})
+    subscribed_event_types = frozenset(
+        {
+            "ActorRegistered",
+            "ActorRegisteredV2",
+            "ActorDeactivated",
+            "ActorProfileForgotten",
+        }
+    )
 
     async def apply(
         self,
@@ -111,6 +136,17 @@ class ActorSummaryProjection:
                 await conn.execute(
                     _DEACTIVATE_ACTOR_SQL,
                     UUID(event.payload["actor_id"]),
+                )
+            case "ActorProfileForgotten":
+                # Rewrite the cached display name in place; the actor
+                # row itself stays on the projection (the
+                # pseudonymised actor_id reference remains valid per
+                # EDPB 01/2025 Example 10). Status / kind / created_at
+                # are unchanged.
+                await conn.execute(
+                    _FORGET_ACTOR_SQL,
+                    UUID(event.payload["actor_id"]),
+                    DELETED_ACTOR_DISPLAY_NAME,
                 )
             case _:
                 pass

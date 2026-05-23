@@ -23,8 +23,11 @@ import asyncpg
 import pytest
 
 from cora.access._projections import register_access_projections
+from cora.access.aggregates.actor import DELETED_ACTOR_DISPLAY_NAME
 from cora.access.features.deactivate_actor import DeactivateActor
 from cora.access.features.deactivate_actor import bind as bind_deactivate
+from cora.access.features.forget_actor import ForgetActor
+from cora.access.features.forget_actor import bind as bind_forget
 from cora.access.features.register_actor import RegisterActor
 from cora.access.features.register_actor import bind as bind_register
 from cora.infrastructure.kernel import Kernel
@@ -235,3 +238,62 @@ async def test_bookmark_advances_across_multiple_actors(
             actors,
         )
     assert count == 3
+
+
+@pytest.mark.integration
+async def test_forget_actor_event_rewrites_cached_name_to_tombstone(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Full register -> drain -> forget -> drain flow. After the
+    ActorProfileForgotten event lands and the projection drains, the
+    cached `name` column on `proj_access_actor_summary` carries the
+    locked tombstone literal — list reads stay tombstone-correct
+    without a JOIN against actor_profile."""
+    actor_id = uuid4()
+    register_event_id = uuid4()
+    forget_event_id = uuid4()
+    profile_store = make_pg_profile_store(db_pool)
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[actor_id, register_event_id, forget_event_id],
+        profile_store=profile_store,
+    )
+
+    await bind_register(deps, profile_store=profile_store)(
+        RegisterActor(name="Doga"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    # Drain once so the projection row exists at name="Doga" before
+    # the forget event lands. (Avoids a single-drain race where the
+    # forget event would advance the bookmark past the register
+    # without the projection ever seeing the live name.)
+    registry = _build_registry()
+    await drain_projections(db_pool, registry, deadline_seconds=2.0)
+
+    async with db_pool.acquire() as conn:
+        live = await conn.fetchrow(
+            "SELECT name FROM proj_access_actor_summary WHERE actor_id = $1",
+            actor_id,
+        )
+    assert live is not None
+    assert live["name"] == "Doga"
+
+    await bind_forget(deps)(
+        ForgetActor(actor_id=actor_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    await drain_projections(db_pool, registry, deadline_seconds=2.0)
+
+    async with db_pool.acquire() as conn:
+        forgotten = await conn.fetchrow(
+            "SELECT name, status FROM proj_access_actor_summary WHERE actor_id = $1",
+            actor_id,
+        )
+    assert forgotten is not None
+    assert forgotten["name"] == DELETED_ACTOR_DISPLAY_NAME
+    # Status untouched: forget is orthogonal to lifecycle.
+    assert forgotten["status"] == "active"

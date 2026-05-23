@@ -48,7 +48,12 @@ def test_projection_metadata() -> None:
     proj = ActorSummaryProjection()
     assert proj.name == "proj_access_actor_summary"
     assert proj.subscribed_event_types == frozenset(
-        {"ActorRegistered", "ActorRegisteredV2", "ActorDeactivated"}
+        {
+            "ActorRegistered",
+            "ActorRegisteredV2",
+            "ActorDeactivated",
+            "ActorProfileForgotten",
+        }
     )
 
 
@@ -180,6 +185,55 @@ async def test_actor_deactivated_updates_status() -> None:
     assert "UPDATE proj_access_actor_summary" in sql
     assert "status = 'deactivated'" in sql
     assert args.args[1] == _ACTOR_ID
+
+
+@pytest.mark.unit
+async def test_actor_profile_forgotten_rewrites_cached_name_to_tombstone() -> None:
+    """Post-erasure: the projection rewrites the cached display name
+    to the locked tombstone literal so list reads see the same
+    surface `load_actor_display_name` would compose. Status / kind /
+    created_at stay unchanged; only `name` flips."""
+    from cora.access.aggregates.actor import DELETED_ACTOR_DISPLAY_NAME
+
+    proj = ActorSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "ActorProfileForgotten",
+        {"actor_id": str(_ACTOR_ID), "forgotten_at": _NOW.isoformat()},
+    )
+
+    await proj.apply(event, conn)
+
+    conn.execute.assert_awaited_once()
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "UPDATE proj_access_actor_summary" in sql
+    assert "SET name = $2" in sql
+    assert args.args[1] == _ACTOR_ID
+    assert args.args[2] == DELETED_ACTOR_DISPLAY_NAME
+
+
+@pytest.mark.unit
+async def test_actor_profile_forgotten_apply_is_idempotent() -> None:
+    """Applying the same ActorProfileForgotten twice runs the same
+    UPDATE both times; Postgres semantics make the net effect
+    equivalent to one call. Mirrors the V1/V2 registration
+    idempotency contract."""
+    proj = ActorSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "ActorProfileForgotten",
+        {"actor_id": str(_ACTOR_ID), "forgotten_at": _NOW.isoformat()},
+    )
+
+    await proj.apply(event, conn)
+    await proj.apply(event, conn)
+
+    assert conn.execute.await_count == 2
+    first_args = conn.execute.await_args_list[0].args
+    second_args = conn.execute.await_args_list[1].args
+    assert first_args == second_args
 
 
 @pytest.mark.unit
