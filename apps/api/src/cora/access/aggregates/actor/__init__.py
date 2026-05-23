@@ -1,8 +1,8 @@
-"""Actor aggregate: state, errors, events, evolver.
+"""Actor aggregate: state, errors, events, evolver, profile (PII vault).
 
 Vertical slices that operate on this aggregate live under
-`cora.access.features.<verb>_actor/` and import from here for state and
-event types.
+`cora.access.features.<verb>_actor/` and import from here for state,
+event, and profile types.
 """
 
 from cora.access.aggregates.actor.events import (
@@ -14,6 +14,14 @@ from cora.access.aggregates.actor.events import (
     to_payload,
 )
 from cora.access.aggregates.actor.evolver import evolve, fold
+from cora.access.aggregates.actor.profile import (
+    DELETED_ACTOR_DISPLAY_NAME,
+    InMemoryProfileStore,
+    PostgresProfileStore,
+    Profile,
+    ProfileStore,
+    load_actor_display_name,
+)
 from cora.access.aggregates.actor.read import load_actor
 from cora.access.aggregates.actor.state import (
     ACTOR_NAME_MAX_LENGTH,
@@ -29,6 +37,7 @@ from cora.access.aggregates.actor.state import (
 
 __all__ = [
     "ACTOR_NAME_MAX_LENGTH",
+    "DELETED_ACTOR_DISPLAY_NAME",
     "Actor",
     "ActorAlreadyDeactivatedError",
     "ActorAlreadyExistsError",
@@ -38,12 +47,17 @@ __all__ = [
     "ActorName",
     "ActorNotFoundError",
     "ActorRegistered",
+    "InMemoryProfileStore",
     "InvalidActorKindError",
     "InvalidActorNameError",
+    "PostgresProfileStore",
+    "Profile",
+    "ProfileStore",
     "event_type_name",
     "evolve",
     "fold",
     "from_stored",
     "load_actor",
+    "load_actor_display_name",
     "to_payload",
 ]
