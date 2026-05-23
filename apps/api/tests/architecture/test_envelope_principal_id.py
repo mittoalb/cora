@@ -56,7 +56,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.architecture.conftest import BCS, CORA_ROOT
+from tests.architecture.conftest import BCS, CORA_ROOT, tracked_python_files
 
 # Files to scan: every BC's slice-handler files plus any cross-aggregate
 # update helpers at the BC root (subject/_update_handler.py,
@@ -71,14 +71,35 @@ _CROSS_BC_FACTORY = CORA_ROOT / "infrastructure" / "update_handler.py"
 
 
 def _handler_files() -> list[Path]:
+    """Every tracked handler-like file across BCs and the cross-BC factory.
+
+    Filters ``tracked_python_files()`` so untracked WIP handlers are
+    invisible, matching pre-commit's stash behavior (see conftest
+    module docstring).
+    """
+    tracked = tracked_python_files()
     out: list[Path] = []
     for bc in BCS:
         bc_root = CORA_ROOT / bc
         if not bc_root.is_dir():
             continue
-        out.extend(sorted(bc_root.glob(_HANDLER_GLOB)))
-        out.extend(sorted(bc_root.glob(_BC_ROOT_HELPER_GLOB)))
-    if _CROSS_BC_FACTORY.is_file():
+        features_dir = bc_root / "features"
+        bc_handlers = sorted(
+            f
+            for f in tracked
+            if (
+                # features/<slice>/handler.py
+                (f.name == "handler.py" and f.parent.parent == features_dir)
+                # _<aggregate>_handler.py at BC root
+                or (
+                    f.parent == bc_root
+                    and f.name.startswith("_")
+                    and f.name.endswith("_handler.py")
+                )
+            )
+        )
+        out.extend(bc_handlers)
+    if _CROSS_BC_FACTORY in tracked:
         out.append(_CROSS_BC_FACTORY)
     return out
 

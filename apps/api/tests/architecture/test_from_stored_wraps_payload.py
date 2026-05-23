@@ -31,12 +31,22 @@ from pathlib import Path
 
 import pytest
 
-from tests.architecture.conftest import CORA_ROOT
+from tests.architecture.conftest import CORA_ROOT, tracked_python_files
 
 
 def _aggregate_events_files() -> list[Path]:
-    """All `events.py` files under `<bc>/aggregates/<agg>/events.py`."""
-    return sorted(CORA_ROOT.glob("*/aggregates/*/events.py"))
+    """All tracked ``events.py`` files under ``<bc>/aggregates/<agg>/events.py``.
+
+    Filters ``tracked_python_files()`` so untracked WIP aggregates are
+    invisible (see conftest module docstring).
+    """
+    return sorted(
+        f
+        for f in tracked_python_files()
+        if f.name == "events.py"
+        and f.parent.parent.name == "aggregates"
+        and f.parent.parent.parent.parent == CORA_ROOT
+    )
 
 
 def _qualified(p: Path) -> str:

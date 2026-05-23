@@ -58,7 +58,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.architecture.conftest import CORA_ROOT
+from tests.architecture.conftest import CORA_ROOT, tracked_python_files, tracked_test_files
 from tests.architecture.test_slice_contract import (
     _ENTRY_APPEND_SLICES,
     WIP_SLICES,
@@ -150,7 +150,7 @@ EXEMPT_FROM_INTEGRATION: frozenset[str] = frozenset()
 
 
 def _slice_shape(slice_dir: Path) -> str:
-    files = {p.name for p in slice_dir.iterdir() if p.is_file()}
+    files = {p.name for p in tracked_python_files() if p.parent == slice_dir}
     has_command = "command.py" in files
     has_query = "query.py" in files
     if has_command:
@@ -175,14 +175,20 @@ def _tier_dir(tier: str, bc: str) -> Path:
 
 def _is_covered(*, tier: str, bc: str, slice_name: str, suffix: str) -> bool:
     """True if either the 1:1 file exists OR the slice name appears as
-    a substring in any test file in the tier directory."""
+    a substring in any test file in the tier directory.
+
+    Enumeration filters ``tracked_test_files()`` so untracked WIP test
+    files are invisible, matching pre-commit's stash behavior (see
+    conftest module docstring).
+    """
     direct = _tier_dir(tier, bc) / f"test_{slice_name}_{suffix}.py"
-    if direct.exists():
+    tracked = tracked_test_files()
+    if direct in tracked:
         return True
     search_dir = _tier_dir(tier, bc)
-    if not search_dir.exists():
-        return False
-    for f in search_dir.glob("test_*.py"):
+    for f in tracked:
+        if f.parent != search_dir or not f.name.startswith("test_"):
+            continue
         try:
             if slice_name in f.read_text():
                 return True

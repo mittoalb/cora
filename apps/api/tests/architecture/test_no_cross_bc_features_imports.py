@@ -30,19 +30,25 @@ from pathlib import Path
 
 import pytest
 
-from tests.architecture.conftest import BCS, CORA_ROOT
+from tests.architecture.conftest import BCS, CORA_ROOT, tracked_python_files
 
 _BCS: frozenset[str] = frozenset(BCS)
 
 
 def _bc_python_files() -> list[Path]:
-    """Every `.py` file under `cora/<bc>/` for every BC."""
+    """Every tracked `.py` file under ``cora/<bc>/`` for every BC.
+
+    Filters ``tracked_python_files()`` so untracked WIP files are
+    invisible, matching pre-commit's stash behavior (see conftest
+    module docstring).
+    """
+    tracked = tracked_python_files()
     out: list[Path] = []
     for bc in BCS:
         bc_root = CORA_ROOT / bc
         if not bc_root.is_dir():
             continue
-        out.extend(sorted(bc_root.rglob("*.py")))
+        out.extend(sorted(f for f in tracked if bc_root in f.parents))
     return out
 
 

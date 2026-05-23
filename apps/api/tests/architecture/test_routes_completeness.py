@@ -23,7 +23,7 @@ from typing import Any
 
 import pytest
 
-from tests.architecture.conftest import BCS
+from tests.architecture.conftest import BCS, CORA_ROOT, tracked_python_files
 
 # Errors not yet registered because their slice is in flight,
 # OR pre-existing drift this test surfaced and which is being
@@ -61,20 +61,21 @@ def _bc_error_classes(bc: str) -> set[str]:
             if isinstance(cls, type) and issubclass(cls, Exception) and n.endswith("Error"):
                 out.add(n)
     # Walk known sub-aggregates too (e.g. trust.aggregates.conduit).
-    bc_path = aggs.__path__  # type: ignore[attr-defined]
-    for sub in bc_path:
-        import os
-
-        for entry in os.listdir(sub):
-            sub_pkg_name = f"{aggs_pkg_name}.{entry}"
-            try:
-                sub_pkg = importlib.import_module(sub_pkg_name)
-            except (ModuleNotFoundError, ImportError):
-                continue
-            for n in getattr(sub_pkg, "__all__", []):
-                cls = getattr(sub_pkg, n, None)
-                if isinstance(cls, type) and issubclass(cls, Exception) and n.endswith("Error"):
-                    out.add(n)
+    # Enumeration is git-aware: pre-commit doesn't stash untracked files,
+    # so a filesystem scan would see half-staged WIP aggregates and
+    # false-fail. See conftest module docstring for the rationale.
+    aggs_dir = CORA_ROOT / bc / "aggregates"
+    sub_dirs = {f.parent for f in tracked_python_files() if f.parent.parent == aggs_dir}
+    for sub_dir in sub_dirs:
+        sub_pkg_name = f"{aggs_pkg_name}.{sub_dir.name}"
+        try:
+            sub_pkg = importlib.import_module(sub_pkg_name)
+        except (ModuleNotFoundError, ImportError):
+            continue
+        for n in getattr(sub_pkg, "__all__", []):
+            cls = getattr(sub_pkg, n, None)
+            if isinstance(cls, type) and issubclass(cls, Exception) and n.endswith("Error"):
+                out.add(n)
     return out
 
 

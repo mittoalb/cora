@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.architecture.conftest import CORA_ROOT
+from tests.architecture.conftest import CORA_ROOT, tracked_python_files
 
 # The single allowed construction site: `to_new_event` in the cross-BC
 # envelope helper. Adding a second authorized constructor (for example,
@@ -35,13 +35,12 @@ _ALLOWED_FILE = CORA_ROOT / "infrastructure" / "event_envelope.py"
 
 
 def _src_files() -> list[Path]:
-    """Every `.py` file under `cora/` excluding the allowed file."""
-    out: list[Path] = []
-    for path in CORA_ROOT.rglob("*.py"):
-        if path == _ALLOWED_FILE:
-            continue
-        out.append(path)
-    return sorted(out)
+    """Every tracked `.py` file under ``cora/`` excluding the allowed file.
+
+    Filters ``tracked_python_files()`` so untracked WIP files are
+    invisible (see conftest module docstring).
+    """
+    return sorted(p for p in tracked_python_files() if p != _ALLOWED_FILE)
 
 
 def _new_event_call_lines(tree: ast.AST) -> list[int]:

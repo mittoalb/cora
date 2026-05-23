@@ -80,7 +80,7 @@ def test_slice_has_required_files(slice_dir: Path) -> None:
     if qualified in WIP_SLICES:
         pytest.skip(f"{qualified} is in WIP_SLICES (mid-phase)")
 
-    files = {p.name for p in slice_dir.iterdir() if p.is_file()}
+    files = {p.name for p in tracked_python_files() if p.parent == slice_dir}
     has_command = "command.py" in files
     has_query = "query.py" in files
 

@@ -33,7 +33,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.architecture.conftest import CORA_ROOT
+from tests.architecture.conftest import CORA_ROOT, tracked_python_files
 
 # Files under `cora.caution.aggregates.caution.*` define the event
 # classes; they don't need to import the invariants module (it sits
@@ -51,7 +51,8 @@ _RULES: dict[str, frozenset[str]] = {
 
 
 def _all_python_files() -> list[Path]:
-    return sorted(CORA_ROOT.rglob("*.py"))
+    """Tracked `.py` files under ``cora/``; see conftest for the rationale."""
+    return sorted(tracked_python_files())
 
 
 def _qualified(p: Path) -> str:
