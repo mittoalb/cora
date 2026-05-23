@@ -1,12 +1,12 @@
 # Auth
 
-For implementers wiring authentication and authorization. Each row names a role, the current pick, and the trigger that would force a swap. Edge authentication landed in Phase C (HTTP, shipped 2026-05-19) and Phase 8f-d (MCP streamable-HTTP, shipped 2026-05-20); the proxy-only contract is now a legacy fallback.
+For implementers wiring authentication and authorization. Each row names a role, the current pick, and the trigger that would force a swap. Edge authentication is in place for both HTTP (shipped 2026-05-19) and MCP streamable-HTTP (shipped 2026-05-20); the proxy-only contract is now a legacy fallback.
 
 ## Authentication
 
 | Role | Pick | Why | Swap trigger |
 | --- | --- | --- | --- |
-| REST + MCP edge | `BearerAuthMiddleware` reading `Authorization: Bearer <token>`; per-path audience dispatch routes `/mcp/*` to the MCP Surface UUID, every other path to the HTTP Surface UUID | Single ingress shape across transports; standard RFC 6750; per-Surface audience binding prevents cross-Surface token replay (AH5) | Stays |
+| REST + MCP edge | `BearerAuthMiddleware` reading `Authorization: Bearer <token>`; per-path audience dispatch routes `/mcp/*` to the MCP Surface UUID, every other path to the HTTP Surface UUID | Single ingress shape across transports; standard RFC 6750; per-Surface audience binding prevents cross-Surface token replay | Stays |
 | Token verification | `TokenVerifier` port + `IdentityProviderRegistry` routing by `iss` claim | One registry per process, per-IdP verifier behind it, shared by both transports | Stays |
 | JWT path | `JWTVerifier` (PyJWT, JWKS + RFC 9068 profile) | OIDC IdPs that publish JWKS (Entra, Okta, Auth0) | Stays |
 | Opaque-token path | `IntrospectionVerifier` (RFC 7662 introspection) | IdPs whose tokens are opaque (Globus Auth) | Stays |

@@ -108,7 +108,7 @@ Note on **W3C SOSA inversion**: SOSA puts `-able` on the *property being acted o
 
 - **Closed enum at v1.** Adding a value requires a CORA release; per-deployment extensions are not supported at this layer.
 - **Add-only amendment path.** Never remove a published value. If a value becomes obsolete, deprecate it in docs and stop using it in new Family declarations — but the enum member stays for replay safety.
-- **Banned pattern: `<noun>Selectable` / `<noun>Addressable`.** Parameter-selection items belong in `Family.settings_schema` or in an operations-layer `Capability` (DLM-B / phase 6k), not in `Affordance`. The grammatical test: "device supports being configured to set X" means settings_schema; "device supports doing X" means Affordance.
+- **Banned pattern: `<noun>Selectable` / `<noun>Addressable`.** Parameter-selection items belong in `Family.settings_schema` or in an operations-layer `Capability`, not in `Affordance`. The grammatical test: "device supports being configured to set X" means settings_schema; "device supports doing X" means Affordance.
 - **Contract per Affordance.** Each entry in the enum carries a one-line operational contract docstring inline at `cora.equipment.aggregates.family.affordance` (Bloch `Cloneable`-trap mitigation). The longer-form contract on this page is the authoritative reference for adapter authors.
 - **Form discipline.** Pattern A is `-able`/`-ible`/`-ing` (Swift Guidelines triad); Pattern C noun is reserved for the single lifecycle case (`Consumable`). New entries that don't fit one of these forms — particularly compound noun-named signal interfaces — should be reframed as role/flow `-ing` gerunds (precedent: `Following`/`Leading`/`Pulsing` absorbed the pre-rename Pattern B nouns).
 
@@ -117,4 +117,4 @@ Note on **W3C SOSA inversion**: SOSA puts `-able` on the *property being acted o
 - [Families](../catalog/families.md) — registered Families at the deployment level
 - [Capabilities](../catalog/capabilities.md) — Recipe BC operations-layer templates that consume Affordances as `required_affordances`
 - Capability vocabulary research (4-round, 11+ corpus) — section 5 of `project_capability_research` in user-memory
-- DLM-A locks at `project_family_affordance_design` in user-memory
+- Design lock at `project_family_affordance_design` in user-memory

@@ -24,7 +24,7 @@ Test env (`APP_ENV=test`) is exempt — legitimate test fixtures exercise the SY
 
 Two supported postures, picked by whether `IDENTITY_PROVIDERS` is configured.
 
-### Bearer mode (Phase C, recommended)
+### Bearer mode (recommended)
 
 When `IDENTITY_PROVIDERS` is set, `BearerAuthMiddleware` reads `Authorization: Bearer <token>` from every request, routes to the right `TokenVerifier` per the token's `iss` claim, and stashes a `VerifiedPrincipal` on `request.state.principal`. `get_principal_id` reads it from there.
 
@@ -44,7 +44,7 @@ Token-related failures:
 
 `Kernel.token_verifier=None` (no `IDENTITY_PROVIDERS`) leaves the middleware off and the legacy header-only path live. This is the path test fixtures take.
 
-### Legacy proxy mode (pre-Phase-C, fallback)
+### Legacy proxy mode (fallback)
 
 Without `IDENTITY_PROVIDERS`, production MUST still sit behind a verifying proxy (nginx, Caddy, Cloud-IAP, AWS ALB, Globus Auth at APS) that:
 
@@ -56,20 +56,20 @@ The proxy owns the identity → UUID mapping in this mode. Migrating to bearer m
 
 ### MCP edge
 
-MCP streamable-HTTP runs the same `BearerAuthMiddleware` as REST (Phase 8f-d, shipped 2026-05-20). Per-path audience dispatch binds `/mcp/*` to the MCP Surface UUID (`SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID`); a token issued for HTTP cannot replay against MCP. Under bearer-auth posture the middleware enforces bearer-required for every `/mcp/*` path including FastMCP framing methods (`initialize`, `tools/list`, `notifications/initialized`), so a missing-bearer request returns 401 before reaching the tool layer. Tool handlers resolve the calling `principal_id` via `get_mcp_principal_id(ctx)`, the MCP-side mirror of `get_principal_id`. Write tools remain visible in `tools/list` and are gated at call time, not by deregistration. MCP_STDIO (subprocess transport) inherits the operator's local OS identity per spec; bearer auth is HTTP-edge only.
+MCP streamable-HTTP runs the same `BearerAuthMiddleware` as REST (shipped 2026-05-20). Per-path audience dispatch binds `/mcp/*` to the MCP Surface UUID (`SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID`); a token issued for HTTP cannot replay against MCP. Under bearer-auth posture the middleware enforces bearer-required for every `/mcp/*` path including FastMCP framing methods (`initialize`, `tools/list`, `notifications/initialized`), so a missing-bearer request returns 401 before reaching the tool layer. Tool handlers resolve the calling `principal_id` via `get_mcp_principal_id(ctx)`, the MCP-side mirror of `get_principal_id`. Write tools remain visible in `tools/list` and are gated at call time, not by deregistration. MCP_STDIO (subprocess transport) inherits the operator's local OS identity per spec; bearer auth is HTTP-edge only.
 
-## Phase B (Surface decomposition) — V1 vs V2 bootstrap policy
+## Surface decomposition — V1 vs V2 bootstrap policy
 
-Phase B introduced a `Surface` aggregate to the Trust BC (HTTP, MCP stdio, MCP streamable-http) and a V2 bootstrap policy bound to the HTTP Surface. Two well-known policy ids now coexist in the event log:
+The Trust BC carries a `Surface` aggregate (HTTP, MCP stdio, MCP streamable-http) and a V2 bootstrap policy bound to the HTTP Surface. Two well-known policy ids now coexist in the event log:
 
 | Id | Surface binding | Status |
 | --- | --- | --- |
-| `00000000-0000-0000-0000-000000000001` (V1) | nil (folded as legacy wildcard) | Deprecated. Still works under post-Phase-B code via the V1-legacy-fold wildcard branch in `evaluate()`. |
+| `00000000-0000-0000-0000-000000000001` (V1) | nil (folded as legacy wildcard) | Deprecated. Still works under the current code via the V1-legacy-fold wildcard branch in `evaluate()`. |
 | `00000000-0000-0000-0000-000000000002` (V2) | HTTP Surface (`...0020`) | **Recommended for new and existing deployments.** |
 
 **V1→V2 migration** is a single env-var flip:
 
-1. Apply the Phase B seed migration: `make migrate-apply`. Seeds the 3 default Surfaces + the V2 policy. Idempotent.
+1. Apply the Surface seed migration: `make migrate-apply`. Seeds the 3 default Surfaces + the V2 policy. Idempotent.
 2. Restart the API. The V1 verifier will log `trust.v1_bootstrap_policy_deprecation` WARN on every boot until you flip the env var.
 3. Set `TRUST_POLICY_ID=00000000-0000-0000-0000-000000000002`.
 4. Restart. V2 is now the gating policy. The verifier confirms V2 binds to `SYSTEM_HTTP_SURFACE_ID` and all 3 seeded Surfaces are present at lifespan start; boot fails loud if anything is missing.
@@ -167,4 +167,4 @@ This returns the sorted list of commands the named principal can run via the nam
 | Event-sourced `ActorIdpBindings` (JIT Actor provisioning) | Deferred | First case where adding an operator is too high-friction via config-time bindings |
 | `trust.check_others` permission separation | Watch item | When ABAC lands or first cross-tenant deploy |
 
-Phase A (bootstrap policy), Phase B (Surface decomposition), Phase C (HTTP edge auth), Phase D (permission queries), and Phase 8f-d (MCP edge-auth parity) are shipped. See `memory/project_bootstrap_policy_design.md`, `memory/project_conduit_injection_design.md`, `memory/project_edge_auth_design.md`, `memory/project_permissions_query_design.md`, and `memory/project_mcp_edge_auth_design.md` for design rationale + anti-hooks.
+Bootstrap policy, Surface decomposition, HTTP edge auth, permission queries, and MCP edge-auth parity are all shipped. See `memory/project_bootstrap_policy_design.md`, `memory/project_conduit_injection_design.md`, `memory/project_edge_auth_design.md`, `memory/project_permissions_query_design.md`, and `memory/project_mcp_edge_auth_design.md` for design rationale + anti-hooks.

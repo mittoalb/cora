@@ -6,7 +6,7 @@ Every command and query has one handler and as many surface adapters as needed. 
 
 ## Surface aggregate
 
-The Trust BC carries a `Surface` aggregate (Phase B, shipped 2026-05-19) that names the ingress shape each call arrives through. Three seeded values today, modeled as a closed `SurfaceKind` enum:
+The Trust BC carries a `Surface` aggregate that names the ingress shape each call arrives through. Three seeded values today, modeled as a closed `SurfaceKind` enum:
 
 | Surface | Kind | Default policy binding |
 | --- | --- | --- |
