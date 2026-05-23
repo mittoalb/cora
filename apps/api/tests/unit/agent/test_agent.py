@@ -325,7 +325,7 @@ def test_agent_capabilities_cap_is_enforced_at_decider_not_state() -> None:
     assert len(agent.capabilities) == over_cap_count
 
 
-# ---------- iter 2: AgentSuspensionReason / ToolName / AgentBudget ----------
+# ---------- lifecycle widening: AgentSuspensionReason / ToolName / AgentBudget ----------
 
 
 @pytest.mark.unit
@@ -441,7 +441,7 @@ def test_agent_budget_rejects_negative_daily() -> None:
 
 @pytest.mark.unit
 def test_agent_defaults_to_empty_tools_and_none_budget() -> None:
-    """Aggregate-level: iter 2 additive fields default appropriately."""
+    """Aggregate-level: additive fields default appropriately."""
     agent = Agent(
         id=uuid4(),
         kind=AgentKind("RunDebriefer"),

@@ -21,8 +21,8 @@ pure `decide()`, append.
 ## Cross-aggregate validation
 
 The handler pre-loads cross-aggregate refs and reports failures
-via aggregate-state errors hoisted from this slice in 8f-c iter 1
-(cross-BC gate-review P1):
+via aggregate-state errors hoisted from this slice
+(cross-BC gate-review):
 
   - Run aggregate must exist (`load_run` returns non-None);
     raises `cora.run.aggregates.run.state.RunNotFoundError` ->
@@ -38,8 +38,8 @@ via aggregate-state errors hoisted from this slice in 8f-c iter 1
     the same `run_id` in its `decision_inputs`
     (`ParentDecisionRunMismatchError`; HTTP 400).
 
-The parent-context check (PR-author note: arch gate-review P1 of
-8f-c iter 1) catches accidental cross-agent chains where the
+The parent-context check (PR-author note: architecture gate-review)
+catches accidental cross-agent chains where the
 operator passes a Decision id authored by a different agent
 context (eg. a `PolicyGrant` Decision).
 

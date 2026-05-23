@@ -96,8 +96,8 @@ async def _handle_already_exists(request: Request, exc: Exception) -> JSONRespon
 async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONResponse:
     """Shared 409 handler for state-transition guards.
 
-    Covers the `CautionCannot<Verb>Error` family: Supersede and Retire
-    in 11b-a. Same pattern as Supply / Safety `_handle_cannot_transition`.
+    Covers the `CautionCannot<Verb>Error` family: Supersede and Retire.
+    Same pattern as Supply / Safety `_handle_cannot_transition`.
     """
     _ = request
     return JSONResponse(

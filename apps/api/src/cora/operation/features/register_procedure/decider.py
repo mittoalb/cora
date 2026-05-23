@@ -20,10 +20,10 @@ don't recompute).
 
 `target_asset_ids` and `parent_run_id` are NOT validated for
 existence here per the eventual-consistency stance (precedent: Trust
-Conduit zone refs from 3b, Asset parent refs from 5b, Method's
-needed_families from 6a). Existence + Decommissioned-lifecycle
-gating happens at start_procedure time in 10c-b via
-`ProcedureStartContext` (mirrors `RunStartContext` from Run 6f-1).
+Conduit zone refs, Asset parent refs, Method's needed_families).
+Existence + Decommissioned-lifecycle gating happens at
+start_procedure time via `ProcedureStartContext` (mirrors
+`RunStartContext` from the Run BC).
 
 Initial status is implicit `Defined` (event type IS the state-
 change indicator; the genesis evolver hardcodes the mapping). Per

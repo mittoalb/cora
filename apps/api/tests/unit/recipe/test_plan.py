@@ -63,7 +63,7 @@ def test_plan_name_is_frozen() -> None:
 def test_plan_name_uses_shared_validate_bounded_text_helper() -> None:
     """Pin: PlanName is the 10th VO; it routes through the shared
     `cora.infrastructure.bounded_text.validate_bounded_text` helper
-    (originally hoisted as `validate_name` in 6e-1, renamed when the
+    (originally hoisted as `validate_name`, renamed when the
     helper picked up non-name callers). A direct import test ensures
     we don't accidentally re-add the duplicated trim logic later."""
     import inspect

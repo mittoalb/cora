@@ -9,8 +9,8 @@ Exercises the new transition slices against real Postgres to verify:
      widened transition).
 
 Per the project test-infra convention, this is a single Postgres-backed
-file that consolidates iter 2's PG-side coverage. The unit / contract
-suites already exhaustively cover deciders, handlers, REST surface,
+file that consolidates the lifecycle-widening PG-side coverage. The
+unit / contract suites already exhaustively cover deciders, handlers, REST surface,
 and MCP surface; this file pins the "everything works through real
 PG" contract that the in-memory store can't prove.
 """

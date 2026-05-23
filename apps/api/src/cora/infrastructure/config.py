@@ -115,12 +115,12 @@ class Settings(BaseSettings):
     # LLM provider — Agent BC wiring
     # When None, `build_kernel` wires no LLM and the Kernel
     # carries `llm=None`; subscribers that depend on the LLM (the
-    # 8f-b RunDebriefer subscriber) raise / log-and-skip when they
+    # RunDebriefer subscriber) raise / log-and-skip when they
     # try to use it. The dev / test default of None matches the
     # `AllowAllAuthorize` / `AlwaysCoveredClearanceLookup` test-
     # bypass convention: tests don't need real API credentials.
     # Production deployments that ship RunDebriefer MUST set this;
-    # the `8f-b iter 2b` wire-up adds a startup gate that refuses
+    # the wire-up adds a startup gate that refuses
     # to register `run_debriefer_subscriber` when this is unset (so
     # the agent never runs blind).
     #

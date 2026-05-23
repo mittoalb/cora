@@ -47,8 +47,8 @@ def test_get_supplies_accepts_each_status_locked_day_one(
     client: TestClient, status_value: str
 ) -> None:
     """All 5 statuses accepted day one even though only Unknown / Available
-    are reachable in 10a-a; the Literal is locked at the full FSM for
-    forward-compat per project_supply_design."""
+    are reachable from the initial slices; the Literal is locked at the
+    full FSM for forward-compat per project_supply_design."""
     with client:
         response = client.get(f"/supplies?status={status_value}")
     assert response.status_code == 200

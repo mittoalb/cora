@@ -7,10 +7,10 @@ parent as opaque domain data and validates the amendment
 preconditions without performing any I/O.
 
 This is the third slice in the codebase that takes upstream aggregate
-state as input (after Plan's `define_plan` from 6e-1 and Run's
-`start_run` from 6f-1). Per the canonical pattern documented in
-CONTRIBUTING.md: handler pre-loads, decider receives an immutable
-context dataclass, no I/O in the decider.
+state as input (after Plan's `define_plan` and Run's `start_run`).
+Per the canonical pattern documented in CONTRIBUTING.md: handler
+pre-loads, decider receives an immutable context dataclass, no I/O
+in the decider.
 
 Slice-local module by design: only `amend_clearance` uses it today.
 

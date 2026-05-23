@@ -77,7 +77,7 @@ companion) for the gaps documented in domain terms. The most consequential surfa
   - **No discrete success boolean exists in PVs**: the final Check is
     operator judgment + off-line metric. We capture both via the
     polymorphic JSON payload, validating the Path-C trichotomy
-    decision from 10c-b.
+    decision.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -673,7 +673,7 @@ async def test_center_alignment_plays_out_end_to_end(
             target_value=-3.5,
             units="um",
             role="Tomo@180deg",
-            note="X-correction for iter 1 offset; convention: -offset_px / 2",
+            note="X-correction for iteration 1 offset; convention: -offset_px / 2",
             sampled_at=t(7),
         ),
     )
@@ -770,7 +770,7 @@ async def test_center_alignment_plays_out_end_to_end(
     assert len(step_rows) == 13
     kinds_in_order = [r["step_kind"] for r in step_rows]
     expected_kinds = [
-        # iter 1
+        # iteration 1
         "setpoint",
         "action",
         "check",
@@ -778,7 +778,7 @@ async def test_center_alignment_plays_out_end_to_end(
         "action",
         "check",
         "setpoint",
-        # iter 2
+        # iteration 2
         "setpoint",
         "action",
         "setpoint",
@@ -796,7 +796,7 @@ async def test_center_alignment_plays_out_end_to_end(
     assert final_setpoint_payload["target_value"] == 1024.5
     assert final_setpoint_payload["units"] == "px"
 
-    # The convergence Check (iter 2's last check) records the operator's
+    # The convergence Check (iteration 2's last check) records the operator's
     # judgment + supporting evidence.
     convergence_check_payload = json.loads(step_rows[11]["payload"])
     assert convergence_check_payload["passed"] is True

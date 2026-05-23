@@ -9,9 +9,9 @@ for in-situ measurements), the linked Subject can be in any
 lifecycle state, and each derived_from Dataset just needs to exist.
 
 Slice-local module by design: only `register_dataset` uses it
-today. Mirrors the `RunStartContext` precedent from 6f-1, the
-canonical pattern for cross-aggregate validation in CORA
-(documented in CONTRIBUTING.md).
+today. Mirrors the `RunStartContext` precedent, the canonical
+pattern for cross-aggregate validation in CORA (documented in
+CONTRIBUTING.md).
 
 ## Field semantics
 

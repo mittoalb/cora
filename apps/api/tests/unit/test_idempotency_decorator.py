@@ -397,7 +397,7 @@ async def test_stale_lock_is_taken_over_by_subsequent_claim() -> None:
 
 @pytest.mark.unit
 async def test_same_key_same_body_different_surface_yields_independent_cache_slots() -> None:
-    """Per IETF Idempotency-Key §5 + CORA AH1: surface_id is a
+    """Per IETF Idempotency-Key §5 + CORA anti-hook: surface_id is a
     server-side composite component of the cache namespace. Two
     invocations with the same (principal, key, body) but DIFFERENT
     surface_id must each run the handler and cache their own slot —

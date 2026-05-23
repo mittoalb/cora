@@ -1,12 +1,12 @@
 """Validate Plan.default_parameters against the owning Method's
 parameters_schema.
 
-The 6g-a Method-side checker validates the SHAPE of the schema
+The Method-side checker validates the SHAPE of the schema
 itself. This module validates VALUES against that schema by
 delegating to the shared values-validator at
 `cora.infrastructure.json_schema_validation`. Strict-by-default
-when the schema is None (post-6g audit reversal; mirrors 5g-c's
-"no Capabilities + non-empty settings → reject" anchor).
+when the schema is None; mirrors Asset.settings's
+"no Capabilities + non-empty settings → reject" anchor.
 
 ## Module shape
 

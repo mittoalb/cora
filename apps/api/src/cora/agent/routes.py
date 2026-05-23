@@ -148,7 +148,7 @@ def register_agent_routes(app: FastAPI) -> None:
     app.include_router(re_debrief_run.router)
     app.include_router(promote_caution_proposal.router)
     # 400 validation handlers: Invalid<X> family + AgentToolsExceedsLimit
-    # cardinality guard + 8f-c iter 1 cross-aggregate guards
+    # cardinality guard + cross-aggregate guards
     # (AgentNotSeededError + AgentDeactivatedError from this BC;
     # ParentDecisionAgentMismatchError + ParentDecisionRunMismatchError
     # from Decision BC's state). Loop-collapsed per the cross-BC

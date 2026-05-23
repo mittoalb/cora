@@ -7,7 +7,7 @@ principal isn't eligible). `incomplete=False` always at v1.
 Returns `PermissionListing | None` — None when the Policy doesn't
 exist (route maps to 404).
 
-Per anti-hook AH2 in the design lock: callers MUST NOT cache this
+Per the design lock anti-hook: callers MUST NOT cache this
 result as ground truth for authorization decisions. Only the PEP
 (`Kernel.authorize`) authorizes; this is for UX / debugging only.
 

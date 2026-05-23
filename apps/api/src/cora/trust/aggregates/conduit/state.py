@@ -37,7 +37,7 @@ boundaries, and Conduit cannot transactionally consult Zone state.
 A typo at the API layer creates a "dangling" Conduit. Two mitigations
 arrive later: (1) the eventual-consistency view (a projection that
 filters out conduits whose endpoints don't resolve), and (2) Policy
-evaluation in 3c, which is the natural home for "is this Conduit
+evaluation, which is the natural home for "is this Conduit
 usable" runtime checks.
 
 Endpoint naming (`source` / `target`) is for clarity at the API

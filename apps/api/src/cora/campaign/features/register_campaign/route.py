@@ -114,7 +114,7 @@ class RegisterCampaignRequest(BaseModel):
         description=(
             "Optional facility-minted or DataCite Project DOI assigned "
             "lazily. Today: operator-supplied at register time only; no "
-            "mint slice in 6i-a."
+            "mint slice yet."
         ),
     )
 

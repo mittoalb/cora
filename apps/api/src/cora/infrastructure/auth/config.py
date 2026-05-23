@@ -166,7 +166,7 @@ class IdentityProviderConfig(BaseModel):
         description=(
             "JWT signature algorithms accepted by the JWTVerifier. "
             "Default ['RS256', 'ES256'] covers every mature OIDC IdP. "
-            "Per AH4 the constructor rejects 'none' in any case."
+            "The constructor rejects 'none' in any case (no-alg-none invariant)."
         ),
     )
 
@@ -187,7 +187,7 @@ class IdentityProviderConfig(BaseModel):
         description=(
             "Per-token introspection cache lifetime. Lower for stronger "
             "revocation, higher for less IdP load (gate-review tradeoff). "
-            "AH12 forbids 0."
+            "Zero is forbidden (no introspection without a per-token cache)."
         ),
     )
 

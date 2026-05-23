@@ -20,7 +20,7 @@ Subscribed events:
   - AgentDeprecated -> UPDATE status=Deprecated +
                                deprecated_at=payload.occurred_at
 
-Suspended/Resumed events (8f-c iter 2) are intentionally NOT
+Suspended/Resumed events are intentionally NOT
 subscribed: `suspension_reason` is an invariant-bearing field that
 deciders read, so it stays on aggregate state. Only the derivable
 lifecycle timestamps move to the projection per the audit criterion

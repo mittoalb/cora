@@ -226,7 +226,7 @@ async def test_seed_does_not_collide_with_pre_existing_actor(
 
     # Agent stream never got written (the whole batch rolled back).
     # This is a documented edge case; future iteration can split the
-    # writes for finer-grained recovery, but iter 2b accepts the
-    # all-or-nothing semantics of append_streams.
+    # writes for finer-grained recovery, but the current design accepts
+    # the all-or-nothing semantics of append_streams.
     _, agent_version = await deps.event_store.load("Agent", RUN_DEBRIEFER_AGENT_ID)
     assert agent_version == 0  # Agent stream is empty (batch rolled back)

@@ -1,7 +1,7 @@
 """Contract tests for `POST /runs/{run_id}/abort`.
 
 Multi-source emergency-exit terminal: `Running | Held -> Aborted`
-(source set widened in 6f-3). Body carries `reason` (1-500 chars).
+(source set widened to include Held). Body carries `reason` (1-500 chars).
 Re-aborting or aborting from Completed / Stopped raises 409.
 """
 

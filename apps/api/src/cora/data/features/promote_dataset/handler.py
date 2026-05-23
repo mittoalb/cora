@@ -25,7 +25,7 @@ peer; the load is required because intent can change over time
 Re-loading at promotion time is the canonical "capture the world
 right now, validate, then commit" pattern.
 
-## Missing-peer-load failure mode (post-7e gate review documentation)
+## Missing-peer-load failure mode (gate review documentation)
 
 If `load_dataset` returns None for a peer that's referenced in
 `state.derived_from`, the handler silently drops the peer from

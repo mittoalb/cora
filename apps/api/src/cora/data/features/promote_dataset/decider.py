@@ -9,7 +9,7 @@ Validation cascade (fail-fast in this order; cheap rejections first):
   4. If producing_run_id is set, producing_run_end_state must be
      "Completed" -> DatasetCannotPromoteError
   5. All derived_from Datasets are Production -> DatasetCannotPromoteError
-     (lineage integrity; mirrors lineage-into-Discarded guard from 7c)
+     (lineage integrity; mirrors prior lineage-into-Discarded guard)
   6. PromotionReason VO validates length (1-500 after trim)
      -> InvalidPromotionReasonError
 
@@ -82,7 +82,7 @@ def decide(
     # Guard 5: lineage-must-be-Production. Skipped when derived_from
     # is empty (raw / standalone Datasets). Loaded peer states are
     # passed in via context.derived_from. Mirrors the lineage-into-
-    # Discarded guard already shipped in 7c.
+    # Discarded guard already shipped.
     if state.derived_from:
         not_yet_production = sorted(
             (

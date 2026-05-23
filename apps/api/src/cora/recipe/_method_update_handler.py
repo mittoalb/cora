@@ -4,7 +4,7 @@ Per-aggregate scoping (not BC-wide) matches the Equipment / Asset
 precedent: Recipe owns three aggregates (Method / Practice / Plan)
 and each gets its own factory in a sibling module rather than
 parameterizing one cross-aggregate factory. Hoist trigger: the
-3rd cross-BC instance landed post-7e (Run + Recipe).
+3rd cross-BC instance landed (Run + Recipe).
 
 ## Method-side knobs closed over
 

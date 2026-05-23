@@ -75,7 +75,7 @@ router = APIRouter(tags=["supply"])
             "description": (
                 "Supply is not in `Unknown` status (mark_supply_available is "
                 "single-source from Unknown only; recovery acknowledgement uses "
-                "restore_supply from 10a-b)."
+                "restore_supply)."
             ),
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {

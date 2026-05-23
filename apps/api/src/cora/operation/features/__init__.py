@@ -8,7 +8,7 @@ Slices:
 FSM-closure transitions:
   - `start_procedure` (Defined -> Running; with ProcedureStartContext
     pre-loading target Assets and rejecting Decommissioned, mirroring
-    RunStartContext from Run 6f-1)
+    RunStartContext from the Run BC)
   - `complete_procedure` (Running -> Completed; happy path)
   - `abort_procedure` (Running -> Aborted; emergency exit with reason)
 
@@ -16,14 +16,14 @@ Per-step logbook slice:
   - `append_procedure_step` (entry-shape slice; writes one
     Setpoint/Action/Check entry per step to the
     entries_operation_procedure_steps logbook table; mirrors
-    append_run_reading from 6f-5b, with lazy-open envelope event
+    append_run_reading from the Run BC, with lazy-open envelope event
     `ProcedureStepsLogbookOpened` on first append)
 
 Partial-data terminal (triggers the `make_procedure_update_handler`
 factory hoist at rule-of-three since
 this is the third update slice):
   - `truncate_procedure` (Running -> Truncated; partial-data terminal
-    mirroring RunTruncated from 6f-4; reason + optional interrupted_at)
+    mirroring RunTruncated; reason + optional interrupted_at)
 
 Read side:
   - projection (`proj_operation_procedure_summary`) + `list_procedures`

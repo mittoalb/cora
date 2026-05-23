@@ -671,7 +671,7 @@ def test_fold_register_activate_enter_decommission_yields_decommissioned_asset()
 @pytest.mark.unit
 def test_evolve_asset_registered_starts_with_empty_capabilities() -> None:
     """Genesis-only stream folds to empty frozenset (additive-state
-    pattern: pre-5f-1 streams fold cleanly without an upcaster)."""
+    pattern: streams without the new field fold cleanly without an upcaster)."""
     state = evolve(
         None,
         AssetRegistered(

@@ -1,7 +1,7 @@
 """Unit tests for the `append_run_reading` application handler.
 
-Mirrors `test_append_reasoning_entry_handler.py` shape from 8c-b.
-Adds the per-entry validation tests specific to 6f-5b (channel_name,
+Mirrors `test_append_reasoning_entry_handler.py` shape.
+Adds the per-entry validation tests specific to RunReading (channel_name,
 NaN/Inf value, sampling_procedure) and the terminal-status guard
 (RunReadingLogbookClosedError).
 """
@@ -590,13 +590,13 @@ async def test_handler_preserves_distinct_sampled_at_per_entry() -> None:
     assert row_b.sampled_at != row_b.occurred_at
 
 
-# ---------- 'monitor' accepted at 6f-5c (sampling_procedure extension) ----------
+# ---------- 'monitor' accepted (sampling_procedure extension) ----------
 
 
 @pytest.mark.unit
 async def test_handler_accepts_monitor_sampling_procedure() -> None:
-    """6f-5c extends the closed enum to admit 'monitor' alongside
-    'baseline'. Replaces the 6f-5b 'rejects-monitor' guard test;
+    """The closed enum was extended to admit 'monitor' alongside
+    'baseline'. Replaces the earlier 'rejects-monitor' guard test;
     monitor is now a first-class procedure value (Bluesky monitor
     stream pattern: sub-Hz time-series during the run)."""
     event_store = InMemoryEventStore()

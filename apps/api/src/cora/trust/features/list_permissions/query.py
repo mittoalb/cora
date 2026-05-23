@@ -3,8 +3,8 @@
 Asks "given Policy P, what commands can `evaluated_principal_id`
 execute via `evaluated_conduit_id`?". Returns a sorted list of
 permitted command names, plus an `incomplete: bool` flag (always
-False at v1; required from day 1 per anti-hook AH4 in the design
-lock — future ABAC policies may make enumeration lossy).
+False at v1; required from day 1 per the design lock anti-hook
+(future ABAC policies may make enumeration lossy).
 
 Field naming mirrors `evaluate_policy.EvaluatePolicy` (the
 `evaluated_*` prefix disambiguates from the caller's `principal_id`
@@ -35,7 +35,7 @@ class PermissionListing:
     either eligibility check fails, returns the empty list.
 
     `incomplete: bool` is always False at v1; required for forward
-    compat with ABAC/conditional policies (AH4).
+    compat with ABAC/conditional policies.
     """
 
     policy_id: UUID

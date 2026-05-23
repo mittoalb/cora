@@ -6,9 +6,9 @@ callers use `from cora.recipe.features import define_practice` then
 `define_practice.bind(deps)` returning a `define_practice.Handler`.
 
 Ninth instance of the create-style template body. Cross-BC
-extraction question still parked (8 instances at 6a, 9 here);
-threading 9 BCs through one factory is a bigger refactor than
-threading the next instance through a per-BC helper.
+extraction question still parked (last reviewed at 8 instances,
+now 9); threading 9 BCs through one factory is a bigger refactor
+than threading the next instance through a per-BC helper.
 """
 
 from typing import Protocol

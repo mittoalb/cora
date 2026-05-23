@@ -30,10 +30,10 @@ class RunResponse(BaseModel):
     Carries primitives, not domain VOs. `status` is the StrEnum's
     string value. `subject_id` is null for calibration / dark-field
     runs. `raid` is null when no Research Activity Identifier was
-    supplied at start time (post-7d retrofit).
+    supplied at start time (additive retrofit).
 
-    `override_parameters` and `effective_parameters` carry the post-
-    6g-c parameter set: overrides the operator supplied at start
+    `override_parameters` and `effective_parameters` carry the
+    parameter set: overrides the operator supplied at start
     time, and the resolved merge of Plan defaults + overrides that
     actually governed this Run. Both default `{}`. `triggered_by`
     captures what initiated the Run (None if unrecorded).

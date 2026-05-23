@@ -418,7 +418,7 @@ async def test_handler_raises_parent_run_mismatch_for_cross_run_chain() -> None:
 async def test_handler_raises_parent_agent_mismatch_for_non_run_debrief_parent() -> None:
     """The parent Decision must have `context = "RunDebrief"`.
 
-    Closes architecture gate-review P1 #2 of 8f-c iter 1: prevents
+    Closes an architecture gate-review action item: prevents
     accidental cross-agent chains where the operator passes a
     Decision id authored by a different agent (eg. a `PolicyGrant`
     Decision)."""

@@ -2,7 +2,7 @@
 
 Cross-aggregate validation: this is the second decider in the
 codebase that takes upstream aggregate state as input (after Plan's
-`define_plan` from 6e-1). Per gate-review Q2, the handler pre-loads
+`define_plan`). Per gate-review Q2, the handler pre-loads
 Plan + Subject (if subject_id given) + each bound Asset, hands the
 loaded entities to this decider as a `RunStartContext`. The decider
 treats them as opaque domain data and validates without any I/O.
@@ -152,8 +152,8 @@ def decide(
     `method_parameters_schema` is the Method's parameters_schema
     (None if Method declares no contract). The decider validates
     `effective_parameters` against the schema; STRICT when the schema
-    is None — non-empty effective rejected (post-6g audit reversal,
-    mirrors 5g-c's "no Capabilities + non-empty settings → reject"
+    is None — non-empty effective rejected (per audit reversal,
+    mirrors the "no Capabilities + non-empty settings → reject"
     anchor). Emits RunStarted carrying BOTH the operator's overrides
     AND the resolved effective set.
     """
@@ -211,7 +211,7 @@ def decide(
     # 6g-c: validate the resolved (defaults + overrides) parameter set
     # against the owning Method's parameters_schema. Strict when the
     # schema is None: non-empty effective parameters are rejected
-    # (post-6g audit reversal; mirrors 5g-c's "no Capabilities + non-
+    # (per audit reversal; mirrors the "no Capabilities + non-
     # empty settings → reject" anchor; see
     # [[project_schema_validated_values_pattern]]).
     validate_effective_parameters_against_method_schema(

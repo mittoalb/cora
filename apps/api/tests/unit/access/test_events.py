@@ -95,12 +95,12 @@ def test_from_stored_rebuilds_actor_registered_with_kind() -> None:
 
 
 @pytest.mark.unit
-def test_from_stored_pre_8f_a_payload_folds_to_human_kind() -> None:
-    """Pre-8f-a payloads (no `kind` field) MUST fold to kind=human.
+def test_from_stored_payload_without_kind_folds_to_human_kind() -> None:
+    """Payloads without the `kind` field MUST fold to kind=human.
 
     This is the forward-compat additive-evolution guarantee. Existing
-    Actor streams written before 8f-a have payloads without `kind`;
-    the evolver supplies the default to keep replay working.
+    Actor streams written before the kind-field addition have payloads
+    without `kind`; the evolver supplies the default to keep replay working.
     """
     actor_id = uuid4()
     stored = _stored(
@@ -109,7 +109,7 @@ def test_from_stored_pre_8f_a_payload_folds_to_human_kind() -> None:
             "actor_id": str(actor_id),
             "name": "Doga",
             "occurred_at": _NOW.isoformat(),
-            # No "kind" field; pre-8f-a payload shape.
+            # No "kind" field; legacy payload shape.
         },
     )
     rebuilt = from_stored(stored)

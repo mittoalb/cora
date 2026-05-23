@@ -34,9 +34,9 @@ future deciders need to validate invariants. version_plan and
 deprecate_plan don't re-validate families, so the snapshots
 stay payload-only.
 
-Additional facets defer to a 6e-3+ sub-phase if pilot demand emerges:
+Additional facets defer to a later sub-phase if pilot demand emerges:
   - `wiring` (which Asset.ports are connected to what; depends on
-    Asset.ports landing first, currently 5f+ deferred)
+    Asset.ports landing first, currently deferred)
   - calibrations
   - per-Plan parameter overrides
 
@@ -68,20 +68,20 @@ deciders. Second instance shipped in `start_run` with
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
 
-Same precedent as Method (6a) and Practice (6d-1) and Family
-(5a). The lifecycle mirrors theirs: Defined → Versioned →
+Same precedent as Method and Practice and Family.
+The lifecycle mirrors theirs: Defined → Versioned →
 Deprecated. Approval/governance is a separate concern handled by
 the future Decision BC with `RecipeApproval` context (gate-review
 Q2).
 
 ## Tenth bounded-name VO + helper extraction
 
-`PlanName` is the **tenth** bounded-name VO. The 5a gate-review
+`PlanName` is the **tenth** bounded-name VO. The Family gate-review
 parked extraction at "first per-VO divergence OR ~10 instances".
 We hit 10 with no divergence pressure, so the trim+length-check
 helper got hoisted to `cora.infrastructure.bounded_text.validate_bounded_text`
 (see that module's docstring). PlanName uses the helper from day
-one; the prior 9 VOs were refactored in the same 6e-1 commit.
+one; the prior 9 VOs were refactored in the same hoist commit.
 """
 
 from dataclasses import dataclass, field
@@ -93,7 +93,7 @@ from cora.infrastructure.bounded_text import validate_bounded_text
 
 PLAN_NAME_MAX_LENGTH = 200
 PLAN_VERSION_TAG_MAX_LENGTH = 50
-WIRE_PORT_NAME_MAX_LENGTH = 100  # mirrors PORT_NAME_MAX_LENGTH on AssetPort (5h)
+WIRE_PORT_NAME_MAX_LENGTH = 100  # mirrors PORT_NAME_MAX_LENGTH on AssetPort
 
 
 class PlanStatus(StrEnum):
@@ -205,8 +205,8 @@ class PlanCannotVersionError(Exception):
     can't revise a deprecated plan).
 
     Per-transition error class — same naming convention as
-    `MethodCannotVersionError` (Recipe 6b), `PracticeCannotVersionError`
-    (Recipe 6d-2), `FamilyCannotVersionError` (Equipment 5f-2).
+    `MethodCannotVersionError` (Recipe BC), `PracticeCannotVersionError`
+    (Recipe BC), `FamilyCannotVersionError` (Equipment BC).
     Mapped to HTTP 409.
     """
 
@@ -248,7 +248,7 @@ class InvalidPlanDefaultParametersError(ValueError):
     parameter-less Methods declare `parameters_schema={}` explicitly).
     When the schema IS declared, the merged defaults must conform per
     jsonschema-rs Draft 2020-12. Mapped to HTTP 400 by the recipe BC's
-    exception handler. Mirrors the 5g-c "no Capabilities + non-empty
+    exception handler. Mirrors the Asset.settings "no Capabilities + non-empty
     settings → reject" cross-BC anchor; see
     [[project_schema_validated_values_pattern]].
     """
@@ -314,8 +314,8 @@ class PlanAffordancesNotSatisfiedError(Exception):
     string values (Affordance is a StrEnum) so the diagnostic is
     stable across runs and human-readable in HTTP responses.
 
-    Skipped entirely when Method has no `capability_id` (6l-additive
-    transition window). 6l-strict will REQUIRE capability_id on
+    Skipped entirely when Method has no `capability_id` (additive
+    transition window). The strict mode will REQUIRE capability_id on
     DefineMethod per Pattern P, at which point this guard always runs.
     """
 
@@ -332,7 +332,7 @@ class PlanName:
     """Display name for a plan. Trimmed; 1-200 chars.
 
     Tenth occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_bounded_text` helper hoisted in 6e-1 (see
+    the shared `validate_bounded_text` helper (see
     `cora.infrastructure.bounded_text`). The helper preserves per-VO
     distinctness (separate frozen dataclass type, separate error
     class) while removing the trim+length-check duplication that
@@ -367,7 +367,7 @@ class Plan:
     `PlanVersioned` events. No `current_` prefix because state by
     definition holds current values (same convention as `status`,
     `name`). Free-text validated at API boundary + defensively in
-    the decider; no VO. Default None keeps pre-6e-2 PlanDefined-
+    the decider; no VO. Default None keeps legacy PlanDefined-
     only streams folding cleanly (additive-state pattern). Mirrors
     Method/Practice/Family `version` semantics: preserved across
     deprecation as an audit signal of the last revision before
@@ -375,9 +375,9 @@ class Plan:
 
     `method_id` is the Method ultimately implemented by this Plan
     (originally captured in PlanDefined.method_id payload as audit-
-    only data; promoted to state in 6g-b because the
+    only data; promoted to state because the
     `update_plan_default_parameters` decider needs it to look up
-    `Method.parameters_schema` for validation). Pre-6g-b PlanDefined
+    `Method.parameters_schema` for validation). Legacy PlanDefined
     streams fold cleanly: the evolver reads `method_id` from the
     payload field that was present from day one. Default-defaults to
     a sentinel via the constructor; in practice every well-formed
@@ -387,22 +387,22 @@ class Plan:
 
     `default_parameters: dict[str, Any]` is the
     operator-set defaults for parameters that downstream Runs
-    (6g-c) merge with their per-run overrides. Validated against
+    merge with their per-run overrides. Validated against
     the owning Method's `parameters_schema` at decide time
     (STRICT when Method declares no schema: non-empty defaults
     rejected; operators wanting "no parameters" Methods declare
-    `parameters_schema={}` explicitly. Mirrors 5g-c's
+    `parameters_schema={}` explicitly. Mirrors Asset.settings's
     "no Capabilities + non-empty settings → reject" anchor; see
     [[project_run_parameters_design]] §audit-correction).
     Defaults to empty dict for legacy Plans (additive-state pattern).
     The full dict is persisted; PATCH semantics handled by the slice
-    via RFC 7396 `merge_patch`. Mirrors `Asset.settings` shape from 5g-c.
+    via RFC 7396 `merge_patch`. Mirrors `Asset.settings` shape.
 
     `wires: frozenset[Wire]` is the typed graph of port-
     to-port connections between bound Assets. Each `Wire` carries
     a 4-tuple identifying source/target ports across two Assets.
     Mutated via `add_plan_wire` / `remove_plan_wire` slices (mirrors
-    5h's add/remove_asset_port pattern). Direction is enforced
+    Asset.ports's add/remove_asset_port pattern). Direction is enforced
     (source=OUTPUT, target=INPUT), `signal_type` must match exactly,
     fan-out allowed (one source port → many target ports), fan-in
     forbidden (one target port = at most one incoming Wire). See
@@ -426,7 +426,7 @@ class InvalidWireError(ValueError):
     """A Wire's source / target port name is empty, whitespace-only,
     or exceeds the configured max length after trimming.
 
-    Mirrors `InvalidAssetPortNameError` (5h). Mapped to HTTP 400 by
+    Mirrors `InvalidAssetPortNameError`. Mapped to HTTP 400 by
     the recipe BC's exception handler. Validation runs in the Wire
     VO's `__post_init__` so the route's Pydantic body keeps these
     to 422 by catching them at the boundary; deciders raise this
@@ -492,7 +492,7 @@ class Wire:
 class PlanWireAlreadyExistsError(Exception):
     """Attempted to add a Wire that's already in the Plan's wire set.
 
-    Strict-not-idempotent (mirrors 5h `add_asset_port`). Mapped to
+    Strict-not-idempotent (mirrors AssetPort `add_asset_port`). Mapped to
     HTTP 409. Operators get clear feedback rather than a silent
     no-op so re-running a partially-applied template surface the
     duplicate.
@@ -571,7 +571,7 @@ class PlanWirePortNotFoundError(Exception):
 
     Strict forward-reference: Plan.wires rejects if either endpoint
     port doesn't currently exist on the bound Asset. Operators must
-    add the port to the Asset (5h `add_asset_port`) BEFORE wiring
+    add the port to the Asset via `add_asset_port` BEFORE wiring
     against it. The same dependency-aware ordering applies to
     removal: remove the wire BEFORE removing the port (PostgreSQL FK
     shape; see [[project_plan_wiring_design]] §hot-swap procedure).

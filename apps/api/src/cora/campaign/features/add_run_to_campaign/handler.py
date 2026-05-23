@@ -3,8 +3,8 @@
 Cross-aggregate update-style handler. Pre-loads both the Campaign and
 the Run streams (with versions), builds a `CampaignMembershipContext`,
 calls the pure decider, then writes BOTH event streams atomically via
-`EventStore.append_streams` (mirrors Safety's `amend_clearance` shape
-from 11a-c-2).
+`EventStore.append_streams` (mirrors Safety's `amend_clearance`
+shape).
 
 All-or-nothing: either both streams commit (Campaign gets
 `CampaignRunAdded`, Run gets `RunCampaignAssigned`) or a

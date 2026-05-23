@@ -185,7 +185,7 @@ def test_post_runs_with_pinned_calibrations_returns_201() -> None:
 @pytest.mark.contract
 def test_post_runs_defaults_pinned_calibrations_to_empty_list() -> None:
     """Omitted pinned_calibrations serializes as `[]` on the payload
-    (forward-compat with pre-12b RunStarted readers)."""
+    (forward-compat with RunStarted readers without the field)."""
     app = create_app()
     with TestClient(app) as client:
         plan_id, subject_id = _setup_chain(client)

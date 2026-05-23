@@ -22,8 +22,8 @@ Run state:
     None for dark-field / flat-field calibration runs (per
     beamline-domain convention; calibration data is consumed
     alongside sample data within the same analysis pipeline)
-  - `status: RunStatus` (`Running` only at 6f-1; transitions in
-    6f-2+)
+  - `status: RunStatus` (the steady-state and terminal transitions
+    are the full FSM)
 
 The active steady-state is named `Running` (not `Started`) per
 the gerund/adjective convention used by ISA-88 / PackML
@@ -31,7 +31,7 @@ the gerund/adjective convention used by ISA-88 / PackML
 participle names like `Started` linguistically suggest a point-
 in-time event, not an ongoing state — those belong on event
 classes (`RunStarted` is correctly named) but not on the status
-enum. See the 6f-2 gate review for the rename rationale.
+enum.
 
 Run does NOT directly reference Asset(s) — those are reachable via
 `plan.asset_ids`. State stays slim per Q4-style reasoning: only
@@ -308,7 +308,7 @@ class PlanDeprecatedError(Exception):
     Mapped to HTTP 409.
 
     Symmetric to Plan-bind's PracticeDeprecatedError /
-    MethodDeprecatedError pattern from 6e-1.
+    MethodDeprecatedError pattern.
     """
 
     def __init__(self, plan_id: UUID) -> None:
@@ -893,7 +893,7 @@ class ChannelName:
     `motor_x`, `ring_current`). No regex or vocabulary constraint
     (signal_type / channel naming conventions are pilot-specific and
     will settle over time, mirroring AssetPort.signal_type's free-form
-    posture from 5h).
+    posture).
     """
 
     value: str
@@ -912,8 +912,8 @@ class RunName:
     """Display name for a run. Trimmed; 1-200 chars.
 
     Eleventh occurrence of the trimmed-bounded-name VO pattern.
-    Uses the shared `validate_bounded_text` helper hoisted in 6e-1 (see
-    `cora.infrastructure.bounded_text`).
+    Uses the shared `validate_bounded_text` helper hoisted at the
+    rule-of-three trigger (see `cora.infrastructure.bounded_text`).
     """
 
     value: str
@@ -946,15 +946,15 @@ class Run:
     measured, or None for calibration / dark-field runs. `raid` is
     the Research Activity Identifier (ISO 23527) for the project
     this Run belongs to, opaque string carried verbatim, defaults
-    to None (post-7d retrofit; pre-7d Runs fold with raid=None
+    to None (additive retrofit; legacy Runs fold with raid=None
     because old RunStarted payloads have no raid key). `status`
     defaults to `Running` — the active steady-state.
 
-    `override_parameters` (post-6g-c) is the operator-supplied
-    overrides on top of `Plan.default_parameters` (RFC 7396 merge).
+    `override_parameters` is the operator-supplied overrides on top
+    of `Plan.default_parameters` (RFC 7396 merge).
     `effective_parameters` is the post-merge resolved snapshot
     (defaults + overrides) that governed this Run. Both default to
-    `{}` for legacy pre-6g-c streams (additive-state pattern;
+    `{}` for legacy streams without the keys (additive-state pattern;
     forward-compat via `payload.get(..., {})` in `from_stored`).
     Mirrors Bluesky start-document / MLflow run.params / W&B
     run.config / ISA-88 control-recipe / RO-Crate CreateAction
@@ -962,7 +962,7 @@ class Run:
     first-class read surface (researched 2026-05-14;
     [[project_run_parameters_design]] §6g-c).
 
-    `triggered_by` (post-6g-c) is operator-supplied free text
+    `triggered_by` is operator-supplied free text
     capturing what initiated this Run (operator-manual, scheduler,
     prior-run, automation). Optional. Future Decision-BC integration
     may populate this from `DecisionReasoning.entries` references.
@@ -979,17 +979,17 @@ class Run:
     triggered_by: str | None = None
     # lazily populated when first reading is appended
     # (RunReadingLogbookOpened event sets this field). None on Runs
-    # that never recorded readings; legacy pre-6f-5b streams fold
+    # that never recorded readings; legacy streams without the field fold
     # cleanly with this default. See [[project_run_reading_design]]
     # for the lazy-open rationale.
     reading_logbook_id: UUID | None = None
     # anti-corruption refs to upstream-deferred concepts
     # CORA does NOT model as aggregates (proposal / btr / lab_visit /
     # session). Mirrors Safety BC's ExternalBinding shape. Populated at
-    # register time from StartRun.external_refs; legacy pre-11a-c-3 Runs
-    # fold cleanly via `payload.get("external_refs", [])`. ExternalBinding-
-    # based clearance coverage gating is deferred per
-    # [[project_safety_clearance_design]] watch item; for 11a-c-3 the
+    # register time from StartRun.external_refs; legacy Runs without
+    # the field fold cleanly via `payload.get("external_refs", [])`.
+    # ExternalBinding-based clearance coverage gating is deferred per
+    # [[project_safety_clearance_design]] watch item; today the
     # field is forward-compat only (gate uses Run/Subject/Asset bindings).
     external_refs: frozenset["ExternalRef"] = field(default_factory=frozenset["ExternalRef"])
     # optional Campaign membership. None means the Run is
@@ -999,13 +999,13 @@ class Run:
     # by `remove_run_from_campaign` (RunCampaignUnassigned event). One
     # Campaign per Run invariant: never N (per
     # [[project_campaign_design]] lock). Forward-compat additive field;
-    # legacy pre-6i-c streams fold via `payload.get("campaign_id")`
+    # legacy streams without the field fold via `payload.get("campaign_id")`
     # returning None.
     campaign_id: UUID | None = None
     # mid-flight parameter steering denorm. `last_adjusted_at`
     # carries the occurred_at of the most recent `RunAdjusted` event;
     # `adjustment_count` is the cumulative count of accepted adjust
-    # operations. Defaults to None / 0 so legacy pre-6j streams fold
+    # operations. Defaults to None / 0 so legacy streams without the fields fold
     # cleanly (forward-compat additive-state pattern, mirrors
     # reading_logbook_id / campaign_id precedent). Per-adjustment audit
     # history lives on the event log; aggregate state stays slim.
@@ -1020,12 +1020,12 @@ class Run:
     # RunAdjusted / RunCampaignAssigned / RunCampaignUnassigned /
     # RunReadingLogbookOpened) preserves `prior.pinned_calibrations`
     # verbatim. The AsShot anchor lets downstream consumers (Dataset
-    # reconstruction in 12c, RunDebriefer AI advisories) answer "what
+    # reconstruction in the Data BC, RunDebriefer AI advisories) answer "what
     # calibration was this scan acquired against?" deterministically
     # months later, even if later refined revisions arrive on the
     # same Calibration aggregate. DNG AsShot vs Current precedent
-    # (Q5/Q6 research). Defaults to empty frozenset so pre-12b
-    # streams fold cleanly via `payload.get("pinned_calibrations", [])`.
+    # (Q5/Q6 research). Defaults to empty frozenset so legacy streams
+    # without the field fold cleanly via `payload.get("pinned_calibrations", [])`.
     pinned_calibrations: frozenset[UUID] = field(default_factory=frozenset[UUID])
 
 
@@ -1038,7 +1038,7 @@ class InvalidRunParametersError(ValueError):
     wanting parameter-less Methods declare `parameters_schema={}`
     explicitly). When the schema IS declared, the merged dict must
     conform per jsonschema-rs Draft 2020-12. Mirrors
-    `InvalidPlanDefaultParametersError` shape from 6g-b and the 5g-c
+    `InvalidPlanDefaultParametersError` shape and the
     "no Capabilities + non-empty settings → reject" cross-BC anchor.
     Mapped to HTTP 400 by the run BC's exception handler.
     """

@@ -3,7 +3,7 @@
 The CautionDrafter subscriber needs an Agent record (and its
 co-registered Actor) to exist at the pinned
 `CAUTION_DRAFTER_AGENT_ID` so it can set `Decision.actor_id` without
-a lookup. Mirrors `cora.agent.seed.seed_run_debrief_agent` verbatim
+a lookup. Mirrors `cora.agent.seed.seed_run_debriefer_agent` verbatim
 except for the constants (id / name / kind / version / description /
 prompt-template-id / default model).
 

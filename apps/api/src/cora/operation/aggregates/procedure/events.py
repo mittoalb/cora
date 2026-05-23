@@ -64,17 +64,16 @@ class ProcedureRegistered:
     `target_asset_ids` carries the Asset ids the procedure acts on;
     eventual-consistency stance, no cross-aggregate verification at
     register time. Existence + Decommissioned-lifecycle gating
-    happens at start_procedure time in 10c-b via
-    `ProcedureStartContext`.
+    happens at start_procedure time via `ProcedureStartContext`.
 
     `parent_run_id` carries the optional Run binding (None for
     standalone procedures, set for Phase-of-Run procedures).
 
     `capability_id` is the optional cross-BC
-    binding to the universal Capability template (Recipe BC 6k)
+    binding to the universal Capability template (Recipe BC)
     this Procedure realizes as a Procedure-shaped executor. None for
-    pre-10d Procedures and for ceremony Procedures with no template
-    binding. Same additive shape as Method.capability_id (6l-additive).
+    legacy Procedures and for ceremony Procedures with no template
+    binding. Same additive shape as Method.capability_id.
     """
 
     procedure_id: UUID
@@ -219,9 +218,9 @@ class ProcedureAborted:
 
 
 # Discriminated union of every event the Procedure aggregate emits.
-# 10c-b iter 1 closed the FSM with the three transition events;
-# 10c-b iter 2 added the per-step logbook envelope event
-# `ProcedureStepsLogbookOpened` (lazy-open on first append).
+# The FSM is closed by the three transition events; the per-step
+# logbook envelope event `ProcedureStepsLogbookOpened` opens lazily
+# on first append.
 ProcedureEvent = (
     ProcedureRegistered
     | ProcedureStarted
@@ -321,14 +320,15 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
     discriminators so a stream contaminated with foreign event types
     fails loud rather than silently being dropped by the evolver.
 
-    NOTE: 10c-a uses strict `payload[...]` indexing because every key
-    in `ProcedureRegistered` is required at the schema level. When 10c-b
-    adds optional facets to the genesis payload (for example
-    `expected_step_count`, `triggered_by`, `requested_supply_kinds`),
-    those new keys MUST use `payload.get("k", default)` so pre-10c-b
-    streams fold cleanly without backfill. Same additive-evolution
-    pattern as `recipe/aggregates/method/events.py:from_stored`
-    (`needed_supplies` added in 10b).
+    NOTE: today this uses strict `payload[...]` indexing because every
+    key in `ProcedureRegistered` is required at the schema level. When
+    future iterations add optional facets to the genesis payload (for
+    example `expected_step_count`, `triggered_by`,
+    `requested_supply_kinds`), those new keys MUST use
+    `payload.get("k", default)` so legacy streams fold cleanly without
+    backfill. Same additive-evolution pattern as
+    `recipe/aggregates/method/events.py:from_stored`
+    (`needed_supplies` was added that way).
     """
     payload = stored.payload
     match stored.event_type:

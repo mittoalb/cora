@@ -10,7 +10,7 @@ Trigger source is implicit `Operator` — this slice family is
 operator-driven by definition. The `TriggerSource` enum was locked
 3-value day one (Operator | Monitor | Auto) so that future Monitor-
 driven and Auto-restore slices can land additively without enum
-evolution; in 10a-a/b only Operator slices exist, and the value is
+evolution; today only Operator slices exist, and the value is
 hardcoded by the decider rather than carried on the command.
 
 ## Single-source guard at the decider

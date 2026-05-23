@@ -5,7 +5,7 @@ commands, calling `evaluate(policy, ...)` per command. Returns
 `list[PermissionCheck] | None` — None when the Policy doesn't exist
 (route maps to 404).
 
-Per the design lock (anti-hook AH3): this handler deliberately does
+Per the design lock anti-hook: this handler deliberately does
 NOT route through `deps.authorize` to invoke `TrustAuthorize` for
 the probe answer — it loads the Policy and calls the pure
 `evaluate(...)` function directly. That keeps probes off the

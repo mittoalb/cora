@@ -78,7 +78,7 @@ def test_decider_and_evolver_round_trip() -> None:
 @pytest.mark.unit
 def test_evolve_capability_defined_starts_with_null_version() -> None:
     """Genesis-only stream folds with version=None
-    (additive-state pattern: pre-5f-2 streams fold cleanly without
+    (additive-state pattern: streams without the new field fold cleanly without
     an upcaster)."""
     state = evolve(
         None,

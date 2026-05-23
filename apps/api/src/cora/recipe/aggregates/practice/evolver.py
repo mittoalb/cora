@@ -11,8 +11,8 @@ Status mapping per event type:
   - `PracticeDeprecated` -> DEPRECATED (version preserved;
                                         multi-source: Defined | Versioned)
 
-Mirrors Method's transition evolver shape (Recipe 6b) and
-Family's (Equipment 5f-2). `version` is mutated by
+Mirrors Method's transition evolver shape (Recipe BC) and
+Family's (Equipment BC). `version` is mutated by
 PracticeVersioned and PRESERVED by PracticeDeprecated as the audit
 signal of the last revision before deprecation.
 
@@ -25,7 +25,7 @@ them. The transition arms explicitly pass each.
 Transition events applied to empty state raise ValueError: they can
 never appear before `PracticeDefined` in a well-formed stream. The
 `require_state` helper keeps per-arm bodies short (precedent
-locked by Subject's evolver in 4c).
+locked by Subject's evolver).
 """
 
 from collections.abc import Sequence

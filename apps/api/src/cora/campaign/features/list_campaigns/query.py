@@ -21,12 +21,12 @@ Cursor encodes `(registered_at, campaign_id)`. `registered_at` is
 set once at CampaignRegistered (immutable), so it's a stable
 keyset key.
 
-## Filters intentionally NOT in 6i-b
+## Filters intentionally deferred
 
   - `has_run_id`: needs Run.campaign_id indexed scan on the Run
     projection (run_ids lives on the Campaign aggregate stream
     only; the projection denorm is `run_count`, not the UUID set).
-    Per design memo Watch item #10, this filter lands in 6i-c with
+    Per design memo Watch item #10, this filter lands with
     the Run aggregate evolution.
   - `external_ref_scheme` / `external_ref_id`: external_refs lives
     on the aggregate stream; the projection denorm is `external_id`

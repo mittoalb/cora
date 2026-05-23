@@ -4,11 +4,10 @@ Closes over Subject-specific knobs (stream type, codec, BC-local
 `UnauthorizedError`, target-id attribute) and delegates to the
 cross-BC `cora.infrastructure.update_handler.make_update_handler`.
 
-Cross-BC hoist landed post-7e once Recipe and Run shipped a
-combined 11 byte-identical longhand handlers; the trigger
-documented at this file's earlier longhand body had fired. Slice
-call sites (`make_subject_update_handler(...)`) are unchanged
-across the hoist.
+Cross-BC hoist landed once Recipe and Run shipped a combined 11
+byte-identical longhand handlers; the trigger documented at this
+file's earlier longhand body had fired. Slice call sites
+(`make_subject_update_handler(...)`) are unchanged across the hoist.
 
 ## Subject-side knobs closed over
 

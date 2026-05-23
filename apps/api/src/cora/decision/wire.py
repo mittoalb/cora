@@ -1,11 +1,11 @@
 """Compose the Decision BC's handlers from `Kernel`.
 
-## BC-internal ReasoningStore wiring (gate-review L9)
+## BC-internal ReasoningStore wiring
 
-The 8c-b `append_reasoning_entry` slice needs a `ReasoningStore`
-adapter. Per the per-category-writer pattern locked at gate-review
-L8 from 6f-5a (Conduit's TraversalStore), the store is built
-LOCALLY here from `deps.pool` (Postgres in production) or as
+The `append_reasoning_entry` slice needs a `ReasoningStore`
+adapter. Per the per-category-writer pattern (Conduit's
+TraversalStore precedent), the store is built LOCALLY here from
+`deps.pool` (Postgres in production) or as
 `InMemoryReasoningStore` in `app_env=test`. NOT promoted to
 Kernel fields. Mirrors how Trust BC wires its TraversalStore.
 """

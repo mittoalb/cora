@@ -110,8 +110,8 @@ class DefineAgentRequest(BaseModel):
         default=None,
         description=(
             "Optional UUID into the Python module registry at "
-            "`cora.agent.prompts`. Required by 8f-b's RunDebriefer subscriber; "
-            "may be null at 8f-a until the registry ships its first template."
+            "`cora.agent.prompts`. Required by the RunDebriefer subscriber; "
+            "may be null until the registry ships its first template."
         ),
     )
     capabilities: list[str] = Field(

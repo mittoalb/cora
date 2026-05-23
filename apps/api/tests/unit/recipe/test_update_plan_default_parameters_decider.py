@@ -180,9 +180,9 @@ def test_decide_raises_invalid_when_post_merge_violates_schema() -> None:
 
 @pytest.mark.unit
 def test_decide_strict_when_method_has_no_schema_with_non_empty_defaults() -> None:
-    """Strict (post-6g audit reversal): Method-without-schema rejects
+    """Strict (audit reversal): Method-without-schema rejects
     non-empty defaults. Operator must declare a schema (an empty `{}`
-    works) or omit the defaults. Aligns with 5g-c's strict zero-
+    works) or omit the defaults. Aligns with the strict zero-
     Capabilities posture and Ajv / Argo Workflows precedent."""
     state = _plan()
     with pytest.raises(InvalidPlanDefaultParametersError) as exc_info:

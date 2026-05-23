@@ -447,8 +447,8 @@ def test_decide_defaults_intent_to_trial_in_event_payload() -> None:
 @pytest.mark.unit
 def test_decide_defaults_used_calibrations_to_empty_tuple_on_event_payload() -> None:
     """Default command (no used_calibrations) lands an empty tuple
-    on the event payload — uniform shape; pre-12c readers fold via
-    `payload.get("used_calibrations", [])` either way."""
+    on the event payload — uniform shape; readers without the new field
+    fold via `payload.get("used_calibrations", [])` either way."""
     cmd = _good_command()
     events = register_dataset.decide(
         state=None,

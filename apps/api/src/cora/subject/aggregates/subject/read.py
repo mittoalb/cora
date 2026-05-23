@@ -2,9 +2,10 @@
 
 `load_subject(event_store, subject_id) -> Subject | None` mirrors
 `load_actor` / `load_zone` / `load_conduit` / `load_policy`. No GET
-slice ships in 4a; the read repo lives here so 4b's update-style
-commands (mount, measure, remove) and 4e's get_subject query slice
-have one canonical fold-on-read path per the cross-BC pattern.
+slice ships with the genesis command; the read repo lives here so
+update-style commands (mount, measure, remove) and the get_subject
+query slice have one canonical fold-on-read path per the cross-BC
+pattern.
 """
 
 from uuid import UUID

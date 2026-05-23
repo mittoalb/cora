@@ -66,7 +66,7 @@ class ActorSummaryProjection:
         """
         match event.event_type:
             case "ActorRegistered":
-                # `kind` is forward-compat: pre-8f-a payloads lack it,
+                # `kind` is forward-compat: legacy payloads lack it,
                 # so `payload.get("kind", "human")` matches the
                 # `from_stored` deserializer's default.
                 await conn.execute(

@@ -113,7 +113,7 @@ async def test_verify_raises_when_seeded_surface_missing(
     db_pool: asyncpg.Pool,
 ) -> None:
     """V2 configured + V2 stream present but one of the 3 Surfaces is
-    missing — AH14 partial-fail mitigation."""
+    missing: partial-fail mitigation."""
     deps = _deps_with_trust_policy_id(db_pool, SYSTEM_BOOTSTRAP_POLICY_V2_ID)
     with (
         patch("cora.trust._bootstrap.load_surface", return_value=None),

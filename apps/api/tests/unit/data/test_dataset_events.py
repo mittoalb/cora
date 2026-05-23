@@ -248,7 +248,7 @@ def test_to_payload_includes_phase_7e_fields_when_set() -> None:
 
 @pytest.mark.unit
 def test_from_stored_pre_7e_dataset_registered_folds_with_defaults() -> None:
-    """Backward compat: pre-7e DatasetRegistered events (without
+    """Backward compat: legacy DatasetRegistered events (without
     producing_run_end_state or intent in the payload) fold cleanly
     via payload.get defaults: end_state=None, intent='Trial'."""
     dataset_id = uuid4()
@@ -460,7 +460,7 @@ def test_to_payload_serializes_used_calibrations_as_sorted_string_list() -> None
 @pytest.mark.unit
 def test_to_payload_serializes_empty_used_calibrations_as_empty_list() -> None:
     """Default empty tuple serializes to empty list (NOT missing key)
-    so post-12c writers emit a uniform payload shape."""
+    so writers emit a uniform payload shape."""
     event = DatasetRegistered(
         dataset_id=uuid4(),
         name="D",
@@ -481,7 +481,7 @@ def test_to_payload_serializes_empty_used_calibrations_as_empty_list() -> None:
 
 @pytest.mark.unit
 def test_from_stored_pre_12c_dataset_registered_folds_with_empty_used_calibrations() -> None:
-    """Backward compat: pre-12c DatasetRegistered events (without
+    """Backward compat: legacy DatasetRegistered events (without
     used_calibrations in the payload) fold cleanly via
     `payload.get("used_calibrations", [])` returning an empty list
     that becomes an empty tuple on the event dataclass."""

@@ -8,7 +8,7 @@ asset; remove when retiring one.
 `asset_id` is the **target** Asset aggregate. `family_id` is the
 Family being added; the decider does NOT verify it refers to a
 real Family stream (eventual-consistency stance, same precedent
-as Asset parent refs in 5b and Method.needed_families in 6a).
+as Asset parent refs and Method.needed_families).
 """
 
 from dataclasses import dataclass

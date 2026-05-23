@@ -2,7 +2,7 @@
 
 Update-style handler. Canonical body lives in
 `cora.operation._procedure_update_handler.make_procedure_update_handler`;
-this module is a thin slice-specific bind. Hoisted at 10c-c when
+this module is a thin slice-specific bind. Hoisted when
 truncate_procedure landed as the third Procedure update slice
 (rule-of-three trigger fired).
 """

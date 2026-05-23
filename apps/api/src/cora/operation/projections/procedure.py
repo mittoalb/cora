@@ -20,7 +20,7 @@ The 4 status-change UPDATEs share the same SQL shape (status literal +
 status-change timestamp + optional reason); per-event arms differ only
 in which status string + which payload fields they pull. A future
 parameterized `_UPDATE_STATUS_SQL` hoist (mirroring proj_supply_summary's
-post-10a-b cleanup) becomes worthwhile when a 5th status-change arm
+later cleanup) becomes worthwhile when a 5th status-change arm
 lands -- today the 4 arms keep the dispatch readable.
 
 All branches idempotent. The CHECK constraint on `status` is locked
@@ -152,8 +152,8 @@ class ProcedureSummaryProjection:
         if event.event_type == "ProcedureTruncated":
             # Strict indexing matches the evolver's `from_stored` posture:
             # interrupted_at is required-on-the-payload (None | datetime),
-            # not future-additive optional. Any pre-10c-c stream lacking
-            # the key is malformed, not legacy. Mirrors evolver fold.
+            # not future-additive optional. Any stream lacking the
+            # key is malformed, not legacy. Mirrors evolver fold.
             raw_interrupted_at = event.payload["interrupted_at"]
             interrupted_at = (
                 datetime.fromisoformat(raw_interrupted_at)

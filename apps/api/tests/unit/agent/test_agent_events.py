@@ -271,7 +271,7 @@ def test_round_trip_agent_deprecated() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- iter 2: Suspended / Resumed / ToolGrant / Budget ----------
+# ---------- lifecycle widening: Suspended / Resumed / ToolGrant / Budget ----------
 
 
 @pytest.mark.unit

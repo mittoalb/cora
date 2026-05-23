@@ -177,7 +177,7 @@ class ClearanceActivated:
 class ClearanceExpired:
     """The clearance's validity ended (`Active -> Expired`).
 
-    Operator-action only in 11a-c-2; auto-expiry on `valid_until` is
+    Operator-action only today; auto-expiry on `valid_until` is
     deferred per watch #7 in [[project_safety_clearance_design]].
 
     `reason` is operator-supplied free-form prose, 1-500 chars after

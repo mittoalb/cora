@@ -6,15 +6,15 @@ cross-BC `cora.infrastructure.update_handler.make_update_handler`.
 
 ## Hoist trigger
 
-10c-b iter 1 shipped two update-style handlers (complete_procedure +
+The first wave shipped two update-style handlers (complete_procedure +
 abort_procedure) longhand-via-direct-make_update_handler call, with a
-docstring note pointing at the rule-of-three trigger. 10c-c adds
-`truncate_procedure` as the third update slice; that's the trigger.
+docstring note pointing at the rule-of-three trigger. Adding
+`truncate_procedure` as the third update slice fired the trigger.
 This factory hoists the shared scaffolding so each slice's handler.py
 shrinks from ~70 lines to a 7-line `bind` that supplies a name + a
 log-prefix + the decider. Mirrors `_supply_update_handler` (Supply
-hoisted at 10a-b after 5 transitions) and `cora.run._update_handler`
-(Run hoisted post-7e at 11 byte-identical instances cross-BC).
+hoisted after 5 transitions) and `cora.run._update_handler` (Run
+hoisted at 11 byte-identical instances cross-BC).
 
 ## Per-aggregate, not per-BC
 

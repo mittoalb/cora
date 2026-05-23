@@ -9,8 +9,8 @@ opaque domain data and validates without any I/O. `now` and
 ports.
 
 This pattern is the canonical approach for cross-aggregate
-validation in CORA. Second instance shipped in `start_run` (Phase
-6f-1) with `RunStartContext` of the same shape. Documented in
+validation in CORA. Second instance shipped in `start_run`
+with `RunStartContext` of the same shape. Documented in
 CONTRIBUTING.md alongside the eventual-consistency rule.
 
 ## Validation order
@@ -39,7 +39,7 @@ fundamental issues surface first:
    Family.affordances must cover `Capability.required_affordances`.
    Raises `PlanAffordancesNotSatisfiedError` with the missing
    affordance string values. Skipped when `method.capability_id` is
-   None (pre-6l-strict shape; handler builds context with
+   None (legacy shape; handler builds context with
    `capability=None`).
 8. Name validation (via `PlanName` VO). Raises
    `InvalidPlanNameError`. Last because the name is a primitive
@@ -125,7 +125,7 @@ def decide(
     # family-id check: even when every needed Family is bound, the union
     # of those Families' `affordances` must cover the Method's bound
     # Capability.required_affordances. SKIPPED when method.capability_id
-    # is None (pre-6l-strict shape; handler builds context with capability=None).
+    # is None (legacy shape; handler builds context with capability=None).
     if context.capability is not None:
         union_affordances: frozenset[Affordance] = frozenset(
             affordance

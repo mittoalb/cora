@@ -9,13 +9,13 @@ append. No I/O, no awaits, no clock / id-generator calls.
 
 The cross-BC slice-contract test
 (`tests/architecture/test_slice_contract.py`) requires `decider.py`
-for every command slice. The cross-BC gate-review P1 (8f-c iter 1)
+for every command slice. The cross-BC gate-review
 additionally noted that the LLM-response-to-`DecisionRegistered`
-mapping is genuinely pure and benefits from extraction: a future
-on-demand agent slice (8f-c iter 2 / 8f-c+) and a Pattern B
+mapping is genuinely pure and benefits from extraction: future
+on-demand agent slices and a Pattern B
 subscriber would both consume the same shape.
 
-The 8f-b iter 2b subscriber (`cora.agent.subscribers.run_debriefer`)
+The Pattern A subscriber (`cora.agent.subscribers.run_debriefer`)
 currently inlines an equivalent composition. Rule-of-three trigger
 to hoist this decider out of the slice and into a shared module
 (eg. `cora.agent.deciders.run_debriefer`) fires when EITHER a second

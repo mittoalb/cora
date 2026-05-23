@@ -123,7 +123,7 @@ def test_decide_does_not_validate_zone_existence() -> None:
     """Eventual-consistency stance: the decider does NOT verify that
     `source_zone_id` / `target_zone_id` reference existing Zones.
     A typo or dangling reference produces a Conduit that points at
-    nothing; downstream validation (Policy in 3c, projections later)
+    nothing; downstream validation (Policy, projections later)
     catches it. This test pins the design choice so a future
     refactor that adds a load-and-verify step trips this guard."""
     events = define_conduit.decide(

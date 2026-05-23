@@ -534,16 +534,16 @@ async def test_pitch_alignment_plays_out_end_to_end(
     assert [r["step_kind"] for r in rows] == [
         "setpoint",
         "action",
-        "check",  # iter 1 @ 0°
+        "check",  # iteration 1 @ 0°
         "setpoint",
         "action",
-        "check",  # iter 1 @ 180°
-        "setpoint",  # iter 1 adjust
+        "check",  # iteration 1 @ 180°
+        "setpoint",  # iteration 1 adjust
         "setpoint",
         "action",
-        "check",  # iter 2 @ 0°
+        "check",  # iteration 2 @ 0°
         "setpoint",
         "action",
-        "check",  # iter 2 @ 180° (passed)
+        "check",  # iteration 2 @ 180° (passed)
         "setpoint",  # finalize (lock_at_calibrated)
     ]

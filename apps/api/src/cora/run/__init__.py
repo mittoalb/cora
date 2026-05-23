@@ -35,7 +35,7 @@ Cross-aggregate validation at Run-start (gate-review Q2 / Q5
 locked answers): handler pre-loads Plan + Subject (if subject_id)
 + each bound Asset (from `plan.asset_ids`); decider receives
 `RunStartContext` and validates as opaque domain inputs (same
-canonical pattern as Plan's PlanBindingContext from 6e-1). Per
+canonical pattern as Plan's PlanBindingContext). Per
 gate-review Q5: Run-start re-validates capability superset
 against CURRENT Asset state (Plan-bind validated against then-
 current; drift is real, Run is the last gate).
@@ -91,7 +91,7 @@ Phase history:
     logbooks, truncate_run extends to auto-close them per gate-
     review L4.
 
-Known gaps (pre-6f-1 sequencing decisions, gate-review Q3 locked):
+Known gaps (early sequencing decisions, gate-review Q3 locked):
   - **Supply availability check** (Track B Supply BC not shipped):
     Run-start does NOT verify beam / power / gas availability today.
     Operator-trusted; documented as gap. Lands when Supply BC ships.

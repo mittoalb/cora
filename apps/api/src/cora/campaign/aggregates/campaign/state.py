@@ -22,8 +22,8 @@ the documented over-engineering counter-example):
 The aggregate is intentionally slim per
 `[[project_fold_cost_principles]]`: identity + name + intent +
 lead actor + optional subject + description + tags + external refs +
-optional external_id + run_ids (forward-compat empty in 6i-a; mutated
-in 6i-c when membership slices land) + status + last_status_reason.
+optional external_id + run_ids (forward-compat empty at BC genesis;
+mutated when membership slices land) + status + last_status_reason.
 
 ## VO pattern reuse (17th / 18th / 19th bounded-text instances)
 
@@ -51,9 +51,9 @@ surface. Day-1 lock is intentionally narrow: adding intents is cheap
 ## ExternalRef (anti-corruption for proposal / btr / visit / cycle)
 
 `Campaign.external_refs: frozenset[ExternalRef]` reuses the cross-BC
-`cora.infrastructure.external_ref.ExternalRef` VO (hoisted at 6i-a
-from Run's state.py). Day-1 schemes: `proposal` / `btr` / `visit` /
-`cycle`. Mirrors `Run.external_refs` (11a-c-3) exactly.
+`cora.infrastructure.external_ref.ExternalRef` VO (hoisted at BC
+genesis from Run's state.py). Day-1 schemes: `proposal` / `btr` /
+`visit` / `cycle`. Mirrors `Run.external_refs` exactly.
 
 ## Lazy-mint `external_id` for facility-assigned / DataCite Project DOI
 
@@ -61,7 +61,7 @@ from Run's state.py). Day-1 schemes: `proposal` / `btr` / `visit` /
 mint pattern Clearance uses (per `[[project_pid_landscape]]`). Set
 lazily once a Campaign is significant enough to publish (DataCite 4.6
 added `Project` as `resourceTypeGeneral`; clean fit). Field on
-aggregate today; no slice in 6i-a mints it (deferred to a watch item).
+aggregate today; no slice mints it (deferred to a watch item).
 """
 
 from dataclasses import dataclass, field
@@ -478,7 +478,7 @@ class Campaign:
     Slim aggregate per `[[project_fold_cost_principles]]`. Identity
     is a stable opaque `id: UUID`. Optional `external_id: str | None`
     is the facility-minted or DataCite Project DOI assigned lazily;
-    no slice in 6i-a mints it (deferred per design memo Watch items).
+    no slice mints it today (deferred per design memo Watch items).
 
     `lead_actor_id: UUID` is REQUIRED at register, mirroring LIMS
     Study Director / GLP Study Director Identity (required for
@@ -492,11 +492,11 @@ class Campaign:
     Run subjects (anti-hook).
 
     `run_ids: frozenset[UUID]` is the bidirectional composition set.
-    Day-1 (6i-a) it stays empty; the evolver does NOT mutate it.
-    Membership mutation slices land in 6i-c (add_run_to_campaign /
+    At BC genesis it stays empty; the evolver does NOT mutate it.
+    Membership mutation slices land later (add_run_to_campaign /
     remove_run_from_campaign + Run.campaign_id additive field). The
-    field is on the aggregate today for forward-compat so 6i-c can
-    add evolver arms without changing the state shape.
+    field is on the aggregate today for forward-compat so those
+    slices can add evolver arms without changing the state shape.
 
     `last_status_reason: str | None` is populated by Held and
     Abandoned events. Resume preserves the value (audit breadcrumb:

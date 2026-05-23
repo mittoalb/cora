@@ -10,16 +10,16 @@ Subscribed events:
   - SupplyRestored           -> UPDATE status='Available'    + audit triple
 
 All transition arms run a single parameterized `_UPDATE_STATUS_SQL`
-with status as $5 — the SQL shape was identical across all 5
+with status as $5: the SQL shape was identical across all 5
 transitions (status literal + audit triple), so the per-transition
-SQL constants of 10a-a were hoisted here in 10a-b. The status string
-comes from a per-event-type lookup mirroring `from_stored` in events.py.
+SQL constants were hoisted here. The status string comes from a
+per-event-type lookup mirroring `from_stored` in events.py.
 
 All branches idempotent. The CHECK constraints on `status` and
 `last_trigger` were locked with the full enum values day one (5
-statuses + 3 triggers) so 10a-b's 4 new arms land without a
-constraint migration (verified at the table level via the iter-4
-Atlas migration).
+statuses + 3 triggers) so the later 4 transition arms land without a
+constraint migration (verified at the table level via the Atlas
+migration).
 
 ## Cross-stream uniqueness on (scope, kind, name)
 

@@ -1,6 +1,6 @@
 """Domain events emitted by the Agent aggregate, plus the discriminated union.
 
-Three events ship in 8f-a:
+Three genesis-and-lifecycle events:
 
   - `AgentDefined`    -- genesis (Defined). Written to a NEW Agent
                          stream by the `define_agent` slice ATOMICALLY
@@ -158,8 +158,8 @@ class AgentSuspended:
     audit log should always carry context for.
 
     The suspending actor's id lives on the envelope; no actor
-    field on the payload (mirrors 11b-a `supersede_caution` /
-    8f-b iter 2b security gate-review P1#3 convention).
+    field on the payload (mirrors `supersede_caution` and the
+    security gate-review convention).
     """
 
     agent_id: UUID

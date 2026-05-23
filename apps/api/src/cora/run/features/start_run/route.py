@@ -125,7 +125,7 @@ class StartRunRequest(BaseModel):
             "start — every Run transition arm preserves it verbatim. "
             "NOT verified at the write path (cross-BC eventual-"
             "consistency stance). Empty list when no calibrations "
-            "apply (today's default; pre-12b Runs fold the same way "
+            "apply (today's default; legacy Runs fold the same way "
             "via `payload.get(..., [])`). Order on the wire is not "
             "significant — the aggregate carries a frozenset; the "
             "decider sorts for deterministic event-payload bytes."

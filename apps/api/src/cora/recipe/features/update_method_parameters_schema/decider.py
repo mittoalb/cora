@@ -20,7 +20,7 @@ per-attestation re-emission is meaningful for content versioning
 (see version_method's "strict-not-idempotent-with-exception"
 rationale) but not for schema declarations, where the value IS the
 audit trail and identical re-submission carries no new information.
-Mirrors `update_family_settings_schema` (Equipment 5g-a) decider stance.
+Mirrors `update_family_settings_schema` (Equipment BC) decider stance.
 
 Invariants:
   - State must not be None -> MethodNotFoundError
@@ -61,8 +61,8 @@ def decide(
     `capability` is the loaded Capability state when
     `state.capability_id` is set (loaded by the handler via the
     cross-BC port). When None, the handler intentionally skipped the
-    load (either because Method.capability_id is None — pre-6l-strict
-    fixture — OR because the Capability stream is missing, in which
+    load (either because Method.capability_id is None, legacy
+    fixture, OR because the Capability stream is missing, in which
     case CapabilityNotFoundError fires here). Subset check ONLY
     fires when both Method.parameters_schema AND Capability.parameter_schema
     are present; one-sided cases are unconstrained.

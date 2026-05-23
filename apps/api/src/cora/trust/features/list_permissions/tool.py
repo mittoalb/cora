@@ -1,7 +1,7 @@
 """MCP tool for the `list_permissions` query slice.
 
 Same handler the REST route uses. The tool description warns agents
-NOT to use the result for authorization decisions (per anti-hook AH2):
+NOT to use the result for authorization decisions (per the anti-hook):
 the probe (`check_permissions`) is the authoritative diagnostic.
 """
 

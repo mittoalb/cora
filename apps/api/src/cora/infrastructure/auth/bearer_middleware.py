@@ -119,8 +119,8 @@ def _resolve_expected_audience(path: str) -> UUID:
     Per-path dispatch: MCP routes bind to the
     `SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID` audience; everything else
     binds to `SYSTEM_HTTP_SURFACE_ID`. A token issued for HTTP MUST
-    NOT verify against the MCP Surface and vice versa (AH5: no
-    shared `aud` across Surfaces).
+    NOT verify against the MCP Surface and vice versa (no shared
+    `aud` across Surfaces).
 
     MCP_STDIO is NOT routed here (stdio is a subprocess transport,
     never reachable over HTTP).

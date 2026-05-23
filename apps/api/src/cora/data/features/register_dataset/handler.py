@@ -1,10 +1,10 @@
 """Application handler for the `register_dataset` slice.
 
 First Data BC handler, second cross-BC create-style handler that
-pre-loads upstream aggregate state (after `start_run` in 6f-1).
-Per gate-review Q2 lock B, this is the canonical pattern for
+pre-loads upstream aggregate state (after `start_run`). Per
+gate-review Q2 lock B, this is the canonical pattern for
 cross-aggregate validation in CORA, mirroring `RunStartContext`
-from 6f-1 (documented in CONTRIBUTING.md).
+(documented in CONTRIBUTING.md).
 
 ## Pre-load order (Run? → Subject? → each derived_from?)
 

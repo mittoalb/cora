@@ -15,7 +15,7 @@ Each error family that maps to one HTTP status code with the same
 against a tuple of error classes via a loop. Adding a new error in
 a family is one tuple entry — no new handler function. Mirrors the
 shape Equipment + Subject use; Access (the oldest BC) was normalized
-in the post-5b cleanup so all 4 BCs follow the same pattern.
+so all 4 BCs follow the same pattern.
 
 ## Cross-BC infra errors registered here
 

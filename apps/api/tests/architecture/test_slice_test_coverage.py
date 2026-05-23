@@ -102,8 +102,8 @@ EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
 
 EXEMPT_FROM_MCP_CONTRACT: frozenset[str] = frozenset(
     {
-        # Agent lifecycle (8f-c iter 2): all 5 slices covered by the
-        # bundled `test_iter2_mcp_tools.py`.
+        # Agent lifecycle: all 5 slices covered by the bundled
+        # `test_iter2_mcp_tools.py`.
         "cora.agent.features.grant_tool_to_agent",
         "cora.agent.features.resume_agent",
         "cora.agent.features.revise_agent_budget",

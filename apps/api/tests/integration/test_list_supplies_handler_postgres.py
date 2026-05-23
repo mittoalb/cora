@@ -10,7 +10,7 @@ Pins the genesis -> transition fold + projection writes:
   - status filter
   - cursor pagination
   - 5-status SupplyStatusFilter Literal locked day one (Unknown / Available
-    reachable in 10a-a; Degraded / Unavailable / Recovering reachable in 10a-b)
+    reachable via genesis; Degraded / Unavailable / Recovering reachable via transitions)
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false

@@ -87,7 +87,7 @@ an advisory signal to RunDebriefer or a future RunStartGate.)
 
 ## What this scenario surfaces (gap-finding intent)
 
-  - **Supply is observability-only at 10a-b.** No cross-BC
+  - **Supply is observability-only.** No cross-BC
     consumer reads Supply status today. The scenario verifies
     the audit trail (event sequence on the stream) but cannot
     assert any downstream effect. A future scenario would

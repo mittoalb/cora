@@ -188,8 +188,8 @@ def _load_executor_shapes(payload: dict[str, Any]) -> frozenset[ExecutorShape]:
 def from_stored(stored: StoredEvent) -> RecipeCapabilityEvent:
     """Rebuild a Capability event from a StoredEvent loaded from the event store.
 
-    Single-match arms — no legacy/dual-match (this aggregate is new
-    at 6k, not a rename of a prior aggregate).
+    Single-match arms, no legacy/dual-match (this aggregate is new,
+    not a rename of a prior aggregate).
     """
     payload = stored.payload
     match stored.event_type:

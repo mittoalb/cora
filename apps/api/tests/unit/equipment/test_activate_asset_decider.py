@@ -70,8 +70,8 @@ def test_decide_raises_cannot_activate_for_every_non_commissioned_lifecycle(
 
     Three wrong states tested explicitly so a future relaxation has to flip every
     parametrized case deliberately. (Maintenance and Decommissioned
-    aren't reachable yet in 5c but the lifecycle enum vocabulary is
-    complete; pinning them now means 5e additions don't surprise.)
+    aren't reachable yet but the lifecycle enum vocabulary is
+    complete; pinning them now means later additions don't surprise.)
     """
     state = _asset(lifecycle=current)
     with pytest.raises(AssetCannotActivateError) as exc_info:

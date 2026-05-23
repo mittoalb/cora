@@ -5,12 +5,12 @@ socket through which a request entered CORA's process. v1 values:
 HTTP, MCP stdio, MCP streamable-http. Distinct from `Conduit` (which
 is an ISA-99/IEC-62443 inter-zone topology primitive); v2 memo
 locked the decomposition after the Stage 1 v1 conflation was caught
-by R2C — see memory/project_conduit_injection_design.md AH13.
+by R2C, see memory/project_conduit_injection_design.md.
 
 Status FSM (`Defined → Versioned → Deprecated`) matches the
-Capability / Family / Practice / Method / Plan / Agent post-Phase-3
+Capability / Family / Practice / Method / Plan / Agent template
 convention. Lifecycle transitions are future-loadable; v1 ships
-genesis only (per AH8).
+genesis only.
 
 Lifecycle timestamps removed (Path C): Surface is a singleton-ish
 aggregate (exactly 3 instances — SYSTEM_HTTP / SYSTEM_MCP_STDIO /

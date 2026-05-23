@@ -4,7 +4,7 @@ Pins per-event-type apply() dispatch + the declarative-field refresh
 shape for the 3 subscribed Capability events. Postgres-side behavior
 (SQL execution + replay against a real bookmark) lives in the
 integration tier; the cross-aggregate guard test below is the
-projection-level counterpart of the 5i P0 fix that exposed
+projection-level counterpart of the earlier fix that exposed
 FamilySummaryProjection silently dropping legacy events on replay.
 """
 

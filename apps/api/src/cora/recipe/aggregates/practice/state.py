@@ -9,16 +9,16 @@ but is still abstract over which specific batch run it serves.
 
 Per the BC map's recipe ladder:
   - Method ≈ General Recipe (vendor / scientific community)
-  - **Practice ≈ Site Recipe** (this aggregate; 6d)
-  - Plan ≈ Master / Control Recipe (concrete Asset binding; 6e)
-  - Run ≈ batch execution (6f)
+  - **Practice ≈ Site Recipe** (this aggregate)
+  - Plan ≈ Master / Control Recipe (concrete Asset binding)
+  - Run ≈ batch execution
 
 
 Minimal Practice:
   - `id` + `name`
   - `method_id: UUID` — the Method this Practice adapts (eventual-
     consistency stance: existence is NOT verified at decide time;
-    same precedent as Method.needed_families and Trust 3b)
+    same precedent as Method.needed_families and Trust Conduit zone refs)
   - `site_id: UUID` — the Site-level Asset this Practice belongs to
     (institutional ownership; eventual-consistency: not verified)
   - `status: PracticeStatus` (Defined → Versioned → Deprecated FSM)
@@ -44,16 +44,16 @@ generalize.
 
 ## Eventual-consistency stance for cross-aggregate refs
 
-Same precedent as everywhere else (Trust Conduit zone refs in 3b,
-Method needed_families in 6a, Asset.families entries in
-5f-1): the decider does NOT verify `method_id` refers to a real
+Same precedent as everywhere else (Trust Conduit zone refs,
+Method needed_families, Asset.families entries):
+the decider does NOT verify `method_id` refers to a real
 Method or `site_id` refers to a real Site-level Asset. Typos
-produce "dangling" Practices; downstream Plan binding (6e) is where
+produce "dangling" Practices; downstream Plan binding is where
 the mismatch surfaces.
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
 
-Same precedent as Method (6a) and Family (5a). The lifecycle
+Same precedent as Method and Family. The lifecycle
 mirrors Method's: Defined → Versioned → Deprecated.
 
 ## Ninth bounded-name VO
@@ -134,8 +134,8 @@ class PracticeCannotVersionError(Exception):
     legitimate audit moment).
 
     Per-transition error class — same naming convention as
-    `MethodCannotVersionError` (Recipe 6b) and
-    `FamilyCannotVersionError` (Equipment 5f-2).
+    `MethodCannotVersionError` (Recipe BC) and
+    `FamilyCannotVersionError` (Equipment BC).
     """
 
     def __init__(self, practice_id: UUID, current_status: "PracticeStatus") -> None:
@@ -172,8 +172,8 @@ class InvalidPracticeVersionTagError(ValueError):
     Validated at the API boundary via Pydantic min_length / max_length,
     AND defensively at the decider via this error so direct in-process
     callers (sagas, tests) get the same protection. Same precedent as
-    InvalidMethodVersionTagError (Recipe 6b) and
-    InvalidFamilyVersionTagError (Equipment 5f-2).
+    InvalidMethodVersionTagError (Recipe BC) and
+    InvalidFamilyVersionTagError (Equipment BC).
     """
 
     def __init__(self, value: str) -> None:
@@ -189,7 +189,7 @@ class PracticeName:
     """Display name for a practice. Trimmed; 1-200 chars.
 
     Ninth occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_bounded_text` helper hoisted in 6e-1 (see
+    the shared `validate_bounded_text` helper (see
     `cora.infrastructure.bounded_text`).
     """
 
@@ -214,7 +214,7 @@ class Practice:
     Site-level Asset (per Equipment's hierarchy) this Practice
     belongs to. Both are eventual-consistency refs: the decider does
     NOT verify they refer to real aggregates. Mismatch surfaces at
-    Plan binding (6e).
+    Plan binding.
 
     `version` mirrors Method's pattern: None until the first
     version_practice call; preserved across deprecation as the audit

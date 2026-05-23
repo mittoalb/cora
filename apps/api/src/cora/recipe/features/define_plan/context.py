@@ -14,7 +14,7 @@ inputs, same outputs, no need to mock loaders in unit tests.
 
 Slice-local module by design: only `define_plan` uses it today.
 Sibling pattern: `cora.run.features.start_run.context.RunStartContext`
-(6f-1) holds Plan + Subject (optional) + assets — same shape, slice-
+holds Plan + Subject (optional) + assets, same shape, slice-
 specific entities. Each cross-validating slice produces its own
 context dataclass; promote to a shared form only after the Rule of
 Three.
@@ -52,7 +52,7 @@ class PlanBindingContext:
 
     - `capability` is the universal Capability template the bound
       Method realizes (loaded via `method.capability_id`). None when
-      Method has no `capability_id` (pre-6l-strict shape) — in that
+      Method has no `capability_id` (legacy shape), in that
       case the decider SKIPS the affordance-cover guard entirely.
     - `family_affordances` maps Family.id → that Family's `affordances`
       set. The handler loads every Family referenced by any bound

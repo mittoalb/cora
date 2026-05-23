@@ -35,7 +35,7 @@ precedent.
 
 ## ExternalRef-based coverage: deferred
 
-Run gains `external_refs: frozenset[ExternalRef]` in 11a-c-3 as an
+Run gains `external_refs: frozenset[ExternalRef]` as an
 additive field, but the ClearanceLookup query does NOT yet match
 against ExternalBindings. The projection has no `external_refs`
 column today; adding one needs a side-table or jsonb column. Defer

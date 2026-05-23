@@ -84,7 +84,7 @@ def test_fold_genesis_with_optional_fields() -> None:
 
 @pytest.mark.unit
 def test_evolver_returns_new_state_does_not_mutate_input() -> None:
-    """Genesis only at 11a-a; verify the genesis arm is non-mutating."""
+    """The genesis arm is non-mutating."""
     state1 = evolve(None, _genesis_event())
     state2 = evolve(None, _genesis_event())
     # Each call returns a fresh frozen instance

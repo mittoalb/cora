@@ -338,7 +338,7 @@
         "type": "string"
       },
       "AgentResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n\n`defined_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C);\nsee module docstring for null-semantics. `defined_at` is now\nnullable (changed from required at 8f-a) because the projection\ncan lag \u2014 once the projection has folded `AgentDefined`,\n`defined_at` is non-null on every response.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n\n`defined_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C);\nsee module docstring for null-semantics. `defined_at` is\nnullable (changed from required during lifecycle widening) because\nthe projection can lag \u2014 once the projection has folded\n`AgentDefined`, `defined_at` is non-null on every response.",
         "properties": {
           "canonical_uri": {
             "anyOf": [
@@ -3319,7 +3319,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional UUID into the Python module registry at `cora.agent.prompts`. Required by 8f-b's RunDebriefer subscriber; may be null at 8f-a until the registry ships its first template.",
+            "description": "Optional UUID into the Python module registry at `cora.agent.prompts`. Required by the RunDebriefer subscriber; may be null until the registry ships its first template.",
             "title": "Prompt Template Id"
           },
           "version": {
@@ -3582,10 +3582,10 @@
         "type": "object"
       },
       "DefineMethodRequest": {
-        "description": "Body for `POST /methods`.\n\n`needed_families` is required (use `[]` for procedural\nMethods that need no specific equipment family). Eventual-\nconsistency: each Family id is NOT verified against the\nFamily stream; mismatch surfaces at Plan binding (6e).\n\n`needed_supplies` is optional; defaults to `[]` for\nbackward-compat (pre-10b clients keep working). Each element is\na Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.\nAsymmetric vs needed_families by design \u2014 see\n[[project_supply_design]] \u00a7\"Method.needed_supplies consumer\"\nfor the rationale (Family is TYPE registry,\nSupply is INSTANCE aggregate per facility sharing a `kind` label).\nEventual-consistency: kind strings are NOT verified against the\nSupply stream; mismatch surfaces at Plan binding (10c+).",
+        "description": "Body for `POST /methods`.\n\n`needed_families` is required (use `[]` for procedural\nMethods that need no specific equipment family). Eventual-\nconsistency: each Family id is NOT verified against the\nFamily stream; mismatch surfaces at Plan binding.\n\n`needed_supplies` is optional; defaults to `[]` for\nbackward-compat (older clients keep working). Each element is\na Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.\nAsymmetric vs needed_families by design \u2014 see\n[[project_supply_design]] \u00a7\"Method.needed_supplies consumer\"\nfor the rationale (Family is TYPE registry,\nSupply is INSTANCE aggregate per facility sharing a `kind` label).\nEventual-consistency: kind strings are NOT verified against the\nSupply stream; mismatch surfaces at Plan binding.",
         "properties": {
           "capability_id": {
-            "description": "Universal Capability template (Recipe BC 6k) this Method realizes as a Method-shaped executor. REQUIRED per Pattern P (6l-strict). The bound Capability must declare `Method` in its executor_shapes set; otherwise 409. Eventual-consistency: the Capability stream is loaded at handler time, not API-boundary time \u2014 a missing stream surfaces as 404 via CapabilityNotFoundError.",
+            "description": "Universal Capability template (Recipe BC) this Method realizes as a Method-shaped executor. REQUIRED per Pattern P. The bound Capability must declare `Method` in its executor_shapes set; otherwise 409. Eventual-consistency: the Capability stream is loaded at handler time, not API-boundary time \u2014 a missing stream surfaces as 404 via CapabilityNotFoundError.",
             "format": "uuid",
             "title": "Capability Id",
             "type": "string"
@@ -3607,7 +3607,7 @@
             "type": "array"
           },
           "needed_supplies": {
-            "description": "Supply.kind strings this Method requires. May be empty. Each element is a kind label (for example 'PhotonBeam', 'LiquidNitrogen', 'ComputePool'), 1-50 chars. NOT Supply instance UUIDs \u2014 Methods are facility-portable. Eventual-consistency: kinds are NOT verified against the Supply stream at decide time; mismatch surfaces at Plan binding (10c+).",
+            "description": "Supply.kind strings this Method requires. May be empty. Each element is a kind label (for example 'PhotonBeam', 'LiquidNitrogen', 'ComputePool'), 1-50 chars. NOT Supply instance UUIDs \u2014 Methods are facility-portable. Eventual-consistency: kinds are NOT verified against the Supply stream at decide time; mismatch surfaces at Plan binding.",
             "items": {
               "maxLength": 50,
               "minLength": 1,
@@ -4542,7 +4542,7 @@
         "type": "object"
       },
       "ListPermissionsResponse": {
-        "description": "Read-side DTO at the API boundary.\n\n`incomplete` is always False at v1 \u2014 required from day 1 per the\ndesign lock's anti-hook AH4 to forward-compat with future ABAC\npolicies that may make enumeration lossy.",
+        "description": "Read-side DTO at the API boundary.\n\n`incomplete` is always False at v1, required from day 1 per the\ndesign lock's anti-hook to forward-compat with future ABAC\npolicies that may make enumeration lossy.",
         "properties": {
           "evaluated_conduit_id": {
             "format": "uuid",
@@ -5472,7 +5472,7 @@
         "type": "object"
       },
       "ProcedureStatus": {
-        "description": "The Procedure's lifecycle state.\n\nFive values declared day one for forward-compat\n(additive-state pattern; pre-10c-b events fold cleanly because\nonly DEFINED is reachable after register_procedure):\n\n  - `Defined`     -- registration-time genesis; pre-execution.\n                      Operator can edit / inspect / submit for\n                      review (future Decision BC integration).\n                      Cannot accept step events yet.\n  - `Running`     -- post-start_procedure (lands 10c-b). Step\n                      events accepted via append_procedure_step.\n  - `Completed`   -- happy path via complete_procedure (10c-b).\n                      Strict-not-idempotent.\n  - `Aborted`     -- emergency exit via abort_procedure (10c-b).\n  - `Truncated`   -- retroactive cleanup via truncate_procedure\n                      (10c-c). Mirrors RunTruncated from 6f-4.\n\n`Verifying` and `Held / Resumed` are deliberately NOT in this\nenum. Per [[project_operation_design]] standards-corpus research:\n`Verifying` is NOT standards-blessed at FSM level (PackML uses\n`Completing` for closeout/check work; OPC UA Programs has no\nVerify state). Per-step Check happens within Running synchronously\n(via the Step logbook's check_passed field at 10c-b). Held /\nResumed deferred until pilot operator feedback surfaces a need.\n\nNaming convention (per Run BC 6f-2 gate review): gerund /\nadjective for active steady-states (matches PackML / Bluesky);\npast-participle for terminals. `Defined` is past-participle (a\nprocedure WAS defined); `Running` is gerund-as-adjective; the\nrest are past-participle terminals.\n\nEnum values are PascalCase strings (matches BC-map status\nvocabulary; log lines and DTOs read naturally without mapping).",
+        "description": "The Procedure's lifecycle state.\n\nFive values declared day one for forward-compat\n(additive-state pattern; legacy events fold cleanly because\nonly DEFINED is reachable after register_procedure):\n\n  - `Defined`     -- registration-time genesis; pre-execution.\n                      Operator can edit / inspect / submit for\n                      review (future Decision BC integration).\n                      Cannot accept step events yet.\n  - `Running`     -- post-start_procedure. Step events accepted\n                      via append_procedure_step.\n  - `Completed`   -- happy path via complete_procedure.\n                      Strict-not-idempotent.\n  - `Aborted`     -- emergency exit via abort_procedure.\n  - `Truncated`   -- retroactive cleanup via truncate_procedure.\n                      Mirrors RunTruncated.\n\n`Verifying` and `Held / Resumed` are deliberately NOT in this\nenum. Per [[project_operation_design]] standards-corpus research:\n`Verifying` is NOT standards-blessed at FSM level (PackML uses\n`Completing` for closeout/check work; OPC UA Programs has no\nVerify state). Per-step Check happens within Running synchronously\n(via the Step logbook's check_passed field). Held / Resumed\ndeferred until pilot operator feedback surfaces a need.\n\nNaming convention (per Run BC gate review): gerund /\nadjective for active steady-states (matches PackML / Bluesky);\npast-participle for terminals. `Defined` is past-participle (a\nprocedure WAS defined); `Running` is gerund-as-adjective; the\nrest are past-participle terminals.\n\nEnum values are PascalCase strings (matches BC-map status\nvocabulary; log lines and DTOs read naturally without mapping).",
         "enum": [
           "Defined",
           "Running",
@@ -6131,7 +6131,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional facility-minted or DataCite Project DOI assigned lazily. Today: operator-supplied at register time only; no mint slice in 6i-a.",
+            "description": "Optional facility-minted or DataCite Project DOI assigned lazily. Today: operator-supplied at register time only; no mint slice yet.",
             "title": "External Id"
           },
           "external_refs": {
@@ -7355,7 +7355,7 @@
         "type": "object"
       },
       "RunResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. `status` is the StrEnum's\nstring value. `subject_id` is null for calibration / dark-field\nruns. `raid` is null when no Research Activity Identifier was\nsupplied at start time (post-7d retrofit).\n\n`override_parameters` and `effective_parameters` carry the post-\n6g-c parameter set: overrides the operator supplied at start\ntime, and the resolved merge of Plan defaults + overrides that\nactually governed this Run. Both default `{}`. `triggered_by`\ncaptures what initiated the Run (None if unrecorded).\n\n`campaign_id` (6i-c) is the Campaign this Run is a member of, set\neither at start time (StartRun.campaign_id) or post-hoc via\nadd_run_to_campaign. None when the Run is standalone (not part of\nany Campaign). Closes design-memo Watch #17 (per Caution-design\ncross-BC consistency precedent).",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. `status` is the StrEnum's\nstring value. `subject_id` is null for calibration / dark-field\nruns. `raid` is null when no Research Activity Identifier was\nsupplied at start time (additive retrofit).\n\n`override_parameters` and `effective_parameters` carry the\nparameter set: overrides the operator supplied at start\ntime, and the resolved merge of Plan defaults + overrides that\nactually governed this Run. Both default `{}`. `triggered_by`\ncaptures what initiated the Run (None if unrecorded).\n\n`campaign_id` (6i-c) is the Campaign this Run is a member of, set\neither at start time (StartRun.campaign_id) or post-hoc via\nadd_run_to_campaign. None when the Run is standalone (not part of\nany Campaign). Closes design-memo Watch #17 (per Caution-design\ncross-BC consistency precedent).",
         "properties": {
           "campaign_id": {
             "anyOf": [
@@ -7694,7 +7694,7 @@
             "type": "object"
           },
           "pinned_calibrations": {
-            "description": "Optional list of `CalibrationRevision.id`s pinned at this Run's start time (Calibration BC AsShot anchor per Phase 12b / Q5/Q6 design memo). IMMUTABLE on the aggregate after start \u2014 every Run transition arm preserves it verbatim. NOT verified at the write path (cross-BC eventual-consistency stance). Empty list when no calibrations apply (today's default; pre-12b Runs fold the same way via `payload.get(..., [])`). Order on the wire is not significant \u2014 the aggregate carries a frozenset; the decider sorts for deterministic event-payload bytes.",
+            "description": "Optional list of `CalibrationRevision.id`s pinned at this Run's start time (Calibration BC AsShot anchor per Phase 12b / Q5/Q6 design memo). IMMUTABLE on the aggregate after start \u2014 every Run transition arm preserves it verbatim. NOT verified at the write path (cross-BC eventual-consistency stance). Empty list when no calibrations apply (today's default; legacy Runs fold the same way via `payload.get(..., [])`). Order on the wire is not significant \u2014 the aggregate carries a frozenset; the decider sorts for deterministic event-payload bytes.",
             "items": {
               "format": "uuid",
               "type": "string"
@@ -8256,7 +8256,7 @@
         "type": "object"
       },
       "TriggerSource": {
-        "description": "The origin of a status-transition event.\n\nThree values locked day one per [[project_supply_design]] for\nforward-compat. Only `Operator` is wired in 10a-a/b; `Monitor`\nand `Auto` are reserved for future slice families:\n\n  - `Operator` \u2014 explicit operator command (10a-a, 10a-b)\n  - `Monitor`  \u2014 substream-derived observation (deferred; needs\n    first DAQ substream ingest, paired with 6f-5b/c trigger)\n  - `Auto`     \u2014 timer-based auto-restore (deferred; needs first\n    operator complaint about `restore_supply` ack overhead OR\n    30+ days of substream-stable recoveries)\n\nLocking three values day one avoids enum-evolution churn when\nthe deferred features land.",
+        "description": "The origin of a status-transition event.\n\nThree values locked day one per [[project_supply_design]] for\nforward-compat. Only `Operator` is wired today; `Monitor`\nand `Auto` are reserved for future slice families:\n\n  - `Operator` \u2014 explicit operator command\n  - `Monitor`  \u2014 substream-derived observation (deferred; needs\n    first DAQ substream ingest, paired with run-reading trigger)\n  - `Auto`     \u2014 timer-based auto-restore (deferred; needs first\n    operator complaint about `restore_supply` ack overhead OR\n    30+ days of substream-stable recoveries)\n\nLocking three values day one avoids enum-evolution churn when\nthe deferred features land.",
         "enum": [
           "Operator",
           "Monitor",
@@ -22852,7 +22852,7 @@
                 }
               }
             },
-            "description": "Supply is not in `Unknown` status (mark_supply_available is single-source from Unknown only; recovery acknowledgement uses restore_supply from 10a-b)."
+            "description": "Supply is not in `Unknown` status (mark_supply_available is single-source from Unknown only; recovery acknowledgement uses restore_supply)."
           },
           "422": {
             "description": "Request body failed schema validation (missing reason, empty reason, or reason exceeds 500 chars)."

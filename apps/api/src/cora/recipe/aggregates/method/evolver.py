@@ -18,13 +18,13 @@ Status mapping per event type:
   - `MethodParametersSchemaUpdated` -> status preserved (orthogonal to
                                                 lifecycle; updates the
                                                 parameters_schema field
-                                                only; 6g-a)
+                                                only)
 
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
 precedent as `FamilyDefined → DEFINED` / `SubjectMounted →
 MOUNTED`. Mirrors Family's transition evolver shape from
-Equipment 5f-2.
+Equipment BC.
 
 `needed_families` is converted from `list[UUID]` (event payload)
 to `frozenset[UUID]` (state) here. Order doesn't matter at the state
@@ -32,7 +32,7 @@ layer (set semantics for Plan-binding superset checks); the payload
 already sorted in `to_payload` for persistence determinism.
 
 `version` is mutated by MethodVersioned (set to the new tag) and
-PRESERVED by MethodDeprecated. Pre-6b MethodDefined-only streams fold
+PRESERVED by MethodDeprecated. MethodDefined-only streams fold
 cleanly with version=None (the additive-state pattern).
 
 **Critical invariant**: every transition arm MUST carry
@@ -41,8 +41,8 @@ cleanly with version=None (the additive-state pattern).
 `Method(id=..., name=..., status=...)` without explicitly passing
 the additive frozenset/optional fields would silently WIPE them to
 defaults. Pinned by `test_evolve_<transition>_preserves_needed_families`,
-the existing `version` preservation tests, 6g-a's
-`test_evolve_<transition>_preserves_parameters_schema`, and 10b's
+the existing `version` preservation tests, the
+`test_evolve_<transition>_preserves_parameters_schema`, and the
 `test_evolve_<transition>_preserves_needed_supplies` cases.
 
 `needed_supplies` is converted from `list[str]` (event
@@ -53,7 +53,7 @@ the state layer (set semantics); the payload sorted lexically in
 Transition events applied to empty state raise ValueError: they can
 never appear before `MethodDefined` in a well-formed stream. The
 `require_state` helper keeps per-arm bodies short (precedent locked
-by Subject's evolver in 4c).
+by Subject's evolver).
 """
 
 from collections.abc import Sequence
@@ -93,7 +93,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 # version defaults to None.
                 needed_supplies=frozenset(needed_supplies),
                 # capability_id flows through genesis. None for
-                # pre-6l streams (additive-state default).
+                # legacy streams without the field (additive-state default).
                 capability_id=capability_id,
             )
         case MethodVersioned(version_tag=version_tag):

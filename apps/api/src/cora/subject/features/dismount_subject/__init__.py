@@ -11,7 +11,7 @@ Module-as-namespace surface:
 Mirror of `mount_subject` in the inverse direction: clears
 `Subject.mounted_on_asset_id` and returns status to
 `Received`, enabling the multi-stage mount/dismount workflow that
-the cross-aggregate-binding audit identified as missing in 4b.
+the cross-aggregate-binding audit identified as missing.
 Distinct from `remove_subject` (which is terminal-leading); this
 slice is for "sample comes off the holder, ready for next mount".
 """

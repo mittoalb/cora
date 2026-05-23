@@ -48,9 +48,9 @@ class MethodDefined:
     requires; eventual-consistency stance, no cross-aggregate
     verification.
 
-    `needed_supplies` (post-10b, additive evolution) carries Supply
-    KIND strings the Method requires — NOT Supply instance ids.
-    Pre-10b events fold via `payload.get("needed_supplies", [])`. The
+    `needed_supplies` (additive evolution) carries Supply
+    KIND strings the Method requires, NOT Supply instance ids.
+    Older events without the field fold via `payload.get("needed_supplies", [])`. The
     list is sorted by string form in `to_payload` for persistence
     determinism (matches needed_families). Default empty list.
     """
@@ -62,7 +62,7 @@ class MethodDefined:
     needed_supplies: list[str] = field(default_factory=list[str])
     # additive evolution: capability_id points to the
     # universal Capability template this Method realizes. Defaults
-    # None for pre-6l events (additive-state pattern); post-6l decider
+    # None for older events without the field (additive-state pattern); current decider
     # rejects None at define_method time per Pattern P.
     capability_id: UUID | None = None
 
@@ -116,11 +116,11 @@ class MethodParametersSchemaUpdated:
     the contract (Method declares no parameter shape; downstream Plans
     and Runs accept any dict). Schema-changes do NOT auto-revalidate
     pre-existing Plans / Runs; existing Plans preserve historical
-    validity (locked, mirrors 5g-a posture).
+    validity (locked, mirrors Family.settings_schema posture).
 
     Validator (`parameters_validation.validate_parameters_schema`)
     runs at decide time so persisted payloads are always well-formed.
-    Mirrors `FamilySettingsSchemaUpdated` shape from Equipment 5g-a.
+    Mirrors `FamilySettingsSchemaUpdated` shape from Equipment BC.
 
     Status is NOT carried — schema updates are orthogonal to lifecycle
     (Defined / Versioned / Deprecated all permit schema updates).
@@ -165,9 +165,9 @@ def to_payload(event: MethodEvent) -> dict[str, Any]:
                 # deterministic payload bytes (matches needed_families
                 # convention; same idempotency-hash story).
                 "needed_supplies": sorted(needed_supplies),
-                # additive: capability_id is None on pre-6l
-                # events; the from_stored fallback to None preserves
-                # legacy stream replay.
+                # additive: capability_id is None on older events
+                # without the field; the from_stored fallback to None
+                # preserves legacy stream replay.
                 "capability_id": (str(capability_id) if capability_id is not None else None),
                 "occurred_at": occurred_at.isoformat(),
             }
@@ -216,12 +216,12 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
                     method_id=UUID(payload["method_id"]),
                     name=payload["name"],
                     needed_families=[UUID(c) for c in payload["needed_families"]],
-                    # forward-compat: pre-10b MethodDefined
+                    # forward-compat: older MethodDefined
                     # payloads have no needed_supplies key; default to empty
                     # list. Additive-evolution pattern.
                     needed_supplies=list(payload.get("needed_supplies", [])),
-                    # forward-compat: pre-6l MethodDefined payloads
-                    # have no capability_id key; default to None. Post-6l
+                    # forward-compat: older MethodDefined payloads
+                    # have no capability_id key; default to None. Currently
                     # the decider enforces non-None at write time.
                     capability_id=(UUID(capability_raw) if capability_raw is not None else None),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),

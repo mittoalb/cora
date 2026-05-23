@@ -8,8 +8,8 @@ a lookup. This module provides:
   - The deployment-stable identity constants (`RUN_DEBRIEFER_AGENT_ID`
     + name / kind / version / description). Hosted here -- not in
     the Agent aggregate's `state.py` -- because they are deployment
-    seed config, not aggregate-invariant declarations. Cross-BC
-    gate-review P1#6 (8f-b iter 2b).
+    seed config, not aggregate-invariant declarations. Per cross-BC
+    gate-review convention.
   - The `seed_run_debriefer_agent(kernel)` callable invoked from the
     FastAPI lifespan AFTER `build_kernel` returns the Kernel.
 
@@ -29,7 +29,7 @@ The seed calls `event_store.append_streams` with
 `expected_version=0` on BOTH streams. If the agent was already
 seeded on a prior boot, the append raises `ConcurrencyError`
 (streams exist at version > 0), which the seed catches and
-treats as success. Mirrors the iter 2b subscriber's deterministic-
+treats as success. Mirrors the subscriber's deterministic-
 id-with-ConcurrencyError-as-no-op pattern.
 
 ## Principal_id
@@ -39,8 +39,8 @@ agent's own id. The agent doesn't exist yet at boot-time, so
 self-attribution would be a circular-causation lie in the event
 envelope. `SYSTEM_PRINCIPAL_ID` is the conventional value for
 "the system did this before any human auth context existed"
-writes; the seed is one such write. Security gate-review P1#3
-(8f-b iter 2b).
+writes; the seed is one such write. Per security gate-review
+convention.
 
 ## Wiring
 

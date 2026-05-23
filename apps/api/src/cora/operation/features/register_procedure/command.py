@@ -3,12 +3,12 @@
 Carries the caller-controlled fields:
   - `name` -- operator-readable display name
   - `kind` -- free-form ISA-106 procedure kind discriminator (1-50
-    chars after trim; bare str per the Supply.kind iter-1 lock
+    chars after trim; bare str per the Supply.kind lock
     precedent; future StrEnum promotion deferred per
     [[project_operation_design]] Watch item 7)
   - `target_asset_ids` -- frozenset of Asset ids this procedure acts
     on (eventual-consistency: existence not verified at register
-    time; gating happens at start_procedure in 10c-b via
+    time; gating happens at start_procedure via
     ProcedureStartContext)
   - `parent_run_id` -- optional Run binding (None = standalone
     procedure, set = Phase-of-Run; resolves the Phase aggregate
@@ -23,7 +23,7 @@ Run / Data / Decision / Supply.
 `target_asset_ids` is `frozenset[UUID]` (not `list`) so the command
 itself is hashable for `with_idempotency`'s SHA256 hash; the
 cross-BC `_normalize_for_hash` helper sorts frozensets for
-deterministic hashing across worker processes (locked in 3c).
+deterministic hashing across worker processes (locked precedent).
 
 Status is implicit at registration (`Defined`) and not part of the
 command -- see Procedure aggregate's `state.py` docstring for the

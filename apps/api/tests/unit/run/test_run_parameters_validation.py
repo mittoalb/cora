@@ -1,11 +1,11 @@
 """Unit tests for the Run effective_parameters validator.
 
 Mirrors `tests/unit/recipe/test_plan_parameters_validation.py`
-(6g-b) case for case so the two BC wrappers stay aligned.
+case for case so the two BC wrappers stay aligned.
 Validates dicts against a Method's parameters_schema using
 jsonschema-rs. STRICT when the schema is None — non-empty
 effective_parameters without a declared schema raise
-InvalidRunParametersError (post-6g audit reversal; see
+InvalidRunParametersError (per audit reversal; see
 [[project_run_parameters_design]] §audit-correction).
 """
 
@@ -32,10 +32,10 @@ def test_passes_when_schema_is_none_and_effective_is_empty() -> None:
 
 @pytest.mark.unit
 def test_raises_when_schema_is_none_and_effective_is_non_empty() -> None:
-    """Strict (post-6g audit reversal): Method declares no contract
+    """Strict (per audit reversal): Method declares no contract
     AND effective_parameters supplied -> reject. Operator must declare
     schema (an empty `{}` works) or omit overrides AND clear Plan
-    defaults. Aligns with 5g-c's strict zero-Capabilities posture."""
+    defaults. Aligns with the strict zero-Capabilities posture."""
     with pytest.raises(InvalidRunParametersError) as exc_info:
         validate_effective_parameters_against_method_schema({"anything": 42}, None)
     assert "Method declares no parameters_schema" in exc_info.value.reason

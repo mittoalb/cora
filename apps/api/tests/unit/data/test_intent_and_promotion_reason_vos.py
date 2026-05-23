@@ -1,11 +1,11 @@
-"""Unit tests for the new 7e value objects: Intent enum + PromotionReason VO.
+"""Unit tests for the Intent enum + PromotionReason VO.
 
 Pin:
   - Intent enum values are exact strings (Trial / Production); StrEnum
     serializes naturally as those strings.
   - PromotionReason VO trims whitespace + validates length.
   - Open-enum stance: future values land additively without breaking
-    pre-7e DatasetRegistered events.
+    DatasetRegistered events without the intent field.
 """
 
 import pytest

@@ -16,7 +16,7 @@ amend, multi-step reviewer chains) for the 9 facility forms cannot fit
 in Trust.Zone shape. See [[project_safety_clearance_design]] for the
 full lock + research grounding.
 
-Safety BC has no projection at 11a-a (lands in 11a-b alongside the
+Safety BC has no projection at genesis (it lands alongside the
 FSM-closure transitions and `list_clearances`).
 
 Layout:

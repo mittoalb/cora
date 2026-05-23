@@ -37,7 +37,7 @@ from event type (`ClearanceRegistered -> DEFINED`).
 
 `ClearanceKind` is locked 10 values day one per the cross-facility
 portability research (v3 pass at /tmp/cora_hazard_research_v3.md;
-post-11a-a refactor split form-type from facility identity so the
+a later refactor split form-type from facility identity so the
 enum shrank from the originally-planned 12 down to 10). Extending to
 an 11th facility-form is purely additive.
 
@@ -521,8 +521,8 @@ class ClearanceTitle:
     """Display title for a clearance. Trimmed; 1-200 chars.
 
     Thirteenth occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_bounded_text` helper hoisted in 6e-1
-    (`cora.infrastructure.bounded_text`).
+    the shared `validate_bounded_text` helper hoisted at the
+    rule-of-three trigger (`cora.infrastructure.bounded_text`).
     """
 
     value: str
@@ -582,8 +582,8 @@ class ExternalBinding:
     against these references.
 
     Common schemes: 'proposal' / 'btr' / 'lab_visit' / 'session'.
-    Run gains a `external_refs: frozenset[ExternalRef]` field in 11a-c
-    so Run.start gating can match ExternalBinding to the Run's
+    Run carries an `external_refs: frozenset[ExternalRef]` field so
+    Run.start gating can match ExternalBinding to the Run's
     facility-known refs.
     """
 

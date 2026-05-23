@@ -122,16 +122,13 @@ class JWTVerifier:
         if not algorithms_allowed:
             msg = (
                 f"JWTVerifier for issuer={issuer!r} requires a non-empty "
-                "algorithms_allowed whitelist. Per AH4 (no alg=none), "
-                "explicit > implicit."
+                "algorithms_allowed whitelist (no alg=none). "
+                "Explicit > implicit."
             )
             raise ValueError(msg)
         # Strip + lowercase so " None ", "NONE", "noNe" are all caught.
         if "none" in (a.strip().lower() for a in algorithms_allowed):
-            msg = (
-                f"JWTVerifier for issuer={issuer!r}: algorithms_allowed "
-                "must not include 'none' (AH4)."
-            )
+            msg = f"JWTVerifier for issuer={issuer!r}: algorithms_allowed must not include 'none'."
             raise ValueError(msg)
         if not jwks_url.startswith("https://") and not allow_insecure_jwks_url:
             msg = (

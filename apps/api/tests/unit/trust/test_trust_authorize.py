@@ -250,7 +250,7 @@ async def test_init_rejects_traversals_store_without_clock_and_id_generator() ->
 @pytest.mark.unit
 async def test_skips_traversal_emission_when_traversals_store_is_unset() -> None:
     """Backward-compat: TrustAuthorize with no traversals_store works
-    exactly like before 6f-5a — pure authz, no side effects."""
+    exactly like it did before the traversals store landed: pure authz, no side effects."""
     store = InMemoryEventStore()
     await _seed_policy(store)
     authorize = TrustAuthorize(store, policy_id=_POLICY_ID)

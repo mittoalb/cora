@@ -56,8 +56,8 @@ This scenario exercises that cycle end-to-end:
   2. Operator suspends the RunDebriefer agent (`suspend_agent`)
      citing the cost overrun. The agent's `actor_id` is now
      associated with an Actor that the subscriber's revocation
-     gate (per [[project_run_debrief_design]] security gate-review
-     P1#1) will treat as paused.
+     gate (per [[project_run_debrief_design]] security gate-review)
+     will treat as paused.
   3. Operator tightens the budget envelope
      (`revise_agent_budget`): drops `monthly_usd_cap` to the
      remaining-budget amount and adds a per-day token cap to
@@ -80,7 +80,7 @@ trails, different motivating use cases.
 
 ## What this scenario surfaces (gap-finding intent)
 
-  - **Budget caps are declaration-only at 8f-c iter 2.** The
+  - **Budget caps are declaration-only.** The
     `AgentBudget` value object lands on the Agent's state via
     `AgentBudgetRevised`, but no slice or projection reads it to
     enforce spending. Enforcement is deferred to the 8h Budget BC
@@ -193,8 +193,8 @@ async def test_agent_cost_overrun_pause_plays_out_end_to_end(
     assert versioned.status is AgentStatus.VERSIONED
 
     # ----- Initial budget envelope -----
-    # Operator declares the initial spend ceiling. Declaration-only at
-    # 8f-c iter 2; enforcement deferred to 8h Budget BC.
+    # Operator declares the initial spend ceiling. Declaration-only;
+    # enforcement deferred to the Budget BC.
 
     await bind_revise_budget(deps)(
         ReviseAgentBudget(

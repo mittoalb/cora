@@ -67,13 +67,13 @@ context".
 
 The subscriber does NOT call the `Authorize` port. The agent's
 permission to register Decisions is granted at Agent definition
-time (8f-a `define_agent` slice's `principal_id` was an admin
+time (the `define_agent` slice's `principal_id` was an admin
 who authorised the agent's existence). Per-call authorization is
 an HTTP-handler concern; subscribers are internal workers running
 under the agent's identity.
 
 The subscriber DOES gate on the agent's `Actor.is_active` flag
-(security gate-review P1#1): an operator deactivating the agent's
+(per security gate-review convention): an operator deactivating the agent's
 Actor takes effect on the next `apply()` (the worker reloads the
 Actor every pass; an in-flight pass completes). The Agent
 aggregate's lifecycle status (Defined / Versioned / Deprecated)
@@ -84,8 +84,8 @@ revoke-the-agent operator gesture.
 
 ## LogbookMirror
 
-If `kernel.logbook_mirror` is set (no production implementor at
-8f-b), the subscriber calls `mirror_decision` AFTER the Decision
+If `kernel.logbook_mirror` is set (no production implementor today),
+the subscriber calls `mirror_decision` AFTER the Decision
 write commits. Fire-and-forget per the port contract; mirror
 errors never propagate.
 
@@ -94,8 +94,8 @@ errors never propagate.
 The Anthropic SDK error messages may carry the API key in
 diagnostic output (defensive against a future SDK regression).
 `_redact_secrets` strips `sk-ant-*` substrings from any LLM
-error message before structured-logging it (security gate-review
-P1#2).
+error message before structured-logging it (per security gate-review
+convention).
 
 ## Duplication-by-design with `re_debrief_run` slice
 
@@ -110,7 +110,7 @@ fresh UUIDv7 from the IdGenerator). The slice extracts a pure
 
 The shared logic is ~25 lines. **DRY-extract trigger**: when EITHER
 a third consumer of the same composition appears (Pattern B per-
-anomaly subscriber, second on-demand agent slice at 8f-c+) OR the
+anomaly subscriber, second on-demand agent slice) OR the
 subscriber's at-most-once scheme converges with the slice's
 (eg. both move to IdempotencyStore-keyed dedup). Pre-trigger: live
 with the duplication, documented here + at
@@ -171,7 +171,7 @@ _DECISION_RULE = "agent:RunDebriefer:v1"
 _RUN_DEBRIEF_DECISION_NAMESPACE = UUID("01900000-0000-7000-8000-0000aaaa0002")
 
 # Terminal Run events this subscriber listens to. The four match
-# the design memo lock; iter 2b does NOT include `RunHeld` /
+# the design memo lock; the set does NOT include `RunHeld` /
 # `RunResumed` (those are mid-lifecycle, not terminal).
 _TERMINAL_RUN_EVENTS = frozenset(
     {
@@ -187,7 +187,7 @@ _TERMINAL_RUN_EVENTS = frozenset(
 # `sk-ant-` + base64-ish chars; matching aggressively because a
 # false-positive redaction (eg. a string that happens to look like
 # a key but isn't) costs nothing and a missed redaction costs a
-# permanent log-line leak. Security gate-review P1#2.
+# permanent log-line leak. Per security gate-review convention.
 _API_KEY_LIKE_PATTERN = re.compile(r"sk-ant-[A-Za-z0-9_\-]+")
 _REDACTED_TOKEN = "[REDACTED]"
 
@@ -204,8 +204,7 @@ def redact_secrets(message: str) -> str:
     vendor.
 
     Public callable: used by both this subscriber and the
-    `re_debrief_run` handler (8f-c iter 1) for parallel error-
-    logging redaction.
+    `re_debrief_run` handler for parallel error-logging redaction.
     """
     return _API_KEY_LIKE_PATTERN.sub(_REDACTED_TOKEN, message)
 
@@ -315,7 +314,7 @@ class RunDebrieferSubscriber:
             )
             return
 
-        # Operator-revocation gate (security gate-review P1#1): a
+        # Operator-revocation gate (per security gate-review convention): a
         # Deactivated Agent Actor must not author new Decisions. The
         # check fires per `apply()`, so a deactivate-while-in-flight
         # only stops the NEXT terminal event; the current one

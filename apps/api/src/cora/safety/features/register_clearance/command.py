@@ -46,7 +46,7 @@ class RegisterClearance:
     that issued (or will issue) this clearance. Per CORA's eventual-
     consistency convention, the decider does NOT verify the Asset exists;
     cross-aggregate-context loaders re-validate when needed (Run.start
-    gating in 11a-c).
+    gating).
     """
 
     kind: ClearanceKind

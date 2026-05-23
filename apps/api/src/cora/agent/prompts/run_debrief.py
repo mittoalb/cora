@@ -91,7 +91,7 @@ from cora.infrastructure.ports.llm import (
 RUN_DEBRIEF_PROMPT_TEMPLATE_ID = UUID("01900000-0000-7000-8000-0000aaaa0001")
 
 
-# Default model for the RunDebrief agent at iter 2b. Wired via the
+# Default model for the RunDebriefer agent. Wired via the
 # Agent.model_ref aggregate field at bootstrap; this is the value the
 # bootstrap helper passes. Haiku 4.5 is the cost/latency floor for an
 # agent that runs once per terminal Run with no tool-use loop.
@@ -102,7 +102,7 @@ DEFAULT_RUN_DEBRIEF_MODEL = ModelRef(
 
 
 # 6-value closed choice set. Sourced from Decision BC's canonical
-# `RUN_DEBRIEF_CHOICES` constant (iter 1) so there's one declaration
+# `RUN_DEBRIEF_CHOICES` constant so there's one declaration
 # and one rename surface. The frozenset is sorted for stable JSON
 # Schema output ordering (the LLM's enum-list ordering can subtly
 # affect tool-use behavior; sort-then-tuple is reproducible).
@@ -157,7 +157,7 @@ RUN_DEBRIEF_OUTPUT_SCHEMA: dict[str, Any] = {
 
 
 # System prompt: cached at 1h TTL. Bytes are FIXED across every
-# RunDebrief invocation in a deployment so the cache hit rate is
+# RunDebriefer invocation in a deployment so the cache hit rate is
 # bound only by the cache TTL + workspace isolation. Anthropic
 # caches everything from request start up to and including the
 # block marked with `cache_control`.
@@ -352,7 +352,7 @@ def build_run_debrief_chat_request(
     model_ref: ModelRef = DEFAULT_RUN_DEBRIEF_MODEL,
     max_output_tokens: int = 1024,
 ) -> LLMChatRequest:
-    """Build the `LLMChatRequest` for one RunDebrief call.
+    """Build the `LLMChatRequest` for one RunDebriefer call.
 
     The system prompt is wrapped in ONE `LLMContentBlock` with a
     1h cache breakpoint so the adapter sets `cache_control` on

@@ -11,8 +11,8 @@ handler Protocol now requires the kwarg in shape.
 Asymmetric vs HTTP routes: MCP tools call `get_mcp_surface_id()`
 directly (no `Depends` in FastMCP). The asymmetry is deliberate
 and documented at `cora.infrastructure.routing.get_mcp_surface_id`
-— FastMCP doesn't surface a `Request`-shaped object cleanly, and AH1
-forbids client-asserted surface in either transport.
+— FastMCP doesn't surface a `Request`-shaped object cleanly, and the
+design lock forbids client-asserted surface in either transport.
 """
 
 import ast
@@ -74,7 +74,7 @@ def test_tool_calls_get_mcp_surface_id(tool_file: Path) -> None:
         pytest.fail(
             f"{qualified} does not import `get_mcp_surface_id` from "
             f"cora.infrastructure.routing. Every MCP tool must resolve "
-            f"the arrival Surface server-side per AH1."
+            f"the arrival Surface server-side per the design lock."
         )
 
     assert _calls_get_mcp_surface_id(tree), (

@@ -7,8 +7,8 @@ data and validates the start preconditions without performing any
 I/O.
 
 This is the third decider in the codebase that takes upstream
-aggregate state as input (after Plan's `define_plan` from 6e-1 and
-Run's `start_run` from 6f-1). Per the canonical pattern documented in
+aggregate state as input (after Plan's `define_plan` and Run's
+`start_run`). Per the canonical pattern documented in
 CONTRIBUTING.md: handler pre-loads, decider receives an immutable
 context dataclass, no I/O in the decider.
 

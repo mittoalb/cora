@@ -9,7 +9,7 @@ Removes a Run from a Campaign that is in a non-terminal status
   - Run stream gets `RunCampaignUnassigned(run_id, campaign_id,
     reason, ...)`
 
-Both writes commit together or roll back together per the 11a-c-2
+Both writes commit together or roll back together per the
 multi-stream OCC contract.
 
 `reason` is REQUIRED (1-500 chars after trim) per design memo:

@@ -19,7 +19,7 @@ Subject / Equipment / Recipe / Run / Data / Decision / Supply
 3. `with_tracing` -- OTel span around every handler call. Records
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
-## Wired handlers (10c-a + 10c-b iter 1 + iter 2 + 10c-c iter 1 + iter 2)
+## Wired handlers
 
   - `register_procedure` (create-style; idempotency-wrapped)
   - `start_procedure` (transition; pre-loads target Assets)
@@ -30,21 +30,21 @@ Subject / Equipment / Recipe / Run / Data / Decision / Supply
   - `get_procedure` (query; fold-on-read)
   - `list_procedures` (query; reads from `proj_operation_procedure_summary`)
 
-## Make_procedure_update_handler factory (10c-c iter 1 hoist)
+## Make_procedure_update_handler factory (rule-of-three hoist)
 
 `complete_procedure` + `abort_procedure` + `truncate_procedure` all
 use `cora.operation._procedure_update_handler.make_procedure_update_handler`
 under the hood. The factory landed at the rule-of-three trigger
 when truncate_procedure became the third update slice; mirrors
-`_supply_update_handler` (Supply BC's hoist at 10a-b after 5
-transitions) and Run BC's `_update_handler.make_run_update_handler`.
+`_supply_update_handler` (Supply BC's hoist after 5 transitions) and
+Run BC's `_update_handler.make_run_update_handler`.
 
-## BC-internal StepStore wiring (mirrors Run BC's ReadingStore at L9)
+## BC-internal StepStore wiring (mirrors Run BC's ReadingStore)
 
-The 10c-b-iter-2 `append_procedure_step` slice needs a `StepStore`
-adapter. Per the per-category-writer pattern locked at gate-review
-L8/L9 from 6f-5a (Conduit's TraversalStore), the store is built
-LOCALLY here from `deps.pool` (Postgres in production) or as
+The `append_procedure_step` slice needs a `StepStore` adapter.
+Per the per-category-writer pattern locked at gate-review L8/L9
+(Conduit's TraversalStore), the store is built LOCALLY here
+from `deps.pool` (Postgres in production) or as
 `InMemoryStepStore` in `app_env=test`. NOT promoted to Kernel fields.
 Mirrors how Run BC wires its ReadingStore and Decision BC wires its
 ReasoningStore.
@@ -79,10 +79,10 @@ _BC = "operation"
 class OperationHandlers:
     """The Operation BC's handler bundle, each closed over Kernel.
 
-    10c-a shipped register_procedure + get_procedure. 10c-b iter 1
-    added the three FSM-closure transitions (start / complete / abort).
-    10c-b iter 2 added the entry-shape append_procedure_step slice
-    (with BC-internal StepStore adapter for the per-step logbook).
+    Initial slices: register_procedure + get_procedure. Three FSM-
+    closure transitions follow (start / complete / abort). The
+    entry-shape append_procedure_step slice arrives next (with
+    BC-internal StepStore adapter for the per-step logbook).
     """
 
     register_procedure: register_procedure.IdempotentHandler

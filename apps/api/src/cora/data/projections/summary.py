@@ -20,7 +20,7 @@ on the read model so downstream consumers (operator dashboards,
 future Decision-derived advisories, agent subscribers) can query
 "which reconstructions cited CalibrationRevision X" via the GIN-
 indexed `@>` operator without folding the Dataset stream.
-`.get("used_calibrations", [])` returns `[]` so legacy pre-12c
+`.get("used_calibrations", [])` returns `[]` so legacy
 rows backfill cleanly to an empty UUID array (additive-state
 pattern mirroring Run.pinned_calibrations precedent).
 """
@@ -66,7 +66,7 @@ class DatasetSummaryProjection:
                     UUID(payload["producing_run_id"]) if payload.get("producing_run_id") else None
                 )
                 subject_id = UUID(payload["subject_id"]) if payload.get("subject_id") else None
-                # Forward-compat: pre-12c DatasetRegistered payloads have
+                # Forward-compat: legacy DatasetRegistered payloads have
                 # no used_calibrations key; .get(..., []) returns [] so
                 # legacy rows land with an empty UUID array.
                 used_calibrations = [UUID(c) for c in payload.get("used_calibrations", [])]

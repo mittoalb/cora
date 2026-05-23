@@ -43,7 +43,7 @@ This scenario also exercises:
     is idempotent (re-granting an existing tool is a no-op);
     revoke is idempotent (revoking an absent tool is a no-op).
   - **`deprecate_agent` from `Versioned`** (the most common
-    deprecation source state): widened in 8f-c iter 2 from the
+    deprecation source state): widened from the
     original Versioned-only source set to `{Defined, Versioned,
     Suspended}`.
 
@@ -73,7 +73,7 @@ This scenario also exercises:
      state. Future Decisions authored by this Actor are not
      prevented at the aggregate level (per the design lock,
      revocation enforcement is the subscriber's job per
-     [[project_run_debrief_design]] security gate-review P1#1).
+     [[project_run_debrief_design]] security gate-review).
 
 ## Why a separate scenario
 
@@ -98,7 +98,7 @@ motivating use cases, different downstream consumers.
     Actor.id for the operator-revocation gate (Decision authors
     are checked against the Actor's Deactivated status); the
     Agent.id's Deprecated status is independent. See
-    [[project_run_debrief_design]] security gate-review P1#1.
+    [[project_run_debrief_design]] security gate-review.
   - **`define_agent` model_ref is required at definition time.**
     Per [[project_agent_bc_design]], the model identity must be
     known the moment the Agent exists so the LLM has an

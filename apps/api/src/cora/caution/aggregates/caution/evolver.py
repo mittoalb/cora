@@ -20,7 +20,7 @@ the event log (folded events have already passed their decider).
 
 Transition events applied to empty state raise `ValueError` via the
 shared `require_state` helper at `cora.infrastructure.evolver` (hoisted
-post-7e at the 11th identical-copy site).
+at the 11th identical-copy site).
 """
 
 from collections.abc import Sequence

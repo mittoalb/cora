@@ -179,7 +179,7 @@ async def test_handler_returns_empty_list_when_both_checks_fail() -> None:
 
 @pytest.mark.unit
 async def test_incomplete_field_always_false_at_v1() -> None:
-    """Anti-hook AH4: `incomplete` is required from day 1 even though
+    """Anti-hook: `incomplete` is required from day 1 even though
     it's always False today. Future ABAC will flip it on for some
     inputs; tests should pin the v1 invariant explicitly."""
     store = InMemoryEventStore()

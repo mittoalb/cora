@@ -2,8 +2,8 @@
 
 Update-style handler. Per the design memo and
 [[project_update_handler_pattern]], `make_caution_update_handler`
-factory is NOT hoisted at 11b-a: rule-of-three has not fired
-(only one update slice ships in 11b-a: retire). The factory will
+factory is NOT yet hoisted: rule-of-three has not fired
+(only one update slice ships today: retire). The factory will
 likely emerge when `amend_text` or a future transition slice lands;
 until then this slice carries the full longhand body for clarity.
 

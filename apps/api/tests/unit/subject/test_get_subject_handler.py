@@ -2,7 +2,7 @@
 
 Mirrors `test_get_actor_handler.py`. Round-trips through the write
 side (register + mount + measure + remove) verify that fold-on-read
-correctly reflects every state transition shipped in 4a-d.
+correctly reflects every state transition shipped.
 """
 
 from datetime import UTC, datetime
@@ -124,7 +124,7 @@ async def test_handler_reflects_status_after_mount() -> None:
 async def test_handler_reflects_status_through_full_lifecycle() -> None:
     """Round-trip through register + mount + measure + remove. Pinned
     because fold-on-read must agree with the write-side evolver across
-    every transition shipped in 4a-d (regression guard for any future
+    every transition shipped (regression guard for any future
     evolver edit that diverges from the write path)."""
     deps = _build_deps()
     await register_subject.bind(deps)(

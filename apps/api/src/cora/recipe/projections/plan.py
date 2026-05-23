@@ -40,8 +40,8 @@ aggregate filter ("show me all Plans using Practice X").
 `PlanDefaultParametersUpdated.default_parameters` payload was
 non-empty; the dict content itself lives in the event stream
 (loaded on demand, not projected to keep the summary table small).
-Mirrors `MethodSummaryProjection.parameters_schema_present` shape
-from 6g-a.
+Mirrors `MethodSummaryProjection.parameters_schema_present`
+shape.
 
 `asset_ids` from the genesis payload is intentionally NOT in this
 projection: it's a list, the keyset+filter shape doesn't need it,

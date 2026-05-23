@@ -6,7 +6,7 @@ Adds a Run as a member of a Campaign in a non-terminal status (Planned
   - Campaign stream gets `CampaignRunAdded(campaign_id, run_id, ...)`
   - Run stream gets `RunCampaignAssigned(run_id, campaign_id, ...)`
 
-Both writes commit together or roll back together per the 11a-c-2
+Both writes commit together or roll back together per the
 multi-stream OCC contract (same shape as Safety's `amend_clearance`).
 
 The transitioning actor's identity lives on the event envelope

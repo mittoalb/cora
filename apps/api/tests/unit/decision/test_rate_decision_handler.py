@@ -157,7 +157,7 @@ async def test_handler_denies_via_authorize_port() -> None:
 async def test_handler_denied_does_not_write_to_stream() -> None:
     """Authorize-denial MUST NOT mutate the Decision stream.
 
-    Mirrors the deny-no-write pattern from 8f-a Agent BC cleanup.
+    Mirrors the deny-no-write pattern from the Agent BC cleanup.
     """
     store = InMemoryEventStore()
     await _seed_decision(store)

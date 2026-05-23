@@ -9,11 +9,11 @@ ESS / DESY / MAX IV).
 
 The RunDebriefer design ([[project-run-debrief-design]] lock #45)
 identified the operator-logbook mirror as a likely but
-under-validated extension. Defining the port at 8f-b without an
+under-validated extension. Defining the port now without an
 adapter:
 
   - Reserves the conceptual slot in the `Kernel` (one Optional
-    field) so the subscriber's wiring shape is final at 8f-b.
+    field) so the subscriber's wiring shape is final.
     Adding the adapter later doesn't churn the subscriber code
     or the wire-up.
   - Documents the intended seam for cross-BC / cross-facility
@@ -26,8 +26,8 @@ adapter:
 
 The `Kernel.logbook_mirror` field is typed `LogbookMirror |
 None` with a `None` default; the subscriber treats `None` as
-"mirror disabled" and skips the call. No-op in 8f-b; observable
-extension point in 8f-c+.
+"mirror disabled" and skips the call. No-op today; observable
+extension point once an adapter lands.
 
 ## Call shape
 
@@ -49,7 +49,7 @@ class LogbookMirror(Protocol):
     """Optional mirror that pushes agent-emitted Decisions to an
     operator-facing logbook system (Olog / SciLog / SciCat).
 
-    Single implementor per deployment when wired; `None` in 8f-b
+    Single implementor per deployment when wired; `None` today
     (no implementor exists yet). The RunDebriefer subscriber checks
     `kernel.logbook_mirror is not None` before calling.
     """

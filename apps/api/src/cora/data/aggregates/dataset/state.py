@@ -502,7 +502,7 @@ class DatasetCannotPromoteError(Exception):
         produce Production datasets` (Run-must-be-Completed guard)
       - `derived_from Datasets [...] are still Trial; cannot promote
         dataset above its inputs` (lineage-must-be-Production guard;
-        mirrors the lineage-into-Discarded guard from 7c)
+        mirrors the prior lineage-into-Discarded guard)
 
     Mapped to HTTP 409. Carries the offending entity ids in the
     reason string for operator clarity.
@@ -661,8 +661,8 @@ class DatasetName:
     """Display name for a Dataset. Trimmed; 1-200 chars.
 
     Twelfth occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_bounded_text` helper hoisted in 6e-1 (see
-    `cora.infrastructure.bounded_text`).
+    the shared `validate_bounded_text` helper hoisted at the
+    rule-of-three trigger (see `cora.infrastructure.bounded_text`).
     """
 
     value: str
@@ -851,7 +851,7 @@ class Dataset:
     Run's terminal status at the moment of Dataset registration
     (per non-determinism principle: capture, don't recompute). Null
     when there's no producing_run_id (standalone-upload Dataset) OR
-    for legacy DatasetRegistered events from before 7e (pre-7e events
+    for legacy DatasetRegistered events without the field (they
     fold cleanly via payload.get default). Powers the
     `promote_dataset` Run-must-be-Completed guard.
 
@@ -894,7 +894,7 @@ class Dataset:
     # (mirrors Run.pinned_calibrations AsShot immutability) — every
     # transition arm in the evolver (DatasetDiscarded /
     # DatasetPromoted) preserves `prior.used_calibrations` verbatim.
-    # Defaults to empty frozenset so pre-12c streams fold cleanly via
+    # Defaults to empty frozenset so legacy streams fold cleanly via
     # `payload.get("used_calibrations", [])` (additive-state pattern;
     # mirrors derived_from / producing_run_end_state / intent
     # precedent).

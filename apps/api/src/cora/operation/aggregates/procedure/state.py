@@ -17,11 +17,10 @@ bodies do NOT fold into Procedure state.
 
 
 Minimal Procedure: id + name + kind + target_asset_ids +
-parent_run_id (optional) + status. Two slices ship in 10c-a:
+parent_run_id (optional) + status. Initial slices:
 `register_procedure` (genesis -> Defined) and `get_procedure` (read).
 Full FSM (Running / Completed / Aborted / Truncated transitions) +
-per-step logbook land in 10c-b. Projection + list_procedures land
-in 10c-c.
+per-step logbook follow. Projection + list_procedures follow.
 
 ## ProcedureStatus FSM (locked initial)
 
@@ -43,7 +42,7 @@ State holds the enum (typed); the evolver derives the new status
 from the event TYPE (`ProcedureRegistered -> DEFINED` etc.). Same
 precedent as `SubjectStatus` / `FamilyStatus` / `AssetLifecycle`.
 
-## Procedure.kind shape -- bare str (mirror Supply.kind iter-1 lock)
+## Procedure.kind shape -- bare str (mirror Supply.kind lock)
 
 `kind: str` is bare on Procedure state, NOT a VO. Validated at the
 decider via `validate_bounded_text` (1-50 chars after trim) and at
@@ -67,8 +66,8 @@ optical_alignment, vacuum_regeneration.
 ## Twelfth bounded-name VO
 
 `ProcedureName` is the twelfth trimmed-bounded-name VO. Uses the
-shared `validate_bounded_text` helper hoisted in 6e-1
-(`cora.infrastructure.bounded_text`).
+shared `validate_bounded_text` helper hoisted at the rule-of-three
+trigger (`cora.infrastructure.bounded_text`).
 
 ## Target_asset_ids -- eventual-consistency stance
 
@@ -78,8 +77,8 @@ parent refs (5b), and Method's needed_families (6a). Empty
 target_asset_ids is allowed (a procedure that doesn't act on a
 specific Asset, e.g. facility-envelope beam-mode change). Existence
 + Decommissioned-lifecycle gating happens at start_procedure time
-in 10c-b via `ProcedureStartContext` (mirrors `RunStartContext`
-from Run 6f-1).
+via `ProcedureStartContext` at start_procedure time (mirrors
+`RunStartContext` from the Run BC).
 
 ## Parent_run_id -- standalone or Phase-of-Run
 
@@ -182,30 +181,30 @@ class ProcedureStatus(StrEnum):
     """The Procedure's lifecycle state.
 
     Five values declared day one for forward-compat
-    (additive-state pattern; pre-10c-b events fold cleanly because
+    (additive-state pattern; legacy events fold cleanly because
     only DEFINED is reachable after register_procedure):
 
       - `Defined`     -- registration-time genesis; pre-execution.
                           Operator can edit / inspect / submit for
                           review (future Decision BC integration).
                           Cannot accept step events yet.
-      - `Running`     -- post-start_procedure (lands 10c-b). Step
-                          events accepted via append_procedure_step.
-      - `Completed`   -- happy path via complete_procedure (10c-b).
+      - `Running`     -- post-start_procedure. Step events accepted
+                          via append_procedure_step.
+      - `Completed`   -- happy path via complete_procedure.
                           Strict-not-idempotent.
-      - `Aborted`     -- emergency exit via abort_procedure (10c-b).
-      - `Truncated`   -- retroactive cleanup via truncate_procedure
-                          (10c-c). Mirrors RunTruncated from 6f-4.
+      - `Aborted`     -- emergency exit via abort_procedure.
+      - `Truncated`   -- retroactive cleanup via truncate_procedure.
+                          Mirrors RunTruncated.
 
     `Verifying` and `Held / Resumed` are deliberately NOT in this
     enum. Per [[project_operation_design]] standards-corpus research:
     `Verifying` is NOT standards-blessed at FSM level (PackML uses
     `Completing` for closeout/check work; OPC UA Programs has no
     Verify state). Per-step Check happens within Running synchronously
-    (via the Step logbook's check_passed field at 10c-b). Held /
-    Resumed deferred until pilot operator feedback surfaces a need.
+    (via the Step logbook's check_passed field). Held / Resumed
+    deferred until pilot operator feedback surfaces a need.
 
-    Naming convention (per Run BC 6f-2 gate review): gerund /
+    Naming convention (per Run BC gate review): gerund /
     adjective for active steady-states (matches PackML / Bluesky);
     past-participle for terminals. `Defined` is past-participle (a
     procedure WAS defined); `Running` is gerund-as-adjective; the
@@ -236,11 +235,11 @@ class InvalidProcedureNameError(ValueError):
 class InvalidProcedureKindError(ValueError):
     """The supplied procedure kind is empty, whitespace-only, or too long.
 
-    Free-form 1-50 chars in 10c-a; future promotion to closed StrEnum
+    Free-form 1-50 chars today; future promotion to closed StrEnum
     is a watch item per [[project_operation_design]]. Raised by the
     `register_procedure` decider via `validate_bounded_text`, NOT by
     a `__post_init__` (kind is a bare `str` on Procedure state, not
-    a VO; mirrors Supply.kind iter-1 lock).
+    a VO; mirrors Supply.kind lock).
     """
 
     def __init__(self, value: str) -> None:
@@ -490,8 +489,8 @@ class ProcedureName:
     """Display name for a procedure. Trimmed; 1-200 chars.
 
     Twelfth occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_bounded_text` helper hoisted in 6e-1 (see
-    `cora.infrastructure.bounded_text`).
+    the shared `validate_bounded_text` helper hoisted at the
+    rule-of-three trigger (see `cora.infrastructure.bounded_text`).
     """
 
     value: str
@@ -559,16 +558,16 @@ class Procedure:
     Slim aggregate per [[project_fold_cost_principles]]: identity +
     name + kind + target Asset refs + status + optional Run binding.
     Per-step records (Setpoint/Action/Check) live in a Logbook + Entry
-    table at 10c-b (see [[project_logbook_entry_storage]]); the step
+    table (see [[project_logbook_entry_storage]]); the step
     bodies do NOT fold into this state.
 
     `id` is the stable opaque handle. `name` is operator-readable.
     `kind` is the free-form ISA-106 procedure-kind discriminator
     (bakeout / calibration / alignment / etc.); bare str per the
-    Supply.kind iter-1 lock precedent.
+    Supply.kind lock precedent.
 
     `target_asset_ids` is a frozenset of Asset ids the procedure
-    acts on. Mirrors `Plan.asset_ids` shape from 6e-1; eventual-
+    acts on. Mirrors `Plan.asset_ids` shape; eventual-
     consistency stance for existence verification. Empty set is
     valid for facility-envelope procedures (beam-mode change) that
     don't act on a specific Asset instance.
@@ -588,7 +587,7 @@ class Procedure:
 
     Future additive facets (per Watch items in
     [[project_operation_design]]): `steps_logbook_id` (lazy-opened
-    in 10c-b when first step lands), expected-step-count for
+    when first step lands), expected-step-count for
     progress projections, etc. All land with safe defaults via the
     additive-state pattern.
     """

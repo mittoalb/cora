@@ -17,12 +17,12 @@ actual port-to-port connections).
 
 Minimal Asset: `id` + `name` + `level` + `lifecycle` (defaults
 `Commissioned`) + `parent_id: UUID | None`. Lifecycle transitions
-land in 5c (activate, decommission), 5e (maintenance cycle).
-Hierarchy mutation (`AssetRelocated`) lands in 5d. Additive
+cover activate, decommission, and the maintenance cycle.
+Hierarchy mutation (`AssetRelocated`) is a sibling slice. Additive
 facets — `condition`, `settings`, `ports`, `owner`,
-`persistent_id` (PIDINST DOI) — defer to 5f+.
+`persistent_id` (PIDINST DOI) — are deferred.
 
-## Hierarchy rule (5b decider)
+## Hierarchy rule
 
 Per the BC map:
   - `Enterprise` is the root level — `parent_id` MUST be null.
@@ -483,7 +483,7 @@ class AssetName:
     """Display name for an asset. Trimmed; 1-200 chars.
 
     Seventh occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_bounded_text` helper hoisted in 6e-1 (see
+    the shared `validate_bounded_text` helper (see
     `cora.infrastructure.bounded_text`).
     """
 
@@ -506,7 +506,7 @@ class Asset:
 
     `parent_id` is the immediate parent in the hierarchy tree.
     `None` only when `level == Enterprise` (root). Mutable across
-    `AssetRelocated` events (5d).
+    `AssetRelocated` events.
 
     `families` is the set of Family ids this asset belongs to.
     Operationally curated: operators add via `add_asset_family` when
@@ -519,30 +519,30 @@ class Asset:
     `AssetRegistered`-only streams fold cleanly without an upcaster
     (the additive-state pattern; see CONTRIBUTING.md).
 
-    `condition` (5g-b): real-time device health, orthogonal to
+    `condition`: real-time device health, orthogonal to
     lifecycle. Defaults to `AssetCondition.NOMINAL` at registration
     (no synthetic initialization event); transitions land via the
     degrade / fault / restore slices. Older AssetRegistered-only
-    streams from before 5g-b fold cleanly with the default
+    streams without a condition field fold cleanly with the default
     (additive-state pattern).
 
-    `settings` (5g-c): slow-changing operational parameters
+    `settings`: slow-changing operational parameters
     (gap, energy, exposure, filter_material, etc.; units live in
     each Family's settings_schema as a `unit` annotation).
     Validated at write time against the union of currently-assigned
-    Capabilities' `settings_schema` declarations (5g-a). Updated via
+    Capabilities' `settings_schema` declarations. Updated via
     the `update_asset_settings` slice with PATCH RFC 7396 merge
-    semantics. Defaults to empty dict; pre-5g-c streams fold cleanly
-    via the additive-state pattern.
+    semantics. Defaults to empty dict; legacy streams without
+    settings fold cleanly via the additive-state pattern.
 
-    `ports` (5h): typed connection points the Asset exposes
+    `ports`: typed connection points the Asset exposes
     (trigger_in, encoder_a, sync_clock, etc.). Each AssetPort is a
     name + direction + signal_type tuple. Updated incrementally via
     `add_asset_port` / `remove_asset_port` slices (mirrors the
     Family-mutation precedent). Defaults to empty frozenset;
-    pre-5h streams fold cleanly via the additive-state pattern.
-    Plan.wiring (6h) will reference these by name to declare port-
-    to-port connections.
+    legacy streams without ports fold cleanly via the additive-state
+    pattern. Plan.wiring will reference these by name to declare
+    port-to-port connections.
 
     Future additive facets: `owner`, `persistent_id`. The state-
     level fields land with defaults for the same forward-

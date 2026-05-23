@@ -6,7 +6,7 @@ Three events:
   - `DecisionRegistered` (8a, genesis): the Decision itself.
   - `DecisionLogbookOpened` (8c-a): declares an attached
     observation logbook (kind + schema). Mirrors the Conduit
-    BC's logbook-open event from 6f-5a. At-most-one-open-per-
+    BC's logbook-open event. At-most-one-open-per-
     kind enforced by the evolver.
   - `DecisionLogbookClosed` (8c-a): terminates a logbook.
     Strict-not-idempotent: re-closing raises.

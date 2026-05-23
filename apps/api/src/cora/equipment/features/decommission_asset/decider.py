@@ -12,7 +12,7 @@ Multi-source-state transition: `Commissioned | Active | Maintenance
 Source-state guard uses tuple-membership rather than a
 match-statement: the check is "is in {Commissioned, Active,
 Maintenance}", which is naturally a set-membership test. Matches
-the precedent locked by Subject's `remove_subject` decider in 4c.
+the precedent locked by Subject's `remove_subject` decider.
 
 Invariants:
   - State must not be None -> AssetNotFoundError

@@ -30,8 +30,8 @@ bursts fan out to ~4 IdP calls not 100.
 
 ## Anti-pattern guard
 
-Per AH12 (no introspection without per-token cache): the bare
-adapter constructor refuses TTL=0 with a `ValueError`. Test-only
+No introspection without per-token cache: the bare adapter
+constructor refuses TTL=0 with a `ValueError`. Test-only
 adapters set TTL=1 if they need fast cache turnover.
 
 ## Concurrent-request coalescing — DEFERRED
@@ -113,8 +113,8 @@ class IntrospectionVerifier:
         in `SecretStr` so it never shows in `__repr__` / tracebacks
         / accidental log dumps (gate-review F6).
 
-        `cache_ttl_seconds` — per-token cache lifetime. AH12 forbids
-        TTL=0 (no introspection without cache); pass 1 only for
+        `cache_ttl_seconds` — per-token cache lifetime. TTL=0 is
+        forbidden (no introspection without cache); pass 1 only for
         test-determinism scenarios. Default 30s.
 
         `http_client` — optional pre-configured `httpx.AsyncClient`
@@ -134,7 +134,7 @@ class IntrospectionVerifier:
         if cache_ttl_seconds < 1:
             msg = (
                 f"IntrospectionVerifier for issuer={issuer!r}: cache_ttl_seconds "
-                "must be >= 1 (AH12 — no introspection without a per-token cache). "
+                "must be >= 1 (no introspection without a per-token cache). "
                 "Pass 1 only for test-determinism cases."
             )
             raise ValueError(msg)

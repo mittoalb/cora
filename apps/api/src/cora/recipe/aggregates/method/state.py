@@ -6,8 +6,8 @@ Mapping", "Step Tomography", "Ptychography". Equipment-agnostic
 (refers to `Family` ids only, not specific Asset instances).
 
 Per the BC map's recipe ladder, Method ≈ ISA-88 General Recipe. The
-facility's adapted version lives in `Practice` (6d), and the
-concrete Asset binding lives in `Plan` (6e).
+facility's adapted version lives in `Practice`, and the
+concrete Asset binding lives in `Plan`.
 
 
 Minimal Method:
@@ -15,19 +15,19 @@ Minimal Method:
   - `needed_families: frozenset[UUID]` — the Family ids this
     Method requires. Composable: a "Fly Tomography" Method has
     needed_families = {Tomography_id, FlyScan_id}. At Plan
-    binding time (6e), the operator picks an Asset whose
+    binding time, the operator picks an Asset whose
     families ⊇ method.needed_families.
   - `status` (defaults `Defined`).
 
-`Versioned` and `Deprecated` transitions land in 6b. Description /
-owner / additional facets defer to 6c.
+`Versioned` and `Deprecated` transitions land in the lifecycle
+slices. Description / owner / additional facets defer to enrichment.
 
 ## Needed_families — eventual-consistency stance
 
 The decider does NOT verify each Family id refers to a real
 Family stream in the event store. Same precedent as Trust's
-Conduit zone refs (3b) and Asset parent refs (5b). Typos produce
-"dangling" Methods; downstream Plan binding (6e) is where the
+Conduit zone refs and Asset parent refs. Typos produce
+"dangling" Methods; downstream Plan binding is where the
 mismatch will surface (Asset can't satisfy the requirement). For
 day-one ergonomics this is fine; structural validation can be
 layered on at the API boundary later if pilot demand emerges.
@@ -141,7 +141,7 @@ class MethodCannotVersionError(Exception):
     exist today).
 
     Mirrors `FamilyCannotVersionError` shape and semantics
-    (Equipment 5f-2). Same deliberate divergence from strict-not-
+    (Equipment BC). Same deliberate divergence from strict-not-
     idempotent: re-versioning with the same tag succeeds and emits a
     fresh event (re-attestation is a legitimate audit moment).
     Pinned by tests/unit/recipe/test_version_method_decider.py.
@@ -215,7 +215,7 @@ class InvalidMethodVersionTagError(ValueError):
     Validated at the API boundary via Pydantic min_length / max_length,
     AND defensively at the decider via this error so direct in-process
     callers (sagas, tests) get the same protection. Same precedent as
-    `InvalidFamilyVersionTagError` (Equipment 5f-2) and
+    `InvalidFamilyVersionTagError` (Equipment BC) and
     `InvalidMethodNameError`.
     """
 
@@ -232,7 +232,7 @@ class MethodName:
     """Display name for a method. Trimmed; 1-200 chars.
 
     Eighth occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_bounded_text` helper hoisted in 6e-1 (see
+    the shared `validate_bounded_text` helper (see
     `cora.infrastructure.bounded_text`).
     """
 
@@ -255,7 +255,7 @@ class Method:
 
     `needed_families` is a frozenset of Family ids the Method
     requires. Eventual-consistency stance: existence is not verified
-    at decide time; mismatch surfaces at Plan binding (6e).
+    at decide time; mismatch surfaces at Plan binding.
 
     `version` is the operator-supplied label of the most recent
     `version_method` call (None until first version). State always
@@ -263,21 +263,21 @@ class Method:
     `MethodVersioned` events. No `current_` prefix because state by
     definition holds current values (same convention as `status`,
     `name`). Free-text validated at API boundary + defensively in the
-    decider; no VO. Default None keeps pre-6b MethodDefined-only
+    decider; no VO. Default None keeps MethodDefined-only legacy
     streams folding cleanly (additive-state pattern). Mirrors
-    Family's `version` semantics (Equipment 5f-2): preserved
+    Family's `version` semantics (Equipment BC): preserved
     across deprecation as an audit signal of the last revision before
     deprecation.
 
     `parameters_schema` is the optional JSON Schema (Draft 2020-12,
     constrained subset) declaring the shape of parameter dicts that
-    Plans (6g-b) and Runs (6g-c) carry for this Method. Defaults to
+    Plans and Runs carry for this Method. Defaults to
     None for legacy Methods (additive-state pattern); None means
-    "this Method declares no parameter contract — accept any dict".
+    "this Method declares no parameter contract, accept any dict".
     Distinct from `{}` (empty schema, "operator explicitly said no
     parameters"). Subset shared with Family.settings_schema via
     `cora.infrastructure.json_schema_subset`. See
-    [[project_run_parameters_design]] for the full 6g family layout.
+    [[project_run_parameters_design]] for the full parameter-family layout.
     """
 
     id: UUID
@@ -287,17 +287,17 @@ class Method:
     version: str | None = None
     parameters_schema: dict[str, Any] | None = field(default=None)
     # Method.capability_id points to the universal Capability
-    # template (Recipe BC 6k) this Method realizes as a Method-shaped
-    # executor. REQUIRED at define_method post-6l; defaults None at the
-    # STATE level for evolver-back-compat with pre-6l streams (additive-
-    # state pattern; same shape as Method.parameters_schema 6g).
+    # template (Recipe BC) this Method realizes as a Method-shaped
+    # executor. REQUIRED at define_method now; defaults None at the
+    # STATE level for evolver-back-compat with older streams (additive-
+    # state pattern; same shape as Method.parameters_schema).
     # Distinct from `needed_families` (hardware compatibility, what
-    # Family classes the Method needs available) — both fields stay,
+    # Family classes the Method needs available), both fields stay,
     # answering DIFFERENT questions per [[project-capability-aggregate-design]]
     # see [[project-capability-aggregate-design]] watch item 10. The cross-BC validation that
     # `Method.parameters_schema ⊂ Capability.parameter_schema` runs at
     # define_method time via the capability_loader port (STRICT per
-    # [[project-asset-settings-design]] 5g-c anchor).
+    # [[project-asset-settings-design]] cross-BC anchor).
     capability_id: UUID | None = field(default=None)
     # needed_supplies references Supply.kind STRINGS (not
     # UUIDs). Asymmetric with needed_families (frozenset[UUID]) by
@@ -324,7 +324,7 @@ class MethodParametersNotSubsetError(ValueError):
     required field, or widens an enum/minimum/maximum/pattern/unit
     constraint. Pinned per STRICT-by-default posture from
     [[project_schema_validated_values_pattern]] +
-    [[project_asset_settings_design]] 5g-c cross-BC anchor.
+    [[project_asset_settings_design]] cross-BC anchor.
 
     `reason` is a descriptive string with the offending JSON Pointer
     so operators can pinpoint the conflict (e.g.

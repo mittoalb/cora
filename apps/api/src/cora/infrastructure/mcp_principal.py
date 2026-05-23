@@ -101,7 +101,7 @@ def _starlette_request_from_ctx(ctx: Any) -> Any:
     it IS the same Starlette `Request` that `BearerAuthMiddleware`
     stashed on. In stdio transport there is no HTTP request, so
     `request` is None — stdio is not bearer-verified per
-    [[project-mcp-edge-auth-design]] Decision 2 (AH13).
+    [[project-mcp-edge-auth-design]] Decision 2.
     """
     try:
         return ctx.request_context.request

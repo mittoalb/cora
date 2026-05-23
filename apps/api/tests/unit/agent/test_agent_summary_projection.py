@@ -49,8 +49,8 @@ def test_projection_metadata() -> None:
 
 @pytest.mark.unit
 async def test_projection_does_not_subscribe_to_suspend_resume_events() -> None:
-    """Suspended/Resumed events (8f-c iter 2) stay on aggregate state
-    because `suspension_reason` is invariant-bearing — only derivable
+    """Suspended/Resumed events stay on aggregate state
+    because `suspension_reason` is invariant-bearing, only derivable
     lifecycle timestamps move to projection."""
     proj = AgentSummaryProjection()
     assert "AgentSuspended" not in proj.subscribed_event_types

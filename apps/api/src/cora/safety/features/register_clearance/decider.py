@@ -35,7 +35,7 @@ indicator; the genesis evolver hardcodes the mapping). Per the
 cross-aggregate genesis convention.
 
 `parent_clearance_id` is always None for `register_clearance` (the
-amendment slice in 11a-c sets it; this slice is genesis-only).
+amendment slice sets it; this slice is genesis-only).
 """
 
 from datetime import datetime

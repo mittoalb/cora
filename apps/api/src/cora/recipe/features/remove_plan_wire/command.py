@@ -16,7 +16,7 @@ SET that doesn't need cross-aggregate context. Hot-swap procedure
 per [[project_plan_wiring_design]] expects operators to remove
 wires BEFORE the referenced ports / Assets are removed.
 
-Mirrors `RemoveAssetPort` shape from 5h.
+Mirrors `RemoveAssetPort` shape.
 """
 
 from dataclasses import dataclass

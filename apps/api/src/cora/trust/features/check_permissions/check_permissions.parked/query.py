@@ -7,8 +7,8 @@ AuthZEN Access Evaluation API + GCP `testIamPermissions` + k8s
 `SelfSubjectAccessReview` (batched variant).
 
 See `memory/project_permissions_query_design.md` for the design lock
-including the no-wildcards rule (AH1) and the tristate-reserved
-`decision` enum (AH7).
+including the no-wildcards rule and the tristate-reserved
+`decision` enum.
 
 Field naming mirrors `evaluate_policy.EvaluatePolicy`: the
 `evaluated_*` prefix disambiguates WHAT'S BEING EVALUATED from the
@@ -42,7 +42,7 @@ class PermissionCheck:
     """One probe result.
 
     `decision` is a string enum, not bool, to reserve space for
-    `"no_opinion"` when multi-policy composition lands (AH7).
+    `"no_opinion"` when multi-policy composition lands.
     `reason` is populated only on deny.
     """
 

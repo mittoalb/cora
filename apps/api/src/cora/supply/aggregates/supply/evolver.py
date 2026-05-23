@@ -21,8 +21,8 @@ log (folded events have already passed their decider).
 Transition events applied to empty state raise ValueError: they can
 never appear before `SupplyRegistered` in a well-formed stream.
 The shared `require_state` helper at `cora.infrastructure.evolver`
-keeps per-arm bodies short (hoisted post-7e once the 11th identical
-copy landed; Supply is the 11th evolver to use it on day one).
+keeps per-arm bodies short (hoisted once the 11th identical copy
+landed; Supply is the 11th evolver to use it on day one).
 """
 
 from collections.abc import Sequence

@@ -50,14 +50,14 @@ in mid-2024 and survives the response_format proposal.
 
 The adapter translates SDK-specific exceptions into this port's
 taxonomy. Subscriber-level retry logic (Brandur envelope + projection
-bookmark; iter 2b) is built on top and depends on the error class
+bookmark) is built on top and depends on the error class
 to decide retryability.
 
-## Tools (deferred to 8f-c)
+## Tools (deferred)
 
-The `chat()` signature deliberately omits a `tools` parameter at
-8f-b iter 2a because RunDebriefer is a read-only synthesis call.
-RecipeScreener (8f-c) is the first tool-using agent and triggers
+The `chat()` signature deliberately omits a `tools` parameter
+because RunDebriefer is a read-only synthesis call.
+RecipeScreener is the first tool-using agent and triggers
 the additive port extension; the structured-output tool-use
 shenanigan is invisible to the port consumer.
 """
@@ -89,17 +89,17 @@ class ModelRef:
         time) because callers can supply arbitrary input via
         `define_agent`.
       - This **wire shape** is what the LLM consumes; the agent
-        BC's iter-2b subscriber translates `Agent.model_ref ->
+        BC's subscriber translates `Agent.model_ref ->
         LLM.ModelRef` per call. By that point the values are
         already validated; re-validating at the port would duplicate
         invariant enforcement.
 
     Hoisting both into one shared location is a watch item; trigger
-    is "second LLM-consuming agent ships at 8f-c+ and the translation
+    is "second LLM-consuming agent ships and the translation
     pattern triples". Pre-trigger: 2 dataclasses with the same fields
     and a per-call translation, documented here and on the agent
     aggregate's `ModelRef`. See [[project-run-debrief-design]] for
-    iter 2b's translation site.
+    the translation site.
 
     `provider` is a free string today (e.g., `"anthropic"`); future
     `OpenAILLMAdapter` would set `"openai"`. `model` is the
@@ -202,9 +202,8 @@ class LLMResponse:
 class LLMError(Exception):
     """Base for every LLM failure surfaced to consumers.
 
-    Subscriber-level retry logic in 8f-b iter 2b uses isinstance
-    checks on the subclasses below to decide retryability and
-    backoff strategy.
+    Subscriber-level retry logic uses isinstance checks on the
+    subclasses below to decide retryability and backoff strategy.
     """
 
 
@@ -234,7 +233,7 @@ class LLMSchemaValidationError(LLMError):
     Raised when the provider's tool-use input or JSON output doesn't
     match `structured_output_schema`. The adapter never retries this
     automatically (the prompt or schema is at fault, not the call);
-    iter 2b's outer retry layer may emit a `DebriefDeferred` Decision
+    The outer retry layer may emit a `DebriefDeferred` Decision
     after enough of these.
     """
 
@@ -294,8 +293,8 @@ class FakeLLMAdapter:
     order, so tests can pin both response shape and call-time inputs
     (system prompt layering, schema, model_ref).
 
-    Production tests of the RunDebriefer subscriber (iter 2b) build
-    one of these per scenario and pin the resulting Decision event
+    Production tests of the RunDebriefer subscriber build one of
+    these per scenario and pin the resulting Decision event
     payload + usage telemetry against the canned response.
     """
 

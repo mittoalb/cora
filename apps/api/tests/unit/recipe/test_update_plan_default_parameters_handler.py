@@ -259,7 +259,7 @@ async def test_handler_raises_invalid_when_post_merge_violates_schema() -> None:
 
 @pytest.mark.unit
 async def test_handler_strict_when_method_has_no_schema() -> None:
-    """Strict (post-6g audit reversal): Method-without-schema rejects
+    """Strict (audit reversal): Method-without-schema rejects
     non-empty defaults. Pinned at the handler level (the loaded
     Method's parameters_schema is None when no
     MethodParametersSchemaUpdated event has fired)."""

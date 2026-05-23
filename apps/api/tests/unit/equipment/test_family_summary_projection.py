@@ -45,7 +45,7 @@ def test_projection_metadata() -> None:
 
     # legacy Capability* event types (per Marten/Axon dual-match contract).
     # Without the legacy subscription, a replay-from-zero on a deployment
-    # with historical data would silently skip pre-5i events.
+    # with historical data would silently skip legacy events.
     assert proj.subscribed_event_types == frozenset(
         {
             "FamilyDefined",
@@ -62,7 +62,7 @@ def test_projection_metadata() -> None:
 
 @pytest.mark.unit
 async def test_projection_does_not_subscribe_to_asset_events() -> None:
-    """Asset events belong in the AssetSummaryProjection (8e-3a)."""
+    """Asset events belong in the AssetSummaryProjection."""
     proj = FamilySummaryProjection()
     assert "AssetRegistered" not in proj.subscribed_event_types
     assert "AssetActivated" not in proj.subscribed_event_types

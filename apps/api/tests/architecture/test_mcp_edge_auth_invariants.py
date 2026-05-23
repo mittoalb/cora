@@ -210,7 +210,7 @@ def test_bearer_middleware_covers_mcp_paths() -> None:
 
     Also pins the audience dispatch: MCP paths bind to
     `SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID`, NOT the HTTP Surface
-    (AH5: no shared `aud` across Surfaces).
+    (no shared `aud` across Surfaces).
     """
     from cora.infrastructure.auth.bearer_middleware import (
         _is_unauthenticated_path,
@@ -236,7 +236,7 @@ def test_bearer_middleware_covers_mcp_paths() -> None:
     # Audience dispatch: MCP routes bind to the MCP Surface.
     assert _resolve_expected_audience("/mcp") == SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID
     assert _resolve_expected_audience("/mcp/anything") == SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID
-    # Non-MCP paths bind to the HTTP Surface (AH5: distinct audiences).
+    # Non-MCP paths bind to the HTTP Surface (distinct audiences).
     assert _resolve_expected_audience("/actors/123") == SYSTEM_HTTP_SURFACE_ID
     assert _resolve_expected_audience("/") == SYSTEM_HTTP_SURFACE_ID
     assert _resolve_expected_audience("/mcp-fake/admin") == SYSTEM_HTTP_SURFACE_ID, (

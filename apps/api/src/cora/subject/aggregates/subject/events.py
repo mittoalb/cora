@@ -280,8 +280,8 @@ def from_stored(stored: StoredEvent) -> SubjectEvent:
                 raise ValueError(msg) from exc
         case "SubjectMounted":
             try:
-                # `payload.get` for additive evolution: pre-4f stored
-                # events without the reason key fold to "" (empty string).
+                # `payload.get` for additive evolution: stored events
+                # without the reason key fold to "" (empty string).
                 return SubjectMounted(
                     subject_id=UUID(payload["subject_id"]),
                     asset_id=UUID(payload["asset_id"]),

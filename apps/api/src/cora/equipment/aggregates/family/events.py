@@ -39,10 +39,10 @@ class FamilyDefined:
 
     Status is implicit (`Defined`) — the evolver sets it. `affordances`
     is the closed-enum set of device-level primitives this Family
-    supports (5j; required at define_family time; empty frozenset
-    valid). Defaults to empty frozenset for evolver-level back-compat
-    with pre-5j and legacy `CapabilityDefined` events that don't carry
-    the field (additive-state pattern; see [[project-capability-research]]).
+    supports (required at define_family time; empty frozenset valid).
+    Defaults to empty frozenset for evolver-level back-compat with
+    legacy `CapabilityDefined` events that don't carry the field
+    (additive-state pattern; see [[project-capability-research]]).
     """
 
     family_id: UUID
@@ -58,8 +58,8 @@ class FamilyVersioned:
     Multi-source transition: `Defined | Versioned -> Versioned`.
     `version_tag` is operator-supplied free text (1-50 chars).
     `affordances` is the REPLACEMENT affordance set declared at this
-    version (5j; a new version IS a new declaration). Defaults to empty
-    frozenset for evolver-level back-compat with pre-5j events
+    version (a new version IS a new declaration). Defaults to empty
+    frozenset for evolver-level back-compat with legacy events
     (additive-state pattern).
     """
 
@@ -167,7 +167,7 @@ def to_payload(event: FamilyEvent) -> dict[str, Any]:
 def _load_affordances(payload: dict[str, Any]) -> frozenset[Affordance]:
     """Load the affordance set from a payload's `affordances` list field.
 
-    Tolerates: missing key (pre-5j events; default empty), empty list,
+    Tolerates: missing key (legacy events; default empty), empty list,
     or list of valid Affordance enum value strings. Unknown values
     raise a defensive `ValueError` via the StrEnum constructor — same
     fail-loud stance as the `from_stored` top-level dispatch on
@@ -187,8 +187,8 @@ def from_stored(stored: StoredEvent) -> FamilyEvent:
     """
     payload = stored.payload
     match stored.event_type:
-        # Legacy event type names from pre-5i. Payload key is
-        # `"capability_id"`. Stays forever. Pre-5j events lack the
+        # Legacy event type names from prior naming. Payload key is
+        # `"capability_id"`. Stays forever. Legacy events lack the
         # `affordances` payload field; default to empty frozenset
         # (additive-state pattern).
         case "CapabilityDefined":
@@ -232,7 +232,7 @@ def from_stored(stored: StoredEvent) -> FamilyEvent:
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed CapabilitySettingsSchemaUpdated payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
-        # New event type names from 5i onward. Payload key is `"family_id"`.
+        # Current event type names. Payload key is `"family_id"`.
         case "FamilyDefined":
             try:
                 return FamilyDefined(

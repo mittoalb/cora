@@ -111,7 +111,7 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
     """Shared 409 handler for state-transition guards.
 
     Covers the `CampaignCannot<Verb>Error` family: Start, Hold,
-    Resume, Close, Abandon in 6i-a. Same pattern as Supply / Safety /
+    Resume, Close, Abandon. Same pattern as Supply / Safety /
     Caution `_handle_cannot_transition`.
     """
     _ = request

@@ -52,10 +52,10 @@ class AgentResponse(BaseModel):
 
     `defined_at` / `versioned_at` / `deprecated_at` are projection-
     sourced lifecycle timestamps (Path C);
-    see module docstring for null-semantics. `defined_at` is now
-    nullable (changed from required at 8f-a) because the projection
-    can lag — once the projection has folded `AgentDefined`,
-    `defined_at` is non-null on every response.
+    see module docstring for null-semantics. `defined_at` is
+    nullable (changed from required during lifecycle widening) because
+    the projection can lag — once the projection has folded
+    `AgentDefined`, `defined_at` is non-null on every response.
     """
 
     id: UUID

@@ -14,7 +14,7 @@ semantics for free.
 The handler loads the parent Run, checks whether
 `run.reading_logbook_id` is set, and emits a
 `RunReadingLogbookOpened` event lazily on first write. `start_run`
-from 6f-1 stays unchanged; the logbook attaches when the first
+stays unchanged; the logbook attaches when the first
 reading arrives. Per [[project_run_reading_design]] §Decision and
 [[project_logbook_entry_storage]].
 

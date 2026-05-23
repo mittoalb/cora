@@ -154,7 +154,7 @@ def test_from_stored_rebuilds_pre_10d_procedure_registered_without_capability_id
     stored = _stored(
         "ProcedureRegistered",
         {
-            # NOTE: NO "capability_id" key — pre-10d shape.
+            # NOTE: NO "capability_id" key — legacy shape.
             "procedure_id": str(procedure_id),
             "name": "Vessel-A bakeout",
             "kind": "bakeout",
@@ -339,7 +339,7 @@ def test_procedure_aborted_round_trips() -> None:
     assert rebuilt == original
 
 
-# --- 10c-b iter 2: ProcedureStepsLogbookOpened (lazy-open envelope) ---
+# --- ProcedureStepsLogbookOpened (lazy-open envelope) ---
 
 
 @pytest.mark.unit
@@ -414,7 +414,7 @@ def test_procedure_steps_logbook_opened_round_trips() -> None:
     assert rebuilt == original
 
 
-# --- 10c-c iter 1: ProcedureTruncated (partial-data terminal) ---
+# --- ProcedureTruncated (partial-data terminal) ---
 
 
 @pytest.mark.unit

@@ -15,14 +15,14 @@ Caution-proposal Decision (`choice` + `confidence` + `confidence_band`
 Subscribes to the SAME 4 terminal Run events as RunDebriefer. The
 two subscribers run concurrently and INDEPENDENTLY in the
 projection worker (per [[project-caution-drafter-design]] Q4 lock:
-don't widen the subscriber framework at iter 3). Each derives its
+don't widen the subscriber framework). Each derives its
 own Decision id from `(agent_kind, terminal_event_id)` so the two
 streams never collide.
 
 Named widening triggers (per design memo Locks > Subscriber
 framework section): widen at 3rd side-effecting subscriber OR
 per-event work exceeds 50ms OR first cross-subscriber ordering
-dependency materializes. None of those hold at iter 3.
+dependency materializes. None of those hold today.
 
 ## V1 simplifications
 
@@ -33,7 +33,7 @@ dependency materializes. None of those hold at iter 3.
   - Defaults to `NoAction` aggressively (target 65-75% per Epic
     Sepsis lesson).
   - Tier quota (EEMUA 191 80/15/5) is telemetry-only, not enforced
-    in code at iter 3.
+    in code today.
   - Confidence band always emitted; no behavior-gating at v1.
 
 ## Decision shape
@@ -55,14 +55,14 @@ Decision with `inputs={"reason": "LLM exhausted; deferred", ...}`
 to preserve the exactly-one-Decision-per-terminal-Run audit
 invariant. Operators see which Runs the agent couldn't draft a
 proposal for and can re-trigger manually (future re-draft slice
-deferred to iter 4+).
+deferred).
 
 ## Authorize + actor gate
 
 Mirrors RunDebriefer verbatim: NO `Authorize` port call (agent's
 authority granted at definition time); DOES gate on
-`Actor.is_active` (operator-revocation gate per 8f-b iter 2b
-security gate-review P1#1).
+`Actor.is_active` (operator-revocation gate per the security
+gate-review convention).
 
 ## Cross-BC reads
 
@@ -70,7 +70,7 @@ security gate-review P1#1).
   - `Plan` via `cora.recipe.aggregates.plan.load_plan` (for
     candidate Asset ids)
   - Existing Cautions via `kernel.caution_lookup`
-    (shared port from 11b-c non-blocking banner)
+    (shared port with the non-blocking banner)
 """
 
 from __future__ import annotations
@@ -252,7 +252,7 @@ class CautionDrafterSubscriber:
 
         # Look up existing Active Cautions for the candidate Assets.
         # CautionLookup's `find_active_for_run` is the load-bearing
-        # shared port from 11b-c; passing `min_severity="Notice"` so
+        # shared port with the non-blocking banner; passing `min_severity="Notice"` so
         # CautionDrafter sees the full picture (banner uses default
         # min_severity="Caution"; this consumer wants everything).
         existing_caution_refs = await self.caution_lookup.find_active_for_run(

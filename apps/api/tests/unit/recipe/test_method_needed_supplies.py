@@ -6,7 +6,7 @@ Covers:
   - Decider accepts empty + populated
   - Event payload sorted lexically (deterministic hash)
   - Event roundtrip preserves needed_supplies
-  - Pre-10b event payload (no needed_supplies key) folds via additive
+  - Legacy event payload (no needed_supplies key) folds via additive
     evolution to empty frozenset (forward-compat critical pin)
   - Evolver fold for MethodDefined sets the field
   - Each transition (Versioned, Deprecated, ParametersSchemaUpdated)
@@ -68,7 +68,7 @@ _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 
 @pytest.mark.unit
 def test_method_state_defaults_needed_supplies_to_empty_frozenset() -> None:
-    """Pre-10b Methods (no payload key) and freshly-defined Methods
+    """Legacy Methods (no payload key) and freshly-defined Methods
     that don't declare supplies both land at empty. The default-factory
     keeps state shape uniform."""
     method = Method(
@@ -252,23 +252,23 @@ def test_event_round_trips_with_needed_supplies() -> None:
     assert set(rebuilt.needed_supplies) == {"LiquidNitrogen", "PhotonBeam"}
 
 
-# ---------- Pre-10b backward-compat (additive evolution) ----------
+# ---------- Legacy backward-compat (additive evolution) ----------
 
 
 @pytest.mark.unit
-def test_pre_10b_event_payload_folds_with_empty_needed_supplies() -> None:
-    """Critical forward-compat pin. Pre-10b MethodDefined payloads
+def test_legacy_event_payload_folds_with_empty_needed_supplies() -> None:
+    """Critical forward-compat pin. Legacy MethodDefined payloads
     have NO needed_supplies key. additive-evolution: from_stored uses
     payload.get(..., default), so the rebuilt event carries empty
     list, and the evolver folds into empty frozenset."""
-    pre_10b_payload: dict[str, object] = {
+    legacy_payload: dict[str, object] = {
         "method_id": str(uuid4()),
-        "name": "Pre-10b Method",
+        "name": "Legacy Method",
         "needed_families": [],
         "occurred_at": _NOW.isoformat(),
-        # No needed_supplies key — pre-10b payload shape.
+        # No needed_supplies key — legacy payload shape.
     }
-    stored = _stored("MethodDefined", pre_10b_payload)
+    stored = _stored("MethodDefined", legacy_payload)
     rebuilt = from_stored(stored)
     assert isinstance(rebuilt, MethodDefined)
     assert rebuilt.needed_supplies == []
@@ -393,7 +393,7 @@ def _stored(event_type: str, payload: dict[str, object]) -> StoredEvent:
 
 @pytest.mark.unit
 def test_event_type_name_for_method_defined_unchanged() -> None:
-    """The event class name doesn't change in 10b — additive payload
+    """The event class name does not change — additive payload
     evolution only. Pinned because subscribers route by event_type."""
     event = MethodDefined(
         method_id=uuid4(),

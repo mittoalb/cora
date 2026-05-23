@@ -59,7 +59,7 @@ precedent as `AssetLevel`.
 ## TriggerSource locked 3-value day one
 
 `TriggerSource` is locked at three values (`Operator`, `Monitor`,
-`Auto`) from day one even though only `Operator` is used in 10a-a/b.
+`Auto`) from day one even though only `Operator` is used today.
 The forward-compat motivation is in [[project_supply_design]]: when
 substream-driven `Monitor` slices and timer-based `Auto` recovery
 land, the enum doesn't need to widen. Carried in transition-event
@@ -79,10 +79,10 @@ cross-stream uniqueness without DCB (per [[project_deferred]]).
 ## Eleventh bounded-name VO
 
 `SupplyName` is the eleventh trimmed-bounded-name VO. Uses the
-shared `validate_bounded_text` helper hoisted in 6e-1
+shared `validate_bounded_text` helper
 (`cora.infrastructure.bounded_text`).
 
-## SupplyKind shape — BARE str, not a VO (gate-review iter 1 lock)
+## SupplyKind shape, BARE str, not a VO (gate-review lock)
 
 `kind: str` is bare on the Supply state, NOT a VO. Validated at the
 decider via `validate_bounded_text` (1-50 chars after trim) and at
@@ -92,7 +92,7 @@ StrEnum was rejected universally across all three research corpora
 CloudEvents reverse-DNS; ISA-95 property model; IEC 61850 namespace
 extensions).
 
-The bare-str-not-VO choice was caught by the iter-1 gate review and
+The bare-str-not-VO choice was caught by the gate review and
 backed by Khononov 2024 *Balancing Coupling*: wrap a primitive in a
 VO when the type carries domain *behavior or comparison semantics*,
 not when it merely needs a length check. Two converging arguments
@@ -182,12 +182,12 @@ class TriggerSource(StrEnum):
     """The origin of a status-transition event.
 
     Three values locked day one per [[project_supply_design]] for
-    forward-compat. Only `Operator` is wired in 10a-a/b; `Monitor`
+    forward-compat. Only `Operator` is wired today; `Monitor`
     and `Auto` are reserved for future slice families:
 
-      - `Operator` — explicit operator command (10a-a, 10a-b)
+      - `Operator` — explicit operator command
       - `Monitor`  — substream-derived observation (deferred; needs
-        first DAQ substream ingest, paired with 6f-5b/c trigger)
+        first DAQ substream ingest, paired with run-reading trigger)
       - `Auto`     — timer-based auto-restore (deferred; needs first
         operator complaint about `restore_supply` ack overhead OR
         30+ days of substream-stable recoveries)
@@ -214,11 +214,11 @@ class InvalidSupplyNameError(ValueError):
 class InvalidSupplyKindError(ValueError):
     """The supplied kind is empty, whitespace-only, or too long.
 
-    Free-form 1-50 chars in 10a; future promotion to closed StrEnum
+    Free-form 1-50 chars today; future promotion to closed StrEnum
     is a watch item per [[project_supply_design]]. Raised by the
     `register_supply` decider via `validate_bounded_text`, NOT by a
     `__post_init__` (kind is a bare `str` on Supply state, not a
-    VO; gate-review iter 1 lock).
+    VO; gate-review lock).
     """
 
     def __init__(self, value: str) -> None:
@@ -375,7 +375,7 @@ class SupplyName:
     """Display name for a supply. Trimmed; 1-200 chars.
 
     Eleventh occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_bounded_text` helper hoisted in 6e-1 (see
+    the shared `validate_bounded_text` helper (see
     `cora.infrastructure.bounded_text`).
     """
 

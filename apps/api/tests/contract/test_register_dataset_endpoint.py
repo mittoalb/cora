@@ -306,8 +306,9 @@ def test_post_datasets_with_used_calibrations_returns_201() -> None:
 @pytest.mark.contract
 def test_post_datasets_defaults_used_calibrations_to_empty_list() -> None:
     """Omitted used_calibrations serializes as `[]` on the payload
-    (forward-compat-clean default; pre-12c DatasetRegistered readers
-    fold the same way via `payload.get(..., [])`)."""
+    (forward-compat-clean default; DatasetRegistered readers without
+    the used_calibrations field fold the same way via
+    `payload.get(..., [])`)."""
     app = create_app()
     with TestClient(app) as client:
         response = client.post("/datasets", json=_good_body(name="no-citation-dataset"))

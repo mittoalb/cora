@@ -1,6 +1,6 @@
-"""AH1 enforcement: no route/tool may declare a client-asserted Surface.
+"""Enforcement: no route/tool may declare a client-asserted Surface.
 
-AH1 of the conduit-injection design lock forbids the arrival
+The conduit-injection design lock forbids the arrival
 Surface from being client-driven. `surface_id` MUST be resolved
 server-side by
 `get_surface_id` (HTTP) / `get_mcp_surface_id` (MCP), never read off
@@ -10,7 +10,7 @@ This test walks every `features/*/route.py` and `features/*/tool.py`
 for AST patterns that would let a client assert the surface:
 
   - `Header(alias="X-Surface-Id")` / `Header(alias="x-surface-id")`
-    etc. on a route — anything where Header's alias keyword contains
+    etc. on a route, anything where Header's alias keyword contains
     the substring "surface" (case-insensitive)
   - `Query(...)` parameter whose surrounding variable name OR alias
     contains "surface"
@@ -27,9 +27,9 @@ Here we explicitly fail on the client-asserted shapes.
 `apps/api/src/cora/trust/features/get_surface/route.py` declares
 `target_surface_id` as a Path parameter (it identifies the Surface
 record to fetch). That's a resource identifier in the URL, not the
-arrival Surface — distinct concept, distinct name, no AH1 violation.
-The substring check uses `surface_id` (with underscore) so the
-`target_` prefix is enough; `surface` alone would false-match.
+arrival Surface, a distinct concept with a distinct name, no
+violation. The substring check uses `surface_id` (with underscore) so
+the `target_` prefix is enough; `surface` alone would false-match.
 """
 
 import ast
@@ -90,7 +90,7 @@ def _is_client_asserted_surface_call(node: ast.Call) -> str | None:
 def test_no_header_or_query_asserts_surface(file: Path) -> None:
     """No FastAPI parameter factory (Header/Query/Cookie/Form/File/Body)
     may have an alias that references the Surface. Clients must never
-    be able to inject which Surface their request arrived on (AH1)."""
+    be able to inject which Surface their request arrived on."""
     qualified = _qualified(file)
     source = file.read_text()
     tree = ast.parse(source, filename=str(file))
@@ -105,7 +105,7 @@ def test_no_header_or_query_asserts_surface(file: Path) -> None:
 
     assert not offenders, (
         f"{qualified}: client-asserted surface detected: "
-        f"{', '.join(offenders)}. AH1 forbids the arrival Surface from "
+        f"{', '.join(offenders)}. The design lock forbids the arrival Surface from "
         f"being client-controlled. Use `Depends(get_surface_id)` (HTTP) "
         f"or `get_mcp_surface_id()` (MCP) at the call site instead."
     )

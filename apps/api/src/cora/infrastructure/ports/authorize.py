@@ -6,7 +6,7 @@ aggregate's id and the calling-party's id was a real bug vector at
 handler call sites where commands target an Actor aggregate (e.g.
 DeactivateActor).
 
-`conduit_id: UUID` (post-3g) names the ISA-99/IEC-62443 inter-zone
+`conduit_id: UUID` names the ISA-99/IEC-62443 inter-zone
 channel — comms path between two trust zones — through which the
 command would flow. Operationally inert at v1: every handler passes
 `UUID(int=0)` nil-sentinel. Reactivation tracked as

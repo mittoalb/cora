@@ -3,7 +3,7 @@
 `Agent` is the config-only aggregate for the Agent BC. It carries
 everything needed to identify an agent and pin its behavior for
 reproducibility, but NO runtime, NO LLM invocation, NO Decision
-integration (those land in 8f-b per [[project_run_debrief_design]]).
+integration (those land separately per [[project_run_debrief_design]]).
 
 Per [[project_agent_bc_design]] the 3-state FSM is locked day one:
 
@@ -25,10 +25,10 @@ design lock for CORA-vocabulary-alignment and Actor-collision risk.
 chars, must start with https://), `AgentCapability` (1-100 chars per
 entry, cardinality cap 32), `AgentDeprecationReason` (1-500 chars).
 All follow the `validate_bounded_text` + `object.__setattr__` pattern
-hoisted in 6e-1.
+from the shared `cora.infrastructure.bounded_text` helper.
 
 `ModelRef` is a 3-field VO (`provider` + `model` + optional
-`snapshot_pin`); required at definition so 8f-b's LLM has the
+`snapshot_pin`); required at definition so the runtime LLM has the
 model identity available immediately.
 
 ## Cross-BC identity sharing
@@ -412,15 +412,15 @@ class AgentNotSeededError(Exception):
     """Cross-aggregate load failure: the operator-triggered slice
     expected an Agent record at the supplied id but found none.
 
-    Today raised by 8f-c iter 1's `debrief_run`-style slices when
+    Today raised by the `debrief_run`-style slices when
     the RunDebriefer Agent's bootstrap seed didn't run (deployment
     misconfiguration: `seed_run_debriefer_agent` not invoked at app
     startup, or the Agent stream was manually purged).
 
     Mirrors `DeciderActorMissingError` / `ProducingRunMissingError`
     / `LinkedSubjectMissingError` precedents: cross-aggregate-load
-    failure errors live at the aggregate's state.py module per
-    8f-c iter 1 cross-BC gate-review P1.
+    failure errors live at the aggregate's state.py module per the
+    cross-BC gate-review convention.
     """
 
     def __init__(self, agent_id: UUID, agent_name: str) -> None:
@@ -436,7 +436,7 @@ class AgentDeactivatedError(Exception):
     """Cross-aggregate state-gate failure: the Agent's co-registered
     Actor is `is_active=False`.
 
-    Today raised by 8f-c iter 1's `debrief_run`-style slices when
+    Today raised by the `debrief_run`-style slices when
     an operator deactivated the agent's Actor via Access BC.
     Recovery is operator-side: reactivate the Actor before re-
     invoking the agent.
@@ -467,7 +467,7 @@ class AgentKind:
     pilot + <10 distinct kinds; [[project_agent_bc_design]] watch
     item).
 
-    First registered kind day-1 (in 8f-b) = `RunDebriefer`.
+    First registered kind day-1 = `RunDebriefer`.
     """
 
     value: str
@@ -752,7 +752,7 @@ class ModelRef:
 class Agent:
     """Aggregate root: an AI agent's typed configuration record.
 
-    Config-only at 8f-a: no runtime, no LLM invocation, no Decision
+    Config-only at genesis: no runtime, no LLM invocation, no Decision
     integration. Identity is a stable opaque `id: UUID` SHARED with
     Access BC's `Actor.id` for the same agent.
 
@@ -781,10 +781,10 @@ class Agent:
     stay because they pair with the invariant-bearing
     suspension_reason field.
 
-    Forward-compat fold: pre-8f-c-iter-2 `AgentDefined` events have
-    no `tools` / `budget` keys; `from_stored` reads them via
-    `payload.get(...)` returning `frozenset()` / `None`. Mirrors
-    11a-c-3 `external_refs` + 6i-c `campaign_id` precedents.
+    Forward-compat fold: legacy `AgentDefined` events from before
+    lifecycle widening have no `tools` / `budget` keys; `from_stored`
+    reads them via `payload.get(...)` returning `frozenset()` / `None`.
+    Mirrors the `external_refs` + `campaign_id` additive precedents.
 
     Deferred fields (per design lock):
       - `provider_org` (A2A trigger)

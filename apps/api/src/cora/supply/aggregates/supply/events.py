@@ -26,7 +26,7 @@ Same precedent as `AssetLevel` in payloads.
 
 `trigger` travels in transition-event payloads as a `TriggerSource`
 enum string. Locked 3-value day one (`Operator | Monitor | Auto`)
-even though only `Operator` is wired in 10a-a/b. Forward-compat
+even though only `Operator` is wired today. Forward-compat
 motivation in [[project_supply_design]].
 
 `reason` travels in transition-event payloads as a primitive string
@@ -72,9 +72,9 @@ class SupplyMarkedAvailable:
     different operator gestures even though they target the same
     `Available` status.
 
-    `from_status` is always `Unknown` in 10a-a; carried in the
-    payload anyway for projection-update simplicity and audit
-    clarity (matches the 10a-b transition events' shape).
+    `from_status` is always `Unknown` for this initial transition;
+    carried in the payload anyway for projection-update simplicity
+    and audit clarity (matches the other transition events' shape).
 
     `reason` is a free-form short string explaining the operator's
     declaration ("operator confirms LN2 supply is up after morning
@@ -82,7 +82,7 @@ class SupplyMarkedAvailable:
     `SupplyReason` VO.
 
     `trigger` is the locked 3-value `TriggerSource` enum, always
-    `Operator` in 10a-a (substream-driven `Monitor` and timer-driven
+    `Operator` today (substream-driven `Monitor` and timer-driven
     `Auto` are deferred-with-trigger).
     """
 

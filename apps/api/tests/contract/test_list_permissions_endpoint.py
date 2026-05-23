@@ -133,7 +133,7 @@ def test_get_permissions_rejects_invalid_uuid_in_evaluated_principal_with_422() 
 
 @pytest.mark.contract
 def test_get_permissions_incomplete_field_always_present() -> None:
-    """Anti-hook AH4: `incomplete` must be in every response, even at
+    """Anti-hook: `incomplete` must be in every response, even at
     v1 when it's always False. Pin the field's presence so a future
     refactor can't drop it."""
     with TestClient(create_app()) as client:

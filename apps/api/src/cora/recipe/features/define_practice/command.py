@@ -4,7 +4,7 @@ Carries the caller-controlled inputs:
   - `name` — display name for the new Practice
   - `method_id` — the Method this Practice adapts (eventual-
     consistency stance: existence not verified at decide time,
-    mismatch surfaces at Plan binding in 6e)
+    mismatch surfaces at Plan binding)
   - `site_id` — the Site-level Asset this Practice belongs to
     (eventual-consistency: existence and level not verified)
 

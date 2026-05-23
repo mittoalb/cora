@@ -11,9 +11,9 @@ cross-BC `cora.infrastructure.update_handler.make_update_handler`.
 `abandon_campaign`). Five identical longhand bodies clearly fire
 the rule-of-three signal at slice-creation time, so the factory
 hoists immediately rather than after the first ship. Mirrors
-`_clearance_update_handler` (Safety BC, hoisted at 11a-c-1 once
-six transition slices arrived) and `_supply_update_handler` (Supply
-BC, hoisted at 10a-b once five transition slices arrived).
+`_clearance_update_handler` (Safety BC, hoisted once six transition
+slices arrived) and `_supply_update_handler` (Supply BC, hoisted
+once five transition slices arrived).
 
 ## Per-aggregate, not per-BC
 

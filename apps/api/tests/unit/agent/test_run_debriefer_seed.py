@@ -19,6 +19,20 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import AllowAllAuthorize, FakeClock, FixedIdGenerator
 
 
+@pytest.mark.unit
+def test_seeded_identity_literals_match_doer_form() -> None:
+    """Pin the literal string values that the seed bakes into events.
+
+    Asserting against the imported constant would tautologically pass
+    if someone rewrote the constant to a different value. This test
+    fixes the doer-form name in place; per [[project_naming_conventions]]
+    R5 the agent's identity must read as `<DomainNoun><DoerNoun>`,
+    not as the work-product noun (`RunDebrief`).
+    """
+    assert RUN_DEBRIEFER_AGENT_NAME == "RunDebriefer"
+    assert RUN_DEBRIEFER_AGENT_KIND == "RunDebriefer"
+
+
 def _kernel() -> Kernel:
     settings = Settings()  # type: ignore[call-arg]
     return make_inmemory_kernel(
@@ -95,7 +109,7 @@ async def test_seed_pins_prompt_template_id() -> None:
 
 @pytest.mark.unit
 async def test_seed_uses_system_principal_id_not_agent_self_reference() -> None:
-    """Security gate-review P1#3: the bootstrap envelope's
+    """Security gate-review: the bootstrap envelope's
     `principal_id` must be `SYSTEM_PRINCIPAL_ID`, NOT the agent's
     own id. The agent doesn't exist yet at boot-time, so self-
     attribution would be a circular-causation lie in the audit

@@ -1,6 +1,6 @@
 """Unit tests for the LLM value types + FakeLLMAdapter.
 
-Pins the port-level contract that subscriber tests at iter 2b will
+Pins the port-level contract that later subscriber tests will
 rely on (queue semantics, error pass-through, request capture).
 """
 
@@ -63,7 +63,7 @@ def test_llm_usage_cache_fields_default_zero() -> None:
 
 @pytest.mark.unit
 def test_llm_error_subclasses_inherit_from_base() -> None:
-    """isinstance(specific, LLMError) is load-bearing for iter 2b
+    """isinstance(specific, LLMError) is load-bearing for later
     retry logic that catches the base class."""
     for cls in (
         LLMRateLimitError,

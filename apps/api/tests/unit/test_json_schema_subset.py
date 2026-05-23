@@ -1,7 +1,8 @@
 """Unit tests for the shared constrained-subset checker.
 
-`cora.infrastructure.json_schema_subset` was hoisted in 6g-a once the
-third use site landed (Family schema declaration + Asset settings
+`cora.infrastructure.json_schema_subset` was hoisted at the
+rule-of-three trigger once the third use site landed (Family schema
+declaration + Asset settings
 union compile + Method parameters declaration). The two BC-specific
 wrappers (`equipment.aggregates.capability.settings_validation` and
 `recipe.aggregates.method.parameters_validation`) carry their own

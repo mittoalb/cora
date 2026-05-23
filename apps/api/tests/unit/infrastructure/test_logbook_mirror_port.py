@@ -1,8 +1,8 @@
 """Unit tests for the LogbookMirror Protocol.
 
-8f-b ships no production implementor. These tests pin the
+The initial cut ships no production implementor. These tests pin the
 Protocol shape and verify that a minimal in-test implementor
-satisfies it structurally, so iter 2b's subscriber can rely on
+satisfies it structurally, so the later subscriber can rely on
 the contract.
 """
 

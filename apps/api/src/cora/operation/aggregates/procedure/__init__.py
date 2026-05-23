@@ -4,11 +4,10 @@ Vertical slices that operate on this aggregate live under
 `cora.operation.features.<verb>_procedure/` and import from here for
 state and event types.
 
-Public surface (10c-b iter 2): VOs + errors + events (genesis +
-start/complete/abort + steps lazy-open envelope) + evolver +
+Public surface: VOs + errors + events (genesis +
+start/complete/abort/truncate + steps lazy-open envelope) + evolver +
 load_procedure + per-step logbook entries (StepStore port +
-InMemory + Postgres adapters + ProcedureStep dataclass). 10c-c adds
-projection + truncate.
+InMemory + Postgres adapters + ProcedureStep dataclass) + projection.
 """
 
 from cora.operation.aggregates.procedure.entries import (

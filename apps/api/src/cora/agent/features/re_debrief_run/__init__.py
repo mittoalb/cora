@@ -11,7 +11,7 @@ Use cases:
   - A new model version or read-scope expansion landed; operator
     re-evaluates a historical Run.
 
-Distinct from the subscriber's event-driven Pattern A (8f-b iter 2b):
+Distinct from the subscriber's event-driven Pattern A:
 
 | axis                | Pattern A subscriber          | Pattern C on-demand        |
 |---------------------|-------------------------------|----------------------------|

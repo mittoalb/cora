@@ -1,11 +1,11 @@
 """Shared payload extractors for subscribers that react to terminal Run events.
 
 Hoisted at rule-of-three (two consumers today, third agent named
-in the iter-4 widening triggers). Only the OBVIOUSLY-stable
+in the widening triggers). Only the OBVIOUSLY-stable
 extractors live here; the `_compose_and_append` Decision-event
 composer remains duplicated across `run_debriefer` and
-`caution_drafter` until iter 4 reveals which seams stabilize
-(per the post-review simplification audit: deferred composer hoist
+`caution_drafter` until a third consumer reveals which seams
+stabilize (per the simplification audit: deferred composer hoist
 to avoid premature parameter-shuffler).
 
 Both extractors are pure (no IO, no I/O ports) and `None`-tolerant:

@@ -10,8 +10,8 @@ Pins:
     introspection-only); `unknown_subject` raised via SubjectMapper
     wrapping
   - audience-per-Surface anti-replay (RFC 8707 §3)
-  - AH4 (alg=none): case-insensitive + whitespace whitelist guard
-  - F2: HTTPS enforcement on jwks_url + opt-in escape hatch
+  - alg=none: case-insensitive + whitespace whitelist guard
+  - HTTPS enforcement on jwks_url + opt-in escape hatch
   - algorithm-confusion attack: HS256 signed with RSA public key as
     HMAC secret (CVE-2015-9235 class) MUST fail
 """
@@ -263,7 +263,7 @@ async def test_verify_rejects_unsupported_algorithm_in_whitelist(
     assert exc.value.reason in {"unsupported_algorithm", "bad_signature"}
 
 
-# ---------- AH4 + F2 constructor guards ----------
+# ---------- audience-binding + F2 constructor guards ----------
 
 
 @pytest.mark.unit
@@ -281,7 +281,7 @@ def test_constructor_rejects_empty_algorithms() -> None:
 @pytest.mark.unit
 def test_constructor_rejects_alg_none_case_insensitive() -> None:
     for variant in ["none", "NONE", "NoNe", " none ", "None "]:
-        with pytest.raises(ValueError, match=r"alg=none|AH4"):
+        with pytest.raises(ValueError, match=r"alg=none"):
             JWTVerifier(
                 issuer=TEST_ISSUER,
                 jwks_url="https://example.com/jwks",

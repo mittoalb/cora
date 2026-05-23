@@ -202,7 +202,7 @@ def test_procedure_asset_decommissioned_error_carries_ids() -> None:
     assert str(b) in str(err)
 
 
-# ---------- 10c-b iter 2: step logbook constants + errors ----------
+# ---------- step logbook constants + errors ----------
 
 
 @pytest.mark.unit
@@ -250,7 +250,7 @@ def test_procedure_steps_logbook_closed_error_carries_id_and_status() -> None:
     assert "Running" in str(err)
 
 
-# ---------- 10c-c iter 1: ProcedureTruncateReason VO + truncate-related errors ----------
+# ---------- ProcedureTruncateReason VO + truncate-related errors ----------
 
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)

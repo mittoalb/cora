@@ -29,8 +29,8 @@ from cora.trust.features.list_permissions.query import ListPermissions
 class ListPermissionsResponse(BaseModel):
     """Read-side DTO at the API boundary.
 
-    `incomplete` is always False at v1 — required from day 1 per the
-    design lock's anti-hook AH4 to forward-compat with future ABAC
+    `incomplete` is always False at v1, required from day 1 per the
+    design lock's anti-hook to forward-compat with future ABAC
     policies that may make enumeration lossy.
     """
 

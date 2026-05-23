@@ -73,7 +73,7 @@ def register_agent_tools(
         mcp,
         get_handler=lambda: get_handlers().promote_caution_proposal,
     )
-    # 8f-c iter 1: re_debrief_run handler is Optional in the bundle
+    # re_debrief_run handler is Optional in the bundle
     # (None when kernel.llm is unwired). The tool's lambda dereferences
     # at call time and raises a RuntimeError to surface as MCP isError;
     # this matches the REST 503 semantics. Production deploys with

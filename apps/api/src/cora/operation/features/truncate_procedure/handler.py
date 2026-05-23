@@ -3,7 +3,7 @@
 Update-style handler. Canonical body lives in
 `cora.operation._procedure_update_handler.make_procedure_update_handler`;
 this module is a thin slice-specific bind. The factory was hoisted
-in 10c-c at the rule-of-three trigger (this slice + complete + abort).
+at the rule-of-three trigger (this slice + complete + abort).
 
 The command's `reason` and `interrupted_at` fields are captured on
 the emitted `ProcedureTruncated` event payload but are intentionally

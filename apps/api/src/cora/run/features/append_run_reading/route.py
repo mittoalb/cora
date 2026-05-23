@@ -14,9 +14,9 @@ Postgres `ON CONFLICT (event_id) DO NOTHING` handles dedup silently.
 
 ## Discriminator values pinned at the API layer
 
-`sampling_procedure` is a closed `Literal["baseline"]` at 6f-5b
-(extends to `Literal["baseline", "monitor"]` in 6f-5c). The DDL
-column is plain TEXT — extension lands as a code edit, not a
+`sampling_procedure` is a closed `Literal["baseline"]` today
+(extends to `Literal["baseline", "monitor"]` later). The DDL
+column is plain TEXT, extension lands as a code edit, not a
 migration, per [[project_run_reading_design]] §Locks.
 """
 

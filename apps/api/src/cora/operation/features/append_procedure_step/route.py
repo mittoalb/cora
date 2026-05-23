@@ -15,9 +15,9 @@ structural errors at the boundary (422 for the whole batch); Postgres
 
 ## Discriminator values pinned at the API layer
 
-`step_kind` is a closed `Literal["setpoint", "action", "check"]` at
-10c-b iter 2. The DDL column is plain TEXT; future-additive
-operational vocabulary lands as a code edit, not a migration, per
+`step_kind` is a closed `Literal["setpoint", "action", "check"]`.
+The DDL column is plain TEXT; future-additive operational
+vocabulary lands as a code edit, not a migration, per
 [[project_operation_design]] watch item "step_kind StrEnum promotion".
 
 ## Per-kind payload shape NOT enforced at the API today

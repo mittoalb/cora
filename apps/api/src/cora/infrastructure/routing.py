@@ -264,7 +264,7 @@ def get_surface_id(request: Request) -> UUID:
     """Resolve the arrival Surface for an HTTP request.
 
     v1: static return. Process-derived (no client-asserted header /
-    query param) per AH1. A future revision extends the body to
+    query param). A future revision extends the body to
     validate the bearer token's `aud` claim against the Surface's
     expected audience before returning — `request: Request` is in
     the signature today so the body can extend without changing the
@@ -286,7 +286,7 @@ def get_mcp_surface_id() -> UUID:
     If stdio shipping is added later, pin the surface id on a
     closure parameter at tool-registration time
     (`register(mcp, *, surface_id=...)`) rather than inspecting
-    `ctx` — AH1 (no client-asserted surface) is preserved either
+    `ctx` — no client-asserted surface is preserved either
     way. GR3 RISK-1 + RISK-4.
     """
     return SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID

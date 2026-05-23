@@ -49,7 +49,7 @@ Method's `needs.families` contract.
 ## Bounded-name VO
 
 `FamilyName` follows the trimmed-bounded-name VO pattern; uses the
-shared `validate_bounded_text` helper (hoisted in 6e-1).
+shared `validate_bounded_text` helper.
 """
 
 from dataclasses import dataclass, field
@@ -182,7 +182,7 @@ class Family:
     `version_family` (a new version IS a new declaration). See
     `cora.equipment.aggregates.family.affordance.Affordance` for the
     28-item closed enum and the 3-pattern rule. Defaults to empty
-    frozenset for evolver-level back-compat with pre-5j `FamilyDefined`
+    frozenset for evolver-level back-compat with legacy `FamilyDefined`
     events (additive-state pattern).
 
     `settings_schema` is the optional JSON Schema (Draft 2020-12,

@@ -56,7 +56,7 @@ async def verify_bootstrap_seed_present(deps: Kernel) -> None:
        V2 policy stream + the 3 seeded Surface streams exist. V2
        references HTTP Surface; without Surface streams, evaluate
        would Allow on a phantom surface_id and the traversal audit
-       log silently skips entries. AH14 partial-fail mitigation.
+       log silently skips entries. Partial-fail mitigation.
 
     2. `trust_policy_id == SYSTEM_BOOTSTRAP_POLICY_ID` (V1): verify
        the V1 stream exists AND log a deprecation WARN. V1 is
@@ -85,7 +85,7 @@ async def verify_bootstrap_seed_present(deps: Kernel) -> None:
 
         # V2 binds to SYSTEM_HTTP_SURFACE_ID; without all 3 seeded
         # Surfaces present, the audit / authz substrate is broken
-        # (AH14 partial-fail).
+        # (partial-fail).
         for surface_id in (
             SYSTEM_HTTP_SURFACE_ID,
             SYSTEM_MCP_STDIO_SURFACE_ID,

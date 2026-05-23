@@ -5,7 +5,7 @@ the target Procedure id; everything else (name, kind, target Asset
 refs, parent_run_id) was set at register_procedure time. The handler
 pre-loads each target Asset via `load_asset` to build a
 `ProcedureStartContext` for the decider's Decommissioned-state guard
-(mirror of RunStartContext from 6f-1).
+(mirror of RunStartContext).
 
 Server-side concerns (wall-clock timestamp, correlation id, per-event
 ids) are injected by the handler from infrastructure ports.

@@ -152,8 +152,8 @@ class AnthropicLLMAdapter:
         Wired into `Kernel.Teardown` from `cora.api.main` so the
         FastAPI lifespan closes the SDK client at shutdown. Without
         this the underlying `httpx.AsyncClient` leaks its connection
-        pool on every process exit (a watch item flagged at iter 2a's
-        test-coverage gate review).
+        pool on every process exit (a watch item flagged at gate
+        review).
         """
         await self._client.close()
 
@@ -218,7 +218,7 @@ class AnthropicLLMAdapter:
                 # Defensive default for any APIStatusError subclass not
                 # named above. Mapping to LLMServerError treats it as
                 # retryable; the alternative (silently surfacing the SDK
-                # exception) would skip the iter-2b retry layer.
+                # exception) would skip the retry layer.
                 raise LLMServerError(str(exc)) from exc
 
             parsed = _extract_structured_output(message)
@@ -261,8 +261,8 @@ def _count_cache_breakpoints(request: LLMChatRequest) -> int:
     tool in the count because it never carries `cache_control` here
     (the schema differs per call so caching the tool definition
     would be meaningless). Tools-layer caching for stable tools
-    (RecipeScreener at 8f-c+) lands when an additive `tools` field
-    appears on `LLMChatRequest`.
+    (such as a future RecipeScreener) lands when an additive `tools`
+    field appears on `LLMChatRequest`.
     """
     count = 0
     for block in request.system.blocks:

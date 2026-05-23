@@ -161,7 +161,7 @@ def test_legacy_mode_with_no_principal_returns_system_principal_id() -> None:
 def test_missing_request_falls_back_to_system_principal() -> None:
     """When `ctx.request_context.request` is None (stdio transport,
     no HTTP request frame), the resolver treats it as legacy mode and
-    returns SYSTEM. AH13: MCP_STDIO is not bearer-verified."""
+    returns SYSTEM. MCP_STDIO is not bearer-verified."""
     ctx = _make_ctx(request_missing=True)
     assert get_mcp_principal_id(ctx) == SYSTEM_PRINCIPAL_ID
 

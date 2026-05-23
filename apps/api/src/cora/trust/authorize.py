@@ -21,7 +21,7 @@ This deliberately ships the smallest useful gating wire-up:
 Multi-policy resolution + caching + LISTEN/NOTIFY invalidation land
 in later phases when projection-worker infrastructure exists.
 
-## Conduit semantics (post-3h)
+## Conduit semantics
 
 The port passes `conduit_id: UUID`. TrustAuthorize forwards the
 caller's `conduit_id` to `evaluate`, which means a policy bound

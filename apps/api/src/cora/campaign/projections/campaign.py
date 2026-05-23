@@ -31,7 +31,7 @@ Subscribed events:
   - The projection does NOT include `run_ids` (full set lives on the
     aggregate stream; `run_count` is the only denorm). Reverse-query
     "Campaigns containing run X" is Watch item #10 (needs Run.campaign_id
-    indexed scan on proj_run_summary, lands in 6i-c).
+    indexed scan on proj_run_summary).
 
 ## SAVEPOINT semantics on CampaignRegistered
 

@@ -61,7 +61,7 @@ with `validate_values_against_schema` would save ~5 lines but
 muddle the union-construction logic that justifies the standalone
 implementation.
 
-## Strict-by-default modes (post-6g audit alignment)
+## Strict-by-default modes
 
 A Family with `settings_schema=None` does not contribute to the
 union. Three modes follow:
@@ -82,14 +82,13 @@ union. Three modes follow:
     rejected with "Asset has no assigned Capabilities to validate
     against".
 
-Originally (5g-c through pre-6g cleanup) the **PERMISSIVE** mode
-existed: when at least one Family was schemaless AND at least
-one declared a schema, the union widened to accept unknown keys.
-Post-6g audit reversed this for consistency with the 6g-b/c
-strict-when-no-Method-schema reversal: silent typo prevention
-beats graceful degradation when both are at stake. Operators
-wanting "this Family has no settings" declare
-`settings_schema={}` explicitly. See
+Originally the **PERMISSIVE** mode existed: when at least one
+Family was schemaless AND at least one declared a schema, the
+union widened to accept unknown keys. An audit reversed this for
+consistency with the strict-when-no-Method-schema posture:
+silent typo prevention beats graceful degradation when both are
+at stake. Operators wanting "this Family has no settings"
+declare `settings_schema={}` explicitly. See
 [[project_run_parameters_design]] §audit-correction for the
 shared rationale.
 
@@ -124,8 +123,8 @@ def validate_settings_against_families(
     """Validate `settings` against the union of `families`'
     settings_schemas. Raises InvalidAssetSettingsError on failure.
 
-    Returns None on success. Strict-by-default (post-6g audit
-    alignment): non-empty settings without any declared
+    Returns None on success. Strict-by-default: non-empty
+    settings without any declared
     settings_schema is rejected. See module docstring for the three
     modes (DECLARED / ALL-SCHEMALESS / NO-CAPABILITIES).
     """
@@ -141,12 +140,12 @@ def validate_settings_against_families(
         msg = f"key(s) {keys} cannot be set: Asset has no assigned Capabilities to validate against"
         raise InvalidAssetSettingsError(msg)
 
-    # Post-6g audit: ALL-SCHEMALESS mode. If every assigned
-    # Family is schemaless, no schema constrains the union.
-    # Empty settings is trivially valid (no contract, no values, no
-    # conflict). Non-empty settings rejects with a clear message
-    # (mirrors the NO-CAPABILITIES posture and the 6g-b/c "Method
-    # declares no schema" rejection). Operators wanting a schemaless
+    # ALL-SCHEMALESS mode. If every assigned Family is schemaless,
+    # no schema constrains the union. Empty settings is trivially
+    # valid (no contract, no values, no conflict). Non-empty
+    # settings rejects with a clear message (mirrors the
+    # NO-CAPABILITIES posture and the "Method declares no schema"
+    # rejection). Operators wanting a schemaless
     # Family that nonetheless permits settings declare
     # `settings_schema={}` explicitly on the Family — empty
     # schema means "no constraints, but the Family has been
@@ -173,7 +172,7 @@ def validate_settings_against_families(
     # Build the mega-schema: allOf the per-Family schemas, plus
     # the strict-mode clause (every key not declared by any schema
     # is rejected). Schemaless Capabilities are no-ops here; they
-    # don't widen the allowed-keys set (post-6g audit reversal).
+    # don't widen the allowed-keys set (audit reversal).
     mega: dict[str, Any] = {
         "$schema": DRAFT_2020_12_URI,
         "type": "object",

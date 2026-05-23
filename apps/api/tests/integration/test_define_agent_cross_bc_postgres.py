@@ -6,7 +6,7 @@ event on the Access stream AND an `AgentDefined` event on the Agent
 stream in ONE transaction via `EventStore.append_streams`.
 
 This is the first cross-BC atomic write in CORA (prior `append_streams`
-consumers in 11a-c-2 / 11b-a were intra-BC). The integration test
+consumers in Safety and Caution were intra-BC). The integration test
 verifies:
 
   1. Happy-path: both streams advance to version 1 in a single

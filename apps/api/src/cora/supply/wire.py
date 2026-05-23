@@ -28,7 +28,7 @@ Subject / Equipment (composition order matters — innermost first):
   - `list_supplies` (query)
 
 All five transition handlers are built via the
-`make_supply_update_handler` factory (hoisted in 10a-b at the
+`make_supply_update_handler` factory (hoisted at the
 rule-of-three trigger; mirrors `_asset_update_handler`).
 """
 
@@ -60,7 +60,7 @@ class SupplyHandlers:
     mark_unavailable + mark_recovering + restore) plus
     register_supply (create-style; idempotency-wrapped) plus two
     queries (get_supply, list_supplies). Every transition handler
-    flows through `make_supply_update_handler`, hoisted in 10a-b at
+    flows through `make_supply_update_handler`, hoisted at
     the rule-of-three trigger.
     """
 

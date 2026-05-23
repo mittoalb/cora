@@ -19,8 +19,8 @@ does not re-register them.
 Each error family that maps to one HTTP status code with the same
 `{"detail": str(exc)}` body shares one generic handler, registered
 against a tuple of error classes via a loop. Adding a new error in
-a family is one tuple entry — no new handler function. Mirrors
-Equipment / Access; all 4 BCs follow the same shape post-5b cleanup.
+a family is one tuple entry, no new handler function. Mirrors
+Equipment / Access; all 4 BCs follow the same shape.
 
 The `Cannot<Verb>Error` family for Subject's transition-state
 guards (Mount/Measure/Remove/Return/Store/Discard) is the largest

@@ -48,7 +48,7 @@ class ActorRegistered:
     through the human path. See [[project_agent_bc_design]] P0-4
     cleanup pass.
 
-    Forward-compat replay of pre-8f-a `ActorRegistered` payloads
+    Forward-compat replay of legacy `ActorRegistered` payloads
     (which lack the `kind` field) is handled in `from_stored` via
     `payload.get("kind", "human")`. The dataclass has no default;
     the payload deserializer supplies it.
@@ -110,7 +110,7 @@ def from_stored(stored: StoredEvent) -> ActorEvent:
     discriminators so a stream contaminated with foreign event types
     fails loud rather than silently being dropped by the evolver.
 
-    `kind` field on `ActorRegistered` is forward-compat: pre-8f-a
+    `kind` field on `ActorRegistered` is forward-compat: legacy
     events lack it, so `payload.get("kind", "human")` supplies the
     default.
     """

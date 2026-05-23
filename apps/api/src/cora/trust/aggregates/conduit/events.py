@@ -72,7 +72,7 @@ class ConduitLogbookClosed:
     Future-additive (no command path emits this today). When
     conduit-archive ships, it will auto-close every open logbook
     before the archive transition (mirrors the Run terminal
-    auto-close pattern from 6f-3 L3).
+    auto-close pattern).
     """
 
     conduit_id: UUID

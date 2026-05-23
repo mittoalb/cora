@@ -459,8 +459,7 @@ def _compose_teardowns(teardowns: list[Teardown]) -> Teardown:
 
     Catches `Exception` (NOT `BaseException`) so `asyncio.CancelledError`
     + `KeyboardInterrupt` + `SystemExit` propagate through the
-    teardown chain as intended (architecture gate-review P1#2 of
-    8f-b iter 2b).
+    teardown chain as intended (architecture gate-review).
     """
 
     async def composed() -> None:

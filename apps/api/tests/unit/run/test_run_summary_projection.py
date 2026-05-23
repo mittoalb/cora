@@ -95,10 +95,10 @@ async def test_run_started_inserts_with_running_status_and_genesis_refs() -> Non
     assert args.args[5] == "https://raid.org/10.7935/test"
     assert args.args[6] == _NOW
     # 6g-c: override_parameters_present defaults FALSE for legacy
-    # payloads (no override_parameters key in pre-6g-c events).
+    # payloads (no override_parameters key in legacy events).
     assert args.args[7] is False
-    # 6i-c follow-up: campaign_id defaults None for payloads without
-    # the key (pre-6i-c streams or standalone Runs).
+    # campaign_id defaults None for payloads without
+    # the key (legacy streams or standalone Runs).
     assert args.args[8] is None
 
     # regression that drops or misorders the projection's UUID[]

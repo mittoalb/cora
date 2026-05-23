@@ -110,7 +110,7 @@ class PlanDeprecated:
     invalidated. Deprecation is advisory at the BC layer; future
     Run-side enrichment may surface a warning at start-time when
     referencing a deprecated Plan (or Run-start may reject — that's
-    a 6f-side decision).
+    a Run-side decision).
     """
 
     plan_id: UUID
@@ -122,7 +122,7 @@ class PlanWireAdded:
     """A typed Wire was added to a Plan's wire set.
 
     Single-wire event (not bulk-add); mirrors `AssetPortAdded` shape
-    from 5h. Audit value: "when did this Plan gain the connection
+    from Asset.ports. Audit value: "when did this Plan gain the connection
     from pandabox.trigger_out → camera.trigger_in?"
 
     The four port-reference fields together form the Wire's
@@ -132,7 +132,7 @@ class PlanWireAdded:
 
     Status is NOT carried — wiring updates are orthogonal to
     lifecycle (Defined / Versioned / Deprecated all permit wiring
-    updates; mirrors the 6g-b default-parameters stance and
+    updates; mirrors the default-parameters stance and
     PortAdded's lifecycle independence at the Asset side).
     """
 
@@ -150,7 +150,7 @@ class PlanWireRemoved:
 
     Mirror of `PlanWireAdded`. Carries all 4 endpoint components
     because the Wire's identity IS the 4-tuple (no shorter unique
-    key). Symmetric with `AssetPortRemoved` from 5h.
+    key). Symmetric with `AssetPortRemoved` from Asset.ports.
     """
 
     plan_id: UUID
@@ -168,7 +168,7 @@ class PlanDefaultParametersUpdated:
     `default_parameters` is the POST-merge dict (RFC 7396 PATCH
     applied at the slice layer; the event payload carries the
     resolved snapshot, not the patch — same self-contained-audit-log
-    precedent as `AssetSettingsUpdated` from 5g-c).
+    precedent as `AssetSettingsUpdated`).
 
     Validation runs at the decider against the owning Method's
     `parameters_schema` (loaded by the handler before reaching the
@@ -178,7 +178,7 @@ class PlanDefaultParametersUpdated:
 
     Status is NOT carried — defaults updates are orthogonal to
     lifecycle (Defined / Versioned / Deprecated all permit defaults
-    updates; mirrors the 6g-a Method-side stance).
+    updates; mirrors the Method-side stance).
     """
 
     plan_id: UUID
@@ -326,9 +326,9 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
     match stored.event_type:
         case "PlanDefined":
             try:
-                # dual-key fallback: pre-5i PlanDefined payloads carry
+                # dual-key fallback: legacy PlanDefined payloads carry
                 # `method_needed_capabilities_snapshot` and
-                # `asset_capabilities_snapshot`; post-5i payloads carry the
+                # `asset_capabilities_snapshot`; current payloads carry the
                 # `*_families_snapshot` equivalents. Read the new key first,
                 # fall back to the legacy key. Stays forever per Marten/Axon
                 # rename pattern.

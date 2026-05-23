@@ -1,10 +1,10 @@
 """The `AppendProcedureSteps` command, intent dataclass for this slice.
 
-Batch shape from day one (matches `append_run_reading` precedent from
-6f-5b and `append_reasoning_entry` from 8c-b). Length-1 batches are
-the degenerate case; same code path either way. Anticipates EPICS
-adapter integration in 10d which will batch step records naturally
-during a calibration sweep or alignment run.
+Batch shape from day one (matches `append_run_reading` and
+`append_reasoning_entry` precedents). Length-1 batches are the
+degenerate case; same code path either way. Anticipates EPICS
+adapter integration which will batch step records naturally during
+a calibration sweep or alignment run.
 
 Producer-supplied `event_id` (UUIDv7) per entry; store dedups via
 Postgres PK (`ON CONFLICT (event_id) DO NOTHING`). At-least-once
@@ -15,7 +15,7 @@ semantics for free.
 The handler loads the parent Procedure, checks whether
 `procedure.steps_logbook_id` is set, and emits a
 `ProcedureStepsLogbookOpened` event lazily on first write.
-`start_procedure` from 10c-b iter 1 stays unchanged; the logbook
+`start_procedure` stays unchanged; the logbook
 attaches when the first step arrives. Per [[project_operation_design]]
 and [[project_logbook_entry_storage]].
 

@@ -123,7 +123,7 @@ def test_decide_allows_empty_permission_sets() -> None:
 
 @pytest.mark.unit
 def test_decide_does_not_validate_conduit_existence() -> None:
-    """Eventual-consistency stance (same as Conduit→Zone in 3b): the
+    """Eventual-consistency stance (same as Conduit→Zone): the
     decider does NOT verify that `conduit_id` references an existing
     Conduit. Pinned so a future "validate at command time" refactor
     has to flip this."""

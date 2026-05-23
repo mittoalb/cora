@@ -82,7 +82,7 @@ def test_mcp_lists_list_permissions_tool() -> None:
 def test_mcp_list_permissions_description_carries_anti_cache_warning() -> None:
     """Gate-review F4: the MCP tool description must explicitly warn
     agents not to use the returned set for authorization decisions
-    (anti-hook AH2). Pin the load-bearing substring so a future
+    (per the anti-hook). Pin the load-bearing substring so a future
     refactor can't silently strip it."""
     with TestClient(create_app()) as client:
         session_headers = open_session(client)

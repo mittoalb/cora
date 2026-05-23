@@ -12,7 +12,7 @@ The tests pin the full MCP edge-auth invariants end-to-end:
   - Valid bearer → tools/call succeeds AND the persisted event's
     principal_id is the BEARER-verified principal (not SYSTEM).
   - Audience binding: middleware passes SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID
-    to the verifier on /mcp requests (AH5: distinct from HTTP).
+    to the verifier on /mcp requests (distinct from HTTP).
   - tools/list under bearer-auth requires bearer (parity with REST
     metadata endpoints).
 """
@@ -54,7 +54,7 @@ def _install_stub_verifier(
     """Swap `build_kernel` so the constructed kernel has a stub
     TokenVerifier accepting any bearer token and returning a fixed
     VerifiedPrincipal. Optionally record the expected_audience
-    UUIDs the middleware passes (to pin AH5 audience-per-Surface).
+    UUIDs the middleware passes (to pin audience-per-Surface).
     """
     from cora.infrastructure import deps as deps_module
     from cora.infrastructure.ports import VerifiedPrincipal
@@ -187,7 +187,7 @@ def test_mcp_register_actor_tool_under_bearer_persists_verified_principal_id(
 def test_mcp_request_uses_mcp_surface_audience_not_http(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """AH5 (no shared `aud` across Surfaces): an /mcp/* request MUST
+    """No shared `aud` across Surfaces: an /mcp/* request MUST
     cause the middleware to call `verifier.verify(token, expected_audience=
     SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID)`, NOT the HTTP Surface.
 
@@ -215,7 +215,7 @@ def test_mcp_request_uses_mcp_surface_audience_not_http(
     for aud in audience_capture:
         assert aud == SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID, (
             f"Middleware passed audience={aud} for /mcp; expected "
-            f"SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID. AH5 violated."
+            f"SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID. Audience invariant violated."
         )
 
 
@@ -228,8 +228,8 @@ def test_mcp_x_principal_id_header_ignored_when_bearer_present(
 ) -> None:
     """When BOTH a verified bearer AND an X-Principal-Id header are
     sent on an MCP request, the persisted event carries the BEARER's
-    principal_id, not the header's. AH1 + AH7: silent-ignore of the
-    legacy header under bearer-auth posture (mirrors HTTP)."""
+    principal_id, not the header's. Anti-hook posture: silent-ignore of the
+    legacy header under bearer-auth (mirrors HTTP)."""
     verified_principal_id = UUID("01900000-0000-7000-8000-0000000000d1")
     spoofed_principal_id = UUID("01900000-0000-7000-8000-0000000000d9")
     _install_stub_verifier(monkeypatch, principal_id=verified_principal_id)

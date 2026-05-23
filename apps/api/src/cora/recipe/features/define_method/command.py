@@ -4,7 +4,7 @@ Carries the caller-controlled inputs:
   - `name` — display name for the new Method (the technique class)
   - `needed_families` — frozenset of Family ids the Method
     requires (eventual-consistency stance: existence not verified
-    at decide time, mismatch surfaces at Plan binding in 6e)
+    at decide time, mismatch surfaces at Plan binding)
 
 Server-side concerns (new aggregate id, wall-clock timestamp,
 correlation id, per-event ids) are injected by the handler from
@@ -18,7 +18,7 @@ enum-in-state, derived-from-event-type-in-evolver convention.
 `needed_families` is `frozenset[UUID]` (not `list`) so the
 command itself is hashable for `with_idempotency`'s SHA256 hash;
 the cross-BC `_normalize_for_hash` helper sorts frozensets for
-deterministic hashing across worker processes (locked in 3c).
+deterministic hashing across worker processes.
 """
 
 from dataclasses import dataclass, field
@@ -37,10 +37,10 @@ class DefineMethod:
     `_normalize_for_hash` story as needed_families.
 
     `capability_id` points to the universal
-    Capability template (Recipe BC 6k) this Method realizes as a
+    Capability template (Recipe BC) this Method realizes as a
     Method-shaped executor. REQUIRED per Pattern P from
     [[project-capability-aggregate-design]] (was optional
-    during the 6l-additive transition window). The handler loads
+    during the additive transition window). The handler loads
     the Capability via the cross-BC port + the decider validates
     that `Capability.executor_shapes` contains Method, raising
     `MethodCapabilityExecutorMismatchError` (409) otherwise. A

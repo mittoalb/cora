@@ -79,7 +79,7 @@ def test_post_readings_returns_200_for_single_entry() -> None:
 
 @pytest.mark.contract
 def test_post_readings_returns_200_for_batch() -> None:
-    """Batch of polymorphic readings (all baseline at 6f-5b) accepted."""
+    """Batch of polymorphic readings (all baseline kind) accepted."""
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
         response = client.post(

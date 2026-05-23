@@ -1,24 +1,24 @@
 """RFC 7396 JSON Merge Patch implementation.
 
-Hoisted in the post-6g cleanup (originally lived in
-`cora.equipment.aggregates.asset.settings_validation` from 5g-c) once
+Hoisted (originally lived in
+`cora.equipment.aggregates.asset.settings_validation`) once
 the third call site landed. Use sites:
 
-  - 5g-c `update_asset_settings` (Equipment) — Asset.settings PATCH
-  - 6g-b `update_plan_default_parameters` (Recipe) — Plan defaults PATCH
-  - 6g-c `start_run` (Run) — effective_parameters = merge(plan.default_parameters,
+  - `update_asset_settings` (Equipment) — Asset.settings PATCH
+  - `update_plan_default_parameters` (Recipe) — Plan defaults PATCH
+  - `start_run` (Run) — effective_parameters = merge(plan.default_parameters,
     command.override_parameters)
 
 Three sites across three BCs is the rule-of-three threshold (matches
-the `json_schema_subset` hoist precedent from 6g-a, which had the
-same shape: shared structural utility used by multiple BCs).
+the `json_schema_subset` hoist precedent, which had the same shape:
+shared structural utility used by multiple BCs).
 
 ## Why RFC 7396 over RFC 6902
 
 CORA's parameter / settings dicts are small flat-ish objects of
 primitive values; null naturally maps to "delete". RFC 6902 (JSON
 Patch, operation-array shape) is more expressive but unnecessary
-for this use case. Industry confirms (post-6g-c research, May 2026):
+for this use case. Industry confirms (research, May 2026):
 no serious modern alternative has displaced either RFC since their
 2014 publication.
 

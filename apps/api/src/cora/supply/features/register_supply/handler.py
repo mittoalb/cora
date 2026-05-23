@@ -8,7 +8,7 @@ Module-as-namespace: callers use
 `register_supply.bind(deps)` returning a `register_supply.Handler`.
 
 Idempotency-wrappable per the create-style convention; the
-`with_idempotency` wrap is applied at `wire.py` (iter 4), not here.
+`with_idempotency` wrap is applied at `wire.py`, not here.
 
 `causation_id` is the id of the event/message that triggered this
 command (None for HTTP / MCP root calls; sagas / process managers

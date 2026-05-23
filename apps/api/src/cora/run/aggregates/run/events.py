@@ -129,24 +129,23 @@ class RunStarted:
     is null for dark-field / flat-field calibration runs per
     beamline-domain convention.
 
-    `raid` (post-7d) is the Research Activity Identifier (ISO
-    23527), opaque string carried verbatim. Defaults to None (a
-    Run that wasn't registered against a research activity).
-    Forward-compatible jsonb load: `from_stored` reads the key
-    with `.get(...)` so pre-7d events without the raid key
-    deserialize as `raid=None`.
+    `raid` is the Research Activity Identifier (ISO 23527), opaque
+    string carried verbatim. Defaults to None (a Run that wasn't
+    registered against a research activity). Forward-compatible
+    jsonb load: `from_stored` reads the key with `.get(...)` so
+    legacy events without the raid key deserialize as `raid=None`.
 
-    `override_parameters` (post-6g-c) is the operator-supplied
-    overrides on top of `Plan.default_parameters` (RFC 7396 merge
-    semantics). `effective_parameters` is the resolved post-merge
-    snapshot (defaults + overrides) that governs this Run; mirrors
-    the Bluesky start-document / MLflow params / W&B run.config /
+    `override_parameters` is the operator-supplied overrides on top
+    of `Plan.default_parameters` (RFC 7396 merge semantics).
+    `effective_parameters` is the resolved post-merge snapshot
+    (defaults + overrides) that governs this Run; mirrors the
+    Bluesky start-document / MLflow params / W&B run.config /
     ISA-88 control-recipe / RO-Crate CreateAction precedent (run
     resource carries the resolved value set, not just an audit log).
     Both default to `{}` and forward-compat: `from_stored` reads
-    each key with `payload.get(..., {})` so pre-6g-c streams replay.
+    each key with `payload.get(..., {})` so legacy streams replay.
 
-    `triggered_by` (post-6g-c) is operator-supplied free text
+    `triggered_by` is operator-supplied free text
     capturing what initiated this Run (operator-manual, scheduler
     id, prior-run id, automation id). Optional (None when omitted).
     Forward-compat via `payload.get("triggered_by")`. Future
@@ -166,7 +165,7 @@ class RunStarted:
     # anti-corruption refs to upstream-deferred concepts
     # (proposal / btr / lab_visit / session). Each entry is a dict
     # `{"scheme": str, "id": str}` mirroring Safety BC's ExternalBinding
-    # wire shape. Defaults to () for legacy pre-11a-c-3 streams; the
+    # wire shape. Defaults to () for legacy streams without the field; the
     # evolver reconstructs typed `ExternalRef` VOs.
     external_refs: tuple[dict[str, Any], ...] = ()
     # snapshot of Active cautions whose target referenced
@@ -175,7 +174,7 @@ class RunStarted:
     # #5: the decider never partitions on this field). Lives on the
     # event payload only — NOT on Run state (anti-pattern #7: ack
     # tracked on the consumption event, never per-operator on the
-    # Caution aggregate). Defaults to () for legacy pre-11b-c streams;
+    # Caution aggregate). Defaults to () for legacy streams without the field;
     # forward-compat via `payload.get("acknowledged_cautions", [])` in
     # `from_stored`.
     acknowledged_cautions: tuple[CautionAcknowledgement, ...] = ()
@@ -184,9 +183,9 @@ class RunStarted:
     # post-hoc (via `add_run_to_campaign` → RunCampaignAssigned). When
     # `StartRun.campaign_id` is provided the handler atomically writes
     # this event AND `CampaignRunAdded` to the Campaign stream via
-    # `EventStore.append_streams` (mirrors 11a-c-2 amend_clearance
-    # shape). Forward-compat via `payload.get("campaign_id")` returning
-    # None for legacy pre-6i-c streams.
+    # `EventStore.append_streams` (mirrors amend_clearance shape).
+    # Forward-compat via `payload.get("campaign_id")` returning None
+    # for legacy streams without the field.
     campaign_id: UUID | None = None
     # Decision→Run linkage: optional Decision-causation link
     # mirroring RunAdjusted.decided_by_decision_id. Lets operators link
@@ -210,7 +209,7 @@ class RunStarted:
     # IMMUTABLE after start by aggregate-level invariant — every Run
     # transition arm preserves it verbatim. Forward-compat via
     # `payload.get("pinned_calibrations", [])` returning an empty list
-    # for legacy pre-12b streams.
+    # for legacy streams without the field.
     pinned_calibrations: tuple[UUID, ...] = ()
 
 
@@ -288,7 +287,7 @@ class RunCompleted:
     """A Run reached its happy-path terminal (Running → Completed).
 
     Slim payload by design (gate-review Q3): substantive run
-    summary lands in 6f-5+ once DAQ-channel integration is in
+    summary lands later once DAQ-channel integration is in
     place to source it. Today, downstream consumers needing
     aggregate read state should fold the Run stream — the stream
     is short for terminal-by-design Lifecycle Aggregates (a
@@ -677,15 +676,15 @@ def from_stored(stored: StoredEvent) -> RunEvent:
         case "RunStarted":
             try:
                 raw_subject = payload["subject_id"]
-                # Forward-compat additive evolution: `raid` was added in 7d,
+                # Forward-compat additive evolution: `raid`,
                 # `override_parameters` / `effective_parameters` /
-                # `triggered_by` in 6g-c, `external_refs` in 11a-c-3,
+                # `triggered_by`, `external_refs`,
                 # `acknowledged_cautions`, `campaign_id`,
                 # `decided_by_decision_id` (Decision→Run linkage),
-                # `pinned_calibrations` (Calibration AsShot anchor).
-                # Each .get(...) returns the field's default when the key
-                # isn't in the jsonb payload, so pre-additive streams replay
-                # without an upcaster.
+                # `pinned_calibrations` (Calibration AsShot anchor)
+                # were all added additively. Each .get(...) returns
+                # the field's default when the key isn't in the jsonb
+                # payload, so legacy streams replay without an upcaster.
                 raw_campaign_id = payload.get("campaign_id")
                 raw_decided_by = payload.get("decided_by_decision_id")
                 return RunStarted(

@@ -8,7 +8,7 @@ decider via `RunStopReason` VO). Mirrors `AbortRun.reason` shape.
 Distinct from abort: stop = controlled exit, data valid up to the
 stop point; abort = emergency exit, data flagged as potentially
 invalid (PackML + Bluesky lifecycle-layer distinction). Substream
-cleanup semantics materialize in 6f-5+.
+cleanup semantics materialize later.
 """
 
 from dataclasses import dataclass

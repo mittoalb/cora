@@ -20,10 +20,9 @@ AI-recommends-then-human-overrides flow.
     `decision_rule` + `confidence_source` + `override_kind` etc.
     keep the structure scannable.
   - Not a place for token-by-token AI traces. Those go to a
-    `reasoning` logbook on the Decision aggregate (6f-5a precedent;
-    aggregate infra in 8c-a; first consumer slice in 8c-b)
-    carrying OpenTelemetry `gen_ai.*` semantic-convention
-    attributes.
+    `reasoning` logbook on the Decision aggregate (cross-BC
+    precedent; carries OpenTelemetry `gen_ai.*` semantic-
+    convention attributes).
 
 
 Genesis aggregate: id + actor_id + context + choice + reasoning +
@@ -106,7 +105,7 @@ orthogonal additive annotation.
 ## Thirteenth bounded-name VO
 
 `DecisionChoice` and `DecisionReasoning` use the shared
-`validate_bounded_text` helper hoisted in 6e-1, with a higher max-length
+`validate_bounded_text` helper hoisted at the rule-of-three trigger, with a higher max-length
 cap (reasoning text is naturally longer than display names).
 `DecisionContext` is intentionally an open string with documented
 well-known constants, new contexts arrive without schema
@@ -230,7 +229,7 @@ DECISION_CONTEXT_CAUTION_PROPOSAL = "CautionProposal"
 #                           quota at the severity of the proposed
 #                           superseding Caution.
 #
-# Quota is telemetry-only at iter 3 (per design lock Anti-hook #12;
+# Quota is telemetry-only today (per design lock Anti-hook #12;
 # Epic Sepsis lesson: don't enforce a rate you haven't measured
 # baselines for).
 CautionProposalChoice = Literal[
@@ -509,8 +508,8 @@ class ParentDecisionMissingError(Exception):
 class ParentDecisionRunMismatchError(Exception):
     """The supplied parent Decision references a different `run_id`
     than the new Decision's command. Prevents accidental cross-Run
-    chains in operator-triggered re-invocations (8f-c iter 1
-    `debrief_run`).
+    chains in operator-triggered re-invocations of
+    `debrief_run`.
 
     Hoisted to Decision aggregate state.py per cross-BC convention:
     cross-aggregate-load-state errors live with the relevant
@@ -531,9 +530,9 @@ class ParentDecisionAgentMismatchError(Exception):
     (or by a non-`RunDebrief`-context decider). Prevents accidental
     cross-agent chains in operator-triggered re-invocations.
 
-    Pinned by 8f-c iter 1's architecture gate-review P1: the parent-
-    chain validator should check `parent.context` matches the
-    expected RunDebrief context.
+    Pinned by architecture gate-review: the parent-chain validator
+    should check `parent.context` matches the expected RunDebrief
+    context.
     """
 
     def __init__(self, parent_decision_id: UUID, parent_context: str) -> None:
@@ -683,9 +682,9 @@ def validate_reasoning(value: str | None) -> str | None:
     fields). Raises `InvalidDecisionReasoningError` for over-cap
     text after trim.
 
-    **Public to sibling BCs** (cross-BC gate-review P1#4 of 8f-b
-    iter 2b): callable from `cora.agent.subscribers.run_debriefer`
-    which composes `DecisionRegistered` inline because it needs a
+    **Public to sibling BCs** (cross-BC gate-review convention):
+    callable from `cora.agent.subscribers.run_debriefer` which
+    composes `DecisionRegistered` inline because it needs a
     deterministic decision_id that the slice handler cannot provide.
     Sibling-BC callers depend on this helper's stability; treat
     rename / signature changes as cross-BC breaking.
@@ -703,9 +702,8 @@ def validate_reasoning(value: str | None) -> str | None:
 def validate_confidence(value: float | None) -> float | None:
     """Bound-check the optional confidence float to [0.0, 1.0].
 
-    **Public to sibling BCs** (cross-BC gate-review P1#4 of 8f-b
-    iter 2b): same callable-by-Agent-BC contract as
-    `validate_reasoning`.
+    **Public to sibling BCs** (cross-BC gate-review convention):
+    same callable-by-Agent-BC contract as `validate_reasoning`.
     """
     if value is None:
         return None
@@ -749,9 +747,9 @@ def validate_decision_inputs(value: dict[str, Any] | None) -> dict[str, Any] | N
     here at the BC boundary rather than failing deep at jsonb
     serialization time.
 
-    **Public to sibling BCs** (cross-BC gate-review P1#4 of 8f-b
-    iter 2b): same callable-by-Agent-BC contract as
-    `validate_reasoning` / `validate_confidence`.
+    **Public to sibling BCs** (cross-BC gate-review convention):
+    same callable-by-Agent-BC contract as `validate_reasoning` /
+    `validate_confidence`.
     """
     if value is None:
         return None

@@ -21,16 +21,16 @@ Agent rollout.
 
 ## Registered subscribers
 
-  - `RunDebrieferSubscriber` (8f-b iter 2b) — terminal Run -> one
+  - `RunDebrieferSubscriber` — terminal Run -> one
     advisory Decision with AAR narrative + 6-value choice.
-  - `CautionDrafterSubscriber` (8f-c iter 3) — terminal Run -> one
+  - `CautionDrafterSubscriber` — terminal Run -> one
     `DecisionRegistered(context="CautionProposal")` with 5-value
     choice + optional proposed-Caution tuple. Operator-promoted
     via the `promote_caution_proposal` slice.
 
 Both subscribers run concurrently and INDEPENDENTLY in the
 projection worker. Per [[project-caution-drafter-design]] Q4 lock:
-DO NOT widen the subscriber framework at iter 3. Named widening
+DO NOT widen the subscriber framework. Named widening
 triggers (3rd subscriber / >50ms blocking / first cross-subscriber
 ordering dependency) documented in the design memo.
 """

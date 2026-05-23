@@ -174,7 +174,7 @@ def test_start_run_returns_400_when_effective_parameters_violate_schema() -> Non
 
 @pytest.mark.contract
 def test_start_run_strict_when_method_has_no_schema() -> None:
-    """Strict (post-6g audit reversal): Method without parameters_schema
+    """Strict: Method without parameters_schema
     rejects non-empty effective_parameters with a clear 400. Operator's
     fix is to declare a schema (an empty `{}` works for parameter-less
     Methods) or omit overrides AND clear Plan defaults."""

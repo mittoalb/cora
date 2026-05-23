@@ -117,7 +117,7 @@ async def test_pinned_calibrations_gin_index_supports_contains_membership_lookup
 
     Pinning `@>` (not `= ANY(...)`): `= ANY` is rewritten internally
     and does NOT probe the GIN index on uuid[]; `@>` does. The query
-    path we ship in 12c must be the GIN-friendly one or the index is
+    path we ship must be the GIN-friendly one or the index is
     decorative.
 
     Lands two Runs with overlapping + non-overlapping pin sets, then

@@ -295,7 +295,7 @@ def test_evolve_procedure_aborted_on_empty_state_raises() -> None:
         evolve(None, ProcedureAborted(procedure_id=uuid4(), reason="x", occurred_at=_NOW))
 
 
-# --- 10c-b iter 2: ProcedureStepsLogbookOpened arm ---
+# --- ProcedureStepsLogbookOpened arm ---
 
 
 @pytest.mark.unit
@@ -373,7 +373,7 @@ def test_evolve_steps_logbook_opened_preserves_all_other_fields() -> None:
 
 @pytest.mark.unit
 def test_evolve_transition_arms_preserve_steps_logbook_id() -> None:
-    """Critical invariant extension (10c-b iter 2): once steps_logbook_id is set,
+    """Critical invariant extension: once steps_logbook_id is set,
     later transitions (Complete, Abort) must preserve it. Otherwise the additive
     field gets silently wiped on terminal transitions."""
     prior = _defined()
@@ -443,7 +443,7 @@ def test_evolve_steps_logbook_opened_on_empty_state_raises() -> None:
         )
 
 
-# --- 10c-c iter 1: ProcedureTruncated arm ---
+# --- ProcedureTruncated arm ---
 
 
 @pytest.mark.unit

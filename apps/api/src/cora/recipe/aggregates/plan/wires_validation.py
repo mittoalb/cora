@@ -28,7 +28,7 @@ Per the locked design at [[project_plan_wiring_design]]:
 The validators read `Asset.ports` and `Plan.asset_ids` only — they
 take no I/O dependencies. The handler pre-loads the bound Assets
 into a `PlanWireContext` (slice-local, mirrors `PlanBindingContext`
-from 6e-1 + `RunStartContext` from 6f-1) before calling the decider.
++ `RunStartContext`) before calling the decider.
 """
 
 from collections.abc import Mapping

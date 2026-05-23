@@ -4,7 +4,7 @@ Mirrors the locked event-module shape: event classes, discriminated
 union, `event_type_name`, `to_payload`, `from_stored`, plus the
 polymorphic-target serialize/deserialize helpers.
 
-Three events ship in 11b-a:
+Three events shipped at BC genesis:
 
   - `CautionRegistered`  -- genesis (Active); also written as the child
                             genesis on supersession (with parent_caution_id set)

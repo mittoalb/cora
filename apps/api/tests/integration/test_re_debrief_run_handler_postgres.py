@@ -162,8 +162,8 @@ async def test_re_debrief_run_idempotency_key_replay_returns_same_decision(
 ) -> None:
     """End-to-end Idempotency-Key replay through `wire_agent`'s
     Brandur envelope: two calls with the same key return the same
-    decision_id, and the LLM is called exactly once. Closes test-
-    coverage gate-review P1 #3 of 8f-c iter 1."""
+    decision_id, and the LLM is called exactly once. Closes a
+    test-coverage gate-review action item."""
     from cora.agent.wire import wire_agent
 
     first_decision_id = uuid4()

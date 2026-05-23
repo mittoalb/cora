@@ -13,7 +13,7 @@ semantics for free.
 The handler loads the parent Decision, checks for an existing
 `reasoning` logbook on `Decision.logbooks`, and emits a
 `DecisionLogbookOpened` event if none exists before appending the
-batch. `register_decision` from 8a stays unchanged, the logbook
+batch. `register_decision` stays unchanged, the logbook
 attaches lazily when the first reasoning entry arrives. Per
 gate-review L1.
 

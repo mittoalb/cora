@@ -125,7 +125,7 @@ def test_patch_plan_default_parameters_returns_400_for_constraint_violation() ->
 
 @pytest.mark.contract
 def test_patch_plan_default_parameters_strict_when_method_has_no_schema() -> None:
-    """Strict (post-6g audit reversal): Method without parameters_schema
+    """Strict: Method without parameters_schema
     rejects non-empty defaults with a clear 400. Operator's fix is to
     declare a schema on the Method (an empty `{}` works for parameter-
     less Methods) or omit defaults."""

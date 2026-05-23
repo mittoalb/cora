@@ -3,7 +3,7 @@
 Hoisted at rule-of-three: complete_procedure / abort_procedure /
 append_procedure_step handler tests all carried byte-identical
 `_seed_running_procedure` bodies (Registered + Started events
-appended directly to an in-memory event store). 10c-c gate-review
+appended directly to an in-memory event store). Gate-review
 trigger fired the hoist (consolidating before truncate_procedure
 adds a fourth instance).
 

@@ -15,7 +15,7 @@ Method's transition shape and Family's.
 
 `method_id` and `site_id` carry as primitive UUIDs in the payload.
 Eventual-consistency stance: existence is NOT verified at decide
-time (mismatch surfaces at Plan binding in 6e).
+time (mismatch surfaces at Plan binding).
 
 Status is NOT carried in event payloads — the event type itself
 encodes the state change. The evolver hardcodes the mapping per

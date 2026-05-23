@@ -37,17 +37,17 @@ class DefineMethodRequest(BaseModel):
     `needed_families` is required (use `[]` for procedural
     Methods that need no specific equipment family). Eventual-
     consistency: each Family id is NOT verified against the
-    Family stream; mismatch surfaces at Plan binding (6e).
+    Family stream; mismatch surfaces at Plan binding.
 
     `needed_supplies` is optional; defaults to `[]` for
-    backward-compat (pre-10b clients keep working). Each element is
+    backward-compat (older clients keep working). Each element is
     a Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.
     Asymmetric vs needed_families by design — see
     [[project_supply_design]] §"Method.needed_supplies consumer"
     for the rationale (Family is TYPE registry,
     Supply is INSTANCE aggregate per facility sharing a `kind` label).
     Eventual-consistency: kind strings are NOT verified against the
-    Supply stream; mismatch surfaces at Plan binding (10c+).
+    Supply stream; mismatch surfaces at Plan binding.
     """
 
     name: str = Field(
@@ -59,9 +59,9 @@ class DefineMethodRequest(BaseModel):
     capability_id: UUID = Field(
         ...,
         description=(
-            "Universal Capability template (Recipe BC 6k) this Method "
+            "Universal Capability template (Recipe BC) this Method "
             "realizes as a Method-shaped executor. REQUIRED per "
-            "Pattern P (6l-strict). The bound Capability must declare "
+            "Pattern P. The bound Capability must declare "
             "`Method` in its executor_shapes set; otherwise 409. "
             "Eventual-consistency: the Capability stream is loaded at "
             "handler time, not API-boundary time — a missing stream "
@@ -93,8 +93,7 @@ class DefineMethodRequest(BaseModel):
             "'LiquidNitrogen', 'ComputePool'), 1-50 chars. NOT Supply "
             "instance UUIDs — Methods are facility-portable. Eventual-"
             "consistency: kinds are NOT verified against the Supply "
-            "stream at decide time; mismatch surfaces at Plan binding "
-            "(10c+)."
+            "stream at decide time; mismatch surfaces at Plan binding."
         ),
     )
 

@@ -30,11 +30,11 @@ The "schema-validated values" pattern has two halves:
 Both halves use the same constrained JSON Schema subset
 (`cora.infrastructure.json_schema_subset`) and the same
 `jsonschema-rs` Draft 2020-12 engine. The strict-by-default posture
-(post-6g audit) is uniform across both halves: missing schema +
+is uniform across both halves: missing schema +
 non-empty values → reject with operator-facing guidance.
 
 See `[[project_schema_validated_values_pattern]]` for the full
-family map (5g-a/c + 6g-a/b/c) and operator vocabulary mapping
+family map and operator vocabulary mapping
 (settings vs parameters preserved per industrial convention).
 """
 
@@ -209,12 +209,12 @@ def validate_values_against_schema(
 
       - **STRICT** (`no_schema_message` provided): schema=None +
         non-empty values rejects with the supplied message. Used by
-        6g-b (Plan.default_parameters) and 6g-c (Run.effective_parameters
-        at start_run) per the post-6g audit. Forces operators to
-        declare a schema before accepting overrides.
+        Plan.default_parameters and Run.effective_parameters at
+        start_run. Forces operators to declare a schema before
+        accepting overrides.
       - **RELAXED** (`no_schema_message=None`): schema=None always
         accepts (the caller has already decided schemaless is OK at
-        this checkpoint). Used by 6j adjust_run and future steering
+        this checkpoint). Used by adjust_run and future steering
         slices where the operator-trust posture is "operator started
         the Run; respect their steering judgement." Callers that pick
         this posture typically early-return on `schema is None` before

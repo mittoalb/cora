@@ -10,8 +10,8 @@ command. Empty sets are allowed (deny-all policies); see the
 Policy aggregate's `state.py` docstring for the rationale.
 
 `conduit_id` is stored as a bare UUID without verifying the
-referenced Conduit exists — same eventual-consistency stance as
-`Conduit.source_zone_id` / `target_zone_id` in 3b.
+referenced Conduit exists, same eventual-consistency stance as
+`Conduit.source_zone_id` / `target_zone_id`.
 """
 
 from dataclasses import dataclass

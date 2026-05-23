@@ -1,7 +1,7 @@
 """Pure decider for the `AbortRun` command.
 
 Multi-source emergency-exit terminal: `Running | Held -> Aborted`.
-Source set widened in 6f-3 to include `Held` (gate-review L2 lock):
+Source set was widened to include `Held` (gate-review L2 lock):
 emergencies during a hold are real and should not require an
 intervening Resume. Aborting from any terminal (Completed |
 Aborted | Stopped) raises `RunCannotAbortError`; re-aborting an

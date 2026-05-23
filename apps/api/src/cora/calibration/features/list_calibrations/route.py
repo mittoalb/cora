@@ -7,7 +7,7 @@
 
 No default filter: operators commonly want to see all calibrations
 for an asset including provisional + verified across all source
-kinds. UX defaults can be added in 12a-3+ if pilot use surfaces a
+kinds. UX defaults can be added later if pilot use surfaces a
 common-case shortcut (per the `cora.infrastructure.list_query`
 growth-rule discipline).
 """

@@ -415,7 +415,7 @@ async def test_end_to_end_supersede_path_atomic_two_stream_write(
     """ProposeSupersede end-to-end on real PG: parent flips to Superseded
     AND child Caution lands in a NEW stream, both in one atomic transaction
     via `append_streams`. This is the architecturally novel branch the
-    iter 3 follow-up pivot enabled."""
+    promote-from-proposal pivot enabled."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(15)])
     parent_id = await _seed_existing_caution(deps)
     decision_id = uuid4()

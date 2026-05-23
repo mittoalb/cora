@@ -25,7 +25,7 @@ query-time access.
 `CautionTag` is a 1-50 char trimmed string (one tag per VO; the
 aggregate carries `frozenset[CautionTag]`). All three follow the
 established `validate_bounded_text` + `object.__setattr__` pattern
-hoisted in 6e-1 (`cora.infrastructure.bounded_text`).
+from the shared `cora.infrastructure.bounded_text` helper.
 
 ## Target discriminated union (day-1: 2 kinds)
 
@@ -289,7 +289,7 @@ class CautionText:
     """Free-form caution body. Trimmed; 1-2000 chars.
 
     Fourteenth occurrence of the trimmed-bounded-text VO pattern. Uses
-    the shared `validate_bounded_text` helper hoisted in 6e-1.
+    the shared `validate_bounded_text` helper.
     """
 
     value: str

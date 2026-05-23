@@ -2,10 +2,10 @@
 JSON Schema subset.
 
 Method.parameters_schema declares the shape of parameter dicts that
-downstream Plans (6g-b) and Runs (6g-c) carry for this Method. This
+downstream Plans and Runs carry for this Method. This
 module is the write-time guard via the shared declarer-validator at
 `cora.infrastructure.json_schema_validation`. The runtime values
-validation (6g-b/c) uses the values-against-schema function in the
+validation uses the values-against-schema function in the
 same shared module via Plan / Run thin wrappers.
 
 ## Module shape
@@ -14,7 +14,7 @@ This module is a thin BC-specific adapter: it defines the
 `InvalidMethodParametersSchemaError` exception class and a
 one-liner `validate_parameters_schema` that delegates to the
 shared validator. Mirrors the Family schema-validation
-adapter shape from 5g-a.
+adapter shape.
 """
 
 from typing import Any

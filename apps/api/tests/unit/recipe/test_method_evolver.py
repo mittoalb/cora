@@ -180,7 +180,7 @@ def test_decider_and_evolver_round_trip() -> None:
 @pytest.mark.unit
 def test_evolve_method_defined_starts_with_null_version() -> None:
     """Genesis-only stream folds with version=None
-    (additive-state pattern; pre-6b streams fold cleanly without
+    (additive-state pattern; streams without the new field fold cleanly without
     an upcaster)."""
     state = evolve(
         None,
@@ -349,7 +349,7 @@ def test_fold_define_version_deprecate_preserves_version_through_deprecation() -
 def test_evolve_method_versioned_preserves_needed_families() -> None:
     """Critical pin: needed_families MUST carry through the
     version transition. Same safety-net pattern as
-    test_evolve_<X>_preserves_capabilities for Asset (5f-1)."""
+    test_evolve_<X>_preserves_capabilities for Asset."""
     cap1 = uuid4()
     cap2 = uuid4()
     defined = Method(
@@ -378,7 +378,7 @@ _SCHEMA_A = {
 @pytest.mark.unit
 def test_evolve_method_defined_starts_with_null_parameters_schema() -> None:
     """Genesis-only stream folds with parameters_schema=None
-    (additive-state pattern; pre-6g-a streams fold cleanly without
+    (additive-state pattern; streams without the new field fold cleanly without
     an upcaster)."""
     state = evolve(
         None,

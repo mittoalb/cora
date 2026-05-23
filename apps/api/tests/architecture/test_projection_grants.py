@@ -1,7 +1,7 @@
 """Every `CREATE TABLE proj_*` migration carries a matching GRANT
 on cora_app.
 
-Phase-8e D11.1. Mirror of `test_migration_revokes.py` from 8d, but
+Mirror of `test_migration_revokes.py`, but
 for the read-side projection tables: proj_* tables are mutable
 (rebuildable from events) so cora_app needs SELECT/INSERT/UPDATE/
 DELETE on them. Without the explicit GRANT, the projection worker
@@ -52,8 +52,8 @@ def test_every_proj_table_has_cora_app_grant() -> None:
     tables = _proj_tables_created()
     if not tables:
         pytest.skip(
-            "No proj_* tables created yet (8e-1a ships the framework only; "
-            "the first projection table lands in 8e-1b)."
+            "No proj_* tables created yet (the framework ships first; "
+            "the first projection table lands in a follow-up)."
         )
 
     missing: list[str] = []

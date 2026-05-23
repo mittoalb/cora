@@ -3,8 +3,8 @@
 Slices:
   - `register_supply`        (genesis -> Unknown; create-style)
   - `mark_supply_available`  (Unknown -> Available; operator first observation)
-  - `get_supply`             (read side; lands in iter 3)
-  - `list_supplies`          (read side; lands in iter 3)
+  - `get_supply`             (read side)
+  - `list_supplies`          (read side)
 
 Degradation/recovery cycle:
   - `degrade_supply`           (Unknown | Available | Recovering -> Degraded)

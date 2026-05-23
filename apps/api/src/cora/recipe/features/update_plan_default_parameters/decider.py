@@ -7,7 +7,7 @@ The decider:
     `method_parameters_schema` (raises InvalidPlanDefaultParametersError
     on failure; STRICT when method_parameters_schema is None — non-empty
     merged defaults are rejected; mirrors 5g-c's "no Capabilities +
-    non-empty settings → reject" anchor; post-6g audit reversal, see
+    non-empty settings → reject" anchor; per audit reversal, see
     [[project_run_parameters_design]] §audit-correction)
   - No-ops (returns []) if the merged result equals the current
     default_parameters (matches 5g-c precedent: identical re-submission

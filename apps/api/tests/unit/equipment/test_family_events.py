@@ -442,7 +442,7 @@ def test_load_affordances_raises_on_unknown_enum_string() -> None:
 
 @pytest.mark.unit
 def test_legacy_capability_defined_with_affordances_payload_upcasts() -> None:
-    """A pre-5j payload that DID carry an affordances key (defensive
+    """A legacy payload that DID carry an affordances key (defensive
     case for partial migration / future renames) upcasts correctly to
     the new FamilyDefined dataclass with the non-empty set."""
     legacy_id = uuid4()

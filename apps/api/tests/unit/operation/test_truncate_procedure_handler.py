@@ -1,4 +1,4 @@
-"""Application-handler tests for `truncate_procedure` slice (10c-c iter 1).
+"""Application-handler tests for `truncate_procedure` slice.
 
 Update-style handler via `make_procedure_update_handler` (factory
 hoisted at rule-of-three when this slice landed). The reason +

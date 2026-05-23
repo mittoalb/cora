@@ -91,7 +91,7 @@ async def test_build_kernel_uses_trust_authorize_when_policy_configured(
     await teardown()
 
 
-# ---------- iter 2a: LLM + LogbookMirror wiring ----------
+# ---------- LLM + LogbookMirror wiring ----------
 
 
 @pytest.mark.unit
@@ -99,7 +99,7 @@ async def test_kernel_llm_is_none_by_default_in_test_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """`build_kernel` in `app_env=test` does NOT call llm_factory;
-    Agent subscribers fail-fast on `kernel.llm is None` at iter 2b
+    Agent subscribers fail-fast on `kernel.llm is None` at
     registration. Defaulting to None in tests keeps the contract
     explicit: opt-in to LLM by passing FakeLLMAdapter to
     make_inmemory_kernel."""
@@ -113,7 +113,7 @@ async def test_kernel_llm_is_none_by_default_in_test_env(
 async def test_kernel_logbook_mirror_is_none_by_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """No production implementor lands at 8f-b; the field reserves
+    """No production implementor lands today; the field reserves
     the slot and subscribers short-circuit on `is None`."""
     monkeypatch.setenv("APP_ENV", "test")
     deps, teardown = await build_kernel(authorize_factory=build_authorize)
@@ -127,7 +127,7 @@ def test_build_llm_returns_none_when_api_key_unset(
 ) -> None:
     """Agent BC's LLMFactory short-circuits cleanly when no
     credential is configured; subscriber registration handles the
-    fail-fast at iter 2b."""
+    fail-fast at subscriber registration."""
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     settings = Settings()  # type: ignore[call-arg]
     assert build_llm(settings) is None

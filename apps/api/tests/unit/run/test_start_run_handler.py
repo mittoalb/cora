@@ -3,7 +3,7 @@
 This handler pre-loads the full upstream chain — Plan → Practice →
 Method → each bound Asset → Subject (if subject_id given) — before
 reaching the pure decider. Second instance of the cross-aggregate-
-validation pattern (after `define_plan` in 6e-1).
+validation pattern (after `define_plan`).
 
 Test setup uses direct event-seeding helpers via `_seed_*`
 functions that append events directly to the in-memory store,

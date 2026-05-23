@@ -98,7 +98,7 @@ class DecisionReasoning:
     cross-BC convention; UNIQUE at the table level for at-least-once
     dedup). `correlation_id` and `causation_id` thread through from
     the originating command's envelope for full audit traceability
-    (gate-review G7 lock from 6f-5a).
+    (gate-review G7 lock).
     """
 
     # --- CORA infra (entry envelope) ---
@@ -198,9 +198,9 @@ REASONING_LOGBOOK_SCHEMA: LogbookSchema = LogbookSchema(
 class ReasoningStore(Protocol):
     """Per-category port for DecisionReasoning entry writes.
 
-    Mirrors `TraversalStore` from the Conduit BC's 6f-5a entries
+    Mirrors `TraversalStore` from the Conduit BC's entries
     module. Two implementations: `PostgresReasoningStore`
-    (production; landing in 8c-b) and `InMemoryReasoningStore`
+    (production) and `InMemoryReasoningStore`
     (tests / `app_env=test`). Both honor at-least-once: callers
     may retry the same `event_id`, the store dedups via the
     table's PK constraint (Postgres) or the in-memory dict
@@ -326,7 +326,7 @@ class InMemoryReasoningStore:
     `all()` accessor for tests inspecting written rows. Mirrors
     `InMemoryTraversalStore` (plain class with explicit __init__,
     not dataclass; matches the per-category writer pattern locked
-    at gate-review L8 from 6f-5a).
+    at gate-review L8).
     """
 
     def __init__(self) -> None:

@@ -9,9 +9,9 @@ Pins:
     membership lookup (the future agent-subscriber + operator-dashboard
     query path for "which reconstructions cited CalibrationRevision X")
   - omitted citation set lands an empty uuid[] (forward-compat-clean
-    default mirrors the pre-12c payload.get fold)
+    default mirrors the payload.get fold for payloads without the field)
 
-Mirrors the 12b-2 integration test shape on the symmetric Run column.
+Mirrors the pinned-calibrations integration test shape on the symmetric Run column.
 Standalone Datasets (no producing_run / subject / derived_from)
 keep the seed footprint minimal — used_calibrations is genesis-only
 and orthogonal to the upstream chain.

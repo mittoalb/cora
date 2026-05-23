@@ -73,19 +73,19 @@ def test_to_payload_serializes_run_started_with_subject_to_primitives() -> None:
         "plan_id": str(plan_id),
         "subject_id": str(subject_id),
         "raid": None,
-        # 6g-c additive payload fields default to {} / None when not
-        # supplied; pre-6g-c stored events stay forward-compat via
+        # Additive payload fields default to {} / None when not
+        # supplied; legacy stored events stay forward-compat via
         # `payload.get(..., default)` in `from_stored`.
         "override_parameters": {},
         "effective_parameters": {},
         "triggered_by": None,
-        # 11a-c-3 additive payload field for ExternalRef-based
+        # Additive payload field for ExternalRef-based
         # clearance coverage (anti-corruption refs to proposal /
         # btr / lab_visit / session). Defaults to [] when omitted;
         # forward-compat via `payload.get("external_refs", [])`.
         "external_refs": [],
-        # 11b-c additive payload field for the non-blocking caution
-        # snapshot (anti-pattern #7: ack lives on the consumption
+        # Additive payload field for the non-blocking caution
+        # snapshot (anti-pattern: ack lives on the consumption
         # event). Defaults to [] when omitted; forward-compat via
         # `payload.get("acknowledged_cautions", [])`.
         "acknowledged_cautions": [],
@@ -178,8 +178,8 @@ def test_to_payload_serializes_6gc_fields_with_defaults() -> None:
 
 
 @pytest.mark.unit
-def test_from_stored_rebuilds_run_started_without_6gc_keys_as_defaults() -> None:
-    """Forward-compatible load: pre-6g-c events have no
+def test_from_stored_rebuilds_run_started_without_legacy_keys_as_defaults() -> None:
+    """Forward-compatible load: legacy events have no
     override_parameters/effective_parameters/triggered_by keys in
     jsonb. from_stored returns the field defaults for those, keeping
     older streams replayable. Mirrors the raid forward-compat pattern."""
@@ -189,12 +189,12 @@ def test_from_stored_rebuilds_run_started_without_6gc_keys_as_defaults() -> None
         "RunStarted",
         {
             "run_id": str(run_id),
-            "name": "Pre-6g-c run",
+            "name": "Legacy run",
             "plan_id": str(plan_id),
             "subject_id": None,
             "occurred_at": _NOW.isoformat(),
             # NOTE: no override_parameters, effective_parameters, or
-            # triggered_by keys — this is what pre-6g-c events look like.
+            # triggered_by keys — this is what legacy events look like.
         },
     )
     event = from_stored(stored)
@@ -233,7 +233,7 @@ def test_from_stored_rebuilds_run_started_with_6gc_keys() -> None:
 
 @pytest.mark.unit
 def test_from_stored_rebuilds_run_started_without_raid_key_as_none() -> None:
-    """Forward-compatible load: pre-7d events have no raid key in
+    """Forward-compatible load: legacy events have no raid key in
     jsonb. from_stored returns raid=None for those, keeping older
     streams replayable."""
     run_id = uuid4()
@@ -246,7 +246,7 @@ def test_from_stored_rebuilds_run_started_without_raid_key_as_none() -> None:
             "plan_id": str(plan_id),
             "subject_id": None,
             "occurred_at": _NOW.isoformat(),
-            # NOTE: no "raid" key — this is what pre-7d events look like.
+            # NOTE: no "raid" key — this is what legacy events look like.
         },
     )
     event = from_stored(stored)
@@ -385,7 +385,7 @@ def test_to_payload_serializes_acknowledged_cautions_as_list_of_dicts() -> None:
 
 @pytest.mark.unit
 def test_from_stored_rebuilds_run_started_without_acknowledged_cautions_key_as_empty() -> None:
-    """Forward-compat: pre-11b-c events have no acknowledged_cautions
+    """Forward-compat: legacy events have no acknowledged_cautions
     key. from_stored returns () for those, keeping older streams
     replayable. Mirrors the external_refs / raid forward-compat
     pattern."""
@@ -395,12 +395,12 @@ def test_from_stored_rebuilds_run_started_without_acknowledged_cautions_key_as_e
         "RunStarted",
         {
             "run_id": str(run_id),
-            "name": "Pre-11b-c run",
+            "name": "Legacy run",
             "plan_id": str(plan_id),
             "subject_id": None,
             "occurred_at": _NOW.isoformat(),
             # NOTE: no "acknowledged_cautions" key — this is what
-            # pre-11b-c events look like.
+            # legacy events look like.
         },
     )
     event = from_stored(stored)
@@ -436,7 +436,7 @@ def test_acknowledged_cautions_round_trip_preserves_every_field() -> None:
     assert rebuilt == original
 
 
-# ---------- RunCompleted (6f-2) ----------
+# ---------- RunCompleted ----------
 
 
 @pytest.mark.unit
@@ -476,7 +476,7 @@ def test_run_completed_round_trips() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- RunAborted (6f-2) ----------
+# ---------- RunAborted ----------
 
 
 @pytest.mark.unit
@@ -584,7 +584,7 @@ def test_run_aborted_with_decision_id_round_trips() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- RunHeld (6f-3) ----------
+# ---------- RunHeld ----------
 
 
 @pytest.mark.unit
@@ -624,7 +624,7 @@ def test_run_held_round_trips() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- RunResumed (6f-3) ----------
+# ---------- RunResumed ----------
 
 
 @pytest.mark.unit
@@ -664,7 +664,7 @@ def test_run_resumed_round_trips() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- RunStopped (6f-3) ----------
+# ---------- RunStopped ----------
 
 
 @pytest.mark.unit
@@ -714,7 +714,7 @@ def test_run_stopped_round_trips() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- RunReadingLogbookOpened (6f-5b) ----------
+# ---------- RunReadingLogbookOpened ----------
 
 from cora.run.aggregates.run import (  # noqa: E402
     LOGBOOK_KIND_READING,
@@ -1073,7 +1073,7 @@ def test_to_payload_serializes_run_started_with_pinned_calibrations_sorted() -> 
 
 @pytest.mark.unit
 def test_from_stored_rebuilds_run_started_without_pinned_calibrations_key_as_empty() -> None:
-    """Forward-compat: pre-12b RunStarted payloads have no
+    """Forward-compat: legacy RunStarted payloads have no
     pinned_calibrations key. from_stored returns an empty tuple via
     `payload.get(..., [])`."""
     run_id = uuid4()
@@ -1082,11 +1082,11 @@ def test_from_stored_rebuilds_run_started_without_pinned_calibrations_key_as_emp
         "RunStarted",
         {
             "run_id": str(run_id),
-            "name": "Pre-12b run",
+            "name": "Legacy run",
             "plan_id": str(plan_id),
             "subject_id": None,
             "occurred_at": _NOW.isoformat(),
-            # NOTE: no "pinned_calibrations" key — pre-12b shape.
+            # NOTE: no "pinned_calibrations" key — legacy shape.
         },
     )
     event = from_stored(stored)

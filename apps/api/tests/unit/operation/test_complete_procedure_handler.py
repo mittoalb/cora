@@ -1,7 +1,7 @@
 """Application-handler tests for `complete_procedure` slice.
 
 Update-style handler via `make_update_handler` (no per-Procedure
-wrapper yet; rule-of-three fires at 10c-c). Tests seed a Procedure
+wrapper yet; rule-of-three fires later). Tests seed a Procedure
 in `Running` state via the shared `_seed_helpers.seed_running_procedure`.
 """
 

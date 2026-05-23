@@ -13,7 +13,7 @@ Available supply raises `SupplyCannotMarkAvailableError` -> HTTP
 ## Factory hoist (10a-b)
 
 10a-a shipped this handler longhand because rule-of-three hadn't
-fired (only one update-style handler in 10a-a). 10a-b adds 4 more
+fired (only one update-style handler then). 10a-b adds 4 more
 transition slices; the factory at `_supply_update_handler.py`
 landed alongside and this slice was refactored to use it. Mirrors
 Asset's degrade/fault/restore slices using

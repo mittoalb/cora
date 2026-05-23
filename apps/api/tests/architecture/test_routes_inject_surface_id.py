@@ -94,8 +94,8 @@ def test_route_injects_get_surface_id(route_file: Path) -> None:
         pytest.fail(
             f"{qualified} does not import `get_surface_id` from "
             f"cora.infrastructure.routing. Every HTTP route must inject "
-            f"the arrival Surface via Depends(get_surface_id) per AH1 "
-            f"of the conduit-injection design (process-derived, never "
+            f"the arrival Surface via Depends(get_surface_id) per the "
+            f"conduit-injection design (process-derived, never "
             f"client-asserted)."
         )
 

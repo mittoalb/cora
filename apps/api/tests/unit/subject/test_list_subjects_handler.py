@@ -2,8 +2,8 @@
 test environment); end-to-end pagination is in the integration suite.
 
 Uses the shared `tests/unit/_helpers.build_deps` factory (per the
-post-8e-1c Option-4 audit consolidation; first BC to migrate to the
-helper as part of Option 1)."""
+Option-4 audit consolidation; first BC to migrate to the helper
+as part of Option 1)."""
 
 from datetime import UTC, datetime
 from uuid import UUID

@@ -16,20 +16,20 @@ Status mapping per event type:
   - `PlanDefaultParametersUpdated` -> status preserved (orthogonal to
                                                   lifecycle; updates the
                                                   default_parameters field
-                                                  with the post-merge dict; 6g-b)
+                                                  with the post-merge dict)
   - `PlanWireAdded`                -> status preserved (orthogonal to
                                                   lifecycle; adds a Wire to
-                                                  state.wires; 6h)
+                                                  state.wires)
   - `PlanWireRemoved`              -> status preserved (orthogonal to
                                                   lifecycle; removes a Wire
-                                                  from state.wires; 6h)
+                                                  from state.wires)
 
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
 precedent as `PracticeDefined → DEFINED` / `MethodDefined →
 DEFINED` / `FamilyDefined → DEFINED` / `SubjectMounted →
 MOUNTED` / `ActorDeactivated → is_active=False`. Mirrors Practice's
-transition evolver shape from Recipe 6d-2.
+transition evolver shape from Recipe BC.
 
 `asset_ids` is converted from `list[UUID]` (event payload) to
 `frozenset[UUID]` (state) here. Order doesn't matter at the state
@@ -39,7 +39,7 @@ precedent as Method's `needed_families`.
 
 `version` is mutated by PlanVersioned (set to the new tag) and
 PRESERVED by PlanDeprecated as the audit signal of the last revision
-before deprecation. Pre-6e-2 PlanDefined-only streams fold cleanly
+before deprecation. PlanDefined-only legacy streams fold cleanly
 with version=None (the additive-state pattern).
 
 The audit snapshots in PlanDefined
@@ -48,9 +48,9 @@ are NOT folded into state — they're audit-only payload data per
 gate-review Q4. The evolver intentionally ignores them.
 
 `method_id` was originally in that audit-only set; promoted to
-state in 6g-b because the `update_plan_default_parameters` decider
+state because the `update_plan_default_parameters` decider
 needs it to look up `Method.parameters_schema` (per the slim-aggregate
-escape clause: state holds what future deciders need). Pre-6g-b
+escape clause: state holds what future deciders need). Legacy
 PlanDefined streams fold cleanly because `method_id` was already
 in the payload from day one.
 
@@ -64,7 +64,7 @@ them. The transition arms explicitly pass each.
 Transition events applied to empty state raise ValueError: they can
 never appear before `PlanDefined` in a well-formed stream. The
 `require_state` helper keeps per-arm bodies short (precedent locked
-by Subject's evolver in 4c).
+by Subject's evolver).
 """
 
 from collections.abc import Sequence
@@ -96,7 +96,7 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
             _ = state  # PlanDefined is the genesis event; prior state ignored.
             # Audit-only snapshot fields deliberately not destructured —
             # they're payload-only per slim-aggregate principle. method_id
-            # IS folded as of 6g-b (decider for default_parameters needs
+            # IS folded now (decider for default_parameters needs
             # it; see evolver docstring).
             return Plan(
                 id=plan_id,

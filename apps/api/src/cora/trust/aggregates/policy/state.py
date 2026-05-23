@@ -27,7 +27,7 @@ same additive-state pattern as Zone and Conduit.
 **No referential integrity at command time.** `conduit_id` and
 each entry in `permitted_principals` are stored as bare UUIDs
 without verifying the referenced Conduits / Actors exist. Same
-event-sourcing posture as Conduit→Zone in 3b: typos produce
+event-sourcing posture as Conduit→Zone: typos produce
 "dangling" policies; downstream evaluation just denies because
 the conduit_id mismatch surfaces at evaluate-time.
 
@@ -137,7 +137,7 @@ def evaluate(
     point at V1 → all deny).
 
     V2+ policies bind to a specific surface_id and `evaluate()`
-    enforces strict `==`. Anti-hook AH2 (revised post-GR3): no NEW
+    enforces strict `==`. Anti-hook policy (revised after GR3): no NEW
     PolicyDefined events with NIL_SENTINEL surface_id; the sentinel
     is reserved exclusively for this legacy-fold path. Sunset: once
     V1 stream count goes to zero, delete this branch + the V1

@@ -14,8 +14,8 @@ six update-style transition handlers (`submit_clearance` /
 Six identical longhand bodies = clear rule-of-three signal; this
 factory hoists the shared scaffolding so each slice's handler.py
 shrinks to a 7-line `bind`. Mirrors `_supply_update_handler`
-(hoisted in 10a-b at the rule-of-three trigger) and Operation's
-`_procedure_update_handler` (hoisted in 10c-c).
+(hoisted at the rule-of-three trigger) and Operation's
+`_procedure_update_handler` (hoisted at the rule-of-three trigger).
 
 ## Per-aggregate, not per-BC
 

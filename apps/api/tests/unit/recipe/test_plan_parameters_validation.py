@@ -3,7 +3,7 @@
 Validates dicts against a Method's parameters_schema using
 jsonschema-rs. STRICT when the schema is None — non-empty defaults
 without a declared schema raise InvalidPlanDefaultParametersError
-(post-6g audit reversal; aligns with 5g-c, Ajv strict-by-default,
+(audit reversal; aligns with the hierarchy rule, Ajv strict-by-default,
 and Argo Workflows declared-parameters precedent).
 """
 
@@ -31,10 +31,10 @@ def test_passes_when_schema_is_none_and_defaults_is_empty() -> None:
 
 @pytest.mark.unit
 def test_raises_when_schema_is_none_and_defaults_is_non_empty() -> None:
-    """Strict (post-6g audit reversal): Method declares no contract
+    """Strict (audit reversal): Method declares no contract
     AND defaults supplied -> reject. Operator must declare schema
     (an empty `{}` works for parameter-less Methods) or omit defaults.
-    Aligns with 5g-c's strict zero-Capabilities posture and Ajv /
+    Aligns with the strict zero-Capabilities posture and Ajv /
     Argo Workflows community precedent."""
     with pytest.raises(InvalidPlanDefaultParametersError) as exc_info:
         validate_default_parameters_against_method_schema({"anything": 42}, None)

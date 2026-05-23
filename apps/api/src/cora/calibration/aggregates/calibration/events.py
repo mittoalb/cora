@@ -1,6 +1,6 @@
 """Domain events emitted by the Calibration aggregate, plus the discriminated union.
 
-Two events ship in 12a:
+Two events shipped at BC genesis:
 
   - `CalibrationDefined`           -- genesis (no revisions yet)
   - `CalibrationRevisionAppended`  -- append-only revision growth

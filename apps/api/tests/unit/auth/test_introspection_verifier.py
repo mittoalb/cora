@@ -9,10 +9,10 @@ endpoint per test. Pins:
   - inactive token / 4xx / 5xx / network failure → distinct error classes
   - audience-list match (RFC 7662 §2.2)
   - issuer mismatch + missing-sub → InvalidTokenError
-  - per-(token, aud) composite cache key (BLOCKING gate-review F1)
+  - per-(token, aud) composite cache key (BLOCKING gate-review item)
   - cache TTL + exp-cap + LRU bound + opt-in for HTTP introspection URL
-  - AH12: cache_ttl_seconds=0 rejected at construction
-  - client_secret never appears in __repr__ (F6)
+  - cache_ttl_seconds=0 rejected at construction
+  - client_secret never appears in __repr__
   - concurrent-coalescing pin: two simultaneous requests with same
     token currently both miss (deferred single-flight per memo §2)
 """
@@ -359,7 +359,7 @@ async def test_concurrent_same_token_both_miss_cache_deferred_behavior(
 
 @pytest.mark.unit
 def test_constructor_rejects_zero_cache_ttl() -> None:
-    with pytest.raises(ValueError, match=r"cache_ttl_seconds|AH12"):
+    with pytest.raises(ValueError, match=r"cache_ttl_seconds"):
         IntrospectionVerifier(
             issuer=_ISSUER,
             introspection_url="https://example.com/introspect",

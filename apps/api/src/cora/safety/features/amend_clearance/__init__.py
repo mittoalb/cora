@@ -8,7 +8,7 @@ genesis event on a new child stream. Both writes via
 nothing).
 
 The two-stream atomic write is CORA's first use of the multi-stream
-EventStore capability shipped in 11a-c-2. See the design memo's
+EventStore capability. See the design memo's
 "amend_clearance" section + the `EventStore.append_streams` port
 docstring for the rationale.
 """

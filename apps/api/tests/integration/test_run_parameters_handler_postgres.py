@@ -166,5 +166,5 @@ async def test_start_run_rejects_overrides_violating_method_schema(
 # lived here pre-audit. It was replaced by the strict-mode pair
 # (test_start_run_strict_when_method_has_no_schema +
 # test_start_run_accepts_no_schema_when_no_overrides_and_no_defaults)
-# in the post-6g audit reversal commit. See [[project_run_parameters_design]]
+# in the audit reversal commit. See [[project_run_parameters_design]]
 # §audit-correction.

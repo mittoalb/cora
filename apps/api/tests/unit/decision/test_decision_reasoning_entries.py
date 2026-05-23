@@ -1,6 +1,6 @@
-"""Unit tests for the DecisionReasoning entry + ReasoningStore (8c-a).
+"""Unit tests for the DecisionReasoning entry + ReasoningStore.
 
-Mirrors `test_conduit_traversal_entries.py` shape from the 6f-5a
+Mirrors `test_conduit_traversal_entries.py` shape from the prior
 precedent: the dataclass round-trips, the in-memory store dedups
 on event_id, batch and single-element appends both work, empty
 list is a no-op.

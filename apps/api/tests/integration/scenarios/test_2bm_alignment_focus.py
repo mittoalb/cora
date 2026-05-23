@@ -469,15 +469,15 @@ async def test_focus_alignment_plays_out_end_to_end(
     assert [r["step_kind"] for r in rows] == [
         "setpoint",
         "action",
-        "check",  # iter 1 (initial)
+        "check",  # iteration 1 (initial)
         "setpoint",
         "action",
-        "check",  # iter 2 (step_positive, better)
+        "check",  # iteration 2 (step_positive, better)
         "setpoint",
         "action",
-        "check",  # iter 3 (step_positive, worse, bracket)
+        "check",  # iteration 3 (step_positive, worse, bracket)
         "setpoint",
         "action",
-        "check",  # iter 4 (bisect, peak)
+        "check",  # iteration 4 (bisect, peak)
         "setpoint",  # finalize (lock_at_peak)
     ]

@@ -39,10 +39,10 @@ class ModelRefOutput(BaseModel):
 class AgentOutput(BaseModel):
     """Structured output of the `get_agent` MCP tool (on hit).
 
-    `defined_at` is now nullable (changed from required at 8f-a):
-    the projection can lag right after a fresh `define_agent`. Once
-    the projection has folded `AgentDefined`, `defined_at` is
-    non-null on every response.
+    `defined_at` is nullable (changed from required during lifecycle
+    widening): the projection can lag right after a fresh
+    `define_agent`. Once the projection has folded `AgentDefined`,
+    `defined_at` is non-null on every response.
     """
 
     id: UUID

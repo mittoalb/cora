@@ -1,7 +1,7 @@
 """Read repository for the Conduit aggregate.
 
 `load_conduit(event_store, conduit_id) -> Conduit | None` mirrors
-`load_zone`. No GET slice for Conduit ships in 3b; the read repo
+`load_zone`. No GET slice for Conduit ships today; the read repo
 lives here so future query slices, sagas, or projections have one
 canonical fold-on-read path per the cross-BC pattern documented in
 CONTRIBUTING.md.

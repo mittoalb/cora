@@ -244,7 +244,7 @@ def test_v1_policy_nil_surface_matches_any_call_surface() -> None:
 @pytest.mark.unit
 def test_v2_policy_specific_surface_strictly_matches() -> None:
     """V2+ policies bind to a specific surface and enforce strict ==.
-    Anti-hook AH2 (revised): no NEW PolicyDefined events with nil
+    Anti-hook (revised): no NEW PolicyDefined events with nil
     surface_id; sentinel is reserved for V1 legacy fold only."""
     policy = _v2_http_policy()
     allow = evaluate(

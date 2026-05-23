@@ -13,8 +13,8 @@ as the current one emits NO event.
 Source set is `{Defined, Versioned, Suspended}` (Deprecated is
 the only blocking state; operators can fix budget while paused).
 
-Enforcement is deferred to 8h Budget BC adoption: at iter 2
-these are declaration-only fields.
+Enforcement is deferred to Budget BC adoption: today these are
+declaration-only fields.
 """
 
 from cora.agent.features.revise_agent_budget import tool

@@ -166,9 +166,9 @@ def test_unauthenticated_paths_skip_verification_even_with_bearer(path: str) -> 
 def test_mcp_path_is_verified_with_mcp_surface_audience() -> None:
     """`/mcp/anything` is no longer skipped; the middleware
     verifies the token against `SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID`,
-    NOT the HTTP Surface. AH5 (no shared `aud` across Surfaces): a
-    token issued for HTTP MUST NOT verify against the MCP Surface and
-    vice versa."""
+    NOT the HTTP Surface. Audience-binding (no shared `aud` across
+    Surfaces): a token issued for HTTP MUST NOT verify against the
+    MCP Surface and vice versa."""
     verifier = _FakeTokenVerifier(verify_call=_always_succeed)
     client = _client(verifier=verifier)
 

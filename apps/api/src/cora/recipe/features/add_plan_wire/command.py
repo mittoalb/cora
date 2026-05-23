@@ -15,9 +15,9 @@ Validation (in the decider, not here):
   - self-loops on the SAME port are rejected; self-loops between
     DIFFERENT ports on the same Asset are allowed
   - re-adding an already-present Wire raises `PlanWireAlreadyExistsError`
-    (strict-not-idempotent, mirrors 5h `add_asset_port`)
+    (strict-not-idempotent, mirrors AssetPort's `add_asset_port`)
 
-Mirrors `AddAssetPort` shape from 5h.
+Mirrors `AddAssetPort` shape.
 """
 
 from dataclasses import dataclass

@@ -75,9 +75,9 @@ WHERE family_id = $1
 
 
 def _id(payload: dict[str, object]) -> UUID:
-    """Read the aggregate id from either the new `family_id` payload
-    key (post-5i) or the legacy `capability_id` key (pre-5i). Dual-
-    key fallback mirrors the dual-match in `family/events.from_stored`.
+    """Read the aggregate id from either the current `family_id`
+    payload key or the legacy `capability_id` key. Dual-key
+    fallback mirrors the dual-match in `family/events.from_stored`.
     """
     raw = payload.get("family_id") or payload["capability_id"]
     return UUID(str(raw))
@@ -89,12 +89,12 @@ class FamilySummaryProjection:
     name = "proj_equipment_family_summary"
     subscribed_event_types = frozenset(
         {
-            # Current event type names (post-5i)
+            # Current event type names
             "FamilyDefined",
             "FamilyVersioned",
             "FamilyDeprecated",
             "FamilySettingsSchemaUpdated",
-            # Legacy event type names (pre-5i; stay forever per
+            # Legacy event type names (stay forever per
             # Marten/Axon dual-match contract). Without these, a
             # projection replay on a deployment with historical data
             # would silently skip legacy events and produce an

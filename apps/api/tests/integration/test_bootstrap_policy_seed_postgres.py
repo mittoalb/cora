@@ -154,8 +154,7 @@ async def test_trust_authorize_against_bootstrap_policy_permits_define_policy(
         result = await authorize.authorize(SYSTEM_PRINCIPAL_ID, command, _NIL_CONDUIT)
         assert isinstance(result, Allow), f"expected Allow for {command}, got {result!r}"
 
-    # An unpermitted command Denies (this is the scope-creep guardrail:
-    # anti-hook AH3).
+    # An unpermitted command Denies (this is the scope-creep guardrail).
     denied = await authorize.authorize(SYSTEM_PRINCIPAL_ID, "DefineZone", _NIL_CONDUIT)
     assert isinstance(denied, Deny)
 
@@ -210,7 +209,7 @@ async def test_bootstrap_policy_can_define_a_real_policy_end_to_end(
 async def test_bootstrap_policy_denies_non_system_principal(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Anti-hook AH3 (scope creep) guard from the other direction: a
+    """Scope-creep guard from the other direction: a
     random principal cannot use the bootstrap policy to define
     policies. Only SYSTEM_PRINCIPAL_ID can. Operators wanting a
     different admin must first register an Actor as SYSTEM, then
@@ -258,7 +257,7 @@ async def test_seed_migration_is_idempotent(db_pool: asyncpg.Pool) -> None:
 
 @pytest.mark.integration
 async def test_bootstrap_policy_id_is_a_fixed_constant() -> None:
-    """Anti-hook AH1: the bootstrap UUID must be a code constant, not
+    """The bootstrap UUID must be a code constant, not
     a Settings value. This test pins the exact UUID so a typo or
     refactor that changes it breaks loudly."""
     assert UUID("00000000-0000-0000-0000-000000000001") == SYSTEM_BOOTSTRAP_POLICY_ID

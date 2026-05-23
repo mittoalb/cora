@@ -38,9 +38,9 @@ all other arms preserve whatever prior state held. Legacy streams
 without the logbook event fold with `steps_logbook_id=None`.
 
 The shared `require_state` helper at `cora.infrastructure.evolver`
-keeps per-arm bodies short. Hoisted post-7e once the 11th identical
-copy landed; Procedure adopts it on day one for the new transition
-arms (10c-b).
+keeps per-arm bodies short. Hoisted at the rule-of-three trigger
+once the 11th identical copy landed; Procedure adopts it on day one
+for the new transition arms.
 """
 
 from collections.abc import Sequence

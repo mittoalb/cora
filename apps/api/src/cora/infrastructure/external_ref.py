@@ -3,14 +3,14 @@
 `ExternalRef(scheme, id)` is the shared shape for upstream-deferred
 concepts CORA does NOT model as first-class aggregates: proposal,
 beam-time request, lab visit, session, cycle, and so on. Each carrier
-BC (Run since 11a-c-3, Campaign since 6i-a) holds a
-`frozenset[ExternalRef]` field on its aggregate state and round-trips
-the typed VO through `{"scheme": str, "id": str}` payload dicts.
+BC (Run, Campaign) holds a `frozenset[ExternalRef]` field on its
+aggregate state and round-trips the typed VO through
+`{"scheme": str, "id": str}` payload dicts.
 
-Hoisted at 6i-a per the design memo's instruction: the synthesis memo
-and Campaign design memo both reference `ExternalRef` from Campaign +
+Hoisted per the design memo's instruction: the synthesis memo and
+Campaign design memo both reference `ExternalRef` from Campaign +
 Run + Clearance, so the third cross-BC reuse site fires the rule-of-
-three. Prior to 6i-a the VO lived on Run's state module
+three. Originally the VO lived on Run's state module
 (`cora.run.aggregates.run.state.ExternalRef`); Run BC's
 `__init__.py` keeps a re-export of `ExternalRef` /
 `InvalidExternalRefError` so existing import paths stay green.

@@ -2,8 +2,7 @@
 
 The adapter exposes `aclose()` so the Kernel's teardown chain can
 release the underlying httpx connection pool at shutdown. Without
-this, the SDK leaks its pool on every process exit (iter 2a
-test-coverage P1 watch item; iter 2b closes it).
+this, the SDK leaks its pool on every process exit.
 """
 
 # pyright: reportUnknownMemberType=false, reportPrivateUsage=false

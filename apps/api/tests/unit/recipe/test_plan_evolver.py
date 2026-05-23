@@ -116,7 +116,7 @@ def test_evolve_plan_defined_does_not_fold_other_audit_snapshots() -> None:
 @pytest.mark.unit
 def test_evolve_plan_defined_starts_with_null_version() -> None:
     """Genesis-only stream folds with version=None (additive-state
-    pattern; pre-6e-2 streams fold cleanly without an upcaster)."""
+    pattern; streams without the new field fold cleanly without an upcaster)."""
     state = evolve(None, _plan_defined())
     assert state.version is None
 
@@ -322,7 +322,7 @@ _DEFAULTS_A: dict[str, object] = {"energy": 12.0, "exposure": 100}
 @pytest.mark.unit
 def test_evolve_plan_defined_starts_with_empty_default_parameters() -> None:
     """Genesis-only stream folds with default_parameters={}
-    (additive-state pattern; pre-6g-b streams fold cleanly)."""
+    (additive-state pattern; streams without the new field fold cleanly)."""
     state = evolve(None, _plan_defined())
     assert state.default_parameters == {}
 

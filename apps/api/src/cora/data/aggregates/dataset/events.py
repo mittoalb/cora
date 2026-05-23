@@ -97,7 +97,7 @@ class DatasetRegistered:
     # consistency stance). IMMUTABLE after register by aggregate-
     # level invariant (mirrors AsShot pattern). Forward-compat via
     # `payload.get("used_calibrations", [])` returning an empty
-    # list for legacy pre-12c streams.
+    # list for legacy streams lacking the field.
     used_calibrations: tuple[UUID, ...] = ()
 
 
@@ -282,13 +282,13 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
                     subject_id=UUID(raw_subject_id) if raw_subject_id is not None else None,
                     derived_from=frozenset(UUID(d) for d in payload["derived_from"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                    # additive evolution: pre-7e events have no
+                    # additive evolution: legacy events have no
                     # producing_run_end_state or intent in payload; default
                     # to None and "Trial" respectively (state evolver will
                     # construct Intent.TRIAL from the string).
                     producing_run_end_state=payload.get("producing_run_end_state"),
                     intent=payload.get("intent", "Trial"),
-                    # additive evolution: pre-12c events have no
+                    # additive evolution: legacy events have no
                     # used_calibrations key; .get(..., []) returns [] so
                     # legacy streams fold to an empty tuple (evolver coerces
                     # to frozenset for in-memory equality semantics).

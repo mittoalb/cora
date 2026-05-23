@@ -1,7 +1,7 @@
 """Shared helpers for aggregate evolvers (event replay).
 
-Hoisted post-7e once the 11th identical `_require_state` copy
-landed (Subject / Run / Asset / Family / Decision / Dataset /
+Hoisted once the 11th identical `_require_state` copy landed
+(Subject / Run / Asset / Family / Decision / Dataset /
 Method / Practice / Plan / Conduit / Supply). All 11 had the same
 five-line body byte-for-byte; only the aggregate type parameter
 differed.

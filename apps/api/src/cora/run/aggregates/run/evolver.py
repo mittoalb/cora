@@ -71,8 +71,8 @@ Asset/Plan/Method/Practice/Family/Subject evolvers.
 Transition events applied to empty state raise ValueError: they
 can never appear before `RunStarted` in a well-formed stream. The
 `require_state` helper at `cora.infrastructure.evolver` keeps
-per-arm bodies short (hoisted post-7e once the 11th identical
-copy landed).
+per-arm bodies short (hoisted at the rule-of-three trigger once
+the 11th identical copy landed).
 """
 
 from collections.abc import Sequence

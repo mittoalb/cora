@@ -631,8 +631,8 @@ async def test_apply_swallows_logbook_mirror_errors() -> None:
 @pytest.mark.unit
 async def test_apply_writes_decision_on_run_stopped() -> None:
     """RunStopped is in `subscribed_event_types` per the design but
-    was not exercised end-to-end at iter 2b initial. Pin the path.
-    Closes test-coverage P1 #1."""
+    was not initially exercised end-to-end. Pin the path.
+    Closes a test-coverage action item."""
     store = InMemoryEventStore()
     llm = FakeLLMAdapter(responses=[_CANNED_OK])
     await _seed_run_debrief_actor(store)
@@ -687,7 +687,7 @@ async def test_apply_success_then_deferred_retry_is_no_op() -> None:
 
 @pytest.mark.unit
 async def test_apply_skips_when_agent_actor_deactivated() -> None:
-    """Security gate-review P1#1: deactivated Actor must not author
+    """Security gate-review: deactivated Actor must not author
     new Decisions. The subscriber's per-pass actor reload picks up
     a deactivation; an operator revoking the agent's identity takes
     effect on the next terminal event."""
@@ -814,7 +814,7 @@ def test_extract_interrupted_at_returns_iso_string_for_truncated() -> None:
 
 @pytest.mark.unit
 def test_redact_secrets_strips_anthropic_api_key_pattern() -> None:
-    """Security gate-review P1#2: defensive redact of `sk-ant-*`
+    """Security gate-review: defensive redact of `sk-ant-*`
     substrings before structured-logging error messages so a future
     SDK regression that echoes the key doesn't persist it forever."""
     raw = "Authentication failed; key sk-ant-VERYSECRETabc123-xyz prefix exposed"

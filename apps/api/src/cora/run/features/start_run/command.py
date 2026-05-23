@@ -9,14 +9,14 @@ Carries the caller-controlled inputs:
     calibration / dark-field runs
   - `raid` — Research Activity Identifier (ISO 23527) for the
     project this Run belongs to. Optional; opaque string carried
-    verbatim. Added in 7d to support cross-facility provenance
-    export (DataCite / RAiD ecosystem); pre-7d Runs have raid=None
-    and stay valid via the forward-compatible payload load.
-  - `override_parameters` (post-6g-c) — operator-supplied overrides
-    on top of `Plan.default_parameters`. Applied via RFC 7396 merge
-    by the handler before the decider validates against the owning
-    Method's `parameters_schema`. Default `{}`.
-  - `triggered_by` (post-6g-c) — operator-supplied free text
+    verbatim. Added to support cross-facility provenance export
+    (DataCite / RAiD ecosystem); legacy Runs have raid=None and stay
+    valid via the forward-compatible payload load.
+  - `override_parameters` — operator-supplied overrides on top of
+    `Plan.default_parameters`. Applied via RFC 7396 merge by the
+    handler before the decider validates against the owning Method's
+    `parameters_schema`. Default `{}`.
+  - `triggered_by` — operator-supplied free text
     capturing what initiated this Run (operator-manual, scheduler,
     prior-run, automation). Optional. Future Decision-BC integration
     may populate this.

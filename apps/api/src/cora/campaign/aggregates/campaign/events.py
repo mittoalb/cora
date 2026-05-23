@@ -4,7 +4,7 @@ Mirrors the locked event-module shape: event classes, discriminated
 union, `event_type_name`, `to_payload`, `from_stored`, plus the
 `serialize_external_ref` / `deserialize_external_ref` helpers.
 
-Six events shipped in 6i-a:
+Six events shipped at BC genesis:
 
   - `CampaignRegistered` -- genesis (Planned)
   - `CampaignStarted`    -- transition (Planned -> Active)
@@ -14,7 +14,7 @@ Six events shipped in 6i-a:
   - `CampaignAbandoned`  -- transition (Planned | Active | Held ->
                             Abandoned); reason str
 
-Two events added in 6i-c (cross-aggregate membership):
+Two events added later for cross-aggregate membership:
 
   - `CampaignRunAdded`   -- run_id unioned into state.run_ids; written
                             atomically with `RunCampaignAssigned` (or

@@ -5,7 +5,7 @@ permissive mode + true-type-conflict detection.
 
 The companion `merge_patch` tests moved to
 `tests/unit/test_json_merge_patch.py` when the function hoisted to
-`cora.infrastructure.json_merge_patch` (post-6g cleanup).
+`cora.infrastructure.json_merge_patch`.
 """
 
 from typing import Any
@@ -108,12 +108,12 @@ def test_validate_rejects_orphan_key_when_all_capabilities_have_schemas() -> Non
 
 @pytest.mark.unit
 def test_validate_strict_when_one_capability_is_schemaless_rejects_unknown_key() -> None:
-    """Strict (post-6g audit reversal): a schemaless Family is a
+    """Strict (audit reversal): a schemaless Family is a
     no-op in the union; only DECLARED schemas constrain the
     allowed-keys set. An unknown key (`vendor_specific` not declared
     by any declared schema) is rejected even when at least one
     Family is schemaless. Originally permissive ("degrade
-    gracefully"), reversed for consistency with the 6g-b/c
+    gracefully"), reversed for consistency with the
     strict-when-no-schema reversal."""
     declared = _capability(
         settings_schema=_schema(

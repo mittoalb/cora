@@ -95,7 +95,7 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 derived_from=derived_from,
                 status=DatasetStatus.REGISTERED,
                 # carry from event payload (default-handled
-                # via payload.get for pre-7e events in from_stored).
+                # via payload.get for legacy events in from_stored).
                 producing_run_end_state=producing_run_end_state,
                 intent=Intent(intent),
                 # AsShot citation set at genesis (frozenset for

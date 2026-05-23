@@ -40,8 +40,8 @@ from under it) and can corrupt the Run's audit story.
 The enforcement gate is deferred per Track-A audit (2026-05-16):
 the principled cross-BC adapter would be an `AssetActiveRunLookup`
 port over `proj_run_summary` joined with the Plan's asset_ids
-denorm (mirrors `ClearanceLookup` / `CautionLookup` from 11a-c-3
-and 11b-c). Ship when the first concrete incident OR pilot
+denorm (mirrors `ClearanceLookup` / `CautionLookup`). Ship when
+the first concrete incident OR pilot
 operator request fires the trigger.
 
 Until then: relocation during an active Run is the operator's

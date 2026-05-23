@@ -38,15 +38,15 @@ filtering becomes a pilot need).
 `campaign_id` (Campaign Watch #10) serves the "list Runs in
 Campaign X" query path without folding individual Run streams or
 2-hop-joining through `proj_campaign_summary.run_ids`.
-Forward-compat: pre-6i-c RunStarted payloads lack the key entirely;
+Forward-compat: legacy RunStarted payloads lack the key entirely;
 `.get("campaign_id")` returns None and the column stays NULL. See
 [[project_campaign_design]] §"bidirectional composition".
 
 `pinned_calibrations` surfaces the AsShot pin set so
-downstream consumers (12c Dataset back-fill, future RunDebriefer /
+downstream consumers (Dataset back-fill, future RunDebriefer /
 RotationCenterRefiner subscribers) can read "which calibrations
 was this Run acquired against?" without folding the Run stream.
-Forward-compat: pre-12b RunStarted payloads lack the key entirely;
+Forward-compat: legacy RunStarted payloads lack the key entirely;
 `.get("pinned_calibrations", [])` returns `[]` so legacy rows land
 with an empty UUID array.
 """
@@ -115,16 +115,16 @@ class RunSummaryProjection:
         if event.event_type == "RunStarted":
             payload = event.payload
             subject_id = UUID(payload["subject_id"]) if payload.get("subject_id") else None
-            # Forward-compat: pre-6g-c RunStarted payloads have no
+            # Forward-compat: legacy RunStarted payloads have no
             # override_parameters key; bool({}) is FALSE so legacy
             # rows backfill cleanly.
             overrides_present = bool(payload.get("override_parameters"))
-            # Forward-compat: pre-6i-c RunStarted payloads have no
+            # Forward-compat: legacy RunStarted payloads have no
             # campaign_id key; .get() returns None so legacy rows
             # land with campaign_id IS NULL.
             campaign_id_raw = payload.get("campaign_id")
             campaign_id = UUID(campaign_id_raw) if campaign_id_raw else None
-            # Forward-compat: pre-12b RunStarted payloads have no
+            # Forward-compat: legacy RunStarted payloads have no
             # pinned_calibrations key; .get(..., []) returns [] so legacy
             # rows land with an empty UUID array.
             pinned_calibrations = [UUID(p) for p in payload.get("pinned_calibrations", [])]

@@ -57,6 +57,29 @@ _FORBIDDEN = re.compile(
     r"DLM-[A-Z]"
     r"|"
     r"audit-[0-9]{4}-[0-9]{2}-[0-9]{2}"
+    r"|"
+    # Implicit phase reference: prep word followed by a hyphenated phase
+    # tag like `pre-7e`, `post-6g-c`, `from 6f-1`, `in 11a-c-3`. The
+    # first chunk is bounded to 1-2 letters so directory paths like
+    # `(in 2bmb-bin)` (a beamline binary folder) don't trip the rule.
+    # Standalone single-letter forms (`5h`, `4f`) are too easily confused
+    # with time units (`1h`, `30s`) and are handled by reviewer eyes,
+    # not this regex.
+    r"\b(?:pre|post|from|since|after|before|in|at)[ -][0-9]+[a-z]{1,2}-[a-z0-9]+\b"
+    r"|"
+    # Hyphenated phase tag opened by `pre-` / `post-` even without a
+    # further hyphenated suffix: `pre-12c`, `post-6g`, `pre-7e`.
+    r"\b(?:pre|post)-[0-9]+[a-z]{1,2}\b"
+    r"|"
+    # Lowercase iteration marker that escaped the capitalized form:
+    # `iter 1`, `iter 2b`, `iter 3`.
+    r"\biter [0-9][a-z]?\b"
+    r"|"
+    # Gate-review priority/issue reference: `P1#3`, `P0#6`.
+    r"\bP[0-9]+#[0-9]+\b"
+    r"|"
+    # Anti-hook reference from design-lock memos: `AH4`, `AH14`.
+    r"\bAH[0-9]+\b"
 )
 
 _DOMAIN_PHASE_WORDS = re.compile(r"\bPhase (IS|aggregate|concept)\b")

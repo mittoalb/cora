@@ -63,7 +63,7 @@ def bind(deps: Kernel) -> Handler:
     Between Method-load and decide we conditionally load the bound
     Recipe Capability (when the Method's `capability_id`
     is set) so the decider can run the cross-BC subset guard. When
-    `capability_id` is None (pre-6l-strict Methods in lingering test
+    `capability_id` is None (legacy Methods in lingering test
     fixtures or future un-bound code paths), `capability=None`
     passes through and the decider skips the subset check.
     """

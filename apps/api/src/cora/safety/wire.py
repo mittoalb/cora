@@ -27,7 +27,7 @@ Cross-cutting decorators applied here mirror Access / Trust / Subject
   - `activate_clearance`            (transition)
 
 All six 11a-b transition handlers go through `make_clearance_update_handler`
-(factory hoisted in 11a-b at the rule-of-three trigger).
+(factory hoisted at the rule-of-three trigger).
 
 11a-c-2:
   - `expire_clearance`              (transition; uses make_clearance_update_handler)

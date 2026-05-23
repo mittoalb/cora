@@ -96,7 +96,7 @@ def test_fold_is_pure_same_input_same_output() -> None:
     assert fold(events) == fold(events)
 
 
-# ---------- 6f-2: terminal transitions ----------
+# ---------- terminal transitions ----------
 
 
 @pytest.mark.unit
@@ -156,7 +156,7 @@ def test_fold_started_then_aborted_yields_aborted_and_preserves_run_fields() -> 
     assert state.status is RunStatus.ABORTED
 
 
-# ---------- 6f-3: Held / Resumed / Stopped ----------
+# ---------- Held / Resumed / Stopped ----------
 
 
 @pytest.mark.unit
@@ -232,7 +232,7 @@ def test_fold_multi_cycle_hold_resume_then_complete_yields_completed() -> None:
 
 @pytest.mark.unit
 def test_fold_started_then_held_then_aborted_yields_aborted() -> None:
-    """6f-3 widens abort source set to Running | Held: Held → Aborted folds correctly."""
+    """Abort source set widens to Running | Held: Held → Aborted folds correctly."""
     run_id = uuid4()
     started = _run_started(run_id=run_id)
     state = fold(
@@ -277,17 +277,17 @@ def test_evolve_run_started_preserves_raid() -> None:
 
 @pytest.mark.unit
 def test_evolve_run_started_without_raid_yields_state_with_raid_none() -> None:
-    """Raid is optional; pre-7d-style RunStarted folds with raid=None."""
+    """Raid is optional; legacy-style RunStarted folds with raid=None."""
     state = evolve(None, _run_started())
     assert state.raid is None
 
 
-# ---------- 6g-c additive RunStarted payload (overrides + effective + triggered_by) ----------
+# ---------- additive RunStarted payload (overrides + effective + triggered_by) ----------
 
 
 @pytest.mark.unit
-def test_evolve_run_started_folds_6gc_parameter_fields() -> None:
-    """6g-c additive payload: override_parameters + effective_parameters
+def test_evolve_run_started_folds_parameter_fields() -> None:
+    """Additive payload: override_parameters + effective_parameters
     + triggered_by carry verbatim from RunStarted into Run state."""
     overrides = {"energy": 12.0}
     effective = {"energy": 12.0, "exposure": 100}
@@ -310,8 +310,8 @@ def test_evolve_run_started_folds_6gc_parameter_fields() -> None:
 
 
 @pytest.mark.unit
-def test_evolve_run_started_without_6gc_fields_yields_state_defaults() -> None:
-    """Pre-6g-c-style RunStarted (defaults via additive-state pattern)
+def test_evolve_run_started_without_parameter_fields_yields_state_defaults() -> None:
+    """Legacy-style RunStarted (defaults via additive-state pattern)
     folds with empty dicts and None triggered_by."""
     state = evolve(None, _run_started())
     assert state.override_parameters == {}
@@ -320,7 +320,7 @@ def test_evolve_run_started_without_6gc_fields_yields_state_defaults() -> None:
 
 
 @pytest.mark.unit
-def test_evolve_held_then_resumed_preserves_6gc_fields() -> None:
+def test_evolve_held_then_resumed_preserves_parameter_fields() -> None:
     """Critical pin: every transition uses dataclass.replace which
     preserves all fields. override_parameters + effective_parameters
     + triggered_by must survive Hold → Resume cycles unchanged."""
@@ -594,8 +594,8 @@ def test_evolve_held_resumed_preserves_reading_logbook_id() -> None:
 
 
 @pytest.mark.unit
-def test_legacy_pre_6f5b_stream_folds_with_none_reading_logbook_id() -> None:
-    """Pre-6f-5b Runs in the event store have no
+def test_legacy_stream_without_reading_logbook_folds_with_none_reading_logbook_id() -> None:
+    """Legacy Runs in the event store have no
     RunReadingLogbookOpened event in the stream. They MUST fold
     cleanly with reading_logbook_id=None — that's the additive
     backward-compat contract."""
@@ -604,7 +604,7 @@ def test_legacy_pre_6f5b_stream_folds_with_none_reading_logbook_id() -> None:
         [
             RunStarted(
                 run_id=run_id,
-                name="Pre-6f-5b Run",
+                name="Legacy Run",
                 plan_id=uuid4(),
                 subject_id=None,
                 occurred_at=_NOW,

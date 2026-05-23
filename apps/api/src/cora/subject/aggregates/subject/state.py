@@ -346,7 +346,7 @@ class SubjectName:
     """Display name for a subject. Trimmed; 1-200 chars.
 
     Fifth occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_bounded_text` helper hoisted in 6e-1 (see
+    the shared `validate_bounded_text` helper (see
     `cora.infrastructure.bounded_text`).
     """
 

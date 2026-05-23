@@ -631,9 +631,9 @@ def test_decide_raises_invalid_run_parameters_on_post_merge_violation() -> None:
 
 @pytest.mark.unit
 def test_decide_strict_when_method_schema_is_none_with_non_empty_effective() -> None:
-    """Strict (post-6g audit reversal): Method without parameters_schema
+    """Strict (per audit reversal): Method without parameters_schema
     rejects non-empty effective dict. Pinned at the decider layer.
-    Aligns with 5g-c's strict zero-Capabilities posture and Ajv /
+    Aligns with the strict zero-Capabilities posture and Ajv /
     Argo Workflows precedent."""
     cap = uuid4()
     asset_id = uuid4()

@@ -8,19 +8,17 @@ Module-as-namespace: callers use
 `define_method.bind(deps)` returning a `define_method.Handler`.
 
 Eighth instance of the create-style template body. The cross-BC
-extraction question reopens periodically (parked since the
-post-Phase-4 review at 5 instances; reviewed and re-deferred at 7
-instances after 5b, 8 instances after 6a, 10 instances after 6e-1,
-and 11 instances after 6f-1).
+extraction question reopens periodically (parked at 5 instances,
+reviewed and re-deferred at 7, 8, 10, and 11 instances).
 
-After 6f-1, two distinct create-style shapes coexist:
-  - **Simple create** (no cross-aggregate loads) — 9 instances:
+Two distinct create-style shapes coexist today:
+  - **Simple create** (no cross-aggregate loads), 9 instances:
     register_actor, register_subject, define_zone, define_conduit,
     define_policy, define_family, register_asset, define_method,
     define_practice.
   - **Cross-aggregate-validating create** (handler pre-loads + slice-
-    local context dataclass) — 2 instances: define_plan
-    (PlanBindingContext, 6e-1) and start_run (RunStartContext, 6f-1).
+    local context dataclass), 2 instances: define_plan
+    (PlanBindingContext) and start_run (RunStartContext).
 
 The two shapes have meaningfully different handler bodies; a
 unifying factory across them would lose more than it saves.

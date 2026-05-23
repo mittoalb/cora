@@ -15,7 +15,7 @@ Subject / Equipment / Supply / Safety / Caution:
      misses both attribute to the tracing span.
   3. `with_tracing` -- OTel span around every handler call.
 
-## Wired handlers (8f-c iter 2)
+## Wired handlers
 
   - `define_agent`            (cross-BC atomic; create-style;
                                idempotency-wrapped)

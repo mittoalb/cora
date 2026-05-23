@@ -1,7 +1,7 @@
 """Cross-BC scaffolding for cursor-paginated list-query handlers.
 
 Mirrors the `update_handler.make_update_handler` precedent (hoisted
-post-7e at n=3). Every `list_*` query slice runs the same workflow:
+at n=3). Every `list_*` query slice runs the same workflow:
 
   1. Emit `<log_prefix>.start` with the query's headline fields.
   2. Authorize via `deps.authz.authorize(command_name=<query_name>, ...)`;

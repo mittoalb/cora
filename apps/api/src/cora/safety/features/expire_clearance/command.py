@@ -8,7 +8,7 @@ The expiring actor's identity lives on the event envelope
 (`StoredEvent.principal_id`); no actor field on the command/event,
 per cross-BC `RunAborted` / `ClearanceRejected` precedent.
 
-Operator-action only in 11a-c-2. Auto-expiry on `valid_until` is
+Operator-action only today. Auto-expiry on `valid_until` is
 deferred per watch #7 in [[project_safety_clearance_design]].
 """
 

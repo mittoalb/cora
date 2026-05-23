@@ -141,7 +141,7 @@ def test_post_policies_accepts_empty_permission_lists_as_deny_all() -> None:
 @pytest.mark.contract
 def test_post_policies_accepts_dangling_conduit_reference() -> None:
     """Eventual-consistency stance: conduit_id referencing a non-existent
-    Conduit is accepted at command time (same as Conduit→Zone in 3b).
+    Conduit is accepted at command time (same as Conduit→Zone).
     Pinned so a future "validate at command time" refactor has to flip
     this."""
     with TestClient(create_app()) as client:

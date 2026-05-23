@@ -2,14 +2,14 @@
 JSON Schema subset.
 
 Capability.parameter_schema declares the DECLARATIVE CONTRACT for
-the parameters any implementer (Method via 6l, Procedure via 10d)
-must validate as a SUBSET of. The Method.parameters_schema (6g) is
+the parameters any implementer (Method, Procedure)
+must validate as a SUBSET of. The Method.parameters_schema is
 the BINDING shape; cross-BC validation at define_method ensures
 the binding fits within the contract.
 
 Reuses the shared declarer-validator at
 `cora.infrastructure.json_schema_validation` (same pattern as
-Family.settings_schema validation in 5g-a, renamed in 5i). The
+Family.settings_schema validation). The
 constrained subset rules are identical: `$schema`, `type`,
 `required`, `properties`, `enum`, `minimum`, `maximum`, `pattern`
 allowed; `$ref`, `oneOf`, `anyOf`, `allOf`, `not`, conditionals

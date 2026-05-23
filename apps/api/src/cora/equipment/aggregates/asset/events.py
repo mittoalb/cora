@@ -87,7 +87,7 @@ class AssetDecommissioned:
     """An asset was retired from service.
 
     Lifecycle transition: `Commissioned | Active -> Decommissioned`
-    (multi-source; widens to include Maintenance in 5e). The
+    (multi-source; widens to include Maintenance). The
     evolver sets the new lifecycle regardless of which source state
     the asset came from; the decider's source-state guard is what
     enforces the multi-source restriction at command time.
@@ -518,9 +518,9 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed AssetRestoredFromMaintenance payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
-        # dual-match: pre-5i Asset events used "AssetCapabilityAdded"
+        # dual-match: legacy Asset events used "AssetCapabilityAdded"
         # / "AssetCapabilityRemoved" type strings with "capability_id" payload
-        # key. Post-5i emits "AssetFamilyAdded" / "AssetFamilyRemoved" with
+        # key. Current emit is "AssetFamilyAdded" / "AssetFamilyRemoved" with
         # "family_id". Both type strings produce the new Family-shaped
         # dataclass. Legacy arms stay forever per Marten/Axon rename pattern.
         case "AssetCapabilityAdded":
@@ -595,8 +595,8 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                 raise ValueError(msg) from exc
         case "AssetSettingsUpdated":
             try:
-                # `payload.get` for additive evolution: pre-5g-c stored
-                # events without the settings key fold to {} (empty dict).
+                # `payload.get` for additive evolution: stored events
+                # without the settings key fold to {} (empty dict).
                 return AssetSettingsUpdated(
                     asset_id=UUID(payload["asset_id"]),
                     settings=payload.get("settings", {}),

@@ -157,7 +157,7 @@ async def test_trust_policy_gates_subject_register_denies_other_principal(
 async def test_trust_policy_gates_subject_update_style_command(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Update-style commands (post-4d-cleanup, via
+    """Update-style commands (via
     make_subject_update_handler) must also gate through TrustAuthorize.
     Pinned because the factory wraps a different IO loop than create-
     style handlers, and the authz call site lives inside that loop —

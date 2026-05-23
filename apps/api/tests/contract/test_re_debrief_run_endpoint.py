@@ -169,7 +169,7 @@ def test_post_invoke_returns_403_when_authz_denies() -> None:
 @pytest.mark.parametrize(
     ("exc_factory", "expected_status"),
     [
-        # 8f-c iter 1 cross-aggregate guards: all 400.
+        # Cross-aggregate guards: all 400.
         pytest.param(
             lambda: _agent_not_seeded_error(),
             400,
@@ -272,7 +272,6 @@ def _parent_decision_missing_error() -> Exception:
 
 
 # Pin the FakeLLMAdapter reference + canned response so the import isn't
-# tree-shaken; they're load-bearing for the 8f-c iter 2 / pilot real-Anthropic
-# transition, when an integration test will swap _CANNED_OK with a recorded
-# cassette.
+# tree-shaken; they're load-bearing for the pilot real-Anthropic transition,
+# when an integration test will swap _CANNED_OK with a recorded cassette.
 _ = (FakeLLMAdapter, _CANNED_OK)

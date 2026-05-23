@@ -32,7 +32,7 @@ events.py docstring). `parent_id` IS reconstructed from
 AssetRegistered's payload AND mutated by AssetRelocated's
 `to_parent_id` field. `families` defaults to empty frozenset on
 AssetRegistered (additive-state pattern; existing AssetRegistered
-events from before 5f-1 fold cleanly without an upcaster) and is
+events without the families field fold cleanly without an upcaster) and is
 mutated incrementally by `AssetFamilyAdded` /
 `AssetFamilyRemoved`.
 
@@ -41,10 +41,10 @@ mutated incrementally by `AssetFamilyAdded` /
 from prior state. Constructing `Asset(id=..., name=..., level=...,
 parent_id=..., lifecycle=...)` without explicitly passing them
 would silently WIPE the fields to their defaults (empty frozenset /
-NOMINAL / empty dict / empty frozenset). 5f-1 added `families`
+NOMINAL / empty dict / empty frozenset). `families` was added
 with a default solely for additive-state forward compatibility on
-genesis events; 5g-b added `condition`, 5g-c added `settings`, 5h
-added `ports` likewise. Transition arms must explicitly carry all
+genesis events; `condition`, `settings`, and `ports` followed the
+same additive pattern. Transition arms must explicitly carry all
 four. Pinned by `test_evolve_<transition>_preserves_capabilities`,
 `test_evolve_<transition>_preserves_condition`,
 `test_evolve_<transition>_preserves_settings`, and
@@ -53,7 +53,7 @@ four. Pinned by `test_evolve_<transition>_preserves_capabilities`,
 Transition events applied to empty state raise ValueError: they
 can never appear before `AssetRegistered` in a well-formed stream.
 The `require_state` helper keeps the per-arm bodies short
-(precedent locked by Subject's evolver in 4c).
+(precedent locked by Subject's evolver).
 """
 
 from collections.abc import Sequence
@@ -101,8 +101,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 lifecycle=AssetLifecycle.COMMISSIONED,
                 # families defaults to empty frozenset; condition
                 # defaults to NOMINAL. Additive-state pattern: both
-                # default-via-state so pre-5f-1 / pre-5g-b streams fold
-                # cleanly without an upcaster.
+                # default-via-state so legacy streams without these
+                # fields fold cleanly without an upcaster.
             )
         case AssetActivated():
             prior = require_state(state, "AssetActivated")

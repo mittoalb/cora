@@ -92,7 +92,7 @@ def test_surface_kind_rejects_unknown_value() -> None:
 @pytest.mark.unit
 def test_surface_status_values_pre_shipped_for_future_fsm() -> None:
     """v1 only emits DEFINED; VERSIONED + DEPRECATED are pre-shipped
-    so versioning / deprecation slices land additively later (AH8)."""
+    so versioning / deprecation slices land additively later (per anti-hook)."""
     assert {s.value for s in SurfaceStatus} == {"defined", "versioned", "deprecated"}
 
 

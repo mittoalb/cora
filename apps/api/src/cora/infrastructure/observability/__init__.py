@@ -34,8 +34,8 @@ from cora.infrastructure.observability.provider import (
 # directly from the submodule. Keeping the package surface focused
 # on cross-cutting telemetry primitives (tracing setup, correlation
 # id, log processor) makes "what's a CORA observability helper?"
-# easy to answer at a glance. If a second LLM adapter (RecipeScreener
-# at 8f-c?) needs the same helpers, that's the trigger to re-export.
+# easy to answer at a glance. If a second LLM adapter (RecipeScreener,
+# for example) needs the same helpers, that's the trigger to re-export.
 
 __all__ = [
     "Teardown",

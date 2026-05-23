@@ -13,7 +13,7 @@ restore). Five identical longhand bodies = clear rule-of-three
 signal; this factory hoists the shared scaffolding so each slice's
 handler.py shrinks from ~120 lines to a 7-line `bind` that supplies
 two strings and the decider. Mirrors `_asset_update_handler` (Asset
-hoisted at 5e after 4 byte-identical slices) and Subject's
+hoisted after 4 byte-identical slices) and Subject's
 `_update_handler`.
 
 ## Per-aggregate, not per-BC

@@ -4,8 +4,8 @@ Closes over Run-specific knobs (stream type, codec, BC-local
 `UnauthorizedError`, target-id attribute) and delegates to the
 cross-BC `cora.infrastructure.update_handler.make_update_handler`.
 
-Cross-BC hoist landed post-7e once Recipe and Run shipped a
-combined 11 byte-identical longhand handlers.
+Cross-BC hoist landed once Recipe and Run shipped a combined 11
+byte-identical longhand handlers.
 
 ## Run-side knobs closed over
 

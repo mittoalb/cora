@@ -1,7 +1,7 @@
-"""Application-handler tests for `degrade_supply` slice (10a-b).
+"""Application-handler tests for `degrade_supply` slice.
 
-Built via the `make_supply_update_handler` factory hoisted in 10a-b
-(rule of three triggered by the 4 transition slices). Tests use the
+Built via the `make_supply_update_handler` factory hoisted at the
+rule-of-three trigger (triggered by the 4 transition slices). Tests use the
 public `bind` seam, so factory implementation is invisible.
 """
 

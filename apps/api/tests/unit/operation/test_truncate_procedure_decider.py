@@ -1,4 +1,4 @@
-"""Pure-decider tests for `truncate_procedure` slice (10c-c iter 1).
+"""Pure-decider tests for `truncate_procedure` slice.
 
 Single-source partial-data terminal: `Running -> Truncated`. Reason
 field validated via `ProcedureTruncateReason` VO (1-500 chars after

@@ -2,7 +2,7 @@
 
 Three scenarios cover the multi-source-state guard (Commissioned ->
 Decommissioned, Active -> Decommissioned, and Maintenance ->
-Decommissioned — the third source widened in 5e); all three are
+Decommissioned, the third source widened by the Maintenance state); all three are
 exercised against real Postgres so the load+fold+decide+append
 cycle is validated for every allowed source state with the real
 event store.

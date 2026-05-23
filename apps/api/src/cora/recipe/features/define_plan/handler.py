@@ -15,7 +15,7 @@ pattern for cross-aggregate validation in CORA.
 
 Loads run sequentially (Practice must complete before Method's id
 is known; Asset loads are independent of each other but kept
-sequential for 6e-1 simplicity — `asyncio.gather` is a future
+sequential for simplicity, `asyncio.gather` is a future
 optimization if profiling shows it matters).
 
 The handler does NOT validate the loaded entities' state (Practice
@@ -162,7 +162,7 @@ def bind(deps: Kernel) -> Handler:
         # every Family referenced by any bound Asset so the decider can
         # union Family.affordances and verify coverage of
         # Capability.required_affordances. SKIPPED when method.capability_id
-        # is None (pre-6l-strict shape) — no extra loads, no guard.
+        # is None (legacy shape), no extra loads, no guard.
         capability = None
         family_affordances: dict[UUID, frozenset[Affordance]] = {}
         if method.capability_id is not None:

@@ -144,8 +144,8 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
     """Shared 409 handler for state-transition guards.
 
     Covers the `<X>Cannot<Verb>Error` family (Asset's Activate /
-    Decommission in 5c; future Maintenance / Restore in 5e). Same
-    pattern as Subject's `_handle_cannot_transition`.
+    Decommission; future Maintenance / Restore). Same pattern as
+    Subject's `_handle_cannot_transition`.
     """
     _ = request
     return JSONResponse(

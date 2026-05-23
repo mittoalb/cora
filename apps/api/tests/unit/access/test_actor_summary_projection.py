@@ -97,8 +97,8 @@ async def test_actor_registered_agent_kind_inserts_correctly() -> None:
 
 
 @pytest.mark.unit
-async def test_actor_registered_pre_8f_a_payload_falls_back_to_human() -> None:
-    """Forward-compat: pre-8f-a payloads (no `kind` field) get kind=human."""
+async def test_actor_registered_payload_without_kind_falls_back_to_human() -> None:
+    """Forward-compat: payloads without the `kind` field get kind=human."""
     proj = ActorSummaryProjection()
     conn = AsyncMock()
     event = _stored(
@@ -107,7 +107,7 @@ async def test_actor_registered_pre_8f_a_payload_falls_back_to_human() -> None:
             "actor_id": str(_ACTOR_ID),
             "name": "Doga",
             "occurred_at": _NOW.isoformat(),
-            # No "kind" field; pre-8f-a payload shape.
+            # No "kind" field; legacy payload shape.
         },
     )
 
