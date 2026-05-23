@@ -1,4 +1,4 @@
-"""Contract test for the 4xx error-replay path (Phase 9a).
+"""Contract test for the 4xx error-replay path.
 
 When a handler raises a cacheable 4xx domain error (e.g.,
 `InvalidActorNameError` from a whitespace-only name), the decorator
@@ -14,8 +14,8 @@ This pins the end-to-end path: route -> decorator -> store.claim() ->
 CachedError -> raise CachedHandlerError -> Access global handler ->
 classifier -> JSON response with original status + cached message.
 
-The end-to-end path was identified as a coverage gap in the Phase 9a
-gate review. The decorator unit tests pin the decorator's `raise
+The end-to-end path was identified as a coverage gap at gate
+review. The decorator unit tests pin the decorator's `raise
 CachedHandlerError` path, but until this contract test landed,
 nothing exercised the global handler's classifier-driven status
 reconstruction. A refactor renaming an exception class or moving

@@ -1,4 +1,4 @@
-"""End-to-end integration test: dismount_subject handler against real Postgres (Phase 4f).
+"""End-to-end integration test: dismount_subject handler against real Postgres.
 
 Round-trips the multi-stage workflow: register -> mount -> dismount
 -> remount. Verifies SubjectDismounted event lands with the

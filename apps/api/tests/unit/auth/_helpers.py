@@ -1,6 +1,6 @@
 """Shared test helpers for `cora.infrastructure.auth.*` unit tests.
 
-Promoted from per-file duplication at the Iter A post-ship gate
+Promoted from per-file duplication at the post-ship gate
 review (test-coverage reviewer #13). Rule-of-three crossed: the
 keypair + signing + mapper + verifier factories were copy-pasted
 across `test_jwt_verifier.py`, `test_introspection_verifier.py`,
@@ -33,12 +33,12 @@ Constants like `TEST_ISSUER`, `TEST_AUD_HTTP`, `TEST_SURFACE_HTTP`,
 
 ## Not test_token_issuer.py
 
-The Phase C design lock §12 lists `cora/infrastructure/auth/test_token_issuer.py`
-as a future deliverable for Iter B/C contract tests. That module
+The edge-auth design lock §12 lists `cora/infrastructure/auth/test_token_issuer.py`
+as a future deliverable for contract tests. That module
 ships TestTokenIssuer as a *production-shaped* test fixture that
 self-registers as an IdentityProviderConfig. This `_helpers.py` is
 the smaller-scope unit-test factory that doesn't require Settings
-or registry integration — the two will coexist; this one stays
+or registry integration, the two will coexist; this one stays
 unit-only.
 """
 

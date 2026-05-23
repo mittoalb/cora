@@ -1,7 +1,7 @@
 """Every append-only table created in migrations carries a REVOKE
 UPDATE / DELETE / TRUNCATE on the cora_app role.
 
-Phase 8d foundation hardening. The locked decision in
+Foundation hardening: the locked decision in
 `memory/project_immutability_guarantee.md` says event sourcing's
 "events are immutable" must be enforced at the database role level,
 not just by application convention. The migration

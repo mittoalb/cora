@@ -547,12 +547,12 @@ def test_evolve_procedure_truncated_on_empty_state_raises() -> None:
         )
 
 
-# ---------- Phase 10d: capability_id additive evolution ----------
+# ---------- capability_id additive evolution ----------
 
 
 @pytest.mark.unit
 def test_evolve_procedure_registered_sets_capability_id_when_present() -> None:
-    """Phase 10d genesis: ProcedureRegistered with capability_id populates
+    """Genesis: ProcedureRegistered with capability_id populates
     state.capability_id. Pinned because the additive field is what the
     cross-BC affordance contract reads back."""
     capability_id = uuid4()
@@ -562,7 +562,7 @@ def test_evolve_procedure_registered_sets_capability_id_when_present() -> None:
 
 @pytest.mark.unit
 def test_evolve_procedure_registered_capability_id_defaults_to_none() -> None:
-    """Phase 10d-additive: pre-10d Procedures + ceremony Procedures with
+    """Additive: legacy Procedures + ceremony Procedures with
     no Capability binding have `capability_id=None` after genesis."""
     state = _defined()
     assert state.capability_id is None
@@ -570,7 +570,7 @@ def test_evolve_procedure_registered_capability_id_defaults_to_none() -> None:
 
 @pytest.mark.unit
 def test_evolve_procedure_started_preserves_capability_id() -> None:
-    """Phase 10d invariant: ProcedureStarted MUST carry capability_id
+    """Invariant: ProcedureStarted MUST carry capability_id
     through from prior state. The Procedure(...) constructor without
     explicit `capability_id=` would silently wipe the additive field
     to None — same risk as the steps_logbook_id preservation invariant
@@ -583,7 +583,7 @@ def test_evolve_procedure_started_preserves_capability_id() -> None:
 
 @pytest.mark.unit
 def test_evolve_procedure_completed_preserves_capability_id() -> None:
-    """Phase 10d invariant: Completed terminal preserves capability_id."""
+    """Invariant: Completed terminal preserves capability_id."""
     capability_id = uuid4()
     prior = _defined(capability_id=capability_id)
     started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
@@ -593,7 +593,7 @@ def test_evolve_procedure_completed_preserves_capability_id() -> None:
 
 @pytest.mark.unit
 def test_evolve_procedure_aborted_preserves_capability_id() -> None:
-    """Phase 10d invariant: Aborted terminal preserves capability_id."""
+    """Invariant: Aborted terminal preserves capability_id."""
     capability_id = uuid4()
     prior = _defined(capability_id=capability_id)
     started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
@@ -603,7 +603,7 @@ def test_evolve_procedure_aborted_preserves_capability_id() -> None:
 
 @pytest.mark.unit
 def test_evolve_procedure_truncated_preserves_capability_id() -> None:
-    """Phase 10d invariant: Truncated terminal preserves capability_id."""
+    """Invariant: Truncated terminal preserves capability_id."""
     capability_id = uuid4()
     prior = _defined(capability_id=capability_id)
     started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
@@ -618,11 +618,10 @@ def test_evolve_procedure_truncated_preserves_capability_id() -> None:
 
 @pytest.mark.unit
 def test_evolve_steps_logbook_opened_preserves_capability_id() -> None:
-    """Phase 10d invariant: lazy-open envelope event preserves
-    capability_id. Pinned because StepsLogbookOpened sets a different
-    additive field (steps_logbook_id) without touching the lifecycle
-    status, so its handler had to carry every other additive field
-    through manually."""
+    """Invariant: lazy-open envelope event preserves capability_id.
+    Pinned because StepsLogbookOpened sets a different additive field
+    (steps_logbook_id) without touching the lifecycle status, so its
+    handler had to carry every other additive field through manually."""
     capability_id = uuid4()
     prior = _defined(capability_id=capability_id)
     started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))

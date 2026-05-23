@@ -1,6 +1,6 @@
 """Unit tests for the `update_method_parameters_schema` application handler.
 
-Phase 6g-a. Mirrors `test_version_method_handler.py` shape.
+Mirrors `test_version_method_handler.py` shape.
 """
 
 from datetime import UTC, datetime
@@ -23,7 +23,7 @@ from tests.unit._helpers import build_deps, seed_capability
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _METHOD_ID = UUID("01900000-0000-7000-8000-00000000bd01")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-00000000bd0c")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-00000000bd0c")
 _DEFINED_EVENT_ID = UUID("01900000-0000-7000-8000-00000000bd02")
 _SCHEMA_EVENT_ID = UUID("01900000-0000-7000-8000-00000000bd03")
 _SCHEMA_EVENT_ID_2 = UUID("01900000-0000-7000-8000-00000000bd04")
@@ -48,7 +48,7 @@ def _valid_schema(min_val: int = 5) -> dict[str, Any]:
 
 
 async def _define_method_helper(deps: Kernel) -> UUID:
-    """Seed bound Capability + invoke define_method (Phase 6l-strict)."""
+    """Seed bound Capability + invoke define_method."""
     await seed_capability(deps.event_store, _CAPABILITY_ID)
     return await define_method.bind(deps)(
         DefineMethod(name="XRF Mapping", capability_id=_CAPABILITY_ID),

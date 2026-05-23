@@ -1,4 +1,4 @@
-"""Unit tests for the Capability aggregate's evolver (Phase 6k)."""
+"""Unit tests for the Capability aggregate's evolver."""
 
 from datetime import UTC, datetime
 from uuid import uuid4

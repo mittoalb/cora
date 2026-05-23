@@ -87,10 +87,10 @@ Watch-only (not adopted as a glossary term, see [Deferred](../stack/deferred.md)
 
 ## Agents
 
-*Agent BC, RunDebrief, CautionDrafter.*
+*Agent BC, RunDebriefer, CautionDrafter.*
 
 - **Agent.** *(Agent BC, phase 8f-a)* Config-only aggregate naming a configured LLM agent: `kind` (free-form `AgentKind`), `name`, `version`, `model_ref`, `prompt_template_id`, `capabilities`, `tools`, `budget`. FSM `Defined → Versioned ⇄ Suspended → Deprecated`. `Agent.id` is shared with Access BC's `Actor.id` for the same agent (cross-BC atomic via `EventStore.append_streams`; every Agent.id is also an Actor.id with `kind="agent"`).
-- **RunDebrief.** First registered Agent. Subscribes to terminal Run events; proposes a debrief entry via the `LLM` port; result lands in the Run logbook.
+- **RunDebriefer.** First registered Agent. Subscribes to terminal Run events; proposes a debrief entry via the `LLM` port; result lands in the Run logbook.
 - **CautionDrafter.** Second registered Agent. Subscribes to terminal Run events; proposes a Caution (5-choice enum: NoAction / ProposeNotice / ProposeCaution / ProposeWarning / ProposeSupersede) and promotes via `promote_caution_proposal` (writes Caution BC events directly via `EventStore.append_streams`).
 
 ## Calibration

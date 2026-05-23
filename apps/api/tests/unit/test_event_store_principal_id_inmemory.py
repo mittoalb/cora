@@ -1,5 +1,5 @@
-"""Round-trip unit tests for the Phase 9b-a `principal_id` hook on
-the InMemoryEventStore adapter.
+"""Round-trip unit tests for the `principal_id` hook on the
+InMemoryEventStore adapter.
 
 Mirrors the PG adapter's contract test
 [test_event_store_principal_id_postgres.py] so the two adapters

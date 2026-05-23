@@ -56,8 +56,8 @@ def test_get_runs_combines_status_and_plan_filter(client: TestClient) -> None:
 
 @pytest.mark.contract
 def test_get_runs_accepts_campaign_id_filter(client: TestClient) -> None:
-    """Phase 6i-c: `?campaign_id=<uuid>` narrows to Runs that are
-    members of the given Campaign."""
+    """`?campaign_id=<uuid>` narrows to Runs that are members of the
+    given Campaign."""
     with client:
         response = client.get(f"/runs?campaign_id={uuid.uuid4()}")
     assert response.status_code == 200

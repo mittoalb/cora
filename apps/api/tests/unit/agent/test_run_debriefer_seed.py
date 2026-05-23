@@ -1,4 +1,4 @@
-"""Unit tests for the RunDebrief Agent bootstrap seed (Phase 8f-b iter 2b)."""
+"""Unit tests for the RunDebriefer Agent bootstrap seed."""
 
 from datetime import UTC, datetime
 
@@ -7,11 +7,11 @@ import pytest
 from cora.agent.aggregates.agent import load_agent
 from cora.agent.prompts import RUN_DEBRIEF_PROMPT_TEMPLATE_ID
 from cora.agent.seed import (
-    RUN_DEBRIEF_AGENT_ID,
-    RUN_DEBRIEF_AGENT_KIND,
-    RUN_DEBRIEF_AGENT_NAME,
-    RUN_DEBRIEF_AGENT_VERSION,
-    seed_run_debrief_agent,
+    RUN_DEBRIEFER_AGENT_ID,
+    RUN_DEBRIEFER_AGENT_KIND,
+    RUN_DEBRIEFER_AGENT_NAME,
+    RUN_DEBRIEFER_AGENT_VERSION,
+    seed_run_debriefer_agent,
 )
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import make_inmemory_kernel
@@ -32,14 +32,14 @@ def _kernel() -> Kernel:
 @pytest.mark.unit
 async def test_seed_creates_agent_at_pinned_id() -> None:
     kernel = _kernel()
-    await seed_run_debrief_agent(kernel)
+    await seed_run_debriefer_agent(kernel)
 
-    agent = await load_agent(kernel.event_store, RUN_DEBRIEF_AGENT_ID)
+    agent = await load_agent(kernel.event_store, RUN_DEBRIEFER_AGENT_ID)
     assert agent is not None
-    assert agent.id == RUN_DEBRIEF_AGENT_ID
-    assert agent.name.value == RUN_DEBRIEF_AGENT_NAME
-    assert agent.kind.value == RUN_DEBRIEF_AGENT_KIND
-    assert agent.version.value == RUN_DEBRIEF_AGENT_VERSION
+    assert agent.id == RUN_DEBRIEFER_AGENT_ID
+    assert agent.name.value == RUN_DEBRIEFER_AGENT_NAME
+    assert agent.kind.value == RUN_DEBRIEFER_AGENT_KIND
+    assert agent.version.value == RUN_DEBRIEFER_AGENT_VERSION
     assert agent.prompt_template_id == RUN_DEBRIEF_PROMPT_TEMPLATE_ID
 
 
@@ -50,11 +50,11 @@ async def test_seed_creates_co_registered_actor() -> None:
     from cora.access.aggregates.actor import load_actor
 
     kernel = _kernel()
-    await seed_run_debrief_agent(kernel)
+    await seed_run_debriefer_agent(kernel)
 
-    actor = await load_actor(kernel.event_store, RUN_DEBRIEF_AGENT_ID)
+    actor = await load_actor(kernel.event_store, RUN_DEBRIEFER_AGENT_ID)
     assert actor is not None
-    assert actor.id == RUN_DEBRIEF_AGENT_ID
+    assert actor.id == RUN_DEBRIEFER_AGENT_ID
     assert actor.kind.value == "agent"
 
 
@@ -64,17 +64,17 @@ async def test_seed_is_idempotent_across_calls() -> None:
     MUST NOT duplicate the agent. Pins the
     ConcurrencyError-as-no-op semantics."""
     kernel = _kernel()
-    await seed_run_debrief_agent(kernel)
+    await seed_run_debriefer_agent(kernel)
     # Second call must not raise.
-    await seed_run_debrief_agent(kernel)
+    await seed_run_debriefer_agent(kernel)
     # Third call for good measure.
-    await seed_run_debrief_agent(kernel)
+    await seed_run_debriefer_agent(kernel)
 
     # Still exactly one agent at the pinned id.
-    agent = await load_agent(kernel.event_store, RUN_DEBRIEF_AGENT_ID)
+    agent = await load_agent(kernel.event_store, RUN_DEBRIEFER_AGENT_ID)
     assert agent is not None
     # Stream version is still 1 (one event), not 3.
-    events, version = await kernel.event_store.load("Agent", RUN_DEBRIEF_AGENT_ID)
+    events, version = await kernel.event_store.load("Agent", RUN_DEBRIEFER_AGENT_ID)
     assert version == 1
     assert len(events) == 1
 
@@ -86,9 +86,9 @@ async def test_seed_pins_prompt_template_id() -> None:
     for audit. Pin the linkage so a misnumbered template would
     surface here."""
     kernel = _kernel()
-    await seed_run_debrief_agent(kernel)
+    await seed_run_debriefer_agent(kernel)
 
-    agent = await load_agent(kernel.event_store, RUN_DEBRIEF_AGENT_ID)
+    agent = await load_agent(kernel.event_store, RUN_DEBRIEFER_AGENT_ID)
     assert agent is not None
     assert agent.prompt_template_id == RUN_DEBRIEF_PROMPT_TEMPLATE_ID
 
@@ -103,13 +103,13 @@ async def test_seed_uses_system_principal_id_not_agent_self_reference() -> None:
     from cora.infrastructure.routing import SYSTEM_PRINCIPAL_ID
 
     kernel = _kernel()
-    await seed_run_debrief_agent(kernel)
+    await seed_run_debriefer_agent(kernel)
 
-    actor_events, _ = await kernel.event_store.load("Actor", RUN_DEBRIEF_AGENT_ID)
+    actor_events, _ = await kernel.event_store.load("Actor", RUN_DEBRIEFER_AGENT_ID)
     assert len(actor_events) == 1
     assert actor_events[0].principal_id == SYSTEM_PRINCIPAL_ID
-    assert actor_events[0].principal_id != RUN_DEBRIEF_AGENT_ID
+    assert actor_events[0].principal_id != RUN_DEBRIEFER_AGENT_ID
 
-    agent_events, _ = await kernel.event_store.load("Agent", RUN_DEBRIEF_AGENT_ID)
+    agent_events, _ = await kernel.event_store.load("Agent", RUN_DEBRIEFER_AGENT_ID)
     assert len(agent_events) == 1
     assert agent_events[0].principal_id == SYSTEM_PRINCIPAL_ID

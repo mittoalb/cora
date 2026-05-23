@@ -1,4 +1,4 @@
-"""Application-handler tests for the `promote_caution_proposal` slice (Phase 8f-c iter 3).
+"""Application-handler tests for the `promote_caution_proposal` slice.
 
 Exercises the cross-BC dispatch path: load Decision, validate via
 decider, dispatch to Caution BC's register_caution OR
@@ -92,7 +92,7 @@ def _build_deps(
 
 async def _seed_caution_drafter_agent(store: InMemoryEventStore, *, agent_id: UUID) -> None:
     """Seed an Agent stream with kind='CautionDrafter' so the promote
-    handler's provenance gate (Phase A.2) passes.
+    handler's provenance gate passes.
 
     Mirrors the production seed at `cora.agent.seed_caution_drafter`
     but skips the cross-BC Access write (Actor row is not loaded by
@@ -129,7 +129,7 @@ async def _seed_caution_drafter_agent(store: InMemoryEventStore, *, agent_id: UU
 
 
 async def _seed_non_caution_drafter_agent(
-    store: InMemoryEventStore, *, agent_id: UUID, kind: str = "RunDebrief"
+    store: InMemoryEventStore, *, agent_id: UUID, kind: str = "RunDebriefer"
 ) -> None:
     """Seed an Agent of a non-CautionDrafter kind for negative-path gate tests."""
     genesis = AgentDefined(
@@ -337,7 +337,7 @@ async def test_handler_rejects_wrong_context() -> None:
         choice="NominalCompletion",
         parent_id=None,
         override_kind=None,
-        decision_rule="agent:RunDebrief:v1",
+        decision_rule="agent:RunDebriefer:v1",
         reasoning="rationale narrative spanning enough words to satisfy the bound",
         confidence=0.9,
         confidence_source=DecisionConfidenceSource.SELF_REPORTED,
@@ -351,7 +351,7 @@ async def test_handler_rejects_wrong_context() -> None:
         payload=to_payload(event),
         occurred_at=_T0,
         event_id=uuid4(),
-        command_name="RunDebriefSubscriber",
+        command_name="RunDebrieferSubscriber",
         correlation_id=_CORRELATION_ID,
         causation_id=None,
         principal_id=actor_id,
@@ -457,7 +457,7 @@ async def test_handler_denied_does_not_write_caution() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Phase A.2: provenance gate (Decision must come from a CautionDrafter agent)
+# Provenance gate (Decision must come from a CautionDrafter agent)
 # ---------------------------------------------------------------------------
 
 
@@ -495,12 +495,12 @@ async def test_handler_rejects_decision_from_unregistered_actor() -> None:
 async def test_handler_rejects_decision_from_wrong_agent_kind() -> None:
     """The Decision actor is a registered Agent, but kind != 'CautionDrafter'
     (e.g. a forged DecisionRegistered claiming context=CautionProposal
-    but actor_id pointing at the RunDebrief agent)."""
+    but actor_id pointing at the RunDebriefer agent)."""
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     decision_id = uuid4()
     actor_id = uuid4()
-    await _seed_non_caution_drafter_agent(store, agent_id=actor_id, kind="RunDebrief")
+    await _seed_non_caution_drafter_agent(store, agent_id=actor_id, kind="RunDebriefer")
     await _seed_caution_proposal_decision(
         store,
         decision_id=decision_id,
@@ -516,7 +516,7 @@ async def test_handler_rejects_decision_from_wrong_agent_kind() -> None:
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-    assert exc.value.observed_kind == "RunDebrief"
+    assert exc.value.observed_kind == "RunDebriefer"
     assert exc.value.actor_id == actor_id
 
 
@@ -529,7 +529,7 @@ async def test_handler_gate_fires_before_decider_validation() -> None:
     deps = _build_deps(event_store=store)
     decision_id = uuid4()
     actor_id = uuid4()
-    await _seed_non_caution_drafter_agent(store, agent_id=actor_id, kind="RunDebrief")
+    await _seed_non_caution_drafter_agent(store, agent_id=actor_id, kind="RunDebriefer")
     await _seed_caution_proposal_decision(
         store,
         decision_id=decision_id,

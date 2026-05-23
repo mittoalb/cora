@@ -79,7 +79,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             Field(
                 min_length=1,
                 max_length=AGENT_KIND_MAX_LENGTH,
-                description="Agent kind discriminator (`RunDebrief`, etc.).",
+                description="Agent kind discriminator (`RunDebriefer`, etc.).",
             ),
         ],
         name: Annotated[

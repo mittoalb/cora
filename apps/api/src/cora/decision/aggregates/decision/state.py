@@ -163,7 +163,7 @@ DECISION_CONTEXT_RESOURCE_ALLOCATION = "ResourceAllocation"
 DECISION_CONTEXT_POLICY_GRANT = "PolicyGrant"
 DECISION_CONTEXT_PROCEDURE_EXECUTION = "ProcedureExecution"
 DECISION_CONTEXT_DATASET_DISCARD = "DatasetDiscard"
-# RunDebrief agent writes one Decision per terminal Run
+# RunDebriefer agent writes one Decision per terminal Run
 # event. Open-ended convention; the choice value lives in the
 # `RunDebriefChoice` Literal below.
 DECISION_CONTEXT_RUN_DEBRIEF = "RunDebrief"
@@ -684,7 +684,7 @@ def validate_reasoning(value: str | None) -> str | None:
     text after trim.
 
     **Public to sibling BCs** (cross-BC gate-review P1#4 of 8f-b
-    iter 2b): callable from `cora.agent.subscribers.run_debrief`
+    iter 2b): callable from `cora.agent.subscribers.run_debriefer`
     which composes `DecisionRegistered` inline because it needs a
     deterministic decision_id that the slice handler cannot provide.
     Sibling-BC callers depend on this helper's stability; treat

@@ -16,7 +16,7 @@ taxonomy this scenario fits into.
 
 ## Why this scenario exists
 
-Phase O-2 of the operations-phase canonical-acquisition chain
+Step O-2 of the operations-phase canonical-acquisition chain
 (O-1 = `beamtime_intake`, O-2 = `mount_sample`, O-3 =
 `tomography_scan`). The mount routine is small but load-bearing:
 no Run can execute against a Subject still in `Received` state, so

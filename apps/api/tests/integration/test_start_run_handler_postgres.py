@@ -47,7 +47,7 @@ from tests.unit.subject._helpers import seed_active_asset
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0dcc3")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0dcc3")
 
 
 @pytest.mark.integration
@@ -190,12 +190,10 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
         # at start time. None when StartRun.campaign_id was not
         # provided; forward-compat via `payload.get("campaign_id")`.
         "campaign_id": None,
-        # Phase 1 (Decision→Run linkage) additive payload field for the
         # optional Decision-causation link. None when
         # StartRun.decided_by_decision_id was not provided; forward-compat
         # via `payload.get("decided_by_decision_id")`.
         "decided_by_decision_id": None,
-        # Phase 12b additive payload field for Calibration AsShot anchor
         # pins. Empty tuple by default; forward-compat via
         # `payload.get("pinned_calibrations", [])`.
         "pinned_calibrations": [],
@@ -211,7 +209,7 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
     assert state.plan_id == plan_id
     assert state.subject_id == subject_id
     assert state.status is RunStatus.RUNNING
-    # Phase 12b-5 backward-compat pin (gate-review): legacy callers
+
     # that omit pinned_calibrations get an empty frozenset on the
     # folded state — locks the additive-state forward-compat contract
     # end-to-end (event payload → PG round-trip → load_run fold).

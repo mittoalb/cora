@@ -1,4 +1,4 @@
-"""RunDebrief subscriber: CORA's first side-effecting subscriber.
+"""RunDebriefer subscriber: CORA's first side-effecting subscriber.
 
 Subscribes to the four terminal Run events (`RunCompleted`,
 `RunAborted`, `RunStopped`, `RunTruncated`), loads the terminated
@@ -20,7 +20,7 @@ event store has two challenges:
      two transactions.
 
   2. The bookmark transaction holds for the duration of `apply()`
-     including the LLM call. RunDebrief is `batch_size=1` so the
+     including the LLM call. RunDebriefer is `batch_size=1` so the
      transaction holds one connection for ~5-15 s per terminal
      event. Acceptable for pilot scale (~few Runs/day); a watch
      item for facility scale.
@@ -129,7 +129,7 @@ from cora.agent.prompts import (
     RunDebriefPayload,
     build_run_debrief_chat_request,
 )
-from cora.agent.seed import RUN_DEBRIEF_AGENT_ID, RUN_DEBRIEF_AGENT_NAME
+from cora.agent.seed import RUN_DEBRIEFER_AGENT_ID, RUN_DEBRIEFER_AGENT_NAME
 from cora.agent.subscribers._terminal_run_helpers import (
     extract_interrupted_at,
     extract_reason,
@@ -160,8 +160,8 @@ if TYPE_CHECKING:
     from cora.infrastructure.projection.handler import ConnectionLike
 
 _STREAM_TYPE = "Decision"
-_COMMAND_NAME = "RunDebriefSubscriber"
-_DECISION_RULE = "agent:RunDebrief:v1"
+_COMMAND_NAME = "RunDebrieferSubscriber"
+_DECISION_RULE = "agent:RunDebriefer:v1"
 
 # Stable namespace for deriving deterministic Decision IDs from
 # terminal Run event IDs. UUIDv5(namespace, terminal_event_id) ->
@@ -231,15 +231,15 @@ def _derive_decision_id(terminal_event_id: UUID) -> UUID:
 # imported above as `extract_reason` / `extract_interrupted_at`.
 
 
-class RunDebriefSubscriber:
+class RunDebrieferSubscriber:
     """Side-effecting subscriber: terminal Run -> one advisory Decision.
 
-    Constructed by `make_run_debrief_subscriber` from the Kernel;
+    Constructed by `make_run_debriefer_subscriber` from the Kernel;
     satisfies the `Projection` Protocol (and the `Subscriber`
     primitive it extends) structurally.
 
     Holds references to the LLM port and event store. The Decision's
-    `actor_id` is the seeded RunDebrief Agent's id (== that agent's
+    `actor_id` is the seeded RunDebriefer Agent's id (== that agent's
     Actor.id per 8f-a's identity-sharing invariant).
 
     `name` and `subscribed_event_types` are plain class-level
@@ -248,7 +248,7 @@ class RunDebriefSubscriber:
     `ClassVar`-annotated class would not satisfy structurally).
     """
 
-    name = "run_debrief"
+    name = "run_debriefer"
     subscribed_event_types = _TERMINAL_RUN_EVENTS
 
     def __init__(
@@ -291,7 +291,7 @@ class RunDebriefSubscriber:
             derived_decision_id=str(decision_id),
             correlation_id=str(event.correlation_id),
         )
-        log.info("run_debrief.start")
+        log.info("run_debriefer.start")
 
         # Load Run aggregate (v1 read scope = Run only).
         run = await load_run(self.event_store, run_id)
@@ -299,19 +299,19 @@ class RunDebriefSubscriber:
             # Run stream missing despite terminal event for it -- impossible
             # under the normal event-store invariants, but skip cleanly so a
             # corrupt fixture doesn't wedge the bookmark.
-            log.warning("run_debrief.skip.run_missing")
+            log.warning("run_debriefer.skip.run_missing")
             return
 
         # Pre-load the Agent's Actor (the Decision aggregate requires
         # `actor_id` to exist in Access BC). If the agent isn't seeded
         # (bootstrap not yet run, deployment misconfigured), short-circuit
         # without writing -- the operator needs to fix the seed.
-        actor = await load_actor(self.event_store, RUN_DEBRIEF_AGENT_ID)
+        actor = await load_actor(self.event_store, RUN_DEBRIEFER_AGENT_ID)
         if actor is None:
             log.warning(
-                "run_debrief.skip.agent_actor_missing",
-                agent_id=str(RUN_DEBRIEF_AGENT_ID),
-                agent_name=RUN_DEBRIEF_AGENT_NAME,
+                "run_debriefer.skip.agent_actor_missing",
+                agent_id=str(RUN_DEBRIEFER_AGENT_ID),
+                agent_name=RUN_DEBRIEFER_AGENT_NAME,
             )
             return
 
@@ -324,9 +324,9 @@ class RunDebriefSubscriber:
         # (LLM cost paid, no audit trail).
         if not actor.is_active:
             log.warning(
-                "run_debrief.skip.agent_actor_deactivated",
-                agent_id=str(RUN_DEBRIEF_AGENT_ID),
-                agent_name=RUN_DEBRIEF_AGENT_NAME,
+                "run_debriefer.skip.agent_actor_deactivated",
+                agent_id=str(RUN_DEBRIEFER_AGENT_ID),
+                agent_name=RUN_DEBRIEFER_AGENT_NAME,
             )
             return
 
@@ -353,7 +353,7 @@ class RunDebriefSubscriber:
             response = await self.llm.chat(request)
         except LLMError as exc:
             log.warning(
-                "run_debrief.llm_failed",
+                "run_debriefer.llm_failed",
                 error_class=type(exc).__name__,
                 error_message=redact_secrets(str(exc)[:200]),
             )
@@ -388,7 +388,7 @@ class RunDebriefSubscriber:
                 # do NOT propagate (mirror outage must not block the
                 # Decision-emission audit trail).
                 log.warning(
-                    "run_debrief.logbook_mirror_failed",
+                    "run_debriefer.logbook_mirror_failed",
                     error_class=type(exc).__name__,
                     error_message=redact_secrets(str(exc)[:200]),
                 )
@@ -548,13 +548,13 @@ class RunDebriefSubscriber:
                 events=[new_event],
             )
         except ConcurrencyError:
-            log.info("run_debrief.already_processed", outcome=outcome)
+            log.info("run_debriefer.already_processed", outcome=outcome)
             return
 
-        log.info("run_debrief.success", outcome=outcome)
+        log.info("run_debriefer.success", outcome=outcome)
 
 
-def make_run_debrief_subscriber(deps: Kernel) -> RunDebriefSubscriber:
+def make_run_debriefer_subscriber(deps: Kernel) -> RunDebrieferSubscriber:
     """Construct the subscriber from the Kernel.
 
     Raises `RuntimeError` if `kernel.llm is None` (the subscriber
@@ -567,11 +567,11 @@ def make_run_debrief_subscriber(deps: Kernel) -> RunDebriefSubscriber:
     """
     if deps.llm is None:
         msg = (
-            "RunDebriefSubscriber requires kernel.llm to be set; "
+            "RunDebrieferSubscriber requires kernel.llm to be set; "
             "configure ANTHROPIC_API_KEY or inject a FakeLLMAdapter."
         )
         raise RuntimeError(msg)
-    return RunDebriefSubscriber(
+    return RunDebrieferSubscriber(
         event_store=deps.event_store,
         llm=deps.llm,
         logbook_mirror=deps.logbook_mirror,
@@ -579,6 +579,6 @@ def make_run_debrief_subscriber(deps: Kernel) -> RunDebriefSubscriber:
 
 
 __all__ = [
-    "RunDebriefSubscriber",
-    "make_run_debrief_subscriber",
+    "RunDebrieferSubscriber",
+    "make_run_debriefer_subscriber",
 ]

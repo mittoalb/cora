@@ -1,7 +1,7 @@
 """Unit tests for the `update_plan_default_parameters` application handler.
 
-Phase 6g-b. Mirrors `test_update_method_parameters_schema_handler.py`
-shape but threads the Method-load through the handler under test.
+Mirrors `test_update_method_parameters_schema_handler.py` shape but threads
+the Method-load through the handler under test.
 """
 
 from datetime import UTC, datetime

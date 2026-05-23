@@ -1,4 +1,4 @@
-"""Application-handler tests for the `get_agent` query slice (Phase 8f-a)."""
+"""Application-handler tests for the `get_agent` query slice."""
 
 from datetime import UTC, datetime
 from uuid import UUID
@@ -43,7 +43,7 @@ def _build_deps(
 async def _seed_defined_agent(store: InMemoryEventStore) -> None:
     genesis = AgentDefined(
         agent_id=_AGENT_ID,
-        kind="RunDebrief",
+        kind="RunDebriefer",
         name="Run Debrief",
         version="v1",
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
@@ -85,7 +85,7 @@ async def test_handler_returns_agent_on_hit() -> None:
     )
     assert result is not None
     assert result.agent.id == _AGENT_ID
-    assert result.agent.kind.value == "RunDebrief"
+    assert result.agent.kind.value == "RunDebriefer"
     assert result.agent.status is AgentStatus.DEFINED
     # In-memory deps have no pool -> projection-sourced timestamps absent.
     assert result.timestamps is None

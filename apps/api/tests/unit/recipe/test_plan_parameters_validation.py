@@ -1,4 +1,4 @@
-"""Unit tests for the Plan default_parameters validator (Phase 6g-b).
+"""Unit tests for the Plan default_parameters validator.
 
 Validates dicts against a Method's parameters_schema using
 jsonschema-rs. STRICT when the schema is None — non-empty defaults

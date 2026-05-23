@@ -1,11 +1,12 @@
 """Integration test: TrustAuthorize gates handlers across BC boundaries.
 
-Phase B of the post-Phase-4 Trust integration verification. Phase A
-proved TrustAuthorize gates handlers within Trust itself. This file
-extends the proof across BC boundaries: a single Trust policy gates
-Subject and Access commands, principal_id propagates correctly under
-real authz, and per-BC `UnauthorizedError` classes are raised at the
-right BC (the cross-BC log-distinguishability convention).
+Second verification pass of the post-handler-gate Trust integration.
+The first pass proved TrustAuthorize gates handlers within Trust
+itself. This file extends the proof across BC boundaries: a single
+Trust policy gates Subject and Access commands, principal_id
+propagates correctly under real authz, and per-BC `UnauthorizedError`
+classes are raised at the right BC (the cross-BC log-distinguishability
+convention).
 
 Also pins the documented bootstrap workflow from
 `cora/trust/authorize.py`'s docstring — the chicken-and-egg escape

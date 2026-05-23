@@ -1,7 +1,7 @@
 """End-to-end PG integration test: `add_run_to_campaign` two-stream atomic write.
 
 Pins the cross-aggregate, multi-stream atomic-write contract under
-real Postgres for Phase 6i-c:
+real Postgres:
 
   1. Happy-path round-trip: Campaign gains run_id in its run_ids;
      Run gains campaign_id on its state. Both stream version cursors
@@ -238,7 +238,7 @@ async def test_add_run_to_campaign_bumps_run_count_after_drain(
     assert row["run_count"] == 1
 
 
-# ---------- N3: NO CASCADE anti-hook (Phase 6i-c gate-review nit) ----------
+# ---------- N3: NO CASCADE anti-hook ----------
 
 
 @pytest.mark.integration

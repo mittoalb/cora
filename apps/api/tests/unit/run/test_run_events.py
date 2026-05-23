@@ -93,12 +93,10 @@ def test_to_payload_serializes_run_started_with_subject_to_primitives() -> None:
         # at start time. None when StartRun.campaign_id was not
         # provided; forward-compat via `payload.get("campaign_id")`.
         "campaign_id": None,
-        # Phase 1 (Decision→Run linkage) additive payload field for the
         # optional Decision-causation link. None when
         # StartRun.decided_by_decision_id was not provided; forward-compat
         # via `payload.get("decided_by_decision_id")`.
         "decided_by_decision_id": None,
-        # Phase 12b (Calibration AsShot anchor) additive payload field;
         # sorted list of CalibrationRevision ids. Empty when
         # StartRun.pinned_calibrations was empty; forward-compat via
         # `payload.get("pinned_calibrations", [])`.
@@ -140,9 +138,8 @@ def test_to_payload_serializes_run_started_with_raid() -> None:
 
 @pytest.mark.unit
 def test_to_payload_serializes_run_started_with_6gc_parameter_fields() -> None:
-    """Phase 6g-c additive payload: override_parameters,
-    effective_parameters, triggered_by carry verbatim through the
-    payload."""
+    """Additive payload: override_parameters, effective_parameters,
+    triggered_by carry verbatim through the payload."""
     overrides = {"energy": 12.0}
     effective = {"energy": 12.0, "exposure": 100}
     event = RunStarted(
@@ -343,7 +340,7 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
         from_stored(stored)
 
 
-# ---------- Phase 11b-c: acknowledged_cautions forward-compat + round-trip ----------
+# ---------- acknowledged_cautions forward-compat + round-trip ----------
 
 
 @pytest.mark.unit
@@ -495,7 +492,6 @@ def test_to_payload_serializes_run_aborted_to_primitives() -> None:
     assert to_payload(event) == {
         "run_id": str(run_id),
         "reason": "detector overheating",
-        # Phase 1 (Decision→Run linkage) additive payload field; None
         # when not supplied. Forward-compat via
         # `payload.get("decided_by_decision_id")`.
         "decided_by_decision_id": None,
@@ -561,7 +557,7 @@ def test_run_aborted_round_trips() -> None:
     assert from_stored(stored) == original
 
 
-# Phase 1: Decision→Run linkage on RunAborted
+# Decision-to-Run linkage on RunAborted
 
 
 @pytest.mark.unit
@@ -797,14 +793,13 @@ def test_run_reading_logbook_opened_round_trips() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- Phase 6i-c: campaign_id additive on RunStarted + 2 new events ----------
+# ---------- campaign_id additive on RunStarted + 2 new events ----------
 
 
 @pytest.mark.unit
 def test_to_payload_serializes_run_started_with_campaign_id() -> None:
-    """Phase 6i-c: when StartRun supplied campaign_id, the event payload
-    includes it as a string. Verified end-to-end via the canonical
-    to_payload arm."""
+    """When StartRun supplied campaign_id, the event payload includes it as a
+    string. Verified end-to-end via the canonical to_payload arm."""
     run_id = uuid4()
     plan_id = uuid4()
     campaign_id = uuid4()
@@ -822,21 +817,20 @@ def test_to_payload_serializes_run_started_with_campaign_id() -> None:
 
 @pytest.mark.unit
 def test_from_stored_rebuilds_run_started_without_campaign_id_as_none() -> None:
-    """Forward-compat: pre-6i-c events have no campaign_id key.
-    from_stored returns None for those, keeping older streams replayable.
-    Mirrors the raid / external_refs / acknowledged_cautions forward-
-    compat pattern."""
+    """Forward-compat: legacy events have no campaign_id key. from_stored
+    returns None for those, keeping older streams replayable. Mirrors the raid
+    / external_refs / acknowledged_cautions forward-compat pattern."""
     run_id = uuid4()
     plan_id = uuid4()
     stored = _stored(
         "RunStarted",
         {
             "run_id": str(run_id),
-            "name": "Pre-6i-c run",
+            "name": "Legacy run",
             "plan_id": str(plan_id),
             "subject_id": None,
             "occurred_at": _NOW.isoformat(),
-            # NOTE: no "campaign_id" key — pre-6i-c shape.
+            # NOTE: no "campaign_id" key (legacy shape).
         },
     )
     event = from_stored(stored)
@@ -864,9 +858,8 @@ def test_run_started_campaign_id_round_trips() -> None:
 
 @pytest.mark.unit
 def test_run_campaign_assigned_round_trips() -> None:
-    """Phase 6i-c: RunCampaignAssigned (post-hoc membership-assign
-    event written by add_run_to_campaign) round-trips through the
-    codec."""
+    """RunCampaignAssigned (post-hoc membership-assign event written by
+    add_run_to_campaign) round-trips through the codec."""
     from cora.run.aggregates.run.events import RunCampaignAssigned
 
     original = RunCampaignAssigned(
@@ -880,9 +873,9 @@ def test_run_campaign_assigned_round_trips() -> None:
 
 @pytest.mark.unit
 def test_run_campaign_unassigned_round_trips_with_reason() -> None:
-    """Phase 6i-c: RunCampaignUnassigned (post-hoc membership-remove
-    event written by remove_run_from_campaign) round-trips with the
-    operator-supplied reason."""
+    """RunCampaignUnassigned (post-hoc membership-remove event written by
+    remove_run_from_campaign) round-trips with the operator-supplied
+    reason."""
     from cora.run.aggregates.run.events import RunCampaignUnassigned
 
     original = RunCampaignUnassigned(
@@ -895,7 +888,7 @@ def test_run_campaign_unassigned_round_trips_with_reason() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- Phase 6j: RunAdjusted codec ----------
+# ---------- RunAdjusted codec ----------
 
 
 @pytest.mark.unit
@@ -997,13 +990,13 @@ def test_from_stored_rebuilds_run_adjusted_with_missing_decision_key_as_none() -
     assert event.decided_by_decision_id is None
 
 
-# ---------- Phase 1: Decision→Run linkage on RunStarted ----------
+# ---------- Decision→Run linkage on RunStarted ----------
 
 
 @pytest.mark.unit
 def test_to_payload_serializes_run_started_with_decision_id() -> None:
-    """Phase 1: when StartRun supplied decided_by_decision_id, the event
-    payload includes it as a string."""
+    """When StartRun supplied decided_by_decision_id, the event payload
+    includes it as a string."""
     decision_id = uuid4()
     event = RunStarted(
         run_id=uuid4(),
@@ -1055,7 +1048,7 @@ def test_run_started_decision_id_round_trips() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- Phase 12b: Calibration AsShot anchor on RunStarted ----------
+# ---------- Calibration AsShot anchor on RunStarted ----------
 
 
 @pytest.mark.unit

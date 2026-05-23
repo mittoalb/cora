@@ -1,4 +1,4 @@
-"""Contract tests for the `re_debrief_run` MCP tool (Phase 8f-c iter 1)."""
+"""Contract tests for the `re_debrief_run` MCP tool."""
 
 import pytest
 from fastapi.testclient import TestClient

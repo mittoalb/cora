@@ -1020,7 +1020,7 @@ class Run:
     # RunAdjusted / RunCampaignAssigned / RunCampaignUnassigned /
     # RunReadingLogbookOpened) preserves `prior.pinned_calibrations`
     # verbatim. The AsShot anchor lets downstream consumers (Dataset
-    # reconstruction in 12c, RunDebrief AI advisories) answer "what
+    # reconstruction in 12c, RunDebriefer AI advisories) answer "what
     # calibration was this scan acquired against?" deterministically
     # months later, even if later refined revisions arrive on the
     # same Calibration aggregate. DNG AsShot vs Current precedent

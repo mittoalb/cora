@@ -1,4 +1,4 @@
-"""End-to-end integration test: promote_dataset against real Postgres (Phase 7e).
+"""End-to-end integration test: promote_dataset against real Postgres.
 
 Standalone-upload Dataset (no producing_run, no derived_from): the
 simplest end-to-end path that exercises promote_dataset's full
@@ -32,7 +32,7 @@ _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d552")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d552")
 
 
 def _build_deps(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:

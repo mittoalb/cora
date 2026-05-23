@@ -1,4 +1,4 @@
-"""Unit tests for `CautionDrafterSubscriber` (Phase 8f-c iter 3).
+"""Unit tests for `CautionDrafterSubscriber`.
 
 Drives the subscriber against `InMemoryEventStore` + `FakeLLMAdapter`
 + `AlwaysQuietCautionLookup` so the LLM call returns canned
@@ -299,12 +299,12 @@ def test_subscriber_name_and_subscribed_event_types_pinned() -> None:
 
 
 @pytest.mark.unit
-def test_subscriber_namespace_distinct_from_run_debrief() -> None:
+def test_subscriber_namespace_distinct_from_run_debriefer() -> None:
     """Decision-id namespaces must not collide between agents."""
     from cora.agent.subscribers.caution_drafter import (
         _CAUTION_DRAFTER_DECISION_NAMESPACE,
     )
-    from cora.agent.subscribers.run_debrief import _RUN_DEBRIEF_DECISION_NAMESPACE
+    from cora.agent.subscribers.run_debriefer import _RUN_DEBRIEF_DECISION_NAMESPACE
 
     assert _CAUTION_DRAFTER_DECISION_NAMESPACE != _RUN_DEBRIEF_DECISION_NAMESPACE
 
@@ -561,7 +561,7 @@ async def test_apply_is_at_most_once_via_deterministic_decision_id() -> None:
 async def test_apply_skips_when_plan_missing() -> None:
     """No Plan -> subscriber logs warning and returns without writing.
 
-    The Plan-load guard is CautionDrafter-specific (RunDebrief
+    The Plan-load guard is CautionDrafter-specific (RunDebriefer
     doesn't load Plan). Without it the subscriber would crash on
     `plan.asset_ids`.
     """

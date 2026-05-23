@@ -72,18 +72,18 @@ def test_post_methods_same_key_different_body_returns_422() -> None:
 
 @pytest.mark.contract
 def test_post_methods_same_key_different_capability_id_returns_422() -> None:
-    """Phase 6l-additive cross-BC additive payload safety pin (gate-
-    review P1): same Idempotency-Key + same `name`/`needed_families`
-    BUT different `capability_id` must surface as 422 (hash collision
-    detection). `_normalize_for_hash` SHA256s the full DefineMethod
-    dataclass including the new `capability_id` field, so the two
-    bodies hash differently and the second retry is rejected.
+    """Cross-BC additive payload safety pin (gate-review P1): same
+    Idempotency-Key + same `name`/`needed_families` BUT different
+    `capability_id` must surface as 422 (hash collision detection).
+    `_normalize_for_hash` SHA256s the full DefineMethod dataclass
+    including the `capability_id` field, so the two bodies hash
+    differently and the second retry is rejected.
 
-    Pinned because the 6l-additive payload-shape change (adding the
-    `capability_id` key) creates a new dimension where idempotency-
-    key conflicts can land; without this pin a future regression
-    that omits `capability_id` from `_normalize_for_hash` would silently
-    serve a cached method_id for the wrong Capability binding."""
+    Pinned because adding the `capability_id` key creates a new
+    dimension where idempotency-key conflicts can land; without this
+    pin a future regression that omits `capability_id` from
+    `_normalize_for_hash` would silently serve a cached method_id
+    for the wrong Capability binding."""
     with TestClient(create_app()) as client:
         # Two distinct Method-shaped Capabilities for the collision test
         # — using create_capability_via_api directly so each call writes

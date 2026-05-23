@@ -1,4 +1,4 @@
-"""Pure-decider tests for the `revise_agent_budget` slice (Phase 8f-c iter 2)."""
+"""Pure-decider tests for the `revise_agent_budget` slice."""
 
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -32,7 +32,7 @@ def _agent(
 ) -> Agent:
     return Agent(
         id=agent_id or uuid4(),  # type: ignore[arg-type]
-        kind=AgentKind("RunDebrief"),
+        kind=AgentKind("RunDebriefer"),
         name=AgentName("Run Debrief"),
         version=AgentVersion("v1"),
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),

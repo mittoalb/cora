@@ -1,4 +1,4 @@
-"""Unit tests for the `adjust_run` application handler (Phase 6j).
+"""Unit tests for the `adjust_run` application handler.
 
 Longhand cross-aggregate handler: loads Run + Plan + Practice + Method
 before reaching the pure decider. Mirrors `start_run`'s handler test

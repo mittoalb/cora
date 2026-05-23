@@ -26,7 +26,7 @@ exercises across two distinct Plans.
 ## Why this scenario exists
 
 The operations-phase corpus today exercises the agent-authored
-Decision (RunDebrief, O-4 + P2.1 + P2.2). The cross-Plan operator-
+Decision (RunDebriefer, O-4 + P2.1 + P2.2). The cross-Plan operator-
 authored Decision is the symmetric shape: same `Decision`
 aggregate, same `register_decision` slice, but the actor is a
 human and the choice is a forward-looking acquisition pivot
@@ -182,7 +182,7 @@ _SUBJECT_ID = UUID("01900000-0000-7000-8000-000000423b11")
 _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000423b21")
 
 _METHOD_TOMO_ID = UUID("01900000-0000-7000-8000-000000423d01")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0ef80")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0ef80")
 _PRACTICE_TOMO_ID = UUID("01900000-0000-7000-8000-000000423d11")
 _PLAN_LOW_ENERGY_ID = UUID("01900000-0000-7000-8000-000000423d21")
 _PLAN_HIGH_ENERGY_ID = UUID("01900000-0000-7000-8000-000000423d22")

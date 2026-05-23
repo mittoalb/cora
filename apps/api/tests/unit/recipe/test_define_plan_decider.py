@@ -512,7 +512,7 @@ def test_decide_emits_deterministic_asset_id_ordering_for_idempotency() -> None:
     assert events[0].asset_ids == sorted([a1, a2, a3], key=str)
 
 
-# ---------- Phase 6l.B affordance-cover guard ----------
+# ---------- Affordance-cover guard ----------
 
 
 def _capability(
@@ -522,7 +522,7 @@ def _capability(
     status: CapabilityStatus = CapabilityStatus.DEFINED,
     version: str | None = None,
 ) -> Capability:
-    """Build a Capability fixture for the Phase 6l.B affordance-cover guard."""
+    """Build a Capability fixture for the affordance-cover guard."""
     return Capability(
         id=capability_id or uuid4(),
         code=CapabilityCode("cora.capability.x"),
@@ -536,11 +536,11 @@ def _capability(
 
 @pytest.mark.unit
 def test_decide_skips_affordance_guard_when_context_capability_is_none() -> None:
-    """Phase 6l.B compat: when Method has no `capability_id` (pre-6l-
-    strict shape), the handler builds the context with capability=None
-    and family_affordances={}. The decider must NOT raise even when
-    Family.affordances is empty — there's no contract to compare against.
-    Pinned because it locks the additive transition window."""
+    """Compat: when Method has no `capability_id`, the handler builds the
+    context with capability=None and family_affordances={}. The decider must
+    NOT raise even when Family.affordances is empty, because there's no
+    contract to compare against. Pinned to lock the additive transition
+    window."""
     family_id = uuid4()
     method = _method(needed_families=frozenset({family_id}))
     practice = _practice(method_id=method.id)
@@ -565,8 +565,8 @@ def test_decide_skips_affordance_guard_when_context_capability_is_none() -> None
 
 @pytest.mark.unit
 def test_decide_accepts_binding_when_family_affordances_cover_capability_requirements() -> None:
-    """Phase 6l.B happy path: bound Asset's single Family declares an
-    affordance set that covers the Capability's required affordances."""
+    """Happy path: bound Asset's single Family declares an affordance set
+    that covers the Capability's required affordances."""
     family_id = uuid4()
     capability = _capability(required=frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE}))
     method = _method(needed_families=frozenset({family_id}))
@@ -595,11 +595,11 @@ def test_decide_accepts_binding_when_family_affordances_cover_capability_require
 
 @pytest.mark.unit
 def test_decide_raises_affordances_not_satisfied_when_union_misses_required() -> None:
-    """Phase 6l.B sad path: every needed Family is bound (the family-id
-    check passes), but the union of Family.affordances misses one of
+    """Sad path: every needed Family is bound (the family-id check passes),
+    but the union of Family.affordances misses one of
     `capability.required_affordances`. Raises
-    PlanAffordancesNotSatisfiedError carrying the missing affordance
-    string values."""
+    PlanAffordancesNotSatisfiedError carrying the missing affordance string
+    values."""
     family_id = uuid4()
     capability = _capability(required=frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE}))
     method = _method(needed_families=frozenset({family_id}))
@@ -627,11 +627,10 @@ def test_decide_raises_affordances_not_satisfied_when_union_misses_required() ->
 
 @pytest.mark.unit
 def test_decide_unions_affordances_across_multiple_bound_assets() -> None:
-    """Phase 6l.B: the affordance-cover check unions across ALL bound
-    Assets' Families. Two Assets each carrying one Family that
-    contributes a distinct affordance together cover a 2-affordance
-    Capability. Pinned because the union semantics mirror the existing
-    family-id union (Q3 bound-Asset-only)."""
+    """The affordance-cover check unions across ALL bound Assets' Families.
+    Two Assets each carrying one Family that contributes a distinct affordance
+    together cover a 2-affordance Capability. Pinned because the union
+    semantics mirror the existing family-id union (bound-Asset-only)."""
     fam_rot = uuid4()
     fam_trig = uuid4()
     capability = _capability(required=frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE}))
@@ -666,13 +665,12 @@ def test_decide_unions_affordances_across_multiple_bound_assets() -> None:
 
 @pytest.mark.unit
 def test_decide_affordance_guard_runs_after_family_id_check() -> None:
-    """Phase 6l.B: ordering invariant. The family-id check (#6) fires
-    BEFORE the affordance-cover check (#7). When the operator binds
-    Assets that miss a required Family entirely, they get the
-    family-id error first, not the affordance error — that's the
-    more direct diagnostic. Pinned because reversing this order would
-    surface "missing affordance X" when the real issue is "missing
-    Family Y entirely"."""
+    """Ordering invariant. The family-id check (#6) fires BEFORE the
+    affordance-cover check (#7). When the operator binds Assets that miss a
+    required Family entirely, they get the family-id error first, not the
+    affordance error, since that's the more direct diagnostic. Pinned because
+    reversing this order would surface "missing affordance X" when the real
+    issue is "missing Family Y entirely"."""
     needed_family = uuid4()
     bound_family = uuid4()  # different from needed_family
     capability = _capability(required=frozenset({Affordance.ROTATABLE}))
@@ -703,17 +701,16 @@ def test_decide_affordance_guard_runs_after_family_id_check() -> None:
 
 @pytest.mark.unit
 def test_decide_uses_current_capability_state_when_versioned_between_method_and_plan() -> None:
-    """Watch item (final-coverage gate-review P1): the affordance-cover
-    guard reads CURRENT Capability state per the eventual-consistency
-    stance. When a Capability is versioned BETWEEN Method.define_method
-    and Plan.define_plan, the guard MUST use the NEW required_affordances
-    (the version-2 Capability the handler loaded at Plan-bind time),
-    not whatever shape was current at Method-define time.
+    """The affordance-cover guard reads CURRENT Capability state per the
+    eventual-consistency stance. When a Capability is versioned BETWEEN
+    Method.define_method and Plan.define_plan, the guard MUST use the NEW
+    required_affordances (the version-2 Capability the handler loaded at
+    Plan-bind time), not whatever shape was current at Method-define time.
 
-    Tested directly at the decider: pass a Versioned Capability with
-    a fresh `required_affordances` set, the affordance union covers
-    the NEW set → success. Pinned because the handler's load-at-Plan-bind
-    pattern is what makes this race resolvable without snapshots."""
+    Tested directly at the decider: pass a Versioned Capability with a fresh
+    `required_affordances` set, the affordance union covers the NEW set, and
+    the bind succeeds. Pinned because the handler's load-at-Plan-bind pattern
+    is what makes this race resolvable without snapshots."""
     family_id = uuid4()
     # Capability moved from Defined → Versioned with a different
     # required_affordances set (the v2 shape). Decider must validate
@@ -748,18 +745,15 @@ def test_decide_uses_current_capability_state_when_versioned_between_method_and_
 
 @pytest.mark.unit
 def test_decide_accepts_method_bound_to_deprecated_capability() -> None:
-    """Watch item (final-coverage gate-review P1): DLM-B anti-hook #10
-    pins that Capability deprecation is ADVISORY at the BC layer — no
-    cascade. A Method bound to a Deprecated Capability must still pass
-    Plan.bind so existing recipes keep working until operators
-    explicitly re-bind. Pinned because reversing this anti-hook would
-    break every Plan whose Method.capability_id points at a
-    LOINC/AAS-precedent superseded Capability.
+    """Capability deprecation is ADVISORY at the BC layer; no cascade. A
+    Method bound to a Deprecated Capability must still pass Plan.bind so
+    existing recipes keep working until operators explicitly re-bind. Pinned
+    because reversing this would break every Plan whose Method.capability_id
+    points at a LOINC/AAS-precedent superseded Capability.
 
-    Note: Deprecated Capabilities can still cover their affordance
-    contract — they're soft-deprecated, not invalidated. Operators
-    see the deprecation status via `get_capability` and choose when
-    to re-bind."""
+    Note: Deprecated Capabilities can still cover their affordance contract;
+    they're soft-deprecated, not invalidated. Operators see the deprecation
+    status via `get_capability` and choose when to re-bind."""
     family_id = uuid4()
     deprecated_capability = _capability(
         required=frozenset({Affordance.ROTATABLE}),
@@ -785,6 +779,4 @@ def test_decide_accepts_method_bound_to_deprecated_capability() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert len(events) == 1, (
-        "DLM-B anti-hook #10: Deprecated Capability must NOT block Plan binding"
-    )
+    assert len(events) == 1, "Deprecated Capability must NOT block Plan binding"

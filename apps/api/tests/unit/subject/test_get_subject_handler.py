@@ -162,8 +162,8 @@ async def test_handler_reflects_status_through_full_lifecycle() -> None:
 
 @pytest.mark.unit
 async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
-    """Phase 2 query handlers DO call authorize (with AllowAllAuthorize
-    the decision is always Allow, but the call site is in place so the
+    """Query handlers DO call authorize (with AllowAllAuthorize the
+    decision is always Allow, but the call site is in place so the
     eventual TrustAuthorize swap is mechanical per handler)."""
     tracking = RecordingAuthorize()
     deps = _build_deps_shared(

@@ -6,7 +6,7 @@ command slices:
     from cora.agent.features import define_agent
 
     cmd = define_agent.DefineAgent(
-        kind="RunDebrief", name="...", version="v1",
+        kind="RunDebriefer", name="...", version="v1",
         model_ref=ModelRef(provider="anthropic", model="..."),
     )
     handler = define_agent.bind(deps)

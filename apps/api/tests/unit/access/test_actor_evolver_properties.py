@@ -9,8 +9,6 @@ deterministic and stable across replays. For the Actor aggregate:
     is_active=False (id / name / kind preserved).
   - fold([register, deactivate]) is inactive; fold([register]) is
     active. Same events fold to the same state every time (purity).
-
-Iter D of the testing-techniques rollout.
 """
 
 from __future__ import annotations

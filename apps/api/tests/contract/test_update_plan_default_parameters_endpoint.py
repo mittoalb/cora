@@ -1,10 +1,10 @@
 """Contract tests for `PATCH /plans/{plan_id}/default-parameters`.
 
-Phase 6g-b. Action endpoint with body `{default_parameters_patch}`.
+Action endpoint with body `{default_parameters_patch}`.
 RFC 7396 merge semantics. Validates against the owning Method's
-parameters_schema; STRICT when the Method declares no schema (post-6g
-audit reversal: non-empty defaults rejected when no schema declared).
-Mirrors `test_update_asset_settings_endpoint.py` (5g-c) shape.
+parameters_schema; STRICT when the Method declares no schema
+(non-empty defaults rejected when no schema declared).
+Mirrors `test_update_asset_settings_endpoint.py` shape.
 """
 
 from typing import Any

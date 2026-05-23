@@ -15,8 +15,8 @@ from tests.contract._helpers import create_capability_via_api
 
 
 def _define_method(client: TestClient, name: str = "XRF Mapping") -> UUID:
-    """Phase 6l-strict: seed a fresh Capability per call (each Method
-    binds to its own Capability for test isolation)."""
+    """Seed a fresh Capability per call (each Method binds to its
+    own Capability for test isolation)."""
     cap_id = create_capability_via_api(client)
     response = client.post(
         "/methods",

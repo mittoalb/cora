@@ -6,7 +6,7 @@ slot `BearerAuthMiddleware` stashes on) and `.app.state.deps`. Tests
 exercise each of the 3 resolver modes without standing up a real
 FastMCP server or Starlette app.
 
-The contract tier (Iter D) covers the full FastMCP-streamable-http
+The contract tier covers the full FastMCP-streamable-http
 round trip; here we pin the resolver's logic in isolation.
 """
 

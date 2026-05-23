@@ -1,6 +1,6 @@
 """Property-based tests for `define_zone.decide` (Trust BC).
 
-Mirrors the Access BC decider-PBT pattern (Iter D) on a Trust BC
+Mirrors the Access BC decider-PBT pattern on a Trust BC
 create-style command. Universal claims across generated inputs:
 
   - state=None + valid command → single ZoneDefined with injected
@@ -8,8 +8,7 @@ create-style command. Universal claims across generated inputs:
   - state=Zone → ZoneAlreadyExistsError, regardless of command.
   - Pure: same (state, command, now, new_id) → same events.
 
-First PBT extrapolation from Access (pilot) to Trust BC — Iter D.2 of
-the testing-techniques rollout.
+First PBT extrapolation from Access (pilot) to Trust BC.
 """
 
 from __future__ import annotations

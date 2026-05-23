@@ -1,4 +1,4 @@
-"""Shared seed helpers for the Phase 8f-c iter 2 handler tests.
+"""Shared seed helpers for the Agent lifecycle handler tests.
 
 Each new transition slice's handler test (suspend / resume / grant /
 revoke / revise-budget) needs to seed a `Versioned` or `Suspended`
@@ -36,7 +36,7 @@ async def seed_defined_agent(
     """Append a single `AgentDefined` event to a fresh Agent stream."""
     genesis = AgentDefined(
         agent_id=agent_id,
-        kind="RunDebrief",
+        kind="RunDebriefer",
         name="Run Debrief",
         version="v1",
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),

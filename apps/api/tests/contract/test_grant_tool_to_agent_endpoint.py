@@ -1,4 +1,4 @@
-"""Contract tests for `POST /agents/{agent_id}/tools/grant` (Phase 8f-c iter 2)."""
+"""Contract tests for `POST /agents/{agent_id}/tools/grant`."""
 
 from uuid import uuid4
 
@@ -11,7 +11,7 @@ from cora.api.main import create_app
 
 def _define_body() -> dict[str, object]:
     return {
-        "kind": "RunDebrief",
+        "kind": "RunDebriefer",
         "name": "Run Debrief",
         "version": "v1",
         "model_ref": {

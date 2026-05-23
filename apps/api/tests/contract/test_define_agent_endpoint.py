@@ -1,4 +1,4 @@
-"""Contract tests for `POST /agents` (Phase 8f-a)."""
+"""Contract tests for `POST /agents`."""
 
 from uuid import UUID
 
@@ -14,7 +14,7 @@ from cora.api.main import create_app
 
 def _body(**overrides: object) -> dict[str, object]:
     base: dict[str, object] = {
-        "kind": "RunDebrief",
+        "kind": "RunDebriefer",
         "name": "Run Debrief",
         "version": "v1",
         "model_ref": {
@@ -130,7 +130,7 @@ def test_post_agents_same_key_different_body_returns_422() -> None:
 def test_post_agents_round_trips_prompt_template_id() -> None:
     """prompt_template_id survives wire -> domain -> event -> read path.
 
-    8f-b's RunDebrief subscriber will load the registry by this UUID;
+    8f-b's RunDebriefer subscriber will load the registry by this UUID;
     a Pydantic schema regression on the DTO or a missing field in the
     event payload would silently break that lookup.
     """

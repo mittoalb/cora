@@ -7,7 +7,7 @@ ESS / DESY / MAX IV).
 
 ## Why a port without an implementor
 
-The RunDebrief design ([[project-run-debrief-design]] lock #45)
+The RunDebriefer design ([[project-run-debrief-design]] lock #45)
 identified the operator-logbook mirror as a likely but
 under-validated extension. Defining the port at 8f-b without an
 adapter:
@@ -50,7 +50,7 @@ class LogbookMirror(Protocol):
     operator-facing logbook system (Olog / SciLog / SciCat).
 
     Single implementor per deployment when wired; `None` in 8f-b
-    (no implementor exists yet). The RunDebrief subscriber checks
+    (no implementor exists yet). The RunDebriefer subscriber checks
     `kernel.logbook_mirror is not None` before calling.
     """
 
@@ -68,7 +68,7 @@ class LogbookMirror(Protocol):
         into the CORA UI).
 
         `narrative` is the human-readable text payload (the BLUF +
-        4-section AAR for RunDebrief). The adapter SHOULD NOT
+        4-section AAR for RunDebriefer). The adapter SHOULD NOT
         re-render or reformat; the subscriber passes a fully
         formed string.
 

@@ -1,4 +1,4 @@
-"""Contract tests for the `promote_caution_proposal` MCP tool (Phase 8f-c iter 3 follow-up)."""
+"""Contract tests for the `promote_caution_proposal` MCP tool."""
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
@@ -53,7 +53,7 @@ async def _seed_caution_proposal_decision(
     """Append a CautionProposal Decision via the app's wired kernel.
 
     Seeds the canonical CautionDrafter Agent and uses its id as the
-    Decision's `actor_id` so the Phase A.2 provenance gate passes.
+    Decision's `actor_id` so the provenance gate passes.
     """
     deps = app.state.deps
     await seed_caution_drafter_agent(deps)

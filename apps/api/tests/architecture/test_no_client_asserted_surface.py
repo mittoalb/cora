@@ -1,7 +1,8 @@
 """AH1 enforcement: no route/tool may declare a client-asserted Surface.
 
-Phase B Iter C-2 design lock AH1 forbids the arrival Surface from
-being client-driven. `surface_id` MUST be resolved server-side by
+AH1 of the conduit-injection design lock forbids the arrival
+Surface from being client-driven. `surface_id` MUST be resolved
+server-side by
 `get_surface_id` (HTTP) / `get_mcp_surface_id` (MCP), never read off
 a Header / Query / path-param / MCP tool argument the client controls.
 

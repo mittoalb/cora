@@ -1,15 +1,16 @@
-"""Architecture fitness functions for Phase 8f-d MCP edge-auth invariants.
+"""Architecture fitness functions for MCP edge-auth invariants.
 
-Mirrors the Phase C `test_edge_auth_invariants.py` shape (4 invariants
+Mirrors the HTTP `test_edge_auth_invariants.py` shape (4 invariants
 provable from the import graph + AST) for the MCP side of the auth
-parity. The Phase 8f-d Iter B sweep replaced every hardcoded
-`SYSTEM_PRINCIPAL_ID` in MCP tool handlers with a `get_mcp_principal_id(ctx)`
-call; these fitnesses keep that swap permanent by catching any future
+parity. Every hardcoded `SYSTEM_PRINCIPAL_ID` in MCP tool handlers
+has been replaced with a `get_mcp_principal_id(ctx)` call; these
+fitnesses keep that swap permanent by catching any future
 regression at PR time:
 
   1. **No SYSTEM_PRINCIPAL_ID in `principal_id=` kwargs of MCP tools.**
-     A new tool that copy-paste-defaults to SYSTEM bypasses Phase 8f-d
-     entirely. The AST walk picks the keyword arg by name.
+     A new tool that copy-paste-defaults to SYSTEM bypasses the
+     bearer-auth contract entirely. The AST walk picks the keyword
+     arg by name.
 
   2. **Every MCP tool function takes a `ctx: Context` parameter.**
      FastMCP injects Context based on type annotation; a tool that
@@ -24,12 +25,12 @@ regression at PR time:
      extraction at runtime; the signature pin catches it at import
      time.
 
-  4. **`BearerAuthMiddleware` covers `/mcp/*` paths.** Phase 8f-d
-     reversed the Phase C `/mcp/*` skip; an accidental regression
-     would silently let MCP write tools through without any
-     verification.
+  4. **`BearerAuthMiddleware` covers `/mcp/*` paths.** The earlier
+     `/mcp/*` skip is reversed; an accidental regression would
+     silently let MCP write tools through without any verification.
 
-Gate-review trail: Phase 8f-d Iter C; same recipe as Phase C Iter D-1.
+Gate-review trail: MCP edge-auth design lock; same recipe as the
+HTTP edge-auth fitness file.
 """
 
 # pyright: reportPrivateUsage=false, reportUnknownArgumentType=false
@@ -91,9 +92,9 @@ def _ast_has_system_principal_id_in_keyword(tree: ast.AST, kwarg_name: str) -> l
 def test_no_system_principal_id_in_mcp_tool_principal_kwarg() -> None:
     """No MCP `tool.py` may pass `principal_id=SYSTEM_PRINCIPAL_ID`.
 
-    Phase 8f-d Iter B swapped every site to `get_mcp_principal_id(ctx)`.
-    A new tool that copy-paste-defaults to SYSTEM hardcodes the
-    bypass; this fitness fails the PR.
+    Every site uses `get_mcp_principal_id(ctx)` instead. A new tool
+    that copy-paste-defaults to SYSTEM hardcodes the bypass; this
+    fitness fails the PR.
     """
     offending: list[str] = []
     for path in _tool_files():
@@ -102,7 +103,7 @@ def test_no_system_principal_id_in_mcp_tool_principal_kwarg() -> None:
             offending.append(f"{path.relative_to(CORA_ROOT)}:{line}")
     assert not offending, (
         "MCP tool.py files MUST NOT pass principal_id=SYSTEM_PRINCIPAL_ID "
-        "(Phase 8f-d Iter B swap). Replace with "
+        ". Replace with "
         f"principal_id=get_mcp_principal_id(ctx). Offending: {offending}"
     )
 
@@ -148,9 +149,9 @@ def test_every_mcp_tool_function_takes_ctx_context_param() -> None:
     a Context-typed parameter. FastMCP injects Context by type; a tool
     that omits it cannot call `get_mcp_principal_id(ctx)` at all.
 
-    Allows either `Context[Any, Any, Any]` (Phase 8f-d default) or bare
+    Allows either `Context[Any, Any, Any]` or bare
     `Context`. Catches a new tool that forgets the parameter entirely
-    -- the most common Phase 8f-d regression shape.
+    -- the most common MCP edge-auth regression shape.
     """
     offending: list[str] = []
     for path in _tool_files():
@@ -202,14 +203,14 @@ def test_get_mcp_principal_id_signature() -> None:
 
 @pytest.mark.architecture
 def test_bearer_middleware_covers_mcp_paths() -> None:
-    """Phase 8f-d Iter A removed the `/mcp/*` skip from
-    `_is_unauthenticated_path`. A regression that brings it back
-    would silently let every MCP JSON-RPC call through with no
-    bearer verification. Pin the inversion.
+    """The `/mcp/*` skip is removed from `_is_unauthenticated_path`.
+    A regression that brings it back would silently let every MCP
+    JSON-RPC call through with no bearer verification. Pin the
+    inversion.
 
     Also pins the audience dispatch: MCP paths bind to
     `SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID`, NOT the HTTP Surface
-    (AH5 from Phase C: no shared `aud` across Surfaces).
+    (AH5: no shared `aud` across Surfaces).
     """
     from cora.infrastructure.auth.bearer_middleware import (
         _is_unauthenticated_path,
@@ -222,11 +223,11 @@ def test_bearer_middleware_covers_mcp_paths() -> None:
 
     # Skip-path: /mcp paths are NOT skipped.
     assert _is_unauthenticated_path("/mcp") is False, (
-        "/mcp must be bearer-verified post Phase 8f-d. A regression "
+        "/mcp must be bearer-verified. A regression "
         "that re-skips it lets MCP writes through unauthenticated."
     )
     assert _is_unauthenticated_path("/mcp/anything") is False, (
-        "/mcp/anything must be bearer-verified post Phase 8f-d."
+        "/mcp/anything must be bearer-verified."
     )
     assert _is_unauthenticated_path("/mcp/messages/abc") is False, (
         "/mcp/messages/* (SSE messages path) must be bearer-verified."

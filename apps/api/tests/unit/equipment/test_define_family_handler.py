@@ -70,7 +70,6 @@ async def test_handler_appends_capability_defined_event_to_store() -> None:
         "family_id": str(_NEW_ID),
         "name": "Tomography",
         "occurred_at": _NOW.isoformat(),
-        # Phase 5j: empty affordances serialized as [] (default factory).
         "affordances": [],
     }
     assert stored.correlation_id == _CORRELATION_ID

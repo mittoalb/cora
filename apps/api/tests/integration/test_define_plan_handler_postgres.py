@@ -67,7 +67,7 @@ async def test_define_plan_persists_event_with_audit_snapshots_to_postgres(
     site_id = UUID("01900000-0000-7000-8000-00000060ae01")
     plan_id = UUID("01900000-0000-7000-8000-00000060af01")
     plan_event_id = UUID("01900000-0000-7000-8000-00000060af02")
-    # Phase 6l-strict: Method.capability_id REQUIRED; seed via the
+
     # event-store API (bypasses the FixedIdGenerator queue).
     method_capability_id = UUID("01900000-0000-7000-8000-00000060a0cc")
 
@@ -174,9 +174,9 @@ async def test_define_plan_persists_event_with_audit_snapshots_to_postgres(
 async def test_define_plan_affordance_cover_guard_against_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Phase 6l.B PG round-trip (gate-review P1): exercises the full
-    cross-BC fan-out against real Postgres — Capability + Family +
-    Asset + Method (with capability_id) + Practice + Plan — and asserts
+    """PG round-trip (gate-review P1): exercises the full
+    cross-BC fan-out against real Postgres (Capability + Family +
+    Asset + Method (with capability_id) + Practice + Plan) and asserts
     that the affordance-cover guard fires when Family.affordances
     miss a required affordance. Pinned because the fan-out reads
     Family streams across the BC boundary via load_family, and

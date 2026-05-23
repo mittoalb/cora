@@ -1,4 +1,4 @@
-"""Unit tests for the CautionDrafter prompt builder (Phase 8f-c iter 3)."""
+"""Unit tests for the CautionDrafter prompt builder."""
 
 import json
 from datetime import UTC, datetime
@@ -62,7 +62,7 @@ def test_system_prompt_meets_cache_minimum() -> None:
 
 @pytest.mark.unit
 def test_default_model_is_sonnet() -> None:
-    """Per design memo: sonnet-4-6 (vs RunDebrief's haiku-4-5)."""
+    """Per design memo: sonnet-4-6 (vs RunDebriefer's haiku-4-5)."""
     assert DEFAULT_CAUTION_DRAFTER_MODEL.provider == "anthropic"
     assert DEFAULT_CAUTION_DRAFTER_MODEL.model == "claude-sonnet-4-6"
 

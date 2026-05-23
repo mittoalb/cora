@@ -1,4 +1,4 @@
-"""Contract tests for the `remove_asset_port` MCP tool (Phase 5h)."""
+"""Contract tests for the `remove_asset_port` MCP tool."""
 
 from uuid import UUID, uuid4
 

@@ -182,7 +182,7 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
         from_stored(stored)
 
 
-# ---------- AssetActivated (Phase 5c) ----------
+# ---------- AssetActivated ----------
 
 
 @pytest.mark.unit
@@ -228,7 +228,7 @@ def test_to_payload_then_from_stored_round_trips_for_asset_activated() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- AssetDecommissioned (Phase 5c) ----------
+# ---------- AssetDecommissioned ----------
 
 
 @pytest.mark.unit
@@ -275,7 +275,7 @@ def test_to_payload_then_from_stored_round_trips_for_asset_decommissioned() -> N
     assert from_stored(stored) == original
 
 
-# ---------- AssetRelocated (Phase 5d) ----------
+# ---------- AssetRelocated ----------
 
 
 @pytest.mark.unit
@@ -353,7 +353,7 @@ def test_to_payload_then_from_stored_round_trips_for_asset_relocated() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- AssetMaintenanceEntered (Phase 5e) ----------
+# ---------- AssetMaintenanceEntered ----------
 
 
 @pytest.mark.unit
@@ -397,7 +397,7 @@ def test_to_payload_then_from_stored_round_trips_for_asset_maintenance_entered()
     assert from_stored(stored) == original
 
 
-# ---------- AssetRestoredFromMaintenance (Phase 5e) ----------
+# ---------- AssetRestoredFromMaintenance ----------
 
 
 @pytest.mark.unit
@@ -439,7 +439,7 @@ def test_to_payload_then_from_stored_round_trips_for_asset_restored_from_mainten
     assert from_stored(stored) == original
 
 
-# ---------- AssetFamilyAdded (Phase 5f-1) ----------
+# ---------- AssetFamilyAdded ----------
 
 
 @pytest.mark.unit
@@ -483,7 +483,7 @@ def test_to_payload_then_from_stored_round_trips_for_asset_capability_added() ->
     assert from_stored(stored) == original
 
 
-# ---------- AssetFamilyRemoved (Phase 5f-1) ----------
+# ---------- AssetFamilyRemoved ----------
 
 
 @pytest.mark.unit
@@ -527,7 +527,7 @@ def test_to_payload_then_from_stored_round_trips_for_asset_capability_removed() 
     assert from_stored(stored) == original
 
 
-# ---------- Phase 5g-b: condition-transition events ----------
+# ---------- condition-transition events ----------
 
 
 @pytest.mark.unit
@@ -646,7 +646,7 @@ def test_event_type_name_returns_class_name_for_condition_events() -> None:
     )
 
 
-# ---------- Phase 5g-c: AssetSettingsUpdated ----------
+# ---------- AssetSettingsUpdated ----------
 
 
 @pytest.mark.unit
@@ -720,7 +720,7 @@ def test_event_type_name_for_asset_settings_updated() -> None:
     assert event_type_name(event) == "AssetSettingsUpdated"
 
 
-# ---------- Phase 5h: AssetPortAdded / AssetPortRemoved ----------
+# ---------- AssetPortAdded / AssetPortRemoved ----------
 
 
 @pytest.mark.unit
@@ -806,11 +806,11 @@ def test_event_type_name_for_port_events() -> None:
     assert event_type_name(removed) == "AssetPortRemoved"
 
 
-# ---------- Phase 5i dual-match: legacy AssetCapability* event types ----------
+# ---------- dual-match: legacy AssetCapability* event types ----------
 #
-# Per DLM-A direct-rename pattern: pre-5i Asset events used type strings
+# Per the direct-rename pattern: legacy Asset events used type strings
 # "AssetCapabilityAdded" / "AssetCapabilityRemoved" with payload key
-# "capability_id". Post-5i emits "AssetFamilyAdded" / "AssetFamilyRemoved"
+# "capability_id". Current emit is "AssetFamilyAdded" / "AssetFamilyRemoved"
 # with "family_id". from_stored dual-matches: both legacy and new produce
 # the new AssetFamily* dataclass. These tests pin the legacy arms so a
 # future refactor can't silently break replay safety.

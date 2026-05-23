@@ -1,4 +1,4 @@
-"""Unit tests for the Capability aggregate's state + VOs (Phase 6k)."""
+"""Unit tests for the Capability aggregate's state + VOs."""
 
 from uuid import uuid4
 

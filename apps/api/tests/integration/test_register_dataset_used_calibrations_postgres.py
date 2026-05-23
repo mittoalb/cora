@@ -1,4 +1,4 @@
-"""End-to-end integration test for Phase 12c-2:
+"""End-to-end integration test:
 `Dataset.used_calibrations` lands on
 `proj_data_dataset_summary.used_calibrations` after the projection drain.
 

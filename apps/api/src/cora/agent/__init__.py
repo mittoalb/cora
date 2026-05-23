@@ -7,7 +7,7 @@ grants and budget envelopes.
 Production `AnthropicLLMAdapter` ships at
 `cora.agent.adapters.AnthropicLLMAdapter` and is wired into the
 Kernel via `build_llm` (composition-root binding lives in
-`cora.api.main`). Subscribers (RunDebrief, CautionDrafter) consume
+`cora.api.main`). Subscribers (RunDebriefer, CautionDrafter) consume
 it to write Decisions and Caution proposals.
 
 `Agent.id` is SHARED with Access BC's `Actor.id` for the same agent.
@@ -29,7 +29,7 @@ from cora.agent._projections import register_agent_projections
 from cora.agent._subscribers import register_agent_subscribers
 from cora.agent.llm_factory import build_llm
 from cora.agent.routes import register_agent_routes
-from cora.agent.seed import seed_run_debrief_agent
+from cora.agent.seed import seed_run_debriefer_agent
 from cora.agent.seed_caution_drafter import seed_caution_drafter_agent
 from cora.agent.tools import register_agent_tools
 from cora.agent.wire import AgentHandlers, wire_agent
@@ -42,6 +42,6 @@ __all__ = [
     "register_agent_subscribers",
     "register_agent_tools",
     "seed_caution_drafter_agent",
-    "seed_run_debrief_agent",
+    "seed_run_debriefer_agent",
     "wire_agent",
 ]

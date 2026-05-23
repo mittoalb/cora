@@ -10,8 +10,6 @@ Pins the decider's universal behaviour across generated inputs:
     emits using the rebuilt state, so a mismatched command/state pair
     silently routes through the state id).
   - Pure: same (state, command, now) → same events.
-
-Iter D of the testing-techniques rollout.
 """
 
 from __future__ import annotations

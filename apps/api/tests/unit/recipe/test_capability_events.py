@@ -1,4 +1,4 @@
-"""Unit tests for the Capability aggregate's event (de)serialization helpers (Phase 6k)."""
+"""Unit tests for the Capability aggregate's event (de)serialization helpers."""
 
 from datetime import UTC, datetime
 from uuid import uuid4

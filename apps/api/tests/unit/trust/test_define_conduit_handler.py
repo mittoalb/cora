@@ -64,7 +64,7 @@ async def test_handler_appends_conduit_defined_event_to_store() -> None:
     )
 
     events, version = await store.load("Conduit", _NEW_ID)
-    # Phase 6f-5a: define_conduit emits two events — ConduitDefined
+
     # (genesis) + ConduitLogbookOpened (auto-opens traversals channel).
     assert version == 2
     assert [e.event_type for e in events] == ["ConduitDefined", "ConduitLogbookOpened"]
@@ -220,7 +220,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
 
     events, _ = await store.load("Conduit", _NEW_ID)
     assert events[0].causation_id == causation
-    # Phase 6f-5a: causation propagates to BOTH events in the batch
+
     # (ConduitDefined + ConduitLogbookOpened share the command's
     # causation chain).
     assert events[1].causation_id == causation
@@ -234,7 +234,7 @@ def test_wire_trust_returns_handlers_bundle_with_define_conduit() -> None:
     handlers = wire_trust(deps)
     assert isinstance(handlers, TrustHandlers)
     assert callable(handlers.define_conduit)
-    # define_zone is still wired alongside (regression guard for Phase 3a slice)
+    # define_zone is still wired alongside (regression guard for the prior slice)
     assert callable(handlers.define_zone)
 
 

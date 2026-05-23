@@ -3292,7 +3292,7 @@
             "title": "Description"
           },
           "kind": {
-            "description": "Free-form agent kind discriminator (bare-str at MVP per Supply.kind precedent). Day-1 example: `RunDebrief`.",
+            "description": "Free-form agent kind discriminator (bare-str at MVP per Supply.kind precedent). Day-1 example: `RunDebriefer`.",
             "maxLength": 100,
             "minLength": 1,
             "title": "Kind",
@@ -3319,7 +3319,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional UUID into the Python module registry at `cora.agent.prompts`. Required by 8f-b's RunDebrief subscriber; may be null at 8f-a until the registry ships its first template.",
+            "description": "Optional UUID into the Python module registry at `cora.agent.prompts`. Required by 8f-b's RunDebriefer subscriber; may be null at 8f-a until the registry ships its first template.",
             "title": "Prompt Template Id"
           },
           "version": {
@@ -5705,7 +5705,7 @@
         "type": "object"
       },
       "ReDebriefRunRequest": {
-        "description": "Body for `POST /agents/run_debrief/invoke`.",
+        "description": "Body for `POST /agents/run_debriefer/invoke`.",
         "properties": {
           "parent_decision_id": {
             "anyOf": [
@@ -5734,7 +5734,7 @@
         "type": "object"
       },
       "ReDebriefRunResponse": {
-        "description": "Response body for `POST /agents/run_debrief/invoke`.",
+        "description": "Response body for `POST /agents/run_debriefer/invoke`.",
         "properties": {
           "decision_id": {
             "format": "uuid",
@@ -9234,9 +9234,9 @@
         ]
       }
     },
-    "/agents/run_debrief/invoke": {
+    "/agents/run_debriefer/invoke": {
       "post": {
-        "operationId": "post_re_debrief_run_agents_run_debrief_invoke_post",
+        "operationId": "post_re_debrief_run_agents_run_debriefer_invoke_post",
         "parameters": [
           {
             "in": "header",
@@ -9326,10 +9326,10 @@
                 }
               }
             },
-            "description": "RunDebrief subscriber is not wired (ANTHROPIC_API_KEY unset)."
+            "description": "RunDebriefer subscriber is not wired (ANTHROPIC_API_KEY unset)."
           }
         },
-        "summary": "Re-invoke RunDebrief on demand against a specific Run.",
+        "summary": "Re-invoke RunDebriefer on demand against a specific Run.",
         "tags": [
           "agent"
         ]

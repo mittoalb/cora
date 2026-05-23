@@ -1,7 +1,7 @@
 """Contract tests for `POST /assets/{asset_id}/restore`.
 
-Phase 5g-b. Action endpoint with body `{reason}`. Target-state
-semantics: any condition -> Nominal. No-op when already Nominal.
+Action endpoint with body `{reason}`. Target-state semantics:
+any condition -> Nominal. No-op when already Nominal.
 
 Distinct path from `POST /assets/{asset_id}/restore_from_maintenance`
 (which moves lifecycle).

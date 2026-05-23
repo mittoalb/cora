@@ -4,10 +4,10 @@ Exercises the adapter against `InMemoryEventStore` with a seeded
 PolicyDefined event. The adapter is the production path that gates
 every cross-BC command through a single configured Policy.
 
-Phase 6f-5a additions: traversal observation emission. When the
-adapter is constructed with a `TraversalStore`, every Allow / Deny
-decision writes one ConduitTraversal observation row scoped to the
-target Conduit's traversals logbook.
+Traversal observation emission: when the adapter is constructed with
+a `TraversalStore`, every Allow / Deny decision writes one
+ConduitTraversal observation row scoped to the target Conduit's
+traversals logbook.
 """
 
 from datetime import UTC, datetime
@@ -189,7 +189,7 @@ async def test_loads_policy_on_each_call_no_caching() -> None:
     assert "not found" in second.reason.lower()
 
 
-# ---------- Traversal observation emission (Phase 6f-5a) ----------
+# ---------- Traversal observation emission ----------
 
 
 _OBS_EVENT_ID = UUID("01900000-0000-7000-8000-000000000711")

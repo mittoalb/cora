@@ -1,9 +1,9 @@
-"""Contract tests for the Recipe BC's Capability aggregate (Phase 6k).
+"""Contract tests for the Recipe BC's Capability aggregate.
 
 Distinct from `test_families_endpoint.py`, which covers the
-Equipment-side Family aggregate (Capability renamed to Family in
-phase 5i / DLM-A). THIS file covers the NEW Recipe BC Capability
-aggregate introduced in DLM-B / phase 6k.
+Equipment-side Family aggregate (Capability renamed to Family on
+the Equipment side). THIS file covers the Recipe BC Capability
+aggregate.
 
 Verifies request schema, response schema, status codes, and that
 domain errors map correctly via the BC's exception handler.

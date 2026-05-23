@@ -1,12 +1,12 @@
-"""Contract tests for the 6g-c parameter surface on `POST /runs` and
+"""Contract tests for the parameter surface on `POST /runs` and
 `GET /runs/{id}`.
 
-Phase 6g-c. Exercises:
+Exercises:
   - start_run accepts `override_parameters` + `triggered_by` body fields
   - effective_parameters = merge(plan.default_parameters, overrides)
   - get_run surfaces override_parameters + effective_parameters + triggered_by
-  - Method-without-schema is STRICT (post-6g audit reversal): rejects
-    non-empty effective_parameters with 400 + clear error message
+  - Method-without-schema is STRICT: rejects non-empty effective_parameters
+    with 400 + clear error message
   - Method-with-schema validates effective_parameters at start (400 on violation)
   - Plan defaults flow through when overrides omitted
 """

@@ -5,10 +5,10 @@ projection-worker framework: they observe domain events and emit
 new events back into the event store. All prior subscribers were
 projections (read-side writers only).
 
-Current registry: `RunDebriefSubscriber` + `CautionDrafterSubscriber`.
+Current registry: `RunDebrieferSubscriber` + `CautionDrafterSubscriber`.
 Both fire on terminal Run events; namespaces are kept distinct to
 avoid Decision-id collision (see
-`test_subscriber_namespace_distinct_from_run_debrief`).
+`test_subscriber_namespace_distinct_from_run_debriefer`).
 
 The architecture pin
 `tests/architecture/test_agent_subscribers_completeness.py`
@@ -17,6 +17,6 @@ asserts every subscriber file in this package is registered in
 """
 
 from cora.agent.subscribers.caution_drafter import CautionDrafterSubscriber
-from cora.agent.subscribers.run_debrief import RunDebriefSubscriber
+from cora.agent.subscribers.run_debriefer import RunDebrieferSubscriber
 
-__all__ = ["CautionDrafterSubscriber", "RunDebriefSubscriber"]
+__all__ = ["CautionDrafterSubscriber", "RunDebrieferSubscriber"]

@@ -1,4 +1,4 @@
-"""Unit tests for the RunReading entry + ReadingStore (Phase 6f-5b).
+"""Unit tests for the RunReading entry + ReadingStore.
 
 Mirrors `test_decision_reasoning_entries.py` shape — the dataclass
 round-trips, the in-memory store dedups on event_id, batch and

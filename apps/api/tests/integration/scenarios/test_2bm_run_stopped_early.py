@@ -81,7 +81,7 @@ exit with emergency-exit.
     correlate via `producing_run_id -> Run.status` to know.
     Whether a `partial: bool` field on Dataset is needed is a
     watch item (per `project_dataset_lineage_design.md`).
-  - **The RunDebrief agent's 5-value choice taxonomy has no
+  - **The RunDebriefer agent's 5-value choice taxonomy has no
     direct `EarlyStop` value.** A Stopped Run would likely
     surface as `NominalCompletion` or `DegradedCompletion`
     depending on context; whether the agent should classify
@@ -157,7 +157,7 @@ _SUBJECT_ID = UUID("01900000-0000-7000-8000-000000461b11")
 _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000461b21")
 
 _METHOD_TOMO_ID = UUID("01900000-0000-7000-8000-000000461d01")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0dc99")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0dc99")
 _PRACTICE_TOMO_ID = UUID("01900000-0000-7000-8000-000000461d11")
 _PLAN_TOMO_ID = UUID("01900000-0000-7000-8000-000000461d21")
 

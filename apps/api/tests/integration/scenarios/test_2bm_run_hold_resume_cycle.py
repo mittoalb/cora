@@ -92,7 +92,7 @@ Run".
   - **No projection-side aggregation of pause durations.** The
     Run's total wall-clock duration vs in-flight duration is
     computable from the event timestamps but no projection
-    surfaces it today. A future RunDebrief variant could
+    surfaces it today. A future RunDebriefer variant could
     consume this for a "data efficiency" metric in the AAR.
   - **The cycle does not gate Campaign membership or Dataset
     registration.** A Held Run is still a member of its Campaign
@@ -168,7 +168,7 @@ _SUBJECT_ID = UUID("01900000-0000-7000-8000-000000460b11")
 _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000460b21")
 
 _METHOD_TOMO_ID = UUID("01900000-0000-7000-8000-000000460d01")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0da84")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0da84")
 _PRACTICE_TOMO_ID = UUID("01900000-0000-7000-8000-000000460d11")
 _PLAN_TOMO_ID = UUID("01900000-0000-7000-8000-000000460d21")
 

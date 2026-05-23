@@ -351,7 +351,7 @@ async def test_list_returns_only_open_by_default(db_pool: asyncpg.Pool) -> None:
     await _drain(db_pool)
 
     list_deps = _build_deps(db_pool, [])
-    # Phase 2 cleanup: the OPEN-set default lives at the route + MCP-tool
+
     # boundary now, not in the handler. To exercise the canonical shape
     # this test pins the same operator-facing behavior by passing the
     # OPEN set explicitly.
@@ -370,7 +370,7 @@ async def test_list_returns_only_open_by_default(db_pool: asyncpg.Pool) -> None:
 async def test_list_status_all_returns_every_campaign(db_pool: asyncpg.Pool) -> None:
     """Passing `statuses=None` (the canonical 'no status filter') returns
     every row. Route-layer translates user-facing `?status=all` to this
-    None per the Phase 2 cleanup."""
+    None per the cleanup convention."""
     planned_id = uuid4()
     abandoned_id = uuid4()
     for cid in (planned_id, abandoned_id):

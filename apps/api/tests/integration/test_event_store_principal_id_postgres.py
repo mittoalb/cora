@@ -1,8 +1,8 @@
-"""Round-trip integration tests for the Phase 9b-a `principal_id`
+"""Round-trip integration tests for the `principal_id`
 hook on the event envelope.
 
 Pins three properties of the column-and-port-and-adapter chain
-before any handler is wired in Phase 9b-b:
+before any handler is wired:
 
   1. NULL principal_id round-trips (the historical / pre-hook
      case; field absent on append, NULL on load).
@@ -48,7 +48,7 @@ def _make_event(
 
 @pytest.mark.integration
 async def test_null_principal_id_round_trips(db_pool: asyncpg.Pool) -> None:
-    """The pre-hook / Phase 9b-a historical case: append without
+    """The pre-hook historical case: append without
     setting principal_id, load back, see None on the StoredEvent."""
     store = PostgresEventStore(db_pool)
     stream_id = uuid4()

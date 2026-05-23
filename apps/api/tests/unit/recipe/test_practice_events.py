@@ -120,7 +120,7 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
         from_stored(stored)
 
 
-# ---------- PracticeVersioned (Phase 6d-2) ----------
+# ---------- PracticeVersioned ----------
 
 
 @pytest.mark.unit
@@ -162,7 +162,7 @@ def test_to_payload_then_from_stored_round_trips_for_practice_versioned() -> Non
     assert from_stored(stored) == original
 
 
-# ---------- PracticeDeprecated (Phase 6d-2) ----------
+# ---------- PracticeDeprecated ----------
 
 
 @pytest.mark.unit

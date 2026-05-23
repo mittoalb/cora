@@ -216,7 +216,7 @@ async def _seed_capability(
     required_affordances: frozenset[Affordance] = frozenset(),
     shapes: frozenset[ExecutorShape] = frozenset({ExecutorShape.METHOD}),
 ) -> None:
-    """Seed a Recipe Capability stream for Phase 6l.B cross-BC tests."""
+    """Seed a Recipe Capability stream for cross-BC tests."""
     event = RecipeCapabilityDefined(
         capability_id=capability_id,
         code=CapabilityCode("cora.capability.x").value,
@@ -242,7 +242,7 @@ async def _seed_family(
     *,
     affordances: frozenset[Affordance] = frozenset(),
 ) -> None:
-    """Seed an Equipment Family stream for Phase 6l.B cross-BC tests."""
+    """Seed an Equipment Family stream for cross-BC tests."""
     event = FamilyDefined(
         family_id=family_id,
         name="TestFamily",
@@ -699,20 +699,19 @@ async def test_wired_handler_propagates_causation_id_through_full_composition() 
     assert events[0].causation_id == causation
 
 
-# ---------- Phase 6l.B affordance-cover cross-BC tests ----------
+# ---------- Affordance-cover cross-BC tests ----------
 
 
 @pytest.mark.unit
 async def test_handler_skips_capability_and_family_loads_when_method_has_no_capability() -> None:
-    """Phase 6l.B compat path: pre-6l-strict Methods (no capability_id)
-    do NOT trigger Capability + Family loads. Pinned via a sentinel
-    event store that raises if either stream type is loaded; the Plan
-    creation still succeeds end-to-end."""
+    """Compat path: Methods with no capability_id do NOT trigger Capability +
+    Family loads. Pinned via a sentinel event store that raises if either
+    stream type is loaded; the Plan creation still succeeds end-to-end."""
 
     class _CapabilityFamilyLoadGuard(InMemoryEventStore):
         async def load(self, stream_type: str, stream_id: UUID):  # type: ignore[override]
             assert stream_type not in ("Capability", "Family"), (
-                f"Phase 6l.B should not load {stream_type} when Method.capability_id is None"
+                f"Should not load {stream_type} when Method.capability_id is None"
             )
             return await super().load(stream_type, stream_id)
 
@@ -720,7 +719,7 @@ async def test_handler_skips_capability_and_family_loads_when_method_has_no_capa
     practice_id = uuid4()
     asset_id = uuid4()
     store = _CapabilityFamilyLoadGuard()
-    await _seed_method(store, method_id)  # no capability_id → pre-6l-strict shape
+    await _seed_method(store, method_id)  # no capability_id, compat shape
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id)
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
@@ -736,11 +735,11 @@ async def test_handler_skips_capability_and_family_loads_when_method_has_no_capa
 
 @pytest.mark.unit
 async def test_handler_loads_capability_and_families_when_method_has_capability_id() -> None:
-    """Phase 6l.B happy path: when Method.capability_id is set, the
-    handler loads the Capability + every Family referenced by bound
-    Assets, the decider verifies affordance coverage, the Plan
-    persists. Affordance union here (single Family carrying ROTATABLE)
-    covers the single required affordance (ROTATABLE)."""
+    """Happy path: when Method.capability_id is set, the handler loads the
+    Capability + every Family referenced by bound Assets, the decider verifies
+    affordance coverage, and the Plan persists. Affordance union here (single
+    Family carrying ROTATABLE) covers the single required affordance
+    (ROTATABLE)."""
     family_id = uuid4()
     capability_id = uuid4()
     method_id = uuid4()
@@ -772,12 +771,10 @@ async def test_handler_loads_capability_and_families_when_method_has_capability_
 
 @pytest.mark.unit
 async def test_handler_raises_capability_not_found_when_method_points_at_missing_stream() -> None:
-    """Phase 6l.B sad path: Method.capability_id references a
-    Capability stream that does not exist. Handler raises
-    `CapabilityNotFoundError` (mapped to 404). Pinned because the
-    cross-BC reference is eventual-consistency at the Method side
-    (decider didn't validate at define_method time when 6l-additive
-    is enabled), so the integrity check has to land here."""
+    """Sad path: Method.capability_id references a Capability stream that
+    does not exist. Handler raises `CapabilityNotFoundError` (mapped to 404).
+    Pinned because the cross-BC reference is eventual-consistency at the
+    Method side, so the integrity check has to land here."""
     family_id = uuid4()
     bogus_capability = uuid4()
     method_id = uuid4()
@@ -807,11 +804,10 @@ async def test_handler_raises_capability_not_found_when_method_points_at_missing
 
 @pytest.mark.unit
 async def test_handler_raises_family_not_found_when_asset_references_missing_family() -> None:
-    """Phase 6l.B sad path: an Asset's `families` references a Family
-    UUID whose stream doesn't exist. With the 6l.B affordance-cover
-    fan-out enabled (Method has capability_id), the handler can't
-    compute the affordance union without the Family. Raises
-    `FamilyNotFoundError`; surfaces as 404."""
+    """Sad path: an Asset's `families` references a Family UUID whose stream
+    doesn't exist. With the affordance-cover fan-out enabled (Method has
+    capability_id), the handler can't compute the affordance union without
+    the Family. Raises `FamilyNotFoundError`; surfaces as 404."""
     bogus_family = uuid4()
     capability_id = uuid4()
     method_id = uuid4()
@@ -843,8 +839,8 @@ async def test_handler_raises_family_not_found_when_asset_references_missing_fam
 
 @pytest.mark.unit
 async def test_handler_propagates_affordances_not_satisfied_error() -> None:
-    """Phase 6l.B full-stack: every needed Family is bound (family-id
-    check passes), but the union of Family.affordances misses one of
+    """Full-stack: every needed Family is bound (family-id check passes), but
+    the union of Family.affordances misses one of
     Capability.required_affordances. Handler propagates
     `PlanAffordancesNotSatisfiedError` (mapped to 409)."""
     family_id = uuid4()

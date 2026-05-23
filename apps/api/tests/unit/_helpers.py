@@ -125,7 +125,7 @@ def build_deps(
     tests injecting a recording / counting / specific-reason
     Authorize stub). When `authz` is set, `deny` is ignored.
 
-    `llm` (Phase 8f-c iter 1) wires a test LLM (typically
+    `llm` wires a test LLM (typically
     `FakeLLMAdapter`) when the handler under test consumes one
     (eg. `re_debrief_run`). Defaults to None so the vast majority
     of tests that don't need an LLM stay LLM-free.
@@ -155,13 +155,11 @@ async def seed_capability(
     """Seed a Capability stream so `load_capability` returns a real
     Capability state.
 
-    Phase 6l-strict bulk-migration helper: hoisted to one shared
-    location so every test module that needs to seed a Capability
-    before calling `DefineMethod(...)` / `RegisterProcedure(...)`
-    uses the same shape (was duplicated across at least three test
-    files at the additive sub-phase). Defaults to `ExecutorShape.METHOD`
-    + `ExecutorShape.PROCEDURE` so the same seed serves both Method
-    and Procedure binding tests.
+    Hoisted to one shared location so every test module that needs
+    to seed a Capability before calling `DefineMethod(...)` /
+    `RegisterProcedure(...)` uses the same shape. Defaults to
+    `ExecutorShape.METHOD` + `ExecutorShape.PROCEDURE` so the same
+    seed serves both Method and Procedure binding tests.
 
     `required_affordances` is `frozenset[Affordance] | None` typed as
     `frozenset[object]` here to avoid Equipment-BC re-import inside

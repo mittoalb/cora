@@ -1,4 +1,4 @@
-"""Unit tests for `AnthropicLLMAdapter` (Phase 8f-b iter 2a).
+"""Unit tests for `AnthropicLLMAdapter`.
 
 Tests use a `_FakeAsyncAnthropic` client injected via the adapter's
 `client` constructor kwarg. The fake records every `messages.create`

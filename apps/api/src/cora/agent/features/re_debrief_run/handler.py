@@ -1,7 +1,7 @@
 """Application handler for the `re_debrief_run` slice.
 
 Pattern C from the design memo: operator-triggered on-demand
-RunDebrief. The handler is the HTTP-side equivalent of the
+RunDebriefer. The handler is the HTTP-side equivalent of the
 subscriber: load Run, build payload (reusing the same prompt
 module), call LLM, compose `DecisionRegistered` via the slice's
 pure `decide()`, append.
@@ -27,7 +27,7 @@ via aggregate-state errors hoisted from this slice in 8f-c iter 1
   - Run aggregate must exist (`load_run` returns non-None);
     raises `cora.run.aggregates.run.state.RunNotFoundError` ->
     HTTP 404 (already-mapped by Run BC's routes).
-  - RunDebrief Agent's Actor must exist and be active; raises
+  - RunDebriefer Agent's Actor must exist and be active; raises
     `AgentNotSeededError` / `AgentDeactivatedError` (both in
     `cora.agent.aggregates.agent.state`) -> HTTP 400.
   - When `parent_decision_id` is supplied: parent Decision must
@@ -65,8 +65,8 @@ from cora.agent.prompts import (
     RunDebriefPayload,
     build_run_debrief_chat_request,
 )
-from cora.agent.seed import RUN_DEBRIEF_AGENT_ID, RUN_DEBRIEF_AGENT_NAME
-from cora.agent.subscribers.run_debrief import redact_secrets
+from cora.agent.seed import RUN_DEBRIEFER_AGENT_ID, RUN_DEBRIEFER_AGENT_NAME
+from cora.agent.subscribers.run_debriefer import redact_secrets
 from cora.decision.aggregates.decision import (
     DECISION_CONTEXT_RUN_DEBRIEF,
     ParentDecisionAgentMismatchError,
@@ -163,12 +163,12 @@ def bind(deps: Kernel) -> Handler:
         if run is None:
             raise RunNotFoundError(command.run_id)
 
-        # Pre-load RunDebrief Agent's Actor and gate on active.
-        actor = await load_actor(deps.event_store, RUN_DEBRIEF_AGENT_ID)
+        # Pre-load RunDebriefer Agent's Actor and gate on active.
+        actor = await load_actor(deps.event_store, RUN_DEBRIEFER_AGENT_ID)
         if actor is None:
-            raise AgentNotSeededError(RUN_DEBRIEF_AGENT_ID, RUN_DEBRIEF_AGENT_NAME)
+            raise AgentNotSeededError(RUN_DEBRIEFER_AGENT_ID, RUN_DEBRIEFER_AGENT_NAME)
         if not actor.is_active:
-            raise AgentDeactivatedError(RUN_DEBRIEF_AGENT_ID)
+            raise AgentDeactivatedError(RUN_DEBRIEFER_AGENT_ID)
 
         # Pre-load parent Decision when ref set; enforce same-agent +
         # same-Run scope.

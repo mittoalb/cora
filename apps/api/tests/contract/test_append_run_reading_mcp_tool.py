@@ -1,4 +1,4 @@
-"""Contract tests for the `append_run_reading` MCP tool (Phase 6f-5b).
+"""Contract tests for the `append_run_reading` MCP tool.
 
 Mirrors `test_append_reasoning_entry_mcp_tool.py` shape: tool listed,
 single-entry happy path, missing-aggregate error path. Single-entry

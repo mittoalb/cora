@@ -1,11 +1,10 @@
 """Unit tests for the `update_plan_default_parameters` slice's pure decider.
 
-Phase 6g-b. The decider:
+The decider:
   - Raises PlanNotFoundError on empty state
   - Merges the patch into prior default_parameters via RFC 7396 semantics
-  - Validates the merged result against the supplied
-    method_parameters_schema; STRICT when None (post-6g audit reversal:
-    non-empty defaults rejected when no schema declared)
+  - Validates the merged result against the supplied method_parameters_schema;
+    STRICT when None (non-empty defaults rejected when no schema declared)
   - No-ops (returns []) on unchanged-vs-current
   - Emits PlanDefaultParametersUpdated with the post-merge dict otherwise
 """

@@ -1,4 +1,4 @@
-"""Unit tests for the RunDebrief prompt builder (Phase 8f-b iter 2b)."""
+"""Unit tests for the RunDebriefer prompt builder."""
 
 import json
 from datetime import UTC, datetime

@@ -140,7 +140,7 @@ def test_post_remove_run_returns_409_when_campaign_closed() -> None:
     Active stays a member after Campaign is Closed (NO CASCADE per GLP
     / ISO 17025 / 21 CFR §11.10(e) per-Run audit independence), but
     remove_run_from_campaign refuses to mutate a Closed Campaign's
-    membership (terminal-frozen). Phase 6i-c.
+    membership (terminal-frozen).
     """
     app = create_app()
     with TestClient(app) as client:

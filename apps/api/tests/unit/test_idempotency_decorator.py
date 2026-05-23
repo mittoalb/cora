@@ -1,13 +1,13 @@
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false, reportPrivateUsage=false
 
-"""Unit tests for `cora.infrastructure.idempotency` (Phase 9a).
+"""Unit tests for `cora.infrastructure.idempotency`.
 
 Covers:
   - hash_command: stable, frozenset normalization, dataclass-only.
   - Decorator happy path: no-key skip, cache hit (success), cache hit (error),
     claim, finalize, key-length cap, principal namespacing, causation forward.
-  - Phase 9a additions: 4xx error caching, 5xx pass-through (uncached),
-    stale-lock recovery, claim race -> IdempotencyClaimLostError.
+  - 4xx error caching, 5xx pass-through (uncached), stale-lock recovery,
+    claim race -> IdempotencyClaimLostError.
   - classify_error_status: convention-based mapping per name pattern.
 """
 
@@ -392,7 +392,7 @@ async def test_stale_lock_is_taken_over_by_subsequent_claim() -> None:
     assert len(calls) == 1
 
 
-# ---------- decorator: surface_id namespace (Phase B Iter C-2c) ----------
+# ---------- decorator: surface_id namespace ----------
 
 
 @pytest.mark.unit

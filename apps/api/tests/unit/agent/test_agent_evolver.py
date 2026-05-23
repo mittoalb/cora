@@ -1,4 +1,4 @@
-"""Evolver tests for the Agent aggregate (Phase 8f-a + 8f-c iter 2)."""
+"""Evolver tests for the Agent aggregate."""
 
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -32,7 +32,7 @@ _T2 = _T0 + timedelta(minutes=20)
 def _genesis(*, agent_id: object | None = None) -> AgentDefined:
     return AgentDefined(
         agent_id=agent_id or uuid4(),  # type: ignore[arg-type]
-        kind="RunDebrief",
+        kind="RunDebriefer",
         name="Run Debrief",
         version="v1",
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
@@ -56,14 +56,14 @@ def test_genesis_folds_to_defined_state() -> None:
     assert state is not None
     assert state.id == e.agent_id
     assert state.status is AgentStatus.DEFINED
-    assert state.kind.value == "RunDebrief"
+    assert state.kind.value == "RunDebriefer"
     assert state.name.value == "Run Debrief"
     assert state.version.value == "v1"
     assert state.description is not None
     assert state.description.value == "Synthesises terminal Runs."
     assert state.canonical_uri is not None
     assert state.capabilities == frozenset({AgentCapability("summarize")})
-    # Lifecycle timestamps moved to projection (Iter C-2); no longer on state.
+    # Lifecycle timestamps moved to projection; no longer on state.
 
 
 @pytest.mark.unit
@@ -75,8 +75,8 @@ def test_genesis_then_versioned_folds_to_versioned_state() -> None:
     assert state is not None
     assert state.status is AgentStatus.VERSIONED
     # Other fields preserved.
-    assert state.kind.value == "RunDebrief"
-    # Lifecycle timestamps live on the projection (Iter C-2); status flip is
+    assert state.kind.value == "RunDebriefer"
+    # Lifecycle timestamps live on the projection; status flip is
     # the assertion that survives at the state level.
 
 
@@ -88,7 +88,7 @@ def test_genesis_then_deprecated_folds_to_deprecated_state() -> None:
     state = fold([e1, e2])
     assert state is not None
     assert state.status is AgentStatus.DEPRECATED
-    # Lifecycle timestamps moved to projection (Iter C-2).
+    # Lifecycle timestamps moved to projection.
     assert state.deprecation_reason is not None
     assert state.deprecation_reason.value == "model retired"
 
@@ -103,7 +103,7 @@ def test_full_lifecycle_folds_to_deprecated_state() -> None:
     state = fold([e1, e2, e3])
     assert state is not None
     assert state.status is AgentStatus.DEPRECATED
-    # Lifecycle timestamps moved to projection (Iter C-2).
+    # Lifecycle timestamps moved to projection.
     assert state.deprecation_reason is None
 
 
@@ -123,7 +123,7 @@ def test_deprecated_applied_to_empty_state_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Phase 8f-c iter 2: Suspended FSM + ToolGrant + Budget
+# Suspended FSM + ToolGrant + Budget
 # ---------------------------------------------------------------------------
 
 
@@ -140,8 +140,8 @@ def test_versioned_then_suspended_folds_to_suspended_state() -> None:
     assert state.suspension_reason is not None
     assert state.suspension_reason.value == "cost overrun"
     # `versioned_at` was previously preserved here as an audit-trail
-    # historical record on state. Iter C-2 moved lifecycle timestamps
-    # to `proj_agent_summary` — the audit trail lives there now.
+    # historical record on state. Lifecycle timestamps now live on
+    # `proj_agent_summary`, where the audit trail is kept.
 
 
 @pytest.mark.unit
@@ -163,7 +163,7 @@ def test_suspended_then_resumed_folds_to_versioned_state() -> None:
 
 @pytest.mark.unit
 def test_suspended_then_deprecated_folds_to_deprecated_state() -> None:
-    """Deprecated source set includes Suspended (Phase 8f-c iter 2)."""
+    """Deprecated source set includes Suspended."""
     agent_id = uuid4()
     e1 = _genesis(agent_id=agent_id)
     e2 = AgentVersioned(agent_id=agent_id, version="v1", occurred_at=_T1)
@@ -238,9 +238,9 @@ def test_budget_revised_with_both_caps_none_clears_budget() -> None:
 def test_tool_grant_preserves_unrelated_fields() -> None:
     """ToolGrant arm must not silently wipe deprecation_reason / suspended_at.
 
-    Guards the silent-wipe class of bugs caught at 8f-b iter 1 gate review.
-    (`versioned_at` formerly checked here is now on the projection per
-    Iter C-2; status + tools cover the silent-wipe guard at state level.)
+    Guards the silent-wipe class of bugs caught at gate review.
+    (`versioned_at` formerly checked here is now on the projection;
+    status + tools cover the silent-wipe guard at state level.)
     """
     agent_id = uuid4()
     e1 = _genesis(agent_id=agent_id)

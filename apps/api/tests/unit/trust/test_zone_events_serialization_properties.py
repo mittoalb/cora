@@ -8,8 +8,7 @@ on the Trust BC's single Zone event type. Property:
 Catches the classic ES forward-compat trap (add a field, update `to_payload`
 + `from_stored`, miss an edge case the example tests don't reach).
 
-Iter D.2 of the testing-techniques rollout. Pattern lifts verbatim from
-the Access sibling file.
+Pattern lifts verbatim from the Access sibling file.
 """
 
 from __future__ import annotations

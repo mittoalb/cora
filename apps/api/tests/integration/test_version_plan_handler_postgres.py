@@ -35,7 +35,7 @@ from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d170")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d170")
 
 
 @pytest.mark.integration

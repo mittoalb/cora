@@ -1,7 +1,7 @@
 # pyright: reportPrivateUsage=false
 
 """Contract test for the 409 Conflict + `Retry-After: 1` response
-emitted when an Idempotency-Key claim race is lost (Phase 9a).
+emitted when an Idempotency-Key claim race is lost.
 
 When one request holds the in-flight lock for a key and a second
 request arrives with the same key, the second request returns 409

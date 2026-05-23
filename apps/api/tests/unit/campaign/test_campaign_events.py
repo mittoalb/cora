@@ -294,7 +294,7 @@ def test_event_type_name_matches_class_name() -> None:
     assert event_type_name(event) == "CampaignStarted"
 
 
-# ---------- Phase 6i-c: CampaignRunAdded / CampaignRunRemoved ----------
+# ---------- CampaignRunAdded / CampaignRunRemoved ----------
 
 
 @pytest.mark.unit

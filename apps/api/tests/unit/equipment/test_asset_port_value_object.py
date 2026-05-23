@@ -1,4 +1,4 @@
-"""Unit tests for the AssetPort value object + PortDirection enum (Phase 5h)."""
+"""Unit tests for the AssetPort value object + PortDirection enum."""
 
 import pytest
 

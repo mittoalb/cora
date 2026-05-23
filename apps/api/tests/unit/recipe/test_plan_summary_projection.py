@@ -143,7 +143,7 @@ async def test_plan_deprecated_only_updates_status() -> None:
 
 @pytest.mark.unit
 async def test_plan_default_parameters_updated_with_non_empty_sets_present_true() -> None:
-    """Phase 6g-b: defaults-update event with non-empty payload flips
+    """Defaults-update event with non-empty payload flips
     default_parameters_present TRUE."""
     proj = PlanSummaryProjection()
     conn = AsyncMock()
@@ -167,7 +167,7 @@ async def test_plan_default_parameters_updated_with_non_empty_sets_present_true(
 
 @pytest.mark.unit
 async def test_plan_default_parameters_updated_with_empty_sets_present_false() -> None:
-    """Phase 6g-b: clearing all keys (empty post-merge dict) flips
+    """Clearing all keys (empty post-merge dict) flips
     default_parameters_present back to FALSE."""
     proj = PlanSummaryProjection()
     conn = AsyncMock()

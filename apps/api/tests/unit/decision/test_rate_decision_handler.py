@@ -1,4 +1,4 @@
-"""Handler tests for the `rate_decision` slice (Phase 8f-b iter 1)."""
+"""Handler tests for the `rate_decision` slice."""
 
 from datetime import UTC, datetime
 from uuid import UUID, uuid4

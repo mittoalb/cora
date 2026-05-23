@@ -15,7 +15,7 @@ long acquisition session (Degraded), then watches it run dry
 verifies stable pressure before resuming nominal operations
 (Available again).
 
-Phase operations.
+Supply lifecycle operations.
 
 See [[project_pilot_docs_design]] for the phase / file-naming
 taxonomy. See [[project_supply_design]] for the FSM design lock
@@ -26,7 +26,7 @@ per the Phoebus latched-alarm convention).
 ## Why this scenario exists
 
 **First scenario-tier exercise of the Supply BC.** The Supply BC
-shipped in Phase 10a-a/b with 6 operator-driven transition slices
+ships with 6 operator-driven transition slices
 covering the full 5-state FSM, but no `test_2bm_*` scenario
 exercises it. The facility-install scenario (`test_aps_facility.py`)
 seeds an APS-scope LN2 placeholder Supply but never walks it
@@ -81,9 +81,9 @@ matching ISA-95 utilities). Bundling with a tomography or
 alignment scenario would conflate the two.
 
 The Supply BC does NOT today gate `start_run` or any other
-cross-BC slice; it's purely an observability + audit BC at
-Phase 10a-b. (Future: a Supply.Unavailable could be added as
-an advisory signal to RunDebrief or a future RunStartGate.)
+cross-BC slice; it's purely an observability + audit BC
+today. (Future: a Supply.Unavailable could be added as
+an advisory signal to RunDebriefer or a future RunStartGate.)
 
 ## What this scenario surfaces (gap-finding intent)
 
@@ -91,7 +91,7 @@ an advisory signal to RunDebrief or a future RunStartGate.)
     consumer reads Supply status today. The scenario verifies
     the audit trail (event sequence on the stream) but cannot
     assert any downstream effect. A future scenario would
-    couple Supply.Unavailable with a RunDebrief observation
+    couple Supply.Unavailable with a RunDebriefer observation
     or with a Caution registration.
   - **`kind` is free-form.** This scenario uses `"cryogen"` as
     the kind discriminator (matching the seed in

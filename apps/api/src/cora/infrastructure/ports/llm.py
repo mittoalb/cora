@@ -1,6 +1,6 @@
 """LLM: synchronous LLM-chat abstraction for agent BCs.
 
-Current consumers: the RunDebrief and CautionDrafter subscribers.
+Current consumers: the RunDebriefer and CautionDrafter subscribers.
 Future agents (RecipeScreener, Strategy, Budget) consume the same
 port.
 
@@ -24,9 +24,9 @@ Anthropic exposes prompt caching as `cache_control` markers on
 specific content blocks. The port carries this as a
 `CacheBreakpoint` field on `LLMContentBlock`: a breakpoint means
 "everything up to and including this block is cached". The 8f-b
-RunDebrief layout uses 4 breakpoints (Anthropic's hard maximum):
+RunDebriefer layout uses 4 breakpoints (Anthropic's hard maximum):
 
-  1. Tools layer (cached, 1h TTL)              -- empty for RunDebrief v1
+  1. Tools layer (cached, 1h TTL)              -- empty for RunDebriefer v1
   2. Instructions + Decision schema (1h TTL)
   3. Per-Plan examples (1h TTL)
   4. Per-Run payload (uncached, variable suffix)
@@ -37,7 +37,7 @@ when any breakpoint requests `"1h"`.
 
 ## Structured output
 
-RunDebrief and every planned agent emit a JSON-shaped Decision; the
+RunDebriefer and every planned agent emit a JSON-shaped Decision; the
 port carries this as `structured_output_schema: dict[str, Any]` (a
 JSON Schema). The Anthropic adapter implements this via the
 tool-use-as-structured-output convention (defines a single synthetic
@@ -56,7 +56,7 @@ to decide retryability.
 ## Tools (deferred to 8f-c)
 
 The `chat()` signature deliberately omits a `tools` parameter at
-8f-b iter 2a because RunDebrief is a read-only synthesis call.
+8f-b iter 2a because RunDebriefer is a read-only synthesis call.
 RecipeScreener (8f-c) is the first tool-using agent and triggers
 the additive port extension; the structured-output tool-use
 shenanigan is invisible to the port consumer.
@@ -72,7 +72,7 @@ type CacheTTL = Literal["5m", "1h"]
 `"5m"` is the default Anthropic cache TTL (no extra headers
 required). `"1h"` requires the `anthropic-beta:
 extended-cache-ttl-2025-04-11` header and is the load-bearing tier
-for RunDebrief's 4000-5300 token cached prefix.
+for RunDebriefer's 4000-5300 token cached prefix.
 """
 
 
@@ -262,7 +262,7 @@ class LLM(Protocol):
     "Synchronous-style" in the sense of one request -> one response;
     the call itself is `async` to integrate with the FastAPI / asyncpg
     event loop. Streaming is deferred to a later phase (no consumer
-    needs it; the RunDebrief subscriber writes the Decision after
+    needs it; the RunDebriefer subscriber writes the Decision after
     the full response arrives).
     """
 
@@ -294,7 +294,7 @@ class FakeLLMAdapter:
     order, so tests can pin both response shape and call-time inputs
     (system prompt layering, schema, model_ref).
 
-    Production tests of the RunDebrief subscriber (iter 2b) build
+    Production tests of the RunDebriefer subscriber (iter 2b) build
     one of these per scenario and pin the resulting Decision event
     payload + usage telemetry against the canned response.
     """

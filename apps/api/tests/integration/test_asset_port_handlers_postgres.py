@@ -1,5 +1,5 @@
 """End-to-end integration test: add/remove_asset_port handlers
-against real Postgres (Phase 5h).
+against real Postgres.
 
 Single consolidated file for the two slices (mirror of the 5g-b
 condition-handler integration consolidation).

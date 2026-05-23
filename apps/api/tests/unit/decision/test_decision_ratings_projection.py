@@ -1,4 +1,4 @@
-"""Unit tests for DecisionRatingsProjection (Phase 8f-b iter 1).
+"""Unit tests for DecisionRatingsProjection.
 
 Post-cleanup: `confidence_at_emit_time` is captured at write time
 on the DecisionRated event payload (gate-review cross-BC P2-4); the

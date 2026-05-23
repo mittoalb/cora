@@ -1,4 +1,4 @@
-"""Contract tests for Phase C edge-auth on HTTP endpoints.
+"""Contract tests for edge-auth on HTTP endpoints.
 
 End-to-end through the full FastAPI app composition (lifespan +
 middleware + exception handlers + route layer). Each test boots a
@@ -117,7 +117,7 @@ def test_malformed_authorization_header_returns_401(
     bearer_auth_client: TestClient, header_value: str
 ) -> None:
     """The middleware's `_extract_bearer_token` raises
-    InvalidTokenError(reason="malformed") which the Iter C-4
+    InvalidTokenError(reason="malformed") which the exception
     handler converts to 401 with `error="malformed"` in the
     challenge."""
     with bearer_auth_client as client:
@@ -301,7 +301,7 @@ def test_x_principal_id_ignored_when_bearer_present_end_to_end(
     """End-to-end variant of the unit-tier `wins_over_x_principal_id`
     test: with BOTH a verified bearer AND an X-Principal-Id header,
     the persisted event carries the BEARER's principal_id, not the
-    header's value. Pin: the silent-ignore design choice (Iter C-3
+    header's value. Pin: the silent-ignore design choice (bearer
     Mode 1) holds through the full middleware -> Depends -> route
     chain."""
     from dataclasses import replace

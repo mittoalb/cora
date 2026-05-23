@@ -1,12 +1,12 @@
-"""End-to-end MCP+bearer-auth contract tests (Phase 8f-d Iter D).
+"""End-to-end MCP+bearer-auth contract tests.
 
 Boot the app with `IDENTITY_PROVIDERS` set so bearer-auth posture
 is on. Monkeypatch `build_kernel` to install a stub TokenVerifier
 that accepts any bearer token and returns a fixed VerifiedPrincipal
-(matching the Phase C contract-test pattern in
+(matching the HTTP contract-test pattern in
 `test_bearer_auth_endpoints.py`).
 
-The tests pin the full Phase 8f-d invariants end-to-end:
+The tests pin the full MCP edge-auth invariants end-to-end:
   - No bearer + bearer-auth mode → McpUnauthenticatedError via
     JSON-RPC isError envelope.
   - Valid bearer → tools/call succeeds AND the persisted event's
@@ -96,8 +96,8 @@ def test_mcp_initialize_without_bearer_returns_401_under_bearer_auth(
     request never reaches the FastMCP session manager. The response
     is HTTP 401 with the RFC 6750 challenge.
 
-    Phase 8f-d: replaces the Phase A.1 `mcp_gate.py` deregistration
-    shim with proper edge-time verification."""
+    Replaces an earlier `mcp_gate.py` deregistration shim with
+    proper edge-time verification."""
     _install_stub_verifier(
         monkeypatch,
         principal_id=UUID("01900000-0000-7000-8000-0000000000a1"),
@@ -135,9 +135,10 @@ def test_mcp_initialize_without_bearer_returns_401_under_bearer_auth(
 def test_mcp_register_actor_tool_under_bearer_persists_verified_principal_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The load-bearing Phase 8f-d invariant: when an MCP tool call
-    arrives with a valid bearer, the persisted event's `principal_id`
-    is the BEARER-verified principal (NOT `SYSTEM_PRINCIPAL_ID`).
+    """The load-bearing MCP edge-auth invariant: when an MCP tool
+    call arrives with a valid bearer, the persisted event's
+    `principal_id` is the BEARER-verified principal (NOT
+    `SYSTEM_PRINCIPAL_ID`).
 
     Without this end-to-end pin, a regression that wires
     `get_mcp_principal_id` correctly but where FastMCP fails to
@@ -293,7 +294,7 @@ def test_mcp_tools_list_under_bearer_succeeds_with_valid_token(
     assert response.status_code == 200
     body = parse_sse_data(response.text)
     tools = body["result"]["tools"]
-    # Phase 8f-d: write tools are no longer deregistered in bearer mode.
+
     # Every tool registered in main.py should appear, including writes.
     tool_names = {t["name"] for t in tools}
     assert "register_actor" in tool_names
@@ -339,14 +340,14 @@ def test_mcp_tools_list_without_bearer_under_bearer_auth_returns_401(
     assert response.status_code == 401
 
 
-# ---------- Iter E gap closures (gate-review test-axis MEDIUM 1, 4, 5) ----------
+# ---------- gap closures (gate-review test-axis MEDIUM 1, 4, 5) ----------
 
 
 @pytest.mark.contract
 def test_mcp_notifications_initialized_without_bearer_returns_401(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Iter E: closes the test-axis MEDIUM 1 gap. `notifications/initialized`
+    """Closes the test-axis MEDIUM 1 gap. `notifications/initialized`
     is one of the FastMCP framing methods explicitly cited in
     `bearer_middleware.py:dispatch` as the reason for middleware-side
     enforcement of bearer-required on `/mcp/*` (Decision 8). Without this
@@ -382,9 +383,9 @@ def test_mcp_notifications_initialized_without_bearer_returns_401(
 def test_mcp_tools_list_under_legacy_mode_lists_every_write_tool(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Iter E: closes the test-axis MEDIUM 4 gap. Pre-Phase-8f-d, the
-    `mcp_gate.py` shim deregistered write tools under prod posture. Iter
-    C deleted it. In LEGACY mode (no IDENTITY_PROVIDERS) the bearer
+    """Closes the test-axis MEDIUM 4 gap. Previously the `mcp_gate.py`
+    shim deregistered write tools under prod posture; that shim is
+    deleted. In LEGACY mode (no IDENTITY_PROVIDERS) the bearer
     middleware short-circuits and `get_mcp_principal_id(ctx)` falls
     through to SYSTEM, so write tools must remain registered. Pin
     parity-across-modes so a regression that re-introduces conditional
@@ -417,7 +418,7 @@ def test_mcp_tools_list_under_legacy_mode_lists_every_write_tool(
 def test_mcp_invalid_token_on_tools_call_returns_401_with_challenge(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Iter E: closes the test-axis MEDIUM 5 gap. A bearer that fails
+    """Closes the test-axis MEDIUM 5 gap. A bearer that fails
     verification on `/mcp/*` MUST return 401 with the RFC 6750
     `WWW-Authenticate: Bearer error="<reason>"` challenge at parity
     with HTTP behavior. The unit-tier test_mcp_path_invalid_token_returns_401

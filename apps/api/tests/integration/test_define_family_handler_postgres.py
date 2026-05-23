@@ -39,7 +39,6 @@ async def test_define_family_persists_event_to_postgres(
     assert stored.payload == {
         "family_id": str(_NEW_ID),
         "name": "Continuous Rotation Tomography",
-        # Phase 5j additive: empty list when DefineFamily.affordances is
         # empty. Pinned by tests/unit/equipment/test_family_events.py.
         "affordances": [],
         "occurred_at": _NOW.isoformat(),

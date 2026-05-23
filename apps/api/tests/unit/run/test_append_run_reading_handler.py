@@ -1,4 +1,4 @@
-"""Unit tests for the `append_run_reading` application handler (Phase 6f-5b).
+"""Unit tests for the `append_run_reading` application handler.
 
 Mirrors `test_append_reasoning_entry_handler.py` shape from 8c-b.
 Adds the per-entry validation tests specific to 6f-5b (channel_name,

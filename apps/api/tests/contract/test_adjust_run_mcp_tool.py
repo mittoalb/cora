@@ -1,4 +1,4 @@
-"""Contract tests for the `adjust_run` MCP tool (Phase 6j)."""
+"""Contract tests for the `adjust_run` MCP tool."""
 
 from typing import Any
 from uuid import uuid4

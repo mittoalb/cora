@@ -22,7 +22,7 @@ and the multi-binding shape (typed CORA refs + `ExternalBinding`).
 ## Why this scenario exists
 
 **First scenario-tier exercise of the Safety BC.** The Safety BC
-shipped in Phase 11a with the 8-state Clearance FSM (Defined ->
+ships with the 8-state Clearance FSM (Defined ->
 Submitted -> UnderReview -> Approved -> Active -> Expired |
 Superseded, with Rejected as terminal-bad), 11 slices, and the
 APS ESAF as one of 10 surveyed facility form-types. To date no

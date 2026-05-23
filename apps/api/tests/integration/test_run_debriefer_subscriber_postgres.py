@@ -1,6 +1,6 @@
-"""End-to-end PG integration for the RunDebrief subscriber (Phase 8f-b iter 2b).
+"""End-to-end PG integration for the RunDebriefer subscriber.
 
-Walks: seed RunDebrief Agent + Actor -> start a Run -> emit a
+Walks: seed RunDebriefer Agent + Actor -> start a Run -> emit a
 terminal Run event -> invoke the subscriber -> verify a
 `DecisionRegistered` lands in proj_decision_summary with the
 expected RunDebrief shape.
@@ -25,12 +25,12 @@ from cora.access.aggregates.actor import (
 from cora.access.aggregates.actor import event_type_name as actor_event_type_name
 from cora.access.aggregates.actor import to_payload as actor_to_payload
 from cora.agent.seed import (
-    RUN_DEBRIEF_AGENT_ID,
-    RUN_DEBRIEF_AGENT_NAME,
-    seed_run_debrief_agent,
+    RUN_DEBRIEFER_AGENT_ID,
+    RUN_DEBRIEFER_AGENT_NAME,
+    seed_run_debriefer_agent,
 )
-from cora.agent.subscribers.run_debrief import (
-    RunDebriefSubscriber,
+from cora.agent.subscribers.run_debriefer import (
+    RunDebrieferSubscriber,
     _derive_decision_id,
 )
 from cora.decision.aggregates.decision import load_decision
@@ -117,10 +117,10 @@ async def test_seed_and_subscriber_write_decision_end_to_end(
 ) -> None:
     deps = build_postgres_deps(db_pool, now=_NOW)
 
-    # Bootstrap: seed RunDebrief Agent + Actor.
-    await seed_run_debrief_agent(deps)
+    # Bootstrap: seed RunDebriefer Agent + Actor.
+    await seed_run_debriefer_agent(deps)
     # Second call must be a no-op (idempotent on real PG).
-    await seed_run_debrief_agent(deps)
+    await seed_run_debriefer_agent(deps)
 
     # Seed a Run.
     run_id = uuid4()
@@ -129,7 +129,7 @@ async def test_seed_and_subscriber_write_decision_end_to_end(
 
     # Build the subscriber + invoke apply() against a terminal event.
     llm = FakeLLMAdapter(responses=[_CANNED_OK])
-    subscriber = RunDebriefSubscriber(
+    subscriber = RunDebrieferSubscriber(
         event_store=deps.event_store,
         llm=llm,
         logbook_mirror=None,
@@ -144,7 +144,7 @@ async def test_seed_and_subscriber_write_decision_end_to_end(
     assert decision is not None
     assert decision.context.value == "RunDebrief"
     assert decision.choice.value == "NominalCompletion"
-    assert decision.actor_id == RUN_DEBRIEF_AGENT_ID
+    assert decision.actor_id == RUN_DEBRIEFER_AGENT_ID
 
     # LLM was called exactly once; payload contained the run_id.
     assert len(llm.received) == 1
@@ -159,14 +159,14 @@ async def test_subscriber_retry_is_at_most_once_on_real_pg(
     Decision on PG (ConcurrencyError on second write is caught and
     treated as no-op)."""
     deps = build_postgres_deps(db_pool, now=_NOW)
-    await seed_run_debrief_agent(deps)
+    await seed_run_debriefer_agent(deps)
 
     run_id = uuid4()
     plan_id = UUID("01900000-0000-7000-8000-000000000401")
     await _seed_run(deps, run_id, plan_id)
 
     llm = FakeLLMAdapter(responses=[_CANNED_OK, _CANNED_OK])
-    subscriber = RunDebriefSubscriber(
+    subscriber = RunDebrieferSubscriber(
         event_store=deps.event_store,
         llm=llm,
         logbook_mirror=None,
@@ -190,16 +190,16 @@ async def test_subscriber_retry_is_at_most_once_on_real_pg(
 async def test_seed_does_not_collide_with_pre_existing_actor(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """If someone manually seeded an Actor at RUN_DEBRIEF_AGENT_ID
-    before the bootstrap ran, seed_run_debrief_agent should still
+    """If someone manually seeded an Actor at RUN_DEBRIEFER_AGENT_ID
+    before the bootstrap ran, seed_run_debriefer_agent should still
     not raise (ConcurrencyError caught). Demonstrates partial-state
     recovery."""
     deps = build_postgres_deps(db_pool, now=_NOW)
 
     # Manually seed JUST the Actor (no Agent record).
     actor_event = ActorRegistered(
-        actor_id=RUN_DEBRIEF_AGENT_ID,
-        name=RUN_DEBRIEF_AGENT_NAME,
+        actor_id=RUN_DEBRIEFER_AGENT_ID,
+        name=RUN_DEBRIEFER_AGENT_NAME,
         occurred_at=_NOW,
         kind=ActorKind.AGENT,
     )
@@ -215,18 +215,18 @@ async def test_seed_does_not_collide_with_pre_existing_actor(
     )
     await deps.event_store.append(
         stream_type="Actor",
-        stream_id=RUN_DEBRIEF_AGENT_ID,
+        stream_id=RUN_DEBRIEFER_AGENT_ID,
         expected_version=0,
         events=[new_event],
     )
 
     # Now the seed runs. The Actor stream collides (rolls back the
     # whole append_streams batch), seed returns cleanly.
-    await seed_run_debrief_agent(deps)
+    await seed_run_debriefer_agent(deps)
 
     # Agent stream never got written (the whole batch rolled back).
     # This is a documented edge case; future iteration can split the
     # writes for finer-grained recovery, but iter 2b accepts the
     # all-or-nothing semantics of append_streams.
-    _, agent_version = await deps.event_store.load("Agent", RUN_DEBRIEF_AGENT_ID)
+    _, agent_version = await deps.event_store.load("Agent", RUN_DEBRIEFER_AGENT_ID)
     assert agent_version == 0  # Agent stream is empty (batch rolled back)

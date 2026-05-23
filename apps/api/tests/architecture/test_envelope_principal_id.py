@@ -1,12 +1,12 @@
 """Every command-handler `to_new_event(...)` call MUST pass `principal_id`.
 
-Phase 9b-b enforcement. The day-1 ReBAC hook (project_authz_future)
-requires that every event written to the store carries the UUID of
-the principal who triggered it. The envelope helper accepts the
-kwarg as optional during the 9b-a transition window; this test
-ensures every handler in the codebase actually supplies it, so the
-contract becomes effectively required ahead of 9b-c making it
-syntactically required.
+The day-1 ReBAC hook (project_authz_future) requires that every
+event written to the store carries the UUID of the principal who
+triggered it. The envelope helper accepts the kwarg as optional
+during a transition window; this test ensures every handler in
+the codebase actually supplies it, so the contract becomes
+effectively required ahead of the kwarg becoming syntactically
+required.
 
 The test scans every command-handler module under `<bc>/features/
 <slice>/handler.py` (plus the cross-aggregate update helpers like

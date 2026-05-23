@@ -1,4 +1,4 @@
-"""Authorization contract tests for `add_plan_wire` / `remove_plan_wire` (Phase 6h gate-review G5).
+"""Authorization contract tests for `add_plan_wire` / `remove_plan_wire`.
 
 Both endpoints route Authorize-denied calls to HTTP 403 via Recipe BC's
 `_handle_unauthorized` (recipe/routes.py:96-101). The handler-level unit
@@ -69,7 +69,6 @@ _PERMITTED_SETUP_COMMANDS: frozenset[str] = frozenset(
     {
         # Setup chain to bring a Plan into being with bound Assets and ports.
         "DefineFamily",
-        # Phase 6l-strict: define_method requires a real Capability binding,
         # so the per-principal authz policy must permit DefineCapability too.
         "DefineCapability",
         "DefineMethod",

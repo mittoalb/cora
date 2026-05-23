@@ -1,4 +1,4 @@
-"""Unit tests for the add_asset_port / remove_asset_port handlers (Phase 5h).
+"""Unit tests for the add_asset_port / remove_asset_port handlers.
 
 Consolidated file (mirror of 5g-b's `test_condition_slices_handlers.py`):
 both port slices use `make_asset_update_handler`, so per-slice tests

@@ -1,4 +1,4 @@
-"""Application-handler tests for the `define_agent` slice (Phase 8f-a).
+"""Application-handler tests for the `define_agent` slice.
 
 Focuses on the cross-BC atomic write: every successful `define_agent`
 call writes ONE `AgentDefined` event on the Agent stream AND ONE
@@ -44,7 +44,7 @@ def _build_deps(
 
 def _command(**overrides: object) -> DefineAgent:
     base: dict[str, object] = {
-        "kind": "RunDebrief",
+        "kind": "RunDebriefer",
         "name": "Run Debrief",
         "version": "v1",
         "model_ref": ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
@@ -135,7 +135,7 @@ async def test_handler_agent_event_carries_full_command() -> None:
     )
     agent_events, _ = await store.load("Agent", _NEW_ID)
     payload = agent_events[0].payload
-    assert payload["kind"] == "RunDebrief"
+    assert payload["kind"] == "RunDebriefer"
     assert payload["name"] == "Run Debrief"
     assert payload["version"] == "v1"
     assert payload["description"] == "Synthesises terminal Runs."

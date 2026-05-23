@@ -9,7 +9,7 @@ Foundation:
   - `get_agent`       (read; fold-on-read)
 
 On-demand re-invocation:
-  - `re_debrief_run`  (operator-triggered on-demand RunDebrief
+  - `re_debrief_run`  (operator-triggered on-demand RunDebriefer
                        re-invocation; cross-BC writes a Decision;
                        idempotency-wrapped; Pattern C from the
                        design memo)

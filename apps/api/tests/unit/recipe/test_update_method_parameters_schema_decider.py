@@ -1,17 +1,17 @@
 """Unit tests for the `update_method_parameters_schema` slice's pure decider.
 
-Phase 6g-a. The decider:
+The decider:
   - Raises MethodNotFoundError on empty state
   - Validates the proposed schema via validate_parameters_schema
   - No-ops (returns []) on unchanged-vs-current schema
   - Emits MethodParametersSchemaUpdated otherwise
 
-Schema can be set, replaced, or cleared (None payload). All
-lifecycle states (Defined / Versioned / Deprecated) are valid
-sources — schema iteration is independent of content lifecycle.
+Schema can be set, replaced, or cleared (None payload). All lifecycle states
+(Defined / Versioned / Deprecated) are valid sources, since schema iteration
+is independent of content lifecycle.
 
-Mirrors `test_update_family_settings_schema_decider.py` (Equipment 5g-a)
-shape and assertions.
+Mirrors `test_update_family_settings_schema_decider.py` (Equipment) shape and
+assertions.
 """
 
 from datetime import UTC, datetime

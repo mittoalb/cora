@@ -1,4 +1,4 @@
-"""End-to-end PG integration: Run.start cross-BC clearance gate (Phase 11a-c-3).
+"""End-to-end PG integration: Run.start cross-BC clearance gate.
 
 Composes real PG event store + real `PostgresClearanceLookup` + the
 full Run.start handler chain. The unit + adapter tests pin each
@@ -67,7 +67,7 @@ from tests.unit.subject._helpers import seed_active_asset
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-00000000c001")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-00000000c002")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d6c2")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d6c2")
 
 
 async def _seed_upstream_chain(

@@ -1,4 +1,4 @@
-"""Unit tests for the add_plan_wire / remove_plan_wire handlers (Phase 6h).
+"""Unit tests for the add_plan_wire / remove_plan_wire handlers.
 
 Consolidated file (mirror of 5h's `test_port_slices_handlers.py`):
 both wire slices share the load+fold+decide+append shape, so per-slice

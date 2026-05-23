@@ -79,11 +79,11 @@ def test_run_name_is_frozen() -> None:
 
 @pytest.mark.unit
 def test_run_status_has_full_lifecycle_fsm_in_6f4() -> None:
-    """Phase 6f-4 closes the lifecycle FSM: Running (active steady-state)
-    + Held (pause-state) + the four reachable terminals: Completed (happy
-    path; single-source from Running), Aborted (emergency; multi-source),
-    Stopped (controlled exit; multi-source), Truncated (partial-data
-    cleanup for known-dead Runs; multi-source)."""
+    """The lifecycle FSM is: Running (active steady-state) + Held (pause-state)
+    + the four reachable terminals: Completed (happy path; single-source from
+    Running), Aborted (emergency; multi-source), Stopped (controlled exit;
+    multi-source), Truncated (partial-data cleanup for known-dead Runs;
+    multi-source)."""
     assert {s.value for s in RunStatus} == {
         "Running",
         "Held",
@@ -321,7 +321,7 @@ def test_run_stop_reason_is_frozen() -> None:
         reason.value = "Other"  # type: ignore[misc]
 
 
-# ---------- Phase 6i-c: Campaign-membership error classes ----------
+# ---------- Campaign-membership error classes ----------
 
 
 @pytest.mark.unit
@@ -370,13 +370,13 @@ def test_run_already_assigned_to_campaign_error_carries_attrs() -> None:
     assert str(new) in str(err)
 
 
-# ---------- Phase 6j: adjust_run state field defaults + error classes ----------
+# ---------- adjust_run state field defaults + error classes ----------
 
 
 @pytest.mark.unit
 def test_run_dataclass_defaults_for_6j_adjustment_fields() -> None:
-    """Phase 6j: last_adjusted_at + adjustment_count have safe defaults
-    so legacy pre-6j streams fold cleanly."""
+    """last_adjusted_at + adjustment_count have safe defaults so legacy
+    streams (without these fields) fold cleanly."""
     from cora.run.aggregates.run import Run, RunName
 
     run = Run(
@@ -458,7 +458,7 @@ def test_run_dataclass_has_no_adjustments_logbook_id_field() -> None:
     assert "adjustments_logbook_id" not in field_names
 
 
-# ---------- Phase 12b-5: pinned_calibrations validation ----------
+# ---------- pinned_calibrations validation ----------
 
 
 @pytest.mark.unit
@@ -477,9 +477,9 @@ def test_validate_pinned_calibrations_accepts_within_cap() -> None:
 
 @pytest.mark.unit
 def test_validate_pinned_calibrations_accepts_exactly_at_cap() -> None:
-    """Boundary: exactly RUN_PINNED_CALIBRATIONS_MAX_ENTRIES is
-    accepted (off-by-one guard mirrors Data BC's
-    validate_used_calibrations Phase 12c-3 boundary test)."""
+    """Boundary: exactly RUN_PINNED_CALIBRATIONS_MAX_ENTRIES is accepted
+    (off-by-one guard mirrors Data BC's validate_used_calibrations boundary
+    test)."""
     s = frozenset(uuid4() for _ in range(RUN_PINNED_CALIBRATIONS_MAX_ENTRIES))
     assert validate_pinned_calibrations(s) == s
 

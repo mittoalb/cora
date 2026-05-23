@@ -74,7 +74,6 @@ def test_to_payload_serializes_procedure_registered_to_primitives() -> None:
         # Sorted by string form for deterministic payload bytes.
         "target_asset_ids": sorted([str(asset1), str(asset2)]),
         "parent_run_id": str(parent_run),
-        # Phase 10d-additive: None when ProcedureRegistered has no
         # capability_id (default). Pre-10d streams omit the key and
         # fold via `.get("capability_id")` in from_stored.
         "capability_id": None,
@@ -145,12 +144,12 @@ def test_from_stored_rebuilds_standalone_procedure_with_null_parent() -> None:
 
 @pytest.mark.unit
 def test_from_stored_rebuilds_pre_10d_procedure_registered_without_capability_id_key() -> None:
-    """Phase 10d-additive backwards-compat pin: pre-10d streams omit
+    """Additive backwards-compat pin: legacy streams omit
     the `capability_id` key from `ProcedureRegistered` payloads
     entirely. `from_stored` MUST use `payload.get("capability_id")`
     sentinel-default-None so legacy streams fold cleanly without
     backfill. Mirrors the additive-evolution shape locked for
-    Method.capability_id (6l-additive) and Method.needed_supplies (10b)."""
+    Method.capability_id and Method.needed_supplies."""
     procedure_id = uuid4()
     stored = _stored(
         "ProcedureRegistered",
@@ -171,7 +170,7 @@ def test_from_stored_rebuilds_pre_10d_procedure_registered_without_capability_id
 
 @pytest.mark.unit
 def test_from_stored_rebuilds_procedure_registered_with_capability_id() -> None:
-    """Phase 10d-additive: post-10d streams carry `capability_id` as a
+    """Additive evolution: current streams carry `capability_id` as a
     UUID string in the payload; `from_stored` converts it back to a
     UUID instance in the rebuilt event."""
     procedure_id = uuid4()

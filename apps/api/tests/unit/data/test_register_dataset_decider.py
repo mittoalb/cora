@@ -363,7 +363,7 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
     assert first == second
 
 
-# ---------- Phase 7e: producing_run_end_state capture matrix ----------
+# ---------- producing_run_end_state capture matrix ----------
 
 
 def _fake_run_with_status(status: RunStatus) -> Run:
@@ -391,7 +391,7 @@ def _fake_run_with_status(status: RunStatus) -> Run:
 def test_decide_captures_producing_run_status_into_event_payload(
     run_status: RunStatus,
 ) -> None:
-    """Phase 7e: when producing_run is loaded, the decider captures
+    """When producing_run is loaded, the decider captures
     its status.value into the DatasetRegistered event's
     `producing_run_end_state` field. The captured string is the
     SOLE input to the promote_dataset Run-must-be-Completed guard,
@@ -428,7 +428,7 @@ def test_decide_captures_none_end_state_when_no_producing_run() -> None:
 
 @pytest.mark.unit
 def test_decide_defaults_intent_to_trial_in_event_payload() -> None:
-    """Phase 7e: every register_dataset event lands with intent='Trial'
+    """Every register_dataset event lands with intent='Trial'
     (default). Promotion is a separate explicit slice."""
     cmd = _good_command()
     events = register_dataset.decide(
@@ -441,7 +441,7 @@ def test_decide_defaults_intent_to_trial_in_event_payload() -> None:
     assert events[0].intent == "Trial"
 
 
-# ---------- Phase 12c: used_calibrations AsShot citation ----------
+# ---------- used_calibrations AsShot citation ----------
 
 
 @pytest.mark.unit
@@ -479,10 +479,10 @@ def test_decide_threads_used_calibrations_through_to_event() -> None:
 
 @pytest.mark.unit
 def test_decide_sorts_used_calibrations_before_emit_for_deterministic_bytes() -> None:
-    """Phase 12c: decider sorts the AsShot citation set so the
+    """Decider sorts the AsShot citation set so the
     event-payload bytes are deterministic regardless of frozenset
-    iteration order (mirrors Run.pinned_calibrations Phase 12b
-    decider-time treatment + derived_from sorted-list precedent)."""
+    iteration order (mirrors Run.pinned_calibrations decider-time
+    treatment + derived_from sorted-list precedent)."""
     cal_a = UUID("01900000-0000-7000-8000-00000000ca01")
     cal_b = UUID("01900000-0000-7000-8000-00000000ca02")
     cal_c = UUID("01900000-0000-7000-8000-00000000ca03")
@@ -534,7 +534,7 @@ def test_decide_accepts_used_calibrations_at_cardinality_cap() -> None:
 
 @pytest.mark.unit
 def test_decide_does_not_cross_bc_validate_used_calibrations() -> None:
-    """Phase 12c eventual-consistency stance per
+    """Eventual-consistency stance per
     [[project_calibration_design]] anti-hook #3: the write path
     does NOT look up the CalibrationRevision ids; any well-formed
     UUID set under the cardinality cap is accepted. Fully-synthetic
@@ -555,7 +555,7 @@ def test_decide_does_not_cross_bc_validate_used_calibrations() -> None:
 
 @pytest.mark.unit
 def test_decide_does_not_compare_used_calibrations_against_producing_run() -> None:
-    """Phase 12c-Stage-0 lock: the decider does NOT compare the
+    """Stage-0 lock: the decider does NOT compare the
     Dataset's used_calibrations against producing_run.pinned_
     calibrations. The two sets are independent (Git-blob-reference
     analog; "partial override" is a category error in the revision-

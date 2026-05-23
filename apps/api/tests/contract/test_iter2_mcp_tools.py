@@ -1,7 +1,7 @@
-"""MCP-tool contract tests for the Phase 8f-c iter 2 slices.
+"""MCP-tool contract tests for the Agent lifecycle + grants slices.
 
 Covers tools/list visibility + happy-path tools/call for each of the
-five new tools (suspend / resume / grant / revoke / revise-budget).
+five tools (suspend / resume / grant / revoke / revise-budget).
 The REST endpoints already test the full status-code matrix; the
 MCP layer just needs surface-level coverage that the tool exists,
 returns structuredContent, and surfaces errors via `isError`.
@@ -19,7 +19,7 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 def _define_args() -> dict[str, object]:
     return {
-        "kind": "RunDebrief",
+        "kind": "RunDebriefer",
         "name": "Run Debrief",
         "version": "v1",
         "model_ref": {

@@ -97,7 +97,7 @@ def test_decide_raises_asset_not_found_when_state_is_none() -> None:
 @pytest.mark.unit
 def test_decide_raises_cannot_relocate_when_asset_is_enterprise_level() -> None:
     """Enterprise is the root; cannot have a parent at all per the
-    Phase 5b hierarchy rule. Allowing relocate would force the
+    asset-hierarchy rule. Allowing relocate would force the
     invariant to break."""
     state = _asset(level=AssetLevel.ENTERPRISE, parent_id=None)
     with pytest.raises(AssetCannotRelocateError) as exc_info:

@@ -1,4 +1,4 @@
-"""Tests for Phase 8f-b iter 1 additions to Decision state + event + evolver.
+"""Tests for the rating additions to Decision state + event + evolver.
 
 Covers DecisionRating enum, DecisionRatingRecord, Decision.ratings
 field, validate_decision_rating_comment helper,

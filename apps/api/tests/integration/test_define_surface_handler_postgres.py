@@ -1,6 +1,6 @@
 """End-to-end integration test: define_surface handler against real Postgres.
 
-Mirrors `test_define_zone_handler_postgres.py` for Phase B Iter A's
+Mirrors `test_define_zone_handler_postgres.py` for the
 Surface aggregate. Proves the bare handler composes with
 PostgresEventStore: SurfaceKind enum string round-trips through
 jsonb, the event lands under stream_type='Surface', the payload

@@ -1,15 +1,13 @@
-"""Unit tests for the Phase 6l-strict-c subset guard.
+"""Unit tests for the parameters-schema subset guard.
 
 Pinned: `update_method_parameters_schema` decider enforces
-`Method.parameters_schema ⊆ Capability.parameter_schema` when the
-Method has a `capability_id` and the bound Capability has a
-`parameter_schema`. One-sided cases (Method has no schema, or
-Capability has no schema, or Method has no capability_id) skip the
-check.
+`Method.parameters_schema ⊆ Capability.parameter_schema` when the Method has a
+`capability_id` and the bound Capability has a `parameter_schema`. One-sided
+cases (Method has no schema, or Capability has no schema, or Method has no
+capability_id) skip the check.
 
-Mirrors the shape of `test_define_plan_decider.py`'s 6l.B affordance-
-cover unit tests (decider invocation directly with a Capability
-fixture, no PG).
+Mirrors the shape of `test_define_plan_decider.py`'s affordance-cover unit
+tests (decider invocation directly with a Capability fixture, no PG).
 """
 
 from datetime import UTC, datetime

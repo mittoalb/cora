@@ -1,4 +1,4 @@
-"""Unit tests for the `add_asset_port` slice's pure decider (Phase 5h)."""
+"""Unit tests for the `add_asset_port` slice's pure decider."""
 
 from datetime import UTC, datetime
 from uuid import uuid4

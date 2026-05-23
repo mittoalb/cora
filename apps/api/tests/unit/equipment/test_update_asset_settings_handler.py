@@ -1,6 +1,6 @@
 """Unit tests for the `update_asset_settings` application handler.
 
-Phase 5g-c. Longhand handler (loads concurrent Family streams to
+Longhand handler (loads concurrent Family streams to
 union settings_schemas). Tests cover happy path with one Family,
 RFC 7396 merge accumulation, no-op on unchanged dict,
 AssetNotFoundError, InvalidAssetSettingsError on schema violation,

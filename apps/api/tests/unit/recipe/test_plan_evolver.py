@@ -92,15 +92,13 @@ def test_evolve_plan_defined_converts_asset_ids_list_to_frozenset() -> None:
 
 @pytest.mark.unit
 def test_evolve_plan_defined_does_not_fold_other_audit_snapshots() -> None:
-    """Slim aggregate: snapshots in payload are NOT folded into
-    state. Plan state holds method_id (promoted in 6g-b for the
-    update_plan_default_parameters decider) but NOT
-    method_needed_families_snapshot or asset_families_snapshot.
-    This test pins the contract so future additions are deliberate.
-    default_parameters is also on state (defaults to {} via
-    additive-state pattern). wires is also on state (Phase 6h;
-    defaults to frozenset() via additive-state pattern). Field set
-    IS the contract."""
+    """Slim aggregate: snapshots in payload are NOT folded into state. Plan
+    state holds method_id (promoted for the update_plan_default_parameters
+    decider) but NOT method_needed_families_snapshot or
+    asset_families_snapshot. This test pins the contract so future additions
+    are deliberate. default_parameters is also on state (defaults to {} via
+    additive-state pattern). wires is also on state (defaults to frozenset()
+    via additive-state pattern). Field set IS the contract."""
     state = evolve(None, _plan_defined())
     assert {f for f in state.__dataclass_fields__} == {
         "id",
@@ -123,7 +121,7 @@ def test_evolve_plan_defined_starts_with_null_version() -> None:
     assert state.version is None
 
 
-# ---------- PlanVersioned (Phase 6e-2) ----------
+# ---------- PlanVersioned ----------
 
 
 @pytest.mark.unit
@@ -198,7 +196,7 @@ def test_evolve_plan_versioned_preserves_practice_id_and_asset_ids() -> None:
     assert versioned.asset_ids == frozenset({a1, a2})
 
 
-# ---------- PlanDeprecated (Phase 6e-2) ----------
+# ---------- PlanDeprecated ----------
 
 
 @pytest.mark.unit
@@ -315,7 +313,7 @@ def test_fold_is_pure_same_input_same_output() -> None:
     assert fold(events) == fold(events)
 
 
-# ---------- PlanDefaultParametersUpdated (Phase 6g-b) ----------
+# ---------- PlanDefaultParametersUpdated ----------
 
 
 _DEFAULTS_A: dict[str, object] = {"energy": 12.0, "exposure": 100}
@@ -331,8 +329,8 @@ def test_evolve_plan_defined_starts_with_empty_default_parameters() -> None:
 
 @pytest.mark.unit
 def test_evolve_plan_defined_folds_method_id_from_payload() -> None:
-    """Phase 6g-b: method_id was promoted from audit-only payload to
-    state because the update_plan_default_parameters decider needs it."""
+    """method_id was promoted from audit-only payload to state because the
+    update_plan_default_parameters decider needs it."""
     method_id = uuid4()
     plan_id = uuid4()
     state = evolve(
@@ -446,7 +444,7 @@ def test_evolve_plan_deprecated_preserves_method_id_and_default_parameters() -> 
     assert deprecated.default_parameters == _DEFAULTS_A
 
 
-# ---------- PlanWireAdded / PlanWireRemoved (Phase 6h) ----------
+# ---------- PlanWireAdded / PlanWireRemoved ----------
 
 
 @pytest.mark.unit

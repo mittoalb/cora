@@ -1,4 +1,4 @@
-"""Unit tests for the Method parameters_schema validator (Phase 6g-a).
+"""Unit tests for the Method parameters_schema validator.
 
 Pins the constrained JSON Schema subset CORA accepts for
 Method.parameters_schema. Same subset as Family.settings_schema

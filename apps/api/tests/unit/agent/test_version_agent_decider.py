@@ -1,4 +1,4 @@
-"""Pure-decider tests for the `version_agent` slice (Phase 8f-a)."""
+"""Pure-decider tests for the `version_agent` slice."""
 
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -25,7 +25,7 @@ _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
 def _defined_agent(*, agent_id: object | None = None) -> Agent:
     return Agent(
         id=agent_id or uuid4(),  # type: ignore[arg-type]
-        kind=AgentKind("RunDebrief"),
+        kind=AgentKind("RunDebriefer"),
         name=AgentName("Run Debrief"),
         version=AgentVersion("v1"),
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),

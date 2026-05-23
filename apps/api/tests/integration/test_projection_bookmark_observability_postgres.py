@@ -1,4 +1,4 @@
-"""Phase 8e-9: projection observability day-1 hook integration tests.
+"""Projection observability day-1 hook integration tests.
 
 Pins the 4 new columns on `projection_bookmarks` round-trip
 correctly through the worker's success path AND the new

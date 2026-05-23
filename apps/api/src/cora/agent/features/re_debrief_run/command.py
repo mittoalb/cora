@@ -1,6 +1,6 @@
 """The `ReDebriefRun` command.
 
-Operator-supplied intent dataclass for on-demand RunDebrief
+Operator-supplied intent dataclass for on-demand RunDebriefer
 re-invocation. Carries:
 
   - `run_id`: which Run to debrief. Existence-checked at
@@ -30,7 +30,7 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class ReDebriefRun:
-    """Re-invoke RunDebrief on demand for the given Run."""
+    """Re-invoke RunDebriefer on demand for the given Run."""
 
     run_id: UUID
     parent_decision_id: UUID | None = None

@@ -1,8 +1,8 @@
-# Agent module <span class="md-maturity md-maturity--stable" title="Eleven slices shipped with two production agents (RunDebrief, CautionDrafter), four-state lifecycle, tool grants, and budget declarations">stable</span>
+# Agent module <span class="md-maturity md-maturity--stable" title="Eleven slices shipped with two production agents (RunDebriefer, CautionDrafter), four-state lifecycle, tool grants, and budget declarations">stable</span>
 
 ## Purpose & Scope
 
-The Agent module records the typed configuration for each AI agent that participates in CORA. An Agent is the digital identity card of a kind of automation: "the RunDebrief agent runs on Claude Sonnet 4.6 pinned to snapshot `20251001`, gets the prompt template at this id, and writes its findings as Decisions on the Run it watched"; "the CautionDrafter agent reads new logbook entries and proposes Cautions for operator review". The aggregate carries everything needed to identify, version, and gate an agent's behaviour for reproducibility; the runtime lives in the subscriber layer that invokes it.
+The Agent module records the typed configuration for each AI agent that participates in CORA. An Agent is the digital identity card of a kind of automation: "the RunDebriefer agent runs on Claude Sonnet 4.6 pinned to snapshot `20251001`, gets the prompt template at this id, and writes its findings as Decisions on the Run it watched"; "the CautionDrafter agent reads new logbook entries and proposes Cautions for operator review". The aggregate carries everything needed to identify, version, and gate an agent's behaviour for reproducibility; the runtime lives in the subscriber layer that invokes it.
 
 Agents share their identity with the Access module's Actors: the same UUID names the agent's record here and the agent's Actor record over there, written atomically at definition. Every Decision an agent writes, and every authorisation check that runs against an agent's action, refers to that single id.
 
@@ -12,7 +12,7 @@ An Agent carries five roles:
 - **A four-state lifecycle.** An Agent moves through `Defined` (registered but not yet invocable), `Versioned` (promoted to ready-for-invocation; subscribers filter on this), `Suspended` (operator pause from `Versioned`; non-terminal, returns via `resume_agent`), and `Deprecated` (terminal). Versioning is per-Agent-id rainbow-style: multiple `Versioned` agents may share `kind` concurrently with different `id`s.
 - **A typed configuration record.** Required: `kind`, `name`, `version`, `model_ref` (provider plus model plus optional snapshot pin). Optional: `description`, `canonical_uri` (https-only, A2A-forward-compat), `prompt_template_id`, `capabilities` (free-form, cardinality-capped). All bounded-text fields trim and validate at the value-object boundary.
 - **Tool grants and budget declarations.** `tools` is a frozenset of MCP tool names the agent is authorised to invoke; grants and revocations are idempotent and stay editable in `Defined`, `Versioned`, and `Suspended` (only `Deprecated` blocks them). `budget` carries optional `monthly_usd_cap` and `daily_token_cap`; declaration only today, with enforcement deferred to the Budget BC.
-- **Cross-BC action slices.** Two slices today drive cross-BC writes: `re_debrief_run` invokes the RunDebrief agent on demand and writes a Decision on the named Run; `promote_caution_proposal` reads a CautionDrafter agent's `CautionProposal` Decision and writes the proposed Caution into the Caution module after operator review.
+- **Cross-BC action slices.** Two slices today drive cross-BC writes: `re_debrief_run` invokes the RunDebriefer agent on demand and writes a Decision on the named Run; `promote_caution_proposal` reads a CautionDrafter agent's `CautionProposal` Decision and writes the proposed Caution into the Caution module after operator review.
 
 <div class="cora-aside cora-aside--deferred" markdown>
 
@@ -125,7 +125,7 @@ stateDiagram-v2
 | `RevokeToolFromAgent` | MODIFIED | `POST /agents/{agent_id}/tools/revoke` | `revoke_tool_from_agent` | none |
 | `ReviseAgentBudget` | MODIFIED | `POST /agents/{agent_id}/budget` | `revise_agent_budget` | none |
 | `GetAgent` | QUERY | `GET /agents/{agent_id}` | `get_agent` | none |
-| `ReDebriefRun` | CROSS-BC | `POST /agents/run_debrief/invoke` | `re_debrief_run` | required |
+| `ReDebriefRun` | CROSS-BC | `POST /agents/run_debriefer/invoke` | `re_debrief_run` | required |
 | `PromoteCautionProposal` | CROSS-BC | `POST /agents/caution_drafter/decisions/{decision_id}/promote` | `promote_caution_proposal` | required |
 
 **Errors per slice.** Beyond Pydantic boundary 422s, each slice raises:
@@ -146,7 +146,7 @@ stateDiagram-v2
 : `AgentNotFound`
 
 `ReDebriefRun`
-: `Unauthorized`, `AgentNotSeeded` / `AgentDeactivated` (RunDebrief agent missing or its Actor inactive), Run cross-aggregate-load failures, parent Decision mismatch, `503` if the LLM adapter is not wired
+: `Unauthorized`, `AgentNotSeeded` / `AgentDeactivated` (RunDebriefer agent missing or its Actor inactive), Run cross-aggregate-load failures, parent Decision mismatch, `503` if the LLM adapter is not wired
 
 `PromoteCautionProposal`
 : `Unauthorized` (including provenance gate: Decision was not emitted by a registered CautionDrafter agent), `DecisionNotFound`, malformed `proposed_caution` payload, `CautionNotFound` / `CautionCannotSupersede` (for the supersede arm)
@@ -184,8 +184,8 @@ The `CHECK` constraint encodes the closed `AgentStatus` enum at the row level. `
 | Module | Relationship | What's exchanged |
 |---|---|---|
 | Access | shared-id-with | `Agent.id` is the same UUID as `Actor.id` for this agent; `define_agent` co-writes `ActorRegistered(kind="agent")` on the Access stream via `append_streams` |
-| Decision | writes-to (via subscriber and slice) | The RunDebrief subscriber writes `DecisionRegistered` when a Run reaches a terminal state; `re_debrief_run` writes a new `DecisionRegistered` on operator demand; agent-authored Decisions carry the agent's id in `actor_id` |
-| Run | reads-from (via subscriber) | The RunDebrief subscriber filters on terminal-state Run events and loads the Run aggregate plus its `pinned_calibrations` to build the debrief context |
+| Decision | writes-to (via subscriber and slice) | The RunDebriefer subscriber writes `DecisionRegistered` when a Run reaches a terminal state; `re_debrief_run` writes a new `DecisionRegistered` on operator demand; agent-authored Decisions carry the agent's id in `actor_id` |
+| Run | reads-from (via subscriber) | The RunDebriefer subscriber filters on terminal-state Run events and loads the Run aggregate plus its `pinned_calibrations` to build the debrief context |
 | Caution | writes-to via `append_streams` | `promote_caution_proposal` reads a CautionDrafter Decision's `proposed_caution` payload and writes `CautionRegistered` (plus, for the supersede arm, `CautionSuperseded` on the parent stream) atomically |
 | Logbook | reads-from (via subscriber) | The CautionDrafter subscriber filters on logbook entries and folds operator narrative into the proposed Caution's text and workaround |
 
@@ -193,7 +193,7 @@ The two cross-BC action slices both gate on operator authorisation before any cr
 
 ## Examples
 
-The four examples below follow the canonical path for one Agent: define it (atomically registering its Actor in Access), version it for invocation, invoke RunDebrief on demand against a specific Run, and promote a CautionDrafter Decision into a real Caution. The caller's principal becomes the authoring actor on every write. For the REST/MCP equivalence, auth, and idempotency conventions these examples share, see [Reading the examples](../index.md) on the Modules landing page.
+The four examples below follow the canonical path for one Agent: define it (atomically registering its Actor in Access), version it for invocation, invoke RunDebriefer on demand against a specific Run, and promote a CautionDrafter Decision into a real Caution. The caller's principal becomes the authoring actor on every write. For the REST/MCP equivalence, auth, and idempotency conventions these examples share, see [Reading the examples](../index.md) on the Modules landing page.
 
 <!-- extracted from tests/contract/agent/test_define_agent.py -->
 
@@ -208,7 +208,7 @@ The four examples below follow the canonical path for one Agent: define it (atom
     X-Principal-Id: 11111111-2222-3333-4444-555555555555
 
     {
-      "kind": "RunDebrief",
+      "kind": "RunDebriefer",
       "name": "Run Debrief (Claude Sonnet 4.6)",
       "version": "v1.0.0",
       "model_ref": {
@@ -230,7 +230,7 @@ The four examples below follow the canonical path for one Agent: define it (atom
     mcp.call_tool(
         "define_agent",
         {
-            "kind": "RunDebrief",
+            "kind": "RunDebriefer",
             "name": "Run Debrief (Claude Sonnet 4.6)",
             "version": "v1.0.0",
             "model_ref": {
@@ -254,7 +254,7 @@ The four examples below follow the canonical path for one Agent: define it (atom
     X-Principal-Id: 11111111-2222-3333-4444-555555555555
     ```
 
-    Returns `204 No Content`. The agent moves from `Defined` to `Versioned`; the RunDebrief subscriber, which filters on `status=Versioned`, will now invoke it on the next terminal Run event.
+    Returns `204 No Content`. The agent moves from `Defined` to `Versioned`; the RunDebriefer subscriber, which filters on `status=Versioned`, will now invoke it on the next terminal Run event.
 
 === "MCP"
 
@@ -265,12 +265,12 @@ The four examples below follow the canonical path for one Agent: define it (atom
     )
     ```
 
-### Re-invoke RunDebrief on demand
+### Re-invoke RunDebriefer on demand
 
 === "REST"
 
     ```http
-    POST /agents/run_debrief/invoke
+    POST /agents/run_debriefer/invoke
     Content-Type: application/json
     Idempotency-Key: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
     X-Principal-Id: 22222222-3333-4444-5555-666666666666
@@ -281,7 +281,7 @@ The four examples below follow the canonical path for one Agent: define it (atom
     }
     ```
 
-    Triggers a fresh RunDebrief invocation against the named Run and returns `201 Created` with the new `decision_id`. When `parent_decision_id` is supplied, the new Decision links back to the prior debrief via PROV-O `wasInformedBy`. Returns `503 Service Unavailable` when the LLM adapter is not wired (development environment without an API key).
+    Triggers a fresh RunDebriefer invocation against the named Run and returns `201 Created` with the new `decision_id`. When `parent_decision_id` is supplied, the new Decision links back to the prior debrief via PROV-O `wasInformedBy`. Returns `503 Service Unavailable` when the LLM adapter is not wired (development environment without an API key).
 
 === "MCP"
 

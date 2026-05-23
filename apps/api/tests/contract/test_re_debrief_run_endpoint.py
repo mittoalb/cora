@@ -1,4 +1,4 @@
-"""Contract tests for `POST /agents/run_debrief/invoke` (Phase 8f-c iter 1)."""
+"""Contract tests for `POST /agents/run_debriefer/invoke`."""
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
@@ -38,7 +38,7 @@ def test_post_invoke_returns_503_when_kernel_llm_unwired() -> None:
     Idempotency-Key middleware."""
     with TestClient(create_app()) as client:
         response = client.post(
-            "/agents/run_debrief/invoke",
+            "/agents/run_debriefer/invoke",
             json={"run_id": "01900000-0000-7000-8000-000000000001"},
         )
     assert response.status_code == 503, response.text
@@ -58,7 +58,7 @@ def test_post_invoke_returns_422_on_missing_run_id_when_handler_wired() -> None:
 
     with TestClient(app) as client:
         response = client.post(
-            "/agents/run_debrief/invoke",
+            "/agents/run_debriefer/invoke",
             json={},
         )
     assert response.status_code == 422, response.text
@@ -71,7 +71,7 @@ def test_post_invoke_returns_422_on_malformed_run_id_when_handler_wired() -> Non
 
     with TestClient(app) as client:
         response = client.post(
-            "/agents/run_debrief/invoke",
+            "/agents/run_debriefer/invoke",
             json={"run_id": "not-a-uuid"},
         )
     assert response.status_code == 422, response.text
@@ -105,7 +105,7 @@ def test_post_invoke_dependency_injection_path_overrides_handler() -> None:
 
     with TestClient(app) as client:
         response = client.post(
-            "/agents/run_debrief/invoke",
+            "/agents/run_debriefer/invoke",
             json={"run_id": "01900000-0000-7000-8000-000000000001"},
         )
     assert response.status_code == 201, response.text
@@ -130,7 +130,7 @@ def test_post_invoke_propagates_idempotency_key_header() -> None:
 
     with TestClient(app) as client:
         response = client.post(
-            "/agents/run_debrief/invoke",
+            "/agents/run_debriefer/invoke",
             json={"run_id": "01900000-0000-7000-8000-000000000001"},
             headers={"Idempotency-Key": "test-redebrief-key-001"},
         )
@@ -159,7 +159,7 @@ def test_post_invoke_returns_403_when_authz_denies() -> None:
 
     with TestClient(app) as client:
         response = client.post(
-            "/agents/run_debrief/invoke",
+            "/agents/run_debriefer/invoke",
             json={"run_id": "01900000-0000-7000-8000-000000000001"},
         )
     assert response.status_code == 403, response.text
@@ -224,7 +224,7 @@ def test_post_invoke_exception_to_status_mapping(
 
     with TestClient(app) as client:
         response = client.post(
-            "/agents/run_debrief/invoke",
+            "/agents/run_debriefer/invoke",
             json={"run_id": "01900000-0000-7000-8000-000000000001"},
         )
     assert response.status_code == expected_status, response.text

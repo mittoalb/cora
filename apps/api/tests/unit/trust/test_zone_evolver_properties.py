@@ -6,8 +6,6 @@ FSM), so the property surface shrinks accordingly:
 
   - evolve(None, ZoneDefined) → Zone with id + name from the event.
   - fold([defined]) replays deterministically across invocations.
-
-Iter D.2 of the testing-techniques rollout.
 """
 
 from __future__ import annotations

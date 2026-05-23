@@ -23,7 +23,7 @@ principal kind. This fitness pins both the equality between the
 six DTO sites AND the subset relationship with PrincipalKind so a
 future widening doesn't drift either invariant.
 
-Gate-review history: Iter B-2's first ship missed widening the
+Gate-review history: an earlier sweep missed widening the
 get_actor DTOs (sites #5 + #6), shipping a 500 fail-late for any
 service_account Actor fetch. This fitness catches that class of
 drift at PR time.
@@ -77,13 +77,13 @@ def test_list_actors_tool_dto_literal_matches_actor_kind() -> None:
 
 @pytest.mark.architecture
 def test_get_actor_route_dto_literal_matches_actor_kind() -> None:
-    """Gate-review BLOCKING: Iter B-2 first-ship missed this site."""
+    """Gate-review BLOCKING: critical site missed in earlier sweep."""
     assert set(_literal_args_of_kind_field(GetActorResponse)) == {k.value for k in ActorKind}
 
 
 @pytest.mark.architecture
 def test_get_actor_tool_dto_literal_matches_actor_kind() -> None:
-    """Gate-review BLOCKING: Iter B-2 first-ship missed this site."""
+    """Gate-review BLOCKING: critical site missed in earlier sweep."""
     assert set(_literal_args_of_kind_field(GetActorOutput)) == {k.value for k in ActorKind}
 
 

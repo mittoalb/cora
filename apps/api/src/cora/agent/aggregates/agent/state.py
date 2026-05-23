@@ -413,8 +413,8 @@ class AgentNotSeededError(Exception):
     expected an Agent record at the supplied id but found none.
 
     Today raised by 8f-c iter 1's `debrief_run`-style slices when
-    the RunDebrief Agent's bootstrap seed didn't run (deployment
-    misconfiguration: `seed_run_debrief_agent` not invoked at app
+    the RunDebriefer Agent's bootstrap seed didn't run (deployment
+    misconfiguration: `seed_run_debriefer_agent` not invoked at app
     startup, or the Agent stream was manually purged).
 
     Mirrors `DeciderActorMissingError` / `ProducingRunMissingError`
@@ -442,7 +442,7 @@ class AgentDeactivatedError(Exception):
     invoking the agent.
 
     Mirrors the subscriber's runtime gate (`cora.agent.subscribers.
-    run_debrief.RunDebriefSubscriber.apply` line: `if not
+    run_debriefer.RunDebrieferSubscriber.apply` line: `if not
     actor.is_active: return`).
     """
 
@@ -467,7 +467,7 @@ class AgentKind:
     pilot + <10 distinct kinds; [[project_agent_bc_design]] watch
     item).
 
-    First registered kind day-1 (in 8f-b) = `RunDebrief`.
+    First registered kind day-1 (in 8f-b) = `RunDebriefer`.
     """
 
     value: str
@@ -762,7 +762,7 @@ class Agent:
 
     Optional fields: `description`, `canonical_uri`,
     `prompt_template_id` (None if no template registry entry exists;
-    required by the RunDebrief subscriber), `capabilities` (defaults
+    required by the RunDebriefer subscriber), `capabilities` (defaults
     to empty frozenset).
 
     Lifecycle additions: `tools` per-agent MCP tool allowlist;

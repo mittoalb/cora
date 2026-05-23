@@ -30,7 +30,7 @@ _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 def _capability(
     *, shapes: frozenset[ExecutorShape] = frozenset({ExecutorShape.PROCEDURE})
 ) -> Capability:
-    """Build a Capability fixture for Phase 10d cross-BC tests."""
+    """Build a Capability fixture for cross-BC tests."""
     return Capability(
         id=uuid4(),
         code=CapabilityCode("cora.capability.x"),
@@ -236,15 +236,15 @@ def test_decide_does_not_mutate_input_state() -> None:
     ) == snapshot
 
 
-# ---------- Phase 10d cross-BC capability guard ----------
+# ---------- cross-BC capability guard ----------
 
 
 @pytest.mark.unit
 def test_decide_skips_capability_validation_when_command_omits_capability_id() -> None:
-    """Phase 10d-additive: when capability_id is None on the command,
-    the decider skips the Capability + executor-shape check entirely.
-    Pre-10d Procedures + ceremony Procedures with no template binding
-    keep working with no extra context required."""
+    """When capability_id is None on the command, the decider skips the
+    Capability + executor-shape check entirely. Procedures with no template
+    binding (including ceremony Procedures) keep working with no extra context
+    required."""
     events = register_procedure.decide(
         state=None,
         command=RegisterProcedure(name="Bakeout", kind="bakeout"),
@@ -257,10 +257,9 @@ def test_decide_skips_capability_validation_when_command_omits_capability_id() -
 
 @pytest.mark.unit
 def test_decide_raises_capability_not_found_when_stream_missing() -> None:
-    """Phase 10d-additive: command supplied capability_id but the
-    handler couldn't load a Capability stream for it (capability=None).
-    Maps to 404 via routes.py registration. Mirrors define_method
-    (6l-additive)."""
+    """Command supplied capability_id but the handler couldn't load a
+    Capability stream for it (capability=None). Maps to 404 via routes.py
+    registration. Mirrors define_method's capability-binding guard."""
     bogus = UUID("01900000-0000-7000-8000-deadbeefcafe")
     with pytest.raises(CapabilityNotFoundError) as exc_info:
         register_procedure.decide(
@@ -275,11 +274,10 @@ def test_decide_raises_capability_not_found_when_stream_missing() -> None:
 
 @pytest.mark.unit
 def test_decide_raises_executor_mismatch_when_capability_excludes_procedure() -> None:
-    """Phase 10d-additive: bound Capability exists but its
-    `executor_shapes` does NOT contain ExecutorShape.PROCEDURE (for
-    example, a Method-only Capability template). Maps to 409 via
-    routes.py registration. Mirror of the 6l-additive sibling guard
-    that gates Method bindings on ExecutorShape.METHOD."""
+    """Bound Capability exists but its `executor_shapes` does NOT contain
+    ExecutorShape.PROCEDURE (for example, a Method-only Capability template).
+    Maps to 409 via routes.py registration. Mirror of the sibling guard that
+    gates Method bindings on ExecutorShape.METHOD."""
     cap = _capability(shapes=frozenset({ExecutorShape.METHOD}))
     new_id = uuid4()
     with pytest.raises(ProcedureCapabilityExecutorMismatchError) as exc_info:
@@ -296,10 +294,9 @@ def test_decide_raises_executor_mismatch_when_capability_excludes_procedure() ->
 
 @pytest.mark.unit
 def test_decide_accepts_procedure_shaped_capability_and_propagates_id() -> None:
-    """Phase 10d-additive happy path: capability_id is set, the bound
-    Capability declares PROCEDURE in its executor_shapes, and the
-    decided event carries the bound capability_id (so projections /
-    Run binding can read it back)."""
+    """Happy path: capability_id is set, the bound Capability declares
+    PROCEDURE in its executor_shapes, and the decided event carries the
+    bound capability_id (so projections / Run binding can read it back)."""
     cap = _capability(shapes=frozenset({ExecutorShape.METHOD, ExecutorShape.PROCEDURE}))
     events = register_procedure.decide(
         state=None,

@@ -245,7 +245,7 @@ depends_on = [
 # pattern as Campaign's `add_run_to_campaign` from 6i-c).
 #
 # Phase 8f-b iter 2b adds two cross-BC aggregate dependencies for
-# the FIRST side-effecting subscriber (`RunDebriefSubscriber`):
+# the FIRST side-effecting subscriber (`RunDebrieferSubscriber`):
 #   - `cora.run.aggregates` to subscribe to terminal Run events
 #     (RunCompleted / RunAborted / RunStopped / RunTruncated) and
 #     fold the Run aggregate via `load_run`.

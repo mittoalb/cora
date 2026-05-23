@@ -101,9 +101,9 @@ def test_fold_is_pure_same_input_same_output() -> None:
 def test_decider_and_evolver_round_trip() -> None:
     """The events the decider produces must rebuild the expected state.
 
-    Phase 6f-5a: the decider emits ConduitDefined + ConduitLogbookOpened,
-    and the evolver folds both into a Conduit with the traversals
-    logbook id present in `logbooks`.
+    The decider emits ConduitDefined + ConduitLogbookOpened, and the
+    evolver folds both into a Conduit with the traversals logbook id
+    present in `logbooks`.
     """
     new_id = uuid4()
     logbook_id = uuid4()
@@ -133,7 +133,7 @@ def test_decider_and_evolver_round_trip() -> None:
     )
 
 
-# ---------- Channel-event arms (Phase 6f-5a) ----------
+# ---------- Channel-event arms ----------
 
 
 def _genesis(conduit_id: object | None = None) -> ConduitDefined:

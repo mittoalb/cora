@@ -1,5 +1,5 @@
 """End-to-end: handler call lands `principal_id` on stored events
-(Phase 9b-b).
+.
 
 The arch fitness test
 [tests/architecture/test_envelope_principal_id.py] proves every
@@ -13,7 +13,7 @@ Two scenarios:
   - Single-event handler (register_actor): one event, one
     principal_id round-trip.
   - Multi-event handler (define_conduit): two events
-    (ConduitDefined + ConduitLogbookOpened from Phase 6f-5a),
+    (ConduitDefined + ConduitLogbookOpened),
     same principal_id on both.
 
 If the handler accidentally drops the kwarg (regression that the
@@ -77,7 +77,7 @@ async def test_define_conduit_handler_writes_principal_id_on_all_events(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Multi-event handler: define_conduit emits BOTH ConduitDefined
-    and ConduitLogbookOpened (Phase 6f-5a), and both events must
+    and ConduitLogbookOpened, and both events must
     carry the same principal_id (one handler call -> one principal,
     even when N events fire)."""
     conduit_id = uuid4()

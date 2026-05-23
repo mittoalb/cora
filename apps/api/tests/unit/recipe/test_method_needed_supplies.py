@@ -1,4 +1,4 @@
-"""Unit tests for Method.needed_supplies (Phase 10b).
+"""Unit tests for Method.needed_supplies.
 
 Covers:
   - State default + frozenset shape
@@ -49,7 +49,7 @@ from cora.recipe.features.define_method import DefineMethod
 
 
 def _capability() -> Capability:
-    """Phase 6l-strict: shared Capability fixture for these decider tests."""
+    """Shared Capability fixture for these decider tests."""
     return Capability(
         id=UUID("01900000-0000-7000-8000-00000000c1da"),
         code=CapabilityCode("cora.capability.x"),

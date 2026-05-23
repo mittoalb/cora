@@ -1,7 +1,7 @@
 """Unit tests for the `remove_run_from_campaign` cross-aggregate decider.
 
 Pins validation order + happy-path event-pair shape. Mirrors
-`add_run_to_campaign` decider's test style. Phase 6i-c.
+`add_run_to_campaign` decider's test style.
 """
 
 from datetime import UTC, datetime

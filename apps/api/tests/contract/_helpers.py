@@ -1,7 +1,7 @@
 """Shared test helpers for contract tests against the FastAPI app.
 
-Phase 6l-strict: every POST `/methods` body now requires a
-`capability_id` referencing a real Capability stream. Contract
+Every POST `/methods` body requires a `capability_id` referencing
+a real Capability stream. Contract
 tests use TestClient + a fresh app per test, so each test must
 POST `/capabilities` first to create a Capability before POSTing
 `/methods`. This helper hides the boilerplate:

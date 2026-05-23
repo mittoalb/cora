@@ -1,7 +1,7 @@
 """Contract tests for the `degrade_asset` MCP tool.
 
-Phase 5g-b. Mirrors `test_relocate_asset_mcp_tool.py`. Covers tool
-listing, the happy path, and one error path.
+Mirrors `test_relocate_asset_mcp_tool.py`. Covers tool listing,
+the happy path, and one error path.
 """
 
 from uuid import UUID, uuid4

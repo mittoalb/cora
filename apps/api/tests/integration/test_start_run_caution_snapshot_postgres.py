@@ -1,4 +1,4 @@
-"""End-to-end PG integration: Run.start non-blocking caution snapshot (Phase 11b-c).
+"""End-to-end PG integration: Run.start non-blocking caution snapshot.
 
 Composes real PG event store + real `PostgresCautionLookup` + real
 `PostgresClearanceLookup` (the 11a-c-3 gate is still in force) + the
@@ -73,7 +73,7 @@ from tests.unit.subject._helpers import seed_active_asset
 _NOW = datetime(2026, 5, 17, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-00000000e001")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-00000000e002")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0dd05")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0dd05")
 
 
 async def _seed_upstream_chain(

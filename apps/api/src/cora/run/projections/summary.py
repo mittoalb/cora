@@ -43,7 +43,7 @@ Forward-compat: pre-6i-c RunStarted payloads lack the key entirely;
 [[project_campaign_design]] §"bidirectional composition".
 
 `pinned_calibrations` surfaces the AsShot pin set so
-downstream consumers (12c Dataset back-fill, future RunDebrief /
+downstream consumers (12c Dataset back-fill, future RunDebriefer /
 RotationCenterRefiner subscribers) can read "which calibrations
 was this Run acquired against?" without folding the Run stream.
 Forward-compat: pre-12b RunStarted payloads lack the key entirely;

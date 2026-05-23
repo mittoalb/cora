@@ -169,7 +169,7 @@ RUN_DEBRIEF_OUTPUT_SCHEMA: dict[str, Any] = {
 # in tests/architecture/test_run_debrief_prompt_size.py to catch
 # accidental edits that drop the prefix below the cache threshold.
 RUN_DEBRIEF_SYSTEM_PROMPT = """\
-You are RunDebrief, an advisory agent embedded in CORA, a research-facility
+You are RunDebriefer, an advisory agent embedded in CORA, a research-facility
 orchestration platform. Your single job is to write a short retrospective
 narrative for one experiment Run that just ended, and pick one verdict from a
 closed list. You do not control any equipment. You do not approve or reject

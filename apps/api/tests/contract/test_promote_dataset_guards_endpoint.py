@@ -1,4 +1,4 @@
-"""HTTP contract tests for `promote_dataset` integrity guards (Phase 7e gate review).
+"""HTTP contract tests for `promote_dataset` integrity guards.
 
 The 7 happy/error tests in `test_promote_dataset_endpoint.py` cover
 the route-level shape; this file covers the guard branches that

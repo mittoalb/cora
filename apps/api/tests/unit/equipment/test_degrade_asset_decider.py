@@ -1,6 +1,6 @@
 """Unit tests for the `degrade_asset` slice's pure decider.
 
-Phase 5g-b. Target-state transition: any condition -> Degraded. The
+Target-state transition: any condition -> Degraded. The
 decider:
   - Raises AssetNotFoundError on empty state
   - No-ops (returns []) when current condition is already Degraded

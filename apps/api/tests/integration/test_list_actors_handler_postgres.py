@@ -258,7 +258,7 @@ async def test_limit_exactly_matches_total_returns_no_cursor(
 async def test_register_service_account_actor_appears_in_list_with_kind(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Iter B-2 gate-review test#1 + test#2: end-to-end pin that
+    """Gate-review test#1 + test#2: end-to-end pin that
     register_actor(kind=service_account) lands a row in the projection
     AND list_actors returns kind='service_account' in the response.
 

@@ -243,7 +243,7 @@ async def test_wired_handler_propagates_causation_id_through_full_composition() 
     assert events[0].causation_id == causation
 
 
-# ---------- Phase C Iter B-2: kind discriminator ----------
+# ---------- Kind discriminator ----------
 
 
 @pytest.mark.unit

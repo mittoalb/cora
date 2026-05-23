@@ -1,4 +1,4 @@
-"""Unit tests for gen_ai telemetry helpers (Phase 8f-b iter 2a)."""
+"""Unit tests for gen_ai telemetry helpers."""
 
 # pyright: reportUnknownMemberType=false, reportPrivateUsage=false
 

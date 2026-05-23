@@ -1,4 +1,4 @@
-"""Property-based tests for the AssetPort value object (Phase 5h).
+"""Property-based tests for the AssetPort value object.
 
 Complements `test_asset_port_value_object.py` (example-based) with
 universal claims over the generated input space:
@@ -10,8 +10,6 @@ universal claims over the generated input space:
   - For any overlong name or signal_type, construction raises the
     correct error variant.
   - Equal-by-tuple AssetPorts share a hash (frozenset dedup).
-
-Iter C of the testing-techniques rollout.
 """
 
 import pytest

@@ -1,4 +1,4 @@
-"""Operator-paused RunDebrief agent at APS 2-BM (cost overrun).
+"""Operator-paused RunDebriefer agent at APS 2-BM (cost overrun).
 
 cluster: Seed
 archetype: fsm
@@ -11,7 +11,7 @@ budget envelope (real-life Anthropic API spend spiking), the
 operator suspends it without deprecating, tightens the budget, and
 resumes when caps are re-established.
 
-Phase agent operations.
+Agent operations chain.
 
 See [[project_pilot_docs_design]] for the phase / file-naming
 taxonomy this scenario fits into. See
@@ -23,7 +23,7 @@ surface").
 
 ## Why this scenario exists
 
-The Agent BC's FSM was widened in Phase 8f-c iter 2 from a linear
+The Agent BC's FSM widened from a linear
 3-state `Defined -> Versioned -> Deprecated` to a 4-state
 `Defined -> Versioned <-> Suspended -> Deprecated`. The new
 `Suspended` state + the bidirectional Versioned <-> Suspended
@@ -33,8 +33,8 @@ does NOT want to permanently retire it.
 
 This scenario exercises that cycle end-to-end:
 
-  - `version_agent` (the seeded RunDebrief Agent lands in `Defined`
-    per `seed_run_debrief_agent`; the operator explicitly promotes
+  - `version_agent` (the seeded RunDebriefer Agent lands in `Defined`
+    per `seed_run_debriefer_agent`; the operator explicitly promotes
     it to `Versioned` so the subscriber will pick it up).
   - `revise_agent_budget` (establishes the initial budget envelope
     BEFORE any cost issue surfaces; a future scenario could
@@ -53,7 +53,7 @@ This scenario exercises that cycle end-to-end:
   1. 2-BM operator on shift observes the Anthropic API spend has
      crossed 80% of monthly cap with two weeks of beamtime
      remaining; runaway projected.
-  2. Operator suspends the RunDebrief agent (`suspend_agent`)
+  2. Operator suspends the RunDebriefer agent (`suspend_agent`)
      citing the cost overrun. The agent's `actor_id` is now
      associated with an Actor that the subscriber's revocation
      gate (per [[project_run_debrief_design]] security gate-review
@@ -71,9 +71,9 @@ This scenario exercises that cycle end-to-end:
 
 Per [scenarios/README.md](../README.md) Rule 1. The agent-pause
 narrative is separable from both (a) the agent's own runtime
-behavior (covered by `test_2bm_run_debrief.py` family) and
+behavior (covered by `test_2bm_run_debriefer.py` family) and
 (b) the agent's definition / catalog registration (covered by
-`test_aps_facility.py`'s install path and `seed_run_debrief_agent`).
+`test_aps_facility.py`'s install path and `seed_run_debriefer_agent`).
 Bundling would conflate "agent emits a Decision" with "operator
 pauses an agent" — different actor surfaces, different audit
 trails, different motivating use cases.
@@ -94,7 +94,7 @@ trails, different motivating use cases.
     (operator-authored, `context="AgentResume"` or similar). Watch
     item for [[project_run_debrief_design]] downstream consumers.
   - **The seeded agent enters `Defined`, not `Versioned`.** Per
-    `seed.py`, `seed_run_debrief_agent` writes only an
+    `seed.py`, `seed_run_debriefer_agent` writes only an
     `AgentDefined` event; this scenario explicitly drives the
     `Defined -> Versioned` promotion via `version_agent` before
     the suspend / resume cycle, mirroring the production
@@ -121,7 +121,7 @@ from cora.agent.features.suspend_agent import SuspendAgent
 from cora.agent.features.suspend_agent import bind as bind_suspend_agent
 from cora.agent.features.version_agent import VersionAgent
 from cora.agent.features.version_agent import bind as bind_version_agent
-from cora.agent.seed import RUN_DEBRIEF_AGENT_ID, seed_run_debrief_agent
+from cora.agent.seed import RUN_DEBRIEFER_AGENT_ID, seed_run_debriefer_agent
 from tests.integration._helpers import build_postgres_deps
 from tests.integration.scenarios._facility_fixture import operator_for
 
@@ -140,7 +140,7 @@ def _id_queue() -> list[UUID]:
     The scenario does not register a facility hierarchy or beamtime
     intake: Agent BC operates standalone (no Subject/Run/Campaign
     dependencies). The seeded Agent + Actor land via
-    `seed_run_debrief_agent` which writes directly to the event
+    `seed_run_debriefer_agent` which writes directly to the event
     store with its own pinned event ids (NOT consumed from this
     queue).
     """
@@ -163,32 +163,32 @@ def _id_queue() -> list[UUID]:
 async def test_agent_cost_overrun_pause_plays_out_end_to_end(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Seed RunDebrief Agent, promote Defined -> Versioned, set
+    """Seed RunDebriefer Agent, promote Defined -> Versioned, set
     initial budget, suspend (with cost-overrun reason), tighten
     budget, resume. Assert FSM cycled Versioned -> Suspended ->
     Versioned and both budget revisions landed on the aggregate."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
 
-    # ----- Bootstrap: seed RunDebrief Agent (lands in Defined) -----
+    # ----- Bootstrap: seed RunDebriefer Agent (lands in Defined) -----
     # Writes 2 events: ActorRegistered (Access BC) + AgentDefined
     # (Agent BC) via cross-BC atomic append_streams. Uses pinned ids
     # outside our scenario id queue.
 
-    await seed_run_debrief_agent(deps)
+    await seed_run_debriefer_agent(deps)
 
-    seeded = await load_agent(deps.event_store, RUN_DEBRIEF_AGENT_ID)
+    seeded = await load_agent(deps.event_store, RUN_DEBRIEFER_AGENT_ID)
     assert seeded is not None
     assert seeded.status is AgentStatus.DEFINED
 
     # ----- Promote Defined -> Versioned (operator ready signal) -----
 
     await bind_version_agent(deps)(
-        VersionAgent(agent_id=RUN_DEBRIEF_AGENT_ID),
+        VersionAgent(agent_id=RUN_DEBRIEFER_AGENT_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
-    versioned = await load_agent(deps.event_store, RUN_DEBRIEF_AGENT_ID)
+    versioned = await load_agent(deps.event_store, RUN_DEBRIEFER_AGENT_ID)
     assert versioned is not None
     assert versioned.status is AgentStatus.VERSIONED
 
@@ -198,7 +198,7 @@ async def test_agent_cost_overrun_pause_plays_out_end_to_end(
 
     await bind_revise_budget(deps)(
         ReviseAgentBudget(
-            agent_id=RUN_DEBRIEF_AGENT_ID,
+            agent_id=RUN_DEBRIEFER_AGENT_ID,
             monthly_usd_cap=500.0,
             daily_token_cap=2_000_000,
         ),
@@ -206,7 +206,7 @@ async def test_agent_cost_overrun_pause_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
 
-    after_initial_budget = await load_agent(deps.event_store, RUN_DEBRIEF_AGENT_ID)
+    after_initial_budget = await load_agent(deps.event_store, RUN_DEBRIEFER_AGENT_ID)
     assert after_initial_budget is not None
     assert after_initial_budget.budget is not None
     assert after_initial_budget.budget.monthly_usd_cap == 500.0
@@ -220,7 +220,7 @@ async def test_agent_cost_overrun_pause_plays_out_end_to_end(
 
     await bind_suspend_agent(deps)(
         SuspendAgent(
-            agent_id=RUN_DEBRIEF_AGENT_ID,
+            agent_id=RUN_DEBRIEFER_AGENT_ID,
             reason=(
                 "Anthropic API spend crossed 80% of monthly $500 cap on day 14 "
                 "of 30; two weeks of beamtime remain. Pausing to tighten caps "
@@ -231,7 +231,7 @@ async def test_agent_cost_overrun_pause_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
 
-    suspended = await load_agent(deps.event_store, RUN_DEBRIEF_AGENT_ID)
+    suspended = await load_agent(deps.event_store, RUN_DEBRIEFER_AGENT_ID)
     assert suspended is not None
     assert suspended.status is AgentStatus.SUSPENDED
 
@@ -241,7 +241,7 @@ async def test_agent_cost_overrun_pause_plays_out_end_to_end(
 
     await bind_revise_budget(deps)(
         ReviseAgentBudget(
-            agent_id=RUN_DEBRIEF_AGENT_ID,
+            agent_id=RUN_DEBRIEFER_AGENT_ID,
             monthly_usd_cap=120.0,
             daily_token_cap=1_000_000,
         ),
@@ -249,7 +249,7 @@ async def test_agent_cost_overrun_pause_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
 
-    after_tightened = await load_agent(deps.event_store, RUN_DEBRIEF_AGENT_ID)
+    after_tightened = await load_agent(deps.event_store, RUN_DEBRIEFER_AGENT_ID)
     assert after_tightened is not None
     assert after_tightened.budget is not None
     assert after_tightened.budget.monthly_usd_cap == 120.0
@@ -263,12 +263,12 @@ async def test_agent_cost_overrun_pause_plays_out_end_to_end(
     # lives in Decisions" per the design lock.
 
     await bind_resume_agent(deps)(
-        ResumeAgent(agent_id=RUN_DEBRIEF_AGENT_ID),
+        ResumeAgent(agent_id=RUN_DEBRIEFER_AGENT_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
-    resumed = await load_agent(deps.event_store, RUN_DEBRIEF_AGENT_ID)
+    resumed = await load_agent(deps.event_store, RUN_DEBRIEFER_AGENT_ID)
     assert resumed is not None
     assert resumed.status is AgentStatus.VERSIONED
     # Budget caps survive the resume transition.
@@ -278,7 +278,7 @@ async def test_agent_cost_overrun_pause_plays_out_end_to_end(
 
     # ----- Assert: Agent stream carries the full FSM cycle -----
 
-    agent_events, _agent_version = await deps.event_store.load("Agent", RUN_DEBRIEF_AGENT_ID)
+    agent_events, _agent_version = await deps.event_store.load("Agent", RUN_DEBRIEFER_AGENT_ID)
     agent_event_types = [e.event_type for e in agent_events]
     # Seed + version + 2 budget revises + suspend + resume = 6 events.
     assert agent_event_types == [

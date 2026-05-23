@@ -89,7 +89,6 @@ def test_projection_metadata() -> None:
             "CampaignResumed",
             "CampaignClosed",
             "CampaignAbandoned",
-            # Phase 6i-c membership arms.
             "CampaignRunAdded",
             "CampaignRunRemoved",
         }
@@ -316,7 +315,7 @@ async def test_projection_ignores_unsubscribed_event_type() -> None:
 
 @pytest.mark.unit
 async def test_campaign_run_added_increments_run_count() -> None:
-    """Phase 6i-c: CampaignRunAdded bumps run_count by one."""
+    """CampaignRunAdded bumps run_count by one."""
     proj = CampaignSummaryProjection()
     conn = AsyncMock()
     event = _stored(
@@ -341,7 +340,7 @@ async def test_campaign_run_added_increments_run_count() -> None:
 
 @pytest.mark.unit
 async def test_campaign_run_removed_decrements_run_count() -> None:
-    """Phase 6i-c: CampaignRunRemoved drops run_count by one."""
+    """CampaignRunRemoved drops run_count by one."""
     proj = CampaignSummaryProjection()
     conn = AsyncMock()
     event = _stored(

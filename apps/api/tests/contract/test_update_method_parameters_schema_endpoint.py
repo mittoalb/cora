@@ -1,8 +1,8 @@
 """Contract tests for `POST /methods/{method_id}/parameters-schema`.
 
-Phase 6g-a. Action endpoint with body `{parameters_schema}`. Schema
+Action endpoint with body `{parameters_schema}`. Schema
 can be set, replaced, or cleared (null payload). Mirrors
-`test_update_family_settings_schema_endpoint.py` (5g-a).
+`test_update_family_settings_schema_endpoint.py`.
 """
 
 from typing import Any
@@ -18,7 +18,7 @@ _DRAFT = "https://json-schema.org/draft/2020-12/schema"
 
 
 def _define_method(client: TestClient, name: str = "XRF Mapping") -> UUID:
-    """Phase 6l-strict: seed a fresh Capability per call."""
+    """Seed a fresh Capability per call."""
     cap_id = create_capability_via_api(client)
     response = client.post(
         "/methods",

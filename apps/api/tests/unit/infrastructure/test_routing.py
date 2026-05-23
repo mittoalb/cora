@@ -32,7 +32,7 @@ def test_get_principal_id_returns_header_uuid_when_present() -> None:
 
 @pytest.mark.unit
 def test_get_principal_id_falls_back_to_system_when_header_absent() -> None:
-    """Phase 1 fallback semantics preserved: existing tests + dev calls
+    """Legacy fallback semantics preserved: existing tests + dev calls
     that don't set the header continue to use SYSTEM_PRINCIPAL_ID."""
     assert get_principal_id(x_principal_id=None) == SYSTEM_PRINCIPAL_ID
 
@@ -56,7 +56,7 @@ def test_system_principal_id_is_the_well_known_zero_uuid() -> None:
     assert UUID("00000000-0000-0000-0000-000000000000") == SYSTEM_PRINCIPAL_ID
 
 
-# ---------- Phase C Iter C-3: bearer-mode priority ----------
+# ---------- Bearer-mode priority ----------
 
 
 @pytest.mark.unit
@@ -119,7 +119,7 @@ def test_bearer_auth_enabled_rejects_x_principal_id_fallback() -> None:
 @pytest.mark.unit
 def test_legacy_mode_unchanged_when_bearer_auth_disabled() -> None:
     """`bearer_auth_enabled=False` (no IdPs configured) preserves the
-    Phase 1 X-Principal-Id-with-SYSTEM-fallback shape. Existing
+    legacy X-Principal-Id-with-SYSTEM-fallback shape. Existing
     tests + deployments that never set IDENTITY_PROVIDERS remain on
     the legacy path unchanged."""
     # Header present + no bearer + legacy mode -> return header value.

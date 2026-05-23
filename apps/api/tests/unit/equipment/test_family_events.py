@@ -57,7 +57,6 @@ def test_to_payload_serializes_capability_defined_to_primitives() -> None:
         "family_id": str(family_id),
         "name": "Tomography",
         "occurred_at": _NOW.isoformat(),
-        # Phase 5j: empty affordances serialized as [] (default factory).
         "affordances": [],
     }
 
@@ -93,7 +92,7 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
         from_stored(stored)
 
 
-# ---------- FamilyVersioned (Phase 5f-2) ----------
+# ---------- FamilyVersioned ----------
 
 
 @pytest.mark.unit
@@ -110,7 +109,6 @@ def test_to_payload_serializes_capability_versioned_with_version_tag() -> None:
         "family_id": str(family_id),
         "version_tag": "2026-Q3",
         "occurred_at": _NOW.isoformat(),
-        # Phase 5j: empty affordances serialized as [] (default factory).
         "affordances": [],
     }
 
@@ -137,7 +135,7 @@ def test_to_payload_then_from_stored_round_trips_for_capability_versioned() -> N
     assert from_stored(stored) == original
 
 
-# ---------- FamilyDeprecated (Phase 5f-2) ----------
+# ---------- FamilyDeprecated ----------
 
 
 @pytest.mark.unit
@@ -182,7 +180,7 @@ def test_to_payload_then_from_stored_round_trips_for_capability_deprecated() -> 
     assert from_stored(stored) == original
 
 
-# ---------- FamilySettingsSchemaUpdated (Phase 5g-a) ----------
+# ---------- FamilySettingsSchemaUpdated ----------
 
 
 _TEST_SCHEMA = {
@@ -285,9 +283,9 @@ def test_to_payload_then_from_stored_round_trips_for_capability_settings_schema_
     assert from_stored(stored) == original
 
 
-# ---------- Phase 5i dual-match: legacy "Capability*" event types ----------
+# ---------- dual-match: legacy "Capability*" event types ----------
 #
-# Per DLM-A direct-rename pattern (Marten/Axon canonical): old event
+# Per the direct-rename pattern (Marten/Axon canonical): old event
 # type strings stay in the log forever; from_stored upcasts them to
 # the new Family* dataclasses. These tests pin the dual-match arms so
 # a future refactor can't silently break replay safety.
@@ -377,7 +375,7 @@ def test_from_stored_upcasts_legacy_settings_schema_updated_with_null_schema() -
     )
 
 
-# ---------- Phase 5j: non-empty affordance round-trip ----------
+# ---------- non-empty affordance round-trip ----------
 #
 # Gate review P0: the original 5j tests round-tripped EMPTY affordances
 # only. These tests pin to_payload + from_stored for non-empty sets,

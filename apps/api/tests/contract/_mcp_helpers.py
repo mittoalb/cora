@@ -48,8 +48,8 @@ def open_session(
     `extra_headers` (e.g. `{"Authorization": "Bearer ..."}`) ride on
     every request in the handshake AND are included in the returned
     headers so the caller's subsequent `tools/call` requests reuse
-    them. Phase 8f-d: required under bearer-auth posture because
-    even the `initialize` call now flows through `BearerAuthMiddleware`.
+    them. Required under bearer-auth posture because even the
+    `initialize` call flows through `BearerAuthMiddleware`.
     """
     extras = dict(extra_headers or {})
     init = client.post(

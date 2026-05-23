@@ -1,13 +1,12 @@
-"""End-to-end integration test for Phase 12b-2:
-`Run.pinned_calibrations` lands on `proj_run_summary.pinned_calibrations`
-after the projection drain.
+"""End-to-end integration test for `Run.pinned_calibrations` landing on
+`proj_run_summary.pinned_calibrations` after the projection drain.
 
 Pins:
   - genesis-event payload carries the sorted list
   - projection writes the uuid[] column verbatim
   - the GIN index supports `WHERE pinned_calibrations @> ARRAY[$N]::uuid[]`
-    membership lookup (the future 12c Dataset back-fill query path)
-  - legacy pre-12b RunStarted payloads fold to empty array
+    membership lookup (the Dataset back-fill query path)
+  - legacy RunStarted payloads without pins fold to empty array
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false

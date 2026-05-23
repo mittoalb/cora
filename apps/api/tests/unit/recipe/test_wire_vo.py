@@ -1,4 +1,4 @@
-"""Unit tests for the Wire value object (Phase 6h).
+"""Unit tests for the Wire value object.
 
 Pins:
   - port-name length validation (1-100 after trim)

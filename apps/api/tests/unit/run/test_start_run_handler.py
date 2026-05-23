@@ -671,7 +671,7 @@ def test_wire_run_returns_handlers_bundle() -> None:
     assert callable(handlers.get_run)
 
 
-# ---------- Phase 6i-c: start_run with campaign_id ----------
+# ---------- start_run with campaign_id ----------
 
 
 async def _seed_campaign_active(
@@ -746,9 +746,9 @@ async def _seed_campaign_closed(
 
 @pytest.mark.unit
 async def test_handler_with_campaign_writes_both_streams_atomically() -> None:
-    """Phase 6i-c: when StartRun.campaign_id provided, the handler
-    writes RunStarted (with campaign_id) on the Run stream AND
-    CampaignRunAdded on the Campaign stream via append_streams."""
+    """When StartRun.campaign_id provided, the handler writes
+    RunStarted (with campaign_id) on the Run stream AND CampaignRunAdded
+    on the Campaign stream via append_streams."""
     from cora.campaign.aggregates.campaign import fold as campaign_fold
     from cora.campaign.aggregates.campaign import from_stored as campaign_from_stored
 
@@ -819,7 +819,7 @@ async def test_handler_raises_campaign_not_found_when_campaign_missing() -> None
 
 @pytest.mark.unit
 async def test_handler_raises_cannot_join_for_terminal_campaign() -> None:
-    """Phase 6i-c: starting a Run into a Closed Campaign raises 409
+    """Starting a Run into a Closed Campaign raises 409
     RunCannotJoinCampaignError."""
     from cora.run.aggregates.run import RunCannotJoinCampaignError
 
@@ -851,8 +851,8 @@ async def test_handler_raises_cannot_join_for_terminal_campaign() -> None:
 
 @pytest.mark.unit
 async def test_handler_without_campaign_id_uses_single_stream_append() -> None:
-    """Phase 6i-c: backward-compat path. No campaign_id means the
-    handler writes only the Run stream (single-stream append)."""
+    """Backward-compat path. No campaign_id means the handler writes
+    only the Run stream (single-stream append)."""
     store = InMemoryEventStore()
     _, _, _, _, plan_id, subject_id = await _seed_full_chain(store)
 

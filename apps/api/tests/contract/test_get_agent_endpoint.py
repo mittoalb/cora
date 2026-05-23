@@ -1,4 +1,4 @@
-"""Contract tests for `GET /agents/{agent_id}` (Phase 8f-a)."""
+"""Contract tests for `GET /agents/{agent_id}`."""
 
 from uuid import uuid4
 
@@ -10,7 +10,7 @@ from cora.api.main import create_app
 
 def _define_body(**overrides: object) -> dict[str, object]:
     base: dict[str, object] = {
-        "kind": "RunDebrief",
+        "kind": "RunDebriefer",
         "name": "Run Debrief",
         "version": "v1",
         "model_ref": {
@@ -33,7 +33,7 @@ def test_get_agents_returns_200_and_dto() -> None:
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["id"] == agent_id
-    assert body["kind"] == "RunDebrief"
+    assert body["kind"] == "RunDebriefer"
     assert body["name"] == "Run Debrief"
     assert body["version"] == "v1"
     assert body["status"] == "Defined"
@@ -65,7 +65,7 @@ def test_get_agents_after_version_returns_versioned_status() -> None:
     assert get_resp.status_code == 200
     body = get_resp.json()
     assert body["status"] == "Versioned"
-    # versioned_at is projection-sourced (Path C, Iter C-2): always present as a
+    # versioned_at is projection-sourced (Path C): always present as a
     # key on the response, null in contract tests because no projection runs
     # without a DB pool. Populated-value coverage lives in
     # tests/unit/agent/test_agent_summary_projection.py.

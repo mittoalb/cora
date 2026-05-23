@@ -1,6 +1,6 @@
 """Unit tests for the `update_family_settings_schema` application handler.
 
-Phase 5g-a. Mirrors `test_update_method_parameters_schema_handler.py`
+Mirrors `test_update_method_parameters_schema_handler.py`
 shape. Update-style: load + fold + decide + append; no-op on
 structurally equal schema; clears to None.
 """

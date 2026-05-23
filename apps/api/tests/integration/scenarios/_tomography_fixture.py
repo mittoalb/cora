@@ -37,8 +37,8 @@ matching the `_facility_fixture` convention).
 
 Alignment scenarios use a different mix of Devices (per-routine tilt
 stages, focus motors, etc.) and are NOT a fit for this fixture;
-extracting an alignment-specific fixture is Phase 2 of the audit
-(deferred). The fixture is deliberately not generalised across asset
+extracting an alignment-specific fixture is deferred. The fixture
+is deliberately not generalised across asset
 shapes today.
 
 ## Usage shape
@@ -232,7 +232,7 @@ class RecipeSpec:
     consistently with the id-queue prefix produced by
     `recipe_ladder_id_prefix()`.
 
-    Phase 6l-strict: `capability_id` is REQUIRED on every Method. The
+    `capability_id` is REQUIRED on every Method. The
     `define_recipe_ladder` factory seeds the Capability stream before
     calling `define_method` (via `seed_capability_pg`-style direct
     event-store append using uuid4 for the event_id, so the
@@ -285,7 +285,7 @@ async def define_recipe_ladder(
     (when `spec.parameters_schema` is set), then `define_practice` and
     `define_plan`. Order matches `recipe_ladder_id_prefix()` exactly.
 
-    Phase 6l-strict: seeds the bound Capability stream before
+    Seeds the bound Capability stream before
     `define_method` so the cross-BC `load_capability` succeeds. Uses
     the event-store API directly (uuid4 for the event_id) so the
     FixedIdGenerator queue stays untouched and id-prefix ordering

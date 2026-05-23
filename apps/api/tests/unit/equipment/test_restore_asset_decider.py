@@ -1,6 +1,6 @@
 """Unit tests for the `restore_asset` slice's pure decider.
 
-Phase 5g-b. Target-state transition: any condition -> Nominal.
+Target-state transition: any condition -> Nominal.
 Mirror of `degrade_asset` decider tests; same shape, target Nominal.
 
 Distinct from `restore_from_maintenance` which moves lifecycle

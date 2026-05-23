@@ -262,7 +262,7 @@ def test_get_datasets_rejects_invalid_path_uuid_with_422() -> None:
     assert response.status_code == 422
 
 
-# ---------- Phase 12c: Calibration BC AsShot citation ----------
+# ---------- Calibration BC AsShot citation ----------
 
 
 def _load_dataset_payload(app: FastAPI, dataset_id: UUID) -> dict[str, object]:
@@ -270,7 +270,7 @@ def _load_dataset_payload(app: FastAPI, dataset_id: UUID) -> dict[str, object]:
 
     The `GET /datasets/{id}` DTO does not expose `used_calibrations`
     today, so we drop down to the event store to inspect the
-    persisted DatasetRegistered event. Same pattern as Phase 12b's
+    persisted DatasetRegistered event. Same pattern as
     `_load_run_payload` in `test_start_run_endpoint.py`.
     """
     events, _ = asyncio.run(app.state.deps.event_store.load("Dataset", dataset_id))
@@ -283,8 +283,8 @@ def test_post_datasets_with_used_calibrations_returns_201() -> None:
     """POST /datasets with used_calibrations returns 201 and the
     persisted DatasetRegistered payload carries the sorted list of
     citations (no cross-BC validation of the CalibrationRevision ids
-    — eventual-consistency stance per design memo Phase 12c, mirrors
-    Phase 12b's Run.pinned_calibrations exactly)."""
+    — eventual-consistency stance per the Dataset lineage design,
+    mirrors Run.pinned_calibrations exactly)."""
     app = create_app()
     cal_a = uuid4()
     cal_b = uuid4()
@@ -319,11 +319,11 @@ def test_post_datasets_defaults_used_calibrations_to_empty_list() -> None:
 
 @pytest.mark.contract
 def test_post_datasets_does_not_validate_used_calibration_existence() -> None:
-    """Phase 12c eventual-consistency stance per
+    """Eventual-consistency stance per
     [[project_calibration_design]] anti-hook #3: the write path does
     NOT look up the CalibrationRevision ids. Any well-formed UUID
     list is accepted; downstream consumers that need to dereference
-    still go through the Calibration BC. Mirrors Phase 12b
+    still go through the Calibration BC. Mirrors
     Run.pinned_calibrations exactly."""
     with TestClient(create_app()) as client:
         # Fully synthetic citation ids that will never exist in any
@@ -341,7 +341,7 @@ def test_post_datasets_does_not_validate_used_calibration_existence() -> None:
 @pytest.mark.contract
 def test_post_datasets_rejects_malformed_used_calibration_uuid_with_422() -> None:
     """Pydantic enforces UUID format at the wire layer (the decider
-    never sees malformed strings). Mirrors Phase 12b's malformed-UUID
+    never sees malformed strings). Mirrors the malformed-UUID
     422 guard for Run.pinned_calibrations."""
     with TestClient(create_app()) as client:
         response = client.post(

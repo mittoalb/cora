@@ -30,7 +30,7 @@ System prompt is FIXED bytes (cached at 1h TTL). Untrusted
 Run-state + historical-Cautions data NEVER concatenates into the
 system prompt. All per-Run data goes into the user message as a
 JSON object so the model treats it as data, not instructions.
-Same defense as RunDebrief; same Anthropic Dec-2024 guidance.
+Same defense as RunDebriefer; same Anthropic Dec-2024 guidance.
 
 ## Cache layout (v1 simplified vs design memo)
 
@@ -40,7 +40,7 @@ suffix). v1 ships a SIMPLIFIED 2-layer layout: the entire system
 prompt is ONE cached block at 1h TTL; the user message is uncached.
 The system prompt is ~1500 tokens, comfortably above Anthropic's
 1024-token cache minimum (Sonnet/Haiku 4.x). This matches
-RunDebrief's identical v1 deferral verbatim — both AI agents share
+RunDebriefer's identical v1 deferral verbatim — both AI agents share
 the same trigger condition; see `prompts/run_debrief.py`
 docstring under "Cache layout".
 
@@ -57,7 +57,7 @@ first; applies to BOTH agents at once for parallel-cost amortization):
 
 v1 reads: terminal Run event + Run aggregate state + existing
 Active Cautions for the target (via `CautionLookup` port). Deferred
-to v2 per design memo: RunDebrief's prior Decision for the same Run
+to v2 per design memo: RunDebriefer's prior Decision for the same Run
 (needs `DecisionLookup` port; deferred until pilot UX surfaces need).
 
 ## Structured output schema
@@ -105,8 +105,8 @@ from cora.infrastructure.ports.llm import (
 CAUTION_DRAFTER_PROMPT_TEMPLATE_ID = UUID("01900000-0000-7000-8000-0000bbbb0001")
 
 
-# Default model = sonnet-4-6 (vs RunDebrief's haiku-4-5). Per design
-# memo: CautionDrafter's task is more nuanced than RunDebrief's
+# Default model = sonnet-4-6 (vs RunDebriefer's haiku-4-5). Per design
+# memo: CautionDrafter's task is more nuanced than RunDebriefer's
 # classification (operator-action verb mapping + lookback-then-propose
 # judgment + supersede-vs-new pattern matching), warrants Sonnet.
 DEFAULT_CAUTION_DRAFTER_MODEL = ModelRef(

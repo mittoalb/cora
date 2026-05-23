@@ -21,7 +21,7 @@ def _define_method_via_tool(
     name: str = "XRF Mapping",
     needed_families: list[str] | None = None,
 ) -> UUID:
-    # Phase 6l-strict: capability_id REQUIRED on MCP tool too.
+
     cap_id = create_capability_via_api(client)
     response = client.post(
         "/mcp",

@@ -11,7 +11,7 @@ kinematic tip, transitioning the Subject's lifecycle from `Measured`
 back to `Received`. Sourced from `2bm-docs ops/item_018.rst`
 (post-acquisition sample handling).
 
-Phase O-5 of the operations-phase canonical-acquisition chain.
+Step O-5 of the operations-phase canonical-acquisition chain.
 
 See [[project_pilot_docs_design]] for the phase / file-naming
 taxonomy this scenario fits into.

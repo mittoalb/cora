@@ -1,13 +1,13 @@
-"""RunDebrief on an EquipmentAbort Run at APS 2-BM.
+"""RunDebriefer on an EquipmentAbort Run at APS 2-BM.
 
 cluster: Advisories
 archetype: agent
 bc_primary: Decision
 bc_touches: Campaign, Decision, Equipment, Recipe, Run, Subject
 
-Sibling scenario to `test_2bm_run_debrief.py` (NominalCompletion)
+Sibling scenario to `test_2bm_run_debriefer.py` (NominalCompletion)
 and `test_2bm_run_debrief_degraded.py` (DegradedCompletion):
-exercises the RunDebrief agent on a Run that terminated as
+exercises the RunDebriefer agent on a Run that terminated as
 `Aborted` because an equipment fault made continuation
 impossible. The agent emits an `EquipmentAbort` Decision capturing
 the failed-scan narrative.
@@ -88,9 +88,9 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
-from cora.agent.seed import RUN_DEBRIEF_AGENT_ID, seed_run_debrief_agent
-from cora.agent.subscribers.run_debrief import (
-    RunDebriefSubscriber,
+from cora.agent.seed import RUN_DEBRIEFER_AGENT_ID, seed_run_debriefer_agent
+from cora.agent.subscribers.run_debriefer import (
+    RunDebrieferSubscriber,
     _derive_decision_id,
 )
 from cora.campaign.aggregates.campaign import CampaignIntent
@@ -161,7 +161,7 @@ _SUBJECT_ID = UUID("01900000-0000-7000-8000-000000421b11")
 _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000421b21")
 
 _METHOD_TOMO_ID = UUID("01900000-0000-7000-8000-000000421d01")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0e2be")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0e2be")
 _PRACTICE_TOMO_ID = UUID("01900000-0000-7000-8000-000000421d11")
 _PLAN_TOMO_ID = UUID("01900000-0000-7000-8000-000000421d21")
 
@@ -425,7 +425,7 @@ async def test_run_debrief_agent_fires_on_equipment_abort(
 
     # ----- Agent fires on terminal RunAborted; emits EquipmentAbort -----
 
-    await seed_run_debrief_agent(deps)
+    await seed_run_debriefer_agent(deps)
 
     run_events, _run_version = await deps.event_store.load("Run", _RUN_ID)
     terminal_events = [e for e in run_events if e.event_type == "RunAborted"]
@@ -434,7 +434,7 @@ async def test_run_debrief_agent_fires_on_equipment_abort(
     assert isinstance(terminal_event, StoredEvent)
 
     llm = FakeLLMAdapter(responses=[_CANNED_ABORTED_AAR])
-    subscriber = RunDebriefSubscriber(
+    subscriber = RunDebrieferSubscriber(
         event_store=deps.event_store,
         llm=llm,
         logbook_mirror=None,
@@ -448,7 +448,7 @@ async def test_run_debrief_agent_fires_on_equipment_abort(
     assert decision is not None
     assert decision.context.value == "RunDebrief"
     assert decision.choice.value == "EquipmentAbort"
-    assert decision.actor_id == RUN_DEBRIEF_AGENT_ID
+    assert decision.actor_id == RUN_DEBRIEFER_AGENT_ID
 
     # ----- Assert: Hexapod stream carries the fault event -----
 

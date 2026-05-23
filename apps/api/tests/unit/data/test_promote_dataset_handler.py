@@ -1,4 +1,4 @@
-"""Unit tests for the `promote_dataset` application handler (Phase 7e).
+"""Unit tests for the `promote_dataset` application handler.
 
 Update-style handler: load + fold + decide + append. Loads peer
 Datasets in `state.derived_from` for the lineage-must-be-Production

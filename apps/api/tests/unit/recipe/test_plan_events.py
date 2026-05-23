@@ -246,7 +246,7 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
         from_stored(stored)
 
 
-# ---------- PlanVersioned (Phase 6e-2) ----------
+# ---------- PlanVersioned ----------
 
 
 @pytest.mark.unit
@@ -288,7 +288,7 @@ def test_to_payload_then_from_stored_round_trips_for_plan_versioned() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- PlanDeprecated (Phase 6e-2) ----------
+# ---------- PlanDeprecated ----------
 
 
 @pytest.mark.unit
@@ -331,7 +331,7 @@ def test_to_payload_then_from_stored_round_trips_for_plan_deprecated() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- PlanDefaultParametersUpdated (Phase 6g-b) ----------
+# ---------- PlanDefaultParametersUpdated ----------
 
 
 _SAMPLE_DEFAULTS: dict[str, object] = {"energy": 12.0, "exposure": 100}
@@ -396,7 +396,7 @@ def test_to_payload_then_from_stored_round_trips_for_default_parameters_updated(
     assert from_stored(stored) == original
 
 
-# ---------- PlanWireAdded / PlanWireRemoved (Phase 6h) ----------
+# ---------- PlanWireAdded / PlanWireRemoved ----------
 
 
 @pytest.mark.unit
@@ -555,11 +555,11 @@ def test_to_payload_then_from_stored_round_trips_for_wire_removed() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- Phase 5i dual-key fallback: legacy snapshot payload keys ----------
+# ---------- dual-key fallback: legacy snapshot payload keys ----------
 #
-# Per DLM-A direct-rename pattern: pre-5i PlanDefined payloads carried
+# Per the direct-rename pattern: legacy PlanDefined payloads carried
 # `method_needed_capabilities_snapshot` + `asset_capabilities_snapshot`
-# keys. Post-5i payloads carry the `*_families_snapshot` equivalents.
+# keys. Current payloads carry the `*_families_snapshot` equivalents.
 # from_stored reads the new key first, falls back to the legacy key.
 # These tests pin the fallback so a future refactor can't silently
 # break replay safety.

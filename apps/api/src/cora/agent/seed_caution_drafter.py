@@ -9,14 +9,14 @@ prompt-template-id / default model).
 
 Per [[project-caution-drafter-design]] Locks:
   - Pinned UUID in the `bbbb00XX` range (sibling-to-`aaaa00XX`
-    RunDebrief range); deployment-stable forever.
+    RunDebriefer range); deployment-stable forever.
   - Atomic cross-BC write of `ActorRegistered(kind="agent")` +
     `AgentDefined` via `EventStore.append_streams`.
   - Envelope's `principal_id = SYSTEM_PRINCIPAL_ID` (NOT
     self-reference; agent doesn't exist yet at boot).
   - `ConcurrencyError`-as-no-op for restart idempotency.
   - Default model = `claude-sonnet-4-6` (CautionDrafter's task is
-    more nuanced than RunDebrief's classification; warrants Sonnet
+    more nuanced than RunDebriefer's classification; warrants Sonnet
     over Haiku).
 """
 
@@ -64,7 +64,7 @@ if TYPE_CHECKING:
 # deterministic decision_id derivation.
 #
 # UUID is in the deployment-controlled `bbbb00XX` range (sibling
-# to RunDebrief's `aaaa00XX` range). Future agents (#3+) get their
+# to RunDebriefer's `aaaa00XX` range). Future agents (#3+) get their
 # own `ccccc00XX` / `dddd00XX` / etc. ranges so the bootstrap
 # constants stay visually grouped per agent.
 CAUTION_DRAFTER_AGENT_ID = UUID("01900000-0000-7000-8000-0000bbbb0010")

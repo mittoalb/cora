@@ -12,7 +12,7 @@ The load-bearing auth vars (full list in `.env.example`):
 | `TRUST_POLICY_ID` | unset → `AllowAllAuthorize` | When you want real authz |
 | `REQUIRE_AUTHENTICATED_PRINCIPAL` | `false` | Must be `true` whenever `TRUST_POLICY_ID` is set (the boot gate refuses otherwise — see below) |
 | `IDENTITY_PROVIDERS` | unset → legacy `X-Principal-Id` header mode | JSON list of `IdentityProviderConfig` entries (see [Auth](auth.md)); enables bearer-token mode at the HTTP edge |
-| `ANTHROPIC_API_KEY` | unset → AI subscribers log-and-skip | When you want RunDebrief / CautionDrafter live |
+| `ANTHROPIC_API_KEY` | unset → AI subscribers log-and-skip | When you want RunDebriefer / CautionDrafter live |
 
 ### Startup boot gate
 

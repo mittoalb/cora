@@ -10,9 +10,9 @@ Caution-proposal Decision (`choice` + `confidence` + `confidence_band`
 `DecisionRegistered` per terminal event with
 `context = "CautionProposal"`.
 
-## Sibling to RunDebriefSubscriber
+## Sibling to RunDebrieferSubscriber
 
-Subscribes to the SAME 4 terminal Run events as RunDebrief. The
+Subscribes to the SAME 4 terminal Run events as RunDebriefer. The
 two subscribers run concurrently and INDEPENDENTLY in the
 projection worker (per [[project-caution-drafter-design]] Q4 lock:
 don't widen the subscriber framework at iter 3). Each derives its
@@ -28,7 +28,7 @@ dependency materializes. None of those hold at iter 3.
 
   - Read scope = Run + Plan (for asset_ids) + existing Cautions
     via CautionLookup. Deferred: RunReading + ConduitTraversal +
-    RunDebrief's prior Decision (DecisionLookup port deferred to
+    RunDebriefer's prior Decision (DecisionLookup port deferred to
     watch item #14 per design memo).
   - Defaults to `NoAction` aggressively (target 65-75% per Epic
     Sepsis lesson).
@@ -48,7 +48,7 @@ CautionDrafter writes `DecisionRegistered` with:
     + `informed_by_decision_id` (always None at v1; reserved for
     future DecisionLookup-driven cross-Decision linkage).
 
-## NoAction fallback (parallel to RunDebrief's DebriefDeferred)
+## NoAction fallback (parallel to RunDebriefer's DebriefDeferred)
 
 On LLM exhaust, the subscriber writes a `choice="NoAction"`
 Decision with `inputs={"reason": "LLM exhausted; deferred", ...}`
@@ -59,7 +59,7 @@ deferred to iter 4+).
 
 ## Authorize + actor gate
 
-Mirrors RunDebrief verbatim: NO `Authorize` port call (agent's
+Mirrors RunDebriefer verbatim: NO `Authorize` port call (agent's
 authority granted at definition time); DOES gate on
 `Actor.is_active` (operator-revocation gate per 8f-b iter 2b
 security gate-review P1#1).
@@ -94,7 +94,7 @@ from cora.agent.subscribers._terminal_run_helpers import (
     extract_interrupted_at,
     extract_reason,
 )
-from cora.agent.subscribers.run_debrief import redact_secrets
+from cora.agent.subscribers.run_debriefer import redact_secrets
 from cora.decision.aggregates.decision import (
     DECISION_CONTEXT_CAUTION_PROPOSAL,
     DecisionChoice,
@@ -126,12 +126,12 @@ _COMMAND_NAME = "CautionDrafterSubscriber"
 _DECISION_RULE = "agent:CautionDrafter:v1"
 
 # Stable namespace for deriving deterministic Decision IDs from
-# terminal Run event IDs. Distinct from RunDebrief's namespace so
+# terminal Run event IDs. Distinct from RunDebriefer's namespace so
 # both subscribers can fire on the same event without colliding on
 # decision_id.
 _CAUTION_DRAFTER_DECISION_NAMESPACE = UUID("01900000-0000-7000-8000-0000bbbb0002")
 
-# Same 4 terminal Run events as RunDebrief (per design memo Locks).
+# Same 4 terminal Run events as RunDebriefer (per design memo Locks).
 _TERMINAL_RUN_EVENTS = frozenset(
     {
         "RunCompleted",
@@ -181,7 +181,7 @@ class CautionDrafterSubscriber:
 
     async def apply(self, event: StoredEvent, conn: ConnectionLike) -> None:
         """Process one terminal Run event."""
-        _ = conn  # see RunDebriefSubscriber.apply docstring; not used at v1
+        _ = conn  # see RunDebrieferSubscriber.apply docstring; not used at v1
         if event.event_type not in _TERMINAL_RUN_EVENTS:
             return  # defensive; worker already filtered
 
@@ -220,7 +220,7 @@ class CautionDrafterSubscriber:
             return
 
         # Pre-load the Agent's Actor + revocation gate (mirrors
-        # RunDebrief verbatim).
+        # RunDebriefer verbatim).
         actor = await load_actor(self.event_store, CAUTION_DRAFTER_AGENT_ID)
         if actor is None:
             log.warning(
@@ -424,7 +424,7 @@ class CautionDrafterSubscriber:
     ) -> None:
         """LLM-exhaust fallback: NoAction Decision with failure marker.
 
-        Mirrors RunDebrief's DebriefDeferred pattern (parallel
+        Mirrors RunDebriefer's DebriefDeferred pattern (parallel
         v1 simplification). Confidence omitted (no LLM probability
         to report); operators reading the Decision know to re-trigger
         manually when re-draft slice ships.
@@ -466,7 +466,7 @@ class CautionDrafterSubscriber:
     ) -> None:
         """Compose `DecisionRegistered` inline and append.
 
-        Mirrors `RunDebriefSubscriber._compose_and_append` shape
+        Mirrors `RunDebrieferSubscriber._compose_and_append` shape
         verbatim (cross-BC import boundary respected: only
         `cora.decision.aggregates`, never `cora.decision.features`).
 

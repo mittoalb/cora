@@ -69,7 +69,7 @@ class DefineAgentRequest(BaseModel):
         max_length=AGENT_KIND_MAX_LENGTH,
         description=(
             "Free-form agent kind discriminator (bare-str at MVP per Supply.kind "
-            "precedent). Day-1 example: `RunDebrief`."
+            "precedent). Day-1 example: `RunDebriefer`."
         ),
     )
     name: str = Field(
@@ -110,7 +110,7 @@ class DefineAgentRequest(BaseModel):
         default=None,
         description=(
             "Optional UUID into the Python module registry at "
-            "`cora.agent.prompts`. Required by 8f-b's RunDebrief subscriber; "
+            "`cora.agent.prompts`. Required by 8f-b's RunDebriefer subscriber; "
             "may be null at 8f-a until the registry ships its first template."
         ),
     )

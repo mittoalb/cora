@@ -73,7 +73,6 @@ async def test_register_procedure_persists_event_to_postgres_with_target_assets(
         # Sorted by UUID string form (deterministic).
         "target_asset_ids": sorted([str(asset1), str(asset2)]),
         "parent_run_id": None,
-        # Phase 10d-additive: None when RegisterProcedure omits capability_id.
         "capability_id": None,
         "occurred_at": _NOW.isoformat(),
     }
@@ -147,12 +146,11 @@ async def test_register_procedure_persists_facility_envelope_with_empty_target_a
 async def test_register_procedure_persists_bound_capability_id_to_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Phase 10d-additive PG round-trip: when capability_id is set,
+    """PG round-trip: when capability_id is set,
     the handler loads the bound Capability from PG, validates
     `ExecutorShape.PROCEDURE` is declared, and persists the
     capability_id into the ProcedureRegistered payload as a UUID
-    string. Mirrors test_define_method_persists_bound_capability_id_to_postgres
-    from 6l-additive."""
+    string. Mirrors test_define_method_persists_bound_capability_id_to_postgres."""
     procedure_id = UUID("01900000-0000-7000-8000-0000000c0a41")
     event_id = UUID("01900000-0000-7000-8000-0000000c0a42")
     capability_id = UUID("01900000-0000-7000-8000-0000000c00d3")

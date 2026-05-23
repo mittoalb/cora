@@ -31,8 +31,8 @@ _COMMAND_SLICE_FILES: frozenset[str] = frozenset(
 _QUERY_SLICE_FILES: frozenset[str] = frozenset(
     {"__init__.py", "query.py", "handler.py", "route.py", "tool.py"}
 )
-# Entry-append shape (Phase 8c-b precedent, hoisted from WIP_SLICES
-# at n=3). Identical to command-slice file-set minus `decider.py`:
+# Entry-append shape, hoisted from WIP_SLICES at n=3. Identical to
+# command-slice file-set minus `decider.py`:
 # the handler writes to a typed entries store via a per-category
 # port (ReasoningStore / ReadingStore / StepStore) rather than
 # folding events through a pure decider. New entry-append slices

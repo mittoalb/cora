@@ -1,4 +1,4 @@
-"""Property-based tests for the Wire value object (Phase 6h).
+"""Property-based tests for the Wire value object.
 
 Complements `test_wire_vo.py` (example-based) with universal claims
 across the generated input space:
@@ -10,12 +10,10 @@ across the generated input space:
     raises InvalidWireError.
   - Equal-by-tuple Wires share a hash (frozenset dedup invariant).
 
-These properties catch failure modes the example tests would only
-catch by accident — e.g. a tab-character that survives trim, a name
-whose validation differs only at specific lengths, a hash collision
-masked by the small fixed example pool.
-
-Iter C of the testing-techniques rollout.
+These properties catch failure modes the example tests would only catch by
+accident, for example a tab-character that survives trim, a name whose
+validation differs only at specific lengths, or a hash collision masked by
+the small fixed example pool.
 """
 
 from uuid import UUID

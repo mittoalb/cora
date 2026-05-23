@@ -238,14 +238,14 @@ async def test_capability_deprecated_without_replaced_by_sets_null() -> None:
     assert args.args[2] is None
 
 
-# ---------- Iter B-4 gate-review fill-ins (Path C) ----------
+# ---------- gate-review fill-ins (Path C) ----------
 
 
 @pytest.mark.unit
 async def test_capability_versioned_replayed_overwrites_versioned_at() -> None:
     """Path C: re-version replaces versioned_at wholesale (state-always-
-    holds-latest convention mirrored in projection). Mirrors Iter A on
-    Method."""
+    holds-latest convention mirrored in projection). Mirrors the equivalent
+    test on Method."""
     proj = RecipeCapabilitySummaryProjection()
     conn = AsyncMock()
     later = datetime(2026, 6, 1, 9, 30, 0, tzinfo=UTC)
@@ -280,12 +280,11 @@ async def test_capability_versioned_replayed_overwrites_versioned_at() -> None:
 
 @pytest.mark.unit
 async def test_capability_lifecycle_timestamps_is_immutable_dataclass() -> None:
-    """CapabilityLifecycleTimestamps is the projection-sourced VO read
-    by the route layer (Path C). Frozen so callers can't mutate it
-    under cached references; field shape pinned so future widening
-    shows up as a deliberate change. Distinct from
-    `replaced_by_capability_id` (intrinsic state field, DLM-B catalog
-    governance)."""
+    """CapabilityLifecycleTimestamps is the projection-sourced VO read by
+    the route layer (Path C). Frozen so callers can't mutate it under cached
+    references; field shape pinned so future widening shows up as a deliberate
+    change. Distinct from `replaced_by_capability_id` (intrinsic state field,
+    catalog governance)."""
     import dataclasses
 
     from cora.recipe.aggregates.capability import CapabilityLifecycleTimestamps

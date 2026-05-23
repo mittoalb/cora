@@ -149,7 +149,7 @@ async def test_unknown_event_type_falls_through_match() -> None:
 
 @pytest.mark.unit
 async def test_method_parameters_schema_updated_with_non_null_sets_present_true() -> None:
-    """Phase 6g-a: schema-update event with non-null payload flips
+    """Schema-update event with non-null payload flips
     parameters_schema_present TRUE."""
     proj = MethodSummaryProjection()
     conn = AsyncMock()
@@ -173,8 +173,7 @@ async def test_method_parameters_schema_updated_with_non_null_sets_present_true(
 
 @pytest.mark.unit
 async def test_method_parameters_schema_updated_with_null_sets_present_false() -> None:
-    """Phase 6g-a: clearing the schema flips parameters_schema_present
-    back to FALSE."""
+    """Clearing the schema flips parameters_schema_present back to FALSE."""
     proj = MethodSummaryProjection()
     conn = AsyncMock()
     event = _stored(
@@ -203,7 +202,7 @@ async def test_practice_defined_is_silently_dropped() -> None:
     conn.execute.assert_not_awaited()
 
 
-# ---------- Iter A gate-review test fill-ins (Path C) ----------
+# ---------- gate-review test fill-ins (Path C) ----------
 
 
 @pytest.mark.unit

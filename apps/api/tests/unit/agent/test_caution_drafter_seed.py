@@ -1,4 +1,4 @@
-"""Unit tests for the CautionDrafter Agent bootstrap seed (Phase 8f-c iter 3)."""
+"""Unit tests for the CautionDrafter Agent bootstrap seed."""
 
 from datetime import UTC, datetime
 
@@ -67,8 +67,8 @@ async def test_seed_is_idempotent() -> None:
 
 
 @pytest.mark.unit
-async def test_caution_drafter_id_distinct_from_run_debrief() -> None:
+async def test_caution_drafter_id_distinct_from_run_debriefer() -> None:
     """The two agents share the same UUID-range scheme but must NOT collide."""
-    from cora.agent.seed import RUN_DEBRIEF_AGENT_ID
+    from cora.agent.seed import RUN_DEBRIEFER_AGENT_ID
 
-    assert CAUTION_DRAFTER_AGENT_ID != RUN_DEBRIEF_AGENT_ID
+    assert CAUTION_DRAFTER_AGENT_ID != RUN_DEBRIEFER_AGENT_ID

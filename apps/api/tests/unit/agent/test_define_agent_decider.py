@@ -1,4 +1,4 @@
-"""Pure-decider tests for the `define_agent` slice (Phase 8f-a)."""
+"""Pure-decider tests for the `define_agent` slice."""
 
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -37,7 +37,7 @@ _MODEL = ModelRef(provider="anthropic", model="claude-sonnet-4-6")
 
 def _command(**overrides: object) -> DefineAgent:
     base: dict[str, object] = {
-        "kind": "RunDebrief",
+        "kind": "RunDebriefer",
         "name": "Run Debrief",
         "version": "v1",
         "model_ref": _MODEL,
@@ -53,7 +53,7 @@ def test_minimal_command_emits_single_agent_defined() -> None:
     assert isinstance(events[0], AgentDefined)
     e = events[0]
     assert e.agent_id == _NEW_ID
-    assert e.kind == "RunDebrief"
+    assert e.kind == "RunDebriefer"
     assert e.name == "Run Debrief"
     assert e.version == "v1"
     assert e.model_ref == _MODEL
@@ -89,7 +89,7 @@ def test_full_command_carries_all_optional_fields() -> None:
 def test_genesis_collision_raises_already_exists() -> None:
     existing = Agent(
         id=_NEW_ID,
-        kind=AgentKind("RunDebrief"),
+        kind=AgentKind("RunDebriefer"),
         name=AgentName("Run Debrief"),
         version=AgentVersion("v1"),
         model_ref=_MODEL,

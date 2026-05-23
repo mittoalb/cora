@@ -1,6 +1,6 @@
 """End-to-end PG integration test: `start_run` with `campaign_id`
 performs the cross-aggregate atomic write (Run stream + Campaign
-stream) via `EventStore.append_streams`. Phase 6i-c.
+stream) via `EventStore.append_streams`.
 
 Mirrors `test_start_run_handler_postgres.py` for the upstream chain
 + adds a Campaign + asserts the at-start membership write reflects
@@ -58,7 +58,7 @@ from tests.unit.subject._helpers import seed_active_asset
 _NOW = datetime(2026, 5, 17, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0dc85")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0dc85")
 
 
 async def _drain(db_pool: asyncpg.Pool) -> None:

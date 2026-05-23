@@ -10,8 +10,8 @@ Asserts outcome parity (success vs error) across the validation
 surface that both schemas declare (min_length, max_length, missing).
 
 See [[project-testing-techniques-research]] and the register-actor
-sibling file for the broader rationale. Iter E of the
-testing-techniques rollout.
+sibling file for the broader rationale. Part of the testing-techniques
+rollout.
 """
 
 from __future__ import annotations

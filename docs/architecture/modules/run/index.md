@@ -226,7 +226,7 @@ Clock skew between the sensor (`sampled_at`) and the handler (`occurred_at`) is 
 | Campaign | shared-id-with | `Run.campaign_id` (single-Campaign-per-Run invariant); the post-hoc `add_run_to_campaign` / `remove_run_from_campaign` slices are owned by the Campaign module and atomically write `RunCampaignAssigned` / `RunCampaignUnassigned` plus the Campaign-side membership event via `EventStore.append_streams` |
 | Decision | shared-id-with | `RunAdjusted.decided_by_decision_id` cites the Decision that justified a mid-flight adjustment; no existence check at write time (eventual-consistency stance) |
 | Calibration | reads-from | `Run.pinned_calibrations` is a frozen set of `CalibrationRevision.id`s captured at `start_run` and **immutable** for the life of the Run; every FSM transition preserves the set verbatim, and downstream consumers cite this set to answer "what calibration was this scan acquired against?" deterministically |
-| Agent | writes-to | Terminal Run events (`RunCompleted`, `RunAborted`, `RunStopped`, `RunTruncated`) are subscribed by the RunDebrief agent, which emits an advisory `Decision` per terminal Run |
+| Agent | writes-to | Terminal Run events (`RunCompleted`, `RunAborted`, `RunStopped`, `RunTruncated`) are subscribed by the RunDebriefer agent, which emits an advisory `Decision` per terminal Run |
 
 `Plan`, `Subject`, `Asset`, `Campaign`, `Clearance`, and `Calibration` references are validated at handler load-time but treated as opaque by the decider; the decider operates on pre-loaded context bundles rather than re-fetching, which keeps the pure-decider boundary clean.
 

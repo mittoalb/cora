@@ -1,4 +1,4 @@
-"""Contract tests for `POST /plans/{plan_id}/remove_wire` (Phase 6h).
+"""Contract tests for `POST /plans/{plan_id}/remove_wire`.
 
 Mirror of `test_add_plan_wire_endpoint.py`. Strict-not-idempotent
 removal: the Wire must currently exist in the Plan's wire set.

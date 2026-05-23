@@ -1,4 +1,4 @@
-"""Contract tests for the `promote_dataset` MCP tool (Phase 7e)."""
+"""Contract tests for the `promote_dataset` MCP tool."""
 
 from uuid import uuid4
 

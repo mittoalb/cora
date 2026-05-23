@@ -1,10 +1,10 @@
-"""Unit tests for the Phase C edge-auth exception handlers.
+"""Unit tests for the edge-auth exception handlers.
 
 White-box pins for the response shape of the two registered
 handlers: 401 + RFC 6750 WWW-Authenticate for `InvalidTokenError`,
 503 + Retry-After for `IntrospectionUnavailableError`. The
 contract-tier tests at `apps/api/tests/contract/test_bearer_auth_endpoints.py`
-(Iter C-7) drive the full request -> middleware -> handler -> response
+ drive the full request -> middleware -> handler -> response
 chain against the real FastAPI app.
 """
 

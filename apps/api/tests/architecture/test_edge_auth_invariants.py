@@ -1,6 +1,6 @@
-"""Architecture fitness functions for Phase C edge-auth invariants.
+"""Architecture fitness functions for HTTP edge-auth invariants.
 
-Four invariants surfaced by the Iter C gate review that the import
+Four invariants surfaced at gate review that the import
 graph + AST can prove WITHOUT running the test suite:
 
   1. `get_principal_id` is the SOLE reader of `X-Principal-Id`. No
@@ -28,12 +28,12 @@ graph + AST can prove WITHOUT running the test suite:
      `_UNAUTHENTICATED_PATHS` + `_is_unauthenticated_path` in
      `bearer_middleware.py`. A future "add /readiness skip" that
      updates only the test side without touching the middleware
-     (or vice versa) fails this fitness. Phase 8f-d removed `/mcp/*`
-     from the skip set — MCP routes are now verified with audience-
-     per-Surface dispatch; positive probes pin the inversion.
+     (or vice versa) fails this fitness. `/mcp/*` is no longer in
+     the skip set — MCP routes are verified with audience-per-Surface
+     dispatch; positive probes pin the inversion.
 
 Gate-review trail: test-axis reviewer's 4 recommended fitness
-tests; see Iter D close-out memo for the discussion that led to
+tests; see edge-auth close-out memo for the discussion that led to
 this file.
 """
 
@@ -53,10 +53,10 @@ from tests.architecture.conftest import CORA_ROOT, tracked_python_files
 _ROUTING_MODULE_REL = Path("infrastructure/routing.py")
 """The single module where `Header(alias="X-Principal-Id")` is allowed.
 
-Iter C-3's `get_principal_id` reads X-Principal-Id via the standard
-FastAPI `Header` machinery; any other route that re-declares the
-header would bypass the bearer-mode silent-ignore rule, so this
-fitness pins the centralization."""
+`get_principal_id` reads X-Principal-Id via the standard FastAPI
+`Header` machinery; any other route that re-declares the header
+would bypass the bearer-mode silent-ignore rule, so this fitness
+pins the centralization."""
 
 
 def _slice_files() -> list[Path]:
@@ -109,7 +109,7 @@ def test_x_principal_id_header_only_declared_in_infrastructure_routing() -> None
     parameter. The centralized `get_principal_id` in
     `cora.infrastructure.routing` is the single extraction point;
     a slice that declares its own X-Principal-Id header would
-    bypass the bearer-mode silent-ignore rule (Iter C-3 Mode 1)
+    bypass the bearer-mode silent-ignore rule
     and the bearer-mode 401 path (Mode 2).
     """
     offending: list[str] = []
@@ -218,7 +218,7 @@ def test_bearer_auth_middleware_registered_exactly_once_after_body_size_limit() 
 
     Duplicate registration would invoke the middleware twice per
     request (extra verifier latency, double-log on every auth
-    failure). One-shot registration matches the Iter C-2 design.
+    failure). One-shot registration matches the edge-auth design.
     """
     main_py = CORA_ROOT / "api" / "main.py"
     src = main_py.read_text(encoding="utf-8")
@@ -282,8 +282,8 @@ _EXPECTED_UNAUTHENTICATED_PATHS: frozenset[str] = frozenset(
     }
 )
 _EXPECTED_UNAUTHENTICATED_PREFIXES: frozenset[str] = frozenset()
-"""Phase 8f-d removed `/mcp/` from the skip prefix set. MCP routes
-are now verified with audience-per-Surface dispatch; the set is
+"""`/mcp/` is no longer in the skip prefix set. MCP routes
+are verified with audience-per-Surface dispatch; the set is
 empty today but stays as a typed frozenset so future skip-prefixes
 can land here without changing the test shape."""
 
@@ -325,16 +325,16 @@ def test_bearer_middleware_skip_paths_match_canonical_set() -> None:
             "drifted from the expected set."
         )
 
-    # Positive verification probes (Phase 8f-d): MCP paths are NOT
+    # Positive verification probes: MCP paths are NOT
     # skipped any more. They get bearer-verified with the MCP Surface
     # audience.
     assert not _is_unauthenticated_path("/mcp"), (
-        "/mcp must be bearer-verified post Phase 8f-d (not skipped). "
+        "/mcp must be bearer-verified (not skipped). "
         "If a regression brings the skip back, MCP write tools silently "
         "bypass token verification."
     )
     assert not _is_unauthenticated_path("/mcp/anything"), (
-        "/mcp/anything must be bearer-verified post Phase 8f-d (not skipped). "
+        "/mcp/anything must be bearer-verified (not skipped). "
         "If a regression brings the prefix skip back, every MCP JSON-RPC "
         "call goes through unauthenticated."
     )

@@ -1,4 +1,4 @@
-"""Contract tests for the `define_agent` MCP tool (Phase 8f-a)."""
+"""Contract tests for the `define_agent` MCP tool."""
 
 from uuid import UUID
 
@@ -11,7 +11,7 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 def _args(**overrides: object) -> dict[str, object]:
     base: dict[str, object] = {
-        "kind": "RunDebrief",
+        "kind": "RunDebriefer",
         "name": "Run Debrief",
         "version": "v1",
         "model_ref": {

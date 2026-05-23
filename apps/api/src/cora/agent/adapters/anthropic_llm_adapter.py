@@ -40,7 +40,7 @@ out of the box (0.5s to 8s on 408/409/429/5xx + connection
 errors). The adapter uses this default unchanged per the design
 memo lock; setting `max_retries=2` explicitly here makes the value
 auditable from the adapter without grepping SDK source. The
-10-minute request timeout is a defensive ceiling: RunDebrief
+10-minute request timeout is a defensive ceiling: RunDebriefer
 generation typically completes in 5-15 seconds; 600s catches
 catastrophic provider stalls without paying for a forever-hung
 subscriber call.

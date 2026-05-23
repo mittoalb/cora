@@ -61,7 +61,7 @@ async def test_handler_persists_conduit_defined_to_postgres(
     assert conduit_id == _NEW_ID
 
     events, version = await deps.event_store.load("Conduit", _NEW_ID)
-    # Phase 6f-5a: define_conduit emits ConduitDefined + ConduitLogbookOpened
+
     # in one transactional append.
     assert version == 2
     assert [e.event_type for e in events] == ["ConduitDefined", "ConduitLogbookOpened"]

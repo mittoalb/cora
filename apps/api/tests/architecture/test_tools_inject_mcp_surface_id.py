@@ -1,9 +1,9 @@
 """Every BC MCP tool MUST call `get_mcp_surface_id()` at the handler call.
 
-Phase B Iter C-2c enforcement. The Iter C-2b sweep added
-`surface_id=get_mcp_surface_id()` to every `features/<slice>/tool.py`
-call site for the inner handler. This test pins that invariant against
-future drift: a new MCP tool landing without `get_mcp_surface_id()`
+Every `features/<slice>/tool.py` passes
+`surface_id=get_mcp_surface_id()` to the inner handler call site.
+This test pins that invariant against future drift: a new MCP tool
+landing without `get_mcp_surface_id()`
 would either pass the nil sentinel (bypassing V2 per-surface policy
 enforcement on MCP-arrived calls) OR raise at runtime since the
 handler Protocol now requires the kwarg in shape.
@@ -74,7 +74,7 @@ def test_tool_calls_get_mcp_surface_id(tool_file: Path) -> None:
         pytest.fail(
             f"{qualified} does not import `get_mcp_surface_id` from "
             f"cora.infrastructure.routing. Every MCP tool must resolve "
-            f"the arrival Surface server-side per Phase B Iter C-2 AH1."
+            f"the arrival Surface server-side per AH1."
         )
 
     assert _calls_get_mcp_surface_id(tree), (

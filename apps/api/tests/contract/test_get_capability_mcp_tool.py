@@ -1,4 +1,4 @@
-"""Contract tests for the `get_capability` MCP tool (Phase 6k)."""
+"""Contract tests for the `get_capability` MCP tool."""
 
 from uuid import UUID, uuid4
 

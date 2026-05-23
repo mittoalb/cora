@@ -1,7 +1,7 @@
 """Contract tests for `POST /assets/{id}/add_port` and `/remove_port`.
 
-Phase 5h. Combined file (mirror of test_condition_transitions
-consolidation) since the two slices share a small contract surface.
+Combined file (mirror of test_condition_transitions consolidation)
+since the two slices share a small contract surface.
 """
 
 from uuid import uuid4

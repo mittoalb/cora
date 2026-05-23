@@ -1,8 +1,8 @@
 """Integration test: TrustAuthorize gates real handler calls end-to-end.
 
-Phase A of the post-Phase-4 Trust integration verification. Existing
-`test_trust_authorize_postgres.py` proves the adapter loads and
-evaluates against real Postgres when called *directly*. This file
+First verification pass of the post-handler-gate Trust integration.
+Existing `test_trust_authorize_postgres.py` proves the adapter loads
+and evaluates against real Postgres when called *directly*. This file
 proves the missing piece: that the adapter, wired via `wire_trust`
 into a `TrustHandlers` bundle (with the full `with_tracing` /
 `with_idempotency` composition), correctly gates handler calls —
@@ -13,7 +13,7 @@ Test setup uses TWO `Kernel` against a shared Postgres pool:
 
   1. Bootstrap deps (`AllowAllAuthorize`) defines the policy that
      gates everything. The chicken-and-egg from TrustAuthorize's
-     docstring — Phase B will pin the documented bootstrap workflow
+     docstring — a later pass pins the documented bootstrap workflow
      more thoroughly.
   2. Production deps (`TrustAuthorize` against the bootstrap policy)
      wire the BC handlers under real authz. Tests call those handlers
@@ -23,7 +23,7 @@ Why `define_zone` as the gated handler: it's a create-style command
 with idempotency wrap, so success exercises the full
 `with_tracing(with_idempotency(bind))` chain — the same composition
 every BC's create-style handlers use. Cross-BC scenarios (Subject
-handlers gated by Trust policy) land in Phase B.
+handlers gated by Trust policy) land in the cross-BC sibling file.
 """
 
 from datetime import UTC, datetime

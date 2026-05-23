@@ -118,7 +118,7 @@ def test_post_families_returns_409_when_capability_already_exists() -> None:
     assert str(existing_id) in body["detail"]
 
 
-# ---------- Phase 5j: non-empty affordance contract tests ----------
+# ---------- non-empty affordance contract tests ----------
 #
 # Gate review P0 (contract symmetry): the existing endpoint tests
 # only exercise empty `"affordances": []`. These tests pin non-empty
@@ -179,8 +179,8 @@ def test_post_families_rejects_unknown_affordance_with_422() -> None:
 @pytest.mark.contract
 def test_post_families_rejects_missing_affordances_field_with_422() -> None:
     """The affordances field is REQUIRED at define_family time per
-    DLM-A Pattern P. Omitting it returns 422, never 201 with empty
-    default."""
+    the Family design (Pattern P). Omitting it returns 422, never 201
+    with empty default."""
     with TestClient(create_app()) as client:
         response = client.post("/families", json={"name": "MissingField"})
     assert response.status_code == 422

@@ -69,7 +69,7 @@ def test_settings_trust_policy_id_defaults_to_none(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Default unset → AllowAllAuthorize wired by build_kernel.
-    Phase 1 permissive default; matches dev/test."""
+    Permissive default; matches dev/test."""
     monkeypatch.delenv("TRUST_POLICY_ID", raising=False)
     settings = Settings()
     assert settings.trust_policy_id is None

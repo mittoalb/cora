@@ -1,4 +1,4 @@
-"""Unit tests for the `dismount_subject` application handler (Phase 4f).
+"""Unit tests for the `dismount_subject` application handler.
 
 Mirrors `test_mount_subject_handler.py` for the inverse direction:
 clears `mounted_on_asset_id`, returns status to Received.

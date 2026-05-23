@@ -1,6 +1,6 @@
 """Unit tests for the `update_family_settings_schema` slice's pure decider.
 
-Phase 5g-a. The decider:
+The decider:
   - Raises FamilyNotFoundError on empty state
   - Validates the proposed schema via validate_settings_schema
   - No-ops (returns []) on unchanged-vs-current schema

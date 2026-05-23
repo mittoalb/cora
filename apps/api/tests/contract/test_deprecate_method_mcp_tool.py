@@ -13,7 +13,7 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 def _define_method_via_tool(
     client: TestClient, headers: dict[str, str], name: str = "XRF Mapping"
 ) -> UUID:
-    # Phase 6l-strict: capability_id REQUIRED on the MCP tool.
+
     cap_id = create_capability_via_api(client)
     response = client.post(
         "/mcp",

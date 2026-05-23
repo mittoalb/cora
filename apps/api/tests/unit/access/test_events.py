@@ -62,14 +62,14 @@ def test_to_payload_serializes_actor_registered_to_primitives() -> None:
 
 @pytest.mark.unit
 def test_to_payload_serializes_agent_kind() -> None:
-    """ActorRegistered with kind=agent (Phase 8f-a Agent BC co-write) serializes correctly."""
+    """ActorRegistered with kind=agent serializes correctly."""
     actor_id = uuid4()
     event = ActorRegistered(
-        actor_id=actor_id, name="RunDebrief", occurred_at=_NOW, kind=ActorKind.AGENT
+        actor_id=actor_id, name="RunDebriefer", occurred_at=_NOW, kind=ActorKind.AGENT
     )
     assert to_payload(event) == {
         "actor_id": str(actor_id),
-        "name": "RunDebrief",
+        "name": "RunDebriefer",
         "occurred_at": _NOW.isoformat(),
         "kind": "agent",
     }
@@ -120,20 +120,20 @@ def test_from_stored_pre_8f_a_payload_folds_to_human_kind() -> None:
 
 @pytest.mark.unit
 def test_from_stored_rebuilds_agent_kind_actor() -> None:
-    """An agent-kind Actor (Phase 8f-a Agent BC co-write) replays correctly."""
+    """An agent-kind Actor replays correctly."""
     actor_id = uuid4()
     stored = _stored(
         "ActorRegistered",
         {
             "actor_id": str(actor_id),
-            "name": "RunDebrief",
+            "name": "RunDebriefer",
             "occurred_at": _NOW.isoformat(),
             "kind": "agent",
         },
     )
     rebuilt = from_stored(stored)
     assert rebuilt == ActorRegistered(
-        actor_id=actor_id, name="RunDebrief", occurred_at=_NOW, kind=ActorKind.AGENT
+        actor_id=actor_id, name="RunDebriefer", occurred_at=_NOW, kind=ActorKind.AGENT
     )
 
 
@@ -176,12 +176,12 @@ def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:
 # the envelope shape end-to-end against a real event store.
 
 
-# ---------- Iter B-2 fix: service_account kind + invalid-kind wrap ----------
+# ---------- fix: service_account kind + invalid-kind wrap ----------
 
 
 @pytest.mark.unit
 def test_from_stored_rebuilds_service_account_kind_actor() -> None:
-    """Iter B-2 widened ActorKind to include SERVICE_ACCOUNT. Pin the
+    """ActorKind includes SERVICE_ACCOUNT. Pin the
     serialize → from_stored round-trip end-to-end."""
     actor_id = UUID("01900000-0000-7000-8000-000000000099")
     event = ActorRegistered(
@@ -204,11 +204,11 @@ def test_from_stored_rebuilds_service_account_kind_actor() -> None:
 @pytest.mark.unit
 def test_from_stored_wraps_invalid_kind_value() -> None:
     """Gate-review test#11 (pre-existing convention bug surfaced by
-    Iter B-2's enum widening): a corrupted payload with kind='superuser'
-    triggers ActorKind() to raise bare ValueError, which the previous
-    except clause did NOT catch — leaking a raw uncaught ValueError
-    out of from_stored instead of the tagged Malformed* shape. The fix
-    adds ValueError to the wrap tuple."""
+    the SERVICE_ACCOUNT enum widening): a corrupted payload with
+    kind='superuser' triggers ActorKind() to raise bare ValueError,
+    which the previous except clause did NOT catch, leaking a raw
+    uncaught ValueError out of from_stored instead of the tagged
+    Malformed* shape. The fix adds ValueError to the wrap tuple."""
     actor_id = UUID("01900000-0000-7000-8000-0000000000ab")
     payload: dict[str, object] = {
         "actor_id": str(actor_id),

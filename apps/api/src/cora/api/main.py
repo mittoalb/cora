@@ -53,7 +53,7 @@ from cora.agent import (
     register_agent_subscribers,
     register_agent_tools,
     seed_caution_drafter_agent,
-    seed_run_debrief_agent,
+    seed_run_debriefer_agent,
     wire_agent,
 )
 from cora.api.middleware import BodySizeLimitMiddleware
@@ -431,15 +431,15 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             # projection.
             register_agent_projections(registry, deps)
             # side-effecting Agent BC subscribers
-            # (RunDebrief). Conditional: only registered when
+            # (RunDebriefer). Conditional: only registered when
             # `kernel.llm` is wired (ANTHROPIC_API_KEY configured).
             register_agent_subscribers(registry, deps)
             app.state.projections = registry
 
-            # seed the RunDebrief Agent record so
+            # seed the RunDebriefer Agent record so
             # the subscriber can resolve `actor_id` at apply()-time.
             # Idempotent across restarts; safe to re-run forever.
-            await seed_run_debrief_agent(deps)
+            await seed_run_debriefer_agent(deps)
             # same shape for CautionDrafter.
             await seed_caution_drafter_agent(deps)
 

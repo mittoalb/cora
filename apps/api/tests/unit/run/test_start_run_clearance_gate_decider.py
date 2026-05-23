@@ -1,4 +1,4 @@
-"""Decider tests for the Phase 11a-c-3 cross-BC clearance gate on start_run.
+"""Decider tests for the cross-BC clearance gate on start_run.
 
 Pins the two error paths:
   - empty `referencing_clearances` tuple -> `RunRequiresActiveClearanceError`

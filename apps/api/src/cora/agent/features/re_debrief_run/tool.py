@@ -31,7 +31,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
     @mcp.tool(
         name="re_debrief_run",
         description=(
-            "Re-invoke the RunDebrief agent on demand against a specific Run. "
+            "Re-invoke the RunDebriefer agent on demand against a specific Run. "
             "Returns the new `decision_id`. Use when an automated Debrief "
             "needs a fresh take (operator rated it `misleading`, the original "
             "landed `DebriefDeferred`, or a new model version landed). "

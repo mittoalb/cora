@@ -1,4 +1,4 @@
-"""Contract tests for the `dismount_subject` MCP tool (Phase 4f)."""
+"""Contract tests for the `dismount_subject` MCP tool."""
 
 from uuid import UUID, uuid4
 

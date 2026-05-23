@@ -1,6 +1,6 @@
 """Pure decider for the `re_debrief_run` slice.
 
-Composes the `DecisionRegistered` event for an on-demand RunDebrief
+Composes the `DecisionRegistered` event for an on-demand RunDebriefer
 invocation. Pure function: given the operator inputs + LLM response
 + pre-loaded Actor + chosen `decision_id`, returns the event to
 append. No I/O, no awaits, no clock / id-generator calls.
@@ -15,10 +15,10 @@ mapping is genuinely pure and benefits from extraction: a future
 on-demand agent slice (8f-c iter 2 / 8f-c+) and a Pattern B
 subscriber would both consume the same shape.
 
-The 8f-b iter 2b subscriber (`cora.agent.subscribers.run_debrief`)
+The 8f-b iter 2b subscriber (`cora.agent.subscribers.run_debriefer`)
 currently inlines an equivalent composition. Rule-of-three trigger
 to hoist this decider out of the slice and into a shared module
-(eg. `cora.agent.deciders.run_debrief`) fires when EITHER a second
+(eg. `cora.agent.deciders.run_debriefer`) fires when EITHER a second
 on-demand agent slice ships OR the subscriber's composition is
 refactored to call through this decider.
 
@@ -62,7 +62,7 @@ from cora.decision.aggregates.decision import (
     validate_reasoning,
 )
 
-_DECISION_RULE = "agent:RunDebrief:v1"
+_DECISION_RULE = "agent:RunDebriefer:v1"
 
 
 def decide(
@@ -77,7 +77,7 @@ def decide(
     occurred_at: datetime,
     extra_decision_inputs: dict[str, Any] | None = None,
 ) -> DecisionRegistered:
-    """Compose the on-demand RunDebrief `DecisionRegistered` event.
+    """Compose the on-demand RunDebriefer `DecisionRegistered` event.
 
     `choice` is constrained at the projection layer (and by the
     LLM's structured output schema) to the closed 6-value set, but

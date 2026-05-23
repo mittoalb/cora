@@ -66,7 +66,6 @@ async def test_handler_appends_policy_defined_event_to_store() -> None:
         "policy_id": str(_NEW_ID),
         "name": "Beam-team",
         "conduit_id": str(_CONDUIT_ID),
-        # Phase B Iter B: additive surface_id field; defaults to nil
         # for V1-shape callers that don't pass it.
         "surface_id": "00000000-0000-0000-0000-000000000000",
         "permitted_principals": [str(_ALLOWED_PRINCIPAL)],

@@ -1,4 +1,4 @@
-"""End-to-end integration test for the `adjust_run` slice (Phase 6j).
+"""End-to-end integration test for the `adjust_run` slice.
 
 Exercises the cross-aggregate adjust flow against real Postgres:
   - seed upstream chain (Family + Asset + Method (with schema) +
@@ -61,7 +61,7 @@ from tests.unit.subject._helpers import seed_active_asset
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d101")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d101")
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
 
 

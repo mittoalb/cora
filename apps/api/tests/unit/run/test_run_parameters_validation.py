@@ -1,4 +1,4 @@
-"""Unit tests for the Run effective_parameters validator (Phase 6g-c).
+"""Unit tests for the Run effective_parameters validator.
 
 Mirrors `tests/unit/recipe/test_plan_parameters_validation.py`
 (6g-b) case for case so the two BC wrappers stay aligned.

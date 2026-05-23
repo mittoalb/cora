@@ -1,4 +1,4 @@
-"""Application-handler tests for the `version_agent` slice (Phase 8f-a)."""
+"""Application-handler tests for the `version_agent` slice."""
 
 from datetime import UTC, datetime
 from uuid import UUID
@@ -47,7 +47,7 @@ async def _seed_defined_agent(store: InMemoryEventStore) -> None:
     """Seed a Defined Agent at version 1 on the Agent stream."""
     genesis = AgentDefined(
         agent_id=_AGENT_ID,
-        kind="RunDebrief",
+        kind="RunDebriefer",
         name="Run Debrief",
         version="v1",
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),

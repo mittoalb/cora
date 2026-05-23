@@ -50,7 +50,7 @@ Each module is a bounded area of CORA's domain with its own aggregates, events, 
 
     ---
 
-    Typed configuration for AI agents (RunDebrief, CautionDrafter). Four-state lifecycle with Suspended pause, shared id with Access Actor, MCP tool allowlist, declarative budgets, and two cross-BC action slices.
+    Typed configuration for AI agents (RunDebriefer, CautionDrafter). Four-state lifecycle with Suspended pause, shared id with Access Actor, MCP tool allowlist, declarative budgets, and two cross-BC action slices.
 
     [Read →](agent/index.md)
 

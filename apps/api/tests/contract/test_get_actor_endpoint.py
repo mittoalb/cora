@@ -58,7 +58,7 @@ def test_get_actor_returns_422_for_malformed_actor_id() -> None:
     assert response.status_code == 422
 
 
-# ---------- Iter B-2 fix: service_account kind round-trip ----------
+# ---------- fix: service_account kind round-trip ----------
 
 
 @pytest.mark.contract

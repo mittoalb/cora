@@ -1,7 +1,7 @@
 """Application-handler tests for `add_run_to_campaign` slice.
 
 Pre-load both streams, decide, write both atomically via
-EventStore.append_streams. Phase 6i-c.
+EventStore.append_streams.
 """
 
 from datetime import UTC, datetime

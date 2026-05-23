@@ -1,12 +1,12 @@
-"""RunDebrief on a DegradedCompletion Run at APS 2-BM.
+"""RunDebriefer on a DegradedCompletion Run at APS 2-BM.
 
 cluster: Advisories
 archetype: agent
 bc_primary: Decision
 bc_touches: Campaign, Decision, Equipment, Recipe, Run, Subject
 
-Sibling scenario to `test_2bm_run_debrief.py` (the happy-path
-`NominalCompletion` variant): exercises the RunDebrief agent on a
+Sibling scenario to `test_2bm_run_debriefer.py` (the happy-path
+`NominalCompletion` variant): exercises the RunDebriefer agent on a
 Run that completed with operator intervention (mid-flight Asset
 degrade/restore cycle). The agent emits a `DegradedCompletion`
 Decision capturing the imperfect-but-successful narrative.
@@ -83,9 +83,9 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
-from cora.agent.seed import RUN_DEBRIEF_AGENT_ID, seed_run_debrief_agent
-from cora.agent.subscribers.run_debrief import (
-    RunDebriefSubscriber,
+from cora.agent.seed import RUN_DEBRIEFER_AGENT_ID, seed_run_debriefer_agent
+from cora.agent.subscribers.run_debriefer import (
+    RunDebrieferSubscriber,
     _derive_decision_id,
 )
 from cora.campaign.aggregates.campaign import CampaignIntent
@@ -145,7 +145,7 @@ _SUBJECT_ID = UUID("01900000-0000-7000-8000-000000420b11")
 _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000420b21")
 
 _METHOD_TOMO_ID = UUID("01900000-0000-7000-8000-000000420d01")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d577")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d577")
 _PRACTICE_TOMO_ID = UUID("01900000-0000-7000-8000-000000420d11")
 _PLAN_TOMO_ID = UUID("01900000-0000-7000-8000-000000420d21")
 
@@ -345,7 +345,7 @@ async def test_run_debrief_agent_fires_on_degraded_completion(
 
     # ----- Agent fires on terminal RunCompleted; emits DegradedCompletion -----
 
-    await seed_run_debrief_agent(deps)
+    await seed_run_debriefer_agent(deps)
 
     run_events, _run_version = await deps.event_store.load("Run", _RUN_ID)
     terminal_events = [e for e in run_events if e.event_type == "RunCompleted"]
@@ -354,7 +354,7 @@ async def test_run_debrief_agent_fires_on_degraded_completion(
     assert isinstance(terminal_event, StoredEvent)
 
     llm = FakeLLMAdapter(responses=[_CANNED_DEGRADED_AAR])
-    subscriber = RunDebriefSubscriber(
+    subscriber = RunDebrieferSubscriber(
         event_store=deps.event_store,
         llm=llm,
         logbook_mirror=None,
@@ -368,7 +368,7 @@ async def test_run_debrief_agent_fires_on_degraded_completion(
     assert decision is not None
     assert decision.context.value == "RunDebrief"
     assert decision.choice.value == "DegradedCompletion"
-    assert decision.actor_id == RUN_DEBRIEF_AGENT_ID
+    assert decision.actor_id == RUN_DEBRIEFER_AGENT_ID
 
     # ----- Assert: Aerotech stream carries the degrade/restore pair -----
 

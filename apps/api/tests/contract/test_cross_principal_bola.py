@@ -362,7 +362,7 @@ def _create_agent_as(client: TestClient, principal: UUID) -> UUID:
     response = client.post(
         "/agents",
         json={
-            "kind": "RunDebrief",
+            "kind": "RunDebriefer",
             "name": "P1's agent",
             "version": "v1",
             "model_ref": {

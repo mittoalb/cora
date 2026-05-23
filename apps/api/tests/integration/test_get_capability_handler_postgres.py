@@ -1,6 +1,6 @@
 """Integration test: get_capability handler against real Postgres.
 
-Path C (audit-2026-05-20 Iter B-4 + B-followup): handler returns
+Path C: handler returns
 CapabilityView bundling aggregate state + projection-sourced lifecycle
 timestamps. Exercises both pre-drain (timestamps None) and post-drain
 (timestamps populated) paths.

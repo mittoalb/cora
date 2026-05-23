@@ -1,4 +1,4 @@
-"""End-to-end PG integration for CautionDrafter (Phase 8f-c iter 3 follow-up).
+"""End-to-end PG integration for CautionDrafter.
 
 Walks the full cross-BC seam on real Postgres:
 
@@ -345,7 +345,7 @@ async def _seed_supersede_decision(
     """Append a ProposeSupersede CautionProposal Decision.
 
     Also (idempotently) seeds the CautionDrafter Agent stream so the
-    promote handler's Phase A.2 provenance gate passes when the
+    promote handler's provenance gate passes when the
     Decision is later promoted.
     """
     from cora.decision.aggregates.decision import (
@@ -371,8 +371,8 @@ async def _seed_supersede_decision(
         "tags": ["encoder", "rotary-stage"],
         "supersedes_caution_id": str(supersedes_caution_id),
     }
-    # CAUTION_DRAFTER_AGENT_ID so the promote handler's Phase A.2
-    # provenance gate passes; callers seed the agent in their fixture.
+    # CAUTION_DRAFTER_AGENT_ID so the promote handler's provenance
+    # gate passes; callers seed the agent in their fixture.
     actor_id = CAUTION_DRAFTER_AGENT_ID
     event = DecisionRegistered(
         decision_id=decision_id,

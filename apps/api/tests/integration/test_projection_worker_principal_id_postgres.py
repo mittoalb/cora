@@ -1,7 +1,7 @@
 """End-to-end: the projection worker delivers `principal_id` to
-subscribers (Phase 9b-a cleanup).
+subscribers.
 
-The Phase 9b-a infra commit (3839c1f) wired `principal_id` through
+The principal-id infra commit (3839c1f) wired `principal_id` through
 the events table + ports + adapters + envelope helper, but the
 projection worker has its own `_ADVANCE_SQL` SELECT that mirrors
 (rather than imports from) the postgres event-store adapter. The

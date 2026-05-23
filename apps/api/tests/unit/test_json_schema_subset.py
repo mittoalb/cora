@@ -145,7 +145,7 @@ def test_check_subset_path_is_threaded_through_recursion() -> None:
 
 
 # ---------------------------------------------------------------------------
-# check_schema_is_subset (Phase 6l-strict-c cross-schema relation)
+# check_schema_is_subset
 #
 # The Recipe BC's `update_method_parameters_schema` decider has its own
 # integration-style tests in `tests/unit/recipe/test_update_method_

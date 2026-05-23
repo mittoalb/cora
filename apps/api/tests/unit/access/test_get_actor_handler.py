@@ -85,8 +85,8 @@ async def test_handler_returns_actor_with_is_active_false_after_deactivation() -
 
 @pytest.mark.unit
 async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
-    """Phase 2 query handlers DO call authorize (with AllowAllAuthorize the
-    decision is always Allow, but the call site is in place so Phase 3
+    """Query handlers DO call authorize (with AllowAllAuthorize the
+    decision is always Allow, but the call site is in place so the
     Trust BC swap is mechanical per handler instead of a sweep that
     risks missing handlers)."""
     tracking = RecordingAuthorize()

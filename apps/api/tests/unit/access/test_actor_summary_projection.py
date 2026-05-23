@@ -75,14 +75,14 @@ async def test_actor_registered_inserts_with_active_status() -> None:
 
 @pytest.mark.unit
 async def test_actor_registered_agent_kind_inserts_correctly() -> None:
-    """Phase 8f-a co-write: kind=agent flows through the projection."""
+    """Co-write: kind=agent flows through the projection."""
     proj = ActorSummaryProjection()
     conn = AsyncMock()
     event = _stored(
         "ActorRegistered",
         {
             "actor_id": str(_ACTOR_ID),
-            "name": "RunDebrief",
+            "name": "RunDebriefer",
             "occurred_at": _NOW.isoformat(),
             "kind": "agent",
         },

@@ -1,4 +1,4 @@
-"""Unit tests for `RunDebriefSubscriber` (Phase 8f-b iter 2b).
+"""Unit tests for `RunDebrieferSubscriber`.
 
 Drives the subscriber against `InMemoryEventStore` + `FakeLLMAdapter`
 so the LLM call returns canned structured output without touching
@@ -22,8 +22,8 @@ from cora.access.aggregates.actor import (
 from cora.access.aggregates.actor import event_type_name as actor_event_type_name
 from cora.access.aggregates.actor import to_payload as actor_to_payload
 from cora.agent.seed import (
-    RUN_DEBRIEF_AGENT_ID,
-    RUN_DEBRIEF_AGENT_NAME,
+    RUN_DEBRIEFER_AGENT_ID,
+    RUN_DEBRIEFER_AGENT_NAME,
 )
 from cora.agent.subscribers._terminal_run_helpers import (
     extract_interrupted_at as _extract_interrupted_at,
@@ -31,8 +31,8 @@ from cora.agent.subscribers._terminal_run_helpers import (
 from cora.agent.subscribers._terminal_run_helpers import (
     extract_reason as _extract_reason,
 )
-from cora.agent.subscribers.run_debrief import (
-    RunDebriefSubscriber,
+from cora.agent.subscribers.run_debriefer import (
+    RunDebrieferSubscriber,
     _derive_decision_id,
     _redact_secrets,
 )
@@ -68,9 +68,9 @@ async def _seed_run_debrief_actor(
     *,
     deactivated: bool = False,
 ) -> None:
-    """Write the bare-minimum Actor for the seeded RunDebrief agent.
+    """Write the bare-minimum Actor for the seeded RunDebriefer agent.
 
-    The subscriber's `load_actor(event_store, RUN_DEBRIEF_AGENT_ID)`
+    The subscriber's `load_actor(event_store, RUN_DEBRIEFER_AGENT_ID)`
     needs an Actor row at that id. We only write the Actor (skip the
     Agent aggregate write); the subscriber doesn't load the Agent
     aggregate at apply()-time.
@@ -80,8 +80,8 @@ async def _seed_run_debrief_actor(
     deactivated-actor gate).
     """
     event = ActorRegistered(
-        actor_id=RUN_DEBRIEF_AGENT_ID,
-        name=RUN_DEBRIEF_AGENT_NAME,
+        actor_id=RUN_DEBRIEFER_AGENT_ID,
+        name=RUN_DEBRIEFER_AGENT_NAME,
         occurred_at=_NOW,
         kind=ActorKind.AGENT,
     )
@@ -97,7 +97,7 @@ async def _seed_run_debrief_actor(
     )
     await store.append(
         stream_type="Actor",
-        stream_id=RUN_DEBRIEF_AGENT_ID,
+        stream_id=RUN_DEBRIEFER_AGENT_ID,
         expected_version=0,
         events=[new_event],
     )
@@ -105,7 +105,7 @@ async def _seed_run_debrief_actor(
         from cora.access.aggregates.actor import ActorDeactivated
 
         deactivated_event = ActorDeactivated(
-            actor_id=RUN_DEBRIEF_AGENT_ID,
+            actor_id=RUN_DEBRIEFER_AGENT_ID,
             occurred_at=_NOW,
         )
         deactivated_new_event = to_new_event(
@@ -120,7 +120,7 @@ async def _seed_run_debrief_actor(
         )
         await store.append(
             stream_type="Actor",
-            stream_id=RUN_DEBRIEF_AGENT_ID,
+            stream_id=RUN_DEBRIEFER_AGENT_ID,
             expected_version=1,
             events=[deactivated_new_event],
         )
@@ -208,8 +208,8 @@ def _terminal_event(
 async def _build_subscriber(
     event_store: InMemoryEventStore,
     llm: FakeLLMAdapter,
-) -> RunDebriefSubscriber:
-    return RunDebriefSubscriber(
+) -> RunDebrieferSubscriber:
+    return RunDebrieferSubscriber(
         event_store=event_store,
         llm=llm,
         logbook_mirror=None,
@@ -242,12 +242,12 @@ def test_subscriber_name_and_subscribed_event_types_pinned() -> None:
     """Name and subscribed types are stable bytes; the framework's
     bookmark row is keyed on `name`. Renaming would orphan the
     bookmark."""
-    subscriber = RunDebriefSubscriber(
+    subscriber = RunDebrieferSubscriber(
         event_store=InMemoryEventStore(),
         llm=FakeLLMAdapter(),
         logbook_mirror=None,
     )
-    assert subscriber.name == "run_debrief"
+    assert subscriber.name == "run_debriefer"
     assert subscriber.subscribed_event_types == frozenset(
         {"RunCompleted", "RunAborted", "RunStopped", "RunTruncated"}
     )
@@ -274,9 +274,9 @@ async def test_apply_writes_decision_on_run_completed() -> None:
     assert decision.context.value == "RunDebrief"
     assert decision.choice.value == "NominalCompletion"
     assert decision.confidence == pytest.approx(0.92)
-    assert decision.actor_id == RUN_DEBRIEF_AGENT_ID
+    assert decision.actor_id == RUN_DEBRIEFER_AGENT_ID
     assert decision.decision_rule is not None
-    assert decision.decision_rule.value == "agent:RunDebrief:v1"
+    assert decision.decision_rule.value == "agent:RunDebriefer:v1"
     # decision_inputs round-trip via JSONB.
     assert decision.decision_inputs is not None
     assert decision.decision_inputs["run_id"] == str(run_id)
@@ -554,7 +554,7 @@ async def test_decision_event_principal_id_is_agent_id() -> None:
 
     decision_id = _derive_decision_id(event.event_id)
     decision_events, _ = await store.load("Decision", decision_id)
-    assert decision_events[0].principal_id == RUN_DEBRIEF_AGENT_ID
+    assert decision_events[0].principal_id == RUN_DEBRIEFER_AGENT_ID
 
 
 # ---------- Logbook mirror ----------
@@ -580,7 +580,7 @@ async def test_apply_calls_logbook_mirror_when_configured() -> None:
         ) -> None:
             mirror_calls.append((decision_id, narrative, target_logbook))
 
-    subscriber = RunDebriefSubscriber(
+    subscriber = RunDebrieferSubscriber(
         event_store=store,
         llm=llm,
         logbook_mirror=_CapturingMirror(),
@@ -608,7 +608,7 @@ async def test_apply_swallows_logbook_mirror_errors() -> None:
         async def mirror_decision(self, **kwargs: Any) -> None:
             raise RuntimeError("mirror exploded")
 
-    subscriber = RunDebriefSubscriber(
+    subscriber = RunDebrieferSubscriber(
         event_store=store,
         llm=llm,
         logbook_mirror=_BrokenMirror(),

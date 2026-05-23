@@ -1,4 +1,4 @@
-"""Application-handler tests for the `revise_agent_budget` slice (Phase 8f-c iter 2)."""
+"""Application-handler tests for the `revise_agent_budget` slice."""
 
 from datetime import UTC, datetime
 from uuid import UUID

@@ -14,8 +14,7 @@ makes the standard event-sourcing properties mechanical:
   - For kind=AGENT, the decider raises InvalidActorKindError before
     name validation (so even invalid names get this error first).
 
-Iter D of the testing-techniques rollout. First PBT pass on a
-production decider, not just a value object.
+First PBT pass on a production decider, not just a value object.
 """
 
 from __future__ import annotations

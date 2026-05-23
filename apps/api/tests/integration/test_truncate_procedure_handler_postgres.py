@@ -1,4 +1,4 @@
-"""End-to-end integration test: truncate_procedure against real Postgres (Phase 10c-c iter 1).
+"""End-to-end integration test: truncate_procedure against real Postgres.
 
 Pinned: ProcedureTruncated round-trips through jsonb (interrupted_at
 as ISO-8601 string when set, null when None) and the Procedure folds

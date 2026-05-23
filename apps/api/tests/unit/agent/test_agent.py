@@ -1,4 +1,4 @@
-"""VO / enum / error tests for the Agent aggregate (Phase 8f-a)."""
+"""VO / enum / error tests for the Agent aggregate."""
 
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -45,13 +45,13 @@ _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
 
 @pytest.mark.unit
 def test_agent_kind_accepts_normal_string() -> None:
-    kind = AgentKind("RunDebrief")
-    assert kind.value == "RunDebrief"
+    kind = AgentKind("RunDebriefer")
+    assert kind.value == "RunDebriefer"
 
 
 @pytest.mark.unit
 def test_agent_kind_trims_whitespace() -> None:
-    assert AgentKind("  RunDebrief  ").value == "RunDebrief"
+    assert AgentKind("  RunDebriefer  ").value == "RunDebriefer"
 
 
 @pytest.mark.unit
@@ -291,7 +291,7 @@ def test_agent_status_values() -> None:
 def test_agent_defaults_to_defined_status_and_empty_capabilities() -> None:
     agent = Agent(
         id=uuid4(),
-        kind=AgentKind("RunDebrief"),
+        kind=AgentKind("RunDebriefer"),
         name=AgentName("Run Debrief"),
         version=AgentVersion("v1"),
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
@@ -316,7 +316,7 @@ def test_agent_capabilities_cap_is_enforced_at_decider_not_state() -> None:
     over_cap_count = AGENT_CAPABILITIES_MAX_COUNT + 5
     agent = Agent(
         id=uuid4(),
-        kind=AgentKind("RunDebrief"),
+        kind=AgentKind("RunDebriefer"),
         name=AgentName("Run Debrief"),
         version=AgentVersion("v1"),
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
@@ -325,7 +325,7 @@ def test_agent_capabilities_cap_is_enforced_at_decider_not_state() -> None:
     assert len(agent.capabilities) == over_cap_count
 
 
-# ---------- Phase 8f-c iter 2: AgentSuspensionReason / ToolName / AgentBudget ----------
+# ---------- iter 2: AgentSuspensionReason / ToolName / AgentBudget ----------
 
 
 @pytest.mark.unit
@@ -444,7 +444,7 @@ def test_agent_defaults_to_empty_tools_and_none_budget() -> None:
     """Aggregate-level: iter 2 additive fields default appropriately."""
     agent = Agent(
         id=uuid4(),
-        kind=AgentKind("RunDebrief"),
+        kind=AgentKind("RunDebriefer"),
         name=AgentName("Run Debrief"),
         version=AgentVersion("v1"),
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),

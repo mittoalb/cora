@@ -82,7 +82,7 @@ async def test_handler_returns_none_for_unknown_id() -> None:
 
 @pytest.mark.unit
 async def test_handler_authorizes_with_query_name_and_default_conduit() -> None:
-    """Phase 2 query handlers DO call authorize. Pinned because the
+    """Query handlers DO call authorize. Pinned because the
     eventual TrustAuthorize swap is mechanical per handler — the call
     site has to exist."""
     tracking = _RecordingAuthorize()

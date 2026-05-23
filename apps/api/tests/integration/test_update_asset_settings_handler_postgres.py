@@ -1,5 +1,5 @@
 """End-to-end integration test: update_asset_settings handler
-against real Postgres with multiple Capabilities (Phase 5g-c).
+against real Postgres with multiple Capabilities.
 
 Covers:
   - happy path: set, persists AssetSettingsUpdated with full

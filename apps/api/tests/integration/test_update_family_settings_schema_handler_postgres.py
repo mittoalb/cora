@@ -1,6 +1,6 @@
 """End-to-end integration test: update_family_settings_schema against real Postgres.
 
-Phase 5g-a. Round-trip the new event + projection column:
+Round-trip the event + projection column:
   - Define capability
   - Update schema
   - Load via fold-on-read returns the schema

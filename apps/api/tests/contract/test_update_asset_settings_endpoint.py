@@ -1,6 +1,6 @@
 """Contract tests for `PATCH /assets/{asset_id}/settings`.
 
-Phase 5g-c. Action endpoint with body `{settings_patch}`. RFC 7396
+Action endpoint with body `{settings_patch}`. RFC 7396
 JSON Merge Patch semantics; cross-Family schema-union
 validation at write time.
 """

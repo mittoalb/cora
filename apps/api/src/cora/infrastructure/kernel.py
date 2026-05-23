@@ -82,7 +82,7 @@ class Kernel:
     never gates on it.
 
     `llm`: optional LLM-chat port consumed by Agent BC subscribers
-    (RunDebrief, CautionDrafter). Production wires
+    (RunDebriefer, CautionDrafter). Production wires
     `AnthropicLLMAdapter` when `Settings.anthropic_api_key` is set;
     otherwise this is `None` and subscribers that depend on it must
     short-circuit or fail fast at registration time. Tests use
@@ -92,7 +92,7 @@ class Kernel:
     `logbook_mirror`: optional mirror to operator-facing logbook
     systems (Olog / SciLog / SciCat). No production implementor
     yet; the field exists to reserve the wiring slot and let the
-    RunDebrief subscriber short-circuit cleanly on `is None`. An
+    RunDebriefer subscriber short-circuit cleanly on `is None`. An
     adapter lands when a pilot facility's logbook is wired.
 
     `token_verifier`: process-singleton

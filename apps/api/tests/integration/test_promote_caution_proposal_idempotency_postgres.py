@@ -1,4 +1,4 @@
-"""Storage-cardinality idempotency tests for `promote_caution_proposal` (Phase C.1).
+"""Storage-cardinality idempotency tests for `promote_caution_proposal`.
 
 The existing contract test
 `test_promote_caution_proposal_endpoint.test_post_promote_same_idempotency_key_replays_cached_caution_id`
@@ -26,7 +26,7 @@ versa). The handler's `EventStore.append_streams(...)` provides
 this; the test asserts the visible row counts.
 
 Companion: thundering-herd (concurrent identical-key) test left
-as Phase C.1 follow-up — needs an additional asyncio coordination
+as a follow-up: it needs an additional asyncio coordination
 helper that the existing PG fixtures don't yet provide.
 
 Sources for the test pattern: Brandur Leach's idempotency canon
@@ -94,8 +94,8 @@ async def _seed_caution_proposal_decision(
 ) -> None:
     """Append a CautionDrafter-authored CautionProposal Decision.
 
-    Uses `CAUTION_DRAFTER_AGENT_ID` as `actor_id` so the Phase A.2
-    provenance gate passes (the agent is seeded by callers via
+    Uses `CAUTION_DRAFTER_AGENT_ID` as `actor_id` so the provenance
+    gate passes (the agent is seeded by callers via
     `seed_caution_drafter_agent`).
     """
     event = DecisionRegistered(

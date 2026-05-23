@@ -1,6 +1,6 @@
 """Integration test: get_practice handler against real Postgres.
 
-Path C (audit-2026-05-20 Iter B-2): handler returns PracticeView
+Path C: handler returns PracticeView
 bundling aggregate state + projection-sourced lifecycle timestamps.
 Mirrors test_get_method_handler_postgres + test_get_plan_handler_postgres
 shape; exercises both pre-drain (timestamps None) and post-drain

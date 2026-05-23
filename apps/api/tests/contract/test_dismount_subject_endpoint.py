@@ -1,4 +1,4 @@
-"""Contract tests for `POST /subjects/{subject_id}/dismount` (Phase 4f).
+"""Contract tests for `POST /subjects/{subject_id}/dismount`.
 
 Action endpoint with body `{reason}`. 204 on success; 409 on
 disallowed source state; 404 on missing subject; 422 on bad body.

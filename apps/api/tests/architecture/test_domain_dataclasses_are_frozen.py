@@ -14,7 +14,7 @@ fails if any `@dataclass(...)` decorator omits `frozen=True`.
 Exceptions (Exception subclasses) and StrEnums are not dataclasses
 and stay legitimate; only `@dataclass` usages are checked.
 
-Iter F of the testing-techniques rollout. Complements:
+Part of the testing-techniques rollout. Complements:
   - test_decider_purity.py (no I/O / clock / random in deciders)
   - test_slice_contract.py (every slice has command + decider + handler + route + tool)
   - assert_never in evolve() (pyright enforces exhaustiveness statically).

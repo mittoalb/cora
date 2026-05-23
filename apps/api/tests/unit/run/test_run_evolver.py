@@ -412,7 +412,7 @@ def _run_started_with_raid(
     )
 
 
-# ---------- Phase 6f-5b: RunReadingLogbookOpened ----------
+# ---------- RunReadingLogbookOpened ----------
 
 from cora.run.aggregates.run import (  # noqa: E402
     LOGBOOK_KIND_READING,
@@ -617,7 +617,7 @@ def test_legacy_pre_6f5b_stream_folds_with_none_reading_logbook_id() -> None:
     assert state.status is RunStatus.COMPLETED
 
 
-# ---------- Phase 6i-c: campaign_id field + RunCampaignAssigned/Unassigned arms ----------
+# ---------- campaign_id field + RunCampaignAssigned/Unassigned arms ----------
 
 
 @pytest.mark.unit
@@ -650,8 +650,8 @@ def test_run_started_default_campaign_id_is_none() -> None:
 
 @pytest.mark.unit
 def test_run_campaign_assigned_sets_campaign_id() -> None:
-    """Phase 6i-c: post-hoc add_run_to_campaign writes
-    RunCampaignAssigned to the Run stream. Evolver sets campaign_id."""
+    """Post-hoc add_run_to_campaign writes RunCampaignAssigned to the
+    Run stream. Evolver sets campaign_id."""
     from cora.run.aggregates.run.events import RunCampaignAssigned
 
     run_id = uuid4()
@@ -691,8 +691,8 @@ def test_run_campaign_assigned_on_empty_state_raises() -> None:
 
 @pytest.mark.unit
 def test_run_campaign_unassigned_clears_campaign_id() -> None:
-    """Phase 6i-c: remove_run_from_campaign writes
-    RunCampaignUnassigned. Evolver clears campaign_id back to None."""
+    """remove_run_from_campaign writes RunCampaignUnassigned. Evolver
+    clears campaign_id back to None."""
     from cora.run.aggregates.run.events import (
         RunCampaignAssigned,
         RunCampaignUnassigned,
@@ -784,7 +784,7 @@ def test_legacy_pre_6i_c_stream_folds_with_none_campaign_id() -> None:
     assert state.campaign_id is None
 
 
-# ---------- Phase 6j: RunAdjusted arm + new state fields ----------
+# ---------- RunAdjusted arm + new state fields ----------
 
 
 @pytest.mark.unit
@@ -983,7 +983,7 @@ def test_legacy_pre_6j_stream_folds_with_default_adjustment_fields() -> None:
     assert state.adjustment_count == 0
 
 
-# ---------- Phase 12b: Calibration AsShot anchor immutability ----------
+# ---------- Calibration AsShot anchor immutability ----------
 
 
 @pytest.mark.unit
@@ -1037,7 +1037,7 @@ def test_legacy_pre_12b_run_folds_with_empty_pinned_calibrations() -> None:
 def test_each_terminal_preserves_pinned_calibrations_asshot_invariant(
     terminal_factory: _TerminalFactory,
 ) -> None:
-    """Phase 12b critical invariant: every terminal arm preserves the
+    """Critical invariant: every terminal arm preserves the
     pinned_calibrations set verbatim. A regression that wiped them would
     silently break "what calibration was this scan acquired against?"
     queries forever — DNG AsShot lesson."""
@@ -1120,8 +1120,8 @@ def test_adjust_run_preserves_pinned_calibrations() -> None:
 
 @pytest.mark.unit
 def test_reading_logbook_opened_preserves_pinned_calibrations() -> None:
-    """Phase 12b orthogonal arm: lazy logbook open MUST preserve the
-    AsShot anchor. Same silent-wipe risk as the terminal arms — pinned
+    """Orthogonal arm: lazy logbook open MUST preserve the AsShot
+    anchor. Same silent-wipe risk as the terminal arms — pinned
     explicitly because the field-add review surface is in the evolver,
     not the slice."""
     pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
@@ -1152,8 +1152,8 @@ def test_reading_logbook_opened_preserves_pinned_calibrations() -> None:
 
 @pytest.mark.unit
 def test_run_campaign_assigned_preserves_pinned_calibrations() -> None:
-    """Phase 12b orthogonal arm: post-hoc Campaign membership assignment
-    MUST preserve the AsShot anchor."""
+    """Orthogonal arm: post-hoc Campaign membership assignment MUST
+    preserve the AsShot anchor."""
     from cora.run.aggregates.run.events import RunCampaignAssigned
 
     pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
@@ -1181,8 +1181,8 @@ def test_run_campaign_assigned_preserves_pinned_calibrations() -> None:
 
 @pytest.mark.unit
 def test_run_campaign_unassigned_preserves_pinned_calibrations() -> None:
-    """Phase 12b orthogonal arm: post-hoc Campaign membership removal
-    MUST preserve the AsShot anchor."""
+    """Orthogonal arm: post-hoc Campaign membership removal MUST
+    preserve the AsShot anchor."""
     from cora.run.aggregates.run.events import (
         RunCampaignAssigned,
         RunCampaignUnassigned,

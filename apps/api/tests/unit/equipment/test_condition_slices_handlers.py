@@ -1,7 +1,7 @@
 """Unit tests for the degrade_asset / fault_asset / restore_asset
 application handlers.
 
-Phase 5g-b. Consolidated file for the three condition slices: their
+Consolidated file for the three condition slices: their
 handlers are identical-shape `make_asset_update_handler` factory
 binds with different (command_name, log_prefix, decide_fn) tuples,
 so the per-slice tests are byte-parallel. Consolidating into one

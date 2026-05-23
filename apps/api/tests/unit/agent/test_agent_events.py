@@ -1,4 +1,4 @@
-"""Event (de)serialization round-trip tests for the Agent aggregate (Phase 8f-a)."""
+"""Event (de)serialization round-trip tests for the Agent aggregate."""
 
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -89,7 +89,7 @@ def test_deserialize_model_ref_raises_on_missing_field() -> None:
 def test_event_type_name_returns_class_name() -> None:
     e = AgentDefined(
         agent_id=uuid4(),
-        kind="RunDebrief",
+        kind="RunDebriefer",
         name="Run Debrief",
         version="v1",
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
@@ -110,7 +110,7 @@ def test_to_payload_serializes_agent_defined_minimal() -> None:
     agent_id = uuid4()
     e = AgentDefined(
         agent_id=agent_id,
-        kind="RunDebrief",
+        kind="RunDebriefer",
         name="Run Debrief",
         version="v1",
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
@@ -123,7 +123,7 @@ def test_to_payload_serializes_agent_defined_minimal() -> None:
     payload = to_payload(e)
     assert payload == {
         "agent_id": str(agent_id),
-        "kind": "RunDebrief",
+        "kind": "RunDebriefer",
         "name": "Run Debrief",
         "version": "v1",
         "model_ref": {
@@ -136,7 +136,6 @@ def test_to_payload_serializes_agent_defined_minimal() -> None:
         "prompt_template_id": None,
         "capabilities": [],
         "occurred_at": _NOW.isoformat(),
-        # Phase 8f-c iter 2: additive payload fields default to empty / None
         # on a minimal define (operators add tools / budget via separate
         # commands post-genesis).
         "tools": [],
@@ -151,7 +150,7 @@ def test_to_payload_serializes_agent_defined_full() -> None:
     template_id = uuid4()
     e = AgentDefined(
         agent_id=agent_id,
-        kind="RunDebrief",
+        kind="RunDebriefer",
         name="Run Debrief",
         version="v1",
         model_ref=ModelRef(
@@ -175,7 +174,7 @@ def test_round_trip_agent_defined_full() -> None:
     template_id = uuid4()
     original = AgentDefined(
         agent_id=agent_id,
-        kind="RunDebrief",
+        kind="RunDebriefer",
         name="Run Debrief",
         version="v1",
         model_ref=ModelRef(
@@ -195,7 +194,7 @@ def test_round_trip_agent_defined_full() -> None:
 def test_round_trip_agent_defined_minimal() -> None:
     original = AgentDefined(
         agent_id=uuid4(),
-        kind="RunDebrief",
+        kind="RunDebriefer",
         name="Run Debrief",
         version="v1",
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
@@ -272,7 +271,7 @@ def test_round_trip_agent_deprecated() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- Phase 8f-c iter 2: Suspended / Resumed / ToolGrant / Budget ----------
+# ---------- iter 2: Suspended / Resumed / ToolGrant / Budget ----------
 
 
 @pytest.mark.unit
@@ -377,7 +376,7 @@ def test_agent_defined_round_trip_with_tools_and_budget_caps() -> None:
     """Iter 2 payload fields round-trip even when set non-default."""
     original = AgentDefined(
         agent_id=uuid4(),
-        kind="RunDebrief",
+        kind="RunDebriefer",
         name="Run Debrief",
         version="v1",
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),
@@ -400,7 +399,7 @@ def test_agent_defined_from_stored_tolerates_pre_iter2_payload() -> None:
     agent_id = uuid4()
     pre_iter2_payload: dict[str, object] = {
         "agent_id": str(agent_id),
-        "kind": "RunDebrief",
+        "kind": "RunDebriefer",
         "name": "Run Debrief",
         "version": "v1",
         "model_ref": {

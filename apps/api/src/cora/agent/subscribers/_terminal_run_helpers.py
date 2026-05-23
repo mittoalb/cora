@@ -3,7 +3,7 @@
 Hoisted at rule-of-three (two consumers today, third agent named
 in the iter-4 widening triggers). Only the OBVIOUSLY-stable
 extractors live here; the `_compose_and_append` Decision-event
-composer remains duplicated across `run_debrief` and
+composer remains duplicated across `run_debriefer` and
 `caution_drafter` until iter 4 reveals which seams stabilize
 (per the post-review simplification audit: deferred composer hoist
 to avoid premature parameter-shuffler).

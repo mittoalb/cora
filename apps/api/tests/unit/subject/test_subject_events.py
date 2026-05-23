@@ -264,7 +264,7 @@ def test_to_payload_then_from_stored_round_trips_for_subject_removed() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- SubjectReturned (Phase 4d) ----------
+# ---------- SubjectReturned ----------
 
 
 @pytest.mark.unit
@@ -308,7 +308,7 @@ def test_to_payload_then_from_stored_round_trips_for_subject_returned() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- SubjectStored (Phase 4d) ----------
+# ---------- SubjectStored ----------
 
 
 @pytest.mark.unit
@@ -349,7 +349,7 @@ def test_to_payload_then_from_stored_round_trips_for_subject_stored() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- SubjectDiscarded (Phase 4d) ----------
+# ---------- SubjectDiscarded ----------
 
 
 @pytest.mark.unit
@@ -394,7 +394,7 @@ def test_to_payload_then_from_stored_round_trips_for_subject_discarded() -> None
     assert from_stored(stored) == original
 
 
-# ---------- Phase 4f: SubjectDismounted ----------
+# ---------- SubjectDismounted ----------
 
 
 @pytest.mark.unit

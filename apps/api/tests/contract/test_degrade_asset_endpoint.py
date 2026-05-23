@@ -1,7 +1,7 @@
 """Contract tests for `POST /assets/{asset_id}/degrade`.
 
-Phase 5g-b. Action endpoint with body `{reason}`. Target-state
-semantics: any condition -> Degraded. No-op when already Degraded.
+Action endpoint with body `{reason}`. Target-state semantics:
+any condition -> Degraded. No-op when already Degraded.
 """
 
 from uuid import uuid4

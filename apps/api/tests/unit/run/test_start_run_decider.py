@@ -560,8 +560,8 @@ def _energy_schema() -> dict[str, Any]:
 
 @pytest.mark.unit
 def test_decide_emits_run_started_with_6gc_parameter_fields() -> None:
-    """Phase 6g-c: command's override_parameters + triggered_by carry
-    into the RunStarted event; effective_parameters comes from the
+    """The command's override_parameters + triggered_by carry into the
+    RunStarted event; effective_parameters comes from the
     handler-computed merge (passed in as a kwarg here)."""
     cap = uuid4()
     asset_id = uuid4()
@@ -692,7 +692,7 @@ def test_decide_accepts_no_schema_when_effective_is_empty() -> None:
     assert decision.run_events[0].effective_parameters == {}
 
 
-# ---------- Phase 6h: Plan.wires re-validation at Run start ----------
+# ---------- Plan.wires re-validation at Run start ----------
 
 
 @pytest.mark.unit
@@ -1082,7 +1082,7 @@ def test_decide_revalidation_fails_fast_on_first_invalid_wire_in_a_set() -> None
     assert any("trigger_in" in entry[1] for entry in exc_info.value.missing)
 
 
-# ---------- Phase 11b-c: acknowledged_cautions snapshot threading ----------
+# ---------- acknowledged_cautions snapshot threading ----------
 
 
 def _caution_ref(
@@ -1252,7 +1252,7 @@ def test_decide_threads_warning_severity_caution_through_to_event() -> None:
     assert ack.text_excerpt.startswith("bearing degraded")
 
 
-# ---------- Phase 6i-c: campaign-membership gating + embed ----------
+# ---------- campaign-membership gating + embed ----------
 
 from cora.campaign.aggregates.campaign import (  # noqa: E402
     Campaign as _Campaign,
@@ -1286,8 +1286,8 @@ def _campaign(status: _CampaignStatus) -> _Campaign:
 def test_decide_embeds_campaign_id_for_membership_eligible_status(
     campaign_status_name: str,
 ) -> None:
-    """Phase 6i-c: when campaign supplied and in a membership-eligible
-    status, decider embeds campaign_id on RunStarted."""
+    """When campaign supplied and in a membership-eligible status,
+    decider embeds campaign_id on RunStarted."""
     from cora.campaign.aggregates.campaign import CampaignStatus
 
     status = CampaignStatus[campaign_status_name]
@@ -1328,7 +1328,7 @@ def test_decide_embeds_campaign_id_for_membership_eligible_status(
     ["CLOSED", "ABANDONED"],
 )
 def test_decide_rejects_terminal_campaign(campaign_status_name: str) -> None:
-    """Phase 6i-c: terminal Campaigns refuse new at-start membership."""
+    """Terminal Campaigns refuse new at-start membership."""
     from cora.campaign.aggregates.campaign import CampaignStatus
     from cora.run.aggregates.run import RunCannotJoinCampaignError
 
@@ -1367,9 +1367,9 @@ def test_decide_rejects_terminal_campaign(campaign_status_name: str) -> None:
 
 @pytest.mark.unit
 def test_decide_no_campaign_id_passes_through_normally() -> None:
-    """Phase 6i-c: StartRun.campaign_id=None bypasses the membership
-    gate entirely (existing behaviour preserved). campaign_id=None on
-    the resulting RunStarted event."""
+    """StartRun.campaign_id=None bypasses the membership gate entirely
+    (existing behaviour preserved). campaign_id=None on the resulting
+    RunStarted event."""
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
@@ -1400,13 +1400,13 @@ def test_decide_no_campaign_id_passes_through_normally() -> None:
 
 @pytest.mark.unit
 def test_decide_emits_campaign_run_added_when_campaign_supplied() -> None:
-    """Phase 6i-c FCIS (N9): cross-aggregate event construction lives
-    in the decider, not the handler. With a membership-eligible
-    Campaign supplied, the decider returns BOTH a RunStarted on
-    `run_events` AND a CampaignRunAdded on `campaign_events` so the
-    handler can hand both to `EventStore.append_streams` without
-    duplicating event-construction logic. Mirrors amend_clearance's
-    AmendmentEvents shape.
+    """FCIS (N9): cross-aggregate event construction lives in the
+    decider, not the handler. With a membership-eligible Campaign
+    supplied, the decider returns BOTH a RunStarted on `run_events`
+    AND a CampaignRunAdded on `campaign_events` so the handler can
+    hand both to `EventStore.append_streams` without duplicating
+    event-construction logic. Mirrors amend_clearance's AmendmentEvents
+    shape.
     """
     from cora.campaign.aggregates.campaign import CampaignStatus
     from cora.campaign.aggregates.campaign.events import CampaignRunAdded
@@ -1445,7 +1445,7 @@ def test_decide_emits_campaign_run_added_when_campaign_supplied() -> None:
     ]
 
 
-# ---------- Phase 1: Decision→Run linkage ----------
+# ---------- Decision→Run linkage ----------
 
 
 @pytest.mark.unit
@@ -1514,7 +1514,7 @@ def test_decide_threads_decided_by_decision_id_through_to_event() -> None:
     assert decision.run_events[0].decided_by_decision_id == decision_id
 
 
-# ---------- Phase 12b: Calibration AsShot anchor threading ----------
+# ---------- Calibration AsShot anchor threading ----------
 
 
 @pytest.mark.unit
@@ -1582,10 +1582,10 @@ def test_decide_threads_pinned_calibrations_sorted_through_to_event() -> None:
 
 
 def test_decide_rejects_pinned_calibrations_over_cap() -> None:
-    """Phase 12b-5: cardinality cap on the AsShot pin set. Symmetric
-    to Data BC's register_dataset decider rejecting > 64 entries on
-    used_calibrations. Mirrors the Phase 12c-3 cardinality boundary
-    test for the Data BC."""
+    """Cardinality cap on the AsShot pin set. Symmetric to Data BC's
+    register_dataset decider rejecting > 64 entries on
+    used_calibrations. Mirrors the Data BC cardinality boundary
+    test."""
     from cora.run.aggregates.run import (
         RUN_PINNED_CALIBRATIONS_MAX_ENTRIES,
         InvalidPinnedCalibrationsError,
@@ -1622,8 +1622,8 @@ def test_decide_rejects_pinned_calibrations_over_cap() -> None:
 
 
 def test_decide_accepts_pinned_calibrations_exactly_at_cap() -> None:
-    """Phase 12b-5 boundary guard: exactly at the cap is accepted
-    (off-by-one mirror of Data BC's
+    """Boundary guard: exactly at the cap is accepted (off-by-one
+    mirror of Data BC's
     test_decide_accepts_used_calibrations_at_cardinality_cap)."""
     from cora.run.aggregates.run import RUN_PINNED_CALIBRATIONS_MAX_ENTRIES
 

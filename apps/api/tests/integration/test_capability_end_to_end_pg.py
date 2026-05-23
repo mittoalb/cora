@@ -19,7 +19,7 @@ Capability template can simultaneously bind a Method-shaped executor
 executor (via Procedure.capability_id at register_procedure) when
 its `executor_shapes` declares both.
 
-Watch item from the Phase 6l final-coverage gate review (P0):
+Watch item from the Capability final-coverage gate review (P0):
 no single integration test previously walked the full Capability-
 bound lane end-to-end through real Postgres. Pinning it here
 locks the cross-BC story in.

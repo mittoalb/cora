@@ -18,7 +18,7 @@ async def test_define_then_get_then_list_method(
     e2e_client: AsyncClient,
     e2e_drain: Callable[[], Awaitable[None]],
 ) -> None:
-    # Phase 6l-strict: DefineMethod requires a bound Capability.
+
     cap_post = await e2e_client.post(
         "/capabilities",
         json={

@@ -1,11 +1,11 @@
 """Shared beamtime-intake helper for operations-phase scenario tests.
 
 Extracted when the 3rd operations-phase scenario re-did the intake
-registration ceremony by hand (Phase O-3 trigger fires; rule-of-three
+registration ceremony by hand (rule-of-three trigger fires,
 matching the `_facility_fixture.py` extraction pattern).
 
-The beamtime-intake source-of-truth scenario (`test_2bm_beamtime_intake`,
-Phase O-1) does NOT use this fixture: it IS the canonical intake
+The beamtime-intake source-of-truth scenario (`test_2bm_beamtime_intake`)
+does NOT use this fixture: it IS the canonical intake
 ceremony being tested. All subsequent operations-phase scenarios
 (`mount_sample`, `tomography_scan`, `run_debrief`, `dismount_sample`,
 `data_publish`) consume it.

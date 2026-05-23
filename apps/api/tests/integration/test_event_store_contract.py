@@ -25,7 +25,7 @@ template). The in-memory branch ignores db_pool — pytest builds the
 container once per session regardless, so the overhead is amortized
 across all integration tests, not paid per parametrize-case.
 
-Iter J.1 of the testing-expansion rollout.
+Part of the testing-expansion rollout.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false

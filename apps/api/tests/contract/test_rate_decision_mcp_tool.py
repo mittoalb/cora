@@ -1,4 +1,4 @@
-"""Contract tests for the `rate_decision` MCP tool (Phase 8f-b iter 1)."""
+"""Contract tests for the `rate_decision` MCP tool."""
 
 from uuid import UUID, uuid4
 

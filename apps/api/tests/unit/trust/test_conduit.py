@@ -56,7 +56,7 @@ def test_conduit_name_is_frozen() -> None:
         name.value = "Other"  # type: ignore[misc]
 
 
-# ---------- Channel-state error classes (Phase 6f-5a) ----------
+# ---------- Channel-state error classes ----------
 
 
 @pytest.mark.unit
@@ -68,9 +68,9 @@ def test_logbook_kind_traversals_is_a_stable_string_constant() -> None:
 
 @pytest.mark.unit
 def test_conduit_logbook_already_open_error_carries_kind_and_existing_id() -> None:
-    """Phase 6f-5a: state encodes at-most-one-open-per-kind invariant;
-    the error names the kind that's already busy and which logbook id
-    is occupying it."""
+    """State encodes at-most-one-open-per-kind invariant; the error
+    names the kind that's already busy and which logbook id is
+    occupying it."""
     conduit_id = uuid4()
     existing = uuid4()
     err = ConduitLogbookAlreadyOpenError(conduit_id, "traversals", existing)

@@ -63,7 +63,7 @@ async def test_build_kernel_populates_all_ports(
 async def test_build_kernel_uses_allow_all_authorize_when_no_policy_configured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Phase 1 permissive default: no `trust_policy_id` -> no real auth.
+    """Permissive default: no `trust_policy_id` -> no real auth.
     Tests + dev environments rely on this; flipping it to fail-closed
     would be a significant behavior change."""
     monkeypatch.setenv("APP_ENV", "test")
@@ -91,7 +91,7 @@ async def test_build_kernel_uses_trust_authorize_when_policy_configured(
     await teardown()
 
 
-# ---------- Phase 8f-b iter 2a: LLM + LogbookMirror wiring ----------
+# ---------- iter 2a: LLM + LogbookMirror wiring ----------
 
 
 @pytest.mark.unit
@@ -188,7 +188,7 @@ async def test_make_inmemory_kernel_accepts_fake_llm_override(
     assert kernel.llm is fake
 
 
-# ---------- Phase C Iter C-1: token_verifier wiring ----------
+# ---------- token_verifier wiring ----------
 
 
 @pytest.mark.unit
@@ -197,8 +197,8 @@ async def test_kernel_token_verifier_is_none_when_no_idps_configured(
 ) -> None:
     """Today's default: no IDENTITY_PROVIDERS env var -> empty list ->
     `build_idp_registry` returns None -> kernel.token_verifier is None.
-    The Iter C middleware short-circuits on None and falls through to
-    the legacy X-Principal-Id path, so existing deployments without
+    The bearer-auth middleware short-circuits on None and falls through
+    to the legacy X-Principal-Id path, so existing deployments without
     edge-auth configured stay on the trust-the-proxy posture."""
     monkeypatch.setenv("APP_ENV", "test")
     monkeypatch.delenv("IDENTITY_PROVIDERS", raising=False)
@@ -215,7 +215,7 @@ async def test_kernel_token_verifier_built_when_identity_providers_configured(
 ) -> None:
     """Operator sets IDENTITY_PROVIDERS -> kernel.token_verifier is a
     non-None `IdentityProviderRegistry` ready to verify inbound bearer
-    tokens. The middleware (Iter C-2) uses this slot."""
+    tokens. The middleware uses this slot."""
     import json
 
     from cora.infrastructure.auth import IdentityProviderRegistry

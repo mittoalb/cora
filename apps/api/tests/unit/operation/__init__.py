@@ -1,1 +1,1 @@
-"""Unit tests for the Operation BC (Phase 10c)."""
+"""Unit tests for the Operation BC."""

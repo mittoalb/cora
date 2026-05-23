@@ -252,7 +252,7 @@ There is no foreign key from `entries_decision_reasonings` to the Decision aggre
 |---|---|---|
 | Access | reads-from | `Decision.actor_id` is an `Actor.id`; the handler pre-loads the Actor at registration to confirm existence |
 | Trust | shared-vocabulary-with | `Decision.context = "PolicyGrant"` Decisions are written by the Authorize port path when a policy decision is consequential enough to record; `alternatives` carries the determining-policy ids in those Decisions |
-| Agent | writes-into | the agent subscribers for `RunDebrief` and `CautionProposal` write one Decision per terminal Run event; the subscriber composes `DecisionRegistered` inline so the decision_id is deterministic from the run_id |
+| Agent | writes-into | the agent subscribers for `RunDebriefer` and `CautionDrafter` write one Decision per terminal Run event; the subscriber composes `DecisionRegistered` inline so the decision_id is deterministic from the run_id |
 | Run | reads-from | `RunAbort`, `RunStop`, `RunTruncate`, and `RunDebrief` Decisions reference a Run id either in `decision_inputs` or in the context vocabulary; the link is by value, not stored on Run |
 | Recipe | reads-from | `RecipeApproval` Decisions cite a Recipe id in `decision_inputs`; the link is by value |
 | Data | reads-from | `DatasetDiscard` Decisions cite a Dataset id, and `invalidation`-kind chains pair with the `demote_dataset` slice on the Data module so an authorized retract has a citable rule |
@@ -261,7 +261,7 @@ There is no foreign key from `entries_decision_reasonings` to the Decision aggre
 
 The `actor_id` reference is pre-loaded at the registration handler, but no status check is run. A Decision made by an Actor who is later deactivated is still a valid historical fact, and its audit value does not diminish. The `parent_id` reference is also pre-loaded; the cross-Run and cross-context guards on operator re-invocations of agent debriefs are the only structural checks beyond existence.
 
-Decisions are read by many modules and written by few. The two agent subscribers (`RunDebrief`, `CautionProposal`) are the only AI authors today; everything else is human or operator path. The Authorize port does not write Decisions for every authorization; the per-decision audit log lives in `entries_conduit_traversals`, and a `PolicyGrant` Decision is reserved for the small subset of policy decisions consequential enough to record at the Decision-aggregate level.
+Decisions are read by many modules and written by few. The two agent subscribers (`RunDebriefer`, `CautionDrafter`) are the only AI authors today; everything else is human or operator path. The Authorize port does not write Decisions for every authorization; the per-decision audit log lives in `entries_conduit_traversals`, and a `PolicyGrant` Decision is reserved for the small subset of policy decisions consequential enough to record at the Decision-aggregate level.
 
 ## Examples
 
@@ -418,7 +418,7 @@ The five examples below cover the canonical Decision authoring and read flow: re
       "input_tokens": 1842,
       "output_tokens": 612,
       "finish_reasons": ["end_turn"],
-      "agent_name": "RunDebrief",
+      "agent_name": "RunDebriefer",
       "conversation_id": "run-debrief:42f7b1a0-...",
       "messages_jsonb": null
     }
@@ -444,7 +444,7 @@ The five examples below cover the canonical Decision authoring and read flow: re
             "input_tokens": 1842,
             "output_tokens": 612,
             "finish_reasons": ["end_turn"],
-            "agent_name": "RunDebrief",
+            "agent_name": "RunDebriefer",
             "conversation_id": "run-debrief:42f7b1a0-...",
             "messages_jsonb": None,
         },

@@ -122,7 +122,7 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
         from_stored(stored)
 
 
-# ---------- ConduitLogbookOpened (Phase 6f-5a) ----------
+# ---------- ConduitLogbookOpened ----------
 
 
 def _sample_schema() -> LogbookSchema:
@@ -207,7 +207,7 @@ def test_conduit_logbook_opened_round_trips() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- ConduitLogbookClosed (Phase 6f-5a) ----------
+# ---------- ConduitLogbookClosed ----------
 
 
 @pytest.mark.unit

@@ -1,11 +1,11 @@
 """End-to-end integration test: update_plan_default_parameters against real Postgres.
 
-Phase 6g-b. Round-trips the new event + projection column through
-real PG, including the cross-aggregate Method load that validates
-default_parameters against parameters_schema.
+Round-trips the event + projection column through real PG, including
+the cross-aggregate Method load that validates default_parameters
+against parameters_schema.
 
 Mirrors `test_update_method_parameters_schema_handler_postgres.py`
-(6g-a) shape but exercises the cross-aggregate validation path.
+shape but exercises the cross-aggregate validation path.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false

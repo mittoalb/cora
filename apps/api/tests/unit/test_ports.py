@@ -1,4 +1,4 @@
-"""Smoke tests for the Phase 1a port adapters."""
+"""Smoke tests for the baseline port adapters."""
 
 from datetime import UTC, datetime
 from uuid import UUID

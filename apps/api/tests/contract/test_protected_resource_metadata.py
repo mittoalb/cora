@@ -1,4 +1,4 @@
-"""Contract tests for `GET /.well-known/oauth-protected-resource` (Phase C Iter B).
+"""Contract tests for `GET /.well-known/oauth-protected-resource`.
 
 Per MCP spec 2025-11-25 (basic/authorization) + RFC 9728, MCP-aware
 OAuth clients dereference this endpoint after a 401 response to
@@ -133,13 +133,13 @@ def test_metadata_endpoint_unauthenticated() -> None:
     assert response.status_code == 200
 
 
-# ---------- Iter B-1 gate-review additions ----------
+# ---------- gate-review additions ----------
 
 
 @pytest.mark.contract
 def test_metadata_uses_extension_key_without_x_prefix() -> None:
     """Gate-review security F10: RFC 6648 (2012) deprecated the `X-` /
-    `x-` prefix convention. Iter B-1 originally used `x-cora-...`;
+    `x-` prefix convention. An earlier draft used `x-cora-...`;
     renamed to a reverse-DNS namespace key without prefix."""
     with TestClient(create_app()) as client:
         response = client.get("/.well-known/oauth-protected-resource")

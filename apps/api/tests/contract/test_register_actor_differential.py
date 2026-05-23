@@ -23,7 +23,7 @@ Pattern source: McKeeman 1998 *differential testing*; canonical use
 for compiler/SSL-validator/file-system equivalence testing. See
 [[project-testing-techniques-research]] Corpus 3 for the survey.
 
-Iter E of the testing-techniques rollout. First pass — extend to
+Part of the testing-techniques rollout. First pass — extend to
 additional commands by parameterising the dispatch helpers.
 """
 

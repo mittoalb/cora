@@ -1,6 +1,6 @@
 """Contract tests for the `fault_asset` MCP tool.
 
-Phase 5g-b. Mirror of `test_degrade_asset_mcp_tool.py`.
+Mirror of `test_degrade_asset_mcp_tool.py`.
 """
 
 from uuid import UUID, uuid4

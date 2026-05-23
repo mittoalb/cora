@@ -1,6 +1,6 @@
 """Integration tests for the System Bootstrap Policy seed.
 
-Covers the Phase A authz-gap-fill: the seed migration
+Covers the bootstrap authz-gap-fill: the seed migration
 `20260519000000_seed_bootstrap_policy.sql` ships a Policy aggregate
 with the well-known UUID `SYSTEM_BOOTSTRAP_POLICY_ID` that permits
 `{DefinePolicy, RegisterActor}` for `SYSTEM_PRINCIPAL_ID` on the nil
@@ -164,10 +164,11 @@ async def test_trust_authorize_against_bootstrap_policy_permits_define_policy(
 async def test_bootstrap_policy_can_define_a_real_policy_end_to_end(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """The whole point of Phase A: a fresh deployment can immediately
-    define a real admin Policy without the 3-step dance. We simulate
-    that here — gate define_policy through TrustAuthorize-against-seed,
-    then write a new Policy as SYSTEM_PRINCIPAL_ID."""
+    """The whole point of the bootstrap seed: a fresh deployment can
+    immediately define a real admin Policy without the 3-step dance.
+    We simulate that here, gating define_policy through
+    TrustAuthorize-against-seed, then writing a new Policy as
+    SYSTEM_PRINCIPAL_ID."""
     event_store = PostgresEventStore(db_pool)
     authorize = TrustAuthorize(event_store, policy_id=SYSTEM_BOOTSTRAP_POLICY_ID)
 

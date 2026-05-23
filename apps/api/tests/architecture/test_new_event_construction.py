@@ -1,11 +1,11 @@
 """`NewEvent(...)` may only be constructed inside `event_envelope.py`.
 
-Phase 9b retrospective enforcement. The 9b arc made `principal_id`
-required at the helper layer (`to_new_event(principal_id: UUID)`),
-but the underlying `NewEvent` dataclass keeps `principal_id: UUID
-| None` so test fixtures can simulate the historical pre-hook
-NULL case. That looser type is safe IF every src code path goes
-through `to_new_event`, which type-rejects None.
+`principal_id` is required at the helper layer
+(`to_new_event(principal_id: UUID)`), but the underlying `NewEvent`
+dataclass keeps `principal_id: UUID | None` so test fixtures can
+simulate the historical pre-hook NULL case. That looser type is
+safe IF every src code path goes through `to_new_event`, which
+type-rejects None.
 
 The gap the arch test closes: a future src file (handler, saga
 adapter, projection writer) could bypass `to_new_event` and

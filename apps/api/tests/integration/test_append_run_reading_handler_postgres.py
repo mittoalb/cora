@@ -1,4 +1,4 @@
-"""End-to-end integration test: append_run_reading against real Postgres (Phase 6f-5b).
+"""End-to-end integration test: append_run_reading against real Postgres.
 
 First concrete consumer of the entries_run_readings table +
 PostgresReadingStore. Stress-tests the polymorphic-with-discriminator

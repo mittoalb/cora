@@ -2,7 +2,7 @@
 
 Pins the decider's validation order + happy-path event-pair shape.
 Mirrors `amend_clearance` decider's test style (cross-aggregate
-state + two-event-list return). Phase 6i-c.
+state + two-event-list return).
 """
 
 from datetime import UTC, datetime

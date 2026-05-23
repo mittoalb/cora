@@ -1,6 +1,6 @@
 """End-to-end integration test: ConduitTraversal entries against real Postgres.
 
-Phase 6f-5a's first concrete entry type, exercised end-to-end:
+The first concrete entry type, exercised end-to-end:
   1. Define a Conduit (writes ConduitDefined + ConduitLogbookOpened to
      the events table on the Conduit's stream)
   2. Wire TrustAuthorize with a real PostgresTraversalStore

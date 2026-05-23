@@ -1,6 +1,6 @@
 """Unit tests for the `fault_asset` slice's pure decider.
 
-Phase 5g-b. Target-state transition: any condition -> Faulted.
+Target-state transition: any condition -> Faulted.
 Mirror of `degrade_asset` decider tests; same shape, different
 target.
 """

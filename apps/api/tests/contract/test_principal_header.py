@@ -41,7 +41,7 @@ from cora.trust.aggregates.policy.events import (
 
 @pytest.mark.contract
 def test_post_actors_works_without_x_principal_id_header() -> None:
-    """Pin the Phase 1 fallback: no header → SYSTEM_PRINCIPAL_ID,
+    """Pin the legacy-mode fallback: no header → SYSTEM_PRINCIPAL_ID,
     AllowAllAuthorize allows. Existing tests rely on this."""
     with TestClient(create_app()) as client:
         response = client.post("/actors", json={"name": "Doga"})
@@ -329,7 +329,7 @@ def test_create_app_boots_with_no_trust_policy_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Sanity: today's default (trust_policy_id unset, AllowAllAuthorize)
-    still boots without REQUIRE_AUTHENTICATED_PRINCIPAL. Phase A's
+    still boots without REQUIRE_AUTHENTICATED_PRINCIPAL. The
     runbook simplification kicks in only when TRUST_POLICY_ID is set."""
     monkeypatch.setenv("APP_ENV", "local")
     monkeypatch.delenv("TRUST_POLICY_ID", raising=False)
@@ -338,7 +338,7 @@ def test_create_app_boots_with_no_trust_policy_id(
     assert app is not None
 
 
-# ---------- Iter B-1 gate-review HIGH F11 ----------
+# ---------- gate-review HIGH F11 ----------
 
 
 @pytest.mark.contract

@@ -30,11 +30,11 @@ _VERSIONED_EVENT_ID = UUID("01900000-0000-7000-8000-00000000ad03")
 _DEPRECATED_EVENT_ID = UUID("01900000-0000-7000-8000-00000000ad04")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-00000000ad0c")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-00000000ad0c")
 
 
 async def _define_method_helper(deps: Kernel) -> UUID:
-    """Seed bound Capability + invoke define_method (Phase 6l-strict)."""
+    """Seed bound Capability + invoke define_method."""
     await seed_capability(deps.event_store, _CAPABILITY_ID)
     return await define_method.bind(deps)(
         DefineMethod(name="XRF Mapping", capability_id=_CAPABILITY_ID),

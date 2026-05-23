@@ -28,19 +28,18 @@ _VERSIONED_EVENT_ID = UUID("01900000-0000-7000-8000-00000000ae03")
 _DEPRECATED_EVENT_ID = UUID("01900000-0000-7000-8000-00000000ae04")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-# Phase 6l-strict: Method.capability_id is REQUIRED. Each test
-# pre-seeds this Capability into its store before calling
-# `_define_method_helper`.
+# Method.capability_id is REQUIRED. Each test pre-seeds this Capability
+# into its store before calling `_define_method_helper`.
 _CAPABILITY_ID = UUID("01900000-0000-7000-8000-00000000ae0c")
 
 
 async def _define_method_helper(deps: Kernel) -> UUID:
     """Seed the bound Capability + invoke define_method.
 
-    Phase 6l-strict: every define_method call requires a real
-    Capability stream to exist (handler raises CapabilityNotFoundError
-    otherwise). Seeding here keeps each test self-contained without
-    repeating the boilerplate at every call site."""
+    Every define_method call requires a real Capability stream to exist
+    (handler raises CapabilityNotFoundError otherwise). Seeding here keeps
+    each test self-contained without repeating the boilerplate at every call
+    site."""
     await seed_capability(deps.event_store, _CAPABILITY_ID)
     return await define_method.bind(deps)(
         DefineMethod(name="XRF Mapping", capability_id=_CAPABILITY_ID),

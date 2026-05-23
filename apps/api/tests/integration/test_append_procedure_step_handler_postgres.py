@@ -1,4 +1,4 @@
-"""End-to-end integration test: append_procedure_step against real Postgres (Phase 10c-b iter 2).
+"""End-to-end integration test: append_procedure_step against real Postgres.
 
 First concrete consumer of the entries_operation_procedure_steps
 table + PostgresStepStore. Stress-tests the polymorphic-with-

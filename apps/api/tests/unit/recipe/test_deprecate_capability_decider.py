@@ -1,4 +1,4 @@
-"""Unit tests for the `deprecate_capability` slice's pure decider (Phase 6k)."""
+"""Unit tests for the `deprecate_capability` slice's pure decider."""
 
 from datetime import UTC, datetime
 from uuid import uuid4

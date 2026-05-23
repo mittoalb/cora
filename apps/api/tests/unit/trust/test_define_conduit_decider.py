@@ -1,10 +1,9 @@
 """Unit tests for the `define_conduit` slice's pure decider.
 
-Phase 6f-5a expanded the decider to emit two events per call:
-`ConduitDefined` followed by `ConduitLogbookOpened` (kind="traversals").
-Tests assert both events as a unit; the logbook-open carries the
-declared schema verbatim, validated separately in events / evolver
-unit tests.
+The decider emits two events per call: `ConduitDefined` followed by
+`ConduitLogbookOpened` (kind="traversals"). Tests assert both events
+as a unit; the logbook-open carries the declared schema verbatim,
+validated separately in events / evolver unit tests.
 """
 
 from datetime import UTC, datetime

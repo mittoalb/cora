@@ -1,4 +1,4 @@
-"""Unit tests for the `remove_plan_wire` slice's pure decider (Phase 6h).
+"""Unit tests for the `remove_plan_wire` slice's pure decider.
 
 Mirror of add_plan_wire's decider tests; remove only needs:
   - PlanNotFoundError on empty state

@@ -1,10 +1,10 @@
 """Every BC HTTP route MUST inject the arrival Surface via FastAPI Depends.
 
-Phase B Iter C-2c enforcement. The Iter C-2b sweep added
-`surface_id: Annotated[UUID, Depends(get_surface_id)]` to every
-`features/<slice>/route.py` so the inbound request's process-pinned
-Surface (HTTP) reaches the handler. This test pins that invariant
-against future drift: a new route landing without `Depends(get_surface_id)`
+Every `features/<slice>/route.py` declares
+`surface_id: Annotated[UUID, Depends(get_surface_id)]` so the inbound
+request's process-pinned Surface (HTTP) reaches the handler. This
+test pins that invariant against future drift: a new route landing
+without `Depends(get_surface_id)`
 would either fail at runtime when calling the surface_id-requiring
 handler signature, OR silently pass the nil sentinel — bypassing
 V2 per-surface policy enforcement (forthcoming) on that endpoint.
@@ -94,8 +94,9 @@ def test_route_injects_get_surface_id(route_file: Path) -> None:
         pytest.fail(
             f"{qualified} does not import `get_surface_id` from "
             f"cora.infrastructure.routing. Every HTTP route must inject "
-            f"the arrival Surface via Depends(get_surface_id) per Phase B "
-            f"Iter C-2 AH1 (process-derived, never client-asserted)."
+            f"the arrival Surface via Depends(get_surface_id) per AH1 "
+            f"of the conduit-injection design (process-derived, never "
+            f"client-asserted)."
         )
 
     assert _has_depends_on_get_surface_id(tree), (

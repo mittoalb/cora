@@ -121,7 +121,7 @@ def test_post_actors_returns_409_when_actor_already_exists() -> None:
     assert str(existing_id) in body["detail"]
 
 
-# ---------- Phase C Iter B-2: kind discriminator ----------
+# ---------- Kind discriminator ----------
 
 
 @pytest.mark.contract
@@ -141,8 +141,8 @@ def test_post_actors_accepts_kind_human_explicit() -> None:
 
 @pytest.mark.contract
 def test_post_actors_accepts_kind_service_account() -> None:
-    """Phase C Iter B-2: service-account Actors (CI bridges, agent
-    runtime processes) come through register_actor with kind override."""
+    """Service-account Actors (CI bridges, agent runtime processes)
+    come through register_actor with kind override."""
     with TestClient(create_app()) as client:
         response = client.post("/actors", json={"name": "ci-bridge", "kind": "service_account"})
     assert response.status_code == 201

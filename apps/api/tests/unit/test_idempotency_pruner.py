@@ -1,6 +1,6 @@
 # pyright: reportPrivateUsage=false
 
-"""Unit tests for `cora.infrastructure.idempotency_pruner` (Phase 9a).
+"""Unit tests for `cora.infrastructure.idempotency_pruner`.
 
 Pins the lifespan task's three behavioral surfaces:
   - Skip branches: `ttl_hours <= 0` AND `pool is None` both yield
@@ -12,7 +12,7 @@ Pins the lifespan task's three behavioral surfaces:
     breaks the loop.
 
 The pruner code path is brand-new and would otherwise have ZERO
-test coverage; see Phase 9a gate review for the rationale.
+test coverage; see the idempotency gate review for the rationale.
 """
 
 import asyncio
@@ -119,7 +119,7 @@ async def test_lifespan_calls_prune_periodically_with_configured_ttl() -> None:
 
 @pytest.mark.unit
 async def test_lifespan_loop_survives_transient_prune_failure() -> None:
-    """Phase 9a contract: a failing prune call is logged and the loop
+    """Contract: a failing prune call is logged and the loop
     continues, so transient DB hiccups don't kill the pruner.
     Without this, one bad prune call would silently disable cleanup
     for the rest of the process lifetime."""

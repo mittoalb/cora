@@ -327,7 +327,7 @@ def test_validate_derived_from_rejects_over_cap() -> None:
         validate_derived_from(s)
 
 
-# ---------- Phase 12c: used_calibrations validation ----------
+# ---------- used_calibrations validation ----------
 
 
 @pytest.mark.unit

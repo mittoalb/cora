@@ -1,4 +1,4 @@
-"""Unit tests for AnthropicLLMAdapter.aclose() teardown (Phase 8f-b iter 2b).
+"""Unit tests for AnthropicLLMAdapter.aclose() teardown.
 
 The adapter exposes `aclose()` so the Kernel's teardown chain can
 release the underlying httpx connection pool at shutdown. Without

@@ -141,7 +141,7 @@ def test_decider_and_evolver_round_trip() -> None:
     new_id = uuid4()
     cap1 = UUID("01900000-0000-7000-8000-000000000111")
     cap2 = UUID("01900000-0000-7000-8000-000000000222")
-    # Phase 6l-strict: DefineMethod requires capability_id; build a
+
     # local Capability fixture (decider takes the loaded state as kwarg).
     from cora.recipe.aggregates.capability import (
         Capability,
@@ -174,7 +174,7 @@ def test_decider_and_evolver_round_trip() -> None:
     )
 
 
-# ---------- MethodVersioned (Phase 6b) ----------
+# ---------- MethodVersioned ----------
 
 
 @pytest.mark.unit
@@ -237,7 +237,7 @@ def test_evolve_method_versioned_on_empty_state_raises() -> None:
         )
 
 
-# ---------- MethodDeprecated (Phase 6b) ----------
+# ---------- MethodDeprecated ----------
 
 
 @pytest.mark.unit
@@ -365,7 +365,7 @@ def test_evolve_method_versioned_preserves_needed_families() -> None:
     assert versioned.needed_families == frozenset({cap1, cap2})
 
 
-# ---------- MethodParametersSchemaUpdated (Phase 6g-a) ----------
+# ---------- MethodParametersSchemaUpdated ----------
 
 
 _SCHEMA_A = {

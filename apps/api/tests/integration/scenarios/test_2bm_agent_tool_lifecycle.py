@@ -25,11 +25,11 @@ budget revisions.
 
 The sibling scenario `test_2bm_agent_cost_overrun_pause.py`
 exercises the in-flight FSM cycle (Versioned <-> Suspended) on the
-seeded RunDebrief agent. This scenario covers the orthogonal axis:
+seeded RunDebriefer agent. This scenario covers the orthogonal axis:
 the config-time slices (`define_agent`, `version_agent`,
 `grant_tool_to_agent`, `revoke_tool_from_agent`, `deprecate_agent`)
 on a fresh non-singleton Agent. Together the two scenarios cover
-all 7 FSM-extension slices shipped in Phase 8f-c iter 2.
+all 7 FSM-extension slices.
 
 This scenario also exercises:
 
@@ -38,7 +38,7 @@ This scenario also exercises:
     `AgentDefined` + `ActorRegistered` in a single `append_streams`
     call, mirroring the `register_actor` <-> Agent.id shared
     convention. The seed path bypasses this for the singleton
-    RunDebrief; this scenario exercises the public-API path.
+    RunDebriefer; this scenario exercises the public-API path.
   - **`tools: frozenset[ToolName]` mutation cardinality**: grant
     is idempotent (re-granting an existing tool is a no-op);
     revoke is idempotent (revoking an absent tool is a no-op).
@@ -53,7 +53,7 @@ This scenario also exercises:
      `DatasetIntegrityAuditor` that will audit raw projection
      Datasets post-Run for integrity issues (file size, checksum,
      basic encoding sanity). The Auditor lives alongside the
-     RunDebrief agent; both are independent.
+     RunDebriefer agent; both are independent.
   2. Operator defines the Auditor via `define_agent` (kind =
      `DatasetIntegrityAuditor`, name + version + model_ref
      supplied). The slice atomically registers a new Actor
@@ -197,7 +197,7 @@ async def test_agent_tool_lifecycle_plays_out_end_to_end(
             description=(
                 "Audits raw projection Datasets post-Run for integrity issues "
                 "(file size sanity, checksum verification, basic encoding "
-                "checks). Sibling to the RunDebrief agent."
+                "checks). Sibling to the RunDebriefer agent."
             ),
         ),
         principal_id=_PRINCIPAL_ID,

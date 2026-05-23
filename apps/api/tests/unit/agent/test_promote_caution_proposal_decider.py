@@ -1,4 +1,4 @@
-"""Pure-decider tests for the `promote_caution_proposal` slice (Phase 8f-c iter 3)."""
+"""Pure-decider tests for the `promote_caution_proposal` slice."""
 
 from typing import Any
 from uuid import uuid4

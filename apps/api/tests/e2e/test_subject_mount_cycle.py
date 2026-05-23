@@ -1,4 +1,4 @@
-"""E2E smoke: subject mount + dismount cycle (Phase 4f).
+"""E2E smoke: subject mount + dismount cycle.
 
 Spans Subject + Equipment BCs end-to-end: register subject, register
 +activate asset, attach a capability, mount the subject, GET to

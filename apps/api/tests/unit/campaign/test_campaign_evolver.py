@@ -281,7 +281,7 @@ def test_fold_preserves_run_ids_empty_through_lifecycle() -> None:
     assert state.run_ids == frozenset()
 
 
-# ---------- Phase 6i-c: CampaignRunAdded / CampaignRunRemoved arms ----------
+# ---------- CampaignRunAdded / CampaignRunRemoved arms ----------
 
 
 @pytest.mark.unit

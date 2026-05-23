@@ -61,7 +61,7 @@ from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 _NOW = datetime(2026, 5, 13, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d93c")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d93c")
 
 
 def _build_deps(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:
@@ -135,7 +135,7 @@ async def test_run_started_inserts_with_running_status_and_plan_ref(
 ) -> None:
     """Sanity: RunStarted lands as Running with plan_id surfaced.
 
-    Also pins (Phase 6i-c follow-up) that a standalone Run (no
+    Also pins that a standalone Run (no
     `StartRun.campaign_id`) lands with `campaign_id IS NULL`.
     """
     run_id = uuid4()
@@ -345,7 +345,7 @@ async def test_empty_table_returns_empty_page(db_pool: asyncpg.Pool) -> None:
 
 @pytest.mark.integration
 async def test_campaign_id_filter_narrows_results(db_pool: asyncpg.Pool) -> None:
-    """Phase 6i-c follow-up (Campaign Watch #10): `?campaign_id=`
+    """Campaign Watch #10: `?campaign_id=`
     end-to-end through real PG.
 
     Seeds two Runs against different Plans, then registers a Campaign

@@ -19,10 +19,8 @@ all-or-nothing semantics deserve generated-input coverage.
 
 This is example-of-each-property style (not full RuleBasedStateMachine)
 because Hypothesis 6.x state machines have rough edges with async; a
-stateful state-machine version can land as a follow-up iter if these
+stateful state-machine version can land as a follow-up if these
 properties surface no issues.
-
-Iter J.2 of the testing-expansion rollout.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false

@@ -1,4 +1,4 @@
-"""Unit tests for register_agent_subscribers (Phase 8f-b iter 2b)."""
+"""Unit tests for register_agent_subscribers."""
 
 # pyright: reportUnknownMemberType=false
 
@@ -36,7 +36,7 @@ def test_registers_run_debrief_when_llm_configured() -> None:
 
     register_agent_subscribers(registry, kernel)  # type: ignore[arg-type]
 
-    assert "run_debrief" in registry.names()
+    assert "run_debriefer" in registry.names()
 
 
 @pytest.mark.unit
@@ -49,7 +49,7 @@ def test_skips_run_debrief_when_llm_is_none() -> None:
 
     register_agent_subscribers(registry, kernel)  # type: ignore[arg-type]
 
-    assert "run_debrief" not in registry.names()
+    assert "run_debriefer" not in registry.names()
 
 
 @pytest.mark.unit

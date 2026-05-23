@@ -1,6 +1,6 @@
-"""End-to-end PG integration for `re_debrief_run` (Phase 8f-c iter 1).
+"""End-to-end PG integration for `re_debrief_run`.
 
-Walks: seed RunDebrief Agent + Actor -> start a Run -> invoke
+Walks: seed RunDebriefer Agent + Actor -> start a Run -> invoke
 `re_debrief_run` handler -> verify a `DecisionRegistered` lands on
 the Decision stream with `decision_inputs["trigger"]="on-demand"`.
 Uses `FakeLLMAdapter` (no Anthropic API key needed in CI).
@@ -15,7 +15,7 @@ import asyncpg
 import pytest
 
 from cora.agent.features.re_debrief_run import ReDebriefRun, bind
-from cora.agent.seed import seed_run_debrief_agent
+from cora.agent.seed import seed_run_debriefer_agent
 from cora.decision.aggregates.decision import load_decision
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.ports import FakeLLMAdapter, FakeLLMResponse
@@ -86,8 +86,8 @@ async def test_re_debrief_run_handler_writes_decision_on_real_pg(
         llm=llm,
     )
 
-    # Seed the RunDebrief Agent + Actor (idempotent on PG).
-    await seed_run_debrief_agent(deps)
+    # Seed the RunDebriefer Agent + Actor (idempotent on PG).
+    await seed_run_debriefer_agent(deps)
 
     # Seed a Run.
     run_id = uuid4()
@@ -130,7 +130,7 @@ async def test_re_debrief_run_chains_parent_via_decision_inputs_lookup(
         ids=[parent_decision_id, child_decision_id],
         llm=llm,
     )
-    await seed_run_debrief_agent(deps)
+    await seed_run_debriefer_agent(deps)
     run_id = uuid4()
     await _seed_run(deps, run_id)
     handler = bind(deps)
@@ -175,7 +175,7 @@ async def test_re_debrief_run_idempotency_key_replay_returns_same_decision(
         ids=[first_decision_id, second_decision_id],
         llm=llm,
     )
-    await seed_run_debrief_agent(deps)
+    await seed_run_debriefer_agent(deps)
     run_id = uuid4()
     await _seed_run(deps, run_id)
 

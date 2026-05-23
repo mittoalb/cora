@@ -1,4 +1,4 @@
-"""End-to-end integration test: add_plan_wire + remove_plan_wire against real Postgres (Phase 6h).
+"""End-to-end integration test: add_plan_wire + remove_plan_wire against real Postgres.
 
 Round-trips the new events through real PG, including the cross-
 aggregate Asset loads that validate Wire endpoints (port-existence,

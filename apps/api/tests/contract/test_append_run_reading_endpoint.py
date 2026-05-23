@@ -1,4 +1,4 @@
-"""Contract tests for `POST /runs/{run_id}/readings` (Phase 6f-5b).
+"""Contract tests for `POST /runs/{run_id}/readings`.
 
 The polymorphic-with-discriminator reading-entry endpoint. Covers
 the happy path, lazy-open lifecycle, per-entry validation, terminal-

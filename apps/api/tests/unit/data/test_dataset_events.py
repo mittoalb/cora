@@ -86,10 +86,8 @@ def test_to_payload_serializes_all_fields_with_nulls_and_empties() -> None:
         "subject_id": None,
         "derived_from": [],
         "occurred_at": _NOW.isoformat(),
-        # Phase 7e additive fields (default values when not specified):
         "producing_run_end_state": None,
         "intent": "Trial",
-        # Phase 12c additive field (default empty list when not specified):
         "used_calibrations": [],
     }
 
@@ -220,7 +218,7 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
         from_stored(stored)
 
 
-# ---------- Phase 7e additive evolution: DatasetRegistered new fields ----------
+# ---------- additive evolution: DatasetRegistered new fields ----------
 
 
 @pytest.mark.unit
@@ -288,7 +286,7 @@ def test_from_stored_pre_7e_dataset_registered_folds_with_defaults() -> None:
     assert event.intent == "Trial"
 
 
-# ---------- Phase 7e: DatasetPromoted ----------
+# ---------- DatasetPromoted ----------
 
 
 @pytest.mark.unit
@@ -423,7 +421,7 @@ def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:
         from_stored(_stored(event_type, {}))
 
 
-# ---------- Phase 12c: DatasetRegistered.used_calibrations AsShot citation ----------
+# ---------- DatasetRegistered.used_calibrations AsShot citation ----------
 
 
 from uuid import UUID  # noqa: E402

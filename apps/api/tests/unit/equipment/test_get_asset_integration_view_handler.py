@@ -1,4 +1,4 @@
-"""Unit tests for the `get_asset_integration_view` query handler (Phase 1B).
+"""Unit tests for the `get_asset_integration_view` query handler.
 
 Read-time composition slice; the handler assembles the integration-view
 bundle by loading the Asset stream + each referenced Family stream +

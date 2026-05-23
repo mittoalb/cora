@@ -1,6 +1,6 @@
 """HTTP route for the `re_debrief_run` slice.
 
-`POST /agents/run_debrief/invoke` with body `{run_id,
+`POST /agents/run_debriefer/invoke` with body `{run_id,
 parent_decision_id?}`. Returns 201 + `{decision_id}` on success
 (including the `DebriefDeferred` path, which still produces a
 Decision -- operators distinguish via the `choice` field on the
@@ -28,7 +28,7 @@ from cora.infrastructure.routing import (
 
 
 class ReDebriefRunRequest(BaseModel):
-    """Body for `POST /agents/run_debrief/invoke`."""
+    """Body for `POST /agents/run_debriefer/invoke`."""
 
     run_id: UUID = Field(
         ...,
@@ -45,7 +45,7 @@ class ReDebriefRunRequest(BaseModel):
 
 
 class ReDebriefRunResponse(BaseModel):
-    """Response body for `POST /agents/run_debrief/invoke`."""
+    """Response body for `POST /agents/run_debriefer/invoke`."""
 
     decision_id: UUID
 
@@ -68,7 +68,7 @@ router = APIRouter(tags=["agent"])
 
 
 @router.post(
-    "/agents/run_debrief/invoke",
+    "/agents/run_debriefer/invoke",
     status_code=status.HTTP_201_CREATED,
     response_model=ReDebriefRunResponse,
     responses={
@@ -92,10 +92,10 @@ router = APIRouter(tags=["agent"])
         },
         status.HTTP_503_SERVICE_UNAVAILABLE: {
             "model": ErrorResponse,
-            "description": ("RunDebrief subscriber is not wired (ANTHROPIC_API_KEY unset)."),
+            "description": ("RunDebriefer subscriber is not wired (ANTHROPIC_API_KEY unset)."),
         },
     },
-    summary="Re-invoke RunDebrief on demand against a specific Run.",
+    summary="Re-invoke RunDebriefer on demand against a specific Run.",
 )
 async def post_re_debrief_run(
     body: ReDebriefRunRequest,

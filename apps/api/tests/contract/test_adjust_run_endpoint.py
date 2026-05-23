@@ -1,4 +1,4 @@
-"""Contract tests for `POST /runs/{run_id}/adjust` (Phase 6j).
+"""Contract tests for `POST /runs/{run_id}/adjust`.
 
 Multi-source mid-flight steering: `Running | Held -> Running | Held`
 (status preserved). Body carries `parameter_patch` (RFC 7396 merge

@@ -1,4 +1,4 @@
-"""Unit tests for the Run BC's reading-related state additions (Phase 6f-5b).
+"""Unit tests for the Run BC's reading-related state additions.
 
 Covers:
   - `ChannelName` VO bounded-text contract

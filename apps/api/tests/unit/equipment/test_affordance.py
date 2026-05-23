@@ -1,4 +1,4 @@
-"""Unit tests for the Affordance closed StrEnum (Phase 5j).
+"""Unit tests for the Affordance closed StrEnum.
 
 Pins the 28-item closed v1 list, the 2-pattern split, and the
 serialization shape used by event payloads and REST/MCP bodies.

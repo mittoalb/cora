@@ -10,7 +10,7 @@ owns `PostgresClearanceLookup`, Caution BC owns
 When `Settings.anthropic_api_key` is unset, returns `None` so the
 Kernel ends up with `llm=None` and Agent subscribers fail-fast at
 registration. This is intentional: a misconfigured prod deployment
-should not silently downgrade to a no-LLM mode where RunDebrief
+should not silently downgrade to a no-LLM mode where RunDebriefer
 goes silent. Iter 2b's subscriber-registration step adds the
 fail-fast on `kernel.llm is None`.
 """

@@ -51,7 +51,7 @@ from tests.unit.subject._helpers import seed_active_asset
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d26c")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d26c")
 
 
 def _build_deps_with_ids(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:
@@ -288,7 +288,6 @@ async def test_abort_run_persists_with_trimmed_reason_and_round_trips_to_aborted
     assert aborted.payload == {
         "run_id": str(run_id),
         "reason": "detector overheating",
-        # Phase 1 (Decision→Run linkage) additive payload field. None
         # when AbortRun.decided_by_decision_id was not provided;
         # forward-compat via `payload.get("decided_by_decision_id")`.
         "decided_by_decision_id": None,

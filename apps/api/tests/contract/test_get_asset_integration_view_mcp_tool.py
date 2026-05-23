@@ -1,4 +1,4 @@
-"""Contract tests for the `get_asset_integration_view` MCP tool (Phase 1B).
+"""Contract tests for the `get_asset_integration_view` MCP tool.
 
 Read-time composition slice; see [[project-asset-integration-view-design]].
 """

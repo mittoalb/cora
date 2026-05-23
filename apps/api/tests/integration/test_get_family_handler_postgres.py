@@ -1,6 +1,6 @@
 """Integration test: get_family handler against real Postgres.
 
-Path C (audit-2026-05-20 Iter B-3): handler returns FamilyView
+Path C: handler returns FamilyView
 bundling aggregate state + projection-sourced lifecycle timestamps.
 Exercises both pre-drain (timestamps None) and post-drain (timestamps
 populated) paths.

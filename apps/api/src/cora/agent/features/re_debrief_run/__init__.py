@@ -1,7 +1,7 @@
 """Vertical slice: `re_debrief_run`.
 
-Operator-triggered on-demand RunDebrief. Pattern C from the design
-memo: re-invoke the RunDebrief agent against a specific Run and
+Operator-triggered on-demand RunDebriefer. Pattern C from the design
+memo: re-invoke the RunDebriefer agent against a specific Run and
 get a fresh `DecisionRegistered` back.
 
 Use cases:
@@ -17,7 +17,7 @@ Distinct from the subscriber's event-driven Pattern A (8f-b iter 2b):
 |---------------------|-------------------------------|----------------------------|
 | trigger             | terminal Run event            | operator MCP / REST call   |
 | principal_id        | agent self                    | operator (HTTP header)     |
-| actor_id            | RunDebrief Agent              | RunDebrief Agent (same)    |
+| actor_id            | RunDebriefer Agent            | RunDebriefer Agent (same)  |
 | decision_id         | uuid5 from terminal event_id  | uuidv7 from id_generator   |
 | at-most-once via    | deterministic id + retry no-op| Idempotency-Key (Brandur)  |
 | parent_id           | None (genesis Decision)       | operator-supplied (chain)  |

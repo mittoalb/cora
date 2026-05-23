@@ -1,6 +1,6 @@
 """State-layer gap tests for the Calibration aggregate.
 
-Addresses the gate-review test gaps from Phase 12a-1 / 12a-2:
+Addresses the gate-review test gaps:
   - `CalibrationDescription` VO trim + bound checks (gate review P1 #1)
   - 9 error class instantiation pins (gate review P1 #2)
   - `CalibrationStatus` + `CalibrationQuantity` enum value-locks
@@ -73,7 +73,7 @@ def test_calibration_status_value_set_is_locked() -> None:
 
 @pytest.mark.unit
 def test_calibration_quantity_value_set_is_locked() -> None:
-    """Phase 12a-1 pilot quantities. Adding requires PR + new schema module."""
+    """Pilot quantities. Adding requires PR + new schema module."""
     assert {q.value for q in CalibrationQuantity} == {
         "rotation_center",
         "detector_pixel_size",

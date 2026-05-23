@@ -73,11 +73,9 @@ def test_to_payload_serializes_method_defined_to_primitives() -> None:
         "method_id": str(method_id),
         "name": "XRF Fly Mapping",
         "needed_families": [str(cap1)],
-        # Phase 10b additive: empty list when MethodDefined has no
         # needed_supplies (default factory). Sorted lexically when
         # populated; pinned by tests/unit/recipe/test_method_needed_supplies.py.
         "needed_supplies": [],
-        # Phase 6l-additive: None when MethodDefined has no capability_id
         # (default). 6l-strict will require the field on the command;
         # the payload key stays additive for stream-replay compat.
         "capability_id": None,
@@ -193,7 +191,7 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
         from_stored(stored)
 
 
-# ---------- MethodVersioned (Phase 6b) ----------
+# ---------- MethodVersioned ----------
 
 
 @pytest.mark.unit
@@ -235,7 +233,7 @@ def test_to_payload_then_from_stored_round_trips_for_method_versioned() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- MethodDeprecated (Phase 6b) ----------
+# ---------- MethodDeprecated ----------
 
 
 @pytest.mark.unit
@@ -278,7 +276,7 @@ def test_to_payload_then_from_stored_round_trips_for_method_deprecated() -> None
     assert from_stored(stored) == original
 
 
-# ---------- MethodParametersSchemaUpdated (Phase 6g-a) ----------
+# ---------- MethodParametersSchemaUpdated ----------
 
 
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"

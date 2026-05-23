@@ -18,7 +18,7 @@ taxonomy this scenario fits into.
 
 ## Why this scenario exists
 
-Phase O-3 of the operations-phase canonical-acquisition chain.
+Step O-3 of the operations-phase canonical-acquisition chain.
 This is the LARGEST and most leverage-heavy operations scenario:
 it exercises the Recipe ladder + Run lifecycle + Subject lifecycle
 + Dataset registration + Campaign membership cross-aggregate atomic
@@ -153,7 +153,7 @@ _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000403b21")
 
 # Recipe ladder
 _METHOD_TOMO_ID = UUID("01900000-0000-7000-8000-000000403d01")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d508")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d508")
 _PRACTICE_TOMO_ID = UUID("01900000-0000-7000-8000-000000403d11")
 _PLAN_TOMO_ID = UUID("01900000-0000-7000-8000-000000403d21")
 

@@ -1,6 +1,6 @@
 """Contract tests for `POST /families/{family_id}/settings-schema`.
 
-Phase 5g-a. Action endpoint with body `{settings_schema}`. Schema
+Action endpoint with body `{settings_schema}`. Schema
 can be set, replaced, or cleared (null payload).
 """
 

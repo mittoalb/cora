@@ -1,11 +1,11 @@
-"""RunDebrief at APS 2-BM.
+"""RunDebriefer at APS 2-BM.
 
 cluster: Advisories
 archetype: agent
 bc_primary: Decision
 bc_touches: Campaign, Decision, Equipment, Recipe, Run, Subject
 
-Scenario test for CORA's first AI-agent runtime: the RunDebrief
+Scenario test for CORA's first AI-agent runtime: the RunDebriefer
 subscriber observes the tomography scan's terminal `RunCompleted`
 event, calls the LLM (stubbed via `FakeLLMAdapter`), and emits an
 advisory `DecisionRegistered` with the closed 5-value choice
@@ -13,7 +13,7 @@ advisory `DecisionRegistered` with the closed 5-value choice
 EquipmentAbort / DataSuspect) plus an AAR narrative scaffolded into
 the Decision's reasoning text.
 
-Phase O-4 of the operations-phase canonical-acquisition chain.
+Step O-4 of the operations-phase canonical-acquisition chain.
 
 See [[project_pilot_docs_design]] for the phase / file-naming
 taxonomy this scenario fits into. See [[project_run_debrief_design]]
@@ -29,17 +29,17 @@ AAR". This is that scenario.
 
 First scenario-tier exercise of:
 
-  - `seed_run_debrief_agent(kernel)` bootstrap (registers the
-    RunDebrief Agent aggregate at its pinned id + co-registers the
+  - `seed_run_debriefer_agent(kernel)` bootstrap (registers the
+    RunDebriefer Agent aggregate at its pinned id + co-registers the
     Actor with kind=agent at the same id via cross-BC atomic write)
-  - `RunDebriefSubscriber.apply(terminal_event)` — the side-
+  - `RunDebrieferSubscriber.apply(terminal_event)` — the side-
     effecting subscriber pathway that observes terminal Run events
     and emits Decisions
   - `FakeLLMAdapter` (the stub LLM used in CI; no Anthropic API
     key needed) being driven from a scenario-tier test
   - `Decision` aggregate genesis with `context=RunDebrief`,
-    `decision_rule=agent:RunDebrief:v1`, `confidence_source=
-    self_reported`, `actor_id=RUN_DEBRIEF_AGENT_ID`
+    `decision_rule=agent:RunDebriefer:v1`, `confidence_source=
+    self_reported`, `actor_id=RUN_DEBRIEFER_AGENT_ID`
 
 ## Why a separate scenario
 
@@ -63,7 +63,7 @@ scenario is self-contained.
 
   - **The subscriber is the first side-effecting consumer in the
     projection-worker framework.** All prior subscribers were
-    projections (read-side writers only); RunDebrief writes new
+    projections (read-side writers only); RunDebriefer writes new
     events to the Decision stream. In production it runs inside
     the projection worker's loop; in this scenario we invoke
     `apply()` directly. Whether the scenario tier should grow a
@@ -93,9 +93,9 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
-from cora.agent.seed import RUN_DEBRIEF_AGENT_ID, seed_run_debrief_agent
-from cora.agent.subscribers.run_debrief import (
-    RunDebriefSubscriber,
+from cora.agent.seed import RUN_DEBRIEFER_AGENT_ID, seed_run_debriefer_agent
+from cora.agent.subscribers.run_debriefer import (
+    RunDebrieferSubscriber,
     _derive_decision_id,
 )
 from cora.campaign.aggregates.campaign import CampaignIntent
@@ -130,7 +130,7 @@ _NOW = datetime(2026, 5, 17, 11, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = operator_for(__file__)
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000404bb")
 
-# Facility hierarchy. Scenario tag: 404 (operations / RunDebrief agent).
+# Facility hierarchy. Scenario tag: 404 (operations / RunDebriefer agent).
 _ARGONNE_ENTERPRISE_ID = UUID("01900000-0000-7000-8000-000000404e01")
 _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000404501")
 _SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000404701")
@@ -155,7 +155,7 @@ _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000404b21")
 
 # Recipe ladder
 _METHOD_TOMO_ID = UUID("01900000-0000-7000-8000-000000404d01")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d26c")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d26c")
 _PRACTICE_TOMO_ID = UUID("01900000-0000-7000-8000-000000404d11")
 _PLAN_TOMO_ID = UUID("01900000-0000-7000-8000-000000404d21")
 
@@ -254,7 +254,7 @@ _RECIPE = RecipeSpec(
 def _id_queue() -> list[UUID]:
     """Pre-allocated FixedIdGenerator queue (head-first consumption).
 
-    Note: `seed_run_debrief_agent` writes directly to the event store
+    Note: `seed_run_debriefer_agent` writes directly to the event store
     using SYSTEM_PRINCIPAL_ID and uuid4()-generated event ids; it does
     NOT consume from the FixedIdGenerator queue.
     """
@@ -278,7 +278,7 @@ async def test_run_debrief_agent_fires_on_terminal_run(
 ) -> None:
     """Replicate the tomography-scan setup (O-3 ceremony in compact
     form), let the Run reach the terminal `RunCompleted` state, seed
-    the RunDebrief Agent, invoke the subscriber against the terminal
+    the RunDebriefer Agent, invoke the subscriber against the terminal
     event with a canned LLM response, assert the advisory
     `DecisionRegistered` lands with the expected RunDebrief shape."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
@@ -342,11 +342,11 @@ async def test_run_debrief_agent_fires_on_terminal_run(
         correlation_id=_CORRELATION_ID,
     )
 
-    # ----- O-4 specific: seed RunDebrief Agent + invoke subscriber on terminal -----
+    # ----- O-4 specific: seed RunDebriefer Agent + invoke subscriber on terminal -----
 
     # Bootstrap the agent (idempotent on re-invocation; uses SYSTEM_PRINCIPAL_ID
     # internally so the seed events bypass the FixedIdGenerator queue).
-    await seed_run_debrief_agent(deps)
+    await seed_run_debriefer_agent(deps)
 
     # Load the terminal RunCompleted event from the Run stream.
     run_events, _run_version = await deps.event_store.load("Run", _RUN_ID)
@@ -361,7 +361,7 @@ async def test_run_debrief_agent_fires_on_terminal_run(
     # Build the subscriber with a canned LLM response. LogbookMirror is
     # None today (no implementor; see [[project_run_debrief_design]]).
     llm = FakeLLMAdapter(responses=[_CANNED_AAR])
-    subscriber = RunDebriefSubscriber(
+    subscriber = RunDebrieferSubscriber(
         event_store=deps.event_store,
         llm=llm,
         logbook_mirror=None,
@@ -378,7 +378,7 @@ async def test_run_debrief_agent_fires_on_terminal_run(
     assert decision is not None
     assert decision.context.value == "RunDebrief"
     assert decision.choice.value == "NominalCompletion"
-    assert decision.actor_id == RUN_DEBRIEF_AGENT_ID
+    assert decision.actor_id == RUN_DEBRIEFER_AGENT_ID
 
     # ----- Assert: LLM was called exactly once with the run_id in context -----
 
@@ -394,6 +394,6 @@ async def test_run_debrief_agent_fires_on_terminal_run(
     decision_payload = decision_events[0].payload
     assert decision_payload["context"] == "RunDebrief"
     assert decision_payload["choice"] == "NominalCompletion"
-    assert decision_payload["decision_rule"] == "agent:RunDebrief:v1"
+    assert decision_payload["decision_rule"] == "agent:RunDebriefer:v1"
     assert decision_payload["confidence_source"] == "self_reported"
-    assert UUID(decision_payload["actor_id"]) == RUN_DEBRIEF_AGENT_ID
+    assert UUID(decision_payload["actor_id"]) == RUN_DEBRIEFER_AGENT_ID

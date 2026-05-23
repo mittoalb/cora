@@ -80,7 +80,7 @@ logbook is a separable concern from:
   - Run lifecycle transitions (start / hold / resume / complete
     / abort / stop / truncate).
   - Asset condition transitions (degrade / restore / fault).
-  - Operator Decisions (RunDebrief / EnergyChange).
+  - Operator Decisions (RunDebriefer / EnergyChange).
 
 It's how ephemeral per-Run continuous-channel data lands in the
 audit trail; bundling with any of the above would conflate
@@ -98,7 +98,7 @@ audit trail; bundling with any of the above would conflate
     "compare T_sample baselines across Runs on this Subject"
     query would benefit from a cross-Run projection over
     `entries_run_readings`; not built today.
-  - **Reading entries are NOT in scope for the RunDebrief
+  - **Reading entries are NOT in scope for the RunDebriefer
     agent.** Per [[project_run_debrief_design]] v1 read scope
     is Run+RunReading+ConduitTraversal+Subject+Plan+Method+
     Practice+Cautions. Wait, `RunReading` IS in the read scope
@@ -176,7 +176,7 @@ _SUBJECT_ID = UUID("01900000-0000-7000-8000-000000470b11")
 _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000470b21")
 
 _METHOD_TOMO_ID = UUID("01900000-0000-7000-8000-000000470d01")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0da26")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0da26")
 _PRACTICE_TOMO_ID = UUID("01900000-0000-7000-8000-000000470d11")
 _PLAN_TOMO_ID = UUID("01900000-0000-7000-8000-000000470d21")
 

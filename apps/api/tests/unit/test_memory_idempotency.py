@@ -1,6 +1,6 @@
 # pyright: reportPrivateUsage=false
 
-"""Unit tests for `InMemoryIdempotencyStore` (Phase 9a port).
+"""Unit tests for `InMemoryIdempotencyStore`.
 
 Mirrors `tests/integration/test_postgres_idempotency.py` against the
 in-memory adapter. Pins:
@@ -109,9 +109,9 @@ async def test_keys_namespaced_by_principal() -> None:
 async def test_keys_namespaced_by_surface() -> None:
     """Same (principal_id, key, command_hash) under DIFFERENT surfaces
     yields independent cache slots. Each Surface's policy authorizes
-    independently — V2 per-surface policies must not be bypassed by a
-    cache hit from a different arrival Surface (Phase B Iter C-2c +
-    IETF Idempotency-Key §5 server-side composite key)."""
+    independently — per-surface policies must not be bypassed by a
+    cache hit from a different arrival Surface (per IETF
+    Idempotency-Key §5 server-side composite key)."""
     store = InMemoryIdempotencyStore()
     p = uuid4()
     surf_http = UUID("00000000-0000-0000-0000-000000000020")

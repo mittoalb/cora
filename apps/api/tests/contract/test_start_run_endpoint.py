@@ -1,17 +1,17 @@
-"""Contract tests for `POST /runs` wire-level (Phase 6i-c + 12b).
+"""Contract tests for `POST /runs` wire-level.
 
-Pins the wire-level Campaign membership behavior introduced in 6i-c
-plus the Phase 12b Calibration AsShot anchor:
+Pins the wire-level Campaign membership behavior plus the Calibration
+AsShot anchor:
 
-  - 6i-c happy path: POST /runs with campaign_id returns 201 and
+  - Campaign happy path: POST /runs with campaign_id returns 201 and
     RunStarted carries the campaign_id on the persisted payload.
-  - 6i-c 404 path: POST /runs with a campaign_id for a Campaign that
+  - Campaign 404 path: POST /runs with a campaign_id for a Campaign that
     does not exist.
-  - 6i-c 409 path: POST /runs with a campaign_id for a Campaign in a
+  - Campaign 409 path: POST /runs with a campaign_id for a Campaign in a
     terminal status (Closed) raises RunCannotJoinCampaignError.
-  - 12b happy path: POST /runs with pinned_calibrations returns 201 and
-    RunStarted carries the sorted-list pinned_calibrations on the
-    persisted payload (no cross-BC validation; eventual-consistency
+  - Calibration happy path: POST /runs with pinned_calibrations returns
+    201 and RunStarted carries the sorted-list pinned_calibrations on
+    the persisted payload (no cross-BC validation; eventual-consistency
     stance).
 
 The full upstream chain (Family + Asset + Method + Practice +
@@ -152,7 +152,7 @@ def test_post_runs_returns_409_when_campaign_terminal() -> None:
     assert "campaign" in response.json()["detail"].lower()
 
 
-# ---------- Phase 12b: Calibration AsShot anchor ----------
+# ---------- Calibration AsShot anchor ----------
 
 
 @pytest.mark.contract
@@ -160,7 +160,7 @@ def test_post_runs_with_pinned_calibrations_returns_201() -> None:
     """POST /runs with pinned_calibrations returns 201 and the persisted
     RunStarted payload carries the sorted list of pins (no cross-BC
     validation of the CalibrationRevision ids — eventual-consistency
-    stance per design memo Phase 12b)."""
+    stance per Calibration design memo)."""
     app = create_app()
     pin_a = uuid4()
     pin_b = uuid4()
@@ -205,10 +205,10 @@ def test_post_runs_defaults_pinned_calibrations_to_empty_list() -> None:
 
 @pytest.mark.contract
 def test_post_runs_does_not_validate_calibration_pin_existence() -> None:
-    """Phase 12b eventual-consistency stance: the write path does NOT
-    look up the CalibrationRevision ids. Any well-formed UUID list
-    is accepted; downstream consumers that need to dereference still
-    go through the Calibration BC."""
+    """Eventual-consistency stance: the write path does NOT look up the
+    CalibrationRevision ids. Any well-formed UUID list is accepted;
+    downstream consumers that need to dereference still go through the
+    Calibration BC."""
     app = create_app()
     with TestClient(app) as client:
         plan_id, subject_id = _setup_chain(client)

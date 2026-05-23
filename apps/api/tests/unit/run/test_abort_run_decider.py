@@ -177,7 +177,7 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
     assert first == second
 
 
-# ---------- Phase 1: Decision→Run linkage ----------
+# ---------- Decision→Run linkage ----------
 
 
 @pytest.mark.unit

@@ -75,8 +75,8 @@ async def test_handler_returns_folded_surface_when_seeded() -> None:
     assert result.name.value == "System HTTP"
     assert result.kind == SurfaceKind.HTTP
     assert result.status == SurfaceStatus.DEFINED
-    # Lifecycle timestamps removed from Surface state per Iter D (Path C
-    # carve-out for singleton aggregate); see surface/state.py docstring.
+    # Lifecycle timestamps removed from Surface state (Path C carve-out
+    # for singleton aggregate); see surface/state.py docstring.
 
 
 @pytest.mark.unit

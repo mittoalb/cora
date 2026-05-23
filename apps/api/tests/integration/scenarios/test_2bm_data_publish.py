@@ -11,7 +11,7 @@ promotes the keepers to Production, then closes the Campaign
 (Active -> Closed). Sourced from `2bm-docs ops/item_025.rst`
 (end-of-beamtime data publish workflow + Globus push to Petrel).
 
-Phase O-6 of the operations-phase canonical-acquisition chain.
+Step O-6 of the operations-phase canonical-acquisition chain.
 Final scenario in the canonical first-acquisition arc.
 
 See [[project_pilot_docs_design]] for the phase / file-naming
@@ -135,7 +135,7 @@ _SUBJECT_ID = UUID("01900000-0000-7000-8000-000000406b11")
 _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000406b21")
 
 _METHOD_TOMO_ID = UUID("01900000-0000-7000-8000-000000406d01")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d3a7")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d3a7")
 _PRACTICE_TOMO_ID = UUID("01900000-0000-7000-8000-000000406d11")
 _PLAN_TOMO_ID = UUID("01900000-0000-7000-8000-000000406d21")
 

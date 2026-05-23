@@ -1,4 +1,4 @@
-"""Unit tests for the `add_plan_wire` slice's pure decider (Phase 6h).
+"""Unit tests for the `add_plan_wire` slice's pure decider.
 
 Validation cascade pinned in order:
   1. PlanNotFoundError on empty state

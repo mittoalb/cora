@@ -44,7 +44,7 @@ from tests._pg import normalize_async_url
 
 os.environ.setdefault("APP_ENV", "test")
 
-# Hypothesis profiles (registered for the testing-techniques rollout, Iter C).
+# Hypothesis profiles for property-based testing.
 # `dev` (default locally): keep the example database on, allow shrinking, default
 #   max_examples — the fast feedback loop a developer wants.
 # `ci`: derandomize the seed so xdist workers don't collide on the example

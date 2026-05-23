@@ -117,7 +117,7 @@ def test_decider_and_evolver_round_trip() -> None:
     )
 
 
-# ---------- PracticeVersioned (Phase 6d-2) ----------
+# ---------- PracticeVersioned ----------
 
 
 @pytest.mark.unit
@@ -171,7 +171,7 @@ def test_evolve_practice_versioned_on_empty_state_raises() -> None:
         )
 
 
-# ---------- PracticeDeprecated (Phase 6d-2) ----------
+# ---------- PracticeDeprecated ----------
 
 
 @pytest.mark.unit

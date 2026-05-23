@@ -65,7 +65,7 @@ async def test_agent_defined_inserts_with_defined_status() -> None:
         "AgentDefined",
         {
             "agent_id": str(_AGENT_ID),
-            "kind": "RunDebrief",
+            "kind": "RunDebriefer",
             "name": "RunDebriefAgent",
             "version": "v1",
             "occurred_at": _NOW.isoformat(),
@@ -82,7 +82,7 @@ async def test_agent_defined_inserts_with_defined_status() -> None:
     assert "ON CONFLICT (agent_id) DO NOTHING" in sql
     assert "'Defined'" in sql
     assert args.args[1] == _AGENT_ID
-    assert args.args[2] == "RunDebrief"
+    assert args.args[2] == "RunDebriefer"
     assert args.args[3] == "RunDebriefAgent"
     assert args.args[4] == "v1"
     assert args.args[5] == _NOW
@@ -174,7 +174,7 @@ async def test_unknown_event_type_falls_through_match() -> None:
 
 @pytest.mark.unit
 async def test_agent_suspended_silently_dropped() -> None:
-    """Iter C-1 scope: Suspended/Resumed events stay on aggregate state
+    """Suspended/Resumed events stay on aggregate state
     (decider-relevant via suspension_reason). The projection's
     subscribed_event_types intentionally excludes them; the bare match
     arm drops them without writing the read model."""

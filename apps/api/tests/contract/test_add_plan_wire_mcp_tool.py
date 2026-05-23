@@ -1,4 +1,4 @@
-"""Contract tests for the `add_plan_wire` and `remove_plan_wire` MCP tools (Phase 6h)."""
+"""Contract tests for the `add_plan_wire` and `remove_plan_wire` MCP tools."""
 
 from uuid import uuid4
 

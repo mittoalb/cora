@@ -42,7 +42,7 @@ def _stored(event_type: str, payload: dict[str, Any]) -> StoredEvent:
 def test_projection_metadata() -> None:
     proj = FamilySummaryProjection()
     assert proj.name == "proj_equipment_family_summary"
-    # Phase 5i: projection subscribes to BOTH new Family* event types and
+
     # legacy Capability* event types (per Marten/Axon dual-match contract).
     # Without the legacy subscription, a replay-from-zero on a deployment
     # with historical data would silently skip pre-5i events.
@@ -155,14 +155,14 @@ async def test_capability_deprecated_updates_status_and_preserves_version_tag() 
     assert args.args[2] == _NOW
 
 
-# ---------- Iter B-3 gate-review fill-ins (Path C) ----------
+# ---------- gate-review fill-ins (Path C) ----------
 
 
 @pytest.mark.unit
 async def test_family_versioned_replayed_overwrites_versioned_at() -> None:
     """Path C: re-version replaces versioned_at wholesale (state-always-
-    holds-latest convention mirrored in projection). Mirrors Iter A on
-    Method."""
+    holds-latest convention mirrored in projection). Mirrors the same
+    treatment on Method."""
     proj = FamilySummaryProjection()
     conn = AsyncMock()
     later = datetime(2026, 6, 1, 9, 30, 0, tzinfo=UTC)
@@ -195,7 +195,7 @@ async def test_family_versioned_replayed_overwrites_versioned_at() -> None:
 
 @pytest.mark.unit
 async def test_legacy_capability_versioned_also_overwrites_versioned_at() -> None:
-    """Phase 5i dual-match anti-hook: legacy CapabilityVersioned events
+    """Dual-match anti-hook: legacy CapabilityVersioned events
     take the same versioned_at code path as the new FamilyVersioned
     events. Re-version under the legacy name still writes the latest
     timestamp."""
@@ -264,7 +264,7 @@ async def test_asset_registered_is_silently_dropped() -> None:
     conn.execute.assert_not_awaited()
 
 
-# ---- Phase 5g-a: settings_schema_present folding -------------------------
+# ---- settings_schema_present folding -------------------------
 
 
 _TEST_SCHEMA = {
@@ -365,7 +365,7 @@ async def test_capability_defined_inserts_with_schema_present_false() -> None:
     assert "FALSE" in sql  # explicit FALSE in INSERT
 
 
-# ---------- Phase 5i dual-match: projection processes legacy Capability* events ----------
+# ---------- dual-match: projection processes legacy Capability* events ----------
 #
 # The FamilySummaryProjection subscribes to BOTH new Family* and legacy
 # Capability* event types per the Marten/Axon dual-match contract.

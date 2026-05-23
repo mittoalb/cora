@@ -16,9 +16,8 @@ A surviving property here would have caught the kind of bug where
 leaving old streams folding to a different state than they had before the
 schema change.
 
-Iter D.1 of the testing-techniques rollout. Pattern lifts verbatim to
-every other BC's event-serialization tests; first home is Access because
-it's the pilot.
+Pattern lifts verbatim to every other BC's event-serialization tests;
+first home is Access because it's the pilot.
 """
 
 from __future__ import annotations

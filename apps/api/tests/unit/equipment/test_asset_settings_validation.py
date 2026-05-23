@@ -1,4 +1,4 @@
-"""Unit tests for the Asset.settings cross-Family validator (Phase 5g-c).
+"""Unit tests for the Asset.settings cross-Family validator.
 
 `validate_settings_against_families`: union schemas + strict /
 permissive mode + true-type-conflict detection.

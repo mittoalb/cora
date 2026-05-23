@@ -2,10 +2,10 @@
 
 Exercises (1) the fold-on-read state path, and (2) the Path C
 projection-sourced lifecycle-timestamps path
-(audit-2026-05-20 Iter B-1). Pre-drain assertion confirms timestamps
+. Pre-drain assertion confirms timestamps
 are None when the projection hasn't caught up; post-drain assertion
 confirms `created_at` populates after `PlanSummaryProjection` folds
-`PlanDefined`. Mirrors `test_get_method_handler_postgres.py` (Iter A).
+`PlanDefined`. Mirrors `test_get_method_handler_postgres.py`.
 """
 
 from datetime import UTC, datetime

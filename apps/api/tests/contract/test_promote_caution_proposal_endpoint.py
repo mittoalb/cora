@@ -1,6 +1,6 @@
 """Contract tests for `POST /agents/caution_drafter/decisions/{id}/promote`.
 
-Phase 8f-c iter 3 follow-up. Drives the route end-to-end through TestClient: seeds a
+Drives the route end-to-end through TestClient: seeds a
 CautionProposal Decision via the app's wired kernel, then
 exercises the promote endpoint. Covers status-code surface:
 201 happy paths (register + supersede dispatch), 404 unknown id,
@@ -71,8 +71,8 @@ async def _seed_caution_proposal_decision(
     """Append a CautionProposal Decision directly via the app's kernel.
 
     The Decision's `actor_id` is `CAUTION_DRAFTER_AGENT_ID` and the
-    CautionDrafter Agent is seeded first, so the Phase A.2
-    provenance gate in `promote_caution_proposal.handler` passes.
+    CautionDrafter Agent is seeded first, so the provenance gate
+    in `promote_caution_proposal.handler` passes.
     """
     deps = app.state.deps
     await seed_caution_drafter_agent(deps)

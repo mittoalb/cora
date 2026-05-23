@@ -1,6 +1,6 @@
 """Unit tests for env-var → `Settings.identity_providers` JSON round-trip.
 
-Gap surfaced at the Iter B-1 gate review (test-coverage #1+#2,
+Gap surfaced at the gate review (test-coverage #1+#2,
 design #12): every existing test constructs Settings programmatically
 with `Settings(identity_providers=[...])`, bypassing the
 pydantic-settings JSON parsing path entirely. This module exercises

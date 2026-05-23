@@ -6,8 +6,8 @@ Active Safety Clearance bound to the Plan asset), start a Run
 against the chain, complete it, then assert the Completed Run
 appears in the projection-backed list endpoint.
 
-Run-start was gated on at least one Active Safety Clearance in
-Phase 11a-c-3 (`RunRequiresActiveClearanceError`); the production
+Run-start is gated on at least one Active Safety Clearance
+(`RunRequiresActiveClearanceError`); the production
 `ClearanceLookup` wired here (not `AlwaysCoveredClearanceLookup`)
 returns only what's actually been registered in the local DB, so
 this test walks the 6-step Clearance lifecycle (Defined -> Submitted
@@ -83,7 +83,6 @@ async def test_full_run_cascade_to_completed(
     cap = await e2e_client.post("/families", json={"name": "FlyMotion", "affordances": []})
     family_id = cap.json()["family_id"]
 
-    # Phase 6l-strict: DefineMethod requires a bound Capability.
     cap_template = await e2e_client.post(
         "/capabilities",
         json={
@@ -144,7 +143,6 @@ async def test_full_run_cascade_to_completed(
     )
     assert mounted.status_code == 204
 
-    # Phase 11a-c-3 safety gate: register + activate a Clearance bound to
     # the Plan asset so the Run-start safety lookup finds an Active
     # clearance covering the Run's scope. The lookup is projection-backed
     # (`proj_safety_clearance_summary`), so drain before starting the Run.

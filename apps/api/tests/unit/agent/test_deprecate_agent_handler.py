@@ -1,4 +1,4 @@
-"""Application-handler tests for the `deprecate_agent` slice (Phase 8f-a)."""
+"""Application-handler tests for the `deprecate_agent` slice."""
 
 from datetime import UTC, datetime
 from uuid import UUID
@@ -46,7 +46,7 @@ def _build_deps(
 async def _seed_defined_agent(store: InMemoryEventStore) -> None:
     genesis = AgentDefined(
         agent_id=_AGENT_ID,
-        kind="RunDebrief",
+        kind="RunDebriefer",
         name="Run Debrief",
         version="v1",
         model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),

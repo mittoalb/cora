@@ -72,7 +72,7 @@ def test_decider_and_evolver_round_trip() -> None:
     assert rebuilt == Family(id=new_id, name=FamilyName("Tomography"), status=FamilyStatus.DEFINED)
 
 
-# ---------- FamilyVersioned (Phase 5f-2) ----------
+# ---------- FamilyVersioned ----------
 
 
 @pytest.mark.unit
@@ -133,7 +133,7 @@ def test_evolve_capability_versioned_on_empty_state_raises() -> None:
         )
 
 
-# ---------- FamilyDeprecated (Phase 5f-2) ----------
+# ---------- FamilyDeprecated ----------
 
 
 @pytest.mark.unit
@@ -240,7 +240,7 @@ def test_fold_define_version_deprecate_preserves_version_through_deprecation() -
     assert state.version == "v2"
 
 
-# ---- Phase 5g-a: settings_schema folding ---------------------------------
+# ---- settings_schema folding ---------------------------------
 
 
 _TEST_SCHEMA = {
@@ -362,7 +362,7 @@ def test_capability_settings_schema_updated_on_empty_state_raises() -> None:
         )
 
 
-# ---------- Phase 5j: affordance folding semantics ----------
+# ---------- affordance folding semantics ----------
 #
 # Gate review P0 (test coverage): the original 5j commit had ZERO
 # tests asserting `state.affordances` for any non-empty value. These
@@ -388,7 +388,7 @@ def test_family_defined_folds_non_empty_affordances() -> None:
 
 @pytest.mark.unit
 def test_family_versioned_replaces_affordances_wholesale() -> None:
-    """Replace-on-version semantics per DLM-A: a new version IS a new
+    """Replace-on-version semantics: a new version IS a new
     declaration. Versioning with `{Homeable}` over a prior `{Rotatable}`
     yields `{Homeable}` only, NOT the merged union."""
     family_id = uuid4()

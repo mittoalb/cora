@@ -1,4 +1,4 @@
-"""Application-handler tests for `re_debrief_run` (Phase 8f-c iter 1).
+"""Application-handler tests for `re_debrief_run`.
 
 Drives the on-demand RunDebrief handler against InMemoryEventStore +
 FakeLLMAdapter. Covers happy path, DebriefDeferred-on-LLM-failure,
@@ -26,7 +26,7 @@ from cora.agent.errors import UnauthorizedError
 from cora.agent.features import re_debrief_run
 from cora.agent.features.re_debrief_run import ReDebriefRun
 from cora.agent.features.re_debrief_run.handler import bind
-from cora.agent.seed import RUN_DEBRIEF_AGENT_ID, RUN_DEBRIEF_AGENT_NAME
+from cora.agent.seed import RUN_DEBRIEFER_AGENT_ID, RUN_DEBRIEFER_AGENT_NAME
 from cora.decision.aggregates.decision import (
     DECISION_CONTEXT_RUN_DEBRIEF,
     ParentDecisionAgentMismatchError,
@@ -54,8 +54,8 @@ _NEW_DECISION_ID = UUID("01900000-0000-7000-8000-00000000fc01")
 
 async def _seed_actor(store: InMemoryEventStore, *, deactivated: bool = False) -> None:
     event = ActorRegistered(
-        actor_id=RUN_DEBRIEF_AGENT_ID,
-        name=RUN_DEBRIEF_AGENT_NAME,
+        actor_id=RUN_DEBRIEFER_AGENT_ID,
+        name=RUN_DEBRIEFER_AGENT_NAME,
         occurred_at=_NOW,
         kind=ActorKind.AGENT,
     )
@@ -71,13 +71,13 @@ async def _seed_actor(store: InMemoryEventStore, *, deactivated: bool = False) -
     )
     await store.append(
         stream_type="Actor",
-        stream_id=RUN_DEBRIEF_AGENT_ID,
+        stream_id=RUN_DEBRIEFER_AGENT_ID,
         expected_version=0,
         events=[new_event],
     )
     if deactivated:
         deactivated_event = ActorDeactivated(
-            actor_id=RUN_DEBRIEF_AGENT_ID,
+            actor_id=RUN_DEBRIEFER_AGENT_ID,
             occurred_at=_NOW,
         )
         deactivated_new = to_new_event(
@@ -92,7 +92,7 @@ async def _seed_actor(store: InMemoryEventStore, *, deactivated: bool = False) -
         )
         await store.append(
             stream_type="Actor",
-            stream_id=RUN_DEBRIEF_AGENT_ID,
+            stream_id=RUN_DEBRIEFER_AGENT_ID,
             expected_version=1,
             events=[deactivated_new],
         )
@@ -184,7 +184,7 @@ async def test_handler_writes_decision_on_success() -> None:
     assert decision is not None
     assert decision.context.value == DECISION_CONTEXT_RUN_DEBRIEF
     assert decision.choice.value == "NominalCompletion"
-    assert decision.actor_id == RUN_DEBRIEF_AGENT_ID
+    assert decision.actor_id == RUN_DEBRIEFER_AGENT_ID
     assert decision.parent_id is None
     # decision_inputs carries the trigger discriminator so projection
     # consumers can distinguish on-demand vs auto-fired Decisions.
@@ -220,7 +220,7 @@ async def test_handler_envelope_principal_id_is_operator_not_agent() -> None:
     events, _ = await store.load("Decision", _NEW_DECISION_ID)
     assert len(events) == 1
     assert events[0].principal_id == _PRINCIPAL_ID
-    assert events[0].principal_id != RUN_DEBRIEF_AGENT_ID
+    assert events[0].principal_id != RUN_DEBRIEFER_AGENT_ID
 
 
 @pytest.mark.unit

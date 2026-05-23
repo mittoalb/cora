@@ -23,7 +23,6 @@ def _define_method(
 ) -> UUID:
     body: dict[str, object] = {
         "name": name,
-        # Phase 6l-strict: capability_id is REQUIRED. Seed a fresh
         # Capability per call so tests stay isolated.
         "capability_id": create_capability_via_api(client),
         "needed_families": needed_families if needed_families is not None else [],
@@ -69,13 +68,13 @@ def test_get_method_returns_empty_needed_families_for_procedural_method() -> Non
     assert body["needed_families"] == []
 
 
-# ---------- Phase 10b: needed_supplies on response ----------
+# ---------- needed_supplies on response ----------
 
 
 @pytest.mark.contract
 def test_get_method_returns_needed_supplies_sorted_lexically() -> None:
-    """Phase 10b. Method.needed_supplies surfaces on the GET response
-    as a sorted list of Supply.kind strings."""
+    """Method.needed_supplies surfaces on the GET response as a
+    sorted list of Supply.kind strings."""
     with TestClient(create_app()) as client:
         method_id = _define_method(
             client,
@@ -154,7 +153,7 @@ def test_get_method_returns_422_for_malformed_method_id() -> None:
     assert response.status_code == 422
 
 
-# ---------- audit-2026-05-20 Iter A: lifecycle timestamps in response ----------
+# ---------- Lifecycle timestamps in response ----------
 
 
 @pytest.mark.contract

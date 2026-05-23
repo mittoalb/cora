@@ -37,10 +37,9 @@ async def _build_seeded_deps(
     capability_id: UUID = _CAPABILITY_ID,
     capability_shapes: frozenset[ExecutorShape] | None = None,
 ) -> tuple[InMemoryEventStore, Kernel]:
-    """Build deps with a seeded Method-shaped Capability so the
-    Phase 6l-strict handler can load it without raising
-    CapabilityNotFoundError. Returns (store, deps) for tests that
-    want both."""
+    """Build deps with a seeded Method-shaped Capability so the handler can
+    load it without raising CapabilityNotFoundError. Returns (store, deps) for
+    tests that want both."""
     store = InMemoryEventStore()
     await seed_capability(
         store, capability_id, shapes=capability_shapes or frozenset({ExecutorShape.METHOD})
@@ -90,10 +89,8 @@ async def test_handler_appends_method_defined_event_to_store() -> None:
         "method_id": str(_NEW_ID),
         "name": "XRF Fly Mapping",
         "needed_families": sorted([str(_CAP1), str(_CAP2)]),
-        # Phase 10b additive: empty list when MethodDefined has no
         # needed_supplies. Pinned by test_method_needed_supplies.py.
         "needed_supplies": [],
-        # Phase 6l-strict: capability_id is REQUIRED on DefineMethod
         # and round-trips through MethodDefined as a UUID string.
         "capability_id": str(_CAPABILITY_ID),
         "occurred_at": _NOW.isoformat(),
@@ -185,13 +182,11 @@ async def test_handler_propagates_invalid_method_name_error() -> None:
 
 @pytest.mark.unit
 async def test_handler_emits_byte_identical_payload_for_same_capability_id() -> None:
-    """Phase 6l-additive determinism pin (gate-review P0; survives
-    into 6l-strict): two DefineMethod calls with the same logical
-    inputs — INCLUDING the new `capability_id` key — must produce
-    byte-identical persisted `MethodDefined.payload` dicts. Required
-    for idempotency-key hashing to stay stable across the additive
-    payload shape change (see `with_idempotency` SHA256 over
-    normalized request body)."""
+    """Determinism pin: two DefineMethod calls with the same logical inputs,
+    including the `capability_id` key, must produce byte-identical persisted
+    `MethodDefined.payload` dicts. Required for idempotency-key hashing to stay
+    stable across additive payload shape changes (see `with_idempotency`
+    SHA256 over normalized request body)."""
     needed_families = frozenset({_CAP1, _CAP2})
 
     # Run 1
@@ -226,10 +221,9 @@ async def test_handler_emits_byte_identical_payload_for_same_capability_id() -> 
 
 @pytest.mark.unit
 async def test_handler_loads_and_validates_bound_capability_when_set() -> None:
-    """Phase 6l-strict happy path through the handler: handler loads
-    the Capability stream via `load_capability`, passes the loaded
-    state to the decider, and the persisted MethodDefined payload
-    carries the bound capability_id."""
+    """Happy path through the handler: handler loads the Capability stream via
+    `load_capability`, passes the loaded state to the decider, and the
+    persisted MethodDefined payload carries the bound capability_id."""
     store, deps = await _build_seeded_deps()
     handler = define_method.bind(deps)
 
@@ -245,10 +239,9 @@ async def test_handler_loads_and_validates_bound_capability_when_set() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_capability_not_found_when_stream_missing() -> None:
-    """Phase 6l-strict: capability_id set on the command but no
-    Capability stream exists for it. load_capability returns None;
-    the decider raises CapabilityNotFoundError (mapped to 404 at the
-    HTTP boundary)."""
+    """capability_id set on the command but no Capability stream exists for
+    it. load_capability returns None; the decider raises
+    CapabilityNotFoundError (mapped to 404 at the HTTP boundary)."""
     bogus = UUID("01900000-0000-7000-8000-deadbeefcafe")
     store = InMemoryEventStore()  # intentionally NO seed for `bogus`
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
@@ -268,10 +261,9 @@ async def test_handler_raises_capability_not_found_when_stream_missing() -> None
 
 @pytest.mark.unit
 async def test_handler_raises_executor_mismatch_when_capability_excludes_method() -> None:
-    """Phase 6l-strict: capability_id binds to a Procedure-only
-    Capability. Handler propagates MethodCapabilityExecutorMismatchError
-    (mapped to 409). Critical: no Method event should be persisted
-    when the cross-BC guard fires."""
+    """capability_id binds to a Procedure-only Capability. Handler propagates
+    MethodCapabilityExecutorMismatchError (mapped to 409). Critical: no Method
+    event should be persisted when the cross-BC guard fires."""
     capability_id = UUID("01900000-0000-7000-8000-00000000c002")
     _, deps = await _build_seeded_deps(
         capability_id=capability_id, capability_shapes=frozenset({ExecutorShape.PROCEDURE})

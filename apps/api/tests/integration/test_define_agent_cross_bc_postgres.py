@@ -47,7 +47,7 @@ async def test_define_agent_writes_both_streams_atomically(
 
     agent_id = await define_agent.bind(deps)(
         DefineAgent(
-            kind="RunDebrief",
+            kind="RunDebriefer",
             name="Run Debrief",
             version="v1",
             model_ref=ModelRef(
@@ -67,7 +67,7 @@ async def test_define_agent_writes_both_streams_atomically(
     agent = await load_agent(deps.event_store, agent_id)
     assert agent is not None
     assert agent.id == agent_id
-    assert agent.kind.value == "RunDebrief"
+    assert agent.kind.value == "RunDebriefer"
     assert agent.status is AgentStatus.DEFINED
     assert agent.model_ref.snapshot_pin == "20251001"
     assert agent.canonical_uri is not None
@@ -97,7 +97,7 @@ async def test_define_agent_shared_xid8_across_streams(
 
     agent_id = await define_agent.bind(deps)(
         DefineAgent(
-            kind="RunDebrief",
+            kind="RunDebriefer",
             name="Run Debrief",
             version="v1",
             model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),

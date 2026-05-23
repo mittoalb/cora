@@ -7,7 +7,7 @@ dispatch, request.state attachment, error propagation) without
 needing real Settings / Kernel / projection worker / DB pool.
 
 The contract-tier tests in
-`apps/api/tests/contract/test_bearer_auth_endpoints.py` (Iter C-7)
+`apps/api/tests/contract/test_bearer_auth_endpoints.py`
 cover the full request -> middleware -> handler -> response cycle
 under real FastAPI app composition.
 """
@@ -146,8 +146,8 @@ def test_unauthenticated_paths_skip_verification_even_with_bearer(path: str) -> 
     prevents the verifier from being called against probes (health /
     metrics) and the unauthenticated OAuth discovery endpoint.
 
-    Phase 8f-d dropped `/mcp/*` from this list; MCP verification is
-    covered by the audience-dispatch tests below.
+    `/mcp/*` is NOT on this list; MCP verification is covered by the
+    audience-dispatch tests below.
     """
     verifier = _FakeTokenVerifier(verify_call=_always_invalid)
     client = _client(verifier=verifier)
@@ -159,12 +159,12 @@ def test_unauthenticated_paths_skip_verification_even_with_bearer(path: str) -> 
     assert verifier.last_call is None
 
 
-# ---------- MCP path audience dispatch (Phase 8f-d) ----------
+# ---------- MCP path audience dispatch ----------
 
 
 @pytest.mark.unit
 def test_mcp_path_is_verified_with_mcp_surface_audience() -> None:
-    """`/mcp/anything` is no longer skipped (Phase 8f-d); the middleware
+    """`/mcp/anything` is no longer skipped; the middleware
     verifies the token against `SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID`,
     NOT the HTTP Surface. AH5 (no shared `aud` across Surfaces): a
     token issued for HTTP MUST NOT verify against the MCP Surface and
@@ -275,8 +275,8 @@ def test_no_authorization_header_passes_through_without_verify() -> None:
     middleware does NOT raise 401; that decision belongs to
     `get_principal_id` (which consults `require_authenticated_principal`).
     Pins the layering: middleware verifies WHEN a bearer is presented;
-    the route layer decides WHETHER a bearer is required. (Phase 8f-d
-    keeps this rule for non-MCP paths; `/mcp/*` gets explicit middleware
+    the route layer decides WHETHER a bearer is required. (The rule
+    holds for non-MCP paths; `/mcp/*` gets explicit middleware
     enforcement -- see below -- because FastMCP has no per-route
     Depends seam.)
     """
@@ -292,7 +292,7 @@ def test_no_authorization_header_passes_through_without_verify() -> None:
 
 @pytest.mark.unit
 def test_mcp_path_without_bearer_returns_401_with_challenge() -> None:
-    """Phase 8f-d: under bearer-auth mode, /mcp paths MUST 401 at the
+    """Under bearer-auth mode, /mcp paths MUST 401 at the
     middleware on a missing Authorization header. FastMCP's framing
     methods (initialize / tools/list / notifications/*) don't reach
     tool-handler code where `get_mcp_principal_id(ctx)` would raise,

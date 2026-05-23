@@ -21,7 +21,7 @@ Agent rollout.
 
 ## Registered subscribers
 
-  - `RunDebriefSubscriber` (8f-b iter 2b) — terminal Run -> one
+  - `RunDebrieferSubscriber` (8f-b iter 2b) — terminal Run -> one
     advisory Decision with AAR narrative + 6-value choice.
   - `CautionDrafterSubscriber` (8f-c iter 3) — terminal Run -> one
     `DecisionRegistered(context="CautionProposal")` with 5-value
@@ -40,7 +40,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from cora.agent.subscribers.caution_drafter import make_caution_drafter_subscriber
-from cora.agent.subscribers.run_debrief import make_run_debrief_subscriber
+from cora.agent.subscribers.run_debriefer import make_run_debriefer_subscriber
 from cora.infrastructure.logging import get_logger
 
 if TYPE_CHECKING:
@@ -55,17 +55,17 @@ def register_agent_subscribers(registry: ProjectionRegistry, deps: Kernel) -> No
     if deps.llm is None:
         _log.warning(
             "agent_subscriber.skipped",
-            subscribers=["run_debrief", "caution_drafter"],
+            subscribers=["run_debriefer", "caution_drafter"],
             reason="kernel.llm is None (ANTHROPIC_API_KEY not configured)",
         )
         return
 
-    run_debrief = make_run_debrief_subscriber(deps)
-    registry.register(run_debrief)
+    run_debriefer = make_run_debriefer_subscriber(deps)
+    registry.register(run_debriefer)
     _log.info(
         "agent_subscriber.registered",
-        subscriber=run_debrief.name,
-        subscribed_event_types=sorted(run_debrief.subscribed_event_types),
+        subscriber=run_debriefer.name,
+        subscribed_event_types=sorted(run_debriefer.subscribed_event_types),
     )
 
     caution_drafter = make_caution_drafter_subscriber(deps)

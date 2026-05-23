@@ -54,7 +54,7 @@ _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 _INTERRUPTED_AT = datetime(2026, 5, 9, 3, 14, 7, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d64c")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d64c")
 
 
 def _build_deps_with_ids(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:

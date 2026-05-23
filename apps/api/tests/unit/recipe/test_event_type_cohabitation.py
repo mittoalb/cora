@@ -2,12 +2,11 @@
 event types coexist in a single event store without their
 `event_type` discriminators tangling.
 
-Watch item from the Phase 6l final-coverage gate review (P1).
-Phase 6k cleanup renamed `CapabilityDefined` -> `RecipeCapabilityDefined`
-to avoid collision with Equipment Family's legacy dual-match arm
-(which still accepts the legacy `"CapabilityDefined"` event type
-for pre-5i streams). This test pins that the three aggregate
-event-type namespaces stay distinct:
+Recipe Capability events were renamed from `CapabilityDefined` to
+`RecipeCapabilityDefined` to avoid collision with Equipment Family's
+legacy dual-match arm (which still accepts the legacy
+`"CapabilityDefined"` event type for older streams). This test pins
+that the three aggregate event-type namespaces stay distinct:
 
   - Equipment Family: `FamilyDefined` (legacy `CapabilityDefined`
     accepted via dual-match in Family.from_stored)
@@ -90,10 +89,10 @@ async def _append(
 @pytest.mark.unit
 async def test_recipe_capability_method_procedure_events_coexist_on_replay() -> None:
     """All four aggregate types' genesis events live in the same store
-    without `from_stored` cross-contamination. Pinned because Phase 6k
-    cleanup explicitly renamed Capability events to RecipeCapability* to
-    avoid this collision; a regression that drops the prefix would
-    route Recipe Capability events into Equipment Family's evolver."""
+    without `from_stored` cross-contamination. Pinned because Capability
+    events are explicitly renamed to RecipeCapability* to avoid this
+    collision; a regression that drops the prefix would route Recipe
+    Capability events into Equipment Family's evolver."""
     store = InMemoryEventStore()
 
     # Recipe Capability

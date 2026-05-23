@@ -1,4 +1,4 @@
-"""Unit tests for the `dismount_subject` slice's pure decider (Phase 4f)."""
+"""Unit tests for the `dismount_subject` slice's pure decider."""
 
 from datetime import UTC, datetime
 from uuid import UUID, uuid4

@@ -1,4 +1,4 @@
-"""Contract tests for `POST /plans/{plan_id}/add_wire` (Phase 6h).
+"""Contract tests for `POST /plans/{plan_id}/add_wire`.
 
 Action endpoint with body `{source_asset_id, source_port_name,
 target_asset_id, target_port_name}`. Strict validation: direction,

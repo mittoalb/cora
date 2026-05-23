@@ -1,4 +1,4 @@
-"""Property-based tests for the Affordance closed StrEnum (Phase 5j).
+"""Property-based tests for the Affordance closed StrEnum.
 
 Complements `test_affordance.py` (which pins specific membership +
 counts) with universal claims over every Affordance member:
@@ -14,7 +14,7 @@ hand-edits the enum file (typo, dup value, accidental string with
 whitespace) and the example-based tests happen not to cover the
 broken member.
 
-First PBT file in the testing-techniques rollout (Iter C).
+First PBT file in the testing-techniques rollout.
 """
 
 import string

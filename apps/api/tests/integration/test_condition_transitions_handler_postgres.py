@@ -1,7 +1,7 @@
 """End-to-end integration test: degrade / fault / restore handlers
 against real Postgres.
 
-Phase 5g-b. Covers the three condition-transition slices in one
+Covers the three condition-transition slices in one
 file (mirror of the relocate test shape, but consolidated since the
 three slices have identical handler shape).
 

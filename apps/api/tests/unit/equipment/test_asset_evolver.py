@@ -189,7 +189,7 @@ def test_decider_and_evolver_round_trip_for_device_with_parent() -> None:
     )
 
 
-# ---------- AssetActivated (Phase 5c) ----------
+# ---------- AssetActivated ----------
 
 
 @pytest.mark.unit
@@ -266,7 +266,7 @@ def test_fold_register_then_activate_yields_active_asset() -> None:
     assert state.lifecycle is AssetLifecycle.ACTIVE
 
 
-# ---------- AssetDecommissioned (Phase 5c) ----------
+# ---------- AssetDecommissioned ----------
 
 
 @pytest.mark.unit
@@ -355,7 +355,7 @@ def test_fold_register_decommission_yields_decommissioned_asset() -> None:
     assert state.lifecycle is AssetLifecycle.DECOMMISSIONED
 
 
-# ---------- AssetRelocated (Phase 5d) ----------
+# ---------- AssetRelocated ----------
 
 
 @pytest.mark.unit
@@ -514,7 +514,7 @@ def test_fold_register_activate_relocate_preserves_active_lifecycle() -> None:
     assert state.lifecycle is AssetLifecycle.ACTIVE
 
 
-# ---------- AssetMaintenanceEntered (Phase 5e) ----------
+# ---------- AssetMaintenanceEntered ----------
 
 
 @pytest.mark.unit
@@ -566,7 +566,7 @@ def test_evolve_asset_maintenance_entered_on_empty_state_raises() -> None:
         evolve(None, AssetMaintenanceEntered(asset_id=uuid4(), occurred_at=_NOW))
 
 
-# ---------- AssetRestoredFromMaintenance (Phase 5e) ----------
+# ---------- AssetRestoredFromMaintenance ----------
 
 
 @pytest.mark.unit
@@ -665,7 +665,7 @@ def test_fold_register_activate_enter_decommission_yields_decommissioned_asset()
     assert state.lifecycle is AssetLifecycle.DECOMMISSIONED
 
 
-# ---------- AssetFamilyAdded / Removed (Phase 5f-1) ----------
+# ---------- AssetFamilyAdded / Removed ----------
 
 
 @pytest.mark.unit
@@ -888,7 +888,7 @@ def test_fold_register_add_remove_yields_empty_capabilities() -> None:
     assert state.families == frozenset()
 
 
-# ---------- Phase 5g-b: condition transitions + preservation ----------
+# ---------- condition transitions + preservation ----------
 
 
 @pytest.mark.unit
@@ -1099,7 +1099,7 @@ def test_fold_register_then_fault_then_restore_round_trip() -> None:
     assert state.condition is AssetCondition.NOMINAL
 
 
-# ---------- Phase 5g-c: settings transitions + preservation ----------
+# ---------- settings transitions + preservation ----------
 
 
 @pytest.mark.unit
@@ -1284,7 +1284,7 @@ def test_evolve_condition_event_preserves_settings() -> None:
     assert state.settings == {"a": 1}
 
 
-# ---------- Phase 5h: ports transitions + preservation ----------
+# ---------- ports transitions + preservation ----------
 
 
 @pytest.mark.unit

@@ -1,7 +1,7 @@
 """Contract tests for `POST /assets/{asset_id}/fault`.
 
-Phase 5g-b. Action endpoint with body `{reason}`. Target-state
-semantics: any condition -> Faulted. No-op when already Faulted.
+Action endpoint with body `{reason}`. Target-state semantics:
+any condition -> Faulted. No-op when already Faulted.
 """
 
 from uuid import uuid4

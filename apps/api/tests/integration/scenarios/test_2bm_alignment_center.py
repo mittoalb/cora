@@ -184,7 +184,7 @@ _ASSET_SCINTILLATOR_LUAG_ID = UUID("01900000-0000-7000-8000-000000035a31")
 
 # Recipe ids
 _METHOD_ID = UUID("01900000-0000-7000-8000-000000035d01")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0eae9")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0eae9")
 _PRACTICE_ID = UUID("01900000-0000-7000-8000-000000035d11")
 _PLAN_ID = UUID("01900000-0000-7000-8000-000000035d21")
 
@@ -208,13 +208,13 @@ _DEVICES = (
 )
 
 
-# ----- Phase 10e-a: Family settings_schemas + per-device settings dicts -----
+# ----- Family settings_schemas + per-device settings dicts -----
 #
 # Family.settings_schema declares the intrinsic-property contract for a
 # device class (positions, encoder resolution, hardware envelope, per-install
 # calibration). Asset.settings carries this specific device's values. Runtime
 # parameters (exposure, energy, rotation step) are NOT here -- they belong on
-# Method.parameters_schema (Phase 10e-b). Per [[project_pilot_settings_schemas]].
+# Method.parameters_schema. Per [[project_pilot_settings_schemas]].
 #
 # Same-unit-per-physical-dimension-per-Family convention: all RotaryStage
 # angle properties in deg; all LinearStage length properties in mm. Different
@@ -518,7 +518,7 @@ async def test_center_alignment_plays_out_end_to_end(
         devices=_DEVICES,
     )
 
-    # ----- Phase 10e-a: declare Family schemas then push per-Asset settings -----
+    # ----- declare Family schemas then push per-Asset settings -----
     #
     # Schemas first (4 calls), then values (4 calls). Both are scenario-local
     # rather than baked into install_aps_unit per the design memo
@@ -839,7 +839,7 @@ async def test_center_alignment_plays_out_end_to_end(
     )
     assert any(item.procedure_id == _PROCEDURE_ID for item in page_by_asset.items)
 
-    # ----- Phase 10e-a: assert Family schemas + Asset settings landed -----
+    # ----- assert Family schemas + Asset settings landed -----
     #
     # Schemas + settings are NOT in proj_equipment_family_summary or
     # proj_equipment_asset_summary by design (5g-a / 5g-c locks: no list-by-

@@ -1,12 +1,10 @@
-"""Property-based tests for the VerifiedPrincipal value object (Phase C).
+"""Property-based tests for the VerifiedPrincipal value object.
 
 VerifiedPrincipal is what TokenVerifier.verify() returns on success;
 it's the payload BearerAuthMiddleware stashes on request.state. The
 properties pin its dataclass semantics — equality, hash, immutability
 of the frozenset scopes — against accidental regression if the shape
 ever shifts (e.g. someone makes scopes a list and breaks dedup).
-
-Iter C of the testing-techniques rollout.
 """
 
 from uuid import UUID

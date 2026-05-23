@@ -209,7 +209,7 @@ async def test_asset_capability_added_is_silently_dropped() -> None:
     conn.execute.assert_not_awaited()
 
 
-# ---------- Phase 5g-b: condition transitions ----------
+# ---------- condition transitions ----------
 
 
 @pytest.mark.unit

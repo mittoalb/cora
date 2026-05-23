@@ -1,6 +1,6 @@
 """Application-handler tests for `remove_run_from_campaign` slice.
 
-Pre-load both streams, decide, write both atomically. Phase 6i-c.
+Pre-load both streams, decide, write both atomically.
 """
 
 from datetime import UTC, datetime

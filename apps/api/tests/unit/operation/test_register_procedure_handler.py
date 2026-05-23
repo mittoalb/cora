@@ -100,7 +100,6 @@ async def test_handler_appends_procedure_registered_event_to_store() -> None:
         "kind": "alignment",
         "target_asset_ids": [str(_ASSET_ID)],
         "parent_run_id": None,
-        # Phase 10d-additive: None when RegisterProcedure omits capability_id.
         "capability_id": None,
         "occurred_at": _NOW.isoformat(),
     }
@@ -220,17 +219,16 @@ async def test_wired_handler_propagates_causation_id_through_full_composition() 
     assert events[0].causation_id == causation
 
 
-# ---------- Phase 10d cross-BC capability tests ----------
+# ---------- cross-BC capability tests ----------
 
 
 @pytest.mark.unit
 async def test_handler_emits_byte_identical_payload_for_same_capability_id() -> None:
-    """Phase 10d-additive determinism pin (gate-review P1): two
-    RegisterProcedure calls with the same logical inputs — including
-    a non-None `capability_id` — must produce byte-identical persisted
-    `ProcedureRegistered.payload` dicts. Mirrors the 6l-additive
-    sibling pin at test_define_method_handler.py; keeps idempotency-
-    key SHA256 hashing stable across the additive payload shape change."""
+    """Determinism pin: two RegisterProcedure calls with the same logical
+    inputs, including a non-None `capability_id`, must produce byte-identical
+    persisted `ProcedureRegistered.payload` dicts. Mirrors the sibling pin at
+    test_define_method_handler.py; keeps idempotency-key SHA256 hashing stable
+    across additive payload shape changes."""
     capability_id = UUID("01900000-0000-7000-8000-0000000c00de")
 
     # Run 1
@@ -271,10 +269,10 @@ async def test_handler_emits_byte_identical_payload_for_same_capability_id() -> 
 
 @pytest.mark.unit
 async def test_handler_loads_and_validates_bound_capability_when_set() -> None:
-    """Phase 10d-additive happy path: when RegisterProcedure.capability_id
-    is set, the handler loads the Capability stream via
-    `load_capability`, passes the loaded state to the decider, and the
-    persisted ProcedureRegistered payload carries the bound capability_id."""
+    """Happy path: when RegisterProcedure.capability_id is set, the handler
+    loads the Capability stream via `load_capability`, passes the loaded state
+    to the decider, and the persisted ProcedureRegistered payload carries the
+    bound capability_id."""
     capability_id = UUID("01900000-0000-7000-8000-0000000c00d1")
     store = InMemoryEventStore()
     await _seed_capability(store, capability_id)
@@ -293,9 +291,9 @@ async def test_handler_loads_and_validates_bound_capability_when_set() -> None:
 
 @pytest.mark.unit
 async def test_handler_raises_capability_not_found_when_stream_missing() -> None:
-    """Phase 10d-additive: capability_id set on the command but no
-    Capability stream exists for it. Decider raises
-    `CapabilityNotFoundError` (mapped to 404 via operation routes)."""
+    """capability_id set on the command but no Capability stream exists for it.
+    Decider raises `CapabilityNotFoundError` (mapped to 404 via operation
+    routes)."""
     bogus = UUID("01900000-0000-7000-8000-deadbeefcafe")
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
@@ -315,10 +313,9 @@ async def test_handler_raises_capability_not_found_when_stream_missing() -> None
 
 @pytest.mark.unit
 async def test_handler_raises_executor_mismatch_when_capability_excludes_procedure() -> None:
-    """Phase 10d-additive: capability_id binds to a Method-only
-    Capability. Handler propagates ProcedureCapabilityExecutorMismatchError
-    (mapped to 409). Critical: no Procedure event should be persisted
-    when the cross-BC guard fires."""
+    """capability_id binds to a Method-only Capability. Handler propagates
+    ProcedureCapabilityExecutorMismatchError (mapped to 409). Critical: no
+    Procedure event should be persisted when the cross-BC guard fires."""
     capability_id = UUID("01900000-0000-7000-8000-0000000c00d2")
     store = InMemoryEventStore()
     await _seed_capability(store, capability_id, shapes=frozenset({ExecutorShape.METHOD}))
@@ -340,11 +337,10 @@ async def test_handler_raises_executor_mismatch_when_capability_excludes_procedu
 
 @pytest.mark.unit
 async def test_handler_skips_capability_load_when_command_omits_capability_id() -> None:
-    """Phase 10d-additive: when capability_id is None on the command,
-    the handler does NOT call load_capability — pre-10d Procedures +
-    ceremony Procedures with no template binding stay cost-free.
-    Pinned via a sentinel event store that raises if Capability is
-    loaded."""
+    """When capability_id is None on the command, the handler does NOT call
+    load_capability, so Procedures with no template binding (including
+    ceremony Procedures) stay cost-free. Pinned via a sentinel event store
+    that raises if Capability is loaded."""
 
     class _CapabilityLoadGuard(InMemoryEventStore):
         async def load(self, stream_type: str, stream_id: UUID):  # type: ignore[override]

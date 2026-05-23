@@ -1,4 +1,4 @@
-"""Contract tests for the `get_agent` MCP tool (Phase 8f-a)."""
+"""Contract tests for the `get_agent` MCP tool."""
 
 from uuid import uuid4
 
@@ -11,7 +11,7 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 def _define_args() -> dict[str, object]:
     return {
-        "kind": "RunDebrief",
+        "kind": "RunDebriefer",
         "name": "Run Debrief",
         "version": "v1",
         "model_ref": {
@@ -67,7 +67,7 @@ def test_mcp_get_agent_returns_structured_agent_on_hit() -> None:
     assert result["isError"] is False, result
     sc = result["structuredContent"]
     assert sc["id"] == agent_id
-    assert sc["kind"] == "RunDebrief"
+    assert sc["kind"] == "RunDebriefer"
     assert sc["status"] == "Defined"
 
 

@@ -109,7 +109,7 @@ async def seed_capability_pg(
 ) -> None:
     """Seed a Capability stream against a Postgres event store.
 
-    Phase 6l-strict bulk-migration helper: mirrors `tests.unit._helpers.seed_capability`
+    Mirrors `tests.unit._helpers.seed_capability`
     but threads the Postgres event store explicitly. Used by integration
     tests that call `DefineMethod(...)` or `RegisterProcedure(...)` —
     the bound Capability stream must exist before the handler runs

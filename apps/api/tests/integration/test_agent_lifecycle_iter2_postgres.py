@@ -1,12 +1,12 @@
-"""End-to-end PG integration test: Phase 8f-c iter 2 lifecycle slices.
+"""End-to-end PG integration test: Agent lifecycle slices.
 
 Exercises the new transition slices against real Postgres to verify:
 
   1. Suspend / Resume FSM cycle persists and re-loads correctly.
   2. Tool grants / revocations persist in `Agent.tools`.
   3. AgentBudgetRevised persists the budget; clearing zeroes the field.
-  4. Deprecation source set really does include `Suspended` (the only
-     iter-2 widened transition).
+  4. Deprecation source set really does include `Suspended` (the
+     widened transition).
 
 Per the project test-infra convention, this is a single Postgres-backed
 file that consolidates iter 2's PG-side coverage. The unit / contract
@@ -59,7 +59,7 @@ async def _define_and_version(deps) -> UUID:  # type: ignore[no-untyped-def]
     """Common setup: define + version an Agent, return its id."""
     agent_id = await define_agent.bind(deps)(
         DefineAgent(
-            kind="RunDebrief",
+            kind="RunDebriefer",
             name="Run Debrief",
             version="v1",
             model_ref=ModelRef(provider="anthropic", model="claude-sonnet-4-6"),

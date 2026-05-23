@@ -8,7 +8,7 @@ JWT/Introspection/Registry tests; here we focus on:
   - introspection-only IdP → 1 IntrospectionVerifier
   - both-paths IdP → 1 JWTVerifier + 1 IntrospectionVerifier
   - multi-JWT-IdP → registry routes by issuer
-  - multi-introspection-IdP → ValueError (Iter B-1 narrow contract)
+  - multi-introspection-IdP → ValueError
 """
 
 from uuid import UUID
@@ -104,7 +104,7 @@ def test_multiple_jwt_idps_allowed() -> None:
 
 @pytest.mark.unit
 def test_multiple_introspection_idps_rejected() -> None:
-    """Iter B-1 narrow contract: only one introspection IdP per
+    """Narrow contract: only one introspection IdP per
     deployment (the registry's opaque-token routing can't disambiguate)."""
     with pytest.raises(ValueError, match=r"more than one.*introspection_url"):
         build_idp_registry(

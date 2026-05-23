@@ -1,6 +1,6 @@
 """End-to-end integration test: update_method_parameters_schema against real Postgres.
 
-Phase 6g-a. Round-trips the new event + projection column:
+Round-trips the event + projection column:
   - Define method
   - Update parameters_schema
   - Load via fold-on-read returns the schema
@@ -8,7 +8,7 @@ Phase 6g-a. Round-trips the new event + projection column:
   - Clear the schema (None payload)
   - Projection flips back to FALSE
 
-Mirrors `test_update_family_settings_schema_handler_postgres.py` (5g-a).
+Mirrors `test_update_family_settings_schema_handler_postgres.py`.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -34,7 +34,7 @@ from tests.integration._helpers import build_postgres_deps, seed_capability_pg
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d574")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d574")
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
 
 

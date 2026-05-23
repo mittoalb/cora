@@ -1,4 +1,4 @@
-"""Contract tests for `POST /decisions/{decision_id}/ratings` (Phase 8f-b iter 1)."""
+"""Contract tests for `POST /decisions/{decision_id}/ratings`."""
 
 from uuid import uuid4
 

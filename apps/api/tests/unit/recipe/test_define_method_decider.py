@@ -32,7 +32,7 @@ def _capability(
     shapes: frozenset[ExecutorShape] = frozenset({ExecutorShape.METHOD}),
     capability_id: UUID | None = None,
 ) -> Capability:
-    """Build a Capability fixture for the Phase 6l-strict cross-BC tests."""
+    """Build a Capability fixture for the cross-BC tests."""
     return Capability(
         id=capability_id or uuid4(),
         code=CapabilityCode("cora.capability.x"),
@@ -176,10 +176,9 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
 
 @pytest.mark.unit
 def test_decide_raises_capability_not_found_when_stream_missing() -> None:
-    """Phase 6l-strict: command supplied capability_id but the handler
-    couldn't load a Capability stream for it (capability=None). Maps
-    to 404 via routes.py registration. Mirrors the precedent on
-    AssetParentNotFoundError (5b)."""
+    """Command supplied capability_id but the handler couldn't load a
+    Capability stream for it (capability=None). Maps to 404 via routes.py
+    registration. Mirrors the precedent on AssetParentNotFoundError."""
     bogus = UUID("01900000-0000-7000-8000-deadbeefcafe")
     with pytest.raises(CapabilityNotFoundError) as exc_info:
         define_method.decide(
@@ -194,11 +193,10 @@ def test_decide_raises_capability_not_found_when_stream_missing() -> None:
 
 @pytest.mark.unit
 def test_decide_raises_executor_mismatch_when_capability_excludes_method() -> None:
-    """Phase 6l-strict: bound Capability exists but its
-    `executor_shapes` set does NOT contain ExecutorShape.METHOD
-    (for example, a procedure-only Capability). Maps to 409 via
-    routes.py registration. Pinned because the asymmetry is the
-    whole point of the Method-vs-Procedure split (6m folded into 6k)."""
+    """Bound Capability exists but its `executor_shapes` set does NOT contain
+    ExecutorShape.METHOD (for example, a procedure-only Capability). Maps to
+    409 via routes.py registration. Pinned because the asymmetry is the whole
+    point of the Method-vs-Procedure split."""
     cap = _capability(shapes=frozenset({ExecutorShape.PROCEDURE}))
     new_id = uuid4()
     with pytest.raises(MethodCapabilityExecutorMismatchError) as exc_info:
@@ -215,10 +213,9 @@ def test_decide_raises_executor_mismatch_when_capability_excludes_method() -> No
 
 @pytest.mark.unit
 def test_decide_accepts_method_shaped_capability_and_propagates_id() -> None:
-    """Phase 6l-strict happy path: capability_id is set, the bound
-    Capability declares METHOD in its executor_shapes, and the
-    decided event carries the bound capability_id (so projections /
-    Plan binding can read it back)."""
+    """Happy path: capability_id is set, the bound Capability declares METHOD
+    in its executor_shapes, and the decided event carries the bound
+    capability_id (so projections / Plan binding can read it back)."""
     cap = _capability(shapes=frozenset({ExecutorShape.METHOD, ExecutorShape.PROCEDURE}))
     events = define_method.decide(
         state=None,

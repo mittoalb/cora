@@ -1,4 +1,4 @@
-"""Unit tests for the `update_asset_settings` slice's pure decider (Phase 5g-c).
+"""Unit tests for the `update_asset_settings` slice's pure decider.
 
 The decider:
   - Raises AssetNotFoundError on empty state

@@ -1,4 +1,4 @@
-"""Unit tests for the LogbookMirror Protocol (Phase 8f-b iter 2a).
+"""Unit tests for the LogbookMirror Protocol.
 
 8f-b ships no production implementor. These tests pin the
 Protocol shape and verify that a minimal in-test implementor

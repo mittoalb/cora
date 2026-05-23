@@ -1,4 +1,4 @@
-"""Integration tests for `PostgresIdempotencyStore` against real Postgres (Phase 9a).
+"""Integration tests for `PostgresIdempotencyStore` against real Postgres.
 
 Pins the new claim/finalize/prune surface end-to-end:
   - claim returns Claimed for a fresh key
@@ -8,7 +8,7 @@ Pins the new claim/finalize/prune surface end-to-end:
   - claim returns Claimed on stale-lock takeover
   - claim returns HashConflict for same key + different command_hash
   - prune deletes only completed rows older than the TTL window
-  - keys are namespaced per-principal AND per-surface (Phase B Iter C-2c)
+  - keys are namespaced per-principal AND per-surface
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -143,8 +143,8 @@ async def test_keys_namespaced_by_principal(db_pool: asyncpg.Pool) -> None:
 @pytest.mark.integration
 async def test_keys_namespaced_by_surface(db_pool: asyncpg.Pool) -> None:
     """Same (principal, key, command_hash) but DIFFERENT surface yields
-    independent cache slots. Each Surface's policy authorizes independently
-    (Phase B Iter C-2c — IETF Idempotency-Key §5 server-side composite)."""
+     independent cache slots. Each Surface's policy authorizes independently
+    ."""
     store = PostgresIdempotencyStore(db_pool)
     principal = uuid4()
     surf_http = UUID("00000000-0000-0000-0000-000000000020")

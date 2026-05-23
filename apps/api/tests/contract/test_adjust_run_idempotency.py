@@ -1,5 +1,5 @@
 """Contract tests for `Idempotency-Key` support on `POST /runs/{run_id}/adjust`
-(Phase 6j).
+.
 
 Same cross-BC `with_idempotency` decorator as other idempotency-wrapped
 slices. Idempotency-wrap on the adjust path is the operator-retry

@@ -135,14 +135,14 @@ async def test_practice_deprecated_does_not_touch_method_or_site() -> None:
     assert args.args[2] == _NOW
 
 
-# ---------- Iter B gate-review fill-ins (Path C) ----------
+# ---------- gate-review fill-ins (Path C) ----------
 
 
 @pytest.mark.unit
 async def test_practice_versioned_replayed_overwrites_versioned_at() -> None:
     """Path C: re-version replaces versioned_at wholesale (state-always-
-    holds-latest convention mirrored in projection). Mirrors Iter A on
-    Method."""
+    holds-latest convention mirrored in projection). Mirrors the equivalent
+    test on Method."""
     proj = PracticeSummaryProjection()
     conn = AsyncMock()
     later = datetime(2026, 6, 1, 9, 30, 0, tzinfo=UTC)

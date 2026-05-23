@@ -245,7 +245,7 @@ async def test_list_returns_only_active_by_default(db_pool: asyncpg.Pool) -> Non
     await _drain(db_pool)
 
     list_deps = _build_deps(db_pool, [])
-    # Phase 2 cleanup: the 'Active default' lives at the route + MCP-tool
+
     # boundary now, not in the handler. To exercise the canonical shape
     # this test pins the same operator-facing behavior by passing
     # statuses=['Active'] explicitly.
@@ -267,7 +267,7 @@ async def test_list_returns_only_active_by_default(db_pool: asyncpg.Pool) -> Non
 async def test_list_status_all_returns_every_caution_row(db_pool: asyncpg.Pool) -> None:
     """Passing `statuses=None` (the canonical 'no status filter') returns
     every row. Route-layer translates user-facing `?status=all` to this
-    None per the Phase 2 cleanup."""
+    None per the cleanup convention."""
     asset_id = uuid4()
     active_id = uuid4()
     retired_id = uuid4()
@@ -363,7 +363,7 @@ async def test_list_filters_by_target_kind_and_target_id(db_pool: asyncpg.Pool) 
 async def test_list_filters_by_category_severity_min_severity_author_and_tag(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Per-column filters all narrow correctly. Phase 2 cleanup: the route's
+    """Per-column filters all narrow correctly. Route convention: the
     `min_severity` UX ladder expands to the canonical `severities` list
     BEFORE reaching the handler; this test pins the post-expansion shape
     (severities=['Caution', 'Warning'] is what the route emits when the

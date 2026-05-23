@@ -1,6 +1,6 @@
-"""Contract tests for `GET /assets/{asset_id}/integration-view` (Phase 1B).
+"""Contract tests for `GET /assets/{asset_id}/integration-view`.
 
-Read-time composition slice (Phase 1B v1 of the MTP-style bundle).
+Read-time composition slice.
 See [[project-asset-integration-view-design]] for the locked shape.
 
 In TestClient mode the test-environment Kernel has no DB pool, so

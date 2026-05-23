@@ -108,7 +108,7 @@ def test_plan_status_can_be_constructed_from_string_value() -> None:
         assert PlanStatus(status.value) == status
 
 
-# ---------- Transition error classes (Phase 6e-2) ----------
+# ---------- Transition error classes ----------
 
 
 @pytest.mark.unit

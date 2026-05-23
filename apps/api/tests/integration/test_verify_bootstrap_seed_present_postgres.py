@@ -1,6 +1,6 @@
 """Integration tests for `verify_bootstrap_seed_present`.
 
-Covers the three branches added in Phase B Iter C-1:
+Covers the three branches:
   1. trust_policy_id == V2 → load V2 policy + all 3 Surfaces; assert
      V2 binds to HTTP Surface (GR3 BC-7 binding check).
   2. trust_policy_id == V1 → load V1 policy + log deprecation WARN.
@@ -50,7 +50,7 @@ async def test_verify_passes_when_v2_policy_and_surfaces_all_seeded(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Happy path: V2 + 3 Surfaces present (the test DB template has
-    them via the Phase B seed migration)."""
+    them via the bootstrap seed migration)."""
     deps = _deps_with_trust_policy_id(db_pool, SYSTEM_BOOTSTRAP_POLICY_V2_ID)
     await verify_bootstrap_seed_present(deps)  # no exception
 

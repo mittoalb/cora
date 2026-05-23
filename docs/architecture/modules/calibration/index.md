@@ -84,7 +84,7 @@ N/A. The Calibration aggregate has no load-bearing lifecycle FSM. Revisions accu
 `ListCalibrations`
 : (boundary 422 or `Unauthorized` only)
 
-`DefineCalibration` and `AppendRevision` are wrapped by the `Idempotency-Key` header pattern. The append path treats idempotency as load-bearing for agent-subscriber callers (a CautionDrafter or RunDebrief subscriber that retries after a network blip must not produce a duplicate revision).
+`DefineCalibration` and `AppendRevision` are wrapped by the `Idempotency-Key` header pattern. The append path treats idempotency as load-bearing for agent-subscriber callers (a CautionDrafter or RunDebriefer subscriber that retries after a network blip must not produce a duplicate revision).
 
 ## Storage & Projections
 

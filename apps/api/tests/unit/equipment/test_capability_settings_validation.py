@@ -1,6 +1,6 @@
 """Unit tests for the Family settings_schema validator.
 
-Phase 5g-a. Pins the constrained JSON Schema subset CORA accepts:
+Pins the constrained JSON Schema subset CORA accepts:
 $schema, type, required, properties, enum, minimum, maximum,
 pattern. Every other JSON Schema keyword (including $ref, oneOf,
 anyOf, allOf, conditionals, additionalProperties) is rejected.

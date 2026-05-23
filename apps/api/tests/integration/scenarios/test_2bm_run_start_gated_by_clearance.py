@@ -15,7 +15,7 @@ Phase operations.
 
 See [[project_pilot_docs_design]] for the phase / file-naming
 taxonomy. See [[project_safety_clearance_design]] for the gate
-design lock (Phase 11a-c-3).
+design lock.
 
 ## Why this scenario exists
 
@@ -187,7 +187,7 @@ _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000441b21")
 # `install_aps_unit` (canonical fixture-owned UUID).
 _CLEARANCE_ID = UUID("01900000-0000-7000-8000-000000441f01")
 _METHOD_ID = UUID("01900000-0000-7000-8000-000000441d01")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d39f")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d39f")
 _PRACTICE_ID = UUID("01900000-0000-7000-8000-000000441d11")
 _PLAN_ID = UUID("01900000-0000-7000-8000-000000441d21")
 _RUN_ID = UUID("01900000-0000-7000-8000-000000441f02")

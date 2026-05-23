@@ -1,4 +1,4 @@
-"""Unit tests for the `promote_dataset` slice's pure decider (Phase 7e).
+"""Unit tests for the `promote_dataset` slice's pure decider.
 
 Validation cascade pinned in order (fail-fast):
   1. DatasetNotFoundError on empty state

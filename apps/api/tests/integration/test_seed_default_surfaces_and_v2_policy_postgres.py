@@ -1,4 +1,4 @@
-"""Integration tests for the Phase B Iter C seed migration.
+"""Integration tests for the default-surfaces seed migration.
 
 Covers `20260519200000_seed_default_surfaces_and_v2_policy.sql`:
 seeds 3 default Surfaces (HTTP, MCP stdio, MCP streamable-http) +

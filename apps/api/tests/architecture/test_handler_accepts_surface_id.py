@@ -1,11 +1,10 @@
 """Every command/query handler Protocol MUST accept a `surface_id` kwarg.
 
-Phase B Iter C-2c enforcement. The Iter C-2b sweep added `surface_id`
-to every BC's handler Protocol and routed it through to `authorize()`.
-This test pins that invariant against future drift: a new slice landing
-without `surface_id` would silently degrade to the V1-wildcard nil
-sentinel, bypassing whichever V2 per-surface policy was meant to gate
-the call once V2 policies are seeded.
+Every BC's handler Protocol accepts `surface_id` and routes it through
+to `authorize()`. This test pins that invariant against future drift:
+a new slice landing without `surface_id` would silently degrade to
+the V1-wildcard nil sentinel, bypassing whichever V2 per-surface
+policy was meant to gate the call once V2 policies are seeded.
 
 The shape mirrors `test_envelope_principal_id.py`: parametrize over
 every git-tracked `features/<slice>/handler.py` (plus BC-root update
@@ -153,8 +152,8 @@ def test_handler_protocol_accepts_surface_id(handler_file: Path) -> None:
 
     assert not offenders, (
         f"{qualified}: Handler Protocol(s) missing `surface_id` kwarg: "
-        f"{', '.join(offenders)}. Phase B Iter C-2b widened every handler "
-        f"Protocol to accept `surface_id: UUID` (defaults to the nil "
+        f"{', '.join(offenders)}. Every handler Protocol must accept "
+        f"`surface_id: UUID` (defaults to the nil "
         f"sentinel for V1 compatibility). Any new slice must follow the "
         f"same shape so V2 per-surface policies (forthcoming) gate the "
         f"call site correctly."

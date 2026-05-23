@@ -1,4 +1,4 @@
-"""Unit tests for the `adjust_run` slice's pure decider (Phase 6j).
+"""Unit tests for the `adjust_run` slice's pure decider.
 
 Mid-flight parameter steering for in-progress Runs (Running | Held).
 The decider validates source-state, patch shape, merged-result-against-

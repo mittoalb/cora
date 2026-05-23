@@ -80,7 +80,7 @@ def test_decider_and_evolver_round_trip() -> None:
     )
 
 
-# ---------- SubjectMounted (Phase 4b) ----------
+# ---------- SubjectMounted ----------
 
 
 @pytest.mark.unit
@@ -147,7 +147,7 @@ def test_fold_register_then_mount_yields_mounted_subject() -> None:
     )
 
 
-# ---------- SubjectMeasured (Phase 4c) ----------
+# ---------- SubjectMeasured ----------
 
 
 @pytest.mark.unit
@@ -199,7 +199,7 @@ def test_fold_register_mount_measure_yields_measured_subject() -> None:
     )
 
 
-# ---------- SubjectRemoved (Phase 4c) ----------
+# ---------- SubjectRemoved ----------
 
 
 @pytest.mark.unit
@@ -281,7 +281,7 @@ def test_fold_register_mount_measure_remove_yields_removed_subject() -> None:
     )
 
 
-# ---------- Terminal disposition events (Phase 4d) ----------
+# ---------- Terminal disposition events ----------
 
 
 @pytest.mark.unit
@@ -411,7 +411,7 @@ def test_fold_full_lifecycle_to_discarded() -> None:
     )
 
 
-# ---------- Phase 4f: SubjectDismounted ----------
+# ---------- SubjectDismounted ----------
 
 
 @pytest.mark.unit

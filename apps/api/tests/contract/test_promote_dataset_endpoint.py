@@ -1,4 +1,4 @@
-"""Contract tests for `POST /datasets/{dataset_id}/promote` (Phase 7e).
+"""Contract tests for `POST /datasets/{dataset_id}/promote`.
 
 Promotes a Dataset from Trial intent to Production intent. Body
 carries `reason` (1-500 chars). Strict guards: cannot promote

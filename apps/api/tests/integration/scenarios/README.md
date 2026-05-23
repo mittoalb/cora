@@ -43,7 +43,7 @@ Locked 2026-05-17 (see [`project_scenario_taxonomy`](../../../../../../.claude/p
 | `Runs` | Acquisition variants + lifecycle edges | HIGH |
 | `Advisories` | Agent-driven subscriber output | Moderate |
 
-Growth axes: `Seed` widens per-deployment / per-agent-kind / per-supply-kind. `Commissioning` and `Runs` are open-ended per beamline + modality / per scan mode. `Advisories` widens per agent (RunDebrief + CautionDrafter + future).
+Growth axes: `Seed` widens per-deployment / per-agent-kind / per-supply-kind. `Commissioning` and `Runs` are open-ended per beamline + modality / per scan mode. `Advisories` widens per agent (RunDebriefer + CautionDrafter + future).
 
 Split trigger: when a cluster crosses 15 scenarios, split via its pre-organized H2 sections.
 

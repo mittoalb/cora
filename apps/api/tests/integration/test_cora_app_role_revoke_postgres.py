@@ -1,6 +1,6 @@
 """Integration test: cora_app role cannot UPDATE / DELETE append-only tables.
 
-Phase 8d foundation hardening. The migration
+Foundation hardening. The migration
 `20260512230000_init_role_cora_app.sql` creates a `cora_app` database
 role and grants SELECT + INSERT only on `events` and every `entries_*`
 table, plus a belt-and-suspenders REVOKE on UPDATE / DELETE / TRUNCATE.

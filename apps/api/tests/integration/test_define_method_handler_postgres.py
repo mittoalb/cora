@@ -5,7 +5,7 @@ list of UUID strings. The frozenset[UUID] domain shape converts
 to list[UUID] at the events layer (see PolicyDefined precedent in
 Trust 3c).
 
-Phase 6l-strict: DefineMethod.capability_id is REQUIRED; every
+DefineMethod.capability_id is REQUIRED; every
 test seeds a Capability stream via `seed_capability_pg` before
 invoking the handler.
 """
@@ -63,10 +63,8 @@ async def test_define_method_persists_event_to_postgres_with_capabilities(
         "name": "XRF Fly Mapping",
         # Sorted by UUID string form (deterministic).
         "needed_families": sorted([str(cap1), str(cap2)]),
-        # Phase 10b additive: empty list when MethodDefined has no
         # needed_supplies. Pinned by tests/unit/recipe/test_method_needed_supplies.py.
         "needed_supplies": [],
-        # Phase 6l-strict: capability_id is REQUIRED on DefineMethod;
         # MethodDefined.payload carries it as a UUID string.
         "capability_id": str(capability_id),
         "occurred_at": _NOW.isoformat(),
@@ -109,7 +107,7 @@ async def test_define_method_persists_procedural_method_with_empty_capabilities(
 async def test_define_method_persists_bound_capability_id_to_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Phase 6l-strict PG round-trip: capability_id is REQUIRED. The
+    """PG round-trip: capability_id is REQUIRED. The
     handler loads the bound Capability from PG, validates
     `ExecutorShape.METHOD` is declared, and persists the resolved
     capability_id into the MethodDefined payload as a UUID string.

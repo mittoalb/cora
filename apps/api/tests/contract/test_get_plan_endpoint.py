@@ -61,7 +61,7 @@ def test_get_plan_returns_200_with_defined_status_for_new_plan() -> None:
         "status": "Defined",
         # Null until version_plan runs (6e-2).
         "version": None,
-        # Path C Iter B-1: lifecycle timestamps surface from the
+        # Path C: lifecycle timestamps surface from the
         # projection. Under the in-memory contract harness no
         # projection runs, so all three are null. The postgres
         # integration suite pins the populated path.
@@ -130,12 +130,12 @@ def test_get_plan_returns_422_for_malformed_plan_id() -> None:
     assert response.status_code == 422
 
 
-# ---------- audit-2026-05-20 Iter B-1: lifecycle timestamps in response ----------
+# ---------- Lifecycle timestamps in response ----------
 
 
 @pytest.mark.contract
 def test_get_plan_response_includes_lifecycle_timestamp_fields() -> None:
-    """Path C Iter B-1: response surfaces `created_at` / `versioned_at` /
+    """Path C: response surfaces `created_at` / `versioned_at` /
     `deprecated_at` keys regardless of whether the projection has
     folded yet. Under the in-memory contract harness the values are
     null because no projection runs; the postgres integration suite

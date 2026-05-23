@@ -110,7 +110,7 @@ def test_fold_single_register_event_returns_dataset() -> None:
     assert state.status is DatasetStatus.REGISTERED
 
 
-# ---------- Phase 7e: intent + producing_run_end_state on DatasetRegistered ----------
+# ---------- intent + producing_run_end_state on DatasetRegistered ----------
 
 
 @pytest.mark.unit
@@ -158,7 +158,7 @@ def test_evolve_registered_captures_producing_run_end_state_when_provided() -> N
     assert state.producing_run_end_state == "Completed"
 
 
-# ---------- Phase 7e: DatasetPromoted arm ----------
+# ---------- DatasetPromoted arm ----------
 
 
 def _registered_event() -> DatasetRegistered:
@@ -291,7 +291,7 @@ def test_evolve_demoted_raises_on_empty_state() -> None:
 
 @pytest.mark.unit
 def test_demote_preserves_used_calibrations_asshot_invariant() -> None:
-    """Phase 12c AsShot invariant: DatasetDemoted preserves
+    """AsShot invariant: DatasetDemoted preserves
     `used_calibrations` (the citation set never changes after
     register — even when demoting the dataset's authority)."""
     revision_id = uuid4()
@@ -393,7 +393,7 @@ def test_evolve_promoted_preserves_producing_run_end_state() -> None:
     assert state.producing_run_end_state == "Completed"
 
 
-# ---------- Phase 12c: Dataset.used_calibrations AsShot citation ----------
+# ---------- Dataset.used_calibrations AsShot citation ----------
 
 
 from uuid import UUID  # noqa: E402
@@ -403,7 +403,7 @@ from uuid import UUID  # noqa: E402
 def test_register_genesis_populates_used_calibrations_as_frozenset() -> None:
     """DatasetRegistered carries the tuple on the event payload; the
     evolver coerces to frozenset for in-memory equality semantics
-    (mirrors Phase 12b Run.pinned_calibrations exactly)."""
+    (mirrors Run.pinned_calibrations exactly)."""
     cal_a = UUID("01900000-0000-7000-8000-00000000ca01")
     cal_b = UUID("01900000-0000-7000-8000-00000000ca02")
     event = DatasetRegistered(
@@ -452,7 +452,7 @@ def test_legacy_pre_12c_register_folds_with_empty_used_calibrations() -> None:
 
 @pytest.mark.unit
 def test_discard_preserves_used_calibrations_asshot_invariant() -> None:
-    """Phase 12c AsShot invariant: terminal discard MUST preserve the
+    """AsShot invariant: terminal discard MUST preserve the
     citation set verbatim. A regression that wiped it would silently
     break 'what calibration revisions did this Dataset use?' queries
     forever even for the discarded-metadata audit trail."""
@@ -486,7 +486,7 @@ def test_discard_preserves_used_calibrations_asshot_invariant() -> None:
 
 @pytest.mark.unit
 def test_promote_preserves_used_calibrations_asshot_invariant() -> None:
-    """Phase 12c AsShot invariant: intent flip MUST preserve the
+    """AsShot invariant: intent flip MUST preserve the
     citation set verbatim. Mirrors the discard-arm preserve test;
     same silent-wipe risk if a future evolver refactor swaps to
     dataclasses.replace and drops a field add."""

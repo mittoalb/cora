@@ -61,7 +61,6 @@ async def test_dataset_registered_inserts_with_genesis_refs() -> None:
             "subject_id": str(_SUBJECT_ID),
             "derived_from": [],
             "occurred_at": _NOW.isoformat(),
-            # Phase 12c: explicit empty list — pre-12c-fold backward-
             # compat is exercised by test_dataset_registered_pre_12c_payload_falls_back.
             "used_calibrations": [],
         },
@@ -81,7 +80,7 @@ async def test_dataset_registered_inserts_with_genesis_refs() -> None:
     assert args.args[4] == _RUN_ID
     assert args.args[5] == _SUBJECT_ID
     assert args.args[6] == _NOW
-    # Phase 12c: used_calibrations is $7 on the SQL; empty list when
+
     # not pinned. P0 gate-review fix: pin args[7] so a regression that
     # drops or misorders the projection's UUID[] parameter fails loud
     # at the unit tier instead of slipping through to integration.
@@ -145,7 +144,7 @@ async def test_dataset_registered_pre_12c_payload_falls_back_to_empty_used_calib
 
 @pytest.mark.unit
 async def test_dataset_registered_with_citations_inserts_uuid_array() -> None:
-    """Phase 12c: when the payload carries `used_calibrations`, the
+    """When the payload carries `used_calibrations`, the
     projection parses each entry into a UUID and passes the list as
     the 7th arg. The decider sorts before emit, so the on-the-wire
     order is deterministic; the projection passes through verbatim."""

@@ -21,7 +21,7 @@ this scenario fits into.
     (the planned 35-BM pilot) is intentionally absent until its Unit
     lands.
   - **Access BC**: one Actor (kind=human) for use as principal
-  - **Agent BC**: one Agent (RunDebrief), cross-BC-co-registers a
+  - **Agent BC**: one Agent (RunDebriefer), cross-BC-co-registers a
     second Actor with kind=agent
   - **Recipe BC**: one Method + one Practice with site_id=APS
   - **Safety BC**: one Clearance issued at APS
@@ -93,7 +93,7 @@ _SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000a00701")
 _ACTOR_OPERATOR_ID = UUID("01900000-0000-7000-8000-000000a00a01")
 _CAP_PROBE_GENERIC_ID = UUID("01900000-0000-7000-8000-000000a00c01")
 _METHOD_DARK_BASELINE_ID = UUID("01900000-0000-7000-8000-000000a00d01")
-_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0ed79")  # Phase 6l-strict
+_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0ed79")
 _PRACTICE_DARK_BASELINE_APS_ID = UUID("01900000-0000-7000-8000-000000a00d11")
 _CLEARANCE_ESAF_ID = UUID("01900000-0000-7000-8000-000000a00801")
 _SUPPLY_HELIUM_ID = UUID("01900000-0000-7000-8000-000000a00901")
@@ -121,7 +121,7 @@ def _id_queue() -> list[UUID]:
         # register_actor (operator, human): actor_id, event_id
         _ACTOR_OPERATOR_ID,
         e(),
-        # define_agent (RunDebrief, kind=agent): shared_id, actor_event_id, agent_event_id
+        # define_agent (RunDebriefer, kind=agent): shared_id, actor_event_id, agent_event_id
         # Cross-BC atomic write: ActorRegistered + AgentDefined in one transaction.
         # Canonical RUN_DEBRIEF_ACTOR_ID (from _facility_fixture) so the 2-BM
         # Agent Policy registered by `install_aps_unit` references the same UUID.
@@ -189,7 +189,7 @@ async def test_facility_install_plays_out_end_to_end(
 
     agent_id = await bind_define_agent(deps)(
         DefineAgent(
-            kind="RunDebrief",
+            kind="RunDebriefer",
             name="Run Debrief",
             version="v1",
             model_ref=ModelRef(
@@ -308,7 +308,7 @@ async def test_facility_install_plays_out_end_to_end(
     agent = await load_agent(deps.event_store, agent_id)
     assert agent is not None
     assert agent.status is AgentStatus.DEFINED
-    assert agent.kind.value == "RunDebrief"
+    assert agent.kind.value == "RunDebriefer"
 
     # Cross-BC: define_agent also wrote an Actor with kind=agent at agent_id.
     agent_actor = await load_actor(deps.event_store, agent_id)

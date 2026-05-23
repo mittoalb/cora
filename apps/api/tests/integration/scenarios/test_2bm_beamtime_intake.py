@@ -71,7 +71,7 @@ but no Devices are registered.
   - **Subject genesis is in `Received` state.** Subject's lifecycle
     is `Received -> Mounted -> Measured -> Received` (per
     [[project_subject_mount_alignment_design]]); intake registers
-    in Received, mount scenario (Phase O-2) transitions to Mounted.
+    in Received, mount scenario transitions to Mounted.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -179,7 +179,7 @@ async def test_beamtime_intake_plays_out_end_to_end(
 
     # ----- Subject BC: register the sample arriving with the proposal -----
     # Subject lands in Received state per Subject BC genesis. Mount scenario
-    # (Phase O-2) transitions Received -> Mounted.
+    # transitions Received -> Mounted.
 
     await bind_register_subject(deps)(
         RegisterSubject(name="porous sandstone core (Proposal 2026-1234, sample A)"),

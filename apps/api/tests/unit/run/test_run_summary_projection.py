@@ -1,8 +1,8 @@
 """Unit tests for RunSummaryProjection.
 
 Pins per-event-type apply() dispatch + idempotency for the 9
-subscribed Run events (7 lifecycle + 2 cross-aggregate membership
-events from Phase 6i-c). Postgres-side behavior is in the integration
+subscribed Run events (7 lifecycle + 2 cross-aggregate Campaign
+membership events). Postgres-side behavior is in the integration
 suite.
 """
 
@@ -100,7 +100,7 @@ async def test_run_started_inserts_with_running_status_and_genesis_refs() -> Non
     # 6i-c follow-up: campaign_id defaults None for payloads without
     # the key (pre-6i-c streams or standalone Runs).
     assert args.args[8] is None
-    # Phase 12b-5 (gate-review P0 mirror of 12c-3 fix): pin args[9] so a
+
     # regression that drops or misorders the projection's UUID[]
     # parameter for pinned_calibrations fails loud at the unit tier
     # instead of slipping through to integration. Pre-12b RunStarted
@@ -136,8 +136,8 @@ async def test_run_started_with_null_subject_id_for_calibration_run() -> None:
 
 @pytest.mark.unit
 async def test_run_started_sets_override_parameters_present_true_when_non_empty() -> None:
-    """Phase 6g-c: RunStarted with non-empty override_parameters
-    payload sets the projection column TRUE."""
+    """RunStarted with non-empty override_parameters payload sets the
+    projection column TRUE."""
     proj = RunSummaryProjection()
     conn = AsyncMock()
     event = _stored(
@@ -162,8 +162,8 @@ async def test_run_started_sets_override_parameters_present_true_when_non_empty(
 
 @pytest.mark.unit
 async def test_run_started_sets_override_parameters_present_false_when_empty() -> None:
-    """Phase 6g-c: empty override_parameters payload (operator just used
-    Plan defaults straight) keeps the projection column FALSE."""
+    """Empty override_parameters payload (operator just used Plan
+    defaults straight) keeps the projection column FALSE."""
     proj = RunSummaryProjection()
     conn = AsyncMock()
     event = _stored(
@@ -222,9 +222,9 @@ async def test_lifecycle_transition_updates_status(event_type: str, expected_sta
 
 @pytest.mark.unit
 async def test_run_started_with_campaign_id_inserts_with_membership() -> None:
-    """Phase 6i-c: when StartRun.campaign_id is set, the at-start
-    membership lands on the projection row via the RunStarted
-    payload's campaign_id field."""
+    """When StartRun.campaign_id is set, the at-start membership lands
+    on the projection row via the RunStarted payload's campaign_id
+    field."""
     proj = RunSummaryProjection()
     conn = AsyncMock()
     event = _stored(
@@ -247,9 +247,9 @@ async def test_run_started_with_campaign_id_inserts_with_membership() -> None:
 
 @pytest.mark.unit
 async def test_run_campaign_assigned_updates_campaign_id() -> None:
-    """Phase 6i-c: post-hoc add_run_to_campaign writes
-    RunCampaignAssigned to the Run stream; the projection sets the
-    campaign_id column to the event's campaign_id."""
+    """Post-hoc add_run_to_campaign writes RunCampaignAssigned to the
+    Run stream; the projection sets the campaign_id column to the
+    event's campaign_id."""
     proj = RunSummaryProjection()
     conn = AsyncMock()
     event = _stored(
@@ -272,10 +272,10 @@ async def test_run_campaign_assigned_updates_campaign_id() -> None:
 
 @pytest.mark.unit
 async def test_run_campaign_unassigned_clears_campaign_id_to_null() -> None:
-    """Phase 6i-c: remove_run_from_campaign writes
-    RunCampaignUnassigned to the Run stream; the projection clears
-    campaign_id to NULL (the prior campaign_id stays on the event
-    payload for audit-replay, not in the read model)."""
+    """remove_run_from_campaign writes RunCampaignUnassigned to the
+    Run stream; the projection clears campaign_id to NULL (the prior
+    campaign_id stays on the event payload for audit-replay, not in
+    the read model)."""
     proj = RunSummaryProjection()
     conn = AsyncMock()
     event = _stored(
@@ -306,7 +306,7 @@ async def test_unknown_event_type_falls_through() -> None:
     conn.execute.assert_not_awaited()
 
 
-# ---------- Phase 12b-5: pinned_calibrations args[9] binding ----------
+# ---------- pinned_calibrations args[9] binding ----------
 
 
 @pytest.mark.unit
@@ -342,10 +342,10 @@ async def test_run_started_pre_12b_payload_falls_back_to_empty_pinned_calibratio
 
 @pytest.mark.unit
 async def test_run_started_with_pinned_calibrations_inserts_uuid_array() -> None:
-    """Phase 12b-5: when the payload carries `pinned_calibrations`,
-    the projection parses each entry into a UUID and passes the list
-    as the 9th arg. The decider sorts before emit; the projection
-    passes through verbatim. Mirror of Data BC's
+    """When the payload carries `pinned_calibrations`, the projection
+    parses each entry into a UUID and passes the list as the 9th arg.
+    The decider sorts before emit; the projection passes through
+    verbatim. Mirror of Data BC's
     test_dataset_registered_with_citations_inserts_uuid_array."""
     pin_a = uuid4()
     pin_b = uuid4()
