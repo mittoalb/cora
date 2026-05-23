@@ -281,7 +281,7 @@ def test_constructor_rejects_empty_algorithms() -> None:
 @pytest.mark.unit
 def test_constructor_rejects_alg_none_case_insensitive() -> None:
     for variant in ["none", "NONE", "NoNe", " none ", "None "]:
-        with pytest.raises(ValueError, match=r"alg=none"):
+        with pytest.raises(ValueError, match=r"algorithms_allowed must not include 'none'"):
             JWTVerifier(
                 issuer=TEST_ISSUER,
                 jwks_url="https://example.com/jwks",
