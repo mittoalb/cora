@@ -60,6 +60,7 @@ from cora.access.aggregates.actor import load_actor
 from cora.agent.aggregates.agent import AgentDeactivatedError, AgentNotSeededError
 from cora.agent.errors import UnauthorizedError
 from cora.agent.features.re_debrief_run.command import ReDebriefRun
+from cora.agent.features.re_debrief_run.context import ReDebriefRunContext
 from cora.agent.features.re_debrief_run.decider import decide
 from cora.agent.prompts import (
     RunDebriefPayload,
@@ -219,11 +220,8 @@ def bind(deps: Kernel) -> Handler:
                 error_class=type(exc).__name__,
                 error_message=redact_secrets(str(exc)[:200]),
             )
-            domain_event = decide(
-                new_id=new_id,
+            decider_context = ReDebriefRunContext(
                 actor=actor,
-                run_id=command.run_id,
-                parent_decision_id=command.parent_decision_id,
                 choice="DebriefDeferred",
                 confidence=None,
                 reasoning=(
@@ -231,16 +229,12 @@ def bind(deps: Kernel) -> Handler:
                     "re-debrief deferred. Operator may retry with a fresh "
                     "Idempotency-Key to bypass the cached failure."
                 ),
-                occurred_at=now,
                 extra_decision_inputs={"failure_error_class": type(exc).__name__},
             )
             outcome = "deferred"
         else:
-            domain_event = decide(
-                new_id=new_id,
+            decider_context = ReDebriefRunContext(
                 actor=actor,
-                run_id=command.run_id,
-                parent_decision_id=command.parent_decision_id,
                 choice=str(response.parsed["choice"]),
                 confidence=(
                     float(response.parsed["confidence"])
@@ -248,10 +242,17 @@ def bind(deps: Kernel) -> Handler:
                     else None
                 ),
                 reasoning=str(response.parsed["reasoning"]),
-                occurred_at=now,
             )
             outcome = "success"
 
+        domain_events = decide(
+            state=None,
+            command=command,
+            context=decider_context,
+            now=now,
+            new_id=new_id,
+        )
+        domain_event = domain_events[0]
         new_event = to_new_event(
             event_type=event_type_name(domain_event),
             payload=to_payload(domain_event),

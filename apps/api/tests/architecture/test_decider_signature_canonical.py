@@ -46,13 +46,10 @@ if TYPE_CHECKING:
 # though it's a B7 violator. Its signature IS `(state, command)` which
 # the canonical-args check accepts; the B7 issue is the return type
 # (ProposedCautionView, not list[E]). Return type is intentionally not
-# pinned by this test (see module docstring). Phase β addresses the
-# return-shape rewrite via manual review.
+# pinned by this test (see module docstring). The promote_caution_proposal
+# slice-shape rethink is a deferred Phase β followup.
 WIP_DECIDERS: frozenset[str] = frozenset(
     {
-        # B7: returns DecisionRegistered directly + kwargs-only signature.
-        # Phase β will conform to (state, command, *, now, new_id) shape.
-        "cora.agent.features.re_debrief_run.decider",
         # D10: `context` declared positional rather than keyword-only.
         # Phase ζ will move them after the `*` marker.
         "cora.subject.features.mount_subject.decider",

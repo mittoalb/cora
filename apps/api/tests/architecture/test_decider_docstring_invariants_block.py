@@ -44,7 +44,6 @@ DECIDERS_MISSING_INVARIANTS: frozenset[str] = frozenset(
         "cora.agent.features.deprecate_agent.decider",
         "cora.agent.features.grant_tool_to_agent.decider",
         "cora.agent.features.promote_caution_proposal.decider",
-        "cora.agent.features.re_debrief_run.decider",
         "cora.agent.features.resume_agent.decider",
         "cora.agent.features.revise_agent_budget.decider",
         "cora.agent.features.revoke_tool_from_agent.decider",

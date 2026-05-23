@@ -1,57 +1,52 @@
 """Pure decider for the `re_debrief_run` slice.
 
 Composes the `DecisionRegistered` event for an on-demand RunDebriefer
-invocation. Pure function: given the operator inputs + LLM response
-+ pre-loaded Actor + chosen `decision_id`, returns the event to
-append. No I/O, no awaits, no clock / id-generator calls.
+invocation. Pure function: given the (always-None) Decision state, the
+`ReDebriefRun` command, and a handler-built `ReDebriefRunContext`,
+returns the event(s) to append. No I/O, no awaits, no clock /
+id-generator calls.
+
+Invariants:
+  - State is always None (genesis event, fresh Decision stream).
+  - `context.actor.is_active` is True (handler raised
+    AgentDeactivatedError otherwise).
+  - `command.parent_decision_id` (when set) points at a real Decision
+    in the same Run AND with `context = "RunDebrief"` (handler raised
+    ParentDecisionMissingError / ParentDecisionRunMismatchError /
+    ParentDecisionAgentMismatchError otherwise).
+  - `context.choice` is a valid `DecisionChoice` string (open-string VO
+    raises `InvalidDecisionChoiceError` otherwise).
+  - `context.reasoning` is non-empty + within length bound
+    (`validate_reasoning` raises otherwise).
+  - `context.confidence` is in [0.0, 1.0] when not None
+    (`validate_confidence` raises otherwise).
 
 ## Why a separate decider
 
 The cross-BC slice-contract test
 (`tests/architecture/test_slice_contract.py`) requires `decider.py`
-for every command slice. The cross-BC gate-review
-additionally noted that the LLM-response-to-`DecisionRegistered`
+for every command slice. The LLM-response-to-`DecisionRegistered`
 mapping is genuinely pure and benefits from extraction: future
-on-demand agent slices and a Pattern B
-subscriber would both consume the same shape.
+on-demand agent slices and a Pattern B subscriber would both consume
+the same shape.
 
 The Pattern A subscriber (`cora.agent.subscribers.run_debriefer`)
 currently inlines an equivalent composition. Rule-of-three trigger
 to hoist this decider out of the slice and into a shared module
-(eg. `cora.agent.deciders.run_debriefer`) fires when EITHER a second
-on-demand agent slice ships OR the subscriber's composition is
-refactored to call through this decider.
-
-## Cross-aggregate validation
-
-The decider does NOT load aggregates -- the handler pre-loads
-Run + Agent's Actor + parent Decision. The decider trusts the
-handler:
-
-  - `actor` is non-None (handler raised AgentNotSeededError otherwise).
-  - `actor.is_active` is True (handler raised AgentDeactivatedError
-    otherwise).
-  - `parent_decision_id` (when set) points at a real Decision in
-    the same Run AND with `context = "RunDebrief"` (handler raised
-    ParentDecisionMissingError / ParentDecisionRunMismatchError /
-    ParentDecisionAgentMismatchError otherwise).
-
-## Field validation
-
-Decision BC's public VOs + helpers do the per-field check:
-`DecisionChoice` / `DecisionContext` / `DecisionRule` raise their
-own `Invalid<X>Error` on bad input. `validate_reasoning` /
-`validate_confidence` / `validate_decision_inputs` likewise.
+fires when EITHER a second on-demand agent slice ships OR the
+subscriber's composition is refactored to call through this decider.
 """
 
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from cora.access.aggregates.actor import Actor
+from cora.agent.features.re_debrief_run.command import ReDebriefRun
+from cora.agent.features.re_debrief_run.context import ReDebriefRunContext
 from cora.agent.prompts import RUN_DEBRIEF_PROMPT_TEMPLATE_ID
 from cora.decision.aggregates.decision import (
     DECISION_CONTEXT_RUN_DEBRIEF,
+    Decision,
     DecisionChoice,
     DecisionConfidenceSource,
     DecisionContext,
@@ -66,60 +61,63 @@ _DECISION_RULE = "agent:RunDebriefer:v1"
 
 
 def decide(
+    state: Decision | None,
+    command: ReDebriefRun,
     *,
+    context: ReDebriefRunContext,
+    now: datetime,
     new_id: UUID,
-    actor: Actor,
-    run_id: UUID,
-    parent_decision_id: UUID | None,
-    choice: str,
-    confidence: float | None,
-    reasoning: str,
-    occurred_at: datetime,
-    extra_decision_inputs: dict[str, Any] | None = None,
-) -> DecisionRegistered:
+) -> list[DecisionRegistered]:
     """Compose the on-demand RunDebriefer `DecisionRegistered` event.
 
-    `choice` is constrained at the projection layer (and by the
-    LLM's structured output schema) to the closed 6-value set, but
-    the Decision BC's open-string `DecisionChoice` VO is used here
-    so the decider stays vocabulary-agnostic.
+    `state` is always None (fresh Decision stream; the handler doesn't
+    load Decision state). Accepted as a parameter for canonical
+    signature parity with every other create-style decider.
 
-    `extra_decision_inputs` merges into the base inputs after the
-    base keys are set; collisions on `run_id` / `trigger` /
+    `context.choice` is constrained at the projection layer (and by the
+    LLM's structured output schema) to the closed 6-value set, but the
+    Decision BC's open-string `DecisionChoice` VO is used here so the
+    decider stays vocabulary-agnostic.
+
+    `context.extra_decision_inputs` merges into the base inputs after
+    the base keys are set; collisions on `run_id` / `trigger` /
     `prompt_template_id` are silently overwritten by the extra dict
     (intentional: callers supplying these keys override on purpose,
     eg. the DebriefDeferred path's `failure_error_class`).
     """
-    decision_choice = DecisionChoice(choice)
+    _ = state  # always None for genesis; signature parity only.
+    decision_choice = DecisionChoice(context.choice)
     decision_context = DecisionContext(DECISION_CONTEXT_RUN_DEBRIEF)
     decision_rule = DecisionRule(_DECISION_RULE)
     base_inputs: dict[str, Any] = {
-        "run_id": str(run_id),
+        "run_id": str(command.run_id),
         "trigger": "on-demand",
         "prompt_template_id": str(RUN_DEBRIEF_PROMPT_TEMPLATE_ID),
     }
-    if extra_decision_inputs:
-        base_inputs.update(extra_decision_inputs)
+    if context.extra_decision_inputs:
+        base_inputs.update(context.extra_decision_inputs)
     decision_inputs = validate_decision_inputs(base_inputs)
-    validated_reasoning = validate_reasoning(reasoning)
-    validated_confidence = validate_confidence(confidence)
+    validated_reasoning = validate_reasoning(context.reasoning)
+    validated_confidence = validate_confidence(context.confidence)
 
-    return DecisionRegistered(
-        decision_id=new_id,
-        actor_id=actor.id,
-        context=decision_context.value,
-        choice=decision_choice.value,
-        parent_id=parent_decision_id,
-        override_kind=None,
-        decision_rule=decision_rule.value,
-        reasoning=validated_reasoning,
-        confidence=validated_confidence,
-        confidence_source=DecisionConfidenceSource.SELF_REPORTED,
-        alternatives=(),
-        decision_inputs=decision_inputs,
-        reasoning_signature=None,
-        occurred_at=occurred_at,
-    )
+    return [
+        DecisionRegistered(
+            decision_id=new_id,
+            actor_id=context.actor.id,
+            context=decision_context.value,
+            choice=decision_choice.value,
+            parent_id=command.parent_decision_id,
+            override_kind=None,
+            decision_rule=decision_rule.value,
+            reasoning=validated_reasoning,
+            confidence=validated_confidence,
+            confidence_source=DecisionConfidenceSource.SELF_REPORTED,
+            alternatives=(),
+            decision_inputs=decision_inputs,
+            reasoning_signature=None,
+            occurred_at=now,
+        )
+    ]
 
 
 __all__ = ["decide"]
