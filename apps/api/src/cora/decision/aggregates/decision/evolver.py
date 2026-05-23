@@ -77,6 +77,8 @@ def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
             reasoning_signature=reasoning_signature,
         ):
             _ = state  # DecisionRegistered is the genesis event; prior state ignored.
+            # Shallow-copy the decision_inputs payload dict into state so
+            # mutating either side can't alias the other (B1 defence).
             return Decision(
                 id=decision_id,
                 actor_id=actor_id,
@@ -89,7 +91,7 @@ def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
                 confidence=confidence,
                 confidence_source=confidence_source,
                 alternatives=alternatives,
-                decision_inputs=decision_inputs,
+                decision_inputs=dict(decision_inputs) if decision_inputs is not None else None,
                 reasoning_signature=reasoning_signature,
             )
         case DecisionLogbookOpened(logbook_id=logbook_id, kind=kind):

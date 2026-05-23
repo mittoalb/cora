@@ -257,10 +257,12 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
             )
         case AssetSettingsUpdated(settings=settings):
             # Settings mutation: only `settings` changes. Event payload
-            # carries the FULL post-merge dict (5g-c lock), so this arm
+            # carries the FULL post-merge dict, so this arm
             # simply replaces. Validation already happened at the handler
             # boundary before append; an event in the stream is by
-            # definition validated.
+            # definition validated. Shallow-copy the payload dict into
+            # state so mutating either side (state or event payload)
+            # can't alias the other (B1 defence).
             prior = require_state(state, "AssetSettingsUpdated")
             return Asset(
                 id=prior.id,
@@ -270,7 +272,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
                 families=prior.families,
-                settings=settings,
+                settings=dict(settings),
                 ports=prior.ports,
             )
         case AssetPortAdded(

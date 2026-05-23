@@ -113,6 +113,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
             pinned_calibrations=pinned_calibrations,
         ):
             _ = state  # RunStarted is the genesis event; prior state ignored.
+            # Shallow-copy the payload dicts into state so mutating either
+            # side (state or event payload) can't alias the other (B1 defence).
             return Run(
                 id=run_id,
                 name=RunName(name),
@@ -120,8 +122,8 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 subject_id=subject_id,
                 raid=raid,
                 status=RunStatus.RUNNING,
-                override_parameters=override_parameters,
-                effective_parameters=effective_parameters,
+                override_parameters=dict(override_parameters),
+                effective_parameters=dict(effective_parameters),
                 triggered_by=triggered_by,
                 reading_logbook_id=None,
                 external_refs=frozenset(
@@ -264,6 +266,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
             # campaign arms). Replace effective_parameters with the
             # post-merge snapshot from the event payload; stamp
             # last_adjusted_at; increment adjustment_count.
+            # Shallow-copy the payload dict into state (B1 defence).
             prior = require_state(state, "RunAdjusted")
             return Run(
                 id=prior.id,
@@ -273,7 +276,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 raid=prior.raid,
                 status=prior.status,
                 override_parameters=prior.override_parameters,
-                effective_parameters=effective_parameters,
+                effective_parameters=dict(effective_parameters),
                 triggered_by=prior.triggered_by,
                 reading_logbook_id=prior.reading_logbook_id,
                 external_refs=prior.external_refs,
