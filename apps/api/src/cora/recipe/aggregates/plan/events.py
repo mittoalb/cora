@@ -74,7 +74,7 @@ class PlanDefined:
     asset_ids: tuple[UUID, ...]
     method_id: UUID
     method_needed_families_snapshot: tuple[UUID, ...]
-    asset_families_snapshot: dict[UUID, list[UUID]]
+    asset_families_snapshot: dict[UUID, tuple[UUID, ...]]
     occurred_at: datetime
 
 
@@ -203,7 +203,7 @@ def event_type_name(event: PlanEvent) -> str:
 
 
 def _serialize_asset_families_snapshot(
-    snapshot: dict[UUID, list[UUID]],
+    snapshot: dict[UUID, tuple[UUID, ...]],
 ) -> dict[str, list[str]]:
     """Serialize the bind-time asset-families snapshot deterministically.
 
@@ -220,9 +220,9 @@ def _serialize_asset_families_snapshot(
 
 def _deserialize_asset_families_snapshot(
     payload: dict[str, list[str]],
-) -> dict[UUID, list[UUID]]:
+) -> dict[UUID, tuple[UUID, ...]]:
     """Inverse of `_serialize_asset_families_snapshot`."""
-    return {UUID(asset_id): [UUID(c) for c in caps] for asset_id, caps in payload.items()}
+    return {UUID(asset_id): tuple(UUID(c) for c in caps) for asset_id, caps in payload.items()}
 
 
 def to_payload(event: PlanEvent) -> dict[str, Any]:

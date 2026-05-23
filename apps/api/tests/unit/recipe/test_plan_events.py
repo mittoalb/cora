@@ -79,7 +79,7 @@ def test_to_payload_serializes_plan_defined_to_primitives() -> None:
         asset_ids=(asset_id,),
         method_id=method_id,
         method_needed_families_snapshot=(cap_id,),
-        asset_families_snapshot={asset_id: [cap_id]},
+        asset_families_snapshot={asset_id: (cap_id,)},
         occurred_at=_NOW,
     )
     assert to_payload(event) == {
@@ -163,8 +163,8 @@ def test_to_payload_sorts_asset_families_snapshot_keys_and_values() -> None:
     c1 = uuid4()
     c2 = uuid4()
     snapshot_unsorted = {
-        a2: [c2, c1],  # outer: a2 first; inner: c2 first
-        a1: [c2, c1],
+        a2: (c2, c1),  # outer: a2 first; inner: c2 first
+        a1: (c2, c1),
     }
     event = PlanDefined(
         plan_id=uuid4(),
@@ -214,7 +214,7 @@ def test_from_stored_rebuilds_plan_defined() -> None:
         asset_ids=(asset_id,),
         method_id=method_id,
         method_needed_families_snapshot=(cap_id,),
-        asset_families_snapshot={asset_id: [cap_id]},
+        asset_families_snapshot={asset_id: (cap_id,)},
         occurred_at=_NOW,
     )
 
@@ -231,7 +231,7 @@ def test_to_payload_then_from_stored_round_trips() -> None:
         asset_ids=(asset_id,),
         method_id=uuid4(),
         method_needed_families_snapshot=(cap_id,),
-        asset_families_snapshot={asset_id: [cap_id]},
+        asset_families_snapshot={asset_id: (cap_id,)},
         occurred_at=_NOW,
     )
     stored = _stored("PlanDefined", to_payload(original))
@@ -592,7 +592,7 @@ def test_from_stored_reads_legacy_asset_capabilities_snapshot_payload_key() -> N
     rebuilt = from_stored(stored)
     assert isinstance(rebuilt, PlanDefined)
     assert rebuilt.method_needed_families_snapshot == (legacy_cap_id,)
-    assert rebuilt.asset_families_snapshot == {asset_id: [legacy_cap_id]}
+    assert rebuilt.asset_families_snapshot == {asset_id: (legacy_cap_id,)}
 
 
 @pytest.mark.unit
@@ -625,7 +625,7 @@ def test_from_stored_prefers_new_families_snapshot_over_legacy_key() -> None:
     rebuilt = from_stored(stored)
     assert isinstance(rebuilt, PlanDefined)
     assert rebuilt.method_needed_families_snapshot == (new_id,)
-    assert rebuilt.asset_families_snapshot == {asset_id: [new_id]}
+    assert rebuilt.asset_families_snapshot == {asset_id: (new_id,)}
 
 
 @pytest.mark.unit

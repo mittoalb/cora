@@ -154,7 +154,7 @@ def test_decide_emits_plan_defined_for_valid_binding() -> None:
             asset_ids=(asset_id,),
             method_id=method.id,
             method_needed_families_snapshot=(cap,),
-            asset_families_snapshot={asset_id: [cap]},
+            asset_families_snapshot={asset_id: (cap,)},
             occurred_at=_NOW,
         )
     ]
@@ -207,8 +207,8 @@ def test_decide_captures_asset_families_snapshot_at_bind_time() -> None:
         new_id=uuid4(),
     )
     snapshot = events[0].asset_families_snapshot
-    assert snapshot[a1] == [cap1]
-    assert snapshot[a2] == [cap2]
+    assert snapshot[a1] == (cap1,)
+    assert snapshot[a2] == (cap2,)
 
 
 @pytest.mark.unit

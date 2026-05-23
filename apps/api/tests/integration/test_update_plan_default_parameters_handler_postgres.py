@@ -129,7 +129,7 @@ async def _seed_plan(deps: Kernel, plan_id: UUID, method_id: UUID) -> None:
         asset_ids=(asset_id,),
         method_id=method_id,
         method_needed_families_snapshot=(),
-        asset_families_snapshot={asset_id: []},
+        asset_families_snapshot={asset_id: ()},
         occurred_at=_NOW,
     )
     await deps.event_store.append(

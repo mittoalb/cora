@@ -18,11 +18,10 @@ defence for dict aliasing (B1 from the audit) is shallow-copy on fold
 in the evolver, addressed in Phase β.
 
 Known scope gap: a ``list`` / ``set`` nested INSIDE a ``dict`` value
-(such as ``dict[UUID, list[UUID]]``) carries the same alias risk but
-isn't currently detected. ``asset_families_snapshot`` is the lone
-known case today; it lives in ``MUTABLE_COLLECTION_EVENT_FIELDS`` as
-documentation. Phase β can either extend the AST walk to recurse into
-``dict`` value parameters or migrate the offending field by hand.
+isn't currently detected by the top-level annotation scan. Phase β
+migrated the lone known case (``asset_families_snapshot`` is now
+``dict[UUID, tuple[UUID, ...]]``) by hand; if a new nested case lands,
+extend the AST walk to recurse into dict value parameters.
 
 ``MUTABLE_COLLECTION_EVENT_FIELDS`` is the explicit work-tracker for
 known list/set fields awaiting migration. Phase β migrates the types
@@ -44,14 +43,7 @@ if TYPE_CHECKING:
 
 # Entries are <qualified-event-class>.<field-name>. Each removed when
 # Phase β migrates the type to tuple[...] / frozenset[...].
-MUTABLE_COLLECTION_EVENT_FIELDS: frozenset[str] = frozenset(
-    {
-        # Nested mutability: dict[UUID, list[UUID]] — outer dict is out
-        # of this test's scope, but the inner list[UUID] is fold-aliased
-        # the same way. Documented here pending the per-key migration.
-        "cora.recipe.aggregates.plan.events.PlanDefined.asset_families_snapshot",
-    }
-)
+MUTABLE_COLLECTION_EVENT_FIELDS: frozenset[str] = frozenset()
 
 
 def _event_files() -> list[Path]:
@@ -136,11 +128,7 @@ def test_allowlisted_event_fields_still_mutable() -> None:
     (``asset_families_snapshot`` today) are exempt: the outer type is
     ``dict``, so the per-key mutability check doesn't apply.
     """
-    nested_mutability_entries = frozenset(
-        {
-            "cora.recipe.aggregates.plan.events.PlanDefined.asset_families_snapshot",
-        }
-    )
+    nested_mutability_entries: frozenset[str] = frozenset()
     for entry in MUTABLE_COLLECTION_EVENT_FIELDS:
         # entry format: cora.<bc>.aggregates.<agg>.events.<Class>.<field>
         module_parts = entry.split(".")

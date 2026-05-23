@@ -115,7 +115,7 @@ async def _seed_plan(store: InMemoryEventStore) -> None:
         asset_ids=(_ASSET_ID,),
         method_id=_METHOD_ID,
         method_needed_families_snapshot=(),
-        asset_families_snapshot={_ASSET_ID: []},
+        asset_families_snapshot={_ASSET_ID: ()},
         occurred_at=_NOW,
     )
     await store.append(

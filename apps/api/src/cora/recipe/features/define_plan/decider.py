@@ -147,7 +147,7 @@ def decide(
             method_id=context.method.id,
             method_needed_families_snapshot=tuple(sorted(context.method.needed_families, key=str)),
             asset_families_snapshot={
-                asset_id: sorted(context.assets[asset_id].families, key=str)
+                asset_id: tuple(sorted(context.assets[asset_id].families, key=str))
                 for asset_id in sorted(context.assets.keys(), key=str)
             },
             occurred_at=now,

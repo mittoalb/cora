@@ -56,7 +56,7 @@ async def _seed_plan(
         asset_ids=(asset_id,),
         method_id=method_id,
         method_needed_families_snapshot=(),
-        asset_families_snapshot={asset_id: []},
+        asset_families_snapshot={asset_id: ()},
         occurred_at=_NOW,
     )
     new_event = to_new_event(

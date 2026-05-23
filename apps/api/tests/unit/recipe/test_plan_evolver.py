@@ -64,7 +64,7 @@ def test_evolve_plan_defined_sets_status_to_defined() -> None:
             asset_ids=(asset_id,),
             method_id=method_id,
             method_needed_families_snapshot=(uuid4(),),
-            asset_families_snapshot={asset_id: [uuid4()]},
+            asset_families_snapshot={asset_id: (uuid4(),)},
             occurred_at=_NOW,
         ),
     )
