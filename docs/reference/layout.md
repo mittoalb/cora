@@ -69,6 +69,8 @@ The slice-contract fitness function ([apps/api/tests/architecture/test_slice_con
 - `_<aggregate>_update_handler.py`: factory that hoists shared update-handler scaffolding when n>=3 update slices on the same aggregate share the pattern (per `project_update_handler_pattern.md`). Today: asset, subject, supply, procedure, clearance.
 - `authorize_factory.py` (trust BC only): exports `build_authorize`, injected into the kernel by the composition root in `cora/api/main.py`. No other BC imports it.
 
+**Capability-dependent handlers.** When a slice depends on an external capability that may be unwired in some deployments (today: `re_debrief_run` needs `kernel.llm`, which is `None` when `ANTHROPIC_API_KEY` isn't configured), the handler bundle types the field as `Handler | None`. The route guards on `None` and raises `HTTPException(503)` inline; this is the only documented exception to the "command-slice routes don't wrap handler calls" rule. Pinned by `test_route_no_inline_http_exception.py`'s `GRANDFATHERED_COMMAND_ROUTES` allowlist.
+
 ### Aggregate-internal shared modules
 
 VOs and validation helpers consumed by the aggregate kernel **must live inside the aggregate folder**, not at the BC root. Tach treats `cora.<bc>.aggregates` and `cora.<bc>` as separate modules and the kernel cannot depend on the parent.
@@ -94,7 +96,7 @@ The `__init__.py` is the BC's curated public surface; importing through it lets 
 - **Commands**: PascalCase verb+noun in `command.py` (e.g. `RegisterActor`).
 - **Define vs Register**: `Define<X>` for types/templates/configs (Zone, Conduit, Policy, Family: defined once, referenced as a contract). `Register<X>` for instances (Actor, Subject, Asset: recorded). Genesis event mirrors the verb (`<X>Defined` vs `<X>Registered`).
 - **Queries**: PascalCase nouns in `query.py` (e.g. `GetActor`).
-- **Decider**: pure `decide` in `decider.py`. Create-style: `decide(state, command, *, now, new_id)`. Update-style: `decide(state, command, *, now)`.
+- **Decider**: pure `decide` in `decider.py`. Create-style: `decide(state, command, *, now, new_id)`. Update-style: `decide(state, command, *, now)`. Cross-aggregate-multi-stream slices (today: `add_run_to_campaign`, `remove_run_from_campaign`, `supersede_caution`, `start_run`, `amend_clearance`) return a frozen dataclass wrapping per-stream event lists (`MembershipEvents`, `ClearanceAmendmentEvents`, `StartRunEvents`) instead of a single `list[<E>]`; the handler hands the named lists to `EventStore.append_streams` as one atomic batch.
 - **Handler**: `bind(deps) -> Handler` in `handler.py`. Bare `Handler` is a `Protocol`; create/update slices that opt into idempotency also define `IdempotentHandler` (same shape + optional `idempotency_key`).
 - **Domain errors**: PascalCase + `Error` suffix in the aggregate's `state.py` (e.g. `InvalidActorNameError`).
 - **BC-application errors**: PascalCase + `Error` suffix in `cora/<bc>/errors.py` (e.g. `UnauthorizedError`). Each BC registers its own handler; same-named errors across BCs are distinct classes.

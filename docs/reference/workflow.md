@@ -139,11 +139,17 @@ Create-style slices that accept `Idempotency-Key` get a dedicated `test_<slice>_
 
 ## Event-sourcing aggregate conventions
 
-Three architecture tests pin the shape of every `cora/<bc>/aggregates/<agg>/events.py`:
+Architecture tests pin the shape of every `cora/<bc>/aggregates/<agg>/events.py`:
 
 - **`test_decider_purity`** — every `decider.py` is referentially transparent (no I/O, no clock, no UUID generation).
+- **`test_decider_signature_canonical`** — every `decide` function takes exactly `(state, command)` as positional args; everything else is keyword-only after `*`.
+- **`test_decider_docstring_invariants_block`** — every `decide` carries an `Invariants:` block enumerating its rejections inline with exception names (file-level check; module docstring placement accepted today).
 - **`test_from_stored_wraps_payload`** — every `case "X":` in `from_stored` wraps `KeyError` / `TypeError` / `AttributeError` as `raise ValueError(f"Malformed X payload {payload!r}: {exc}") from exc`. Decided 2026-05-18 after a 3-agent corpus survey (Marten, pyeventsourcing, Pydantic, msgspec, cattrs all wrap). Without the wrap, Sentry / Datadog group every aggregate's `KeyError` into one undifferentiated issue.
+- **`test_event_union_from_stored_coverage`** — every class in the `<X>Event` union is constructed by at least one `case` arm, and every `case` constructs a class IN the union.
+- **`test_event_payload_immutability`** — collection-typed fields on event payloads use `tuple[X, ...]` / `frozenset[X]`, not `list[X]` / `set[X]`. Event payloads share references into folded state; mutable collections invite alias bugs.
 - **`test_projection_idempotency`** — every projection's `apply()` is safe to re-run on the same event.
+
+**Legacy-rename dispatch.** Renaming an event type-string keeps the old `case "OldName":` arm constructing the new dataclass — the case-string and the class name decouple. Marten / Axon precedent; `equipment/asset` and `equipment/family` both carry it for the Capability→Family rename. The case-coverage fitness accepts this: as long as the constructed class is in the union, extra case-string aliases are fine.
 
 ## Per-BC test helpers
 
