@@ -24,7 +24,7 @@ class CalibrationSummaryOutput(BaseModel):
     """One calibration row in the MCP tool's paginated output."""
 
     calibration_id: UUID
-    subsystem_or_asset_id: UUID
+    target_id: UUID
     quantity: str
     operating_point: dict[str, Any]
     description: str | None = None
@@ -65,7 +65,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             int,
             Field(default=50, ge=1, le=100, description="Page size; capped at 100."),
         ] = 50,
-        subsystem_or_asset_id: Annotated[
+        target_id: Annotated[
             UUID | None,
             Field(default=None, description="Optional scope filter."),
         ] = None,
@@ -96,7 +96,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ListCalibrations(
                 cursor=cursor,
                 limit=limit,
-                subsystem_or_asset_id=subsystem_or_asset_id,
+                target_id=target_id,
                 quantity=quantity.value if quantity is not None else None,
                 latest_revision_statuses=latest_revision_statuses,
                 latest_revision_source_kinds=latest_revision_source_kinds,
@@ -109,7 +109,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             items=[
                 CalibrationSummaryOutput(
                     calibration_id=item.calibration_id,
-                    subsystem_or_asset_id=item.subsystem_or_asset_id,
+                    target_id=item.target_id,
                     quantity=item.quantity,
                     operating_point=item.operating_point,
                     description=item.description,

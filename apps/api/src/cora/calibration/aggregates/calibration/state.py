@@ -2,7 +2,7 @@
 
 A `Calibration` is an empirical record of an instrument value (rotation
 center, detector pixel size, beam alignment) keyed by
-`(subsystem_or_asset_id, quantity, operating_point)`. Per
+`(target_id, quantity, operating_point)`. Per
 [[project_calibration_design]] (Stage 1 lock), revisions
 accumulate append-only on the aggregate; status lives per-revision; no
 aggregate-level FSM transitions.
@@ -254,7 +254,7 @@ class CalibrationNotFoundError(Exception):
 
 
 class CalibrationIdentityAlreadyExistsError(Exception):
-    """A Calibration with the same (subsystem_or_asset_id, quantity,
+    """A Calibration with the same (target_id, quantity,
     operating_point) already exists.
 
     Detected via the projection's UNIQUE constraint on jsonb
@@ -266,15 +266,14 @@ class CalibrationIdentityAlreadyExistsError(Exception):
 
     def __init__(
         self,
-        subsystem_or_asset_id: UUID,
+        target_id: UUID,
         quantity: str,
         operating_point: dict[str, Any],
     ) -> None:
         super().__init__(
-            f"Calibration identity ({subsystem_or_asset_id}, {quantity}, "
-            f"{operating_point!r}) already exists"
+            f"Calibration identity ({target_id}, {quantity}, {operating_point!r}) already exists"
         )
-        self.subsystem_or_asset_id = subsystem_or_asset_id
+        self.target_id = target_id
         self.quantity = quantity
         self.operating_point = operating_point
 
@@ -387,7 +386,7 @@ class Calibration:
     Slim aggregate per [[project_fold_cost_principles]]: identity +
     operating point + description + revision history + 3 timestamps.
 
-    Identity is `(subsystem_or_asset_id, quantity, operating_point)`;
+    Identity is `(target_id, quantity, operating_point)`;
     aggregate uniqueness enforced via the projection's UNIQUE jsonb
     constraint (Q6 lock).
 
@@ -406,7 +405,7 @@ class Calibration:
     """
 
     id: UUID
-    subsystem_or_asset_id: UUID
+    target_id: UUID
     quantity: str  # CalibrationQuantity value-string; coerced at read boundary
     operating_point: dict[str, Any]
     description: str | None

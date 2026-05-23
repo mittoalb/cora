@@ -12,7 +12,7 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 def _define_args() -> dict[str, Any]:
     return {
-        "subsystem_or_asset_id": str(uuid4()),
+        "target_id": str(uuid4()),
         "quantity": "rotation_center",
         "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
     }

@@ -48,7 +48,7 @@ async def test_handler_accepts_canonical_filter_shape() -> None:
     handler = list_calibrations.bind(deps)
     page = await handler(
         ListCalibrations(
-            subsystem_or_asset_id=_SUBSYSTEM_ID,
+            target_id=_SUBSYSTEM_ID,
             quantity="rotation_center",
             latest_revision_statuses=["Provisional", "Verified"],
             latest_revision_source_kinds=["measured", "computed"],
@@ -72,7 +72,7 @@ async def test_handler_default_query_uses_no_filters() -> None:
     deps = _build_deps_shared(ids=[], now=_NOW)
     handler = list_calibrations.bind(deps)
     query = ListCalibrations()
-    assert query.subsystem_or_asset_id is None
+    assert query.target_id is None
     assert query.quantity is None
     assert query.latest_revision_statuses is None
     assert query.latest_revision_source_kinds is None

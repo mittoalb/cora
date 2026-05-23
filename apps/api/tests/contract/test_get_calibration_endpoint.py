@@ -15,7 +15,7 @@ from cora.calibration.features.get_calibration.route import (
 
 def _seed(client: TestClient, **overrides: object) -> tuple[str, dict[str, Any]]:
     body: dict[str, Any] = {
-        "subsystem_or_asset_id": str(uuid4()),
+        "target_id": str(uuid4()),
         "quantity": "rotation_center",
         "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
         "description": "vessel-A bakeout pre-scan",
@@ -34,7 +34,7 @@ def test_get_calibrations_returns_200_with_full_state() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["id"] == cid
-    assert body["subsystem_or_asset_id"] == seeded["subsystem_or_asset_id"]
+    assert body["target_id"] == seeded["target_id"]
     assert body["quantity"] == "rotation_center"
     assert body["operating_point"] == seeded["operating_point"]
     assert body["description"] == seeded["description"]

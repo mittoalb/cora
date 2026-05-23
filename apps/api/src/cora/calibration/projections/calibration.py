@@ -15,7 +15,7 @@ Subscribed events:
 ## Identity uniqueness enforced at the table layer
 
 The `proj_calibration_summary_identity_unique` constraint on
-`(subsystem_or_asset_id, quantity, operating_point)` is the
+`(target_id, quantity, operating_point)` is the
 identity-tuple uniqueness anchor per the design memo Q6 lock.
 Postgres jsonb provides value-based equality for free (key-order
 normalization + numeric coercion `25 == 25.0` + duplicate-key dedup);
@@ -56,7 +56,7 @@ from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_CALIBRATION_SQL = """
 INSERT INTO proj_calibration_summary
-    (calibration_id, subsystem_or_asset_id, quantity, operating_point,
+    (calibration_id, target_id, quantity, operating_point,
      description, defined_at, last_revised_at, defined_by_actor_id,
      revision_count, latest_revision_status, latest_revision_source_kind)
 VALUES ($1, $2, $3, $4::jsonb,
@@ -119,7 +119,7 @@ class CalibrationSummaryProjection:
                 await conn.execute(
                     _INSERT_CALIBRATION_SQL,
                     UUID(payload["calibration_id"]),
-                    UUID(payload["subsystem_or_asset_id"]),
+                    UUID(payload["target_id"]),
                     payload["quantity"],
                     json.dumps(payload["operating_point"]),
                     payload.get("description"),

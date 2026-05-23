@@ -90,7 +90,7 @@ def bind(deps: Kernel) -> Handler:
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             causation_id=str(causation_id) if causation_id is not None else None,
-            subsystem_or_asset_id=str(command.subsystem_or_asset_id),
+            target_id=str(command.target_id),
             quantity=command.quantity.value,
         )
 

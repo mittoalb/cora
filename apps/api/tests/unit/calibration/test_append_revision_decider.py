@@ -37,7 +37,7 @@ _DATASET_ID = UUID("01900000-0000-7000-8000-000000ca2008")
 def _state(*, revisions: tuple[CalibrationRevision, ...] = ()) -> Calibration:
     return Calibration(
         id=_CAL_ID,
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity="rotation_center",
         operating_point={"energy_keV": 25.0, "optics_config": "5x"},
         description=None,

@@ -35,7 +35,7 @@ _REV_ID_2 = UUID("01900000-0000-7000-8000-000000ca0007")
 def _defined() -> CalibrationDefined:
     return CalibrationDefined(
         calibration_id=_CAL_ID,
-        subsystem_or_asset_id=_SUB_ID,
+        target_id=_SUB_ID,
         quantity="rotation_center",
         operating_point={"energy_keV": 25, "optics_config": "5x"},
         description=None,
@@ -76,7 +76,7 @@ def test_evolve_genesis_creates_aggregate_with_empty_revisions() -> None:
     state = evolve(None, _defined())
     assert isinstance(state, Calibration)
     assert state.id == _CAL_ID
-    assert state.subsystem_or_asset_id == _SUB_ID
+    assert state.target_id == _SUB_ID
     assert state.quantity == "rotation_center"
     assert state.operating_point == {"energy_keV": 25, "optics_config": "5x"}
     assert state.revisions == ()

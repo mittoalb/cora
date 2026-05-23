@@ -6,7 +6,7 @@ command slices:
     from cora.calibration.features import define_calibration
 
     cmd = define_calibration.DefineCalibration(
-        subsystem_or_asset_id=..., quantity=..., operating_point={...},
+        target_id=..., quantity=..., operating_point={...},
     )
     handler = define_calibration.bind(deps)
     calibration_id = await handler(cmd, principal_id=..., correlation_id=...)

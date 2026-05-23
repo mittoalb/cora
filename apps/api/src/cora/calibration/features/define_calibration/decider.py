@@ -2,7 +2,7 @@
 
 Genesis-style decider: produces a `CalibrationDefined` event for a
 fresh stream. Identity-tuple uniqueness (no two Calibrations with the
-same `(subsystem_or_asset_id, quantity, operating_point)`) is enforced
+same `(target_id, quantity, operating_point)`) is enforced
 via Postgres `jsonb` UNIQUE constraint on `proj_calibration_summary`
 at projection write time per Q6 lock; the decider does NOT pre-check
 the projection (deferred until pilot shows operator pain or duplicate
@@ -80,7 +80,7 @@ def decide(
     return [
         CalibrationDefined(
             calibration_id=new_id,
-            subsystem_or_asset_id=command.subsystem_or_asset_id,
+            target_id=command.target_id,
             quantity=command.quantity.value,
             operating_point=command.operating_point,
             description=trimmed_description,

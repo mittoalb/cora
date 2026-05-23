@@ -130,7 +130,7 @@ def test_deserialize_source_rejects_multiple_non_null() -> None:
 def test_event_type_name_for_calibration_defined() -> None:
     event = CalibrationDefined(
         calibration_id=_CALIBRATION_ID,
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity="rotation_center",
         operating_point={"energy_keV": 25, "optics_config": "5x"},
         description=None,
@@ -145,7 +145,7 @@ def test_event_type_name_for_calibration_defined() -> None:
 def test_to_payload_serializes_calibration_defined_to_primitives() -> None:
     event = CalibrationDefined(
         calibration_id=_CALIBRATION_ID,
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity="rotation_center",
         operating_point={"energy_keV": 25, "optics_config": "5x"},
         description="vessel-A bakeout pre-scan",
@@ -155,7 +155,7 @@ def test_to_payload_serializes_calibration_defined_to_primitives() -> None:
     )
     assert to_payload(event) == {
         "calibration_id": str(_CALIBRATION_ID),
-        "subsystem_or_asset_id": str(_SUBSYSTEM_ID),
+        "target_id": str(_SUBSYSTEM_ID),
         "quantity": "rotation_center",
         "operating_point": {"energy_keV": 25, "optics_config": "5x"},
         "description": "vessel-A bakeout pre-scan",
@@ -169,7 +169,7 @@ def test_to_payload_serializes_calibration_defined_to_primitives() -> None:
 def test_calibration_defined_round_trips_through_event_log() -> None:
     original = CalibrationDefined(
         calibration_id=_CALIBRATION_ID,
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity="rotation_center",
         operating_point={"energy_keV": 25, "optics_config": "5x"},
         description=None,

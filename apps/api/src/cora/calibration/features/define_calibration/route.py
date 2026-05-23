@@ -30,7 +30,7 @@ from cora.infrastructure.routing import (
 class DefineCalibrationRequest(BaseModel):
     """Body for `POST /calibrations`."""
 
-    subsystem_or_asset_id: UUID = Field(
+    target_id: UUID = Field(
         ...,
         description=(
             "What this calibration is OF (typically the Asset id whose "
@@ -57,7 +57,7 @@ class DefineCalibrationRequest(BaseModel):
             "the quantity's operating_point_schema "
             "(`additionalProperties: False`; primitive types only). "
             "Identity-tuple uniqueness "
-            "`(subsystem_or_asset_id, quantity, operating_point)` "
+            "`(target_id, quantity, operating_point)` "
             "enforced via Postgres jsonb UNIQUE on the projection (Q6 "
             "lock: key-order normalized + numeric value-equality "
             "`25 == 25.0`)."
@@ -111,7 +111,7 @@ router = APIRouter(tags=["calibration"])
             "model": ErrorResponse,
             "description": (
                 "Calibration with the same "
-                "(subsystem_or_asset_id, quantity, operating_point) "
+                "(target_id, quantity, operating_point) "
                 "identity already exists (Postgres jsonb UNIQUE on "
                 "proj_calibration_summary). Operators querying for an "
                 "existing calibration should use GET /calibrations with "
@@ -148,7 +148,7 @@ async def post_calibrations(
 ) -> DefineCalibrationResponse:
     calibration_id = await handler(
         DefineCalibration(
-            subsystem_or_asset_id=body.subsystem_or_asset_id,
+            target_id=body.target_id,
             quantity=body.quantity,
             operating_point=body.operating_point,
             description=body.description,

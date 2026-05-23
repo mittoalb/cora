@@ -2,7 +2,7 @@
 
 Reads `proj_calibration_summary` via the cross-BC
 `infrastructure.list_query.make_list_query_handler` factory. Five
-optional filters: two scalar (`subsystem_or_asset_id`, `quantity`)
+optional filters: two scalar (`target_id`, `quantity`)
 plus two set-membership on scalar columns (`latest_revision_statuses`,
 `latest_revision_source_kinds`). Cursor pagination on
 `(defined_at, calibration_id)`.
@@ -41,7 +41,7 @@ class CalibrationSummaryItem:
     """One row from the calibration projection."""
 
     calibration_id: UUID
-    subsystem_or_asset_id: UUID
+    target_id: UUID
     quantity: str
     operating_point: dict[str, Any]
     description: str | None
@@ -75,7 +75,7 @@ class Handler(Protocol):
 
 
 _SELECT_COLUMNS = (
-    "calibration_id, subsystem_or_asset_id, quantity, operating_point, "
+    "calibration_id, target_id, quantity, operating_point, "
     "description, defined_at, last_revised_at, defined_by_actor_id, "
     "revision_count, latest_revision_status, latest_revision_source_kind"
 )
@@ -84,7 +84,7 @@ _SELECT_COLUMNS = (
 def _row_to_item(row: Any) -> CalibrationSummaryItem:
     return CalibrationSummaryItem(
         calibration_id=row["calibration_id"],
-        subsystem_or_asset_id=row["subsystem_or_asset_id"],
+        target_id=row["target_id"],
         quantity=str(row["quantity"]),
         operating_point=dict(row["operating_point"]),
         description=(str(row["description"]) if row["description"] is not None else None),
@@ -107,9 +107,7 @@ def _row_to_item(row: Any) -> CalibrationSummaryItem:
 
 def _log_fields(query: ListCalibrations) -> dict[str, Any]:
     return {
-        "subsystem_or_asset_id": (
-            str(query.subsystem_or_asset_id) if query.subsystem_or_asset_id else None
-        ),
+        "target_id": (str(query.target_id) if query.target_id else None),
         "quantity": query.quantity,
         "latest_revision_statuses": (
             list(query.latest_revision_statuses) if query.latest_revision_statuses else None
@@ -132,7 +130,7 @@ def bind(deps: Kernel) -> Handler:
         time_column="defined_at",
         id_column="calibration_id",
         filters=[
-            ScalarFilter(attr="subsystem_or_asset_id"),
+            ScalarFilter(attr="target_id"),
             ScalarFilter(attr="quantity"),
             ColumnInFilter(attr="latest_revision_statuses", column="latest_revision_status"),
             ColumnInFilter(

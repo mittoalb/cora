@@ -30,7 +30,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 async def _seed(store: InMemoryEventStore) -> None:
     genesis = CalibrationDefined(
         calibration_id=_CAL_ID,
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity="rotation_center",
         operating_point={"energy_keV": 25.0, "optics_config": "5x"},
         description="vessel-A pre-scan",
@@ -69,7 +69,7 @@ async def test_handler_returns_calibration_on_hit() -> None:
     )
     assert calibration is not None
     assert calibration.id == _CAL_ID
-    assert calibration.subsystem_or_asset_id == _SUBSYSTEM_ID
+    assert calibration.target_id == _SUBSYSTEM_ID
     assert calibration.quantity == "rotation_center"
     assert calibration.operating_point == {"energy_keV": 25.0, "optics_config": "5x"}
     assert calibration.description == "vessel-A pre-scan"

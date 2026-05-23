@@ -1428,15 +1428,15 @@
             "title": "Revisions",
             "type": "array"
           },
-          "subsystem_or_asset_id": {
+          "target_id": {
             "format": "uuid",
-            "title": "Subsystem Or Asset Id",
+            "title": "Target Id",
             "type": "string"
           }
         },
         "required": [
           "id",
-          "subsystem_or_asset_id",
+          "target_id",
           "quantity",
           "operating_point",
           "description",
@@ -1527,15 +1527,15 @@
             "title": "Revision Count",
             "type": "integer"
           },
-          "subsystem_or_asset_id": {
+          "target_id": {
             "format": "uuid",
-            "title": "Subsystem Or Asset Id",
+            "title": "Target Id",
             "type": "string"
           }
         },
         "required": [
           "calibration_id",
-          "subsystem_or_asset_id",
+          "target_id",
           "quantity",
           "operating_point",
           "defined_at",
@@ -3372,7 +3372,7 @@
           },
           "operating_point": {
             "additionalProperties": true,
-            "description": "JSON-shaped dict describing the operating regime (energy_keV, optics_config, etc.). Validated STRICT against the quantity's operating_point_schema (`additionalProperties: False`; primitive types only). Identity-tuple uniqueness `(subsystem_or_asset_id, quantity, operating_point)` enforced via Postgres jsonb UNIQUE on the projection (Q6 lock: key-order normalized + numeric value-equality `25 == 25.0`).",
+            "description": "JSON-shaped dict describing the operating regime (energy_keV, optics_config, etc.). Validated STRICT against the quantity's operating_point_schema (`additionalProperties: False`; primitive types only). Identity-tuple uniqueness `(target_id, quantity, operating_point)` enforced via Postgres jsonb UNIQUE on the projection (Q6 lock: key-order normalized + numeric value-equality `25 == 25.0`).",
             "title": "Operating Point",
             "type": "object"
           },
@@ -3380,15 +3380,15 @@
             "$ref": "#/components/schemas/CalibrationQuantity",
             "description": "The physical quantity being calibrated. Closed catalog at `cora.calibration.quantities`; each value has registered operating_point + value JSON Schemas. Adding a quantity = PR. Day-one set: rotation_center, detector_pixel_size."
           },
-          "subsystem_or_asset_id": {
+          "target_id": {
             "description": "What this calibration is OF (typically the Asset id whose behavior is being measured \u2014 for example, the rotary stage whose rotation-axis center is being tracked). Bare UUID reference; existence NOT verified at the write path per the cross-BC eventual-consistency stance.",
             "format": "uuid",
-            "title": "Subsystem Or Asset Id",
+            "title": "Target Id",
             "type": "string"
           }
         },
         "required": [
-          "subsystem_or_asset_id",
+          "target_id",
           "quantity",
           "operating_point"
         ],
@@ -11768,7 +11768,7 @@
           {
             "description": "Optional scope: only calibrations OF this Asset/subsystem.",
             "in": "query",
-            "name": "subsystem_or_asset_id",
+            "name": "target_id",
             "required": false,
             "schema": {
               "anyOf": [
@@ -11781,7 +11781,7 @@
                 }
               ],
               "description": "Optional scope: only calibrations OF this Asset/subsystem.",
-              "title": "Subsystem Or Asset Id"
+              "title": "Target Id"
             }
           },
           {
@@ -11993,7 +11993,7 @@
                 }
               }
             },
-            "description": "Calibration with the same (subsystem_or_asset_id, quantity, operating_point) identity already exists (Postgres jsonb UNIQUE on proj_calibration_summary). Operators querying for an existing calibration should use GET /calibrations with the same identity filters instead."
+            "description": "Calibration with the same (target_id, quantity, operating_point) identity already exists (Postgres jsonb UNIQUE on proj_calibration_summary). Operators querying for an existing calibration should use GET /calibrations with the same identity filters instead."
           },
           "422": {
             "description": "Request body failed schema validation (e.g. unknown CalibrationQuantity enum value) OR Idempotency-Key was reused with a different request body."

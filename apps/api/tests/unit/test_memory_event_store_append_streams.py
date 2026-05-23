@@ -187,3 +187,80 @@ async def test_append_single_stream_delegates_through_append_streams() -> None:
     events, version = await store.load("Clearance", stream_id)
     assert version == 2
     assert len(events) == 2
+
+
+# ---------- Signature plumbing (Candidate F substrate) ----------
+
+
+def _signed_event(
+    payload: dict[str, object] | None = None,
+    *,
+    signature: bytes | None = None,
+    signature_kid: str | None = None,
+) -> NewEvent:
+    return NewEvent(
+        event_id=uuid4(),
+        event_type="Recorded",
+        schema_version=1,
+        payload=payload or {"k": "v"},
+        occurred_at=datetime.now(tz=UTC),
+        correlation_id=uuid4(),
+        causation_id=None,
+        metadata={},
+        principal_id=uuid4(),
+        signature=signature,
+        signature_kid=signature_kid,
+    )
+
+
+@pytest.mark.unit
+async def test_append_without_signature_loads_back_as_none() -> None:
+    store = InMemoryEventStore()
+    stream_id = uuid4()
+    await store.append("Clearance", stream_id, expected_version=0, events=[_event()])
+    events, _ = await store.load("Clearance", stream_id)
+    assert events[0].signature is None
+    assert events[0].signature_kid is None
+
+
+@pytest.mark.unit
+async def test_append_with_signature_round_trips() -> None:
+    store = InMemoryEventStore()
+    stream_id = uuid4()
+    signature = b"\x42" * 64
+    kid = "kid-test-12345"
+    await store.append(
+        "Clearance",
+        stream_id,
+        expected_version=0,
+        events=[_signed_event(signature=signature, signature_kid=kid)],
+    )
+    events, _ = await store.load("Clearance", stream_id)
+    assert events[0].signature == signature
+    assert events[0].signature_kid == kid
+
+
+@pytest.mark.unit
+async def test_append_mixed_batch_preserves_per_event_signature_state() -> None:
+    """Per-event signature state must stay distinct across a batch.
+    A regression that hoisted signature to batch-level would silently
+    corrupt every mixed batch."""
+    store = InMemoryEventStore()
+    stream_id = uuid4()
+    await store.append(
+        "Clearance",
+        stream_id,
+        expected_version=0,
+        events=[
+            _signed_event(
+                payload={"k": "signed"},
+                signature=b"\x01" * 64,
+                signature_kid="kid-A",
+            ),
+            _signed_event(payload={"k": "unsigned"}),
+        ],
+    )
+    events, _ = await store.load("Clearance", stream_id)
+    assert events[0].signature_kid == "kid-A"
+    assert events[1].signature is None
+    assert events[1].signature_kid is None

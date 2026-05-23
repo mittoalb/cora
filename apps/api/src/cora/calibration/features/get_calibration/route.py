@@ -64,7 +64,7 @@ class CalibrationResponse(BaseModel):
     """
 
     id: UUID
-    subsystem_or_asset_id: UUID
+    target_id: UUID
     quantity: str
     operating_point: dict[str, Any]
     description: str | None
@@ -90,7 +90,7 @@ def _revision_response_from_state(revision: CalibrationRevision) -> RevisionResp
 def _response_from_state(calibration: Calibration) -> CalibrationResponse:
     return CalibrationResponse(
         id=calibration.id,
-        subsystem_or_asset_id=calibration.subsystem_or_asset_id,
+        target_id=calibration.target_id,
         quantity=calibration.quantity,
         operating_point=calibration.operating_point,
         description=calibration.description,

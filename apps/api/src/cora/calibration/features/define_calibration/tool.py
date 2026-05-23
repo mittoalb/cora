@@ -29,7 +29,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         name="define_calibration",
         description=(
             "Define a new empirical instrument-value record (Calibration). "
-            "Identity tuple is (subsystem_or_asset_id, quantity, "
+            "Identity tuple is (target_id, quantity, "
             "operating_point); duplicates are rejected via Postgres jsonb "
             "UNIQUE on the projection. operating_point validates STRICT "
             "against the quantity's registered schema."
@@ -37,7 +37,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
     )
     async def define_calibration_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
-        subsystem_or_asset_id: Annotated[
+        target_id: Annotated[
             UUID,
             Field(description="What this calibration is OF (Asset id)."),
         ],
@@ -74,7 +74,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         handler = get_handler()
         calibration_id = await handler(
             DefineCalibration(
-                subsystem_or_asset_id=subsystem_or_asset_id,
+                target_id=target_id,
                 quantity=quantity,
                 operating_point=operating_point,
                 description=description,

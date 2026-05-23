@@ -155,7 +155,7 @@ class CalibrationDefined:
     """
 
     calibration_id: UUID
-    subsystem_or_asset_id: UUID
+    target_id: UUID
     quantity: str  # CalibrationQuantity value-string
     operating_point: dict[str, Any]
     description: str | None
@@ -222,7 +222,7 @@ def to_payload(event: CalibrationEvent) -> dict[str, Any]:
     match event:
         case CalibrationDefined(
             calibration_id=calibration_id,
-            subsystem_or_asset_id=subsystem_or_asset_id,
+            target_id=target_id,
             quantity=quantity,
             operating_point=operating_point,
             description=description,
@@ -232,7 +232,7 @@ def to_payload(event: CalibrationEvent) -> dict[str, Any]:
         ):
             return {
                 "calibration_id": str(calibration_id),
-                "subsystem_or_asset_id": str(subsystem_or_asset_id),
+                "target_id": str(target_id),
                 "quantity": quantity,
                 "operating_point": operating_point,
                 "description": description,
@@ -293,7 +293,7 @@ def from_stored(stored: StoredEvent) -> CalibrationEvent:
             try:
                 return CalibrationDefined(
                     calibration_id=UUID(payload["calibration_id"]),
-                    subsystem_or_asset_id=UUID(payload["subsystem_or_asset_id"]),
+                    target_id=UUID(payload["target_id"]),
                     quantity=payload["quantity"],
                     operating_point=payload["operating_point"],
                     description=payload.get("description"),

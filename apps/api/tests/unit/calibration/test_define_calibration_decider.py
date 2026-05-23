@@ -33,7 +33,7 @@ def _op_point() -> dict[str, object]:
 def _existing_state() -> Calibration:
     return Calibration(
         id=_NEW_ID,
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity="rotation_center",
         operating_point=_op_point(),
         description=None,
@@ -47,7 +47,7 @@ def _existing_state() -> Calibration:
 @pytest.mark.unit
 def test_decide_emits_genesis_event_for_valid_command() -> None:
     cmd = DefineCalibration(
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity=CalibrationQuantity.ROTATION_CENTER,
         operating_point=_op_point(),
     )
@@ -61,7 +61,7 @@ def test_decide_emits_genesis_event_for_valid_command() -> None:
     assert len(events) == 1
     event = events[0]
     assert event.calibration_id == _NEW_ID
-    assert event.subsystem_or_asset_id == _SUBSYSTEM_ID
+    assert event.target_id == _SUBSYSTEM_ID
     assert event.quantity == "rotation_center"
     assert event.operating_point == _op_point()
     assert event.description is None
@@ -71,7 +71,7 @@ def test_decide_emits_genesis_event_for_valid_command() -> None:
 @pytest.mark.unit
 def test_decide_rejects_when_state_already_exists() -> None:
     cmd = DefineCalibration(
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity=CalibrationQuantity.ROTATION_CENTER,
         operating_point=_op_point(),
     )
@@ -89,7 +89,7 @@ def test_decide_rejects_when_state_already_exists() -> None:
 def test_decide_rejects_missing_required_operating_point_key() -> None:
     """rotation_center requires energy_keV + optics_config."""
     cmd = DefineCalibration(
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity=CalibrationQuantity.ROTATION_CENTER,
         operating_point={"energy_keV": 25.0},  # missing optics_config
     )
@@ -107,7 +107,7 @@ def test_decide_rejects_missing_required_operating_point_key() -> None:
 def test_decide_rejects_empty_operating_point() -> None:
     """Empty operating_point with required-key schema rejects."""
     cmd = DefineCalibration(
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity=CalibrationQuantity.ROTATION_CENTER,
         operating_point={},
     )
@@ -124,7 +124,7 @@ def test_decide_rejects_empty_operating_point() -> None:
 @pytest.mark.unit
 def test_decide_rejects_additional_operating_point_property() -> None:
     cmd = DefineCalibration(
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity=CalibrationQuantity.ROTATION_CENTER,
         operating_point={
             "energy_keV": 25.0,
@@ -145,7 +145,7 @@ def test_decide_rejects_additional_operating_point_property() -> None:
 @pytest.mark.unit
 def test_decide_coerces_empty_description_to_none() -> None:
     cmd = DefineCalibration(
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity=CalibrationQuantity.ROTATION_CENTER,
         operating_point=_op_point(),
         description="   ",
@@ -163,7 +163,7 @@ def test_decide_coerces_empty_description_to_none() -> None:
 @pytest.mark.unit
 def test_decide_trims_description() -> None:
     cmd = DefineCalibration(
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity=CalibrationQuantity.ROTATION_CENTER,
         operating_point=_op_point(),
         description="  vessel-A bakeout pre-scan  ",
@@ -181,7 +181,7 @@ def test_decide_trims_description() -> None:
 @pytest.mark.unit
 def test_decide_rejects_overlong_description() -> None:
     cmd = DefineCalibration(
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity=CalibrationQuantity.ROTATION_CENTER,
         operating_point=_op_point(),
         description="x" * 2001,
@@ -199,7 +199,7 @@ def test_decide_rejects_overlong_description() -> None:
 @pytest.mark.unit
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     cmd = DefineCalibration(
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity=CalibrationQuantity.ROTATION_CENTER,
         operating_point=_op_point(),
     )
@@ -228,7 +228,7 @@ def test_decide_is_immune_to_uuid4_stub() -> None:
     events = define_calibration.decide(
         state=None,
         command=DefineCalibration(
-            subsystem_or_asset_id=_SUBSYSTEM_ID,
+            target_id=_SUBSYSTEM_ID,
             quantity=CalibrationQuantity.ROTATION_CENTER,
             operating_point=_op_point(),
         ),

@@ -200,3 +200,81 @@ async def test_append_emits_pg_notify(db_pool: asyncpg.Pool) -> None:
 
     assert len(received) == 2
     assert all(channel == "events" for channel, _ in received)
+
+
+# ---------- Signature plumbing (Candidate F substrate) ----------
+
+
+@pytest.mark.integration
+async def test_append_without_signature_loads_back_as_none(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Default-None behavior: callers that don't sign get NULL columns
+    on the row and None on the StoredEvent. Confirms the substrate
+    change is backward-compatible for every existing caller."""
+    store = PostgresEventStore(db_pool)
+    stream_id = uuid4()
+    await store.append("Actor", stream_id, 0, [_make_event()])
+    events, _ = await store.load("Actor", stream_id)
+    assert events[0].signature is None
+    assert events[0].signature_kid is None
+
+
+@pytest.mark.integration
+async def test_append_with_signature_round_trips(db_pool: asyncpg.Pool) -> None:
+    """Signed shape: 64-byte signature + non-empty kid round-trips
+    through the INSERT / SELECT path losslessly."""
+    store = PostgresEventStore(db_pool)
+    stream_id = uuid4()
+    signature = b"\x42" * 64
+    kid = "kid-test-12345"
+    event = _make_event()
+    event = NewEvent(
+        event_id=event.event_id,
+        event_type=event.event_type,
+        schema_version=event.schema_version,
+        payload=event.payload,
+        occurred_at=event.occurred_at,
+        correlation_id=event.correlation_id,
+        causation_id=event.causation_id,
+        metadata=event.metadata,
+        principal_id=event.principal_id,
+        signature=signature,
+        signature_kid=kid,
+    )
+    await store.append("Actor", stream_id, 0, [event])
+    events, _ = await store.load("Actor", stream_id)
+    assert events[0].signature == signature
+    assert events[0].signature_kid == kid
+
+
+@pytest.mark.integration
+async def test_append_mixed_batch_preserves_per_event_signature_state(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """A batch with one signed + one unsigned event must keep the
+    per-event signature state distinct. Pinned because a regression
+    that hoisted signature to batch-level would silently corrupt
+    every mixed batch."""
+    store = PostgresEventStore(db_pool)
+    stream_id = uuid4()
+    signed = NewEvent(
+        event_id=uuid4(),
+        event_type="Recorded",
+        schema_version=1,
+        payload={"k": "signed"},
+        occurred_at=datetime.now(tz=UTC),
+        correlation_id=uuid4(),
+        causation_id=None,
+        metadata={},
+        principal_id=uuid4(),
+        signature=b"\x01" * 64,
+        signature_kid="kid-A",
+    )
+    unsigned = _make_event(payload={"k": "unsigned"})
+    await store.append("Actor", stream_id, 0, [signed, unsigned])
+    events, _ = await store.load("Actor", stream_id)
+    assert events[0].signature is not None
+    assert events[0].signature_kid == "kid-A"
+    assert events[1].signature is None
+    assert events[1].signature_kid is None

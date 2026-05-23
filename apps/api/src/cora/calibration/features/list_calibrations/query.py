@@ -3,7 +3,7 @@
 
 Five optional filters in canonical form:
 
-  - `subsystem_or_asset_id` (single-value, exact-match): scope to a
+  - `target_id` (single-value, exact-match): scope to a
     single Asset/subsystem's calibrations.
   - `quantity` (CalibrationQuantity value-string): scope to one
     quantity (e.g., all rotation_center calibrations).
@@ -39,7 +39,7 @@ class ListCalibrations:
     limit: int = 50
     """Page size cap. Default 50, max 100 (route enforces)."""
 
-    subsystem_or_asset_id: UUID | None = None
+    target_id: UUID | None = None
     """Optional scope filter: only calibrations OF this Asset/subsystem."""
 
     quantity: str | None = None

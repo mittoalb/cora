@@ -140,11 +140,11 @@ def test_duplicate_calibration_identity_error_carries_identity_tuple() -> None:
     asset_id = uuid4()
     op_point: dict[str, Any] = {"energy_keV": 25.0, "optics_config": "5x"}
     err = CalibrationIdentityAlreadyExistsError(
-        subsystem_or_asset_id=asset_id,
+        target_id=asset_id,
         quantity="rotation_center",
         operating_point=op_point,
     )
-    assert err.subsystem_or_asset_id == asset_id
+    assert err.target_id == asset_id
     assert err.quantity == "rotation_center"
     assert err.operating_point == op_point
 

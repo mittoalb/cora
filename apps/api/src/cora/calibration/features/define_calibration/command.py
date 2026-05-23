@@ -2,7 +2,7 @@
 
 Carries caller-controlled inputs for defining a new Calibration:
 
-  - `subsystem_or_asset_id` — what this calibration is OF (typically
+  - `target_id` — what this calibration is OF (typically
     Asset.id; the rotation_center "of" the rotary stage). Bare UUID
     reference; existence NOT verified at the decider per the cross-BC
     eventual-consistency stance.
@@ -35,7 +35,7 @@ from cora.calibration.quantities import CalibrationQuantity
 class DefineCalibration:
     """Define a new Calibration (genesis)."""
 
-    subsystem_or_asset_id: UUID
+    target_id: UUID
     quantity: CalibrationQuantity
     operating_point: dict[str, Any]
     description: str | None = None

@@ -1,6 +1,6 @@
 """Calibration BC.
 
-Empirical instrument-value records keyed by `(subsystem_or_asset_id,
+Empirical instrument-value records keyed by `(target_id,
 CalibrationQuantity, operating_point)` with append-only revision
 history. Sibling to Safety (11a) + Caution (11b) per
 [[project_calibration_design]] Stage 1 lock.

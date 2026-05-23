@@ -40,7 +40,7 @@ async def test_define_calibration_persists_event_to_postgres(
 
     calibration_id = await define_calibration.bind(deps)(
         DefineCalibration(
-            subsystem_or_asset_id=_SUBSYSTEM_ID,
+            target_id=_SUBSYSTEM_ID,
             quantity=CalibrationQuantity.ROTATION_CENTER,
             operating_point={"energy_keV": 25.0, "optics_config": "5x"},
             description="vessel-A bakeout pre-scan",
@@ -58,7 +58,7 @@ async def test_define_calibration_persists_event_to_postgres(
     assert stored.schema_version == 1
     assert stored.payload == {
         "calibration_id": str(_NEW_ID),
-        "subsystem_or_asset_id": str(_SUBSYSTEM_ID),
+        "target_id": str(_SUBSYSTEM_ID),
         "quantity": "rotation_center",
         "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
         "description": "vessel-A bakeout pre-scan",
@@ -84,7 +84,7 @@ async def test_define_calibration_projection_lands_row_with_canonical_operating_
 
     await define_calibration.bind(deps)(
         DefineCalibration(
-            subsystem_or_asset_id=_SUBSYSTEM_ID,
+            target_id=_SUBSYSTEM_ID,
             quantity=CalibrationQuantity.ROTATION_CENTER,
             # Key order: optics_config first, energy_keV second.
             operating_point={"optics_config": "5x", "energy_keV": 25.0},
@@ -103,11 +103,11 @@ async def test_define_calibration_projection_lands_row_with_canonical_operating_
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            SELECT calibration_id, subsystem_or_asset_id, quantity,
+            SELECT calibration_id, target_id, quantity,
                    operating_point, description, revision_count,
                    latest_revision_status, latest_revision_source_kind
             FROM proj_calibration_summary
-            WHERE subsystem_or_asset_id = $1
+            WHERE target_id = $1
               AND quantity = $2
               AND operating_point = $3::jsonb
             """,
@@ -148,7 +148,7 @@ async def test_define_calibration_projection_rejects_duplicate_identity(
     )
 
     cmd = DefineCalibration(
-        subsystem_or_asset_id=_SUBSYSTEM_ID,
+        target_id=_SUBSYSTEM_ID,
         quantity=CalibrationQuantity.ROTATION_CENTER,
         operating_point={"energy_keV": 25.0, "optics_config": "5x"},
     )

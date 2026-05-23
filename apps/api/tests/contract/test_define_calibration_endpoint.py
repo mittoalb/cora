@@ -16,7 +16,7 @@ from cora.calibration.features.define_calibration.route import (
 
 def _body(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
-        "subsystem_or_asset_id": str(uuid4()),
+        "target_id": str(uuid4()),
         "quantity": "rotation_center",
         "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
     }
@@ -121,7 +121,7 @@ def test_post_calibrations_rejects_missing_required_body_field_with_422() -> Non
         response = client.post(
             "/calibrations",
             json={
-                "subsystem_or_asset_id": str(uuid4()),
+                "target_id": str(uuid4()),
                 "quantity": "rotation_center",
                 # operating_point missing
             },
@@ -142,7 +142,7 @@ def test_post_calibrations_rejects_overlong_description_with_422() -> None:
 
 @pytest.mark.contract
 def test_post_calibrations_rejects_duplicate_identity_with_409() -> None:
-    """The projection's jsonb UNIQUE on (subsystem_or_asset_id, quantity,
+    """The projection's jsonb UNIQUE on (target_id, quantity,
     operating_point) catches duplicates. Without the deferred lookup-port
     pre-check, the projection-write failure manifests as 409 at the
     operator-facing layer once the projection worker observes the

@@ -1,7 +1,7 @@
 """HTTP route for the `list_calibrations` query slice.
 
 `GET /calibrations` accepts these optional query params: `cursor`,
-`limit`, `subsystem_or_asset_id`, `quantity`,
+`limit`, `target_id`, `quantity`,
 `latest_revision_status` (one or more; multi-value),
 `latest_revision_source_kind` (one or more; multi-value).
 
@@ -38,7 +38,7 @@ class CalibrationSummaryDTO(BaseModel):
     """One calibration in a paginated list."""
 
     calibration_id: UUID
-    subsystem_or_asset_id: UUID
+    target_id: UUID
     quantity: str
     operating_point: dict[str, Any]
     description: str | None = None
@@ -96,7 +96,7 @@ async def list_calibrations(
         int,
         Query(ge=1, le=100, description="Page size; capped at 100."),
     ] = 50,
-    subsystem_or_asset_id: Annotated[
+    target_id: Annotated[
         UUID | None,
         Query(description="Optional scope: only calibrations OF this Asset/subsystem."),
     ] = None,
@@ -127,7 +127,7 @@ async def list_calibrations(
         ListCalibrations(
             cursor=cursor,
             limit=limit,
-            subsystem_or_asset_id=subsystem_or_asset_id,
+            target_id=target_id,
             quantity=quantity.value if quantity is not None else None,
             latest_revision_statuses=latest_revision_status,
             latest_revision_source_kinds=latest_revision_source_kind,
@@ -140,7 +140,7 @@ async def list_calibrations(
         items=[
             CalibrationSummaryDTO(
                 calibration_id=item.calibration_id,
-                subsystem_or_asset_id=item.subsystem_or_asset_id,
+                target_id=item.target_id,
                 quantity=item.quantity,
                 operating_point=item.operating_point,
                 description=item.description,

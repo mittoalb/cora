@@ -16,7 +16,7 @@ from cora.calibration.features.append_revision.route import (
 
 def _define_body(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
-        "subsystem_or_asset_id": str(uuid4()),
+        "target_id": str(uuid4()),
         "quantity": "rotation_center",
         "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
     }

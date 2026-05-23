@@ -45,11 +45,11 @@ def test_get_calibrations_rejects_unknown_quantity_with_422() -> None:
 
 
 @pytest.mark.contract
-def test_get_calibrations_accepts_subsystem_or_asset_id_filter() -> None:
+def test_get_calibrations_accepts_target_id_filter() -> None:
     with TestClient(create_app()) as client:
         response = client.get(
             "/calibrations",
-            params={"subsystem_or_asset_id": str(uuid4())},
+            params={"target_id": str(uuid4())},
         )
     assert response.status_code == 200
     assert response.json()["items"] == []

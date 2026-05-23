@@ -37,7 +37,7 @@ def evolve(state: Calibration | None, event: CalibrationEvent) -> Calibration:
     match event:
         case CalibrationDefined(
             calibration_id=calibration_id,
-            subsystem_or_asset_id=subsystem_or_asset_id,
+            target_id=target_id,
             quantity=quantity,
             operating_point=operating_point,
             description=description,
@@ -48,7 +48,7 @@ def evolve(state: Calibration | None, event: CalibrationEvent) -> Calibration:
             # Shallow-copy operating_point so payload mutation can't alias state (B1).
             return Calibration(
                 id=calibration_id,
-                subsystem_or_asset_id=subsystem_or_asset_id,
+                target_id=target_id,
                 quantity=quantity,
                 operating_point=dict(operating_point),
                 description=description,
@@ -99,7 +99,7 @@ def evolve(state: Calibration | None, event: CalibrationEvent) -> Calibration:
             )
             return Calibration(
                 id=prior.id,
-                subsystem_or_asset_id=prior.subsystem_or_asset_id,
+                target_id=prior.target_id,
                 quantity=prior.quantity,
                 operating_point=prior.operating_point,
                 description=prior.description,

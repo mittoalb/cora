@@ -45,7 +45,7 @@ class GetCalibrationOutput(BaseModel):
     """Structured output of the `get_calibration` MCP tool."""
 
     id: UUID
-    subsystem_or_asset_id: UUID
+    target_id: UUID
     quantity: str
     operating_point: dict[str, Any]
     description: str | None
@@ -71,7 +71,7 @@ def _revision_output(revision: CalibrationRevision) -> RevisionOutput:
 def _output_from_state(calibration: Calibration) -> GetCalibrationOutput:
     return GetCalibrationOutput(
         id=calibration.id,
-        subsystem_or_asset_id=calibration.subsystem_or_asset_id,
+        target_id=calibration.target_id,
         quantity=calibration.quantity,
         operating_point=calibration.operating_point,
         description=calibration.description,

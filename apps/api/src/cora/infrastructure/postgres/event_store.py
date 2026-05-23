@@ -42,6 +42,7 @@ _LOAD_SQL = """
 SELECT position, event_id, stream_type, stream_id, version, event_type,
        schema_version, payload, metadata, correlation_id, causation_id,
        principal_id, occurred_at, recorded_at,
+       signature, signature_kid,
        transaction_id::text AS transaction_id_text
 FROM events
 WHERE stream_type = $1 AND stream_id = $2
@@ -58,8 +59,8 @@ _APPEND_SQL = """
 INSERT INTO events (
     event_id, stream_type, stream_id, version, event_type, schema_version,
     payload, metadata, correlation_id, causation_id, occurred_at,
-    principal_id
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    principal_id, signature, signature_kid
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 """
 
 _CURRENT_VERSION_SQL = """
@@ -157,6 +158,8 @@ class PostgresEventStore:
                             event.causation_id,
                             event.occurred_at,
                             event.principal_id,
+                            event.signature,
+                            event.signature_kid,
                         )
                     new_versions[stream.stream_id] = next_version
                 return new_versions
@@ -221,6 +224,8 @@ class PostgresEventStore:
                         event.causation_id,
                         event.occurred_at,
                         event.principal_id,
+                        event.signature,
+                        event.signature_kid,
                     )
                 new_versions[stream.stream_id] = next_version
             return new_versions
@@ -262,4 +267,6 @@ def _row_to_event(row: Any) -> StoredEvent:
         recorded_at=row["recorded_at"],
         transaction_id=int(row["transaction_id_text"]),
         principal_id=row["principal_id"],
+        signature=row["signature"],
+        signature_kid=row["signature_kid"],
     )
