@@ -111,12 +111,11 @@ def register_decision_routes(app: FastAPI) -> None:
         InvalidDecisionRatingCommentError,
         InvalidReasoningSignatureError,
         OverrideKindRequiresParentError,
-        # Parent-chain validators raised by Agent BC's
-        # `re_debrief_run` slice. Mapped to 400 per the operator-supplied-
-        # bad-input shape; the route registration is done here so the
-        # Decision BC owns the HTTP mapping for its own errors (the
-        # Agent BC's routes.py re-registers them as a defensive duplicate
-        # so the routes-completeness fitness test sees both BCs).
+        # Parent-chain validators raised by Agent BC's `re_debrief_run`
+        # slice. Decision BC owns these errors (defined in
+        # aggregates/decision/state.py) so the HTTP mapping lives here;
+        # FastAPI's app-scoped handler catches regardless of which BC's
+        # route raises them. Agent BC's routes.py does NOT re-register.
         ParentDecisionAgentMismatchError,
         ParentDecisionRunMismatchError,
     ):

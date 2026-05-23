@@ -75,10 +75,6 @@ from cora.agent.features import (
     suspend_agent,
     version_agent,
 )
-from cora.decision.aggregates.decision import (
-    ParentDecisionAgentMismatchError,
-    ParentDecisionRunMismatchError,
-)
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -148,16 +144,14 @@ def register_agent_routes(app: FastAPI) -> None:
     app.include_router(re_debrief_run.router)
     app.include_router(promote_caution_proposal.router)
     # 400 validation handlers: Invalid<X> family + AgentToolsExceedsLimit
-    # cardinality guard + cross-aggregate guards
-    # (AgentNotSeededError + AgentDeactivatedError from this BC;
-    # ParentDecisionAgentMismatchError + ParentDecisionRunMismatchError
-    # from Decision BC's state). Loop-collapsed per the cross-BC
-    # convention captured in this file's docstring.
+    # cardinality guard + cross-aggregate guards.
     #
-    # NOT registered here: RunNotFoundError (Run BC owns -> 404) and
-    # ParentDecisionMissingError (Decision BC owns -> 409). FastAPI's
-    # app-scoped exception handlers catch them regardless of which BC's
-    # route raises.
+    # NOT registered here: ParentDecisionAgentMismatchError +
+    # ParentDecisionRunMismatchError (Decision BC owns; raised from
+    # re_debrief_run's handler but the HTTP mapping is decision/routes.py's
+    # responsibility — FastAPI's app-scoped handler catches regardless of
+    # which BC's route raises). Also NOT registered: RunNotFoundError
+    # (Run BC owns -> 404), ParentDecisionMissingError (Decision BC -> 409).
     for validation_cls in (
         InvalidAgentKindError,
         InvalidAgentNameError,
@@ -174,8 +168,6 @@ def register_agent_routes(app: FastAPI) -> None:
         InvalidModelRefError,
         AgentNotSeededError,
         AgentDeactivatedError,
-        ParentDecisionAgentMismatchError,
-        ParentDecisionRunMismatchError,
         # promote_caution_proposal validation errors.
         DecisionNotCautionProposalError,
         CautionProposalNotActionableError,
