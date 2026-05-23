@@ -62,7 +62,6 @@ from cora.operation.features import (
     start_procedure,
     truncate_procedure,
 )
-from cora.recipe.aggregates.capability import CapabilityNotFoundError
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -149,14 +148,14 @@ def register_operation_routes(app: FastAPI) -> None:
         InvalidStepKindError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
-    for not_found_cls in (
-        ProcedureNotFoundError,
-        # cross-BC reference: Procedure.capability_id points
-        # at a Capability stream that doesn't exist (loaded at handler
-        # time per eventual-consistency stance).
-        CapabilityNotFoundError,
-    ):
+    for not_found_cls in (ProcedureNotFoundError,):
         app.add_exception_handler(not_found_cls, _handle_not_found)
+    # NOT registered here: CapabilityNotFoundError (Recipe BC owns; raised
+    # from register_procedure's handler but the HTTP mapping lives in
+    # recipe/routes.py — FastAPI's app-scoped handler catches regardless
+    # of which BC's route raises). Same single-registration rule as
+    # decision/routes.py owning ParentDecision*MismatchError for agent
+    # BC's re_debrief_run slice.
     for already_exists_cls in (ProcedureAlreadyExistsError,):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (

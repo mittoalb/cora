@@ -45,11 +45,12 @@ def evolve(state: Calibration | None, event: CalibrationEvent) -> Calibration:
             defined_by_actor_id=defined_by_actor_id,
         ):
             _ = state  # CalibrationDefined is the genesis event; prior state ignored
+            # Shallow-copy operating_point so payload mutation can't alias state (B1).
             return Calibration(
                 id=calibration_id,
                 subsystem_or_asset_id=subsystem_or_asset_id,
                 quantity=quantity,
-                operating_point=operating_point,
+                operating_point=dict(operating_point),
                 description=description,
                 revisions=(),
                 defined_at=defined_at,
@@ -87,7 +88,8 @@ def evolve(state: Calibration | None, event: CalibrationEvent) -> Calibration:
             )
             revision = CalibrationRevision(
                 revision_id=revision_id,
-                value=value,
+                # Shallow-copy value so payload mutation can't alias revision (B1).
+                value=dict(value),
                 status=status,  # already a CalibrationStatus enum from event class
                 source=source,
                 established_at=established_at,

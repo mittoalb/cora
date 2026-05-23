@@ -58,6 +58,7 @@ def evolve(state: Capability | None, event: RecipeCapabilityEvent) -> Capability
             parameter_schema=parameter_schema,
         ):
             _ = state  # genesis event; prior state ignored
+            # Shallow-copy parameter_schema so payload mutation can't alias state (B1).
             return Capability(
                 id=capability_id,
                 code=CapabilityCode(code),
@@ -66,7 +67,7 @@ def evolve(state: Capability | None, event: RecipeCapabilityEvent) -> Capability
                 description=description,
                 required_affordances=required_affordances,
                 executor_shapes=executor_shapes,
-                parameter_schema=parameter_schema,
+                parameter_schema=(dict(parameter_schema) if parameter_schema is not None else None),
             )
         case RecipeCapabilityVersioned(
             version_tag=version_tag,
@@ -76,6 +77,7 @@ def evolve(state: Capability | None, event: RecipeCapabilityEvent) -> Capability
             parameter_schema=parameter_schema,
         ):
             prior = require_state(state, "RecipeCapabilityVersioned")
+            # Shallow-copy parameter_schema so payload mutation can't alias state (B1).
             return Capability(
                 id=prior.id,
                 code=prior.code,
@@ -87,7 +89,7 @@ def evolve(state: Capability | None, event: RecipeCapabilityEvent) -> Capability
                 description=description,
                 required_affordances=required_affordances,
                 executor_shapes=executor_shapes,
-                parameter_schema=parameter_schema,
+                parameter_schema=(dict(parameter_schema) if parameter_schema is not None else None),
                 replaced_by_capability_id=prior.replaced_by_capability_id,
             )
         case RecipeCapabilityDeprecated(replaced_by_capability_id=replaced_by_capability_id):

@@ -81,8 +81,9 @@ def evolve(state: Family | None, event: FamilyEvent) -> Family:
                 version=prior.version,
                 # Affordances PRESERVED across schema updates; settings
                 # schema and affordance set evolve independently.
+                # Shallow-copy settings_schema so payload mutation can't alias state (B1).
                 affordances=prior.affordances,
-                settings_schema=settings_schema,
+                settings_schema=(dict(settings_schema) if settings_schema is not None else None),
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

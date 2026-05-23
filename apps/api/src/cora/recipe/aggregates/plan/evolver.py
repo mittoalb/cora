@@ -137,6 +137,7 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
             )
         case PlanDefaultParametersUpdated(default_parameters=default_parameters):
             prior = require_state(state, "PlanDefaultParametersUpdated")
+            # Shallow-copy default_parameters so payload mutation can't alias state (B1).
             return Plan(
                 id=prior.id,
                 name=prior.name,
@@ -145,7 +146,7 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 status=prior.status,
                 version=prior.version,
                 method_id=prior.method_id,
-                default_parameters=default_parameters,
+                default_parameters=dict(default_parameters),
                 wires=prior.wires,
             )
         case PlanWireAdded(

@@ -129,13 +129,16 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
             )
         case MethodParametersSchemaUpdated(parameters_schema=parameters_schema):
             prior = require_state(state, "MethodParametersSchemaUpdated")
+            # Shallow-copy parameters_schema so payload mutation can't alias state (B1).
             return Method(
                 id=prior.id,
                 name=prior.name,
                 needed_families=prior.needed_families,
                 status=prior.status,
                 version=prior.version,
-                parameters_schema=parameters_schema,
+                parameters_schema=(
+                    dict(parameters_schema) if parameters_schema is not None else None
+                ),
                 needed_supplies=prior.needed_supplies,
                 # capability_id PRESERVED across schema updates;
                 # parameter_schema and capability binding evolve

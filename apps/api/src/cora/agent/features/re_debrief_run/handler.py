@@ -252,7 +252,9 @@ def bind(deps: Kernel) -> Handler:
             now=now,
             new_id=new_id,
         )
-        domain_event = domain_events[0]
+        # re_debrief_run's decider always returns exactly one DecisionRegistered;
+        # unpack to fail loud if a future maintainer adds a second event.
+        (domain_event,) = domain_events
         new_event = to_new_event(
             event_type=event_type_name(domain_event),
             payload=to_payload(domain_event),
