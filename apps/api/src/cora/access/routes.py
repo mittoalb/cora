@@ -30,8 +30,8 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from cora.access.aggregates.actor import (
-    ActorAlreadyDeactivatedError,
     ActorAlreadyExistsError,
+    ActorCannotDeactivateError,
     ActorNotFoundError,
     InvalidActorKindError,
     InvalidActorNameError,
@@ -100,7 +100,7 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
     """Shared 409 handler for state-transition guards.
 
     Covers Subject's `<Bc>Cannot<Verb>Error` family (the locked
-    naming convention) and Access's legacy `ActorAlreadyDeactivatedError`
+    naming convention) and Access's legacy `ActorCannotDeactivateError`
     outlier. Both block a state transition; both return the same
     JSON shape. (Outlier rename to `ActorCannotDeactivateError` is
     deferred until Access grows a 2nd state-transition guard.)
@@ -190,7 +190,7 @@ def register_access_routes(app: FastAPI) -> None:
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (ActorAlreadyExistsError,):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
-    for cannot_transition_cls in (ActorAlreadyDeactivatedError,):
+    for cannot_transition_cls in (ActorCannotDeactivateError,):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
     # Infrastructure errors (cross-BC; Access registers them globally — see module docstring).

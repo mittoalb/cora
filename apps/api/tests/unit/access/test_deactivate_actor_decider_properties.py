@@ -3,7 +3,7 @@
 Pins the decider's universal behaviour across generated inputs:
 
   - state=None → ActorNotFoundError, always.
-  - state.is_active=False → ActorAlreadyDeactivatedError, always.
+  - state.is_active=False → ActorCannotDeactivateError, always.
   - state.is_active=True → single ActorDeactivated whose actor_id
     is state.id (NOT command.actor_id — a load-bearing distinction
     because the handler loads by command.actor_id but the decider
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 from cora.access.aggregates.actor import (
     Actor,
-    ActorAlreadyDeactivatedError,
+    ActorCannotDeactivateError,
     ActorDeactivated,
     ActorKind,
     ActorNotFoundError,
@@ -71,7 +71,7 @@ def test_deactivate_inactive_state_always_raises_already_deactivated(
 ) -> None:
     """Already-inactive state rejects regardless of which id the
     command targets."""
-    with pytest.raises(ActorAlreadyDeactivatedError) as exc:
+    with pytest.raises(ActorCannotDeactivateError) as exc:
         deactivate_actor.decide(
             state=_actor(actor_id, is_active=False, kind=kind),
             command=DeactivateActor(actor_id=command_id),

@@ -19,7 +19,7 @@ innermost first):
 
 Update-style commands (deactivate_actor) skip idempotency: they are
 inherently idempotent at the domain level (second call hits
-ActorAlreadyDeactivatedError). Queries (get_actor) skip idempotency:
+ActorCannotDeactivateError). Queries (get_actor) skip idempotency:
 no state mutation. `forget_actor` IS idempotency-wrapped because
 the slice is destructive (PII erasure) and an Idempotency-Key
 double-click must not append two audit events; the inner

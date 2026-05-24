@@ -128,7 +128,7 @@ class SubjectCannotMountError(Exception):
     """Attempted to mount a subject not in the `Received` state.
 
     The current state is carried as `current_status` for diagnostics.
-    Per-transition error class (matches `ActorAlreadyDeactivatedError`
+    Per-transition error class (matches `ActorCannotDeactivateError`
     naming) — each Subject transition gets its own
     `SubjectCannot<X>Error` rather than one generic
     `SubjectStateTransitionError`. With 7 states and ~6 transitions,

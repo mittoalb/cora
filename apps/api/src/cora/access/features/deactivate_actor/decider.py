@@ -6,7 +6,7 @@ the loaded event stream) and returns the events to append. No I/O.
 Invariants:
   - State must not be None (actor must exist) -> ActorNotFoundError
   - State must be active (no double-deactivation)
-    -> ActorAlreadyDeactivatedError
+    -> ActorCannotDeactivateError
 
 Unlike the create-style register_actor decider, no `new_id` is injected
 (we operate on an existing aggregate whose id the command already
@@ -42,7 +42,7 @@ from datetime import datetime
 
 from cora.access.aggregates.actor import (
     Actor,
-    ActorAlreadyDeactivatedError,
+    ActorCannotDeactivateError,
     ActorDeactivated,
     ActorNotFoundError,
 )
@@ -59,5 +59,5 @@ def decide(
     if state is None:
         raise ActorNotFoundError(command.actor_id)
     if not state.is_active:
-        raise ActorAlreadyDeactivatedError(state.id)
+        raise ActorCannotDeactivateError(state.id)
     return [ActorDeactivated(actor_id=state.id, occurred_at=now)]

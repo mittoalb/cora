@@ -12,7 +12,7 @@ import pytest
 
 from cora.access import UnauthorizedError
 from cora.access.aggregates.actor import (
-    ActorAlreadyDeactivatedError,
+    ActorCannotDeactivateError,
     ActorNotFoundError,
 )
 from cora.access.features import deactivate_actor, register_actor
@@ -137,7 +137,7 @@ async def test_handler_raises_already_deactivated_on_second_call() -> None:
         correlation_id=_CORRELATION_ID,
     )
 
-    with pytest.raises(ActorAlreadyDeactivatedError):
+    with pytest.raises(ActorCannotDeactivateError):
         await handler(
             DeactivateActor(actor_id=actor_id),
             principal_id=_PRINCIPAL_ID,

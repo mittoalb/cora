@@ -106,7 +106,7 @@ class ActorNotFoundError(Exception):
         self.actor_id = actor_id
 
 
-class ActorAlreadyDeactivatedError(Exception):
+class ActorCannotDeactivateError(Exception):
     """Attempted to deactivate an actor that is already deactivated."""
 
     def __init__(self, actor_id: UUID) -> None:

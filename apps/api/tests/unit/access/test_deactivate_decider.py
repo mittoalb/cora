@@ -7,7 +7,7 @@ import pytest
 
 from cora.access.aggregates.actor import (
     Actor,
-    ActorAlreadyDeactivatedError,
+    ActorCannotDeactivateError,
     ActorDeactivated,
     ActorNotFoundError,
 )
@@ -48,7 +48,7 @@ def test_decide_rejects_already_deactivated_actor() -> None:
     actor_id = uuid4()
     state = Actor(id=actor_id, is_active=False)
 
-    with pytest.raises(ActorAlreadyDeactivatedError) as exc_info:
+    with pytest.raises(ActorCannotDeactivateError) as exc_info:
         deactivate_actor.decide(
             state=state,
             command=DeactivateActor(actor_id=actor_id),
