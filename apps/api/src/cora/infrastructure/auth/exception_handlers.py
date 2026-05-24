@@ -50,7 +50,7 @@ directly (not via `HTTPException`) to control headers.
 
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from cora.infrastructure.logging import get_logger
@@ -163,7 +163,7 @@ async def _handle_invalid_token(request: Request, exc: Exception) -> JSONRespons
     # never include any caller-controlled or IdP-controlled value.
     challenge = _bearer_challenge(error=exc.reason, error_description=exc.reason)
     return JSONResponse(
-        status_code=401,
+        status_code=status.HTTP_401_UNAUTHORIZED,
         content={"detail": exc.reason},
         headers={"WWW-Authenticate": challenge},
     )
@@ -188,7 +188,7 @@ async def _handle_introspection_unavailable(request: Request, exc: Exception) ->
         detail=exc.detail,
     )
     return JSONResponse(
-        status_code=503,
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content={
             "detail": ("Token introspection upstream is currently unavailable. Retry shortly.")
         },

@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
-from cora.infrastructure.ports import Allow, Deny
+from cora.infrastructure.ports import Allow
 from cora.infrastructure.routing import get_mcp_surface_id
 from cora.trust.features.evaluate_policy.handler import Handler
 from cora.trust.features.evaluate_policy.query import EvaluatePolicy
@@ -82,5 +82,4 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             raise ValueError(msg)
         if isinstance(result, Allow):
             return EvaluatePolicyOutput(decision="Allow")
-        assert isinstance(result, Deny)  # pyright narrowing aid
         return EvaluatePolicyOutput(decision="Deny", reason=result.reason)

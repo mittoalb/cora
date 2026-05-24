@@ -22,7 +22,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 from pydantic import BaseModel
 
-from cora.infrastructure.ports import Allow, Deny
+from cora.infrastructure.ports import Allow
 from cora.infrastructure.routing import (
     ErrorResponse,
     get_correlation_id,
@@ -115,5 +115,4 @@ async def get_policies_evaluate(
     if isinstance(result, Allow):
         return EvaluatePolicyResponse(decision="Allow")
     # Narrowed to Deny via the Allow|Deny union exhaustiveness.
-    assert isinstance(result, Deny)  # pyright narrowing aid
     return EvaluatePolicyResponse(decision="Deny", reason=result.reason)

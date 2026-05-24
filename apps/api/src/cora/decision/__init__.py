@@ -81,6 +81,7 @@ Layout (mirrors every other BC):
     tools.py                  -- register_decision_tools(mcp, *, get_handlers)
 """
 
+from cora.decision import catalog
 from cora.decision._projections import register_decision_projections
 from cora.decision.errors import OverrideKindRequiresParentError, UnauthorizedError
 from cora.decision.routes import register_decision_routes
@@ -91,6 +92,7 @@ __all__ = [
     "DecisionHandlers",
     "OverrideKindRequiresParentError",
     "UnauthorizedError",
+    "catalog",
     "register_decision_projections",
     "register_decision_routes",
     "register_decision_tools",

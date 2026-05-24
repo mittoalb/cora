@@ -9,8 +9,8 @@ across every BC.
 
 ## Shape: single configured policy
 
-The constructor takes one `policy_id`. Every `__call__(...)` loads
-that policy via `load_policy` (fold-on-read; O(events-per-stream)
+The constructor takes one `policy_id`. Every `authorize(...)` call
+loads that policy via `load_policy` (fold-on-read; O(events-per-stream)
 per request) and evaluates against it.
 
 This deliberately ships the smallest useful gating wire-up:
@@ -59,7 +59,7 @@ flip to non-None is deferred (WI8) pending a test-fixture audit;
 
 ## Caller authz vs evaluation result
 
-`Authorize.__call__` returns `Allow` or `Deny`. From the caller's
+`Authorize.authorize` returns `Allow` or `Deny`. From the caller's
 perspective there's no distinction between "the policy permits you"
 (Allow) and "no policy applies / always Allow" (Allow); both gate
 through. Same for Deny — the reason string carries the diagnostic

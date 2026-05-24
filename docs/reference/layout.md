@@ -83,10 +83,10 @@ Prefer **package imports** (re-exported from `__init__.py`) over submodule impor
 
 ```python
 # Preferred
-from cora.access.application import RegisterActorHandler, UnauthorizedError
+from cora.access import register_actor, UnauthorizedError
 
 # Avoid
-from cora.access.application.register_actor_handler import RegisterActorHandler
+from cora.access.features.register_actor.handler import Handler
 ```
 
 The `__init__.py` is the BC's curated public surface; importing through it lets the layout reorganize without ripple edits. Submodule paths only when a symbol is intentionally not re-exported. Enforced by review.

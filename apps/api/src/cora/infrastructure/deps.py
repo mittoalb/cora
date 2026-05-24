@@ -244,6 +244,11 @@ def make_inmemory_kernel(
             caution_lookup if caution_lookup is not None else AlwaysQuietCautionLookup()
         ),
         profile_store=profile_store if profile_store is not None else InMemoryProfileStore(),
+        # pool is intentionally typed `object | None` on this factory's
+        # signature (per the docstring: idempotency-pruner tests pass a
+        # non-None sentinel without standing up real asyncpg). Kernel.pool
+        # is `asyncpg.Pool | None`; the ignore acknowledges the
+        # widening-then-narrowing seam.
         pool=pool,  # type: ignore[arg-type]
         llm=llm,
         logbook_mirror=logbook_mirror,

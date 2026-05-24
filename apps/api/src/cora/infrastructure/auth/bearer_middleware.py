@@ -66,6 +66,7 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+from starlette import status
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -195,7 +196,7 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
                 )
 
                 return JSONResponse(
-                    status_code=401,
+                    status_code=status.HTTP_401_UNAUTHORIZED,
                     content={
                         "detail": (
                             "Missing Authorization: Bearer header for MCP. "
@@ -248,7 +249,7 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
                 error_type=type(exc).__name__,
             )
             return JSONResponse(
-                status_code=500,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 content={
                     "detail": ("An unexpected error occurred while verifying the bearer token.")
                 },
