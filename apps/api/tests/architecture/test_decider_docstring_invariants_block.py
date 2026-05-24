@@ -14,12 +14,12 @@ function's docstring, but the older convention placed it in the module
 docstring; both are accepted today. A future phase can tighten this to
 the function-docstring-only form once the existing files are aligned.
 
-``DECIDERS_MISSING_INVARIANTS`` is the explicit work-tracker for the
-67 deciders that currently lack the block (per the 2026-05-22 audit).
-Phase ζ adds the blocks one BC at a time and removes the matching
-allowlist entries. The test fails BOTH ways: a missing decider that's
-not allowlisted, AND an allowlisted decider that now has the block
-(so the allowlist can't go stale).
+``DECIDERS_MISSING_INVARIANTS`` is the explicit allowlist for
+deciders without the block. Currently empty: every decider
+complies. The drift catcher stays armed so any new decider that
+ships without the block fails at PR time. The test fails BOTH
+ways: a missing decider that's not allowlisted, AND an allowlisted
+decider that now has the block (so the allowlist can't go stale).
 """
 
 from __future__ import annotations
@@ -34,9 +34,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-# Generated from the 2026-05-22 audit + 2026-05-23 re-audit.
-# Entries are removed as Phase ζ adds Invariants: blocks. Empty means
-# 100% compliance and the allowlist can be deleted.
+# Empty allowlist: every decider carries the Invariants block. Add
+# an entry only when grandfathering a new violator ahead of its
+# documentation pass; remove it when the block lands.
 DECIDERS_MISSING_INVARIANTS: frozenset[str] = frozenset()
 
 

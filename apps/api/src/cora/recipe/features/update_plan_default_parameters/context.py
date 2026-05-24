@@ -14,9 +14,8 @@ to a shared form only after the rule of three.
 `method_parameters_schema` is None when the bound Method's stream
 no longer exists OR the Method declared no schema. The strict
 validator interprets None plus non-empty defaults as a rejection
-("Method declares no parameters_schema"), per the 5g-c "no
-contract therefore reject" anchor; see
-[[project_run_parameters_design]] audit-correction.
+("Method declares no parameters_schema"), per the "no contract
+therefore reject" anchor documented in [[project_run_parameters_design]].
 """
 
 from dataclasses import dataclass
