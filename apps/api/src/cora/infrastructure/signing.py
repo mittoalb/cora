@@ -38,13 +38,14 @@ bytes.
     than write-time signing); composition stays explicit.
 """
 
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Any
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from cora.infrastructure.content_hash import canonical_body_bytes, pae_bytes
+from cora.infrastructure.ports.event_store import StoredEvent
 
 EVENT_TYPE_PAYLOAD_TYPE_PREFIX = "application/vnd.cora."
 EVENT_TYPE_PAYLOAD_TYPE_SUFFIX = "+json"
@@ -191,6 +192,67 @@ async def verify_signature(
         raise SignatureInvalidError(event_type, kid) from exc
 
 
+async def verify_stream(
+    events: Sequence[StoredEvent],
+    *,
+    resolve_public_key: Callable[[str], Awaitable[bytes]],
+    strict: bool = False,
+) -> None:
+    """Verify every signed event in a loaded stream. Raise on first failure.
+
+    Audit-mode opt-in verification for callers reading from any
+    `EventStore` adapter. The function takes the loaded sequence and a
+    public-key resolver and walks the stream in order:
+
+      - When `event.signature_kid is not None`, calls `verify_signature`
+        with the event's payload, signature, and kid. Raises
+        `SignatureInvalidError` on the first row that fails.
+      - When `event.signature_kid is None` AND `event.event_type` is in
+        `SIGNED_EVENT_TYPES` AND `strict=True`, raises
+        `SignatureMissingError` (audit-mode "no signed event went
+        unsigned" check).
+      - When `event.signature_kid is None` and either the event type
+        is NOT in `SIGNED_EVENT_TYPES` or `strict=False`, the event is
+        skipped silently. Pre-rollout events and human-actor rows are
+        legitimately unsigned per the design lock's "AI-agent events
+        signed, human-actor events not" stance.
+
+    The function is event-type-agnostic at the call signature; the
+    `SIGNED_EVENT_TYPES` check is the registry-lookup that determines
+    which rows must carry a signature.
+
+    Kept as a standalone helper rather than an `EventStore.load` flag
+    so the port stays signing-unaware. Callers wanting opt-in
+    verification compose: `events, _ = await store.load(...);
+    await verify_stream(events, resolve_public_key=...)`.
+
+    `strict=True` is the audit-sweep default; production read paths
+    that just need bytes (projection rebuilds, decider folds) leave it
+    `False` so they don't pay the verify cost per row.
+
+    Raises:
+      - `SignatureInvalidError`: a signed event's signature failed
+        verification (tampering, key rotation drift, key compromise).
+      - `SignatureMissingError`: only with `strict=True`, an event
+        whose type is in SIGNED_EVENT_TYPES has no signature.
+    """
+    for event in events:
+        if event.signature_kid is not None:
+            assert event.signature is not None, (
+                "events_signature_kid_consistency CHECK constraint guarantees "
+                "both-or-neither; signature_kid set implies signature set"
+            )
+            await verify_signature(
+                event_type=event.event_type,
+                payload=event.payload,
+                signature=event.signature,
+                kid=event.signature_kid,
+                resolve_public_key=resolve_public_key,
+            )
+        elif strict and event.event_type in SIGNED_EVENT_TYPES:
+            raise SignatureMissingError(event.event_type)
+
+
 __all__ = [
     "EVENT_TYPE_PAYLOAD_TYPE_PREFIX",
     "EVENT_TYPE_PAYLOAD_TYPE_SUFFIX",
@@ -199,4 +261,5 @@ __all__ = [
     "SignatureMissingError",
     "event_type_to_payload_type",
     "verify_signature",
+    "verify_stream",
 ]

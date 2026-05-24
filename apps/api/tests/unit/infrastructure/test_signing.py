@@ -20,6 +20,8 @@ behind the Signer port.
 
 import inspect
 from collections.abc import Mapping
+from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -30,6 +32,7 @@ from cryptography.hazmat.primitives.serialization import (
 )
 
 from cora.infrastructure.content_hash import canonical_body_bytes, pae_bytes
+from cora.infrastructure.ports.event_store import StoredEvent
 from cora.infrastructure.ports.signing import (
     Signer,
     SignerKeyInactiveError,
@@ -42,6 +45,7 @@ from cora.infrastructure.signing import (
     SignatureMissingError,
     event_type_to_payload_type,
     verify_signature,
+    verify_stream,
 )
 
 # ---------- event_type_to_payload_type ----------
@@ -420,3 +424,187 @@ def test_signer_protocol_has_locked_sign_signature() -> None:
         assert param.kind == inspect.Parameter.KEYWORD_ONLY, (
             f"{name} must be keyword-only; positional args break adapter call-site safety"
         )
+
+
+# ---------- verify_stream (audit-mode opt-in) ----------
+
+
+def _stored(
+    *,
+    event_type: str = "DecisionRegistered",
+    payload: dict[str, Any] | None = None,
+    signature: bytes | None = None,
+    signature_kid: str | None = None,
+) -> StoredEvent:
+    """Build a minimal StoredEvent for verify_stream tests."""
+    return StoredEvent(
+        position=1,
+        event_id=uuid4(),
+        stream_type="Decision",
+        stream_id=uuid4(),
+        version=1,
+        event_type=event_type,
+        schema_version=1,
+        payload=payload or {"x": 1},
+        correlation_id=uuid4(),
+        causation_id=None,
+        occurred_at=datetime(2026, 5, 24, tzinfo=UTC),
+        recorded_at=datetime(2026, 5, 24, tzinfo=UTC),
+        signature=signature,
+        signature_kid=signature_kid,
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_verify_stream_accepts_empty_sequence() -> None:
+    """Empty stream is a no-op; no resolver calls, no raises."""
+    calls: list[str] = []
+
+    async def _resolver(kid: str) -> bytes:
+        calls.append(kid)
+        return b"\x00" * 32
+
+    await verify_stream([], resolve_public_key=_resolver, strict=True)
+    assert calls == []
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_verify_stream_skips_unsigned_events_in_non_strict_mode() -> None:
+    """Default non-strict mode: unsigned events pass through silently
+    (legitimate pre-rollout + human-actor rows)."""
+    events = [
+        _stored(event_type="DecisionRegistered"),  # unsigned, in SIGNED_EVENT_TYPES
+        _stored(event_type="RunStarted"),  # unsigned, not in SIGNED_EVENT_TYPES
+    ]
+    calls: list[str] = []
+
+    async def _resolver(kid: str) -> bytes:
+        calls.append(kid)
+        return b"\x00" * 32
+
+    await verify_stream(events, resolve_public_key=_resolver)
+    assert calls == []  # no signed events; resolver never invoked
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_verify_stream_strict_mode_raises_on_unsigned_signed_event_type() -> None:
+    """Strict audit mode: an event with type in SIGNED_EVENT_TYPES that
+    lacks a signature is the canary for a misconfigured signer (no
+    signed event should ever land without a signature). Raises
+    SignatureMissingError so audit dashboards surface the gap."""
+    events = [_stored(event_type="DecisionRegistered")]  # in SIGNED_EVENT_TYPES, unsigned
+
+    async def _resolver(_kid: str) -> bytes:
+        return b"\x00" * 32
+
+    with pytest.raises(SignatureMissingError) as exc_info:
+        await verify_stream(events, resolve_public_key=_resolver, strict=True)
+    assert exc_info.value.event_type == "DecisionRegistered"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_verify_stream_strict_mode_passes_unsigned_non_signed_type() -> None:
+    """Strict mode is a per-event check; events whose type is NOT in
+    SIGNED_EVENT_TYPES pass through unsigned even with strict=True
+    (they're legitimately unsigned by design)."""
+    events = [_stored(event_type="RunStarted")]
+
+    async def _resolver(_kid: str) -> bytes:
+        return b"\x00" * 32
+
+    await verify_stream(events, resolve_public_key=_resolver, strict=True)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_verify_stream_verifies_signed_events_against_resolver() -> None:
+    """Happy path: a stream with one signed event verifies cleanly."""
+    signer = Ed25519PrivateKey.generate()
+    payload = {"x": 1}
+    signature = _sign_with_ed25519("DecisionRegistered", payload, signer)
+    pub = _public_bytes(signer)
+    events = [
+        _stored(
+            event_type="DecisionRegistered",
+            payload=payload,
+            signature=signature,
+            signature_kid="kid-A",
+        )
+    ]
+
+    async def _resolver(kid: str) -> bytes:
+        assert kid == "kid-A"
+        return pub
+
+    await verify_stream(events, resolve_public_key=_resolver)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_verify_stream_raises_on_first_invalid_signature() -> None:
+    """When one of many events fails verification, the call raises
+    immediately; later events are not checked. Pinning the
+    fail-fast semantic so audit consumers can surface the offending
+    row promptly."""
+    signer = Ed25519PrivateKey.generate()
+    payload = {"x": 1}
+    valid_sig = _sign_with_ed25519("DecisionRegistered", payload, signer)
+    pub = _public_bytes(signer)
+    events = [
+        _stored(  # valid
+            event_type="DecisionRegistered",
+            payload=payload,
+            signature=valid_sig,
+            signature_kid="kid-A",
+        ),
+        _stored(  # tampered: signature doesn't match this payload
+            event_type="DecisionRegistered",
+            payload={"x": 99},
+            signature=valid_sig,
+            signature_kid="kid-A",
+        ),
+        _stored(  # would also fail, but never reached
+            event_type="DecisionRegistered",
+            payload={"x": 100},
+            signature=valid_sig,
+            signature_kid="kid-A",
+        ),
+    ]
+
+    async def _resolver(_kid: str) -> bytes:
+        return pub
+
+    with pytest.raises(SignatureInvalidError):
+        await verify_stream(events, resolve_public_key=_resolver)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_verify_stream_mixed_signed_and_unsigned_in_strict_mode() -> None:
+    """Realistic audit replay: a stream contains both pre-rollout
+    unsigned events (event_type not in SIGNED_EVENT_TYPES) and newly
+    signed Agent-emitted events. Strict mode verifies the signed
+    ones and allows the unsigned non-signed-type rows."""
+    signer = Ed25519PrivateKey.generate()
+    payload = {"x": 1}
+    signature = _sign_with_ed25519("DecisionRegistered", payload, signer)
+    pub = _public_bytes(signer)
+    events = [
+        _stored(event_type="RunStarted"),  # legitimately unsigned
+        _stored(
+            event_type="DecisionRegistered",
+            payload=payload,
+            signature=signature,
+            signature_kid="kid-A",
+        ),
+        _stored(event_type="RunCompleted"),  # legitimately unsigned
+    ]
+
+    async def _resolver(_kid: str) -> bytes:
+        return pub
+
+    await verify_stream(events, resolve_public_key=_resolver, strict=True)
