@@ -19,7 +19,6 @@ passing them into `decide` as the `families` argument; the
 decider stays pure (no I/O).
 """
 
-from collections.abc import Sequence
 from datetime import datetime
 
 from cora.equipment.aggregates.asset import (
@@ -30,8 +29,8 @@ from cora.equipment.aggregates.asset import (
 from cora.equipment.aggregates.asset.settings_validation import (
     validate_settings_against_families,
 )
-from cora.equipment.aggregates.family.state import Family
 from cora.equipment.features.update_asset_settings.command import UpdateAssetSettings
+from cora.equipment.features.update_asset_settings.context import AssetSettingsContext
 from cora.infrastructure.json_merge_patch import merge_patch
 
 
@@ -39,7 +38,7 @@ def decide(
     state: Asset | None,
     command: UpdateAssetSettings,
     *,
-    families: Sequence[Family],
+    context: AssetSettingsContext,
     now: datetime,
 ) -> list[AssetSettingsUpdated]:
     """Decide the events produced by an Asset.settings update."""
@@ -48,7 +47,7 @@ def decide(
 
     merged = merge_patch(state.settings, command.settings_patch)
 
-    validate_settings_against_families(merged, families)
+    validate_settings_against_families(merged, context.families)
 
     if merged == state.settings:
         return []

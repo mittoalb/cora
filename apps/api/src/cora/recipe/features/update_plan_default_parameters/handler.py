@@ -47,6 +47,9 @@ from cora.recipe.errors import UnauthorizedError
 from cora.recipe.features.update_plan_default_parameters.command import (
     UpdatePlanDefaultParameters,
 )
+from cora.recipe.features.update_plan_default_parameters.context import (
+    PlanDefaultParametersContext,
+)
 from cora.recipe.features.update_plan_default_parameters.decider import decide
 
 _STREAM_TYPE = "Plan"
@@ -126,10 +129,14 @@ def bind(deps: Kernel) -> Handler:
             if method is not None:
                 method_parameters_schema = method.parameters_schema
 
+        context = PlanDefaultParametersContext(
+            method_parameters_schema=method_parameters_schema,
+        )
+
         domain_events = decide(
             state=state,
             command=command,
-            method_parameters_schema=method_parameters_schema,
+            context=context,
             now=now,
         )
 

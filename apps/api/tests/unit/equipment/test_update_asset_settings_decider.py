@@ -32,6 +32,7 @@ from cora.equipment.aggregates.family.state import (
 )
 from cora.equipment.features import update_asset_settings
 from cora.equipment.features.update_asset_settings import UpdateAssetSettings
+from cora.equipment.features.update_asset_settings.context import AssetSettingsContext
 
 _NOW = datetime(2026, 5, 13, 12, 0, 0, tzinfo=UTC)
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
@@ -85,7 +86,7 @@ def test_decide_emits_event_when_setting_first_value() -> None:
     events = update_asset_settings.decide(
         state=state,
         command=UpdateAssetSettings(asset_id=state.id, settings_patch={"energy": 30}),
-        families=[cap],
+        context=AssetSettingsContext(families=[cap]),
         now=_NOW,
     )
     assert events == [
@@ -106,7 +107,7 @@ def test_decide_emits_event_with_merged_dict_not_patch() -> None:
     events = update_asset_settings.decide(
         state=state,
         command=UpdateAssetSettings(asset_id=state.id, settings_patch={"energy": 40}),
-        families=[_energy_cap()],
+        context=AssetSettingsContext(families=[_energy_cap()]),
         now=_NOW,
     )
     assert len(events) == 1
@@ -119,7 +120,7 @@ def test_decide_emits_event_when_null_deletes_existing_key() -> None:
     events = update_asset_settings.decide(
         state=state,
         command=UpdateAssetSettings(asset_id=state.id, settings_patch={"filter": None}),
-        families=[_energy_cap()],
+        context=AssetSettingsContext(families=[_energy_cap()]),
         now=_NOW,
     )
     assert len(events) == 1
@@ -134,7 +135,7 @@ def test_decide_no_op_when_merged_equals_current() -> None:
     events = update_asset_settings.decide(
         state=state,
         command=UpdateAssetSettings(asset_id=state.id, settings_patch={"energy": 30}),
-        families=[_energy_cap()],
+        context=AssetSettingsContext(families=[_energy_cap()]),
         now=_NOW,
     )
     assert events == []
@@ -147,7 +148,7 @@ def test_decide_no_op_when_patch_is_empty_dict() -> None:
     events = update_asset_settings.decide(
         state=state,
         command=UpdateAssetSettings(asset_id=state.id, settings_patch={}),
-        families=[_energy_cap()],
+        context=AssetSettingsContext(families=[_energy_cap()]),
         now=_NOW,
     )
     assert events == []
@@ -160,7 +161,7 @@ def test_decide_raises_asset_not_found_when_state_is_none() -> None:
         update_asset_settings.decide(
             state=None,
             command=UpdateAssetSettings(asset_id=target_id, settings_patch={"x": 1}),
-            families=[],
+            context=AssetSettingsContext(families=[]),
             now=_NOW,
         )
     assert exc_info.value.asset_id == target_id
@@ -176,7 +177,7 @@ def test_decide_raises_invalid_settings_for_constraint_violation() -> None:
                 asset_id=state.id,
                 settings_patch={"energy": 1},  # below minimum=5
             ),
-            families=[_energy_cap()],
+            context=AssetSettingsContext(families=[_energy_cap()]),
             now=_NOW,
         )
 
@@ -192,7 +193,7 @@ def test_decide_raises_invalid_settings_for_orphan_key_in_strict_mode() -> None:
                 asset_id=state.id,
                 settings_patch={"rogue": "x"},
             ),
-            families=[_energy_cap()],
+            context=AssetSettingsContext(families=[_energy_cap()]),
             now=_NOW,
         )
 
@@ -213,7 +214,7 @@ def test_decide_allows_null_cleanup_of_orphan_key_after_capability_removed() -> 
             asset_id=state.id,
             settings_patch={"orphan_key": None},
         ),
-        families=[cap],
+        context=AssetSettingsContext(families=[cap]),
         now=_NOW,
     )
     assert len(events) == 1
@@ -225,6 +226,10 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
     state = _asset(settings={})
     cap = _energy_cap()
     command = UpdateAssetSettings(asset_id=state.id, settings_patch={"energy": 30})
-    first = update_asset_settings.decide(state=state, command=command, families=[cap], now=_NOW)
-    second = update_asset_settings.decide(state=state, command=command, families=[cap], now=_NOW)
+    first = update_asset_settings.decide(
+        state=state, command=command, context=AssetSettingsContext(families=[cap]), now=_NOW
+    )
+    second = update_asset_settings.decide(
+        state=state, command=command, context=AssetSettingsContext(families=[cap]), now=_NOW
+    )
     assert first == second

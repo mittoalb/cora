@@ -27,6 +27,9 @@ from cora.recipe.features import update_plan_default_parameters
 from cora.recipe.features.update_plan_default_parameters import (
     UpdatePlanDefaultParameters,
 )
+from cora.recipe.features.update_plan_default_parameters.context import (
+    PlanDefaultParametersContext,
+)
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
@@ -76,7 +79,7 @@ def test_decide_emits_event_when_setting_first_keys() -> None:
         command=UpdatePlanDefaultParameters(
             plan_id=state.id, default_parameters_patch={"energy": 12.0}
         ),
-        method_parameters_schema=_schema(),
+        context=PlanDefaultParametersContext(method_parameters_schema=_schema()),
         now=_NOW,
     )
     assert events == [
@@ -98,7 +101,7 @@ def test_decide_event_payload_carries_post_merge_not_patch() -> None:
         command=UpdatePlanDefaultParameters(
             plan_id=state.id, default_parameters_patch={"exposure": 250}
         ),
-        method_parameters_schema=_schema(),
+        context=PlanDefaultParametersContext(method_parameters_schema=_schema()),
         now=_NOW,
     )
     assert len(events) == 1
@@ -115,7 +118,7 @@ def test_decide_null_patch_value_deletes_key() -> None:
         command=UpdatePlanDefaultParameters(
             plan_id=state.id, default_parameters_patch={"exposure": None}
         ),
-        method_parameters_schema=_schema(),
+        context=PlanDefaultParametersContext(method_parameters_schema=_schema()),
         now=_NOW,
     )
     assert len(events) == 1
@@ -129,7 +132,7 @@ def test_decide_no_op_when_merge_result_unchanged() -> None:
     events = update_plan_default_parameters.decide(
         state=state,
         command=UpdatePlanDefaultParameters(plan_id=state.id, default_parameters_patch={}),
-        method_parameters_schema=_schema(),
+        context=PlanDefaultParametersContext(method_parameters_schema=_schema()),
         now=_NOW,
     )
     assert events == []
@@ -143,7 +146,7 @@ def test_decide_no_op_when_setting_same_value() -> None:
         command=UpdatePlanDefaultParameters(
             plan_id=state.id, default_parameters_patch={"energy": 12.0}
         ),
-        method_parameters_schema=_schema(),
+        context=PlanDefaultParametersContext(method_parameters_schema=_schema()),
         now=_NOW,
     )
     assert events == []
@@ -158,7 +161,7 @@ def test_decide_raises_plan_not_found_when_state_is_none() -> None:
             command=UpdatePlanDefaultParameters(
                 plan_id=target_id, default_parameters_patch={"energy": 12.0}
             ),
-            method_parameters_schema=_schema(),
+            context=PlanDefaultParametersContext(method_parameters_schema=_schema()),
             now=_NOW,
         )
     assert exc_info.value.plan_id == target_id
@@ -173,7 +176,7 @@ def test_decide_raises_invalid_when_post_merge_violates_schema() -> None:
             command=UpdatePlanDefaultParameters(
                 plan_id=state.id, default_parameters_patch={"energy": 1.0}
             ),
-            method_parameters_schema=_schema(),
+            context=PlanDefaultParametersContext(method_parameters_schema=_schema()),
             now=_NOW,
         )
 
@@ -192,7 +195,7 @@ def test_decide_strict_when_method_has_no_schema_with_non_empty_defaults() -> No
                 plan_id=state.id,
                 default_parameters_patch={"undeclared_key": "anything"},
             ),
-            method_parameters_schema=None,
+            context=PlanDefaultParametersContext(method_parameters_schema=None),
             now=_NOW,
         )
     assert "Method declares no parameters_schema" in exc_info.value.reason
@@ -206,7 +209,7 @@ def test_decide_accepts_empty_defaults_when_method_has_no_schema() -> None:
     events = update_plan_default_parameters.decide(
         state=state,
         command=UpdatePlanDefaultParameters(plan_id=state.id, default_parameters_patch={}),
-        method_parameters_schema=None,
+        context=PlanDefaultParametersContext(method_parameters_schema=None),
         now=_NOW,
     )
     assert events == []
@@ -229,7 +232,7 @@ def test_decide_accepts_defaults_update_in_any_lifecycle_state(
         command=UpdatePlanDefaultParameters(
             plan_id=state.id, default_parameters_patch={"energy": 12.0}
         ),
-        method_parameters_schema=_schema(),
+        context=PlanDefaultParametersContext(method_parameters_schema=_schema()),
         now=_NOW,
     )
     assert len(events) == 1

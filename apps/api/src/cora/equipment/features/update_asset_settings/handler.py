@@ -58,6 +58,7 @@ from cora.equipment.aggregates.asset import (
 from cora.equipment.aggregates.family.read import load_family
 from cora.equipment.errors import UnauthorizedError
 from cora.equipment.features.update_asset_settings.command import UpdateAssetSettings
+from cora.equipment.features.update_asset_settings.context import AssetSettingsContext
 from cora.equipment.features.update_asset_settings.decider import decide
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
@@ -152,11 +153,12 @@ def bind(deps: Kernel) -> Handler:
         # will tolerate unknown keys in this case (matches schemaless-
         # Family semantics).
         families = [c for c in loaded if c is not None]
+        context = AssetSettingsContext(families=families)
 
         domain_events = decide(
             state=state,
             command=command,
-            families=families,
+            context=context,
             now=now,
         )
 

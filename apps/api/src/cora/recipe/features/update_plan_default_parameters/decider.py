@@ -23,7 +23,6 @@ passing its `parameters_schema` into `decide` as the
 """
 
 from datetime import datetime
-from typing import Any
 
 from cora.infrastructure.json_merge_patch import merge_patch
 from cora.recipe.aggregates.plan import (
@@ -35,13 +34,16 @@ from cora.recipe.aggregates.plan import (
 from cora.recipe.features.update_plan_default_parameters.command import (
     UpdatePlanDefaultParameters,
 )
+from cora.recipe.features.update_plan_default_parameters.context import (
+    PlanDefaultParametersContext,
+)
 
 
 def decide(
     state: Plan | None,
     command: UpdatePlanDefaultParameters,
     *,
-    method_parameters_schema: dict[str, Any] | None,
+    context: PlanDefaultParametersContext,
     now: datetime,
 ) -> list[PlanDefaultParametersUpdated]:
     """Decide the events produced by a Plan.default_parameters update."""
@@ -50,7 +52,7 @@ def decide(
 
     merged = merge_patch(state.default_parameters, command.default_parameters_patch)
 
-    validate_default_parameters_against_method_schema(merged, method_parameters_schema)
+    validate_default_parameters_against_method_schema(merged, context.method_parameters_schema)
 
     if merged == state.default_parameters:
         return []
