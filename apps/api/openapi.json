@@ -7646,7 +7646,7 @@
         "title": "SourceMeasuredDTO",
         "type": "object"
       },
-      "StartReviewClearanceRequest": {
+      "StartClearanceReviewRequest": {
         "description": "Body for `POST /clearances/{clearance_id}/start_review`.",
         "properties": {
           "first_reviewer_role": {
@@ -7660,7 +7660,7 @@
         "required": [
           "first_reviewer_role"
         ],
-        "title": "StartReviewClearanceRequest",
+        "title": "StartClearanceReviewRequest",
         "type": "object"
       },
       "StartRunRequest": {
@@ -15207,7 +15207,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/StartReviewClearanceRequest"
+                "$ref": "#/components/schemas/StartClearanceReviewRequest"
               }
             }
           },
@@ -15255,7 +15255,7 @@
                 }
               }
             },
-            "description": "Clearance is not in Submitted status (start_review_clearance is single-source from Submitted only)."
+            "description": "Clearance is not in Submitted status (start_clearance_review is single-source from Submitted only)."
           },
           "422": {
             "description": "Request body failed schema validation (missing first_reviewer_role, empty, or exceeds 50 chars)."

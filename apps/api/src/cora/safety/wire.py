@@ -20,7 +20,7 @@ Cross-cutting decorators applied here mirror Access / Trust / Subject
 
 11a-b:
   - `submit_clearance`              (transition; uses make_clearance_update_handler)
-  - `start_review_clearance`        (transition)
+  - `start_clearance_review`        (transition)
   - `append_clearance_review_step`  (transition)
   - `approve_clearance`             (transition)
   - `reject_clearance`              (transition)
@@ -52,7 +52,7 @@ from cora.safety.features import (
     list_clearances,
     register_clearance,
     reject_clearance,
-    start_review_clearance,
+    start_clearance_review,
     submit_clearance,
 )
 
@@ -67,7 +67,7 @@ class SafetyHandlers:
     get_clearance: get_clearance.Handler
     list_clearances: list_clearances.Handler
     submit_clearance: submit_clearance.Handler
-    start_review_clearance: start_review_clearance.Handler
+    start_clearance_review: start_clearance_review.Handler
     append_clearance_review_step: append_clearance_review_step.Handler
     approve_clearance: approve_clearance.Handler
     reject_clearance: reject_clearance.Handler
@@ -108,9 +108,9 @@ def wire_safety(deps: Kernel) -> SafetyHandlers:
             command_name="SubmitClearance",
             bc=_BC,
         ),
-        start_review_clearance=with_tracing(
-            start_review_clearance.bind(deps),
-            command_name="StartReviewClearance",
+        start_clearance_review=with_tracing(
+            start_clearance_review.bind(deps),
+            command_name="StartClearanceReview",
             bc=_BC,
         ),
         append_clearance_review_step=with_tracing(

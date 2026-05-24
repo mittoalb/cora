@@ -135,8 +135,8 @@ from cora.safety.features.approve_clearance import ApproveClearance
 from cora.safety.features.approve_clearance import bind as bind_approve_clearance
 from cora.safety.features.register_clearance import RegisterClearance
 from cora.safety.features.register_clearance import bind as bind_register_clearance
-from cora.safety.features.start_review_clearance import StartReviewClearance
-from cora.safety.features.start_review_clearance import bind as bind_start_review
+from cora.safety.features.start_clearance_review import StartClearanceReview
+from cora.safety.features.start_clearance_review import bind as bind_start_review
 from cora.safety.features.submit_clearance import SubmitClearance
 from cora.safety.features.submit_clearance import bind as bind_submit_clearance
 from cora.subject.features.mount_subject import MountSubject
@@ -401,7 +401,7 @@ async def test_run_start_blocked_then_unblocked_by_clearance_activation(
         correlation_id=_CORRELATION_ID,
     )
     await bind_start_review(deps)(
-        StartReviewClearance(
+        StartClearanceReview(
             clearance_id=_CLEARANCE_ID,
             first_reviewer_role="BeamlineScientist",
         ),

@@ -192,10 +192,10 @@ async def test_approved_with_validity_window_overrides_updates_projection(
     from cora.safety.features.approve_clearance import (
         bind as approve_bind,
     )
-    from cora.safety.features.start_review_clearance import (
-        StartReviewClearance,
+    from cora.safety.features.start_clearance_review import (
+        StartClearanceReview,
     )
-    from cora.safety.features.start_review_clearance import (
+    from cora.safety.features.start_clearance_review import (
         bind as start_review_bind,
     )
 
@@ -219,7 +219,7 @@ async def test_approved_with_validity_window_overrides_updates_projection(
         correlation_id=_CORRELATION_ID,
     )
     await start_review_bind(deps)(
-        StartReviewClearance(clearance_id=cid, first_reviewer_role="ESH"),
+        StartClearanceReview(clearance_id=cid, first_reviewer_role="ESH"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

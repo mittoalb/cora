@@ -15,7 +15,7 @@ from cora.safety.features.get_clearance import tool as get_clearance_tool
 from cora.safety.features.list_clearances import tool as list_clearances_tool
 from cora.safety.features.register_clearance import tool as register_clearance_tool
 from cora.safety.features.reject_clearance import tool as reject_clearance_tool
-from cora.safety.features.start_review_clearance import tool as start_review_clearance_tool
+from cora.safety.features.start_clearance_review import tool as start_clearance_review_tool
 from cora.safety.features.submit_clearance import tool as submit_clearance_tool
 from cora.safety.wire import SafetyHandlers
 
@@ -42,9 +42,9 @@ def register_safety_tools(
         mcp,
         get_handler=lambda: get_handlers().submit_clearance,
     )
-    start_review_clearance_tool.register(
+    start_clearance_review_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().start_review_clearance,
+        get_handler=lambda: get_handlers().start_clearance_review,
     )
     append_clearance_review_step_tool.register(
         mcp,

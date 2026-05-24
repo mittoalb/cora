@@ -1,4 +1,4 @@
-"""Application handler for the `start_review_clearance` slice."""
+"""Application handler for the `start_clearance_review` slice."""
 
 from typing import Protocol
 from uuid import UUID
@@ -6,16 +6,16 @@ from uuid import UUID
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.safety._clearance_update_handler import make_clearance_update_handler
-from cora.safety.features.start_review_clearance.command import StartReviewClearance
-from cora.safety.features.start_review_clearance.decider import decide
+from cora.safety.features.start_clearance_review.command import StartClearanceReview
+from cora.safety.features.start_clearance_review.decider import decide
 
 
 class Handler(Protocol):
-    """Callable interface every start_review_clearance handler implements."""
+    """Callable interface every start_clearance_review handler implements."""
 
     async def __call__(
         self,
-        command: StartReviewClearance,
+        command: StartClearanceReview,
         *,
         principal_id: UUID,
         correlation_id: UUID,
@@ -25,10 +25,10 @@ class Handler(Protocol):
 
 
 def bind(deps: Kernel) -> Handler:
-    """Build a start_review_clearance handler closed over the shared deps."""
+    """Build a start_clearance_review handler closed over the shared deps."""
     return make_clearance_update_handler(
         deps,
-        command_name="StartReviewClearance",
-        log_prefix="start_review_clearance",
+        command_name="StartClearanceReview",
+        log_prefix="start_clearance_review",
         decide_fn=decide,
     )

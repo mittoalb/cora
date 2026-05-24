@@ -55,7 +55,7 @@ The four `HazardClassification` arms map to the systems operators see at the fac
 stateDiagram-v2
     [*] --> Defined: register_clearance
     Defined --> Submitted: submit_clearance
-    Submitted --> UnderReview: start_review_clearance
+    Submitted --> UnderReview: start_clearance_review
     UnderReview --> Approved: approve_clearance
     UnderReview --> Rejected: reject_clearance
     Approved --> Active: activate_clearance
@@ -76,7 +76,7 @@ stateDiagram-v2
 |---|---|---|---|
 | `(none)` | `Defined` | `register_clearance` | `ClearanceRegistered` |
 | `Defined` | `Submitted` | `submit_clearance` | `ClearanceSubmitted` |
-| `Submitted` | `UnderReview` | `start_review_clearance` | `ClearanceReviewStarted` |
+| `Submitted` | `UnderReview` | `start_clearance_review` | `ClearanceReviewStarted` |
 | `UnderReview` | `UnderReview` | `append_clearance_review_step` | `ClearanceReviewStepAppended` |
 | `UnderReview` | `Approved` | `approve_clearance` | `ClearanceApproved` |
 | `UnderReview` | `Rejected` | `reject_clearance` | `ClearanceRejected` |
@@ -89,7 +89,7 @@ stateDiagram-v2
 `register_clearance`
 : `bindings` must be non-empty (a Clearance with zero bindings can never gate anything); each `declarations[i].target` must be a member of `bindings` (declarations cannot reference out-of-scope targets); if both `valid_from` and `valid_until` are set, `valid_from < valid_until` strictly.
 
-`submit_clearance` / `start_review_clearance` / `activate_clearance`
+`submit_clearance` / `start_clearance_review` / `activate_clearance`
 : Strict single-source transitions. `submit` requires `Defined`, `start_review` requires `Submitted`, `activate` requires `Approved`. Each rejects rather than no-oping when the source is wrong.
 
 `append_clearance_review_step`
@@ -112,7 +112,7 @@ The approving and rejecting actor is carried on the event envelope (`StoredEvent
 |---|---|---|
 | `ClearanceRegistered` | `clearance_id`, `kind`, `facility_asset_id`, `title`, `bindings`, `declarations`, `risk_band?`, `external_id?`, `valid_from?`, `valid_until?`, `parent_clearance_id?`, `occurred_at` | `register_clearance` succeeds, or as the child genesis event in `amend_clearance` |
 | `ClearanceSubmitted` | `clearance_id`, `occurred_at` | `submit_clearance` succeeds |
-| `ClearanceReviewStarted` | `clearance_id`, `first_reviewer_role`, `occurred_at` | `start_review_clearance` succeeds |
+| `ClearanceReviewStarted` | `clearance_id`, `first_reviewer_role`, `occurred_at` | `start_clearance_review` succeeds |
 | `ClearanceReviewStepAppended` | `clearance_id`, `step_index`, `role`, `decision`, `actor_id`, `decided_at`, `notes?`, `occurred_at` | `append_clearance_review_step` succeeds |
 | `ClearanceApproved` | `clearance_id`, `valid_from?`, `valid_until?`, `occurred_at` | `approve_clearance` succeeds (`valid_from`/`valid_until` override register-time defaults if supplied) |
 | `ClearanceRejected` | `clearance_id`, `reason`, `occurred_at` | `reject_clearance` succeeds |
@@ -126,7 +126,7 @@ The approving and rejecting actor is carried on the event envelope (`StoredEvent
 |---|---|---|---|---|
 | `RegisterClearance` | NEW | `POST /clearances` | `register_clearance` | required |
 | `SubmitClearance` | MODIFIED | `POST /clearances/{clearance_id}/submit` | `submit_clearance` | none |
-| `StartReviewClearance` | MODIFIED | `POST /clearances/{clearance_id}/start_review` | `start_review_clearance` | none |
+| `StartClearanceReview` | MODIFIED | `POST /clearances/{clearance_id}/start_review` | `start_clearance_review` | none |
 | `AppendClearanceReviewStep` | MODIFIED | `POST /clearances/{clearance_id}/review_steps` | `append_clearance_review_step` | none |
 | `ApproveClearance` | MODIFIED | `POST /clearances/{clearance_id}/approve` | `approve_clearance` | none |
 | `RejectClearance` | MODIFIED | `POST /clearances/{clearance_id}/reject` | `reject_clearance` | none |
@@ -141,7 +141,7 @@ The approving and rejecting actor is carried on the event envelope (`StoredEvent
 `RegisterClearance`
 : `ClearanceAlreadyExists`, `InvalidClearanceTitle`, `InvalidClearanceExternalId`, `InvalidClearanceBindings`, `InvalidClearanceValidityWindow`, `InvalidClearanceDeclarationTarget`, `InvalidClearanceExternalBinding`, `InvalidClearanceMitigationRef`, `InvalidClearanceHazardNotes`, `Unauthorized`
 
-`SubmitClearance` / `StartReviewClearance` / `ApproveClearance` / `ActivateClearance`
+`SubmitClearance` / `StartClearanceReview` / `ApproveClearance` / `ActivateClearance`
 : `ClearanceNotFound`, `ClearanceCannot{Submit,StartReview,Approve,Activate}`, `Unauthorized`
 
 `AppendClearanceReviewStep`
@@ -321,7 +321,7 @@ The four examples below follow the canonical path for one Clearance: register it
     mcp.call_tool("submit_clearance", {"clearance_id": "9f6a3b1c-8e2d-4f5a-9b8c-1d2e3f4a5b6c"})
 
     mcp.call_tool(
-        "start_review_clearance",
+        "start_clearance_review",
         {
             "clearance_id": "9f6a3b1c-8e2d-4f5a-9b8c-1d2e3f4a5b6c",
             "first_reviewer_role": "BeamlineScientist",

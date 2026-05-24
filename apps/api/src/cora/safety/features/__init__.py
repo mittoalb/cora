@@ -6,7 +6,7 @@ Slices:
 
 FSM-closure transitions:
   - `submit_clearance`               (Defined -> Submitted)
-  - `start_review_clearance`         (Submitted -> UnderReview)
+  - `start_clearance_review`         (Submitted -> UnderReview)
   - `append_clearance_review_step`   (UnderReview; appends review_steps tuple)
   - `approve_clearance`              (UnderReview -> Approved)
   - `reject_clearance`               (UnderReview -> Rejected)
@@ -28,7 +28,7 @@ from cora.safety.features import (
     list_clearances,
     register_clearance,
     reject_clearance,
-    start_review_clearance,
+    start_clearance_review,
     submit_clearance,
 )
 
@@ -42,6 +42,6 @@ __all__ = [
     "list_clearances",
     "register_clearance",
     "reject_clearance",
-    "start_review_clearance",
+    "start_clearance_review",
     "submit_clearance",
 ]

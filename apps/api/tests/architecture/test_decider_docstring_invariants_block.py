@@ -92,7 +92,7 @@ DECIDERS_MISSING_INVARIANTS: frozenset[str] = frozenset(
         "cora.safety.features.expire_clearance.decider",
         "cora.safety.features.register_clearance.decider",
         "cora.safety.features.reject_clearance.decider",
-        "cora.safety.features.start_review_clearance.decider",
+        "cora.safety.features.start_clearance_review.decider",
         "cora.safety.features.submit_clearance.decider",
         "cora.subject.features.register_subject.decider",
         "cora.supply.features.degrade_supply.decider",

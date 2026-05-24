@@ -94,7 +94,7 @@ EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
         "cora.safety.features.approve_clearance",
         "cora.safety.features.expire_clearance",
         "cora.safety.features.reject_clearance",
-        "cora.safety.features.start_review_clearance",
+        "cora.safety.features.start_clearance_review",
         "cora.safety.features.submit_clearance",
     }
 )

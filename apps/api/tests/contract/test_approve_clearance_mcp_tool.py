@@ -50,7 +50,7 @@ def _seed_under_review_clearance(
     cid = str(register["structuredContent"]["clearance_id"])
     _call("submit_clearance", {"clearance_id": cid})
     _call(
-        "start_review_clearance",
+        "start_clearance_review",
         {"clearance_id": cid, "first_reviewer_role": "ESH"},
     )
     if with_approved_step:

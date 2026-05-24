@@ -31,7 +31,7 @@ from cora.safety.features import (
     append_clearance_review_step,
     approve_clearance,
     register_clearance,
-    start_review_clearance,
+    start_clearance_review,
     submit_clearance,
 )
 from cora.safety.features.activate_clearance import ActivateClearance
@@ -39,7 +39,7 @@ from cora.safety.features.amend_clearance import AmendClearance
 from cora.safety.features.append_clearance_review_step import AppendClearanceReviewStep
 from cora.safety.features.approve_clearance import ApproveClearance
 from cora.safety.features.register_clearance import RegisterClearance
-from cora.safety.features.start_review_clearance import StartReviewClearance
+from cora.safety.features.start_clearance_review import StartClearanceReview
 from cora.safety.features.submit_clearance import SubmitClearance
 from tests.integration._helpers import build_postgres_deps
 
@@ -65,8 +65,8 @@ async def _drive_to_active(deps: Kernel) -> UUID:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await start_review_clearance.bind(deps)(
-        StartReviewClearance(clearance_id=cid, first_reviewer_role="ESH"),
+    await start_clearance_review.bind(deps)(
+        StartClearanceReview(clearance_id=cid, first_reviewer_role="ESH"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

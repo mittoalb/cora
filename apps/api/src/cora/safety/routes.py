@@ -56,7 +56,7 @@ from cora.safety.features import (
     list_clearances,
     register_clearance,
     reject_clearance,
-    start_review_clearance,
+    start_clearance_review,
     submit_clearance,
 )
 
@@ -119,7 +119,7 @@ def register_safety_routes(app: FastAPI) -> None:
     app.include_router(get_clearance.router)
     # 11a-b transition slices
     app.include_router(submit_clearance.router)
-    app.include_router(start_review_clearance.router)
+    app.include_router(start_clearance_review.router)
     app.include_router(append_clearance_review_step.router)
     app.include_router(approve_clearance.router)
     app.include_router(reject_clearance.router)

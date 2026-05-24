@@ -1,4 +1,4 @@
-"""Pure decider for the `StartReviewClearance` command.
+"""Pure decider for the `StartClearanceReview` command.
 
 Single-source transition: `Submitted -> UnderReview`. Strict-not-
 idempotent.
@@ -27,14 +27,14 @@ from cora.safety.aggregates.clearance import (
 from cora.safety.aggregates.clearance.state import (
     CLEARANCE_REVIEWER_ROLE_MAX_LENGTH,
 )
-from cora.safety.features.start_review_clearance.command import StartReviewClearance
+from cora.safety.features.start_clearance_review.command import StartClearanceReview
 
 _REVIEW_STARTABLE_STATUSES: tuple[ClearanceStatus, ...] = (ClearanceStatus.SUBMITTED,)
 
 
 def decide(
     state: Clearance | None,
-    command: StartReviewClearance,
+    command: StartClearanceReview,
     *,
     now: datetime,
 ) -> list[ClearanceReviewStarted]:

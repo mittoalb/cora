@@ -46,7 +46,7 @@ This scenario exercises:
     pair).
   - `submit_clearance` (Defined -> Submitted; PI signs off on the
     submitted form).
-  - `start_review_clearance` (Submitted -> UnderReview;
+  - `start_clearance_review` (Submitted -> UnderReview;
     `first_reviewer_role="BeamlineScientist"`).
   - `append_clearance_review_step` x 2 capturing the 2-step
     review chain (BeamlineScientist + ESRB), both Approved.
@@ -139,8 +139,8 @@ from cora.safety.features.approve_clearance import ApproveClearance
 from cora.safety.features.approve_clearance import bind as bind_approve_clearance
 from cora.safety.features.register_clearance import RegisterClearance
 from cora.safety.features.register_clearance import bind as bind_register_clearance
-from cora.safety.features.start_review_clearance import StartReviewClearance
-from cora.safety.features.start_review_clearance import bind as bind_start_review
+from cora.safety.features.start_clearance_review import StartClearanceReview
+from cora.safety.features.start_clearance_review import bind as bind_start_review
 from cora.safety.features.submit_clearance import SubmitClearance
 from cora.safety.features.submit_clearance import bind as bind_submit_clearance
 from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
@@ -223,7 +223,7 @@ def _id_queue() -> list[UUID]:
         e(),
         # submit_clearance: event_id
         e(),
-        # start_review_clearance: event_id
+        # start_clearance_review: event_id
         e(),
         # append_clearance_review_step x 2: event_id each
         e(),
@@ -332,7 +332,7 @@ async def test_proposal_clearance_walks_to_active(
     # ----- Submitted -> UnderReview (BeamlineScientist starts review) -----
 
     await bind_start_review(deps)(
-        StartReviewClearance(
+        StartClearanceReview(
             clearance_id=_CLEARANCE_ID,
             first_reviewer_role="BeamlineScientist",
         ),

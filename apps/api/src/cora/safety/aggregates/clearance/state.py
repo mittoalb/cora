@@ -387,12 +387,12 @@ class ClearanceCannotSubmitError(Exception):
 
 
 class ClearanceCannotStartReviewError(Exception):
-    """Attempted `start_review_clearance` from a disqualifying status."""
+    """Attempted `start_clearance_review` from a disqualifying status."""
 
     def __init__(self, clearance_id: UUID, current_status: "ClearanceStatus") -> None:
         super().__init__(
             f"Clearance {clearance_id} cannot start review: currently in status "
-            f"{current_status.value}, start_review_clearance requires "
+            f"{current_status.value}, start_clearance_review requires "
             f"{ClearanceStatus.SUBMITTED.value}"
         )
         self.clearance_id = clearance_id
