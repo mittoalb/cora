@@ -189,7 +189,7 @@ async def test_append_single_stream_delegates_through_append_streams() -> None:
     assert len(events) == 2
 
 
-# ---------- Signature plumbing (Candidate F substrate) ----------
+# ---------- Per-event signature plumbing ----------
 
 
 def _signed_event(
