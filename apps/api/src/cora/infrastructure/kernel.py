@@ -45,6 +45,7 @@ from cora.infrastructure.ports import (
     IdGenerator,
     LogbookMirror,
     ProfileStore,
+    Signer,
     TokenVerifier,
 )
 
@@ -137,6 +138,7 @@ class Kernel:
     llm: LLM | None = None
     logbook_mirror: LogbookMirror | None = None
     token_verifier: TokenVerifier | None = None
+    signer: Signer | None = None
 
 
 Teardown = Callable[[], Awaitable[None]]

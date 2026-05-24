@@ -7,8 +7,12 @@ per-test files focused on assertions rather than re-encoding the
 same seed dance.
 """
 
+from collections.abc import Mapping
 from datetime import datetime
 from uuid import UUID
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from cora.agent.aggregates.agent import (
     AgentDefined,
@@ -20,8 +24,10 @@ from cora.agent.aggregates.agent import (
     event_type_name,
     to_payload,
 )
+from cora.infrastructure.content_hash import canonical_body_bytes, pae_bytes
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.memory.event_store import InMemoryEventStore
+from cora.infrastructure.signing import event_type_to_payload_type
 
 
 async def seed_defined_agent(
@@ -211,3 +217,37 @@ async def append_resume(
             )
         ],
     )
+
+
+class Ed25519FakeSigner:
+    """Test-only `Signer` adapter: signs PAE-wrapped canonical bytes
+    with a freshly-generated Ed25519 key. Used by subscriber unit tests
+    to exercise the signing path end-to-end against a real verify call.
+
+    Captures the `actor_id` argument of every `sign()` call on
+    `received_actor_ids` so tests can pin that the subscriber passes
+    the Agent's id (a future regression that dropped `actor_id` from
+    the call shape would silently sign with a different identity in
+    production but pass the test without this lock).
+    """
+
+    def __init__(self, *, kid: str = "test-kid") -> None:
+        self._key = Ed25519PrivateKey.generate()
+        self._kid = kid
+        self.received_actor_ids: list[UUID] = []
+
+    @property
+    def public_key_bytes(self) -> bytes:
+        return self._key.public_key().public_bytes(encoding=Encoding.Raw, format=PublicFormat.Raw)
+
+    async def sign(
+        self,
+        *,
+        event_type: str,
+        payload: Mapping[str, object],
+        actor_id: UUID,
+    ) -> tuple[bytes, str]:
+        self.received_actor_ids.append(actor_id)
+        body = canonical_body_bytes(payload)
+        pae = pae_bytes(event_type_to_payload_type(event_type), body)
+        return self._key.sign(pae), self._kid

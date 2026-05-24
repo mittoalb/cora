@@ -73,6 +73,12 @@ from cora.infrastructure.ports.llm import (
 )
 from cora.infrastructure.ports.logbook_mirror import LogbookMirror
 from cora.infrastructure.ports.profile_store import Profile, ProfileStore
+from cora.infrastructure.ports.signing import (
+    Signer,
+    SignerKeyInactiveError,
+    SignerKeyNotFoundError,
+    SignerUnavailableError,
+)
 from cora.infrastructure.ports.token_verifier import (
     IntrospectionUnavailableError,
     InvalidTokenError,
@@ -138,6 +144,10 @@ __all__ = [
     "PrincipalKind",
     "Profile",
     "ProfileStore",
+    "Signer",
+    "SignerKeyInactiveError",
+    "SignerKeyNotFoundError",
+    "SignerUnavailableError",
     "StoredEvent",
     "StreamAppend",
     "SystemClock",

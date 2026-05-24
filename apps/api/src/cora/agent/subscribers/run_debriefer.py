@@ -120,6 +120,7 @@ with the duplication, documented here + at
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid5
 
@@ -150,13 +151,14 @@ from cora.decision.aggregates.decision import (
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import ConcurrencyError, LLMError
+from cora.infrastructure.signing import SIGNED_EVENT_TYPES
 from cora.run.aggregates.run import load_run
 
 if TYPE_CHECKING:
     from cora.access.aggregates.actor import Actor
     from cora.infrastructure.kernel import Kernel
-    from cora.infrastructure.ports import LLM, LogbookMirror
-    from cora.infrastructure.ports.event_store import EventStore, StoredEvent
+    from cora.infrastructure.ports import LLM, LogbookMirror, Signer
+    from cora.infrastructure.ports.event_store import EventStore, NewEvent, StoredEvent
     from cora.infrastructure.projection.handler import ConnectionLike
 
 _STREAM_TYPE = "Decision"
@@ -256,10 +258,12 @@ class RunDebrieferSubscriber:
         event_store: EventStore,
         llm: LLM,
         logbook_mirror: LogbookMirror | None,
+        signer: Signer | None = None,
     ) -> None:
         self.event_store = event_store
         self.llm = llm
         self.logbook_mirror = logbook_mirror
+        self.signer = signer
 
     async def apply(self, event: StoredEvent, conn: ConnectionLike) -> None:
         """Process one terminal Run event.
@@ -539,6 +543,8 @@ class RunDebrieferSubscriber:
             principal_id=actor.id,
         )
 
+        new_event = await self._maybe_sign(new_event, actor=actor)
+
         try:
             await self.event_store.append(
                 stream_type=_STREAM_TYPE,
@@ -551,6 +557,25 @@ class RunDebrieferSubscriber:
             return
 
         log.info("run_debriefer.success", outcome=outcome)
+
+    async def _maybe_sign(self, new_event: NewEvent, *, actor: Actor) -> NewEvent:
+        """Attach signature/signature_kid when the kernel is configured
+        with a `Signer` AND the event type is in SIGNED_EVENT_TYPES.
+
+        No-op when `self.signer is None` (no production adapter today;
+        unsigned rows are the legitimate default per design lock errata
+        2026-05-24). The subscriber emits Agent-actor events
+        exclusively, so the actor-discrimination check that
+        `register_decision` would need is implicit here.
+        """
+        if self.signer is None or new_event.event_type not in SIGNED_EVENT_TYPES:
+            return new_event
+        signature, kid = await self.signer.sign(
+            event_type=new_event.event_type,
+            payload=new_event.payload,
+            actor_id=actor.id,
+        )
+        return replace(new_event, signature=signature, signature_kid=kid)
 
 
 def make_run_debriefer_subscriber(deps: Kernel) -> RunDebrieferSubscriber:
@@ -574,6 +599,7 @@ def make_run_debriefer_subscriber(deps: Kernel) -> RunDebrieferSubscriber:
         event_store=deps.event_store,
         llm=deps.llm,
         logbook_mirror=deps.logbook_mirror,
+        signer=deps.signer,
     )
 
 

@@ -106,11 +106,6 @@ def test_event_type_to_payload_type_handles_all_caps_and_single_char_cases() -> 
 
 
 @pytest.mark.unit
-def test_signed_event_types_contains_caution_proposed() -> None:
-    assert "CautionProposed" in SIGNED_EVENT_TYPES
-
-
-@pytest.mark.unit
 def test_signed_event_types_contains_decision_registered() -> None:
     assert "DecisionRegistered" in SIGNED_EVENT_TYPES
 
@@ -119,6 +114,17 @@ def test_signed_event_types_contains_decision_registered() -> None:
 def test_signed_event_types_is_frozenset() -> None:
     """Closed set; mutation at module load would be a regression."""
     assert isinstance(SIGNED_EVENT_TYPES, frozenset)
+
+
+@pytest.mark.unit
+def test_signed_event_types_excludes_caution_proposed() -> None:
+    """Regression guard for the errata: `CautionProposed` was an
+    invented event name in an earlier draft of the design lock; it
+    does not exist as a CORA event type. CautionDrafter signing
+    routes through `DecisionRegistered` plus the Agent-actor
+    discriminator. Pinning the exclusion prevents the bogus entry
+    sneaking back."""
+    assert "CautionProposed" not in SIGNED_EVENT_TYPES
 
 
 # ---------- verify_signature happy path ----------

@@ -23,9 +23,10 @@ smaller signatures (64 bytes) than RSA-2048 (256 bytes), faster sign
 
 `PAE(payload_type, canonical_body_bytes(payload))`, computed via the
 shared helper in `cora.infrastructure.content_hash`. The payloadType
-URI binds the event type into the signature so a `CautionProposed`
-signature can never collide with a `DecisionRegistered` signature even
-when their bodies happen to serialize to the same bytes.
+URI binds the event type into the signature so a `DecisionRegistered`
+signature can never collide with a different Agent-emitted event of a
+future type even when their bodies happen to serialize to the same
+bytes.
 
 ## What is NOT here
 
@@ -49,24 +50,31 @@ EVENT_TYPE_PAYLOAD_TYPE_PREFIX = "application/vnd.cora."
 EVENT_TYPE_PAYLOAD_TYPE_SUFFIX = "+json"
 
 
-SIGNED_EVENT_TYPES: frozenset[str] = frozenset(
-    {
-        "CautionProposed",
-        "DecisionRegistered",
-    }
-)
+SIGNED_EVENT_TYPES: frozenset[str] = frozenset({"DecisionRegistered"})
 """Closed set of event-type names that MUST be signed at write time.
 
-Initial set per [[project_signed_events_design]]:
+Initial set per [[project_signed_events_design]] (errata 2026-05-24):
 
-  - `CautionProposed`: produced by CautionDrafter
-    ([[project_caution_drafter_design]]); the drafter is an AI agent.
-  - `DecisionRegistered`: produced by Agents (RunDebriefer per
-    [[project_run_debrief_design]]) AND by humans. Per design lock the
-    signing requirement applies only to the Agent-produced rows; the
-    handler tier discriminates by checking `actor_id` against the Agent
-    BC's stable-id rule before invoking `Signer.sign`. Human-actor
-    `DecisionRegistered` rows are unsigned.
+  - `DecisionRegistered`: produced by Agents AND by humans. Per the
+    design lock the signing requirement applies only to the Agent-
+    produced rows; the subscriber tier (CautionDrafter and
+    RunDebriefer today) checks `actor_id` against the Agent BC's
+    stable-id rule before invoking `Signer.sign`. Human-actor
+    `DecisionRegistered` rows from the operator-driven
+    `register_decision` slice stay unsigned. Both AI-agent
+    subscribers route through this single entry: CautionDrafter
+    emits `DecisionRegistered` with `context="CautionProposal"`
+    (the Caution aggregate itself is created later via the
+    operator-driven `promote_caution_proposal` slice), and
+    RunDebriefer emits `DecisionRegistered` with its own context.
+
+Errata note: an earlier draft listed `CautionProposed` as a separate
+entry on the assumption that CautionDrafter emitted a dedicated
+Caution-aggregate event. It does not: the actual Caution-aggregate
+events are `CautionRegistered`, `CautionSuperseded`, and
+`CautionRetired`, none of which are AI-emitted directly. The
+single `DecisionRegistered` entry above covers the CautionDrafter
+signing case via the Agent-actor discriminator.
 
 Future Agent-BC event types land here by default. Expansion to
 human-actor events requires a deliberate design lock per the
@@ -77,11 +85,13 @@ scientific-data corpus verdict.
 def event_type_to_payload_type(event_type: str) -> str:
     """Map an event-type name to its payloadType URI.
 
-    `"CautionProposed"` -> `"application/vnd.cora.caution-proposed+json"`.
     `"DecisionRegistered"` -> `"application/vnd.cora.decision-registered+json"`.
 
     Single source of truth shared between sign-side and verify-side so
-    the PAE input is provably the same bytes on both paths.
+    the PAE input is provably the same bytes on both paths. The
+    function is event-type-agnostic; any CamelCase event-type name
+    maps cleanly, including hypothetical future entries to
+    SIGNED_EVENT_TYPES.
     """
     kebab = _camel_to_kebab(event_type)
     return f"{EVENT_TYPE_PAYLOAD_TYPE_PREFIX}{kebab}{EVENT_TYPE_PAYLOAD_TYPE_SUFFIX}"
@@ -91,7 +101,7 @@ def _camel_to_kebab(name: str) -> str:
     """Convert CamelCase event-type names to kebab-case payloadType slugs.
 
     Internal helper. CORA event-type names are CamelCase by convention
-    (`CautionProposed`, `DecisionRegistered`); payloadType URIs follow
+    (`DecisionRegistered`, `RunStarted`, etc.); payloadType URIs follow
     the IANA media-type kebab-case convention. Acronym-aware: insert
     a dash before an uppercase letter when the previous char is
     lowercase (CamelCase boundary) OR when the next char is lowercase

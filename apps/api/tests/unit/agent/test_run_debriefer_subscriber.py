@@ -56,6 +56,7 @@ from cora.run.aggregates.run.events import (
     RunStopped,
     RunTruncated,
 )
+from tests.unit.agent._helpers import Ed25519FakeSigner
 
 _NOW = datetime(2026, 5, 17, 14, 0, 0, tzinfo=UTC)
 _LATER = datetime(2026, 5, 17, 14, 47, 0, tzinfo=UTC)
@@ -840,3 +841,75 @@ def test_redact_secrets_handles_multiple_occurrences() -> None:
     assert "sk-ant-AAA111" not in cleaned
     assert "sk-ant-BBB222" not in cleaned
     assert cleaned.count("[REDACTED]") == 2
+
+
+# ---------- Signer wiring ----------
+
+
+@pytest.mark.unit
+async def test_apply_leaves_signature_none_when_no_signer_configured() -> None:
+    """Backward-compat: subscriber without a Signer dep produces
+    unsigned events. Default for every existing deployment."""
+    from cora.infrastructure.ports.event_store import StoredEvent
+
+    store = InMemoryEventStore()
+    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    await _seed_run_debrief_actor(store)
+    run_id = uuid4()
+    await _seed_run(store, run_id)
+    subscriber = await _build_subscriber(store, llm)  # signer=None
+    event = _terminal_event(event_type="RunCompleted", run_id=run_id)
+    await subscriber.apply(event, conn=None)
+
+    decision_id = _derive_decision_id(event.event_id)
+    events, _ = await store.load("Decision", decision_id)
+    assert events, "Decision event should have been written"
+    stored: StoredEvent = events[0]
+    assert stored.signature is None
+    assert stored.signature_kid is None
+
+
+@pytest.mark.unit
+async def test_apply_signs_decision_when_signer_configured() -> None:
+    """End-to-end: subscriber with a Signer attaches a verifying Ed25519
+    signature to the DecisionRegistered event."""
+    from cora.infrastructure.ports.event_store import StoredEvent
+    from cora.infrastructure.signing import verify_signature
+
+    store = InMemoryEventStore()
+    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    await _seed_run_debrief_actor(store)
+    run_id = uuid4()
+    await _seed_run(store, run_id)
+    signer = Ed25519FakeSigner(kid="kid-run-debriefer")
+    subscriber = RunDebrieferSubscriber(
+        event_store=store,
+        llm=llm,
+        logbook_mirror=None,
+        signer=signer,
+    )
+    event = _terminal_event(event_type="RunCompleted", run_id=run_id)
+    await subscriber.apply(event, conn=None)
+
+    decision_id = _derive_decision_id(event.event_id)
+    events, _ = await store.load("Decision", decision_id)
+    stored: StoredEvent = events[0]
+    assert stored.signature is not None
+    assert stored.signature_kid == "kid-run-debriefer"
+    assert len(stored.signature) == 64
+    # The subscriber MUST pass the Agent's id to the signer; a regression
+    # that dropped or renamed the `actor_id` kwarg would silently sign
+    # with the wrong identity in production.
+    assert signer.received_actor_ids == [RUN_DEBRIEFER_AGENT_ID]
+
+    async def _resolver(kid: str) -> bytes:
+        assert kid == "kid-run-debriefer"
+        return signer.public_key_bytes
+
+    await verify_signature(
+        event_type=stored.event_type,
+        payload=stored.payload,
+        signature=stored.signature,
+        kid=stored.signature_kid,
+        resolve_public_key=_resolver,
+    )
