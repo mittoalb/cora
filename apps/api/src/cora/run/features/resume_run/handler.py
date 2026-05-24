@@ -1,7 +1,7 @@
 """Application handler for the `resume_run` slice.
 
 Update-style handler. Canonical body lives in
-`cora.run._update_handler.make_run_update_handler`; this module
+`cora.run._run_update_handler.make_run_update_handler`; this module
 is a thin slice-specific bind.
 """
 
@@ -10,7 +10,7 @@ from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.routing import NIL_SENTINEL_ID
-from cora.run._update_handler import make_run_update_handler
+from cora.run._run_update_handler import make_run_update_handler
 from cora.run.features.resume_run.command import ResumeRun
 from cora.run.features.resume_run.decider import decide
 

@@ -23,12 +23,14 @@ domain model.
 """
 
 from cora.calibration._projections import register_calibration_projections
+from cora.calibration.errors import UnauthorizedError
 from cora.calibration.routes import register_calibration_routes
 from cora.calibration.tools import register_calibration_tools
 from cora.calibration.wire import CalibrationHandlers, wire_calibration
 
 __all__ = [
     "CalibrationHandlers",
+    "UnauthorizedError",
     "register_calibration_projections",
     "register_calibration_routes",
     "register_calibration_tools",

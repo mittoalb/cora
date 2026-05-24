@@ -16,10 +16,11 @@ only when cached-success-on-retry semantics are needed.
   2. Load the Plan stream and fold to current state.
   3. Load the two Asset streams referenced by the proposed wire
      (deduped to one load when source_asset_id == target_asset_id).
-     Loaded Assets that don't exist (returned None from `load_asset`)
-     are silently dropped from the context — the decider's
-     asset-binding check rejects them via `PlanWireAssetNotBoundError`
-     because they can't be in `Plan.asset_ids` either.
+     Any reference that resolves to a non-existent Asset stream
+     raises `AssetNotFoundError` (Equipment-BC error, 404), matching
+     `define_plan` and `start_procedure`. The decider's
+     `PlanWireAssetNotBoundError` is retained as defense-in-depth
+     for the case where an Asset exists but isn't in `Plan.asset_ids`.
   4. Pass state + context into the pure decider.
   5. Persist the resulting events.
 
@@ -32,6 +33,7 @@ decider in a typed way.
 from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
+from cora.equipment.aggregates.asset import AssetNotFoundError
 from cora.equipment.aggregates.asset.read import load_asset
 from cora.infrastructure.event_envelope import to_new_event
 
@@ -123,19 +125,21 @@ def bind(deps: Kernel) -> Handler:
         state = fold(history)
 
         # Load the Assets referenced by the proposed wire (dedup the
-        # self-loop case). The decider's asset-binding check rejects
-        # any wire whose endpoints aren't in state.asset_ids, so a
-        # missing Asset stream surfaces as PlanWireAssetNotBoundError
-        # rather than a stack trace.
+        # self-loop case). Missing Asset streams raise
+        # AssetNotFoundError (Equipment-BC error, 404), matching
+        # define_plan and start_procedure. The decider's
+        # PlanWireAssetNotBoundError stays in place as defense-in-
+        # depth for Assets that exist but aren't bound to the Plan.
         asset_ids_to_load: set[UUID] = {
             command.source_asset_id,
             command.target_asset_id,
         }
         assets_by_id: dict[UUID, Asset] = {}
-        for asset_id in asset_ids_to_load:
+        for asset_id in sorted(asset_ids_to_load, key=str):
             asset = await load_asset(deps.event_store, asset_id)
-            if asset is not None:
-                assets_by_id[asset_id] = asset
+            if asset is None:
+                raise AssetNotFoundError(asset_id)
+            assets_by_id[asset_id] = asset
 
         context = PlanWireContext(assets=assets_by_id)
 

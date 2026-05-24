@@ -1,7 +1,7 @@
 """Application handler for the `truncate_run` slice.
 
 Update-style handler. Canonical body lives in
-`cora.run._update_handler.make_run_update_handler`; this module
+`cora.run._run_update_handler.make_run_update_handler`; this module
 is a thin slice-specific bind.
 
 The command's `reason` and `interrupted_at` fields are captured
@@ -41,7 +41,7 @@ from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.routing import NIL_SENTINEL_ID
-from cora.run._update_handler import make_run_update_handler
+from cora.run._run_update_handler import make_run_update_handler
 from cora.run.features.truncate_run.command import TruncateRun
 from cora.run.features.truncate_run.decider import decide
 

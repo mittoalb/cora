@@ -66,7 +66,7 @@ The slice-contract fitness function ([apps/api/tests/architecture/test_slice_con
 ### BC-root extras
 
 - `_projections.py`: composition-root entry point that registers the BC's projections with the projection registry. Mechanical and present in every BC that has a `projections/` directory.
-- `_<aggregate>_update_handler.py`: factory that hoists shared update-handler scaffolding when n>=3 update slices on the same aggregate share the pattern (per `project_update_handler_pattern.md`). Today: asset, subject, supply, procedure, clearance.
+- `_<aggregate>_update_handler.py`: factory that hoists shared update-handler scaffolding when n>=3 update slices on the same aggregate share the pattern (per `project_update_handler_pattern.md`). Today: agent, asset, campaign, clearance, method, plan, practice, procedure, run, subject, supply (11 BCs).
 - `authorize_factory.py` (trust BC only): exports `build_authorize`, injected into the kernel by the composition root in `cora/api/main.py`. No other BC imports it.
 
 **Capability-dependent handlers.** When a slice depends on an external capability that may be unwired in some deployments (today: `re_debrief_run` needs `kernel.llm`, which is `None` when `ANTHROPIC_API_KEY` isn't configured), the handler bundle types the field as `Handler | None`. The route guards on `None` and raises `HTTPException(503)` inline; this is the only documented exception to the "command-slice routes don't wrap handler calls" rule. Pinned by `test_route_no_inline_http_exception.py`'s `GRANDFATHERED_COMMAND_ROUTES` allowlist.

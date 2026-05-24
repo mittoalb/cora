@@ -1,7 +1,7 @@
 """Application handler for the `measure_subject` slice.
 
 Update-style handler. Canonical body lives in
-`cora.subject._update_handler.make_subject_update_handler`; this
+`cora.subject._subject_update_handler.make_subject_update_handler`; this
 module is a thin slice-specific bind.
 
 Not idempotency-wrapped: update-style commands are inherently
@@ -13,7 +13,7 @@ from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.routing import NIL_SENTINEL_ID
-from cora.subject._update_handler import make_subject_update_handler
+from cora.subject._subject_update_handler import make_subject_update_handler
 from cora.subject.features.measure_subject.command import MeasureSubject
 from cora.subject.features.measure_subject.decider import decide
 

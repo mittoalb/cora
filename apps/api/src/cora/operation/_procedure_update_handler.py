@@ -13,7 +13,7 @@ docstring note pointing at the rule-of-three trigger. Adding
 This factory hoists the shared scaffolding so each slice's handler.py
 shrinks from ~70 lines to a 7-line `bind` that supplies a name + a
 log-prefix + the decider. Mirrors `_supply_update_handler` (Supply
-hoisted after 5 transitions) and `cora.run._update_handler` (Run
+hoisted after 5 transitions) and `cora.run._run_update_handler` (Run
 hoisted at 11 byte-identical instances cross-BC).
 
 ## Per-aggregate, not per-BC

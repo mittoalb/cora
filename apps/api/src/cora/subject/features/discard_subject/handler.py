@@ -1,7 +1,7 @@
 """Application handler for the `discard_subject` slice.
 
 Update-style handler. Canonical body lives in
-`cora.subject._update_handler.make_subject_update_handler`; this
+`cora.subject._subject_update_handler.make_subject_update_handler`; this
 module is a thin slice-specific bind.
 """
 
@@ -10,7 +10,7 @@ from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.routing import NIL_SENTINEL_ID
-from cora.subject._update_handler import make_subject_update_handler
+from cora.subject._subject_update_handler import make_subject_update_handler
 from cora.subject.features.discard_subject.command import DiscardSubject
 from cora.subject.features.discard_subject.decider import decide
 

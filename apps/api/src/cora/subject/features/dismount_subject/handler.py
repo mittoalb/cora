@@ -12,7 +12,7 @@ from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.routing import NIL_SENTINEL_ID
-from cora.subject._update_handler import make_subject_update_handler
+from cora.subject._subject_update_handler import make_subject_update_handler
 from cora.subject.features.dismount_subject.command import DismountSubject
 from cora.subject.features.dismount_subject.decider import decide
 

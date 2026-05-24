@@ -7,7 +7,7 @@ register_subject` then `register_subject.bind(deps)` returning a
 `register_subject.Handler`.
 
 The update-style template was extracted (see
-`cora.subject._update_handler`); the create-style template across
+`cora.subject._subject_update_handler`); the create-style template across
 the 5 byte-identical `register_*` / `define_*` handlers is the
 next cross-BC extraction candidate, parked pending a separate
 focused refactor.

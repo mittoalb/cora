@@ -27,6 +27,13 @@ Public surface re-exported here:
 
 from cora.agent._projections import register_agent_projections
 from cora.agent._subscribers import register_agent_subscribers
+from cora.agent.errors import (
+    CautionProposalMalformedError,
+    CautionProposalNotActionableError,
+    DecisionNotCautionProposalError,
+    DecisionNotEmittedByCautionDrafterError,
+    UnauthorizedError,
+)
 from cora.agent.llm_factory import build_llm
 from cora.agent.routes import register_agent_routes
 from cora.agent.seed import seed_run_debriefer_agent
@@ -36,6 +43,11 @@ from cora.agent.wire import AgentHandlers, wire_agent
 
 __all__ = [
     "AgentHandlers",
+    "CautionProposalMalformedError",
+    "CautionProposalNotActionableError",
+    "DecisionNotCautionProposalError",
+    "DecisionNotEmittedByCautionDrafterError",
+    "UnauthorizedError",
     "build_llm",
     "register_agent_projections",
     "register_agent_routes",
