@@ -145,13 +145,12 @@ def test_post_datasets_with_derived_from_links_through() -> None:
 
 # ---------- Cross-aggregate not-found (404) ----------
 #
-# Per the locked `<X>NotFoundError -> 404` taxonomy (cluster 4 of the
-# 2026-05-22 audit), the renamed `ProducingRunNotFoundError` /
-# `LinkedSubjectNotFoundError` / `DerivedFromDatasetsNotFoundError`
-# now route through `_handle_not_found`. Was 409 pre-Phase-ε via the
-# old `_handle_cross_agg_conflict` handler (renamed
-# `_handle_lineage_state_conflict`, which now only covers
-# `DerivedFromDatasetsDiscardedError` -> 409).
+# Per the locked `<X>NotFoundError -> 404` taxonomy, the renamed
+# `ProducingRunNotFoundError` / `LinkedSubjectNotFoundError` /
+# `DerivedFromDatasetsNotFoundError` route through `_handle_not_found`.
+# `_handle_lineage_state_conflict` now only covers
+# `DerivedFromDatasetsDiscardedError` -> 409 (referenced upstream
+# Dataset is in Discarded status, a real state conflict).
 
 
 @pytest.mark.contract

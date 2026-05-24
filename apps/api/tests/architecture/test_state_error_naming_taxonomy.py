@@ -17,10 +17,12 @@ This fitness function pins three concrete anti-patterns the
 
 The fuzzier audit items (``AgentDeactivatedError``,
 ``AgentNotSeededError``) are state-predicate names that lack a clean
-regex; Phase ε addresses them via manual review.
+regex; manual review handles them.
 
-``GRANDFATHERED_NAMES`` is the explicit work-tracker for known
-violators awaiting Phase ε. Each entry MUST cite the finding.
+``GRANDFATHERED_NAMES`` is the explicit work-tracker for any
+remaining violators. Each entry MUST cite the finding. The sweep
+has driven this allowlist to empty; entries should only be added
+when a new violator is grandfathered ahead of its rename.
 """
 
 from __future__ import annotations
@@ -47,8 +49,8 @@ _FORBIDDEN_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
 )
 
 
-# Entries are "<qualified-module>:ClassName". Each cites the audit
-# finding; Phase ε removes the entry alongside the rename.
+# Entries are "<qualified-module>:ClassName". Each cites the finding
+# being grandfathered; remove the entry alongside the rename.
 GRANDFATHERED_NAMES: frozenset[str] = frozenset()
 
 
@@ -102,8 +104,8 @@ def test_error_names_follow_canonical_taxonomy(state_file: Path) -> None:
 def test_grandfathered_names_still_match_forbidden_pattern() -> None:
     """``GRANDFATHERED_NAMES`` entries must still match a forbidden regex.
 
-    Drift catcher: once Phase ε renames a class to the canonical form,
-    its allowlist entry becomes dead weight. Re-running the regex check
+    Drift catcher: once a class is renamed to the canonical form, its
+    allowlist entry becomes dead weight. Re-running the regex check
     here forces the entry to be removed alongside the rename.
     """
     for entry in GRANDFATHERED_NAMES:
@@ -115,7 +117,7 @@ def test_grandfathered_names_still_match_forbidden_pattern() -> None:
         tree = ast.parse(path.read_text())
         names = {n.name for n in tree.body if isinstance(n, ast.ClassDef)}
         assert cls in names, (
-            f"{entry}: class no longer defined; remove allowlist entry (Phase ε rename shipped)"
+            f"{entry}: class no longer defined; remove allowlist entry (rename shipped)"
         )
         assert any(pattern.match(cls) for pattern, _ in _FORBIDDEN_PATTERNS), (
             f"{entry}: class name no longer matches a forbidden pattern; remove allowlist entry"

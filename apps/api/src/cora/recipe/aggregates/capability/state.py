@@ -53,7 +53,7 @@ write time per [[project-capability-research]] anti-hook 14.
 - `required_affordances: frozenset[Affordance]` — REQUIRED at define
   time per Pattern P. Empty set valid (parameter-driven Capabilities
   like `energy_change` may have no affordance requirement).
-- `parameters_schema: dict | None` — optional JSON Schema declaring
+- `parameters_schema: dict | None`: optional JSON Schema declaring
   the parameter contract. Method.parameters_schema MUST validate as
   subset at define_method time per STRICT cross-BC anchor.
 - `executor_shapes: frozenset[ExecutorShape]` — REQUIRED non-empty

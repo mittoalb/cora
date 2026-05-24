@@ -101,12 +101,12 @@ def test_post_decisions_chain_with_parent_and_override_kind() -> None:
 
 @pytest.mark.contract
 def test_post_decisions_returns_404_when_actor_does_not_exist() -> None:
-    """Per the locked `<X>NotFoundError → 404` taxonomy
-    (cluster 2 of the 2026-05-22 audit), `DeciderActorNotFoundError`
-    maps to 404 — the actor referenced in the request body does not
-    exist. Was 409 pre-Phase-ε via the `_handle_cross_agg_conflict`
-    handler; renamed to `_handle_logbook_state` once Missing → NotFound
-    moved the error to `_handle_not_found`."""
+    """Per the locked `<X>NotFoundError -> 404` taxonomy,
+    `DeciderActorNotFoundError` maps to 404: the actor referenced in
+    the request body does not exist. The renamed
+    `_handle_logbook_state` (was `_handle_cross_agg_conflict`) covers
+    only true cross-aggregate state conflicts now; not-found routes
+    through `_handle_not_found`."""
     missing = str(uuid4())
     with TestClient(create_app()) as client:
         response = client.post("/decisions", json=_good_body(missing))
@@ -116,7 +116,7 @@ def test_post_decisions_returns_404_when_actor_does_not_exist() -> None:
 
 @pytest.mark.contract
 def test_post_decisions_returns_404_when_parent_id_does_not_exist() -> None:
-    """Same locked taxonomy: `ParentDecisionNotFoundError` → 404."""
+    """Same locked taxonomy: `ParentDecisionNotFoundError` -> 404."""
     with TestClient(create_app()) as client:
         actor_id = _register_actor(client)
         response = client.post(

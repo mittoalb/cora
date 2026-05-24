@@ -16,10 +16,10 @@ Carries the caller-controlled inputs:
     `Plan.default_parameters`. Applied via RFC 7396 merge by the
     handler before the decider validates against the owning Method's
     `parameters_schema`. Default `{}`.
-  - `trigger_source` — operator-supplied free text
-    capturing what initiated this Run (operator-manual, scheduler,
-    prior-run, automation). Optional. Future Decision-BC integration
-    may populate this.
+  - `trigger_source`: operator-supplied free text capturing what
+    initiated this Run (operator-manual, scheduler, prior-run,
+    automation). Optional. Future Decision-BC integration may
+    populate this.
 
 Server-side concerns (new aggregate id, wall-clock timestamp,
 correlation id, per-event ids) are injected by the handler from

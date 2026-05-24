@@ -194,7 +194,7 @@ def test_from_stored_rebuilds_run_started_without_legacy_keys_as_defaults() -> N
             "subject_id": None,
             "occurred_at": _NOW.isoformat(),
             # NOTE: no override_parameters, effective_parameters, or
-            # trigger_source keys — this is what legacy events look like.
+            # trigger_source keys: this is what legacy events look like.
         },
     )
     event = from_stored(stored)
