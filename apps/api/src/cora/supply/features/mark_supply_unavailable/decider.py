@@ -34,7 +34,15 @@ def decide(
     *,
     now: datetime,
 ) -> list[SupplyMarkedUnavailable]:
-    """Decide the events produced by marking a Supply Unavailable."""
+    """Decide the events produced by marking a Supply Unavailable.
+
+    Invariants:
+      - State must not be None -> SupplyNotFoundError
+      - Current status must be Unknown, Available, Degraded, or
+        Recovering -> SupplyCannotMarkUnavailableError
+      - Reason must be valid -> InvalidSupplyReasonError
+        (via SupplyReason VO)
+    """
     if state is None:
         raise SupplyNotFoundError(command.supply_id)
     if state.status not in _MARKABLE_UNAVAILABLE_STATUSES:

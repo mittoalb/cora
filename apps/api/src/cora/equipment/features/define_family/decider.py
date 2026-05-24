@@ -27,7 +27,13 @@ def decide(
     now: datetime,
     new_id: UUID,
 ) -> list[FamilyDefined]:
-    """Decide the events produced by defining a new family."""
+    """Decide the events produced by defining a new family.
+
+    Invariants:
+      - State must be None (genesis-only) -> FamilyAlreadyExistsError
+      - Name must be valid -> InvalidFamilyNameError
+        (via FamilyName VO)
+    """
     if state is not None:
         raise FamilyAlreadyExistsError(state.id)
     name = FamilyName(command.name)  # validates + trims; raises InvalidFamilyNameError

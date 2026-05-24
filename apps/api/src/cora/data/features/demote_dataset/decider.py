@@ -45,7 +45,18 @@ def decide(
     *,
     now: datetime,
 ) -> list[DatasetDemoted]:
-    """Decide the events produced by demoting a Dataset to Retracted."""
+    """Decide the events produced by demoting a Dataset to Retracted.
+
+    Invariants:
+      - State must not be None -> DatasetNotFoundError
+      - Status must not be Discarded -> DatasetCannotDemoteError
+      - Intent must not already be Retracted (strict-not-idempotent)
+        -> DatasetAlreadyRetractedError
+      - Intent must currently be Production
+        -> DatasetCannotDemoteError (Trial uses discard_dataset)
+      - Reason must be valid -> InvalidDemotionReasonError
+        (via DemotionReason VO)
+    """
     if state is None:
         raise DatasetNotFoundError(command.dataset_id)
 

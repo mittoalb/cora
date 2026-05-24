@@ -41,7 +41,16 @@ def decide(
     *,
     now: datetime,
 ) -> list[AgentDeprecated]:
-    """Decide the events produced by deprecating an Agent."""
+    """Decide the events produced by deprecating an Agent.
+
+    Invariants:
+      - State must not be None -> AgentNotFoundError
+      - Current status must be Defined, Versioned, or Suspended
+        -> AgentCannotDeprecateError
+      - Reason (when set) must be valid
+        -> InvalidAgentDeprecationReasonError
+        (via AgentDeprecationReason VO)
+    """
     if state is None:
         raise AgentNotFoundError(command.agent_id)
     if state.status not in _DEPRECATABLE_STATUSES:

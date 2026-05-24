@@ -30,7 +30,14 @@ def decide(
     *,
     now: datetime,
 ) -> list[AgentSuspended]:
-    """Decide the events produced by suspending an Agent."""
+    """Decide the events produced by suspending an Agent.
+
+    Invariants:
+      - State must not be None -> AgentNotFoundError
+      - Current status must be Versioned -> AgentCannotSuspendError
+      - Reason must be valid -> InvalidAgentSuspensionReasonError
+        (via AgentSuspensionReason VO)
+    """
     if state is None:
         raise AgentNotFoundError(command.agent_id)
     if state.status is not AgentStatus.VERSIONED:

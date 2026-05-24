@@ -49,7 +49,22 @@ def decide(
     context: PlanWireContext,
     now: datetime,
 ) -> list[PlanWireAdded]:
-    """Decide the events produced by adding a Wire to an existing Plan."""
+    """Decide the events produced by adding a Wire to an existing Plan.
+
+    Invariants:
+      - State must not be None -> PlanNotFoundError
+      - Wire structural shape must be valid -> InvalidWireError
+        (via Wire VO)
+      - Wire must not already be in state.wires
+        (strict-not-idempotent) -> PlanWireAlreadyExistsError
+      - (target_asset_id, target_port_name) must not already be
+        connected (fan-in forbidden)
+        -> PlanWireTargetAlreadyConnectedError
+      - Endpoints must satisfy asset-binding, port existence,
+        direction, and signal_type compatibility (no self-loop)
+        -> InvalidWireError / wire-endpoint errors
+        (via validate_wire_endpoints)
+    """
     if state is None:
         raise PlanNotFoundError(command.plan_id)
 

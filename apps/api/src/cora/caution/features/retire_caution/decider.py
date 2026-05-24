@@ -32,7 +32,12 @@ def decide(
     *,
     now: datetime,
 ) -> list[CautionRetired]:
-    """Decide the events produced by retiring an Active caution."""
+    """Decide the events produced by retiring an Active caution.
+
+    Invariants:
+      - State must not be None -> CautionNotFoundError
+      - Current status must be Active -> CautionCannotRetireError
+    """
     if state is None:
         raise CautionNotFoundError(command.caution_id)
     if state.status not in _RETIRABLE_STATUSES:

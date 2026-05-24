@@ -43,7 +43,15 @@ def decide(
     *,
     now: datetime,
 ) -> list[SupplyDegraded]:
-    """Decide the events produced by degrading a Supply."""
+    """Decide the events produced by degrading a Supply.
+
+    Invariants:
+      - State must not be None -> SupplyNotFoundError
+      - Current status must be Unknown, Available, or Recovering
+        -> SupplyCannotDegradeError
+      - Reason must be valid -> InvalidSupplyReasonError
+        (via SupplyReason VO)
+    """
     if state is None:
         raise SupplyNotFoundError(command.supply_id)
     if state.status not in _DEGRADABLE_STATUSES:

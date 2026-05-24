@@ -35,7 +35,14 @@ def decide(
     now: datetime,
     new_id: UUID,
 ) -> list[PracticeDefined]:
-    """Decide the events produced by defining a new practice."""
+    """Decide the events produced by defining a new practice.
+
+    Invariants:
+      - State must be None (genesis-only)
+        -> PracticeAlreadyExistsError
+      - Name must be valid -> InvalidPracticeNameError
+        (via PracticeName VO)
+    """
     if state is not None:
         raise PracticeAlreadyExistsError(state.id)
     name = PracticeName(command.name)  # validates + trims; raises InvalidPracticeNameError

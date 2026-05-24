@@ -41,7 +41,13 @@ def decide(
     *,
     now: datetime,
 ) -> list[CampaignClosed]:
-    """Decide the events produced by closing a Campaign."""
+    """Decide the events produced by closing a Campaign.
+
+    Invariants:
+      - State must not be None -> CampaignNotFoundError
+      - Current status must be Active or Held
+        -> CampaignCannotCloseError
+    """
     if state is None:
         raise CampaignNotFoundError(command.campaign_id)
     if state.status not in _CLOSABLE_STATUSES:

@@ -70,7 +70,33 @@ def decide(
     now: datetime,
     new_id: UUID,
 ) -> list[DecisionRegistered]:
-    """Decide the events produced by registering a new Decision."""
+    """Decide the events produced by registering a new Decision.
+
+    Invariants:
+      - State must be None (genesis-only)
+        -> DecisionAlreadyExistsError
+      - When parent_id is set, parent Decision must exist
+        -> ParentDecisionNotFoundError
+      - override_kind requires a parent_id
+        -> OverrideKindRequiresParentError
+      - Choice must be valid -> InvalidDecisionChoiceError
+        (via DecisionChoice VO)
+      - Context must be valid -> InvalidDecisionContextError
+        (via DecisionContext VO)
+      - Rule (when set) must be valid -> InvalidDecisionRuleError
+        (via DecisionRule VO)
+      - Reasoning must be non-empty + within length bound
+        -> InvalidDecisionReasoningError (via validate_reasoning)
+      - Confidence (when set) must be in [0.0, 1.0]
+        -> InvalidDecisionConfidenceError (via validate_confidence)
+      - Alternatives must satisfy shape + cardinality
+        -> InvalidDecisionAlternativesError (via validate_alternatives)
+      - Inputs must satisfy shape -> InvalidDecisionInputsError
+        (via validate_inputs)
+      - reasoning_signature (when set) must be valid
+        -> InvalidDecisionReasoningSignatureError
+        (via validate_reasoning_signature)
+    """
     if state is not None:
         raise DecisionAlreadyExistsError(state.id)
 

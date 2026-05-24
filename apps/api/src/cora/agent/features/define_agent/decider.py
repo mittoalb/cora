@@ -66,7 +66,23 @@ def decide(
     now: datetime,
     new_id: UUID,
 ) -> list[AgentDefined]:
-    """Decide the events produced by defining a new Agent."""
+    """Decide the events produced by defining a new Agent.
+
+    Invariants:
+      - State must be None (genesis-only) -> AgentAlreadyExistsError
+      - Kind must be valid -> InvalidAgentKindError (via AgentKind VO)
+      - Name must be valid -> InvalidAgentNameError (via AgentName VO)
+      - Version must be valid -> InvalidAgentVersionError
+        (via AgentVersion VO)
+      - Description (when set) must be valid
+        -> InvalidAgentDescriptionError (via AgentDescription VO)
+      - Canonical URI (when set) must be https + within length bound
+        -> InvalidAgentCanonicalURIError (via AgentCanonicalURI VO)
+      - Capabilities count must not exceed AGENT_CAPABILITIES_MAX_COUNT
+        -> InvalidAgentCapabilitiesError
+      - Each capability must be valid -> InvalidAgentCapabilityError
+        (via AgentCapability VO)
+    """
     if state is not None:
         raise AgentAlreadyExistsError(state.id)
 

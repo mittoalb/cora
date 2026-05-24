@@ -77,7 +77,14 @@ def decide(
     new_id: UUID,
     traversals_logbook_id: UUID,
 ) -> list[ConduitDefined | ConduitLogbookOpened]:
-    """Decide the events produced by defining a new conduit."""
+    """Decide the events produced by defining a new conduit.
+
+    Invariants:
+      - State must be None (defensive AlreadyExists guard against
+        UUID collision) -> ConduitAlreadyExistsError
+      - Name must be valid -> InvalidConduitNameError
+        (via ConduitName VO)
+    """
     if state is not None:
         raise ConduitAlreadyExistsError(state.id)
     name = ConduitName(command.name)  # validates + trims

@@ -142,6 +142,35 @@ def decide(
 ) -> RunStartEvents:
     """Decide the events produced by starting a new run.
 
+    Invariants:
+      - State must be None (genesis-only) -> RunAlreadyExistsError
+      - At least one Clearance must reference this Run's scope
+        -> RunRequiresActiveClearanceError
+      - At least one referencing Clearance must be Active
+        -> RunClearanceCoverageMismatchError
+      - Plan must not be Deprecated -> PlanDeprecatedError
+      - Subject (when set) must be Mounted or Measured
+        -> SubjectNotMountableError
+      - No bound Asset may be Decommissioned
+        -> RunAssetDecommissionedError
+      - Union of current bound Asset families must cover Method's
+        needed_families -> RunCapabilitiesNotSatisfiedError
+      - Effective parameters must validate against Method's
+        parameters_schema (STRICT when schema is None; non-empty
+        effective rejected)
+        -> InvalidRunEffectiveParametersError
+        (via validate_effective_parameters_against_method_schema)
+      - All Plan wires must re-validate against current Asset.ports
+        -> PlanWireAssetNotBoundError /
+        PlanWirePortNotFoundError
+        (via validate_wire_endpoints)
+      - When campaign_id is set, Campaign must exist and be in
+        Planned, Active, or Held -> RunCannotJoinCampaignError
+      - Name must be valid -> InvalidRunNameError (via RunName VO)
+      - pinned_calibrations cardinality must be within bound
+        -> InvalidPinnedCalibrationsError
+        (via validate_pinned_calibrations)
+
     `needed_families_snapshot` is the Method's needed_families
     set the handler resolved transitively from `plan.practice_id →
     practice.method_id → method.needed_families`. Passed in as a

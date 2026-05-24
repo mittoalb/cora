@@ -32,7 +32,14 @@ def decide(
     *,
     now: datetime,
 ) -> list[AssetFamilyAdded]:
-    """Decide the events produced by adding a family to an existing asset."""
+    """Decide the events produced by adding a family to an existing asset.
+
+    Invariants:
+      - State must not be None -> AssetNotFoundError
+      - Asset must not be Decommissioned -> AssetCannotAddFamilyError
+      - family_id must not already be in state.families
+        (strict-not-idempotent) -> AssetCannotAddFamilyError
+    """
     if state is None:
         raise AssetNotFoundError(command.asset_id)
 

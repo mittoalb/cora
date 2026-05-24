@@ -58,7 +58,22 @@ def decide(
     now: datetime,
     new_id: UUID,
 ) -> list[CampaignRegistered]:
-    """Decide the events produced by registering a new Campaign."""
+    """Decide the events produced by registering a new Campaign.
+
+    Invariants:
+      - State must be None (genesis-only)
+        -> CampaignAlreadyExistsError
+      - Name must be valid -> InvalidCampaignNameError
+        (via CampaignName VO)
+      - Description (when set) must be valid
+        -> InvalidCampaignDescriptionError
+        (via CampaignDescription VO)
+      - Each tag must be valid -> InvalidCampaignTagError
+        (via CampaignTag VO)
+      - external_id (when set) must be
+        1-CAMPAIGN_EXTERNAL_ID_MAX_LENGTH chars after trim
+        -> InvalidCampaignExternalIdError
+    """
     if state is not None:
         raise CampaignAlreadyExistsError(state.id)
 

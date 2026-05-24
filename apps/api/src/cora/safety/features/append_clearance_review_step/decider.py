@@ -55,7 +55,24 @@ def decide(
     *,
     now: datetime,
 ) -> list[ClearanceReviewStepAppended]:
-    """Decide the events produced by appending one reviewer step."""
+    """Decide the events produced by appending one reviewer step.
+
+    Invariants:
+      - State must not be None -> ClearanceNotFoundError
+      - Current status must be UnderReview
+        -> ClearanceCannotAppendReviewStepError
+      - step_index must equal len(state.review_steps)
+        -> InvalidClearanceReviewStepIndexError
+      - decided_at must not be future-dated relative to now
+        -> InvalidClearanceReviewStepDecidedAtError
+      - decided_at must be >= prior step's decided_at
+        (chain monotonicity)
+        -> InvalidClearanceReviewStepDecidedAtError
+      - Role must be valid
+        -> InvalidClearanceReviewerRoleError
+      - Notes (when set) must be within length bound
+        -> InvalidClearanceReviewerNotesError
+    """
     if state is None:
         raise ClearanceNotFoundError(command.clearance_id)
     if state.status not in _REVIEW_STEP_APPENDABLE_STATUSES:

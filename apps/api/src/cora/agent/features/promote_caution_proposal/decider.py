@@ -66,7 +66,27 @@ class ProposedCautionView:
 
 
 def decide(state: Decision | None, command: PromoteCautionProposal) -> ProposedCautionView:
-    """Validate a CautionProposal Decision and extract the proposed payload."""
+    """Validate a CautionProposal Decision and extract the proposed payload.
+
+    Invariants:
+      - Decision must not be None -> DecisionNotFoundError
+      - Decision.context must be "CautionProposal"
+        -> DecisionNotCautionProposalError
+      - Decision.choice must not be "NoAction"
+        -> CautionProposalNotActionableError
+      - inputs must carry a dict-shaped `proposed_caution` payload
+        with required fields -> CautionProposalMalformedError
+      - target_id must be a valid UUID
+        -> CautionProposalMalformedError
+      - tags must be a list of strings
+        -> CautionProposalMalformedError
+      - When choice is ProposeSupersede, `supersedes_caution_id`
+        must be present + valid UUID
+        -> CautionProposalMalformedError
+      - When choice is not ProposeSupersede,
+        `supersedes_caution_id` must be absent
+        -> CautionProposalMalformedError
+    """
     if state is None:
         raise DecisionNotFoundError(command.decision_id)
 

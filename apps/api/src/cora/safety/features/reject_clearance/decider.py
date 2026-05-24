@@ -42,7 +42,14 @@ def decide(
     *,
     now: datetime,
 ) -> list[ClearanceRejected]:
-    """Decide the events produced by rejecting an UnderReview clearance."""
+    """Decide the events produced by rejecting an UnderReview clearance.
+
+    Invariants:
+      - State must not be None -> ClearanceNotFoundError
+      - Current status must be UnderReview
+        -> ClearanceCannotRejectError
+      - Reason must be valid -> InvalidClearanceRejectReasonError
+    """
     if state is None:
         raise ClearanceNotFoundError(command.clearance_id)
     if state.status not in _REJECTABLE_STATUSES:

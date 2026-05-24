@@ -40,7 +40,20 @@ def decide(
     context: PromotionContext,
     now: datetime,
 ) -> list[DatasetPromoted]:
-    """Decide the events produced by promoting a Dataset to Production."""
+    """Decide the events produced by promoting a Dataset to Production.
+
+    Invariants:
+      - State must not be None -> DatasetNotFoundError
+      - Status must not be Discarded -> DatasetCannotPromoteError
+      - Intent must currently be Trial (strict-not-idempotent)
+        -> DatasetAlreadyPromotedError
+      - When producing_run_id is set, producing_run_end_state must
+        be Completed -> DatasetCannotPromoteError
+      - All derived_from Datasets must be Production
+        -> DatasetCannotPromoteError
+      - Reason must be valid -> InvalidPromotionReasonError
+        (via PromotionReason VO)
+    """
     if state is None:
         raise DatasetNotFoundError(command.dataset_id)
 

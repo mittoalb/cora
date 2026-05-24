@@ -37,7 +37,13 @@ def decide(
     *,
     now: datetime,
 ) -> list[ClearanceExpired]:
-    """Decide the events produced by expiring an Active clearance."""
+    """Decide the events produced by expiring an Active clearance.
+
+    Invariants:
+      - State must not be None -> ClearanceNotFoundError
+      - Current status must be Active -> ClearanceCannotExpireError
+      - Reason must be valid -> InvalidClearanceExpireReasonError
+    """
     if state is None:
         raise ClearanceNotFoundError(command.clearance_id)
     if state.status not in _EXPIRABLE_STATUSES:

@@ -35,7 +35,14 @@ def decide(
     now: datetime,
     new_id: UUID,
 ) -> list[PolicyDefined]:
-    """Decide the events produced by defining a new policy."""
+    """Decide the events produced by defining a new policy.
+
+    Invariants:
+      - State must be None (defensive AlreadyExists guard against
+        UUID collision) -> PolicyAlreadyExistsError
+      - Name must be valid -> InvalidPolicyNameError
+        (via PolicyName VO)
+    """
     if state is not None:
         raise PolicyAlreadyExistsError(state.id)
     name = PolicyName(command.name)  # validates + trims

@@ -48,7 +48,17 @@ def decide(
     now: datetime,
     new_id: UUID,
 ) -> list[AssetRegistered]:
-    """Decide the events produced by registering a new asset."""
+    """Decide the events produced by registering a new asset.
+
+    Invariants:
+      - State must be None (genesis-only) -> AssetAlreadyExistsError
+      - Name must be valid -> InvalidAssetNameError
+        (via AssetName VO)
+      - Enterprise-level Assets must have parent_id=None
+        -> InvalidAssetParentError
+      - Non-Enterprise-level Assets must have a non-null parent_id
+        -> InvalidAssetParentError
+    """
     if state is not None:
         raise AssetAlreadyExistsError(state.id)
 

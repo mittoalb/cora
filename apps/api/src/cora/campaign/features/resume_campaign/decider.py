@@ -29,7 +29,12 @@ def decide(
     *,
     now: datetime,
 ) -> list[CampaignResumed]:
-    """Decide the events produced by resuming a Held Campaign."""
+    """Decide the events produced by resuming a Held Campaign.
+
+    Invariants:
+      - State must not be None -> CampaignNotFoundError
+      - Current status must be Held -> CampaignCannotResumeError
+    """
     if state is None:
         raise CampaignNotFoundError(command.campaign_id)
     if state.status not in _RESUMABLE_STATUSES:

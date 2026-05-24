@@ -27,7 +27,13 @@ def decide(
     now: datetime,
     new_id: UUID,
 ) -> list[ZoneDefined]:
-    """Decide the events produced by defining a new zone."""
+    """Decide the events produced by defining a new zone.
+
+    Invariants:
+      - State must be None (defensive AlreadyExists guard against UUID
+        collision) -> ZoneAlreadyExistsError
+      - Name must be valid -> InvalidZoneNameError (via ZoneName VO)
+    """
     if state is not None:
         raise ZoneAlreadyExistsError(state.id)
     name = ZoneName(command.name)  # validates + trims; raises InvalidZoneNameError

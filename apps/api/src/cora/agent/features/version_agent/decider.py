@@ -28,7 +28,12 @@ def decide(
     *,
     now: datetime,
 ) -> list[AgentVersioned]:
-    """Decide the events produced by versioning a Defined Agent."""
+    """Decide the events produced by versioning a Defined Agent.
+
+    Invariants:
+      - State must not be None -> AgentNotFoundError
+      - Current status must be Defined -> AgentCannotVersionError
+    """
     if state is None:
         raise AgentNotFoundError(command.agent_id)
     if state.status not in _VERSIONABLE_STATUSES:

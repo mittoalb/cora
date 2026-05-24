@@ -40,7 +40,18 @@ def decide(
     *,
     now: datetime,
 ) -> list[AssetPortAdded]:
-    """Decide the events produced by adding a port to an existing Asset."""
+    """Decide the events produced by adding a port to an existing Asset.
+
+    Invariants:
+      - State must not be None -> AssetNotFoundError
+      - Asset must not be Decommissioned -> AssetCannotAddPortError
+      - port_name must be valid -> InvalidAssetPortNameError
+        (via AssetPort VO)
+      - signal_type must be valid -> InvalidAssetPortSignalTypeError
+        (via AssetPort VO)
+      - port name must not already be in state.ports
+        (strict-not-idempotent) -> AssetCannotAddPortError
+    """
     if state is None:
         raise AssetNotFoundError(command.asset_id)
 

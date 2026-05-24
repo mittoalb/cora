@@ -32,7 +32,14 @@ def decide(
     *,
     now: datetime,
 ) -> list[CampaignHeld]:
-    """Decide the events produced by holding an Active Campaign."""
+    """Decide the events produced by holding an Active Campaign.
+
+    Invariants:
+      - State must not be None -> CampaignNotFoundError
+      - Current status must be Active -> CampaignCannotHoldError
+      - Reason must be 1-CAMPAIGN_REASON_MAX_LENGTH chars after trim
+        -> InvalidCampaignHoldReasonError
+    """
     if state is None:
         raise CampaignNotFoundError(command.campaign_id)
     if state.status not in _HOLDABLE_STATUSES:

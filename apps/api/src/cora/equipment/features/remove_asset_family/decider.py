@@ -26,7 +26,15 @@ def decide(
     *,
     now: datetime,
 ) -> list[AssetFamilyRemoved]:
-    """Decide the events produced by removing a family from an existing asset."""
+    """Decide the events produced by removing a family from an existing asset.
+
+    Invariants:
+      - State must not be None -> AssetNotFoundError
+      - Asset must not be Decommissioned
+        -> AssetCannotRemoveFamilyError
+      - family_id must be in state.families
+        (strict-not-idempotent) -> AssetCannotRemoveFamilyError
+    """
     if state is None:
         raise AssetNotFoundError(command.asset_id)
 

@@ -37,7 +37,15 @@ def decide(
     *,
     now: datetime,
 ) -> list[AgentBudgetRevised]:
-    """Decide the events produced by revising an Agent's budget."""
+    """Decide the events produced by revising an Agent's budget.
+
+    Invariants:
+      - State must not be None -> AgentNotFoundError
+      - Current status must not be Deprecated
+        -> AgentCannotReviseBudgetError
+      - When any cap is non-None, the resulting budget must be valid
+        -> InvalidAgentBudgetError (via AgentBudget VO)
+    """
     if state is None:
         raise AgentNotFoundError(command.agent_id)
     if state.status is AgentStatus.DEPRECATED:

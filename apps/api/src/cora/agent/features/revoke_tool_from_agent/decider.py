@@ -30,7 +30,15 @@ def decide(
     *,
     now: datetime,
 ) -> list[AgentToolRevoked]:
-    """Decide the events produced by revoking a tool from an Agent."""
+    """Decide the events produced by revoking a tool from an Agent.
+
+    Invariants:
+      - State must not be None -> AgentNotFoundError
+      - Current status must not be Deprecated
+        -> AgentCannotRevokeToolError
+      - Tool name must be valid -> InvalidToolNameError
+        (via ToolName VO)
+    """
     if state is None:
         raise AgentNotFoundError(command.agent_id)
     if state.status is AgentStatus.DEPRECATED:

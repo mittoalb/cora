@@ -47,7 +47,17 @@ def decide(
     *,
     now: datetime,
 ) -> list[ClearanceApproved]:
-    """Decide the events produced by approving an UnderReview clearance."""
+    """Decide the events produced by approving an UnderReview clearance.
+
+    Invariants:
+      - State must not be None -> ClearanceNotFoundError
+      - Current status must be UnderReview
+        -> ClearanceCannotApproveError
+      - Terminal review step must have decision='Approved'
+        -> ClearanceCannotApproveError
+      - valid_from must be strictly less than valid_until (when both
+        provided) -> InvalidClearanceValidityWindowError
+    """
     if state is None:
         raise ClearanceNotFoundError(command.clearance_id)
     if state.status not in _APPROVABLE_STATUSES:

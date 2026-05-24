@@ -88,7 +88,23 @@ def decide(
     now: datetime,
     new_id: UUID,
 ) -> list[PlanDefined]:
-    """Decide the events produced by defining a new plan."""
+    """Decide the events produced by defining a new plan.
+
+    Invariants:
+      - State must be None (genesis-only) -> PlanAlreadyExistsError
+      - asset_ids must be non-empty -> InvalidPlanError
+      - Practice must not be Deprecated -> PracticeDeprecatedError
+      - Method must not be Deprecated -> MethodDeprecatedError
+      - No bound Asset may be Decommissioned
+        -> AssetDecommissionedError
+      - Union of bound Assets' families must cover Method's
+        needed_families -> PlanCapabilitiesNotSatisfiedError
+      - When Method has a Capability, union of bound Families'
+        affordances must cover Capability.required_affordances
+        -> PlanAffordancesNotSatisfiedError
+      - Name must be valid -> InvalidPlanNameError
+        (via PlanName VO)
+    """
     if state is not None:
         raise PlanAlreadyExistsError(state.id)
 

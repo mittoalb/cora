@@ -27,7 +27,14 @@ def decide(
     now: datetime,
     new_id: UUID,
 ) -> list[SubjectRegistered]:
-    """Decide the events produced by registering a new subject."""
+    """Decide the events produced by registering a new subject.
+
+    Invariants:
+      - State must be None (genesis-only)
+        -> SubjectAlreadyExistsError
+      - Name must be valid -> InvalidSubjectNameError
+        (via SubjectName VO)
+    """
     if state is not None:
         raise SubjectAlreadyExistsError(state.id)
     name = SubjectName(command.name)  # validates + trims; raises InvalidSubjectNameError

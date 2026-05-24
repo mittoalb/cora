@@ -54,6 +54,17 @@ def decide(
 ) -> list[CautionRegistered]:
     """Decide the events produced by registering a new caution.
 
+    Invariants:
+      - State must be None (genesis-only) -> CautionAlreadyExistsError
+      - Text must be valid -> InvalidCautionTextError
+        (via CautionText VO)
+      - Workaround must be valid -> InvalidCautionWorkaroundError
+        (via CautionWorkaround VO)
+      - Each tag must be valid -> InvalidCautionTagError
+        (via CautionTag VO)
+      - expires_at (when set) must be strictly future
+        -> InvalidCautionExpiresAtError
+
     `author_actor_id` is handler-injected from the request envelope's
     `principal_id` (not on the command). At register time author and
     principal are equal by construction; the command surface omits the

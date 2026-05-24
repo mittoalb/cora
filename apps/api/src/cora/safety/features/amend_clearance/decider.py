@@ -73,6 +73,18 @@ def decide(
 ) -> AmendmentEvents:
     """Decide the parent+child events produced by amending an Active clearance.
 
+    Invariants:
+      - Parent status must be Active -> ClearanceCannotAmendError
+      - Title must be valid -> InvalidClearanceTitleError
+        (via ClearanceTitle VO)
+      - bindings must be non-empty -> InvalidClearanceBindingsError
+      - external_id (when set) must be valid
+        -> InvalidClearanceExternalIdError
+      - valid_from must be strictly less than valid_until (when both
+        provided) -> InvalidClearanceValidityWindowError
+      - Each declaration.target must be in bindings
+        -> InvalidClearanceDeclarationTargetError
+
     `state` is conceptually the child's prior state (always None
     because the child is being created here). The parent's state lives
     in `context.parent`.

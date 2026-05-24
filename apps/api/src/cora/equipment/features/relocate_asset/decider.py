@@ -74,7 +74,19 @@ def decide(
     *,
     now: datetime,
 ) -> list[AssetRelocated]:
-    """Decide the events produced by relocating an existing asset."""
+    """Decide the events produced by relocating an existing asset.
+
+    Invariants:
+      - State must not be None -> AssetNotFoundError
+      - Asset must not be Enterprise-level
+        -> AssetCannotRelocateError
+      - Asset must not be Decommissioned
+        -> AssetCannotRelocateError
+      - to_parent_id must not equal the asset itself (self-loop)
+        -> AssetCannotRelocateError
+      - to_parent_id must not equal the current parent (no-op)
+        -> AssetCannotRelocateError
+    """
     if state is None:
         raise AssetNotFoundError(command.asset_id)
 

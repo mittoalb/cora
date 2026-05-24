@@ -37,7 +37,17 @@ def decide(
     *,
     now: datetime,
 ) -> list[AgentToolGranted]:
-    """Decide the events produced by granting a tool to an Agent."""
+    """Decide the events produced by granting a tool to an Agent.
+
+    Invariants:
+      - State must not be None -> AgentNotFoundError
+      - Current status must not be Deprecated
+        -> AgentCannotGrantToolError
+      - Tool name must be valid -> InvalidToolNameError
+        (via ToolName VO)
+      - Projected tools count must not exceed AGENT_TOOLS_MAX_COUNT
+        when adding a new entry -> AgentToolsExceedsLimitError
+    """
     if state is None:
         raise AgentNotFoundError(command.agent_id)
     if state.status is AgentStatus.DEPRECATED:

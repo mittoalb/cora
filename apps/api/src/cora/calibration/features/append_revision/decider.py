@@ -61,7 +61,16 @@ def decide(
     new_revision_id: UUID,
     established_by_actor_id: UUID,
 ) -> list[CalibrationRevisionAppended]:
-    """Decide the events produced by appending a new revision."""
+    """Decide the events produced by appending a new revision.
+
+    Invariants:
+      - State must not be None -> CalibrationNotFoundError
+      - Value must validate STRICT against the quantity's VALUE_SCHEMA
+        -> InvalidCalibrationValueError
+      - When supersedes_revision_id is set, the target revision must
+        be present in state.revisions
+        -> SupersedesRevisionNotFoundError
+    """
     if state is None:
         raise CalibrationNotFoundError(command.calibration_id)
 

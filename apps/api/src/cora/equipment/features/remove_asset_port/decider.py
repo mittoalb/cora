@@ -26,7 +26,15 @@ def decide(
     *,
     now: datetime,
 ) -> list[AssetPortRemoved]:
-    """Decide the events produced by removing a port from an existing Asset."""
+    """Decide the events produced by removing a port from an existing Asset.
+
+    Invariants:
+      - State must not be None -> AssetNotFoundError
+      - Asset must not be Decommissioned
+        -> AssetCannotRemovePortError
+      - port name must be in state.ports
+        (strict-not-idempotent) -> AssetCannotRemovePortError
+    """
     if state is None:
         raise AssetNotFoundError(command.asset_id)
 

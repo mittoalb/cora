@@ -75,6 +75,14 @@ def decide(
 ) -> MembershipEvents:
     """Decide the cross-aggregate events produced by adding a Run.
 
+    Invariants:
+      - Campaign status must be Planned, Active, or Held
+        -> CampaignCannotAddRunError
+      - Run must not already be a member of this Campaign
+        -> CampaignRunAlreadyMemberError
+      - Run must not be assigned to a different Campaign
+        -> RunAlreadyAssignedToCampaignError
+
     `state` is the Campaign's current state (also available on
     `context.campaign`; passed twice mirrors the canonical decider
     signature). The Run state lives on `context.run`.

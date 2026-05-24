@@ -69,7 +69,16 @@ def decide(
     context: CampaignMembershipContext,
     now: datetime,
 ) -> MembershipEvents:
-    """Decide the cross-aggregate events produced by removing a Run."""
+    """Decide the cross-aggregate events produced by removing a Run.
+
+    Invariants:
+      - Campaign status must be Planned, Active, or Held
+        -> CampaignCannotRemoveRunError
+      - Run must be a member of this Campaign
+        -> CampaignRunNotMemberError
+      - Reason must be 1-CAMPAIGN_REASON_MAX_LENGTH chars after trim
+        -> InvalidCampaignRunRemoveReasonError
+    """
     _ = state  # context.campaign carries the same Campaign; signature parity.
 
     # Context types are non-Optional (handler raises Campaign/RunNotFoundError

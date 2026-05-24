@@ -52,6 +52,16 @@ def decide(
 ) -> list[MethodDefined]:
     """Decide the events produced by defining a new method.
 
+    Invariants:
+      - State must be None (genesis-only) -> MethodAlreadyExistsError
+      - Capability stream must exist -> CapabilityNotFoundError
+      - Capability.executor_shapes must contain METHOD
+        -> MethodCapabilityExecutorMismatchError
+      - Name must be valid -> InvalidMethodNameError
+        (via MethodName VO)
+      - Each needed_supplies kind must be valid
+        -> InvalidMethodNeededSuppliesError
+
     `capability` is REQUIRED at the call boundary (the command's
     `capability_id` is REQUIRED per Pattern P, so the handler always
     loads it). The kwarg keeps `Capability | None`

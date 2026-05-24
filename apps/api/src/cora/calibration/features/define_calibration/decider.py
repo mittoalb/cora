@@ -63,7 +63,17 @@ def decide(
     new_id: UUID,
     defined_by_actor_id: UUID,
 ) -> list[CalibrationDefined]:
-    """Decide the events produced by defining a new Calibration."""
+    """Decide the events produced by defining a new Calibration.
+
+    Invariants:
+      - State must be None (genesis-only)
+        -> CalibrationAlreadyExistsError
+      - operating_point must validate STRICT against the quantity's
+        OPERATING_POINT_SCHEMA -> InvalidOperatingPointError
+      - Description (when set and non-empty after trim) must be valid
+        -> InvalidCalibrationDescriptionError
+        (via CalibrationDescription VO)
+    """
     if state is not None:
         raise CalibrationAlreadyExistsError(state.id)
 

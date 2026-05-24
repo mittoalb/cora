@@ -46,7 +46,15 @@ def decide(
     now: datetime,
     new_id: UUID,
 ) -> list[SupplyRegistered]:
-    """Decide the events produced by registering a new supply."""
+    """Decide the events produced by registering a new supply.
+
+    Invariants:
+      - State must be None (genesis-only)
+        -> SupplyAlreadyExistsError
+      - kind must be valid -> InvalidSupplyKindError
+      - Name must be valid -> InvalidSupplyNameError
+        (via SupplyName VO)
+    """
     if state is not None:
         raise SupplyAlreadyExistsError(state.id)
 

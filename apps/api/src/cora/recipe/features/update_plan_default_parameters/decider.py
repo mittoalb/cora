@@ -46,7 +46,16 @@ def decide(
     context: PlanDefaultParametersContext,
     now: datetime,
 ) -> list[PlanDefaultParametersUpdated]:
-    """Decide the events produced by a Plan.default_parameters update."""
+    """Decide the events produced by a Plan.default_parameters update.
+
+    Invariants:
+      - State must not be None -> PlanNotFoundError
+      - Merged default_parameters must validate against the Method's
+        parameters_schema (STRICT when schema is None; non-empty
+        merged defaults are rejected)
+        -> InvalidPlanDefaultParametersError
+        (via validate_default_parameters_against_method_schema)
+    """
     if state is None:
         raise PlanNotFoundError(command.plan_id)
 

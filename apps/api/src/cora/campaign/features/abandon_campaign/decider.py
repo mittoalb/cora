@@ -47,7 +47,15 @@ def decide(
     *,
     now: datetime,
 ) -> list[CampaignAbandoned]:
-    """Decide the events produced by abandoning a Campaign."""
+    """Decide the events produced by abandoning a Campaign.
+
+    Invariants:
+      - State must not be None -> CampaignNotFoundError
+      - Current status must be Planned, Active, or Held
+        -> CampaignCannotAbandonError
+      - Reason must be 1-CAMPAIGN_REASON_MAX_LENGTH chars after trim
+        -> InvalidCampaignAbandonReasonError
+    """
     if state is None:
         raise CampaignNotFoundError(command.campaign_id)
     if state.status not in _ABANDONABLE_STATUSES:

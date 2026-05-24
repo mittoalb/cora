@@ -33,7 +33,15 @@ def decide(
     *,
     now: datetime,
 ) -> list[PlanWireRemoved]:
-    """Decide the events produced by removing a Wire from an existing Plan."""
+    """Decide the events produced by removing a Wire from an existing Plan.
+
+    Invariants:
+      - State must not be None -> PlanNotFoundError
+      - Wire structural shape must be valid -> InvalidWireError
+        (via Wire VO)
+      - Wire must be in state.wires (strict-not-idempotent)
+        -> PlanWireNotFoundError
+    """
     if state is None:
         raise PlanNotFoundError(command.plan_id)
 

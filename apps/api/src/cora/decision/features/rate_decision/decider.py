@@ -46,6 +46,13 @@ def decide(
 ) -> list[DecisionRated]:
     """Decide the events produced by rating an existing Decision.
 
+    Invariants:
+      - State must not be None (Decision must exist)
+        -> DecisionNotFoundError
+      - Comment (when not None) must be non-empty, non-whitespace-only,
+        and within cap -> InvalidDecisionRatingCommentError
+        (via validate_decision_rating_comment)
+
     Captures `state.confidence` into the event's
     `confidence_at_emit_time` field (gate-review cross-BC P2-4
     payload-borne denorm; avoids the cross-projection apply-time

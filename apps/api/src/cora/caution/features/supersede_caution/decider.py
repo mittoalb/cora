@@ -67,6 +67,21 @@ def decide(
 ) -> SupersessionEvents:
     """Decide the parent+child events produced by superseding an Active caution.
 
+    Invariants:
+      - Parent state must be Active -> CautionCannotSupersedeError
+        (via ensure_supersedable)
+      - Text must be valid -> InvalidCautionTextError
+        (via CautionText VO)
+      - Workaround must be valid -> InvalidCautionWorkaroundError
+        (via CautionWorkaround VO)
+      - Each tag must be valid -> InvalidCautionTagError
+        (via CautionTag VO)
+      - expires_at (when set) must be strictly future
+        -> InvalidCautionExpiresAtError
+      - Child target must equal parent target
+        -> InvalidCautionSupersedeTargetError
+        (via ensure_target_preserved)
+
     `state` is conceptually the child's prior state (always None
     because the child is being created here). The parent's state lives
     in `context.parent`.

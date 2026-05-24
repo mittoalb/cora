@@ -41,7 +41,15 @@ def decide(
     context: AssetSettingsContext,
     now: datetime,
 ) -> list[AssetSettingsUpdated]:
-    """Decide the events produced by an Asset.settings update."""
+    """Decide the events produced by an Asset.settings update.
+
+    Invariants:
+      - State must not be None -> AssetNotFoundError
+      - Merged settings must validate against the union of the
+        supplied Capabilities' settings_schemas
+        -> InvalidAssetSettingsError
+        (via validate_settings_against_families)
+    """
     if state is None:
         raise AssetNotFoundError(command.asset_id)
 

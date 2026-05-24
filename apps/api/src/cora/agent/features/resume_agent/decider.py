@@ -28,7 +28,12 @@ def decide(
     *,
     now: datetime,
 ) -> list[AgentResumed]:
-    """Decide the events produced by resuming an Agent."""
+    """Decide the events produced by resuming an Agent.
+
+    Invariants:
+      - State must not be None -> AgentNotFoundError
+      - Current status must be Suspended -> AgentCannotResumeError
+    """
     if state is None:
         raise AgentNotFoundError(command.agent_id)
     if state.status is not AgentStatus.SUSPENDED:

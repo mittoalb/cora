@@ -28,7 +28,13 @@ def decide(
     *,
     now: datetime,
 ) -> list[ClearanceActivated]:
-    """Decide the events produced by activating an Approved clearance."""
+    """Decide the events produced by activating an Approved clearance.
+
+    Invariants:
+      - State must not be None -> ClearanceNotFoundError
+      - Current status must be Approved
+        -> ClearanceCannotActivateError
+    """
     if state is None:
         raise ClearanceNotFoundError(command.clearance_id)
     if state.status not in _ACTIVATABLE_STATUSES:

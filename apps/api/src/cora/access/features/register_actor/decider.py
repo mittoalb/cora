@@ -35,6 +35,13 @@ def decide(
 ) -> list[ActorRegistered]:
     """Decide the events produced by registering a new actor.
 
+    Invariants:
+      - State must be None (defensive AlreadyExists guard against UUID
+        collision) -> ActorAlreadyExistsError
+      - Kind must not be AGENT (agent-kind Actors mint via define_agent
+        only) -> InvalidActorKindError
+      - Name must be valid -> InvalidActorNameError (via ActorName VO)
+
     `kind` flows from the command (`human` default for backward
     compat with all existing register_actor callers; `service_account`
     opt-in for machine callers). Per

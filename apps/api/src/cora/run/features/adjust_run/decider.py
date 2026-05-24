@@ -91,6 +91,18 @@ def decide(
 ) -> list[RunAdjusted]:
     """Decide the events produced by adjusting an in-progress Run.
 
+    Invariants:
+      - State must not be None -> RunNotFoundError
+      - Current status must be Running or Held -> RunCannotAdjustError
+      - parameter_patch must be non-empty
+        -> InvalidRunAdjustPatchError
+      - Reason must be 1-RUN_ADJUST_REASON_MAX_LENGTH chars after
+        trim -> InvalidRunAdjustReasonError
+      - When Method has a parameters_schema, merged effective
+        parameters must validate (RELAXED)
+        -> InvalidRunAdjustSchemaError
+        (via validate_adjusted_parameters_against_method_schema)
+
     `state` is the source-state Run (None means the Run has no stream;
     raises `RunNotFoundError`). `context.method_parameters_schema` is
     the Method's optional schema (None means schemaless Method;

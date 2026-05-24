@@ -73,7 +73,33 @@ def decide(
     now: datetime,
     new_id: UUID,
 ) -> list[DatasetRegistered]:
-    """Decide the events produced by registering a new Dataset."""
+    """Decide the events produced by registering a new Dataset.
+
+    Invariants:
+      - State must be None (genesis-only)
+        -> DatasetAlreadyExistsError
+      - Name must be valid -> InvalidDatasetNameError
+        (via DatasetName VO)
+      - URI must be valid -> InvalidDatasetUriError (via DatasetUri VO)
+      - Checksum must be valid -> InvalidDatasetChecksumError
+        (via DatasetChecksum VO)
+      - byte_size must be valid -> InvalidDatasetByteSizeError
+        (via validate_byte_size)
+      - Encoding (media_type + conforms_to) must be valid
+        -> InvalidDatasetEncodingError (via DatasetEncoding VO)
+      - derived_from must satisfy cardinality + UUID shape
+        -> InvalidDerivedFromError (via validate_derived_from)
+      - used_calibrations must satisfy cardinality
+        -> InvalidUsedCalibrationsError (via validate_used_calibrations)
+      - When producing_run_id is set, the Run must exist
+        -> ProducingRunNotFoundError
+      - When subject_id is set, the Subject must exist
+        -> LinkedSubjectNotFoundError
+      - All derived_from Datasets must exist
+        -> DerivedFromDatasetsNotFoundError
+      - No derived_from Dataset may be Discarded
+        -> DerivedFromDatasetsDiscardedError
+    """
     if state is not None:
         raise DatasetAlreadyExistsError(state.id)
 

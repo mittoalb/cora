@@ -29,7 +29,12 @@ def decide(
     *,
     now: datetime,
 ) -> list[CampaignStarted]:
-    """Decide the events produced by starting a Planned Campaign."""
+    """Decide the events produced by starting a Planned Campaign.
+
+    Invariants:
+      - State must not be None -> CampaignNotFoundError
+      - Current status must be Planned -> CampaignCannotStartError
+    """
     if state is None:
         raise CampaignNotFoundError(command.campaign_id)
     if state.status not in _STARTABLE_STATUSES:

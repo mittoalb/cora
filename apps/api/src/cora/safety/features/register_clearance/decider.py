@@ -68,7 +68,21 @@ def decide(
     now: datetime,
     new_id: UUID,
 ) -> list[ClearanceRegistered]:
-    """Decide the events produced by registering a new clearance."""
+    """Decide the events produced by registering a new clearance.
+
+    Invariants:
+      - State must be None (genesis-only)
+        -> ClearanceAlreadyExistsError
+      - Title must be valid -> InvalidClearanceTitleError
+        (via ClearanceTitle VO)
+      - bindings must be non-empty -> InvalidClearanceBindingsError
+      - external_id (when set) must be valid
+        -> InvalidClearanceExternalIdError
+      - valid_from must be strictly less than valid_until (when both
+        provided) -> InvalidClearanceValidityWindowError
+      - Each declaration.target must be in bindings
+        -> InvalidClearanceDeclarationTargetError
+    """
     if state is not None:
         raise ClearanceAlreadyExistsError(state.id)
 

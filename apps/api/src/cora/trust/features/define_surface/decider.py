@@ -19,7 +19,14 @@ def decide(
     now: datetime,
     new_id: UUID,
 ) -> list[SurfaceDefined]:
-    """Decide the events produced by defining a new surface."""
+    """Decide the events produced by defining a new surface.
+
+    Invariants:
+      - State must be None (defensive AlreadyExists guard against
+        UUID collision) -> SurfaceAlreadyExistsError
+      - Name must be valid -> InvalidSurfaceNameError
+        (via SurfaceName VO)
+    """
     if state is not None:
         raise SurfaceAlreadyExistsError(state.id)
     name = SurfaceName(command.name)  # validates + trims

@@ -62,6 +62,18 @@ def decide(
 ) -> list[ProcedureRegistered]:
     """Decide the events produced by registering a new procedure.
 
+    Invariants:
+      - State must be None (genesis-only)
+        -> ProcedureAlreadyExistsError
+      - When capability_id is set, Capability stream must exist
+        -> CapabilityNotFoundError
+      - When capability_id is set, Capability.executor_shapes must
+        contain PROCEDURE
+        -> ProcedureCapabilityExecutorMismatchError
+      - kind must be valid -> InvalidProcedureKindError
+      - Name must be valid -> InvalidProcedureNameError
+        (via ProcedureName VO)
+
     Optional `capability` parameter (additive): the loaded
     Capability state for `command.capability_id` (loaded by
     the handler via the cross-BC port; None when command.capability_id

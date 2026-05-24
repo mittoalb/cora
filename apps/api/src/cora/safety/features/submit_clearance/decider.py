@@ -29,7 +29,13 @@ def decide(
     *,
     now: datetime,
 ) -> list[ClearanceSubmitted]:
-    """Decide the events produced by submitting a Defined clearance."""
+    """Decide the events produced by submitting a Defined clearance.
+
+    Invariants:
+      - State must not be None -> ClearanceNotFoundError
+      - Current status must be Defined
+        -> ClearanceCannotSubmitError
+    """
     if state is None:
         raise ClearanceNotFoundError(command.clearance_id)
     if state.status not in _SUBMITTABLE_STATUSES:

@@ -53,7 +53,14 @@ def decide(
     context: ProcedureStartContext,
     now: datetime,
 ) -> list[ProcedureStarted]:
-    """Decide the events produced by starting an existing Procedure."""
+    """Decide the events produced by starting an existing Procedure.
+
+    Invariants:
+      - State must not be None -> ProcedureNotFoundError
+      - Current status must be Defined -> ProcedureCannotStartError
+      - No target Asset may be Decommissioned
+        -> ProcedureAssetDecommissionedError
+    """
     if state is None:
         raise ProcedureNotFoundError(command.procedure_id)
     if state.status not in _STARTABLE_STATUSES:
