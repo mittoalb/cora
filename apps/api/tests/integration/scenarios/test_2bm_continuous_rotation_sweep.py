@@ -317,7 +317,7 @@ async def test_continuous_rotation_sweep_plays_out_end_to_end(
                     "angle_range_deg": 180.0,
                     "rotation_index": idx,
                 },
-                triggered_by=f"continuous-rotation series; rotation {idx + 1} of 3",
+                trigger_source=f"continuous-rotation series; rotation {idx + 1} of 3",
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,

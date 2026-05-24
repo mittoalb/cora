@@ -80,7 +80,7 @@ class StartRunRequest(BaseModel):
             "and ensure Plan defaults are empty)."
         ),
     )
-    triggered_by: str | None = Field(
+    trigger_source: str | None = Field(
         default=None,
         max_length=500,
         description=(
@@ -213,7 +213,7 @@ async def post_runs(
             subject_id=body.subject_id,
             raid=body.raid,
             override_parameters=body.override_parameters,
-            triggered_by=body.triggered_by,
+            trigger_source=body.trigger_source,
             campaign_id=body.campaign_id,
             decided_by_decision_id=body.decided_by_decision_id,
             pinned_calibrations=frozenset(body.pinned_calibrations),

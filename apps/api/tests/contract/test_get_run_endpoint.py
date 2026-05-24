@@ -67,10 +67,10 @@ def test_get_run_returns_200_with_running_status_for_sample_run() -> None:
         "raid": None,
         "status": "Running",
         # 6g-c additive response surface: empty defaults when no
-        # overrides / no Plan defaults / no triggered_by were supplied.
+        # overrides / no Plan defaults / no trigger_source were supplied.
         "override_parameters": {},
         "effective_parameters": {},
-        "triggered_by": None,
+        "trigger_source": None,
         # 6i-c additive response surface (Watch #17): campaign_id is
         # None for standalone runs (no Campaign membership set at
         # start time or via add_run_to_campaign).

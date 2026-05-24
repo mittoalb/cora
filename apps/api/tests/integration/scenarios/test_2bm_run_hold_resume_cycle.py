@@ -316,7 +316,7 @@ async def test_run_hold_and_resume_cycle_completes_normally(
                 "n_projections": 1500,
                 "angle_range_deg": 180.0,
             },
-            triggered_by="operator-manual; expecting full 1500 projections",
+            trigger_source="operator-manual; expecting full 1500 projections",
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

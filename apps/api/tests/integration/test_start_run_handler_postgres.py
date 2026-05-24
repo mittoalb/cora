@@ -172,10 +172,10 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
         "subject_id": str(subject_id),
         "raid": None,
         # 6g-c additive payload fields default to {} / None when no
-        # overrides / no Plan defaults / no triggered_by are supplied.
+        # overrides / no Plan defaults / no trigger_source are supplied.
         "override_parameters": {},
         "effective_parameters": {},
-        "triggered_by": None,
+        "trigger_source": None,
         # 11a-c-3 additive payload field for ExternalRef-based clearance
         # coverage. Defaults to [] when omitted; forward-compat via
         # `payload.get("external_refs", [])`.

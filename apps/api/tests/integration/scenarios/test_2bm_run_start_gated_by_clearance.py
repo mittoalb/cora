@@ -370,7 +370,7 @@ async def test_run_start_blocked_then_unblocked_by_clearance_activation(
             "n_projections": 1500,
             "angle_range_deg": 180.0,
         },
-        triggered_by="operator-manual; PI present; pre-clearance attempt",
+        trigger_source="operator-manual; PI present; pre-clearance attempt",
     )
 
     with pytest.raises(RunRequiresActiveClearanceError):

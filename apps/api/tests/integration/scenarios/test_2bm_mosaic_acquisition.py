@@ -347,7 +347,7 @@ async def test_mosaic_acquisition_plays_out_end_to_end(
                     "tile_x_mm": tile_x_mm,
                     "tile_y_mm": tile_y_mm,
                 },
-                triggered_by=f"mosaic acquisition; tile {tile_index + 1} of 4",
+                trigger_source=f"mosaic acquisition; tile {tile_index + 1} of 4",
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,

@@ -7367,7 +7367,7 @@
         "type": "object"
       },
       "RunResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. `status` is the StrEnum's\nstring value. `subject_id` is null for calibration / dark-field\nruns. `raid` is null when no Research Activity Identifier was\nsupplied at start time (additive retrofit).\n\n`override_parameters` and `effective_parameters` carry the\nparameter set: overrides the operator supplied at start\ntime, and the resolved merge of Plan defaults + overrides that\nactually governed this Run. Both default `{}`. `triggered_by`\ncaptures what initiated the Run (None if unrecorded).\n\n`campaign_id` (6i-c) is the Campaign this Run is a member of, set\neither at start time (StartRun.campaign_id) or post-hoc via\nadd_run_to_campaign. None when the Run is standalone (not part of\nany Campaign). Closes design-memo Watch #17 (per Caution-design\ncross-BC consistency precedent).",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. `status` is the StrEnum's\nstring value. `subject_id` is null for calibration / dark-field\nruns. `raid` is null when no Research Activity Identifier was\nsupplied at start time (additive retrofit).\n\n`override_parameters` and `effective_parameters` carry the\nparameter set: overrides the operator supplied at start\ntime, and the resolved merge of Plan defaults + overrides that\nactually governed this Run. Both default `{}`. `trigger_source`\ncaptures what initiated the Run (None if unrecorded).\n\n`campaign_id` (6i-c) is the Campaign this Run is a member of, set\neither at start time (StartRun.campaign_id) or post-hoc via\nadd_run_to_campaign. None when the Run is standalone (not part of\nany Campaign). Closes design-memo Watch #17 (per Caution-design\ncross-BC consistency precedent).",
         "properties": {
           "campaign_id": {
             "anyOf": [
@@ -7433,7 +7433,7 @@
             ],
             "title": "Subject Id"
           },
-          "triggered_by": {
+          "trigger_source": {
             "anyOf": [
               {
                 "type": "string"
@@ -7442,7 +7442,7 @@
                 "type": "null"
               }
             ],
-            "title": "Triggered By"
+            "title": "Trigger Source"
           }
         },
         "required": [
@@ -7746,7 +7746,7 @@
             "description": "Subject being measured. Omit (or null) for dark-field / flat-field calibration runs. If given, Subject must be in Mounted or Measured state (else 409).",
             "title": "Subject Id"
           },
-          "triggered_by": {
+          "trigger_source": {
             "anyOf": [
               {
                 "maxLength": 500,
@@ -7757,7 +7757,7 @@
               }
             ],
             "description": "Free-form text capturing what initiated this Run (operator-manual, scheduler id, prior-run id, automation). Optional.",
-            "title": "Triggered By"
+            "title": "Trigger Source"
           }
         },
         "required": [

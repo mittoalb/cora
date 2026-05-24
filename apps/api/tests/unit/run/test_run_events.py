@@ -78,7 +78,7 @@ def test_to_payload_serializes_run_started_with_subject_to_primitives() -> None:
         # `payload.get(..., default)` in `from_stored`.
         "override_parameters": {},
         "effective_parameters": {},
-        "triggered_by": None,
+        "trigger_source": None,
         # Additive payload field for ExternalRef-based
         # clearance coverage (anti-corruption refs to proposal /
         # btr / lab_visit / session). Defaults to [] when omitted;
@@ -139,7 +139,7 @@ def test_to_payload_serializes_run_started_with_raid() -> None:
 @pytest.mark.unit
 def test_to_payload_serializes_run_started_with_6gc_parameter_fields() -> None:
     """Additive payload: override_parameters, effective_parameters,
-    triggered_by carry verbatim through the payload."""
+    trigger_source carry verbatim through the payload."""
     overrides = {"energy": 12.0}
     effective = {"energy": 12.0, "exposure": 100}
     event = RunStarted(
@@ -150,17 +150,17 @@ def test_to_payload_serializes_run_started_with_6gc_parameter_fields() -> None:
         occurred_at=_NOW,
         override_parameters=overrides,
         effective_parameters=effective,
-        triggered_by="operator:opid:5",
+        trigger_source="operator:opid:5",
     )
     payload = to_payload(event)
     assert payload["override_parameters"] == overrides
     assert payload["effective_parameters"] == effective
-    assert payload["triggered_by"] == "operator:opid:5"
+    assert payload["trigger_source"] == "operator:opid:5"
 
 
 @pytest.mark.unit
 def test_to_payload_serializes_6gc_fields_with_defaults() -> None:
-    """Default empty dicts and None triggered_by serialize as `{}` /
+    """Default empty dicts and None trigger_source serialize as `{}` /
     null (NOT omitted). Pinned because the projection's
     `bool(payload.get("override_parameters"))` test relies on the
     key being present."""
@@ -174,13 +174,13 @@ def test_to_payload_serializes_6gc_fields_with_defaults() -> None:
     payload = to_payload(event)
     assert payload["override_parameters"] == {}
     assert payload["effective_parameters"] == {}
-    assert payload["triggered_by"] is None
+    assert payload["trigger_source"] is None
 
 
 @pytest.mark.unit
 def test_from_stored_rebuilds_run_started_without_legacy_keys_as_defaults() -> None:
     """Forward-compatible load: legacy events have no
-    override_parameters/effective_parameters/triggered_by keys in
+    override_parameters/effective_parameters/trigger_source keys in
     jsonb. from_stored returns the field defaults for those, keeping
     older streams replayable. Mirrors the raid forward-compat pattern."""
     run_id = uuid4()
@@ -194,14 +194,14 @@ def test_from_stored_rebuilds_run_started_without_legacy_keys_as_defaults() -> N
             "subject_id": None,
             "occurred_at": _NOW.isoformat(),
             # NOTE: no override_parameters, effective_parameters, or
-            # triggered_by keys — this is what legacy events look like.
+            # trigger_source keys — this is what legacy events look like.
         },
     )
     event = from_stored(stored)
     assert isinstance(event, RunStarted)
     assert event.override_parameters == {}
     assert event.effective_parameters == {}
-    assert event.triggered_by is None
+    assert event.trigger_source is None
 
 
 @pytest.mark.unit
@@ -221,14 +221,14 @@ def test_from_stored_rebuilds_run_started_with_6gc_keys() -> None:
             "occurred_at": _NOW.isoformat(),
             "override_parameters": overrides,
             "effective_parameters": effective,
-            "triggered_by": "operator:opid:5",
+            "trigger_source": "operator:opid:5",
         },
     )
     event = from_stored(stored)
     assert isinstance(event, RunStarted)
     assert event.override_parameters == overrides
     assert event.effective_parameters == effective
-    assert event.triggered_by == "operator:opid:5"
+    assert event.trigger_source == "operator:opid:5"
 
 
 @pytest.mark.unit

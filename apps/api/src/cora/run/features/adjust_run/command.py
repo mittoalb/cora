@@ -21,7 +21,7 @@ Carries the caller-controlled inputs for mid-flight parameter steering:
     decider per the cross-BC eventual-consistency stance.
 
 Strict scope (per design memo lock): `adjust_run` is parameter
-mutation only. Subject / Plan / Method / Asset binding / `triggered_by`
+mutation only. Subject / Plan / Method / Asset binding / `trigger_source`
 / `raid` / `campaign_id` / `external_refs` are NOT touched — those
 are identity / scientific-intent changes that force abort + restart
 by design. The line keeps "what experiment ran" coherent across the

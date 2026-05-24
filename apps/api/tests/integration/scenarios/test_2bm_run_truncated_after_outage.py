@@ -309,7 +309,7 @@ async def test_run_truncate_after_outage_lands_with_interrupted_at(
                 "n_projections": 1500,
                 "angle_range_deg": 180.0,
             },
-            triggered_by="operator-manual; overnight unattended scan",
+            trigger_source="operator-manual; overnight unattended scan",
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

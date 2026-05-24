@@ -4,7 +4,7 @@ Exercises the cross-aggregate parameter resolution at start_run:
   - Plan.default_parameters (set via 6g-b update_plan_default_parameters)
   - merged with command.override_parameters (RFC 7396 via merge_patch)
   - validated against Method.parameters_schema (set via 6g-a)
-  - persisted in RunStarted payload (override_parameters + effective_parameters + triggered_by)
+  - persisted in RunStarted payload (override_parameters + effective_parameters + trigger_source)
   - folded into Run state on load
   - projection's `override_parameters_present` column flips TRUE
 """
@@ -78,7 +78,7 @@ async def test_start_run_merges_defaults_and_overrides_into_effective_parameters
             plan_id=plan_id,
             subject_id=subject_id,
             override_parameters={"exposure": 250},
-            triggered_by="operator:opid:5",
+            trigger_source="operator:opid:5",
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -89,7 +89,7 @@ async def test_start_run_merges_defaults_and_overrides_into_effective_parameters
     assert loaded.override_parameters == {"exposure": 250}
     # Defaults' energy preserved; override's exposure wins.
     assert loaded.effective_parameters == {"energy": 12.0, "exposure": 250}
-    assert loaded.triggered_by == "operator:opid:5"
+    assert loaded.trigger_source == "operator:opid:5"
 
     await _drain_run_projections(db_pool)
     async with db_pool.acquire() as conn:

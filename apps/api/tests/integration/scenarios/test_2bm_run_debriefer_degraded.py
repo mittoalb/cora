@@ -307,7 +307,7 @@ async def test_run_debrief_agent_fires_on_degraded_completion(
                 "n_projections": 1500,
                 "angle_range_deg": 180.0,
             },
-            triggered_by="operator-manual",
+            trigger_source="operator-manual",
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

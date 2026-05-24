@@ -296,7 +296,7 @@ def decide(
             raid=command.raid,
             override_parameters=command.override_parameters,
             effective_parameters=effective_parameters,
-            triggered_by=command.triggered_by,
+            trigger_source=command.trigger_source,
             external_refs=tuple(
                 {"scheme": ref.scheme, "id": ref.id} for ref in command.external_refs
             ),

@@ -145,10 +145,10 @@ class RunStarted:
     Both default to `{}` and forward-compat: `from_stored` reads
     each key with `payload.get(..., {})` so legacy streams replay.
 
-    `triggered_by` is operator-supplied free text
+    `trigger_source` is operator-supplied free text
     capturing what initiated this Run (operator-manual, scheduler
     id, prior-run id, automation id). Optional (None when omitted).
-    Forward-compat via `payload.get("triggered_by")`. Future
+    Forward-compat via `payload.get("trigger_source")`. Future
     Decision-BC integration may populate this from
     `DecisionReasoning.entries` references.
     """
@@ -161,7 +161,7 @@ class RunStarted:
     raid: str | None = None
     override_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     effective_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
-    triggered_by: str | None = None
+    trigger_source: str | None = None
     # anti-corruption refs to upstream-deferred concepts
     # (proposal / btr / lab_visit / session). Each entry is a dict
     # `{"scheme": str, "id": str}` mirroring Safety BC's ExternalBinding
@@ -432,7 +432,7 @@ class RunAdjusted:
 
     Source-state guard `{Running, Held}` applied at the decider. The
     Run identity / Subject / Plan / Method / Asset binding /
-    `triggered_by` / `external_refs` / `campaign_id` are NOT touched
+    `trigger_source` / `external_refs` / `campaign_id` are NOT touched
     by adjust: they remain the audit identity of the scientific
     activity. Operators wanting to change those force abort + restart
     per the design lock.
@@ -518,7 +518,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
             raid=raid,
             override_parameters=override_parameters,
             effective_parameters=effective_parameters,
-            triggered_by=triggered_by,
+            trigger_source=trigger_source,
             external_refs=external_refs,
             acknowledged_cautions=acknowledged_cautions,
             campaign_id=campaign_id,
@@ -534,7 +534,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "raid": raid,
                 "override_parameters": override_parameters,
                 "effective_parameters": effective_parameters,
-                "triggered_by": triggered_by,
+                "trigger_source": trigger_source,
                 "external_refs": list(external_refs),
                 "acknowledged_cautions": [
                     {
@@ -678,7 +678,7 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 raw_subject = payload["subject_id"]
                 # Forward-compat additive evolution: `raid`,
                 # `override_parameters` / `effective_parameters` /
-                # `triggered_by`, `external_refs`,
+                # `trigger_source`, `external_refs`,
                 # `acknowledged_cautions`, `campaign_id`,
                 # `decided_by_decision_id` (Decision→Run linkage),
                 # `pinned_calibrations` (Calibration AsShot anchor)
@@ -695,7 +695,7 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                     raid=payload.get("raid"),
                     override_parameters=payload.get("override_parameters", {}),
                     effective_parameters=payload.get("effective_parameters", {}),
-                    triggered_by=payload.get("triggered_by"),
+                    trigger_source=payload.get("trigger_source"),
                     external_refs=tuple(payload.get("external_refs", [])),
                     acknowledged_cautions=tuple(
                         CautionAcknowledgement(

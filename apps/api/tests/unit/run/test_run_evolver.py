@@ -282,13 +282,13 @@ def test_evolve_run_started_without_raid_yields_state_with_raid_none() -> None:
     assert state.raid is None
 
 
-# ---------- additive RunStarted payload (overrides + effective + triggered_by) ----------
+# ---------- additive RunStarted payload (overrides + effective + trigger_source) ----------
 
 
 @pytest.mark.unit
 def test_evolve_run_started_folds_parameter_fields() -> None:
     """Additive payload: override_parameters + effective_parameters
-    + triggered_by carry verbatim from RunStarted into Run state."""
+    + trigger_source carry verbatim from RunStarted into Run state."""
     overrides = {"energy": 12.0}
     effective = {"energy": 12.0, "exposure": 100}
     state = evolve(
@@ -301,29 +301,29 @@ def test_evolve_run_started_folds_parameter_fields() -> None:
             occurred_at=_NOW,
             override_parameters=overrides,
             effective_parameters=effective,
-            triggered_by="operator:opid:5",
+            trigger_source="operator:opid:5",
         ),
     )
     assert state.override_parameters == overrides
     assert state.effective_parameters == effective
-    assert state.triggered_by == "operator:opid:5"
+    assert state.trigger_source == "operator:opid:5"
 
 
 @pytest.mark.unit
 def test_evolve_run_started_without_parameter_fields_yields_state_defaults() -> None:
     """Legacy-style RunStarted (defaults via additive-state pattern)
-    folds with empty dicts and None triggered_by."""
+    folds with empty dicts and None trigger_source."""
     state = evolve(None, _run_started())
     assert state.override_parameters == {}
     assert state.effective_parameters == {}
-    assert state.triggered_by is None
+    assert state.trigger_source is None
 
 
 @pytest.mark.unit
 def test_evolve_held_then_resumed_preserves_parameter_fields() -> None:
     """Critical pin: every transition uses dataclass.replace which
     preserves all fields. override_parameters + effective_parameters
-    + triggered_by must survive Hold → Resume cycles unchanged."""
+    + trigger_source must survive Hold → Resume cycles unchanged."""
     overrides = {"energy": 12.0}
     effective = {"energy": 12.0, "exposure": 100}
     state = evolve(
@@ -336,14 +336,14 @@ def test_evolve_held_then_resumed_preserves_parameter_fields() -> None:
             occurred_at=_NOW,
             override_parameters=overrides,
             effective_parameters=effective,
-            triggered_by="scheduler:auto",
+            trigger_source="scheduler:auto",
         ),
     )
     held = evolve(state, RunHeld(run_id=state.id, occurred_at=_NOW))
     resumed = evolve(held, RunResumed(run_id=state.id, occurred_at=_NOW))
     assert resumed.override_parameters == overrides
     assert resumed.effective_parameters == effective
-    assert resumed.triggered_by == "scheduler:auto"
+    assert resumed.trigger_source == "scheduler:auto"
     assert resumed.status is RunStatus.RUNNING
 
 

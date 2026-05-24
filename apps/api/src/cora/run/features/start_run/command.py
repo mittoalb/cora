@@ -16,7 +16,7 @@ Carries the caller-controlled inputs:
     `Plan.default_parameters`. Applied via RFC 7396 merge by the
     handler before the decider validates against the owning Method's
     `parameters_schema`. Default `{}`.
-  - `triggered_by` — operator-supplied free text
+  - `trigger_source` — operator-supplied free text
     capturing what initiated this Run (operator-manual, scheduler,
     prior-run, automation). Optional. Future Decision-BC integration
     may populate this.
@@ -65,7 +65,7 @@ class StartRun:
     subject_id: UUID | None
     raid: str | None = None
     override_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
-    triggered_by: str | None = None
+    trigger_source: str | None = None
     external_refs: frozenset[ExternalRef] = field(default_factory=frozenset[ExternalRef])
     campaign_id: UUID | None = None
     # Decision→Run linkage: optional Decision-causation link

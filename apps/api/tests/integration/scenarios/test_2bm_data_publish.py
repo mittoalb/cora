@@ -283,7 +283,7 @@ async def test_data_publish_plays_out_end_to_end(
                 "n_projections": 1500,
                 "angle_range_deg": 180.0,
             },
-            triggered_by="operator-manual; first scan of beamtime",
+            trigger_source="operator-manual; first scan of beamtime",
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

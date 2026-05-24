@@ -150,7 +150,7 @@ async def test_run_started_sets_override_parameters_present_true_when_non_empty(
             "raid": None,
             "override_parameters": {"energy": 12.0},
             "effective_parameters": {"energy": 12.0},
-            "triggered_by": "operator:opid:5",
+            "trigger_source": "operator:opid:5",
             "occurred_at": _NOW.isoformat(),
         },
     )
@@ -176,7 +176,7 @@ async def test_run_started_sets_override_parameters_present_false_when_empty() -
             "raid": None,
             "override_parameters": {},
             "effective_parameters": {"energy": 12.0},
-            "triggered_by": None,
+            "trigger_source": None,
             "occurred_at": _NOW.isoformat(),
         },
     )

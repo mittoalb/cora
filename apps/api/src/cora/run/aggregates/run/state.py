@@ -962,7 +962,7 @@ class Run:
     first-class read surface (researched 2026-05-14;
     [[project_run_parameters_design]] §6g-c).
 
-    `triggered_by` is operator-supplied free text
+    `trigger_source` is operator-supplied free text
     capturing what initiated this Run (operator-manual, scheduler,
     prior-run, automation). Optional. Future Decision-BC integration
     may populate this from `DecisionReasoning.entries` references.
@@ -976,7 +976,7 @@ class Run:
     status: RunStatus = RunStatus.RUNNING
     override_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     effective_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
-    triggered_by: str | None = None
+    trigger_source: str | None = None
     # lazily populated when first reading is appended
     # (RunReadingLogbookOpened event sets this field). None on Runs
     # that never recorded readings; legacy streams without the field fold

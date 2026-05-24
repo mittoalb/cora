@@ -88,7 +88,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ] = None,
-        triggered_by: Annotated[
+        trigger_source: Annotated[
             str | None,
             Field(
                 default=None,
@@ -146,7 +146,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 subject_id=subject_id,
                 raid=raid,
                 override_parameters=override_parameters if override_parameters else {},
-                triggered_by=triggered_by,
+                trigger_source=trigger_source,
                 campaign_id=campaign_id,
                 decided_by_decision_id=decided_by_decision_id,
                 pinned_calibrations=frozenset(pinned_calibrations)

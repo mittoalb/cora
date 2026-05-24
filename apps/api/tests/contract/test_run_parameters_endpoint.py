@@ -2,9 +2,9 @@
 `GET /runs/{id}`.
 
 Exercises:
-  - start_run accepts `override_parameters` + `triggered_by` body fields
+  - start_run accepts `override_parameters` + `trigger_source` body fields
   - effective_parameters = merge(plan.default_parameters, overrides)
-  - get_run surfaces override_parameters + effective_parameters + triggered_by
+  - get_run surfaces override_parameters + effective_parameters + trigger_source
   - Method-without-schema is STRICT: rejects non-empty effective_parameters
     with 400 + clear error message
   - Method-with-schema validates effective_parameters at start (400 on violation)
@@ -99,7 +99,7 @@ def _setup_run_chain(
 
 
 @pytest.mark.contract
-def test_start_run_accepts_override_parameters_and_triggered_by() -> None:
+def test_start_run_accepts_override_parameters_and_trigger_source() -> None:
     with TestClient(create_app()) as client:
         plan_id, subject_id = _setup_run_chain(
             client, method_schema=_energy_schema(), plan_defaults={"energy": 12.0}
@@ -111,7 +111,7 @@ def test_start_run_accepts_override_parameters_and_triggered_by() -> None:
                 "plan_id": plan_id,
                 "subject_id": subject_id,
                 "override_parameters": {"exposure": 250},
-                "triggered_by": "operator:opid:5",
+                "trigger_source": "operator:opid:5",
             },
         )
     assert response.status_code == 201, response.text
@@ -135,7 +135,7 @@ def test_get_run_surfaces_effective_parameters_after_merge() -> None:
                 "plan_id": plan_id,
                 "subject_id": subject_id,
                 "override_parameters": {"exposure": 250},
-                "triggered_by": "operator:opid:5",
+                "trigger_source": "operator:opid:5",
             },
         )
         assert post.status_code == 201, post.text
@@ -147,7 +147,7 @@ def test_get_run_surfaces_effective_parameters_after_merge() -> None:
     assert body["override_parameters"] == {"exposure": 250}
     # Defaults' energy preserved + override's exposure wins.
     assert body["effective_parameters"] == {"energy": 12.0, "exposure": 250}
-    assert body["triggered_by"] == "operator:opid:5"
+    assert body["trigger_source"] == "operator:opid:5"
 
 
 @pytest.mark.contract
@@ -233,7 +233,7 @@ def test_get_run_returns_plan_defaults_as_effective_when_no_overrides() -> None:
     body = get.json()
     assert body["override_parameters"] == {}
     assert body["effective_parameters"] == {"energy": 12.0, "exposure": 100}
-    assert body["triggered_by"] is None
+    assert body["trigger_source"] is None
 
 
 @pytest.mark.contract

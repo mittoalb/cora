@@ -305,7 +305,7 @@ async def test_run_stop_early_lands_as_stopped_terminal(
                 "n_projections": 1500,
                 "angle_range_deg": 180.0,
             },
-            triggered_by="operator-manual; sample-of-opportunity look",
+            trigger_source="operator-manual; sample-of-opportunity look",
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

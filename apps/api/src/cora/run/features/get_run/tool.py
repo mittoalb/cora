@@ -26,7 +26,7 @@ class RunOutput(BaseModel):
     status: str
     override_parameters: dict[str, Any] = Field(default_factory=dict)
     effective_parameters: dict[str, Any] = Field(default_factory=dict)
-    triggered_by: str | None = None
+    trigger_source: str | None = None
     campaign_id: UUID | None = None
 
 
@@ -63,6 +63,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             status=run.status.value,
             override_parameters=run.override_parameters,
             effective_parameters=run.effective_parameters,
-            triggered_by=run.triggered_by,
+            trigger_source=run.trigger_source,
             campaign_id=run.campaign_id,
         )

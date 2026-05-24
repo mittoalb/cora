@@ -35,7 +35,7 @@ class RunResponse(BaseModel):
     `override_parameters` and `effective_parameters` carry the
     parameter set: overrides the operator supplied at start
     time, and the resolved merge of Plan defaults + overrides that
-    actually governed this Run. Both default `{}`. `triggered_by`
+    actually governed this Run. Both default `{}`. `trigger_source`
     captures what initiated the Run (None if unrecorded).
 
     `campaign_id` (6i-c) is the Campaign this Run is a member of, set
@@ -53,7 +53,7 @@ class RunResponse(BaseModel):
     status: str
     override_parameters: dict[str, Any] = Field(default_factory=dict)
     effective_parameters: dict[str, Any] = Field(default_factory=dict)
-    triggered_by: str | None = None
+    trigger_source: str | None = None
     campaign_id: UUID | None = None
 
 
@@ -107,6 +107,6 @@ async def get_runs(
         status=run.status.value,
         override_parameters=run.override_parameters,
         effective_parameters=run.effective_parameters,
-        triggered_by=run.triggered_by,
+        trigger_source=run.trigger_source,
         campaign_id=run.campaign_id,
     )

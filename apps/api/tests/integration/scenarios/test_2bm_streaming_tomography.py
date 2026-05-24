@@ -308,7 +308,7 @@ async def test_streaming_tomography_with_adjust_run(
                 "n_projections": 1500,
                 "angle_range_deg": 180.0,
             },
-            triggered_by="operator-manual; streaming mode for live-reco feedback",
+            trigger_source="operator-manual; streaming mode for live-reco feedback",
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

@@ -324,7 +324,7 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
     NOTE: today this uses strict `payload[...]` indexing because every
     key in `ProcedureRegistered` is required at the schema level. When
     future iterations add optional facets to the genesis payload (for
-    example `expected_step_count`, `triggered_by`,
+    example `expected_step_count`, `trigger_source`,
     `requested_supply_kinds`), those new keys MUST use
     `payload.get("k", default)` so legacy streams fold cleanly without
     backfill. Same additive-evolution pattern as
