@@ -101,7 +101,7 @@ def test_mcp_get_surface_round_trip() -> None:
     output = got["result"]["structuredContent"]
     assert output["id"] == surface_id
     assert output["kind"] == "mcp_stdio"
-    assert output["status"] == "defined"
+    assert output["status"] == "Defined"
 
 
 @pytest.mark.contract

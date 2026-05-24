@@ -8197,11 +8197,11 @@
         "type": "object"
       },
       "SurfaceStatus": {
-        "description": "Lifecycle states. v1 only emits DEFINED; the other values are\npre-shipped so versioning / deprecation slices can land additively\nlater without breaking the state shape.",
+        "description": "Lifecycle states. v1 only emits DEFINED; the other values are\npre-shipped so versioning / deprecation slices can land additively\nlater without breaking the state shape.\n\nWire values use PascalCase to match every other CORA status enum\n(`AgentStatus.DEFINED = \"Defined\"`, `CampaignStatus.PLANNED = \"Planned\"`,\n`CautionStatus.ACTIVE = \"Active\"`, etc.). The bare-lowercase shape\nthat shipped at lock time was an outlier.",
         "enum": [
-          "defined",
-          "versioned",
-          "deprecated"
+          "Defined",
+          "Versioned",
+          "Deprecated"
         ],
         "title": "SurfaceStatus",
         "type": "string"

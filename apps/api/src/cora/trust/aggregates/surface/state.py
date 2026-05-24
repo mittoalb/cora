@@ -76,11 +76,16 @@ class SurfaceName:
 class SurfaceStatus(StrEnum):
     """Lifecycle states. v1 only emits DEFINED; the other values are
     pre-shipped so versioning / deprecation slices can land additively
-    later without breaking the state shape."""
+    later without breaking the state shape.
 
-    DEFINED = "defined"
-    VERSIONED = "versioned"
-    DEPRECATED = "deprecated"
+    Wire values use PascalCase to match every other CORA status enum
+    (`AgentStatus.DEFINED = "Defined"`, `CampaignStatus.PLANNED = "Planned"`,
+    `CautionStatus.ACTIVE = "Active"`, etc.). The bare-lowercase shape
+    that shipped at lock time was an outlier."""
+
+    DEFINED = "Defined"
+    VERSIONED = "Versioned"
+    DEPRECATED = "Deprecated"
 
 
 @dataclass(frozen=True)

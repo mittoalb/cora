@@ -71,7 +71,7 @@ def test_get_surface_returns_200_after_define() -> None:
     assert body["id"] == surface_id
     assert body["name"] == "System HTTP"
     assert body["kind"] == "http"
-    assert body["status"] == "defined"
+    assert body["status"] == "Defined"
     # Lifecycle timestamps are not on the Surface response shape
     # (Path C carve-out for singleton aggregate); see
     # surface/state.py docstring.
