@@ -4,11 +4,11 @@
 
 The Calibration module records empirical instrument values that downstream consumers need to interpret raw data. A Calibration is the digital record of the kind of number that historically lived in a spreadsheet or a lab-notebook page: "the rotation axis of the Aerotech stage projects to pixel 1024.5 at 25 keV with the 5x optics"; "the Andor's pixel pitch is 6.5 microns with a 1.0x scintillator-detector geometry". Reconstructions, alignment procedures, and operator overrides all need to cite a specific value at a specific operating point.
 
-A Calibration is keyed by the triple `(subsystem_or_asset_id, quantity, operating_point)` and grows revisions append-only. Each revision carries its own status (Provisional or Verified) and a tagged source (Measured from a Procedure, Computed from a Dataset, or Asserted by an Actor). Earlier revisions stay readable for reproducibility; new revisions may explicitly supersede prior ones on the same calibration.
+A Calibration is keyed by the triple `(target_id, quantity, operating_point)` and grows revisions append-only. Each revision carries its own status (Provisional or Verified) and a tagged source (Measured from a Procedure, Computed from a Dataset, or Asserted by an Actor). Earlier revisions stay readable for reproducibility; new revisions may explicitly supersede prior ones on the same calibration.
 
 A Calibration carries five roles:
 
-- **Identity.** The triple `(subsystem_or_asset_id, quantity, operating_point)` is unique across the system. The aggregate id is the internal opaque handle; the identity triple is what operators and downstream consumers query by.
+- **Identity.** The triple `(target_id, quantity, operating_point)` is unique across the system. The aggregate id is the internal opaque handle; the identity triple is what operators and downstream consumers query by.
 - **A closed catalog of quantities.** `CalibrationQuantity` is a closed StrEnum. The day-one pilot set covers `rotation_center` and `detector_pixel_size`; growth happens by PR, with each quantity declaring its `operating_point_schema` and `value_schema` at import time.
 - **Append-only revisions.** New revisions append to the aggregate's ordered list; prior revisions are immutable. Status (Provisional or Verified) is per-revision; the aggregate has no overarching state machine.
 - **Polymorphic source provenance.** Each revision tags its origin: `MeasuredSource` cites the Procedure that measured the value, `ComputedSource` cites the Dataset the value was extracted from, and `AssertedSource` cites the Actor who typed it directly. The same Calibration can mix sources across revisions.
@@ -32,9 +32,11 @@ Out of scope
 
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
-| `Calibration` | `id: UUID` (with unique triple `(subsystem_or_asset_id, quantity, operating_point)`) | `subsystem_or_asset_id`, `quantity`, `operating_point`, `description?`, `revisions` (ordered tuple), `defined_at`, `last_revised_at`, `defined_by_actor_id` | no |
+| `Calibration` | `id: UUID` (with unique triple `(target_id, quantity, operating_point)`) | `target_id`, `quantity`, `operating_point`, `description?`, `revisions` (ordered tuple), `defined_by_actor_id` | no |
 
 The aggregate has no overall lifecycle state. Status lives on the revision, not on the calibration, because a single calibration may carry a Provisional initial guess and a later Verified refinement side-by-side, and a downstream consumer pinning the Provisional revision should remain valid even after a Verified one lands.
+
+Lifecycle bookkeeping timestamps (`defined_at`, `last_revised_at`) do NOT live on the aggregate. They are derived at projection-apply time from each event's envelope `occurred_at` (`defined_at`) or from the revision's domain `established_at` (`last_revised_at`) and surfaced from `proj_calibration_summary`. The `get_calibration` handler returns a `CalibrationView` bundling the aggregate state with the projection-sourced timestamps; the route + MCP DTOs mark both fields nullable since the projection may transiently lag behind the event store. This is the Path C convention used by Method, Plan, Family, and the other FSM-template aggregates.
 
 ## Value Objects
 
@@ -56,7 +58,7 @@ N/A. The Calibration aggregate has no load-bearing lifecycle FSM. Revisions accu
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `CalibrationDefined` | `calibration_id`, `subsystem_or_asset_id`, `quantity`, `operating_point`, `description?`, `defined_at`, `defined_by_actor_id`, `occurred_at` | `define_calibration` succeeds (genesis; no revisions yet) |
+| `CalibrationDefined` | `calibration_id`, `target_id`, `quantity`, `operating_point`, `description?`, `defined_by_actor_id`, `occurred_at` | `define_calibration` succeeds (genesis; no revisions yet) |
 | `CalibrationRevisionAppended` | `revision_id`, `calibration_id`, `value`, `status`, `source_procedure_id?`, `source_dataset_id?`, `source_actor_id?`, `established_at`, `established_by_actor_id`, `decided_by_decision_id?`, `supersedes_revision_id?`, `occurred_at` | `append_revision` succeeds |
 
 `CalibrationRevisionAppended` serialises the polymorphic source as three nullable `source_*_id` fields with exactly one non-null per the exclusive-arc pattern. The wire shape on REST and MCP keeps the nested `{kind, <id>}` envelope for readability; the event payload and projection columns use exclusive-arc to keep storage shape and constraint enforcement direct.
@@ -73,7 +75,7 @@ N/A. The Calibration aggregate has no load-bearing lifecycle FSM. Revisions accu
 **Errors per slice.** Beyond Pydantic boundary 422s, each slice raises:
 
 `DefineCalibration`
-: `InvalidCalibrationQuantity`, `InvalidOperatingPoint`, `InvalidCalibrationDescription`, `DuplicateCalibrationIdentity` (the `(subsystem_or_asset_id, quantity, operating_point)` triple already exists), `Unauthorized`
+: `InvalidCalibrationQuantity`, `InvalidOperatingPoint`, `InvalidCalibrationDescription`, `CalibrationIdentityAlreadyExists` (the `(target_id, quantity, operating_point)` triple already exists), `Unauthorized`
 
 `AppendRevision`
 : `CalibrationNotFound`, `InvalidCalibrationValue`, `InvalidCalibrationSource`, `SupersedesRevisionNotFound` (the `supersedes_revision_id` does not match any revision on this calibration), `Unauthorized`, `ConcurrencyError`
@@ -93,7 +95,7 @@ One read-side table backs the Calibration module today.
 ```sql title="proj_calibration_summary"
 CREATE TABLE proj_calibration_summary (
     calibration_id              UUID        PRIMARY KEY,
-    subsystem_or_asset_id       UUID        NOT NULL,
+    target_id       UUID        NOT NULL,
     quantity                    TEXT        NOT NULL,
     operating_point             JSONB       NOT NULL,
     description                 TEXT,
@@ -113,21 +115,21 @@ CREATE TABLE proj_calibration_summary (
     updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     CONSTRAINT proj_calibration_summary_identity_unique
-        UNIQUE (subsystem_or_asset_id, quantity, operating_point)
+        UNIQUE (target_id, quantity, operating_point)
 );
 ```
 
-The `UNIQUE (subsystem_or_asset_id, quantity, operating_point)` constraint is the enforcement point for the identity-triple invariant. Postgres jsonb provides value-based equality (key-order normalisation, numeric `25 == 25.0`, duplicate-key dedup) at the storage layer, so two `define_calibration` calls with `{energy_keV: 25, optics_config: "5x"}` and `{optics_config: "5x", energy_keV: 25.0}` resolve to the same row and the second raises `DuplicateCalibrationIdentity`.
+The `UNIQUE (target_id, quantity, operating_point)` constraint is the enforcement point for the identity-triple invariant. Postgres jsonb provides value-based equality (key-order normalisation, numeric `25 == 25.0`, duplicate-key dedup) at the storage layer, so two `define_calibration` calls with `{energy: 25, optics_config: "5x"}` and `{optics_config: "5x", energy: 25.0}` resolve to the same row and the second raises `CalibrationIdentityAlreadyExists`.
 
-`latest_revision_status` and `latest_revision_source_kind` are denormalised onto the summary row so `GET /calibrations` filters do not need to join a per-revision table at query time. Both are NULL for a calibration with no revisions yet. A partial index on `(subsystem_or_asset_id, quantity) WHERE latest_revision_status = 'Verified'` supports the hot read path for reconstruction consumers that want only blessed values.
+`latest_revision_status` and `latest_revision_source_kind` are denormalised onto the summary row so `GET /calibrations` filters do not need to join a per-revision table at query time. Both are NULL for a calibration with no revisions yet. A partial index on `(target_id, quantity) WHERE latest_revision_status = 'Verified'` supports the hot read path for reconstruction consumers that want only blessed values.
 
-`GET /calibrations/{id}` reads the aggregate's full event stream and folds it (so every revision is present in the response). `GET /calibrations` reads exclusively from `proj_calibration_summary` with keyset pagination over `(defined_at, calibration_id)` and filters on `subsystem_or_asset_id`, `quantity`, `latest_revision_status`, and `latest_revision_source_kind`.
+`GET /calibrations/{id}` reads the aggregate's full event stream and folds it (so every revision is present in the response). `GET /calibrations` reads exclusively from `proj_calibration_summary` with keyset pagination over `(defined_at, calibration_id)` and filters on `target_id`, `quantity`, `latest_revision_status`, and `latest_revision_source_kind`.
 
 ## Cross-Module boundaries
 
 | Module | Relationship | What's exchanged |
 |---|---|---|
-| Equipment | shared-id-with | `Calibration.subsystem_or_asset_id` references the Asset whose behaviour is being measured (the rotary stage whose rotation centre is tracked, the detector whose pixel pitch is measured) |
+| Equipment | shared-id-with | `Calibration.target_id` references the Asset whose behaviour is being measured (the rotary stage whose rotation centre is tracked, the detector whose pixel pitch is measured) |
 | Operation | shared-id-with | `MeasuredSource.procedure_id` references the alignment Procedure whose run produced the value |
 | Data | shared-id-with | `ComputedSource.dataset_id` references the Dataset the value was extracted from (`tomopy.find_center_vo` and similar numerical analyses); `Dataset.used_calibrations` records the reverse direction |
 | Access | shared-id-with | `AssertedSource.actor_id`, `Calibration.defined_by_actor_id`, and each revision's `established_by_actor_id` reference Actors |
@@ -153,10 +155,10 @@ The four examples below follow the canonical path for one Calibration: define an
     X-Principal-Id: 11111111-2222-3333-4444-555555555555
 
     {
-      "subsystem_or_asset_id": "aaaa1111-2222-3333-4444-555555555555",
+      "target_id": "aaaa1111-2222-3333-4444-555555555555",
       "quantity": "rotation_center",
       "operating_point": {
-        "energy_keV": 25,
+        "energy": 25,
         "optics_config": "5x"
       },
       "description": "Rotation centre for the Aerotech stage on 2-BM at the 5x optics."
@@ -171,9 +173,9 @@ The four examples below follow the canonical path for one Calibration: define an
     mcp.call_tool(
         "define_calibration",
         {
-            "subsystem_or_asset_id": "aaaa1111-2222-3333-4444-555555555555",
+            "target_id": "aaaa1111-2222-3333-4444-555555555555",
             "quantity": "rotation_center",
-            "operating_point": {"energy_keV": 25, "optics_config": "5x"},
+            "operating_point": {"energy": 25, "optics_config": "5x"},
             "description": "Rotation centre for the Aerotech stage on 2-BM at the 5x optics.",
         },
     )
@@ -191,8 +193,8 @@ The four examples below follow the canonical path for one Calibration: define an
 
     {
       "value": {
-        "center_px": 1024.5,
-        "uncertainty_px": 0.3
+        "center": 1024.5,
+        "uncertainty": 0.3
       },
       "status": "Provisional",
       "source": {
@@ -211,7 +213,7 @@ The four examples below follow the canonical path for one Calibration: define an
         "append_revision",
         {
             "calibration_id": "<calibration-id>",
-            "value": {"center_px": 1024.5, "uncertainty_px": 0.3},
+            "value": {"center": 1024.5, "uncertainty": 0.3},
             "status": "Provisional",
             "source": {
                 "kind": "Measured",
@@ -233,8 +235,8 @@ The four examples below follow the canonical path for one Calibration: define an
 
     {
       "value": {
-        "center_px": 1024.72,
-        "uncertainty_px": 0.08
+        "center": 1024.72,
+        "uncertainty": 0.08
       },
       "status": "Verified",
       "source": {
@@ -254,7 +256,7 @@ The four examples below follow the canonical path for one Calibration: define an
         "append_revision",
         {
             "calibration_id": "<calibration-id>",
-            "value": {"center_px": 1024.72, "uncertainty_px": 0.08},
+            "value": {"center": 1024.72, "uncertainty": 0.08},
             "status": "Verified",
             "source": {
                 "kind": "Computed",
@@ -270,11 +272,11 @@ The four examples below follow the canonical path for one Calibration: define an
 === "REST"
 
     ```http
-    GET /calibrations?subsystem_or_asset_id=aaaa1111-2222-3333-4444-555555555555&latest_revision_status=Verified
+    GET /calibrations?target_id=aaaa1111-2222-3333-4444-555555555555&latest_revision_status=Verified
     X-Principal-Id: 11111111-2222-3333-4444-555555555555
     ```
 
-    Returns the page of calibrations on the Aerotech stage whose latest revision is blessed for production. Each item carries `calibration_id`, `subsystem_or_asset_id`, `quantity`, `operating_point`, `revision_count`, `latest_revision_status`, `latest_revision_source_kind`, `defined_at`, and `last_revised_at`, plus an opaque `next_cursor` for keyset pagination.
+    Returns the page of calibrations on the Aerotech stage whose latest revision is blessed for production. Each item carries `calibration_id`, `target_id`, `quantity`, `operating_point`, `revision_count`, `latest_revision_status`, `latest_revision_source_kind`, `defined_at`, and `last_revised_at`, plus an opaque `next_cursor` for keyset pagination.
 
 === "MCP"
 
@@ -282,7 +284,7 @@ The four examples below follow the canonical path for one Calibration: define an
     mcp.call_tool(
         "list_calibrations",
         {
-            "subsystem_or_asset_id": "aaaa1111-2222-3333-4444-555555555555",
+            "target_id": "aaaa1111-2222-3333-4444-555555555555",
             "latest_revision_status": ["Verified"],
         },
     )
