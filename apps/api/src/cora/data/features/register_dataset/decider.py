@@ -68,8 +68,8 @@ from cora.data.features.register_dataset.context import DatasetRegistrationConte
 def decide(
     state: Dataset | None,
     command: RegisterDataset,
-    context: DatasetRegistrationContext,
     *,
+    context: DatasetRegistrationContext,
     now: datetime,
     new_id: UUID,
 ) -> list[DatasetRegistered]:

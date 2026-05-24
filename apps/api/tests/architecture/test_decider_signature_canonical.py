@@ -48,15 +48,7 @@ if TYPE_CHECKING:
 # (ProposedCautionView, not list[E]). Return type is intentionally not
 # pinned by this test (see module docstring). The promote_caution_proposal
 # slice-shape rethink is a deferred Phase β followup.
-WIP_DECIDERS: frozenset[str] = frozenset(
-    {
-        # D10: `context` declared positional rather than keyword-only.
-        # Phase ζ will move them after the `*` marker.
-        "cora.subject.features.mount_subject.decider",
-        "cora.decision.features.register_decision.decider",
-        "cora.data.features.register_dataset.decider",
-    }
-)
+WIP_DECIDERS: frozenset[str] = frozenset()
 
 
 def _decider_files() -> list[Path]:

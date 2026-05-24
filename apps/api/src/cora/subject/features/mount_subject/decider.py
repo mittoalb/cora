@@ -42,8 +42,8 @@ from cora.subject.features.mount_subject.context import MountSubjectContext
 def decide(
     state: Subject | None,
     command: MountSubject,
-    context: MountSubjectContext,
     *,
+    context: MountSubjectContext,
     now: datetime,
 ) -> list[SubjectMounted]:
     """Decide the events produced by mounting an existing subject."""

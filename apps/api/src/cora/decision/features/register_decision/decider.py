@@ -65,8 +65,8 @@ from cora.decision.features.register_decision.context import DecisionRegistratio
 def decide(
     state: Decision | None,
     command: RegisterDecision,
-    context: DecisionRegistrationContext,
     *,
+    context: DecisionRegistrationContext,
     now: datetime,
     new_id: UUID,
 ) -> list[DecisionRegistered]:
