@@ -14,14 +14,14 @@ def _define_args() -> dict[str, Any]:
     return {
         "target_id": str(uuid4()),
         "quantity": "rotation_center",
-        "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
+        "operating_point": {"energy": 25.0, "optics_config": "5x"},
     }
 
 
 def _revision_args(*, calibration_id: str, **overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
         "calibration_id": calibration_id,
-        "value": {"center_px": 1024.5},
+        "value": {"center": 1024.5},
         "status": "Provisional",
         "source": {"kind": "Measured", "procedure_id": str(uuid4())},
     }
@@ -127,7 +127,7 @@ def test_mcp_append_revision_tool_returns_iserror_on_missing_value_key() -> None
                     "name": "append_revision",
                     "arguments": _revision_args(
                         calibration_id=cid,
-                        value={"uncertainty_px": 0.3},  # missing center_px
+                        value={"uncertainty": 0.3},  # missing center
                     ),
                 },
             },

@@ -32,7 +32,7 @@ async def _seed(store: InMemoryEventStore) -> None:
         calibration_id=_CAL_ID,
         target_id=_SUBSYSTEM_ID,
         quantity="rotation_center",
-        operating_point={"energy_keV": 25.0, "optics_config": "5x"},
+        operating_point={"energy": 25.0, "optics_config": "5x"},
         description="vessel-A pre-scan",
         defined_by_actor_id=_ACTOR_ID,
         occurred_at=_NOW,
@@ -70,7 +70,7 @@ async def test_handler_returns_calibration_view_on_hit() -> None:
     assert view.calibration.id == _CAL_ID
     assert view.calibration.target_id == _SUBSYSTEM_ID
     assert view.calibration.quantity == "rotation_center"
-    assert view.calibration.operating_point == {"energy_keV": 25.0, "optics_config": "5x"}
+    assert view.calibration.operating_point == {"energy": 25.0, "optics_config": "5x"}
     assert view.calibration.description == "vessel-A pre-scan"
     assert view.calibration.revisions == ()
     # No pool in this in-memory test, so projection-sourced timestamps

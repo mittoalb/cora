@@ -18,7 +18,7 @@ def _body(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
         "target_id": str(uuid4()),
         "quantity": "rotation_center",
-        "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
+        "operating_point": {"energy": 25.0, "optics_config": "5x"},
     }
     base.update(overrides)
     return base
@@ -82,11 +82,11 @@ def test_post_calibrations_rejects_unknown_quantity_with_422() -> None:
 
 @pytest.mark.contract
 def test_post_calibrations_rejects_missing_required_operating_point_key_with_400() -> None:
-    """rotation_center requires energy_keV + optics_config."""
+    """rotation_center requires energy + optics_config."""
     with TestClient(create_app()) as client:
         response = client.post(
             "/calibrations",
-            json=_body(operating_point={"energy_keV": 25.0}),
+            json=_body(operating_point={"energy": 25.0}),
         )
     assert response.status_code == 400
 
@@ -106,7 +106,7 @@ def test_post_calibrations_rejects_additional_operating_point_property_with_400(
             "/calibrations",
             json=_body(
                 operating_point={
-                    "energy_keV": 25.0,
+                    "energy": 25.0,
                     "optics_config": "5x",
                     "unknown_field": "drift",
                 },

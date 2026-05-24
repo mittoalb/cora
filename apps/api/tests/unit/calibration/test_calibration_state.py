@@ -109,14 +109,14 @@ def test_invalid_calibration_quantity_error_carries_value() -> None:
 
 @pytest.mark.unit
 def test_invalid_operating_point_error_carries_message() -> None:
-    err = InvalidOperatingPointError("missing required key energy_keV")
-    assert "energy_keV" in err.message
+    err = InvalidOperatingPointError("missing required key energy")
+    assert "energy" in err.message
 
 
 @pytest.mark.unit
 def test_invalid_calibration_value_error_carries_message() -> None:
-    err = InvalidCalibrationValueError("center_px must be number")
-    assert "center_px" in err.message
+    err = InvalidCalibrationValueError("center must be number")
+    assert "center" in err.message
 
 
 @pytest.mark.unit
@@ -138,7 +138,7 @@ def test_supersedes_revision_not_found_error_carries_both_ids() -> None:
 @pytest.mark.unit
 def test_duplicate_calibration_identity_error_carries_identity_tuple() -> None:
     asset_id = uuid4()
-    op_point: dict[str, Any] = {"energy_keV": 25.0, "optics_config": "5x"}
+    op_point: dict[str, Any] = {"energy": 25.0, "optics_config": "5x"}
     err = CalibrationIdentityAlreadyExistsError(
         target_id=asset_id,
         quantity="rotation_center",

@@ -14,7 +14,7 @@ def _define_args() -> dict[str, Any]:
     return {
         "target_id": str(uuid4()),
         "quantity": "rotation_center",
-        "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
+        "operating_point": {"energy": 25.0, "optics_config": "5x"},
     }
 
 

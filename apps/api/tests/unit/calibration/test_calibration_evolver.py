@@ -37,7 +37,7 @@ def _defined() -> CalibrationDefined:
         calibration_id=_CAL_ID,
         target_id=_SUB_ID,
         quantity="rotation_center",
-        operating_point={"energy_keV": 25, "optics_config": "5x"},
+        operating_point={"energy": 25, "optics_config": "5x"},
         description=None,
         defined_by_actor_id=_ACTOR_ID,
         occurred_at=_NOW,
@@ -57,7 +57,7 @@ def _revision(
     return CalibrationRevisionAppended(
         revision_id=revision_id,
         calibration_id=_CAL_ID,
-        value={"center_px": 1024.5},
+        value={"center": 1024.5},
         status=CalibrationStatus.PROVISIONAL,
         source_procedure_id=source_procedure_id,
         source_dataset_id=source_dataset_id,
@@ -77,7 +77,7 @@ def test_evolve_genesis_creates_aggregate_with_empty_revisions() -> None:
     assert state.id == _CAL_ID
     assert state.target_id == _SUB_ID
     assert state.quantity == "rotation_center"
-    assert state.operating_point == {"energy_keV": 25, "optics_config": "5x"}
+    assert state.operating_point == {"energy": 25, "optics_config": "5x"}
     assert state.revisions == ()
     assert state.defined_by_actor_id == _ACTOR_ID
 

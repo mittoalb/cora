@@ -282,14 +282,14 @@ def _create_dataset_as(client: TestClient, principal: UUID) -> UUID:
 def _create_calibration_as(client: TestClient, principal: UUID) -> UUID:
     """Create a Calibration via POST /calibrations. `target_id`
     is a bare UUID (no FK existence check), and `operating_point` validates
-    STRICT against the `rotation_center` quantity's JSON Schema (energy_keV +
+    STRICT against the `rotation_center` quantity's JSON Schema (energy +
     optics_config required, no additional properties)."""
     response = client.post(
         "/calibrations",
         json={
             "target_id": str(uuid4()),
             "quantity": "rotation_center",
-            "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
+            "operating_point": {"energy": 25.0, "optics_config": "5x"},
         },
         headers={"X-Principal-Id": str(principal)},
     )

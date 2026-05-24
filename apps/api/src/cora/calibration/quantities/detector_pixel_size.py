@@ -8,15 +8,15 @@ images (`pixel_size_from_target` family of methods).
 Operating point keys:
   - `optics_config` (string): the lens / objective configuration; same
     string identifiers as rotation_center for consistency.
-  - `energy_keV` (number, optional): some setups report pixel size as
+  - `energy` (number, optional): some setups report pixel size as
     energy-independent (parallel-beam approximation); others vary
     slightly with energy. Optional so the same calibration can cover
     a band of energies when valid.
 
 Value keys:
-  - `pixel_size_um` (number, > 0): effective pixel size at the sample
+  - `pixel_size` (number, > 0): effective pixel size at the sample
     plane, in micrometers.
-  - `uncertainty_um` (number, optional, minimum 0): 1-sigma uncertainty.
+  - `uncertainty` (number, optional, minimum 0): 1-sigma uncertainty.
 """
 
 from typing import Any
@@ -32,7 +32,7 @@ OPERATING_POINT_SCHEMA: dict[str, Any] = {
             "minLength": 1,
             "maxLength": 100,
         },
-        "energy_keV": {
+        "energy": {
             "type": "number",
             "minimum": 1,
             "maximum": 100,
@@ -48,18 +48,18 @@ VALUE_SCHEMA: dict[str, Any] = {
     "$schema": _DRAFT,
     "type": "object",
     "properties": {
-        "pixel_size_um": {
+        "pixel_size": {
             "type": "number",
             "exclusiveMinimum": 0,
             "unit": {"system": "udunits", "code": "um"},
         },
-        "uncertainty_um": {
+        "uncertainty": {
             "type": "number",
             "minimum": 0,
             "unit": {"system": "udunits", "code": "um"},
         },
     },
-    "required": ["pixel_size_um"],
+    "required": ["pixel_size"],
     "additionalProperties": False,
 }
 

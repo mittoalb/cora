@@ -79,11 +79,11 @@ def test_every_value_schema_declares_required() -> None:
 @pytest.mark.unit
 def test_rotation_center_operating_point_shape() -> None:
     """Spot-check the rotation_center schema declares the design-memo
-    operating-point keys (energy_keV + optics_config)."""
+    operating-point keys (energy + optics_config)."""
     schema = get_operating_point_schema(CalibrationQuantity.ROTATION_CENTER)
     properties: dict[str, Any] = schema.get("properties", {})
-    assert set(properties.keys()) == {"energy_keV", "optics_config"}
-    assert "energy_keV" in schema["required"]
+    assert set(properties.keys()) == {"energy", "optics_config"}
+    assert "energy" in schema["required"]
     assert "optics_config" in schema["required"]
 
 
@@ -91,8 +91,8 @@ def test_rotation_center_operating_point_shape() -> None:
 def test_rotation_center_value_shape() -> None:
     schema = get_value_schema(CalibrationQuantity.ROTATION_CENTER)
     properties: dict[str, Any] = schema.get("properties", {})
-    assert "center_px" in properties
-    assert "center_px" in schema["required"]
+    assert "center" in properties
+    assert "center" in schema["required"]
 
 
 @pytest.mark.unit
@@ -107,5 +107,5 @@ def test_detector_pixel_size_operating_point_shape() -> None:
 def test_detector_pixel_size_value_shape() -> None:
     schema = get_value_schema(CalibrationQuantity.DETECTOR_PIXEL_SIZE)
     properties: dict[str, Any] = schema.get("properties", {})
-    assert "pixel_size_um" in properties
-    assert "pixel_size_um" in schema["required"]
+    assert "pixel_size" in properties
+    assert "pixel_size" in schema["required"]

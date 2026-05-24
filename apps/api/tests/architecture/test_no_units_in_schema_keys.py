@@ -9,7 +9,7 @@ Per ``docs/reference/conventions.md`` Units of measurement:
 
 The unit travels in the ``unit: {system, code}`` annotation alongside
 the field's type/min/max; the property key stays unit-agnostic. A
-schema with ``"energy_keV"`` as a key locks every downstream consumer
+schema with ``"energy"`` as a key locks every downstream consumer
 into ``keV`` forever and silently breaks when a partner facility wants
 to publish the same field as ``eV`` or ``MeV``.
 
@@ -58,19 +58,12 @@ _UNIT_SUFFIX = re.compile(
 
 
 # Entries are "<qualified-module>:property_key". Each cites the audit
-# finding; Phase δ renames the property and removes the matching entry.
-GRANDFATHERED_PROPERTY_KEYS: frozenset[str] = frozenset(
-    {
-        # B3: rotation_center JSON schema.
-        "cora.calibration.quantities.rotation_center:energy_keV",
-        "cora.calibration.quantities.rotation_center:center_px",
-        "cora.calibration.quantities.rotation_center:uncertainty_px",
-        # B3: detector_pixel_size JSON schema.
-        "cora.calibration.quantities.detector_pixel_size:energy_keV",
-        "cora.calibration.quantities.detector_pixel_size:pixel_size_um",
-        "cora.calibration.quantities.detector_pixel_size:uncertainty_um",
-    }
-)
+# finding; the matching entry is removed when the property is renamed.
+# B3 (rotation_center + detector_pixel_size keys with unit suffixes)
+# was the only entry; cleared by Phase δ when the schemas were rewritten
+# without the suffixes. The frozenset stays as the documented escape
+# hatch for future renames that need a transition window.
+GRANDFATHERED_PROPERTY_KEYS: frozenset[str] = frozenset()
 
 
 def _qualified(p: Path) -> str:

@@ -14,7 +14,7 @@ def _args(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
         "target_id": str(uuid4()),
         "quantity": "rotation_center",
-        "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
+        "operating_point": {"energy": 25.0, "optics_config": "5x"},
     }
     base.update(overrides)
     return base
@@ -94,7 +94,7 @@ def test_mcp_define_calibration_iserror_on_missing_required_op_point_key() -> No
                 "method": "tools/call",
                 "params": {
                     "name": "define_calibration",
-                    "arguments": _args(operating_point={"energy_keV": 25.0}),
+                    "arguments": _args(operating_point={"energy": 25.0}),
                 },
             },
             headers=session_headers,

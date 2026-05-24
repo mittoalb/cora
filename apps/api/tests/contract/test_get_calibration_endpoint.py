@@ -17,7 +17,7 @@ def _seed(client: TestClient, **overrides: object) -> tuple[str, dict[str, Any]]
     body: dict[str, Any] = {
         "target_id": str(uuid4()),
         "quantity": "rotation_center",
-        "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
+        "operating_point": {"energy": 25.0, "optics_config": "5x"},
         "description": "vessel-A bakeout pre-scan",
     }
     body.update(overrides)
@@ -65,7 +65,7 @@ def test_get_calibrations_reflects_appended_revisions() -> None:
         append1 = client.post(
             f"/calibrations/{cid}/revisions",
             json={
-                "value": {"center_px": 1024.5},
+                "value": {"center": 1024.5},
                 "status": "Provisional",
                 "source": {"kind": "Measured", "procedure_id": str(uuid4())},
             },
@@ -75,7 +75,7 @@ def test_get_calibrations_reflects_appended_revisions() -> None:
         append2 = client.post(
             f"/calibrations/{cid}/revisions",
             json={
-                "value": {"center_px": 1023.8, "uncertainty_px": 0.1},
+                "value": {"center": 1023.8, "uncertainty": 0.1},
                 "status": "Verified",
                 "source": {"kind": "Computed", "dataset_id": str(uuid4())},
                 "supersedes_revision_id": rev1_id,

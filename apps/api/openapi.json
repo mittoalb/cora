@@ -798,7 +798,7 @@
           },
           "value": {
             "additionalProperties": true,
-            "description": "JSON-shaped revision value (e.g., `{center_px: 1024.5}`). Validated STRICT against the calibration's quantity-specific VALUE_SCHEMA at the decider; missing required fields or additional properties raise 400.",
+            "description": "JSON-shaped revision value (e.g., `{center: 1024.5}`). Validated STRICT against the calibration's quantity-specific VALUE_SCHEMA at the decider; missing required fields or additional properties raise 400.",
             "title": "Value",
             "type": "object"
           }
@@ -3384,7 +3384,7 @@
           },
           "operating_point": {
             "additionalProperties": true,
-            "description": "JSON-shaped dict describing the operating regime (energy_keV, optics_config, etc.). Validated STRICT against the quantity's operating_point_schema (`additionalProperties: False`; primitive types only). Identity-tuple uniqueness `(target_id, quantity, operating_point)` enforced via Postgres jsonb UNIQUE on the projection (Q6 lock: key-order normalized + numeric value-equality `25 == 25.0`).",
+            "description": "JSON-shaped dict describing the operating regime (energy, optics_config, etc.). Validated STRICT against the quantity's operating_point_schema (`additionalProperties: False`; primitive types only). Identity-tuple uniqueness `(target_id, quantity, operating_point)` enforced via Postgres jsonb UNIQUE on the projection (Q6 lock: key-order normalized + numeric value-equality `25 == 25.0`).",
             "title": "Operating Point",
             "type": "object"
           },

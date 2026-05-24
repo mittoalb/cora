@@ -30,7 +30,7 @@ class AppendRevisionRequest(BaseModel):
     value: dict[str, Any] = Field(
         ...,
         description=(
-            "JSON-shaped revision value (e.g., `{center_px: 1024.5}`). "
+            "JSON-shaped revision value (e.g., `{center: 1024.5}`). "
             "Validated STRICT against the calibration's quantity-specific "
             "VALUE_SCHEMA at the decider; missing required fields or "
             "additional properties raise 400."

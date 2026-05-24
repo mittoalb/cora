@@ -18,7 +18,7 @@ def _define_body(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
         "target_id": str(uuid4()),
         "quantity": "rotation_center",
-        "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
+        "operating_point": {"energy": 25.0, "optics_config": "5x"},
     }
     base.update(overrides)
     return base
@@ -26,7 +26,7 @@ def _define_body(**overrides: object) -> dict[str, Any]:
 
 def _revision_body(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
-        "value": {"center_px": 1024.5, "uncertainty_px": 0.3},
+        "value": {"center": 1024.5, "uncertainty": 0.3},
         "status": "Provisional",
         "source": {"kind": "Measured", "procedure_id": str(uuid4())},
     }
@@ -104,12 +104,12 @@ def test_post_revisions_rejects_unknown_source_kind_with_422() -> None:
 
 @pytest.mark.contract
 def test_post_revisions_rejects_missing_required_value_key_with_400() -> None:
-    """rotation_center value_schema requires center_px."""
+    """rotation_center value_schema requires center."""
     with TestClient(create_app()) as client:
         cid = _seed_calibration(client)
         response = client.post(
             f"/calibrations/{cid}/revisions",
-            json=_revision_body(value={"uncertainty_px": 0.3}),
+            json=_revision_body(value={"uncertainty": 0.3}),
         )
     assert response.status_code == 400
 

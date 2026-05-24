@@ -27,7 +27,7 @@ _NEW_ID = UUID("01900000-0000-7000-8000-000000ca1003")
 
 
 def _op_point() -> dict[str, object]:
-    return {"energy_keV": 25.0, "optics_config": "5x"}
+    return {"energy": 25.0, "optics_config": "5x"}
 
 
 def _existing_state() -> Calibration:
@@ -85,11 +85,11 @@ def test_decide_rejects_when_state_already_exists() -> None:
 
 @pytest.mark.unit
 def test_decide_rejects_missing_required_operating_point_key() -> None:
-    """rotation_center requires energy_keV + optics_config."""
+    """rotation_center requires energy + optics_config."""
     cmd = DefineCalibration(
         target_id=_SUBSYSTEM_ID,
         quantity=CalibrationQuantity.ROTATION_CENTER,
-        operating_point={"energy_keV": 25.0},  # missing optics_config
+        operating_point={"energy": 25.0},  # missing optics_config
     )
     with pytest.raises(InvalidOperatingPointError):
         define_calibration.decide(
@@ -125,7 +125,7 @@ def test_decide_rejects_additional_operating_point_property() -> None:
         target_id=_SUBSYSTEM_ID,
         quantity=CalibrationQuantity.ROTATION_CENTER,
         operating_point={
-            "energy_keV": 25.0,
+            "energy": 25.0,
             "optics_config": "5x",
             "unknown_field": "drift",
         },

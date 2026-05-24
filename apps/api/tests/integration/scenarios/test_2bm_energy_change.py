@@ -35,7 +35,7 @@ rather than a backward-looking AAR.
 This scenario exercises:
 
   - Two distinct `Plan`s under the same `Method` + `Practice`,
-    differing only on their `default_parameters` (energy_keV).
+    differing only on their `default_parameters` (energy).
   - Per-Plan `update_plan_default_parameters` showing the
     Plan-defaults ladder is parameterizable per Plan instance.
   - A `Decision` written from a scenario test (not the agent
@@ -279,7 +279,7 @@ async def test_energy_change_plays_out_end_to_end(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Seed full imaging chain + activate, open Coordinated Campaign,
-    mount Subject, define two Plans differing on default energy_keV,
+    mount Subject, define two Plans differing on default energy,
     run Plan A's Run, register an EnergyChange Decision (operator
     pivot), run Plan B's Run, measure Subject. Assert the Decision
     landed with the right context + actor + choice, and both Runs
@@ -364,13 +364,13 @@ async def test_energy_change_plays_out_end_to_end(
                     "exposure_ms": {"type": "integer", "minimum": 1},
                     "n_projections": {"type": "integer", "minimum": 1},
                     "angle_range_deg": {"type": "number", "minimum": 1, "maximum": 360},
-                    "energy_keV": {"type": "number", "minimum": 1, "maximum": 100},
+                    "energy": {"type": "number", "minimum": 1, "maximum": 100},
                 },
                 "required": [
                     "exposure_ms",
                     "n_projections",
                     "angle_range_deg",
-                    "energy_keV",
+                    "energy",
                 ],
             },
         ),
@@ -406,7 +406,7 @@ async def test_energy_change_plays_out_end_to_end(
         UpdatePlanDefaultParameters(
             plan_id=_PLAN_LOW_ENERGY_ID,
             default_parameters_patch={
-                "energy_keV": 25.0,
+                "energy": 25.0,
                 "exposure_ms": 100,
                 "n_projections": 1500,
                 "angle_range_deg": 180.0,
@@ -435,7 +435,7 @@ async def test_energy_change_plays_out_end_to_end(
         UpdatePlanDefaultParameters(
             plan_id=_PLAN_HIGH_ENERGY_ID,
             default_parameters_patch={
-                "energy_keV": 30.0,
+                "energy": 30.0,
                 "exposure_ms": 150,
                 "n_projections": 1500,
                 "angle_range_deg": 180.0,

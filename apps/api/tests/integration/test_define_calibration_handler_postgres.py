@@ -42,7 +42,7 @@ async def test_define_calibration_persists_event_to_postgres(
         DefineCalibration(
             target_id=_SUBSYSTEM_ID,
             quantity=CalibrationQuantity.ROTATION_CENTER,
-            operating_point={"energy_keV": 25.0, "optics_config": "5x"},
+            operating_point={"energy": 25.0, "optics_config": "5x"},
             description="vessel-A bakeout pre-scan",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -62,7 +62,7 @@ async def test_define_calibration_persists_event_to_postgres(
         "calibration_id": str(_NEW_ID),
         "target_id": str(_SUBSYSTEM_ID),
         "quantity": "rotation_center",
-        "operating_point": {"energy_keV": 25.0, "optics_config": "5x"},
+        "operating_point": {"energy": 25.0, "optics_config": "5x"},
         "description": "vessel-A bakeout pre-scan",
         "defined_by_actor_id": str(_PRINCIPAL_ID),
         "occurred_at": _NOW.isoformat(),
@@ -87,8 +87,8 @@ async def test_define_calibration_projection_lands_row_with_canonical_operating_
         DefineCalibration(
             target_id=_SUBSYSTEM_ID,
             quantity=CalibrationQuantity.ROTATION_CENTER,
-            # Key order: optics_config first, energy_keV second.
-            operating_point={"optics_config": "5x", "energy_keV": 25.0},
+            # Key order: optics_config first, energy second.
+            operating_point={"optics_config": "5x", "energy": 25.0},
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -114,7 +114,7 @@ async def test_define_calibration_projection_lands_row_with_canonical_operating_
             """,
             _SUBSYSTEM_ID,
             "rotation_center",
-            '{"energy_keV": 25.0, "optics_config": "5x"}',
+            '{"energy": 25.0, "optics_config": "5x"}',
         )
     assert row is not None
     assert row["calibration_id"] == _NEW_ID
@@ -151,7 +151,7 @@ async def test_define_calibration_projection_rejects_duplicate_identity(
     cmd = DefineCalibration(
         target_id=_SUBSYSTEM_ID,
         quantity=CalibrationQuantity.ROTATION_CENTER,
-        operating_point={"energy_keV": 25.0, "optics_config": "5x"},
+        operating_point={"energy": 25.0, "optics_config": "5x"},
     )
     first_id = await define_calibration.bind(deps)(
         cmd,

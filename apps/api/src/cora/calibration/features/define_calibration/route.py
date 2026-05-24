@@ -53,7 +53,7 @@ class DefineCalibrationRequest(BaseModel):
         ...,
         description=(
             "JSON-shaped dict describing the operating regime "
-            "(energy_keV, optics_config, etc.). Validated STRICT against "
+            "(energy, optics_config, etc.). Validated STRICT against "
             "the quantity's operating_point_schema "
             "(`additionalProperties: False`; primitive types only). "
             "Identity-tuple uniqueness "

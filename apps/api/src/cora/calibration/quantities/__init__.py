@@ -4,10 +4,10 @@ Each quantity in the closed StrEnum declares two JSON Schemas at module
 import time:
 
   - `OPERATING_POINT_SCHEMA` — what operating-conditions dict identifies
-    this calibration (e.g., rotation_center at `{energy_keV: 25,
+    this calibration (e.g., rotation_center at `{energy: 25,
     optics_config: "5x"}` is distinct from the same quantity at 30 keV).
   - `VALUE_SCHEMA` — what value dict the revision carries (e.g.,
-    `{center_px: 1024.5, uncertainty_px: 0.3}`).
+    `{center: 1024.5, uncertainty: 0.3}`).
 
 Both schemas are CLOSED (`additionalProperties: False`) and property-
 type-restricted to primitives per Q1 lock (Round 2: NXcalibration's

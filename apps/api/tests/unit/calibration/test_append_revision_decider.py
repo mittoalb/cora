@@ -39,7 +39,7 @@ def _state(*, revisions: tuple[CalibrationRevision, ...] = ()) -> Calibration:
         id=_CAL_ID,
         target_id=_SUBSYSTEM_ID,
         quantity="rotation_center",
-        operating_point={"energy_keV": 25.0, "optics_config": "5x"},
+        operating_point={"energy": 25.0, "optics_config": "5x"},
         description=None,
         revisions=revisions,
         defined_by_actor_id=_PRINCIPAL_ID,
@@ -49,7 +49,7 @@ def _state(*, revisions: tuple[CalibrationRevision, ...] = ()) -> Calibration:
 def _prior_revision(*, revision_id: UUID = _REV_ID_1) -> CalibrationRevision:
     return CalibrationRevision(
         revision_id=revision_id,
-        value={"center_px": 1024.5},
+        value={"center": 1024.5},
         status=CalibrationStatus.PROVISIONAL,
         source=MeasuredSource(procedure_id=_PROC_ID),
         established_at=_NOW,
@@ -63,7 +63,7 @@ def _prior_revision(*, revision_id: UUID = _REV_ID_1) -> CalibrationRevision:
 def test_decide_emits_revision_appended_for_valid_command() -> None:
     cmd = AppendRevision(
         calibration_id=_CAL_ID,
-        value={"center_px": 1024.5},
+        value={"center": 1024.5},
         status=CalibrationStatus.PROVISIONAL,
         source=MeasuredSource(procedure_id=_PROC_ID),
     )
@@ -88,7 +88,7 @@ def test_decide_emits_revision_appended_for_valid_command() -> None:
 def test_decide_rejects_when_state_is_none() -> None:
     cmd = AppendRevision(
         calibration_id=_CAL_ID,
-        value={"center_px": 1024.5},
+        value={"center": 1024.5},
         status=CalibrationStatus.PROVISIONAL,
         source=MeasuredSource(procedure_id=_PROC_ID),
     )
@@ -104,10 +104,10 @@ def test_decide_rejects_when_state_is_none() -> None:
 
 @pytest.mark.unit
 def test_decide_rejects_missing_required_value_key() -> None:
-    """rotation_center value_schema requires center_px."""
+    """rotation_center value_schema requires center."""
     cmd = AppendRevision(
         calibration_id=_CAL_ID,
-        value={"uncertainty_px": 0.3},  # missing center_px
+        value={"uncertainty": 0.3},  # missing center
         status=CalibrationStatus.PROVISIONAL,
         source=MeasuredSource(procedure_id=_PROC_ID),
     )
@@ -144,7 +144,7 @@ def test_decide_rejects_supersedes_revision_not_on_aggregate() -> None:
     """Cross-aggregate supersession is forbidden."""
     cmd = AppendRevision(
         calibration_id=_CAL_ID,
-        value={"center_px": 1024.5},
+        value={"center": 1024.5},
         status=CalibrationStatus.VERIFIED,
         source=ComputedSource(dataset_id=_DATASET_ID),
         supersedes_revision_id=uuid4(),  # not in revisions
@@ -164,7 +164,7 @@ def test_decide_accepts_supersedes_revision_present_on_aggregate() -> None:
     """Direct derivation edge to a prior revision on the same aggregate."""
     cmd = AppendRevision(
         calibration_id=_CAL_ID,
-        value={"center_px": 1023.8, "uncertainty_px": 0.1},
+        value={"center": 1023.8, "uncertainty": 0.1},
         status=CalibrationStatus.VERIFIED,
         source=ComputedSource(dataset_id=_DATASET_ID),
         supersedes_revision_id=_REV_ID_1,
@@ -191,7 +191,7 @@ def test_decide_serializes_each_source_kind() -> None:
     ]:
         cmd = AppendRevision(
             calibration_id=_CAL_ID,
-            value={"center_px": 1024.5},
+            value={"center": 1024.5},
             status=CalibrationStatus.PROVISIONAL,
             source=source,
         )
@@ -216,7 +216,7 @@ def test_decide_threads_decided_by_decision_id_through_to_event() -> None:
     decision_id = uuid4()
     cmd = AppendRevision(
         calibration_id=_CAL_ID,
-        value={"center_px": 1024.5},
+        value={"center": 1024.5},
         status=CalibrationStatus.PROVISIONAL,
         source=MeasuredSource(procedure_id=_PROC_ID),
         decided_by_decision_id=decision_id,
