@@ -157,7 +157,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 ),
                 needed_supplies=prior.needed_supplies,
                 # capability_id PRESERVED across schema updates;
-                # parameter_schema and capability binding evolve
+                # parameters_schema and capability binding evolve
                 # independently.
                 capability_id=prior.capability_id,
             )

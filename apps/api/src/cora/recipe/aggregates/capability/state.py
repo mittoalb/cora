@@ -53,7 +53,7 @@ write time per [[project-capability-research]] anti-hook 14.
 - `required_affordances: frozenset[Affordance]` — REQUIRED at define
   time per Pattern P. Empty set valid (parameter-driven Capabilities
   like `energy_change` may have no affordance requirement).
-- `parameter_schema: dict | None` — optional JSON Schema declaring
+- `parameters_schema: dict | None` — optional JSON Schema declaring
   the parameter contract. Method.parameters_schema MUST validate as
   subset at define_method time per STRICT cross-BC anchor.
 - `executor_shapes: frozenset[ExecutorShape]` — REQUIRED non-empty
@@ -307,7 +307,7 @@ class Capability:
     empty frozenset valid + explicit. Replaced wholesale by
     version_capability.
 
-    `parameter_schema` (optional JSON Schema): the declarative
+    `parameters_schema` (optional JSON Schema): the declarative
     parameter contract. Method.parameters_schema (6g) MUST validate
     as subset at define_method time per [[project-asset-settings-design]]
     5g-c STRICT cross-BC anchor.
@@ -331,5 +331,5 @@ class Capability:
     description: str | None = None
     required_affordances: frozenset[Affordance] = field(default_factory=frozenset[Affordance])
     executor_shapes: frozenset[ExecutorShape] = field(default_factory=frozenset[ExecutorShape])
-    parameter_schema: dict[str, Any] | None = None
+    parameters_schema: dict[str, Any] | None = None
     replaced_by_capability_id: UUID | None = None

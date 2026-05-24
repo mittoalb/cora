@@ -3,7 +3,7 @@
 Custom update-style handler (does NOT use the generic
 `make_method_update_handler` factory): a cross-BC Capability load
 runs between Method-load and decide, so the
-decider can enforce `Method.parameters_schema ⊆ Capability.parameter_schema`
+decider can enforce `Method.parameters_schema ⊆ Capability.parameters_schema`
 without doing I/O itself.
 
 The other Method update slices (version_method / deprecate_method)

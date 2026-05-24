@@ -22,9 +22,9 @@ from cora.recipe.aggregates.capability.events import (
 )
 from cora.recipe.aggregates.capability.evolver import evolve, fold
 from cora.recipe.aggregates.capability.executor_shape import ExecutorShape
-from cora.recipe.aggregates.capability.parameter_schema_validation import (
-    InvalidCapabilityParameterSchemaError,
-    validate_capability_parameter_schema,
+from cora.recipe.aggregates.capability.parameters_schema_validation import (
+    InvalidCapabilityParametersSchemaError,
+    validate_capability_parameters_schema,
 )
 from cora.recipe.aggregates.capability.read import (
     CapabilityLifecycleTimestamps,
@@ -73,7 +73,7 @@ __all__ = [
     "InvalidCapabilityCodeError",
     "InvalidCapabilityDescriptionError",
     "InvalidCapabilityNameError",
-    "InvalidCapabilityParameterSchemaError",
+    "InvalidCapabilityParametersSchemaError",
     "InvalidCapabilityVersionTagError",
     "InvalidExecutorShapesError",
     "RecipeCapabilityDefined",
@@ -88,6 +88,6 @@ __all__ = [
     "load_capability_timestamps",
     "to_payload",
     "validate_capability_description",
-    "validate_capability_parameter_schema",
+    "validate_capability_parameters_schema",
     "validate_executor_shapes",
 ]

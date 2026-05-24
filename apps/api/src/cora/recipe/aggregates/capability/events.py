@@ -16,7 +16,7 @@ encodes the state change. Same precedent as `FamilyStatus` in
 Per [[project-capability-aggregate-design]] and the Pattern P lock
 in [[project-family-affordance-design]]: a new version IS a new
 declaration. RecipeCapabilityVersioned carries the FULL declarative
-contract (required_affordances, parameter_schema, executor_shapes)
+contract (required_affordances, parameters_schema, executor_shapes)
 — every field REPLACES the prior value wholesale. No diff/merge
 semantics. Matches Method/Plan/Practice/Family replace-on-version
 precedent.
@@ -53,7 +53,7 @@ class RecipeCapabilityDefined:
     executor_shapes: frozenset[ExecutorShape]
     occurred_at: datetime
     description: str | None = None
-    parameter_schema: dict[str, Any] | None = None
+    parameters_schema: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -71,7 +71,7 @@ class RecipeCapabilityVersioned:
     executor_shapes: frozenset[ExecutorShape]
     occurred_at: datetime
     description: str | None = None
-    parameter_schema: dict[str, Any] | None = None
+    parameters_schema: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -114,7 +114,7 @@ def to_payload(event: RecipeCapabilityEvent) -> dict[str, Any]:
             required_affordances=required_affordances,
             executor_shapes=executor_shapes,
             description=description,
-            parameter_schema=parameter_schema,
+            parameters_schema=parameters_schema,
             occurred_at=occurred_at,
         ):
             return {
@@ -124,7 +124,7 @@ def to_payload(event: RecipeCapabilityEvent) -> dict[str, Any]:
                 "description": description,
                 "required_affordances": sorted(a.value for a in required_affordances),
                 "executor_shapes": sorted(s.value for s in executor_shapes),
-                "parameter_schema": parameter_schema,
+                "parameters_schema": parameters_schema,
                 "occurred_at": occurred_at.isoformat(),
             }
         case RecipeCapabilityVersioned(
@@ -133,7 +133,7 @@ def to_payload(event: RecipeCapabilityEvent) -> dict[str, Any]:
             required_affordances=required_affordances,
             executor_shapes=executor_shapes,
             description=description,
-            parameter_schema=parameter_schema,
+            parameters_schema=parameters_schema,
             occurred_at=occurred_at,
         ):
             return {
@@ -142,7 +142,7 @@ def to_payload(event: RecipeCapabilityEvent) -> dict[str, Any]:
                 "description": description,
                 "required_affordances": sorted(a.value for a in required_affordances),
                 "executor_shapes": sorted(s.value for s in executor_shapes),
-                "parameter_schema": parameter_schema,
+                "parameters_schema": parameters_schema,
                 "occurred_at": occurred_at.isoformat(),
             }
         case RecipeCapabilityDeprecated(
@@ -202,7 +202,7 @@ def from_stored(stored: StoredEvent) -> RecipeCapabilityEvent:
                     description=payload.get("description"),
                     required_affordances=_load_affordances(payload),
                     executor_shapes=_load_executor_shapes(payload),
-                    parameter_schema=payload.get("parameter_schema"),
+                    parameters_schema=payload.get("parameters_schema"),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
@@ -216,7 +216,7 @@ def from_stored(stored: StoredEvent) -> RecipeCapabilityEvent:
                     description=payload.get("description"),
                     required_affordances=_load_affordances(payload),
                     executor_shapes=_load_executor_shapes(payload),
-                    parameter_schema=payload.get("parameter_schema"),
+                    parameters_schema=payload.get("parameters_schema"),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
             except (KeyError, TypeError, AttributeError) as exc:

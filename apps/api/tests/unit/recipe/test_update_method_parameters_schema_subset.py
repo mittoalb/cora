@@ -1,8 +1,8 @@
 """Unit tests for the parameters-schema subset guard.
 
 Pinned: `update_method_parameters_schema` decider enforces
-`Method.parameters_schema ⊆ Capability.parameter_schema` when the Method has a
-`capability_id` and the bound Capability has a `parameter_schema`. One-sided
+`Method.parameters_schema ⊆ Capability.parameters_schema` when the Method has a
+`capability_id` and the bound Capability has a `parameters_schema`. One-sided
 cases (Method has no schema, or Capability has no schema, or Method has no
 capability_id) skip the check.
 
@@ -53,14 +53,14 @@ def _method(
     )
 
 
-def _capability(parameter_schema: dict[str, Any] | None = None) -> Capability:
-    """Build a Capability fixture, optionally with a parameter_schema."""
+def _capability(parameters_schema: dict[str, Any] | None = None) -> Capability:
+    """Build a Capability fixture, optionally with a parameters_schema."""
     return Capability(
         id=uuid4(),
         code=CapabilityCode("cora.capability.x"),
         name=CapabilityName("X"),
         executor_shapes=frozenset({ExecutorShape.METHOD}),
-        parameter_schema=parameter_schema,
+        parameters_schema=parameters_schema,
     )
 
 
@@ -80,7 +80,7 @@ _BROAD_CAPABILITY_SCHEMA: dict[str, Any] = {
 def test_decide_passes_when_method_schema_is_strict_subset_of_capability() -> None:
     """Happy path: Method schema narrows Capability's contract (smaller
     enum + narrower minimum/maximum). Subset check passes."""
-    cap = _capability(parameter_schema=_BROAD_CAPABILITY_SCHEMA)
+    cap = _capability(parameters_schema=_BROAD_CAPABILITY_SCHEMA)
     method = _method(capability_id=cap.id)
     narrow_schema = {
         "$schema": _DRAFT,
@@ -104,7 +104,7 @@ def test_decide_passes_when_method_schema_is_strict_subset_of_capability() -> No
 @pytest.mark.unit
 def test_decide_rejects_method_property_not_in_capability() -> None:
     """Method declares a property the Capability doesn't have. 409."""
-    cap = _capability(parameter_schema=_BROAD_CAPABILITY_SCHEMA)
+    cap = _capability(parameters_schema=_BROAD_CAPABILITY_SCHEMA)
     method = _method(capability_id=cap.id)
     rogue_schema = {
         "$schema": _DRAFT,
@@ -129,7 +129,7 @@ def test_decide_rejects_method_property_not_in_capability() -> None:
 @pytest.mark.unit
 def test_decide_rejects_type_mismatch() -> None:
     """Method declares energy as string but Capability declares number. 409."""
-    cap = _capability(parameter_schema=_BROAD_CAPABILITY_SCHEMA)
+    cap = _capability(parameters_schema=_BROAD_CAPABILITY_SCHEMA)
     method = _method(capability_id=cap.id)
     bad_type_schema = {
         "$schema": _DRAFT,
@@ -151,7 +151,7 @@ def test_decide_rejects_type_mismatch() -> None:
 @pytest.mark.unit
 def test_decide_rejects_widened_enum() -> None:
     """Method's enum includes a value not in Capability's enum. 409."""
-    cap = _capability(parameter_schema=_BROAD_CAPABILITY_SCHEMA)
+    cap = _capability(parameters_schema=_BROAD_CAPABILITY_SCHEMA)
     method = _method(capability_id=cap.id)
     widened_schema = {
         "$schema": _DRAFT,
@@ -175,7 +175,7 @@ def test_decide_rejects_widened_enum() -> None:
 @pytest.mark.unit
 def test_decide_rejects_widened_maximum() -> None:
     """Method's maximum exceeds Capability's maximum. 409."""
-    cap = _capability(parameter_schema=_BROAD_CAPABILITY_SCHEMA)
+    cap = _capability(parameters_schema=_BROAD_CAPABILITY_SCHEMA)
     method = _method(capability_id=cap.id)
     widened_schema = {
         "$schema": _DRAFT,
@@ -199,7 +199,7 @@ def test_decide_rejects_widened_maximum() -> None:
 @pytest.mark.unit
 def test_decide_rejects_required_property_unknown_to_capability() -> None:
     """Method requires a property Capability doesn't declare. 409."""
-    cap = _capability(parameter_schema=_BROAD_CAPABILITY_SCHEMA)
+    cap = _capability(parameters_schema=_BROAD_CAPABILITY_SCHEMA)
     method = _method(capability_id=cap.id)
     bad_required_schema = {
         "$schema": _DRAFT,
@@ -222,13 +222,13 @@ def test_decide_rejects_required_property_unknown_to_capability() -> None:
 
 
 @pytest.mark.unit
-def test_decide_skips_subset_check_when_capability_has_no_parameter_schema() -> None:
-    """When the bound Capability declares no parameter_schema, the
+def test_decide_skips_subset_check_when_capability_has_no_parameters_schema() -> None:
+    """When the bound Capability declares no parameters_schema, the
     contract is unconstrained — any well-formed Method schema is
-    accepted. Pinned because Capability.parameter_schema is OPTIONAL
+    accepted. Pinned because Capability.parameters_schema is OPTIONAL
     at define_capability and we don't want missing-contract to lock
     out Method schemas."""
-    cap = _capability(parameter_schema=None)
+    cap = _capability(parameters_schema=None)
     method = _method(capability_id=cap.id)
     any_schema = {
         "$schema": _DRAFT,
@@ -270,7 +270,7 @@ def test_decide_skips_subset_check_when_method_clears_schema_to_none() -> None:
     """Clearing the schema (parameters_schema=None) is always allowed
     regardless of the Capability's contract. Pinned because the
     subset check needs SOMETHING on both sides to compare."""
-    cap = _capability(parameter_schema=_BROAD_CAPABILITY_SCHEMA)
+    cap = _capability(parameters_schema=_BROAD_CAPABILITY_SCHEMA)
     method = _method(
         capability_id=cap.id,
         parameters_schema={"$schema": _DRAFT, "type": "object"},

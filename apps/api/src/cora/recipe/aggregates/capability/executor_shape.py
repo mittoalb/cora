@@ -43,7 +43,7 @@ class ExecutorShape(StrEnum):
     sweep, mosaic acquisition, dark/flat baseline, energy change,
     first-light, etc.). The Method-chain shape carries asset binding
     (Plan.wiring), parameter validation (Method.parameters_schema as
-    binding under Capability.parameter_schema), and lifecycle FSM
+    binding under Capability.parameters_schema), and lifecycle FSM
     (Run states).
     """
 

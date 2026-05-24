@@ -56,7 +56,7 @@ class VersionCapabilityRequest(BaseModel):
         max_length=CAPABILITY_DESCRIPTION_MAX_LENGTH,
         description="Optional human description (0-2000 chars).",
     )
-    parameter_schema: dict[str, Any] | None = Field(
+    parameters_schema: dict[str, Any] | None = Field(
         default=None,
         description=(
             "Optional declarative JSON Schema (constrained subset) for "
@@ -114,7 +114,7 @@ async def post_capabilities_version(
             description=body.description,
             required_affordances=frozenset(body.required_affordances),
             executor_shapes=frozenset(body.executor_shapes),
-            parameter_schema=body.parameter_schema,
+            parameters_schema=body.parameters_schema,
         ),
         principal_id=principal_id,
         correlation_id=cid,

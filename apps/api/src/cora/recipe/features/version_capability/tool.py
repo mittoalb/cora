@@ -31,7 +31,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "source states (subsequent revisions allowed). Deprecated "
             "Capabilities cannot be re-versioned. A new version IS a new "
             "declaration; the supplied required_affordances + executor_shapes "
-            "+ description + parameter_schema REPLACE the prior wholesale."
+            "+ description + parameters_schema REPLACE the prior wholesale."
         ),
     )
     async def version_capability_tool(  # pyright: ignore[reportUnusedFunction]
@@ -70,7 +70,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 description="Optional human description (0-2000 chars).",
             ),
         ] = None,
-        parameter_schema: Annotated[
+        parameters_schema: Annotated[
             dict[str, Any] | None,
             Field(
                 default=None,
@@ -89,7 +89,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 description=description,
                 required_affordances=frozenset(required_affordances),
                 executor_shapes=frozenset(executor_shapes),
-                parameter_schema=parameter_schema,
+                parameters_schema=parameters_schema,
             ),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),

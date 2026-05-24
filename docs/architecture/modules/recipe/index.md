@@ -23,7 +23,7 @@ Out of scope
 
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
-| `Capability` | `id: UUID` | `id`, `code`, `name`, `status`, `version`, `description`, `required_affordances`, `executor_shapes`, `parameter_schema`, `replaced_by_capability_id` | yes (3-state) |
+| `Capability` | `id: UUID` | `id`, `code`, `name`, `status`, `version`, `description`, `required_affordances`, `executor_shapes`, `parameters_schema`, `replaced_by_capability_id` | yes (3-state) |
 | `Method` | `id: UUID` | `id`, `name`, `capability_id`, `needed_families`, `needed_supplies`, `parameters_schema`, `status`, `version` | yes (3-state) |
 | `Practice` | `id: UUID` | `id`, `name`, `method_id`, `site_id`, `status`, `version` | yes (3-state) |
 | `Plan` | `id: UUID` | `id`, `name`, `practice_id`, `method_id`, `asset_ids`, `default_parameters`, `wires`, `status`, `version` | yes (3-state) |
@@ -78,8 +78,8 @@ Schema and wiring updates (`update_method_parameters_schema`, `update_plan_defau
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `RecipeCapabilityDefined` | `capability_id`, `code`, `name`, `required_affordances`, `executor_shapes`, `parameter_schema?`, `description?`, `occurred_at` | `define_capability` succeeds (genesis) |
-| `RecipeCapabilityVersioned` | `capability_id`, `version_tag`, `required_affordances`, `executor_shapes`, `parameter_schema?`, `description?`, `occurred_at` | `version_capability` succeeds; the full declarative contract replaces wholesale |
+| `RecipeCapabilityDefined` | `capability_id`, `code`, `name`, `required_affordances`, `executor_shapes`, `parameters_schema?`, `description?`, `occurred_at` | `define_capability` succeeds (genesis) |
+| `RecipeCapabilityVersioned` | `capability_id`, `version_tag`, `required_affordances`, `executor_shapes`, `parameters_schema?`, `description?`, `occurred_at` | `version_capability` succeeds; the full declarative contract replaces wholesale |
 | `RecipeCapabilityDeprecated` | `capability_id`, `replaced_by_capability_id?`, `occurred_at` | `deprecate_capability` succeeds; the optional pointer marks a successor |
 
 ### Method
@@ -223,7 +223,7 @@ CREATE TABLE proj_recipe_capability_summary (
     description                TEXT,
     required_affordances       TEXT[]      NOT NULL DEFAULT ARRAY[]::TEXT[],
     executor_shapes            TEXT[]      NOT NULL DEFAULT ARRAY[]::TEXT[],
-    parameter_schema_present   BOOLEAN     NOT NULL DEFAULT FALSE,
+    parameters_schema_present   BOOLEAN     NOT NULL DEFAULT FALSE,
     replaced_by_capability_id  UUID,
     created_at                 TIMESTAMPTZ NOT NULL,
     updated_at                 TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -290,7 +290,7 @@ CREATE INDEX proj_recipe_plan_summary_practice_idx
 
 `GET /{aggregate}/{id}` for Method, Practice, and Plan folds the event stream so the response reflects the latest committed write without projection lag. `GET /capabilities/{id}` does the same. The four `list_*` slices (and `get_capability`'s list variants when they land) read from the projections with keyset pagination over `(created_at, {aggregate}_id)`.
 
-The Capability summary carries `required_affordances` and `executor_shapes` as `TEXT[]` so a future filter on "list capabilities affording X" is an index add, not a column add. `parameter_schema_present` is a boolean; the schema content itself stays in the event stream to keep the summary row small. The Plan summary intentionally omits `asset_ids` (a multi-valued binding); a future `proj_recipe_plan_assets` join table will surface "all plans using Asset X" when use cases demand it. `Plan.default_parameters` and `Plan.wires` also stay out of the summary; both fold from the event stream on single-Plan reads.
+The Capability summary carries `required_affordances` and `executor_shapes` as `TEXT[]` so a future filter on "list capabilities affording X" is an index add, not a column add. `parameters_schema_present` is a boolean; the schema content itself stays in the event stream to keep the summary row small. The Plan summary intentionally omits `asset_ids` (a multi-valued binding); a future `proj_recipe_plan_assets` join table will surface "all plans using Asset X" when use cases demand it. `Plan.default_parameters` and `Plan.wires` also stay out of the summary; both fold from the event stream on single-Plan reads.
 
 ## Cross-Module boundaries
 
@@ -327,7 +327,7 @@ The four examples below cover a typical declaration walk: a universal Capability
       "description": "Sample rotates continuously while the camera streams projections at fixed angular spacing.",
       "required_affordances": ["rotates", "captures_images"],
       "executor_shapes": ["Method"],
-      "parameter_schema": {
+      "parameters_schema": {
         "type": "object",
         "properties": {
           "exposure_ms": {
@@ -357,7 +357,7 @@ The four examples below cover a typical declaration walk: a universal Capability
             "description": "Sample rotates continuously while the camera streams projections.",
             "required_affordances": ["rotates", "captures_images"],
             "executor_shapes": ["Method"],
-            "parameter_schema": {...},
+            "parameters_schema": {...},
         },
     )
     ```
@@ -394,7 +394,7 @@ The four examples below cover a typical declaration walk: a universal Capability
     }
     ```
 
-    Returns `201 Created`. The supplied `parameters_schema` must validate as a subset of the bound Capability's `parameter_schema`; widening the contract (introducing a property the Capability does not declare, widening a bound, dropping a Capability-required field) returns `409 Conflict` with `MethodParametersNotSubsetError`.
+    Returns `201 Created`. The supplied `parameters_schema` must validate as a subset of the bound Capability's `parameters_schema`; widening the contract (introducing a property the Capability does not declare, widening a bound, dropping a Capability-required field) returns `409 Conflict` with `MethodParametersNotSubsetError`.
 
 === "MCP"
 

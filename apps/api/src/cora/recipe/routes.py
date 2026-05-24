@@ -38,7 +38,7 @@ from cora.recipe.aggregates.capability import (
     InvalidCapabilityCodeError,
     InvalidCapabilityDescriptionError,
     InvalidCapabilityNameError,
-    InvalidCapabilityParameterSchemaError,
+    InvalidCapabilityParametersSchemaError,
     InvalidCapabilityVersionTagError,
     InvalidExecutorShapesError,
 )
@@ -199,7 +199,7 @@ def register_recipe_routes(app: FastAPI) -> None:
         InvalidCapabilityCodeError,
         InvalidCapabilityDescriptionError,
         InvalidCapabilityNameError,
-        InvalidCapabilityParameterSchemaError,
+        InvalidCapabilityParametersSchemaError,
         InvalidCapabilityVersionTagError,
         InvalidExecutorShapesError,
         InvalidMethodNameError,
@@ -242,7 +242,7 @@ def register_recipe_routes(app: FastAPI) -> None:
         # executor_shapes does not include Method.
         MethodCapabilityExecutorMismatchError,
         # Method.parameters_schema is not a subset
-        # of the bound Capability.parameter_schema.
+        # of the bound Capability.parameters_schema.
         MethodParametersNotSubsetError,
         MethodCannotVersionError,
         MethodCannotDeprecateError,

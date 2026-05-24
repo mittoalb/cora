@@ -1899,7 +1899,7 @@
             "title": "Name",
             "type": "string"
           },
-          "parameter_schema": {
+          "parameters_schema": {
             "anyOf": [
               {
                 "additionalProperties": true,
@@ -1909,7 +1909,7 @@
                 "type": "null"
               }
             ],
-            "title": "Parameter Schema"
+            "title": "Parameters Schema"
           },
           "replaced_by_capability_id": {
             "anyOf": [
@@ -1967,7 +1967,7 @@
           "description",
           "required_affordances",
           "executor_shapes",
-          "parameter_schema",
+          "parameters_schema",
           "replaced_by_capability_id"
         ],
         "title": "CapabilityResponse",
@@ -3460,7 +3460,7 @@
             "title": "Name",
             "type": "string"
           },
-          "parameter_schema": {
+          "parameters_schema": {
             "anyOf": [
               {
                 "additionalProperties": true,
@@ -3471,7 +3471,7 @@
               }
             ],
             "description": "Optional declarative JSON Schema for the parameter contract. Method.parameters_schema (6g) must validate as a subset of this contract at define_method time per the cross-BC STRICT anchor. Constrained subset: $schema/type/required/properties/enum/minimum/maximum/pattern allowed; $ref/oneOf/anyOf/allOf/not forbidden.",
-            "title": "Parameter Schema"
+            "title": "Parameters Schema"
           },
           "required_affordances": {
             "description": "Family.affordance contract any implementer must satisfy. Required at definition time; supply `[]` explicitly when the Capability is parameter-driven without an affordance requirement. Deduplicated server-side.",
@@ -8479,7 +8479,7 @@
             "title": "Executor Shapes",
             "type": "array"
           },
-          "parameter_schema": {
+          "parameters_schema": {
             "anyOf": [
               {
                 "additionalProperties": true,
@@ -8490,7 +8490,7 @@
               }
             ],
             "description": "Optional declarative JSON Schema (constrained subset) for the parameter contract. Replaces the prior schema wholesale.",
-            "title": "Parameter Schema"
+            "title": "Parameters Schema"
           },
           "required_affordances": {
             "description": "Replacement required_affordances for the new version. A new version IS a new declaration; the supplied set REPLACES the prior set wholesale. Supply `[]` to clear all required affordances.",
@@ -13318,7 +13318,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (whitespace-only name, bad code namespace, empty executor_shapes, malformed parameter_schema)."
+            "description": "Domain invariant violated (whitespace-only name, bad code namespace, empty executor_shapes, malformed parameters_schema)."
           },
           "403": {
             "content": {

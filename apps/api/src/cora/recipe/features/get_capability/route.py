@@ -60,7 +60,7 @@ class CapabilityResponse(BaseModel):
     description: str | None
     required_affordances: list[Affordance]
     executor_shapes: list[ExecutorShape]
-    parameter_schema: dict[str, Any] | None
+    parameters_schema: dict[str, Any] | None
     replaced_by_capability_id: UUID | None
     created_at: datetime | None = None
     versioned_at: datetime | None = None
@@ -119,7 +119,7 @@ async def get_capabilities(
         description=capability.description,
         required_affordances=sorted(capability.required_affordances, key=lambda a: a.value),
         executor_shapes=sorted(capability.executor_shapes, key=lambda s: s.value),
-        parameter_schema=capability.parameter_schema,
+        parameters_schema=capability.parameters_schema,
         replaced_by_capability_id=capability.replaced_by_capability_id,
         created_at=timestamps.created_at if timestamps is not None else None,
         versioned_at=timestamps.versioned_at if timestamps is not None else None,

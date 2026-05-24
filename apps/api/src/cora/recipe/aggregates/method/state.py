@@ -307,7 +307,7 @@ class Method:
     # Family classes the Method needs available), both fields stay,
     # answering DIFFERENT questions per [[project-capability-aggregate-design]]
     # see [[project-capability-aggregate-design]] watch item 10. The cross-BC validation that
-    # `Method.parameters_schema ⊂ Capability.parameter_schema` runs at
+    # `Method.parameters_schema ⊂ Capability.parameters_schema` runs at
     # define_method time via the capability_loader port (STRICT per
     # [[project-asset-settings-design]] cross-BC anchor).
     capability_id: UUID | None = field(default=None)
@@ -344,7 +344,7 @@ class MethodCapabilityExecutorMismatchError(Exception):
 
 class MethodParametersNotSubsetError(ValueError):
     """Method.parameters_schema is not a subset of the bound
-    Capability.parameter_schema.
+    Capability.parameters_schema.
 
     Mapped to HTTP 409. Raised by `update_method_parameters_schema`'s
     decider when the operator submits a parameters_schema that widens
@@ -363,7 +363,7 @@ class MethodParametersNotSubsetError(ValueError):
     def __init__(self, method_id: UUID, capability_id: UUID, reason: str) -> None:
         super().__init__(
             f"Method {method_id} parameters_schema is not a subset of "
-            f"Capability {capability_id} parameter_schema: {reason}"
+            f"Capability {capability_id} parameters_schema: {reason}"
         )
         self.method_id = method_id
         self.capability_id = capability_id

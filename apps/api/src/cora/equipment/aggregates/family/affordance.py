@@ -137,7 +137,7 @@ class Affordance(StrEnum):
     """Pushes data continuously over a transport without per-frame request/response."""
     BUFFERABLE = "Bufferable"
     """Exposes an internal buffer with operator-configurable size and behavior
-    (ring vs linear; pre/post-trigger split lives in parameter_schema)."""
+    (ring vs linear; pre/post-trigger split lives in parameters_schema)."""
     COMPRESSIBLE = "Compressible"
     """Applies a lossless or lossy codec to outgoing data (JPEG, LZ4, etc.) at runtime."""
     RECORDING = "Recording"

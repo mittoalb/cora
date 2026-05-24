@@ -2,7 +2,7 @@
 
 Carries the FULL declarative contract the caller controls
 (code, name, optional description, required_affordances,
-executor_shapes, optional parameter_schema). Server-side concerns
+executor_shapes, optional parameters_schema). Server-side concerns
 (new id, wall-clock timestamp, correlation id, per-event ids) are
 injected by the handler from infrastructure ports.
 
@@ -34,4 +34,4 @@ class DefineCapability:
     required_affordances: frozenset[Affordance]
     executor_shapes: frozenset[ExecutorShape]
     description: str | None = None
-    parameter_schema: dict[str, Any] | None = None
+    parameters_schema: dict[str, Any] | None = None

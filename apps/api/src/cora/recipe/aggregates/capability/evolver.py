@@ -16,7 +16,7 @@ precedent as `FamilyVersioned`.
 ## Replace vs preserve on each arm
 
 - RecipeCapabilityVersioned REPLACES required_affordances, executor_shapes,
-  description, parameter_schema with the new event's values (a new
+  description, parameters_schema with the new event's values (a new
   version IS a new declaration).
 - RecipeCapabilityDeprecated PRESERVES all declarative fields and ADDS the
   replaced_by_capability_id pointer. Operators reading a deprecated
@@ -55,10 +55,10 @@ def evolve(state: Capability | None, event: RecipeCapabilityEvent) -> Capability
             description=description,
             required_affordances=required_affordances,
             executor_shapes=executor_shapes,
-            parameter_schema=parameter_schema,
+            parameters_schema=parameters_schema,
         ):
             _ = state  # genesis event; prior state ignored
-            # Shallow-copy parameter_schema so payload mutation can't alias state (B1).
+            # Shallow-copy parameters_schema so payload mutation can't alias state (B1).
             return Capability(
                 id=capability_id,
                 code=CapabilityCode(code),
@@ -67,17 +67,19 @@ def evolve(state: Capability | None, event: RecipeCapabilityEvent) -> Capability
                 description=description,
                 required_affordances=required_affordances,
                 executor_shapes=executor_shapes,
-                parameter_schema=(dict(parameter_schema) if parameter_schema is not None else None),
+                parameters_schema=(
+                    dict(parameters_schema) if parameters_schema is not None else None
+                ),
             )
         case RecipeCapabilityVersioned(
             version_tag=version_tag,
             description=description,
             required_affordances=required_affordances,
             executor_shapes=executor_shapes,
-            parameter_schema=parameter_schema,
+            parameters_schema=parameters_schema,
         ):
             prior = require_state(state, "RecipeCapabilityVersioned")
-            # Shallow-copy parameter_schema so payload mutation can't alias state (B1).
+            # Shallow-copy parameters_schema so payload mutation can't alias state (B1).
             return Capability(
                 id=prior.id,
                 code=prior.code,
@@ -89,7 +91,9 @@ def evolve(state: Capability | None, event: RecipeCapabilityEvent) -> Capability
                 description=description,
                 required_affordances=required_affordances,
                 executor_shapes=executor_shapes,
-                parameter_schema=(dict(parameter_schema) if parameter_schema is not None else None),
+                parameters_schema=(
+                    dict(parameters_schema) if parameters_schema is not None else None
+                ),
                 replaced_by_capability_id=prior.replaced_by_capability_id,
             )
         case RecipeCapabilityDeprecated(replaced_by_capability_id=replaced_by_capability_id):
@@ -105,7 +109,7 @@ def evolve(state: Capability | None, event: RecipeCapabilityEvent) -> Capability
                 description=prior.description,
                 required_affordances=prior.required_affordances,
                 executor_shapes=prior.executor_shapes,
-                parameter_schema=prior.parameter_schema,
+                parameters_schema=prior.parameters_schema,
                 # Set the replaced_by pointer (None if not supplied).
                 replaced_by_capability_id=replaced_by_capability_id,
             )

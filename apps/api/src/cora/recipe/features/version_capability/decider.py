@@ -19,8 +19,8 @@ Invariants:
     -> InvalidCapabilityDescriptionError
   - command.executor_shapes must be non-empty
     -> InvalidExecutorShapesError
-  - command.parameter_schema (when supplied) must be a valid
-    in-subset JSON Schema -> InvalidCapabilityParameterSchemaError
+  - command.parameters_schema (when supplied) must be a valid
+    in-subset JSON Schema -> InvalidCapabilityParametersSchemaError
   - State.status must be in {Defined, Versioned}
     -> CapabilityCannotVersionError(current_status=...)
 """
@@ -36,7 +36,7 @@ from cora.recipe.aggregates.capability import (
     InvalidCapabilityVersionTagError,
     RecipeCapabilityVersioned,
     validate_capability_description,
-    validate_capability_parameter_schema,
+    validate_capability_parameters_schema,
     validate_executor_shapes,
 )
 from cora.recipe.features.version_capability.command import VersionCapability
@@ -61,8 +61,8 @@ def decide(
         raise InvalidCapabilityVersionTagError(command.version_tag)
     description = validate_capability_description(command.description)
     executor_shapes = validate_executor_shapes(command.executor_shapes)
-    if command.parameter_schema is not None:
-        validate_capability_parameter_schema(command.parameter_schema)
+    if command.parameters_schema is not None:
+        validate_capability_parameters_schema(command.parameters_schema)
     if state.status not in _VERSIONABLE_STATUSES:
         raise CapabilityCannotVersionError(state.id, current_status=state.status)
     return [
@@ -72,7 +72,7 @@ def decide(
             description=description,
             required_affordances=command.required_affordances,
             executor_shapes=executor_shapes,
-            parameter_schema=command.parameter_schema,
+            parameters_schema=command.parameters_schema,
             occurred_at=now,
         )
     ]

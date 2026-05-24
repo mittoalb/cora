@@ -25,7 +25,7 @@ The convention is grounded in [Swift API Design Guidelines](https://www.swift.or
 | `Translatable` | Device supports a linear (single-axis) degree of freedom with a set position command. |
 | `Homeable` | Device supports a `home` operation that drives to a reference position and zeros the encoder. |
 | `Limitable` | Device honors operator-configured software-limit min/max bounds, refusing motion past them. |
-| `Capturable` | Device latches encoder or ADC values into a buffer on external trigger edges (PandA `PCAP`). What gets captured is parameterized via `parameter_schema`. |
+| `Capturable` | Device latches encoder or ADC values into a buffer on external trigger edges (PandA `PCAP`). What gets captured is parameterized via `parameters_schema`. |
 | `Posable` | Device accepts a coordinated multi-DOF pose command (typically 6-DOF X/Y/Z/U/V/W) referred to a configurable pivot/tool/work frame; for hexapods + parallel kinematics. |
 | `Indexable` | Device has a finite enumerated set of mutually-exclusive named positions with a `go to named position` operation (filter wheel, mirror coating stripe, monochromator crystal pair). |
 | `Following` | Device follows an external encoder source as its position feedback (slave role in a master/slave chain). |
@@ -53,7 +53,7 @@ The convention is grounded in [Swift API Design Guidelines](https://www.swift.or
 | Affordance | Contract |
 |---|---|
 | `Streamable` | Device pushes data continuously over a transport without per-frame request/response handshake. |
-| `Bufferable` | Device exposes an internal buffer with operator-configurable size and behavior (ring vs linear; pre/post-trigger split lives in `parameter_schema`). |
+| `Bufferable` | Device exposes an internal buffer with operator-configurable size and behavior (ring vs linear; pre/post-trigger split lives in `parameters_schema`). |
 | `Compressible` | Device applies a lossless or lossy codec to outgoing data (JPEG, LZ4, etc.) at runtime. |
 | `Recording` | Device records acquired data to durable storage at an operator-configured path (HDF5, TIFF, ADF, etc.). |
 

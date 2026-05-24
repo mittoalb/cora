@@ -18,8 +18,8 @@ Subscribed events:
 
 All branches idempotent. `version_tag` lands ONLY on Versioned;
 Defined INSERT leaves it NULL and Deprecated UPDATE doesn't touch it.
-`parameter_schema_present` is TRUE iff the latest event's
-parameter_schema payload was non-NULL; the schema content itself
+`parameters_schema_present` is TRUE iff the latest event's
+parameters_schema payload was non-NULL; the schema content itself
 lives in the event stream (loaded on demand to keep summary small).
 `required_affordances` and `executor_shapes` ship as text[] for
 future filter consumers (deferred per the Capability design lock).
@@ -36,7 +36,7 @@ from cora.infrastructure.projection.handler import ConnectionLike
 _INSERT_CAPABILITY_SQL = """
 INSERT INTO proj_recipe_capability_summary
     (capability_id, code, name, status, version_tag, description,
-     required_affordances, executor_shapes, parameter_schema_present,
+     required_affordances, executor_shapes, parameters_schema_present,
      replaced_by_capability_id, created_at)
 VALUES ($1, $2, $3, 'Defined', NULL, $4, $5, $6, $7, NULL, $8)
 ON CONFLICT (capability_id) DO NOTHING
@@ -49,7 +49,7 @@ SET status = 'Versioned',
     description = $3,
     required_affordances = $4,
     executor_shapes = $5,
-    parameter_schema_present = $6,
+    parameters_schema_present = $6,
     versioned_at = $7,
     updated_at = now()
 WHERE capability_id = $1
@@ -92,7 +92,7 @@ class RecipeCapabilitySummaryProjection:
                     event.payload.get("description"),
                     event.payload.get("required_affordances", []),
                     event.payload.get("executor_shapes", []),
-                    event.payload.get("parameter_schema") is not None,
+                    event.payload.get("parameters_schema") is not None,
                     datetime.fromisoformat(event.payload["occurred_at"]),
                 )
             case "RecipeCapabilityVersioned":
@@ -103,7 +103,7 @@ class RecipeCapabilitySummaryProjection:
                     event.payload.get("description"),
                     event.payload.get("required_affordances", []),
                     event.payload.get("executor_shapes", []),
-                    event.payload.get("parameter_schema") is not None,
+                    event.payload.get("parameters_schema") is not None,
                     datetime.fromisoformat(event.payload["occurred_at"]),
                 )
             case "RecipeCapabilityDeprecated":

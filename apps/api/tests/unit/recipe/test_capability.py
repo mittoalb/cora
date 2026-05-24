@@ -153,7 +153,7 @@ def test_capability_aggregate_required_fields_only() -> None:
     assert cap.description is None
     assert cap.required_affordances == frozenset()
     assert cap.executor_shapes == frozenset()
-    assert cap.parameter_schema is None
+    assert cap.parameters_schema is None
     assert cap.replaced_by_capability_id is None
 
 
@@ -168,9 +168,9 @@ def test_capability_aggregate_with_full_declarative_contract() -> None:
         description="Continuous-rotation tomography sweep.",
         required_affordances=frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE}),
         executor_shapes=frozenset({ExecutorShape.METHOD}),
-        parameter_schema=schema,
+        parameters_schema=schema,
     )
     assert cap.description == "Continuous-rotation tomography sweep."
     assert Affordance.ROTATABLE in cap.required_affordances
     assert cap.executor_shapes == frozenset({ExecutorShape.METHOD})
-    assert cap.parameter_schema == schema
+    assert cap.parameters_schema == schema

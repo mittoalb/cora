@@ -14,7 +14,7 @@ from cora.recipe.aggregates.capability import (
     ExecutorShape,
     InvalidCapabilityCodeError,
     InvalidCapabilityNameError,
-    InvalidCapabilityParameterSchemaError,
+    InvalidCapabilityParametersSchemaError,
     InvalidExecutorShapesError,
     RecipeCapabilityDefined,
 )
@@ -95,12 +95,12 @@ def test_decide_allows_empty_required_affordances() -> None:
 
 
 @pytest.mark.unit
-def test_decide_raises_on_malformed_parameter_schema() -> None:
-    """parameter_schema must be a valid in-subset JSON Schema."""
-    with pytest.raises(InvalidCapabilityParameterSchemaError):
+def test_decide_raises_on_malformed_parameters_schema() -> None:
+    """parameters_schema must be a valid in-subset JSON Schema."""
+    with pytest.raises(InvalidCapabilityParametersSchemaError):
         decide(
             state=None,
-            command=_cmd(parameter_schema={"$ref": "#/definitions/bad"}),
+            command=_cmd(parameters_schema={"$ref": "#/definitions/bad"}),
             now=_NOW,
             new_id=uuid4(),
         )

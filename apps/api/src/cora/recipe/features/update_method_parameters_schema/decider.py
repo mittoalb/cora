@@ -6,7 +6,7 @@ Schema can be updated in any lifecycle status (Defined / Versioned /
 Deprecated) so no source-state check.
 
 A cross-BC subset guard runs: when the Method has a `capability_id`
-and the bound Capability has a `parameter_schema`,
+and the bound Capability has a `parameters_schema`,
 the proposed Method.parameters_schema MUST be a subset of the
 Capability's contract. Pinned per STRICT-by-default posture from
 [[project_schema_validated_values_pattern]].
@@ -27,8 +27,8 @@ Invariants:
   - parameters_schema (if non-None) must be a valid in-subset
     JSON Schema -> InvalidMethodParametersSchemaError
   - parameters_schema (if non-None AND Method.capability_id is set
-    AND the loaded Capability has a parameter_schema) MUST be a
-    structural subset of Capability.parameter_schema ->
+    AND the loaded Capability has a parameters_schema) MUST be a
+    structural subset of Capability.parameters_schema ->
     MethodParametersNotSubsetError
   - If proposed == current, return [] (no event emitted)
 """
@@ -64,7 +64,7 @@ def decide(
     load (either because Method.capability_id is None, legacy
     fixture, OR because the Capability stream is missing, in which
     case CapabilityNotFoundError fires here). Subset check ONLY
-    fires when both Method.parameters_schema AND Capability.parameter_schema
+    fires when both Method.parameters_schema AND Capability.parameters_schema
     are present; one-sided cases are unconstrained.
     """
     if state is None:
@@ -83,13 +83,13 @@ def decide(
         # None means "no contract on that side".
         if (
             capability is not None
-            and capability.parameter_schema is not None
+            and capability.parameters_schema is not None
             and state.capability_id is not None
         ):
             try:
                 check_schema_is_subset(
                     command.parameters_schema,
-                    capability.parameter_schema,
+                    capability.parameters_schema,
                     path="$",
                     error_class=ValueError,
                 )

@@ -29,7 +29,7 @@ def _defined(**overrides: object) -> RecipeCapabilityDefined:
         description=None,
         required_affordances=frozenset[Affordance](),
         executor_shapes=frozenset({ExecutorShape.METHOD}),
-        parameter_schema=None,
+        parameters_schema=None,
         occurred_at=_NOW,
     )
     base.update(overrides)
@@ -53,7 +53,7 @@ def test_capability_defined_folds_full_declarative_contract() -> None:
         description="Continuous rotation",
         required_affordances=frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE}),
         executor_shapes=frozenset({ExecutorShape.METHOD, ExecutorShape.PROCEDURE}),
-        parameter_schema={"$schema": "https://json-schema.org/draft/2020-12/schema"},
+        parameters_schema={"$schema": "https://json-schema.org/draft/2020-12/schema"},
     )
     state = evolve(None, event)
     assert state.id == cid
@@ -62,13 +62,13 @@ def test_capability_defined_folds_full_declarative_contract() -> None:
     assert state.description == "Continuous rotation"
     assert state.required_affordances == frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE})
     assert state.executor_shapes == frozenset({ExecutorShape.METHOD, ExecutorShape.PROCEDURE})
-    assert state.parameter_schema == {"$schema": "https://json-schema.org/draft/2020-12/schema"}
+    assert state.parameters_schema == {"$schema": "https://json-schema.org/draft/2020-12/schema"}
 
 
 @pytest.mark.unit
 def test_capability_versioned_replaces_declarative_contract_wholesale() -> None:
     """A new version IS a new declaration: required_affordances,
-    executor_shapes, description, parameter_schema all REPLACE prior."""
+    executor_shapes, description, parameters_schema all REPLACE prior."""
     cid = uuid4()
     initial = evolve(
         None,
@@ -87,7 +87,7 @@ def test_capability_versioned_replaces_declarative_contract_wholesale() -> None:
             description="replaced",
             required_affordances=frozenset({Affordance.IMAGEABLE}),
             executor_shapes=frozenset({ExecutorShape.METHOD, ExecutorShape.PROCEDURE}),
-            parameter_schema=None,
+            parameters_schema=None,
             occurred_at=_NOW,
         ),
     )

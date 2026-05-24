@@ -18,8 +18,8 @@ Invariants:
     -> InvalidCapabilityDescriptionError
   - command.executor_shapes must be non-empty
     -> InvalidExecutorShapesError
-  - command.parameter_schema (when supplied) must be a valid
-    in-subset JSON Schema -> InvalidCapabilityParameterSchemaError
+  - command.parameters_schema (when supplied) must be a valid
+    in-subset JSON Schema -> InvalidCapabilityParametersSchemaError
 """
 
 from datetime import datetime
@@ -31,7 +31,7 @@ from cora.recipe.aggregates.capability import (
     CapabilityCode,
     CapabilityName,
     RecipeCapabilityDefined,
-    validate_capability_parameter_schema,
+    validate_capability_parameters_schema,
 )
 from cora.recipe.aggregates.capability.state import (
     validate_capability_description,
@@ -54,8 +54,8 @@ def decide(
     name = CapabilityName(command.name)  # validates 1-200 chars
     description = validate_capability_description(command.description)
     executor_shapes = validate_executor_shapes(command.executor_shapes)
-    if command.parameter_schema is not None:
-        validate_capability_parameter_schema(command.parameter_schema)
+    if command.parameters_schema is not None:
+        validate_capability_parameters_schema(command.parameters_schema)
     return [
         RecipeCapabilityDefined(
             capability_id=new_id,
@@ -64,7 +64,7 @@ def decide(
             description=description,
             required_affordances=command.required_affordances,
             executor_shapes=executor_shapes,
-            parameter_schema=command.parameter_schema,
+            parameters_schema=command.parameters_schema,
             occurred_at=now,
         )
     ]

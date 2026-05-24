@@ -67,7 +67,7 @@ async def test_capability_defined_inserts_with_defined_status_and_null_version()
             "description": "Continuous-rotation tomographic acquisition.",
             "required_affordances": ["Rotatable", "Imageable"],
             "executor_shapes": ["Method"],
-            "parameter_schema": {"$schema": "x", "type": "object"},
+            "parameters_schema": {"$schema": "x", "type": "object"},
             "occurred_at": _NOW.isoformat(),
         },
     )
@@ -87,13 +87,13 @@ async def test_capability_defined_inserts_with_defined_status_and_null_version()
     assert args.args[4] == "Continuous-rotation tomographic acquisition."
     assert args.args[5] == ["Rotatable", "Imageable"]
     assert args.args[6] == ["Method"]
-    assert args.args[7] is True  # parameter_schema_present
+    assert args.args[7] is True  # parameters_schema_present
     assert args.args[8] == _NOW
 
 
 @pytest.mark.unit
 async def test_capability_defined_tolerates_optional_fields_omitted() -> None:
-    """Description and parameter_schema are both optional at define time;
+    """Description and parameters_schema are both optional at define time;
     payload may omit them entirely (legacy / minimal Capabilities)."""
     proj = RecipeCapabilitySummaryProjection()
     conn = AsyncMock()
@@ -114,14 +114,14 @@ async def test_capability_defined_tolerates_optional_fields_omitted() -> None:
     assert args.args[4] is None  # description
     assert args.args[5] == []  # required_affordances default
     assert args.args[6] == []  # executor_shapes default
-    assert args.args[7] is False  # parameter_schema_present
+    assert args.args[7] is False  # parameters_schema_present
 
 
 @pytest.mark.unit
 async def test_capability_versioned_updates_status_and_refreshes_declarative_fields() -> None:
     """Per the projection docstring: a new version IS a new declaration —
     description, required_affordances, executor_shapes, and the
-    parameter_schema_present flag are ALL refreshed from the Versioned
+    parameters_schema_present flag are ALL refreshed from the Versioned
     payload (the read model tracks the latest declaration, not the
     define-time one)."""
     proj = RecipeCapabilitySummaryProjection()
@@ -134,7 +134,7 @@ async def test_capability_versioned_updates_status_and_refreshes_declarative_fie
             "description": "Now with bonus features.",
             "required_affordances": ["Rotatable", "Imageable", "Triggerable"],
             "executor_shapes": ["Method", "Procedure"],
-            "parameter_schema": {"$schema": "x", "type": "object"},
+            "parameters_schema": {"$schema": "x", "type": "object"},
             "occurred_at": _NOW.isoformat(),
         },
     )
@@ -150,7 +150,7 @@ async def test_capability_versioned_updates_status_and_refreshes_declarative_fie
     assert "description = $3" in sql
     assert "required_affordances = $4" in sql
     assert "executor_shapes = $5" in sql
-    assert "parameter_schema_present = $6" in sql
+    assert "parameters_schema_present = $6" in sql
     assert "versioned_at = $7" in sql
     assert args.args[1] == _CAPABILITY_ID
     assert args.args[2] == "v2.1.0"
@@ -162,7 +162,7 @@ async def test_capability_versioned_updates_status_and_refreshes_declarative_fie
 
 
 @pytest.mark.unit
-async def test_capability_versioned_with_no_parameter_schema_sets_present_false() -> None:
+async def test_capability_versioned_with_no_parameters_schema_sets_present_false() -> None:
     """Clearing the schema across a version bump flips the flag back to
     FALSE — the read model reflects the latest declaration, including
     the absence of a schema."""
@@ -273,7 +273,7 @@ async def test_capability_versioned_replayed_overwrites_versioned_at() -> None:
     assert conn.execute.await_count == 2
     second_args = conn.execute.await_args_list[1].args
     # versioned_at sits at $7 (after version_tag, description,
-    # required_affordances, executor_shapes, parameter_schema_present).
+    # required_affordances, executor_shapes, parameters_schema_present).
     assert second_args[2] == "v2.0.0"
     assert second_args[7] == later
 

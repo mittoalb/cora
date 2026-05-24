@@ -79,7 +79,7 @@ def test_to_payload_capability_defined_sorts_affordances_and_shapes() -> None:
             {Affordance.ROTATABLE, Affordance.HOMEABLE, Affordance.TRIGGERABLE}
         ),
         executor_shapes=frozenset({ExecutorShape.PROCEDURE, ExecutorShape.METHOD}),
-        parameter_schema={"$schema": "https://json-schema.org/draft/2020-12/schema"},
+        parameters_schema={"$schema": "https://json-schema.org/draft/2020-12/schema"},
         occurred_at=_NOW,
     )
     payload = to_payload(event)
@@ -89,7 +89,7 @@ def test_to_payload_capability_defined_sorts_affordances_and_shapes() -> None:
     assert payload["description"] == "continuous rotation"
     assert payload["required_affordances"] == ["Homeable", "Rotatable", "Triggerable"]
     assert payload["executor_shapes"] == ["Method", "Procedure"]
-    assert payload["parameter_schema"] == {
+    assert payload["parameters_schema"] == {
         "$schema": "https://json-schema.org/draft/2020-12/schema"
     }
 
@@ -103,7 +103,7 @@ def test_round_trip_capability_defined() -> None:
         description=None,
         required_affordances=frozenset({Affordance.ROTATABLE}),
         executor_shapes=frozenset({ExecutorShape.METHOD}),
-        parameter_schema=None,
+        parameters_schema=None,
         occurred_at=_NOW,
     )
     stored = _stored("RecipeCapabilityDefined", to_payload(original))
@@ -118,7 +118,7 @@ def test_round_trip_capability_versioned() -> None:
         description="updated",
         required_affordances=frozenset({Affordance.IMAGEABLE}),
         executor_shapes=frozenset({ExecutorShape.METHOD}),
-        parameter_schema={"$schema": "https://json-schema.org/draft/2020-12/schema"},
+        parameters_schema={"$schema": "https://json-schema.org/draft/2020-12/schema"},
         occurred_at=_NOW,
     )
     stored = _stored("RecipeCapabilityVersioned", to_payload(original))
@@ -157,7 +157,7 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
 
 @pytest.mark.unit
 def test_from_stored_capability_defined_with_empty_optional_fields() -> None:
-    """Pre-event-evolution payloads (no description/parameter_schema keys)
+    """Pre-event-evolution payloads (no description/parameters_schema keys)
     fold cleanly via additive-state defaults."""
     cid = uuid4()
     stored = _stored(
@@ -174,7 +174,7 @@ def test_from_stored_capability_defined_with_empty_optional_fields() -> None:
     rebuilt = from_stored(stored)
     assert isinstance(rebuilt, RecipeCapabilityDefined)
     assert rebuilt.description is None
-    assert rebuilt.parameter_schema is None
+    assert rebuilt.parameters_schema is None
 
 
 @pytest.mark.unit
