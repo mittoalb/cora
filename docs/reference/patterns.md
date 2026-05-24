@@ -145,6 +145,12 @@ def decide(
 
 FCIS canonical: data not in the stream is fetched in the shell and passed to the pure core as plain values.
 
+### Dispatch-slice exception
+
+Most command slices have a decider that returns `list[<Event>]` for events on the slice's own aggregate. A small set of cross-BC slices instead validate a loaded aggregate from another BC and dispatch to that BC's own slice without writing an event on any aggregate the consuming BC owns. The current example is `cora.agent.features.promote_caution_proposal`: the slice loads a `Decision`, validates the proposed-Caution payload, and the handler dispatches to `cora.caution.features.{register,supersede}_caution` based on the decision's `choice`. The Agent BC never writes a Caution and never emits an Agent-owned event; the function in `decider.py` returns `ProposedCautionView` (the validated payload + dispatch hint) rather than events.
+
+Treat `decider.py` in such slices as a pure validator-and-extractor: the canonical-args check (`state`, `command`, `*`, keyword-only extras) still applies; the return-type expectation (`list[<Event>]`) does not. The slice's docstring must explain the dispatch shape, and the function's `Invariants:` block enumerates rejections the same way a true decider does. Adopt this shape only when the slice genuinely owns no aggregate writes; when in doubt, emit an event on the source aggregate's stream and dispatch via `EventStore.append_streams`.
+
 ## Schema validation posture
 
 Two postures coexist for `Method.parameters_schema` validation against a carrier aggregate's values dict. Pick by whether the operator has already committed to the Run.

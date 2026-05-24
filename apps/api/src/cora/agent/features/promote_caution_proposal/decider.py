@@ -11,7 +11,9 @@ This shape (validate-and-extract rather than decide-events) is
 intentional: the slice writes to a different BC (Caution BC) via
 that BC's own decider, so the Agent BC's slice doesn't itself emit
 events on any aggregate it owns. The Agent BC's "command" here is
-operationally a cross-BC dispatch verb.
+operationally a cross-BC dispatch verb. See
+`docs/reference/patterns.md` (Cross-aggregate validation >
+Dispatch-slice exception) for the documented variant.
 
 ## Validation
 

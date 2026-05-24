@@ -38,16 +38,18 @@ from tests.architecture.conftest import BCS, CORA_ROOT, tracked_python_files
 if TYPE_CHECKING:
     from pathlib import Path
 
-# Each entry cites the cross-package consistency audit (2026-05-22)
-# finding and the phase that will fix it. Empty entries when the
-# corresponding finding ships.
+# Drift catcher for any future decider whose signature diverges
+# from the canonical args contract. Currently empty.
 #
-# Note on B7: promote_caution_proposal is NOT in this allowlist even
-# though it's a B7 violator. Its signature IS `(state, command)` which
-# the canonical-args check accepts; the B7 issue is the return type
-# (ProposedCautionView, not list[E]). Return type is intentionally not
-# pinned by this test (see module docstring). The promote_caution_proposal
-# slice-shape rethink is a deferred Phase β followup.
+# Note on promote_caution_proposal: its signature IS `(state, command)`
+# so the canonical-args check accepts it. The function returns
+# `ProposedCautionView` rather than `list[<Event>]` because the slice
+# is a cross-BC dispatch slice (loads a Decision, validates the
+# proposed-Caution payload, hands the dispatch hint to the handler
+# which writes to the Caution BC). The dispatch-slice variant is
+# documented in `docs/reference/patterns.md` (Cross-aggregate
+# validation > Dispatch-slice exception). Return type is
+# intentionally not pinned by this test (see module docstring).
 WIP_DECIDERS: frozenset[str] = frozenset()
 
 
