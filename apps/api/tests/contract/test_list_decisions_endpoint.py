@@ -38,9 +38,9 @@ def test_get_decisions_rejects_unknown_band_with_422(client: TestClient) -> None
 
 
 @pytest.mark.contract
-def test_get_decisions_accepts_decision_rule_filter(client: TestClient) -> None:
+def test_get_decisions_accepts_rule_filter(client: TestClient) -> None:
     with client:
-        response = client.get("/decisions?decision_rule=auto-accept")
+        response = client.get("/decisions?rule=auto-accept")
     assert response.status_code == 200
 
 
@@ -55,7 +55,7 @@ def test_get_decisions_rejects_invalid_actor_id_with_422(client: TestClient) -> 
 def test_get_decisions_combines_all_filters(client: TestClient) -> None:
     with client:
         response = client.get(
-            f"/decisions?confidence_band=Certain&decision_rule=auto-accept&actor_id={uuid.uuid4()}"
+            f"/decisions?confidence_band=Certain&rule=auto-accept&actor_id={uuid.uuid4()}"
         )
     assert response.status_code == 200
 

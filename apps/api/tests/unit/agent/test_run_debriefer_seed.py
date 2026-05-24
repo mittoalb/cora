@@ -96,7 +96,7 @@ async def test_seed_is_idempotent_across_calls() -> None:
 @pytest.mark.unit
 async def test_seed_pins_prompt_template_id() -> None:
     """The bootstrap stores the prompt_template_id so the subscriber
-    can record it in `Decision.decision_inputs["prompt_template_id"]`
+    can record it in `Decision.inputs["prompt_template_id"]`
     for audit. Pin the linkage so a misnumbered template would
     surface here."""
     kernel = _kernel()

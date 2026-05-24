@@ -83,7 +83,7 @@ def decide(state: Decision | None, command: PromoteCautionProposal) -> ProposedC
             choice=choice,
         )
 
-    inputs: dict[str, Any] = dict(state.decision_inputs) if state.decision_inputs else {}
+    inputs: dict[str, Any] = dict(state.inputs) if state.inputs else {}
     proposed: Any = inputs.get("proposed_caution")
     if proposed is None or not isinstance(proposed, dict):
         raise CautionProposalMalformedError(

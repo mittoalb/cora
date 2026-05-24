@@ -41,7 +41,7 @@ This scenario exercises:
   - A `Decision` written from a scenario test (not the agent
     subscriber pathway), `context="EnergyChange"`, with the
     operator principal as `actor_id`, `alternatives` carrying
-    the two energies considered, `decision_inputs` carrying the
+    the two energies considered, `inputs` carrying the
     observed-contrast / required-edge metadata that drove the
     pivot.
   - Two child Runs in the same `Coordinated` Campaign sharing
@@ -514,12 +514,12 @@ async def test_energy_change_plays_out_end_to_end(
                 "switch_to_30_keV",
                 "switch_to_35_keV",
             ),
-            decision_inputs={
+            inputs={
                 "observed_transmission_pct_at_25keV": 12.5,
                 "target_transmission_pct": 30.0,
                 "phase_of_interest": "iron-bearing inclusion",
             },
-            decision_rule="operator:energy-pivot:v1",
+            rule="operator:energy-pivot:v1",
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

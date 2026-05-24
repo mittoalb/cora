@@ -35,8 +35,8 @@ override.
   - **NIST AI RMF + ISO/IEC 42001 + EU AI Act Article 12**:
     INSERT-only Postgres + event sourcing satisfies the automatic
     immutable record-keeping mandate by construction.
-  - **ISO 17025 Clause 7.1.3 + ILAC-G8:09/2019**: `decision_rule`
-    + `decision_inputs` carry the rule-and-its-inputs that a lab
+  - **ISO 17025 Clause 7.1.3 + ILAC-G8:09/2019**: `rule`
+    + `inputs` carry the rule-and-its-inputs that a lab
     accreditation auditor will demand for any conformance decision.
   - **OPA Decision Logs**: PolicyGrant context's payload is
     isomorphic to OPA's `{decision_id, input, result, timestamp,
@@ -56,7 +56,7 @@ Single aggregate (Decision). Three slices planned:
     cross-aggregate validation via DecisionRegistrationContext for
     Actor + optional parent Decision)
   - `get_decision` (8a, read side; fold-on-read)
-  - confidence_band derived field + decision_rule registry doc +
+  - confidence_band derived field + rule registry doc +
     Cedar-style PolicyGrant convention (8b, light slice)
   - AI-decider Logbook integration with OpenTelemetry `gen_ai.*`
     attributes (8c)

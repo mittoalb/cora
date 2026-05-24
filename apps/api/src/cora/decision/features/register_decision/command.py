@@ -17,7 +17,7 @@ Carries the caller-controlled inputs:
   - `override_kind`: when `parent_id` is set, says WHY (correction
     / exception / appeal / supersession). Required-with-parent
     invariant enforced at the decider.
-  - `decision_rule`: optional rule citation per ISO 17025 Clause
+  - `rule`: optional rule citation per ISO 17025 Clause
     7.1.3. Free-form string but convention encourages prefixed
     identifiers like `iso17025:7.1.3:simple_acceptance`.
   - `reasoning`: optional free-form prose explaining the
@@ -37,8 +37,8 @@ Carries the caller-controlled inputs:
     AI deciders need top-k ordering). For Cedar-style
     PolicyGrant decisions, this carries the determining policy
     IDs.
-  - `decision_inputs`: optional dict carrying the values the
-    decision_rule was applied to (per ILAC-G8:09/2019: a rule
+  - `inputs`: optional dict carrying the values the
+    rule was applied to (per ILAC-G8:09/2019: a rule
     without its inputs is unauditable).
   - `reasoning_signature`: optional opaque blob (typically
     sha256 of the full reasoning trace, or vendor-supplied
@@ -73,10 +73,10 @@ class RegisterDecision:
     choice: str
     parent_id: UUID | None = None
     override_kind: DecisionOverrideKind | None = None
-    decision_rule: str | None = None
+    rule: str | None = None
     reasoning: str | None = None
     confidence: float | None = None
     confidence_source: DecisionConfidenceSource | None = None
     alternatives: tuple[str, ...] = field(default_factory=tuple[str, ...])
-    decision_inputs: dict[str, Any] | None = None
+    inputs: dict[str, Any] | None = None
     reasoning_signature: str | None = None

@@ -191,7 +191,7 @@ def test_post_invoke_returns_403_when_authz_denies() -> None:
             id="ParentDecisionRunMismatchError",
         ),
         # Cross-BC owned mappings: RunNotFoundError -> 404 (Run BC),
-        # ParentDecisionMissingError -> 409 (Decision BC). Confirm
+        # ParentDecisionNotFoundError -> 409 (Decision BC). Confirm
         # they flow through the agent's route too.
         pytest.param(
             lambda: _run_not_found_error(),
@@ -199,9 +199,9 @@ def test_post_invoke_returns_403_when_authz_denies() -> None:
             id="RunNotFoundError",
         ),
         pytest.param(
-            lambda: _parent_decision_missing_error(),
-            409,
-            id="ParentDecisionMissingError",
+            lambda: _parent_decision_not_found_error(),
+            404,
+            id="ParentDecisionNotFoundError",
         ),
     ],
 )
@@ -265,10 +265,10 @@ def _run_not_found_error() -> Exception:
     return RunNotFoundError(UUID("01900000-0000-7000-8000-000000000001"))
 
 
-def _parent_decision_missing_error() -> Exception:
-    from cora.decision.aggregates.decision import ParentDecisionMissingError
+def _parent_decision_not_found_error() -> Exception:
+    from cora.decision.aggregates.decision import ParentDecisionNotFoundError
 
-    return ParentDecisionMissingError(UUID("01900000-0000-7000-8000-00000000fc01"))
+    return ParentDecisionNotFoundError(UUID("01900000-0000-7000-8000-00000000fc01"))
 
 
 # Pin the FakeLLMAdapter reference + canned response so the import isn't

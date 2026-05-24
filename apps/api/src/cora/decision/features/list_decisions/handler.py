@@ -2,7 +2,7 @@
 
 Reads `proj_decision_summary` via the cross-BC
 `infrastructure.list_query.make_list_query_handler` factory. Three
-optional filters (confidence_band + decision_rule + actor_id) plus
+optional filters (confidence_band + rule + actor_id) plus
 cursor pagination on `(created_at, decision_id)`.
 
 `confidence` (the raw float) flows through to the result row;
@@ -32,7 +32,7 @@ class DecisionSummaryItem:
 
     decision_id: UUID
     actor_id: UUID
-    decision_rule: str | None
+    rule: str | None
     parent_id: UUID | None
     confidence: float | None
     confidence_band: ConfidenceBandFilter | None
@@ -60,16 +60,14 @@ class Handler(Protocol):
     ) -> DecisionListPage: ...
 
 
-_SELECT_COLUMNS = (
-    "decision_id, actor_id, decision_rule, parent_id, confidence, confidence_band, created_at"
-)
+_SELECT_COLUMNS = "decision_id, actor_id, rule, parent_id, confidence, confidence_band, created_at"
 
 
 def _row_to_item(row: Any) -> DecisionSummaryItem:
     return DecisionSummaryItem(
         decision_id=row["decision_id"],
         actor_id=row["actor_id"],
-        decision_rule=str(row["decision_rule"]) if row["decision_rule"] is not None else None,
+        rule=str(row["rule"]) if row["rule"] is not None else None,
         parent_id=row["parent_id"],
         confidence=row["confidence"],
         confidence_band=(
@@ -84,7 +82,7 @@ def _row_to_item(row: Any) -> DecisionSummaryItem:
 def _log_fields(query: ListDecisions) -> dict[str, Any]:
     return {
         "confidence_band": query.confidence_band,
-        "decision_rule": query.decision_rule,
+        "rule": query.rule,
         "actor_id": str(query.actor_id) if query.actor_id else None,
     }
 
@@ -102,7 +100,7 @@ def bind(deps: Kernel) -> Handler:
         id_column="decision_id",
         filters=[
             ScalarFilter(attr="confidence_band"),
-            ScalarFilter(attr="decision_rule"),
+            ScalarFilter(attr="rule"),
             ScalarFilter(attr="actor_id"),
         ],
         row_to_item=_row_to_item,

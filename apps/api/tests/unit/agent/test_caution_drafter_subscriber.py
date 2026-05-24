@@ -345,20 +345,20 @@ async def test_apply_emits_caution_proposal_decision_on_run_aborted() -> None:
     assert decision.choice.value == "ProposeCaution"
     assert decision.confidence == pytest.approx(0.72)
     assert decision.actor_id == CAUTION_DRAFTER_AGENT_ID
-    assert decision.decision_rule is not None
-    assert decision.decision_rule.value == "agent:CautionDrafter:v1"
-    # The proposed_caution tuple round-trips through decision_inputs.
-    assert decision.decision_inputs is not None
-    proposed = decision.decision_inputs["proposed_caution"]
+    assert decision.rule is not None
+    assert decision.rule.value == "agent:CautionDrafter:v1"
+    # The proposed_caution tuple round-trips through inputs.
+    assert decision.inputs is not None
+    proposed = decision.inputs["proposed_caution"]
     assert proposed["target_kind"] == "Asset"
     assert proposed["target_id"] == str(_ASSET_ID)
     assert proposed["category"] == "Wear"
     assert proposed["severity"] == "Caution"
     assert proposed["title"].startswith("Encoder drift")
     # informed_by_decision_id is always None at v1.
-    assert decision.decision_inputs["informed_by_decision_id"] is None
+    assert decision.inputs["informed_by_decision_id"] is None
     # confidence_band carried through always.
-    assert decision.decision_inputs["confidence_band"] == "medium"
+    assert decision.inputs["confidence_band"] == "medium"
 
 
 # ---------------------------------------------------------------------------
@@ -388,9 +388,9 @@ async def test_apply_writes_no_action_decision() -> None:
     assert decision is not None
     assert decision.choice.value == "NoAction"
     assert decision.confidence == pytest.approx(0.85)
-    assert decision.decision_inputs is not None
+    assert decision.inputs is not None
     # NoAction MUST NOT carry a proposed_caution payload.
-    assert "proposed_caution" not in decision.decision_inputs
+    assert "proposed_caution" not in decision.inputs
 
 
 # ---------------------------------------------------------------------------
@@ -421,8 +421,8 @@ async def test_apply_writes_no_action_deferred_on_llm_failure() -> None:
     assert decision.choice.value == "NoAction"
     assert decision.confidence is None
     assert "LLM call failed with LLMServerError" in (decision.reasoning or "")
-    assert decision.decision_inputs is not None
-    assert decision.decision_inputs["failure_error_class"] == "LLMServerError"
+    assert decision.inputs is not None
+    assert decision.inputs["failure_error_class"] == "LLMServerError"
 
 
 # ---------------------------------------------------------------------------
@@ -459,8 +459,8 @@ async def test_apply_writes_no_action_deferred_when_proposed_caution_missing() -
     decision = await load_decision(store, _derive_decision_id(event.event_id))
     assert decision is not None
     assert decision.choice.value == "NoAction"
-    assert decision.decision_inputs is not None
-    assert decision.decision_inputs["failure_error_class"] == "SchemaViolation"
+    assert decision.inputs is not None
+    assert decision.inputs["failure_error_class"] == "SchemaViolation"
 
 
 @pytest.mark.unit
@@ -512,12 +512,12 @@ async def test_apply_writes_no_action_deferred_when_target_id_not_in_candidates(
     decision = await load_decision(store, _derive_decision_id(event.event_id))
     assert decision is not None
     assert decision.choice.value == "NoAction"
-    assert decision.decision_inputs is not None
-    assert decision.decision_inputs["failure_error_class"] == "HallucinatedTarget"
+    assert decision.inputs is not None
+    assert decision.inputs["failure_error_class"] == "HallucinatedTarget"
     # The hallucinated proposed_caution must NOT have been persisted; the
     # NoAction-deferred path emits a minimal inputs dict with no
     # proposed_caution field.
-    assert "proposed_caution" not in decision.decision_inputs
+    assert "proposed_caution" not in decision.inputs
 
 
 # ---------------------------------------------------------------------------

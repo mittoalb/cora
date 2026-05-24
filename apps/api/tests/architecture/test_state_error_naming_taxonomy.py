@@ -55,8 +55,6 @@ GRANDFATHERED_NAMES: frozenset[str] = frozenset(
         "cora.data.aggregates.dataset.state:ProducingRunMissingError",
         "cora.data.aggregates.dataset.state:LinkedSubjectMissingError",
         "cora.data.aggregates.dataset.state:DerivedFromDatasetsMissingError",
-        "cora.decision.aggregates.decision.state:DeciderActorMissingError",
-        "cora.decision.aggregates.decision.state:ParentDecisionMissingError",
         # D8: Already*Deactivated suffix used for state-transition semantics.
         "cora.access.aggregates.actor.state:ActorAlreadyDeactivatedError",
     }

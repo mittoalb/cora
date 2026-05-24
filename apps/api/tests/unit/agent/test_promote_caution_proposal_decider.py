@@ -34,7 +34,7 @@ def _decision(
         actor_id=uuid4(),
         context=DecisionContext(context),
         choice=DecisionChoice(choice),
-        decision_inputs=inputs,
+        inputs=inputs,
     )
 
 

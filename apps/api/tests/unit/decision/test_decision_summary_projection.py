@@ -72,12 +72,12 @@ async def test_decision_registered_inserts_with_genesis_payload() -> None:
             "choice": "accept",
             "parent_id": None,
             "override_kind": None,
-            "decision_rule": "auto-accept",
+            "rule": "auto-accept",
             "reasoning": None,
             "confidence": 0.97,
             "confidence_source": "ensemble",
             "alternatives": [],
-            "decision_inputs": None,
+            "inputs": None,
             "reasoning_signature": None,
             "occurred_at": _NOW.isoformat(),
         },
@@ -92,7 +92,7 @@ async def test_decision_registered_inserts_with_genesis_payload() -> None:
     assert "ON CONFLICT (decision_id) DO NOTHING" in sql
     assert args.args[1] == _DECISION_ID
     assert args.args[2] == _ACTOR_ID
-    assert args.args[3] == "auto-accept"  # decision_rule
+    assert args.args[3] == "auto-accept"  # rule
     assert args.args[4] is None  # parent_id
     assert args.args[5] == 0.97  # confidence
     assert args.args[6] == "Certain"  # confidence_band derived (>=0.95)

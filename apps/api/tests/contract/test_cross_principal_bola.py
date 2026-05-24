@@ -318,7 +318,7 @@ def _create_caution_as(client: TestClient, principal: UUID) -> UUID:
 
 def _create_decision_as(client: TestClient, principal: UUID) -> UUID:
     """Create a Decision via POST /decisions. Decision REQUIRES the
-    actor_id to exist (DeciderActorMissingError otherwise), so the
+    actor_id to exist (DeciderActorNotFoundError otherwise), so the
     helper first creates an Actor as P1 and then references it. P1
     therefore needs both `RegisterActor` and `RegisterDecision` in
     the permitted-commands set; both are seeded in the fixture."""

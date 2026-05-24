@@ -208,13 +208,13 @@ async def test_subscriber_writes_caution_proposal_decision_end_to_end(
     assert decision.context.value == "CautionProposal"
     assert decision.choice.value == "ProposeCaution"
     assert decision.actor_id == CAUTION_DRAFTER_AGENT_ID
-    assert decision.decision_inputs is not None
-    proposed = decision.decision_inputs["proposed_caution"]
+    assert decision.inputs is not None
+    proposed = decision.inputs["proposed_caution"]
     assert proposed["target_id"] == str(_ASSET_ID)
     assert proposed["category"] == "Wear"
     assert proposed["severity"] == "Caution"
     # informed_by_decision_id always None at v1 (DecisionLookup deferred).
-    assert decision.decision_inputs["informed_by_decision_id"] is None
+    assert decision.inputs["informed_by_decision_id"] is None
 
     # LLM call captured the candidate target.
     assert len(llm.received) == 1
@@ -381,12 +381,12 @@ async def _seed_supersede_decision(
         choice="ProposeSupersede",
         parent_id=None,
         override_kind=None,
-        decision_rule="agent:CautionDrafter:v1",
+        rule="agent:CautionDrafter:v1",
         reasoning="PG integration supersede-path test rationale; long enough for the validator",
         confidence=0.78,
         confidence_source=DecisionConfidenceSource.SELF_REPORTED,
         alternatives=(),
-        decision_inputs={"proposed_caution": proposed},
+        inputs={"proposed_caution": proposed},
         reasoning_signature=None,
         occurred_at=_NOW,
     )

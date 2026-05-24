@@ -33,13 +33,13 @@ class DecisionOutput(BaseModel):
     choice: str = Field(..., max_length=DECISION_CHOICE_MAX_LENGTH)
     parent_id: UUID | None
     override_kind: str | None
-    decision_rule: str | None
+    rule: str | None
     reasoning: str | None
     confidence: float | None
     confidence_source: str | None
     confidence_band: str | None
     alternatives: list[str]
-    decision_inputs: dict[str, Any] | None
+    inputs: dict[str, Any] | None
     reasoning_signature: str | None
 
 
@@ -51,8 +51,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         description=(
             "Read the current state of an existing Decision by id. Returns "
             "the full structured-audit metadata including actor, context, "
-            "choice, optional parent / override_kind / decision_rule / "
-            "decision_inputs / reasoning / confidence / alternatives / "
+            "choice, optional parent / override_kind / rule / "
+            "inputs / reasoning / confidence / alternatives / "
             "reasoning_signature."
         ),
     )
@@ -77,9 +77,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             choice=decision.choice.value,
             parent_id=decision.parent_id,
             override_kind=decision.override_kind,
-            decision_rule=(
-                decision.decision_rule.value if decision.decision_rule is not None else None
-            ),
+            rule=(decision.rule.value if decision.rule is not None else None),
             reasoning=decision.reasoning,
             confidence=decision.confidence,
             confidence_source=(
@@ -87,6 +85,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ),
             confidence_band=band.value if band is not None else None,
             alternatives=list(decision.alternatives),
-            decision_inputs=decision.decision_inputs,
+            inputs=decision.inputs,
             reasoning_signature=decision.reasoning_signature,
         )

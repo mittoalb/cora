@@ -1,4 +1,4 @@
-"""Smoke tests for the well-known decision_rule catalog.
+"""Smoke tests for the well-known rule catalog.
 
 Catalog is documented constants + naming convention; tests guard
 against accidental string drift (renaming a constant value silently

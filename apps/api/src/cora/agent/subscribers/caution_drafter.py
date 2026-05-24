@@ -42,7 +42,7 @@ CautionDrafter writes `DecisionRegistered` with:
   - `context = "CautionProposal"`
   - `choice ∈ CAUTION_PROPOSAL_CHOICES`
   - `actor_id = CAUTION_DRAFTER_AGENT_ID`
-  - `decision_rule = "agent:CautionDrafter:v1"`
+  - `rule = "agent:CautionDrafter:v1"`
   - `confidence_source = "self_reported"`
   - `inputs` carries the proposed-Caution tuple + confidence_band
     + `informed_by_decision_id` (always None at v1; reserved for
@@ -106,7 +106,7 @@ from cora.decision.aggregates.decision import (
     event_type_name,
     to_payload,
     validate_confidence,
-    validate_decision_inputs,
+    validate_inputs,
     validate_reasoning,
 )
 from cora.infrastructure.event_envelope import to_new_event
@@ -480,8 +480,8 @@ class CautionDrafterSubscriber:
         """
         decision_choice = DecisionChoice(choice)
         decision_context = DecisionContext(DECISION_CONTEXT_CAUTION_PROPOSAL)
-        decision_rule = DecisionRule(_DECISION_RULE)
-        decision_inputs = validate_decision_inputs(
+        rule = DecisionRule(_DECISION_RULE)
+        inputs = validate_inputs(
             {
                 "run_id": str(run_id),
                 "terminal_event_id": str(terminal_event.event_id),
@@ -500,12 +500,12 @@ class CautionDrafterSubscriber:
             choice=decision_choice.value,
             parent_id=None,
             override_kind=None,
-            decision_rule=decision_rule.value,
+            rule=rule.value,
             reasoning=validated_reasoning,
             confidence=validated_confidence,
             confidence_source=DecisionConfidenceSource.SELF_REPORTED,
             alternatives=(),
-            decision_inputs=decision_inputs,
+            inputs=inputs,
             reasoning_signature=None,
             occurred_at=terminal_event.occurred_at,
         )

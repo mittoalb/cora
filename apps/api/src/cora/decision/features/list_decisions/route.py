@@ -1,6 +1,6 @@
 """HTTP route for the `list_decisions` query slice.
 
-`GET /decisions?cursor=...&confidence_band=Certain&decision_rule=auto-accept&actor_id=<uuid>`
+`GET /decisions?cursor=...&confidence_band=Certain&rule=auto-accept&actor_id=<uuid>`
 returns `{"items": [...], "next_cursor": "..." | null}`.
 """
 
@@ -26,7 +26,7 @@ class DecisionSummaryDTO(BaseModel):
 
     decision_id: UUID
     actor_id: UUID
-    decision_rule: str | None
+    rule: str | None
     parent_id: UUID | None
     confidence: float | None
     confidence_band: ConfidenceBandFilter | None
@@ -90,7 +90,7 @@ async def list_decisions(
             ),
         ),
     ] = None,
-    decision_rule: Annotated[
+    rule: Annotated[
         str | None,
         Query(description="Optional categorical decision-rule label filter."),
     ] = None,
@@ -104,7 +104,7 @@ async def list_decisions(
             cursor=cursor,
             limit=limit,
             confidence_band=confidence_band,
-            decision_rule=decision_rule,
+            rule=rule,
             actor_id=actor_id,
         ),
         principal_id=principal_id,
@@ -116,7 +116,7 @@ async def list_decisions(
             DecisionSummaryDTO(
                 decision_id=item.decision_id,
                 actor_id=item.actor_id,
-                decision_rule=item.decision_rule,
+                rule=item.rule,
                 parent_id=item.parent_id,
                 confidence=item.confidence,
                 confidence_band=item.confidence_band,

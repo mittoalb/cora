@@ -98,7 +98,7 @@ def test_output_schema_required_fields_pinned() -> None:
 def test_output_schema_disallows_additional_properties() -> None:
     """Tightening `additionalProperties: False` so the LLM can't
     emit phantom fields (eg. a hallucinated `next_steps` field that
-    would silently land in `decision_inputs`)."""
+    would silently land in `inputs`)."""
     assert RUN_DEBRIEF_OUTPUT_SCHEMA["additionalProperties"] is False
 
 

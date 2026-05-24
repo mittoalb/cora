@@ -38,7 +38,7 @@ First scenario-tier exercise of:
   - `FakeLLMAdapter` (the stub LLM used in CI; no Anthropic API
     key needed) being driven from a scenario-tier test
   - `Decision` aggregate genesis with `context=RunDebrief`,
-    `decision_rule=agent:RunDebriefer:v1`, `confidence_source=
+    `rule=agent:RunDebriefer:v1`, `confidence_source=
     self_reported`, `actor_id=RUN_DEBRIEFER_AGENT_ID`
 
 ## Why a separate scenario
@@ -396,6 +396,6 @@ async def test_run_debrief_agent_fires_on_terminal_run(
     decision_payload = decision_events[0].payload
     assert decision_payload["context"] == "RunDebrief"
     assert decision_payload["choice"] == "NominalCompletion"
-    assert decision_payload["decision_rule"] == "agent:RunDebriefer:v1"
+    assert decision_payload["rule"] == "agent:RunDebriefer:v1"
     assert decision_payload["confidence_source"] == "self_reported"
     assert UUID(decision_payload["actor_id"]) == RUN_DEBRIEFER_AGENT_ID

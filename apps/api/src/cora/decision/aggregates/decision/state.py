@@ -17,7 +17,7 @@ AI-recommends-then-human-overrides flow.
     behind a state change; the state change itself lives on the
     target aggregate's stream.
   - Not a free-form audit log. Reasoning text is captured but
-    `decision_rule` + `confidence_source` + `override_kind` etc.
+    `rule` + `confidence_source` + `override_kind` etc.
     keep the structure scannable.
   - Not a place for token-by-token AI traces. Those go to a
     `reasoning` logbook on the Decision aggregate (cross-BC
@@ -26,8 +26,8 @@ AI-recommends-then-human-overrides flow.
 
 
 Genesis aggregate: id + actor_id + context + choice + reasoning +
-confidence + confidence_source + parent_id + decision_rule +
-decision_inputs + alternatives + override_kind + reasoning_signature
+confidence + confidence_source + parent_id + rule +
+inputs + alternatives + override_kind + reasoning_signature
 + occurred_at. Single event (DecisionRegistered); read side; REST +
 MCP. Cross-aggregate validation in the handler (Actor exists; if
 parent_id set, parent Decision exists).
@@ -42,8 +42,8 @@ parent_id set, parent Decision exists).
   - **NIST AI RMF + ISO/IEC 42001 + EU AI Act Article 12**: event
     sourcing on INSERT-only Postgres satisfies the automatic
     immutable record-keeping mandate for free.
-  - **ISO 17025 Clause 7.1.3**: `decision_rule` field carries the
-    documented rule; `decision_inputs` carries the measured value
+  - **ISO 17025 Clause 7.1.3**: `rule` field carries the
+    documented rule; `inputs` carries the measured value
     + uncertainty that fed the rule (per ILAC-G8:09/2019).
   - **OPA Decision Logs**: the `PolicyGrant` context's payload is
     isomorphic to OPA's `{decision_id, input, result, timestamp,
@@ -99,7 +99,7 @@ See `Decision.ratings` for the additive operator-rating annotation
 channel; rating accrual does NOT change decision
 facts and is folded latest-per-actor wins into the aggregate
 state. The atomic-immutability stance applies to the choice /
-reasoning / confidence / decision_inputs fields; ratings are an
+reasoning / confidence / inputs fields; ratings are an
 orthogonal additive annotation.
 
 ## Thirteenth bounded-name VO
@@ -391,7 +391,7 @@ class InvalidDecisionReasoningError(ValueError):
 
 
 class InvalidDecisionRuleError(ValueError):
-    """The supplied decision_rule is empty, whitespace-only, or too long."""
+    """The supplied rule is empty, whitespace-only, or too long."""
 
     def __init__(self, value: str) -> None:
         super().__init__(
@@ -431,10 +431,10 @@ class InvalidDecisionAlternativesError(ValueError):
 
 
 class InvalidDecisionInputsError(ValueError):
-    """The supplied decision_inputs dict is too large, has an
+    """The supplied inputs dict is too large, has an
     invalid key, or carries a non-JSON-roundtrippable value.
 
-    Optional dict for the `decision_rule`'s input values (per ISO
+    Optional dict for the `rule`'s input values (per ISO
     17025 Clause 7.1.3 + ILAC-G8:09/2019: a rule without its
     inputs is unauditable). Each key must be 1-100 chars after
     trim; values must be JSON-roundtrippable. Cap is 64 entries.
@@ -477,7 +477,7 @@ class DecisionNotFoundError(Exception):
         self.decision_id = decision_id
 
 
-class DeciderActorMissingError(Exception):
+class DeciderActorNotFoundError(Exception):
     """The Actor referenced by `actor_id` does not exist.
 
     Cross-aggregate validation at registration: the handler pre-
@@ -492,7 +492,7 @@ class DeciderActorMissingError(Exception):
         self.actor_id = actor_id
 
 
-class ParentDecisionMissingError(Exception):
+class ParentDecisionNotFoundError(Exception):
     """The parent Decision referenced by `parent_id` does not exist.
 
     Cross-aggregate validation at registration: when `parent_id` is
@@ -513,7 +513,7 @@ class ParentDecisionRunMismatchError(Exception):
 
     Hoisted to Decision aggregate state.py per cross-BC convention:
     cross-aggregate-load-state errors live with the relevant
-    aggregate (mirrors `DeciderActorMissingError` precedent above).
+    aggregate (mirrors `DeciderActorNotFoundError` precedent above).
     """
 
     def __init__(self, parent_decision_id: UUID, parent_run_id: UUID | None) -> None:
@@ -650,7 +650,7 @@ class DecisionRule:
 
     Per ISO 17025 Clause 7.1.3, the decision rule must be
     documented and agreed before the test/calibration; reports
-    must cite it. The BC accepts `decision_rule = None` for any
+    must cite it. The BC accepts `rule = None` for any
     context: context-conditional requiredness ("ProcedureExecution
     must carry a rule", "RecipeApproval must carry one") is a
     projection-time audit-policy concern, not a domain invariant.
@@ -737,8 +737,8 @@ def validate_alternatives(value: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(trimmed)
 
 
-def validate_decision_inputs(value: dict[str, Any] | None) -> dict[str, Any] | None:
-    """Validate optional decision_inputs dict.
+def validate_inputs(value: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Validate optional inputs dict.
 
     Three checks: cardinality (max 64 keys), per-key shape (1-100
     chars after trim, non-empty), per-value JSON-roundtrippability.
@@ -900,12 +900,12 @@ class Decision:
     choice: DecisionChoice
     parent_id: UUID | None = None
     override_kind: DecisionOverrideKind | None = None
-    decision_rule: DecisionRule | None = None
+    rule: DecisionRule | None = None
     reasoning: str | None = None
     confidence: float | None = None
     confidence_source: DecisionConfidenceSource | None = None
     alternatives: tuple[str, ...] = field(default_factory=tuple[str, ...])
-    decision_inputs: dict[str, Any] | None = None
+    inputs: dict[str, Any] | None = None
     reasoning_signature: str | None = None
     # 8c: logbooks attached to this Decision, keyed by kind. Today
     # the only kind is `LOGBOOK_KIND_REASONING` (AI-decider trace

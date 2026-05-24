@@ -27,7 +27,7 @@ from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_DECISION_SQL = """
 INSERT INTO proj_decision_summary
-    (decision_id, actor_id, decision_rule, parent_id,
+    (decision_id, actor_id, rule, parent_id,
      confidence, confidence_band, created_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (decision_id) DO NOTHING
@@ -57,7 +57,7 @@ class DecisionSummaryProjection:
             _INSERT_DECISION_SQL,
             UUID(payload["decision_id"]),
             UUID(payload["actor_id"]),
-            payload.get("decision_rule"),
+            payload.get("rule"),
             parent_id,
             confidence,
             band.value if band is not None else None,

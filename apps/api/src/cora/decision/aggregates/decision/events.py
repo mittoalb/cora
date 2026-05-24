@@ -23,7 +23,7 @@ DecisionUpdated / DecisionRevoked / DecisionCorrected event.
   - `alternatives` serializes as a list[str] preserving caller
     order (AI deciders need top-k ordering; Cedar / OPA both
     preserve it).
-  - `decision_inputs` serializes as a JSON object; callers are
+  - `inputs` serializes as a JSON object; callers are
     responsible for ensuring values round-trip through json.dumps
     (the BC enforces shape, not value primitiveness).
   - Status is implicit (a Decision is final once registered);
@@ -70,12 +70,12 @@ class DecisionRegistered:
     choice: str
     parent_id: UUID | None
     override_kind: DecisionOverrideKind | None
-    decision_rule: str | None
+    rule: str | None
     reasoning: str | None
     confidence: float | None
     confidence_source: DecisionConfidenceSource | None
     alternatives: tuple[str, ...]
-    decision_inputs: dict[str, Any] | None
+    inputs: dict[str, Any] | None
     reasoning_signature: str | None
     occurred_at: datetime
 
@@ -185,12 +185,12 @@ def to_payload(event: DecisionEvent) -> dict[str, Any]:
             choice=choice,
             parent_id=parent_id,
             override_kind=override_kind,
-            decision_rule=decision_rule,
+            rule=rule,
             reasoning=reasoning,
             confidence=confidence,
             confidence_source=confidence_source,
             alternatives=alternatives,
-            decision_inputs=decision_inputs,
+            inputs=inputs,
             reasoning_signature=reasoning_signature,
             occurred_at=occurred_at,
         ):
@@ -201,7 +201,7 @@ def to_payload(event: DecisionEvent) -> dict[str, Any]:
                 "choice": choice,
                 "parent_id": str(parent_id) if parent_id is not None else None,
                 "override_kind": override_kind,
-                "decision_rule": decision_rule,
+                "rule": rule,
                 "reasoning": reasoning,
                 "confidence": confidence,
                 "confidence_source": (
@@ -209,7 +209,7 @@ def to_payload(event: DecisionEvent) -> dict[str, Any]:
                 ),
                 # Caller-supplied order preserved (top-k ordering matters).
                 "alternatives": list(alternatives),
-                "decision_inputs": decision_inputs,
+                "inputs": inputs,
                 "reasoning_signature": reasoning_signature,
                 "occurred_at": occurred_at.isoformat(),
             }
@@ -275,7 +275,7 @@ def from_stored(stored: StoredEvent) -> DecisionEvent:
                     choice=payload["choice"],
                     parent_id=UUID(raw_parent) if raw_parent is not None else None,
                     override_kind=raw_override,  # already-narrow Literal value
-                    decision_rule=payload["decision_rule"],
+                    rule=payload["rule"],
                     reasoning=payload["reasoning"],
                     confidence=payload["confidence"],
                     confidence_source=(
@@ -284,7 +284,7 @@ def from_stored(stored: StoredEvent) -> DecisionEvent:
                         else None
                     ),
                     alternatives=tuple(payload["alternatives"]),
-                    decision_inputs=payload["decision_inputs"],
+                    inputs=payload["inputs"],
                     reasoning_signature=payload["reasoning_signature"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )

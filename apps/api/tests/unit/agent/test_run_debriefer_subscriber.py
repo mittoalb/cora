@@ -279,13 +279,13 @@ async def test_apply_writes_decision_on_run_completed() -> None:
     assert decision.choice.value == "NominalCompletion"
     assert decision.confidence == pytest.approx(0.92)
     assert decision.actor_id == RUN_DEBRIEFER_AGENT_ID
-    assert decision.decision_rule is not None
-    assert decision.decision_rule.value == "agent:RunDebriefer:v1"
-    # decision_inputs round-trip via JSONB.
-    assert decision.decision_inputs is not None
-    assert decision.decision_inputs["run_id"] == str(run_id)
-    assert decision.decision_inputs["terminal_event_id"] == str(event.event_id)
-    assert decision.decision_inputs["terminal_event_type"] == "RunCompleted"
+    assert decision.rule is not None
+    assert decision.rule.value == "agent:RunDebriefer:v1"
+    # inputs round-trip via JSONB.
+    assert decision.inputs is not None
+    assert decision.inputs["run_id"] == str(run_id)
+    assert decision.inputs["terminal_event_id"] == str(event.event_id)
+    assert decision.inputs["terminal_event_type"] == "RunCompleted"
 
 
 @pytest.mark.unit
@@ -326,7 +326,7 @@ async def test_apply_writes_decision_on_run_aborted_with_reason() -> None:
     assert decision is not None
     assert decision.choice.value == "EquipmentAbort"
     # The reason should flow into the LLM payload, NOT into the
-    # Decision's decision_inputs (the input is the terminal event,
+    # Decision's inputs (the input is the terminal event,
     # not the operator's reason text).
     captured_request = llm.received[0]
     assert "rotary stage encoder offline; interlock fired" in captured_request.user_message.text
@@ -375,8 +375,8 @@ async def test_apply_writes_debrief_deferred_on_llm_failure() -> None:
     assert decision.choice.value == "DebriefDeferred"
     assert decision.confidence is None
     assert "LLM call failed with LLMServerError" in (decision.reasoning or "")
-    assert decision.decision_inputs is not None
-    assert decision.decision_inputs["failure_error_class"] == "LLMServerError"
+    assert decision.inputs is not None
+    assert decision.inputs["failure_error_class"] == "LLMServerError"
 
 
 @pytest.mark.unit

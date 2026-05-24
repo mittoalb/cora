@@ -145,7 +145,7 @@ from cora.decision.aggregates.decision import (
     event_type_name,
     to_payload,
     validate_confidence,
-    validate_decision_inputs,
+    validate_inputs,
     validate_reasoning,
 )
 from cora.infrastructure.event_envelope import to_new_event
@@ -418,7 +418,7 @@ class RunDebrieferSubscriber:
             choice=choice,
             confidence=float(confidence_raw) if confidence_raw is not None else None,
             reasoning=reasoning_raw,
-            extra_decision_inputs={},
+            extra_inputs={},
             outcome="success",
             log=log,
         )
@@ -452,7 +452,7 @@ class RunDebrieferSubscriber:
                 "Operator may re-trigger via the agent's MCP tool when "
                 "8f-c lands the on-demand path."
             ),
-            extra_decision_inputs={"failure_error_class": error_class},
+            extra_inputs={"failure_error_class": error_class},
             outcome="deferred",
             log=log,
         )
@@ -467,7 +467,7 @@ class RunDebrieferSubscriber:
         choice: str,
         confidence: float | None,
         reasoning: str,
-        extra_decision_inputs: dict[str, Any],
+        extra_inputs: dict[str, Any],
         outcome: str,
         log: Any,
     ) -> None:
@@ -497,14 +497,14 @@ class RunDebrieferSubscriber:
         # boundary (no `features.*` import).
         decision_choice = DecisionChoice(choice)
         decision_context = DecisionContext(DECISION_CONTEXT_RUN_DEBRIEF)
-        decision_rule = DecisionRule(_DECISION_RULE)
-        decision_inputs = validate_decision_inputs(
+        rule = DecisionRule(_DECISION_RULE)
+        inputs = validate_inputs(
             {
                 "run_id": str(run_id),
                 "terminal_event_id": str(terminal_event.event_id),
                 "terminal_event_type": terminal_event.event_type,
                 "prompt_template_id": str(RUN_DEBRIEF_PROMPT_TEMPLATE_ID),
-                **extra_decision_inputs,
+                **extra_inputs,
             }
         )
         validated_reasoning = validate_reasoning(reasoning)
@@ -517,12 +517,12 @@ class RunDebrieferSubscriber:
             choice=decision_choice.value,
             parent_id=None,
             override_kind=None,
-            decision_rule=decision_rule.value,
+            rule=rule.value,
             reasoning=validated_reasoning,
             confidence=validated_confidence,
             confidence_source=DecisionConfidenceSource.SELF_REPORTED,
             alternatives=(),
-            decision_inputs=decision_inputs,
+            inputs=inputs,
             reasoning_signature=None,
             occurred_at=terminal_event.occurred_at,
         )

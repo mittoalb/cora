@@ -31,11 +31,11 @@ via aggregate-state errors hoisted from this slice
     `AgentNotSeededError` / `AgentDeactivatedError` (both in
     `cora.agent.aggregates.agent.state`) -> HTTP 400.
   - When `parent_decision_id` is supplied: parent Decision must
-    exist (`ParentDecisionMissingError` from
+    exist (`ParentDecisionNotFoundError` from
     `cora.decision.aggregates.decision`; HTTP 409 per Decision
     BC's existing mapping), have `context == "RunDebrief"`
     (`ParentDecisionAgentMismatchError`; HTTP 400), AND reference
-    the same `run_id` in its `decision_inputs`
+    the same `run_id` in its `inputs`
     (`ParentDecisionRunMismatchError`; HTTP 400).
 
 The parent-context check (PR-author note: architecture gate-review)
@@ -71,7 +71,7 @@ from cora.agent.subscribers.run_debriefer import redact_secrets
 from cora.decision.aggregates.decision import (
     DECISION_CONTEXT_RUN_DEBRIEF,
     ParentDecisionAgentMismatchError,
-    ParentDecisionMissingError,
+    ParentDecisionNotFoundError,
     ParentDecisionRunMismatchError,
     event_type_name,
     load_decision,
@@ -176,14 +176,14 @@ def bind(deps: Kernel) -> Handler:
         if command.parent_decision_id is not None:
             parent = await load_decision(deps.event_store, command.parent_decision_id)
             if parent is None:
-                raise ParentDecisionMissingError(command.parent_decision_id)
+                raise ParentDecisionNotFoundError(command.parent_decision_id)
             parent_context = parent.context.value
             if parent_context != DECISION_CONTEXT_RUN_DEBRIEF:
                 raise ParentDecisionAgentMismatchError(
                     command.parent_decision_id,
                     parent_context,
                 )
-            parent_run_id = _extract_parent_run_id(parent.decision_inputs)
+            parent_run_id = _extract_parent_run_id(parent.inputs)
             if parent_run_id != command.run_id:
                 raise ParentDecisionRunMismatchError(
                     command.parent_decision_id,
@@ -229,7 +229,7 @@ def bind(deps: Kernel) -> Handler:
                     "re-debrief deferred. Operator may retry with a fresh "
                     "Idempotency-Key to bypass the cached failure."
                 ),
-                extra_decision_inputs={"failure_error_class": type(exc).__name__},
+                extra_inputs={"failure_error_class": type(exc).__name__},
             )
             outcome = "deferred"
         else:
@@ -281,10 +281,10 @@ def bind(deps: Kernel) -> Handler:
 
 
 def _extract_parent_run_id(inputs: dict[str, object] | None) -> UUID | None:
-    """Pull `run_id` from the parent Decision's `decision_inputs`.
+    """Pull `run_id` from the parent Decision's `inputs`.
 
     Both the subscriber + this handler put `run_id` in
-    `decision_inputs` for RunDebrief Decisions, so the same key is
+    `inputs` for RunDebrief Decisions, so the same key is
     where the chain link lives. Returns None if absent (which is
     unusual for a RunDebrief Decision but defensive) or malformed.
     The handler treats a None return as a same-Run mismatch

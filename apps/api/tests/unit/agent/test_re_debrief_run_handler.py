@@ -30,7 +30,7 @@ from cora.agent.seed import RUN_DEBRIEFER_AGENT_ID, RUN_DEBRIEFER_AGENT_NAME
 from cora.decision.aggregates.decision import (
     DECISION_CONTEXT_RUN_DEBRIEF,
     ParentDecisionAgentMismatchError,
-    ParentDecisionMissingError,
+    ParentDecisionNotFoundError,
     ParentDecisionRunMismatchError,
     load_decision,
 )
@@ -190,11 +190,11 @@ async def test_handler_writes_decision_on_success() -> None:
     assert decision.choice.value == "NominalCompletion"
     assert decision.actor_id == RUN_DEBRIEFER_AGENT_ID
     assert decision.parent_id is None
-    # decision_inputs carries the trigger discriminator so projection
+    # inputs carries the trigger discriminator so projection
     # consumers can distinguish on-demand vs auto-fired Decisions.
-    assert decision.decision_inputs is not None
-    assert decision.decision_inputs["trigger"] == "on-demand"
-    assert decision.decision_inputs["run_id"] == str(run_id)
+    assert decision.inputs is not None
+    assert decision.inputs["trigger"] == "on-demand"
+    assert decision.inputs["run_id"] == str(run_id)
 
 
 @pytest.mark.unit
@@ -365,7 +365,7 @@ async def test_handler_raises_parent_missing_when_parent_absent() -> None:
     handler = bind(deps)
 
     bogus_parent = uuid4()
-    with pytest.raises(ParentDecisionMissingError):
+    with pytest.raises(ParentDecisionNotFoundError):
         await handler(
             ReDebriefRun(run_id=run_id, parent_decision_id=bogus_parent),
             principal_id=_PRINCIPAL_ID,
@@ -459,7 +459,7 @@ async def _seed_foreign_context_decision(
     run_id: UUID,
 ) -> None:
     """Helper: write a `DecisionRegistered` event with `context !=
-    "RunDebrief"` and `decision_inputs["run_id"]` set to the test's
+    "RunDebrief"` and `inputs["run_id"]` set to the test's
     run_id. Used to test the agent-mismatch guard without polluting
     the cross-aggregate test setup."""
     from cora.decision.aggregates.decision import DecisionRegistered
@@ -473,12 +473,12 @@ async def _seed_foreign_context_decision(
         choice="SomeChoice",
         parent_id=None,
         override_kind=None,
-        decision_rule=None,
+        rule=None,
         reasoning=None,
         confidence=None,
         confidence_source=None,
         alternatives=(),
-        decision_inputs={"run_id": str(run_id)},
+        inputs={"run_id": str(run_id)},
         reasoning_signature=None,
         occurred_at=_NOW,
     )
@@ -530,8 +530,8 @@ async def test_handler_writes_debrief_deferred_on_llm_failure() -> None:
     assert decision is not None
     assert decision.choice.value == "DebriefDeferred"
     assert decision.confidence is None
-    assert decision.decision_inputs is not None
-    assert decision.decision_inputs["failure_error_class"] == "LLMServerError"
+    assert decision.inputs is not None
+    assert decision.inputs["failure_error_class"] == "LLMServerError"
 
 
 # ---------- Authorize gate ----------

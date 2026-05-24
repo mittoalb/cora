@@ -69,7 +69,7 @@ async def test_handler_accepts_combined_filters() -> None:
     page = await handler(
         ListDecisions(
             confidence_band="Certain",
-            decision_rule="auto-accept",
+            rule="auto-accept",
             actor_id=uuid4(),
         ),
         principal_id=_PRINCIPAL_ID,

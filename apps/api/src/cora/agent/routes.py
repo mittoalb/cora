@@ -151,7 +151,7 @@ def register_agent_routes(app: FastAPI) -> None:
     # re_debrief_run's handler but the HTTP mapping is decision/routes.py's
     # responsibility — FastAPI's app-scoped handler catches regardless of
     # which BC's route raises). Also NOT registered: RunNotFoundError
-    # (Run BC owns -> 404), ParentDecisionMissingError (Decision BC -> 409).
+    # (Run BC owns -> 404), ParentDecisionNotFoundError (Decision BC -> 404).
     for validation_cls in (
         InvalidAgentKindError,
         InvalidAgentNameError,

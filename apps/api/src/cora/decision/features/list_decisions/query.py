@@ -3,7 +3,7 @@ list of decisions from the projection.
 
 Three optional filters: confidence_band (Low / Medium / High /
 Certain — denormalized from the stored confidence float at INSERT
-time per the ConfidenceBand stance), decision_rule (filter
+time per the ConfidenceBand stance), rule (filter
 by categorical rule label from cora.decision.catalog), actor_id
 (who decided). Cursor encodes (created_at, decision_id).
 """
@@ -30,9 +30,9 @@ class ListDecisions:
     Certain). Decisions with `confidence=None` have no band and are
     NOT returned when this filter is set."""
 
-    decision_rule: str | None = None
+    rule: str | None = None
     """Optional categorical filter on the decision rule label
-    (per cora.decision.catalog). Decisions with `decision_rule=None`
+    (per cora.decision.catalog). Decisions with `rule=None`
     are NOT returned when this filter is set."""
 
     actor_id: UUID | None = None

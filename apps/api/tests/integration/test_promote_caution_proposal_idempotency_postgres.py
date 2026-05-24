@@ -105,16 +105,14 @@ async def _seed_caution_proposal_decision(
         choice=choice,
         parent_id=None,
         override_kind=None,
-        decision_rule="agent:CautionDrafter:v1",
+        rule="agent:CautionDrafter:v1",
         reasoning=(
             "Idempotency-test rationale narrative spanning enough words to satisfy the bound."
         ),
         confidence=0.72,
         confidence_source=DecisionConfidenceSource.SELF_REPORTED,
         alternatives=(),
-        decision_inputs=inputs
-        if inputs is not None
-        else {"proposed_caution": _PROPOSED_CAUTION_NOTICE},
+        inputs=inputs if inputs is not None else {"proposed_caution": _PROPOSED_CAUTION_NOTICE},
         reasoning_signature=None,
         occurred_at=_NOW,
     )

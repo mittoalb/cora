@@ -2,7 +2,7 @@
 
 Walks: seed RunDebriefer Agent + Actor -> start a Run -> invoke
 `re_debrief_run` handler -> verify a `DecisionRegistered` lands on
-the Decision stream with `decision_inputs["trigger"]="on-demand"`.
+the Decision stream with `inputs["trigger"]="on-demand"`.
 Uses `FakeLLMAdapter` (no Anthropic API key needed in CI).
 """
 
@@ -108,14 +108,14 @@ async def test_re_debrief_run_handler_writes_decision_on_real_pg(
     assert decision.choice.value == "DegradedCompletion"
     assert decision.context.value == "RunDebrief"
     assert decision.confidence == pytest.approx(0.78)
-    # On-demand discriminator IS in decision_inputs.
-    assert decision.decision_inputs is not None
-    assert decision.decision_inputs["trigger"] == "on-demand"
-    assert decision.decision_inputs["run_id"] == str(run_id)
+    # On-demand discriminator IS in inputs.
+    assert decision.inputs is not None
+    assert decision.inputs["trigger"] == "on-demand"
+    assert decision.inputs["run_id"] == str(run_id)
 
 
 @pytest.mark.integration
-async def test_re_debrief_run_chains_parent_via_decision_inputs_lookup(
+async def test_re_debrief_run_chains_parent_via_inputs_lookup(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Two-call sequence: first call lands a Decision; second call

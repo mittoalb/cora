@@ -15,7 +15,7 @@ from cora.decision.aggregates.decision import (
     DECISION_REASONING_MAX_LENGTH,
     DECISION_REASONING_SIGNATURE_MAX_LENGTH,
     DECISION_RULE_MAX_LENGTH,
-    DeciderActorMissingError,
+    DeciderActorNotFoundError,
     Decision,
     DecisionAlreadyExistsError,
     DecisionChoice,
@@ -31,10 +31,10 @@ from cora.decision.aggregates.decision import (
     InvalidDecisionReasoningError,
     InvalidDecisionRuleError,
     InvalidReasoningSignatureError,
-    ParentDecisionMissingError,
+    ParentDecisionNotFoundError,
     validate_alternatives,
     validate_confidence,
-    validate_decision_inputs,
+    validate_inputs,
     validate_reasoning,
     validate_reasoning_signature,
 )
@@ -95,19 +95,19 @@ def test_decision_context_rejects_too_long() -> None:
 
 
 @pytest.mark.unit
-def test_decision_rule_accepts_iso17025_style_id() -> None:
+def test_rule_accepts_iso17025_style_id() -> None:
     r = DecisionRule("iso17025:7.1.3:simple_acceptance")
     assert r.value == "iso17025:7.1.3:simple_acceptance"
 
 
 @pytest.mark.unit
-def test_decision_rule_rejects_blank() -> None:
+def test_rule_rejects_blank() -> None:
     with pytest.raises(InvalidDecisionRuleError):
         DecisionRule("")
 
 
 @pytest.mark.unit
-def test_decision_rule_rejects_too_long() -> None:
+def test_rule_rejects_too_long() -> None:
     with pytest.raises(InvalidDecisionRuleError):
         DecisionRule("a" * (DECISION_RULE_MAX_LENGTH + 1))
 
@@ -213,70 +213,70 @@ def test_validate_alternatives_rejects_too_many_entries() -> None:
         validate_alternatives(too_many)
 
 
-# ---------- validate_decision_inputs ----------
+# ---------- validate_inputs ----------
 
 
 @pytest.mark.unit
-def test_validate_decision_inputs_returns_none_for_none() -> None:
-    assert validate_decision_inputs(None) is None
+def test_validate_inputs_returns_none_for_none() -> None:
+    assert validate_inputs(None) is None
 
 
 @pytest.mark.unit
-def test_validate_decision_inputs_accepts_well_formed() -> None:
+def test_validate_inputs_accepts_well_formed() -> None:
     inputs: dict[str, Any] = {
         "measured_value": 1.234,
         "uncertainty": 0.05,
         "limit": 1.5,
         "instrument_id": "DET-32A",
     }
-    assert validate_decision_inputs(inputs) == inputs
+    assert validate_inputs(inputs) == inputs
 
 
 @pytest.mark.unit
-def test_validate_decision_inputs_rejects_too_many_keys() -> None:
+def test_validate_inputs_rejects_too_many_keys() -> None:
     inputs: dict[str, Any] = {f"k{i}": i for i in range(DECISION_INPUTS_MAX_ENTRIES + 1)}
     with pytest.raises(InvalidDecisionInputsError):
-        validate_decision_inputs(inputs)
+        validate_inputs(inputs)
 
 
 @pytest.mark.unit
-def test_validate_decision_inputs_rejects_blank_key() -> None:
+def test_validate_inputs_rejects_blank_key() -> None:
     with pytest.raises(InvalidDecisionInputsError):
-        validate_decision_inputs({"": 1})
+        validate_inputs({"": 1})
 
 
 @pytest.mark.unit
-def test_validate_decision_inputs_rejects_too_long_key() -> None:
+def test_validate_inputs_rejects_too_long_key() -> None:
     too_long = "k" * (DECISION_INPUTS_KEY_MAX_LENGTH + 1)
     with pytest.raises(InvalidDecisionInputsError):
-        validate_decision_inputs({too_long: 1})
+        validate_inputs({too_long: 1})
 
 
 @pytest.mark.unit
-def test_validate_decision_inputs_rejects_non_json_roundtrippable_datetime() -> None:
+def test_validate_inputs_rejects_non_json_roundtrippable_datetime() -> None:
     """Defensive: non-JSON values fail at the BC boundary rather
     than deep at jsonb serialization time."""
     from datetime import datetime as dt
 
     with pytest.raises(InvalidDecisionInputsError) as exc_info:
-        validate_decision_inputs({"timestamp": dt.now()})
+        validate_inputs({"timestamp": dt.now()})
     assert "JSON-roundtrippable" in str(exc_info.value)
 
 
 @pytest.mark.unit
-def test_validate_decision_inputs_rejects_set_value() -> None:
+def test_validate_inputs_rejects_set_value() -> None:
     with pytest.raises(InvalidDecisionInputsError):
-        validate_decision_inputs({"items": {1, 2, 3}})
+        validate_inputs({"items": {1, 2, 3}})
 
 
 @pytest.mark.unit
-def test_validate_decision_inputs_accepts_nested_json_value() -> None:
+def test_validate_inputs_accepts_nested_json_value() -> None:
     """Nested dicts/lists of primitives round-trip cleanly."""
     inputs: dict[str, Any] = {
         "outer": {"inner_list": [1, 2, 3], "inner_dict": {"k": "v"}},
         "scalar": 42,
     }
-    assert validate_decision_inputs(inputs) == inputs
+    assert validate_inputs(inputs) == inputs
 
 
 # ---------- validate_reasoning_signature ----------
@@ -317,12 +317,12 @@ def test_decision_default_optionals_are_none_or_empty() -> None:
     )
     assert d.parent_id is None
     assert d.override_kind is None
-    assert d.decision_rule is None
+    assert d.rule is None
     assert d.reasoning is None
     assert d.confidence is None
     assert d.confidence_source is None
     assert d.alternatives == ()
-    assert d.decision_inputs is None
+    assert d.inputs is None
     assert d.reasoning_signature is None
 
 
@@ -348,7 +348,7 @@ def test_decision_not_found_error_carries_decision_id() -> None:
 @pytest.mark.unit
 def test_decider_actor_missing_error_carries_actor_id() -> None:
     actor_id = uuid4()
-    err = DeciderActorMissingError(actor_id)
+    err = DeciderActorNotFoundError(actor_id)
     assert err.actor_id == actor_id
     assert str(actor_id) in str(err)
 
@@ -356,7 +356,7 @@ def test_decider_actor_missing_error_carries_actor_id() -> None:
 @pytest.mark.unit
 def test_parent_decision_missing_error_carries_parent_id() -> None:
     parent_id = uuid4()
-    err = ParentDecisionMissingError(parent_id)
+    err = ParentDecisionNotFoundError(parent_id)
     assert err.parent_id == parent_id
     assert str(parent_id) in str(err)
 

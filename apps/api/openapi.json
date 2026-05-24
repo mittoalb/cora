@@ -3088,7 +3088,12 @@
             "title": "Context",
             "type": "string"
           },
-          "decision_inputs": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "inputs": {
             "anyOf": [
               {
                 "additionalProperties": true,
@@ -3098,23 +3103,7 @@
                 "type": "null"
               }
             ],
-            "title": "Decision Inputs"
-          },
-          "decision_rule": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Decision Rule"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
+            "title": "Inputs"
           },
           "override_kind": {
             "anyOf": [
@@ -3160,6 +3149,17 @@
               }
             ],
             "title": "Reasoning Signature"
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule"
           }
         },
         "required": [
@@ -3169,13 +3169,13 @@
           "choice",
           "parent_id",
           "override_kind",
-          "decision_rule",
+          "rule",
           "reasoning",
           "confidence",
           "confidence_source",
           "confidence_band",
           "alternatives",
-          "decision_inputs",
+          "inputs",
           "reasoning_signature"
         ],
         "title": "DecisionResponse",
@@ -3227,17 +3227,6 @@
             "title": "Decision Id",
             "type": "string"
           },
-          "decision_rule": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Decision Rule"
-          },
           "parent_id": {
             "anyOf": [
               {
@@ -3249,12 +3238,23 @@
               }
             ],
             "title": "Parent Id"
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule"
           }
         },
         "required": [
           "decision_id",
           "actor_id",
-          "decision_rule",
+          "rule",
           "parent_id",
           "confidence",
           "confidence_band",
@@ -6614,7 +6614,7 @@
             "title": "Context",
             "type": "string"
           },
-          "decision_inputs": {
+          "inputs": {
             "anyOf": [
               {
                 "additionalProperties": true,
@@ -6624,22 +6624,8 @@
                 "type": "null"
               }
             ],
-            "description": "Optional dict carrying the values the decision_rule was applied to (per ILAC-G8:09/2019: a rule without its inputs is unauditable). Cap 64 keys.",
-            "title": "Decision Inputs"
-          },
-          "decision_rule": {
-            "anyOf": [
-              {
-                "maxLength": 500,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional rule citation per ISO 17025 Clause 7.1.3. Convention encourages prefixed identifiers like 'iso17025:7.1.3:simple_acceptance' or 'cora:policy:recipe_approval:v1'.",
-            "title": "Decision Rule"
+            "description": "Optional dict carrying the values the rule was applied to (per ILAC-G8:09/2019: a rule without its inputs is unauditable). Cap 64 keys.",
+            "title": "Inputs"
           },
           "override_kind": {
             "anyOf": [
@@ -6699,6 +6685,20 @@
             ],
             "description": "Optional opaque blob for tamper-evidence beyond row-level INSERT-only (typically sha256 of the full reasoning trace, or vendor-supplied encrypted summary).",
             "title": "Reasoning Signature"
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional rule citation per ISO 17025 Clause 7.1.3. Convention encourages prefixed identifiers like 'iso17025:7.1.3:simple_acceptance' or 'cora:policy:recipe_approval:v1'.",
+            "title": "Rule"
           }
         },
         "required": [
@@ -16373,7 +16373,7 @@
           {
             "description": "Optional categorical decision-rule label filter.",
             "in": "query",
-            "name": "decision_rule",
+            "name": "rule",
             "required": false,
             "schema": {
               "anyOf": [
@@ -16385,7 +16385,7 @@
                 }
               ],
               "description": "Optional categorical decision-rule label filter.",
-              "title": "Decision Rule"
+              "title": "Rule"
             }
           },
           {
@@ -16527,7 +16527,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated: whitespace-only choice / context, malformed alternatives entry, malformed decision_inputs key, or override_kind without parent_id."
+            "description": "Domain invariant violated: whitespace-only choice / context, malformed alternatives entry, malformed inputs key, or override_kind without parent_id."
           },
           "403": {
             "content": {

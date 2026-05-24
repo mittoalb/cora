@@ -18,8 +18,8 @@ from cora.access.aggregates.actor.events import (
 )
 from cora.decision import DecisionHandlers, UnauthorizedError, wire_decision
 from cora.decision.aggregates.decision import (
-    DeciderActorMissingError,
-    ParentDecisionMissingError,
+    DeciderActorNotFoundError,
+    ParentDecisionNotFoundError,
 )
 from cora.decision.aggregates.decision.events import (
     DecisionRegistered,
@@ -46,12 +46,12 @@ def _good_command(**overrides: Any) -> RegisterDecision:
         "choice": "Approved",
         "parent_id": None,
         "override_kind": None,
-        "decision_rule": None,
+        "rule": None,
         "reasoning": None,
         "confidence": None,
         "confidence_source": None,
         "alternatives": (),
-        "decision_inputs": None,
+        "inputs": None,
         "reasoning_signature": None,
     }
     base.update(overrides)
@@ -82,12 +82,12 @@ async def _seed_decision(store: InMemoryEventStore, decision_id: UUID) -> None:
         choice="Approved",
         parent_id=None,
         override_kind=None,
-        decision_rule=None,
+        rule=None,
         reasoning=None,
         confidence=None,
         confidence_source=None,
         alternatives=(),
-        decision_inputs=None,
+        inputs=None,
         reasoning_signature=None,
         occurred_at=_NOW,
     )
@@ -189,7 +189,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 async def test_handler_raises_actor_not_found_when_actor_missing() -> None:
     deps = build_deps(ids=[_DECISION_ID, _REG_EVENT_ID], now=_NOW)
     missing_actor = uuid4()
-    with pytest.raises(DeciderActorMissingError) as exc_info:
+    with pytest.raises(DeciderActorNotFoundError) as exc_info:
         await register_decision.bind(deps)(
             _good_command(actor_id=missing_actor),
             principal_id=_PRINCIPAL_ID,
@@ -205,7 +205,7 @@ async def test_handler_raises_parent_not_found_when_parent_missing() -> None:
     await _seed_actor(store, actor_id)
     deps = build_deps(ids=[_DECISION_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     missing_parent = uuid4()
-    with pytest.raises(ParentDecisionMissingError) as exc_info:
+    with pytest.raises(ParentDecisionNotFoundError) as exc_info:
         await register_decision.bind(deps)(
             _good_command(actor_id=actor_id, parent_id=missing_parent, override_kind="correction"),
             principal_id=_PRINCIPAL_ID,

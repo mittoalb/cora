@@ -44,12 +44,12 @@ def test_post_decisions_round_trips_into_get_response() -> None:
             json=_good_body(
                 actor_id,
                 choice="Conditionally approved with re-test required",
-                decision_rule="iso17025:7.1.3:simple_acceptance",
+                rule="iso17025:7.1.3:simple_acceptance",
                 reasoning="Measurement at 1.234 within tolerance.",
                 confidence=0.92,
                 confidence_source="human",
                 alternatives=["Approve", "Reject", "Re-measure"],
-                decision_inputs={"measured_value": 1.234, "limit": 1.5},
+                inputs={"measured_value": 1.234, "limit": 1.5},
             ),
         )
         assert create.status_code == 201
@@ -61,11 +61,11 @@ def test_post_decisions_round_trips_into_get_response() -> None:
     assert body["actor_id"] == actor_id
     assert body["context"] == "RecipeApproval"
     assert body["choice"] == "Conditionally approved with re-test required"
-    assert body["decision_rule"] == "iso17025:7.1.3:simple_acceptance"
+    assert body["rule"] == "iso17025:7.1.3:simple_acceptance"
     assert body["confidence"] == 0.92
     assert body["confidence_source"] == "human"
     assert body["alternatives"] == ["Approve", "Reject", "Re-measure"]
-    assert body["decision_inputs"] == {"measured_value": 1.234, "limit": 1.5}
+    assert body["inputs"] == {"measured_value": 1.234, "limit": 1.5}
 
 
 @pytest.mark.contract
@@ -100,16 +100,23 @@ def test_post_decisions_chain_with_parent_and_override_kind() -> None:
 
 
 @pytest.mark.contract
-def test_post_decisions_returns_409_when_actor_does_not_exist() -> None:
+def test_post_decisions_returns_404_when_actor_does_not_exist() -> None:
+    """Per the locked `<X>NotFoundError → 404` taxonomy
+    (cluster 2 of the 2026-05-22 audit), `DeciderActorNotFoundError`
+    maps to 404 — the actor referenced in the request body does not
+    exist. Was 409 pre-Phase-ε via the `_handle_cross_agg_conflict`
+    handler; renamed to `_handle_logbook_state` once Missing → NotFound
+    moved the error to `_handle_not_found`."""
     missing = str(uuid4())
     with TestClient(create_app()) as client:
         response = client.post("/decisions", json=_good_body(missing))
-    assert response.status_code == 409
+    assert response.status_code == 404
     assert "actor_id" in response.json()["detail"]
 
 
 @pytest.mark.contract
-def test_post_decisions_returns_409_when_parent_id_does_not_exist() -> None:
+def test_post_decisions_returns_404_when_parent_id_does_not_exist() -> None:
+    """Same locked taxonomy: `ParentDecisionNotFoundError` → 404."""
     with TestClient(create_app()) as client:
         actor_id = _register_actor(client)
         response = client.post(
@@ -120,7 +127,7 @@ def test_post_decisions_returns_409_when_parent_id_does_not_exist() -> None:
                 override_kind="correction",
             ),
         )
-    assert response.status_code == 409
+    assert response.status_code == 404
     assert "parent_id" in response.json()["detail"]
 
 

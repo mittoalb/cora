@@ -11,14 +11,14 @@ the Clock and IdGenerator ports.
 ## Cross-aggregate validation (gate-review Q2 lock B)
 
 Existence-only checks; the decider trusts the handler's loads.
-The handler raises `DeciderActorMissingError` upstream if the
+The handler raises `DeciderActorNotFoundError` upstream if the
 Actor doesn't exist (and `context.actor: Actor` is non-Optional
 to make the contract explicit at the type boundary). The decider
 checks only the parent-Decision branch because parent_id is
 conditional:
 
   - If `command.parent_id` is set, `context.parent` must be
-    non-None (handler raises `ParentDecisionMissingError`
+    non-None (handler raises `ParentDecisionNotFoundError`
     upstream; this branch is the decider-level statement of the
     contract for the conditional case).
 
@@ -50,10 +50,10 @@ from cora.decision.aggregates.decision import (
     DecisionContext,
     DecisionRegistered,
     DecisionRule,
-    ParentDecisionMissingError,
+    ParentDecisionNotFoundError,
     validate_alternatives,
     validate_confidence,
-    validate_decision_inputs,
+    validate_inputs,
     validate_reasoning,
     validate_reasoning_signature,
 )
@@ -74,11 +74,11 @@ def decide(
     if state is not None:
         raise DecisionAlreadyExistsError(state.id)
 
-    # Cross-agg parent guard (handler raises ParentDecisionMissingError
+    # Cross-agg parent guard (handler raises ParentDecisionNotFoundError
     # upstream; this branch is the decider-level statement of contract
     # for the conditional case).
     if command.parent_id is not None and context.parent is None:
-        raise ParentDecisionMissingError(command.parent_id)
+        raise ParentDecisionNotFoundError(command.parent_id)
 
     # override_kind / parent_id consistency.
     if command.override_kind is not None and command.parent_id is None:
@@ -87,13 +87,11 @@ def decide(
     # Field-level validation via VOs + helpers.
     choice = DecisionChoice(command.choice)
     decision_context = DecisionContext(command.context)
-    decision_rule = (
-        DecisionRule(command.decision_rule) if command.decision_rule is not None else None
-    )
+    rule = DecisionRule(command.rule) if command.rule is not None else None
     reasoning = validate_reasoning(command.reasoning)
     confidence = validate_confidence(command.confidence)
     alternatives = validate_alternatives(command.alternatives)
-    decision_inputs = validate_decision_inputs(command.decision_inputs)
+    inputs = validate_inputs(command.inputs)
     reasoning_signature = validate_reasoning_signature(command.reasoning_signature)
 
     return [
@@ -104,12 +102,12 @@ def decide(
             choice=choice.value,
             parent_id=command.parent_id,
             override_kind=command.override_kind,
-            decision_rule=decision_rule.value if decision_rule is not None else None,
+            rule=rule.value if rule is not None else None,
             reasoning=reasoning,
             confidence=confidence,
             confidence_source=command.confidence_source,
             alternatives=alternatives,
-            decision_inputs=decision_inputs,
+            inputs=inputs,
             reasoning_signature=reasoning_signature,
             occurred_at=now,
         )

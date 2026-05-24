@@ -4,7 +4,7 @@ Surfaces the same handler the REST route uses.
 
 The MCP tool exposes the same flat parameter set as the REST body
 (no flattening needed since the body is already mostly flat;
-`alternatives` and `decision_inputs` pass through as JSON-native
+`alternatives` and `inputs` pass through as JSON-native
 list/dict types).
 """
 
@@ -48,7 +48,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             "consequential choice). Same aggregate handles human and AI "
             "deciders; actor_id distinguishes them. Use parent_id + "
             "override_kind for corrections / exceptions / appeals / "
-            "supersessions. Use decision_rule + decision_inputs for "
+            "supersessions. Use rule + inputs for "
             "ISO 17025 Clause 7.1.3 conformance. Use confidence + "
             "confidence_source for AI-decider audit (pair by convention; "
             "self_reported confidence has the lowest audit weight)."
@@ -93,7 +93,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ] = None,
-        decision_rule: Annotated[
+        rule: Annotated[
             str | None,
             Field(
                 default=None,
@@ -141,9 +141,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ] = None,
-        decision_inputs: Annotated[
+        inputs: Annotated[
             dict[str, Any] | None,
-            Field(default=None, description="Inputs the decision_rule was applied to."),
+            Field(default=None, description="Inputs the rule was applied to."),
         ] = None,
         reasoning_signature: Annotated[
             str | None,
@@ -165,12 +165,12 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 choice=choice,
                 parent_id=parent_id,
                 override_kind=override_kind,
-                decision_rule=decision_rule,
+                rule=rule,
                 reasoning=reasoning,
                 confidence=confidence,
                 confidence_source=confidence_source,
                 alternatives=tuple(alternatives or []),
-                decision_inputs=decision_inputs,
+                inputs=inputs,
                 reasoning_signature=reasoning_signature,
             ),
             principal_id=get_mcp_principal_id(ctx),

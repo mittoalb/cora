@@ -18,7 +18,7 @@ from cora.infrastructure.routing import get_mcp_surface_id
 class DecisionSummaryRow(BaseModel):
     decision_id: UUID
     actor_id: UUID
-    decision_rule: str | None
+    rule: str | None
     parent_id: UUID | None
     confidence: float | None
     confidence_band: ConfidenceBandFilter | None
@@ -40,7 +40,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         description=(
             "Cursor-paginated list of decisions. Optional "
             "`confidence_band` filter accepts: Low, Medium, High, "
-            "Certain. Optional `decision_rule` filter narrows by "
+            "Certain. Optional `rule` filter narrows by "
             "categorical rule label. Optional `actor_id` filter "
             "narrows to Decisions made by one Actor. Pass `cursor` "
             "from a previous page's `next_cursor`."
@@ -60,7 +60,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ConfidenceBandFilter | None,
             Field(description="Optional confidence-band filter; omit to list all."),
         ] = None,
-        decision_rule: Annotated[
+        rule: Annotated[
             str | None,
             Field(description="Optional decision-rule label filter."),
         ] = None,
@@ -75,7 +75,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 cursor=cursor,
                 limit=limit,
                 confidence_band=confidence_band,
-                decision_rule=decision_rule,
+                rule=rule,
                 actor_id=actor_id,
             ),
             principal_id=get_mcp_principal_id(ctx),
@@ -87,7 +87,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 DecisionSummaryRow(
                     decision_id=item.decision_id,
                     actor_id=item.actor_id,
-                    decision_rule=item.decision_rule,
+                    rule=item.rule,
                     parent_id=item.parent_id,
                     confidence=item.confidence,
                     confidence_band=item.confidence_band,

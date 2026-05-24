@@ -10,7 +10,7 @@ handed to the pure decider.
   - Actor (Access BC) is always loaded.
   - Parent Decision (own BC, recursive) is loaded when set.
 
-Other BCs do NOT participate in the load. The optional `decision_inputs`
+Other BCs do NOT participate in the load. The optional `inputs`
 field can carry IDs from any BC (Run, Dataset, Subject, etc.) but
 they are stored as opaque dict values; verifying them is a
 projection / saga concern.
@@ -21,8 +21,8 @@ from uuid import UUID
 
 from cora.access.aggregates.actor import load_actor
 from cora.decision.aggregates.decision import (
-    DeciderActorMissingError,
-    ParentDecisionMissingError,
+    DeciderActorNotFoundError,
+    ParentDecisionNotFoundError,
     event_type_name,
     load_decision,
     to_payload,
@@ -116,14 +116,14 @@ def bind(deps: Kernel) -> Handler:
         # Pre-load Actor (always; required field).
         actor = await load_actor(deps.event_store, command.actor_id)
         if actor is None:
-            raise DeciderActorMissingError(command.actor_id)
+            raise DeciderActorNotFoundError(command.actor_id)
 
         # Pre-load parent Decision (when ref set).
         parent = None
         if command.parent_id is not None:
             parent = await load_decision(deps.event_store, command.parent_id)
             if parent is None:
-                raise ParentDecisionMissingError(command.parent_id)
+                raise ParentDecisionNotFoundError(command.parent_id)
 
         context = DecisionRegistrationContext(actor=actor, parent=parent)
 

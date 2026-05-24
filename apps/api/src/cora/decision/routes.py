@@ -5,9 +5,9 @@ registers exception handlers translating domain / application
 errors to HTTP status codes.
 
   - 400 (validation): Invalid<X>...Error family + OverrideKindRequiresParentError
-  - 404: DecisionNotFoundError
+  - 404: DecisionNotFoundError, DeciderActorNotFoundError, ParentDecisionNotFoundError
   - 409 (defensive AlreadyExists): DecisionAlreadyExistsError
-  - 409 (cross-aggregate refs): DeciderActorMissingError, ParentDecisionMissingError
+  - 409 (logbook FSM): DecisionLogbookAlreadyOpenError, DecisionLogbookNotOpenError
 
 ## Cross-BC infra errors NOT registered here
 
@@ -23,7 +23,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from cora.decision.aggregates.decision import (
-    DeciderActorMissingError,
+    DeciderActorNotFoundError,
     DecisionAlreadyExistsError,
     DecisionLogbookAlreadyOpenError,
     DecisionLogbookNotOpenError,
@@ -38,7 +38,7 @@ from cora.decision.aggregates.decision import (
     InvalidDecisionRuleError,
     InvalidReasoningSignatureError,
     ParentDecisionAgentMismatchError,
-    ParentDecisionMissingError,
+    ParentDecisionNotFoundError,
     ParentDecisionRunMismatchError,
 )
 from cora.decision.errors import OverrideKindRequiresParentError, UnauthorizedError
@@ -84,8 +84,18 @@ async def _handle_already_exists(request: Request, exc: Exception) -> JSONRespon
     )
 
 
-async def _handle_cross_agg_conflict(request: Request, exc: Exception) -> JSONResponse:
-    """Shared 409 handler for cross-aggregate-reference errors."""
+async def _handle_logbook_state(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 409 handler for the Decision logbook FSM transition guards.
+
+    Was previously named `_handle_cross_agg_conflict` and covered the
+    cross-aggregate Missing*Error family too. Per the locked error
+    taxonomy `<X>NotFoundError` is the canonical name (and HTTP 404
+    the canonical mapping) for "the referenced thing doesn't exist";
+    the renamed `DeciderActorNotFoundError` / `ParentDecisionNotFoundError`
+    now route through `_handle_not_found`. The only remaining 409-mapped
+    family is the logbook state-transition guards, hence the rename.
+    Same JSON shape as before.
+    """
     _ = request
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
@@ -120,18 +130,21 @@ def register_decision_routes(app: FastAPI) -> None:
         ParentDecisionRunMismatchError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
-    for not_found_cls in (DecisionNotFoundError,):
+    for not_found_cls in (
+        DecisionNotFoundError,
+        # Cross-aggregate references; canonical 404 mapping per the
+        # locked `<X>NotFoundError` → 404 taxonomy.
+        DeciderActorNotFoundError,
+        ParentDecisionNotFoundError,
+    ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (DecisionAlreadyExistsError,):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
-    for cross_agg_cls in (DeciderActorMissingError, ParentDecisionMissingError):
-        app.add_exception_handler(cross_agg_cls, _handle_cross_agg_conflict)
     # Logbook-state transition guards (at-most-one-open + close-only-when-open
-    # invariants from the Decision logbook aggregate); 409 shape mirrors the
-    # cross-agg-conflict family.
+    # invariants from the Decision logbook aggregate); 409 Conflict.
     for logbook_state_cls in (
         DecisionLogbookAlreadyOpenError,
         DecisionLogbookNotOpenError,
     ):
-        app.add_exception_handler(logbook_state_cls, _handle_cross_agg_conflict)
+        app.add_exception_handler(logbook_state_cls, _handle_logbook_state)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

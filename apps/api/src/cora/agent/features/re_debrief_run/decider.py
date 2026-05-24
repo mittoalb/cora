@@ -12,7 +12,7 @@ Invariants:
     AgentDeactivatedError otherwise).
   - `command.parent_decision_id` (when set) points at a real Decision
     in the same Run AND with `context = "RunDebrief"` (handler raised
-    ParentDecisionMissingError / ParentDecisionRunMismatchError /
+    ParentDecisionNotFoundError / ParentDecisionRunMismatchError /
     ParentDecisionAgentMismatchError otherwise).
   - `context.choice` is a valid `DecisionChoice` string (open-string VO
     raises `InvalidDecisionChoiceError` otherwise).
@@ -53,7 +53,7 @@ from cora.decision.aggregates.decision import (
     DecisionRegistered,
     DecisionRule,
     validate_confidence,
-    validate_decision_inputs,
+    validate_inputs,
     validate_reasoning,
 )
 
@@ -79,7 +79,7 @@ def decide(
     Decision BC's open-string `DecisionChoice` VO is used here so the
     decider stays vocabulary-agnostic.
 
-    `context.extra_decision_inputs` merges into the base inputs after
+    `context.extra_inputs` merges into the base inputs after
     the base keys are set; collisions on `run_id` / `trigger` /
     `prompt_template_id` are silently overwritten by the extra dict
     (intentional: callers supplying these keys override on purpose,
@@ -88,15 +88,15 @@ def decide(
     _ = state  # always None for genesis; signature parity only.
     decision_choice = DecisionChoice(context.choice)
     decision_context = DecisionContext(DECISION_CONTEXT_RUN_DEBRIEF)
-    decision_rule = DecisionRule(_DECISION_RULE)
+    rule = DecisionRule(_DECISION_RULE)
     base_inputs: dict[str, Any] = {
         "run_id": str(command.run_id),
         "trigger": "on-demand",
         "prompt_template_id": str(RUN_DEBRIEF_PROMPT_TEMPLATE_ID),
     }
-    if context.extra_decision_inputs:
-        base_inputs.update(context.extra_decision_inputs)
-    decision_inputs = validate_decision_inputs(base_inputs)
+    if context.extra_inputs:
+        base_inputs.update(context.extra_inputs)
+    inputs = validate_inputs(base_inputs)
     validated_reasoning = validate_reasoning(context.reasoning)
     validated_confidence = validate_confidence(context.confidence)
 
@@ -108,12 +108,12 @@ def decide(
             choice=decision_choice.value,
             parent_id=command.parent_decision_id,
             override_kind=None,
-            decision_rule=decision_rule.value,
+            rule=rule.value,
             reasoning=validated_reasoning,
             confidence=validated_confidence,
             confidence_source=DecisionConfidenceSource.SELF_REPORTED,
             alternatives=(),
-            decision_inputs=decision_inputs,
+            inputs=inputs,
             reasoning_signature=None,
             occurred_at=now,
         )

@@ -30,8 +30,8 @@ class ReDebriefRunContext:
       - `choice` / `confidence` / `reasoning`: the LLM-extracted bits of
         the response, or the DebriefDeferred fallback when the LLM call
         failed.
-      - `extra_decision_inputs`: optional extension to the base
-        `decision_inputs` dict (used by the DebriefDeferred path to record
+      - `extra_inputs`: optional extension to the base
+        `inputs` dict (used by the DebriefDeferred path to record
         `failure_error_class`). Merged after the base keys; collisions
         on `run_id` / `trigger` / `prompt_template_id` are silently
         overwritten by the caller's overrides.
@@ -41,4 +41,4 @@ class ReDebriefRunContext:
     choice: str
     confidence: float | None
     reasoning: str
-    extra_decision_inputs: dict[str, Any] | None = None
+    extra_inputs: dict[str, Any] | None = None

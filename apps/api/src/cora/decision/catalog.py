@@ -1,6 +1,6 @@
-"""Catalog of well-known `decision_rule` string constants.
+"""Catalog of well-known `rule` string constants.
 
-The Decision BC's `decision_rule` field is intentionally open
+The Decision BC's `rule` field is intentionally open
 free-form (per gate-review Q5: new rules arrive without schema
 migration). This module documents the canonical strings for
 facilities aligning with established standards. Operators reference
@@ -11,7 +11,7 @@ free-form string remains valid (forward-compat by design).
 
 ## Naming convention
 
-Well-known decision_rule strings follow `<framework>:<section>:<variant>`:
+Well-known rule strings follow `<framework>:<section>:<variant>`:
 
   - `iso17025:7.1.3:simple_acceptance`, ISO 17025 Clause 7.1.3
     simple-acceptance decision rule (no guardband; conformity
@@ -31,7 +31,7 @@ own facility-specific catalog module rather than modifying CORA's.
 
 ## Why a separate module (not state.py)
 
-`decision_rule` is an open vocabulary that operators extend.
+`rule` is an open vocabulary that operators extend.
 DECISION_CONTEXT_* constants live in state.py because contexts
 are a closed set the BC ships. Rules are discoverable surface
 deserved their own namespace, paralleling OpenTelemetry's

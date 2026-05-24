@@ -44,12 +44,12 @@ def _registered(**overrides: Any) -> DecisionRegistered:
         "choice": "Approved",
         "parent_id": None,
         "override_kind": None,
-        "decision_rule": None,
+        "rule": None,
         "reasoning": None,
         "confidence": None,
         "confidence_source": None,
         "alternatives": (),
-        "decision_inputs": None,
+        "inputs": None,
         "reasoning_signature": None,
         "occurred_at": _NOW,
     }
@@ -74,12 +74,12 @@ def test_to_payload_serializes_minimal_event() -> None:
         "choice": "Approved",
         "parent_id": None,
         "override_kind": None,
-        "decision_rule": None,
+        "rule": None,
         "reasoning": None,
         "confidence": None,
         "confidence_source": None,
         "alternatives": [],
-        "decision_inputs": None,
+        "inputs": None,
         "reasoning_signature": None,
         "occurred_at": _NOW.isoformat(),
     }
@@ -103,22 +103,22 @@ def test_to_payload_serializes_full_event() -> None:
         actor_id=actor_id,
         parent_id=parent_id,
         override_kind="exception",
-        decision_rule="iso17025:7.1.3:simple_acceptance",
+        rule="iso17025:7.1.3:simple_acceptance",
         reasoning="Operator override after measurement re-check.",
         confidence=0.92,
         confidence_source=DecisionConfidenceSource.HUMAN,
         alternatives=("Approve", "Reject", "Re-measure"),
-        decision_inputs=inputs,
+        inputs=inputs,
         reasoning_signature="sha256:abc123",
     )
     payload = to_payload(event)
     assert payload["parent_id"] == str(parent_id)
     assert payload["override_kind"] == "exception"
-    assert payload["decision_rule"] == "iso17025:7.1.3:simple_acceptance"
+    assert payload["rule"] == "iso17025:7.1.3:simple_acceptance"
     assert payload["confidence"] == 0.92
     assert payload["confidence_source"] == "human"
     assert payload["alternatives"] == ["Approve", "Reject", "Re-measure"]
-    assert payload["decision_inputs"] == inputs
+    assert payload["inputs"] == inputs
     assert payload["reasoning_signature"] == "sha256:abc123"
 
 
@@ -128,12 +128,12 @@ def test_round_trip_through_stored_envelope() -> None:
         decision_id=uuid4(),
         parent_id=uuid4(),
         override_kind="correction",
-        decision_rule="iso17025:7.1.3:simple_acceptance",
+        rule="iso17025:7.1.3:simple_acceptance",
         reasoning="reasoned",
         confidence=0.7,
         confidence_source=DecisionConfidenceSource.LOGPROB,
         alternatives=("a", "b", "c"),
-        decision_inputs={"x": 1, "y": [2, 3]},
+        inputs={"x": 1, "y": [2, 3]},
         reasoning_signature="sig",
     )
     new_event = to_new_event(

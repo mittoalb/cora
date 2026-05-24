@@ -26,12 +26,12 @@ def test_evolve_registered_creates_decision_with_required_fields() -> None:
         choice="Approved",
         parent_id=None,
         override_kind=None,
-        decision_rule=None,
+        rule=None,
         reasoning=None,
         confidence=None,
         confidence_source=None,
         alternatives=(),
-        decision_inputs=None,
+        inputs=None,
         reasoning_signature=None,
         occurred_at=_NOW,
     )
@@ -53,25 +53,25 @@ def test_evolve_registered_preserves_optional_fields() -> None:
         choice="Pass",
         parent_id=parent_id,
         override_kind="correction",
-        decision_rule="iso17025:7.1.3:simple_acceptance",
+        rule="iso17025:7.1.3:simple_acceptance",
         reasoning="Checked twice.",
         confidence=0.95,
         confidence_source=DecisionConfidenceSource.ENSEMBLE,
         alternatives=("Pass", "Fail", "Re-measure"),
-        decision_inputs=inputs,
+        inputs=inputs,
         reasoning_signature="sig:xyz",
         occurred_at=_NOW,
     )
     state = evolve(state=None, event=event)
     assert state.parent_id == parent_id
     assert state.override_kind == "correction"
-    assert state.decision_rule is not None
-    assert state.decision_rule.value == "iso17025:7.1.3:simple_acceptance"
+    assert state.rule is not None
+    assert state.rule.value == "iso17025:7.1.3:simple_acceptance"
     assert state.reasoning == "Checked twice."
     assert state.confidence == 0.95
     assert state.confidence_source is DecisionConfidenceSource.ENSEMBLE
     assert state.alternatives == ("Pass", "Fail", "Re-measure")
-    assert state.decision_inputs == inputs
+    assert state.inputs == inputs
     assert state.reasoning_signature == "sig:xyz"
 
 
@@ -89,12 +89,12 @@ def test_fold_single_event_returns_decision() -> None:
         choice="Abort",
         parent_id=None,
         override_kind=None,
-        decision_rule=None,
+        rule=None,
         reasoning=None,
         confidence=None,
         confidence_source=None,
         alternatives=(),
-        decision_inputs=None,
+        inputs=None,
         reasoning_signature=None,
         occurred_at=_NOW,
     )

@@ -78,7 +78,7 @@ class RegisterDecisionRequest(BaseModel):
             "set both or neither (400 otherwise)."
         ),
     )
-    decision_rule: str | None = Field(
+    rule: str | None = Field(
         default=None,
         min_length=1,
         max_length=DECISION_RULE_MAX_LENGTH,
@@ -127,10 +127,10 @@ class RegisterDecisionRequest(BaseModel):
             "(Cedar-style)."
         ),
     )
-    decision_inputs: dict[str, Any] | None = Field(
+    inputs: dict[str, Any] | None = Field(
         default=None,
         description=(
-            "Optional dict carrying the values the decision_rule was "
+            "Optional dict carrying the values the rule was "
             "applied to (per ILAC-G8:09/2019: a rule without its inputs "
             "is unauditable). Cap 64 keys."
         ),
@@ -179,7 +179,7 @@ _ = DECISION_INPUTS_MAX_ENTRIES
             "description": (
                 "Domain invariant violated: whitespace-only choice / "
                 "context, malformed alternatives entry, malformed "
-                "decision_inputs key, or override_kind without parent_id."
+                "inputs key, or override_kind without parent_id."
             ),
         },
         status.HTTP_403_FORBIDDEN: {
@@ -224,12 +224,12 @@ async def post_decisions(
             choice=body.choice,
             parent_id=body.parent_id,
             override_kind=body.override_kind,
-            decision_rule=body.decision_rule,
+            rule=body.rule,
             reasoning=body.reasoning,
             confidence=body.confidence,
             confidence_source=body.confidence_source,
             alternatives=tuple(body.alternatives),
-            decision_inputs=body.decision_inputs,
+            inputs=body.inputs,
             reasoning_signature=body.reasoning_signature,
         ),
         principal_id=principal_id,

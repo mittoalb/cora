@@ -20,7 +20,7 @@ from cora.decision.aggregates.decision import (
     InvalidDecisionInputsError,
     InvalidDecisionReasoningError,
     InvalidDecisionRuleError,
-    ParentDecisionMissingError,
+    ParentDecisionNotFoundError,
 )
 from cora.decision.errors import OverrideKindRequiresParentError
 from cora.decision.features import register_decision
@@ -43,12 +43,12 @@ def _good_command(**overrides: Any) -> RegisterDecision:
         "choice": "Approved",
         "parent_id": None,
         "override_kind": None,
-        "decision_rule": None,
+        "rule": None,
         "reasoning": None,
         "confidence": None,
         "confidence_source": None,
         "alternatives": (),
-        "decision_inputs": None,
+        "inputs": None,
         "reasoning_signature": None,
     }
     base.update(overrides)
@@ -110,12 +110,12 @@ def test_decide_passes_optional_fields_through() -> None:
     cmd = _good_command(
         parent_id=parent_id,
         override_kind="exception",
-        decision_rule="iso17025:7.1.3:simple_acceptance",
+        rule="iso17025:7.1.3:simple_acceptance",
         reasoning="Operator override after re-check.",
         confidence=0.85,
         confidence_source=DecisionConfidenceSource.HUMAN,
         alternatives=("Approve", "Reject", "Re-measure"),
-        decision_inputs={"measured": 1.2, "limit": 1.5},
+        inputs={"measured": 1.2, "limit": 1.5},
         reasoning_signature="sha256:abc",
     )
     events = register_decision.decide(
@@ -128,12 +128,12 @@ def test_decide_passes_optional_fields_through() -> None:
     e = events[0]
     assert e.parent_id == parent_id
     assert e.override_kind == "exception"
-    assert e.decision_rule == "iso17025:7.1.3:simple_acceptance"
+    assert e.rule == "iso17025:7.1.3:simple_acceptance"
     assert e.reasoning == "Operator override after re-check."
     assert e.confidence == 0.85
     assert e.confidence_source is DecisionConfidenceSource.HUMAN
     assert e.alternatives == ("Approve", "Reject", "Re-measure")
-    assert e.decision_inputs == {"measured": 1.2, "limit": 1.5}
+    assert e.inputs == {"measured": 1.2, "limit": 1.5}
     assert e.reasoning_signature == "sha256:abc"
 
 
@@ -168,7 +168,7 @@ def test_decide_raises_invalid_context_for_blank() -> None:
 
 @pytest.mark.unit
 def test_decide_raises_invalid_rule_for_blank() -> None:
-    cmd = _good_command(decision_rule="   ")
+    cmd = _good_command(rule="   ")
     with pytest.raises(InvalidDecisionRuleError):
         register_decision.decide(
             state=None,
@@ -220,7 +220,7 @@ def test_decide_raises_invalid_alternatives_for_blank_entry() -> None:
 
 @pytest.mark.unit
 def test_decide_raises_invalid_inputs_for_blank_key() -> None:
-    cmd = _good_command(decision_inputs={"": 1})
+    cmd = _good_command(inputs={"": 1})
     with pytest.raises(InvalidDecisionInputsError):
         register_decision.decide(
             state=None,
@@ -338,11 +338,11 @@ def test_decide_accepts_confidence_source_without_confidence() -> None:
 
 
 @pytest.mark.unit
-def test_decide_accepts_decision_rule_none_for_procedure_execution_context() -> None:
-    """The BC does NOT enforce 'decision_rule required for
+def test_decide_accepts_rule_none_for_procedure_execution_context() -> None:
+    """The BC does NOT enforce 'rule required for
     ProcedureExecution / RecipeApproval'. Context-conditional
     requiredness is a projection-time audit-policy concern."""
-    cmd = _good_command(context="ProcedureExecution", decision_rule=None)
+    cmd = _good_command(context="ProcedureExecution", rule=None)
     events = register_decision.decide(
         state=None,
         command=cmd,
@@ -350,7 +350,7 @@ def test_decide_accepts_decision_rule_none_for_procedure_execution_context() -> 
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].decision_rule is None
+    assert events[0].rule is None
 
 
 @pytest.mark.unit
@@ -377,7 +377,7 @@ def test_decide_raises_when_parent_id_set_but_context_missing() -> None:
     """Defensive: if handler skipped its load, decider raises."""
     parent_id = uuid4()
     cmd = _good_command(parent_id=parent_id)
-    with pytest.raises(ParentDecisionMissingError):
+    with pytest.raises(ParentDecisionNotFoundError):
         register_decision.decide(
             state=None,
             command=cmd,
