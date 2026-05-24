@@ -39,7 +39,7 @@ class RegisterDecisionRequest(BaseModel):
     actor_id: UUID = Field(
         ...,
         description=(
-            "WHO made the decision. Existence-checked; 409 if the Actor "
+            "WHO made the decision. Existence-checked; 404 if the Actor "
             "doesn't exist. Decision can be made by any Actor including "
             "Deactivated (historical fact still holds)."
         ),
@@ -65,7 +65,7 @@ class RegisterDecisionRequest(BaseModel):
         default=None,
         description=(
             "Optional ref to a prior Decision being overridden / corrected "
-            "/ appealed / superseded. Existence-checked; 409 if missing."
+            "/ appealed / superseded. Existence-checked; 404 if missing."
         ),
     )
     override_kind: DecisionOverrideKind | None = Field(
@@ -186,7 +186,7 @@ _ = DECISION_INPUTS_MAX_ENTRIES
             "model": ErrorResponse,
             "description": "Authorize port denied the command.",
         },
-        status.HTTP_409_CONFLICT: {
+        status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
             "description": ("Cross-aggregate reference does not exist: actor_id or parent_id."),
         },

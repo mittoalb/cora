@@ -417,8 +417,8 @@ class AgentNotSeededError(Exception):
     misconfiguration: `seed_run_debriefer_agent` not invoked at app
     startup, or the Agent stream was manually purged).
 
-    Mirrors `DeciderActorNotFoundError` / `ProducingRunMissingError`
-    / `LinkedSubjectMissingError` precedents: cross-aggregate-load
+    Mirrors `DeciderActorNotFoundError` / `ProducingRunNotFoundError`
+    / `LinkedSubjectNotFoundError` precedents: cross-aggregate-load
     failure errors live at the aggregate's state.py module per the
     cross-BC gate-review convention.
     """

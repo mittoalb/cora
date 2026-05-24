@@ -25,7 +25,7 @@ from cora.data.aggregates.dataset import (
     DatasetNotFoundError,
     DatasetStatus,
     DatasetUri,
-    DerivedFromDatasetsMissingError,
+    DerivedFromDatasetsNotFoundError,
     InvalidDatasetByteSizeError,
     InvalidDatasetChecksumError,
     InvalidDatasetEncodingError,
@@ -33,8 +33,8 @@ from cora.data.aggregates.dataset import (
     InvalidDatasetUriError,
     InvalidDerivedFromError,
     InvalidUsedCalibrationsError,
-    LinkedSubjectMissingError,
-    ProducingRunMissingError,
+    LinkedSubjectNotFoundError,
+    ProducingRunNotFoundError,
     validate_byte_size,
     validate_derived_from,
     validate_used_calibrations,
@@ -442,7 +442,7 @@ def test_dataset_not_found_error_carries_dataset_id() -> None:
 @pytest.mark.unit
 def test_producing_run_missing_error_carries_run_id() -> None:
     run_id = uuid4()
-    err = ProducingRunMissingError(run_id)
+    err = ProducingRunNotFoundError(run_id)
     assert err.run_id == run_id
     assert str(run_id) in str(err)
 
@@ -450,7 +450,7 @@ def test_producing_run_missing_error_carries_run_id() -> None:
 @pytest.mark.unit
 def test_linked_subject_missing_error_carries_subject_id() -> None:
     subject_id = uuid4()
-    err = LinkedSubjectMissingError(subject_id)
+    err = LinkedSubjectNotFoundError(subject_id)
     assert err.subject_id == subject_id
     assert str(subject_id) in str(err)
 
@@ -458,7 +458,7 @@ def test_linked_subject_missing_error_carries_subject_id() -> None:
 @pytest.mark.unit
 def test_derived_from_datasets_missing_error_carries_missing_ids() -> None:
     missing = [uuid4(), uuid4()]
-    err = DerivedFromDatasetsMissingError(missing)
+    err = DerivedFromDatasetsNotFoundError(missing)
     assert err.missing_ids == missing
     msg = str(err)
     for m in missing:

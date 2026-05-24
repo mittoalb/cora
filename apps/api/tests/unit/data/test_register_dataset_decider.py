@@ -20,7 +20,7 @@ from cora.data.aggregates.dataset import (
     DatasetEncoding,
     DatasetName,
     DatasetUri,
-    DerivedFromDatasetsMissingError,
+    DerivedFromDatasetsNotFoundError,
     InvalidDatasetByteSizeError,
     InvalidDatasetChecksumError,
     InvalidDatasetEncodingError,
@@ -28,8 +28,8 @@ from cora.data.aggregates.dataset import (
     InvalidDatasetUriError,
     InvalidDerivedFromError,
     InvalidUsedCalibrationsError,
-    LinkedSubjectMissingError,
-    ProducingRunMissingError,
+    LinkedSubjectNotFoundError,
+    ProducingRunNotFoundError,
 )
 from cora.data.features import register_dataset
 from cora.data.features.register_dataset import (
@@ -256,7 +256,7 @@ def test_decide_raises_when_producing_run_set_but_context_missing() -> None:
     reference."""
     run_id = uuid4()
     cmd = _good_command(producing_run_id=run_id)
-    with pytest.raises(ProducingRunMissingError):
+    with pytest.raises(ProducingRunNotFoundError):
         register_dataset.decide(
             state=None,
             command=cmd,
@@ -270,7 +270,7 @@ def test_decide_raises_when_producing_run_set_but_context_missing() -> None:
 def test_decide_raises_when_subject_set_but_context_missing() -> None:
     subject_id = uuid4()
     cmd = _good_command(subject_id=subject_id)
-    with pytest.raises(LinkedSubjectMissingError):
+    with pytest.raises(LinkedSubjectNotFoundError):
         register_dataset.decide(
             state=None,
             command=cmd,
@@ -288,7 +288,7 @@ def test_decide_raises_when_derived_from_missing_in_context() -> None:
     existing = _existing_dataset()
     # Context only has one of them.
     ctx = DatasetRegistrationContext(derived_from={derived_a: existing})
-    with pytest.raises(DerivedFromDatasetsMissingError) as exc_info:
+    with pytest.raises(DerivedFromDatasetsNotFoundError) as exc_info:
         register_dataset.decide(
             state=None,
             command=cmd,

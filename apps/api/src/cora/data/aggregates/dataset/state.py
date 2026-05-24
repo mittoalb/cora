@@ -340,7 +340,7 @@ class DatasetNotFoundError(Exception):
         self.dataset_id = dataset_id
 
 
-class ProducingRunMissingError(Exception):
+class ProducingRunNotFoundError(Exception):
     """Attempted to register a Dataset against a Run that doesn't exist.
 
     Cross-aggregate validation at registration: when `producing_run_id`
@@ -356,7 +356,7 @@ class ProducingRunMissingError(Exception):
         self.run_id = run_id
 
 
-class LinkedSubjectMissingError(Exception):
+class LinkedSubjectNotFoundError(Exception):
     """Attempted to register a Dataset against a Subject that doesn't exist.
 
     Cross-aggregate validation at registration: when `subject_id` is
@@ -372,7 +372,7 @@ class LinkedSubjectMissingError(Exception):
         self.subject_id = subject_id
 
 
-class DerivedFromDatasetsMissingError(Exception):
+class DerivedFromDatasetsNotFoundError(Exception):
     """One or more derived_from references don't exist as Datasets.
 
     Cross-aggregate validation at registration: when `derived_from`

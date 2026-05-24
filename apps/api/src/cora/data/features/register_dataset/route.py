@@ -201,11 +201,18 @@ _ = DATASET_CONFORMS_TO_ENTRY_MAX_LENGTH  # docstring reference
             "model": ErrorResponse,
             "description": "Authorize port denied the command.",
         },
-        status.HTTP_409_CONFLICT: {
+        status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
             "description": (
                 "Cross-aggregate reference does not exist: producing_run_id, "
                 "subject_id, or one or more derived_from ids."
+            ),
+        },
+        status.HTTP_409_CONFLICT: {
+            "model": ErrorResponse,
+            "description": (
+                "Lineage-state conflict: one or more upstream Datasets "
+                "referenced by derived_from are in Discarded status."
             ),
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {

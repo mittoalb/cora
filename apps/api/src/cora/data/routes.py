@@ -28,11 +28,13 @@ other BC.
     InvalidDatasetDiscardReasonError (7b)
   - 404: DatasetNotFoundError (raised by the discard_dataset decider
     when the target stream is empty; also surfaced by get_dataset's
-    route HTTPException pathway).
+    route HTTPException pathway), plus the renamed cross-aggregate
+    not-found family: ProducingRunNotFoundError, LinkedSubjectNotFoundError,
+    DerivedFromDatasetsNotFoundError (per the locked <X>NotFoundError -> 404
+    taxonomy, clusters 2 / 4 of the 2026-05-22 audit).
   - 409 (defensive AlreadyExists): DatasetAlreadyExistsError
-  - 409 (cross-aggregate refs): ProducingRunMissingError,
-    LinkedSubjectMissingError, DerivedFromDatasetsMissingError,
-    DerivedFromDatasetsDiscardedError (7b)
+  - 409 (lineage state): DerivedFromDatasetsDiscardedError (referenced
+    upstream Dataset is in Discarded status, a real state conflict).
   - 409 (Dataset transition guards, 7b + 7e): DatasetCannotDiscardError,
     DatasetCannotPromoteError, DatasetAlreadyPromotedError
   - 400 (validation, 7e adds): InvalidPromotionReasonError
@@ -51,7 +53,7 @@ from cora.data.aggregates.dataset import (
     DatasetCannotPromoteError,
     DatasetNotFoundError,
     DerivedFromDatasetsDiscardedError,
-    DerivedFromDatasetsMissingError,
+    DerivedFromDatasetsNotFoundError,
     InvalidDatasetByteSizeError,
     InvalidDatasetChecksumError,
     InvalidDatasetDiscardReasonError,
@@ -62,8 +64,8 @@ from cora.data.aggregates.dataset import (
     InvalidDerivedFromError,
     InvalidPromotionReasonError,
     InvalidUsedCalibrationsError,
-    LinkedSubjectMissingError,
-    ProducingRunMissingError,
+    LinkedSubjectNotFoundError,
+    ProducingRunNotFoundError,
 )
 from cora.data.errors import UnauthorizedError
 from cora.data.features import (
@@ -112,17 +114,19 @@ async def _handle_already_exists(request: Request, exc: Exception) -> JSONRespon
     )
 
 
-async def _handle_cross_agg_conflict(request: Request, exc: Exception) -> JSONResponse:
-    """Shared 409 handler for cross-aggregate-reference errors.
+async def _handle_lineage_state_conflict(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 409 handler for lineage-state conflicts on dataset
+    registration.
 
-    `register_dataset` accepts optional refs to a Run, a Subject, and
-    a set of upstream Datasets. If any referenced aggregate doesn't
-    exist, the handler raises one of (ProducingRunMissingError,
-    LinkedSubjectMissingError, DerivedFromDatasetsMissingError).
-    7b adds DerivedFromDatasetsDiscardedError when one of the
-    referenced lineage sources is in Discarded status. All map to
-    409 because they signal a logical conflict (well-formed request,
-    inconsistent with current world state).
+    Was previously named `_handle_cross_agg_conflict` and covered
+    cross-aggregate Missing*Error references too. Per the locked
+    `<X>NotFoundError -> 404` taxonomy, the renamed
+    `ProducingRunNotFoundError` / `LinkedSubjectNotFoundError` /
+    `DerivedFromDatasetsNotFoundError` now route through
+    `_handle_not_found`. The only remaining 409-mapped family here is
+    `DerivedFromDatasetsDiscardedError` (referenced upstream Dataset
+    is in Discarded status, a real state conflict, not a
+    missing-reference). Same JSON shape as before.
     """
     _ = request
     return JSONResponse(
@@ -172,17 +176,21 @@ def register_data_routes(app: FastAPI) -> None:
         InvalidUsedCalibrationsError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
-    for not_found_cls in (DatasetNotFoundError,):
+    for not_found_cls in (
+        DatasetNotFoundError,
+        # Per the locked <X>NotFoundError -> 404 taxonomy (cluster 4 of
+        # the 2026-05-22 audit), the renamed cross-aggregate not-found
+        # family now routes through _handle_not_found instead of the
+        # old _handle_cross_agg_conflict (renamed _handle_lineage_state_conflict).
+        ProducingRunNotFoundError,
+        LinkedSubjectNotFoundError,
+        DerivedFromDatasetsNotFoundError,
+    ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (DatasetAlreadyExistsError,):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
-    for cross_agg_cls in (
-        ProducingRunMissingError,
-        LinkedSubjectMissingError,
-        DerivedFromDatasetsMissingError,
-        DerivedFromDatasetsDiscardedError,
-    ):
-        app.add_exception_handler(cross_agg_cls, _handle_cross_agg_conflict)
+    for lineage_state_cls in (DerivedFromDatasetsDiscardedError,):
+        app.add_exception_handler(lineage_state_cls, _handle_lineage_state_conflict)
     for cannot_transition_cls in (
         DatasetCannotDiscardError,
         # 7e transition / promotion guards. Both surface as 409 with

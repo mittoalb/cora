@@ -49,14 +49,7 @@ _FORBIDDEN_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
 
 # Entries are "<qualified-module>:ClassName". Each cites the audit
 # finding; Phase ε removes the entry alongside the rename.
-GRANDFATHERED_NAMES: frozenset[str] = frozenset(
-    {
-        # D7: cross-aggregate NotFound errors using *Missing* suffix.
-        "cora.data.aggregates.dataset.state:ProducingRunMissingError",
-        "cora.data.aggregates.dataset.state:LinkedSubjectMissingError",
-        "cora.data.aggregates.dataset.state:DerivedFromDatasetsMissingError",
-    }
-)
+GRANDFATHERED_NAMES: frozenset[str] = frozenset()
 
 
 def _state_files() -> list[Path]:

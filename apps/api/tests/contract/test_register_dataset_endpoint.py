@@ -143,33 +143,41 @@ def test_post_datasets_with_derived_from_links_through() -> None:
     assert response.status_code == 201
 
 
-# ---------- Cross-aggregate not-found (409) ----------
+# ---------- Cross-aggregate not-found (404) ----------
+#
+# Per the locked `<X>NotFoundError -> 404` taxonomy (cluster 4 of the
+# 2026-05-22 audit), the renamed `ProducingRunNotFoundError` /
+# `LinkedSubjectNotFoundError` / `DerivedFromDatasetsNotFoundError`
+# now route through `_handle_not_found`. Was 409 pre-Phase-ε via the
+# old `_handle_cross_agg_conflict` handler (renamed
+# `_handle_lineage_state_conflict`, which now only covers
+# `DerivedFromDatasetsDiscardedError` -> 409).
 
 
 @pytest.mark.contract
-def test_post_datasets_returns_409_when_producing_run_id_does_not_exist() -> None:
+def test_post_datasets_returns_404_when_producing_run_id_does_not_exist() -> None:
     missing_id = str(uuid4())
     with TestClient(create_app()) as client:
         response = client.post("/datasets", json=_good_body(producing_run_id=missing_id))
-    assert response.status_code == 409
+    assert response.status_code == 404
     assert "producing_run_id" in response.json()["detail"]
 
 
 @pytest.mark.contract
-def test_post_datasets_returns_409_when_subject_id_does_not_exist() -> None:
+def test_post_datasets_returns_404_when_subject_id_does_not_exist() -> None:
     missing_id = str(uuid4())
     with TestClient(create_app()) as client:
         response = client.post("/datasets", json=_good_body(subject_id=missing_id))
-    assert response.status_code == 409
+    assert response.status_code == 404
     assert "subject_id" in response.json()["detail"]
 
 
 @pytest.mark.contract
-def test_post_datasets_returns_409_when_derived_from_id_does_not_exist() -> None:
+def test_post_datasets_returns_404_when_derived_from_id_does_not_exist() -> None:
     missing_id = str(uuid4())
     with TestClient(create_app()) as client:
         response = client.post("/datasets", json=_good_body(derived_from=[missing_id]))
-    assert response.status_code == 409
+    assert response.status_code == 404
     assert missing_id in response.json()["detail"]
 
 

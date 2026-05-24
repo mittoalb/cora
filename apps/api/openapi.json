@@ -6561,7 +6561,7 @@
         "description": "Body for `POST /decisions`.",
         "properties": {
           "actor_id": {
-            "description": "WHO made the decision. Existence-checked; 409 if the Actor doesn't exist. Decision can be made by any Actor including Deactivated (historical fact still holds).",
+            "description": "WHO made the decision. Existence-checked; 404 if the Actor doesn't exist. Decision can be made by any Actor including Deactivated (historical fact still holds).",
             "format": "uuid",
             "title": "Actor Id",
             "type": "string"
@@ -6656,7 +6656,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional ref to a prior Decision being overridden / corrected / appealed / superseded. Existence-checked; 409 if missing.",
+            "description": "Optional ref to a prior Decision being overridden / corrected / appealed / superseded. Existence-checked; 404 if missing.",
             "title": "Parent Id"
           },
           "reasoning": {
@@ -15923,7 +15923,7 @@
             },
             "description": "Authorize port denied the command."
           },
-          "409": {
+          "404": {
             "content": {
               "application/json": {
                 "schema": {
@@ -15932,6 +15932,16 @@
               }
             },
             "description": "Cross-aggregate reference does not exist: producing_run_id, subject_id, or one or more derived_from ids."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Lineage-state conflict: one or more upstream Datasets referenced by derived_from are in Discarded status."
           },
           "422": {
             "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."
@@ -16539,7 +16549,7 @@
             },
             "description": "Authorize port denied the command."
           },
-          "409": {
+          "404": {
             "content": {
               "application/json": {
                 "schema": {

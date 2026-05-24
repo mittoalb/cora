@@ -37,7 +37,7 @@ store is NOT flagged. Two reasons this is operationally safe:
      on the cora_app role) makes "peer vanished from the event
      store" structurally impossible in production.
   2. Pre-7e registration via 7c's existence guard
-     (`DerivedFromDatasetsMissingError`) prevents creating a
+     (`DerivedFromDatasetsNotFoundError`) prevents creating a
      Dataset whose derived_from references a non-existent stream
      in the first place.
 
@@ -148,7 +148,7 @@ def bind(deps: Kernel) -> Handler:
                     derived_from_loaded[derived_id] = loaded
                 # Missing derived_from refs are not fatal at promotion
                 # time: they would have been validated at registration
-                # via DerivedFromDatasetsMissingError. If a peer was
+                # via DerivedFromDatasetsNotFoundError. If a peer was
                 # later discarded but kept its event stream (the
                 # immutability guarantee preserves all events), it
                 # loads cleanly here with status=DISCARDED. The decider
