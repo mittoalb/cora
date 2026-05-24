@@ -82,11 +82,25 @@ class MethodVersioned:
     ("v2.1.0"), date-stamped ("2026-Q3"), or anything else
     institution-specific. Not a VO; same precedent as
     AssetRelocated.reason and FamilyVersioned.
+
+    `content_hash` is the SHA-256 of the canonical body bytes for this
+    Method revision's content subset (`name + parameters_schema +
+    capability_id + needed_families + needed_supplies`), captured by
+    the decider per the non-determinism principle. 64-char lowercase
+    hex. The same content emitted twice (re-attestation) produces the
+    same hash, which is the intended equivalence-detection semantic
+    (Bazel input/output split pattern). Pre-rollout legacy events
+    have no payload field; `from_stored` returns None there, matching
+    Method state's `content_hash: str | None` shape per
+    [[project_content_addressed_identity_design]] pre-rollout fold.
+    The dataclass default of None exists only for legacy-event
+    reconstruction; current deciders always supply a concrete hash.
     """
 
     method_id: UUID
     version_tag: str
     occurred_at: datetime
+    content_hash: str | None = None
 
 
 @dataclass(frozen=True)
@@ -176,12 +190,16 @@ def to_payload(event: MethodEvent) -> dict[str, Any]:
             method_id=method_id,
             version_tag=version_tag,
             occurred_at=occurred_at,
+            content_hash=content_hash,
         ):
-            return {
+            payload: dict[str, Any] = {
                 "method_id": str(method_id),
                 "version_tag": version_tag,
                 "occurred_at": occurred_at.isoformat(),
             }
+            if content_hash is not None:
+                payload["content_hash"] = content_hash
+            return payload
         case MethodDeprecated(method_id=method_id, occurred_at=occurred_at):
             return {
                 "method_id": str(method_id),
@@ -236,6 +254,11 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
                     method_id=UUID(payload["method_id"]),
                     version_tag=payload["version_tag"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    # forward-compat: pre-rollout MethodVersioned payloads
+                    # have no content_hash; default to None. Additive-
+                    # evolution pattern per [[project_content_addressed
+                    # _identity_design]] watch item on pre-rollout fold.
+                    content_hash=payload.get("content_hash"),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed MethodVersioned payload {payload!r}: {exc}"

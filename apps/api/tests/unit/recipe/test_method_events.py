@@ -233,6 +233,79 @@ def test_to_payload_then_from_stored_round_trips_for_method_versioned() -> None:
     assert from_stored(stored) == original
 
 
+@pytest.mark.unit
+def test_to_payload_serializes_content_hash_when_present() -> None:
+    """Content-hash adoption (Candidate A): the decider attaches a
+    64-char hex; the payload carries it under `content_hash` so
+    downstream consumers (projection, RO-Crate export, etag) can
+    read it without re-folding the stream."""
+    method_id = uuid4()
+    h = "a" * 64
+    event = MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW, content_hash=h)
+    payload = to_payload(event)
+    assert payload["content_hash"] == h
+
+
+@pytest.mark.unit
+def test_to_payload_omits_content_hash_when_none() -> None:
+    """Pre-rollout / dataclass-default events serialize without the
+    `content_hash` key so the persisted payload bytes match what
+    pre-Candidate-A streams already contain. Critical for
+    projection-replay determinism."""
+    event = MethodVersioned(method_id=uuid4(), version_tag="v2", occurred_at=_NOW)
+    payload = to_payload(event)
+    assert "content_hash" not in payload
+
+
+@pytest.mark.unit
+def test_from_stored_loads_content_hash_when_present() -> None:
+    method_id = uuid4()
+    h = "b" * 64
+    stored = _stored(
+        "MethodVersioned",
+        {
+            "method_id": str(method_id),
+            "version_tag": "v2",
+            "occurred_at": _NOW.isoformat(),
+            "content_hash": h,
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, MethodVersioned)
+    assert rebuilt.content_hash == h
+
+
+@pytest.mark.unit
+def test_from_stored_defaults_content_hash_to_none_for_pre_rollout_payload() -> None:
+    """Pre-Candidate-A MethodVersioned events have no `content_hash`
+    field; from_stored substitutes None so the evolver's fold stays
+    deterministic and Method.content_hash ends up None for legacy
+    revisions. Additive-evolution pattern per
+    [[project_content_addressed_identity_design]]."""
+    method_id = uuid4()
+    stored = _stored(
+        "MethodVersioned",
+        {
+            "method_id": str(method_id),
+            "version_tag": "v2",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, MethodVersioned)
+    assert rebuilt.content_hash is None
+
+
+@pytest.mark.unit
+def test_round_trip_with_content_hash_preserved() -> None:
+    h = "c" * 64
+    original = MethodVersioned(
+        method_id=uuid4(), version_tag="v2", occurred_at=_NOW, content_hash=h
+    )
+    stored = _stored("MethodVersioned", to_payload(original))
+    assert from_stored(stored) == original
+
+
 # ---------- MethodDeprecated ----------
 
 

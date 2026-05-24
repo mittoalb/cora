@@ -1,4 +1,4 @@
-h1:4D4GrAchTGuGG0I4imb4TQPYE3oyg84rVJrcNYOAqfM=
+h1:2r+K8d3P/tjrlrhe+SWJ90vdr5+UY2e9OjAxOwyDASM=
 20260509120000_init_events.sql h1:GmgCZKfaqXu1m96/cKAks2vhaLWTdEaHTLkFtUo9FXg=
 20260509170000_init_idempotency.sql h1:Nbu8DIE4Sv1WiHw3G22+tYffPhKc5Jryw3PMK8wB2zY=
 20260510010000_add_event_id.sql h1:RbtYP6uMnOB20zhJ9dNXUi4YVqbmlEzf562pmygnRW8=
@@ -64,3 +64,5 @@ h1:4D4GrAchTGuGG0I4imb4TQPYE3oyg84rVJrcNYOAqfM=
 20260523120200_relax_actor_profile_name_check.sql h1:FB4GdFXOy0WmbqwqbBve9C390oVo+lK0YhG3ggDtjtg=
 20260523214753_add_events_signature_columns.sql h1:Ga1MbRF4TFdXU/A0mhG6cRzNKBHvOSbZA03WIHrZ3vI=
 20260523220000_rename_calibration_subsystem_or_asset_to_target.sql h1:sN3/jen/ONEZBo3Hd9/sVXpZygulqT62caVveCvS5gA=
+20260524120000_rename_decision_rule_column.sql h1:vwPudprKGpcIyeT/eCiZ9Ze9QIdJ8YGA23WVjuE1CtI=
+20260524130000_add_method_summary_content_hash.sql h1:UHDJhVTCzoCdUaPhn6ZVSIIE8toDJUaHJ1ckIUT8no4=

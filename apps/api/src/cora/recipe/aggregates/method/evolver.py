@@ -96,7 +96,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 # legacy streams without the field (additive-state default).
                 capability_id=capability_id,
             )
-        case MethodVersioned(version_tag=version_tag):
+        case MethodVersioned(version_tag=version_tag, content_hash=content_hash):
             prior = require_state(state, "MethodVersioned")
             return Method(
                 id=prior.id,
@@ -104,6 +104,10 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 needed_families=prior.needed_families,
                 status=MethodStatus.VERSIONED,
                 version=version_tag,
+                # content_hash loaded from event payload (captured by
+                # decider per non-determinism principle). None for
+                # pre-rollout legacy events.
+                content_hash=content_hash,
                 parameters_schema=prior.parameters_schema,
                 needed_supplies=prior.needed_supplies,
                 # capability_id PRESERVED across versioning (Method
@@ -120,6 +124,10 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 status=MethodStatus.DEPRECATED,
                 # version preserved across deprecation.
                 version=prior.version,
+                # content_hash preserved across deprecation; represents
+                # the LAST ATTESTED revision and remains a valid
+                # equivalence anchor for the deprecated definition.
+                content_hash=prior.content_hash,
                 parameters_schema=prior.parameters_schema,
                 needed_supplies=prior.needed_supplies,
                 # capability_id PRESERVED across deprecation; audit-
@@ -136,6 +144,14 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 needed_families=prior.needed_families,
                 status=prior.status,
                 version=prior.version,
+                # content_hash preserved: schema updates between
+                # MethodVersioned events leave the hash pointing at the
+                # prior attested revision. The drift between
+                # current parameters_schema and the hashed snapshot is
+                # the intended signal that the Method has uncommitted
+                # changes (Bazel input/output split semantics, see
+                # [[project_content_addressed_identity_design]]).
+                content_hash=prior.content_hash,
                 parameters_schema=(
                     dict(parameters_schema) if parameters_schema is not None else None
                 ),

@@ -68,6 +68,7 @@ UPDATE proj_recipe_method_summary
 SET status = 'Versioned',
     version_tag = $2,
     versioned_at = $3,
+    content_hash = $4,
     updated_at = now()
 WHERE method_id = $1
 """
@@ -114,11 +115,15 @@ class MethodSummaryProjection:
                     datetime.fromisoformat(event.payload["occurred_at"]),
                 )
             case "MethodVersioned":
+                # content_hash: pre-rollout MethodVersioned events have no
+                # field; passing None leaves the projection column NULL,
+                # matching aggregate-state semantics.
                 await conn.execute(
                     _UPDATE_VERSIONED_SQL,
                     UUID(event.payload["method_id"]),
                     event.payload["version_tag"],
                     datetime.fromisoformat(event.payload["occurred_at"]),
+                    event.payload.get("content_hash"),
                 )
             case "MethodDeprecated":
                 await conn.execute(

@@ -285,6 +285,18 @@ class Method:
     needed_families: frozenset[UUID] = field(default_factory=frozenset[UUID])
     status: MethodStatus = MethodStatus.DEFINED
     version: str | None = None
+    # content_hash captures the SHA-256 of the canonical body bytes for
+    # the most recently versioned content subset (`name +
+    # parameters_schema + capability_id + needed_families +
+    # needed_supplies`). None until first MethodVersioned (Defined-only
+    # streams have no attested revision yet) AND for pre-rollout legacy
+    # MethodVersioned events that predate the content-hash field
+    # (additive-state pattern; same posture as `version`, `capability_id`).
+    # Preserved across MethodDeprecated and MethodParametersSchemaUpdated:
+    # the hash represents the LAST ATTESTED revision, so post-rollout
+    # schema updates intentionally leave the hash pointing at the prior
+    # version — see [[project_content_addressed_identity_design]].
+    content_hash: str | None = None
     parameters_schema: dict[str, Any] | None = field(default=None)
     # Method.capability_id points to the universal Capability
     # template (Recipe BC) this Method realizes as a Method-shaped

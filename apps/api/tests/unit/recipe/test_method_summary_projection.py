@@ -93,12 +93,14 @@ async def test_method_defined_inserts_with_defined_status_and_null_version() -> 
 async def test_method_versioned_updates_status_and_version_tag() -> None:
     proj = MethodSummaryProjection()
     conn = AsyncMock()
+    h = "a" * 64
     event = _stored(
         "MethodVersioned",
         {
             "method_id": str(_METHOD_ID),
             "version_tag": "v2.1.0",
             "occurred_at": _NOW.isoformat(),
+            "content_hash": h,
         },
     )
 
@@ -111,9 +113,32 @@ async def test_method_versioned_updates_status_and_version_tag() -> None:
     assert "SET status = 'Versioned'" in sql
     assert "version_tag = $2" in sql
     assert "versioned_at = $3" in sql
+    assert "content_hash = $4" in sql
     assert args.args[1] == _METHOD_ID
     assert args.args[2] == "v2.1.0"
     assert args.args[3] == _NOW
+    assert args.args[4] == h
+
+
+@pytest.mark.unit
+async def test_method_versioned_pre_rollout_payload_writes_null_content_hash() -> None:
+    """Legacy MethodVersioned events have no `content_hash` field; the
+    projection MUST write NULL (not "" or "None") so equivalence
+    queries can distinguish unattested rows from real hashes."""
+    proj = MethodSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "MethodVersioned",
+        {
+            "method_id": str(_METHOD_ID),
+            "version_tag": "v1",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[4] is None
 
 
 @pytest.mark.unit

@@ -3,9 +3,16 @@
 Multi-source-state guard: `Defined | Versioned -> Versioned`. Both
 source states valid; only Deprecated rejected. Mirrors
 `test_version_family_decider.py` (Equipment 5f-2).
+
+Content-hash assertions (per
+[[project_content_addressed_identity_design]]) live in
+test_version_method_content_hash.py rather than here so the
+core lifecycle guards stay readable; this file pins only that the
+decider attaches a non-empty hash to the emitted event.
 """
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -29,6 +36,7 @@ def _method(
     *,
     status: MethodStatus = MethodStatus.DEFINED,
     version: str | None = None,
+    parameters_schema: dict[str, Any] | None = None,
 ) -> Method:
     return Method(
         id=uuid4(),
@@ -36,6 +44,7 @@ def _method(
         needed_families=frozenset(),
         status=status,
         version=version,
+        parameters_schema=parameters_schema,
     )
 
 
@@ -53,7 +62,13 @@ def test_decide_emits_method_versioned_for_each_allowed_source_status(
         command=VersionMethod(method_id=state.id, version_tag="v2"),
         now=_NOW,
     )
-    assert events == [MethodVersioned(method_id=state.id, version_tag="v2", occurred_at=_NOW)]
+    assert len(events) == 1
+    event = events[0]
+    assert isinstance(event, MethodVersioned)
+    assert event.method_id == state.id
+    assert event.version_tag == "v2"
+    assert event.occurred_at == _NOW
+    assert event.content_hash is not None
 
 
 @pytest.mark.unit
@@ -163,4 +178,9 @@ def test_decide_allows_versioning_with_same_tag_for_re_attestation() -> None:
         command=VersionMethod(method_id=state.id, version_tag="v2"),
         now=_NOW,
     )
-    assert events == [MethodVersioned(method_id=state.id, version_tag="v2", occurred_at=_NOW)]
+    assert len(events) == 1
+    event = events[0]
+    assert isinstance(event, MethodVersioned)
+    assert event.method_id == state.id
+    assert event.version_tag == "v2"
+    assert event.occurred_at == _NOW

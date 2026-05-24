@@ -346,6 +346,113 @@ def test_fold_define_version_deprecate_preserves_version_through_deprecation() -
 
 
 @pytest.mark.unit
+def test_evolve_method_versioned_loads_content_hash_into_state() -> None:
+    """Candidate A: the evolver MUST surface the captured content_hash
+    on state so consumers reading `Method.content_hash` see the value
+    that the decider pinned, not None."""
+    method_id = uuid4()
+    h = "d" * 64
+    defined = Method(
+        id=method_id,
+        name=MethodName("X"),
+        needed_families=frozenset(),
+        status=MethodStatus.DEFINED,
+    )
+    versioned = evolve(
+        defined,
+        MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW, content_hash=h),
+    )
+    assert versioned.content_hash == h
+
+
+@pytest.mark.unit
+def test_evolve_method_versioned_with_none_content_hash_yields_none_on_state() -> None:
+    """Pre-rollout fold path: a legacy MethodVersioned with no
+    content_hash field rebuilds via from_stored as
+    content_hash=None; the evolver must NOT invent a value."""
+    method_id = uuid4()
+    defined = Method(
+        id=method_id,
+        name=MethodName("X"),
+        needed_families=frozenset(),
+        status=MethodStatus.DEFINED,
+    )
+    versioned = evolve(
+        defined,
+        MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW),
+    )
+    assert versioned.content_hash is None
+
+
+@pytest.mark.unit
+def test_evolve_method_deprecated_preserves_content_hash() -> None:
+    """Deprecation preserves the LAST ATTESTED revision's hash;
+    deprecation is lifecycle, not content. The hash stays a valid
+    equivalence anchor for the deprecated definition."""
+    method_id = uuid4()
+    h = "e" * 64
+    versioned = Method(
+        id=method_id,
+        name=MethodName("X"),
+        needed_families=frozenset(),
+        status=MethodStatus.VERSIONED,
+        version="v2",
+        content_hash=h,
+    )
+    deprecated = evolve(versioned, MethodDeprecated(method_id=method_id, occurred_at=_NOW))
+    assert deprecated.content_hash == h
+
+
+@pytest.mark.unit
+def test_evolve_method_parameters_schema_updated_preserves_content_hash() -> None:
+    """Schema updates between attestations leave the hash pointing at
+    the prior version (Bazel input/output split semantics); the
+    drift between current parameters_schema and the hashed snapshot
+    is the intended signal that the Method has uncommitted changes."""
+    method_id = uuid4()
+    h = "f" * 64
+    state = Method(
+        id=method_id,
+        name=MethodName("X"),
+        needed_families=frozenset(),
+        status=MethodStatus.VERSIONED,
+        version="v2",
+        content_hash=h,
+        parameters_schema=None,
+    )
+    updated = evolve(
+        state,
+        MethodParametersSchemaUpdated(
+            method_id=method_id, parameters_schema=_SCHEMA_A, occurred_at=_NOW
+        ),
+    )
+    assert updated.content_hash == h
+
+
+@pytest.mark.unit
+def test_evolve_method_versioned_overwrites_prior_content_hash() -> None:
+    """A new MethodVersioned replaces the prior hash on state with the
+    fresh one carried in the event payload (the latest attested
+    revision wins, same as the version_tag overwrite)."""
+    method_id = uuid4()
+    old = "1" * 64
+    new = "2" * 64
+    state_v1 = Method(
+        id=method_id,
+        name=MethodName("X"),
+        needed_families=frozenset(),
+        status=MethodStatus.VERSIONED,
+        version="v1",
+        content_hash=old,
+    )
+    state_v2 = evolve(
+        state_v1,
+        MethodVersioned(method_id=method_id, version_tag="v2", occurred_at=_NOW, content_hash=new),
+    )
+    assert state_v2.content_hash == new
+
+
+@pytest.mark.unit
 def test_evolve_method_versioned_preserves_needed_families() -> None:
     """Critical pin: needed_families MUST carry through the
     version transition. Same safety-net pattern as
