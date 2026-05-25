@@ -118,7 +118,7 @@ class VerifiedPrincipal:
     token. Forensic + per-IdP rate-limiting / metrics.
 
     `kind` discriminates human vs service-account callers, derived
-    from the token's claims at issuance time (e.g. `aud` per-Surface
+    from the token's claims at issuance time (for example `aud` per-Surface
     + `client_credentials` grant → `service_account`).
 
     `scopes` carries the token's OAuth scopes if any (RFC 6749 §3.3).

@@ -101,7 +101,7 @@ IDs the reconstruction (or any derivative) actually used. Symmetric
 to Run.pinned_calibrations (AsShot anchor on the acquired-from Run);
 the two sets are independent — reconstruction
 may legitimately cite refined revisions not in the producing Run's
-pin set (e.g., a `tomopy.find_center_vo` refinement). NO write-time
+pin set (for example, a `tomopy.find_center_vo` refinement). NO write-time
 cross-BC enforcement of derivative-source set equality per
 [[project_calibration_design]] anti-hook #3 (revision-cited atomic
 IDs make "partial override" a category error in this model). The

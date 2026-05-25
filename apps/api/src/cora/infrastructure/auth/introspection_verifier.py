@@ -122,7 +122,7 @@ class IntrospectionVerifier:
         connect/read/write/pool timeouts (slowloris defense, F7).
 
         `principal_kind` — usually `"human"`; per-IdP override for
-        machine-only IdPs (e.g. a dedicated service-account issuer).
+        machine-only IdPs (for example a dedicated service-account issuer).
 
         `allow_insecure_introspection_url` — production MUST be False
         (default). Test/dev fixtures using `http://127.0.0.1:...`

@@ -57,7 +57,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             Field(
                 min_length=1,
                 max_length=200,
-                description="Command name being evaluated (e.g. 'RegisterActor').",
+                description="Command name being evaluated (for example 'RegisterActor').",
             ),
         ],
         evaluated_conduit_id: Annotated[

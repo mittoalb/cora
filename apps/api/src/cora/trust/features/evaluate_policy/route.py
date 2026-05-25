@@ -84,7 +84,7 @@ async def get_policies_evaluate(
         Query(
             min_length=1,
             max_length=200,
-            description="Command name being evaluated (e.g. 'RegisterActor').",
+            description="Command name being evaluated (for example 'RegisterActor').",
         ),
     ],
     evaluated_conduit_id: Annotated[

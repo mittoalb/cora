@@ -36,7 +36,7 @@ class ExpireClearanceRequest(BaseModel):
         description=(
             "Operator-supplied free-form reason for the expiration. Audit "
             "breadcrumb explaining why the clearance was retired "
-            "(e.g., 'validity window elapsed', 'scope-change incident')."
+            "(for example, 'validity window elapsed', 'scope-change incident')."
         ),
     )
 
@@ -55,7 +55,7 @@ router = APIRouter(tags=["safety"])
     responses={
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
-            "description": "Domain invariant violated (e.g. whitespace-only reason).",
+            "description": "Domain invariant violated (for example whitespace-only reason).",
         },
         status.HTTP_403_FORBIDDEN: {
             "model": ErrorResponse,

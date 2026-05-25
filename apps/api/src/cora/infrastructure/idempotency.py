@@ -44,7 +44,7 @@ processes (PYTHONHASHSEED randomizes string hashing) so the same
 logical set would produce different `repr` and different hashes
 under multiple workers, manifesting as spurious 422 "Idempotency-Key
 conflict" responses on legitimate retries. Routes that convert JSON
-arrays to `frozenset` for command construction (e.g. permission
+arrays to `frozenset` for command construction (for example permission
 sets in `DefinePolicy`) rely on this normalization.
 
 ## Error classification (4xx caching scope)

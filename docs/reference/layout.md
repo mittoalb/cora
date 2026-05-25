@@ -24,7 +24,7 @@ cora/<bc>/
 │       ├── events.py                 # event classes + union + payload helpers
 │       ├── evolver.py                # evolve(state, event) + fold(events)
 │       ├── read.py                   # load_<aggregate> (fold-on-read)
-│       └── <vo_module>.py            # aggregate-internal VOs (e.g. settings_validation, hazard_classification)
+│       └── <vo_module>.py            # aggregate-internal VOs (for example settings_validation, hazard_classification)
 ├── projections/
 │   └── <name>.py                     # read-side projection (consumed by list_* queries)
 └── features/
@@ -61,7 +61,7 @@ The slice-contract fitness function ([apps/api/tests/architecture/test_slice_con
 
 ### Optional slice files
 
-- `context.py`: slice-local cross-aggregate pre-load. Used when a decider needs sibling-aggregate state (e.g. `start_run` pre-loads Asset, Method, Plan, Practice, Subject before calling the pure decider). Used by 7 slices today across `data`, `decision`, `recipe`, `run`, `subject`, `operation`. Lives in the slice folder, not the aggregate.
+- `context.py`: slice-local cross-aggregate pre-load. Used when a decider needs sibling-aggregate state (for example `start_run` pre-loads Asset, Method, Plan, Practice, Subject before calling the pure decider). Used by 7 slices today across `data`, `decision`, `recipe`, `run`, `subject`, `operation`. Lives in the slice folder, not the aggregate.
 
 ### BC-root extras
 
@@ -93,14 +93,14 @@ The `__init__.py` is the BC's curated public surface; importing through it lets 
 
 ## Naming
 
-- **Commands**: PascalCase verb+noun in `command.py` (e.g. `RegisterActor`).
+- **Commands**: PascalCase verb+noun in `command.py` (for example `RegisterActor`).
 - **Define vs Register**: `Define<X>` for types/templates/configs (Zone, Conduit, Policy, Family: defined once, referenced as a contract). `Register<X>` for instances (Actor, Subject, Asset: recorded). Genesis event mirrors the verb (`<X>Defined` vs `<X>Registered`).
-- **Queries**: PascalCase nouns in `query.py` (e.g. `GetActor`).
+- **Queries**: PascalCase nouns in `query.py` (for example `GetActor`).
 - **Decider**: pure `decide` in `decider.py`. Create-style: `decide(state, command, *, now, new_id)`. Update-style: `decide(state, command, *, now)`. Cross-aggregate-multi-stream slices (today: `add_run_to_campaign`, `remove_run_from_campaign`, `supersede_caution`, `start_run`, `amend_clearance`) return a frozen dataclass wrapping per-stream event lists (`MembershipEvents`, `ClearanceAmendmentEvents`, `StartRunEvents`) instead of a single `list[<E>]`; the handler hands the named lists to `EventStore.append_streams` as one atomic batch.
 - **Handler**: `bind(deps) -> Handler` in `handler.py`. Bare `Handler` is a `Protocol`; create/update slices that opt into idempotency also define `IdempotentHandler` (same shape + optional `idempotency_key`).
-- **Domain errors**: PascalCase + `Error` suffix in the aggregate's `state.py` (e.g. `InvalidActorNameError`).
-- **BC-application errors**: PascalCase + `Error` suffix in `cora/<bc>/errors.py` (e.g. `UnauthorizedError`). Each BC registers its own handler; same-named errors across BCs are distinct classes.
-- **Domain events**: PascalCase past-tense in the aggregate's `events.py` (e.g. `ActorRegistered`). Same file holds the `<Aggregate>Event` discriminated union.
+- **Domain errors**: PascalCase + `Error` suffix in the aggregate's `state.py` (for example `InvalidActorNameError`).
+- **BC-application errors**: PascalCase + `Error` suffix in `cora/<bc>/errors.py` (for example `UnauthorizedError`). Each BC registers its own handler; same-named errors across BCs are distinct classes.
+- **Domain events**: PascalCase past-tense in the aggregate's `events.py` (for example `ActorRegistered`). Same file holds the `<Aggregate>Event` discriminated union.
 
 ## Bootstrap
 

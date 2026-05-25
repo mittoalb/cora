@@ -120,7 +120,7 @@ router = APIRouter(tags=["calibration"])
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": (
-                "Request body failed schema validation (e.g. unknown "
+                "Request body failed schema validation (for example unknown "
                 "CalibrationQuantity enum value) OR Idempotency-Key "
                 "was reused with a different request body."
             ),

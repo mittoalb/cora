@@ -79,9 +79,9 @@ class AssetLevel(StrEnum):
 
     Per the BC map (ISA-88-derived, single-word convention):
       - `Enterprise` — root; the institution itself
-      - `Site` — a facility (e.g., APS)
-      - `Area` — a section of a site (e.g., the experimental hall)
-      - `Unit` — an operational unit (e.g., a beamline)
+      - `Site` — a facility (for example, APS)
+      - `Area` — a section of a site (for example, the experimental hall)
+      - `Unit` — an operational unit (for example, a beamline)
       - `Assembly` — a composed component (ISA-88 "Equipment Module")
       - `Device` — an addressable control surface (ISA-88 "Control Module")
 
@@ -170,7 +170,7 @@ class AssetPort:
     `remove_asset_port`; the connection between two ports (which
     port wires to which) lives in `Plan.wiring` (6h), not here.
 
-    `name` is operator-supplied within the Asset's scope (e.g.
+    `name` is operator-supplied within the Asset's scope (for example,
     `"trigger_in"`, `"encoder_a"`, `"sync_clock"`). Trimmed and
     bounded 1-100 chars. Asset-wide name uniqueness is enforced by
     the `add_asset_port` decider, NOT by this dataclass.

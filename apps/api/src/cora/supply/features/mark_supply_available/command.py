@@ -1,7 +1,7 @@
 """The `MarkSupplyAvailable` command — intent dataclass for this slice.
 
 `supply_id` is the target Supply aggregate. `reason` is operator-
-supplied free text captured on the emitted event for audit (e.g.
+supplied free text captured on the emitted event for audit (for example,
 "operator walkdown confirms LN2 flowing", "control room reports beam
 delivered after morning startup"). The principal-id of the invoker
 is supplied separately by the application handler at call time.

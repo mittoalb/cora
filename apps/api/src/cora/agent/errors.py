@@ -29,7 +29,7 @@ class DecisionNotCautionProposalError(Exception):
 
     Raised by the `promote_caution_proposal` slice when the loaded
     Decision exists but its context value indicates it was authored
-    by a different agent or for a different purpose (e.g. a
+    by a different agent or for a different purpose (for example a
     `RunDebrief` Decision passed in error). Maps to HTTP 400.
     """
 
@@ -62,7 +62,7 @@ class CautionProposalMalformedError(Exception):
     """The CautionProposal Decision's `inputs.proposed_caution` payload is malformed.
 
     Catches schema-violations that the LLM structured-output adapter
-    missed (e.g. missing required field, invalid UUID,
+    missed (for example missing required field, invalid UUID,
     ProposeSupersede missing supersedes_caution_id). Maps to HTTP 400.
     """
 

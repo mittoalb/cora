@@ -1,7 +1,7 @@
 """MCP tool for the `define_zone` slice.
 
 Surfaces the same handler the REST route uses, exposed as a Model
-Context Protocol tool an MCP-aware client (e.g. Claude) can call.
+Context Protocol tool an MCP-aware client (for example Claude) can call.
 
 MCP tool calls don't currently support idempotency keys (no MCP
 standard for client-supplied retry tags); the wrapped handler is

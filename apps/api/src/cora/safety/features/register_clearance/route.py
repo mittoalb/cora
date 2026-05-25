@@ -95,7 +95,7 @@ class RegisterClearanceRequest(BaseModel):
         min_length=1,
         max_length=CLEARANCE_EXTERNAL_ID_MAX_LENGTH,
         description=(
-            "Optional facility-minted regulatory ID (e.g. 'ESAF-12345'); "
+            "Optional facility-minted regulatory ID (for example 'ESAF-12345'); "
             "lazy-mint per the PID landscape pattern."
         ),
     )

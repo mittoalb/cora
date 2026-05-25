@@ -237,7 +237,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 default=None,
                 min_length=1,
                 max_length=CLEARANCE_EXTERNAL_ID_MAX_LENGTH,
-                description="Optional facility-minted ID (e.g. 'ESAF-12345').",
+                description="Optional facility-minted ID (for example 'ESAF-12345').",
             ),
         ] = None,
         valid_from: Annotated[

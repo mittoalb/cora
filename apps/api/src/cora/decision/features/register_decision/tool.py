@@ -99,7 +99,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 default=None,
                 max_length=DECISION_RULE_MAX_LENGTH,
                 description=(
-                    "Rule citation per ISO 17025 Clause 7.1.3 (e.g., "
+                    "Rule citation per ISO 17025 Clause 7.1.3 (for example, "
                     "'iso17025:7.1.3:simple_acceptance')."
                 ),
             ),

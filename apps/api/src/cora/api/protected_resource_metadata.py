@@ -49,7 +49,7 @@ def build_protected_resource_metadata(
     """Build the RFC 9728 document body.
 
     `resource` is the resource server's stable identifier — for
-    CORA, the deployment's base URL (e.g.
+    CORA, the deployment's base URL (for example,
     `https://aps-35bm.cora.example`). Surfaces are exposed as
     distinct sub-resources via `resource_documentation` /
     `signed_metadata` extensions; the per-Surface audience strings

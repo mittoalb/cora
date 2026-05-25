@@ -1,7 +1,7 @@
 """The `MarkSupplyUnavailable` command — intent dataclass for this slice.
 
 `supply_id` is the target Supply aggregate. `reason` is operator-
-supplied free text captured on the emitted event for audit (e.g.,
+supplied free text captured on the emitted event for audit (for example,
 "beam dump at 09:32", "LN2 dewar empty", "vacuum loss in sample
 chamber"). The principal-id of the invoker is supplied separately
 by the application handler at call time.

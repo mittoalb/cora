@@ -1,7 +1,7 @@
 """The `RestoreSupply` command — intent dataclass for this slice.
 
 `supply_id` is the target Supply aggregate. `reason` is operator-
-supplied free text captured on the emitted event for audit (e.g.,
+supplied free text captured on the emitted event for audit (for example,
 "control room confirms beam stable for 5 minutes", "LN2 dewar
 refilled and pressure stable", "vacuum confirmed below target
 pressure"). The principal-id of the invoker is supplied separately

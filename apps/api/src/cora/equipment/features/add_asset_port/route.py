@@ -40,7 +40,7 @@ class AddAssetPortRequest(BaseModel):
         min_length=1,
         max_length=PORT_NAME_MAX_LENGTH,
         description=(
-            "Port name within the Asset's scope (e.g., 'trigger_in', "
+            "Port name within the Asset's scope (for example, 'trigger_in', "
             "'encoder_a', 'sync_clock'). Must be unique among the "
             "Asset's existing ports."
         ),

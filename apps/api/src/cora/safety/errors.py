@@ -5,7 +5,7 @@ mapped to HTTP / MCP responses by the BC's exception handlers in
 `cora/safety/routes.py`.
 
 Domain errors (raised by aggregates / deciders) live with their
-aggregate, e.g. `aggregates/clearance/state.py`.
+aggregate, for example `aggregates/clearance/state.py`.
 
 Distinct class from each other BC's `UnauthorizedError`: each BC owns
 its own application-error namespace so a Safety 403 is distinguishable

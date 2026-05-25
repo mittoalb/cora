@@ -6,7 +6,7 @@ Five optional filters in canonical form:
   - `target_id` (single-value, exact-match): scope to a
     single Asset/subsystem's calibrations.
   - `quantity` (CalibrationQuantity value-string): scope to one
-    quantity (e.g., all rotation_center calibrations).
+    quantity (for example, all rotation_center calibrations).
   - `latest_revision_statuses` (list of acceptable status values;
     None = no filter): filter by the most recent revision's status.
   - `latest_revision_source_kinds` (list of acceptable source-kind

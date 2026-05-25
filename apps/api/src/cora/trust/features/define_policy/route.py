@@ -51,7 +51,7 @@ class DefinePolicyRequest(BaseModel):
     permitted_commands: list[str] = Field(
         ...,
         description=(
-            "Command names (e.g. 'RegisterActor', 'DefineZone') allowed via this "
+            "Command names (for example 'RegisterActor', 'DefineZone') allowed via this "
             "conduit. Empty list yields a deny-all policy."
         ),
     )
@@ -87,7 +87,7 @@ router = APIRouter(tags=["trust"])
     responses={
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
-            "description": "Domain invariant violated (e.g. whitespace-only name).",
+            "description": "Domain invariant violated (for example whitespace-only name).",
         },
         status.HTTP_403_FORBIDDEN: {
             "model": ErrorResponse,

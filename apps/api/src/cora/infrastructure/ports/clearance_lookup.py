@@ -39,7 +39,7 @@ Run gains `external_refs: frozenset[ExternalRef]` as an
 additive field, but the ClearanceLookup query does NOT yet match
 against ExternalBindings. The projection has no `external_refs`
 column today; adding one needs a side-table or jsonb column. Defer
-until a concrete consumer (e.g., a proposal-issued
+until a concrete consumer (for example, a proposal-issued
 ExternalBinding-only Clearance) trips on the gap.
 """
 

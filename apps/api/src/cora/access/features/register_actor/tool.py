@@ -1,7 +1,7 @@
 """MCP tool for the `register_actor` slice.
 
 Surfaces the same handler the REST route uses, exposed as a Model
-Context Protocol tool an MCP-aware client (e.g. Claude) can call.
+Context Protocol tool an MCP-aware client (for example Claude) can call.
 
 Tool registration happens at app construction. The handler is fetched
 at tool-call time via the `get_handler` callable so it sees the

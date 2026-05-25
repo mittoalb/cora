@@ -32,7 +32,7 @@ class StartClearanceReviewRequest(BaseModel):
         max_length=CLEARANCE_REVIEWER_ROLE_MAX_LENGTH,
         description=(
             "Facility-vocabulary label for the first reviewer in the chain "
-            "(e.g., 'BeamlineScientist', 'LocalContact', 'ESH', 'ESRB')."
+            "(for example, 'BeamlineScientist', 'LocalContact', 'ESH', 'ESRB')."
         ),
     )
 
@@ -51,7 +51,7 @@ router = APIRouter(tags=["safety"])
     responses={
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
-            "description": "Domain invariant violated (e.g. whitespace-only role).",
+            "description": "Domain invariant violated (for example whitespace-only role).",
         },
         status.HTTP_403_FORBIDDEN: {
             "model": ErrorResponse,

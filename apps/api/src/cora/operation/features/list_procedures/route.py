@@ -111,7 +111,7 @@ async def list_procedures(
             min_length=1,
             max_length=PROCEDURE_KIND_MAX_LENGTH,
             description=(
-                "Optional kind filter (free-form, exact match; e.g. "
+                "Optional kind filter (free-form, exact match; for example "
                 "'bakeout', 'alignment'). Omit to return all kinds."
             ),
         ),

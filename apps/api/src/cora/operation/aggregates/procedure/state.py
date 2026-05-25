@@ -75,7 +75,7 @@ The decider does NOT verify each Asset id refers to a real Asset
 stream. Same precedent as Trust's Conduit zone refs (3b), Asset
 parent refs (5b), and Method's needed_families (6a). Empty
 target_asset_ids is allowed (a procedure that doesn't act on a
-specific Asset, e.g. facility-envelope beam-mode change). Existence
+specific Asset, for example facility-envelope beam-mode change). Existence
 + Decommissioned-lifecycle gating happens at start_procedure time
 via `ProcedureStartContext` at start_procedure time (mirrors
 `RunStartContext` from the Run BC).

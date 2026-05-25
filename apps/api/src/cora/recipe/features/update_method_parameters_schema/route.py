@@ -57,7 +57,7 @@ router = APIRouter(tags=["recipe"])
             "model": ErrorResponse,
             "description": (
                 "Schema rejected: missing or wrong `$schema`, forbidden "
-                "keyword (e.g. $ref / oneOf / allOf), or jsonschema-rs "
+                "keyword (for example $ref / oneOf / allOf), or jsonschema-rs "
                 "rejected the schema as malformed."
             ),
         },

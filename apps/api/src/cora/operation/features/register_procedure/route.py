@@ -40,7 +40,7 @@ class RegisterProcedureRequest(BaseModel):
         min_length=1,
         max_length=PROCEDURE_NAME_MAX_LENGTH,
         description=(
-            "Operator-readable display name for the procedure (e.g. "
+            "Operator-readable display name for the procedure (for example "
             "'35-BM rotation-axis alignment 2026-05-15', 'Vessel-A bakeout')."
         ),
     )
@@ -112,7 +112,7 @@ router = APIRouter(tags=["operation"])
     responses={
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
-            "description": "Domain invariant violated (e.g. whitespace-only name or kind).",
+            "description": "Domain invariant violated (for example whitespace-only name or kind).",
         },
         status.HTTP_403_FORBIDDEN: {
             "model": ErrorResponse,

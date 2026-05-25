@@ -4,7 +4,7 @@ Hosts the three pieces every BC's slice routes need:
 
   - `get_correlation_id` — FastAPI Depends that returns the current
     request's correlation UUID derived from the active OTel span
-    (or a fresh UUIDv4 when no span is active, e.g. in tests using
+    (or a fresh UUIDv4 when no span is active, for example in tests using
     the no-op tracer).
   - `get_principal_id` — FastAPI Depends that extracts the calling
     principal's UUID from the `X-Principal-Id` header (Pydantic

@@ -204,7 +204,7 @@
             "type": "string"
           },
           "port_name": {
-            "description": "Port name within the Asset's scope (e.g., 'trigger_in', 'encoder_a', 'sync_clock'). Must be unique among the Asset's existing ports.",
+            "description": "Port name within the Asset's scope (for example, 'trigger_in', 'encoder_a', 'sync_clock'). Must be unique among the Asset's existing ports.",
             "maxLength": 100,
             "minLength": 1,
             "title": "Port Name",
@@ -236,7 +236,7 @@
             "type": "string"
           },
           "source_port_name": {
-            "description": "Port name on the source Asset (e.g., 'trigger_out', 'data_out'). Must exist on Asset.ports and have direction=OUTPUT.",
+            "description": "Port name on the source Asset (for example, 'trigger_out', 'data_out'). Must exist on Asset.ports and have direction=OUTPUT.",
             "maxLength": 100,
             "minLength": 1,
             "title": "Source Port Name",
@@ -249,7 +249,7 @@
             "type": "string"
           },
           "target_port_name": {
-            "description": "Port name on the target Asset (e.g., 'trigger_in'). Must exist on Asset.ports, have direction=INPUT, and match source port's signal_type exactly. At most one Wire can target a given (target_asset_id, target_port_name) pair (fan-in forbidden; use a Combiner Family Asset if you genuinely need multi-source aggregation).",
+            "description": "Port name on the target Asset (for example, 'trigger_in'). Must exist on Asset.ports, have direction=INPUT, and match source port's signal_type exactly. At most one Wire can target a given (target_asset_id, target_port_name) pair (fan-in forbidden; use a Combiner Family Asset if you genuinely need multi-source aggregation).",
             "maxLength": 100,
             "minLength": 1,
             "title": "Target Port Name",
@@ -798,7 +798,7 @@
           },
           "value": {
             "additionalProperties": true,
-            "description": "JSON-shaped revision value (e.g., `{center: 1024.5}`). Validated STRICT against the calibration's quantity-specific VALUE_SCHEMA at the decider; missing required fields or additional properties raise 400.",
+            "description": "JSON-shaped revision value (for example, `{center: 1024.5}`). Validated STRICT against the calibration's quantity-specific VALUE_SCHEMA at the decider; missing required fields or additional properties raise 400.",
             "title": "Value",
             "type": "object"
           }
@@ -988,7 +988,7 @@
         "type": "object"
       },
       "AssetLevel": {
-        "description": "The hierarchical level of an Asset.\n\nPer the BC map (ISA-88-derived, single-word convention):\n  - `Enterprise` \u2014 root; the institution itself\n  - `Site` \u2014 a facility (e.g., APS)\n  - `Area` \u2014 a section of a site (e.g., the experimental hall)\n  - `Unit` \u2014 an operational unit (e.g., a beamline)\n  - `Assembly` \u2014 a composed component (ISA-88 \"Equipment Module\")\n  - `Device` \u2014 an addressable control surface (ISA-88 \"Control Module\")\n\nCommon pattern is the strict ordering above, but Device-in-Device\nis allowed when reality demands it (smart instruments). Levels\nare conventional, not enforced \u2014 the decider does not check that\na Device's parent is an Assembly.",
+        "description": "The hierarchical level of an Asset.\n\nPer the BC map (ISA-88-derived, single-word convention):\n  - `Enterprise` \u2014 root; the institution itself\n  - `Site` \u2014 a facility (for example, APS)\n  - `Area` \u2014 a section of a site (for example, the experimental hall)\n  - `Unit` \u2014 an operational unit (for example, a beamline)\n  - `Assembly` \u2014 a composed component (ISA-88 \"Equipment Module\")\n  - `Device` \u2014 an addressable control surface (ISA-88 \"Control Module\")\n\nCommon pattern is the strict ordering above, but Device-in-Device\nis allowed when reality demands it (smart instruments). Levels\nare conventional, not enforced \u2014 the decider does not check that\na Device's parent is an Assembly.",
         "enum": [
           "Enterprise",
           "Site",
@@ -1212,7 +1212,7 @@
       "BindingExternalDTO": {
         "properties": {
           "id": {
-            "description": "Facility-minted external ID (e.g. 'GUP-12345').",
+            "description": "Facility-minted external ID (for example 'GUP-12345').",
             "maxLength": 200,
             "minLength": 1,
             "title": "Id",
@@ -3720,7 +3720,7 @@
             "type": "string"
           },
           "permitted_commands": {
-            "description": "Command names (e.g. 'RegisterActor', 'DefineZone') allowed via this conduit. Empty list yields a deny-all policy.",
+            "description": "Command names (for example 'RegisterActor', 'DefineZone') allowed via this conduit. Empty list yields a deny-all policy.",
             "items": {
               "type": "string"
             },
@@ -4129,7 +4129,7 @@
         "description": "Body for `POST /clearances/{clearance_id}/expire`.",
         "properties": {
           "reason": {
-            "description": "Operator-supplied free-form reason for the expiration. Audit breadcrumb explaining why the clearance was retired (e.g., 'validity window elapsed', 'scope-change incident').",
+            "description": "Operator-supplied free-form reason for the expiration. Audit breadcrumb explaining why the clearance was retired (for example, 'validity window elapsed', 'scope-change incident').",
             "maxLength": 500,
             "minLength": 1,
             "title": "Reason",
@@ -4153,7 +4153,7 @@
             "type": "string"
           },
           "scheme": {
-            "description": "Scheme identifier for the upstream-deferred concept (e.g. 'proposal', 'btr', 'visit', 'cycle').",
+            "description": "Scheme identifier for the upstream-deferred concept (for example 'proposal', 'btr', 'visit', 'cycle').",
             "maxLength": 50,
             "minLength": 1,
             "title": "Scheme",
@@ -4403,7 +4403,7 @@
             "type": "string"
           },
           "statement_codes": {
-            "description": "GHS H-statement codes triggering this pictogram (e.g. 'H300').",
+            "description": "GHS H-statement codes triggering this pictogram (for example 'H300').",
             "items": {
               "type": "string"
             },
@@ -6370,7 +6370,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional facility-minted regulatory ID (e.g. 'ESAF-12345'); lazy-mint per the PID landscape pattern.",
+            "description": "Optional facility-minted regulatory ID (for example 'ESAF-12345'); lazy-mint per the PID landscape pattern.",
             "title": "External Id"
           },
           "facility_asset_id": {
@@ -6748,7 +6748,7 @@
             "type": "string"
           },
           "name": {
-            "description": "Operator-readable display name for the procedure (e.g. '35-BM rotation-axis alignment 2026-05-15', 'Vessel-A bakeout').",
+            "description": "Operator-readable display name for the procedure (for example '35-BM rotation-axis alignment 2026-05-15', 'Vessel-A bakeout').",
             "maxLength": 200,
             "minLength": 1,
             "title": "Name",
@@ -6842,7 +6842,7 @@
             "type": "string"
           },
           "name": {
-            "description": "Operator-readable display name for this Supply instance (e.g. '35-BM LN2 drop', 'APS storage-ring beam', 'central N2 supply').",
+            "description": "Operator-readable display name for this Supply instance (for example '35-BM LN2 drop', 'APS storage-ring beam', 'central N2 supply').",
             "maxLength": 200,
             "minLength": 1,
             "title": "Name",
@@ -6897,7 +6897,7 @@
         "description": "Body for `POST /assets/{asset_id}/relocate`.\n\n`to_parent_id` is required (non-null) \u2014 Enterprise assets cannot\nrelocate, and non-Enterprise assets always have a parent. Per\neventual-consistency stance, the parent's existence is NOT\nverified by the decider.\n\n`reason` is operator-supplied free text (audit-log breadcrumb).",
         "properties": {
           "reason": {
-            "description": "Operator-supplied reason for the relocation (audit-log breadcrumb), e.g. 'site reorganization', 'moved to BL2-IBP'.",
+            "description": "Operator-supplied reason for the relocation (audit-log breadcrumb), for example 'site reorganization', 'moved to BL2-IBP'.",
             "maxLength": 500,
             "minLength": 1,
             "title": "Reason",
@@ -7606,7 +7606,7 @@
         "description": "Wire shape for a Computed source (numerical analysis of a Dataset).",
         "properties": {
           "dataset_id": {
-            "description": "Dataset id whose data this revision was computed from (e.g., `tomopy.find_center_vo` on the projections).",
+            "description": "Dataset id whose data this revision was computed from (for example, `tomopy.find_center_vo` on the projections).",
             "format": "uuid",
             "title": "Dataset Id",
             "type": "string"
@@ -7650,7 +7650,7 @@
         "description": "Body for `POST /clearances/{clearance_id}/start_review`.",
         "properties": {
           "first_reviewer_role": {
-            "description": "Facility-vocabulary label for the first reviewer in the chain (e.g., 'BeamlineScientist', 'LocalContact', 'ESH', 'ESRB').",
+            "description": "Facility-vocabulary label for the first reviewer in the chain (for example, 'BeamlineScientist', 'LocalContact', 'ESH', 'ESRB').",
             "maxLength": 50,
             "minLength": 1,
             "title": "First Reviewer Role",
@@ -8062,7 +8062,7 @@
         "type": "object"
       },
       "SupplyScope": {
-        "description": "The hierarchical scope at which a Supply is provisioned.\n\nThree values per APS LMA18-3 LN2 distribution layering and\nNeXus NXsource one-source-per-storage-ring precedent:\n\n  - `Facility` \u2014 facility-wide resource (storage-ring photon beam,\n    central LN2 plant, building electrical power, central\n    compressed air)\n  - `Sector` \u2014 a sub-portion of the facility (ring sector, gas-\n    manifold loop serving N beamlines)\n  - `Beamline` \u2014 beamline-local resource (per-beamline LN2 drop,\n    beamline-local vacuum subsystem, beamline-local compute)\n\nAdding finer-grained scopes (e.g., Substrate, Chamber) is purely\nadditive when triggers fire.",
+        "description": "The hierarchical scope at which a Supply is provisioned.\n\nThree values per APS LMA18-3 LN2 distribution layering and\nNeXus NXsource one-source-per-storage-ring precedent:\n\n  - `Facility` \u2014 facility-wide resource (storage-ring photon beam,\n    central LN2 plant, building electrical power, central\n    compressed air)\n  - `Sector` \u2014 a sub-portion of the facility (ring sector, gas-\n    manifold loop serving N beamlines)\n  - `Beamline` \u2014 beamline-local resource (per-beamline LN2 drop,\n    beamline-local vacuum subsystem, beamline-local compute)\n\nAdding finer-grained scopes (for example, Substrate, Chamber) is purely\nadditive when triggers fire.",
         "enum": [
           "Facility",
           "Sector",
@@ -8854,7 +8854,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only name)."
+            "description": "Domain invariant violated (for example whitespace-only name)."
           },
           "403": {
             "content": {
@@ -12008,7 +12008,7 @@
             "description": "Calibration with the same (target_id, quantity, operating_point) identity already exists (Postgres jsonb UNIQUE on proj_calibration_summary). Operators querying for an existing calibration should use GET /calibrations with the same identity filters instead."
           },
           "422": {
-            "description": "Request body failed schema validation (e.g. unknown CalibrationQuantity enum value) OR Idempotency-Key was reused with a different request body."
+            "description": "Request body failed schema validation (for example unknown CalibrationQuantity enum value) OR Idempotency-Key was reused with a different request body."
           }
         },
         "summary": "Define a new Calibration record",
@@ -12200,7 +12200,7 @@
             "description": "Concurrent write to the same calibration stream conflicted (optimistic concurrency)."
           },
           "422": {
-            "description": "Path parameter or request body failed schema validation (e.g. unknown source `kind` discriminator) OR Idempotency-Key was reused with a different body."
+            "description": "Path parameter or request body failed schema validation (for example unknown source `kind` discriminator) OR Idempotency-Key was reused with a different body."
           }
         },
         "summary": "Append a new revision to an existing Calibration",
@@ -14925,7 +14925,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only reason)."
+            "description": "Domain invariant violated (for example whitespace-only reason)."
           },
           "403": {
             "content": {
@@ -15025,7 +15025,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only reason)."
+            "description": "Domain invariant violated (for example whitespace-only reason)."
           },
           "403": {
             "content": {
@@ -15225,7 +15225,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only role)."
+            "description": "Domain invariant violated (for example whitespace-only role)."
           },
           "403": {
             "content": {
@@ -15673,7 +15673,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only name)."
+            "description": "Domain invariant violated (for example whitespace-only name)."
           },
           "403": {
             "content": {
@@ -16992,7 +16992,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only name)."
+            "description": "Domain invariant violated (for example whitespace-only name)."
           },
           "403": {
             "content": {
@@ -17226,7 +17226,7 @@
                 }
               }
             },
-            "description": "Schema rejected: missing or wrong `$schema`, forbidden keyword (e.g. $ref / oneOf / allOf), or jsonschema-rs rejected the schema as malformed."
+            "description": "Schema rejected: missing or wrong `$schema`, forbidden keyword (for example $ref / oneOf / allOf), or jsonschema-rs rejected the schema as malformed."
           },
           "403": {
             "content": {
@@ -17804,7 +17804,7 @@
                 }
               }
             },
-            "description": "Schema rejected: missing or wrong `$schema`, forbidden keyword (e.g. $ref / oneOf / allOf), or jsonschema-rs rejected the schema as malformed."
+            "description": "Schema rejected: missing or wrong `$schema`, forbidden keyword (for example $ref / oneOf / allOf), or jsonschema-rs rejected the schema as malformed."
           },
           "403": {
             "content": {
@@ -18915,7 +18915,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only name)."
+            "description": "Domain invariant violated (for example whitespace-only name)."
           },
           "403": {
             "content": {
@@ -18966,12 +18966,12 @@
             }
           },
           {
-            "description": "Command name being evaluated (e.g. 'RegisterActor').",
+            "description": "Command name being evaluated (for example 'RegisterActor').",
             "in": "query",
             "name": "evaluated_command_name",
             "required": true,
             "schema": {
-              "description": "Command name being evaluated (e.g. 'RegisterActor').",
+              "description": "Command name being evaluated (for example 'RegisterActor').",
               "maxLength": 200,
               "minLength": 1,
               "title": "Evaluated Command Name",
@@ -19689,7 +19689,7 @@
             }
           },
           {
-            "description": "Optional kind filter (free-form, exact match; e.g. 'bakeout', 'alignment'). Omit to return all kinds.",
+            "description": "Optional kind filter (free-form, exact match; for example 'bakeout', 'alignment'). Omit to return all kinds.",
             "in": "query",
             "name": "kind",
             "required": false,
@@ -19704,7 +19704,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Optional kind filter (free-form, exact match; e.g. 'bakeout', 'alignment'). Omit to return all kinds.",
+              "description": "Optional kind filter (free-form, exact match; for example 'bakeout', 'alignment'). Omit to return all kinds.",
               "title": "Kind"
             }
           },
@@ -19866,7 +19866,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only name or kind)."
+            "description": "Domain invariant violated (for example whitespace-only name or kind)."
           },
           "403": {
             "content": {
@@ -21744,7 +21744,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only name)."
+            "description": "Domain invariant violated (for example whitespace-only name)."
           },
           "403": {
             "content": {
@@ -22521,7 +22521,7 @@
             }
           },
           {
-            "description": "Optional kind filter (free-form, exact match; e.g. 'LiquidNitrogen'). Omit to return all kinds.",
+            "description": "Optional kind filter (free-form, exact match; for example 'LiquidNitrogen'). Omit to return all kinds.",
             "in": "query",
             "name": "kind",
             "required": false,
@@ -22536,7 +22536,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Optional kind filter (free-form, exact match; e.g. 'LiquidNitrogen'). Omit to return all kinds.",
+              "description": "Optional kind filter (free-form, exact match; for example 'LiquidNitrogen'). Omit to return all kinds.",
               "title": "Kind"
             }
           },
@@ -22685,7 +22685,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only kind or name)."
+            "description": "Domain invariant violated (for example whitespace-only kind or name)."
           },
           "403": {
             "content": {
@@ -22842,7 +22842,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only reason)."
+            "description": "Domain invariant violated (for example whitespace-only reason)."
           },
           "403": {
             "content": {
@@ -22942,7 +22942,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only reason)."
+            "description": "Domain invariant violated (for example whitespace-only reason)."
           },
           "403": {
             "content": {
@@ -23042,7 +23042,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only reason)."
+            "description": "Domain invariant violated (for example whitespace-only reason)."
           },
           "403": {
             "content": {
@@ -23142,7 +23142,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only reason)."
+            "description": "Domain invariant violated (for example whitespace-only reason)."
           },
           "403": {
             "content": {
@@ -23242,7 +23242,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only reason)."
+            "description": "Domain invariant violated (for example whitespace-only reason)."
           },
           "403": {
             "content": {
@@ -23355,7 +23355,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only name)."
+            "description": "Domain invariant violated (for example whitespace-only name)."
           },
           "403": {
             "content": {
@@ -23600,7 +23600,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (e.g. whitespace-only name)."
+            "description": "Domain invariant violated (for example whitespace-only name)."
           },
           "403": {
             "content": {

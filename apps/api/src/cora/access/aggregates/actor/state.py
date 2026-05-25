@@ -48,7 +48,7 @@ class ActorKind(StrEnum):
                    identical to humans at the Authorize port; the
                    discriminator exists for forensic logging + policy
                    shapes that want to scope machine callers separately
-                   (e.g. "this Policy allows only kind=service_account
+                   (for example "this Policy allows only kind=service_account
                    callers from issuer=internal-ci.example.com").
 
     Decision.actor_id semantics survive the split: humans, agents, and

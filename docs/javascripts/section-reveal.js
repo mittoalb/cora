@@ -48,7 +48,7 @@
       try {
         anchor = article.querySelector(location.hash);
       } catch (_) {
-        // Invalid CSS selector in hash (e.g. starts with digit); ignore.
+        // Invalid CSS selector in hash (for example starts with digit); ignore.
       }
       if (anchor) {
         let cursor = anchor.closest(".md-typeset > *") || anchor;

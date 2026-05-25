@@ -53,7 +53,7 @@ router = APIRouter(tags=["supply"])
     responses={
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
-            "description": "Domain invariant violated (e.g. whitespace-only reason).",
+            "description": "Domain invariant violated (for example whitespace-only reason).",
         },
         status.HTTP_403_FORBIDDEN: {
             "model": ErrorResponse,

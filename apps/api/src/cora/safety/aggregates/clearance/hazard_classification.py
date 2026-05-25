@@ -227,7 +227,7 @@ class GHSPictogram:
     """GHS chemical hazard pictogram + triggering H-statement codes.
 
     GHS pictogram codes are GHS01..GHS09 (closed enum). `statement_codes`
-    is the frozenset of H-codes (e.g., 'H300', 'H311') whose presence on
+    is the frozenset of H-codes (for example, 'H300', 'H311') whose presence on
     the chemical's SDS triggered the pictogram. Empty `statement_codes`
     is allowed (a pictogram declared without specific H-code attribution).
 

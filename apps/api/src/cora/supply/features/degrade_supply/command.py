@@ -1,7 +1,7 @@
 """The `DegradeSupply` command — intent dataclass for this slice.
 
 `supply_id` is the target Supply aggregate. `reason` is operator-
-supplied free text captured on the emitted event for audit (e.g.,
+supplied free text captured on the emitted event for audit (for example,
 "photon beam at half-current after partial top-up", "LN2 dewar at
 20% pressure margin", "compressed-air pressure drop detected"). The
 principal-id of the invoker is supplied separately by the

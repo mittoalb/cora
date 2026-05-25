@@ -44,7 +44,7 @@ class ExternalRefDTO(BaseModel):
         max_length=EXTERNAL_REF_SCHEME_MAX_LENGTH,
         description=(
             "Scheme identifier for the upstream-deferred concept "
-            "(e.g. 'proposal', 'btr', 'visit', 'cycle')."
+            "(for example 'proposal', 'btr', 'visit', 'cycle')."
         ),
     )
     id: str = Field(

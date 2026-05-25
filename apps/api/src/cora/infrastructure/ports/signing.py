@@ -53,7 +53,7 @@ to recover the verifying key; see `verify_signature` in
 
 Three adapter-tier errors. Each maps to an HTTP status when surfaced
 through the route layer; the handler tier MAY catch and retry under
-specific patterns (e.g. transient Fulcio outage retried under a
+specific patterns (for example transient Fulcio outage retried under a
 configured fallback).
 
   - `SignerKeyNotFoundError` (HTTP 500): the `actor_id` does not resolve
@@ -105,7 +105,7 @@ class SignerUnavailableError(Exception):
     """The signing backend cannot be reached.
 
     Surfaces as HTTP 503 with `Retry-After`. Transient by definition;
-    callers retry. Adapters with a configured fallback (e.g. local
+    callers retry. Adapters with a configured fallback (for example local
     keystore behind Sigstore Fulcio) may catch this internally and
     re-route before it reaches the caller.
     """

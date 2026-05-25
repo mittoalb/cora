@@ -95,7 +95,7 @@ class ClearanceReviewStarted:
     """The first reviewer picked up the clearance (`Submitted -> UnderReview`).
 
     `first_reviewer_role` is the facility-vocabulary label for the first
-    step in the review chain (e.g., `BeamlineScientist`, `LocalContact`).
+    step in the review chain (for example, `BeamlineScientist`, `LocalContact`).
     Captured for audit clarity; subsequent steps land via
     `ClearanceReviewStepAppended`.
     """

@@ -30,7 +30,7 @@ class AppendRevisionRequest(BaseModel):
     value: dict[str, Any] = Field(
         ...,
         description=(
-            "JSON-shaped revision value (e.g., `{center: 1024.5}`). "
+            "JSON-shaped revision value (for example, `{center: 1024.5}`). "
             "Validated STRICT against the calibration's quantity-specific "
             "VALUE_SCHEMA at the decider; missing required fields or "
             "additional properties raise 400."
@@ -122,7 +122,7 @@ router = APIRouter(tags=["calibration"])
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": (
                 "Path parameter or request body failed schema validation "
-                "(e.g. unknown source `kind` discriminator) OR "
+                "(for example unknown source `kind` discriminator) OR "
                 "Idempotency-Key was reused with a different body."
             ),
         },

@@ -9,7 +9,7 @@ when no new events were processed. The two implementations:
     Used when `Settings.projection_use_listen_notify` is True.
 
   - `PollOnlyWakeup`: just `asyncio.sleep(timeout_seconds)`. No NOTIFY
-    dependency. Used when the setting is False — e.g., to avoid
+    dependency. Used when the setting is False — for example, to avoid
     Postgres NOTIFY's global commit `AccessExclusiveLock` under
     contention (per Recall.ai July 2025 incident; trigger documented
     in the NATS deferred-list entry).

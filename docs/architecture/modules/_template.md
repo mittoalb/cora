@@ -136,9 +136,9 @@ stateDiagram-v2
 <!--
   Keep the slices table at 5 columns; group repeated errors into per-slice
   definition list entries below so the table stays narrow. When several
-  slices share an error set (e.g. all FSM transitions raising
+  slices share an error set (for example all FSM transitions raising
   `<X>NotFound, <X>Cannot<Verb>, Unauthorized`), group them with a slash
-  in the term (e.g. `<HoldX>` / `<ResumeX>`) so the list doesn't repeat.
+  in the term (for example `<HoldX>` / `<ResumeX>`) so the list doesn't repeat.
 -->
 
 

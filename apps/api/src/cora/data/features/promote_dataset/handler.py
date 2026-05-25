@@ -41,7 +41,7 @@ store is NOT flagged. Two reasons this is operationally safe:
      Dataset whose derived_from references a non-existent stream
      in the first place.
 
-If those guarantees are ever weakened (e.g., manual stream deletion
+If those guarantees are ever weakened (for example, manual stream deletion
 for compliance), the lineage-must-be-Production guard would silently
 permit promotion of Datasets whose lineage proof has gone missing.
 """

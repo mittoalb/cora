@@ -169,7 +169,7 @@ class SupplyScope(StrEnum):
       - `Beamline` — beamline-local resource (per-beamline LN2 drop,
         beamline-local vacuum subsystem, beamline-local compute)
 
-    Adding finer-grained scopes (e.g., Substrate, Chamber) is purely
+    Adding finer-grained scopes (for example, Substrate, Chamber) is purely
     additive when triggers fire.
     """
 

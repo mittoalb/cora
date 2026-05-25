@@ -3,7 +3,7 @@
 Update-style handler (loads the Calibration aggregate then appends a
 new revision event). Per the design memo, this slice IS Idempotency-
 Key wrapped: agent subscribers will be the primary callers
-(e.g., a future `RotationCenterRefiner` that subscribes to terminal
+(for example, a future `RotationCenterRefiner` that subscribes to terminal
 Run events and computes a `tomopy.find_center_vo` refinement),
 needing exactly-once-effective semantics across retries.
 
@@ -14,7 +14,7 @@ anchor for the value just appended.
 Per [[project_update_handler_pattern]], the
 `make_calibration_update_handler` factory is NOT hoisted yet:
 only one update slice ships here (`append_revision`). The factory
-will emerge when a second update transition lands (e.g., a future
+will emerge when a second update transition lands (for example, a future
 `promote_revision`).
 """
 

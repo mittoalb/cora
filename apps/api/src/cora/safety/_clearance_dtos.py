@@ -97,7 +97,7 @@ class BindingExternalDTO(BaseModel):
         ...,
         min_length=1,
         max_length=CLEARANCE_EXTERNAL_BINDING_ID_MAX_LENGTH,
-        description="Facility-minted external ID (e.g. 'GUP-12345').",
+        description="Facility-minted external ID (for example 'GUP-12345').",
     )
 
 
@@ -136,7 +136,7 @@ class GHSDTO(BaseModel):
     )
     statement_codes: list[str] = Field(
         default_factory=list,
-        description="GHS H-statement codes triggering this pictogram (e.g. 'H300').",
+        description="GHS H-statement codes triggering this pictogram (for example 'H300').",
     )
 
 

@@ -44,7 +44,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 max_length=CLEARANCE_REVIEWER_ROLE_MAX_LENGTH,
                 description=(
                     "Facility-vocabulary label for the first reviewer "
-                    "(e.g., 'BeamlineScientist', 'LocalContact', 'ESH')."
+                    "(for example, 'BeamlineScientist', 'LocalContact', 'ESH')."
                 ),
             ),
         ],

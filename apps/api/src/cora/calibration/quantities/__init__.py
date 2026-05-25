@@ -4,9 +4,9 @@ Each quantity in the closed StrEnum declares two JSON Schemas at module
 import time:
 
   - `OPERATING_POINT_SCHEMA` — what operating-conditions dict identifies
-    this calibration (e.g., rotation_center at `{energy: 25,
+    this calibration (for example, rotation_center at `{energy: 25,
     optics_config: "5x"}` is distinct from the same quantity at 30 keV).
-  - `VALUE_SCHEMA` — what value dict the revision carries (e.g.,
+  - `VALUE_SCHEMA` — what value dict the revision carries (for example,
     `{center: 1024.5, uncertainty: 0.3}`).
 
 Both schemas are CLOSED (`additionalProperties: False`) and property-

@@ -94,7 +94,7 @@ class CachedError:
     command_hash: str
     command_name: str
     error_type: str
-    """Fully-qualified exception class name, e.g.
+    """Fully-qualified exception class name, for example,
     `cora.access.aggregates.actor.InvalidActorNameError`."""
     error_msg: str
     """`str(exc)` of the original exception."""
@@ -222,7 +222,7 @@ class IdempotencyStore(Protocol):
         would either violate the constraint (PG) or leave the row
         in an unreachable tri-state (memory). Handlers that
         legitimately return `None` should serialize to a sentinel
-        (e.g. `serialize_result=lambda _: "ok"`) at wire time.
+        (for example `serialize_result=lambda _: "ok"`) at wire time.
         """
         ...
 

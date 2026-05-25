@@ -1,7 +1,7 @@
 """The `RejectClearance` command -- intent dataclass for this slice.
 
 `reason` is operator-supplied free text captured on the emitted event
-for audit clarity (e.g., "ESRB found insufficient PPE specification",
+for audit clarity (for example, "ESRB found insufficient PPE specification",
 "chemical inventory exceeds beamline limit"). Mirrors RunAbortReason
 1-500 char shape.
 

@@ -175,7 +175,7 @@ class AssetDegraded:
     evolver sets the new condition; no condition field in the
     payload (event TYPE encodes the change).
 
-    `reason` is operator-supplied free text (e.g. "hot pixel detected
+    `reason` is operator-supplied free text (for example "hot pixel detected
     at (12, 42)"); validated 1-500 chars at the API boundary, the
     decider trusts the input. Same precedent as `AssetRelocated.reason`.
     """
@@ -284,7 +284,7 @@ class AssetRelocated:
     Lifecycle is unchanged. Carries BOTH source and target parent
     in the payload — the audit log should record both sides without
     requiring readers to walk the prior event. `reason` is operator-
-    supplied free text (e.g. "moved from storage to BL2-IBP", "site
+    supplied free text (for example "moved from storage to BL2-IBP", "site
     reorganization 2026-Q3").
 
     Per BC map: `from_parent_id` is the prior parent, `to_parent_id`

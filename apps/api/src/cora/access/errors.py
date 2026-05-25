@@ -5,7 +5,7 @@ mapped to HTTP / MCP responses by the BC's exception handlers in
 `cora/access/routes.py`.
 
 Domain errors (raised by aggregates / deciders) live with their
-aggregate, e.g. `aggregates/actor/state.py`.
+aggregate, for example `aggregates/actor/state.py`.
 
 Distinct class from `cora.subject.errors.UnauthorizedError` /
 `cora.trust.errors.UnauthorizedError`: each BC owns its own

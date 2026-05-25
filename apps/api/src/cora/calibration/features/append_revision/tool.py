@@ -1,6 +1,6 @@
 """MCP tool for the `append_revision` slice.
 
-Agent subscribers (e.g., a future `RotationCenterRefiner`) are the
+Agent subscribers (for example, a future `RotationCenterRefiner`) are the
 primary intended callers. The tool surface mirrors the REST route's
 field shape exactly.
 """

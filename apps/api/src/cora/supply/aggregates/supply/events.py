@@ -98,7 +98,7 @@ class SupplyDegraded:
     """The Supply transitioned to Degraded (10a-b).
 
     Multi-source: `{Unknown, Available, Recovering} -> Degraded`. The
-    resource is up but below nominal capacity / quality (e.g.,
+    resource is up but below nominal capacity / quality (for example,
     photon beam at half-current after partial top-up; LN2 dewar at
     20% pressure margin). Same payload shape as
     `SupplyMarkedAvailable`.

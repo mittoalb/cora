@@ -8,7 +8,7 @@ Uses HTTP PATCH (not POST-as-action like the condition slices)
 because PATCH is the right verb for partial-update semantics on a
 sub-resource. The body shape is `{settings_patch: {...}}` rather
 than the patch dict directly so the request envelope can grow
-additional fields (e.g. dry_run flag) in a future additive
+additional fields (for example dry_run flag) in a future additive
 revision without breaking clients.
 """
 

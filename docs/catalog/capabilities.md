@@ -16,8 +16,8 @@
 
 - **`cora.capability.<snake_case>`** — lowercase, regex `^[a-zA-Z0-9_-]{1,64}$` (matches MCP / OpenAI / Anthropic tool-name constraints so the unprefixed tail can be exposed verbatim on agent tool surfaces).
 - **Noun or gerund only, never verb.** Verbs belong at the [Affordance](../reference/affordances.md) (`-able` adjective) or agent-tool layer (`get_*`, `read_*`). Capability names describe *what an operation provides*.
-- **One word when a community shorthand exists** (`tomography`, `alignment`, `acquisition`); head-noun-last `snake_case` compound only when one word is genuinely ambiguous (e.g., future `energy_scan` vs ambiguous bare `energy`).
-- **Artifacts and milestones are NOT Capabilities.** `baseline` is a Dataset kind; `first_light` is a milestone (the Method captures the operational acquisition, the milestone-name stays only because the synchrotron community universally calls it that). Data-reduction steps (e.g., `flat_field_correction`) live in external pipelines, not as CORA Methods.
+- **One word when a community shorthand exists** (`tomography`, `alignment`, `acquisition`); head-noun-last `snake_case` compound only when one word is genuinely ambiguous (for example, future `energy_scan` vs ambiguous bare `energy`).
+- **Artifacts and milestones are NOT Capabilities.** `baseline` is a Dataset kind; `first_light` is a milestone (the Method captures the operational acquisition, the milestone-name stays only because the synchrotron community universally calls it that). Data-reduction steps (for example, `flat_field_correction`) live in external pipelines, not as CORA Methods.
 
 ## Catalog governance
 

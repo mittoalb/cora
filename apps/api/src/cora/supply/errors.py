@@ -5,7 +5,7 @@ and mapped to HTTP / MCP responses by the BC's exception handlers in
 `cora/supply/routes.py`.
 
 Domain errors (raised by aggregates / deciders) live with their
-aggregate, e.g. `aggregates/supply/state.py`.
+aggregate, for example `aggregates/supply/state.py`.
 
 Distinct class from each other BC's `UnauthorizedError`: each BC
 owns its own application-error namespace so a Supply 403 is

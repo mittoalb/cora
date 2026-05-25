@@ -25,14 +25,14 @@ channel are deferred.
 `SubjectStatus` is a `StrEnum` so the values would serialize naturally
 as JSON-friendly strings IF carried in an event payload. Today they
 aren't: state holds the enum (typed) and the evolver derives the new
-status from the event TYPE (e.g., folding `SubjectMounted` always
+status from the event TYPE (for example, folding `SubjectMounted` always
 produces `status=MOUNTED`), exactly mirroring the
 `ActorDeactivated -> is_active=False` precedent. The status field
 never appears in an event payload — the event type IS the
 state-change indicator.
 
 The StrEnum-in-state, str-in-payload bridge will only fire if a future
-event type genuinely needs to carry an arbitrary status as data (e.g.,
+event type genuinely needs to carry an arbitrary status as data (for example,
 an admin "set-status" command for backfill). When that lands, the
 evolver folds via `SubjectStatus(payload["status"])` and the bridge
 becomes load-bearing. Until then the bridge is theoretical.

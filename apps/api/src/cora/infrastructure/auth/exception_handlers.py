@@ -4,7 +4,7 @@ Two handlers are registered globally on the FastAPI app at startup
 via `register_auth_exception_handlers(app)`:
 
   - `InvalidTokenError` -> HTTP 401 + RFC 6750 §3 WWW-Authenticate
-    challenge. The `reason` short-string (e.g. "bad_signature",
+    challenge. The `reason` short-string (for example "bad_signature",
     "expired", "wrong_audience") goes into the `error=` parameter
     of the challenge so clients can distinguish without parsing
     free-form text. The `error_description=` carries the (already
@@ -137,7 +137,7 @@ async def _handle_invalid_token(request: Request, exc: Exception) -> JSONRespons
     """Map `InvalidTokenError` to HTTP 401 with RFC 6750 challenge.
 
     Gate-review SEC M2: the response body + error_description carry
-    only the closed-set `reason` short-code (e.g. "bad_signature",
+    only the closed-set `reason` short-code (for example "bad_signature",
     "unknown_subject", "wrong_audience"). The free-form `detail`
     field stays in the structured log line ONLY -- it can contain
     IdP-controlled values (subject string for `unknown_subject`,
@@ -207,7 +207,7 @@ def register_auth_exception_handlers(app: FastAPI) -> None:
 
     Why this STILL exists when BearerAuthMiddleware calls the handlers
     inline: routes / Depends that raise these errors AFTER middleware
-    runs (e.g. a future BC handler that re-verifies a token at a
+    runs (for example a future BC handler that re-verifies a token at a
     sensitive boundary) need the standard exception-handler chain.
     Belt-and-suspenders: the middleware handles the bearer-path
     raises directly (BaseHTTPMiddleware quirk), and the registered

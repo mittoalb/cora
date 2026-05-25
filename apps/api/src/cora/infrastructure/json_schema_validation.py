@@ -78,7 +78,7 @@ def validate_schema_declaration(
       2. Forbidden keyword used (per `json_schema_subset.check_subset`)
       3. `unit` annotation present but malformed (per
          `validate_unit_annotations`)
-      4. jsonschema-rs rejects the schema as malformed (e.g. an
+      4. jsonschema-rs rejects the schema as malformed (for example an
          invalid `pattern` regex)
 
     Returns None on success. Caller persists the schema as-is; runtime

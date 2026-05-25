@@ -101,7 +101,7 @@ class ModelRef:
     aggregate's `ModelRef`. See [[project-run-debrief-design]] for
     the translation site.
 
-    `provider` is a free string today (e.g., `"anthropic"`); future
+    `provider` is a free string today (for example, `"anthropic"`); future
     `OpenAILLMAdapter` would set `"openai"`. `model` is the
     provider's model identifier. `snapshot_pin` is the dated /
     versioned snapshot suffix when the provider exposes one; `None`

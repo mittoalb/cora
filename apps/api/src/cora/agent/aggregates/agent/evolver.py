@@ -23,7 +23,7 @@ Transition events applied to empty state raise `ValueError` via the
 shared `require_state` helper at `cora.infrastructure.evolver`.
 
 Every arm explicitly carries forward EVERY field of the prior Agent
-to guard against the silent-wipe bug class (e.g.
+to guard against the silent-wipe bug class (for example,
 `DecisionLogbookOpened` / `Closed` arms once silently wiped
 `Decision.ratings`).
 """

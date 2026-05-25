@@ -21,7 +21,7 @@ shrinks to a 7-line `bind`. Mirrors `_supply_update_handler`
 
 Safety is a single-aggregate BC today (Clearance). The factory
 scopes to the Clearance aggregate, not the BC, so a future
-sibling aggregate (e.g., the deferred ClearanceTemplate; see
+sibling aggregate (for example, the deferred ClearanceTemplate; see
 [[project_safety_clearance_design]] watch item) would get its own
 factory rather than parameterizing this one.
 

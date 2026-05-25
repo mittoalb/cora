@@ -1,7 +1,7 @@
 """The `ExpireClearance` command -- intent dataclass for this slice.
 
 `reason` is operator-supplied free text captured on the emitted
-`ClearanceExpired` event for audit clarity (e.g., "validity window
+`ClearanceExpired` event for audit clarity (for example, "validity window
 elapsed", "operator manually expired after scope-change incident").
 
 The expiring actor's identity lives on the event envelope

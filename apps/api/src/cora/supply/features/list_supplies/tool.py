@@ -54,7 +54,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         description=(
             "Cursor-paginated list of supplies. Optional filters: "
             "`scope` (Facility / Sector / Beamline), `kind` (free-form "
-            "exact match, e.g. 'LiquidNitrogen'), `status` (Unknown / "
+            "exact match, for example 'LiquidNitrogen'), `status` (Unknown / "
             "Available / Degraded / Unavailable / Recovering). Pass "
             "`cursor` from a previous page's `next_cursor` to fetch "
             "the next page."

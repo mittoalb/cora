@@ -41,7 +41,7 @@ class AddPlanWireRequest(BaseModel):
         min_length=1,
         max_length=WIRE_PORT_NAME_MAX_LENGTH,
         description=(
-            "Port name on the source Asset (e.g., 'trigger_out', "
+            "Port name on the source Asset (for example, 'trigger_out', "
             "'data_out'). Must exist on Asset.ports and have "
             "direction=OUTPUT."
         ),
@@ -55,7 +55,7 @@ class AddPlanWireRequest(BaseModel):
         min_length=1,
         max_length=WIRE_PORT_NAME_MAX_LENGTH,
         description=(
-            "Port name on the target Asset (e.g., 'trigger_in'). "
+            "Port name on the target Asset (for example, 'trigger_in'). "
             "Must exist on Asset.ports, have direction=INPUT, and "
             "match source port's signal_type exactly. At most one "
             "Wire can target a given (target_asset_id, target_port_name) "

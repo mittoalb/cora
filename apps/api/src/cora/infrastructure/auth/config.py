@@ -65,7 +65,7 @@ class IdpSubjectBinding(BaseModel):
         description=(
             "Raw `sub` claim string from the IdP — exact match. For "
             "OIDC humans this is typically the IdP's stable user id "
-            "(e.g. an Entra GUID); for client_credentials service "
+            "(for example an Entra GUID); for client_credentials service "
             "accounts it's the OAuth client id."
         ),
     )
@@ -176,7 +176,7 @@ class IdentityProviderConfig(BaseModel):
             "IdP-wide default kind. Applied to any "
             "`IdpSubjectBinding` whose own `kind` is unset (the "
             "common case). Set to `service_account` for IdPs that "
-            "issue only client-credentials tokens (e.g. a CI-only "
+            "issue only client-credentials tokens (for example a CI-only "
             "IdP) so individual bindings can stay terse."
         ),
     )

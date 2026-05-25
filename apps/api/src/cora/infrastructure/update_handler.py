@@ -12,9 +12,9 @@ precedent applies) had fired.
 Each BC keeps its own `make_<aggregate>_update_handler` thin
 wrapper that supplies:
 
-  - `stream_type` — the event-store stream type, e.g. `"Subject"`.
+  - `stream_type` — the event-store stream type, for example `"Subject"`.
   - `target_id_attr` — the command attribute carrying the target
-    aggregate id, e.g. `"subject_id"`. Used both for the
+    aggregate id, for example `"subject_id"`. Used both for the
     event-store load key and for the log-line field name (so the
     aggregate's id keeps its semantic name in log search).
   - The four codec functions (`from_stored`, `to_payload`,
@@ -32,12 +32,12 @@ Asset's eight-plus) compile unchanged.
 
   - `command_name: str` — canonical PascalCase command name.
   - `log_prefix: str` — slice name used for log-line prefixes
-    (e.g. `mount_subject` -> `mount_subject.start` / `.denied` /
+    (for example `mount_subject` -> `mount_subject.start` / `.denied` /
     `.success`).
   - `decide_fn: Callable[..., Sequence[TEvent]]` — the slice's
     pure decider.
   - `extra_log_fields: Callable[[Any], dict[str, Any]] | None` —
-    OPTIONAL extractor for log fields beyond the target id (e.g.
+    OPTIONAL extractor for log fields beyond the target id (for example,
     `version_tag` on `version_method` / `version_practice` /
     `version_plan`, or `schema_present` on
     `update_method_parameters_schema`). Returned dict is merged
@@ -70,7 +70,7 @@ happens at the slice boundary through each slice's local
 ## Multi-stream handlers stay longhand
 
 This factory loads exactly one event-store stream. Slices that
-need to load additional streams (e.g.,
+need to load additional streams (for example,
 `update_plan_default_parameters` reads Plan + Method to surface
 the parameters_schema) cannot use this factory and stay longhand.
 """

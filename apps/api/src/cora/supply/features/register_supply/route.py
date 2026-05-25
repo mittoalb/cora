@@ -55,7 +55,7 @@ class RegisterSupplyRequest(BaseModel):
         max_length=SUPPLY_NAME_MAX_LENGTH,
         description=(
             "Operator-readable display name for this Supply instance "
-            "(e.g. '35-BM LN2 drop', 'APS storage-ring beam', 'central N2 supply')."
+            "(for example '35-BM LN2 drop', 'APS storage-ring beam', 'central N2 supply')."
         ),
     )
 
@@ -81,7 +81,9 @@ router = APIRouter(tags=["supply"])
     responses={
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
-            "description": ("Domain invariant violated (e.g. whitespace-only kind or name)."),
+            "description": (
+                "Domain invariant violated (for example whitespace-only kind or name)."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "model": ErrorResponse,

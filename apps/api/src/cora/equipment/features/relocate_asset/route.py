@@ -50,7 +50,7 @@ class RelocateAssetRequest(BaseModel):
         max_length=_REASON_MAX_LENGTH,
         description=(
             "Operator-supplied reason for the relocation (audit-log "
-            "breadcrumb), e.g. 'site reorganization', 'moved to BL2-IBP'."
+            "breadcrumb), for example 'site reorganization', 'moved to BL2-IBP'."
         ),
     )
 

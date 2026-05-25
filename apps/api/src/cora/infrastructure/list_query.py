@@ -78,9 +78,9 @@ composer in favor of `sql.Composed`.
 ## Per-slice inputs
 
   - `query_name: str` — canonical PascalCase query name
-    (e.g. `"ListRuns"`). Used in `authorize` and log lines.
+    (for example `"ListRuns"`). Used in `authorize` and log lines.
   - `log_prefix: str` — slice name used for log-line prefixes
-    (e.g. `"list_runs"` -> `list_runs.start` / `.denied` /
+    (for example `"list_runs"` -> `list_runs.start` / `.denied` /
     `.no_pool` / `.success`).
   - `unauthorized_error: type[Exception]` — BC-local
     `UnauthorizedError` raised on `Deny`. Per-BC (not hoisted) per
@@ -96,12 +96,12 @@ composer in favor of `sql.Composed`.
     Typically `"created_at"`; supplies / procedures / clearances
     use `"registered_at"` per their domain naming.
   - `id_column: str` — the projection's primary-key column used
-    in `ORDER BY` and the cursor predicate (e.g. `"run_id"`).
+    in `ORDER BY` and the cursor predicate (for example `"run_id"`).
   - `filters: Sequence[FilterSpec]` — declarative filter list,
     one `ScalarFilter` or `ArrayContainsFilter` per filter the
     query exposes. Order matters: it defines the asyncpg
     parameter order ($2 .. $N) and the log-field order. Empty
-    sequence is fine (e.g. `list_zones`).
+    sequence is fine (for example `list_zones`).
   - `row_to_item: Callable[[Any], Item]` — maps an asyncpg
     `Record` to the slice's `Item` dataclass.
   - `item_cursor_at: Callable[[Item], datetime]` /
@@ -112,7 +112,7 @@ composer in favor of `sql.Composed`.
     and the optional `next_cursor`.
   - `extract_log_fields: Callable[[Q], dict[str, Any]] | None` —
     OPTIONAL extractor for per-slice fields on the `.start` line
-    (e.g. `status`, `plan_id` for `list_runs`). The returned dict
+    (for example `status`, `plan_id` for `list_runs`). The returned dict
     is merged between `limit` and `has_cursor` so existing log
     consumers see the same field order. Default `None` means no
     extras (matches slices with only `limit + cursor`).
@@ -199,7 +199,7 @@ class ArrayContainsFilter:
     """Array-membership filter: emits `WHERE $N = ANY(<column>)`
     when the query attribute is non-None; emits nothing when None.
 
-    Used for projection columns that are arrays (e.g.
+    Used for projection columns that are arrays (for example,
     `target_asset_ids` on Procedure, the four `*_binding_ids` on
     Clearance). The query field is typically singular (the value
     to search for); the column is plural (the array to search in).
@@ -219,7 +219,7 @@ class ColumnInFilter:
     Used for "filter by one-of these acceptable values" patterns
     against scalar columns. Inverse direction of `ArrayContainsFilter`:
     here the column is scalar and the parameter is the list of
-    candidates. The route layer translates user-facing UX (e.g. a
+    candidates. The route layer translates user-facing UX (for example a
     min_severity ladder, a multi-select status filter) into the
     canonical list before constructing the query dataclass.
 

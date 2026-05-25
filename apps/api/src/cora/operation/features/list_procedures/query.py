@@ -43,7 +43,7 @@ class ListProcedures:
     """Optional status filter (one of the five ProcedureStatus values)."""
 
     kind: str | None = None
-    """Optional kind filter (free-form, exact match; e.g. 'bakeout')."""
+    """Optional kind filter (free-form, exact match; for example 'bakeout')."""
 
     parent_run_id: UUID | None = None
     """Optional Phase-of-Run filter; matches Procedures whose

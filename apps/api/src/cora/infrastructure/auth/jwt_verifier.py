@@ -110,7 +110,7 @@ class JWTVerifier:
         confusion attacks at the verifier layer.
         `principal_kind` — defaults `"human"`. Per-IdP override for
         deployments where the entire IdP issues only service-account
-        tokens (e.g. a CI-only IdP).
+        tokens (for example a CI-only IdP).
 
         `allow_insecure_jwks_url` — production MUST be False (default).
         Test/dev fixtures using `http://127.0.0.1:...` JWKS endpoints

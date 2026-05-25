@@ -3,7 +3,7 @@
 `principal_id` (not `actor_id`) names the invoker because the Access BC
 already owns an `Actor` aggregate; using `actor_id` for both the Actor
 aggregate's id and the calling-party's id was a real bug vector at
-handler call sites where commands target an Actor aggregate (e.g.
+handler call sites where commands target an Actor aggregate (for example,
 DeactivateActor).
 
 `conduit_id: UUID` names the ISA-99/IEC-62443 inter-zone

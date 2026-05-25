@@ -109,7 +109,7 @@ async def list_supplies(
             min_length=1,
             max_length=SUPPLY_KIND_MAX_LENGTH,
             description=(
-                "Optional kind filter (free-form, exact match; e.g. "
+                "Optional kind filter (free-form, exact match; for example "
                 "'LiquidNitrogen'). Omit to return all kinds."
             ),
         ),

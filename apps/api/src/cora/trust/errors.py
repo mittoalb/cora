@@ -5,7 +5,7 @@ mapped to HTTP / MCP responses by the BC's exception handlers in
 `cora/trust/routes.py`.
 
 Domain errors (raised by aggregates / deciders) live with their
-aggregate, e.g. `aggregates/zone/state.py`.
+aggregate, for example `aggregates/zone/state.py`.
 
 Distinct class from `cora.access.errors.UnauthorizedError`: each BC
 owns its own application-error namespace so a Trust 403 is

@@ -57,7 +57,7 @@ CONDUIT_NAME_MAX_LENGTH = 200
 
 # Logbook-kind discriminators. Each kind names a category of
 # observation a Conduit can attach. Today: just traversals (per-
-# decision authorization audit log). Future kinds (e.g.,
+# decision authorization audit log). Future kinds (for example,
 # rate-limit-events, schema-violations) follow the same naming
 # convention: snake_case, plural noun, domain-meaningful.
 LOGBOOK_KIND_TRAVERSALS: Final = "traversals"

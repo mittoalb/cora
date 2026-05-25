@@ -12,7 +12,7 @@ Caveat: the resulting UUID is a bit-encoding of random trace_id
 bytes; the version/variant bit positions hold whatever the trace_id
 generator emitted, so the UUID will not parse as a valid v4 or v7.
 Storage round-trips fine (Postgres `uuid` is just 16 bytes); UUID
-introspection (e.g. `uuid.version`) is meaningless on this value.
+introspection (for example `uuid.version`) is meaningless on this value.
 
 If no span is active (test environments using the no-op tracer, or
 code paths invoked outside an instrumented entrypoint), a fresh

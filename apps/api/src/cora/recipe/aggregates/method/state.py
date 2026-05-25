@@ -348,7 +348,7 @@ class MethodParametersNotSubsetError(ValueError):
 
     Mapped to HTTP 409. Raised by `update_method_parameters_schema`'s
     decider when the operator submits a parameters_schema that widens
-    the Capability's contract — e.g. introduces a property the
+    the Capability's contract — for example introduces a property the
     Capability doesn't declare, narrows a type, drops a Capability-
     required field, or widens an enum/minimum/maximum/pattern/unit
     constraint. Pinned per STRICT-by-default posture from
@@ -356,7 +356,7 @@ class MethodParametersNotSubsetError(ValueError):
     [[project_asset_settings_design]] cross-BC anchor.
 
     `reason` is a descriptive string with the offending JSON Pointer
-    so operators can pinpoint the conflict (e.g.
+    so operators can pinpoint the conflict (for example,
     `properties.energy.maximum`).
     """
 

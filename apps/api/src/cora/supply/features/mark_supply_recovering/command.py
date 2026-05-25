@@ -1,7 +1,7 @@
 """The `MarkSupplyRecovering` command — intent dataclass for this slice.
 
 `supply_id` is the target Supply aggregate. `reason` is operator-
-supplied free text captured on the emitted event for audit (e.g.,
+supplied free text captured on the emitted event for audit (for example,
 "beam current detected at 50% nominal", "LN2 dewar refill in
 progress", "vacuum pump-down underway"). The principal-id of the
 invoker is supplied separately by the application handler at call

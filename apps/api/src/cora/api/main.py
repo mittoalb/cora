@@ -263,7 +263,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
     `TestClient` context to get isolation.
 
     `settings` is an optional injection point for tests that need
-    to override env-var-loaded config (e.g. contract tests for
+    to override env-var-loaded config (for example contract tests for
     edge-auth that need a specific `identity_providers` list).
     Production callers pass nothing; `_settings_for_app()` reads
     from env / .env as usual.

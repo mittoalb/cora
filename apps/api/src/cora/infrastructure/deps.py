@@ -341,7 +341,7 @@ async def build_kernel(
     `make_inmemory_kernel(..., llm=...)`.
 
     `settings` is an optional injection point for tests that need
-    to override env-var-loaded config (e.g. edge-auth contract
+    to override env-var-loaded config (for example edge-auth contract
     tests overriding `identity_providers`). Production callers pass
     nothing; Settings reads from env / .env as usual.
 

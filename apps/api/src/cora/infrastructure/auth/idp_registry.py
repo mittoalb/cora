@@ -92,7 +92,7 @@ class IdentityProviderRegistry:
     ) -> None:
         """Construct the registry from explicit verifier instances.
 
-        `jwt_verifiers` — one per JWT-issuing IdP. May be empty (e.g.
+        `jwt_verifiers` — one per JWT-issuing IdP. May be empty (for example,
         deployment that only uses Globus opaque tokens).
         `introspection_verifier` — at most one per deployment. None
         is valid (deployment serves only JWT-issuing IdPs).

@@ -3,7 +3,7 @@
 BC-level scaffolding consumed by the `append_revision` slice (the only
 slice today that takes a polymorphic `CalibrationSource` as input).
 Hoisted to the BC level so future slices that also take a source
-(e.g., 12g `promote_revision` if it carries a refinement source) can
+(for example, 12g `promote_revision` if it carries a refinement source) can
 reuse the same wire shape without reaching across sibling slices (the
 cross-slice-independence architecture fitness function would otherwise
 reject the import).
@@ -71,7 +71,7 @@ class SourceComputedDTO(BaseModel):
         ...,
         description=(
             "Dataset id whose data this revision was computed from "
-            "(e.g., `tomopy.find_center_vo` on the projections)."
+            "(for example, `tomopy.find_center_vo` on the projections)."
         ),
     )
 

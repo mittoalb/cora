@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # Default 1 MiB. JSON command bodies are tiny (a few hundred bytes
     # at most). The application middleware is defense in depth — production
     # deployments should also configure body limits at the reverse proxy
-    # (e.g. nginx `client_max_body_size`) for transport-layer rejection.
+    # (for example nginx `client_max_body_size`) for transport-layer rejection.
     max_request_body_size_bytes: int = 1024 * 1024
 
     # Observability — OpenTelemetry
@@ -157,7 +157,7 @@ class Settings(BaseSettings):
     # from. Empty (default) keeps the legacy X-Principal-Id-with-
     # SYSTEM-fallback shape; the bearer middleware uses this list
     # when populated. Production deployments set this via env
-    # var as JSON, e.g.:
+    # var as JSON, for example:
     #
     #   IDENTITY_PROVIDERS='[{"issuer":"https://idp.example.com",
     #     "jwks_url":"https://idp.example.com/jwks.json",
