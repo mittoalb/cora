@@ -82,6 +82,9 @@ def test_decide_emits_revision_appended_for_valid_command() -> None:
     assert event.source_procedure_id == _PROC_ID
     assert event.source_dataset_id is None
     assert event.source_actor_id is None
+    # Content hash always populated by the decider; exact-value pinning
+    # lives in test_append_revision_content_hash.py.
+    assert event.content_hash is not None
 
 
 @pytest.mark.unit

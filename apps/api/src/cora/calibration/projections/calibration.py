@@ -6,11 +6,13 @@ Subscribed events:
   - CalibrationDefined           -> INSERT (revision_count=0,
                                             latest_revision_status=NULL,
                                             latest_revision_source_kind=NULL,
+                                            latest_revision_content_hash=NULL,
                                             last_revised_at=defined_at)
   - CalibrationRevisionAppended  -> UPDATE revision_count += 1,
                                            latest_revision_status,
                                            latest_revision_source_kind,
-                                           last_revised_at
+                                           last_revised_at,
+                                           latest_revision_content_hash
 
 ## Identity uniqueness enforced at the table layer
 
@@ -71,6 +73,7 @@ SET revision_count = revision_count + 1,
     latest_revision_status = $2,
     latest_revision_source_kind = $3,
     last_revised_at = $4,
+    latest_revision_content_hash = $5,
     updated_at = now()
 WHERE calibration_id = $1
 """
@@ -144,6 +147,7 @@ class CalibrationSummaryProjection:
                 payload["status"],
                 _source_kind_from_payload(payload),
                 datetime.fromisoformat(payload["established_at"]),
+                payload.get("content_hash"),
             )
             return
 

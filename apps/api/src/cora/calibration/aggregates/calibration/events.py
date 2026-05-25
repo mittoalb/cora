@@ -200,6 +200,13 @@ class CalibrationRevisionAppended:
     decided_by_decision_id: UUID | None
     supersedes_revision_id: UUID | None
     occurred_at: datetime
+    # SHA-256 of the canonical body bytes for the revision's content
+    # subset; computed at the decider per [[project_content_addressed_identity_design]].
+    # None for pre-rollout legacy events (additive-event pattern; same
+    # posture as PlanVersioned.content_hash). Projected onto
+    # proj_calibration_summary.latest_revision_content_hash for
+    # equivalence lookups; folded onto CalibrationRevision.content_hash.
+    content_hash: str | None = None
 
 
 # Discriminated union of every event the Calibration aggregate emits.
@@ -250,8 +257,9 @@ def to_payload(event: CalibrationEvent) -> dict[str, Any]:
             decided_by_decision_id=decided_by_decision_id,
             supersedes_revision_id=supersedes_revision_id,
             occurred_at=occurred_at,
+            content_hash=content_hash,
         ):
-            return {
+            payload: dict[str, Any] = {
                 "revision_id": str(revision_id),
                 "calibration_id": str(calibration_id),
                 "value": value,
@@ -273,6 +281,9 @@ def to_payload(event: CalibrationEvent) -> dict[str, Any]:
                 ),
                 "occurred_at": occurred_at.isoformat(),
             }
+            if content_hash is not None:
+                payload["content_hash"] = content_hash
+            return payload
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -322,6 +333,7 @@ def from_stored(stored: StoredEvent) -> CalibrationEvent:
                         UUID(raw_supersedes) if raw_supersedes is not None else None
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    content_hash=payload.get("content_hash"),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed CalibrationRevisionAppended payload {payload!r}: {exc}"

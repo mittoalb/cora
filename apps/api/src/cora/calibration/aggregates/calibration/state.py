@@ -372,6 +372,66 @@ class CalibrationRevision:
     established_by_actor_id: UUID
     decided_by_decision_id: UUID | None = None
     supersedes_revision_id: UUID | None = None
+    # SHA-256 (64-char lowercase hex) of the canonical body bytes for
+    # this revision's content subset; captured by append_revision per
+    # the non-determinism principle and folded by the evolver from the
+    # event payload. None for pre-rollout CalibrationRevisionAppended
+    # events that landed before the field was added (additive-state
+    # pattern; same posture as Method.content_hash and Plan.content_hash).
+    # Each revision is immutable, so no preservation rules are needed:
+    # the hash is set once when the revision is appended and never
+    # rewritten. See [[project_content_addressed_identity_design]].
+    content_hash: str | None = None
+
+    def content_subset(self) -> dict[str, object]:
+        """Canonical content subset hashed into CalibrationRevisionAppended.content_hash.
+
+        Pins identity per [[project_content_addressed_identity_design]]:
+        `value + status + source_kind + source_id + decided_by_decision_id
+        + supersedes_revision_id`. Excluded: `revision_id` (identity, not
+        content); `established_at` and `established_by_actor_id` (envelope
+        metadata, analog of event `occurred_at` and `defined_by_actor_id`
+        on Plan/Method); `content_hash` itself. The parent aggregate's
+        identity (`target_id`, `quantity`, `operating_point`) lives one
+        level up on the Calibration aggregate and is NOT folded into the
+        revision-level hash — equivalence at the revision level means
+        "same measured value via the same provenance," and consumers that
+        want "same content for the same physical regime" compare
+        (calibration_id, content_hash) at the projection.
+
+        Source flattens from the exclusive-arc 3-field event-payload
+        shape to a 2-field semantic shape (`source_kind` + `source_id`)
+        so the hash represents meaning rather than wire layout. Mirrors
+        the Plan-side flattening of `wires` from frozenset[Wire] to
+        sorted 4-tuples-of-strings. UUIDs render as strings; status
+        renders as its StrEnum value.
+        """
+        match self.source:
+            case MeasuredSource(procedure_id=source_id):
+                source_kind = "measured"
+                source_id_str = str(source_id)
+            case ComputedSource(dataset_id=source_id):
+                source_kind = "computed"
+                source_id_str = str(source_id)
+            case AssertedSource(actor_id=source_id):
+                source_kind = "asserted"
+                source_id_str = str(source_id)
+        return {
+            "value": self.value,
+            "status": self.status.value,
+            "source_kind": source_kind,
+            "source_id": source_id_str,
+            "decided_by_decision_id": (
+                str(self.decided_by_decision_id)
+                if self.decided_by_decision_id is not None
+                else None
+            ),
+            "supersedes_revision_id": (
+                str(self.supersedes_revision_id)
+                if self.supersedes_revision_id is not None
+                else None
+            ),
+        }
 
 
 # ---------------------------------------------------------------------------

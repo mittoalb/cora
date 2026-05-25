@@ -75,6 +75,7 @@ def evolve(state: Calibration | None, event: CalibrationEvent) -> Calibration:
             established_by_actor_id=established_by_actor_id,
             decided_by_decision_id=decided_by_decision_id,
             supersedes_revision_id=supersedes_revision_id,
+            content_hash=content_hash,
         ):
             prior = require_state(state, "CalibrationRevisionAppended")
             # Reconstruct typed CalibrationSource via the public
@@ -102,6 +103,7 @@ def evolve(state: Calibration | None, event: CalibrationEvent) -> Calibration:
                 established_by_actor_id=established_by_actor_id,
                 decided_by_decision_id=decided_by_decision_id,
                 supersedes_revision_id=supersedes_revision_id,
+                content_hash=content_hash,
             )
             return Calibration(
                 id=prior.id,

@@ -41,6 +41,7 @@ from cora.calibration.aggregates.calibration import (
     AssertedSource,
     Calibration,
     CalibrationNotFoundError,
+    CalibrationRevision,
     CalibrationRevisionAppended,
     ComputedSource,
     InvalidCalibrationValueError,
@@ -50,7 +51,13 @@ from cora.calibration.aggregates.calibration import (
 )
 from cora.calibration.features.append_revision.command import AppendRevision
 from cora.calibration.quantities import CalibrationQuantity, get_value_schema
+from cora.infrastructure.content_hash import compute_content_hash
 from cora.infrastructure.json_schema_validation import validate_values_against_schema
+from cora.infrastructure.signing import event_type_to_payload_type
+
+_CALIBRATION_REVISION_APPENDED_PAYLOAD_TYPE = event_type_to_payload_type(
+    "CalibrationRevisionAppended"
+)
 
 
 def decide(
@@ -91,6 +98,24 @@ def decide(
     # to_payload codec stringifies for the wire.
     source_procedure_id, source_dataset_id, source_actor_id = _split_source(command.source)
 
+    # Compute the revision's content hash via the same canonical subset
+    # the evolver folds (CalibrationRevision.content_subset). Capturing
+    # it here pins the value per the non-determinism principle.
+    provisional_revision = CalibrationRevision(
+        revision_id=new_revision_id,
+        value=command.value,
+        status=command.status,
+        source=command.source,
+        established_at=now,
+        established_by_actor_id=established_by_actor_id,
+        decided_by_decision_id=command.decided_by_decision_id,
+        supersedes_revision_id=command.supersedes_revision_id,
+    )
+    content_hash = compute_content_hash(
+        _CALIBRATION_REVISION_APPENDED_PAYLOAD_TYPE,
+        provisional_revision.content_subset(),
+    )
+
     return [
         CalibrationRevisionAppended(
             revision_id=new_revision_id,
@@ -105,6 +130,7 @@ def decide(
             decided_by_decision_id=command.decided_by_decision_id,
             supersedes_revision_id=command.supersedes_revision_id,
             occurred_at=now,
+            content_hash=content_hash,
         )
     ]
 
