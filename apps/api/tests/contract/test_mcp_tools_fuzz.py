@@ -129,16 +129,25 @@ def _dispatch(
 def test_mcp_tool_accepts_schema_conforming_input(tool_name: str) -> None:
     """Schema-conforming inputs never trip the JSON-RPC error envelope.
 
-    Two assertions per generated example:
+    Three assertions per generated example:
       1. No `error` key at the JSON-RPC envelope level (would mean
          FastMCP rejected the input as schema-invalid even though it
          passes the tool's own declared `inputSchema`).
-      2. If `result.isError` is false, `structuredContent` validates
-         against the tool's declared `outputSchema`.
+      2. The `isError` flag is present on every result envelope. The
+         MCP spec defaults it to false on success, but treating
+         "missing" as "success" silently disables Assertion 3 if
+         FastMCP ever changes the envelope shape. The drift catcher
+         has to scream when the contract moves under it.
+      3. On a successful result (`isError` is false) for a tool with
+         a declared `outputSchema`, `structuredContent` MUST be
+         present and validate against that schema. A missing
+         `structuredContent` on a schema-declaring tool IS the drift
+         this harness exists to catch; skipping it silently would
+         defeat the point.
 
-    Domain-layer rejections (`result.isError = true` with a business
-    rule violation, for example duplicate idempotency-key) are NOT
-    failures of this property; they are expected and ignored.
+    Domain-layer rejections (`isError = true` with a business-rule
+    violation) are NOT failures of this property; they are expected
+    and ignored.
     """
     input_schema, output_schema = _tool_schemas()[tool_name]
     strategy = from_schema(input_schema)
@@ -160,9 +169,53 @@ def test_mcp_tool_accepts_schema_conforming_input(tool_name: str) -> None:
         )
 
         result = body.get("result", {})
-        if not result.get("isError", True) and output_schema is not None:
+        assert "isError" in result, f"[{tool_name}] envelope missing `isError` flag: body={body!r}"
+
+        if not result["isError"] and output_schema is not None:
             structured = result.get("structuredContent")
-            if structured is not None:
-                Draft7Validator(output_schema).validate(structured)
+            assert structured is not None, (
+                f"[{tool_name}] success response missing `structuredContent` "
+                f"despite a declared outputSchema: body={body!r}"
+            )
+            Draft7Validator(output_schema).validate(structured)
 
     _property()
+
+
+_NEGATIVE_CASES: tuple[tuple[str, dict[str, Any]], ...] = (
+    ("register_actor", {"name": 12345}),
+    ("define_zone", {"name": 12345}),
+    ("define_family", {"name": 12345, "affordances": ["not_a_real_affordance"]}),
+    ("define_capability", {"name": 12345}),
+    ("define_surface", {"kind": "not_a_real_surface_kind"}),
+)
+
+
+@pytest.mark.contract
+@pytest.mark.parametrize(
+    "tool_name,arguments",
+    _NEGATIVE_CASES,
+    ids=[name for name, _ in _NEGATIVE_CASES],
+)
+def test_mcp_tool_rejects_schema_violating_input(tool_name: str, arguments: dict[str, Any]) -> None:
+    """A schema-violating input MUST surface as a JSON-RPC `error` envelope.
+
+    Proves the positive property above isn't passing vacuously. If
+    FastMCP ever stops validating against tool inputSchema entirely,
+    Assertion 1 of the positive test would silently pass on garbage
+    inputs forever; this companion test fires the negative case to
+    show validation is still alive.
+
+    One curated bad input per allowlisted tool. The exact violation
+    differs by schema shape (wrong type vs. enum miss); each case
+    targets a constraint cheap to break on the declared schema.
+    """
+    with TestClient(create_app()) as client:
+        headers = open_session(client)
+        body = _dispatch(client, headers, tool_name, arguments)
+
+    error_envelope = "error" in body
+    is_error_result = body.get("result", {}).get("isError") is True
+    assert error_envelope or is_error_result, (
+        f"[{tool_name}] schema-violating input was NOT rejected: args={arguments!r} body={body!r}"
+    )
