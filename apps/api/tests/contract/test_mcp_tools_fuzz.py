@@ -148,38 +148,48 @@ def test_mcp_tool_accepts_schema_conforming_input(tool_name: str) -> None:
     Domain-layer rejections (`isError = true` with a business-rule
     violation) are NOT failures of this property; they are expected
     and ignored.
+
+    TestClient + MCP handshake are hoisted outside the Hypothesis
+    property body, so each parametrised case pays one lifespan
+    startup + one `initialize` round-trip, not 50. Hypothesis shrinks
+    against the same live client too, which keeps shrinkage honest.
+    The MCP session id is reused across all 50 `tools/call` requests
+    inside a single test; that is the supported MCP pattern.
     """
     input_schema, output_schema = _tool_schemas()[tool_name]
     strategy = from_schema(input_schema)
 
-    @given(arguments=strategy)
-    @settings(
-        max_examples=50,
-        deadline=None,
-        suppress_health_check=[HealthCheck.function_scoped_fixture],
-    )
-    def _property(arguments: dict[str, Any]) -> None:
-        with TestClient(create_app()) as client:
-            headers = open_session(client)
+    with TestClient(create_app()) as client:
+        headers = open_session(client)
+
+        @given(arguments=strategy)
+        @settings(
+            max_examples=50,
+            deadline=None,
+            suppress_health_check=[HealthCheck.function_scoped_fixture],
+        )
+        def _property(arguments: dict[str, Any]) -> None:
             body = _dispatch(client, headers, tool_name, arguments)
 
-        assert "error" not in body, (
-            f"[{tool_name}] schema-conforming input rejected at JSON-RPC layer: "
-            f"args={arguments!r} body={body!r}"
-        )
-
-        result = body.get("result", {})
-        assert "isError" in result, f"[{tool_name}] envelope missing `isError` flag: body={body!r}"
-
-        if not result["isError"] and output_schema is not None:
-            structured = result.get("structuredContent")
-            assert structured is not None, (
-                f"[{tool_name}] success response missing `structuredContent` "
-                f"despite a declared outputSchema: body={body!r}"
+            assert "error" not in body, (
+                f"[{tool_name}] schema-conforming input rejected at JSON-RPC layer: "
+                f"args={arguments!r} body={body!r}"
             )
-            Draft7Validator(output_schema).validate(structured)
 
-    _property()
+            result = body.get("result", {})
+            assert "isError" in result, (
+                f"[{tool_name}] envelope missing `isError` flag: body={body!r}"
+            )
+
+            if not result["isError"] and output_schema is not None:
+                structured = result.get("structuredContent")
+                assert structured is not None, (
+                    f"[{tool_name}] success response missing `structuredContent` "
+                    f"despite a declared outputSchema: body={body!r}"
+                )
+                Draft7Validator(output_schema).validate(structured)
+
+        _property()
 
 
 _NEGATIVE_CASES: tuple[tuple[str, dict[str, Any]], ...] = (
