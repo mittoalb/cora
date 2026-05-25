@@ -91,6 +91,23 @@ dev = [
     # and disable the local example database, sidestepping xdist seed
     # collisions across worker processes.
     "hypothesis>=6.130,<7",
+    # hypothesis-jsonschema: Hypothesis strategy builder driven by JSON
+    # Schema documents. Used by `tests/contract/test_mcp_tools_fuzz.py`
+    # (Iter H of the testing-techniques rollout) to generate
+    # schema-conforming inputs against MCP tools' `inputSchema`. Library
+    # is in maintenance mode (0.23.1 = Feb 2024), supports Draft 04/06/07.
+    # CORA's MCP schemas come from Pydantic `Annotated[Type, Field(...)]`
+    # which stays Draft-07-compatible; the fuzz harness strips the
+    # `$schema` field before invoking `from_schema` to dodge the Draft
+    # 2020-12 declaration FastMCP emits.
+    "hypothesis-jsonschema>=0.23,<1",
+    # jsonschema: stdlib-style Draft 07 validator used by the MCP fuzz
+    # harness to round-trip success responses through each tool's
+    # declared `outputSchema`. `jsonschema-rs` (already pinned above) is
+    # the runtime validator for `parameters_schema` payloads; we keep
+    # them separate because the fuzz harness wants stdlib-Python error
+    # ergonomics rather than the Rust-binding throughput.
+    "jsonschema>=4.21,<5",
     # mutmut: mutation testing for the audit cadence (Iter G of the
     # testing-techniques rollout). Audit-only, not per-PR — per-mutant
     # pytest spawn cost makes per-commit CI intolerable at suite scale.
