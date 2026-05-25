@@ -34,7 +34,7 @@ class DefineCalibrationRequest(BaseModel):
         ...,
         description=(
             "What this calibration is OF (typically the Asset id whose "
-            "behavior is being measured — for example, the rotary stage "
+            "behavior is being measured, for example the rotary stage "
             "whose rotation-axis center is being tracked). Bare UUID "
             "reference; existence NOT verified at the write path per "
             "the cross-BC eventual-consistency stance."

@@ -27,7 +27,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "with matching signal_type. Fan-out is allowed (one "
             "source port can drive many target ports); fan-in is "
             "forbidden (each target port can be the destination of "
-            "at most one Wire — use a Combiner Family Asset if "
+            "at most one Wire; use a Combiner Family Asset if "
             "you genuinely need multi-source aggregation). Strict-"
             "not-idempotent: re-adding the same wire raises "
             "PlanWireAlreadyExistsError."

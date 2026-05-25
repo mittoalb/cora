@@ -42,7 +42,7 @@ class RevisionResponse(BaseModel):
         ...,
         discriminator="kind",
         description=(
-            "Tagged source provenance — {kind, procedure_id|dataset_id|"
+            "Tagged source provenance: {kind, procedure_id|dataset_id|"
             "actor_id}. The wire envelope mirrors Caution / Safety "
             "polymorphic conventions; in-aggregate the source is a "
             "tagged-union VO and on the event payload it's exclusive-arc "

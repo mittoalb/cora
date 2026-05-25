@@ -64,7 +64,7 @@ class DefineMethodRequest(BaseModel):
             "Pattern P. The bound Capability must declare "
             "`Method` in its executor_shapes set; otherwise 409. "
             "Eventual-consistency: the Capability stream is loaded at "
-            "handler time, not API-boundary time — a missing stream "
+            "handler time, not API-boundary time; a missing stream "
             "surfaces as 404 via CapabilityNotFoundError."
         ),
     )
@@ -91,7 +91,7 @@ class DefineMethodRequest(BaseModel):
             "Supply.kind strings this Method requires. May be empty. "
             "Each element is a kind label (for example 'PhotonBeam', "
             "'LiquidNitrogen', 'ComputePool'), 1-50 chars. NOT Supply "
-            "instance UUIDs — Methods are facility-portable. Eventual-"
+            "instance UUIDs; Methods are facility-portable. Eventual-"
             "consistency: kinds are NOT verified against the Supply "
             "stream at decide time; mismatch surfaces at Plan binding."
         ),

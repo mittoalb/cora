@@ -147,13 +147,13 @@ class RegisterDatasetRequest(BaseModel):
             "(or any derivative) actually used (Calibration BC AsShot "
             "citation pattern). Symmetric to Run.pinned_calibrations "
             "on the acquired-from Run; the two sets are "
-            "independent — reconstruction may legitimately cite refined "
+            "independent: reconstruction may legitimately cite refined "
             "revisions not in the producing Run's pin set (Current vs "
             "AsShot pattern). NO cross-BC existence check at the write "
             "path (revision-cited atomic-ID model; eventual-consistency "
             "stance per [[project_calibration_design]]). IMMUTABLE on the "
             "aggregate after register. Order on the wire is not "
-            "significant — the aggregate carries a frozenset; the decider "
+            "significant; the aggregate carries a frozenset and the decider "
             "sorts for deterministic event-payload bytes."
         ),
     )

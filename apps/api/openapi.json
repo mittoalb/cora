@@ -793,7 +793,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional prior revision id (on the SAME aggregate) that this revision supersedes. Direct derivation edge per Q3 lock; saves consumers a graph walk vs traversal-only. Cross-aggregate supersession is forbidden \u2014 the supersedes target must exist on this calibration.",
+            "description": "Optional prior revision id (on the SAME aggregate) that this revision supersedes. Direct derivation edge per Q3 lock; saves consumers a graph walk vs traversal-only. Cross-aggregate supersession is forbidden: the supersedes target must exist on this calibration.",
             "title": "Supersedes Revision Id"
           },
           "value": {
@@ -3393,7 +3393,7 @@
             "description": "The physical quantity being calibrated. Closed catalog at `cora.calibration.quantities`; each value has registered operating_point + value JSON Schemas. Adding a quantity = PR. Day-one set: rotation_center, detector_pixel_size."
           },
           "target_id": {
-            "description": "What this calibration is OF (typically the Asset id whose behavior is being measured \u2014 for example, the rotary stage whose rotation-axis center is being tracked). Bare UUID reference; existence NOT verified at the write path per the cross-BC eventual-consistency stance.",
+            "description": "What this calibration is OF (typically the Asset id whose behavior is being measured, for example the rotary stage whose rotation-axis center is being tracked). Bare UUID reference; existence NOT verified at the write path per the cross-BC eventual-consistency stance.",
             "format": "uuid",
             "title": "Target Id",
             "type": "string"
@@ -3597,7 +3597,7 @@
         "description": "Body for `POST /methods`.\n\n`needed_families` is required (use `[]` for procedural\nMethods that need no specific equipment family). Eventual-\nconsistency: each Family id is NOT verified against the\nFamily stream; mismatch surfaces at Plan binding.\n\n`needed_supplies` is optional; defaults to `[]` for\nbackward-compat (older clients keep working). Each element is\na Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.\nAsymmetric vs needed_families by design \u2014 see\n[[project_supply_design]] \u00a7\"Method.needed_supplies consumer\"\nfor the rationale (Family is TYPE registry,\nSupply is INSTANCE aggregate per facility sharing a `kind` label).\nEventual-consistency: kind strings are NOT verified against the\nSupply stream; mismatch surfaces at Plan binding.",
         "properties": {
           "capability_id": {
-            "description": "Universal Capability template (Recipe BC) this Method realizes as a Method-shaped executor. REQUIRED per Pattern P. The bound Capability must declare `Method` in its executor_shapes set; otherwise 409. Eventual-consistency: the Capability stream is loaded at handler time, not API-boundary time \u2014 a missing stream surfaces as 404 via CapabilityNotFoundError.",
+            "description": "Universal Capability template (Recipe BC) this Method realizes as a Method-shaped executor. REQUIRED per Pattern P. The bound Capability must declare `Method` in its executor_shapes set; otherwise 409. Eventual-consistency: the Capability stream is loaded at handler time, not API-boundary time; a missing stream surfaces as 404 via CapabilityNotFoundError.",
             "format": "uuid",
             "title": "Capability Id",
             "type": "string"
@@ -3619,7 +3619,7 @@
             "type": "array"
           },
           "needed_supplies": {
-            "description": "Supply.kind strings this Method requires. May be empty. Each element is a kind label (for example 'PhotonBeam', 'LiquidNitrogen', 'ComputePool'), 1-50 chars. NOT Supply instance UUIDs \u2014 Methods are facility-portable. Eventual-consistency: kinds are NOT verified against the Supply stream at decide time; mismatch surfaces at Plan binding.",
+            "description": "Supply.kind strings this Method requires. May be empty. Each element is a kind label (for example 'PhotonBeam', 'LiquidNitrogen', 'ComputePool'), 1-50 chars. NOT Supply instance UUIDs; Methods are facility-portable. Eventual-consistency: kinds are NOT verified against the Supply stream at decide time; mismatch surfaces at Plan binding.",
             "items": {
               "maxLength": 50,
               "minLength": 1,
@@ -6027,7 +6027,7 @@
         "properties": {
           "kind": {
             "default": "human",
-            "description": "Closed discriminator. 'human' (default) for operator registration. 'service_account' for machine callers \u2014 CI bridges, autonomous agent runtime processes, future TomoScan / EPICS bridges. 'agent'-kind Actors are minted exclusively via POST /agents (cross-BC atomic write); this endpoint rejects it with 400.",
+            "description": "Closed discriminator. 'human' (default) for operator registration. 'service_account' for machine callers: CI bridges, autonomous agent runtime processes, future TomoScan / EPICS bridges. 'agent'-kind Actors are minted exclusively via POST /agents (cross-BC atomic write); this endpoint rejects it with 400.",
             "enum": [
               "human",
               "service_account"
@@ -6521,7 +6521,7 @@
             "type": "string"
           },
           "used_calibrations": {
-            "description": "Optional list of CalibrationRevision ids the reconstruction (or any derivative) actually used (Calibration BC AsShot citation pattern). Symmetric to Run.pinned_calibrations on the acquired-from Run; the two sets are independent \u2014 reconstruction may legitimately cite refined revisions not in the producing Run's pin set (Current vs AsShot pattern). NO cross-BC existence check at the write path (revision-cited atomic-ID model; eventual-consistency stance per [[project_calibration_design]]). IMMUTABLE on the aggregate after register. Order on the wire is not significant \u2014 the aggregate carries a frozenset; the decider sorts for deterministic event-payload bytes.",
+            "description": "Optional list of CalibrationRevision ids the reconstruction (or any derivative) actually used (Calibration BC AsShot citation pattern). Symmetric to Run.pinned_calibrations on the acquired-from Run; the two sets are independent: reconstruction may legitimately cite refined revisions not in the producing Run's pin set (Current vs AsShot pattern). NO cross-BC existence check at the write path (revision-cited atomic-ID model; eventual-consistency stance per [[project_calibration_design]]). IMMUTABLE on the aggregate after register. Order on the wire is not significant; the aggregate carries a frozenset and the decider sorts for deterministic event-payload bytes.",
             "items": {
               "format": "uuid",
               "type": "string"
@@ -7165,7 +7165,7 @@
             "type": "string"
           },
           "source": {
-            "description": "Tagged source provenance \u2014 {kind, procedure_id|dataset_id|actor_id}. The wire envelope mirrors Caution / Safety polymorphic conventions; in-aggregate the source is a tagged-union VO and on the event payload it's exclusive-arc fields (Q5 lock).",
+            "description": "Tagged source provenance: {kind, procedure_id|dataset_id|actor_id}. The wire envelope mirrors Caution / Safety polymorphic conventions; in-aggregate the source is a tagged-union VO and on the event payload it's exclusive-arc fields (Q5 lock).",
             "discriminator": {
               "mapping": {
                 "Asserted": "#/components/schemas/SourceAssertedDTO",
@@ -19053,7 +19053,7 @@
     },
     "/policies/{policy_id}/permissions": {
       "get": {
-        "description": "Enumerates the commands a principal can execute against a Policy via a conduit. Returns the sorted set plus the `incomplete: bool` flag (always False at v1; future ABAC may flip it). **Do NOT use the returned set to drive authorization decisions** \u2014 this is for UX / debugging only; only `Kernel.authorize` (the PEP) authorizes. On-behalf queries (evaluated_principal_id != caller) require a separate `ListPermissionsOfOthers` permission, denied by default.",
+        "description": "Enumerates the commands a principal can execute against a Policy via a conduit. Returns the sorted set plus the `incomplete: bool` flag (always False at v1; future ABAC may flip it). **Do NOT use the returned set to drive authorization decisions**: this is for UX / debugging only; only `Kernel.authorize` (the PEP) authorizes. On-behalf queries (evaluated_principal_id != caller) require a separate `ListPermissionsOfOthers` permission, denied by default.",
         "operationId": "get_policies_permissions_policies__policy_id__permissions_get",
         "parameters": [
           {

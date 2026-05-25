@@ -24,7 +24,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "Controlled early exit of a Run (Running | Held → Stopped). "
             "Distinct from abort: stop = data valid up to the stop point; "
             "abort = data flagged as potentially invalid. Stopping a "
-            "terminal Run raises. Reason is free-form (1-500 chars) — "
+            "terminal Run raises. Reason is free-form (1-500 chars), "
             "captured verbatim for audit."
         ),
     )

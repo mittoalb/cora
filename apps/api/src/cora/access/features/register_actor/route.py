@@ -39,7 +39,7 @@ class RegisterActorRequest(BaseModel):
         default="human",
         description=(
             "Closed discriminator. 'human' (default) for operator "
-            "registration. 'service_account' for machine callers — "
+            "registration. 'service_account' for machine callers: "
             "CI bridges, autonomous agent runtime processes, future "
             "TomoScan / EPICS bridges. 'agent'-kind Actors are minted "
             "exclusively via POST /agents (cross-BC atomic write); this "

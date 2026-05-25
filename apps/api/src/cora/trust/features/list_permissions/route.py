@@ -72,7 +72,7 @@ router = APIRouter(tags=["trust"])
     description=(
         "Enumerates the commands a principal can execute against a Policy via a conduit. "
         "Returns the sorted set plus the `incomplete: bool` flag (always False at v1; future "
-        "ABAC may flip it). **Do NOT use the returned set to drive authorization decisions** — "
+        "ABAC may flip it). **Do NOT use the returned set to drive authorization decisions**: "
         "this is for UX / debugging only; only `Kernel.authorize` (the PEP) authorizes. "
         "On-behalf queries (evaluated_principal_id != caller) require a separate "
         "`ListPermissionsOfOthers` permission, denied by default."

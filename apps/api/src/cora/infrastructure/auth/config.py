@@ -63,7 +63,7 @@ class IdpSubjectBinding(BaseModel):
     subject: str = Field(
         ...,
         description=(
-            "Raw `sub` claim string from the IdP — exact match. For "
+            "Raw `sub` claim string from the IdP, exact match. For "
             "OIDC humans this is typically the IdP's stable user id "
             "(for example an Entra GUID); for client_credentials service "
             "accounts it's the OAuth client id."
@@ -106,7 +106,7 @@ class IdentityProviderConfig(BaseModel):
     issuer: str = Field(
         ...,
         description=(
-            "OIDC issuer URL — exact match against the 'iss' claim on "
+            "OIDC issuer URL, exact match against the 'iss' claim on "
             "every token. Must match the IdP's published metadata; "
             "trailing-slash lenient matching is NOT performed (matches "
             "RFC 9068 §4 expectation that iss is exact-match)."
@@ -216,7 +216,7 @@ class IdentityProviderConfig(BaseModel):
             "composition root merges these across all IdPs into a "
             "single `StaticSubjectMapper` keyed on `(issuer, subject)`. "
             "Empty (default) is valid for IdPs that ship before any "
-            "Actor is mapped — every bearer token from this IdP then "
+            "Actor is mapped: every bearer token from this IdP then "
             "fails with `unknown_subject` until an operator adds "
             "bindings. A future projection-backed mapper will replace "
             "this for deployments that mint Actors at runtime; the "

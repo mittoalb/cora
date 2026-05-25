@@ -71,7 +71,7 @@ class AppendRevisionRequest(BaseModel):
             "Optional prior revision id (on the SAME aggregate) that this "
             "revision supersedes. Direct derivation edge per Q3 lock; "
             "saves consumers a graph walk vs traversal-only. Cross-"
-            "aggregate supersession is forbidden — the supersedes target "
+            "aggregate supersession is forbidden: the supersedes target "
             "must exist on this calibration."
         ),
     )

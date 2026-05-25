@@ -68,7 +68,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             SourceDTO,
             Field(
                 description=(
-                    "Tagged source provenance — {kind: 'Measured', "
+                    "Tagged source provenance: {kind: 'Measured', "
                     "procedure_id} / {kind: 'Computed', dataset_id} / "
                     "{kind: 'Asserted', actor_id}."
                 ),

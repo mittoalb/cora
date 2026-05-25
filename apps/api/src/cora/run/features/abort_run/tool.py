@@ -24,7 +24,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "Mark an existing Run as aborted (emergency-exit terminal). "
             "Requires the Run to currently be in `Running`. "
             "Aborting a `Completed` or `Aborted` Run raises. "
-            "Reason is free-form (1-500 chars) — captured verbatim "
+            "Reason is free-form (1-500 chars), captured verbatim "
             "for audit."
         ),
     )

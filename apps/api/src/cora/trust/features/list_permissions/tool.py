@@ -40,7 +40,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "List a Policy's permitted commands for a (principal, conduit). "
             "Returns the sorted command set the principal can execute. "
             "NOTE: this is for UX / debugging only. Do NOT use the returned "
-            "set to drive authorization decisions — only `check_permissions` "
+            "set to drive authorization decisions; only `check_permissions` "
             "or attempting the command is authoritative."
         ),
     )
