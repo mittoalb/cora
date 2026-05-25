@@ -449,6 +449,43 @@ class Plan:
     wires: frozenset["Wire"] = field(default_factory=frozenset["Wire"])
     content_hash: str | None = None
 
+    def content_subset(self) -> dict[str, object]:
+        """Canonical content subset hashed into PlanVersioned.content_hash.
+
+        Pins identity per [[project_content_addressed_identity_design]]:
+        `name + method_id + practice_id + asset_ids + default_parameters
+        + wires`. Excluded: `id` (identity, not content); `status` and
+        `version` (lifecycle, derived in evolver from event type and
+        version_tag); `content_hash` itself (a Plan's content cannot
+        contain its own hash). UUIDs render as strings (json-serializable),
+        frozensets render as sorted lists (canonical_body_bytes would sort
+        either way but explicit materialization keeps the subset readable
+        as a spec). Wires render as sorted 4-tuples-of-strings to give
+        determinism over the rendered tuple form (anti-hook #12). method_id
+        is Optional in state (additive-state default for legacy Plans) but
+        always concrete for any Plan that has reached Versioned status,
+        because PlanDefined carries it; rendered as None when absent.
+        Lives on the aggregate so any future field addition forces an
+        explicit decision about whether it participates in content
+        identity (anti-hook #10) at the same site as the field itself.
+        """
+        return {
+            "name": self.name.value,
+            "method_id": str(self.method_id) if self.method_id is not None else None,
+            "practice_id": str(self.practice_id),
+            "asset_ids": sorted(str(a) for a in self.asset_ids),
+            "default_parameters": self.default_parameters,
+            "wires": sorted(
+                (
+                    str(w.source_asset_id),
+                    w.source_port_name,
+                    str(w.target_asset_id),
+                    w.target_port_name,
+                )
+                for w in self.wires
+            ),
+        }
+
 
 class InvalidWireError(ValueError):
     """A Wire's source / target port name is empty, whitespace-only,

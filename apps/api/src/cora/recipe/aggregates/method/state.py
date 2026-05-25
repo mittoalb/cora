@@ -324,6 +324,31 @@ class Method:
     # for the full design lock.
     needed_supplies: frozenset[str] = field(default_factory=frozenset[str])
 
+    def content_subset(self) -> dict[str, object]:
+        """Canonical content subset hashed into MethodVersioned.content_hash.
+
+        Pins identity per [[project_content_addressed_identity_design]]:
+        `name + parameters_schema + capability_id + needed_families +
+        needed_supplies`. Identity-bearing fields excluded: `id`
+        (identity, not content); `status` and `version` (lifecycle,
+        derived in evolver from event type and version_tag).
+        UUIDs render as strings (json-serializable); frozensets render
+        as sorted lists (canonical_body_bytes would sort either way but
+        the explicit materialization keeps "what's hashed" readable as
+        a spec, not a black-box dump). Lives on the aggregate so any
+        future field addition forces an explicit decision about whether
+        it participates in content identity (anti-hook #10) at the same
+        site as the field itself; deciders and drift-detection helpers
+        call this rather than re-listing the subset.
+        """
+        return {
+            "name": self.name.value,
+            "parameters_schema": self.parameters_schema,
+            "capability_id": str(self.capability_id) if self.capability_id is not None else None,
+            "needed_families": sorted(str(f) for f in self.needed_families),
+            "needed_supplies": sorted(self.needed_supplies),
+        }
+
 
 class MethodCapabilityExecutorMismatchError(Exception):
     """Method.capability_id points at a Capability whose executor_shapes
