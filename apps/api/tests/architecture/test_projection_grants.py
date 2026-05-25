@@ -15,13 +15,10 @@ projection migration that creates `proj_x` but forgets the GRANT.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
 
-# tests/architecture/test_*.py -> repo root /infra/atlas/migrations
-_REPO_ROOT = Path(__file__).resolve().parents[4]
-_MIGRATIONS_DIR = _REPO_ROOT / "infra" / "atlas" / "migrations"
+from tests.architecture.conftest import tracked_migration_files
 
 _CREATE_PROJ_TABLE_RE = re.compile(
     r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(proj_[a-zA-Z_][a-zA-Z0-9_]*)",
@@ -30,13 +27,12 @@ _CREATE_PROJ_TABLE_RE = re.compile(
 
 
 def _all_migration_text() -> str:
-    files = sorted(_MIGRATIONS_DIR.glob("*.sql"))
-    return "\n".join(f.read_text() for f in files)
+    return "\n".join(f.read_text() for f in tracked_migration_files())
 
 
 def _proj_tables_created() -> set[str]:
     out: set[str] = set()
-    for path in sorted(_MIGRATIONS_DIR.glob("*.sql")):
+    for path in tracked_migration_files():
         for match in _CREATE_PROJ_TABLE_RE.finditer(path.read_text()):
             out.add(match.group(1))
     return out

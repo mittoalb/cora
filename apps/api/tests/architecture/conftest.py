@@ -34,6 +34,9 @@ from pathlib import Path
 
 # tests/architecture/conftest.py -> apps/api/
 _API_ROOT = Path(__file__).resolve().parents[2]
+# apps/api/ -> repo root -> infra/atlas/migrations
+_REPO_ROOT = _API_ROOT.parent.parent
+_MIGRATIONS_DIR = _REPO_ROOT / "infra" / "atlas" / "migrations"
 
 SRC_ROOT = _API_ROOT / "src"
 CORA_ROOT = SRC_ROOT / "cora"
@@ -93,4 +96,31 @@ def _tracked_python_files_under(subdir: str) -> frozenset[Path]:
     )
     return frozenset(
         _API_ROOT / line for line in result.stdout.splitlines() if line.endswith(".py")
+    )
+
+
+@cache
+def tracked_migration_files() -> tuple[Path, ...]:
+    """Absolute paths to git-tracked `.sql` files under `infra/atlas/migrations/`,
+    sorted lexicographically (timestamp-prefixed filenames give chronological order).
+
+    Migration-aware sibling of `tracked_python_files()` and
+    `tracked_test_files()`. Tests that fold over migration history must
+    use this rather than `_MIGRATIONS_DIR.glob("*.sql")` for the same
+    reason: pre-commit only stashes tracked files, and a half-staged
+    migration on disk would otherwise leak into the architecture run
+    and false-fail the REVOKE / GRANT / projection-table fitness checks.
+    Returns a tuple (not a frozenset) because migration order is
+    semantically meaningful: ALTER ... RENAME and DROP statements
+    discard earlier CREATE entries in the projection-table walker.
+    """
+    result = subprocess.run(
+        ["git", "ls-files", "infra/atlas/migrations"],
+        cwd=_REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return tuple(
+        sorted(_REPO_ROOT / line for line in result.stdout.splitlines() if line.endswith(".sql"))
     )

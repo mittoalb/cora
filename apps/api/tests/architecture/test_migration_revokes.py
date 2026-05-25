@@ -30,13 +30,10 @@ Drift this test catches:
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
 
-# tests/architecture/test_*.py -> repo root /infra/atlas/migrations
-_REPO_ROOT = Path(__file__).resolve().parents[4]
-_MIGRATIONS_DIR = _REPO_ROOT / "infra" / "atlas" / "migrations"
+from tests.architecture.conftest import tracked_migration_files
 
 _CREATE_TABLE_RE = re.compile(
     r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-zA-Z_][a-zA-Z0-9_]*)",
@@ -46,8 +43,7 @@ _CREATE_TABLE_RE = re.compile(
 
 def _all_migration_text() -> str:
     """All migration SQL concatenated (single haystack for REVOKE search)."""
-    files = sorted(_MIGRATIONS_DIR.glob("*.sql"))
-    return "\n".join(f.read_text() for f in files)
+    return "\n".join(f.read_text() for f in tracked_migration_files())
 
 
 def _append_only_tables_created() -> set[str]:
@@ -58,7 +54,7 @@ def _append_only_tables_created() -> set[str]:
     `memory/project_phase_plan.md`'s logbook + entry pattern).
     """
     out: set[str] = set()
-    for path in sorted(_MIGRATIONS_DIR.glob("*.sql")):
+    for path in tracked_migration_files():
         for match in _CREATE_TABLE_RE.finditer(path.read_text()):
             name = match.group(1)
             if name == "events" or name.startswith("entries_"):
@@ -67,16 +63,15 @@ def _append_only_tables_created() -> set[str]:
 
 
 @pytest.mark.architecture
-def test_migrations_directory_exists() -> None:
-    """Sanity: the path-resolution heuristic above lands somewhere
-    real. Refactors that move the conftest will trip this first."""
-    assert _MIGRATIONS_DIR.is_dir(), (
-        f"Migrations directory not found at {_MIGRATIONS_DIR}; "
-        f"the path-resolution in this test (parents[4]) is wrong."
-    )
-    assert any(_MIGRATIONS_DIR.glob("*.sql")), (
-        f"No .sql files in {_MIGRATIONS_DIR}; either migrations were "
-        f"moved or the glob pattern is wrong."
+def test_migration_enumeration_finds_something() -> None:
+    """Sanity: the conftest's `tracked_migration_files()` resolves to a
+    non-empty set. Refactors that move the conftest or rename the
+    migrations directory will trip this first, before the REVOKE check
+    falsely reports "no append-only tables found"."""
+    files = tracked_migration_files()
+    assert files, (
+        "No .sql files tracked under infra/atlas/migrations; either the "
+        "migrations directory moved or git ls-files lost them."
     )
 
 

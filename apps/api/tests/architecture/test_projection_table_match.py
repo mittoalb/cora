@@ -21,19 +21,15 @@ from __future__ import annotations
 
 import importlib
 import re
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
 from cora.infrastructure.projection import ProjectionRegistry
-from tests.architecture.conftest import BCS
+from tests.architecture.conftest import BCS, tracked_migration_files
 
 if TYPE_CHECKING:
     from cora.infrastructure.kernel import Kernel
-
-_REPO_ROOT = Path(__file__).resolve().parents[4]
-_MIGRATIONS_DIR = _REPO_ROOT / "infra" / "atlas" / "migrations"
 
 _CREATE_PROJ_TABLE_RE = re.compile(
     r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(proj_[a-zA-Z_][a-zA-Z0-9_]*)",
@@ -56,7 +52,7 @@ def _proj_tables_created() -> set[str]:
     would leave the old name in the set forever and the new name absent
     (orphan + missing-table double false positive)."""
     out: set[str] = set()
-    for path in sorted(_MIGRATIONS_DIR.glob("*.sql")):
+    for path in tracked_migration_files():
         text = path.read_text()
         for match in _CREATE_PROJ_TABLE_RE.finditer(text):
             out.add(match.group(1))
