@@ -44,10 +44,10 @@ from typing import Protocol
 import asyncpg
 
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
-from cora.infrastructure.adapters.in_memory_idempotency import InMemoryIdempotencyStore
+from cora.infrastructure.adapters.in_memory_idempotency_store import InMemoryIdempotencyStore
 from cora.infrastructure.adapters.in_memory_profile_store import InMemoryProfileStore
 from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
-from cora.infrastructure.adapters.postgres_idempotency import PostgresIdempotencyStore
+from cora.infrastructure.adapters.postgres_idempotency_store import PostgresIdempotencyStore
 from cora.infrastructure.adapters.postgres_profile_store import PostgresProfileStore
 from cora.infrastructure.auth import build_idp_registry, build_static_subject_mapper
 from cora.infrastructure.config import Settings

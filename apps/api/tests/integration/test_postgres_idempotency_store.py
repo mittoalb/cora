@@ -19,7 +19,7 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
-from cora.infrastructure.adapters.postgres_idempotency import PostgresIdempotencyStore
+from cora.infrastructure.adapters.postgres_idempotency_store import PostgresIdempotencyStore
 from cora.infrastructure.ports import (
     CachedError,
     CachedSuccess,

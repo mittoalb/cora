@@ -17,7 +17,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.infrastructure.adapters.in_memory_idempotency import InMemoryIdempotencyStore
+from cora.infrastructure.adapters.in_memory_idempotency_store import InMemoryIdempotencyStore
 from cora.infrastructure.idempotency import (
     classify_error_status,
     hash_command,
@@ -366,7 +366,7 @@ async def test_stale_lock_is_taken_over_by_subsequent_claim() -> None:
     (covers the 'worker crashed mid-handler' case)."""
     from datetime import UTC, datetime, timedelta
 
-    from cora.infrastructure.adapters.in_memory_idempotency import _Row
+    from cora.infrastructure.adapters.in_memory_idempotency_store import _Row
 
     store = InMemoryIdempotencyStore()
     ancient = datetime.now(tz=UTC) - timedelta(hours=1)

@@ -2,7 +2,7 @@
 
 """Unit tests for `InMemoryIdempotencyStore`.
 
-Mirrors `tests/integration/test_postgres_idempotency.py` against the
+Mirrors `tests/integration/test_postgres_idempotency_store.py` against the
 in-memory adapter. Pins:
   - claim outcomes: Claimed / CachedSuccess / CachedError /
     LockedRecent / HashConflict / stale-lock takeover
@@ -16,7 +16,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.infrastructure.adapters.in_memory_idempotency import InMemoryIdempotencyStore
+from cora.infrastructure.adapters.in_memory_idempotency_store import InMemoryIdempotencyStore
 from cora.infrastructure.ports import (
     CachedError,
     CachedSuccess,
@@ -144,7 +144,7 @@ async def test_prune_skips_in_flight_rows() -> None:
     is past the TTL window."""
     from datetime import UTC, datetime, timedelta
 
-    from cora.infrastructure.adapters.in_memory_idempotency import _Row
+    from cora.infrastructure.adapters.in_memory_idempotency_store import _Row
 
     store = InMemoryIdempotencyStore()
     p = uuid4()

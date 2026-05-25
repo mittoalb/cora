@@ -1,7 +1,7 @@
 """In-memory `ProfileStore` adapter for tests and `app_env=test`.
 
 Mirrors `cora.infrastructure.adapters.in_memory_event_store` /
-`cora.infrastructure.adapters.in_memory_idempotency`: pure-dict implementor of
+`cora.infrastructure.adapters.in_memory_idempotency_store`: pure-dict implementor of
 the `ProfileStore` port, used by every Kernel built with
 `make_inmemory_kernel`. One instance lives on `Kernel.profile_store`
 so Access BC (`register_actor`) and Agent BC (`define_agent`)

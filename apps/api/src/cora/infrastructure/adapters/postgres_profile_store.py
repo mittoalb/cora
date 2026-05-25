@@ -1,7 +1,7 @@
 """Postgres `ProfileStore` adapter: asyncpg-backed actor_profile R/W.
 
 Sibling to `cora.infrastructure.adapters.postgres_event_store` and
-`cora.infrastructure.adapters.postgres_idempotency`. The adapter lives in
+`cora.infrastructure.adapters.postgres_idempotency_store`. The adapter lives in
 infrastructure (not in `cora.access`) so the kernel-construction
 primitives in `cora.infrastructure.deps` can wire it without
 importing any BC — matches the EventStore + IdempotencyStore

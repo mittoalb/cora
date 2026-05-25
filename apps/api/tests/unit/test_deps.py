@@ -19,7 +19,7 @@ from pydantic import SecretStr
 from cora.agent import build_llm
 from cora.agent.adapters import AnthropicLLM
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
-from cora.infrastructure.adapters.in_memory_idempotency import InMemoryIdempotencyStore
+from cora.infrastructure.adapters.in_memory_idempotency_store import InMemoryIdempotencyStore
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import build_kernel
 from cora.infrastructure.ports import AllowAllAuthorize, FakeLLM

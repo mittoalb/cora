@@ -23,7 +23,7 @@ from uuid import UUID
 
 import pytest
 
-from cora.infrastructure.adapters.in_memory_idempotency import InMemoryIdempotencyStore
+from cora.infrastructure.adapters.in_memory_idempotency_store import InMemoryIdempotencyStore
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import make_inmemory_kernel
 from cora.infrastructure.idempotency_pruner import idempotency_pruner_lifespan
@@ -166,7 +166,7 @@ async def test_lifespan_real_inmemory_store_drops_expired_row_end_to_end() -> No
     loop + adapter prune path."""
     from datetime import timedelta
 
-    from cora.infrastructure.adapters.in_memory_idempotency import _Row
+    from cora.infrastructure.adapters.in_memory_idempotency_store import _Row
 
     store = InMemoryIdempotencyStore()
     # Seed one expired completed row + one fresh completed row.
