@@ -33,7 +33,7 @@ from cora.infrastructure.ports import (
     FakeClock,
     FixedIdGenerator,
 )
-from cora.infrastructure.ports.idempotency import ClaimOutcome
+from cora.infrastructure.ports.idempotency_store import ClaimOutcome
 
 
 def _build_kernel(

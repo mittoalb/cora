@@ -40,7 +40,7 @@ from uuid import UUID
 
 import asyncpg
 
-from cora.infrastructure.ports.idempotency import (
+from cora.infrastructure.ports.idempotency_store import (
     CachedError,
     CachedSuccess,
     Claimed,

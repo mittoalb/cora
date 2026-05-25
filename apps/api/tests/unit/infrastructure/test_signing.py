@@ -33,7 +33,7 @@ from cryptography.hazmat.primitives.serialization import (
 
 from cora.infrastructure.content_hash import canonical_body_bytes, pae_bytes
 from cora.infrastructure.ports.event_store import StoredEvent
-from cora.infrastructure.ports.signing import (
+from cora.infrastructure.ports.signer import (
     Signer,
     SignerKeyInactiveError,
     SignerKeyNotFoundError,

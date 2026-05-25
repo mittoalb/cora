@@ -4,7 +4,7 @@ Stage-1 design lock implementation for Candidate F (signed events) per
 [[project_signed_events_design]]. Iteration 2 ships the verification
 path and the closed registry of event types that must be signed at
 write time; the `Signer` port lives next door at
-`cora.infrastructure.ports.signing`.
+`cora.infrastructure.ports.signer`.
 
 No production signer adapter ships in this iteration. The verification
 function works against any future adapter (Sigstore Fulcio, SPIFFE / SVID,
@@ -30,7 +30,7 @@ bytes.
 
 ## What is NOT here
 
-  - The `Signer` Protocol lives in `cora.infrastructure.ports.signing`.
+  - The `Signer` Protocol lives in `cora.infrastructure.ports.signer`.
   - Production signing adapters are deferred; iteration 3 lands one.
   - The verification function takes an explicit public-key resolver
     callable rather than depending on a kernel-wide registry. Resolvers

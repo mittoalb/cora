@@ -38,7 +38,7 @@ from cora.infrastructure.ports.id_generator import (
     IdGenerator,
     UUIDv7Generator,
 )
-from cora.infrastructure.ports.idempotency import (
+from cora.infrastructure.ports.idempotency_store import (
     CachedError,
     CachedHandlerError,
     CachedSuccess,
@@ -73,7 +73,7 @@ from cora.infrastructure.ports.llm import (
 )
 from cora.infrastructure.ports.logbook_mirror import LogbookMirror
 from cora.infrastructure.ports.profile_store import Profile, ProfileStore
-from cora.infrastructure.ports.signing import (
+from cora.infrastructure.ports.signer import (
     Signer,
     SignerKeyInactiveError,
     SignerKeyNotFoundError,
