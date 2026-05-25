@@ -112,7 +112,7 @@ from cora.recipe.features.define_practice import bind as bind_define_practice
 from tests.integration._helpers import (
     build_postgres_deps,
     make_pg_profile_store,
-    seed_capability_pg,
+    seed_capability_postgres,
 )
 from tests.integration.scenarios._facility_fixture import (
     DeviceSpec,
@@ -318,7 +318,7 @@ async def test_flat_baseline_plays_out_end_to_end(
 
     # ----- Recipe BC: Method + Practice + Plan for the flat-baseline routine -----
 
-    await seed_capability_pg(
+    await seed_capability_postgres(
         deps.event_store,
         _CAPABILITY_ID,
         code="cora.capability.acquisition",

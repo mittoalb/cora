@@ -6,7 +6,7 @@ to list[UUID] at the events layer (see PolicyDefined precedent in
 Trust 3c).
 
 DefineMethod.capability_id is REQUIRED; every
-test seeds a Capability stream via `seed_capability_pg` before
+test seeds a Capability stream via `seed_capability_postgres` before
 invoking the handler.
 """
 
@@ -19,7 +19,7 @@ import pytest
 from cora.recipe.aggregates.capability import ExecutorShape
 from cora.recipe.features import define_method
 from cora.recipe.features.define_method import DefineMethod
-from tests.integration._helpers import build_postgres_deps, seed_capability_pg
+from tests.integration._helpers import build_postgres_deps, seed_capability_postgres
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -37,7 +37,7 @@ async def test_define_method_persists_event_to_postgres_with_capabilities(
     cap2 = UUID("01900000-0000-7000-8000-000000000222")
 
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[method_id, event_id])
-    await seed_capability_pg(
+    await seed_capability_postgres(
         deps.event_store, capability_id, shapes=frozenset({ExecutorShape.METHOD})
     )
 
@@ -87,7 +87,7 @@ async def test_define_method_persists_procedural_method_with_empty_capabilities(
     capability_id = UUID("01900000-0000-7000-8000-00000056ee0c")
 
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[method_id, event_id])
-    await seed_capability_pg(
+    await seed_capability_postgres(
         deps.event_store, capability_id, shapes=frozenset({ExecutorShape.METHOD})
     )
 
@@ -118,7 +118,7 @@ async def test_define_method_persists_bound_capability_id_to_postgres(
     capability_id = UUID("01900000-0000-7000-8000-00000000c0d2")
 
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[method_id, event_id])
-    await seed_capability_pg(
+    await seed_capability_postgres(
         deps.event_store, capability_id, shapes=frozenset({ExecutorShape.METHOD})
     )
 

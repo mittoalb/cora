@@ -21,7 +21,7 @@ from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.run._projections import register_run_projections
 from cora.run.features import start_run
 from cora.run.features.start_run import StartRun
-from tests.integration._helpers import build_postgres_deps, seed_run_upstream_chain_pg
+from tests.integration._helpers import build_postgres_deps, seed_run_upstream_chain_postgres
 
 _NOW = datetime(2026, 5, 18, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -41,7 +41,7 @@ async def test_start_run_lands_pinned_calibrations_on_projection(
     """Happy path: start_run with two pins lands them on the
     projection's uuid[] column (sorted lexicographically per the
     decider's pre-emit sort)."""
-    plan_id, subject_id = await seed_run_upstream_chain_pg(
+    plan_id, subject_id = await seed_run_upstream_chain_postgres(
         db_pool, now=_NOW, method_schema=None, plan_defaults=None
     )
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4(), uuid4()])
@@ -82,7 +82,7 @@ async def test_start_run_default_pins_land_empty_array(
 ) -> None:
     """Omitted pinned_calibrations on the command land an empty uuid[] on
     the projection (forward-compat-clean default)."""
-    plan_id, subject_id = await seed_run_upstream_chain_pg(
+    plan_id, subject_id = await seed_run_upstream_chain_postgres(
         db_pool, now=_NOW, method_schema=None, plan_defaults=None
     )
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4(), uuid4()])
@@ -122,7 +122,7 @@ async def test_pinned_calibrations_gin_index_supports_contains_membership_lookup
 
     Lands two Runs with overlapping + non-overlapping pin sets, then
     queries by one pin and asserts only the matching Runs come back."""
-    plan_id, subject_id = await seed_run_upstream_chain_pg(
+    plan_id, subject_id = await seed_run_upstream_chain_postgres(
         db_pool, now=_NOW, method_schema=None, plan_defaults=None
     )
 

@@ -23,7 +23,7 @@ import pytest_asyncio
 from testcontainers.postgres import PostgresContainer
 
 from cora.infrastructure.postgres.pool import create_pool
-from tests._pg import normalize_async_url
+from tests._postgres import normalize_async_url
 
 
 @pytest_asyncio.fixture

@@ -6,7 +6,7 @@ timestamps. Exercises both pre-drain (timestamps None) and post-drain
 (timestamps populated) paths.
 
 Mirrors test_get_method/plan/practice/family_handler_postgres.py shape.
-Separate from test_capability_end_to_end_pg.py, which exercises the
+Separate from test_capability_end_to_end_postgres.py, which exercises the
 full Capability/Family/Asset/Method/Plan/Procedure pipeline but does
 not isolate the projection-lag behavior of get_capability.
 """

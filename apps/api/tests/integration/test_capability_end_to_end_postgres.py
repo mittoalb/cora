@@ -63,7 +63,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
 @pytest.mark.integration
-async def test_capability_bound_full_lane_pg(db_pool: asyncpg.Pool) -> None:
+async def test_capability_bound_full_lane_postgres(db_pool: asyncpg.Pool) -> None:
     """Full Capability-bound pilot lane: define_capability → family →
     asset → method → practice → plan → procedure, all against real PG.
 

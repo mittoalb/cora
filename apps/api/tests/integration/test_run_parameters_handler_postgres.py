@@ -23,7 +23,7 @@ from cora.run._projections import register_run_projections
 from cora.run.aggregates.run import InvalidRunParametersError, load_run
 from cora.run.features import start_run
 from cora.run.features.start_run import StartRun
-from tests.integration._helpers import build_postgres_deps, seed_run_upstream_chain_pg
+from tests.integration._helpers import build_postgres_deps, seed_run_upstream_chain_postgres
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -63,7 +63,7 @@ async def test_start_run_merges_defaults_and_overrides_into_effective_parameters
 ) -> None:
     """Plan defaults + Run overrides merge per RFC 7396; resolved set
     persists in RunStarted and folds onto Run state."""
-    plan_id, subject_id = await seed_run_upstream_chain_pg(
+    plan_id, subject_id = await seed_run_upstream_chain_postgres(
         db_pool,
         now=_NOW,
         method_schema=_energy_schema(),
@@ -106,7 +106,7 @@ async def test_start_run_with_no_overrides_uses_plan_defaults(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Operator omits overrides -> effective_parameters == Plan defaults."""
-    plan_id, subject_id = await seed_run_upstream_chain_pg(
+    plan_id, subject_id = await seed_run_upstream_chain_postgres(
         db_pool,
         now=_NOW,
         method_schema=_energy_schema(),
@@ -141,7 +141,7 @@ async def test_start_run_rejects_overrides_violating_method_schema(
 ) -> None:
     """Override pushes effective_parameters out of schema bounds ->
     InvalidRunParametersError; no event appended."""
-    plan_id, subject_id = await seed_run_upstream_chain_pg(
+    plan_id, subject_id = await seed_run_upstream_chain_postgres(
         db_pool,
         now=_NOW,
         method_schema=_energy_schema(),

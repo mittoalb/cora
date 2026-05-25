@@ -40,7 +40,7 @@ import pytest_asyncio
 from hypothesis import HealthCheck, Verbosity, settings
 from testcontainers.postgres import PostgresContainer
 
-from tests._pg import normalize_async_url
+from tests._postgres import normalize_async_url
 
 os.environ.setdefault("APP_ENV", "test")
 

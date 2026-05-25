@@ -33,7 +33,7 @@ from cora.recipe.features.define_plan import DefinePlan
 from cora.recipe.features.define_practice import DefinePractice
 from cora.recipe.features.deprecate_plan import DeprecatePlan
 from cora.recipe.features.version_plan import VersionPlan
-from tests.integration._helpers import build_postgres_deps, seed_capability_pg
+from tests.integration._helpers import build_postgres_deps, seed_capability_postgres
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -95,7 +95,7 @@ async def test_deprecate_plan_persists_and_preserves_version_through_fold(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_postgres(deps.event_store, _CAPABILITY_ID)
     await define_method.bind(deps)(
         DefineMethod(
             capability_id=_CAPABILITY_ID, name="XRF Fly Scan", needed_families=frozenset({cap_id})

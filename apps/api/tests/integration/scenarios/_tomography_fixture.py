@@ -237,7 +237,7 @@ class RecipeSpec:
 
     `capability_id` is REQUIRED on every Method. The
     `define_recipe_ladder` factory seeds the Capability stream before
-    calling `define_method` (via `seed_capability_pg`-style direct
+    calling `define_method` (via `seed_capability_postgres`-style direct
     event-store append using uuid4 for the event_id, so the
     FixedIdGenerator queue stays untouched). Tests pass any UUID;
     the fixture handles the seeding."""
@@ -293,9 +293,9 @@ async def define_recipe_ladder(
     the event-store API directly (uuid4 for the event_id) so the
     FixedIdGenerator queue stays untouched and id-prefix ordering
     remains stable."""
-    from tests.integration._helpers import seed_capability_pg
+    from tests.integration._helpers import seed_capability_postgres
 
-    await seed_capability_pg(
+    await seed_capability_postgres(
         deps.event_store,
         spec.capability_id,
         code=spec.capability_code,

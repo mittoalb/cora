@@ -100,7 +100,7 @@ _DEFAULT_SEED_CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 _DEFAULT_SEED_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 
 
-async def seed_capability_pg(
+async def seed_capability_postgres(
     event_store: EventStore,
     capability_id: UUID,
     *,
@@ -154,7 +154,7 @@ async def seed_capability_pg(
     # Idempotent seed: another test in the same PG db_pool may have
     # already seeded this capability_id; tolerated via contextlib.suppress
     # so test modules sharing a `_CAPABILITY_ID` constant can call
-    # seed_capability_pg freely from each test without coordinating.
+    # seed_capability_postgres freely from each test without coordinating.
     with contextlib.suppress(ConcurrencyError):
         await event_store.append(
             stream_type="Capability",
@@ -177,7 +177,7 @@ async def seed_capability_pg(
 _DEFAULT_RUN_CHAIN_CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d9ea")
 
 
-async def seed_run_upstream_chain_pg(
+async def seed_run_upstream_chain_postgres(
     pool: asyncpg.Pool,
     *,
     now: datetime,
@@ -251,7 +251,7 @@ async def seed_run_upstream_chain_pg(
         principal_id=principal_id,
         correlation_id=correlation_id,
     )
-    await seed_capability_pg(deps.event_store, capability_id, now=now)
+    await seed_capability_postgres(deps.event_store, capability_id, now=now)
     method_id = await define_method.bind(deps)(
         DefineMethod(
             capability_id=capability_id,
@@ -331,6 +331,6 @@ def make_pg_profile_store(pool: asyncpg.Pool) -> ProfileStore:
 __all__ = [
     "build_postgres_deps",
     "make_pg_profile_store",
-    "seed_capability_pg",
-    "seed_run_upstream_chain_pg",
+    "seed_capability_postgres",
+    "seed_run_upstream_chain_postgres",
 ]

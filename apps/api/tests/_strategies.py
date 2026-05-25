@@ -1,6 +1,6 @@
 """Shared Hypothesis strategies for property-based tests across BCs.
 
-Lives at the `tests/` root (sibling to `_pg.py`) so any test tier
+Lives at the `tests/` root (sibling to `_postgres.py`) so any test tier
 can import without one tier reaching into another's conftest.
 Extracted at n=2 BCs (Access + Trust Zone) per the testing-expansion
 research-memo's rule-of-three threshold ([[project-testing-expansion-

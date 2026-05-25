@@ -124,7 +124,7 @@ from cora.subject.features.mount_subject import bind as bind_mount_subject
 from tests.integration._helpers import (
     build_postgres_deps,
     make_pg_profile_store,
-    seed_capability_pg,
+    seed_capability_postgres,
 )
 from tests.integration.scenarios._beamtime_fixture import (
     BeamtimeSpec,
@@ -312,7 +312,7 @@ async def test_run_debrief_agent_fires_on_equipment_abort(
         correlation_id=_CORRELATION_ID,
     )
 
-    await seed_capability_pg(
+    await seed_capability_postgres(
         deps.event_store,
         _CAPABILITY_ID,
         code="cora.capability.tomography",

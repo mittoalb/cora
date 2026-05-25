@@ -19,7 +19,7 @@ from cora.recipe._projections import register_recipe_projections
 from cora.recipe.aggregates.plan import PlanStatus
 from cora.recipe.features import get_plan
 from cora.recipe.features.get_plan import GetPlan
-from tests.integration._helpers import build_postgres_deps, seed_run_upstream_chain_pg
+from tests.integration._helpers import build_postgres_deps, seed_run_upstream_chain_postgres
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -30,7 +30,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 async def test_get_plan_loads_state_and_timestamps_from_real_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
-    plan_id, _subject_id = await seed_run_upstream_chain_pg(db_pool, now=_NOW)
+    plan_id, _subject_id = await seed_run_upstream_chain_postgres(db_pool, now=_NOW)
 
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[])
     view = await get_plan.bind(deps)(

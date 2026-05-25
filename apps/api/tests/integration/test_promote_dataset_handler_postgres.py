@@ -26,7 +26,7 @@ from cora.data.features import promote_dataset, register_dataset
 from cora.data.features.promote_dataset import PromoteDataset
 from cora.data.features.register_dataset import RegisterDataset
 from cora.infrastructure.kernel import Kernel
-from tests.integration._helpers import build_postgres_deps, seed_capability_pg
+from tests.integration._helpers import build_postgres_deps, seed_capability_postgres
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
@@ -152,7 +152,7 @@ async def test_register_dataset_persists_producing_run_end_state_in_payload(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_postgres(deps.event_store, _CAPABILITY_ID)
     method_id = await define_method.bind(deps)(
         DefineMethod(capability_id=_CAPABILITY_ID, name="M", needed_families=frozenset({cap_id})),
         principal_id=_PRINCIPAL_ID,

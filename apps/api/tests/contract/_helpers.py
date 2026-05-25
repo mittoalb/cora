@@ -22,7 +22,7 @@ invariants (none today, but defensive).
 `seed_method_chain` and `seed_run_upstream_chain` hoist the
 copy-pasted setup sequences from `test_abort_run_endpoint`,
 `test_adjust_run_idempotency`, and `test_define_plan_idempotency`.
-They mirror the integration-tier `seed_run_upstream_chain_pg` so
+They mirror the integration-tier `seed_run_upstream_chain_postgres` so
 the contract and integration tiers tell the same story about what
 "a Run needs upstream" — at the wire level via TestClient here,
 against real PG there.
@@ -140,7 +140,7 @@ def seed_run_upstream_chain(
 ) -> str:
     """Seed the full upstream chain a Run needs and start it. Returns the run_id.
 
-    Contract-tier sibling of `tests/integration/_helpers.seed_run_upstream_chain_pg`.
+    Contract-tier sibling of `tests/integration/_helpers.seed_run_upstream_chain_postgres`.
     Builds on `seed_method_chain`, then defines a Plan (optionally with
     `default_parameters`), registers + mounts a Subject onto a fresh
     Active Asset, and POSTs `/runs` to start the Run.

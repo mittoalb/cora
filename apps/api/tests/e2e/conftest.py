@@ -53,7 +53,7 @@ from httpx import ASGITransport, AsyncClient
 from testcontainers.postgres import PostgresContainer
 
 from cora.infrastructure.projection import drain_projections
-from tests._pg import normalize_async_url
+from tests._postgres import normalize_async_url
 
 if TYPE_CHECKING:
     from cora.infrastructure.kernel import Kernel

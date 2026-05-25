@@ -147,7 +147,7 @@ from cora.subject.features.mount_subject import bind as bind_mount_subject
 from tests.integration._helpers import (
     build_postgres_deps,
     make_pg_profile_store,
-    seed_capability_pg,
+    seed_capability_postgres,
 )
 from tests.integration.scenarios._beamtime_fixture import (
     BeamtimeSpec,
@@ -331,7 +331,7 @@ async def test_energy_change_plays_out_end_to_end(
 
     # ----- One Method, one Practice, two Plans (differing on energy) -----
 
-    await seed_capability_pg(
+    await seed_capability_postgres(
         deps.event_store,
         _CAPABILITY_ID,
         code="cora.capability.tomography",

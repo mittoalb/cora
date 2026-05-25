@@ -20,7 +20,7 @@ from cora.recipe.aggregates.method import MethodName, MethodStatus
 from cora.recipe.features import define_method, get_method
 from cora.recipe.features.define_method import DefineMethod
 from cora.recipe.features.get_method import GetMethod
-from tests.integration._helpers import build_postgres_deps, seed_capability_pg
+from tests.integration._helpers import build_postgres_deps, seed_capability_postgres
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -38,7 +38,7 @@ async def test_get_method_loads_state_from_real_postgres(
     cap2 = UUID("01900000-0000-7000-8000-000000000222")
 
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[method_id, event_id])
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_postgres(deps.event_store, _CAPABILITY_ID)
 
     await define_method.bind(deps)(
         DefineMethod(

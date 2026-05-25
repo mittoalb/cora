@@ -151,7 +151,7 @@ async def test_seed_and_subscriber_write_decision_end_to_end(
 
 
 @pytest.mark.integration
-async def test_subscriber_retry_is_at_most_once_on_real_pg(
+async def test_subscriber_retry_is_at_most_once_on_real_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Two apply() calls with the same terminal event produce ONE

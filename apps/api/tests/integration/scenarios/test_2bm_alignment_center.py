@@ -149,7 +149,7 @@ from cora.recipe.features.define_practice import (
 from tests.integration._helpers import (
     build_postgres_deps,
     make_pg_profile_store,
-    seed_capability_pg,
+    seed_capability_postgres,
 )
 from tests.integration.scenarios._facility_fixture import (
     DeviceSpec,
@@ -545,7 +545,7 @@ async def test_center_alignment_plays_out_end_to_end(
 
     # ----- Seed Recipe BC: Method + Practice + Plan describing the alignment recipe -----
 
-    await seed_capability_pg(
+    await seed_capability_postgres(
         deps.event_store,
         _CAPABILITY_ID,
         code="cora.capability.alignment",

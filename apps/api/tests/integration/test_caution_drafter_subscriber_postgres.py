@@ -274,7 +274,7 @@ async def test_end_to_end_cross_bc_promotion_registers_real_caution(
 
 
 @pytest.mark.integration
-async def test_subscriber_is_at_most_once_on_real_pg(
+async def test_subscriber_is_at_most_once_on_real_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Second apply with the same terminal event is a no-op on real PG

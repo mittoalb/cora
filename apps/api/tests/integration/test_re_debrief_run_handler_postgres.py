@@ -74,7 +74,7 @@ async def _seed_run(deps, run_id: UUID) -> None:
 
 
 @pytest.mark.integration
-async def test_re_debrief_run_handler_writes_decision_on_real_pg(
+async def test_re_debrief_run_handler_writes_decision_on_real_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
     new_decision_id = uuid4()

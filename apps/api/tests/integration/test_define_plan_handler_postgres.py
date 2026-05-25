@@ -43,7 +43,7 @@ from cora.recipe.features.define_capability import DefineCapability
 from cora.recipe.features.define_method import DefineMethod
 from cora.recipe.features.define_plan import DefinePlan
 from cora.recipe.features.define_practice import DefinePractice
-from tests.integration._helpers import build_postgres_deps, seed_capability_pg
+from tests.integration._helpers import build_postgres_deps, seed_capability_postgres
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -105,7 +105,7 @@ async def test_define_plan_persists_event_with_audit_snapshots_to_postgres(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await seed_capability_pg(
+    await seed_capability_postgres(
         deps.event_store, method_capability_id, shapes=frozenset({ExecutorShape.METHOD})
     )
     await define_method.bind(deps)(

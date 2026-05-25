@@ -27,7 +27,7 @@ from cora.recipe.features.list_methods import ListMethods
 from cora.recipe.features.list_methods import bind as bind_list
 from cora.recipe.features.version_method import VersionMethod
 from cora.recipe.features.version_method import bind as bind_version
-from tests.integration._helpers import build_postgres_deps, seed_capability_pg
+from tests.integration._helpers import build_postgres_deps, seed_capability_postgres
 
 _NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -43,7 +43,7 @@ async def _build_seeded_deps(db_pool: asyncpg.Pool, ids: list[UUID]) -> Kernel:
     """Every define_method needs a real Capability stream. Seed once
     per test via this helper to avoid repeating the boilerplate."""
     deps = _build_deps(db_pool, ids)
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_postgres(deps.event_store, _CAPABILITY_ID)
     return deps
 
 
@@ -83,7 +83,7 @@ async def test_full_lifecycle_define_version_deprecate(db_pool: asyncpg.Pool) ->
     version_tag is preserved on deprecate."""
     method_id = uuid4()
     deps = _build_deps(db_pool, [method_id, uuid4(), uuid4(), uuid4()])
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_postgres(deps.event_store, _CAPABILITY_ID)
     await bind_define(deps)(
         DefineMethod(capability_id=_CAPABILITY_ID, name="Powder Diffraction"),
         principal_id=_PRINCIPAL_ID,
@@ -119,7 +119,7 @@ async def test_status_filter_returns_only_matching_rows(db_pool: asyncpg.Pool) -
         db_pool,
         [defined_id, uuid4(), versioned_id, uuid4(), uuid4()],
     )
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_postgres(deps.event_store, _CAPABILITY_ID)
     define = bind_define(deps)
     await define(
         DefineMethod(capability_id=_CAPABILITY_ID, name="DefinedOnly"),
@@ -157,7 +157,7 @@ async def test_cursor_walks_pages(db_pool: asyncpg.Pool) -> None:
         method_ids.append(m)
         fixed_ids.extend([m, uuid4()])
     deps = _build_deps(db_pool, fixed_ids)
-    await seed_capability_pg(deps.event_store, _CAPABILITY_ID)
+    await seed_capability_postgres(deps.event_store, _CAPABILITY_ID)
     define = bind_define(deps)
     for i in range(5):
         await define(
