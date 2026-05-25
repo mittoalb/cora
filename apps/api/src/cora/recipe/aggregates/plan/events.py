@@ -90,11 +90,26 @@ class PlanVersioned:
     `version_tag` is operator-supplied free text (1-50 chars,
     validated at API boundary AND in the decider). Same precedent
     as PracticeVersioned / MethodVersioned / FamilyVersioned.
+
+    `content_hash` is the SHA-256 of the canonical body bytes for
+    this Plan revision's content subset (`name + method_id +
+    practice_id + asset_ids + default_parameters + wires`), captured
+    by the decider per the non-determinism principle. 64-char
+    lowercase hex. The same content emitted twice (re-attestation)
+    produces the same hash, which is the intended equivalence-
+    detection semantic (Bazel input/output split pattern). Pre-
+    rollout legacy events have no payload field; `from_stored`
+    returns None there, matching Plan state's `content_hash: str |
+    None` shape per [[project_content_addressed_identity_design]]
+    pre-rollout fold. The dataclass default of None exists only for
+    legacy-event reconstruction; current deciders always supply a
+    concrete hash.
     """
 
     plan_id: UUID
     version_tag: str
     occurred_at: datetime
+    content_hash: str | None = None
 
 
 @dataclass(frozen=True)
@@ -258,12 +273,16 @@ def to_payload(event: PlanEvent) -> dict[str, Any]:
             plan_id=plan_id,
             version_tag=version_tag,
             occurred_at=occurred_at,
+            content_hash=content_hash,
         ):
-            return {
+            payload: dict[str, Any] = {
                 "plan_id": str(plan_id),
                 "version_tag": version_tag,
                 "occurred_at": occurred_at.isoformat(),
             }
+            if content_hash is not None:
+                payload["content_hash"] = content_hash
+            return payload
         case PlanDeprecated(plan_id=plan_id, occurred_at=occurred_at):
             return {
                 "plan_id": str(plan_id),
@@ -359,6 +378,11 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
                     plan_id=UUID(payload["plan_id"]),
                     version_tag=payload["version_tag"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    # forward-compat: pre-rollout PlanVersioned payloads
+                    # have no content_hash; default to None. Additive-
+                    # evolution pattern per [[project_content_addressed
+                    # _identity_design]] watch item on pre-rollout fold.
+                    content_hash=payload.get("content_hash"),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed PlanVersioned payload {payload!r}: {exc}"

@@ -45,6 +45,7 @@ inherits them.
 
 from collections.abc import Callable
 from logging import getLogger
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 from opentelemetry import trace
@@ -74,7 +75,9 @@ from opentelemetry.semconv.attributes.service_attributes import (
 )
 
 from cora import __version__
-from cora.infrastructure.config import Settings
+
+if TYPE_CHECKING:
+    from cora.infrastructure.config import Settings
 
 # Endpoints that get hit by infrastructure (probes + scrape + docs)
 # rather than by user-facing traffic. Tracing them produces noise
@@ -88,7 +91,7 @@ _log = getLogger(__name__)
 Teardown = Callable[[], None]
 
 
-def build_tracing(settings: Settings) -> tuple[TracerProvider | None, Teardown]:
+def build_tracing(settings: "Settings") -> tuple[TracerProvider | None, Teardown]:
     """Build a TracerProvider per `settings.otel_exporter` without installing it.
 
     Returns `(provider, teardown)`. `provider` is `None` for `none`
@@ -141,7 +144,7 @@ def build_tracing(settings: Settings) -> tuple[TracerProvider | None, Teardown]:
     return provider, teardown
 
 
-def configure_tracing(settings: Settings) -> Teardown:
+def configure_tracing(settings: "Settings") -> Teardown:
     """Install a global TracerProvider per `settings.otel_exporter`.
 
     Also instruments process-wide libraries (asyncpg) when tracing is on;
@@ -188,7 +191,7 @@ def configure_tracing(settings: Settings) -> Teardown:
     return teardown
 
 
-def instrument_app(app: FastAPI, settings: Settings) -> None:
+def instrument_app(app: FastAPI, settings: "Settings") -> None:
     """Attach FastAPIInstrumentor to a specific app instance.
 
     Per-app (not process-wide) so each `create_app()` in the test suite

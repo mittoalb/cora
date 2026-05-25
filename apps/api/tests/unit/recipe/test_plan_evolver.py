@@ -98,7 +98,10 @@ def test_evolve_plan_defined_does_not_fold_other_audit_snapshots() -> None:
     asset_families_snapshot. This test pins the contract so future additions
     are deliberate. default_parameters is also on state (defaults to {} via
     additive-state pattern). wires is also on state (defaults to frozenset()
-    via additive-state pattern). Field set IS the contract."""
+    via additive-state pattern). content_hash is also on state (defaults to
+    None pre-PlanVersioned; last-attested SHA-256 of the canonical Plan
+    content subset per [[project_content_addressed_identity_design]]). Field
+    set IS the contract."""
     state = evolve(None, _plan_defined())
     assert {f for f in state.__dataclass_fields__} == {
         "id",
@@ -110,6 +113,7 @@ def test_evolve_plan_defined_does_not_fold_other_audit_snapshots() -> None:
         "method_id",
         "default_parameters",
         "wires",
+        "content_hash",
     }
 
 

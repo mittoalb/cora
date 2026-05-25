@@ -409,6 +409,33 @@ class Plan:
     [[project_plan_wiring_design]] for the locked design memo.
     Defaults to empty frozenset for legacy Plans (additive-state
     pattern).
+
+    `content_hash: str | None` is the SHA-256 (64-char lowercase hex)
+    of the canonical body bytes for this Plan revision's content
+    subset (`name + method_id + practice_id + asset_ids +
+    default_parameters + wires`), captured by the version_plan
+    decider per the non-determinism principle and folded by the
+    evolver from MethodVersioned PlanVersioned event payloads. None
+    for legacy Plans that never reached Versioned status and for
+    pre-rollout PlanVersioned events that landed before the
+    content-hash field was added (additive-state pattern per
+    [[project_content_addressed_identity_design]]).
+
+    PRESERVATION semantics across non-version transitions:
+      - PlanDeprecated preserves content_hash (the hash represents
+        the LAST ATTESTED revision and stays a valid equivalence
+        anchor for the deprecated binding).
+      - PlanDefaultParametersUpdated preserves content_hash (Bazel
+        input/output split semantics: schema-side updates between
+        Versioned events leave the hash pointing at the prior
+        attested revision; the drift between current
+        default_parameters and the hashed snapshot IS the intended
+        signal that the Plan has uncommitted changes).
+      - PlanWireAdded / PlanWireRemoved preserve content_hash (same
+        Bazel input/output split rationale: wiring is a
+        content-bearing field, so changes between Versioned events
+        leave the hash dangling against the prior revision; operators
+        re-version to anchor a new hash).
     """
 
     id: UUID
@@ -420,6 +447,7 @@ class Plan:
     method_id: UUID | None = None
     default_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     wires: frozenset["Wire"] = field(default_factory=frozenset["Wire"])
+    content_hash: str | None = None
 
 
 class InvalidWireError(ValueError):

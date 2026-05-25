@@ -56,10 +56,14 @@ in the payload from day one.
 
 **Critical invariant**: every transition arm MUST carry
 `practice_id`, `asset_ids`, `version`, `method_id`,
-`default_parameters`, AND `wires` through from prior state.
-Constructing `Plan(id=..., name=..., status=...)` without
-explicitly passing the carry-through fields would silently change
-them. The transition arms explicitly pass each.
+`default_parameters`, `wires`, AND `content_hash` through from
+prior state. Constructing `Plan(id=..., name=..., status=...)`
+without explicitly passing the carry-through fields would silently
+change them. The transition arms explicitly pass each. content_hash
+is mutated by PlanVersioned (overwritten from event payload) and
+PRESERVED by every other event (deprecation, default_parameters
+updates, wire add/remove) per the Bazel input/output split
+semantics in [[project_content_addressed_identity_design]].
 
 Transition events applied to empty state raise ValueError: they can
 never appear before `PlanDefined` in a well-formed stream. The
@@ -108,7 +112,7 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 method_id=method_id,
                 # default_parameters defaults to {} via state default.
             )
-        case PlanVersioned(version_tag=version_tag):
+        case PlanVersioned(version_tag=version_tag, content_hash=content_hash):
             prior = require_state(state, "PlanVersioned")
             return Plan(
                 id=prior.id,
@@ -120,6 +124,10 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 method_id=prior.method_id,
                 default_parameters=prior.default_parameters,
                 wires=prior.wires,
+                # content_hash loaded from event payload (captured by
+                # decider per non-determinism principle). None for
+                # pre-rollout legacy events.
+                content_hash=content_hash,
             )
         case PlanDeprecated():
             prior = require_state(state, "PlanDeprecated")
@@ -134,6 +142,10 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 method_id=prior.method_id,
                 default_parameters=prior.default_parameters,
                 wires=prior.wires,
+                # content_hash preserved across deprecation; represents
+                # the LAST ATTESTED revision and stays a valid
+                # equivalence anchor for the deprecated binding.
+                content_hash=prior.content_hash,
             )
         case PlanDefaultParametersUpdated(default_parameters=default_parameters):
             prior = require_state(state, "PlanDefaultParametersUpdated")
@@ -148,6 +160,14 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 method_id=prior.method_id,
                 default_parameters=dict(default_parameters),
                 wires=prior.wires,
+                # content_hash preserved: defaults updates between
+                # PlanVersioned events leave the hash pointing at the
+                # prior attested revision. The drift between current
+                # default_parameters and the hashed snapshot is the
+                # intended signal that the Plan has uncommitted changes
+                # (Bazel input/output split semantics, see
+                # [[project_content_addressed_identity_design]]).
+                content_hash=prior.content_hash,
             )
         case PlanWireAdded(
             source_asset_id=source_asset_id,
@@ -172,6 +192,11 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 method_id=prior.method_id,
                 default_parameters=prior.default_parameters,
                 wires=prior.wires | {new_wire},
+                # content_hash preserved: wiring updates between
+                # PlanVersioned events leave the hash pointing at the
+                # prior attested revision (same Bazel input/output split
+                # rationale as default_parameters).
+                content_hash=prior.content_hash,
             )
         case PlanWireRemoved(
             source_asset_id=source_asset_id,
@@ -196,6 +221,8 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 method_id=prior.method_id,
                 default_parameters=prior.default_parameters,
                 wires=prior.wires - {removed_wire},
+                # content_hash preserved (mirror of PlanWireAdded).
+                content_hash=prior.content_hash,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

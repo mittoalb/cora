@@ -5,6 +5,12 @@ Mirror of `test_version_practice_decider.py` /
 `Defined | Versioned -> Versioned`; only Deprecated rejected.
 Same deliberate divergence from strict-not-idempotent (re-attesting
 the same tag succeeds).
+
+Content-hash assertions (per
+[[project_content_addressed_identity_design]]) live in
+test_version_plan_content_hash.py rather than here so the core
+lifecycle guards stay readable; this file pins only that the decider
+attaches a non-empty hash to the emitted event.
 """
 
 from datetime import UTC, datetime
@@ -56,7 +62,13 @@ def test_decide_emits_plan_versioned_for_each_allowed_source_status(
         command=VersionPlan(plan_id=state.id, version_tag="v2"),
         now=_NOW,
     )
-    assert events == [PlanVersioned(plan_id=state.id, version_tag="v2", occurred_at=_NOW)]
+    assert len(events) == 1
+    event = events[0]
+    assert isinstance(event, PlanVersioned)
+    assert event.plan_id == state.id
+    assert event.version_tag == "v2"
+    assert event.occurred_at == _NOW
+    assert event.content_hash is not None
 
 
 @pytest.mark.unit
@@ -164,4 +176,10 @@ def test_decide_allows_versioning_with_same_tag_for_re_attestation() -> None:
         command=VersionPlan(plan_id=state.id, version_tag="v2"),
         now=_NOW,
     )
-    assert events == [PlanVersioned(plan_id=state.id, version_tag="v2", occurred_at=_NOW)]
+    assert len(events) == 1
+    event = events[0]
+    assert isinstance(event, PlanVersioned)
+    assert event.plan_id == state.id
+    assert event.version_tag == "v2"
+    assert event.occurred_at == _NOW
+    assert event.content_hash is not None

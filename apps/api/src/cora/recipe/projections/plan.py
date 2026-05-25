@@ -12,9 +12,13 @@ Subscribed events:
   - PlanVersioned                -> UPDATE status=Versioned + version_tag
                                             from payload +
                                             versioned_at=payload.occurred_at
+                                            + content_hash=payload.content_hash
                                             (overwritten on each re-version
                                             — state always holds latest
-                                            tag, projection mirrors that)
+                                            tag and hash, projection mirrors
+                                            that; pre-rollout payloads with
+                                            no content_hash field leave the
+                                            column NULL via .get())
   - PlanDeprecated               -> UPDATE status=Deprecated +
                                             deprecated_at=payload.occurred_at
                                             (version_tag preserved on
@@ -71,6 +75,7 @@ UPDATE proj_recipe_plan_summary
 SET status = 'Versioned',
     version_tag = $2,
     versioned_at = $3,
+    content_hash = $4,
     updated_at = now()
 WHERE plan_id = $1
 """
@@ -124,6 +129,10 @@ class PlanSummaryProjection:
                     UUID(event.payload["plan_id"]),
                     event.payload["version_tag"],
                     datetime.fromisoformat(event.payload["occurred_at"]),
+                    # forward-compat: pre-rollout PlanVersioned payloads
+                    # have no content_hash field; .get(...) leaves the
+                    # column NULL (matches aggregate-state semantics).
+                    event.payload.get("content_hash"),
                 )
             case "PlanDeprecated":
                 await conn.execute(
