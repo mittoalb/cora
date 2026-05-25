@@ -120,6 +120,15 @@ Operators wanting "this Capability or Method genuinely has no values to constrai
 - Do not collapse the settings and parameters vocabularies into one name. They are two domain families that happen to share an implementation; the names carry the lifecycle distinction.
 - Do not extend the JSON Schema subset to allow `$ref`, `oneOf`, `allOf`, or conditionals without adding the corresponding evolver and projection support. The constrained subset is what lets the declarer's schema be stored, evolved, and rebuilt deterministically.
 
+**Forward-compatible discipline.** `capability.settings_schema` is the strongest candidate to travel between facilities once a publish-pull artifact registry lands. Authoring discipline today avoids a rename pass later. The rules are borrowed from Linux Device Tree bindings: describe the hardware, not the driver; close the schema; reserve namespace expansion slots.
+
+- **Close the schema at every object level.** Set both `additionalProperties: false` and `unevaluatedProperties: false`. Unknown fields are a contract break, not a quiet extension point. A facility that pulls a foreign Capability must fail loudly on a property it does not recognize.
+- **Vendor-prefix vendor-specific extensions only.** Properties shared across all instances of the equipment family (`encoder_resolution_deg`, `pixel_pitch_um`) stay generic. Properties that are vendor-specific go under a dotted vendor namespace (`aerotech.servo_gain`, `andor.read_mode`). The generic form is reserved for cross-vendor consensus; do not invent generic names that one vendor's quirk currently occupies.
+- **Describe the hardware, not the driver.** Property descriptions name the physical quantity, range, and unit. They do not reference Python classes, EPICS PV names, Tango device URIs, ophyd-async Devices, or any other transport. The same schema must serve an APS-EPICS Capability and a MAX-IV-Tango Capability without edits.
+- **Reserve `compatible` and `backend` as property names.** Do not use either name for unrelated purposes in current schemas. They are the documented expansion slots for future cross-facility Asset Integration Manifests.
+
+These rules cost nothing at write time and apply equally to `method.parameters_schema` for the same reason.
+
 ## Documentation
 
 Docstrings carry intent. Comments carry hidden constraints. Test names carry scenarios. Everything else is noise.
