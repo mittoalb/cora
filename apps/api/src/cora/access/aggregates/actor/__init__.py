@@ -39,8 +39,8 @@ from cora.access.aggregates.actor.state import (
 # so existing imports of
 # `from cora.access.aggregates.actor import InMemoryProfileStore` keep
 # working.
-from cora.infrastructure.memory.profile_store import InMemoryProfileStore
-from cora.infrastructure.postgres.profile_store import PostgresProfileStore
+from cora.infrastructure.adapters.in_memory_profile_store import InMemoryProfileStore
+from cora.infrastructure.adapters.postgres_profile_store import PostgresProfileStore
 
 __all__ = [
     "ACTOR_NAME_MAX_LENGTH",

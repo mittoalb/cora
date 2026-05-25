@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import pytest
 
-from cora.infrastructure.memory.event_store import InMemoryEventStore
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.ports.event_store import ConcurrencyError, NewEvent, StreamAppend
 
 

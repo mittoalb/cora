@@ -27,7 +27,7 @@ class SupplyOutput(BaseModel):
     """Structured output of the `get_supply` MCP tool (on hit).
 
     On miss the tool raises `ValueError` so FastMCP wraps the
-    response as `isError: true` with a clear diagnostic — same
+    response as `isError: true` with a clear diagnostic, same
     convention as `get_family` / `get_asset`. Never returns
     None; the LLM gets either a populated DTO or an error.
     """

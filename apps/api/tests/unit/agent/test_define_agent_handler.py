@@ -16,8 +16,8 @@ from cora.agent.aggregates.agent import ModelRef
 from cora.agent.errors import UnauthorizedError
 from cora.agent.features import define_agent
 from cora.agent.features.define_agent import DefineAgent
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from tests.unit._helpers import build_deps as _build_deps_shared
 from tests.unit._helpers import make_profile_store
 

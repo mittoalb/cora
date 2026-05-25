@@ -14,12 +14,12 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
+from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
 from cora.infrastructure.ports.event_store import (
     ConcurrencyError,
     NewEvent,
     StreamAppend,
 )
-from cora.infrastructure.postgres.event_store import PostgresEventStore
 
 
 def _event(

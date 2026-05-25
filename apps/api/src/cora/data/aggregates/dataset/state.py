@@ -175,7 +175,7 @@ class DatasetStatus(StrEnum):
 class Intent(StrEnum):
     """The Dataset's trust level / promotion state.
 
-    `Trial`: default on register. Working data — calibration scans,
+    `Trial`: default on register. Working data: calibration scans,
     alignment runs, exposure tests, exploratory acquisitions. Not
     authoritative; no peer-reviewed claims attached.
 
@@ -184,14 +184,14 @@ class Intent(StrEnum):
     keeper"; the audit log captures WHY (PromotionReason) immutably.
 
     `Retracted`: explicitly demoted from Production via
-    `demote_dataset`. Terminal Intent value — no re-promote from
+    `demote_dataset`. Terminal Intent value; no re-promote from
     Retracted (semantic: "this Dataset was authoritative, then
     retracted; if you want to re-publish a corrected version,
     register a NEW Dataset with `derived_from` pointing at this
     one"). The audit log captures WHY (DemotionReason) immutably.
     First concrete instantiation of the Q4 compensation-primitive
     pattern (per [[project-dataset-demote-design]]; mirrors the
-    Crossref retraction model — additive notice, original
+    Crossref retraction model: additive notice, original
     preserved + marked).
 
     Open enum: future values (Calibration, Superseded, Authoritative)
@@ -199,7 +199,7 @@ class Intent(StrEnum):
     state pattern). See [[project_dataset_lineage_design]].
 
     Distinct from `DatasetStatus` (Registered | Discarded) which
-    captures lifecycle. Intent captures trust level — orthogonal to
+    captures lifecycle. Intent captures trust level: orthogonal to
     lifecycle, mutated by separate slices (`promote_dataset` /
     `demote_dataset`).
     """

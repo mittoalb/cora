@@ -131,7 +131,7 @@ class Settings(BaseSettings):
     # `str()`, or `model_dump_json()` (Pydantic redacts it to
     # `**********` in all three paths). Production deploys MUST
     # access the key via `.get_secret_value()` — only the
-    # `AnthropicLLMAdapter` factory does this today. A watch-item
+    # `AnthropicLLM` factory does this today. A watch-item
     # follow-up promotes `database_url` to the same shape so the
     # whole Settings surface is repr-safe.
     anthropic_api_key: SecretStr | None = None

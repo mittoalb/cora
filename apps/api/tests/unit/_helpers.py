@@ -37,11 +37,11 @@ deps = build_deps(ids=[...], now=custom_clock_time)  # custom clock
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+from cora.infrastructure.adapters.in_memory_profile_store import InMemoryProfileStore
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import make_inmemory_kernel
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.profile_store import InMemoryProfileStore
 from cora.infrastructure.ports import (
     LLM,
     Allow,
@@ -130,7 +130,7 @@ def build_deps(
     Authorize stub). When `authz` is set, `deny` is ignored.
 
     `llm` wires a test LLM (typically
-    `FakeLLMAdapter`) when the handler under test consumes one
+    `FakeLLM`) when the handler under test consumes one
     (eg. `re_debrief_run`). Defaults to None so the vast majority
     of tests that don't need an LLM stay LLM-free.
 

@@ -19,8 +19,8 @@ from cora.equipment.aggregates.family import (
 from cora.equipment.features import define_family, get_family
 from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.get_family import GetFamily
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from tests.unit._helpers import DenyAllAuthorize as _DenyAllAuthorize
 from tests.unit._helpers import RecordingAuthorize as _RecordingAuthorize
 from tests.unit._helpers import build_deps as _build_deps_shared

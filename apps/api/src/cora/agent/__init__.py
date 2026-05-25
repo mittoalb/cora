@@ -4,8 +4,8 @@ One aggregate, `Agent`. Genesis plus a lifecycle FSM
 (`Defined -> Versioned -> Suspended? -> Deprecated`) with tool
 grants and budget envelopes.
 
-Production `AnthropicLLMAdapter` ships at
-`cora.agent.adapters.AnthropicLLMAdapter` and is wired into the
+Production `AnthropicLLM` ships at
+`cora.agent.adapters.AnthropicLLM` and is wired into the
 Kernel via `build_llm` (composition-root binding lives in
 `cora.api.main`). Subscribers (RunDebriefer, CautionDrafter) consume
 it to write Decisions and Caution proposals.

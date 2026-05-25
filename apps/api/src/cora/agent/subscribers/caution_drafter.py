@@ -614,7 +614,7 @@ def make_caution_drafter_subscriber(deps: Kernel) -> CautionDrafterSubscriber:
     if deps.llm is None:
         msg = (
             "CautionDrafterSubscriber requires kernel.llm to be set; "
-            "configure ANTHROPIC_API_KEY or inject a FakeLLMAdapter."
+            "configure ANTHROPIC_API_KEY or inject a FakeLLM."
         )
         raise RuntimeError(msg)
     return CautionDrafterSubscriber(

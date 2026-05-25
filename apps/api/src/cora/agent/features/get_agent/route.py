@@ -54,7 +54,7 @@ class AgentResponse(BaseModel):
     sourced lifecycle timestamps (Path C);
     see module docstring for null-semantics. `defined_at` is
     nullable (changed from required during lifecycle widening) because
-    the projection can lag — once the projection has folded
+    the projection can lag; once the projection has folded
     `AgentDefined`, `defined_at` is non-null on every response.
     """
 

@@ -25,7 +25,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore, _Row
+from cora.infrastructure.adapters.in_memory_idempotency import InMemoryIdempotencyStore, _Row
 from cora.infrastructure.routing import SYSTEM_HTTP_SURFACE_ID
 
 _PRINCIPAL_ID = UUID("00000000-0000-0000-0000-000000000099")

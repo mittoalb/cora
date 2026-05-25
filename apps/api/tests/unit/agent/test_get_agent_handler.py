@@ -15,9 +15,9 @@ from cora.agent.aggregates.agent.events import AgentDefined
 from cora.agent.errors import UnauthorizedError
 from cora.agent.features import get_agent
 from cora.agent.features.get_agent import GetAgent
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from tests.unit._helpers import build_deps as _build_deps_shared
 
 _T0 = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)

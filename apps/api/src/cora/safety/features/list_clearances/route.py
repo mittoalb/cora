@@ -53,7 +53,7 @@ class BindingsByKind(BaseModel):
     """Per-kind binding-id arrays surfaced on the list response.
 
     Four explicit named fields (matching the projection's UUID[] columns
-    1:1) instead of a `dict[str, list[UUID]]` — OpenAPI codegen produces
+    1:1) instead of a `dict[str, list[UUID]]`: OpenAPI codegen produces
     typed accessors; SDK consumers see the locked set of keys without
     `additionalProperties` ambiguity. ExternalBinding refs are NOT
     surfaced here (anti-corruption refs, not projected; see route summary).

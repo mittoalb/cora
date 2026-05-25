@@ -15,7 +15,7 @@ from uuid import UUID
 import asyncpg
 import pytest
 
-from cora.infrastructure.postgres.event_store import PostgresEventStore
+from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
 from cora.trust._bootstrap import (
     SYSTEM_BOOTSTRAP_POLICY_V2_ID,
     SYSTEM_HTTP_SURFACE_ID,

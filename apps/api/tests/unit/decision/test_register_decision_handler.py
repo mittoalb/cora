@@ -28,8 +28,8 @@ from cora.decision.aggregates.decision.events import (
 )
 from cora.decision.features import register_decision
 from cora.decision.features.register_decision import RegisterDecision
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)

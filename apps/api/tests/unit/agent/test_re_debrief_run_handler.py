@@ -1,7 +1,7 @@
 """Application-handler tests for `re_debrief_run`.
 
 Drives the on-demand RunDebrief handler against InMemoryEventStore +
-FakeLLMAdapter. Covers happy path, DebriefDeferred-on-LLM-failure,
+FakeLLM. Covers happy path, DebriefDeferred-on-LLM-failure,
 Run/Agent/parent-Decision pre-load guards, Actor-deactivated gate,
 parent-Run-mismatch validation, authorize-deny, and the bind-time
 RuntimeError when kernel.llm is unwired.
@@ -34,10 +34,10 @@ from cora.decision.aggregates.decision import (
     ParentDecisionRunMismatchError,
     load_decision,
 )
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.ports import (
-    FakeLLMAdapter,
+    FakeLLM,
     FakeLLMResponse,
     LLMServerError,
 )
@@ -165,7 +165,7 @@ def test_bind_raises_runtime_error_when_llm_unwired() -> None:
 @pytest.mark.unit
 async def test_handler_writes_decision_on_success() -> None:
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     run_id = uuid4()
     await _seed_actor(store)
     await _seed_run(store, run_id)
@@ -203,7 +203,7 @@ async def test_handler_envelope_principal_id_is_operator_not_agent() -> None:
     operator (HTTP header), NOT the agent's own id. Distinct from
     the subscriber where principal_id == actor_id."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     run_id = uuid4()
     await _seed_actor(store)
     await _seed_run(store, run_id)
@@ -232,7 +232,7 @@ async def test_handler_chains_parent_decision_when_supplied() -> None:
     """Operator-supplied parent_decision_id sets `Decision.parent_id`
     (PROV-O wasInformedBy)."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK, _CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK, _CANNED_OK])
     run_id = uuid4()
     await _seed_actor(store)
     await _seed_run(store, run_id)
@@ -277,7 +277,7 @@ async def test_handler_chains_parent_decision_when_supplied() -> None:
 @pytest.mark.unit
 async def test_handler_raises_run_missing_when_run_absent() -> None:
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     await _seed_actor(store)
     # No _seed_run call.
     deps = build_deps(
@@ -302,7 +302,7 @@ async def test_handler_raises_run_missing_when_run_absent() -> None:
 @pytest.mark.unit
 async def test_handler_raises_agent_not_seeded_when_actor_absent() -> None:
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     run_id = uuid4()
     await _seed_run(store, run_id)
     # No _seed_actor call.
@@ -328,7 +328,7 @@ async def test_handler_raises_agent_deactivated_when_actor_inactive() -> None:
     """Security: a deactivated agent Actor cannot author on-demand
     Decisions. Mirrors the subscriber's Actor.is_active gate."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     run_id = uuid4()
     await _seed_actor(store, deactivated=True)
     await _seed_run(store, run_id)
@@ -352,7 +352,7 @@ async def test_handler_raises_agent_deactivated_when_actor_inactive() -> None:
 @pytest.mark.unit
 async def test_handler_raises_parent_missing_when_parent_absent() -> None:
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     run_id = uuid4()
     await _seed_actor(store)
     await _seed_run(store, run_id)
@@ -380,7 +380,7 @@ async def test_handler_raises_parent_run_mismatch_for_cross_run_chain() -> None:
     command. Prevents an accidental "re-debrief Run B as a child of
     Run A's prior Debrief" miswire."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK, _CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK, _CANNED_OK])
     run_a = uuid4()
     run_b = uuid4()
     await _seed_actor(store)
@@ -427,7 +427,7 @@ async def test_handler_raises_parent_agent_mismatch_for_non_run_debrief_parent()
     Decision id authored by a different agent (eg. a `PolicyGrant`
     Decision)."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     run_id = uuid4()
     await _seed_actor(store)
     await _seed_run(store, run_id)
@@ -507,7 +507,7 @@ async def _seed_foreign_context_decision(
 async def test_handler_writes_debrief_deferred_on_llm_failure() -> None:
     """LLM exhaust path: write DebriefDeferred Decision, return its id."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[LLMServerError("synthetic 500")])
+    llm = FakeLLM(responses=[LLMServerError("synthetic 500")])
     run_id = uuid4()
     await _seed_actor(store)
     await _seed_run(store, run_id)
@@ -540,7 +540,7 @@ async def test_handler_writes_debrief_deferred_on_llm_failure() -> None:
 @pytest.mark.unit
 async def test_handler_raises_unauthorized_when_authz_denies() -> None:
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     run_id = uuid4()
     await _seed_actor(store)
     await _seed_run(store, run_id)

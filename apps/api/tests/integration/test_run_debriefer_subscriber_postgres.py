@@ -5,7 +5,7 @@ terminal Run event -> invoke the subscriber -> verify a
 `DecisionRegistered` lands in proj_decision_summary with the
 expected RunDebrief shape.
 
-Uses `FakeLLMAdapter` for the LLM call (no Anthropic API key
+Uses `FakeLLM` for the LLM call (no Anthropic API key
 needed in CI). Real-Anthropic recorded-cassette test is a watch
 item for later iters.
 """
@@ -34,7 +34,7 @@ from cora.agent.subscribers.run_debriefer import (
 )
 from cora.decision.aggregates.decision import load_decision
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.ports import FakeLLMAdapter, FakeLLMResponse
+from cora.infrastructure.ports import FakeLLM, FakeLLMResponse
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.run.aggregates.run import RunStarted
 from cora.run.aggregates.run import event_type_name as run_event_type_name
@@ -127,7 +127,7 @@ async def test_seed_and_subscriber_write_decision_end_to_end(
     await _seed_run(deps, run_id, plan_id)
 
     # Build the subscriber + invoke apply() against a terminal event.
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     subscriber = RunDebrieferSubscriber(
         event_store=deps.event_store,
         llm=llm,
@@ -164,7 +164,7 @@ async def test_subscriber_retry_is_at_most_once_on_real_pg(
     plan_id = UUID("01900000-0000-7000-8000-000000000401")
     await _seed_run(deps, run_id, plan_id)
 
-    llm = FakeLLMAdapter(responses=[_CANNED_OK, _CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK, _CANNED_OK])
     subscriber = RunDebrieferSubscriber(
         event_store=deps.event_store,
         llm=llm,

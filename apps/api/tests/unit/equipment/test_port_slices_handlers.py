@@ -28,8 +28,8 @@ from cora.equipment.features import (
 from cora.equipment.features.add_asset_port import AddAssetPort
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.remove_asset_port import RemoveAssetPort
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from tests.unit._helpers import build_deps as _build_deps_shared
 
 if TYPE_CHECKING:

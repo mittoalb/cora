@@ -43,8 +43,8 @@ from cora.equipment.aggregates.family.events import (
 from cora.equipment.aggregates.family.events import (
     to_payload as family_to_payload,
 )
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.recipe import RecipeHandlers, UnauthorizedError, wire_recipe
 from cora.recipe.aggregates.capability import (
     CapabilityCode,

@@ -303,7 +303,7 @@
         "type": "object"
       },
       "Affordance": {
-        "description": "Device-level operational primitive. Closed v1 enum (28 items, 2 patterns).\n\nValues are PascalCase strings so they serialize naturally as JSON\ndiscriminators without translation.\n\nPattern A \u2014 Operational affordances (`-able` / `-ible` / `-ing`):\n    \"device supports doing X\" (action) or \"device performs X\"\n    (role/flow). Set-membership claim. 27 items.\n\nPattern C \u2014 Lifecycle affordances (noun):\n    \"device has lifecycle property X\". 1 item.",
+        "description": "Device-level operational primitive. Closed v1 enum (28 items, 2 patterns).\n\nValues are PascalCase strings so they serialize naturally as JSON\ndiscriminators without translation.\n\nPattern A, Operational affordances (`-able` / `-ible` / `-ing`):\n    \"device supports doing X\" (action) or \"device performs X\"\n    (role/flow). Set-membership claim. 27 items.\n\nPattern C, Lifecycle affordances (noun):\n    \"device has lifecycle property X\". 1 item.",
         "enum": [
           "Rotatable",
           "Translatable",
@@ -338,7 +338,7 @@
         "type": "string"
       },
       "AgentResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n\n`defined_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C);\nsee module docstring for null-semantics. `defined_at` is\nnullable (changed from required during lifecycle widening) because\nthe projection can lag \u2014 once the projection has folded\n`AgentDefined`, `defined_at` is non-null on every response.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n\n`defined_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C);\nsee module docstring for null-semantics. `defined_at` is\nnullable (changed from required during lifecycle widening) because\nthe projection can lag; once the projection has folded\n`AgentDefined`, `defined_at` is non-null on every response.",
         "properties": {
           "canonical_uri": {
             "anyOf": [
@@ -988,7 +988,7 @@
         "type": "object"
       },
       "AssetLevel": {
-        "description": "The hierarchical level of an Asset.\n\nPer the BC map (ISA-88-derived, single-word convention):\n  - `Enterprise` \u2014 root; the institution itself\n  - `Site` \u2014 a facility (for example, APS)\n  - `Area` \u2014 a section of a site (for example, the experimental hall)\n  - `Unit` \u2014 an operational unit (for example, a beamline)\n  - `Assembly` \u2014 a composed component (ISA-88 \"Equipment Module\")\n  - `Device` \u2014 an addressable control surface (ISA-88 \"Control Module\")\n\nCommon pattern is the strict ordering above, but Device-in-Device\nis allowed when reality demands it (smart instruments). Levels\nare conventional, not enforced \u2014 the decider does not check that\na Device's parent is an Assembly.",
+        "description": "The hierarchical level of an Asset.\n\nPer the BC map (ISA-88-derived, single-word convention):\n  - `Enterprise`: root; the institution itself\n  - `Site`: a facility (for example, APS)\n  - `Area`: a section of a site (for example, the experimental hall)\n  - `Unit`: an operational unit (for example, a beamline)\n  - `Assembly`: a composed component (ISA-88 \"Equipment Module\")\n  - `Device`: an addressable control surface (ISA-88 \"Control Module\")\n\nCommon pattern is the strict ordering above, but Device-in-Device\nis allowed when reality demands it (smart instruments). Levels\nare conventional, not enforced: the decider does not check that\na Device's parent is an Assembly.",
         "enum": [
           "Enterprise",
           "Site",
@@ -1303,7 +1303,7 @@
         "type": "object"
       },
       "BindingsByKind": {
-        "description": "Per-kind binding-id arrays surfaced on the list response.\n\nFour explicit named fields (matching the projection's UUID[] columns\n1:1) instead of a `dict[str, list[UUID]]` \u2014 OpenAPI codegen produces\ntyped accessors; SDK consumers see the locked set of keys without\n`additionalProperties` ambiguity. ExternalBinding refs are NOT\nsurfaced here (anti-corruption refs, not projected; see route summary).",
+        "description": "Per-kind binding-id arrays surfaced on the list response.\n\nFour explicit named fields (matching the projection's UUID[] columns\n1:1) instead of a `dict[str, list[UUID]]`: OpenAPI codegen produces\ntyped accessors; SDK consumers see the locked set of keys without\n`additionalProperties` ambiguity. ExternalBinding refs are NOT\nsurfaced here (anti-corruption refs, not projected; see route summary).",
         "properties": {
           "asset": {
             "items": {
@@ -3594,7 +3594,7 @@
         "type": "object"
       },
       "DefineMethodRequest": {
-        "description": "Body for `POST /methods`.\n\n`needed_families` is required (use `[]` for procedural\nMethods that need no specific equipment family). Eventual-\nconsistency: each Family id is NOT verified against the\nFamily stream; mismatch surfaces at Plan binding.\n\n`needed_supplies` is optional; defaults to `[]` for\nbackward-compat (older clients keep working). Each element is\na Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.\nAsymmetric vs needed_families by design \u2014 see\n[[project_supply_design]] \u00a7\"Method.needed_supplies consumer\"\nfor the rationale (Family is TYPE registry,\nSupply is INSTANCE aggregate per facility sharing a `kind` label).\nEventual-consistency: kind strings are NOT verified against the\nSupply stream; mismatch surfaces at Plan binding.",
+        "description": "Body for `POST /methods`.\n\n`needed_families` is required (use `[]` for procedural\nMethods that need no specific equipment family). Eventual-\nconsistency: each Family id is NOT verified against the\nFamily stream; mismatch surfaces at Plan binding.\n\n`needed_supplies` is optional; defaults to `[]` for\nbackward-compat (older clients keep working). Each element is\na Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.\nAsymmetric vs needed_families by design; see\n[[project_supply_design]] \u00a7\"Method.needed_supplies consumer\"\nfor the rationale (Family is TYPE registry,\nSupply is INSTANCE aggregate per facility sharing a `kind` label).\nEventual-consistency: kind strings are NOT verified against the\nSupply stream; mismatch surfaces at Plan binding.",
         "properties": {
           "capability_id": {
             "description": "Universal Capability template (Recipe BC) this Method realizes as a Method-shaped executor. REQUIRED per Pattern P. The bound Capability must declare `Method` in its executor_shapes set; otherwise 409. Eventual-consistency: the Capability stream is loaded at handler time, not API-boundary time; a missing stream surfaces as 404 via CapabilityNotFoundError.",
@@ -6065,7 +6065,7 @@
         "type": "object"
       },
       "RegisterAssetRequest": {
-        "description": "Body for `POST /assets`.\n\n`level` accepts the StrEnum's PascalCase string values\n(\"Enterprise\" / \"Site\" / \"Area\" / \"Unit\" / \"Assembly\" /\n\"Device\"); Pydantic rejects unknowns with 422.\n\n`parent_id` is required for non-Enterprise levels and must be\nnull for Enterprise \u2014 that's a domain invariant enforced by\nthe decider (raises InvalidAssetParentError \u2192 400), not by\nPydantic, since the rule is conditional on `level`.",
+        "description": "Body for `POST /assets`.\n\n`level` accepts the StrEnum's PascalCase string values\n(\"Enterprise\" / \"Site\" / \"Area\" / \"Unit\" / \"Assembly\" /\n\"Device\"); Pydantic rejects unknowns with 422.\n\n`parent_id` is required for non-Enterprise levels and must be\nnull for Enterprise; that's a domain invariant enforced by\nthe decider (raises InvalidAssetParentError \u2192 400), not by\nPydantic, since the rule is conditional on `level`.",
         "properties": {
           "level": {
             "$ref": "#/components/schemas/AssetLevel",
@@ -6894,7 +6894,7 @@
         "type": "object"
       },
       "RelocateAssetRequest": {
-        "description": "Body for `POST /assets/{asset_id}/relocate`.\n\n`to_parent_id` is required (non-null) \u2014 Enterprise assets cannot\nrelocate, and non-Enterprise assets always have a parent. Per\neventual-consistency stance, the parent's existence is NOT\nverified by the decider.\n\n`reason` is operator-supplied free text (audit-log breadcrumb).",
+        "description": "Body for `POST /assets/{asset_id}/relocate`.\n\n`to_parent_id` is required (non-null); Enterprise assets cannot\nrelocate, and non-Enterprise assets always have a parent. Per\neventual-consistency stance, the parent's existence is NOT\nverified by the decider.\n\n`reason` is operator-supplied free text (audit-log breadcrumb).",
         "properties": {
           "reason": {
             "description": "Operator-supplied reason for the relocation (audit-log breadcrumb), for example 'site reorganization', 'moved to BL2-IBP'.",
@@ -8062,7 +8062,7 @@
         "type": "object"
       },
       "SupplyScope": {
-        "description": "The hierarchical scope at which a Supply is provisioned.\n\nThree values per APS LMA18-3 LN2 distribution layering and\nNeXus NXsource one-source-per-storage-ring precedent:\n\n  - `Facility` \u2014 facility-wide resource (storage-ring photon beam,\n    central LN2 plant, building electrical power, central\n    compressed air)\n  - `Sector` \u2014 a sub-portion of the facility (ring sector, gas-\n    manifold loop serving N beamlines)\n  - `Beamline` \u2014 beamline-local resource (per-beamline LN2 drop,\n    beamline-local vacuum subsystem, beamline-local compute)\n\nAdding finer-grained scopes (for example, Substrate, Chamber) is purely\nadditive when triggers fire.",
+        "description": "The hierarchical scope at which a Supply is provisioned.\n\nThree values per APS LMA18-3 LN2 distribution layering and\nNeXus NXsource one-source-per-storage-ring precedent:\n\n  - `Facility`: facility-wide resource (storage-ring photon beam,\n    central LN2 plant, building electrical power, central\n    compressed air)\n  - `Sector`: a sub-portion of the facility (ring sector, gas-\n    manifold loop serving N beamlines)\n  - `Beamline`: beamline-local resource (per-beamline LN2 drop,\n    beamline-local vacuum subsystem, beamline-local compute)\n\nAdding finer-grained scopes (for example, Substrate, Chamber) is purely\nadditive when triggers fire.",
         "enum": [
           "Facility",
           "Sector",
@@ -8072,7 +8072,7 @@
         "type": "string"
       },
       "SupplyStatus": {
-        "description": "The Supply's availability state.\n\nFive values locked day one per [[project_supply_design]]:\n\n  - `Unknown`     \u2014 registration-time default; no observation yet\n  - `Available`   \u2014 resource is up and meeting consumer needs\n  - `Degraded`    \u2014 resource is up but below nominal capacity / quality\n  - `Unavailable` \u2014 resource is down (planned or unplanned)\n  - `Recovering`  \u2014 resource was Unavailable; observation suggests\n                    it may be coming back; operator must `restore_supply`\n                    to confirm `Recovering -> Available`\n\nInitial `Unknown` is universal industrial + cloud-native consensus\n(Tango UNKNOWN, EPICS UDF, Azure Resource Health Unknown, k8s\nPending, Prometheus `up{}` UNKNOWN-before-first-scrape). The\noptimistic-Available default is an anti-pattern.",
+        "description": "The Supply's availability state.\n\nFive values locked day one per [[project_supply_design]]:\n\n  - `Unknown`: registration-time default; no observation yet\n  - `Available`: resource is up and meeting consumer needs\n  - `Degraded`: resource is up but below nominal capacity / quality\n  - `Unavailable`: resource is down (planned or unplanned)\n  - `Recovering`: resource was Unavailable; observation suggests\n                    it may be coming back; operator must `restore_supply`\n                    to confirm `Recovering -> Available`\n\nInitial `Unknown` is universal industrial + cloud-native consensus\n(Tango UNKNOWN, EPICS UDF, Azure Resource Health Unknown, k8s\nPending, Prometheus `up{}` UNKNOWN-before-first-scrape). The\noptimistic-Available default is an anti-pattern.",
         "enum": [
           "Unknown",
           "Available",
@@ -8268,7 +8268,7 @@
         "type": "object"
       },
       "TriggerSource": {
-        "description": "The origin of a status-transition event.\n\nThree values locked day one per [[project_supply_design]] for\nforward-compat. Only `Operator` is wired today; `Monitor`\nand `Auto` are reserved for future slice families:\n\n  - `Operator` \u2014 explicit operator command\n  - `Monitor`  \u2014 substream-derived observation (deferred; needs\n    first DAQ substream ingest, paired with run-reading trigger)\n  - `Auto`     \u2014 timer-based auto-restore (deferred; needs first\n    operator complaint about `restore_supply` ack overhead OR\n    30+ days of substream-stable recoveries)\n\nLocking three values day one avoids enum-evolution churn when\nthe deferred features land.",
+        "description": "The origin of a status-transition event.\n\nThree values locked day one per [[project_supply_design]] for\nforward-compat. Only `Operator` is wired today; `Monitor`\nand `Auto` are reserved for future slice families:\n\n  - `Operator`: explicit operator command\n  - `Monitor`: substream-derived observation (deferred; needs\n    first DAQ substream ingest, paired with run-reading trigger)\n  - `Auto`: timer-based auto-restore (deferred; needs first\n    operator complaint about `restore_supply` ack overhead OR\n    30+ days of substream-stable recoveries)\n\nLocking three values day one avoids enum-evolution churn when\nthe deferred features land.",
         "enum": [
           "Operator",
           "Monitor",

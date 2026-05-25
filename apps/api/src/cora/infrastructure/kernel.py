@@ -85,10 +85,10 @@ class Kernel:
 
     `llm`: optional LLM-chat port consumed by Agent BC subscribers
     (RunDebriefer, CautionDrafter). Production wires
-    `AnthropicLLMAdapter` when `Settings.anthropic_api_key` is set;
+    `AnthropicLLM` when `Settings.anthropic_api_key` is set;
     otherwise this is `None` and subscribers that depend on it must
     short-circuit or fail fast at registration time. Tests use
-    `FakeLLMAdapter` (zero network) when an LLM is needed and leave
+    `FakeLLM` (zero network) when an LLM is needed and leave
     this `None` otherwise.
 
     `logbook_mirror`: optional mirror to operator-facing logbook

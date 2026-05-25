@@ -243,7 +243,7 @@ class RunStatus(StrEnum):
     Why complete_run is single-source while stop/abort_run are
     multi-source (gate-review 6f-3 Q1 lock): completion claims
     achievement, which requires active work happening at the
-    moment of completion. Stop and abort are exits — they don't
+    moment of completion. Stop and abort are exits; they don't
     require active work, only any non-terminal state. Operators
     wanting to mark a held run as complete must Resume → Complete,
     which preserves clearer audit semantics than a bare Held →
@@ -251,7 +251,7 @@ class RunStatus(StrEnum):
 
     Plus transient states (Starting, Stopping, Aborting,
     Holding, Unholding, Completing) get evaluated when DAQ-channel
-    integration arrives (6f-5+) — only added if there's a real
+    integration arrives (6f-5+); only added if there's a real
     async period between command-arrival and event-emit at the
     application layer (today there isn't).
 

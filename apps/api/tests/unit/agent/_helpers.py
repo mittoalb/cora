@@ -24,9 +24,9 @@ from cora.agent.aggregates.agent import (
     event_type_name,
     to_payload,
 )
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.content_hash import canonical_body_bytes, pae_bytes
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.signing import event_type_to_payload_type
 
 

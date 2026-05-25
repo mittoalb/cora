@@ -21,7 +21,7 @@ from cora.access.aggregates.actor.events import (
     ActorRegistered,
     event_type_name,
 )
-from cora.infrastructure.memory.event_store import InMemoryEventStore
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.ports import NewEvent
 
 _NOW = datetime(2026, 5, 9, 12, 0, 0, tzinfo=UTC)

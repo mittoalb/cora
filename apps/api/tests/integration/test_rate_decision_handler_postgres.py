@@ -37,8 +37,8 @@ from cora.decision.aggregates.decision import (
 from cora.decision.features import rate_decision, register_decision
 from cora.decision.features.rate_decision import RateDecision
 from cora.decision.features.register_decision import RegisterDecision
+from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.postgres.event_store import PostgresEventStore
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from tests.integration._helpers import build_postgres_deps
 

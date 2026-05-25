@@ -50,7 +50,7 @@ class IdpSubjectBinding(BaseModel):
 
     `kind` is optional: when `None` (default), the merge step
     inherits the enclosing IdP's `principal_kind`. Set explicitly
-    only to override that default for an individual subject — useful
+    only to override that default for an individual subject; useful
     when an IdP serves both humans and service accounts and a few
     bindings need to disagree with the IdP-wide default.
 

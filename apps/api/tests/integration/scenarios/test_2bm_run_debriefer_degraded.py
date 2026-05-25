@@ -96,7 +96,7 @@ from cora.equipment.features.degrade_asset import DegradeAsset
 from cora.equipment.features.degrade_asset import bind as bind_degrade_asset
 from cora.equipment.features.restore_asset import RestoreAsset
 from cora.equipment.features.restore_asset import bind as bind_restore_asset
-from cora.infrastructure.ports import FakeLLMAdapter, FakeLLMResponse
+from cora.infrastructure.ports import FakeLLM, FakeLLMResponse
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.run.features.complete_run import CompleteRun
 from cora.run.features.complete_run import bind as bind_complete_run
@@ -355,7 +355,7 @@ async def test_run_debrief_agent_fires_on_degraded_completion(
     terminal_event = terminal_events[0]
     assert isinstance(terminal_event, StoredEvent)
 
-    llm = FakeLLMAdapter(responses=[_CANNED_DEGRADED_AAR])
+    llm = FakeLLM(responses=[_CANNED_DEGRADED_AAR])
     subscriber = RunDebrieferSubscriber(
         event_store=deps.event_store,
         llm=llm,

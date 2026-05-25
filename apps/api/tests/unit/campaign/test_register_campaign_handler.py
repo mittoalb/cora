@@ -9,9 +9,9 @@ from cora.campaign.aggregates.campaign import CampaignIntent
 from cora.campaign.errors import UnauthorizedError
 from cora.campaign.features import register_campaign
 from cora.campaign.features.register_campaign import RegisterCampaign
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.external_ref import ExternalRef
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from tests.unit._helpers import build_deps as _build_deps_shared
 
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)

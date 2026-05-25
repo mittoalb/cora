@@ -8,8 +8,8 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.subject import SubjectHandlers, UnauthorizedError, wire_subject
 from cora.subject.aggregates.subject import (
     SubjectCannotDiscardError,

@@ -134,11 +134,11 @@ class SupplyStatus(StrEnum):
 
     Five values locked day one per [[project_supply_design]]:
 
-      - `Unknown`     — registration-time default; no observation yet
-      - `Available`   — resource is up and meeting consumer needs
-      - `Degraded`    — resource is up but below nominal capacity / quality
-      - `Unavailable` — resource is down (planned or unplanned)
-      - `Recovering`  — resource was Unavailable; observation suggests
+      - `Unknown`: registration-time default; no observation yet
+      - `Available`: resource is up and meeting consumer needs
+      - `Degraded`: resource is up but below nominal capacity / quality
+      - `Unavailable`: resource is down (planned or unplanned)
+      - `Recovering`: resource was Unavailable; observation suggests
                         it may be coming back; operator must `restore_supply`
                         to confirm `Recovering -> Available`
 
@@ -161,12 +161,12 @@ class SupplyScope(StrEnum):
     Three values per APS LMA18-3 LN2 distribution layering and
     NeXus NXsource one-source-per-storage-ring precedent:
 
-      - `Facility` — facility-wide resource (storage-ring photon beam,
+      - `Facility`: facility-wide resource (storage-ring photon beam,
         central LN2 plant, building electrical power, central
         compressed air)
-      - `Sector` — a sub-portion of the facility (ring sector, gas-
+      - `Sector`: a sub-portion of the facility (ring sector, gas-
         manifold loop serving N beamlines)
-      - `Beamline` — beamline-local resource (per-beamline LN2 drop,
+      - `Beamline`: beamline-local resource (per-beamline LN2 drop,
         beamline-local vacuum subsystem, beamline-local compute)
 
     Adding finer-grained scopes (for example, Substrate, Chamber) is purely
@@ -185,10 +185,10 @@ class TriggerSource(StrEnum):
     forward-compat. Only `Operator` is wired today; `Monitor`
     and `Auto` are reserved for future slice families:
 
-      - `Operator` — explicit operator command
-      - `Monitor`  — substream-derived observation (deferred; needs
+      - `Operator`: explicit operator command
+      - `Monitor`: substream-derived observation (deferred; needs
         first DAQ substream ingest, paired with run-reading trigger)
-      - `Auto`     — timer-based auto-restore (deferred; needs first
+      - `Auto`: timer-based auto-restore (deferred; needs first
         operator complaint about `restore_supply` ack overhead OR
         30+ days of substream-stable recoveries)
 

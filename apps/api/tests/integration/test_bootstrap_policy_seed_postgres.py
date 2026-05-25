@@ -20,10 +20,10 @@ from uuid import UUID
 import asyncpg
 import pytest
 
+from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.ports import Allow, Deny
 from cora.infrastructure.ports.event_store import ConcurrencyError
-from cora.infrastructure.postgres.event_store import PostgresEventStore
 from cora.infrastructure.routing import SYSTEM_PRINCIPAL_ID
 from cora.trust._bootstrap import SYSTEM_BOOTSTRAP_POLICY_ID
 from cora.trust.aggregates.policy.events import (

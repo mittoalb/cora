@@ -7,8 +7,8 @@ Actor PII lives in the mutable `actor_profile` side table. The
 `cora.infrastructure.ports.profile_store` because BOTH Access BC
 and Agent BC consume the contract; the adapters live alongside
 the other infrastructure adapters at
-`cora.infrastructure.memory.profile_store` and
-`cora.infrastructure.postgres.profile_store`. The Kernel exposes
+`cora.infrastructure.adapters.in_memory_profile_store` and
+`cora.infrastructure.adapters.postgres_profile_store`. The Kernel exposes
 the shared singleton via `deps.profile_store`.
 
 This module hosts only what is genuinely Access-BC display

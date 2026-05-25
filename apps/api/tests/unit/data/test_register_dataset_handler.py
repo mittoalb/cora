@@ -24,8 +24,8 @@ from cora.data.aggregates.dataset.events import (
 )
 from cora.data.features import register_dataset
 from cora.data.features.register_dataset import RegisterDataset
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.run.aggregates.run.events import (
     RunStarted,
 )

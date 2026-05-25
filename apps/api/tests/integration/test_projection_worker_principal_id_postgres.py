@@ -34,8 +34,8 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
+from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
 from cora.infrastructure.ports.event_store import NewEvent, StoredEvent
-from cora.infrastructure.postgres.event_store import PostgresEventStore
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.infrastructure.projection.handler import ConnectionLike
 

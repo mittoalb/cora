@@ -19,8 +19,8 @@ from cora.data.aggregates.dataset.events import (
 )
 from cora.data.features import discard_dataset
 from cora.data.features.discard_dataset import DiscardDataset
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from tests.unit._helpers import build_deps
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH

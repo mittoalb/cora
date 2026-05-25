@@ -124,7 +124,7 @@ def bind(deps: Kernel) -> Handler:
     if deps.llm is None:
         msg = (
             "re_debrief_run handler requires kernel.llm to be set; "
-            "configure ANTHROPIC_API_KEY or inject a FakeLLMAdapter."
+            "configure ANTHROPIC_API_KEY or inject a FakeLLM."
         )
         raise RuntimeError(msg)
     llm = deps.llm

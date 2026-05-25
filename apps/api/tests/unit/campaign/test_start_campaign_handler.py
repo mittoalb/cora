@@ -17,7 +17,7 @@ from cora.campaign.aggregates.campaign import (
 )
 from cora.campaign.features import start_campaign
 from cora.campaign.features.start_campaign import StartCampaign
-from cora.infrastructure.memory.event_store import InMemoryEventStore
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from tests.unit._helpers import build_deps as _build_deps_shared
 from tests.unit.campaign._helpers import (
     CAMPAIGN_ID,

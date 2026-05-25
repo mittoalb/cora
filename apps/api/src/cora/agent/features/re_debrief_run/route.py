@@ -58,7 +58,7 @@ def _get_handler(request: Request) -> IdempotentHandler:
             detail=(
                 "re_debrief_run is unavailable: kernel.llm is not wired "
                 "(ANTHROPIC_API_KEY not configured). Configure the API key "
-                "and restart, or use the test FakeLLMAdapter for non-prod."
+                "and restart, or use the test FakeLLM for non-prod."
             ),
         )
     return handler

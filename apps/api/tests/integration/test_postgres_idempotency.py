@@ -19,6 +19,7 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
+from cora.infrastructure.adapters.postgres_idempotency import PostgresIdempotencyStore
 from cora.infrastructure.ports import (
     CachedError,
     CachedSuccess,
@@ -26,7 +27,6 @@ from cora.infrastructure.ports import (
     HashConflict,
     LockedRecent,
 )
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 
 _SURFACE = UUID("00000000-0000-0000-0000-000000000020")
 

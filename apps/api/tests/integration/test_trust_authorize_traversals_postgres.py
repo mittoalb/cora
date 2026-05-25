@@ -25,6 +25,7 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
+from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.ports import (
     Allow,
@@ -32,7 +33,6 @@ from cora.infrastructure.ports import (
     FakeClock,
     FixedIdGenerator,
 )
-from cora.infrastructure.postgres.event_store import PostgresEventStore
 from cora.trust.aggregates.conduit.entries import (
     ConduitTraversal,
     PostgresTraversalStore,

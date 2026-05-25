@@ -43,13 +43,16 @@ from typing import Protocol
 
 import asyncpg
 
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
+from cora.infrastructure.adapters.in_memory_idempotency import InMemoryIdempotencyStore
+from cora.infrastructure.adapters.in_memory_profile_store import InMemoryProfileStore
+from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
+from cora.infrastructure.adapters.postgres_idempotency import PostgresIdempotencyStore
+from cora.infrastructure.adapters.postgres_profile_store import PostgresProfileStore
 from cora.infrastructure.auth import build_idp_registry, build_static_subject_mapper
 from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel, Teardown
 from cora.infrastructure.logging import configure_logging
-from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.memory.profile_store import InMemoryProfileStore
 from cora.infrastructure.ports import (
     LLM,
     AlwaysCoveredClearanceLookup,
@@ -67,10 +70,7 @@ from cora.infrastructure.ports import (
     TokenVerifier,
     UUIDv7Generator,
 )
-from cora.infrastructure.postgres.event_store import PostgresEventStore
-from cora.infrastructure.postgres.idempotency import PostgresIdempotencyStore
 from cora.infrastructure.postgres.pool import create_pool
-from cora.infrastructure.postgres.profile_store import PostgresProfileStore
 
 
 class AuthorizeFactory(Protocol):
@@ -139,9 +139,9 @@ def make_postgres_kernel(
 
     `llm` defaults to `None` because most BCs and tests don't need
     an LLM; only Agent BC subscribers consume it. Production's
-    `build_kernel` injects `AnthropicLLMAdapter` when
+    `build_kernel` injects `AnthropicLLM` when
     `Settings.anthropic_api_key` is set; subscriber-level tests
-    inject `FakeLLMAdapter` explicitly.
+    inject `FakeLLM` explicitly.
 
     `logbook_mirror` defaults to `None`; no production implementor
     exists yet. Subscribers short-circuit on `None`.
@@ -216,7 +216,7 @@ def make_inmemory_kernel(
 
     `llm` defaults to `None`; the in-memory kernel is for unit /
     contract tests that don't exercise LLM subscribers. Subscriber
-    tests that DO exercise the LLM path inject `FakeLLMAdapter`
+    tests that DO exercise the LLM path inject `FakeLLM`
     explicitly.
 
     `logbook_mirror` defaults to `None`; no production implementor
@@ -300,7 +300,7 @@ class CautionLookupFactory(Protocol):
 class LLMFactory(Protocol):
     """Builds the production LLM for the Kernel.
 
-    Agent BC's `cora.agent.adapters.AnthropicLLMAdapter` is the
+    Agent BC's `cora.agent.adapters.AnthropicLLM` is the
     only production factory today; `cora.api.main` binds it when
     `Settings.anthropic_api_key` is set. Same factory-injection
     shape as `AuthorizeFactory` / `ClearanceLookupFactory` /
@@ -337,7 +337,7 @@ async def build_kernel(
     result wired into `kernel.llm`. When `None`, `kernel.llm` is
     `None` and Agent BC subscribers that depend on it fail-fast at
     registration. Test mode (`app_env=test`) does NOT call the
-    factory; tests inject `FakeLLMAdapter` directly via
+    factory; tests inject `FakeLLM` directly via
     `make_inmemory_kernel(..., llm=...)`.
 
     `settings` is an optional injection point for tests that need
@@ -441,9 +441,9 @@ def _make_pool_teardown(pool: asyncpg.Pool) -> Teardown:
 def _maybe_llm_teardown(llm: LLM | None) -> Teardown:
     """Build a teardown that closes the LLM client if it exposes `aclose()`.
 
-    Production `AnthropicLLMAdapter` has an `aclose()` method that
+    Production `AnthropicLLM` has an `aclose()` method that
     releases the SDK's httpx connection pool. Test stubs
-    (`FakeLLMAdapter`) typically don't; the teardown is a no-op
+    (`FakeLLM`) typically don't; the teardown is a no-op
     in that case. When `llm is None` (no LLM configured), the
     returned teardown is also a no-op.
     """

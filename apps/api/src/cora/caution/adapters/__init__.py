@@ -6,6 +6,6 @@ Today: `PostgresCautionLookup` implementing
 snapshot on `RunStarted`).
 """
 
-from cora.caution.adapters.caution_lookup_pg import PostgresCautionLookup
+from cora.caution.adapters.postgres_caution_lookup import PostgresCautionLookup
 
 __all__ = ["PostgresCautionLookup"]

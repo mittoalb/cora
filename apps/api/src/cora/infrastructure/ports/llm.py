@@ -10,11 +10,11 @@ CORA's "agents as bounded contexts" stance ([[project-architecture]])
 requires the LLM call to sit behind a port so:
 
   - Subscribers, deciders, and tests never import a vendor SDK.
-  - The production adapter (`AnthropicLLMAdapter` from
-    `cora.agent.adapters.anthropic_llm_adapter`) is swappable with
-    `FakeLLMAdapter` test stubs that return canned responses with
+  - The production adapter (`AnthropicLLM` from
+    `cora.agent.adapters.anthropic_llm`) is swappable with
+    `FakeLLM` test stubs that return canned responses with
     zero network traffic.
-  - Provider-agnostic semantics let a future `OpenAILLMAdapter` /
+  - Provider-agnostic semantics let a future `OpenAILLM` /
     local-model adapter slot in without subscriber changes; only the
     Kernel-construction site picks the adapter.
 
@@ -102,7 +102,7 @@ class ModelRef:
     the translation site.
 
     `provider` is a free string today (for example, `"anthropic"`); future
-    `OpenAILLMAdapter` would set `"openai"`. `model` is the
+    `OpenAILLM` would set `"openai"`. `model` is the
     provider's model identifier. `snapshot_pin` is the dated /
     versioned snapshot suffix when the provider exposes one; `None`
     means "latest stable" semantics per provider convention.
@@ -270,7 +270,7 @@ class LLM(Protocol):
 
 @dataclass(frozen=True)
 class FakeLLMResponse:
-    """Configures one canned response from `FakeLLMAdapter`."""
+    """Configures one canned response from `FakeLLM`."""
 
     parsed: Mapping[str, Any]
     raw_text: str = ""
@@ -279,7 +279,7 @@ class FakeLLMResponse:
     model_id: str = "fake-model-v1"
 
 
-class FakeLLMAdapter:
+class FakeLLM:
     """Test stub LLM adapter returning a fixed queue of responses.
 
     Mirrors the `AllowAllAuthorize` / `AlwaysQuietCautionLookup`
@@ -309,7 +309,7 @@ class FakeLLMAdapter:
         self.received.append(request)
         if not self._queue:
             msg = (
-                f"FakeLLMAdapter queue exhausted after {len(self.received)} "
+                f"FakeLLM queue exhausted after {len(self.received)} "
                 "call(s); enqueue more responses or assert on call count first"
             )
             raise FakeLLMExhaustedError(msg)
@@ -330,14 +330,14 @@ class FakeLLMAdapter:
 
 
 class FakeLLMExhaustedError(LLMError):
-    """`FakeLLMAdapter.chat()` called more times than responses enqueued."""
+    """`FakeLLM.chat()` called more times than responses enqueued."""
 
 
 __all__ = [
     "LLM",
     "CacheBreakpoint",
     "CacheTTL",
-    "FakeLLMAdapter",
+    "FakeLLM",
     "FakeLLMExhaustedError",
     "FakeLLMResponse",
     "LLMAuthenticationError",

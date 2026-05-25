@@ -12,8 +12,8 @@ from cora.agent.aggregates.agent import (
 from cora.agent.errors import UnauthorizedError
 from cora.agent.features import grant_tool_to_agent
 from cora.agent.features.grant_tool_to_agent import GrantToolToAgent
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from tests.unit._helpers import build_deps as _build_deps_shared
 from tests.unit.agent._helpers import (
     append_tool_grant,

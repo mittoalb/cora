@@ -35,7 +35,7 @@ class RegisterAssetRequest(BaseModel):
     "Device"); Pydantic rejects unknowns with 422.
 
     `parent_id` is required for non-Enterprise levels and must be
-    null for Enterprise — that's a domain invariant enforced by
+    null for Enterprise; that's a domain invariant enforced by
     the decider (raises InvalidAssetParentError → 400), not by
     Pydantic, since the rule is conditional on `level`.
     """

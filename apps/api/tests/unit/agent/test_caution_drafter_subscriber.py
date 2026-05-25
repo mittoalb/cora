@@ -1,6 +1,6 @@
 """Unit tests for `CautionDrafterSubscriber`.
 
-Drives the subscriber against `InMemoryEventStore` + `FakeLLMAdapter`
+Drives the subscriber against `InMemoryEventStore` + `FakeLLM`
 + `AlwaysQuietCautionLookup` so the LLM call returns canned
 structured output without touching the network. Covers happy path,
 NoAction fallback on LLM exhaust, deterministic-decision_id
@@ -36,11 +36,11 @@ from cora.agent.subscribers.caution_drafter import (
     make_caution_drafter_subscriber,
 )
 from cora.decision.aggregates.decision import load_decision
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.ports import (
     AlwaysQuietCautionLookup,
-    FakeLLMAdapter,
+    FakeLLM,
     FakeLLMResponse,
     LLMServerError,
 )
@@ -231,7 +231,7 @@ def _terminal_event(
 
 async def _build_subscriber(
     event_store: InMemoryEventStore,
-    llm: FakeLLMAdapter,
+    llm: FakeLLM,
 ) -> CautionDrafterSubscriber:
     return CautionDrafterSubscriber(
         event_store=event_store,
@@ -295,7 +295,7 @@ def test_subscriber_name_and_subscribed_event_types_pinned() -> None:
     """Name + event types are stable bytes (bookmark row keyed on name)."""
     subscriber = CautionDrafterSubscriber(
         event_store=InMemoryEventStore(),
-        llm=FakeLLMAdapter(),
+        llm=FakeLLM(),
         caution_lookup=AlwaysQuietCautionLookup(),
     )
     assert subscriber.name == "caution_drafter"
@@ -324,7 +324,7 @@ def test_subscriber_namespace_distinct_from_run_debriefer() -> None:
 async def test_apply_emits_caution_proposal_decision_on_run_aborted() -> None:
     """The load-bearing happy path: terminal Run -> Decision with full payload."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_PROPOSE_CAUTION])
+    llm = FakeLLM(responses=[_CANNED_PROPOSE_CAUTION])
     await _seed_caution_drafter_actor(store)
     await _seed_plan(store)
     run_id = uuid4()
@@ -374,7 +374,7 @@ async def test_apply_writes_no_action_decision() -> None:
     invariant + emits the telemetry signal for refuse-rate tracking.
     """
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_NO_ACTION])
+    llm = FakeLLM(responses=[_CANNED_NO_ACTION])
     await _seed_caution_drafter_actor(store)
     await _seed_plan(store)
     run_id = uuid4()
@@ -406,7 +406,7 @@ async def test_apply_writes_no_action_deferred_on_llm_failure() -> None:
     re-trigger when re-draft slice ships.
     """
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[LLMServerError("synthetic 500")])
+    llm = FakeLLM(responses=[LLMServerError("synthetic 500")])
     await _seed_caution_drafter_actor(store)
     await _seed_plan(store)
     run_id = uuid4()
@@ -446,7 +446,7 @@ async def test_apply_writes_no_action_deferred_when_proposed_caution_missing() -
         model_id="claude-sonnet-4-6",
     )
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[bad_response])
+    llm = FakeLLM(responses=[bad_response])
     await _seed_caution_drafter_actor(store)
     await _seed_plan(store)
     run_id = uuid4()
@@ -499,7 +499,7 @@ async def test_apply_writes_no_action_deferred_when_target_id_not_in_candidates(
         model_id="claude-sonnet-4-6",
     )
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[hallucinated])
+    llm = FakeLLM(responses=[hallucinated])
     await _seed_caution_drafter_actor(store)
     await _seed_plan(store)
     run_id = uuid4()
@@ -533,7 +533,7 @@ async def test_apply_is_at_most_once_via_deterministic_decision_id() -> None:
     subscriber's catch treats it as success.
     """
     store = InMemoryEventStore()
-    llm1 = FakeLLMAdapter(responses=[_CANNED_PROPOSE_CAUTION])
+    llm1 = FakeLLM(responses=[_CANNED_PROPOSE_CAUTION])
     await _seed_caution_drafter_actor(store)
     await _seed_plan(store)
     run_id = uuid4()
@@ -548,7 +548,7 @@ async def test_apply_is_at_most_once_via_deterministic_decision_id() -> None:
     await subscriber.apply(event, conn=None)
     # Second apply, fresh LLM (would produce different output) - but
     # ConcurrencyError catch should prevent any new write.
-    llm2 = FakeLLMAdapter(responses=[_CANNED_NO_ACTION])
+    llm2 = FakeLLM(responses=[_CANNED_NO_ACTION])
     subscriber2 = await _build_subscriber(store, llm2)
     await subscriber2.apply(event, conn=None)
 
@@ -572,7 +572,7 @@ async def test_apply_skips_when_plan_missing() -> None:
     `plan.asset_ids`.
     """
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_PROPOSE_CAUTION])
+    llm = FakeLLM(responses=[_CANNED_PROPOSE_CAUTION])
     await _seed_caution_drafter_actor(store)
     # Intentionally NO _seed_plan() call.
     run_id = uuid4()
@@ -592,7 +592,7 @@ async def test_apply_skips_when_plan_missing() -> None:
 async def test_apply_skips_when_agent_actor_missing() -> None:
     """No CautionDrafter Actor seeded -> skip without writing."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_PROPOSE_CAUTION])
+    llm = FakeLLM(responses=[_CANNED_PROPOSE_CAUTION])
     await _seed_plan(store)
     # Intentionally NO _seed_caution_drafter_actor() call.
     run_id = uuid4()
@@ -611,7 +611,7 @@ async def test_apply_skips_when_agent_actor_missing() -> None:
 async def test_apply_skips_when_agent_actor_deactivated() -> None:
     """Operator-revocation gate: deactivated Actor must not author Decisions."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_PROPOSE_CAUTION])
+    llm = FakeLLM(responses=[_CANNED_PROPOSE_CAUTION])
     await _seed_caution_drafter_actor(store, deactivated=True)
     await _seed_plan(store)
     run_id = uuid4()
@@ -635,7 +635,7 @@ async def test_apply_skips_when_agent_actor_deactivated() -> None:
 async def test_apply_ignores_non_terminal_event_defensively() -> None:
     """Worker already filters by subscribed_event_types; defensive check."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter()
+    llm = FakeLLM()
     await _seed_caution_drafter_actor(store)
     await _seed_plan(store)
     run_id = uuid4()
@@ -670,7 +670,7 @@ async def test_apply_skips_when_run_missing() -> None:
     Plan/Actor in the apply() body so it short-circuits the earliest.
     """
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_PROPOSE_CAUTION])
+    llm = FakeLLM(responses=[_CANNED_PROPOSE_CAUTION])
     await _seed_caution_drafter_actor(store)
     await _seed_plan(store)
     run_id = uuid4()
@@ -784,7 +784,7 @@ def test_make_caution_drafter_subscriber_raises_when_llm_is_none() -> None:
 def test_make_caution_drafter_subscriber_constructs_when_llm_is_set() -> None:
     """Pin the success branch — factory wires through to the subscriber
     instance when the Kernel has an LLM port configured."""
-    deps = build_deps(llm=FakeLLMAdapter())
+    deps = build_deps(llm=FakeLLM())
     subscriber = make_caution_drafter_subscriber(deps)
     assert isinstance(subscriber, CautionDrafterSubscriber)
 
@@ -799,7 +799,7 @@ async def test_apply_leaves_signature_none_when_no_signer_configured() -> None:
     from cora.infrastructure.ports.event_store import StoredEvent
 
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_NO_ACTION])
+    llm = FakeLLM(responses=[_CANNED_NO_ACTION])
     await _seed_caution_drafter_actor(store)
     await _seed_plan(store)
     run_id = uuid4()
@@ -824,7 +824,7 @@ async def test_apply_signs_decision_when_signer_configured() -> None:
     from cora.infrastructure.signing import verify_signature
 
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_NO_ACTION])
+    llm = FakeLLM(responses=[_CANNED_NO_ACTION])
     await _seed_caution_drafter_actor(store)
     await _seed_plan(store)
     run_id = uuid4()

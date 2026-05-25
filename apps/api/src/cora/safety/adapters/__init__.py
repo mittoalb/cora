@@ -5,6 +5,6 @@ Today: `PostgresClearanceLookup` implementing
 `start_run` handler).
 """
 
-from cora.safety.adapters.clearance_lookup_pg import PostgresClearanceLookup
+from cora.safety.adapters.postgres_clearance_lookup import PostgresClearanceLookup
 
 __all__ = ["PostgresClearanceLookup"]

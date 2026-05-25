@@ -3,7 +3,7 @@
 Walks: seed RunDebriefer Agent + Actor -> start a Run -> invoke
 `re_debrief_run` handler -> verify a `DecisionRegistered` lands on
 the Decision stream with `inputs["trigger"]="on-demand"`.
-Uses `FakeLLMAdapter` (no Anthropic API key needed in CI).
+Uses `FakeLLM` (no Anthropic API key needed in CI).
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportMissingParameterType=false, reportUnknownParameterType=false
@@ -18,7 +18,7 @@ from cora.agent.features.re_debrief_run import ReDebriefRun, bind
 from cora.agent.seed import seed_run_debriefer_agent
 from cora.decision.aggregates.decision import load_decision
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.ports import FakeLLMAdapter, FakeLLMResponse
+from cora.infrastructure.ports import FakeLLM, FakeLLMResponse
 from cora.run.aggregates.run import RunStarted
 from cora.run.aggregates.run import event_type_name as run_event_type_name
 from cora.run.aggregates.run import to_payload as run_to_payload
@@ -78,7 +78,7 @@ async def test_re_debrief_run_handler_writes_decision_on_real_pg(
     db_pool: asyncpg.Pool,
 ) -> None:
     new_decision_id = uuid4()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     deps = build_postgres_deps(
         db_pool,
         now=_NOW,
@@ -123,7 +123,7 @@ async def test_re_debrief_run_chains_parent_via_inputs_lookup(
     scope guard validates the chain on PG."""
     parent_decision_id = uuid4()
     child_decision_id = uuid4()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK, _CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK, _CANNED_OK])
     deps = build_postgres_deps(
         db_pool,
         now=_NOW,
@@ -168,7 +168,7 @@ async def test_re_debrief_run_idempotency_key_replay_returns_same_decision(
 
     first_decision_id = uuid4()
     second_decision_id = uuid4()  # never used; cache hit returns first
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     deps = build_postgres_deps(
         db_pool,
         now=_NOW,

@@ -18,8 +18,8 @@ from cora.access.aggregates.actor import (
 from cora.access.features import deactivate_actor, register_actor
 from cora.access.features.deactivate_actor import DeactivateActor
 from cora.access.features.register_actor import RegisterActor
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.ports import (
     ConcurrencyError,
 )

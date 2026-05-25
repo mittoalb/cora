@@ -19,8 +19,8 @@ from cora.campaign.aggregates.campaign import (
     event_type_name,
     to_payload,
 )
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 
 PRIOR = datetime(2026, 5, 16, 11, 0, 0, tzinfo=UTC)
 NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)

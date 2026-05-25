@@ -21,7 +21,7 @@ from cora.access.aggregates.actor import (
 from cora.access.features import forget_actor, register_actor
 from cora.access.features.forget_actor import ForgetActor
 from cora.access.features.register_actor import RegisterActor
-from cora.infrastructure.memory.event_store import InMemoryEventStore
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from tests.unit._helpers import build_deps, make_profile_store
 
 _NOW = datetime(2026, 5, 23, 12, 0, 0, tzinfo=UTC)

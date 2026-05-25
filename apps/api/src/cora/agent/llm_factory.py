@@ -2,7 +2,7 @@
 
 Bound from `cora.api.main` into `build_kernel` the same way
 `cora.trust.authorize_factory.build_authorize` is bound. Lives in
-Agent BC because the production implementor (`AnthropicLLMAdapter`)
+Agent BC because the production implementor (`AnthropicLLM`)
 lives here too (cross-BC adapter-ownership convention; Safety BC
 owns `PostgresClearanceLookup`, Caution BC owns
 `PostgresCautionLookup`).
@@ -15,7 +15,7 @@ goes silent. Iter 2b's subscriber-registration step adds the
 fail-fast on `kernel.llm is None`.
 """
 
-from cora.agent.adapters.anthropic_llm_adapter import AnthropicLLMAdapter
+from cora.agent.adapters.anthropic_llm import AnthropicLLM
 from cora.infrastructure.config import Settings
 from cora.infrastructure.ports import LLM
 
@@ -35,7 +35,7 @@ def build_llm(settings: Settings) -> LLM | None:
     """
     if settings.anthropic_api_key is None:
         return None
-    return AnthropicLLMAdapter(api_key=settings.anthropic_api_key.get_secret_value())
+    return AnthropicLLM(api_key=settings.anthropic_api_key.get_secret_value())
 
 
 __all__ = ["build_llm"]

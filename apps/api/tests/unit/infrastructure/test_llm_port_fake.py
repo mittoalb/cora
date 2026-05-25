@@ -1,4 +1,4 @@
-"""Unit tests for the LLM value types + FakeLLMAdapter.
+"""Unit tests for the LLM value types + FakeLLM.
 
 Pins the port-level contract that later subscriber tests will
 rely on (queue semantics, error pass-through, request capture).
@@ -8,7 +8,7 @@ import pytest
 
 from cora.infrastructure.ports.llm import (
     CacheBreakpoint,
-    FakeLLMAdapter,
+    FakeLLM,
     FakeLLMExhaustedError,
     FakeLLMResponse,
     LLMAuthenticationError,
@@ -79,7 +79,7 @@ def test_llm_error_subclasses_inherit_from_base() -> None:
 
 @pytest.mark.unit
 async def test_fake_returns_canned_response() -> None:
-    adapter = FakeLLMAdapter(responses=[FakeLLMResponse(parsed={"choice": "NominalCompletion"})])
+    adapter = FakeLLM(responses=[FakeLLMResponse(parsed={"choice": "NominalCompletion"})])
     result = await adapter.chat(_request())
     assert isinstance(result, LLMResponse)
     assert result.parsed == {"choice": "NominalCompletion"}
@@ -89,7 +89,7 @@ async def test_fake_returns_canned_response() -> None:
 
 @pytest.mark.unit
 async def test_fake_captures_received_request_in_order() -> None:
-    adapter = FakeLLMAdapter(
+    adapter = FakeLLM(
         responses=[
             FakeLLMResponse(parsed={"i": 0}),
             FakeLLMResponse(parsed={"i": 1}),
@@ -109,7 +109,7 @@ async def test_fake_captures_received_request_in_order() -> None:
 
 @pytest.mark.unit
 async def test_fake_exhausted_raises() -> None:
-    adapter = FakeLLMAdapter(responses=[])
+    adapter = FakeLLM(responses=[])
     with pytest.raises(FakeLLMExhaustedError, match="queue exhausted"):
         await adapter.chat(_request())
 
@@ -118,7 +118,7 @@ async def test_fake_exhausted_raises() -> None:
 async def test_fake_passes_through_enqueued_errors() -> None:
     """Operators can enqueue an LLMError instance to simulate a
     failure on the Nth call without monkeypatching."""
-    adapter = FakeLLMAdapter(
+    adapter = FakeLLM(
         responses=[
             FakeLLMResponse(parsed={"ok": True}),
             LLMRateLimitError("synthetic 429"),
@@ -131,7 +131,7 @@ async def test_fake_passes_through_enqueued_errors() -> None:
 
 @pytest.mark.unit
 async def test_fake_enqueue_appends_to_queue() -> None:
-    adapter = FakeLLMAdapter()
+    adapter = FakeLLM()
     adapter.enqueue(FakeLLMResponse(parsed={"a": 1}))
     adapter.enqueue(FakeLLMResponse(parsed={"a": 2}))
     r1 = await adapter.chat(_request())
@@ -143,7 +143,7 @@ async def test_fake_enqueue_appends_to_queue() -> None:
 @pytest.mark.unit
 async def test_fake_usage_round_trips() -> None:
     """Usage on the canned response flows through to the LLMResponse."""
-    adapter = FakeLLMAdapter(
+    adapter = FakeLLM(
         responses=[
             FakeLLMResponse(
                 parsed={},
@@ -165,7 +165,7 @@ async def test_fake_usage_round_trips() -> None:
 
 @pytest.mark.unit
 async def test_fake_stop_reason_and_model_id_round_trip() -> None:
-    adapter = FakeLLMAdapter(
+    adapter = FakeLLM(
         responses=[
             FakeLLMResponse(
                 parsed={},

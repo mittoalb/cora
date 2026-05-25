@@ -32,8 +32,8 @@ from cora.equipment.aggregates.family import FamilyDefined
 from cora.equipment.aggregates.family import event_type_name as family_event_type_name
 from cora.equipment.aggregates.family import from_stored as family_from_stored
 from cora.equipment.aggregates.family import to_payload as family_to_payload
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.operation.aggregates.procedure import ProcedureRegistered
 from cora.operation.aggregates.procedure import event_type_name as procedure_event_type_name
 from cora.operation.aggregates.procedure import from_stored as procedure_from_stored

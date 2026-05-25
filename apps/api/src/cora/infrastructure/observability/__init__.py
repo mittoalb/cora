@@ -30,7 +30,7 @@ from cora.infrastructure.observability.provider import (
 )
 
 # `gen_ai` helpers are NOT re-exported: their only consumer is
-# `cora.agent.adapters.anthropic_llm_adapter`, which imports
+# `cora.agent.adapters.anthropic_llm`, which imports
 # directly from the submodule. Keeping the package surface focused
 # on cross-cutting telemetry primitives (tracing setup, correlation
 # id, log processor) makes "what's a CORA observability helper?"

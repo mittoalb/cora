@@ -17,7 +17,7 @@ Walks the full cross-BC seam on real Postgres:
   8. Sanity-check at-most-once on the subscriber (second apply is a
      no-op via ConcurrencyError on the deterministic decision_id).
 
-Uses `FakeLLMAdapter` for the LLM call (no Anthropic API key needed
+Uses `FakeLLM` for the LLM call (no Anthropic API key needed
 in CI). Real-Anthropic recorded-cassette test remains a watch item.
 """
 
@@ -48,7 +48,7 @@ from cora.caution.aggregates.caution import (
 )
 from cora.decision.aggregates.decision import load_decision
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.ports import FakeLLMAdapter, FakeLLMResponse
+from cora.infrastructure.ports import FakeLLM, FakeLLMResponse
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.recipe.aggregates.plan import PlanDefined
 from cora.recipe.aggregates.plan import event_type_name as plan_event_type_name
@@ -192,7 +192,7 @@ async def test_subscriber_writes_caution_proposal_decision_end_to_end(
     await _seed_plan(deps, plan_id)
     await _seed_run(deps, run_id, plan_id)
 
-    llm = FakeLLMAdapter(responses=[_canned_propose_caution_response()])
+    llm = FakeLLM(responses=[_canned_propose_caution_response()])
     subscriber = CautionDrafterSubscriber(
         event_store=deps.event_store,
         llm=llm,
@@ -236,7 +236,7 @@ async def test_end_to_end_cross_bc_promotion_registers_real_caution(
     await _seed_run(deps, run_id, plan_id)
 
     # Step 1: subscriber emits the CautionProposal Decision.
-    llm = FakeLLMAdapter(responses=[_canned_propose_caution_response()])
+    llm = FakeLLM(responses=[_canned_propose_caution_response()])
     subscriber = CautionDrafterSubscriber(
         event_store=deps.event_store,
         llm=llm,
@@ -287,7 +287,7 @@ async def test_subscriber_is_at_most_once_on_real_pg(
     await _seed_plan(deps, plan_id)
     await _seed_run(deps, run_id, plan_id)
 
-    llm = FakeLLMAdapter(
+    llm = FakeLLM(
         responses=[
             _canned_propose_caution_response(),
             _canned_propose_caution_response(),

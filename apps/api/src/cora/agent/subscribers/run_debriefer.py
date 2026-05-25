@@ -592,7 +592,7 @@ def make_run_debriefer_subscriber(deps: Kernel) -> RunDebrieferSubscriber:
     if deps.llm is None:
         msg = (
             "RunDebrieferSubscriber requires kernel.llm to be set; "
-            "configure ANTHROPIC_API_KEY or inject a FakeLLMAdapter."
+            "configure ANTHROPIC_API_KEY or inject a FakeLLM."
         )
         raise RuntimeError(msg)
     return RunDebrieferSubscriber(

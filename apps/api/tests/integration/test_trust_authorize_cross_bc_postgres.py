@@ -25,8 +25,8 @@ from cora.access import UnauthorizedError as AccessUnauthorizedError
 from cora.access import wire_access
 from cora.access.features.deactivate_actor import DeactivateActor
 from cora.access.features.register_actor import RegisterActor
+from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.postgres.event_store import PostgresEventStore
 from cora.subject import UnauthorizedError as SubjectUnauthorizedError
 from cora.subject import wire_subject
 from cora.subject.features.mount_subject import MountSubject

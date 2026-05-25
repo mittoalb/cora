@@ -20,8 +20,8 @@ from cora.equipment.aggregates.asset.events import (
     event_type_name as asset_event_type_name,
 )
 from cora.equipment.aggregates.asset.events import to_payload as asset_to_payload
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.operation.aggregates.procedure import (
     ProcedureAssetDecommissionedError,
     ProcedureCannotStartError,

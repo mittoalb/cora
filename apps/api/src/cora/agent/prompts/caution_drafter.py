@@ -137,7 +137,7 @@ _CONFIDENCE_BAND_VALUES: tuple[str, ...] = ("low", "medium", "high")
 # REQUIRED when `choice != "NoAction"` per the design lock — but this
 # conditional is NOT enforced by the schema itself (no `oneOf` / `if`-
 # `then`). Reason: Anthropic's tool-use-as-structured-output adapter
-# (`AnthropicLLMAdapter`) translates the schema to a tool input_schema
+# (`AnthropicLLM`) translates the schema to a tool input_schema
 # which has historically had inconsistent support for JSON Schema's
 # conditional keywords across model snapshots; relying on schema-level
 # conditional enforcement is fragile. The subscriber compensates with

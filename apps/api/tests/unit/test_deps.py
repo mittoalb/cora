@@ -17,12 +17,12 @@ import pytest
 from pydantic import SecretStr
 
 from cora.agent import build_llm
-from cora.agent.adapters import AnthropicLLMAdapter
+from cora.agent.adapters import AnthropicLLM
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
+from cora.infrastructure.adapters.in_memory_idempotency import InMemoryIdempotencyStore
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import build_kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
-from cora.infrastructure.memory.idempotency import InMemoryIdempotencyStore
-from cora.infrastructure.ports import AllowAllAuthorize, FakeLLMAdapter
+from cora.infrastructure.ports import AllowAllAuthorize, FakeLLM
 from cora.trust import build_authorize
 from cora.trust.authorize import TrustAuthorize
 
@@ -101,7 +101,7 @@ async def test_kernel_llm_is_none_by_default_in_test_env(
     """`build_kernel` in `app_env=test` does NOT call llm_factory;
     Agent subscribers fail-fast on `kernel.llm is None` at
     registration. Defaulting to None in tests keeps the contract
-    explicit: opt-in to LLM by passing FakeLLMAdapter to
+    explicit: opt-in to LLM by passing FakeLLM to
     make_inmemory_kernel."""
     monkeypatch.setenv("APP_ENV", "test")
     deps, teardown = await build_kernel(authorize_factory=build_authorize, llm_factory=build_llm)
@@ -138,11 +138,11 @@ def test_build_llm_returns_anthropic_adapter_when_api_key_set(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """When the operator wires ANTHROPIC_API_KEY, the production
-    AnthropicLLMAdapter lands in the Kernel."""
+    AnthropicLLM lands in the Kernel."""
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test-fake")
     settings = Settings()  # type: ignore[call-arg]
     llm = build_llm(settings)
-    assert isinstance(llm, AnthropicLLMAdapter)
+    assert isinstance(llm, AnthropicLLM)
 
 
 @pytest.mark.unit
@@ -171,12 +171,12 @@ def test_anthropic_api_key_is_secret_str_and_redacted_in_repr(
 async def test_make_inmemory_kernel_accepts_fake_llm_override(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Subscriber-level tests that need an LLM inject FakeLLMAdapter
+    """Subscriber-level tests that need an LLM inject FakeLLM
     via make_inmemory_kernel(..., llm=...). Pins the override seam."""
     from cora.infrastructure.deps import make_inmemory_kernel
     from cora.infrastructure.ports import SystemClock, UUIDv7Generator
 
-    fake = FakeLLMAdapter()
+    fake = FakeLLM()
     settings = Settings()  # type: ignore[call-arg]
     kernel = make_inmemory_kernel(
         settings=settings,

@@ -14,8 +14,8 @@ from cora.caution.aggregates.caution import (
 from cora.caution.errors import UnauthorizedError
 from cora.caution.features import register_caution
 from cora.caution.features.register_caution import RegisterCaution
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from tests.unit._helpers import build_deps as _build_deps_shared
 
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)

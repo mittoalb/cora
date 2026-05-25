@@ -23,8 +23,8 @@ from cora.equipment.features import (
 from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.deprecate_family import DeprecateFamily
 from cora.equipment.features.version_family import VersionFamily
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from tests.unit._helpers import build_deps as _build_deps_shared
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)

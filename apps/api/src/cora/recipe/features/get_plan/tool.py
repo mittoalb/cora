@@ -28,7 +28,7 @@ class PlanOutput(BaseModel):
     `created_at` / `versioned_at` / `deprecated_at` mirror the REST
     `PlanResponse` (Path C): sourced from
     the `proj_recipe_plan_summary` projection. Null semantics: read
-    together with `status` — a populated `status` with a null
+    together with `status`: a populated `status` with a null
     timestamp means the projection has not yet folded that lifecycle
     event (transient eventual-consistency window), never a missing
     transition. A not-found Plan raises (MCP `isError: true`) rather

@@ -32,8 +32,8 @@ from uuid import UUID
 import asyncpg
 import pytest
 
+from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.postgres.event_store import PostgresEventStore
 from cora.trust import UnauthorizedError, wire_trust
 from cora.trust.authorize import TrustAuthorize
 from cora.trust.features import define_policy

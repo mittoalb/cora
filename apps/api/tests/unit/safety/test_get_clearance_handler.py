@@ -5,9 +5,9 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.safety.aggregates.clearance import (
     ClearanceKind,
     ClearanceStatus,

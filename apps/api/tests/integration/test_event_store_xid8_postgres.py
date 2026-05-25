@@ -24,8 +24,8 @@ from uuid import uuid4
 import asyncpg
 import pytest
 
+from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.postgres.event_store import PostgresEventStore
 
 
 def _new(*, occurred_at: datetime) -> object:

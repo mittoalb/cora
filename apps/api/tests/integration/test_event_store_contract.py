@@ -37,14 +37,14 @@ import asyncpg
 import pytest
 import pytest_asyncio
 
-from cora.infrastructure.memory.event_store import InMemoryEventStore
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
+from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
 from cora.infrastructure.ports.event_store import (
     ConcurrencyError,
     EventStore,
     NewEvent,
     StreamAppend,
 )
-from cora.infrastructure.postgres.event_store import PostgresEventStore
 
 pytestmark = pytest.mark.integration
 

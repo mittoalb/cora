@@ -27,7 +27,7 @@ class CapabilityOutput(BaseModel):
     `created_at` / `versioned_at` / `deprecated_at` mirror the REST
     `CapabilityResponse` (Path C): sourced
     from the `proj_recipe_capability_summary` projection. Null
-    semantics: read together with `status` — a populated `status`
+    semantics: read together with `status`: a populated `status`
     with a null timestamp means the projection has not yet folded
     that lifecycle event, never a missing transition. A not-found
     Capability raises (MCP `isError: true`) rather than returning

@@ -12,7 +12,7 @@ from cora.agent.features.re_debrief_run.route import (
     _get_handler as _get_re_debrief_handler,  # pyright: ignore[reportPrivateUsage]
 )
 from cora.api.main import create_app
-from cora.infrastructure.ports import FakeLLMAdapter, FakeLLMResponse
+from cora.infrastructure.ports import FakeLLM, FakeLLMResponse
 
 _CANNED_OK = FakeLLMResponse(
     parsed={
@@ -271,7 +271,7 @@ def _parent_decision_not_found_error() -> Exception:
     return ParentDecisionNotFoundError(UUID("01900000-0000-7000-8000-00000000fc01"))
 
 
-# Pin the FakeLLMAdapter reference + canned response so the import isn't
+# Pin the FakeLLM reference + canned response so the import isn't
 # tree-shaken; they're load-bearing for the pilot real-Anthropic transition,
 # when an integration test will swap _CANNED_OK with a recorded cassette.
-_ = (FakeLLMAdapter, _CANNED_OK)
+_ = (FakeLLM, _CANNED_OK)

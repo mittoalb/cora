@@ -118,7 +118,7 @@ _EXTENDED_CACHE_TTL_BETA = "extended-cache-ttl-2025-04-11"
 _tracer = trace.get_tracer("cora.agent.llm")
 
 
-class AnthropicLLMAdapter:
+class AnthropicLLM:
     """Production `LLM` implementation backed by `anthropic.AsyncAnthropic`.
 
     Constructor accepts `api_key` directly (read from `Settings.anthropic_api_key`
@@ -360,4 +360,4 @@ def _to_llm_usage(usage: anthropic.types.Usage) -> LLMUsage:
     )
 
 
-__all__ = ["AnthropicLLMAdapter"]
+__all__ = ["AnthropicLLM"]

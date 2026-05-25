@@ -30,10 +30,10 @@ dependencies = [
     "opentelemetry-instrumentation-asyncpg>=0.62b1,<0.63",
     "opentelemetry-exporter-otlp-proto-http>=1.41,<2",
     "jsonschema-rs>=0.20,<1",
-    # Anthropic SDK (Phase 8f-b iter 2a): used by `AnthropicLLMAdapter`,
-    # the production implementor of `cora.infrastructure.ports.LLM`.
-    # No other code imports this; subscribers + tests use the port +
-    # `FakeLLMAdapter`. Pin <1 to flag a future major SDK shift in CI
+    # Anthropic SDK: used by `AnthropicLLM`, the production implementor of
+    # `cora.infrastructure.ports.LLM`. No other code imports this;
+    # subscribers + tests use the port + `FakeLLM`. Pin <1 to flag a future
+    # major SDK shift in CI
     # before it lands silently.
     "anthropic>=0.103.1,<1",
     # PyJWT (Phase C Iter A): the one library dependency for the edge-auth

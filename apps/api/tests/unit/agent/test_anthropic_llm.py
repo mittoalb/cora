@@ -1,4 +1,4 @@
-"""Unit tests for `AnthropicLLMAdapter`.
+"""Unit tests for `AnthropicLLM`.
 
 Tests use a `_FakeAsyncAnthropic` client injected via the adapter's
 `client` constructor kwarg. The fake records every `messages.create`
@@ -22,7 +22,7 @@ from anthropic.types import (
     Usage,
 )
 
-from cora.agent.adapters import AnthropicLLMAdapter
+from cora.agent.adapters import AnthropicLLM
 from cora.infrastructure.ports.llm import (
     CacheBreakpoint,
     LLMAuthenticationError,
@@ -143,7 +143,7 @@ def _make_status_error(
 @pytest.mark.unit
 async def test_returns_parsed_output_from_tool_use_block() -> None:
     fake = _FakeAsyncAnthropic(_ok_message(parsed={"choice": "DegradedCompletion"}))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     result = await adapter.chat(_basic_request())
     assert result.parsed == {"choice": "DegradedCompletion"}
 
@@ -151,7 +151,7 @@ async def test_returns_parsed_output_from_tool_use_block() -> None:
 @pytest.mark.unit
 async def test_concatenates_text_blocks_into_raw_text() -> None:
     fake = _FakeAsyncAnthropic(_ok_message(parsed={"x": 1}, text_preamble="thinking out loud"))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     result = await adapter.chat(_basic_request())
     assert result.raw_text == "thinking out loud"
 
@@ -160,7 +160,7 @@ async def test_concatenates_text_blocks_into_raw_text() -> None:
 async def test_raw_text_empty_when_response_has_no_text_blocks() -> None:
     """Tool-use-only responses (pure structured output) have empty raw_text."""
     fake = _FakeAsyncAnthropic(_ok_message(parsed={}, text_preamble=""))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     result = await adapter.chat(_basic_request())
     assert result.raw_text == ""
 
@@ -176,7 +176,7 @@ async def test_usage_includes_cache_tokens() -> None:
             cache_read_input_tokens=1000,
         )
     )
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     result = await adapter.chat(_basic_request())
     assert result.usage.cache_creation_input_tokens == 4000
     assert result.usage.cache_read_input_tokens == 1000
@@ -185,7 +185,7 @@ async def test_usage_includes_cache_tokens() -> None:
 @pytest.mark.unit
 async def test_response_model_id_carries_actual_provider_snapshot() -> None:
     fake = _FakeAsyncAnthropic(_ok_message(parsed={}, model="claude-opus-4-7-20260301"))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     result = await adapter.chat(
         _basic_request(model="claude-opus-4-7")  # no pin requested
     )
@@ -198,7 +198,7 @@ async def test_response_model_id_carries_actual_provider_snapshot() -> None:
 @pytest.mark.unit
 async def test_cache_breakpoint_attaches_cache_control_to_block() -> None:
     fake = _FakeAsyncAnthropic(_ok_message(parsed={}))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     req = _basic_request(
         system_blocks=(
             LLMContentBlock(text="layer-1 cached"),
@@ -216,7 +216,7 @@ async def test_cache_breakpoint_attaches_cache_control_to_block() -> None:
 @pytest.mark.unit
 async def test_user_block_cache_control_passed_through() -> None:
     fake = _FakeAsyncAnthropic(_ok_message(parsed={}))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     req = _basic_request(user_cache=CacheBreakpoint(ttl="5m"))
     await adapter.chat(req)
     call = fake.messages.calls[0]
@@ -227,7 +227,7 @@ async def test_user_block_cache_control_passed_through() -> None:
 @pytest.mark.unit
 async def test_extended_cache_header_set_when_any_breakpoint_uses_1h() -> None:
     fake = _FakeAsyncAnthropic(_ok_message(parsed={}))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     req = _basic_request(
         system_blocks=(LLMContentBlock(text="x", cache=CacheBreakpoint(ttl="1h")),)
     )
@@ -240,7 +240,7 @@ async def test_extended_cache_header_set_when_any_breakpoint_uses_1h() -> None:
 @pytest.mark.unit
 async def test_extended_cache_header_absent_for_5m_only() -> None:
     fake = _FakeAsyncAnthropic(_ok_message(parsed={}))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     req = _basic_request(
         system_blocks=(LLMContentBlock(text="x", cache=CacheBreakpoint(ttl="5m")),)
     )
@@ -251,7 +251,7 @@ async def test_extended_cache_header_absent_for_5m_only() -> None:
 @pytest.mark.unit
 async def test_rejects_more_than_four_cache_breakpoints() -> None:
     fake = _FakeAsyncAnthropic(_ok_message(parsed={}))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     blocks = tuple(
         LLMContentBlock(text=f"layer-{i}", cache=CacheBreakpoint(ttl="5m")) for i in range(5)
     )
@@ -268,7 +268,7 @@ async def test_rejects_more_than_four_cache_breakpoints() -> None:
 @pytest.mark.unit
 async def test_forces_structured_output_tool_choice() -> None:
     fake = _FakeAsyncAnthropic(_ok_message(parsed={}))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     schema: dict[str, object] = {
         "type": "object",
         "properties": {"choice": {"type": "string"}},
@@ -306,7 +306,7 @@ async def test_raises_when_response_missing_tool_use_block() -> None:
         ),
     )
     fake = _FakeAsyncAnthropic(text_only)
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     with pytest.raises(LLMSchemaValidationError, match="no tool_use block"):
         await adapter.chat(_basic_request())
 
@@ -317,7 +317,7 @@ async def test_raises_when_response_missing_tool_use_block() -> None:
 @pytest.mark.unit
 async def test_model_id_uses_bare_name_when_no_snapshot_pin() -> None:
     fake = _FakeAsyncAnthropic(_ok_message(parsed={}))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     await adapter.chat(_basic_request(model="claude-opus-4-7", snapshot_pin=None))
     assert fake.messages.calls[0]["model"] == "claude-opus-4-7"
 
@@ -325,7 +325,7 @@ async def test_model_id_uses_bare_name_when_no_snapshot_pin() -> None:
 @pytest.mark.unit
 async def test_model_id_appends_snapshot_pin_when_set() -> None:
     fake = _FakeAsyncAnthropic(_ok_message(parsed={}))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     await adapter.chat(_basic_request(model="claude-opus-4-7", snapshot_pin="20260301"))
     assert fake.messages.calls[0]["model"] == "claude-opus-4-7-20260301"
 
@@ -336,7 +336,7 @@ async def test_model_id_appends_snapshot_pin_when_set() -> None:
 @pytest.mark.unit
 async def test_authentication_error_translates() -> None:
     fake = _FakeAsyncAnthropic(_make_status_error(anthropic.AuthenticationError, status_code=401))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     with pytest.raises(LLMAuthenticationError):
         await adapter.chat(_basic_request())
 
@@ -344,7 +344,7 @@ async def test_authentication_error_translates() -> None:
 @pytest.mark.unit
 async def test_rate_limit_translates() -> None:
     fake = _FakeAsyncAnthropic(_make_status_error(anthropic.RateLimitError, status_code=429))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     with pytest.raises(LLMRateLimitError):
         await adapter.chat(_basic_request())
 
@@ -352,7 +352,7 @@ async def test_rate_limit_translates() -> None:
 @pytest.mark.unit
 async def test_bad_request_translates() -> None:
     fake = _FakeAsyncAnthropic(_make_status_error(anthropic.BadRequestError, status_code=400))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     with pytest.raises(LLMInvalidRequestError):
         await adapter.chat(_basic_request())
 
@@ -360,7 +360,7 @@ async def test_bad_request_translates() -> None:
 @pytest.mark.unit
 async def test_server_error_translates() -> None:
     fake = _FakeAsyncAnthropic(_make_status_error(anthropic.InternalServerError, status_code=500))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     with pytest.raises(LLMServerError):
         await adapter.chat(_basic_request())
 
@@ -373,7 +373,7 @@ async def test_connection_error_translates_to_server_error() -> None:
             request=httpx.Request("POST", "https://api.anthropic.com/v1/messages"),
         )
     )
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     with pytest.raises(LLMServerError, match="network error"):
         await adapter.chat(_basic_request())
 
@@ -385,7 +385,7 @@ async def test_timeout_error_translates() -> None:
             request=httpx.Request("POST", "https://api.anthropic.com/v1/messages")
         )
     )
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     with pytest.raises(LLMTimeoutError):
         await adapter.chat(_basic_request())
 
@@ -402,7 +402,7 @@ async def test_unknown_apistatuserror_subclass_translates_to_server_error() -> N
     fake = _FakeAsyncAnthropic(
         _make_status_error(anthropic.APIStatusError, status_code=418, body_message="teapot")
     )
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     with pytest.raises(LLMServerError, match="teapot"):
         await adapter.chat(_basic_request())
 
@@ -416,7 +416,7 @@ async def test_synthetic_tool_name_stable_across_calls() -> None:
     intentioned or not) fails this test before reaching the cache.
     Closes gate-review test-coverage P1 #2."""
     fake = _FakeAsyncAnthropic(_ok_message(parsed={}))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     await adapter.chat(_basic_request())
     fake.messages._response = _ok_message(parsed={"different": "schema"})
     await adapter.chat(_basic_request(schema={"type": "object", "x": "y"}))
@@ -430,7 +430,7 @@ async def test_synthetic_tool_name_stable_across_calls() -> None:
 async def test_none_cache_token_fields_coerce_to_zero() -> None:
     """Anthropic's `Usage.cache_creation_input_tokens` and
     `cache_read_input_tokens` are `int | None` on the SDK; the
-    adapter's `or 0` coercion (anthropic_llm_adapter.py:347-348)
+    adapter's `or 0` coercion (anthropic_llm.py:347-348)
     converts None to 0 so `LLMUsage` stays `int` everywhere. Pin
     the coercion so a refactor to `int()` cast doesn't crash on
     None. Closes gate-review test-coverage P1 #4."""
@@ -460,7 +460,7 @@ async def test_none_cache_token_fields_coerce_to_zero() -> None:
         ),
     )
     fake = _FakeAsyncAnthropic(none_usage_message)
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     result = await adapter.chat(_basic_request())
     assert result.usage.cache_creation_input_tokens == 0
     assert result.usage.cache_read_input_tokens == 0
@@ -474,13 +474,13 @@ def test_constructor_builds_sdk_client_when_none_passed() -> None:
     """No client= kwarg means the adapter constructs its own
     AsyncAnthropic. We can't talk to the network in unit tests but
     we can verify the construction doesn't raise."""
-    adapter = AnthropicLLMAdapter(api_key="sk-test")
+    adapter = AnthropicLLM(api_key="sk-test")
     assert adapter is not None
 
 
 @pytest.mark.unit
 async def test_max_output_tokens_flows_to_api_call() -> None:
     fake = _FakeAsyncAnthropic(_ok_message(parsed={}))
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=fake)  # type: ignore[arg-type]
+    adapter = AnthropicLLM(api_key="sk-test", client=fake)  # type: ignore[arg-type]
     await adapter.chat(_basic_request(max_output_tokens=2048))
     assert fake.messages.calls[0]["max_tokens"] == 2048

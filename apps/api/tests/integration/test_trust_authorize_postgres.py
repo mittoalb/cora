@@ -11,11 +11,11 @@ from uuid import UUID
 import asyncpg
 import pytest
 
+from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
 from cora.infrastructure.ports import (
     Allow,
     Deny,
 )
-from cora.infrastructure.postgres.event_store import PostgresEventStore
 from cora.trust.authorize import TrustAuthorize
 from cora.trust.features import define_policy
 from cora.trust.features.define_policy import DefinePolicy

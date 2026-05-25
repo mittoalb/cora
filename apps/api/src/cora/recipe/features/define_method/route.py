@@ -42,7 +42,7 @@ class DefineMethodRequest(BaseModel):
     `needed_supplies` is optional; defaults to `[]` for
     backward-compat (older clients keep working). Each element is
     a Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.
-    Asymmetric vs needed_families by design — see
+    Asymmetric vs needed_families by design; see
     [[project_supply_design]] §"Method.needed_supplies consumer"
     for the rationale (Family is TYPE registry,
     Supply is INSTANCE aggregate per facility sharing a `kind` label).

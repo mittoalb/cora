@@ -33,6 +33,7 @@ from uuid import UUID
 
 import asyncpg
 
+from cora.infrastructure.adapters.postgres_profile_store import PostgresProfileStore
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import make_postgres_kernel
 from cora.infrastructure.kernel import Kernel
@@ -50,7 +51,6 @@ from cora.infrastructure.ports import (
     IdempotencyStore,
     ProfileStore,
 )
-from cora.infrastructure.postgres.profile_store import PostgresProfileStore
 
 
 def build_postgres_deps(

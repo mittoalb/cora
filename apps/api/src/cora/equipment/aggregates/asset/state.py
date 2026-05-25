@@ -78,16 +78,16 @@ class AssetLevel(StrEnum):
     """The hierarchical level of an Asset.
 
     Per the BC map (ISA-88-derived, single-word convention):
-      - `Enterprise` — root; the institution itself
-      - `Site` — a facility (for example, APS)
-      - `Area` — a section of a site (for example, the experimental hall)
-      - `Unit` — an operational unit (for example, a beamline)
-      - `Assembly` — a composed component (ISA-88 "Equipment Module")
-      - `Device` — an addressable control surface (ISA-88 "Control Module")
+      - `Enterprise`: root; the institution itself
+      - `Site`: a facility (for example, APS)
+      - `Area`: a section of a site (for example, the experimental hall)
+      - `Unit`: an operational unit (for example, a beamline)
+      - `Assembly`: a composed component (ISA-88 "Equipment Module")
+      - `Device`: an addressable control surface (ISA-88 "Control Module")
 
     Common pattern is the strict ordering above, but Device-in-Device
     is allowed when reality demands it (smart instruments). Levels
-    are conventional, not enforced — the decider does not check that
+    are conventional, not enforced: the decider does not check that
     a Device's parent is an Assembly.
     """
 

@@ -74,7 +74,7 @@ def wire_agent(deps: Kernel) -> AgentHandlers:
     """Build the Agent BC handlers from shared dependencies.
 
     `re_debrief_run` requires `kernel.llm` to be set (production
-    `AnthropicLLMAdapter` or test `FakeLLMAdapter`). When the LLM
+    `AnthropicLLM` or test `FakeLLM`). When the LLM
     is unwired (eg. dev startup without ANTHROPIC_API_KEY), the
     handler bundle carries `re_debrief_run=None`; the REST route
     + MCP tool guard on the None to return HTTP 503.

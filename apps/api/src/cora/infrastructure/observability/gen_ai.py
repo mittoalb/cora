@@ -1,6 +1,6 @@
 """GenAI telemetry helpers per OpenTelemetry semantic conventions.
 
-Used by `AnthropicLLMAdapter` (and any future LLM adapter) to set
+Used by `AnthropicLLM` (and any future LLM adapter) to set
 the standard `gen_ai.*` span attributes and emit token + cost
 metrics from one place. Keeps the adapter free of OTel imports
 beyond a single helper call.

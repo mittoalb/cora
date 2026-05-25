@@ -7,7 +7,7 @@ bc_touches: Campaign, Decision, Equipment, Recipe, Run, Subject
 
 Scenario test for CORA's first AI-agent runtime: the RunDebriefer
 subscriber observes the tomography scan's terminal `RunCompleted`
-event, calls the LLM (stubbed via `FakeLLMAdapter`), and emits an
+event, calls the LLM (stubbed via `FakeLLM`), and emits an
 advisory `DecisionRegistered` with the closed 5-value choice
 (NominalCompletion / DegradedCompletion / OperatorAbort /
 EquipmentAbort / DataSuspect) plus an AAR narrative scaffolded into
@@ -35,7 +35,7 @@ First scenario-tier exercise of:
   - `RunDebrieferSubscriber.apply(terminal_event)` — the side-
     effecting subscriber pathway that observes terminal Run events
     and emits Decisions
-  - `FakeLLMAdapter` (the stub LLM used in CI; no Anthropic API
+  - `FakeLLM` (the stub LLM used in CI; no Anthropic API
     key needed) being driven from a scenario-tier test
   - `Decision` aggregate genesis with `context=RunDebrief`,
     `rule=agent:RunDebriefer:v1`, `confidence_source=
@@ -69,7 +69,7 @@ scenario is self-contained.
     `apply()` directly. Whether the scenario tier should grow a
     "drain subscribers" helper that mirrors `drain_projections`
     is a watch item.
-  - **`FakeLLMAdapter` is a CI shortcut, not a production path.**
+  - **`FakeLLM` is a CI shortcut, not a production path.**
     The agent's real value (correctly classifying Run outcomes,
     writing useful AAR narratives) cannot be asserted with a
     canned response. The fake is for plumbing-correctness; quality
@@ -102,7 +102,7 @@ from cora.campaign.aggregates.campaign import CampaignIntent
 from cora.campaign.features.add_run_to_campaign import AddRunToCampaign
 from cora.campaign.features.add_run_to_campaign import bind as bind_add_run_to_campaign
 from cora.decision.aggregates.decision import load_decision
-from cora.infrastructure.ports import FakeLLMAdapter, FakeLLMResponse
+from cora.infrastructure.ports import FakeLLM, FakeLLMResponse
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.run.features.complete_run import CompleteRun
 from cora.run.features.complete_run import bind as bind_complete_run
@@ -362,7 +362,7 @@ async def test_run_debrief_agent_fires_on_terminal_run(
 
     # Build the subscriber with a canned LLM response. LogbookMirror is
     # None today (no implementor; see [[project_run_debrief_design]]).
-    llm = FakeLLMAdapter(responses=[_CANNED_AAR])
+    llm = FakeLLM(responses=[_CANNED_AAR])
     subscriber = RunDebrieferSubscriber(
         event_store=deps.event_store,
         llm=llm,

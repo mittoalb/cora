@@ -29,7 +29,7 @@ _REASON_MAX_LENGTH = 500
 class RelocateAssetRequest(BaseModel):
     """Body for `POST /assets/{asset_id}/relocate`.
 
-    `to_parent_id` is required (non-null) — Enterprise assets cannot
+    `to_parent_id` is required (non-null); Enterprise assets cannot
     relocate, and non-Enterprise assets always have a parent. Per
     eventual-consistency stance, the parent's existence is NOT
     verified by the decider.

@@ -12,7 +12,7 @@ from cora.infrastructure.deps import make_inmemory_kernel
 from cora.infrastructure.ports import (
     AllowAllAuthorize,
     FakeClock,
-    FakeLLMAdapter,
+    FakeLLM,
     FixedIdGenerator,
 )
 from cora.infrastructure.projection.registry import ProjectionRegistry
@@ -32,7 +32,7 @@ def _kernel(*, llm: object | None) -> object:
 @pytest.mark.unit
 def test_registers_run_debrief_when_llm_configured() -> None:
     registry = ProjectionRegistry()
-    kernel = _kernel(llm=FakeLLMAdapter())
+    kernel = _kernel(llm=FakeLLM())
 
     register_agent_subscribers(registry, kernel)  # type: ignore[arg-type]
 
@@ -58,7 +58,7 @@ def test_registration_is_idempotent_safe_for_one_registry() -> None:
     DuplicateProjectionError on the second call (the framework's
     invariant). Pin that we register only ONCE."""
     registry = ProjectionRegistry()
-    kernel = _kernel(llm=FakeLLMAdapter())
+    kernel = _kernel(llm=FakeLLM())
     register_agent_subscribers(registry, kernel)  # type: ignore[arg-type]
 
     # Second call should raise (registry already has the subscriber).

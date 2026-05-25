@@ -80,11 +80,11 @@ class Affordance(StrEnum):
     Values are PascalCase strings so they serialize naturally as JSON
     discriminators without translation.
 
-    Pattern A — Operational affordances (`-able` / `-ible` / `-ing`):
+    Pattern A, Operational affordances (`-able` / `-ible` / `-ing`):
         "device supports doing X" (action) or "device performs X"
         (role/flow). Set-membership claim. 27 items.
 
-    Pattern C — Lifecycle affordances (noun):
+    Pattern C, Lifecycle affordances (noun):
         "device has lifecycle property X". 1 item.
     """
 

@@ -30,8 +30,8 @@ from cora.campaign.aggregates.campaign import (
 from cora.campaign.errors import UnauthorizedError
 from cora.campaign.features import add_run_to_campaign
 from cora.campaign.features.add_run_to_campaign import AddRunToCampaign
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.run.aggregates.run import (
     RunNotFoundError,
     RunStarted,

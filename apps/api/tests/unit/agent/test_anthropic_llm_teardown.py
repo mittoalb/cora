@@ -1,4 +1,4 @@
-"""Unit tests for AnthropicLLMAdapter.aclose() teardown.
+"""Unit tests for AnthropicLLM.aclose() teardown.
 
 The adapter exposes `aclose()` so the Kernel's teardown chain can
 release the underlying httpx connection pool at shutdown. Without
@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from cora.agent.adapters import AnthropicLLMAdapter
+from cora.agent.adapters import AnthropicLLM
 
 
 @pytest.mark.unit
@@ -20,7 +20,7 @@ async def test_aclose_invokes_sdk_client_close() -> None:
     """Adapter delegates to AsyncAnthropic.close() so the httpx
     connection pool is released."""
     mock_client: Any = AsyncMock()
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=mock_client)
+    adapter = AnthropicLLM(api_key="sk-test", client=mock_client)
 
     await adapter.aclose()
 
@@ -29,13 +29,13 @@ async def test_aclose_invokes_sdk_client_close() -> None:
 
 @pytest.mark.unit
 async def test_kernel_teardown_calls_llm_aclose() -> None:
-    """When `kernel.llm` is the production AnthropicLLMAdapter,
+    """When `kernel.llm` is the production AnthropicLLM,
     `build_kernel`'s composed teardown invokes `aclose()` so the
     httpx pool releases at FastAPI shutdown."""
     from cora.infrastructure.deps import _maybe_llm_teardown
 
     mock_client: Any = AsyncMock()
-    adapter = AnthropicLLMAdapter(api_key="sk-test", client=mock_client)
+    adapter = AnthropicLLM(api_key="sk-test", client=mock_client)
     teardown = _maybe_llm_teardown(adapter)
 
     await teardown()
@@ -55,14 +55,14 @@ async def test_kernel_teardown_no_op_when_llm_is_none() -> None:
 
 @pytest.mark.unit
 async def test_kernel_teardown_no_op_for_adapter_without_aclose() -> None:
-    """`FakeLLMAdapter` (and any other LLM impl without an
+    """`FakeLLM` (and any other LLM impl without an
     `aclose` method) skips the close step cleanly."""
     from cora.infrastructure.deps import _maybe_llm_teardown
-    from cora.infrastructure.ports import FakeLLMAdapter
+    from cora.infrastructure.ports import FakeLLM
 
-    fake = FakeLLMAdapter()
+    fake = FakeLLM()
     teardown = _maybe_llm_teardown(fake)
-    # Must not raise (FakeLLMAdapter has no aclose method).
+    # Must not raise (FakeLLM has no aclose method).
     await teardown()
 
 

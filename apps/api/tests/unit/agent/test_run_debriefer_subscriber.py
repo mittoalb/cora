@@ -1,6 +1,6 @@
 """Unit tests for `RunDebrieferSubscriber`.
 
-Drives the subscriber against `InMemoryEventStore` + `FakeLLMAdapter`
+Drives the subscriber against `InMemoryEventStore` + `FakeLLM`
 so the LLM call returns canned structured output without touching
 the network. Covers happy path, DebriefDeferred fallback,
 deterministic decision_id idempotency, missing-Run guard, and
@@ -37,10 +37,10 @@ from cora.agent.subscribers.run_debriefer import (
     _redact_secrets,
 )
 from cora.decision.aggregates.decision import load_decision
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.memory.event_store import InMemoryEventStore
 from cora.infrastructure.ports import (
-    FakeLLMAdapter,
+    FakeLLM,
     FakeLLMResponse,
     LLMServerError,
 )
@@ -211,7 +211,7 @@ def _terminal_event(
 
 async def _build_subscriber(
     event_store: InMemoryEventStore,
-    llm: FakeLLMAdapter,
+    llm: FakeLLM,
 ) -> RunDebrieferSubscriber:
     return RunDebrieferSubscriber(
         event_store=event_store,
@@ -248,7 +248,7 @@ def test_subscriber_name_and_subscribed_event_types_pinned() -> None:
     bookmark."""
     subscriber = RunDebrieferSubscriber(
         event_store=InMemoryEventStore(),
-        llm=FakeLLMAdapter(),
+        llm=FakeLLM(),
         logbook_mirror=None,
     )
     assert subscriber.name == "run_debriefer"
@@ -263,7 +263,7 @@ def test_subscriber_name_and_subscribed_event_types_pinned() -> None:
 @pytest.mark.unit
 async def test_apply_writes_decision_on_run_completed() -> None:
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     await _seed_run_debrief_actor(store)
     run_id = uuid4()
     await _seed_run(store, run_id)
@@ -291,7 +291,7 @@ async def test_apply_writes_decision_on_run_completed() -> None:
 @pytest.mark.unit
 async def test_apply_writes_decision_on_run_aborted_with_reason() -> None:
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(
+    llm = FakeLLM(
         responses=[
             FakeLLMResponse(
                 parsed={
@@ -337,7 +337,7 @@ async def test_apply_passes_run_state_to_llm_payload() -> None:
     """The Run aggregate's state (effective_parameters,
     adjustment_count, etc.) lands in the LLM's user message."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     await _seed_run_debrief_actor(store)
     run_id = uuid4()
     plan_id = UUID("01900000-0000-7000-8000-000000000abc")
@@ -361,7 +361,7 @@ async def test_apply_writes_debrief_deferred_on_llm_failure() -> None:
     Decision to preserve the exactly-one-Decision-per-terminal-Run
     audit invariant."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[LLMServerError("synthetic 500")])
+    llm = FakeLLM(responses=[LLMServerError("synthetic 500")])
     await _seed_run_debrief_actor(store)
     run_id = uuid4()
     await _seed_run(store, run_id)
@@ -385,7 +385,7 @@ async def test_debrief_deferred_decision_id_matches_success_path() -> None:
     from the terminal event_id, so a retry that succeeds after a
     prior deferred fires the at-most-once ConcurrencyError guard."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[LLMServerError("first try")])
+    llm = FakeLLM(responses=[LLMServerError("first try")])
     await _seed_run_debrief_actor(store)
     run_id = uuid4()
     await _seed_run(store, run_id)
@@ -401,7 +401,7 @@ async def test_debrief_deferred_decision_id_matches_success_path() -> None:
     # Second apply with a fresh LLM that returns ok; the subscriber's
     # ConcurrencyError catch should skip the write rather than create
     # a duplicate.
-    llm2 = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm2 = FakeLLM(responses=[_CANNED_OK])
     subscriber2 = await _build_subscriber(store, llm2)
     await subscriber2.apply(event, conn=None)
     # No duplicate written -- decision is still the deferred one.
@@ -419,7 +419,7 @@ async def test_apply_is_at_most_once_via_deterministic_decision_id() -> None:
     same decision_id; the second call hits ConcurrencyError and
     treats it as no-op. Validates the at-most-once retry contract."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK, _CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK, _CANNED_OK])
     await _seed_run_debrief_actor(store)
     run_id = uuid4()
     await _seed_run(store, run_id)
@@ -457,7 +457,7 @@ async def test_apply_skips_when_run_missing() -> None:
     fixture; skip cleanly so the bookmark advances and the worker
     doesn't wedge."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     await _seed_run_debrief_actor(store)
     # Note: no _seed_run call.
     subscriber = await _build_subscriber(store, llm)
@@ -474,7 +474,7 @@ async def test_apply_skips_when_agent_actor_missing() -> None:
     """If the agent isn't seeded (bootstrap misconfigured), skip
     without writing -- the operator needs to fix the seed."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     # Note: no _seed_run_debrief_actor call.
     run_id = uuid4()
     await _seed_run(store, run_id)
@@ -493,7 +493,7 @@ async def test_apply_ignores_non_terminal_event_defensively() -> None:
     happen, but defensive early-return guards against a misrouted
     event."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter()
+    llm = FakeLLM()
     await _seed_run_debrief_actor(store)
     subscriber = await _build_subscriber(store, llm)
     # Construct a non-terminal event (RunHeld is not in subscribed set).
@@ -527,7 +527,7 @@ async def test_decision_event_causation_id_is_terminal_event_id() -> None:
     by the terminal Run event. Pin the causation chain so future
     refactors don't drop it."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     await _seed_run_debrief_actor(store)
     run_id = uuid4()
     await _seed_run(store, run_id)
@@ -547,7 +547,7 @@ async def test_decision_event_principal_id_is_agent_id() -> None:
     """The agent acts on its own behalf; `principal_id` on the
     envelope is the agent's id."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     await _seed_run_debrief_actor(store)
     run_id = uuid4()
     await _seed_run(store, run_id)
@@ -567,7 +567,7 @@ async def test_decision_event_principal_id_is_agent_id() -> None:
 @pytest.mark.unit
 async def test_apply_calls_logbook_mirror_when_configured() -> None:
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     await _seed_run_debrief_actor(store)
     run_id = uuid4()
     await _seed_run(store, run_id)
@@ -603,7 +603,7 @@ async def test_apply_swallows_logbook_mirror_errors() -> None:
     """Per port contract, mirror failures must not propagate to the
     Decision-emission audit trail."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     await _seed_run_debrief_actor(store)
     run_id = uuid4()
     await _seed_run(store, run_id)
@@ -638,7 +638,7 @@ async def test_apply_writes_decision_on_run_stopped() -> None:
     was not initially exercised end-to-end. Pin the path.
     Closes a test-coverage action item."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     await _seed_run_debrief_actor(store)
     run_id = uuid4()
     await _seed_run(store, run_id)
@@ -665,7 +665,7 @@ async def test_apply_success_then_deferred_retry_is_no_op() -> None:
     detect the existing Decision and NOT write DebriefDeferred.
     Closes test-coverage P1 #2."""
     store = InMemoryEventStore()
-    llm1 = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm1 = FakeLLM(responses=[_CANNED_OK])
     await _seed_run_debrief_actor(store)
     run_id = uuid4()
     await _seed_run(store, run_id)
@@ -681,7 +681,7 @@ async def test_apply_success_then_deferred_retry_is_no_op() -> None:
     # Second apply: LLM fails. Subscriber would compose DebriefDeferred
     # for the SAME decision_id, hit ConcurrencyError on append, and
     # skip. Decision should still be NominalCompletion.
-    llm2 = FakeLLMAdapter(responses=[LLMServerError("synthetic 500")])
+    llm2 = FakeLLM(responses=[LLMServerError("synthetic 500")])
     subscriber2 = await _build_subscriber(store, llm2)
     await subscriber2.apply(event, conn=None)
     after = await load_decision(store, decision_id)
@@ -696,7 +696,7 @@ async def test_apply_skips_when_agent_actor_deactivated() -> None:
     a deactivation; an operator revoking the agent's identity takes
     effect on the next terminal event."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     await _seed_run_debrief_actor(store, deactivated=True)
     run_id = uuid4()
     await _seed_run(store, run_id)
@@ -719,7 +719,7 @@ async def test_apply_passes_non_zero_adjustment_count_to_llm_payload() -> None:
     the LLM JSON payload so the LLM can narrate parameter steering.
     Closes test-coverage P1 #5."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     await _seed_run_debrief_actor(store)
     run_id = uuid4()
     plan_id = UUID("01900000-0000-7000-8000-000000000abc")
@@ -752,7 +752,7 @@ async def test_apply_payload_carries_effective_parameters_by_value() -> None:
     `str(run_id) in text` (substring). Pin the actual
     effective_parameters value flows through. Closes test-coverage P1 #4."""
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     await _seed_run_debrief_actor(store)
     run_id = uuid4()
     await _seed_run(store, run_id)
@@ -853,7 +853,7 @@ async def test_apply_leaves_signature_none_when_no_signer_configured() -> None:
     from cora.infrastructure.ports.event_store import StoredEvent
 
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     await _seed_run_debrief_actor(store)
     run_id = uuid4()
     await _seed_run(store, run_id)
@@ -877,7 +877,7 @@ async def test_apply_signs_decision_when_signer_configured() -> None:
     from cora.infrastructure.signing import verify_signature
 
     store = InMemoryEventStore()
-    llm = FakeLLMAdapter(responses=[_CANNED_OK])
+    llm = FakeLLM(responses=[_CANNED_OK])
     await _seed_run_debrief_actor(store)
     run_id = uuid4()
     await _seed_run(store, run_id)
