@@ -61,12 +61,18 @@ The slice-contract fitness function ([apps/api/tests/architecture/test_slice_con
 
 ### Optional slice files
 
-- `context.py`: slice-local cross-aggregate pre-load. Used when a decider needs sibling-aggregate state (for example `start_run` pre-loads Asset, Method, Plan, Practice, Subject before calling the pure decider). Used by 7 slices today across `data`, `decision`, `recipe`, `run`, `subject`, `operation`. Lives in the slice folder, not the aggregate.
+- `context.py`: slice-local cross-aggregate pre-load. Used when a decider needs sibling-aggregate state (for example `start_run` pre-loads Asset, Method, Plan, Practice, Subject before calling the pure decider). Used by 16 slices today across `agent`, `campaign`, `caution`, `data`, `decision`, `equipment`, `operation`, `recipe`, `run`, `safety`, `subject` (11 BCs). Lives in the slice folder, not the aggregate.
+
+  The decider for a context-using slice takes a keyword-only `context: <X>Context` parameter immediately before `now`, where `<X>Context` is a frozen dataclass exported from the slice's `context.py` (for example `RunStartContext`, `ClearanceAmendmentContext`, `CautionSupersessionContext`). The handler builds the context by loading the sibling aggregates and passes it to the pure `decide`; the decider itself never reads from a port.
+
+  **Signature-parity `_ = state` discard.** When a context-using decider's own aggregate state lives on the context (either the child is genesis, or `context.<aggregate>` carries the same state as `state`), the decider opens with `_ = state  # <reason>` to discard the parameter while keeping the signature aligned with single-stream deciders. Today: `re_debrief_run`, `add_run_to_campaign`, `remove_run_from_campaign`, `supersede_caution`, `amend_clearance`.
 
 ### BC-root extras
 
 - `_projections.py`: composition-root entry point that registers the BC's projections with the projection registry. Mechanical and present in every BC that has a `projections/` directory.
-- `_<aggregate>_update_handler.py`: factory that hoists shared update-handler scaffolding when n>=3 update slices on the same aggregate share the pattern (per `project_update_handler_pattern.md`). Today: agent, asset, campaign, clearance, method, plan, practice, procedure, run, subject, supply (11 BCs).
+- `_<aggregate>_update_handler.py`: factory that hoists shared update-handler scaffolding when n>=3 update slices on the same aggregate share the pattern (per `project_update_handler_pattern.md`). Today: 11 files across 9 BCs: `agent`, `equipment/_asset_update_handler.py`, `campaign`, `safety/_clearance_update_handler.py`, `recipe/{_method,_plan,_practice}_update_handler.py`, `operation/_procedure_update_handler.py`, `run`, `subject`, `supply`.
+- `_subscribers.py` (agent BC only): wires the BC's domain-event subscribers into the projection registry's subscriber bus. Today only `agent/_subscribers.py` (RunDebriefer + CautionDrafter), but the pattern generalises to any BC that reacts to events from another BC.
+- `_<aggregate>_dtos.py`: BC-local DTO module re-exported from `routes.py` and `tools.py`, kept out of the slice folder when several read/write slices share the same projected shape. Today: `calibration/_calibration_dtos.py`, `caution/_caution_dtos.py`, `safety/_clearance_dtos.py`.
 - `authorize_factory.py` (trust BC only): exports `build_authorize`, injected into the kernel by the composition root in `cora/api/main.py`. No other BC imports it.
 
 **Capability-dependent handlers.** When a slice depends on an external capability that may be unwired in some deployments (today: `re_debrief_run` needs `kernel.llm`, which is `None` when `ANTHROPIC_API_KEY` isn't configured), the handler bundle types the field as `Handler | None`. The route guards on `None` and raises `HTTPException(503)` inline; this is the only documented exception to the "command-slice routes don't wrap handler calls" rule. Pinned by `test_route_no_inline_http_exception.py`'s `GRANDFATHERED_COMMAND_ROUTES` allowlist.

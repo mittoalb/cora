@@ -69,14 +69,14 @@ The schema-declared unit is the canonical wire-and-storage unit. Deciders, event
 
 ## Personal data
 
-Personal data on Actors lives in a separate mutable `profile` table, not in events. Events carry `actor_id` only. Erasure is a single `DELETE FROM profile WHERE actor_id = X`.
+Personal data on Actors lives in a separate mutable `actor_profile` table, not in events. Events carry `actor_id` only. Erasure scrubs the row before deleting it (`UPDATE ... SET name = ''` then `DELETE`) so the dead-tuple bytes carry no PII before VACUUM.
 
 - **Actor aggregate state** holds `id` and `is_active`; no `name`, no `email`. The event payloads carry the same fields.
-- **`profile` table** holds `actor_id PRIMARY KEY`, `name`, optional contact fields, `created_at`, `updated_at`. Written in the same transaction as `ActorRegistered`.
-- **Load path** left-joins `profile` and falls back to `<deleted user>` when the row is absent.
-- **`forget_actor` slice** deletes the profile row and emits `ActorProfileForgotten(actor_id, forgotten_at)`. The audit event carries no personal data.
+- **`actor_profile` table** holds `actor_id PRIMARY KEY`, `name`, optional contact fields, `created_at`, `updated_at`. Written in the same transaction as `ActorRegistered`. The table has `FORCE ROW LEVEL SECURITY` enabled so even superuser sessions go through the policy.
+- **Load path** left-joins `actor_profile` and falls back to `<deleted user>` when the row is absent.
+- **`forget_actor` slice** scrubs-then-deletes the profile row and emits `ActorProfileForgotten(actor_id, forgotten_at)` in a single transaction. The audit event carries no personal data.
 
-The same pattern applies to any future field that may contain personal data: add it as a nullable column on `profile`, or stand up a parallel vault table when the new field belongs to a different aggregate. The infrastructure is one table, not a key-management system.
+The same pattern applies to any future field that may contain personal data: add it as a nullable column on `actor_profile`, or stand up a parallel vault table when the new field belongs to a different aggregate. The infrastructure is one table, not a key-management system.
 
 **Anti-patterns:**
 
@@ -100,7 +100,7 @@ The shared infrastructure lives in `cora.infrastructure.json_schema_validation` 
 - `validate_schema_declaration(schema, *, error_class)` runs on the declarer's write path. Rejects schemas that are missing or that have the wrong `$schema`, use a forbidden keyword (`$ref`, `oneOf`, `allOf`, conditionals), or fail to compile.
 - `validate_values_against_schema(values, schema, *, error_class, no_schema_message)` runs on the carrier's write path.
 
-Each BC keeps its own typed error class (`InvalidCapabilitySchemaError`, `InvalidMethodParametersSchemaError`, `InvalidAssetSettingsError`, `InvalidPlanDefaultParametersError`, `InvalidRunParametersError`) and passes it into the shared validator. Each maps to HTTP 400 via the BC's own route. Different classes mean log aggregators can identify the source BC without parsing message text.
+Each BC keeps its own typed error class (`InvalidCapabilityParametersSchemaError`, `InvalidMethodParametersSchemaError`, `InvalidAssetSettingsError`, `InvalidPlanDefaultParametersError`, `InvalidRunParametersError`) and passes it into the shared validator. Each maps to HTTP 400 via the BC's own route. Different classes mean log aggregators can identify the source BC without parsing message text.
 
 **Strict-by-default posture:** the carrier's validator follows a four-cell table that all instances share.
 
