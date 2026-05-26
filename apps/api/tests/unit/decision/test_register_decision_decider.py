@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from cora.access.aggregates.actor import Actor
+from cora.access.aggregates.actor import Actor, ActorKind
 from cora.decision.aggregates.decision import (
     Decision,
     DecisionAlreadyExistsError,
@@ -22,7 +22,10 @@ from cora.decision.aggregates.decision import (
     InvalidDecisionRuleError,
     ParentDecisionNotFoundError,
 )
-from cora.decision.errors import OverrideKindRequiresParentError
+from cora.decision.errors import (
+    InvalidActorKindForDecisionError,
+    OverrideKindRequiresParentError,
+)
 from cora.decision.features import register_decision
 from cora.decision.features.register_decision import (
     DecisionRegistrationContext,
@@ -367,6 +370,44 @@ def test_decide_accepts_arbitrary_context_value() -> None:
         new_id=uuid4(),
     )
     assert events[0].context == "FacilityCustom_v3"
+
+
+# ---------- Actor-kind invariant ----------
+
+
+@pytest.mark.unit
+def test_decide_raises_when_actor_kind_is_agent() -> None:
+    """Agent-emitted Decisions go through the signed subscriber path
+    (CautionDrafter, RunDebriefer) per [[project_signed_events_design]].
+    The operator-driven register_decision slice refuses kind=AGENT so it
+    cannot become a signing-bypass route."""
+    agent_actor = Actor(id=uuid4(), kind=ActorKind.AGENT)
+    cmd = _good_command(actor_id=agent_actor.id)
+    with pytest.raises(InvalidActorKindForDecisionError) as exc_info:
+        register_decision.decide(
+            state=None,
+            command=cmd,
+            context=DecisionRegistrationContext(actor=agent_actor),
+            now=_NOW,
+            new_id=uuid4(),
+        )
+    assert exc_info.value.kind == "agent"
+
+
+@pytest.mark.unit
+def test_decide_accepts_service_account_actor() -> None:
+    """Service-account Actors are first-class register_decision principals
+    (machine callers like CI bridges); only AGENT is refused here."""
+    sa_actor = Actor(id=uuid4(), kind=ActorKind.SERVICE_ACCOUNT)
+    cmd = _good_command(actor_id=sa_actor.id)
+    events = register_decision.decide(
+        state=None,
+        command=cmd,
+        context=DecisionRegistrationContext(actor=sa_actor),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].actor_id == sa_actor.id
 
 
 # ---------- Cross-aggregate validation ----------

@@ -30,7 +30,29 @@ class OverrideKindRequiresParentError(ValueError):
         self.override_kind = override_kind
 
 
+class InvalidActorKindForDecisionError(ValueError):
+    """The supplied Actor's kind is not permitted for register_decision.
+
+    Raised by the `register_decision` decider when `context.actor.kind`
+    is AGENT. Agent-emitted Decisions go through the subscriber path
+    (CautionDrafter, RunDebriefer) so the Signer port can sign each
+    row at the boundary per [[project_signed_events_design]]; the
+    operator-driven register_decision slice stays unsigned and
+    human-only.
+
+    Maps to HTTP 400 via the route layer's `Invalid*Error`
+    convention. The message is redacted (no internal-architecture
+    detail leak) so a non-HTTP caller bypassing route guards sees a
+    clean 400.
+    """
+
+    def __init__(self, kind: str) -> None:
+        super().__init__(f"register_decision cannot accept kind={kind!r} Actors via this slice.")
+        self.kind = kind
+
+
 __all__ = [
+    "InvalidActorKindForDecisionError",
     "OverrideKindRequiresParentError",
     "UnauthorizedError",
 ]

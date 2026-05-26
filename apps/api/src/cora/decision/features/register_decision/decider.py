@@ -32,6 +32,17 @@ Decision can be the parent in an override chain.
 raises `OverrideKindRequiresParentError` if the command has
 `override_kind` set but `parent_id` is None.
 
+## Actor-kind invariant
+
+`register_decision` is the operator-driven slice. Agent-emitted
+Decisions go through the subscriber path (CautionDrafter,
+RunDebriefer) so the Signer port can sign each row per
+[[project_signed_events_design]] (SIGNED_EVENT_TYPES =
+{DecisionRegistered}, discriminated at write time by
+`actor.kind == AGENT`). The decider refuses `context.actor.kind
+== AGENT` with `InvalidActorKindForDecisionError` so the slice
+cannot become a signing-bypass route.
+
 ## VO trim semantics
 
 Field VOs (`DecisionChoice`, `DecisionContext`, `DecisionRule`)
@@ -43,6 +54,7 @@ have no other invariants beyond shape.
 from datetime import datetime
 from uuid import UUID
 
+from cora.access.aggregates.actor import ActorKind
 from cora.decision.aggregates.decision import (
     Decision,
     DecisionAlreadyExistsError,
@@ -57,7 +69,10 @@ from cora.decision.aggregates.decision import (
     validate_reasoning,
     validate_reasoning_signature,
 )
-from cora.decision.errors import OverrideKindRequiresParentError
+from cora.decision.errors import (
+    InvalidActorKindForDecisionError,
+    OverrideKindRequiresParentError,
+)
 from cora.decision.features.register_decision.command import RegisterDecision
 from cora.decision.features.register_decision.context import DecisionRegistrationContext
 
@@ -75,6 +90,9 @@ def decide(
     Invariants:
       - State must be None (genesis-only)
         -> DecisionAlreadyExistsError
+      - Actor.kind must NOT be AGENT (Agent-emitted Decisions go
+        through the signed subscriber path)
+        -> InvalidActorKindForDecisionError
       - When parent_id is set, parent Decision must exist
         -> ParentDecisionNotFoundError
       - override_kind requires a parent_id
@@ -99,6 +117,9 @@ def decide(
     """
     if state is not None:
         raise DecisionAlreadyExistsError(state.id)
+
+    if context.actor.kind == ActorKind.AGENT:
+        raise InvalidActorKindForDecisionError("agent")
 
     # Cross-agg parent guard (handler raises ParentDecisionNotFoundError
     # upstream; this branch is the decider-level statement of contract

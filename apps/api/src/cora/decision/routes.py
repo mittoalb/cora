@@ -5,6 +5,7 @@ registers exception handlers translating domain / application
 errors to HTTP status codes.
 
   - 400 (validation): Invalid<X>...Error family + OverrideKindRequiresParentError
+                      + InvalidActorKindForDecisionError
   - 404: DecisionNotFoundError, DeciderActorNotFoundError, ParentDecisionNotFoundError
   - 409 (defensive AlreadyExists): DecisionAlreadyExistsError
   - 409 (logbook FSM): DecisionLogbookAlreadyOpenError, DecisionLogbookNotOpenError
@@ -41,7 +42,11 @@ from cora.decision.aggregates.decision import (
     ParentDecisionNotFoundError,
     ParentDecisionRunMismatchError,
 )
-from cora.decision.errors import OverrideKindRequiresParentError, UnauthorizedError
+from cora.decision.errors import (
+    InvalidActorKindForDecisionError,
+    OverrideKindRequiresParentError,
+    UnauthorizedError,
+)
 from cora.decision.features import (
     append_reasoning_entry,
     get_decision,
@@ -119,6 +124,7 @@ def register_decision_routes(app: FastAPI) -> None:
         InvalidDecisionAlternativesError,
         InvalidDecisionInputsError,
         InvalidDecisionRatingCommentError,
+        InvalidActorKindForDecisionError,
         InvalidReasoningSignatureError,
         OverrideKindRequiresParentError,
         # Parent-chain validators raised by Agent BC's `re_debrief_run`
