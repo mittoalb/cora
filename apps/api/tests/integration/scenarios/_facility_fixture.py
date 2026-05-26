@@ -55,7 +55,7 @@ so the fixture owns their UUIDs.
 
 Each scenario tags its Asset-hierarchy aggregate ids with a mnemonic hex
 segment so the event store records remain traceable back to the scenario
-that wrote them (e.g., `...000000350e01` for Argonne under the
+that wrote them (for example, `...000000350e01` for Argonne under the
 beta-alignment scenario, `...000000352e01` under shakedown). The fixture
 must NOT pick canonical UUIDs for Assets; it accepts whatever the caller
 declares as constants.

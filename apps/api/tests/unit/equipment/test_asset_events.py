@@ -194,7 +194,7 @@ def test_event_type_name_returns_asset_activated_class_name() -> None:
 @pytest.mark.unit
 def test_to_payload_serializes_asset_activated_to_primitives() -> None:
     """Lifecycle NOT in payload — event TYPE encodes the state change.
-    Pinned because adding a `lifecycle` field to the payload (e.g., to
+    Pinned because adding a `lifecycle` field to the payload (for example, to
     support a generic 'set lifecycle' command later) is an additive
     change that must be deliberate."""
     asset_id = uuid4()

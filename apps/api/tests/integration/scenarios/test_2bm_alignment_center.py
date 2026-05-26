@@ -426,7 +426,7 @@ def _setpoint(
     sampled_at: datetime,
 ) -> ProcedureStepInput:
     """Build a Setpoint step input. `role` carries context-dependent
-    semantics (e.g., Tomo@0deg vs Tomo@180deg for the same physical
+    semantics (for example, Tomo@0deg vs Tomo@180deg for the same physical
     Sample_top_X motor). `note` is operator's free-text per-step audit."""
     payload: dict[str, Any] = {
         "channel": channel,
@@ -472,7 +472,7 @@ def _check(
     **evidence: Any,
 ) -> ProcedureStepInput:
     """Build a Check step input. `source` distinguishes operator-visual
-    judgment from off-line metrics (e.g., tomopy.find_center_vo)."""
+    judgment from off-line metrics (for example, tomopy.find_center_vo)."""
     payload: dict[str, Any] = {
         "channel": channel,
         "passed": passed,

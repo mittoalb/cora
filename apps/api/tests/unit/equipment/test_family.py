@@ -85,7 +85,7 @@ def test_capability_status_is_str_enum_for_natural_serialization() -> None:
 @pytest.mark.unit
 def test_capability_status_can_be_constructed_from_string_value() -> None:
     """Round-trip: enum → string → enum. Future evolver bridges that
-    read status from event payloads (e.g., admin set-status backfill)
+    read status from event payloads (for example, admin set-status backfill)
     will rely on this."""
     for status in FamilyStatus:
         assert FamilyStatus(status.value) == status

@@ -73,7 +73,7 @@ def build_postgres_deps(
     safety-gate bypass stub), `AlwaysQuietCautionLookup` (the caution-
     snapshot quiet stub). Pass `event_store=` / `idempotency_store=` /
     `clearance_lookup=` / `caution_lookup=` to share an already-
-    constructed adapter or to exercise a specific behavior (e.g.,
+    constructed adapter or to exercise a specific behavior (for example,
     gate tests pass `PostgresClearanceLookup(pool)` and seed a real
     clearance; snapshot tests pass `PostgresCautionLookup(pool)` and
     seed a real caution via `register_caution`).

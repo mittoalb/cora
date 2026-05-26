@@ -127,7 +127,7 @@ async def test_verify_raises_when_v2_policy_misbound_to_non_http_surface(
     db_pool: asyncpg.Pool,
 ) -> None:
     """GR3 BC-7: V2 policy loaded but folded `surface_id !=
-    SYSTEM_HTTP_SURFACE_ID` (e.g., post-seed mutation, or unauthorized
+    SYSTEM_HTTP_SURFACE_ID` (for example, post-seed mutation, or unauthorized
     PolicyDefined appended to V2 stream). The verifier catches it
     instead of silently denying every request post-Iter-C-2."""
     from cora.trust.aggregates.policy import PolicyName

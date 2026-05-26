@@ -40,7 +40,7 @@ _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 @pytest.mark.unit
 def test_evolve_asset_registered_sets_lifecycle_to_commissioned() -> None:
     """AssetRegistered is the genesis event; lifecycle defaults to
-    Commissioned via the evolver. Pin so a future change (e.g. adding
+    Commissioned via the evolver. Pin so a future change (for example adding
     `initial_lifecycle` to the event payload) is a deliberate
     additive-state evolution."""
     asset_id = uuid4()

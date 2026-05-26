@@ -142,7 +142,8 @@ class Signer(Protocol):
         """Produce a signature over the canonicalized + PAE-wrapped payload.
 
         `event_type` is the unbracketed event-type name (for example
-        `"CautionProposed"`); the implementation MUST resolve it to the
+        `"DecisionRegistered"`, the sole entry in `SIGNED_EVENT_TYPES`
+        today); the implementation MUST resolve it to the
         full payloadType URI via
         `cora.infrastructure.signing.event_type_to_payload_type` and
         canonicalize the payload via

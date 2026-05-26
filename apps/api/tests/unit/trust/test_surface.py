@@ -78,7 +78,7 @@ def test_surface_kind_value_strings_are_stable() -> None:
 
 @pytest.mark.unit
 def test_surface_kind_rejects_unknown_value() -> None:
-    """Closed enum: unknown values raise at construction (e.g. payload
+    """Closed enum: unknown values raise at construction (for example payload
     fold from a stored event with a stale or future kind string)."""
     with pytest.raises(ValueError):
         SurfaceKind("a2a")

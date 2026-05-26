@@ -68,7 +68,7 @@ def _python_files() -> list[Path]:
 
 def _candidate_files() -> list[Path]:
     """Files that mention `Kernel(` (cheap textual heuristic). The AST
-    scan inside the parametrized test confirms; false positives (e.g.
+    scan inside the parametrized test confirms; false positives (for example
     in comments) are harmless because the AST returns zero call sites.
     """
     return [p for p in _python_files() if "Kernel(" in p.read_text()]

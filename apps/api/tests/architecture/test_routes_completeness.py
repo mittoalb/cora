@@ -60,7 +60,7 @@ def _bc_error_classes(bc: str) -> set[str]:
             cls = getattr(agg, n, None)
             if isinstance(cls, type) and issubclass(cls, Exception) and n.endswith("Error"):
                 out.add(n)
-    # Walk known sub-aggregates too (e.g. trust.aggregates.conduit).
+    # Walk known sub-aggregates too (for example trust.aggregates.conduit).
     # Enumeration is git-aware: pre-commit doesn't stash untracked files,
     # so a filesystem scan would see half-staged WIP aggregates and
     # false-fail. See conftest module docstring for the rationale.

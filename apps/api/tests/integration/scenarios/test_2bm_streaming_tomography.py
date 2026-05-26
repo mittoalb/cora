@@ -74,7 +74,7 @@ Same as O-3: rotary + linear (Sample_top_X) + camera + scintillator.
     `RunAdjusted` event capturing the operator's mid-flight
     decision + reason + (optional) `decided_by_decision_id` link.
   - **`decided_by_decision_id` is None today.** In autonomous-CT
-    futures, an Agent would emit a Decision (e.g., "noise
+    futures, an Agent would emit a Decision (for example, "noise
     estimate above threshold; recommend bump exposure to 150ms")
     and the operator-or-agent action would `adjust_run` with
     that Decision id wired into `decided_by_decision_id`. This

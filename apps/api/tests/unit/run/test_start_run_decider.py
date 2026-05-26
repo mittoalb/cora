@@ -879,7 +879,7 @@ def _trigger_wire(src_id: UUID, tgt_id: UUID) -> Wire:
 @pytest.mark.unit
 def test_decide_rejects_when_plan_wire_references_unbound_asset_at_run_start() -> None:
     """Hot-swap drift: the wire's target Asset was UNBOUND from Plan.asset_ids
-    after the wire was added (e.g., operator re-defined the Plan with a
+    after the wire was added (for example, operator re-defined the Plan with a
     different asset set, or a future re-bind slice removed it). The Wire
     survives in Plan.wires; Run-start re-validation catches the orphan."""
     cap = uuid4()

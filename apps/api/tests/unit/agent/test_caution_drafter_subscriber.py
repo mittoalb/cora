@@ -733,7 +733,7 @@ def test_proposed_target_in_candidates_returns_true_for_valid_uuid_in_set() -> N
 def test_coerce_proposed_caution_raises_on_non_dict() -> None:
     """Defensive: a Propose* choice whose proposed_caution is somehow not
     a dict (schema violation that the membership check upstream didn't
-    catch — e.g., LLM returned a list) must raise rather than silently
+    catch — for example, LLM returned a list) must raise rather than silently
     coerce garbage into the Decision payload."""
     with pytest.raises(ValueError, match="must be a dict"):
         _coerce_proposed_caution(["not", "a", "dict"])

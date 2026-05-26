@@ -217,7 +217,7 @@ def make_profile_store() -> InMemoryProfileStore:
     `get_actor` slices plus the Agent BC `define_agent` slice take a
     `ProfileStore` via the `bind(deps, *, profile_store=...)`
     keyword. Tests construct a per-test in-memory store via this
-    helper and assert on it directly when they need to (e.g.
+    helper and assert on it directly when they need to (for example
     "register_actor upserts the display name into the vault").
     """
     return InMemoryProfileStore()

@@ -67,7 +67,7 @@ _FORBIDDEN_ATTR_CALLS: frozenset[tuple[str, str]] = frozenset(
     }
 )
 
-# Bare function names banned in deciders (e.g. `uuid4()` after
+# Bare function names banned in deciders (for example `uuid4()` after
 # `from uuid import uuid4`). Not exhaustive; catches the common shapes.
 _FORBIDDEN_BARE_CALLS: frozenset[str] = frozenset(
     {

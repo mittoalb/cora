@@ -42,7 +42,7 @@ A slice is considered covered for a given tier+suffix if EITHER:
 
 When neither matches, the slice may be listed in one of the
 EXEMPT_FROM_* allowlists below, with a comment citing the file that
-provides equivalent coverage (e.g., URL-only FSM-walk tests that
+provides equivalent coverage (for example, URL-only FSM-walk tests that
 don't mention slice names at all). New allowlist entries WITHOUT a
 citation should be rejected at review.
 

@@ -10,13 +10,14 @@ avoid nested-exception pitfalls.
 
 ## Error families
 
-  - 400 (validation): InvalidCalibrationDescription,
-    InvalidCalibrationQuantity, InvalidOperatingPoint,
-    InvalidCalibrationValue, InvalidCalibrationSource,
-    SupersedesRevisionNotFound
-  - 404 (load miss): CalibrationNotFound
-  - 409 (defensive guard for AlreadyExists): CalibrationAlreadyExists,
-    DuplicateCalibrationIdentity (raised when the projection's
+  - 400 (validation): InvalidCalibrationDescriptionError,
+    InvalidCalibrationQuantityError, InvalidOperatingPointError,
+    InvalidCalibrationValueError, InvalidCalibrationSourceError,
+    SupersedesRevisionNotFoundError
+  - 403 (authz): UnauthorizedError
+  - 404 (load miss): CalibrationNotFoundError
+  - 409 (defensive guard for AlreadyExists): CalibrationAlreadyExistsError,
+    CalibrationIdentityAlreadyExistsError (raised when the projection's
     jsonb-UNIQUE catches a duplicate-identity insert; the slice itself
     does NOT pre-check the projection per the design memo's deferred
     lookup-port watch item)
@@ -75,12 +76,12 @@ async def _handle_not_found(request: Request, exc: Exception) -> JSONResponse:
 async def _handle_already_exists(request: Request, exc: Exception) -> JSONResponse:
     """Defensive 409 handler.
 
-    Covers both the stream-genesis collision (CalibrationAlreadyExists,
+    Covers both the stream-genesis collision (CalibrationAlreadyExistsError,
     essentially impossible in production with UUIDv7 ids) and the
-    identity-tuple uniqueness collision (DuplicateCalibrationIdentity,
-    raised by the projection's jsonb-UNIQUE — the routes layer maps
+    identity-tuple uniqueness collision (CalibrationIdentityAlreadyExistsError,
+    raised by the projection's jsonb-UNIQUE). The routes layer maps
     both to 409 since both surface to the operator as "this
-    calibration already exists").
+    calibration already exists".
     """
     _ = request
     return JSONResponse(

@@ -65,7 +65,7 @@ def test_413_response_is_json_with_detail(monkeypatch: pytest.MonkeyPatch) -> No
 
 @pytest.mark.contract
 async def test_malformed_content_length_falls_through_to_inner_app() -> None:
-    """Content-Length that isn't an integer (e.g. `notanumber`) is
+    """Content-Length that isn't an integer (for example `notanumber`) is
     treated as length 0 and the request continues to the inner app —
     Starlette will then return 400 for the actual malformed-header
     condition. Hits the `int(raw_length)` ValueError fallback that

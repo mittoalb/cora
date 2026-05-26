@@ -32,7 +32,7 @@ _ASSET_ID = UUID("01900000-0000-7000-8000-00000000a55e")
 @pytest.mark.unit
 def test_evolve_subject_registered_sets_status_to_received() -> None:
     """SubjectRegistered is the genesis event; status defaults to
-    Received via the evolver. Pin so a future change (e.g., adding
+    Received via the evolver. Pin so a future change (for example, adding
     `initial_status` to the event payload) is a deliberate
     additive-state evolution."""
     subject_id = uuid4()
@@ -106,7 +106,7 @@ def test_evolve_subject_mounted_flips_status_to_mounted() -> None:
 def test_evolve_subject_mounted_preserves_id_and_name() -> None:
     """The evolver only updates `status`; id and name are carried over
     from prior state. Pinned so a future change that accidentally
-    drops the name (e.g., refactor that builds Subject from event
+    drops the name (for example, refactor that builds Subject from event
     fields only) is caught."""
     subject_id = uuid4()
     received = Subject(id=subject_id, name=SubjectName("Original"), status=SubjectStatus.RECEIVED)
@@ -324,7 +324,7 @@ def test_evolve_subject_discarded_flips_status_to_discarded() -> None:
 def test_evolve_terminal_events_preserve_id_and_name() -> None:
     """All three terminal events only update `status`; id and name
     carry over from prior state. Pinned so a future change that
-    accidentally drops the name (e.g., refactor that builds Subject
+    accidentally drops the name (for example, refactor that builds Subject
     from event fields only) is caught for all three."""
     subject_id = uuid4()
     removed = Subject(id=subject_id, name=SubjectName("Original"), status=SubjectStatus.REMOVED)

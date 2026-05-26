@@ -43,7 +43,7 @@ def test_introspection_only_config_is_valid() -> None:
 
 @pytest.mark.unit
 def test_both_paths_config_is_valid() -> None:
-    """A single IdP can opt into both JWT and introspection (e.g. fast
+    """A single IdP can opt into both JWT and introspection (for example fast
     JWT verify normally + introspection for revocation-sensitive callers)."""
     cfg = IdentityProviderConfig(
         issuer=TEST_ISSUER,

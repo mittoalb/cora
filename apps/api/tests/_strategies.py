@@ -17,7 +17,7 @@ Conventions adopted from the Hypothesis maintainers
     modules add their own; this kernel covers cross-BC primitives only.
 
 When this grows enough that per-BC strategy collections want their own
-home (e.g. `tests/_strategies/access.py` for `actor_kinds()` /
+home (for example `tests/_strategies/access.py` for `actor_kinds()` /
 `actors()`), promote this file to a package (`tests/_strategies/__init__.py`
 + per-BC submodules) and re-export the kernel from the package root.
 """

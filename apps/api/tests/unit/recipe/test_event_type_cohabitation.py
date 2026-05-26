@@ -14,7 +14,7 @@ that the three aggregate event-type namespaces stay distinct:
   - Recipe Method: `MethodDefined`
   - Operation Procedure: `ProcedureRegistered`
 
-A regression that re-flattens any of these (e.g. dropping the
+A regression that re-flattens any of these (for example dropping the
 `Recipe` prefix from the Capability event types) would silently
 route Recipe Capability events into Equipment Family's evolver
 and corrupt fold-on-read. This smoke test catches that by writing

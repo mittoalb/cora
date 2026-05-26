@@ -272,7 +272,7 @@ def test_decide_accepts_invalidation_override_kind() -> None:
     primitive; see [[project-dataset-demote-design]] + Decision state.py).
     Maps to PROV-O `wasInvalidatedBy` on the activity side. Used when a
     new Decision's authorized action UNDOES the effect of the parent
-    Decision (e.g., demote_dataset paired with a Decision that points
+    Decision (for example, demote_dataset paired with a Decision that points
     back at the prior promote-driving Decision)."""
     parent_id = uuid4()
     cmd = _good_command(parent_id=parent_id, override_kind="invalidation")

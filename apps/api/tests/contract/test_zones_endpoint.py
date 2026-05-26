@@ -2,7 +2,7 @@
 
 Mirror of `test_actors_endpoint.py` for the Trust BC's first slice.
 Verifies the HTTP surface: request schema, response schema, status
-codes, and that domain errors (e.g. whitespace-only name) translate
+codes, and that domain errors (for example whitespace-only name) translate
 to the right HTTP status via the BC exception handlers.
 """
 

@@ -23,12 +23,10 @@ source_roots = ["src"]
 
 # Foundation. Depends on nothing in the cora package.
 #
-# Phase-8d hardening retired the prior lazy `cora.trust` import
-# from `infrastructure/deps.py`. The Kernel data class now lives
-# in `cora.infrastructure.kernel` (zero BC imports) and the
-# authorize factory is injected into `build_kernel` via the
-# composition root (`cora.api.main` -> `cora.trust.build_authorize.
-# build_authorize`). Foundation is back to depending on nothing.
+# The Kernel data class lives in `cora.infrastructure.kernel` (zero
+# BC imports) and the authorize factory is injected into `build_kernel`
+# via the composition root (`cora.api.main` -> `cora.trust.build_authorize.
+# build_authorize`).
 [[modules]]
 path = "cora.infrastructure"
 depends_on = []
@@ -170,13 +168,13 @@ depends_on = [
 # Operation BC depends on its own aggregates plus Equipment aggregate
 # kernel for asset existence + lifecycle check at start_procedure time
 # (start_procedure context pre-loads the Asset before the pure decider).
-# Phase 10d adds `cora.recipe.aggregates` for `load_capability` +
-# `Capability` + `ExecutorShape` + `CapabilityNotFoundError`: the
-# register_procedure handler conditionally loads the bound Recipe
-# Capability when command.capability_id is supplied, and the decider
-# validates that ExecutorShape.PROCEDURE is in capability.executor_shapes.
-# Same cross-BC import direction Recipe→Operation as Capability template
-# →Procedure executor binding (lock per DLM-B / project_capability_aggregate_design).
+# `cora.recipe.aggregates` provides `load_capability` + `Capability` +
+# `ExecutorShape` + `CapabilityNotFoundError`: the register_procedure
+# handler conditionally loads the bound Recipe Capability when
+# `command.capability_id` is supplied, and the decider validates that
+# `ExecutorShape.PROCEDURE` is in `capability.executor_shapes`. Same
+# cross-BC import direction Recipe -> Operation as Capability template
+# -> Procedure executor binding (project_capability_aggregate_design).
 [[modules]]
 path = "cora.operation"
 depends_on = [
@@ -203,30 +201,29 @@ depends_on = ["cora.infrastructure", "cora.safety.aggregates"]
 path = "cora.caution"
 depends_on = ["cora.infrastructure", "cora.caution.aggregates"]
 
-# Calibration BC (Phase 12) owns the Calibration aggregate (empirical
+# Calibration BC owns the Calibration aggregate (empirical
 # instrument-value records keyed by `(subsystem_or_asset_id, quantity,
-# operating_point)` with append-only revision history). Day-1 lock:
-# source FK targets (Procedure / Dataset / Actor) are bare UUID
-# references on the write path (eventual-consistency stance per the
-# adjust_run / decided_by_decision_id precedent). The polymorphic
+# operating_point)` with append-only revision history). Source FK
+# targets (Procedure / Dataset / Actor) are bare UUID references on
+# the write path (eventual-consistency stance per the adjust_run /
+# decided_by_decision_id precedent). The polymorphic
 # `CalibrationSource` discriminated union is self-contained on the
 # aggregate; no cross-BC kernel imports needed here. Cross-BC
-# integration (Run.pinned_calibrations, Dataset.used_calibrations) lands
-# additively in 12b/12c on the consumer BCs, not here.
+# integration (Run.pinned_calibrations, Dataset.used_calibrations)
+# lives additively on the consumer BCs, not here.
 [[modules]]
 path = "cora.calibration"
 depends_on = ["cora.infrastructure", "cora.calibration.aggregates"]
 
 # Campaign BC owns the Campaign aggregate (operator-declared
 # coordinated container above Run; 5-state FSM
-# Planned -> Active <-> Held -> Closed | Abandoned). 6i-c added the
-# cross-aggregate membership slices (`add_run_to_campaign` /
-# `remove_run_from_campaign`) which load the Run aggregate at handler-
-# load time + emit `RunCampaignAssigned` / `RunCampaignUnassigned` to
-# the Run stream atomically with `CampaignRunAdded` /
-# `CampaignRunRemoved` on the Campaign stream via
-# `EventStore.append_streams`. Same shape as Safety's
-# `amend_clearance` from 11a-c-2.
+# Planned -> Active <-> Held -> Closed | Abandoned). The cross-
+# aggregate membership slices (`add_run_to_campaign` /
+# `remove_run_from_campaign`) load the Run aggregate at handler-load
+# time and emit `RunCampaignAssigned` / `RunCampaignUnassigned` to the
+# Run stream atomically with `CampaignRunAdded` / `CampaignRunRemoved`
+# on the Campaign stream via `EventStore.append_streams`. Same shape
+# as Safety's `amend_clearance`.
 [[modules]]
 path = "cora.campaign"
 depends_on = [
@@ -235,17 +232,16 @@ depends_on = [
     "cora.run.aggregates",
 ]
 
-# Agent BC (Phase 8f-a) owns the Agent aggregate (config-only AI-agent
-# identity record; 3-state FSM Defined -> Versioned -> Deprecated).
-# Depends on `cora.access.aggregates` because `define_agent` is CORA's
-# FIRST cross-BC `append_streams` consumer: it writes
+# Agent BC owns the Agent aggregate (config-only AI-agent identity
+# record; 3-state FSM Defined -> Versioned -> Deprecated). Depends on
+# `cora.access.aggregates` because `define_agent` writes
 # `ActorRegistered(kind="agent")` to the Access stream AND
 # `AgentDefined` to the Agent stream in ONE transaction (the
 # Agent.id == Actor.id identity-sharing invariant; same atomic-write
-# pattern as Campaign's `add_run_to_campaign` from 6i-c).
+# pattern as Campaign's `add_run_to_campaign`).
 #
-# Phase 8f-b iter 2b adds two cross-BC aggregate dependencies for
-# the FIRST side-effecting subscriber (`RunDebrieferSubscriber`):
+# Two further cross-BC aggregate dependencies serve the
+# `RunDebrieferSubscriber`:
 #   - `cora.run.aggregates` to subscribe to terminal Run events
 #     (RunCompleted / RunAborted / RunStopped / RunTruncated) and
 #     fold the Run aggregate via `load_run`.
@@ -262,15 +258,16 @@ depends_on = [
     "cora.access.aggregates",
     "cora.run.aggregates",
     "cora.decision.aggregates",
-    # Phase 8f-c iter 3: CautionDrafter agent.
-    # - `cora.recipe.aggregates` for `load_plan` (subscriber reads
-    #   Plan for asset_ids).
-    # - `cora.caution.aggregates` for VOs in the CautionDrafter prompt
-    #   schema + the `promote_caution_proposal` handler's cross-BC
-    #   write (constructs `CautionRegistered` / `CautionSuperseded`
-    #   events directly via `EventStore.append_streams`, mirroring
-    #   `define_agent`'s cross-BC write of `ActorRegistered`). No
-    #   sibling-features import: rule 2 stays inviolate.
+    # CautionDrafter subscriber:
+    #   - `cora.recipe.aggregates` for `load_plan` (subscriber reads
+    #     Plan for asset_ids).
+    #   - `cora.caution.aggregates` for VOs in the CautionDrafter
+    #     prompt schema + the `promote_caution_proposal` handler's
+    #     cross-BC write (constructs `CautionRegistered` /
+    #     `CautionSuperseded` events directly via
+    #     `EventStore.append_streams`, mirroring `define_agent`'s
+    #     cross-BC write of `ActorRegistered`). No sibling-features
+    #     import: rule 2 stays inviolate.
     "cora.recipe.aggregates",
     "cora.caution.aggregates",
 ]

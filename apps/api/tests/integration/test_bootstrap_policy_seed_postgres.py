@@ -289,7 +289,7 @@ async def test_concurrent_writes_against_bootstrap_stream_fail_loud(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Adversarial: if any non-migration code tried to append to the
-    bootstrap policy's stream (e.g. an operator running define_policy
+    bootstrap policy's stream (for example an operator running define_policy
     with `_POLICY_ID = SYSTEM_BOOTSTRAP_POLICY_ID` by accident), the
     `expected_version=0` optimistic concurrency check should reject
     it because version 1 is already there. This protects the seed

@@ -20,7 +20,7 @@ pattern (parallel to every other ``get_*`` route). No violation; the
 post-audit allowlist drops the D4 entry.
 
 For command slices, ``GRANDFATHERED_COMMAND_ROUTES`` is the explicit
-work-tracker for documented inline raises (e.g. the
+work-tracker for documented inline raises (for example the
 capability-dependent-handler 503 pattern when an external dependency
 isn't wired).
 """

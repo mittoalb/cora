@@ -1,6 +1,6 @@
 """Contract test for the 4xx error-replay path.
 
-When a handler raises a cacheable 4xx domain error (e.g.,
+When a handler raises a cacheable 4xx domain error (for example,
 `InvalidActorNameError` from a whitespace-only name), the decorator
 caches the error via `finalize_error()`. A subsequent retry with
 the SAME idempotency key + body must:
@@ -20,7 +20,7 @@ CachedHandlerError` path, but until this contract test landed,
 nothing exercised the global handler's classifier-driven status
 reconstruction. A refactor renaming an exception class or moving
 the classifier convention would silently change the cached-replay
-status code (e.g., 400 first response, 500 second response) and
+status code (for example, 400 first response, 500 second response) and
 no test would catch it.
 """
 

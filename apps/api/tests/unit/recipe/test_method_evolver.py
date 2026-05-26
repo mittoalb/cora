@@ -31,7 +31,7 @@ _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 @pytest.mark.unit
 def test_evolve_method_defined_sets_status_to_defined() -> None:
     """MethodDefined is the genesis event; status defaults to Defined
-    via the evolver. Pin so a future change (e.g. adding
+    via the evolver. Pin so a future change (for example adding
     `initial_status` to the event payload) is a deliberate
     additive-state evolution."""
     method_id = uuid4()

@@ -4,7 +4,7 @@ VerifiedPrincipal is what TokenVerifier.verify() returns on success;
 it's the payload BearerAuthMiddleware stashes on request.state. The
 properties pin its dataclass semantics — equality, hash, immutability
 of the frozenset scopes — against accidental regression if the shape
-ever shifts (e.g. someone makes scopes a list and breaks dedup).
+ever shifts (for example someone makes scopes a list and breaks dedup).
 """
 
 from uuid import UUID

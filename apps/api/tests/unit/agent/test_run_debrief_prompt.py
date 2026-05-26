@@ -206,7 +206,7 @@ def test_build_request_uses_default_model_when_not_overridden() -> None:
 
 @pytest.mark.unit
 def test_build_request_accepts_model_override() -> None:
-    """Operators / tests can override the model (e.g. to opus for
+    """Operators / tests can override the model (for example to opus for
     higher-stakes decisions)."""
     override = ModelRef(provider="anthropic", model="claude-opus-4-7")
     request = build_run_debrief_chat_request(_payload(), model_ref=override)

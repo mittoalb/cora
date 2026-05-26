@@ -242,7 +242,7 @@ def _sharpness_check(
 ) -> ProcedureStepInput:
     """Build a Check step for an image-analysis sharpness metric.
 
-    `target` records which resolution target was mounted (e.g.,
+    `target` records which resolution target was mounted (for example,
     "siemens_star", "usaf_1951"); `direction` records whether the
     measurement was better / worse / bracketing relative to the prior
     iteration; `evidence` carries free-form structured context (such

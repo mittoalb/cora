@@ -115,7 +115,7 @@ def test_identity_providers_env_var_loads_multiple_idps(
 def test_identity_providers_env_var_validation_fails_fast(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A malformed entry (e.g. neither jwks_url nor introspection_url)
+    """A malformed entry (for example neither jwks_url nor introspection_url)
     raises ValidationError at `Settings()` construction — not at first
     auth attempt. Operators see the failure at boot."""
     payload = json.dumps(

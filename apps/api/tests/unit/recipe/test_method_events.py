@@ -85,7 +85,7 @@ def test_to_payload_serializes_method_defined_to_primitives() -> None:
 
 @pytest.mark.unit
 def test_to_payload_handles_empty_needed_families() -> None:
-    """Procedural Methods (e.g., 'Sample Cleaning') need no specific
+    """Procedural Methods (for example, 'Sample Cleaning') need no specific
     Family; payload's needed_families is `[]`. Pinned because
     a future change that omits the field on empty would break the
     fold-on-read contract."""

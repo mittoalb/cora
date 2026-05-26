@@ -195,7 +195,7 @@ def test_metadata_last_wins_when_two_idps_declare_same_surface() -> None:
     """Gate-review test#3: pin the multi-IdP-same-Surface contract.
     Today the handler iterates identity_providers and overwrites,
     so the LAST IdP's audience for a given Surface survives. This
-    test locks the current behavior so a future change to e.g.
+    test locks the current behavior so a future change to for example
     raise-on-collision is explicit and intentional."""
     settings = Settings(  # type: ignore[call-arg]
         app_env="test",

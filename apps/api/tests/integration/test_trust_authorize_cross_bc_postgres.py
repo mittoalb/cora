@@ -300,7 +300,7 @@ async def test_documented_bootstrap_workflow_produces_working_authz(
     This test walks through every step against real Postgres to prove
     the documented escape hatch from the chicken-and-egg actually
     works. Without this the docstring would be unverified guidance —
-    a future change that broke it (e.g. removing AllowAllAuthorize
+    a future change that broke it (for example removing AllowAllAuthorize
     as the default, or changing how Settings selects the adapter)
     would only surface in production.
     """

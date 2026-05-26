@@ -11,7 +11,7 @@ ports/__init__.py → authorize → routing → observability → Settings).
 The local mirror IS load-bearing (the alternative — direct import —
 triggers the cycle, verified empirically at gate review).
 But mirrors drift. This fitness pins the value-set equality so a
-PR that widens PrincipalKind (adds e.g. "automation") without also
+PR that widens PrincipalKind (adds for example "automation") without also
 widening _PrincipalKindLiteral fails CI at PR time, not at runtime
 when a token from a new kind hits config-validation.
 

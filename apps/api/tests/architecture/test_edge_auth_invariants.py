@@ -12,7 +12,7 @@ graph + AST can prove WITHOUT running the test suite:
   2. Every concrete `TokenVerifier` implementor in
      `cora.infrastructure.auth` has the `verify` method whose
      signature matches the Protocol. Protocols are structural in
-     Python; a typo in a future adapter's kwarg name (e.g.
+     Python; a typo in a future adapter's kwarg name (for example
      `expected_aud` instead of `expected_audience`) would NOT be
      caught at static-analysis time without this pin.
 
@@ -133,7 +133,7 @@ def test_every_concrete_token_verifier_matches_protocol_signature() -> None:
     an async `verify` method MUST match the `TokenVerifier` Protocol
     signature exactly: `(self, token: str, *, expected_audience: UUID)
     -> VerifiedPrincipal`. Protocols are structural -- a typo in a
-    future adapter's kwarg name (e.g. `expected_aud`) would still
+    future adapter's kwarg name (for example `expected_aud`) would still
     pass pyright but break at runtime when the middleware passes
     `expected_audience=...`.
     """
@@ -292,7 +292,7 @@ can land here without changing the test shape."""
 def test_bearer_middleware_skip_paths_match_canonical_set() -> None:
     """The middleware's `_UNAUTHENTICATED_PATHS` + `_is_unauthenticated_path`
     function MUST cover the exact set of paths the contract tier asserts
-    as unauthenticated. A drift between the two sites (e.g. adding a new
+    as unauthenticated. A drift between the two sites (for example adding a new
     `/readiness` skip in the middleware but not exercising it in tests,
     or vice versa) is exactly the gap this fitness catches.
 

@@ -87,7 +87,7 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
 
     Note: per CONTRIBUTING.md the routing key for cross-BC subscribers
     is `(stream_type, event_type)` rather than event_type alone, so
-    name collisions across BCs (e.g. a hypothetical "Defined" emitted
+    name collisions across BCs (for example a hypothetical "Defined" emitted
     by another aggregate) won't actually reach this evolver — but the
     loud-failure here is the per-stream safety net regardless.
     """

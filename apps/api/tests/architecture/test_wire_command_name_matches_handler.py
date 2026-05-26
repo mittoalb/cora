@@ -15,7 +15,7 @@ the type-checker nor the test suite would otherwise catch it: the
 two ends are decoupled string literals.
 
 Scope: only slices that declare `_COMMAND_NAME` are checked. Queries
-(`get_*` / `list_*`) and factory-built update handlers (e.g.
+(`get_*` / `list_*`) and factory-built update handlers (for example
 `make_clearance_update_handler`) do not declare the constant and are
 out of scope here; their wire labels are checked by
 `test_wire_completeness` for presence.
@@ -84,7 +84,7 @@ def _wire_command_name_for_slice(wire_src: str, slice_name: str) -> str | None:
     disagree the walker returns None and the test asserts on the
     mismatch via the "could not locate" branch. The whole-body walk
     (not just Handlers(...) keywords) admits conditional wirings
-    built into a local variable, e.g. `re_debrief_run_handler` on
+    built into a local variable, for example `re_debrief_run_handler` on
     the LLM-optional path.
     """
     tree = ast.parse(wire_src)

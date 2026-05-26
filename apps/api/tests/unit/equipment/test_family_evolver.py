@@ -28,7 +28,7 @@ _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 @pytest.mark.unit
 def test_evolve_capability_defined_sets_status_to_defined() -> None:
     """FamilyDefined is the genesis event; status defaults to
-    Defined via the evolver. Pin so a future change (e.g. adding
+    Defined via the evolver. Pin so a future change (for example adding
     `initial_status` to the event payload) is a deliberate
     additive-state evolution."""
     family_id = uuid4()

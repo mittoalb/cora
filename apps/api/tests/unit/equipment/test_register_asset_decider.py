@@ -114,7 +114,7 @@ def test_decide_rejects_existing_state() -> None:
 def test_decide_rejects_enterprise_with_non_null_parent() -> None:
     """Enterprise is the root level — supplying a parent violates the
     single-parent-tree contract. Pin so a future relaxation that
-    treats Enterprise as just-another-level (e.g., for federated
+    treats Enterprise as just-another-level (for example, for federated
     multi-Enterprise setups) is a deliberate change."""
     parent_id = uuid4()
     with pytest.raises(InvalidAssetParentError) as exc_info:

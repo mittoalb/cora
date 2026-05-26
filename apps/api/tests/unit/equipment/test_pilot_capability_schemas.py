@@ -273,7 +273,7 @@ def test_scintillator_unknown_key_rejected() -> None:
 #
 # Most likely real-world bug class as the pilot schema corpus grows: a
 # pilot author copies a `unit` annotation block and typos the `system`
-# namespace (e.g., `"udunit"` instead of `"udunits"`). The schema-declarer
+# namespace (for example, `"udunit"` instead of `"udunits"`). The schema-declarer
 # validator catches this at acceptance time, BEFORE any Asset.settings
 # value lands. Pin it with a pilot-shape schema so the regression is
 # caught at the tier closest to where pilot authors edit.

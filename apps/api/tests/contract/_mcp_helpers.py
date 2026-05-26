@@ -45,7 +45,7 @@ def open_session(
 ) -> dict[str, str]:
     """Run initialize + notifications/initialized; return headers with session id.
 
-    `extra_headers` (e.g. `{"Authorization": "Bearer ..."}`) ride on
+    `extra_headers` (for example `{"Authorization": "Bearer ..."}`) ride on
     every request in the handshake AND are included in the returned
     headers so the caller's subsequent `tools/call` requests reuse
     them. Required under bearer-auth posture because even the

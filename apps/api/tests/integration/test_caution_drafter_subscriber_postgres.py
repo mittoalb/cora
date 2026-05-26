@@ -561,7 +561,7 @@ async def test_supersede_raises_concurrency_error_when_parent_mutated_mid_promot
     # The parent.status guard will fire first (Superseded != Active),
     # raising CautionCannotSupersedeError instead of ConcurrencyError.
     # To genuinely test the version-token guard, the parent would need
-    # to be mutated WITHOUT changing status (e.g. an additional non-
+    # to be mutated WITHOUT changing status (for example an additional non-
     # status-flipping event) — Caution BC has none such today, so we
     # cover the source-state guard path here and rely on the version-
     # token unit-test pin for the concurrency-token semantic. The

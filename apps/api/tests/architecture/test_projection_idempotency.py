@@ -10,7 +10,7 @@ heuristically: each `apply()` source must contain either:
     pattern that handles re-application as a no-op), OR
   - An explicit `# idempotent: <reason>` comment line declaring the
     projection author's reasoning (use when the operation is
-    naturally idempotent, e.g. UPDATE-to-the-same-value).
+    naturally idempotent, for example UPDATE-to-the-same-value).
 
 Heuristic, not a proof. The whole point of this test is to make
 the contract impossible to forget; reviewers still need to verify
@@ -78,5 +78,5 @@ def test_every_apply_carries_idempotency_marker() -> None:
         "framework delivers at-least-once. Add either:\n"
         "  - An `ON CONFLICT (key) DO NOTHING/UPDATE` to your INSERT, OR\n"
         "  - A `# idempotent: <reason>` comment explaining why the "
-        "operation is naturally idempotent (e.g. UPDATE-to-same-value)."
+        "operation is naturally idempotent (for example UPDATE-to-same-value)."
     )

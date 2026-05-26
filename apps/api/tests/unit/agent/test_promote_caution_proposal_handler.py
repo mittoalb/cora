@@ -464,7 +464,7 @@ async def test_handler_denied_does_not_write_caution() -> None:
 @pytest.mark.unit
 async def test_handler_rejects_decision_from_unregistered_actor() -> None:
     """The Decision exists but the actor_id is not a registered Agent at all
-    (e.g. a human operator hand-wrote a fake CautionProposal envelope)."""
+    (for example a human operator hand-wrote a fake CautionProposal envelope)."""
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     decision_id = uuid4()
@@ -494,7 +494,7 @@ async def test_handler_rejects_decision_from_unregistered_actor() -> None:
 @pytest.mark.unit
 async def test_handler_rejects_decision_from_wrong_agent_kind() -> None:
     """The Decision actor is a registered Agent, but kind != 'CautionDrafter'
-    (e.g. a forged DecisionRegistered claiming context=CautionProposal
+    (for example a forged DecisionRegistered claiming context=CautionProposal
     but actor_id pointing at the RunDebriefer agent)."""
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)

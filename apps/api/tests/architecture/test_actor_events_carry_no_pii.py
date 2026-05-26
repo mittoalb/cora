@@ -95,7 +95,7 @@ def test_actor_events_file_is_present() -> None:
 @pytest.mark.architecture
 def test_pii_deny_list_actually_finds_violations_when_seeded() -> None:
     """Meta-test: confirm the AST walker would flag a seeded
-    violation. Guards against the silent-pass failure mode (e.g.
+    violation. Guards against the silent-pass failure mode (for example
     a future refactor moves the event classes to a sub-module and
     the walker quietly stops seeing them). Builds an ephemeral
     in-memory ast.Module mimicking the events file with a single
