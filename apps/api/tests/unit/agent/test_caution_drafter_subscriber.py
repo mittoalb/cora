@@ -864,3 +864,112 @@ async def test_apply_signs_decision_when_signer_configured() -> None:
         kid=stored.signature_kid,
         resolve_public_key=_resolver,
     )
+
+
+# ---------- Signer fail-closed (outage propagation) ----------
+
+
+class _RaisingSigner:
+    """`Signer` adapter that raises the configured exception on `sign()`.
+    Sibling of the same helper in `test_run_debriefer_subscriber.py`;
+    kept local because the two subscriber test modules already
+    duplicate their seed scaffolding and the helper is only three
+    lines."""
+
+    def __init__(self, exc: Exception) -> None:
+        self._exc = exc
+
+    async def sign(
+        self,
+        *,
+        event_type: str,
+        payload: Any,
+        actor_id: UUID,
+    ) -> tuple[bytes, str]:
+        _ = (event_type, payload, actor_id)
+        raise self._exc
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        pytest.param("unavailable", id="SignerUnavailableError"),
+        pytest.param("inactive_key", id="SignerKeyInactiveError"),
+        pytest.param("missing_key", id="SignerKeyNotFoundError"),
+    ],
+)
+@pytest.mark.unit
+async def test_apply_fails_closed_when_signer_raises_and_writes_no_decision(
+    failure: str,
+) -> None:
+    """Symmetric to the RunDebriefer fail-closed test: when the Signer
+    raises any documented error, the CautionDrafter subscriber MUST
+    propagate it and MUST NOT persist an unsigned `DecisionRegistered`.
+    Both agent subscribers share the `_maybe_sign` shape and the
+    same fail-closed invariant from the Candidate F design lock."""
+    from cora.infrastructure.ports.signer import (
+        SignerKeyInactiveError,
+        SignerKeyNotFoundError,
+        SignerUnavailableError,
+    )
+
+    store = InMemoryEventStore()
+    llm = FakeLLM(responses=[_CANNED_NO_ACTION])
+    await _seed_caution_drafter_actor(store)
+    await _seed_plan(store)
+    run_id = uuid4()
+    await _seed_run(store, run_id)
+
+    exc: Exception
+    if failure == "unavailable":
+        exc = SignerUnavailableError("sigstore-fulcio", detail="connection refused")
+    elif failure == "inactive_key":
+        exc = SignerKeyInactiveError("kid-caution-drafter-old")
+    else:
+        exc = SignerKeyNotFoundError(CAUTION_DRAFTER_AGENT_ID)
+
+    subscriber = CautionDrafterSubscriber(
+        event_store=store,
+        llm=llm,
+        caution_lookup=AlwaysQuietCautionLookup(),
+        signer=_RaisingSigner(exc),
+    )
+    event = _terminal_event(event_type="RunCompleted", run_id=run_id)
+
+    with pytest.raises(type(exc)):
+        await subscriber.apply(event, conn=None)
+
+    decision_id = _derive_decision_id(event.event_id)
+    events, version = await store.load("Decision", decision_id)
+    assert version == 0
+    assert events == []
+
+
+@pytest.mark.unit
+async def test_apply_does_not_swallow_unexpected_signer_exception() -> None:
+    """A non-Signer-tier exception (a bug inside the adapter, or a
+    transport error not yet wrapped in `SignerUnavailableError`) MUST
+    propagate, locking the absence of a bare `except Exception` around
+    the signing call."""
+    store = InMemoryEventStore()
+    llm = FakeLLM(responses=[_CANNED_NO_ACTION])
+    await _seed_caution_drafter_actor(store)
+    await _seed_plan(store)
+    run_id = uuid4()
+    await _seed_run(store, run_id)
+
+    subscriber = CautionDrafterSubscriber(
+        event_store=store,
+        llm=llm,
+        caution_lookup=AlwaysQuietCautionLookup(),
+        signer=_RaisingSigner(RuntimeError("unexpected adapter bug")),
+    )
+    event = _terminal_event(event_type="RunCompleted", run_id=run_id)
+
+    with pytest.raises(RuntimeError, match="unexpected adapter bug"):
+        await subscriber.apply(event, conn=None)
+
+    decision_id = _derive_decision_id(event.event_id)
+    events, version = await store.load("Decision", decision_id)
+    assert version == 0
+    assert events == []

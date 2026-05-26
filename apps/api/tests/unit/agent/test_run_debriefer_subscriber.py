@@ -913,3 +913,114 @@ async def test_apply_signs_decision_when_signer_configured() -> None:
         kid=stored.signature_kid,
         resolve_public_key=_resolver,
     )
+
+
+# ---------- Signer fail-closed (outage propagation) ----------
+
+
+class _RaisingSigner:
+    """`Signer` adapter that raises the configured exception on `sign()`.
+    Exists so the subscriber-level fail-closed test can drive each of
+    the three adapter-tier failure modes without spinning up the real
+    Sigstore / KMS / local adapter."""
+
+    def __init__(self, exc: Exception) -> None:
+        self._exc = exc
+
+    async def sign(
+        self,
+        *,
+        event_type: str,
+        payload: Any,
+        actor_id: UUID,
+    ) -> tuple[bytes, str]:
+        _ = (event_type, payload, actor_id)
+        raise self._exc
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        pytest.param("unavailable", id="SignerUnavailableError"),
+        pytest.param("inactive_key", id="SignerKeyInactiveError"),
+        pytest.param("missing_key", id="SignerKeyNotFoundError"),
+    ],
+)
+@pytest.mark.unit
+async def test_apply_fails_closed_when_signer_raises_and_writes_no_decision(
+    failure: str,
+) -> None:
+    """When the Signer adapter raises any of its three documented errors,
+    the subscriber MUST propagate the failure and MUST NOT write an
+    unsigned `DecisionRegistered`. Fail-open here would silently
+    introduce unsigned agent-actor events into the stream and break
+    the Candidate F design-lock invariant
+    (every event whose actor is an Agent is signed).
+
+    The projection worker's retry / DLQ logic re-runs the
+    subscriber once the outage clears; the failure surface here is
+    the right place for that recovery to engage."""
+    from cora.infrastructure.ports.signer import (
+        SignerKeyInactiveError,
+        SignerKeyNotFoundError,
+        SignerUnavailableError,
+    )
+
+    store = InMemoryEventStore()
+    llm = FakeLLM(responses=[_CANNED_OK])
+    await _seed_run_debrief_actor(store)
+    run_id = uuid4()
+    await _seed_run(store, run_id)
+
+    exc: Exception
+    if failure == "unavailable":
+        exc = SignerUnavailableError("sigstore-fulcio", detail="connection refused")
+    elif failure == "inactive_key":
+        exc = SignerKeyInactiveError("kid-run-debriefer-old")
+    else:
+        exc = SignerKeyNotFoundError(RUN_DEBRIEFER_AGENT_ID)
+
+    subscriber = RunDebrieferSubscriber(
+        event_store=store,
+        llm=llm,
+        logbook_mirror=None,
+        signer=_RaisingSigner(exc),
+    )
+    event = _terminal_event(event_type="RunCompleted", run_id=run_id)
+
+    with pytest.raises(type(exc)):
+        await subscriber.apply(event, conn=None)
+
+    decision_id = _derive_decision_id(event.event_id)
+    events, version = await store.load("Decision", decision_id)
+    assert version == 0
+    assert events == []
+
+
+@pytest.mark.unit
+async def test_apply_does_not_swallow_unexpected_signer_exception() -> None:
+    """A non-Signer-tier exception (a bug inside the adapter, or a
+    transport-layer error not yet wrapped in `SignerUnavailableError`)
+    MUST also propagate. Locks the absence of a bare `except Exception`
+    around the signing call that would silently fall back to unsigned."""
+    store = InMemoryEventStore()
+    llm = FakeLLM(responses=[_CANNED_OK])
+    await _seed_run_debrief_actor(store)
+    run_id = uuid4()
+    await _seed_run(store, run_id)
+
+    subscriber = RunDebrieferSubscriber(
+        event_store=store,
+        llm=llm,
+        logbook_mirror=None,
+        signer=_RaisingSigner(RuntimeError("unexpected adapter bug")),
+    )
+    event = _terminal_event(event_type="RunCompleted", run_id=run_id)
+
+    with pytest.raises(RuntimeError, match="unexpected adapter bug"):
+        await subscriber.apply(event, conn=None)
+
+    decision_id = _derive_decision_id(event.event_id)
+    events, version = await store.load("Decision", decision_id)
+    assert version == 0
+    assert events == []
