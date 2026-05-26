@@ -141,7 +141,7 @@ def _bearer_principal_id(request: Request) -> UUID | None:
     here closes that footgun before it ships.
     """
     # Lazy import: matches the cycle-break pattern in
-    # bearer_middleware.py + auth/config.py.
+    # bearer_auth_middleware.py + auth/config.py.
     from cora.infrastructure.ports import VerifiedPrincipal
 
     principal = getattr(request.state, "principal", None)

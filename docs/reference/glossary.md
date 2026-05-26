@@ -62,7 +62,7 @@ Watch-only (not adopted as a glossary term, see [Deferred](../stack/deferred.md)
 - **Principal.** Authenticated identity attached to every command and event envelope. Required in production via `REQUIRE_AUTHENTICATED_PRINCIPAL=true`.
 - **Actor vs Profile.** `Actor` is the immutable identity in events; `Profile` is the mutable PII row, separately stored and erasable. GDPR-shaped. `Actor.kind ∈ {human, agent, service_account}`.
 - **`Authorize` port.** Single seam: `authorize(subject, command_name, conduit_id, surface_id) → AuthorizeDecision`. Exposed on the kernel as `Kernel.authz`. Every command and query passes through it.
-- **`TokenVerifier` port.** Edge-auth seam: `verify(token) → VerifiedPrincipal`. Two adapters today — `JWTVerifier` (JWKS, RFC 9068) and `IntrospectionVerifier` (RFC 7662). `IdentityProviderRegistry` routes by `iss` claim.
+- **`TokenVerifier` port.** Edge-auth seam: `verify(token) → VerifiedPrincipal`. Two adapters today — `JwtTokenVerifier` (JWKS, RFC 9068) and `IntrospectionTokenVerifier` (RFC 7662). `IdentityProviderRegistry` routes by `iss` claim.
 - **`BearerAuthMiddleware`.** ASGI middleware at the HTTP edge. Reads `Authorization: Bearer`, verifies via `Kernel.token_verifier`, stashes `VerifiedPrincipal` on `request.state.principal`.
 
 ## Equipment

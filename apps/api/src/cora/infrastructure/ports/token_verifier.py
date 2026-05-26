@@ -5,11 +5,11 @@ configured identity provider and resolves the calling principal.
 
 `TokenVerifier` is the hexagonal port; two adapters implement it:
 
-  - `JWTVerifier`     — local JWKS-based JWT verify (RFC 9068).
+  - `JwtTokenVerifier`     — local JWKS-based JWT verify (RFC 9068).
                         Industry IdPs that issue JWTs (Microsoft Entra,
                         Google, Auth0, Okta, AWS Cognito, Helmholtz
                         AAI, ORCID-via-OIDC) plug into this path.
-  - `IntrospectionVerifier` — RFC 7662 token introspection. Required
+  - `IntrospectionTokenVerifier` — RFC 7662 token introspection. Required
                         for Globus Auth (opaque-by-default) and any
                         future IdP that doesn't issue JWTs. Also the
                         revocation-strong path for cases where a
@@ -29,8 +29,8 @@ middleware does NOT make the adapter choice per request — it always
 asks the registry, which routes by either:
 
   - JWT shape detection (3 dot-separated base64 chunks) + unverified
-    `iss` claim peek → matching `JWTVerifier`.
-  - Otherwise → the deployment's configured `IntrospectionVerifier`.
+    `iss` claim peek → matching `JwtTokenVerifier`.
+  - Otherwise → the deployment's configured `IntrospectionTokenVerifier`.
 
 ## Why a port, not a function
 
@@ -167,7 +167,7 @@ class IntrospectionUnavailableError(Exception):
     distinguish "your token is bad" from "our upstream is down" in
     logs + dashboards.
 
-    Only the `IntrospectionVerifier` adapter raises this; the JWT
+    Only the `IntrospectionTokenVerifier` adapter raises this; the JWT
     path is fully local once the JWKS is cached.
     """
 
@@ -183,7 +183,7 @@ class IntrospectionUnavailableError(Exception):
 class TokenVerifier(Protocol):
     """Verify an `Authorization: Bearer <token>` value against a configured IdP.
 
-    Implementations: `JWTVerifier` (PyJWT + PyJWKClient), `IntrospectionVerifier`
+    Implementations: `JwtTokenVerifier` (PyJWT + PyJWKClient), `IntrospectionTokenVerifier`
     (httpx + LRU cache), `TestTokenVerifier` (programmable, test-only).
 
     Per Decision 4 of the design lock: `expected_audience` is the

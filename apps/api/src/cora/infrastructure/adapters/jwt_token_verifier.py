@@ -1,4 +1,4 @@
-"""`JWTVerifier` — local JWKS-based JWT verification.
+"""`JwtTokenVerifier` — local JWKS-based JWT verification.
 
 Implements `cora.infrastructure.ports.TokenVerifier` for IdPs that
 issue self-describing JWT access tokens — the industry default:
@@ -74,11 +74,11 @@ _NIL_SENTINEL_ID = UUID(int=0)
 _VALID_KINDS: frozenset[str] = frozenset(get_args(PrincipalKind))
 
 
-class JWTVerifier:
+class JwtTokenVerifier:
     """RFC 9068 JWT access-token verifier for a single IdP.
 
     One instance per registered issuer. The `IdentityProviderRegistry`
-    holds the dict of `iss → JWTVerifier` and routes by token's `iss`
+    holds the dict of `iss → JwtTokenVerifier` and routes by token's `iss`
     claim.
     """
 
@@ -121,18 +121,21 @@ class JWTVerifier:
         """
         if not algorithms_allowed:
             msg = (
-                f"JWTVerifier for issuer={issuer!r} requires a non-empty "
+                f"JwtTokenVerifier for issuer={issuer!r} requires a non-empty "
                 "algorithms_allowed whitelist (no alg=none). "
                 "Explicit > implicit."
             )
             raise ValueError(msg)
         # Strip + lowercase so " None ", "NONE", "noNe" are all caught.
         if "none" in (a.strip().lower() for a in algorithms_allowed):
-            msg = f"JWTVerifier for issuer={issuer!r}: algorithms_allowed must not include 'none'."
+            msg = (
+                f"JwtTokenVerifier for issuer={issuer!r}: "
+                "algorithms_allowed must not include 'none'."
+            )
             raise ValueError(msg)
         if not jwks_url.startswith("https://") and not allow_insecure_jwks_url:
             msg = (
-                f"JWTVerifier for issuer={issuer!r}: jwks_url must be HTTPS "
+                f"JwtTokenVerifier for issuer={issuer!r}: jwks_url must be HTTPS "
                 f"(got scheme={jwks_url.split(':')[0]!r}). Pass "
                 "allow_insecure_jwks_url=True only for test/dev fixtures "
                 "(gate-review F2: HTTP JWKS is MITM-exploitable)."
@@ -257,4 +260,4 @@ async def safe_map_subject(
     return principal_id, kind
 
 
-__all__ = ["JWTVerifier"]
+__all__ = ["JwtTokenVerifier"]

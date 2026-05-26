@@ -37,7 +37,7 @@ dependencies = [
     # before it lands silently.
     "anthropic>=0.103.1,<1",
     # PyJWT (Phase C Iter A): the one library dependency for the edge-auth
-    # JWT path — used by `JWTVerifier` for `Authorization: Bearer <JWT>`
+    # JWT path — used by `JwtTokenVerifier` for `Authorization: Bearer <JWT>`
     # signature verification + JWKS rotation. `[crypto]` extra pulls in
     # `cryptography` for RS256/ES256 (every real-world IdP uses one of
     # these). Per the Phase C design lock library-vs-DIY decision: PyJWT

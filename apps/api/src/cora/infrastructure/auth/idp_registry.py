@@ -8,9 +8,9 @@ registry routes to the right adapter by:
      separated by `.` it's a JWT; otherwise it's opaque.
   2. **For JWTs**: peek the unverified header's `iss` claim (no
      signature check — that happens inside the verifier) and route
-     to the matching `JWTVerifier`.
+     to the matching `JwtTokenVerifier`.
   3. **For opaque tokens**: route to the deployment's configured
-     `IntrospectionVerifier`. Exactly one per registry today; if
+     `IntrospectionTokenVerifier`. Exactly one per registry today; if
      deployments ever need multiple opaque-token IdPs, the registry
      grows a discriminator (probably the token prefix per the
      pattern GitHub `ghp_`/`gho_`/`ghs_` uses).
@@ -21,7 +21,7 @@ Reading `iss` before signature verification looks scary. It's safe
 because the verifier we route to STILL checks `iss == self._issuer`
 strictly — peeking is just routing, not trust. An attacker forging
 an `iss` claim still has to forge a signature the chosen
-`JWTVerifier`'s JWKS won't accept. This is the standard pattern
+`JwtTokenVerifier`'s JWKS won't accept. This is the standard pattern
 (`PyJWT.get_unverified_header` / `decode_complete` with
 `verify_signature=False` for routing only).
 
@@ -48,8 +48,8 @@ from uuid import UUID
 
 import jwt
 
-from cora.infrastructure.auth.introspection_verifier import IntrospectionVerifier
-from cora.infrastructure.auth.jwt_verifier import JWTVerifier
+from cora.infrastructure.adapters.introspection_token_verifier import IntrospectionTokenVerifier
+from cora.infrastructure.adapters.jwt_token_verifier import JwtTokenVerifier
 from cora.infrastructure.ports.token_verifier import (
     InvalidTokenError,
     VerifiedPrincipal,
@@ -87,20 +87,20 @@ class IdentityProviderRegistry:
 
     def __init__(
         self,
-        jwt_verifiers: list[JWTVerifier],
-        introspection_verifier: IntrospectionVerifier | None = None,
+        jwt_verifiers: list[JwtTokenVerifier],
+        introspection_token_verifier: IntrospectionTokenVerifier | None = None,
     ) -> None:
         """Construct the registry from explicit verifier instances.
 
         `jwt_verifiers` — one per JWT-issuing IdP. May be empty (for example,
         deployment that only uses Globus opaque tokens).
-        `introspection_verifier` — at most one per deployment. None
+        `introspection_token_verifier` — at most one per deployment. None
         is valid (deployment serves only JWT-issuing IdPs).
 
         At least one verifier (JWT or introspection) MUST be present;
         the registry refuses an empty configuration.
         """
-        if not jwt_verifiers and introspection_verifier is None:
+        if not jwt_verifiers and introspection_token_verifier is None:
             msg = (
                 "IdentityProviderRegistry must be constructed with at least "
                 "one verifier (JWT or introspection). An empty registry can "
@@ -109,17 +109,17 @@ class IdentityProviderRegistry:
             )
             raise ValueError(msg)
 
-        by_issuer: dict[str, JWTVerifier] = {}
+        by_issuer: dict[str, JwtTokenVerifier] = {}
         for v in jwt_verifiers:
             if v.issuer in by_issuer:
                 msg = (
-                    f"Duplicate JWTVerifier registered for issuer={v.issuer!r}. "
+                    f"Duplicate JwtTokenVerifier registered for issuer={v.issuer!r}. "
                     "Each issuer maps to exactly one verifier."
                 )
                 raise ValueError(msg)
             by_issuer[v.issuer] = v
         self._jwt_by_issuer = by_issuer
-        self._introspection = introspection_verifier
+        self._introspection = introspection_token_verifier
 
     async def verify(
         self,
@@ -148,7 +148,7 @@ class IdentityProviderRegistry:
     def _choose_verifier(self, token: str) -> _RegistryEntry:
         if _looks_like_jwt(token):
             # Peek `iss` from the JWT payload (signature unverified —
-            # the chosen JWTVerifier still strict-checks `iss` against
+            # the chosen JwtTokenVerifier still strict-checks `iss` against
             # its own configuration, so peeking only routes; trust is
             # not taken from this decode).
             try:
@@ -165,14 +165,14 @@ class IdentityProviderRegistry:
             if verifier is None:
                 raise InvalidTokenError(
                     "wrong_issuer",
-                    f"no JWTVerifier registered for iss={iss!r}",
+                    f"no JwtTokenVerifier registered for iss={iss!r}",
                 )
             return verifier
         # Opaque token branch.
         if self._introspection is None:
             raise InvalidTokenError(
                 "malformed",
-                "opaque token but no IntrospectionVerifier registered",
+                "opaque token but no IntrospectionTokenVerifier registered",
             )
         return self._introspection
 
@@ -181,7 +181,7 @@ def _looks_like_jwt(token: str) -> bool:
     """Cheap shape check: a JWT is three `.`-separated base64url chunks.
 
     NOT a security check — opaque tokens that happen to contain two
-    dots would false-positive. The selected `JWTVerifier` then fails
+    dots would false-positive. The selected `JwtTokenVerifier` then fails
     fast on `bad_signature`/`malformed`. The shape probe just avoids
     a pointless introspection call on every clearly-JWT-shaped
     token.

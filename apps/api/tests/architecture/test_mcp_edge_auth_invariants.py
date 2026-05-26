@@ -212,7 +212,7 @@ def test_bearer_middleware_covers_mcp_paths() -> None:
     `SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID`, NOT the HTTP Surface
     (no shared `aud` across Surfaces).
     """
-    from cora.infrastructure.auth.bearer_middleware import (
+    from cora.infrastructure.auth.bearer_auth_middleware import (
         _is_unauthenticated_path,
         _resolve_expected_audience,
     )

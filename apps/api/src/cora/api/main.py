@@ -101,7 +101,7 @@ from cora.equipment import (
     register_equipment_tools,
     wire_equipment,
 )
-from cora.infrastructure.auth.bearer_middleware import BearerAuthMiddleware
+from cora.infrastructure.auth.bearer_auth_middleware import BearerAuthMiddleware
 from cora.infrastructure.auth.exception_handlers import register_auth_exception_handlers
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import build_kernel
@@ -237,7 +237,7 @@ def _enforce_production_principal_policy(settings: Settings) -> None:
     # exist for localhost test fixtures. Under prod posture an operator
     # (or an attacker with env-var-write access) could flip one IdP to
     # plaintext HTTP, silently bypassing the per-adapter HTTPS gate.
-    # The per-adapter check in `JWTVerifier` / `IntrospectionVerifier`
+    # The per-adapter check in `JwtTokenVerifier` / `IntrospectionTokenVerifier`
     # CAN'T see `app_env`; this Settings-level check refuses boot when
     # any IdP entry opts in to insecure URLs under prod.
     if settings.app_env in _PROD_APP_ENVS:

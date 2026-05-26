@@ -53,8 +53,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from jwt.algorithms import RSAAlgorithm
 from pytest_httpserver import HTTPServer
 
-from cora.infrastructure.auth.introspection_verifier import IntrospectionVerifier
-from cora.infrastructure.auth.jwt_verifier import JWTVerifier
+from cora.infrastructure.adapters.introspection_token_verifier import IntrospectionTokenVerifier
+from cora.infrastructure.adapters.jwt_token_verifier import JwtTokenVerifier
 from cora.infrastructure.ports.token_verifier import PrincipalKind
 
 TEST_ISSUER = "https://test-idp.example.com"
@@ -149,14 +149,14 @@ def make_jwt_verifier(
     audience_for_surface: dict[UUID, str] | None = None,
     subject_mapper: Callable[[str, str], Awaitable[tuple[UUID, PrincipalKind]]] | None = None,
     algorithms_allowed: list[str] | None = None,
-) -> JWTVerifier:
-    """Common JWTVerifier construction shape for unit tests.
+) -> JwtTokenVerifier:
+    """Common JwtTokenVerifier construction shape for unit tests.
 
     Defaults: single HTTP Surface, RS256-only, fixed test mapper,
     allow_insecure_jwks_url=True (tests use localhost Werkzeug
     endpoints; production posture is HTTPS-only).
     """
-    return JWTVerifier(
+    return JwtTokenVerifier(
         issuer=issuer,
         jwks_url=jwks_url,
         audience_for_surface=audience_for_surface or {TEST_SURFACE_HTTP: TEST_AUD_HTTP},
@@ -173,9 +173,9 @@ def make_introspection_verifier(
     audience_for_surface: dict[UUID, str] | None = None,
     subject_mapper: Callable[[str, str], Awaitable[tuple[UUID, PrincipalKind]]] | None = None,
     cache_ttl_seconds: int = 30,
-) -> IntrospectionVerifier:
-    """Common IntrospectionVerifier construction shape for unit tests."""
-    return IntrospectionVerifier(
+) -> IntrospectionTokenVerifier:
+    """Common IntrospectionTokenVerifier construction shape for unit tests."""
+    return IntrospectionTokenVerifier(
         issuer=issuer,
         introspection_url=introspection_url,
         client_id=TEST_CLIENT_ID,

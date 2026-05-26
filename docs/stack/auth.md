@@ -8,8 +8,8 @@ For implementers wiring authentication and authorization. Each row names a role,
 | --- | --- | --- | --- |
 | REST + MCP edge | `BearerAuthMiddleware` reading `Authorization: Bearer <token>`; per-path audience dispatch routes `/mcp/*` to the MCP Surface UUID, every other path to the HTTP Surface UUID | Single ingress shape across transports; standard RFC 6750; per-Surface audience binding prevents cross-Surface token replay | Stays |
 | Token verification | `TokenVerifier` port + `IdentityProviderRegistry` routing by `iss` claim | One registry per process, per-IdP verifier behind it, shared by both transports | Stays |
-| JWT path | `JWTVerifier` (PyJWT, JWKS + RFC 9068 profile) | OIDC IdPs that publish JWKS (Entra, Okta, Auth0) | Stays |
-| Opaque-token path | `IntrospectionVerifier` (RFC 7662 introspection) | IdPs whose tokens are opaque (Globus Auth) | Stays |
+| JWT path | `JwtTokenVerifier` (PyJWT, JWKS + RFC 9068 profile) | OIDC IdPs that publish JWKS (Entra, Okta, Auth0) | Stays |
+| Opaque-token path | `IntrospectionTokenVerifier` (RFC 7662 introspection) | IdPs whose tokens are opaque (Globus Auth) | Stays |
 | Subject mapping | `StaticSubjectMapper` (config-time `(issuer, subject) → actor_id`) | Pilot has bounded operator + agent set; explicit binding is auditable | Move to event-sourced `ActorIdpBindings` aggregate when first JIT-provisioning case lands |
 | IdP metadata endpoint | RFC 9728 OAuth 2.0 Protected Resource Metadata at `/.well-known/oauth-protected-resource` | Lets clients discover accepted IdPs | Stays |
 | MCP tool resolver | `get_mcp_principal_id(ctx)` reads the verified principal off `ctx.request_context.request.state.principal` | FastMCP framing methods (initialize / tools/list / notifications) get bearer-required enforcement at the middleware; tool handlers get the verified `principal_id` via the resolver | Stays |

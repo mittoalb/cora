@@ -350,7 +350,7 @@ def test_mcp_notifications_initialized_without_bearer_returns_401(
 ) -> None:
     """Closes the test-axis MEDIUM 1 gap. `notifications/initialized`
     is one of the FastMCP framing methods explicitly cited in
-    `bearer_middleware.py:dispatch` as the reason for middleware-side
+    `bearer_auth_middleware.py:dispatch` as the reason for middleware-side
     enforcement of bearer-required on `/mcp/*` (Decision 8). Without this
     contract test, a regression that special-cased notifications back to
     the no-Auth pass-through path would slip past the unit + initialize

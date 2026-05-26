@@ -8,8 +8,8 @@ Settings layer.
 
 ## Why a factory module
 
-Each `IdentityProviderConfig` entry could produce a JWTVerifier
-adapter, an IntrospectionVerifier adapter, or both — depending on
+Each `IdentityProviderConfig` entry could produce a JwtTokenVerifier
+adapter, an IntrospectionTokenVerifier adapter, or both — depending on
 which URLs the operator supplied. The registry takes the constructed
 adapter instances; this module owns the "config row → adapter
 instance(s)" translation so the registry stays a thin router.
@@ -28,10 +28,10 @@ mapping table across all IdPs). Default is `StaticSubjectMapper`;
 the projection-backed mapper is the alternative.
 """
 
+from cora.infrastructure.adapters.introspection_token_verifier import IntrospectionTokenVerifier
+from cora.infrastructure.adapters.jwt_token_verifier import JwtTokenVerifier
 from cora.infrastructure.auth.config import IdentityProviderConfig
 from cora.infrastructure.auth.idp_registry import IdentityProviderRegistry
-from cora.infrastructure.auth.introspection_verifier import IntrospectionVerifier
-from cora.infrastructure.auth.jwt_verifier import JWTVerifier
 from cora.infrastructure.ports.token_verifier import SubjectMapper
 
 
@@ -50,12 +50,12 @@ def build_idp_registry(
 
     Per the registry contract: at least ONE adapter must be
     constructed across all providers, or the registry constructor
-    raises. An IdP entry can produce both a JWTVerifier AND an
-    IntrospectionVerifier if both URLs are configured (uncommon but
+    raises. An IdP entry can produce both a JwtTokenVerifier AND an
+    IntrospectionTokenVerifier if both URLs are configured (uncommon but
     legitimate for IdPs that issue JWTs by default but need
     introspection for revocation-sensitive callers).
 
-    Only ONE IntrospectionVerifier total is supported today (one per
+    Only ONE IntrospectionTokenVerifier total is supported today (one per
     deployment — Globus, typically). A configuration with two
     introspection-providing IdPs raises ValueError: the registry's
     opaque-token routing can't disambiguate. JWT IdPs route by `iss`
@@ -64,13 +64,13 @@ def build_idp_registry(
     if not identity_providers:
         return None
 
-    jwt_verifiers: list[JWTVerifier] = []
-    introspection_verifier: IntrospectionVerifier | None = None
+    jwt_verifiers: list[JwtTokenVerifier] = []
+    introspection_token_verifier: IntrospectionTokenVerifier | None = None
 
     for config in identity_providers:
         if config.jwks_url is not None:
             jwt_verifiers.append(
-                JWTVerifier(
+                JwtTokenVerifier(
                     issuer=config.issuer,
                     jwks_url=config.jwks_url,
                     audience_for_surface=config.audiences,
@@ -81,12 +81,12 @@ def build_idp_registry(
                 )
             )
         if config.introspection_url is not None:
-            if introspection_verifier is not None:
+            if introspection_token_verifier is not None:
                 msg = (
                     f"build_idp_registry: more than one IdentityProviderConfig "
-                    f"declares introspection_url (one for {introspection_verifier.issuer!r}, "
+                    f"declares introspection_url (one for {introspection_token_verifier.issuer!r}, "
                     f"another for {config.issuer!r}). The registry's opaque-token "
-                    "routing supports exactly one IntrospectionVerifier per "
+                    "routing supports exactly one IntrospectionTokenVerifier per "
                     "deployment today. If the deployment needs multi-IdP "
                     "introspection, the registry's opaque routing needs a "
                     "discriminator extension (token prefix per GitHub PAT "
@@ -104,7 +104,7 @@ def build_idp_registry(
                     "IdentityProviderConfig._introspection_creds_pair should have caught this."
                 )
                 raise RuntimeError(msg)
-            introspection_verifier = IntrospectionVerifier(
+            introspection_token_verifier = IntrospectionTokenVerifier(
                 issuer=config.issuer,
                 introspection_url=config.introspection_url,
                 client_id=config.introspection_client_id,
@@ -118,7 +118,7 @@ def build_idp_registry(
 
     return IdentityProviderRegistry(
         jwt_verifiers=jwt_verifiers,
-        introspection_verifier=introspection_verifier,
+        introspection_token_verifier=introspection_token_verifier,
     )
 
 

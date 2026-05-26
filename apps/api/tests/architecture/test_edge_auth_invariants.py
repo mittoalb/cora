@@ -26,7 +26,7 @@ graph + AST can prove WITHOUT running the test suite:
      unauthenticated (/health, /metrics,
      /.well-known/oauth-protected-resource) match the centralized
      `_UNAUTHENTICATED_PATHS` + `_is_unauthenticated_path` in
-     `bearer_middleware.py`. A future "add /readiness skip" that
+     `bearer_auth_middleware.py`. A future "add /readiness skip" that
      updates only the test side without touching the middleware
      (or vice versa) fails this fitness. `/mcp/*` is no longer in
      the skip set — MCP routes are verified with audience-per-Surface
@@ -139,17 +139,17 @@ def test_every_concrete_token_verifier_matches_protocol_signature() -> None:
     """
     from uuid import UUID
 
+    from cora.infrastructure.adapters.introspection_token_verifier import IntrospectionTokenVerifier
+    from cora.infrastructure.adapters.jwt_token_verifier import JwtTokenVerifier
     from cora.infrastructure.auth.idp_registry import IdentityProviderRegistry
-    from cora.infrastructure.auth.introspection_verifier import IntrospectionVerifier
-    from cora.infrastructure.auth.jwt_verifier import JWTVerifier
     from cora.infrastructure.ports.token_verifier import TokenVerifier, VerifiedPrincipal
 
     # Enumerate every concrete TokenVerifier-conforming class shipped
     # today. Add new adapter classes here when they land; the next
     # change to this list is the prompt to re-check the Protocol.
     concrete_verifiers: list[type] = [
-        JWTVerifier,
-        IntrospectionVerifier,
+        JwtTokenVerifier,
+        IntrospectionTokenVerifier,
         IdentityProviderRegistry,
     ]
 
@@ -302,7 +302,7 @@ def test_bearer_middleware_skip_paths_match_canonical_set() -> None:
     its own hardcoded list (intentional: avoid a test-imports-prod
     cycle), and the test cross-checks them.
     """
-    from cora.infrastructure.auth.bearer_middleware import (
+    from cora.infrastructure.auth.bearer_auth_middleware import (
         _UNAUTHENTICATED_PATHS,
         _is_unauthenticated_path,
     )
@@ -311,7 +311,7 @@ def test_bearer_middleware_skip_paths_match_canonical_set() -> None:
     assert _UNAUTHENTICATED_PATHS == _EXPECTED_UNAUTHENTICATED_PATHS, (
         f"Middleware _UNAUTHENTICATED_PATHS drift detected: "
         f"middleware={_UNAUTHENTICATED_PATHS}, expected={_EXPECTED_UNAUTHENTICATED_PATHS}. "
-        "Update both `bearer_middleware.py:_UNAUTHENTICATED_PATHS` AND "
+        "Update both `bearer_auth_middleware.py:_UNAUTHENTICATED_PATHS` AND "
         "`test_edge_auth_invariants.py:_EXPECTED_UNAUTHENTICATED_PATHS` "
         "in the same commit so they stay in sync."
     )

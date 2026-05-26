@@ -1,4 +1,4 @@
-"""`IntrospectionVerifier` — RFC 7662 token introspection adapter.
+"""`IntrospectionTokenVerifier` — RFC 7662 token introspection adapter.
 
 Implements `cora.infrastructure.ports.TokenVerifier` for IdPs that
 issue opaque tokens — primarily Globus Auth (APS pilot), which is
@@ -52,7 +52,7 @@ from uuid import UUID
 import httpx
 from pydantic import SecretStr
 
-from cora.infrastructure.auth.jwt_verifier import safe_map_subject
+from cora.infrastructure.adapters.jwt_token_verifier import safe_map_subject
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports.token_verifier import (
     IntrospectionUnavailableError,
@@ -80,7 +80,7 @@ class _CacheEntry:
         self.expires_at = expires_at
 
 
-class IntrospectionVerifier:
+class IntrospectionTokenVerifier:
     """RFC 7662 opaque-token verifier for a single IdP.
 
     One instance per registered issuer. The `IdentityProviderRegistry`
@@ -133,14 +133,14 @@ class IntrospectionVerifier:
         """
         if cache_ttl_seconds < 1:
             msg = (
-                f"IntrospectionVerifier for issuer={issuer!r}: cache_ttl_seconds "
+                f"IntrospectionTokenVerifier for issuer={issuer!r}: cache_ttl_seconds "
                 "must be >= 1 (no introspection without a per-token cache). "
                 "Pass 1 only for test-determinism cases."
             )
             raise ValueError(msg)
         if not introspection_url.startswith("https://") and not allow_insecure_introspection_url:
             msg = (
-                f"IntrospectionVerifier for issuer={issuer!r}: introspection_url "
+                f"IntrospectionTokenVerifier for issuer={issuer!r}: introspection_url "
                 f"must be HTTPS (got scheme={introspection_url.split(':')[0]!r}). "
                 "Pass allow_insecure_introspection_url=True only for test/dev "
                 "fixtures (gate-review F2: HTTP Basic over HTTP leaks "
@@ -343,7 +343,7 @@ class IntrospectionVerifier:
 def _parse_scopes_claim(raw: object) -> frozenset[str]:
     """Normalize the OAuth `scope` (RFC 6749 §3.3) / `scp` claim shape.
 
-    See `cora.infrastructure.auth.jwt_verifier._parse_scopes_claim` —
+    See `cora.infrastructure.adapters.jwt_token_verifier._parse_scopes_claim` —
     duplicated here intentionally so this module doesn't pull on the
     JWT module just for a 5-line helper (rule-of-two; promote if a
     third caller arrives).
@@ -356,4 +356,4 @@ def _parse_scopes_claim(raw: object) -> frozenset[str]:
     return frozenset()
 
 
-__all__ = ["IntrospectionVerifier"]
+__all__ = ["IntrospectionTokenVerifier"]

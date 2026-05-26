@@ -4,10 +4,10 @@ The registry routes inbound tokens to the right verifier. Pins:
 
   - empty registry construction rejected
   - duplicate JWT issuer rejected
-  - JWT-shape detection → routes to matching JWTVerifier
-  - opaque-shape → routes to IntrospectionVerifier
+  - JWT-shape detection → routes to matching JwtTokenVerifier
+  - opaque-shape → routes to IntrospectionTokenVerifier
   - JWT with unregistered iss → InvalidTokenError(wrong_issuer)
-  - opaque without IntrospectionVerifier → InvalidTokenError(malformed)
+  - opaque without IntrospectionTokenVerifier → InvalidTokenError(malformed)
   - empty / garbage / missing-iss → InvalidTokenError(malformed)
   - JWT-only deployment + introspection-only deployment shape symmetry
   - token-length cap (gate-review F11) — DoS guard at registry boundary
@@ -65,7 +65,7 @@ def _sign_for_issuer(
 @pytest.mark.unit
 def test_empty_registry_rejected() -> None:
     with pytest.raises(ValueError, match="at least one verifier"):
-        IdentityProviderRegistry(jwt_verifiers=[], introspection_verifier=None)
+        IdentityProviderRegistry(jwt_verifiers=[], introspection_token_verifier=None)
 
 
 @pytest.mark.unit
@@ -125,7 +125,7 @@ async def test_opaque_token_routed_to_introspection(
     )
     registry = IdentityProviderRegistry(
         jwt_verifiers=[],
-        introspection_verifier=make_introspection_verifier(httpserver.url_for("/introspect")),
+        introspection_token_verifier=make_introspection_verifier(httpserver.url_for("/introspect")),
     )
     principal = await registry.verify("opaque-abc-no-dots", expected_audience=TEST_SURFACE_HTTP)
     assert principal.subject == "globus-user"
@@ -142,7 +142,7 @@ async def test_opaque_token_without_introspection_rejected(
     with pytest.raises(InvalidTokenError) as exc:
         await registry.verify("opaque-no-dots", expected_audience=TEST_SURFACE_HTTP)
     assert exc.value.reason == "malformed"
-    assert "no IntrospectionVerifier" in exc.value.detail
+    assert "no IntrospectionTokenVerifier" in exc.value.detail
 
 
 # ---------- shape symmetry (test-coverage gap #11) ----------
@@ -154,7 +154,7 @@ async def test_jwt_only_deployment_works(httpserver: HTTPServer) -> None:
     private_a, kid_a, jwks_a = make_keypair_with_jwks(httpserver, "/jwks")
     registry = IdentityProviderRegistry(
         jwt_verifiers=[make_jwt_verifier(issuer=_ISSUER_A, jwks_url=jwks_a)],
-        introspection_verifier=None,
+        introspection_token_verifier=None,
     )
     token = _sign_for_issuer(private_a, kid_a, iss=_ISSUER_A)
     principal = await registry.verify(token, expected_audience=TEST_SURFACE_HTTP)
@@ -169,7 +169,7 @@ async def test_introspection_only_deployment_works(httpserver: HTTPServer) -> No
     )
     registry = IdentityProviderRegistry(
         jwt_verifiers=[],
-        introspection_verifier=make_introspection_verifier(httpserver.url_for("/introspect")),
+        introspection_token_verifier=make_introspection_verifier(httpserver.url_for("/introspect")),
     )
     principal = await registry.verify("opaque-x", expected_audience=TEST_SURFACE_HTTP)
     assert principal.subject == "globus-user"

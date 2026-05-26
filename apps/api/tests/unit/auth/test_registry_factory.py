@@ -4,9 +4,9 @@ Pins config-row → adapter-instance translation. The adapter
 construction itself is exercised end-to-end by the existing
 JWT/Introspection/Registry tests; here we focus on:
   - empty list → None (legacy path)
-  - JWT-only IdP → 1 JWTVerifier
-  - introspection-only IdP → 1 IntrospectionVerifier
-  - both-paths IdP → 1 JWTVerifier + 1 IntrospectionVerifier
+  - JWT-only IdP → 1 JwtTokenVerifier
+  - introspection-only IdP → 1 IntrospectionTokenVerifier
+  - both-paths IdP → 1 JwtTokenVerifier + 1 IntrospectionTokenVerifier
   - multi-JWT-IdP → registry routes by issuer
   - multi-introspection-IdP → ValueError
 """
@@ -133,7 +133,7 @@ def test_mixed_jwt_and_single_introspection_allowed() -> None:
 
 @pytest.mark.unit
 def test_introspection_creds_unwrapped_for_basic_auth() -> None:
-    """The SecretStr from Settings reaches the IntrospectionVerifier
+    """The SecretStr from Settings reaches the IntrospectionTokenVerifier
     constructor — which accepts both raw str AND SecretStr — and gets
     stored as SecretStr internally (gate-review F6)."""
     cfg = IdentityProviderConfig(

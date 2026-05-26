@@ -1,4 +1,4 @@
-"""Unit tests for `cora.infrastructure.auth.jwt_verifier.JWTVerifier`.
+"""Unit tests for `cora.infrastructure.adapters.jwt_token_verifier.JwtTokenVerifier`.
 
 Uses `_helpers.signing_fixture` to mint real RS256-signed JWTs per
 test backed by an in-process JWKS endpoint, so the verifier exercises
@@ -25,7 +25,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from pytest_httpserver import HTTPServer
 
-from cora.infrastructure.auth.jwt_verifier import JWTVerifier
+from cora.infrastructure.adapters.jwt_token_verifier import JwtTokenVerifier
 from cora.infrastructure.ports.token_verifier import (
     InvalidTokenError,
     PrincipalKind,
@@ -269,7 +269,7 @@ async def test_verify_rejects_unsupported_algorithm_in_whitelist(
 @pytest.mark.unit
 def test_constructor_rejects_empty_algorithms() -> None:
     with pytest.raises(ValueError, match="algorithms_allowed"):
-        JWTVerifier(
+        JwtTokenVerifier(
             issuer=TEST_ISSUER,
             jwks_url="https://example.com/jwks",
             audience_for_surface={TEST_SURFACE_HTTP: TEST_AUD_HTTP},
@@ -282,7 +282,7 @@ def test_constructor_rejects_empty_algorithms() -> None:
 def test_constructor_rejects_alg_none_case_insensitive() -> None:
     for variant in ["none", "NONE", "NoNe", " none ", "None "]:
         with pytest.raises(ValueError, match=r"algorithms_allowed must not include 'none'"):
-            JWTVerifier(
+            JwtTokenVerifier(
                 issuer=TEST_ISSUER,
                 jwks_url="https://example.com/jwks",
                 audience_for_surface={TEST_SURFACE_HTTP: TEST_AUD_HTTP},
@@ -294,7 +294,7 @@ def test_constructor_rejects_alg_none_case_insensitive() -> None:
 @pytest.mark.unit
 def test_constructor_rejects_http_jwks_url_without_opt_in() -> None:
     with pytest.raises(ValueError, match=r"jwks_url must be HTTPS"):
-        JWTVerifier(
+        JwtTokenVerifier(
             issuer=TEST_ISSUER,
             jwks_url="http://example.com/jwks",
             audience_for_surface={TEST_SURFACE_HTTP: TEST_AUD_HTTP},
@@ -305,7 +305,7 @@ def test_constructor_rejects_http_jwks_url_without_opt_in() -> None:
 
 @pytest.mark.unit
 def test_constructor_accepts_http_jwks_url_with_opt_in() -> None:
-    JWTVerifier(
+    JwtTokenVerifier(
         issuer=TEST_ISSUER,
         jwks_url="http://127.0.0.1:8000/jwks",
         audience_for_surface={TEST_SURFACE_HTTP: TEST_AUD_HTTP},
@@ -403,7 +403,7 @@ async def test_subject_mapper_raising_wraps_as_unknown_subject(
 
 @pytest.mark.unit
 def test_verifier_exposes_its_issuer() -> None:
-    verifier = JWTVerifier(
+    verifier = JwtTokenVerifier(
         issuer=TEST_ISSUER,
         jwks_url="https://example.com/jwks",
         audience_for_surface={TEST_SURFACE_HTTP: TEST_AUD_HTTP},

@@ -128,7 +128,7 @@ class IdentityProviderConfig(BaseModel):
         description=(
             "RFC 7662 introspection endpoint URL. Required for IdPs that "
             "issue opaque tokens (Globus Auth) or when revocation must "
-            "be checked per-request. Triggers the IntrospectionVerifier "
+            "be checked per-request. Triggers the IntrospectionTokenVerifier "
             "adapter path."
         ),
     )
@@ -164,7 +164,7 @@ class IdentityProviderConfig(BaseModel):
     algorithms_allowed: list[str] = Field(
         default_factory=lambda: ["RS256", "ES256"],
         description=(
-            "JWT signature algorithms accepted by the JWTVerifier. "
+            "JWT signature algorithms accepted by the JwtTokenVerifier. "
             "Default ['RS256', 'ES256'] covers every mature OIDC IdP. "
             "The constructor rejects 'none' in any case (no-alg-none invariant)."
         ),

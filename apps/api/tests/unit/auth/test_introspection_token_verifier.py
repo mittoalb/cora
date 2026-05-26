@@ -1,6 +1,6 @@
 # pyright: reportPrivateUsage=false
 
-"""Unit tests for `cora.infrastructure.auth.introspection_verifier`.
+"""Unit tests for `cora.infrastructure.adapters.introspection_token_verifier`.
 
 Uses pytest-httpserver to stand up an in-process IdP introspection
 endpoint per test. Pins:
@@ -24,7 +24,7 @@ import httpx
 import pytest
 from pytest_httpserver import HTTPServer
 
-from cora.infrastructure.auth.introspection_verifier import IntrospectionVerifier
+from cora.infrastructure.adapters.introspection_token_verifier import IntrospectionTokenVerifier
 from cora.infrastructure.ports.token_verifier import (
     IntrospectionUnavailableError,
     InvalidTokenError,
@@ -262,7 +262,7 @@ async def test_cache_key_includes_audience_no_cross_surface_reuse(
     httpserver.expect_request("/introspect", method="POST").respond_with_json(
         {"active": True, "sub": "user-abc", "iss": _ISSUER, "aud": TEST_AUD_HTTP}
     )
-    verifier = IntrospectionVerifier(
+    verifier = IntrospectionTokenVerifier(
         issuer=_ISSUER,
         introspection_url=httpserver.url_for("/introspect"),
         client_id=TEST_CLIENT_ID,
@@ -310,7 +310,7 @@ async def test_cache_bounded_under_token_flood(httpserver: HTTPServer) -> None:
     )
     verifier = make_introspection_verifier(httpserver.url_for("/introspect"), cache_ttl_seconds=30)
     try:
-        from cora.infrastructure.auth import introspection_verifier as iv_module
+        from cora.infrastructure.adapters import introspection_token_verifier as iv_module
 
         original_cap = iv_module._MAX_CACHE_ENTRIES
         iv_module._MAX_CACHE_ENTRIES = 5
@@ -360,7 +360,7 @@ async def test_concurrent_same_token_both_miss_cache_deferred_behavior(
 @pytest.mark.unit
 def test_constructor_rejects_zero_cache_ttl() -> None:
     with pytest.raises(ValueError, match=r"cache_ttl_seconds"):
-        IntrospectionVerifier(
+        IntrospectionTokenVerifier(
             issuer=_ISSUER,
             introspection_url="https://example.com/introspect",
             client_id=TEST_CLIENT_ID,
@@ -374,7 +374,7 @@ def test_constructor_rejects_zero_cache_ttl() -> None:
 @pytest.mark.unit
 def test_constructor_rejects_http_introspection_url_without_opt_in() -> None:
     with pytest.raises(ValueError, match=r"introspection_url must be HTTPS"):
-        IntrospectionVerifier(
+        IntrospectionTokenVerifier(
             issuer=_ISSUER,
             introspection_url="http://example.com/introspect",
             client_id=TEST_CLIENT_ID,
@@ -387,7 +387,7 @@ def test_constructor_rejects_http_introspection_url_without_opt_in() -> None:
 @pytest.mark.unit
 def test_client_secret_not_in_repr() -> None:
     """F6: client_secret wrapped in SecretStr; never in __repr__."""
-    verifier = IntrospectionVerifier(
+    verifier = IntrospectionTokenVerifier(
         issuer=_ISSUER,
         introspection_url="http://127.0.0.1:1/introspect",
         client_id=TEST_CLIENT_ID,
@@ -428,7 +428,7 @@ async def test_basic_auth_credentials_sent_to_idp(httpserver: HTTPServer) -> Non
 async def test_injected_http_client_is_not_closed_by_verifier() -> None:
     """Caller-owned httpx.AsyncClient outlives verifier.aclose()."""
     async with httpx.AsyncClient() as injected:
-        verifier = IntrospectionVerifier(
+        verifier = IntrospectionTokenVerifier(
             issuer=_ISSUER,
             introspection_url="http://127.0.0.1:1/introspect",
             client_id=TEST_CLIENT_ID,

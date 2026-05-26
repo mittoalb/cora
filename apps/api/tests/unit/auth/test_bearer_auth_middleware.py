@@ -26,7 +26,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from cora.infrastructure.auth.bearer_middleware import BearerAuthMiddleware
+from cora.infrastructure.auth.bearer_auth_middleware import BearerAuthMiddleware
 from cora.infrastructure.ports import (
     IntrospectionUnavailableError,
     InvalidTokenError,
@@ -445,7 +445,7 @@ def test_no_deps_on_app_state_short_circuits_safely() -> None:
 def test_extract_bearer_token_rejects_non_bearer_scheme() -> None:
     """White-box: the parser's negative paths must all map to a
     typed InvalidTokenError(reason=malformed), not bare ValueError."""
-    from cora.infrastructure.auth.bearer_middleware import _extract_bearer_token
+    from cora.infrastructure.auth.bearer_auth_middleware import _extract_bearer_token
 
     for header in (
         "Basic abcdef",
@@ -468,7 +468,7 @@ def test_extract_bearer_token_rejects_non_bearer_scheme() -> None:
 def test_extract_bearer_token_preserves_token_with_internal_dots_and_dashes() -> None:
     """JWTs are dot-separated base64url; verifying the parser leaves
     them untouched."""
-    from cora.infrastructure.auth.bearer_middleware import _extract_bearer_token
+    from cora.infrastructure.auth.bearer_auth_middleware import _extract_bearer_token
 
     jwt = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ4In0.signature-with-dashes"
     assert _extract_bearer_token(f"Bearer {jwt}") == jwt

@@ -82,7 +82,7 @@ if TYPE_CHECKING:
 # `InvalidTokenError` is RAISED at runtime so it can't be
 # TYPE_CHECKING-gated; it's imported lazily inside the helper that
 # raises it. The runtime path: middleware -> auth/__init__ ->
-# bearer_middleware -> ports/__init__ -> port modules -> routing ->
+# bearer_auth_middleware -> ports/__init__ -> port modules -> routing ->
 # observability -> config (Settings) -> auth.config -> back into
 # `cora.infrastructure.auth` which is mid-load. Pinning the
 # `InvalidTokenError` import inside `_extract_bearer_token` breaks
