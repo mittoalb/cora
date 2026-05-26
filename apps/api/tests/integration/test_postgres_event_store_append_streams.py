@@ -225,3 +225,139 @@ async def test_append_single_stream_delegates_through_append_streams(
     events, version = await store.load("AppendDelegateTest", stream_id)
     assert version == 2
     assert len(events) == 2
+
+
+@pytest.mark.integration
+async def test_event_id_collision_across_separate_transactions_rejected_globally(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """`events_event_id_unique` is a GLOBAL INDEX, not a per-batch or
+    per-stream check: a duplicate event_id arriving in a SECOND
+    transaction (after the first has already committed) MUST also be
+    rejected. This catches a hypothetical regression where a future
+    change scoped the constraint to a partition or per-stream
+    namespace.
+
+    The cross-aggregate atomic-write slices (`define_agent`,
+    `amend_clearance`, `promote_caution_proposal`,
+    `add_run_to_campaign`) rely on the global namespace to be
+    confident an event_id retried from a buggy idempotency-cache
+    will surface loudly as a `UniqueViolationError` instead of
+    silently overwriting or co-existing with the original."""
+    store = PostgresEventStore(db_pool)
+    first_stream_id, second_stream_id = uuid4(), uuid4()
+    shared = uuid4()
+
+    await store.append_streams(
+        [
+            StreamAppend(
+                "CrossTxCollisionFirst",
+                first_stream_id,
+                expected_version=0,
+                events=[_event(event_id=shared)],
+            ),
+        ]
+    )
+
+    with pytest.raises(asyncpg.UniqueViolationError):
+        await store.append_streams(
+            [
+                StreamAppend(
+                    "CrossTxCollisionSecond",
+                    second_stream_id,
+                    expected_version=0,
+                    events=[_event(event_id=shared)],
+                ),
+            ]
+        )
+
+    _, first_v = await store.load("CrossTxCollisionFirst", first_stream_id)
+    _, second_v = await store.load("CrossTxCollisionSecond", second_stream_id)
+    assert first_v == 1
+    assert second_v == 0
+
+
+@pytest.mark.integration
+async def test_event_id_collision_across_different_stream_types_rejected_globally(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """The global UNIQUE INDEX MUST reject a collision even when the
+    two events belong to entirely different aggregate stream-types
+    (the cross-BC case: an Agent stream and a Caution stream cannot
+    both carry the same event_id). Without this property, two
+    independently-written aggregates could share an event_id and
+    `causation_id`-based reconstruction would become ambiguous."""
+    store = PostgresEventStore(db_pool)
+    agent_stream_id, caution_stream_id = uuid4(), uuid4()
+    shared = uuid4()
+
+    await store.append_streams(
+        [
+            StreamAppend(
+                "AgentLikeStream",
+                agent_stream_id,
+                expected_version=0,
+                events=[_event(event_id=shared, event_type="AgentDefined")],
+            ),
+        ]
+    )
+
+    with pytest.raises(asyncpg.UniqueViolationError):
+        await store.append_streams(
+            [
+                StreamAppend(
+                    "CautionLikeStream",
+                    caution_stream_id,
+                    expected_version=0,
+                    events=[_event(event_id=shared, event_type="CautionRegistered")],
+                ),
+            ]
+        )
+
+
+@pytest.mark.integration
+async def test_event_id_collision_failure_does_not_block_subsequent_retry_with_fresh_id(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """After a `UniqueViolationError`, the rejected stream is intact
+    (version 0). Re-issuing the same write with a fresh event_id MUST
+    succeed -- the constraint failure leaves no residual state and the
+    pool is healthy after the rollback. Locks the recovery path so a
+    transient collision doesn't poison the stream."""
+    store = PostgresEventStore(db_pool)
+    other_stream_id, retry_stream_id = uuid4(), uuid4()
+    shared = uuid4()
+
+    await store.append_streams(
+        [
+            StreamAppend(
+                "OtherStream",
+                other_stream_id,
+                expected_version=0,
+                events=[_event(event_id=shared)],
+            ),
+        ]
+    )
+    with pytest.raises(asyncpg.UniqueViolationError):
+        await store.append_streams(
+            [
+                StreamAppend(
+                    "RetryStream",
+                    retry_stream_id,
+                    expected_version=0,
+                    events=[_event(event_id=shared)],
+                ),
+            ]
+        )
+
+    new_versions = await store.append_streams(
+        [
+            StreamAppend(
+                "RetryStream",
+                retry_stream_id,
+                expected_version=0,
+                events=[_event(event_id=uuid4())],
+            ),
+        ]
+    )
+    assert new_versions == {retry_stream_id: 1}
