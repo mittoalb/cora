@@ -1,4 +1,4 @@
-"""Unit tests for `cora.infrastructure.auth.registry_factory.build_idp_registry`.
+"""Unit tests for `cora.infrastructure.auth.build_idp_registry.build_idp_registry`.
 
 Pins config-row → adapter-instance translation. The adapter
 construction itself is exercised end-to-end by the existing
@@ -16,9 +16,9 @@ from uuid import UUID
 import pytest
 from pydantic import SecretStr
 
+from cora.infrastructure.auth.build_idp_registry import build_idp_registry
 from cora.infrastructure.auth.config import IdentityProviderConfig, StaticSubjectMapper
 from cora.infrastructure.auth.idp_registry import IdentityProviderRegistry
-from cora.infrastructure.auth.registry_factory import build_idp_registry
 from tests.unit.auth._helpers import TEST_AUD_HTTP, TEST_SURFACE_HTTP
 
 _MAPPER = StaticSubjectMapper({})

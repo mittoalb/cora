@@ -8,7 +8,7 @@ imported `cora.trust` for `_build_authorize`, which tach correctly
 flagged as a layer violation even though Python tolerated it).
 
 Composition root (`cora.api.main`) injects
-`cora.trust.authorize_factory.build_authorize`; tests inject any
+`cora.trust.build_authorize.build_authorize`; tests inject any
 `Authorize` factory they want (typically
 `lambda *a, **kw: AllowAllAuthorize()`).
 
@@ -77,7 +77,7 @@ class AuthorizeFactory(Protocol):
     """Builds the production Authorize port for the Kernel.
 
     Injected by the composition root so this module stays BC-free.
-    Production wires `cora.trust.authorize_factory.build_authorize`;
+    Production wires `cora.trust.build_authorize.build_authorize`;
     tests inject lambda-shaped factories.
     """
 

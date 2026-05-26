@@ -27,7 +27,7 @@ source_roots = ["src"]
 # from `infrastructure/deps.py`. The Kernel data class now lives
 # in `cora.infrastructure.kernel` (zero BC imports) and the
 # authorize factory is injected into `build_kernel` via the
-# composition root (`cora.api.main` -> `cora.trust.authorize_factory.
+# composition root (`cora.api.main` -> `cora.trust.build_authorize.
 # build_authorize`). Foundation is back to depending on nothing.
 [[modules]]
 path = "cora.infrastructure"

@@ -14,9 +14,11 @@ which URLs the operator supplied. The registry takes the constructed
 adapter instances; this module owns the "config row → adapter
 instance(s)" translation so the registry stays a thin router.
 
-Name matches the codebase factory convention (`agent/llm_factory.py`,
-`trust/authorize_factory.py`). `Builder` in DDD vocabulary implies
-an incremental/fluent shape; this is a one-shot
+Name matches the codebase composition-root convention
+(`agent/build_llm.py`, `trust/build_authorize.py`): one-shot
+`build_<port>(...)` constructors at the composition boundary.
+`Builder` in DDD vocabulary implies an incremental/fluent shape;
+this is a one-shot
 `build_idp_registry(configs) -> IdentityProviderRegistry` which is
 the Factory shape.
 

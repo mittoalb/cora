@@ -1,7 +1,7 @@
 """Agent BC's `LLMFactory` for the composition root.
 
 Bound from `cora.api.main` into `build_kernel` the same way
-`cora.trust.authorize_factory.build_authorize` is bound. Lives in
+`cora.trust.build_authorize.build_authorize` is bound. Lives in
 Agent BC because the production implementor (`AnthropicLLM`)
 lives here too (cross-BC adapter-ownership convention; Safety BC
 owns `PostgresClearanceLookup`, Caution BC owns
@@ -11,8 +11,8 @@ When `Settings.anthropic_api_key` is unset, returns `None` so the
 Kernel ends up with `llm=None` and Agent subscribers fail-fast at
 registration. This is intentional: a misconfigured prod deployment
 should not silently downgrade to a no-LLM mode where RunDebriefer
-goes silent. Iter 2b's subscriber-registration step adds the
-fail-fast on `kernel.llm is None`.
+goes silent. The subscriber-registration step fail-fasts on
+`kernel.llm is None`.
 """
 
 from cora.agent.adapters.anthropic_llm import AnthropicLLM

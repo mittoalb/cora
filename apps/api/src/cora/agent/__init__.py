@@ -27,6 +27,7 @@ Public surface re-exported here:
 
 from cora.agent._projections import register_agent_projections
 from cora.agent._subscribers import register_agent_subscribers
+from cora.agent.build_llm import build_llm
 from cora.agent.errors import (
     CautionProposalMalformedError,
     CautionProposalNotActionableError,
@@ -34,7 +35,6 @@ from cora.agent.errors import (
     DecisionNotEmittedByCautionDrafterError,
     UnauthorizedError,
 )
-from cora.agent.llm_factory import build_llm
 from cora.agent.routes import register_agent_routes
 from cora.agent.seed import seed_run_debriefer_agent
 from cora.agent.seed_caution_drafter import seed_caution_drafter_agent

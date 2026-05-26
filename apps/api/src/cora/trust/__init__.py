@@ -29,7 +29,7 @@ from cora.trust._bootstrap import (
 )
 from cora.trust._projections import register_trust_projections
 from cora.trust.authorize import TrustAuthorize
-from cora.trust.authorize_factory import build_authorize
+from cora.trust.build_authorize import build_authorize
 from cora.trust.errors import UnauthorizedError
 from cora.trust.routes import register_trust_routes
 from cora.trust.tools import register_trust_tools

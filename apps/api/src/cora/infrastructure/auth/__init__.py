@@ -22,6 +22,7 @@ Per the edge-auth design lock library-vs-DIY decision: PyJWT is the
 one library dependency; everything else is hand-written.
 """
 
+from cora.infrastructure.auth.build_idp_registry import build_idp_registry
 from cora.infrastructure.auth.config import (
     IdentityProviderConfig,
     IdpSubjectBinding,
@@ -29,7 +30,6 @@ from cora.infrastructure.auth.config import (
     build_static_subject_mapper,
 )
 from cora.infrastructure.auth.idp_registry import IdentityProviderRegistry
-from cora.infrastructure.auth.registry_factory import build_idp_registry
 
 # NB: `BearerAuthMiddleware` (apps/api/src/cora/infrastructure/auth/
 # bearer_auth_middleware.py) is intentionally NOT re-exported from this
