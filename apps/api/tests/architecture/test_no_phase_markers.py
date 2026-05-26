@@ -17,7 +17,11 @@ number).
 The forbidden patterns and the rationale for each:
 
   - `Phase <digit-or-letter>...` chronological marker that rots
-    (the project's phase labels are an internal scaffold).
+    (the project's phase labels are an internal scaffold). Covers
+    Latin forms (`Phase 5h`, `Phase B`) and Greek-letter forms
+    (`Phase <alpha>`, `Phase <gamma>-2`); later project_phase_plan.md
+    cohorts have shifted to the Greek alphabet and the rule extends
+    with them.
   - `Iter [A-Z]...` sub-phase iteration marker.
   - `DLM-[A-Z]` design-lock-memo internal identifier.
   - `audit-YYYY-MM-DD` audit-cohort tag (the audit ran once; the
@@ -50,7 +54,15 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _FORBIDDEN = re.compile(
+    # Latin-form phase tags: `Phase 5h`, `Phase B`.
     r"Phase [0-9A-Z]"
+    r"|"
+    # Greek-letter phase tags. Covers the lowercase alpha-omega block
+    # (U+03B1-U+03C9, including final sigma U+03C2) and uppercase
+    # Alpha-Omega (U+0391-U+03A9). project_phase_plan.md cohorts past
+    # the Latin alphabet shifted to Greek; this arm catches the drift.
+    # Code-point escapes (not literal glyphs) so RUF001 stays clean.
+    "Phase [\u0391-\u03a9\u03b1-\u03c9]"
     r"|"
     r"\bIter [A-Z]\b"
     r"|"

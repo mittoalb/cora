@@ -56,8 +56,16 @@ def _qualified(p: Path) -> str:
 
 def _from_stored_body(text: str) -> str | None:
     """Extract the `from_stored` function body, stopping at the next
-    top-level `def` or `__all__`."""
-    pattern = r"^def from_stored.*?(?=^def [^_]|^__all__|^class )"
+    top-level `def` / `__all__` / `class`, or end-of-file.
+
+    The trailing `|\\Z` arm matters: every aggregate today happens to
+    have an `__all__` below `from_stored`, but a future events.py that
+    omits it (or moves `from_stored` to the last definition) would
+    otherwise produce a regex miss + silent `pytest.skip`, hiding the
+    fact that no per-case wrap check ran. Anchoring to end-of-file
+    keeps the body extractable in either layout.
+    """
+    pattern = r"^def from_stored.*?(?=^def [^_]|^__all__|^class |\Z)"
     m = re.search(pattern, text, re.DOTALL | re.MULTILINE)
     return m.group() if m else None
 

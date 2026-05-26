@@ -14,18 +14,20 @@ This fitness function rejects:
 ``dict[X, Y]`` is deliberately NOT pinned: JSON-schema-shaped payloads
 are intrinsically freeform dicts; pinning ``Mapping[X, Y]`` would
 document intent without enforcing runtime immutability. The companion
-defence for dict aliasing (B1 from the audit) is shallow-copy on fold
-in the evolver, addressed in Phase β.
+defence for dict aliasing (B1 from the 2026-05-22 audit) is
+shallow-copy on fold in the evolver.
 
 Known scope gap: a ``list`` / ``set`` nested INSIDE a ``dict`` value
-isn't currently detected by the top-level annotation scan. Phase β
-migrated the lone known case (``asset_families_snapshot`` is now
-``dict[UUID, tuple[UUID, ...]]``) by hand; if a new nested case lands,
-extend the AST walk to recurse into dict value parameters.
+isn't currently detected by the top-level annotation scan. The
+2026-05-22 audit migrated the lone known case
+(``asset_families_snapshot`` is now ``dict[UUID, tuple[UUID, ...]]``)
+by hand; if a new nested case lands, extend the AST walk to recurse
+into dict value parameters.
 
 ``MUTABLE_COLLECTION_EVENT_FIELDS`` is the explicit work-tracker for
-known list/set fields awaiting migration. Phase β migrates the types
-and removes the matching allowlist entries.
+known list/set fields awaiting migration. A migration replaces the
+types with their immutable counterparts and removes the matching
+allowlist entries.
 """
 
 from __future__ import annotations
@@ -41,8 +43,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-# Entries are <qualified-event-class>.<field-name>. Each removed when
-# Phase β migrates the type to tuple[...] / frozenset[...].
+# Entries are <qualified-event-class>.<field-name>. Each removed
+# when a migration replaces the type with tuple[...] / frozenset[...].
 MUTABLE_COLLECTION_EVENT_FIELDS: frozenset[str] = frozenset()
 
 

@@ -17,7 +17,7 @@ Note on the 2026-05-22 audit's D4 finding: the audit flagged Trust's
 ``get_surface/route.py`` for inline ``HTTPException(404)``, but
 ``get_surface`` is a query slice and the inline 404 is the documented
 pattern (parallel to every other ``get_*`` route). No violation; the
-Phase ζ allowlist drops the D4 entry.
+post-audit allowlist drops the D4 entry.
 
 For command slices, ``GRANDFATHERED_COMMAND_ROUTES`` is the explicit
 work-tracker for documented inline raises (e.g. the

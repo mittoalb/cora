@@ -24,6 +24,9 @@ Mirrors `update_family_settings_schema` (Equipment BC) decider stance.
 
 Invariants:
   - State must not be None -> MethodNotFoundError
+  - If Method.capability_id is set, the bound Capability stream
+    must exist (handler skipped the load when it was missing)
+    -> CapabilityNotFoundError
   - parameters_schema (if non-None) must be a valid in-subset
     JSON Schema -> InvalidMethodParametersSchemaError
   - parameters_schema (if non-None AND Method.capability_id is set

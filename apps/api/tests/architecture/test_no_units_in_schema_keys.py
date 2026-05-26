@@ -17,8 +17,8 @@ This fitness function AST-walks every tracked ``.py`` file under
 ``src/cora``, finds dict literals containing a ``"properties"`` key,
 and rejects any property whose name ends in a recognised unit suffix.
 Detection is per-key, not per-file: an allowlist of grandfathered
-(file, key) pairs survives Phase δ migration without locking the
-whole file.
+(file, key) pairs survives the unit-suffix migration without
+locking the whole file.
 """
 
 from __future__ import annotations
@@ -60,9 +60,9 @@ _UNIT_SUFFIX = re.compile(
 # Entries are "<qualified-module>:property_key". Each cites the audit
 # finding; the matching entry is removed when the property is renamed.
 # B3 (rotation_center + detector_pixel_size keys with unit suffixes)
-# was the only entry; cleared by Phase δ when the schemas were rewritten
-# without the suffixes. The frozenset stays as the documented escape
-# hatch for future renames that need a transition window.
+# was the only entry; cleared when the schemas were rewritten without
+# the suffixes. The frozenset stays as the documented escape hatch
+# for future renames that need a transition window.
 GRANDFATHERED_PROPERTY_KEYS: frozenset[str] = frozenset()
 
 
@@ -118,9 +118,10 @@ def test_schema_property_keys_have_no_unit_suffix(path: Path) -> None:
 def test_grandfathered_property_keys_still_have_unit_suffix() -> None:
     """``GRANDFATHERED_PROPERTY_KEYS`` entries must still carry a unit suffix.
 
-    Drift catcher: once Phase δ migrates a key to its unit-agnostic form,
-    its allowlist entry becomes dead weight. Re-running the unit-suffix
-    regex here forces the entry to be removed alongside the rename.
+    Drift catcher: once a rename moves a key to its unit-agnostic
+    form, its allowlist entry becomes dead weight. Re-running the
+    unit-suffix regex here forces the entry to be removed alongside
+    the rename.
     """
     for entry in GRANDFATHERED_PROPERTY_KEYS:
         qualified, _, key = entry.partition(":")
@@ -132,7 +133,7 @@ def test_grandfathered_property_keys_still_have_unit_suffix() -> None:
         found_keys = {k for _, k in _property_keys(tree)}
         assert key in found_keys, (
             f"{entry}: property key no longer present; remove allowlist entry "
-            "(Phase δ rename shipped)"
+            "(unit-suffix rename shipped)"
         )
         assert _UNIT_SUFFIX.search(key), (
             f"{entry}: key no longer matches a unit suffix; remove allowlist entry"
