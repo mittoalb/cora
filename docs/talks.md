@@ -11,16 +11,6 @@ Recent CORA talks. Live slides for the browser, PDF for offline.
 
 <div class="grid cards" markdown>
 
--   __CORA at 2-BM: From playground to autonomous CT__
-
-    *2-BM beamline onboarding · APS · 2026 · Doğa Gürsoy*
-
-    Working session for the 2-BM beamline staff. The plan for replacing TomoScan on the playground, MVP-first: six weeks to a first scan through CORA, then per-scan-as-demanded growth toward autonomous CT.
-
-    <a href="2026-aps-2bm-intro/2026-aps-2bm-intro.pdf" class="talk-download" download title="Download PDF" aria-label="Download PDF"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm14-12h-4V2H9v6H5l7 7 7-7z"/></svg></a>
-
-    [Open slides →](2026-aps-2bm-intro/)
-
 -   __CORA: Toward a connecting layer for beamline experiments__
 
     *Fields of View Workshop · MAX IV · May 2026 · Doğa Gürsoy*
