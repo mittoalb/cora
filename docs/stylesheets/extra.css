@@ -437,6 +437,13 @@ body::before {
   display: contents;
 }
 
+/* Single-column variant: keep the card box + top-right download icon,
+   but stack one talk per row. Material applies grid-template-columns to
+   .grid itself (the div), not to its > ul. */
+.md-typeset .grid.cards.talks-list {
+  grid-template-columns: 1fr;
+}
+
 /* ---- Labelled aside ----
    Left teal rule + small uppercase kicker, ported from the talks deck
    (border-l-2 / pl-5 / tracking-[0.22em]). Lighter than a Material
@@ -483,12 +490,16 @@ body::before {
 }
 
 /* ---- Left-nav section-head breathing room ----
-   Add a small top margin to any sibling that follows a nested item, so the
-   boundary between a section head (Clusters under Scenarios; Argonne/APS/
-   2-BM/35-BM under Deployments) and the next row reads as a soft group
-   break regardless of whether the next sibling is nested or a leaf. */
-.md-nav--primary .md-nav__item--nested + .md-nav__item {
-  margin-top: 1rem;
+   Add a small top margin to any sibling that follows a COLLAPSED nested
+   item, so two collapsed section heads do not touch. Under
+   `navigation.expand`, the toggle semantics invert: an unchecked input is
+   the default-open state, and `:checked` marks a section the user has
+   explicitly collapsed. So the rule fires when the previous nested
+   sibling's toggle IS checked, not when it isn't. */
+.md-nav--primary
+  .md-nav__item--nested:has(> .md-nav__toggle:checked)
+  + .md-nav__item {
+  margin-top: 0.9rem;
 }
 
 /* ---- Right-rail TOC active accent ----
