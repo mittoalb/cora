@@ -43,6 +43,14 @@ A `Family` is the device-class abstraction: "RotaryStage", "Camera", "Hexapod", 
 
 The six `AssetLevel` values are ISA-95-derived with single-word names. Levels are conventional: the decider checks that an Enterprise-level Asset has no parent and that every other level has one, but it does not enforce that a `Device` parents to an `Assembly`. Smart instruments with addressable sub-modules legitimately put a `Device` under another `Device`.
 
+Whether a composite vendor unit is one Asset with a wide settings dict or a parent Asset with several child Assets follows three tests. Any one is sufficient to spawn a child Asset:
+
+- **Lifecycle independence.** The sub-component can be commissioned, swapped, or decommissioned without retiring the parent.
+- **External addressability.** Another module needs to reference the sub-component by `asset_id`: `Plan.wiring`, `Calibration.target_id`, `Procedure.target_asset_ids`, `Caution.AssetTarget`, `Clearance.facility_asset_id`, `AssetBinding.asset_id`, Trust Zone membership, or Supply infrastructure linkage.
+- **Settings-schema divergence.** The sub-component needs settings keys that would collide with the parent's, or that need independent write-and-validate cycles.
+
+Addressability wins ties: if any other module references the sub-component by id, it is its own Asset. Per-component `Calibration` is the most common trigger at imaging beamlines (each lens position in a turret carries its own magnification calibration). Each Asset is its own event stream, so the choice is irreversible without a migration. A sub-component that fails all three is structural detail on the parent: a value in its `settings` dict or an entry in its `ports` set. A swappable detector head in a detector assembly is its own Asset; a fixed cooling loop on that same assembly is not. Each axis of a multi-axis stage is typically its own Asset when wired or calibrated per axis.
+
 `AssetCondition` is orthogonal to `AssetLifecycle`. A Decommissioned Asset can be discovered Faulted on inventory check; an Active Asset can be Degraded without being pulled out of service. The two enums move independently through their own slices.
 
 `AssetPort` declares what ports the equipment HAS. The connection between two ports lives in `Plan.wiring` in the [Recipe](../recipe/index.md) module.
