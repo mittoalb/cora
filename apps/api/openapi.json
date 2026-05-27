@@ -7054,7 +7054,7 @@
         "description": "Body for `POST /visits`.",
         "properties": {
           "external_refs": {
-            "description": "Anti-corruption refs to upstream-deferred concepts (proposal, btr, visit, cycle). Phase epsilon API surface; field accepted from Phase beta.",
+            "description": "Anti-corruption refs to upstream-deferred concepts (proposal, btr, visit, cycle). WARNING: scope-bounded query slices land Phase epsilon; until then refs are stored on the event but not exposed via list_visits_by_external_ref.",
             "items": {
               "$ref": "#/components/schemas/_ExternalRefBody"
             },
@@ -7071,7 +7071,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional self-FK for nested commissioning (Phase delta API surface; field accepted from Phase beta).",
+            "description": "Optional self-FK for nested commissioning. WARNING: partOf cohesion checks (parent exists, parent on same Surface) land Phase delta; until then the field is accepted but not validated. Set only when shipping in tandem with Phase delta or your tooling enforces cohesion externally.",
             "title": "Part Of Visit Id"
           },
           "planned_end_at": {
