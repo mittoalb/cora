@@ -8,6 +8,7 @@ import pytest
 from cora.supply.aggregates.supply import (
     Supply,
     SupplyDegraded,
+    SupplyDeregistered,
     SupplyEvent,
     SupplyMarkedAvailable,
     SupplyMarkedRecovering,
@@ -202,6 +203,16 @@ def _genesis_state() -> Supply:
             ),
             SupplyStatus.AVAILABLE,
         ),
+        (
+            SupplyDeregistered(
+                supply_id=_SUPPLY_ID,
+                from_status="Available",
+                reason="duplicate; re-registering correctly",
+                trigger="Operator",
+                occurred_at=_NOW,
+            ),
+            SupplyStatus.DECOMMISSIONED,
+        ),
     ],
 )
 @pytest.mark.unit
@@ -226,17 +237,19 @@ def test_evolver_arms_for_each_transition_event_set_target_status(
         "SupplyMarkedUnavailable",
         "SupplyMarkedRecovering",
         "SupplyRestored",
+        "SupplyDeregistered",
     ],
 )
 @pytest.mark.unit
 def test_evolver_raises_on_transition_event_with_no_genesis(event_type_name: str) -> None:
-    """All 10a-b transition events also require prior state; otherwise
-    the stream is corrupt (transition before genesis)."""
+    """Every transition event requires prior state; otherwise the stream
+    is corrupt (transition before genesis)."""
     event_classes = {
         "SupplyDegraded": SupplyDegraded,
         "SupplyMarkedUnavailable": SupplyMarkedUnavailable,
         "SupplyMarkedRecovering": SupplyMarkedRecovering,
         "SupplyRestored": SupplyRestored,
+        "SupplyDeregistered": SupplyDeregistered,
     }
     cls = event_classes[event_type_name]
     with pytest.raises(ValueError, match=f"{event_type_name} cannot be applied to empty state"):
@@ -254,9 +267,10 @@ def test_evolver_raises_on_transition_event_with_no_genesis(event_type_name: str
 
 @pytest.mark.unit
 def test_full_fsm_cycle_via_fold() -> None:
-    """Walk the full FSM via fold: register -> mark_available -> degrade ->
-    mark_unavailable -> mark_recovering -> restore. All 6 events accumulate
-    cleanly, identity preserved, terminal status is Available."""
+    """Walk the full health-FSM cycle via fold: register -> mark_available ->
+    degrade -> mark_unavailable -> mark_recovering -> restore. All 6 events
+    accumulate cleanly, identity preserved, terminal status is Available.
+    The lifecycle-terminal `deregister` step has its own test below."""
     state = fold(
         [
             SupplyRegistered(
@@ -305,6 +319,45 @@ def test_full_fsm_cycle_via_fold() -> None:
     )
     assert state is not None
     assert state.status == SupplyStatus.AVAILABLE
+    assert state.id == _SUPPLY_ID
+    assert state.kind == "LiquidNitrogen"
+    assert state.name.value == "35-BM LN2"
+
+
+@pytest.mark.unit
+def test_full_cycle_with_terminal_deregister_via_fold() -> None:
+    """Health cycle + lifecycle terminal: register -> mark_available ->
+    deregister. The terminal `Decommissioned` status is reachable from any
+    non-Decommissioned source; identity preserved across the terminal
+    transition. No transition exits Decommissioned (re-registration
+    creates a fresh stream)."""
+    state = fold(
+        [
+            SupplyRegistered(
+                supply_id=_SUPPLY_ID,
+                scope="Beamline",
+                kind="LiquidNitrogen",
+                name="35-BM LN2",
+                occurred_at=_NOW,
+            ),
+            SupplyMarkedAvailable(
+                supply_id=_SUPPLY_ID,
+                from_status="Unknown",
+                reason="walkdown",
+                trigger="Operator",
+                occurred_at=_NOW,
+            ),
+            SupplyDeregistered(
+                supply_id=_SUPPLY_ID,
+                from_status="Available",
+                reason="typo; re-registering",
+                trigger="Operator",
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.status == SupplyStatus.DECOMMISSIONED
     assert state.id == _SUPPLY_ID
     assert state.kind == "LiquidNitrogen"
     assert state.name.value == "35-BM LN2"

@@ -9,6 +9,7 @@ import pytest
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.supply.aggregates.supply import (
     SupplyDegraded,
+    SupplyDeregistered,
     SupplyMarkedAvailable,
     SupplyMarkedRecovering,
     SupplyMarkedUnavailable,
@@ -151,12 +152,14 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
         (SupplyMarkedUnavailable, "SupplyMarkedUnavailable"),
         (SupplyMarkedRecovering, "SupplyMarkedRecovering"),
         (SupplyRestored, "SupplyRestored"),
+        (SupplyDeregistered, "SupplyDeregistered"),
     ],
 )
 @pytest.mark.unit
 def test_transition_event_type_name(event_class: Any, expected_type_name: str) -> None:
-    """All 4 new transition event classes report their own class name via
-    event_type_name (the discriminator written into StoredEvent.event_type)."""
+    """All 5 transition event classes (4 FSM-closure + lifecycle-terminal
+    Deregistered) report their own class name via event_type_name (the
+    discriminator written into StoredEvent.event_type)."""
     event = event_class(
         supply_id=_SUPPLY_ID,
         from_status="x",
@@ -169,14 +172,20 @@ def test_transition_event_type_name(event_class: Any, expected_type_name: str) -
 
 @pytest.mark.parametrize(
     "event_class",
-    [SupplyDegraded, SupplyMarkedUnavailable, SupplyMarkedRecovering, SupplyRestored],
+    [
+        SupplyDegraded,
+        SupplyMarkedUnavailable,
+        SupplyMarkedRecovering,
+        SupplyRestored,
+        SupplyDeregistered,
+    ],
 )
 @pytest.mark.unit
 def test_transition_event_to_payload_carries_audit_triple(
     event_class: Any,
 ) -> None:
-    """All 4 new transition events share the same payload shape (`from_status`,
-    `reason`, `trigger`, `occurred_at`) — pin the serialization."""
+    """All 5 transition events share the same payload shape (`from_status`,
+    `reason`, `trigger`, `occurred_at`); pin the serialization."""
     event = event_class(
         supply_id=_SUPPLY_ID,
         from_status="Available",
@@ -200,11 +209,12 @@ def test_transition_event_to_payload_carries_audit_triple(
         (SupplyMarkedUnavailable, "SupplyMarkedUnavailable"),
         (SupplyMarkedRecovering, "SupplyMarkedRecovering"),
         (SupplyRestored, "SupplyRestored"),
+        (SupplyDeregistered, "SupplyDeregistered"),
     ],
 )
 @pytest.mark.unit
 def test_transition_event_round_trip_via_from_stored(event_class: Any, event_type_str: str) -> None:
-    """Round-trip each new transition event class through to_payload + from_stored
+    """Round-trip each transition event class through to_payload + from_stored
     and verify equality. Pins the per-event-type dispatch in `from_stored`."""
     original = event_class(
         supply_id=_SUPPLY_ID,
@@ -227,6 +237,7 @@ def test_transition_event_round_trip_via_from_stored(event_class: Any, event_typ
         "SupplyMarkedUnavailable",
         "SupplyMarkedRecovering",
         "SupplyRestored",
+        "SupplyDeregistered",
     ],
 )
 def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:

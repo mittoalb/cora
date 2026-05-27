@@ -9,9 +9,11 @@ persistence-envelope construction (`NewEvent`) lives at
 `SupplyMarkedAvailable` covers the first-observation transition
 (Unknown -> Available); `SupplyDegraded`, `SupplyMarkedUnavailable`,
 `SupplyMarkedRecovering`, and `SupplyRestored` cover the full
-degradation/recovery cycle. All 5 transition events share the same
-payload shape (`from_status, reason, trigger, occurred_at`) so the
-projection can fold them through one parameterized UPDATE.
+degradation/recovery cycle. `SupplyDeregistered` is the lifecycle-
+terminal transition (any non-Decommissioned -> Decommissioned). All
+6 transition events share the same payload shape (`from_status,
+reason, trigger, occurred_at`) so the projection can fold them
+through one parameterized UPDATE.
 
 Status is NOT carried in `SupplyRegistered`'s payload — the event
 type IS the state-change indicator (matches `FamilyDefined ->
@@ -170,6 +172,29 @@ class SupplyRestored:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class SupplyDeregistered:
+    """The Supply was deregistered; transitions to terminal Decommissioned.
+
+    Widest source set of any Supply transition: any non-Decommissioned
+    status. Lifecycle terminal (no transition exits Decommissioned;
+    re-registration creates a fresh `supply_id`). `from_status`
+    captures whichever health state the Supply held immediately before
+    deregistration, preserved on the event log for audit. Same payload
+    shape as the other five transition events.
+
+    Per [[project_deregister_supply_design]], this is the operator
+    escape hatch for mistaken registrations. The trigger is always
+    `Operator`; substream and timer auto-decommission are not modeled.
+    """
+
+    supply_id: UUID
+    from_status: str
+    reason: str
+    trigger: str
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Supply aggregate emits.
 SupplyEvent = (
     SupplyRegistered
@@ -178,6 +203,7 @@ SupplyEvent = (
     | SupplyMarkedUnavailable
     | SupplyMarkedRecovering
     | SupplyRestored
+    | SupplyDeregistered
 )
 
 
@@ -238,6 +264,13 @@ def to_payload(event: SupplyEvent) -> dict[str, Any]:
                 occurred_at=occurred_at,
             )
             | SupplyRestored(
+                supply_id=supply_id,
+                from_status=from_status,
+                reason=reason,
+                trigger=trigger,
+                occurred_at=occurred_at,
+            )
+            | SupplyDeregistered(
                 supply_id=supply_id,
                 from_status=from_status,
                 reason=reason,
@@ -307,20 +340,26 @@ def from_stored(stored: StoredEvent) -> SupplyEvent:
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed SupplyRestored payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
+        case "SupplyDeregistered":
+            try:
+                return SupplyDeregistered(**_transition_kwargs(payload))
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed SupplyDeregistered payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown SupplyEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
 
 
 def _transition_kwargs(payload: dict[str, Any]) -> dict[str, Any]:
-    """Shared payload-deserialization for all 5 transition events.
+    """Shared payload-deserialization for all 6 transition events.
 
     All transitions (SupplyMarkedAvailable / SupplyDegraded /
-    SupplyMarkedUnavailable / SupplyMarkedRecovering / SupplyRestored)
-    carry the same `(supply_id, from_status, reason, trigger,
-    occurred_at)` shape. Hoisting this kwargs builder keeps each
-    `from_stored` arm one-line and avoids 5 copies of the same dict
-    literal.
+    SupplyMarkedUnavailable / SupplyMarkedRecovering / SupplyRestored
+    / SupplyDeregistered) carry the same `(supply_id, from_status,
+    reason, trigger, occurred_at)` shape. Hoisting this kwargs builder
+    keeps each `from_stored` arm one-line and avoids 6 copies of the
+    same dict literal.
     """
     return {
         "supply_id": UUID(payload["supply_id"]),
@@ -333,6 +372,7 @@ def _transition_kwargs(payload: dict[str, Any]) -> dict[str, Any]:
 
 __all__ = [
     "SupplyDegraded",
+    "SupplyDeregistered",
     "SupplyEvent",
     "SupplyMarkedAvailable",
     "SupplyMarkedRecovering",

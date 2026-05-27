@@ -41,14 +41,16 @@ def test_get_supplies_accepts_each_scope(client: TestClient, scope_value: str) -
 @pytest.mark.contract
 @pytest.mark.parametrize(
     "status_value",
-    ["Unknown", "Available", "Degraded", "Unavailable", "Recovering"],
+    ["Unknown", "Available", "Degraded", "Unavailable", "Recovering", "Decommissioned"],
 )
 def test_get_supplies_accepts_each_status_locked_day_one(
     client: TestClient, status_value: str
 ) -> None:
-    """All 5 statuses accepted day one even though only Unknown / Available
-    are reachable from the initial slices; the Literal is locked at the
-    full FSM for forward-compat per project_supply_design."""
+    """All 6 statuses accepted: 5 FSM health states locked at full enum
+    width per project_supply_design (forward-compat), plus the lifecycle-
+    terminal Decommissioned per project_deregister_supply_design. Callers
+    filter explicitly when they want only-active or only-decommissioned;
+    no default exclusion. Matches Asset and Subject sibling-BC convention."""
     with client:
         response = client.get(f"/supplies?status={status_value}")
     assert response.status_code == 200

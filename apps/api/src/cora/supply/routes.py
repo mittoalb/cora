@@ -25,11 +25,12 @@ Equipment-style loop pattern:
   - 404 (load miss): SupplyNotFound
   - 409 (defensive guard for AlreadyExists): SupplyAlreadyExists
   - 409 (transition guard): SupplyCannot{MarkAvailable, Degrade,
-    MarkUnavailable, MarkRecovering, Restore}
+    MarkUnavailable, MarkRecovering, Restore, Deregister}
 
 Adding a new aggregate (or a new transition error) becomes one tuple
-entry per family. The cannot-transition tuple expanded from 1 to 5
-entries when 10a-b shipped the FSM-closure transitions.
+entry per family. The cannot-transition tuple grew from 1 to 5
+entries when 10a-b shipped the FSM-closure transitions, and to 6
+when `deregister_supply` shipped the lifecycle-terminal transition.
 """
 
 from fastapi import FastAPI, Request, status
@@ -41,6 +42,7 @@ from cora.supply.aggregates.supply import (
     InvalidSupplyReasonError,
     SupplyAlreadyExistsError,
     SupplyCannotDegradeError,
+    SupplyCannotDeregisterError,
     SupplyCannotMarkAvailableError,
     SupplyCannotMarkRecoveringError,
     SupplyCannotMarkUnavailableError,
@@ -50,6 +52,7 @@ from cora.supply.aggregates.supply import (
 from cora.supply.errors import UnauthorizedError
 from cora.supply.features import (
     degrade_supply,
+    deregister_supply,
     get_supply,
     list_supplies,
     mark_supply_available,
@@ -112,9 +115,9 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
     """Shared 409 handler for state-transition guards.
 
     Covers the `<X>Cannot<Verb>Error` family: Supply's MarkAvailable
-    (10a-a) and 10a-b's FSM-closure quartet (Degrade /
-    MarkUnavailable / MarkRecovering / Restore). Same pattern as
-    Subject's / Equipment's `_handle_cannot_transition`.
+    (10a-a), the FSM-closure quartet (Degrade / MarkUnavailable /
+    MarkRecovering / Restore), and the lifecycle-terminal Deregister.
+    Same pattern as Subject's / Equipment's `_handle_cannot_transition`.
     """
     _ = request
     return JSONResponse(
@@ -131,6 +134,7 @@ def register_supply_routes(app: FastAPI) -> None:
     app.include_router(mark_supply_unavailable.router)
     app.include_router(mark_supply_recovering.router)
     app.include_router(restore_supply.router)
+    app.include_router(deregister_supply.router)
     app.include_router(get_supply.router)
     app.include_router(list_supplies.router)
     for validation_cls in (
@@ -149,6 +153,7 @@ def register_supply_routes(app: FastAPI) -> None:
         SupplyCannotMarkUnavailableError,
         SupplyCannotMarkRecoveringError,
         SupplyCannotRestoreError,
+        SupplyCannotDeregisterError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

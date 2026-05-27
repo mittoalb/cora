@@ -132,7 +132,8 @@ SUPPLY_REASON_MAX_LENGTH = 500
 class SupplyStatus(StrEnum):
     """The Supply's availability state.
 
-    Five values locked day one per [[project_supply_design]]:
+    Five health states + one lifecycle terminal per
+    [[project_supply_design]] + [[project_deregister_supply_design]]:
 
       - `Unknown`: registration-time default; no observation yet
       - `Available`: resource is up and meeting consumer needs
@@ -141,6 +142,24 @@ class SupplyStatus(StrEnum):
       - `Recovering`: resource was Unavailable; observation suggests
                         it may be coming back; operator must `restore_supply`
                         to confirm `Recovering -> Available`
+      - `Decommissioned`: lifecycle terminal; the Supply was deregistered.
+                          NOT a health state; a tombstone parallel to
+                          `Actor.is_active=false`, `Subject.status=Discarded`,
+                          `Asset.lifecycle=Decommissioned`. No transition exits
+                          this state; re-registration creates a fresh `supply_id`.
+                          Do NOT interpret this value as license to add `Faulted`,
+                          `Maintenance`, or any other health-state widening; those
+                          remain fenced by Anti-hook 1 of [[project_supply_design]].
+
+    Naming asymmetry (deliberate): the operator gesture is `deregister_supply`
+    (paired with `register_supply` for natural register/deregister UX);
+    the event class is `SupplyDeregistered` (matches the gesture); but the
+    resulting status value is `DECOMMISSIONED` (matches the cross-BC
+    tombstone vocabulary established by `Asset.lifecycle.DECOMMISSIONED`).
+    The gesture-vs-status split is intentional: operator-facing surfaces
+    speak `register`/`deregister`; event-log + status-projection surfaces
+    speak the cross-BC tombstone vocabulary. See
+    [[project_deregister_supply_design]].
 
     Initial `Unknown` is universal industrial + cloud-native consensus
     (Tango UNKNOWN, EPICS UDF, Azure Resource Health Unknown, k8s
@@ -153,6 +172,7 @@ class SupplyStatus(StrEnum):
     DEGRADED = "Degraded"
     UNAVAILABLE = "Unavailable"
     RECOVERING = "Recovering"
+    DECOMMISSIONED = "Decommissioned"
 
 
 class SupplyScope(StrEnum):
@@ -340,6 +360,32 @@ class SupplyCannotMarkRecoveringError(Exception):
             f"Supply {supply_id} cannot be marked Recovering: currently in status "
             f"{current_status.value}, mark_supply_recovering requires "
             f"{SupplyStatus.UNAVAILABLE.value}"
+        )
+        self.supply_id = supply_id
+        self.current_status = current_status
+
+
+class SupplyCannotDeregisterError(Exception):
+    """Attempted `deregister_supply` from a disqualifying status.
+
+    Single disqualifying source: `Decommissioned` itself (the lifecycle
+    terminal). Strict-not-idempotent: re-issuing on a Decommissioned
+    Supply raises rather than silently succeeding, so operators get a
+    clear 409 with the current status in the diagnostic. Mirrors the
+    in-BC `SupplyCannot<Verb>Error` family shape (single + multi-source
+    rejections all carry `current_status`) and aligns with the multi-
+    state lifecycle-terminal precedent in `SubjectCannotDiscardError`
+    and `AssetCannotDecommissionError`. (The Access BC's
+    `ActorCannotDeactivateError` is single-arg by design: Actor's
+    `is_active` is binary, so there is no informative status value to
+    surface in the error message.)
+    """
+
+    def __init__(self, supply_id: UUID, current_status: "SupplyStatus") -> None:
+        super().__init__(
+            f"Supply {supply_id} cannot be deregistered: currently in status "
+            f"{current_status.value}, deregister_supply requires any status "
+            f"other than {SupplyStatus.DECOMMISSIONED.value}"
         )
         self.supply_id = supply_id
         self.current_status = current_status

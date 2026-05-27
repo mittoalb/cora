@@ -3974,6 +3974,23 @@
         "title": "DeprecateCapabilityRequest",
         "type": "object"
       },
+      "DeregisterSupplyRequest": {
+        "description": "Body for `POST /supplies/{supply_id}/deregister`.\n\n`reason` is operator-supplied free text (audit-log breadcrumb)\nexplaining why the supply is being deregistered. Examples:\n\"typo on scope at registration; re-registering correctly\",\n\"beamline retired\", \"duplicate of supply <id>\".",
+        "properties": {
+          "reason": {
+            "description": "Operator-supplied reason for the deregister transition (audit-log breadcrumb).",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "DeregisterSupplyRequest",
+        "type": "object"
+      },
       "DiscardDatasetRequest": {
         "description": "Body for `POST /datasets/{dataset_id}/discard`.",
         "properties": {
@@ -8072,13 +8089,14 @@
         "type": "string"
       },
       "SupplyStatus": {
-        "description": "The Supply's availability state.\n\nFive values locked day one per [[project_supply_design]]:\n\n  - `Unknown`: registration-time default; no observation yet\n  - `Available`: resource is up and meeting consumer needs\n  - `Degraded`: resource is up but below nominal capacity / quality\n  - `Unavailable`: resource is down (planned or unplanned)\n  - `Recovering`: resource was Unavailable; observation suggests\n                    it may be coming back; operator must `restore_supply`\n                    to confirm `Recovering -> Available`\n\nInitial `Unknown` is universal industrial + cloud-native consensus\n(Tango UNKNOWN, EPICS UDF, Azure Resource Health Unknown, k8s\nPending, Prometheus `up{}` UNKNOWN-before-first-scrape). The\noptimistic-Available default is an anti-pattern.",
+        "description": "The Supply's availability state.\n\nFive health states + one lifecycle terminal per\n[[project_supply_design]] + [[project_deregister_supply_design]]:\n\n  - `Unknown`: registration-time default; no observation yet\n  - `Available`: resource is up and meeting consumer needs\n  - `Degraded`: resource is up but below nominal capacity / quality\n  - `Unavailable`: resource is down (planned or unplanned)\n  - `Recovering`: resource was Unavailable; observation suggests\n                    it may be coming back; operator must `restore_supply`\n                    to confirm `Recovering -> Available`\n  - `Decommissioned`: lifecycle terminal; the Supply was deregistered.\n                      NOT a health state; a tombstone parallel to\n                      `Actor.is_active=false`, `Subject.status=Discarded`,\n                      `Asset.lifecycle=Decommissioned`. No transition exits\n                      this state; re-registration creates a fresh `supply_id`.\n                      Do NOT interpret this value as license to add `Faulted`,\n                      `Maintenance`, or any other health-state widening; those\n                      remain fenced by Anti-hook 1 of [[project_supply_design]].\n\nNaming asymmetry (deliberate): the operator gesture is `deregister_supply`\n(paired with `register_supply` for natural register/deregister UX);\nthe event class is `SupplyDeregistered` (matches the gesture); but the\nresulting status value is `DECOMMISSIONED` (matches the cross-BC\ntombstone vocabulary established by `Asset.lifecycle.DECOMMISSIONED`).\nThe gesture-vs-status split is intentional: operator-facing surfaces\nspeak `register`/`deregister`; event-log + status-projection surfaces\nspeak the cross-BC tombstone vocabulary. See\n[[project_deregister_supply_design]].\n\nInitial `Unknown` is universal industrial + cloud-native consensus\n(Tango UNKNOWN, EPICS UDF, Azure Resource Health Unknown, k8s\nPending, Prometheus `up{}` UNKNOWN-before-first-scrape). The\noptimistic-Available default is an anti-pattern.",
         "enum": [
           "Unknown",
           "Available",
           "Degraded",
           "Unavailable",
-          "Recovering"
+          "Recovering",
+          "Decommissioned"
         ],
         "title": "SupplyStatus",
         "type": "string"
@@ -22541,7 +22559,7 @@
             }
           },
           {
-            "description": "Optional status filter (one of: Unknown, Available, Degraded, Unavailable, Recovering). Omit to return all statuses.",
+            "description": "Optional status filter (one of: Unknown, Available, Degraded, Unavailable, Recovering, Decommissioned). Omit to return all statuses including Decommissioned (no default-exclude; matches Asset / Subject sibling-BC convention).",
             "in": "query",
             "name": "status",
             "required": false,
@@ -22553,7 +22571,8 @@
                     "Available",
                     "Degraded",
                     "Unavailable",
-                    "Recovering"
+                    "Recovering",
+                    "Decommissioned"
                   ],
                   "type": "string"
                 },
@@ -22561,7 +22580,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Optional status filter (one of: Unknown, Available, Degraded, Unavailable, Recovering). Omit to return all statuses.",
+              "description": "Optional status filter (one of: Unknown, Available, Degraded, Unavailable, Recovering, Decommissioned). Omit to return all statuses including Decommissioned (no default-exclude; matches Asset / Subject sibling-BC convention).",
               "title": "Status"
             }
           },
@@ -22879,6 +22898,106 @@
           }
         },
         "summary": "Mark a Supply as Degraded (resource up but below nominal capacity)",
+        "tags": [
+          "supply"
+        ]
+      }
+    },
+    "/supplies/{supply_id}/deregister": {
+      "post": {
+        "operationId": "post_supplies_deregister_supplies__supply_id__deregister_post",
+        "parameters": [
+          {
+            "description": "Target supply's id.",
+            "in": "path",
+            "name": "supply_id",
+            "required": true,
+            "schema": {
+              "description": "Target supply's id.",
+              "format": "uuid",
+              "title": "Supply Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeregisterSupplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (for example whitespace-only reason)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No supply exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Supply is already Decommissioned (strict-not-idempotent)."
+          },
+          "422": {
+            "description": "Request body failed schema validation (missing reason, empty reason, or reason exceeds 500 chars)."
+          }
+        },
+        "summary": "Deregister a Supply (lifecycle terminal: any -> Decommissioned)",
         "tags": [
           "supply"
         ]

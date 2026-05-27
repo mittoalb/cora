@@ -153,17 +153,18 @@ def test_max_length_constants_are_pinned() -> None:
     assert SUPPLY_REASON_MAX_LENGTH == 500
 
 
-# ---------- SupplyStatus enum (5-value FSM, locked day one) ----------
+# ---------- SupplyStatus enum (5 health states + Decommissioned terminal) ----------
 
 
 @pytest.mark.unit
-def test_supply_status_has_five_locked_values() -> None:
+def test_supply_status_has_six_locked_values() -> None:
     assert {s.value for s in SupplyStatus} == {
         "Unknown",
         "Available",
         "Degraded",
         "Unavailable",
         "Recovering",
+        "Decommissioned",
     }
 
 

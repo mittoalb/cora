@@ -3,42 +3,48 @@ the `proj_supply_summary` read model that backs `GET /supplies`.
 
 Subscribed events:
   - SupplyRegistered         -> INSERT (status='Unknown', last_status_*=NULL)
-  - SupplyMarkedAvailable    -> UPDATE status='Available'    + audit triple
-  - SupplyDegraded           -> UPDATE status='Degraded'     + audit triple
-  - SupplyMarkedUnavailable  -> UPDATE status='Unavailable'  + audit triple
-  - SupplyMarkedRecovering   -> UPDATE status='Recovering'   + audit triple
-  - SupplyRestored           -> UPDATE status='Available'    + audit triple
+  - SupplyMarkedAvailable    -> UPDATE status='Available'     + audit triple
+  - SupplyDegraded           -> UPDATE status='Degraded'      + audit triple
+  - SupplyMarkedUnavailable  -> UPDATE status='Unavailable'   + audit triple
+  - SupplyMarkedRecovering   -> UPDATE status='Recovering'    + audit triple
+  - SupplyRestored           -> UPDATE status='Available'     + audit triple
+  - SupplyDeregistered       -> UPDATE status='Decommissioned' + audit triple
 
 All transition arms run a single parameterized `_UPDATE_STATUS_SQL`
-with status as $5: the SQL shape was identical across all 5
+with status as $5: the SQL shape is identical across all 6
 transitions (status literal + audit triple), so the per-transition
 SQL constants were hoisted here. The status string comes from a
 per-event-type lookup mirroring `from_stored` in events.py.
 
-All branches idempotent. The CHECK constraints on `status` and
-`last_trigger` were locked with the full enum values day one (5
-statuses + 3 triggers) so the later 4 transition arms land without a
-constraint migration (verified at the table level via the Atlas
-migration).
+All branches idempotent. The status CHECK constraint covers all 6
+status values after the Decommissioned-widening migration ships per
+[[project_deregister_supply_design]]; last_trigger CHECK covers the
+3 trigger values locked day one.
 
 ## Cross-stream uniqueness on (scope, kind, name)
 
 The migration's `proj_supply_summary_address_uq` UNIQUE INDEX on
 `(scope, kind, name)` enforces cross-stream uniqueness at the read
 side (the aggregate cannot enforce cross-stream invariants without
-DCB per [[project_deferred]]). When two operators register supplies
-with the same (scope, kind, name), the second `SupplyRegistered`
-event lands in the event store cleanly (no decider gate), but its
-projection INSERT raises `asyncpg.UniqueViolationError`.
+DCB per [[project_deferred]]). The index is PARTIAL on
+`WHERE status != 'Decommissioned'`: Decommissioned rows do not count
+toward uniqueness, so an operator who deregisters a mistaken Supply
+can re-register at the same (scope, kind, name) address with a fresh
+supply_id. This is the load-bearing affordance the design memo
+[[project_deregister_supply_design]] documents.
 
-Day-one operational handling: catch the unique-violation, log a
-structured WARN, and return successfully so the projection bookmark
-advances and the worker keeps running. The duplicate Supply event
-sits in the event log as a permanent audit-record of the operator
-mistake; the projection has only the first row. Operators can
-discover the issue via list_supplies + reconcile via the future
-`deregister_supply` slice (Watch item 10 in the design memo) or via
-DCB-backed pre-check at the decider (Watch item 7).
+When two operators concurrently register supplies with the same
+(scope, kind, name) BOTH in active states, the second
+`SupplyRegistered` event lands in the event store cleanly (no
+decider gate), but its projection INSERT raises
+`asyncpg.UniqueViolationError`. Day-one operational handling: catch
+the unique-violation, log a structured WARN, and return successfully
+so the projection bookmark advances and the worker keeps running.
+The duplicate Supply event sits in the event log as a permanent
+audit-record of the operator mistake; the projection has only the
+first row. Operators de-register one via `deregister_supply`, which
+moves it to `Decommissioned`; the partial UNIQUE INDEX then permits
+re-registering the address.
 
 Without this catch the worker would stall on the first duplicate,
 blocking ALL Supply projection progress including transitions on
@@ -85,6 +91,11 @@ _TRANSITION_STATUS: dict[str, str] = {
     "SupplyMarkedUnavailable": "Unavailable",
     "SupplyMarkedRecovering": "Recovering",
     "SupplyRestored": "Available",
+    # Deploy migration `20260527160000_widen_proj_supply_summary_for_deregister`
+    # BEFORE rolling out code that emits SupplyDeregistered: the older
+    # status CHECK constraint rejects 'Decommissioned' and stalls the
+    # projection worker on the first such event.
+    "SupplyDeregistered": "Decommissioned",
 }
 
 
@@ -137,9 +148,10 @@ class SupplySummaryProjection:
             return
 
         if event.event_type in _TRANSITION_STATUS:
-            # All 5 transition events (MarkedAvailable / Degraded /
-            # MarkedUnavailable / MarkedRecovering / Restored) share
-            # the same UPDATE shape; status comes from the lookup.
+            # All 6 transition events (MarkedAvailable / Degraded /
+            # MarkedUnavailable / MarkedRecovering / Restored /
+            # Deregistered) share the same UPDATE shape; status comes
+            # from the lookup.
             await conn.execute(
                 _UPDATE_STATUS_SQL,
                 UUID(event.payload["supply_id"]),

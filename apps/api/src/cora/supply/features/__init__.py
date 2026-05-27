@@ -12,12 +12,16 @@ Degradation/recovery cycle:
   - `mark_supply_recovering`   (Unavailable -> Recovering)
   - `restore_supply`           (Recovering -> Available; recovery acknowledgement)
 
+Lifecycle terminal:
+  - `deregister_supply`        (any non-Decommissioned -> Decommissioned)
+
 Method.needs.supplies wire-up is Recipe-side enrichment (no new
 slices in this BC).
 """
 
 from cora.supply.features import (
     degrade_supply,
+    deregister_supply,
     get_supply,
     list_supplies,
     mark_supply_available,
@@ -29,6 +33,7 @@ from cora.supply.features import (
 
 __all__ = [
     "degrade_supply",
+    "deregister_supply",
     "get_supply",
     "list_supplies",
     "mark_supply_available",

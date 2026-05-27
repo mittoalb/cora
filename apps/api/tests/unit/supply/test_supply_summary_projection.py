@@ -68,6 +68,7 @@ def test_projection_metadata() -> None:
             "SupplyMarkedUnavailable",
             "SupplyMarkedRecovering",
             "SupplyRestored",
+            "SupplyDeregistered",
         }
     )
 
@@ -126,13 +127,14 @@ async def test_supply_registered_inserts_with_unknown_status_and_null_audit() ->
         ("SupplyMarkedUnavailable", "Unavailable"),
         ("SupplyMarkedRecovering", "Recovering"),
         ("SupplyRestored", "Available"),
+        ("SupplyDeregistered", "Decommissioned"),
     ],
 )
 @pytest.mark.unit
 async def test_transition_events_share_parameterized_update_with_audit_triple(
     event_type: str, expected_status: str
 ) -> None:
-    """All 5 transition events (10a-a + 10a-b) use the parameterized
+    """All 6 transition events use the parameterized
     `_UPDATE_STATUS_SQL`; status comes from the per-event-type lookup.
     Pins audit-triple binding (last_status_changed_at = $2,
     last_status_reason = $3, last_trigger = $4, status = $5)."""

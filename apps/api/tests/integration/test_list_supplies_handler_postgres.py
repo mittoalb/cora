@@ -313,15 +313,15 @@ async def test_list_cursor_with_filter_paginates_within_filtered_set(
 
 
 @pytest.mark.integration
-async def test_list_unique_address_swallows_second_insert_and_keeps_worker_running(
+async def test_list_unique_address_swallows_second_active_insert_and_keeps_worker_running(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Duplicate-key UniqueViolation in the projection is caught and logged.
 
-    Two supplies with the same (scope, kind, name) trip the projection's
-    UNIQUE INDEX on the second INSERT. The projection catches the
-    UniqueViolation, logs a structured warning, and advances the bookmark
-    so the worker keeps running. Operational behavior verified:
+    Two ACTIVE supplies with the same (scope, kind, name) trip the
+    projection's partial UNIQUE INDEX on the second INSERT. The projection
+    catches the UniqueViolation, logs a structured warning, and advances
+    the bookmark so the worker keeps running. Operational behavior verified:
 
       - Both Supply event streams exist in the event store (the duplicate
         registration is audit-recorded, not silently dropped at the
@@ -334,9 +334,15 @@ async def test_list_unique_address_swallows_second_insert_and_keeps_worker_runni
 
     The aggregate cannot enforce cross-stream uniqueness without DCB
     (see [[project_deferred]]); graceful projection-level handling is
-    the right operational behavior pre-DCB. Operators discover the
-    duplicate via list_supplies and reconcile via the future
-    `deregister_supply` slice (Watch item 10).
+    the right operational behavior pre-DCB. Watch item 10 of
+    [[project_supply_design]] has SHIPPED as the `deregister_supply`
+    slice; once a duplicate is identified, operators deregister one
+    via `POST /supplies/{id}/deregister` and the partial UNIQUE INDEX
+    (`WHERE status != 'Decommissioned'`) then permits re-registering
+    the address with a fresh `supply_id`. The companion test
+    `test_supply_reregister_after_deregister_postgres.py` pins that
+    re-registration cycle; this test pins the still-active-duplicate
+    case (the other direction of the partial predicate).
     """
     sup_id_1 = uuid4()
     sup_id_2 = uuid4()

@@ -3,19 +3,25 @@ list of supplies from the projection.
 
 Three optional filters: scope (Facility / Sector / Beamline), kind
 (free-form bare-str discriminator, exact match), status (one of the
-five SupplyStatus values). All three correspond to real ops queries:
+six SupplyStatus values, including the lifecycle-terminal
+`Decommissioned`). All three correspond to real ops queries:
 "all LN2 supplies" (kind), "all beamline-scope supplies" (scope),
 "all unavailable supplies" (status).
 
-`SupplyStatusFilter` and `SupplyScopeFilter` are locked at the full
-enum width day one, even though only `Unknown` and `Available` are
-reachable from the initial slices (the other 3 statuses become
-reachable when the later transition slices ship). The forward-compat
-motivation: when those land, no Pydantic schema change required;
-OpenAPI documents the full FSM up front for ops engineers. Same
-precedent as TriggerSource being locked 3-value day one.
+No default exclusion of Decommissioned rows: matches the cross-BC
+convention from Asset (`AssetLifecycleFilter` includes
+`Decommissioned`) and Subject (`SubjectStatusFilter` includes
+`Discarded`). An unfiltered `list_supplies` returns every status;
+callers who want only-active set `status=...` explicitly. Callers
+who want to audit decommissioned supplies set `status=Decommissioned`.
 
-Cursor encodes (registered_at, supply_id) — `registered_at` is set
+`SupplyStatusFilter` and `SupplyScopeFilter` are locked at the full
+enum width: forward-compat motivation: when later transition slices
+land, no Pydantic schema change required; OpenAPI documents the
+full FSM up front for ops engineers. Same precedent as TriggerSource
+being locked 3-value day one.
+
+Cursor encodes (registered_at, supply_id): `registered_at` is set
 once at SupplyRegistered (immutable), so it's a stable keyset key.
 Mirrors `list_families` cursor exactly.
 """
@@ -35,6 +41,7 @@ SupplyStatusFilter = Literal[
     "Degraded",
     "Unavailable",
     "Recovering",
+    "Decommissioned",
 ]
 
 
@@ -55,4 +62,4 @@ class ListSupplies:
     """Optional kind filter (free-form, exact match)."""
 
     status: SupplyStatusFilter | None = None
-    """Optional status filter (one of the five SupplyStatus values)."""
+    """Optional status filter (one of the six SupplyStatus values)."""

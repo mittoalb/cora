@@ -120,7 +120,9 @@ async def list_supplies(
             alias="status",
             description=(
                 "Optional status filter (one of: Unknown, Available, Degraded, "
-                "Unavailable, Recovering). Omit to return all statuses."
+                "Unavailable, Recovering, Decommissioned). Omit to return all "
+                "statuses including Decommissioned (no default-exclude; matches "
+                "Asset / Subject sibling-BC convention)."
             ),
         ),
     ] = None,

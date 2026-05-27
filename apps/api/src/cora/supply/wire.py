@@ -16,7 +16,7 @@ Subject / Equipment (composition order matters — innermost first):
 3. `with_tracing` — OTel span around every handler call. Records
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
-## Wired handlers (10a-a + 10a-b)
+## Wired handlers
 
   - `register_supply` (create-style; idempotency-wrapped)
   - `mark_supply_available` (transition)
@@ -24,10 +24,11 @@ Subject / Equipment (composition order matters — innermost first):
   - `mark_supply_unavailable` (transition)
   - `mark_supply_recovering` (transition)
   - `restore_supply` (transition)
+  - `deregister_supply` (lifecycle-terminal transition)
   - `get_supply` (query)
   - `list_supplies` (query)
 
-All five transition handlers are built via the
+All six transition handlers are built via the
 `make_supply_update_handler` factory (hoisted at the
 rule-of-three trigger; mirrors `_asset_update_handler`).
 """
@@ -40,6 +41,7 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.supply.features import (
     degrade_supply,
+    deregister_supply,
     get_supply,
     list_supplies,
     mark_supply_available,
@@ -56,11 +58,11 @@ _BC = "supply"
 class SupplyHandlers:
     """The Supply BC's handler bundle, each closed over Kernel.
 
-    Five transition handlers (mark_available + degrade +
-    mark_unavailable + mark_recovering + restore) plus
-    register_supply (create-style; idempotency-wrapped) plus two
-    queries (get_supply, list_supplies). Every transition handler
-    flows through `make_supply_update_handler`, hoisted at
+    Six transition handlers (mark_available + degrade +
+    mark_unavailable + mark_recovering + restore + deregister)
+    plus register_supply (create-style; idempotency-wrapped) plus
+    two queries (get_supply, list_supplies). Every transition
+    handler flows through `make_supply_update_handler`, hoisted at
     the rule-of-three trigger.
     """
 
@@ -70,6 +72,7 @@ class SupplyHandlers:
     mark_supply_unavailable: mark_supply_unavailable.Handler
     mark_supply_recovering: mark_supply_recovering.Handler
     restore_supply: restore_supply.Handler
+    deregister_supply: deregister_supply.Handler
     get_supply: get_supply.Handler
     list_supplies: list_supplies.Handler
 
@@ -114,6 +117,11 @@ def wire_supply(deps: Kernel) -> SupplyHandlers:
         restore_supply=with_tracing(
             restore_supply.bind(deps),
             command_name="RestoreSupply",
+            bc=_BC,
+        ),
+        deregister_supply=with_tracing(
+            deregister_supply.bind(deps),
+            command_name="DeregisterSupply",
             bc=_BC,
         ),
         get_supply=with_tracing(

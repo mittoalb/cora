@@ -5,14 +5,15 @@ case forces pyright (and the runtime) to error if a new event type
 is added to `SupplyEvent` without a matching match arm here.
 
 Status mapping per event type:
-  - `SupplyRegistered`        -> UNKNOWN     (genesis; universal initial-state convention)
-  - `SupplyMarkedAvailable`   -> AVAILABLE   (single-source: Unknown only)
-  - `SupplyDegraded`          -> DEGRADED    (sources: Unknown, Available, Recovering)
-  - `SupplyMarkedUnavailable` -> UNAVAILABLE (sources: Unknown, Available, Degraded, Recovering)
-  - `SupplyMarkedRecovering`  -> RECOVERING  (single-source: Unavailable)
-  - `SupplyRestored`          -> AVAILABLE   (single-source: Recovering; recovery ack)
+  - `SupplyRegistered`        -> UNKNOWN        (genesis; universal initial-state convention)
+  - `SupplyMarkedAvailable`   -> AVAILABLE      (single-source: Unknown only)
+  - `SupplyDegraded`          -> DEGRADED       (sources: Unknown, Available, Recovering)
+  - `SupplyMarkedUnavailable` -> UNAVAILABLE    (sources: Unknown, Available, Degraded, Recovering)
+  - `SupplyMarkedRecovering`  -> RECOVERING     (single-source: Unavailable)
+  - `SupplyRestored`          -> AVAILABLE      (single-source: Recovering; recovery ack)
+  - `SupplyDeregistered`      -> DECOMMISSIONED (any non-Decommissioned; lifecycle terminal)
 
-The mapping is hardcoded per match arm — the event type IS the
+The mapping is hardcoded per match arm: the event type IS the
 state-change indicator. Same precedent as `FamilyDefined ->
 DEFINED` / `SubjectMounted -> MOUNTED`. Source-state guards are
 enforced at the decider, NOT here; the evolver trusts the event
@@ -31,6 +32,7 @@ from typing import assert_never
 from cora.infrastructure.evolver import require_state
 from cora.supply.aggregates.supply.events import (
     SupplyDegraded,
+    SupplyDeregistered,
     SupplyEvent,
     SupplyMarkedAvailable,
     SupplyMarkedRecovering,
@@ -100,6 +102,15 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
                 kind=prior.kind,
                 name=prior.name,
                 status=SupplyStatus.RECOVERING,
+            )
+        case SupplyDeregistered():
+            prior = require_state(state, "SupplyDeregistered")
+            return Supply(
+                id=prior.id,
+                scope=prior.scope,
+                kind=prior.kind,
+                name=prior.name,
+                status=SupplyStatus.DECOMMISSIONED,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
