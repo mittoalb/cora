@@ -182,6 +182,12 @@ depends_on = [
     "cora.operation.aggregates",
     "cora.equipment.aggregates",
     "cora.recipe.aggregates",
+    # `cora.run.aggregates` provides `load_run` used by
+    # `start_procedure` handler to resolve the parent Run's
+    # Method.needed_supplies chain for Phase-of-Run pre-flight gate
+    # per [[project_supply_preflight_gate_design]]. Standalone
+    # Procedures (no parent_run_id) skip the load.
+    "cora.run.aggregates",
 ]
 
 # Safety BC owns the Clearance aggregate (FSM authorising hazardous

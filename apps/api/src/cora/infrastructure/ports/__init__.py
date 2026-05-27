@@ -79,6 +79,12 @@ from cora.infrastructure.ports.signer import (
     SignerKeyNotFoundError,
     SignerUnavailableError,
 )
+from cora.infrastructure.ports.supply_lookup import (
+    AllSatisfiedSupplyLookup,
+    NoSuppliesRegisteredLookup,
+    SupplyLookup,
+    SupplyReference,
+)
 from cora.infrastructure.ports.token_verifier import (
     IntrospectionUnavailableError,
     InvalidTokenError,
@@ -89,6 +95,7 @@ from cora.infrastructure.ports.token_verifier import (
 
 __all__ = [
     "LLM",
+    "AllSatisfiedSupplyLookup",
     "Allow",
     "AllowAllAuthorize",
     "AlwaysCoveredClearanceLookup",
@@ -141,6 +148,7 @@ __all__ = [
     "MinSeverity",
     "ModelRef",
     "NewEvent",
+    "NoSuppliesRegisteredLookup",
     "PrincipalKind",
     "Profile",
     "ProfileStore",
@@ -150,6 +158,8 @@ __all__ = [
     "SignerUnavailableError",
     "StoredEvent",
     "StreamAppend",
+    "SupplyLookup",
+    "SupplyReference",
     "SystemClock",
     "TokenVerifier",
     "UUIDv7Generator",

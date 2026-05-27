@@ -302,6 +302,56 @@ class ProcedureCapabilityExecutorMismatchError(Exception):
         self.capability_id = capability_id
 
 
+class ProcedureRequiresAvailableSupplyError(Exception):
+    """No Supply registered for one of the parent Run's Method.needed_supplies kinds.
+
+    Cross-BC gate: when a Procedure has `parent_run_id` set (Phase-of-Run),
+    `start_procedure` inherits the parent Run's Method.needed_supplies
+    requirement. This error fires when ZERO non-Decommissioned Supplies
+    of a required kind are registered. Standalone Procedures (no
+    parent_run_id) skip this gate today; Capability-level needed_supplies
+    is a Watch item per [[project_supply_preflight_gate_design]].
+
+    Mirrors `RunRequiresAvailableSupplyError`. Mapped to HTTP 409.
+    """
+
+    def __init__(self, procedure_id: UUID, kind: str) -> None:
+        super().__init__(
+            f"Procedure {procedure_id} cannot start: no Supply registered for "
+            f"required kind {kind!r}. Register a Supply of that kind and mark "
+            f"it Available before starting."
+        )
+        self.procedure_id = procedure_id
+        self.kind = kind
+
+
+class ProcedureSupplyCoverageMismatchError(Exception):
+    """Supply registered for the required kind but none are Available.
+
+    Cross-BC gate: at least one Supply of the required kind is
+    registered (and not Decommissioned), but all have status in
+    {Unknown, Degraded, Unavailable, Recovering}. Operator must mark
+    one Available before starting.
+
+    Mirrors `RunSupplyCoverageMismatchError`. Mapped to HTTP 409.
+    """
+
+    def __init__(
+        self,
+        procedure_id: UUID,
+        kind: str,
+        supply_status_summary: frozenset[tuple[str, str]],
+    ) -> None:
+        super().__init__(
+            f"Procedure {procedure_id} cannot start: required kind {kind!r} "
+            f"has no Available Supply. Current statuses: "
+            f"{sorted(supply_status_summary)}. Mark one Available before starting."
+        )
+        self.procedure_id = procedure_id
+        self.kind = kind
+        self.supply_status_summary = supply_status_summary
+
+
 class ProcedureCannotStartError(Exception):
     """Attempted to start a Procedure not in `Defined`.
 

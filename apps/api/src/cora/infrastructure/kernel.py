@@ -46,6 +46,7 @@ from cora.infrastructure.ports import (
     LogbookMirror,
     ProfileStore,
     Signer,
+    SupplyLookup,
     TokenVerifier,
 )
 
@@ -82,6 +83,21 @@ class Kernel:
     (see `cora.infrastructure.ports.caution_lookup` module
     docstring): the snapshot informs the payload but the decider
     never gates on it.
+
+    `supply_lookup`: cross-BC port consumed by Run BC's `start_run`
+    handler and Operation BC's `start_procedure` handler to gate
+    start on Method.needed_supplies satisfaction (at least one
+    AVAILABLE Supply per required kind). Supply BC ships
+    `PostgresSupplyLookup` as the production adapter (reads
+    `proj_supply_summary`, excludes Decommissioned rows per the
+    partial UNIQUE INDEX semantics in
+    [[project_deregister_supply_design]]). Test environments default
+    to `AllSatisfiedSupplyLookup` (synthetic Available per kind) so
+    existing Run / Procedure tests don't have to seed real Supplies;
+    gate-specific tests override with the real adapter or with
+    `NoSuppliesRegisteredLookup` for the missing-kind path. Mirrors
+    the `ClearanceLookup` / `CautionLookup` test-default pattern.
+    See [[project_supply_preflight_gate_design]].
 
     `llm`: optional LLM-chat port consumed by Agent BC subscribers
     (RunDebriefer, CautionDrafter). Production wires
@@ -133,6 +149,7 @@ class Kernel:
     idempotency_store: IdempotencyStore
     clearance_lookup: ClearanceLookup
     caution_lookup: CautionLookup
+    supply_lookup: SupplyLookup
     profile_store: ProfileStore
     pool: asyncpg.Pool | None = None
     llm: LLM | None = None

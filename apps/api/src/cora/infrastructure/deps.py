@@ -55,6 +55,7 @@ from cora.infrastructure.kernel import Kernel, Teardown
 from cora.infrastructure.logging import configure_logging
 from cora.infrastructure.ports import (
     LLM,
+    AllSatisfiedSupplyLookup,
     AlwaysCoveredClearanceLookup,
     AlwaysQuietCautionLookup,
     Authorize,
@@ -66,6 +67,7 @@ from cora.infrastructure.ports import (
     IdGenerator,
     LogbookMirror,
     ProfileStore,
+    SupplyLookup,
     SystemClock,
     TokenVerifier,
     UUIDv7Generator,
@@ -103,6 +105,7 @@ def make_postgres_kernel(
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
+    supply_lookup: SupplyLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
@@ -137,6 +140,13 @@ def make_postgres_kernel(
     snapshot-specific tests override here explicitly. NON-BLOCKING by
     construction (see `cora.infrastructure.ports.caution_lookup`).
 
+    `supply_lookup` defaults to `AllSatisfiedSupplyLookup` (synthetic
+    Available per requested kind) so existing Run / Procedure tests
+    don't have to seed real Supplies. Production's `build_kernel`
+    injects the real `PostgresSupplyLookup` via the
+    `supply_lookup_factory` argument; gate-specific tests override
+    here explicitly. See [[project_supply_preflight_gate_design]].
+
     `llm` defaults to `None` because most BCs and tests don't need
     an LLM; only Agent BC subscribers consume it. Production's
     `build_kernel` injects `AnthropicLLM` when
@@ -166,6 +176,7 @@ def make_postgres_kernel(
         caution_lookup=(
             caution_lookup if caution_lookup is not None else AlwaysQuietCautionLookup()
         ),
+        supply_lookup=(supply_lookup if supply_lookup is not None else AllSatisfiedSupplyLookup()),
         profile_store=(profile_store if profile_store is not None else PostgresProfileStore(pool)),
         pool=pool,
         llm=llm,
@@ -184,6 +195,7 @@ def make_inmemory_kernel(
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
+    supply_lookup: SupplyLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
@@ -214,6 +226,11 @@ def make_inmemory_kernel(
     `proj_caution_summary` table. Snapshot-specific tests can override
     with a custom adapter or a fake that returns seeded references.
 
+    `supply_lookup` defaults to `AllSatisfiedSupplyLookup` for the same
+    reason: no projection worker, no `proj_supply_summary` table to
+    read from. Gate-specific tests can override with
+    `NoSuppliesRegisteredLookup` (missing-kind path) or a custom fake.
+
     `llm` defaults to `None`; the in-memory kernel is for unit /
     contract tests that don't exercise LLM subscribers. Subscriber
     tests that DO exercise the LLM path inject `FakeLLM`
@@ -243,6 +260,7 @@ def make_inmemory_kernel(
         caution_lookup=(
             caution_lookup if caution_lookup is not None else AlwaysQuietCautionLookup()
         ),
+        supply_lookup=(supply_lookup if supply_lookup is not None else AllSatisfiedSupplyLookup()),
         profile_store=profile_store if profile_store is not None else InMemoryProfileStore(),
         # pool is intentionally typed `object | None` on this factory's
         # signature (per the docstring: idempotency-pruner tests pass a
@@ -297,6 +315,25 @@ class CautionLookupFactory(Protocol):
     ) -> CautionLookup: ...
 
 
+class SupplyLookupFactory(Protocol):
+    """Builds the production SupplyLookup port for the Kernel.
+
+    Supply BC's `cora.supply.adapters.PostgresSupplyLookup` is the
+    production factory; `cora.api.main` binds it. Same factory-
+    injection shape as the other lookup factories so
+    `cora.infrastructure.deps` doesn't import from any BC.
+
+    `pool` is `None` only when `app_env=test`; the production factory
+    requires a real pool. Test mode falls back to
+    `AllSatisfiedSupplyLookup` automatically.
+    """
+
+    def __call__(
+        self,
+        pool: asyncpg.Pool,
+    ) -> SupplyLookup: ...
+
+
 class LLMFactory(Protocol):
     """Builds the production LLM for the Kernel.
 
@@ -328,6 +365,7 @@ async def build_kernel(
     authorize_factory: AuthorizeFactory,
     clearance_lookup_factory: ClearanceLookupFactory | None = None,
     caution_lookup_factory: CautionLookupFactory | None = None,
+    supply_lookup_factory: SupplyLookupFactory | None = None,
     llm_factory: LLMFactory | None = None,
     settings: Settings | None = None,
 ) -> tuple[Kernel, Teardown]:
@@ -410,6 +448,11 @@ async def build_kernel(
         if caution_lookup_factory is not None
         else AlwaysQuietCautionLookup()
     )
+    supply_lookup: SupplyLookup = (
+        supply_lookup_factory(pool)
+        if supply_lookup_factory is not None
+        else AllSatisfiedSupplyLookup()
+    )
     llm: LLM | None = llm_factory(settings) if llm_factory is not None else None
     kernel = make_postgres_kernel(
         pool,
@@ -421,6 +464,7 @@ async def build_kernel(
         idempotency_store=pg_idempotency_store,
         clearance_lookup=clearance_lookup,
         caution_lookup=caution_lookup,
+        supply_lookup=supply_lookup,
         llm=llm,
         token_verifier=token_verifier,
     )

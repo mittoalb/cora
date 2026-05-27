@@ -29,9 +29,19 @@ re-validates the capability superset against current Asset state
 
 ## What's NOT pre-loaded
 
-Supply (Track B Supply BC not shipped) and Decision (Decision BC
-not shipped) — documented gate-review Q3 gaps. Lands when those
-BCs ship.
+Decision (Decision BC not shipped) — documented gate-review Q3 gap.
+Lands when Decision BC ships.
+
+## Supply satisfaction pre-load
+
+If `method.needed_supplies` is non-empty, the handler invokes
+`deps.supply_lookup.find_supplies_by_kind(kinds=method.needed_supplies)`
+to get every non-Decommissioned Supply per kind, and threads the
+mapping into `RunStartContext.needed_supplies_satisfaction`. The
+decider gates on at-least-one-AVAILABLE per kind per
+[[project_supply_preflight_gate_design]]. Empty needed_supplies
+short-circuits: no port call, decider sees empty satisfaction map,
+gate trivially passes.
 """
 
 from typing import Protocol
@@ -52,7 +62,7 @@ from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.json_merge_patch import merge_patch
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
-from cora.infrastructure.ports import Deny
+from cora.infrastructure.ports import Deny, SupplyReference
 from cora.infrastructure.ports.event_store import StreamAppend
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.recipe.aggregates.method import MethodNotFoundError, load_method
@@ -228,12 +238,27 @@ def bind(deps: Kernel) -> Handler:
             )
         )
 
+        # cross-BC Supply satisfaction snapshot per
+        # [[project_supply_preflight_gate_design]]: for every kind in
+        # Method.needed_supplies, load every non-Decommissioned Supply
+        # so the decider can gate on at-least-one-AVAILABLE per kind.
+        # Empty needed_supplies short-circuits the port call.
+        needed_supplies_satisfaction: dict[str, tuple[SupplyReference, ...]] = {}
+        if method.needed_supplies:
+            satisfaction = await deps.supply_lookup.find_supplies_by_kind(
+                kinds=method.needed_supplies,
+            )
+            needed_supplies_satisfaction = {
+                kind: tuple(refs) for kind, refs in satisfaction.items()
+            }
+
         context = RunStartContext(
             plan=plan,
             subject=subject,
             assets=assets,
             referencing_clearances=referencing_clearances,
             active_cautions=active_cautions,
+            needed_supplies_satisfaction=needed_supplies_satisfaction,
             campaign=campaign,
         )
 
@@ -250,6 +275,7 @@ def bind(deps: Kernel) -> Handler:
             command=command,
             context=context,
             needed_families_snapshot=method.needed_families,
+            needed_supplies_snapshot=method.needed_supplies,
             effective_parameters=effective_parameters,
             method_parameters_schema=method.parameters_schema,
             now=now,

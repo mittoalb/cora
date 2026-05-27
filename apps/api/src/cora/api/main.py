@@ -154,6 +154,7 @@ from cora.supply import (
     register_supply_tools,
     wire_supply,
 )
+from cora.supply.adapters import PostgresSupplyLookup
 from cora.trust import (
     TrustHandlers,
     build_authorize,
@@ -378,6 +379,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                 authorize_factory=build_authorize,
                 clearance_lookup_factory=PostgresClearanceLookup,
                 caution_lookup_factory=PostgresCautionLookup,
+                supply_lookup_factory=PostgresSupplyLookup,
                 llm_factory=build_llm,
                 # Pass the create_app-time Settings through so tests
                 # overriding identity_providers / require_auth / etc.

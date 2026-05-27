@@ -61,12 +61,20 @@ fundamental issues surface first:
 
 ## What's NOT validated
 
-  - Supply availability (Track B Supply BC not shipped). Documented
-    as gate-review Q3 known gap.
   - Decision approval (Decision BC not shipped). Documented as
     gate-review Q3 known gap.
   - Subject hazard ⊆ Method clearances (Method's hazardClearances
     facet not shipped). Documented as 6c-deferred enrichment.
+
+## Supply pre-flight gate
+
+For every kind in Method.needed_supplies, the decider requires at
+least one Supply of that kind to be registered AND at least one of
+them in status=Available. Default-strict: Degraded does NOT pass.
+See [[project_supply_preflight_gate_design]] for the shared
+"Available enough" lock; the handler loads the satisfaction map via
+deps.supply_lookup.find_supplies_by_kind and threads it on
+context.needed_supplies_satisfaction.
 """
 
 from dataclasses import dataclass
@@ -89,7 +97,9 @@ from cora.run.aggregates.run import (
     RunClearanceCoverageMismatchError,
     RunName,
     RunRequiresActiveClearanceError,
+    RunRequiresAvailableSupplyError,
     RunStarted,
+    RunSupplyCoverageMismatchError,
     SubjectNotMountableError,
     validate_effective_parameters_against_method_schema,
     validate_pinned_calibrations,
@@ -135,6 +145,7 @@ def decide(
     *,
     context: RunStartContext,
     needed_families_snapshot: frozenset[UUID],
+    needed_supplies_snapshot: frozenset[str] = frozenset(),
     effective_parameters: dict[str, Any],
     method_parameters_schema: dict[str, Any] | None,
     now: datetime,
@@ -148,6 +159,10 @@ def decide(
         -> RunRequiresActiveClearanceError
       - At least one referencing Clearance must be Active
         -> RunClearanceCoverageMismatchError
+      - Every kind in Method.needed_supplies must have at least
+        one registered Supply -> RunRequiresAvailableSupplyError
+      - Every kind in Method.needed_supplies must have at least
+        one AVAILABLE Supply -> RunSupplyCoverageMismatchError
       - Plan must not be Deprecated -> PlanDeprecatedError
       - Subject (when set) must be Mounted or Measured
         -> SubjectNotMountableError
@@ -207,6 +222,27 @@ def decide(
             new_id,
             referencing_clearance_count=len(context.referencing_clearances),
         )
+
+    # cross-BC Supply gate per
+    # [[project_supply_preflight_gate_design]]: for every kind in
+    # Method.needed_supplies, at least one Supply of that kind must
+    # be registered (RunRequiresAvailableSupplyError when absent),
+    # AND at least one of those registered Supplies must be in
+    # status=Available (RunSupplyCoverageMismatchError when present
+    # but none Available). Default-strict: Degraded does NOT pass;
+    # operators with override authority use mark_supply_available
+    # to declare a Supply Available before starting. Mirrors the
+    # clearance-gate two-error pair pattern above.
+    for kind in sorted(needed_supplies_snapshot):
+        candidates = context.needed_supplies_satisfaction.get(kind, ())
+        if not candidates:
+            raise RunRequiresAvailableSupplyError(new_id, kind)
+        if not any(s.status == "Available" for s in candidates):
+            raise RunSupplyCoverageMismatchError(
+                new_id,
+                kind,
+                frozenset((s.supply_id, s.status) for s in candidates),
+            )
 
     if context.plan.status is PlanStatus.DEPRECATED:
         raise PlanDeprecatedError(context.plan.id)

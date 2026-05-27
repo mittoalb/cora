@@ -49,7 +49,9 @@ from cora.operation.aggregates.procedure import (
     ProcedureCannotTruncateError,
     ProcedureCapabilityExecutorMismatchError,
     ProcedureNotFoundError,
+    ProcedureRequiresAvailableSupplyError,
     ProcedureStepsLogbookClosedError,
+    ProcedureSupplyCoverageMismatchError,
 )
 from cora.operation.errors import UnauthorizedError
 from cora.operation.features import (
@@ -168,6 +170,9 @@ def register_operation_routes(app: FastAPI) -> None:
         # cross-BC guard: Procedure binds to a Capability whose
         # executor_shapes does not include Procedure.
         ProcedureCapabilityExecutorMismatchError,
+        # cross-BC Supply pre-flight gate (Phase-of-Run only).
+        ProcedureRequiresAvailableSupplyError,
+        ProcedureSupplyCoverageMismatchError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

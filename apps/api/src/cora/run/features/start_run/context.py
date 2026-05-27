@@ -49,13 +49,16 @@ precedent. The "bound" qualifier was meaningful at Plan-bind time
 anything new.
 """
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import cast
 from uuid import UUID
 
 from cora.campaign.aggregates.campaign import Campaign
 from cora.equipment.aggregates.asset import Asset
 from cora.infrastructure.ports.caution_lookup import CautionReference
 from cora.infrastructure.ports.clearance_lookup import ClearanceReference
+from cora.infrastructure.ports.supply_lookup import SupplyReference
 from cora.recipe.aggregates.plan import Plan
 from cora.subject.aggregates.subject import Subject
 
@@ -73,6 +76,17 @@ class RunStartContext:
     Run's scope; the decider does NOT gate on this field, only
     embeds it on the `RunStarted` event payload.
 
+    `needed_supplies_satisfaction` is a mapping keyed by `Supply.kind`
+    string carrying every non-Decommissioned Supply of each required
+    kind from the governing Method's `needed_supplies` (loaded by the
+    handler via `deps.supply_lookup.find_supplies_by_kind`). The
+    decider gates on at-least-one-AVAILABLE per required kind per
+    [[project_supply_preflight_gate_design]]: kinds absent from the
+    mapping raise `RunRequiresAvailableSupplyError`; kinds present
+    but with no Available entry raise `RunSupplyCoverageMismatchError`.
+    Empty mapping is the natural state for Methods with empty
+    `needed_supplies` (the handler skips the lookup).
+
     `campaign` is None unless `StartRun.campaign_id` was
     provided. When non-None the decider gates on `campaign.status`
     being in `{Planned, Active, Held}` (else
@@ -87,4 +101,7 @@ class RunStartContext:
     assets: dict[UUID, Asset]
     referencing_clearances: tuple[ClearanceReference, ...]
     active_cautions: tuple[CautionReference, ...] = ()
+    needed_supplies_satisfaction: Mapping[str, tuple[SupplyReference, ...]] = field(
+        default_factory=lambda: cast("Mapping[str, tuple[SupplyReference, ...]]", {})
+    )
     campaign: Campaign | None = None

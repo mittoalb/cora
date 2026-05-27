@@ -34,6 +34,8 @@ InvalidRunInterruptedAtError).
     RunCapabilitiesNotSatisfiedError
   - 409 (Run-start safety-clearance gate, 11a-c-3):
     RunRequiresActiveClearanceError, RunClearanceCoverageMismatchError
+  - 409 (Run-start supply pre-flight gate):
+    RunRequiresAvailableSupplyError, RunSupplyCoverageMismatchError
   - 409 (Run transition guards, 6f-2): RunCannotCompleteError,
     RunCannotAbortError
   - 409 (Run transition guards, 6f-3): RunCannotHoldError,
@@ -81,6 +83,8 @@ from cora.run.aggregates.run import (
     RunNotFoundError,
     RunReadingLogbookClosedError,
     RunRequiresActiveClearanceError,
+    RunRequiresAvailableSupplyError,
+    RunSupplyCoverageMismatchError,
     SubjectNotMountableError,
 )
 from cora.run.errors import UnauthorizedError
@@ -203,6 +207,9 @@ def register_run_routes(app: FastAPI) -> None:
         # Run-start safety-clearance gate (11a-c-3).
         RunRequiresActiveClearanceError,
         RunClearanceCoverageMismatchError,
+        # Run-start supply pre-flight gate.
+        RunRequiresAvailableSupplyError,
+        RunSupplyCoverageMismatchError,
         # Run-start campaign-membership gate (6i-c).
         RunCannotJoinCampaignError,
         # Run-side campaign-membership invariant (6i-c).

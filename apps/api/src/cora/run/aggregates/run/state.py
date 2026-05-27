@@ -482,6 +482,65 @@ class RunCapabilitiesNotSatisfiedError(Exception):
         self.missing_family_ids = missing_family_ids
 
 
+class RunRequiresAvailableSupplyError(Exception):
+    """No Supply registered for one of the Method.needed_supplies kinds.
+
+    Cross-BC gate: `start_run` requires that for every kind in the
+    governing Method's `needed_supplies`, at least one non-Decommissioned
+    Supply is registered. This error fires when ZERO Supplies of a
+    required kind are registered. Operator must `register_supply` for
+    the missing kind first.
+
+    Distinct from `RunSupplyCoverageMismatchError`, which fires when
+    Supplies of the required kind ARE registered but all are in
+    non-Available status. Two errors so operator-facing messaging can
+    distinguish "no Supply at all" vs "Supply exists but unavailable".
+    Mirrors the `RunRequiresActiveClearanceError` / `RunClearanceCoverageMismatchError`
+    pair shape; same Requires-then-CoverageMismatch convention.
+    Mapped to HTTP 409 per [[project_supply_preflight_gate_design]].
+    """
+
+    def __init__(self, run_id: UUID, kind: str) -> None:
+        super().__init__(
+            f"Run {run_id} cannot start: no Supply registered for required kind {kind!r}. "
+            f"Register a Supply of that kind and mark it Available before starting."
+        )
+        self.run_id = run_id
+        self.kind = kind
+
+
+class RunSupplyCoverageMismatchError(Exception):
+    """Supply registered for the required kind but none are Available.
+
+    Cross-BC gate: at least one Supply of the required kind is
+    registered (and not Decommissioned), but all have status in
+    {Unknown, Degraded, Unavailable, Recovering}. Operator must mark
+    one Available (e.g., walk down the resource and issue
+    `mark_supply_available` or `restore_supply`) before starting.
+
+    `supply_status_summary` carries `(supply_id, status)` tuples for
+    every Supply of the required kind so the 409 message can name the
+    specific Supplies blocking the start. Mirrors the sibling
+    `RunClearanceCoverageMismatchError` pair shape.
+    Mapped to HTTP 409 per [[project_supply_preflight_gate_design]].
+    """
+
+    def __init__(
+        self,
+        run_id: UUID,
+        kind: str,
+        supply_status_summary: frozenset[tuple[str, str]],
+    ) -> None:
+        super().__init__(
+            f"Run {run_id} cannot start: required kind {kind!r} has no Available "
+            f"Supply. Current statuses: {sorted(supply_status_summary)}. "
+            f"Mark one Available before starting."
+        )
+        self.run_id = run_id
+        self.kind = kind
+        self.supply_status_summary = supply_status_summary
+
+
 class RunCannotCompleteError(Exception):
     """Attempted to complete a Run not in `Running`.
 

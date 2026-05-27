@@ -1,11 +1,12 @@
 """Application handler for the `start_procedure` slice.
 
 Update-style handler with a custom body (NOT the update-handler
-factory): the start_procedure flow pre-loads the target Assets to
-build a `ProcedureStartContext` for the decider's Decommissioned
-guard. The factory at `cora.infrastructure.update_handler` doesn't
-support cross-aggregate context loads; same reason `start_run`'s
-handler is custom.
+factory): the start_procedure flow pre-loads the target Assets and
+(for Phase-of-Run Procedures) the parent Run's Method.needed_supplies
+satisfaction to build a `ProcedureStartContext` for the decider's
+Decommissioned + Supply gates. The factory at
+`cora.infrastructure.update_handler` doesn't support cross-aggregate
+context loads; same reason `start_run`'s handler is custom.
 
 ## Pre-load order
 
@@ -13,6 +14,14 @@ handler is custom.
 2. For each `asset_id` in `procedure.target_asset_ids`:
    `load_asset(asset_id)` -> if None, `AssetNotFoundError` (Equipment-
    BC error, globally registered as 404 by Equipment's routes.py)
+3. If `state.parent_run_id is not None` (Phase-of-Run), resolve the
+   parent's needs chain: `load_run -> load_plan -> load_practice ->
+   load_method`. Then if `method.needed_supplies` is non-empty,
+   invoke `deps.supply_lookup.find_supplies_by_kind(...)` and thread
+   the satisfaction map into the context. Standalone Procedures (no
+   parent_run_id) skip this entire chain; Capability-level
+   needed_supplies is a Watch item per
+   [[project_supply_preflight_gate_design]].
 
 Loads run sequentially; could be optimized to async-gather later but
 not the bottleneck at MVP scale (target_asset_ids is small for any
@@ -20,9 +29,7 @@ realistic procedure: typically 1-5).
 
 ## What's NOT pre-loaded
 
-Supply (Supply BC integration deferred per
-[[project_operation_design]]) and Decision (Decision BC integration
-deferred). Documented as known gaps.
+Decision (Decision BC integration deferred). Documented as known gap.
 """
 
 from typing import Protocol
@@ -32,7 +39,7 @@ from cora.equipment.aggregates.asset import Asset, AssetNotFoundError, load_asse
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
-from cora.infrastructure.ports import Deny
+from cora.infrastructure.ports import Deny, SupplyReference
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.operation.aggregates.procedure import (
     ProcedureNotFoundError,
@@ -45,6 +52,10 @@ from cora.operation.errors import UnauthorizedError
 from cora.operation.features.start_procedure.command import StartProcedure
 from cora.operation.features.start_procedure.context import ProcedureStartContext
 from cora.operation.features.start_procedure.decider import decide
+from cora.recipe.aggregates.method import load_method
+from cora.recipe.aggregates.plan import load_plan
+from cora.recipe.aggregates.practice import load_practice
+from cora.run.aggregates.run import load_run
 
 _STREAM_TYPE = "Procedure"
 _COMMAND_NAME = "StartProcedure"
@@ -131,10 +142,46 @@ def bind(deps: Kernel) -> Handler:
                 raise AssetNotFoundError(asset_id)
             assets[asset_id] = asset
 
-        context = ProcedureStartContext(assets=assets)
+        # cross-BC Supply preflight per
+        # [[project_supply_preflight_gate_design]]: for Phase-of-Run
+        # Procedures, resolve parent_run_id -> Run -> Plan -> Practice
+        # -> Method, then load the satisfaction snapshot for
+        # method.needed_supplies. Standalone Procedures (no
+        # parent_run_id) pass the gate trivially with an empty
+        # snapshot. Capability-level needed_supplies for standalone
+        # Procedures is a Watch item.
+        needed_supplies_snapshot: frozenset[str] = frozenset()
+        needed_supplies_satisfaction: dict[str, tuple[SupplyReference, ...]] = {}
+        if state.parent_run_id is not None:
+            parent_run = await load_run(deps.event_store, state.parent_run_id)
+            if parent_run is not None:
+                plan = await load_plan(deps.event_store, parent_run.plan_id)
+                if plan is not None:
+                    practice = await load_practice(deps.event_store, plan.practice_id)
+                    if practice is not None:
+                        method = await load_method(deps.event_store, practice.method_id)
+                        if method is not None and method.needed_supplies:
+                            needed_supplies_snapshot = method.needed_supplies
+                            satisfaction = await deps.supply_lookup.find_supplies_by_kind(
+                                kinds=method.needed_supplies,
+                            )
+                            needed_supplies_satisfaction = {
+                                kind: tuple(refs) for kind, refs in satisfaction.items()
+                            }
+
+        context = ProcedureStartContext(
+            assets=assets,
+            needed_supplies_satisfaction=needed_supplies_satisfaction,
+        )
 
         now = deps.clock.now()
-        domain_events = decide(state=state, command=command, context=context, now=now)
+        domain_events = decide(
+            state=state,
+            command=command,
+            context=context,
+            needed_supplies_snapshot=needed_supplies_snapshot,
+            now=now,
+        )
 
         new_events = [
             to_new_event(
