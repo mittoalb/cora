@@ -108,6 +108,14 @@ dev = [
     # them separate because the fuzz harness wants stdlib-Python error
     # ergonomics rather than the Rust-binding throughput.
     "jsonschema>=4.21,<5",
+    # caproto (Stage-1b of the control-port arc): in-process Python EPICS
+    # IOC + asyncio CA client. Used TEST-ONLY by the
+    # `CaprotoControlPort` adapter at `cora/operation/adapters/` plus the
+    # `caproto_ioc` integration fixture; the maintainers' own README warns
+    # against caproto in production (two-maintainer convenience/iteration
+    # tool). Stays in dev because production CA goes through aioca
+    # (Stage-1c) and production PVA through p4p (Stage-1d).
+    "caproto>=1.2,<2",
     # mutmut: mutation testing for the audit cadence (Iter G of the
     # testing-techniques rollout). Audit-only, not per-PR — per-mutant
     # pytest spawn cost makes per-commit CI intolerable at suite scale.
