@@ -46,19 +46,35 @@ from cora.trust.aggregates.conduit import (
 )
 from cora.trust.aggregates.policy import InvalidPolicyNameError, PolicyAlreadyExistsError
 from cora.trust.aggregates.surface import InvalidSurfaceNameError, SurfaceAlreadyExistsError
+from cora.trust.aggregates.visit import (
+    InvalidVisitPlannedPeriodError,
+    InvalidVisitReasonError,
+    VisitAlreadyExistsError,
+    VisitCannotTransitionError,
+    VisitNotFoundError,
+)
 from cora.trust.aggregates.zone import InvalidZoneNameError, ZoneAlreadyExistsError
 from cora.trust.errors import UnauthorizedError
 from cora.trust.features import (
+    abort_visit,
+    arrive_visit,
+    cancel_visit,
+    complete_visit,
     define_conduit,
     define_policy,
     define_surface,
     define_zone,
     evaluate_policy,
     get_surface,
+    hold_visit,
     list_conduits,
     list_permissions,
     list_policies,
     list_zones,
+    register_visit,
+    resume_visit,
+    start_visit,
+    void_visit,
 )
 
 
@@ -117,6 +133,33 @@ async def _handle_logbook_state(request: Request, exc: Exception) -> JSONRespons
     )
 
 
+async def _handle_not_found(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 404 handler for `<Aggregate>NotFoundError` (Visit + future)."""
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_invalid_400(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 400 handler for domain `Invalid<X>Error` (non-name variants)."""
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 409 handler for Visit lifecycle-transition guards."""
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+
 def register_trust_routes(app: FastAPI) -> None:
     """Attach Trust slice routers and exception handlers to the FastAPI app."""
     app.include_router(define_zone.router)
@@ -129,6 +172,16 @@ def register_trust_routes(app: FastAPI) -> None:
     app.include_router(list_conduits.router)
     app.include_router(list_policies.router)
     app.include_router(list_permissions.router)
+    # Visit lifecycle slices (Phase beta).
+    app.include_router(register_visit.router)
+    app.include_router(arrive_visit.router)
+    app.include_router(start_visit.router)
+    app.include_router(hold_visit.router)
+    app.include_router(resume_visit.router)
+    app.include_router(complete_visit.router)
+    app.include_router(cancel_visit.router)
+    app.include_router(abort_visit.router)
+    app.include_router(void_visit.router)
     for invalid_name_cls in (
         InvalidZoneNameError,
         InvalidConduitNameError,
@@ -141,6 +194,7 @@ def register_trust_routes(app: FastAPI) -> None:
         ConduitAlreadyExistsError,
         PolicyAlreadyExistsError,
         SurfaceAlreadyExistsError,
+        VisitAlreadyExistsError,
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for logbook_state_cls in (
@@ -148,4 +202,12 @@ def register_trust_routes(app: FastAPI) -> None:
         ConduitLogbookNotOpenError,
     ):
         app.add_exception_handler(logbook_state_cls, _handle_logbook_state)
+    # Visit 404 + 400 + 409 (lifecycle) handlers.
+    app.add_exception_handler(VisitNotFoundError, _handle_not_found)
+    for invalid_400_cls in (
+        InvalidVisitPlannedPeriodError,
+        InvalidVisitReasonError,
+    ):
+        app.add_exception_handler(invalid_400_cls, _handle_invalid_400)
+    app.add_exception_handler(VisitCannotTransitionError, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

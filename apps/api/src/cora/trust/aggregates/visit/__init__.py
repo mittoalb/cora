@@ -1,0 +1,77 @@
+"""Visit aggregate: state, errors, events, evolver, read repo.
+
+Vertical slices that operate on this aggregate live under
+`cora.trust.features.<verb>_visit/` and import from here for state and
+event types.
+
+Per `[[project_visit_aggregate_design]]`, Visit is the operational-
+envelope counterpart to Trust's authz-topology primitives. 8-state FSM
+locked day one: Planned -> Arrived -> InProgress <-> OnHold ->
+Completed; +Cancelled (pre-work) +Aborted (mid-work) +Voided
+(registration-error). 9 lifecycle slices ship in Phase beta; presence
+(Phase gamma) + control (Phase delta) + type API surface (Phase
+epsilon) + statushistory projection (Phase zeta) follow.
+"""
+
+from cora.trust.aggregates.visit.events import (
+    VisitAborted,
+    VisitArrived,
+    VisitCancelled,
+    VisitCompleted,
+    VisitEvent,
+    VisitHeld,
+    VisitRegistered,
+    VisitResumed,
+    VisitStarted,
+    VisitVoided,
+    event_type_name,
+    from_stored,
+    to_payload,
+)
+from cora.trust.aggregates.visit.evolver import evolve, fold
+from cora.trust.aggregates.visit.read import (
+    VisitLifecycleTimestamps,
+    load_visit,
+    load_visit_timestamps,
+)
+from cora.trust.aggregates.visit.state import (
+    VISIT_REASON_MAX_LENGTH,
+    InvalidVisitPlannedPeriodError,
+    InvalidVisitReasonError,
+    Visit,
+    VisitAlreadyExistsError,
+    VisitCannotTransitionError,
+    VisitNotFoundError,
+    VisitStatus,
+    VisitType,
+)
+
+__all__ = [
+    "VISIT_REASON_MAX_LENGTH",
+    "InvalidVisitPlannedPeriodError",
+    "InvalidVisitReasonError",
+    "Visit",
+    "VisitAborted",
+    "VisitAlreadyExistsError",
+    "VisitArrived",
+    "VisitCancelled",
+    "VisitCannotTransitionError",
+    "VisitCompleted",
+    "VisitEvent",
+    "VisitHeld",
+    "VisitLifecycleTimestamps",
+    "VisitNotFoundError",
+    "VisitRegistered",
+    "VisitResumed",
+    "VisitStarted",
+    "VisitStatus",
+    "VisitType",
+    "VisitVoided",
+    "event_type_name",
+    "evolve",
+    "fold",
+    "from_stored",
+    "load_visit",
+    "load_visit_timestamps",
+    "to_payload",
+]

@@ -65,6 +65,23 @@
         "title": "AbortRunRequest",
         "type": "object"
       },
+      "AbortVisitRequest": {
+        "description": "Body for `POST /visits/{visit_id}/abort`.",
+        "properties": {
+          "reason": {
+            "description": "Operator-supplied reason for the abort (no PII).",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "AbortVisitRequest",
+        "type": "object"
+      },
       "ActorListResponse": {
         "description": "Page of actors plus opaque next-page cursor.\n\n`next_cursor` is None when no more pages. Pass it back as\n`?cursor=...` to fetch the next page.",
         "properties": {
@@ -1837,6 +1854,23 @@
           "registered_at"
         ],
         "title": "CampaignSummaryDTO",
+        "type": "object"
+      },
+      "CancelVisitRequest": {
+        "description": "Body for `POST /visits/{visit_id}/cancel`.",
+        "properties": {
+          "reason": {
+            "description": "Operator-supplied reason for the cancellation (audit-log breadcrumb; no PII).",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "CancelVisitRequest",
         "type": "object"
       },
       "CapabilityResponse": {
@@ -4570,6 +4604,23 @@
         "title": "HoldCampaignRequest",
         "type": "object"
       },
+      "HoldVisitRequest": {
+        "description": "Body for `POST /visits/{visit_id}/hold`.\n\n`reason` is operator-supplied free text (audit-log breadcrumb).\nExamples: \"beam dump\", \"equipment fault\", \"safety hold pending\nradiation door reset\", \"extended user break\". MUST NOT contain PII.",
+        "properties": {
+          "reason": {
+            "description": "Operator-supplied reason for the hold (audit-log breadcrumb; no PII).",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "HoldVisitRequest",
+        "type": "object"
+      },
       "InspectPlanBindingRequest": {
         "description": "Wire-side input for the inspect_plan_binding endpoint.",
         "properties": {
@@ -6999,6 +7050,91 @@
         "title": "RegisterSupplyResponse",
         "type": "object"
       },
+      "RegisterVisitRequest": {
+        "description": "Body for `POST /visits`.",
+        "properties": {
+          "external_refs": {
+            "description": "Anti-corruption refs to upstream-deferred concepts (proposal, btr, visit, cycle). Phase epsilon API surface; field accepted from Phase beta.",
+            "items": {
+              "$ref": "#/components/schemas/_ExternalRefBody"
+            },
+            "title": "External Refs",
+            "type": "array"
+          },
+          "part_of_visit_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional self-FK for nested commissioning (Phase delta API surface; field accepted from Phase beta).",
+            "title": "Part Of Visit Id"
+          },
+          "planned_end_at": {
+            "description": "Scheduled end; must be strictly after planned_start_at.",
+            "format": "date-time",
+            "title": "Planned End At",
+            "type": "string"
+          },
+          "planned_start_at": {
+            "description": "Scheduled start (operator-supplied).",
+            "format": "date-time",
+            "title": "Planned Start At",
+            "type": "string"
+          },
+          "policy_id": {
+            "description": "Policy that scopes this visit's authz.",
+            "format": "uuid",
+            "title": "Policy Id",
+            "type": "string"
+          },
+          "surface_id": {
+            "description": "Surface this visit binds to (e.g., 2-BM endstation).",
+            "format": "uuid",
+            "title": "Surface Id",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/VisitType",
+            "description": "Operational nature: user / commissioning / maintenance / calibration / staff."
+          },
+          "visit_id": {
+            "description": "Caller-supplied UUID. BSS subscriber uses deterministic uuid5; operator-direct may use uuid4.",
+            "format": "uuid",
+            "title": "Visit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "visit_id",
+          "policy_id",
+          "surface_id",
+          "type",
+          "planned_start_at",
+          "planned_end_at"
+        ],
+        "title": "RegisterVisitRequest",
+        "type": "object"
+      },
+      "RegisterVisitResponse": {
+        "description": "Response body for `POST /visits`.",
+        "properties": {
+          "visit_id": {
+            "format": "uuid",
+            "title": "Visit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "visit_id"
+        ],
+        "title": "RegisterVisitResponse",
+        "type": "object"
+      },
       "RejectClearanceRequest": {
         "description": "Body for `POST /clearances/{clearance_id}/reject`.",
         "properties": {
@@ -8717,6 +8853,35 @@
         "title": "VersionPracticeRequest",
         "type": "object"
       },
+      "VisitType": {
+        "description": "Closed enum classifying the operational nature of a Visit.\n\nFive values per `[[project_visit_aggregate_design]]`. Replaces the\nsentinel-value anti-pattern (DMagic `--gup 0`, NICOS demo=0).\n\n  - `user`         -- proposal-driven user beamtime\n  - `commissioning`-- detector / mechanism commissioning (nested as\n                      partOf a parent user Visit per S2 scenario)\n  - `maintenance`  -- preventative or corrective maintenance window\n  - `calibration`  -- standalone calibration block (CalibrationRevision\n                      is the data-side counterpart in Calibration BC)\n  - `staff`        -- staff-only work outside a proposal envelope",
+        "enum": [
+          "user",
+          "commissioning",
+          "maintenance",
+          "calibration",
+          "staff"
+        ],
+        "title": "VisitType",
+        "type": "string"
+      },
+      "VoidVisitRequest": {
+        "description": "Body for `POST /visits/{visit_id}/void`.",
+        "properties": {
+          "reason": {
+            "description": "Operator-supplied reason explaining why this Visit should never have existed (e.g., 'BSS double-sent registration', 'duplicate of visit X'). No PII.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "VoidVisitRequest",
+        "type": "object"
+      },
       "WiredAssetBindingItem": {
         "description": "Per-wired-Asset binding contribution on the wire.\n\n`family_ids` and `contributed_affordances` are sorted for\ndeterministic client diffs / cache validation.",
         "properties": {
@@ -8817,6 +8982,29 @@
           "created_at"
         ],
         "title": "ZoneSummaryDTO",
+        "type": "object"
+      },
+      "_ExternalRefBody": {
+        "description": "One ExternalRef carried on the request body.",
+        "properties": {
+          "id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "scheme": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Scheme",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scheme",
+          "id"
+        ],
+        "title": "_ExternalRefBody",
         "type": "object"
       }
     }
@@ -23776,6 +23964,878 @@
           }
         },
         "summary": "Get a surface by id",
+        "tags": [
+          "trust"
+        ]
+      }
+    },
+    "/visits": {
+      "post": {
+        "operationId": "post_visits_visits_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterVisitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterVisitResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (e.g. planned_end_at <= planned_start_at)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Visit with this id already exists."
+          },
+          "422": {
+            "description": "Request body failed schema validation OR Idempotency-Key reuse."
+          }
+        },
+        "summary": "Register a new Visit on a Surface under a Policy",
+        "tags": [
+          "trust"
+        ]
+      }
+    },
+    "/visits/{visit_id}/abort": {
+      "post": {
+        "operationId": "post_visits_abort_visits__visit_id__abort_post",
+        "parameters": [
+          {
+            "description": "Target Visit's id.",
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "description": "Target Visit's id.",
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AbortVisitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (whitespace-only reason)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Visit exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Visit is not in InProgress or OnHold status (pre-work Visits must use cancel_visit; terminals refuse)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Abort a mid-work Visit (InProgress | OnHold -> Aborted)",
+        "tags": [
+          "trust"
+        ]
+      }
+    },
+    "/visits/{visit_id}/arrive": {
+      "post": {
+        "operationId": "post_visits_arrive_visits__visit_id__arrive_post",
+        "parameters": [
+          {
+            "description": "Target Visit's id.",
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "description": "Target Visit's id.",
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Visit exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Visit is not in Planned status."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Arrive at a Planned Visit (Planned -> Arrived)",
+        "tags": [
+          "trust"
+        ]
+      }
+    },
+    "/visits/{visit_id}/cancel": {
+      "post": {
+        "operationId": "post_visits_cancel_visits__visit_id__cancel_post",
+        "parameters": [
+          {
+            "description": "Target Visit's id.",
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "description": "Target Visit's id.",
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelVisitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (whitespace-only reason)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Visit exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Visit is not in Planned or Arrived status (InProgress/OnHold must use abort_visit; terminals refuse re-cancellation)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel a pre-work Visit (Planned | Arrived -> Cancelled)",
+        "tags": [
+          "trust"
+        ]
+      }
+    },
+    "/visits/{visit_id}/complete": {
+      "post": {
+        "operationId": "post_visits_complete_visits__visit_id__complete_post",
+        "parameters": [
+          {
+            "description": "Target Visit's id.",
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "description": "Target Visit's id.",
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Visit exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Visit is not in InProgress or OnHold status."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete a Visit (InProgress | OnHold -> Completed)",
+        "tags": [
+          "trust"
+        ]
+      }
+    },
+    "/visits/{visit_id}/hold": {
+      "post": {
+        "operationId": "post_visits_hold_visits__visit_id__hold_post",
+        "parameters": [
+          {
+            "description": "Target Visit's id.",
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "description": "Target Visit's id.",
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HoldVisitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (whitespace-only reason)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Visit exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Visit is not in InProgress status."
+          },
+          "422": {
+            "description": "Request body failed schema validation."
+          }
+        },
+        "summary": "Hold an InProgress Visit (InProgress -> OnHold)",
+        "tags": [
+          "trust"
+        ]
+      }
+    },
+    "/visits/{visit_id}/resume": {
+      "post": {
+        "operationId": "post_visits_resume_visits__visit_id__resume_post",
+        "parameters": [
+          {
+            "description": "Target Visit's id.",
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "description": "Target Visit's id.",
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Visit exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Visit is not in OnHold status."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resume an OnHold Visit (OnHold -> InProgress)",
+        "tags": [
+          "trust"
+        ]
+      }
+    },
+    "/visits/{visit_id}/start": {
+      "post": {
+        "operationId": "post_visits_start_visits__visit_id__start_post",
+        "parameters": [
+          {
+            "description": "Target Visit's id.",
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "description": "Target Visit's id.",
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Visit exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Visit is not in Arrived status."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start an Arrived Visit (Arrived -> InProgress)",
+        "tags": [
+          "trust"
+        ]
+      }
+    },
+    "/visits/{visit_id}/void": {
+      "post": {
+        "operationId": "post_visits_void_visits__visit_id__void_post",
+        "parameters": [
+          {
+            "description": "Target Visit's id.",
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "description": "Target Visit's id.",
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidVisitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (whitespace-only reason)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Visit exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Visit is in a terminal status (Completed/Cancelled/Aborted/Voided)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Void a Visit (any non-terminal -> Voided). FHIR entered-in-error analog.",
         "tags": [
           "trust"
         ]

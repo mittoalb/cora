@@ -1,7 +1,7 @@
 """Trust BC projections.
 
-Multi-aggregate BC: each of Zone / Conduit / Policy gets its own
-projection module under this package, mirroring Equipment's layout
+Multi-aggregate BC: each of Zone / Conduit / Policy / Visit gets its
+own projection module under this package, mirroring Equipment's layout
 (asset.py + capability.py) and Recipe's (method.py + practice.py +
 plan.py). Add a new projection by creating a new module here +
 re-exporting its class + adding it to `register_trust_projections`.
@@ -9,10 +9,12 @@ re-exporting its class + adding it to `register_trust_projections`.
 
 from cora.trust.projections.conduit import ConduitSummaryProjection
 from cora.trust.projections.policy import PolicySummaryProjection
+from cora.trust.projections.visit import VisitSummaryProjection
 from cora.trust.projections.zone import ZoneSummaryProjection
 
 __all__ = [
     "ConduitSummaryProjection",
     "PolicySummaryProjection",
+    "VisitSummaryProjection",
     "ZoneSummaryProjection",
 ]

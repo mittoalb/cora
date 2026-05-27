@@ -7,13 +7,13 @@ and MCP tools pull their handler out of that bundle. New slices
 line in this factory.
 
 Cross-cutting decorators applied here mirror Access (composition order
-matters — innermost first):
+matters -- innermost first):
 
-1. `bind(deps)` — bare handler.
-2. `with_idempotency` (create-style commands only) — Idempotency-Key
+1. `bind(deps)` -- bare handler.
+2. `with_idempotency` (create-style commands only) -- Idempotency-Key
    support (`cora.infrastructure.idempotency`). Wrapped before tracing
    so cache-hits and cache-misses both attribute to the tracing span.
-3. `with_tracing` — OTel span around every handler call. Records
+3. `with_tracing` -- OTel span around every handler call. Records
    `cora.bc`, `cora.command` / `cora.query` attributes.
 """
 
@@ -24,16 +24,25 @@ from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.trust.features import (
+    abort_visit,
+    arrive_visit,
+    cancel_visit,
+    complete_visit,
     define_conduit,
     define_policy,
     define_surface,
     define_zone,
     evaluate_policy,
     get_surface,
+    hold_visit,
     list_conduits,
     list_permissions,
     list_policies,
     list_zones,
+    register_visit,
+    resume_visit,
+    start_visit,
+    void_visit,
 )
 
 _BC = "trust"
@@ -43,16 +52,29 @@ _BC = "trust"
 class TrustHandlers:
     """The Trust BC's handler bundle, each closed over Kernel.
 
-    Four aggregates: `Zone`, `Conduit`, `Surface`, `Policy`. Genesis
-    commands (`define_*`) are idempotency-wrapped; query slices
-    (`evaluate_policy`, `get_surface`, `list_*`) are bare
-    (`Handler` not `IdempotentHandler`) since queries don't mutate.
+    Five aggregates: `Zone`, `Conduit`, `Surface`, `Policy`, `Visit`.
+    Genesis commands (`define_*`, `register_visit`) are idempotency-
+    wrapped; lifecycle transitions on Visit (`arrive`/`start`/`hold`/
+    `resume`/`complete`/`cancel`/`abort`/`void`) use the bare Handler
+    Protocol -- they are operator gestures that mutate one stream
+    without create-style idempotency semantics. Query slices
+    (`evaluate_policy`, `get_surface`, `list_*`) are bare since queries
+    don't mutate.
     """
 
     define_zone: define_zone.IdempotentHandler
     define_conduit: define_conduit.IdempotentHandler
     define_policy: define_policy.IdempotentHandler
     define_surface: define_surface.IdempotentHandler
+    register_visit: register_visit.IdempotentHandler
+    arrive_visit: arrive_visit.Handler
+    start_visit: start_visit.Handler
+    hold_visit: hold_visit.Handler
+    resume_visit: resume_visit.Handler
+    complete_visit: complete_visit.Handler
+    cancel_visit: cancel_visit.Handler
+    abort_visit: abort_visit.Handler
+    void_visit: void_visit.Handler
     evaluate_policy: evaluate_policy.Handler
     get_surface: get_surface.Handler
     list_zones: list_zones.Handler
@@ -69,8 +91,6 @@ def wire_trust(deps: Kernel) -> TrustHandlers:
                 define_zone.bind(deps),
                 deps.idempotency_store,
                 command_name="DefineZone",
-                # Handler returns UUID; cache as str (jsonb-friendly) and
-                # rebuild via UUID() on retrieval.
                 serialize_result=str,
                 deserialize_result=UUID,
                 lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
@@ -112,6 +132,58 @@ def wire_trust(deps: Kernel) -> TrustHandlers:
                 lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="DefineSurface",
+            bc=_BC,
+        ),
+        register_visit=with_tracing(
+            with_idempotency(
+                register_visit.bind(deps),
+                deps.idempotency_store,
+                command_name="RegisterVisit",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="RegisterVisit",
+            bc=_BC,
+        ),
+        arrive_visit=with_tracing(
+            arrive_visit.bind(deps),
+            command_name="ArriveVisit",
+            bc=_BC,
+        ),
+        start_visit=with_tracing(
+            start_visit.bind(deps),
+            command_name="StartVisit",
+            bc=_BC,
+        ),
+        hold_visit=with_tracing(
+            hold_visit.bind(deps),
+            command_name="HoldVisit",
+            bc=_BC,
+        ),
+        resume_visit=with_tracing(
+            resume_visit.bind(deps),
+            command_name="ResumeVisit",
+            bc=_BC,
+        ),
+        complete_visit=with_tracing(
+            complete_visit.bind(deps),
+            command_name="CompleteVisit",
+            bc=_BC,
+        ),
+        cancel_visit=with_tracing(
+            cancel_visit.bind(deps),
+            command_name="CancelVisit",
+            bc=_BC,
+        ),
+        abort_visit=with_tracing(
+            abort_visit.bind(deps),
+            command_name="AbortVisit",
+            bc=_BC,
+        ),
+        void_visit=with_tracing(
+            void_visit.bind(deps),
+            command_name="VoidVisit",
             bc=_BC,
         ),
         evaluate_policy=with_tracing(

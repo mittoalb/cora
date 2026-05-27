@@ -391,7 +391,6 @@ EMDASH_ALLOWLIST: frozenset[str] = frozenset(
         "src/cora/trust/features/list_permissions/query.py",
         "src/cora/trust/features/list_permissions/route.py",
         "src/cora/trust/routes.py",
-        "src/cora/trust/wire.py",
         "tests/_strategies.py",
         "tests/architecture/conftest.py",
         "tests/architecture/test_actor_events_carry_no_pii.py",
