@@ -15,7 +15,7 @@ from cora.equipment.aggregates.family import Affordance
 class BindingStatus(StrEnum):
     """At-a-glance verdict for a candidate Plan binding.
 
-    Computed from the loaded state. `NO_CAPABILITY` means the bound
+    Computed from the loaded state. `MISSING_CAPABILITY` means the bound
     Method has no `capability_id` (legacy shape); the affordance
     guard is skipped per the `define_plan` decider's existing
     behaviour. When BOTH families and affordances are missing,
@@ -27,7 +27,7 @@ class BindingStatus(StrEnum):
     SATISFIED = "Satisfied"
     MISSING_FAMILIES = "MissingFamilies"
     MISSING_AFFORDANCES = "MissingAffordances"
-    NO_CAPABILITY = "NoCapability"
+    MISSING_CAPABILITY = "MissingCapability"
 
 
 @dataclass(frozen=True)
@@ -60,7 +60,7 @@ class InspectPlanBindingView:
     `capability_id` is None when the Method has no Capability
     template (legacy shape); `capability_required_affordances` is
     empty in that case, and `binding_status` reports
-    `NO_CAPABILITY`.
+    `MISSING_CAPABILITY`.
 
     `wired_assets` is sorted by asset_id string form for
     deterministic ordering across replays.
@@ -70,8 +70,8 @@ class InspectPlanBindingView:
     that afford each missing requirement." That payload MUST ship
     as a sibling field (e.g. `missing_affordance_candidates:
     tuple[(Affordance, tuple[CandidateAsset, ...]), ...]`) rather
-    than mutate `missing_affordances` into a richer structure --
-    keeping this field's shape stable preserves backward
+    than mutate `missing_affordances` into a richer structure.
+    Keeping this field's shape stable preserves backward
     compatibility for any client that hashes or pattern-matches on
     it today.
     """

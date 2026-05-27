@@ -1,5 +1,12 @@
-"""AssetFamilyProjection: folds the Asset<->Family membership events
-into the `proj_equipment_asset_families` read model.
+"""AssetFamilyMembershipProjection: folds Asset<->Family membership
+events into the `proj_equipment_asset_family_membership` read model.
+
+Per-row noun is `membership`: each row records that a specific Asset
+is a member of a specific Family classification. The set-theoretic
+framing reads naturally in both directions: "Families this Asset
+belongs to" (per-Asset by primary key) and "Assets belonging to this
+Family" (per-Family via the secondary index that the next phase's
+"list Assets affording requirement X" diagnostic will use).
 
 Subscribed events:
   - AssetFamilyAdded   -> INSERT (asset_id, family_id, added_at)
@@ -7,11 +14,9 @@ Subscribed events:
   - AssetFamilyRemoved -> DELETE matching (asset_id, family_id)
 
 The aggregate state (`Asset.families`) is the canonical source; this
-projection mirrors the membership relation for cross-aggregate query
-convenience. The dominant per-Asset read ("which Families does this
-Asset carry") uses the primary key (asset_id, family_id); the
-reverse-direction read ("which Assets carry Family X") uses the
-`_by_family_idx` secondary index added by the migration.
+projection mirrors the relation for cross-aggregate query
+convenience. Aggregate `Asset.families` answers "Families of this
+Asset"; this projection answers both that and the reverse.
 
 Both event types are idempotent at the projection layer:
   - INSERT ... ON CONFLICT DO NOTHING tolerates duplicate Adds.
@@ -22,12 +27,12 @@ semantics at command time (`AssetCannotAddFamilyError` on duplicate,
 `AssetCannotRemoveFamilyError` on missing); the projection's
 relaxed posture is the standard CORA pattern for replay safety.
 
-Hoist trigger: the `inspect_plan_binding` slice's future
-"other Assets affording requirement X" diagnostic is the first
-read consumer that needs the reverse index. The
-`AssetSummaryProjection` docstring's TODO ("Belong in a future
-`proj_equipment_asset_capabilities` projection") is closed by this
-projection.
+Forward-compat: the next phase extends `inspect_plan_binding`'s
+diagnostic with "other Assets affording missing requirement X." That
+extension MUST source its candidate set from THIS projection (a
+single SQL join against `proj_equipment_family_summary` for the
+affordance filter), NOT per-Asset event-stream replay. The reverse
+index `_by_family_idx` exists for exactly that query pattern.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -39,22 +44,22 @@ from cora.infrastructure.ports.event_store import StoredEvent
 from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_SQL = """
-INSERT INTO proj_equipment_asset_families
+INSERT INTO proj_equipment_asset_family_membership
     (asset_id, family_id, added_at)
 VALUES ($1, $2, $3)
 ON CONFLICT (asset_id, family_id) DO NOTHING
 """
 
 _DELETE_SQL = """
-DELETE FROM proj_equipment_asset_families
+DELETE FROM proj_equipment_asset_family_membership
 WHERE asset_id = $1 AND family_id = $2
 """
 
 
-class AssetFamilyProjection:
-    """Maintains the `proj_equipment_asset_families` join read model."""
+class AssetFamilyMembershipProjection:
+    """Maintains the `proj_equipment_asset_family_membership` join read model."""
 
-    name = "proj_equipment_asset_families"
+    name = "proj_equipment_asset_family_membership"
     subscribed_event_types = frozenset(
         {
             "AssetFamilyAdded",
@@ -83,4 +88,4 @@ class AssetFamilyProjection:
                 pass
 
 
-__all__ = ["AssetFamilyProjection"]
+__all__ = ["AssetFamilyMembershipProjection"]

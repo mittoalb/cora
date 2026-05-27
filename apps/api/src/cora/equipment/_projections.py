@@ -8,7 +8,7 @@ projection module under `cora.equipment.projections`.
 """
 
 from cora.equipment.projections import (
-    AssetFamilyProjection,
+    AssetFamilyMembershipProjection,
     AssetSummaryProjection,
     FamilySummaryProjection,
 )
@@ -23,7 +23,7 @@ def register_equipment_projections(
     """Register every Equipment-owned projection on the worker registry."""
     _ = deps
     registry.register(AssetSummaryProjection())
-    registry.register(AssetFamilyProjection())
+    registry.register(AssetFamilyMembershipProjection())
     registry.register(FamilySummaryProjection())
 
 

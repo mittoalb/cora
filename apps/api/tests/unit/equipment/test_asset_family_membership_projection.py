@@ -1,4 +1,4 @@
-"""Unit tests for AssetFamilyProjection.
+"""Unit tests for AssetFamilyMembershipProjection.
 
 Pins per-event-type apply() dispatch + idempotency for the 2
 subscribed Asset<->Family membership events. Postgres-side behavior
@@ -13,7 +13,7 @@ from uuid import uuid4
 
 import pytest
 
-from cora.equipment.projections.asset_families import AssetFamilyProjection
+from cora.equipment.projections.asset_family_membership import AssetFamilyMembershipProjection
 from cora.infrastructure.ports.event_store import StoredEvent
 
 _ASSET_ID = uuid4()
@@ -42,14 +42,14 @@ def _stored(event_type: str, payload: dict[str, Any]) -> StoredEvent:
 
 @pytest.mark.unit
 def test_projection_metadata() -> None:
-    proj = AssetFamilyProjection()
-    assert proj.name == "proj_equipment_asset_families"
+    proj = AssetFamilyMembershipProjection()
+    assert proj.name == "proj_equipment_asset_family_membership"
     assert proj.subscribed_event_types == frozenset({"AssetFamilyAdded", "AssetFamilyRemoved"})
 
 
 @pytest.mark.unit
 async def test_asset_family_added_inserts_join_row() -> None:
-    proj = AssetFamilyProjection()
+    proj = AssetFamilyMembershipProjection()
     conn = AsyncMock()
     event = _stored(
         "AssetFamilyAdded",
@@ -66,7 +66,7 @@ async def test_asset_family_added_inserts_join_row() -> None:
     args = conn.execute.await_args
     assert args is not None
     sql = args.args[0]
-    assert "INSERT INTO proj_equipment_asset_families" in sql
+    assert "INSERT INTO proj_equipment_asset_family_membership" in sql
     assert "ON CONFLICT (asset_id, family_id) DO NOTHING" in sql
     assert args.args[1] == _ASSET_ID
     assert args.args[2] == _FAMILY_ID
@@ -75,7 +75,7 @@ async def test_asset_family_added_inserts_join_row() -> None:
 
 @pytest.mark.unit
 async def test_asset_family_removed_deletes_join_row() -> None:
-    proj = AssetFamilyProjection()
+    proj = AssetFamilyMembershipProjection()
     conn = AsyncMock()
     event = _stored(
         "AssetFamilyRemoved",
@@ -92,6 +92,6 @@ async def test_asset_family_removed_deletes_join_row() -> None:
     args = conn.execute.await_args
     assert args is not None
     sql = args.args[0]
-    assert "DELETE FROM proj_equipment_asset_families" in sql
+    assert "DELETE FROM proj_equipment_asset_family_membership" in sql
     assert args.args[1] == _ASSET_ID
     assert args.args[2] == _FAMILY_ID

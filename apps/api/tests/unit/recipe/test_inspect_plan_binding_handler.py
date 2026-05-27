@@ -6,7 +6,7 @@ fan-out is the same: Practice -> Method -> Capability -> per-Asset
 shape rather than emitted events.
 
 Coverage targets:
-  - NoCapability (Method without capability_id) -> BindingStatus.NO_CAPABILITY
+  - MissingCapability (Method without capability_id) -> BindingStatus.MISSING_CAPABILITY
   - Satisfied (families + affordances both covered)
   - MissingFamilies
   - MissingAffordances
@@ -67,6 +67,7 @@ from cora.recipe.aggregates.capability import (
 from cora.recipe.aggregates.capability import (
     to_payload as capability_to_payload,
 )
+from cora.recipe.aggregates.method import MethodNotFoundError
 from cora.recipe.aggregates.method.events import MethodDefined
 from cora.recipe.aggregates.method.events import (
     event_type_name as method_event_type_name,
@@ -336,7 +337,7 @@ async def _seed_asset(
 
 @pytest.mark.unit
 async def test_handler_returns_no_capability_status_when_method_has_no_capability() -> None:
-    """Legacy-shape Method (capability_id=None) yields NO_CAPABILITY."""
+    """Legacy-shape Method (capability_id=None) yields MISSING_CAPABILITY."""
     store = InMemoryEventStore()
     await _seed_method(store, _METHOD_ID, capability_id=None)
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
@@ -350,7 +351,7 @@ async def test_handler_returns_no_capability_status_when_method_has_no_capabilit
         correlation_id=_CORRELATION_ID,
     )
 
-    assert view.binding_status is BindingStatus.NO_CAPABILITY
+    assert view.binding_status is BindingStatus.MISSING_CAPABILITY
     assert view.capability_id is None
     assert view.capability_required_affordances == frozenset()
     assert view.missing_affordances == frozenset()
@@ -593,6 +594,24 @@ async def test_handler_raises_practice_not_found_for_unknown_practice_id() -> No
     handler = inspect_plan_binding.bind(deps)
 
     with pytest.raises(PracticeNotFoundError):
+        await handler(
+            InspectPlanBinding(practice_id=_PRACTICE_ID, asset_ids=frozenset({_ASSET_A_ID})),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+@pytest.mark.unit
+async def test_handler_raises_method_not_found_when_practice_points_at_missing_method() -> None:
+    """Practice exists but the Method it references doesn't (corrupted
+    upstream chain). Covers handler.py's MethodNotFoundError raise site
+    that the other 4 NotFound tests don't exercise transitively."""
+    store = InMemoryEventStore()
+    await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)  # Method NOT seeded
+    deps = build_deps(now=_NOW, event_store=store)
+    handler = inspect_plan_binding.bind(deps)
+
+    with pytest.raises(MethodNotFoundError):
         await handler(
             InspectPlanBinding(practice_id=_PRACTICE_ID, asset_ids=frozenset({_ASSET_A_ID})),
             principal_id=_PRINCIPAL_ID,

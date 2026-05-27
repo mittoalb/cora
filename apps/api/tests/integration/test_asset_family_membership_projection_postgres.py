@@ -1,5 +1,5 @@
-"""End-to-end: AssetFamilyProjection populates the
-`proj_equipment_asset_families` join table from real
+"""End-to-end: AssetFamilyMembershipProjection populates the
+`proj_equipment_asset_family_membership` join table from real
 AssetFamilyAdded / AssetFamilyRemoved events against Postgres.
 
 Pins:
@@ -30,7 +30,6 @@ from cora.equipment.features.add_asset_family import AddAssetFamily
 from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.remove_asset_family import RemoveAssetFamily
-from cora.equipment.projections.asset_families import AssetFamilyProjection
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from tests.integration._helpers import build_postgres_deps
 
@@ -42,11 +41,6 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 async def _drain(db_pool: asyncpg.Pool) -> None:
     registry = ProjectionRegistry()
     register_equipment_projections(registry)
-    # AssetFamilyProjection is not yet wired into
-    # register_equipment_projections; this test registers it directly
-    # to exercise the projection in isolation against real Postgres
-    # until production wire-up lands in a follow-up phase.
-    registry.register(AssetFamilyProjection())
     await drain_projections(db_pool, registry, deadline_seconds=2.0)
 
 
@@ -78,7 +72,7 @@ async def test_asset_family_added_inserts_row_with_added_at(
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT asset_id, family_id, added_at "
-            "FROM proj_equipment_asset_families "
+            "FROM proj_equipment_asset_family_membership "
             "WHERE asset_id = $1 AND family_id = $2",
             asset_id,
             family_id,
@@ -120,7 +114,8 @@ async def test_asset_family_removed_deletes_join_row(
 
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT 1 FROM proj_equipment_asset_families WHERE asset_id = $1 AND family_id = $2",
+            "SELECT 1 FROM proj_equipment_asset_family_membership "
+            "WHERE asset_id = $1 AND family_id = $2",
             asset_id,
             family_id,
         )
@@ -162,7 +157,7 @@ async def test_reverse_index_supports_assets_carrying_family_lookup(
 
     async with db_pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT asset_id FROM proj_equipment_asset_families "
+            "SELECT asset_id FROM proj_equipment_asset_family_membership "
             "WHERE family_id = $1 ORDER BY asset_id::text",
             family_id,
         )
@@ -201,7 +196,7 @@ async def test_replay_from_zero_produces_consistent_join_state(
 
     async with db_pool.acquire() as conn:
         count = await conn.fetchval(
-            "SELECT COUNT(*) FROM proj_equipment_asset_families "
+            "SELECT COUNT(*) FROM proj_equipment_asset_family_membership "
             "WHERE asset_id = $1 AND family_id = $2",
             asset_id,
             family_id,

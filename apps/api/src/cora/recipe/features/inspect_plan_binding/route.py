@@ -54,7 +54,7 @@ class InspectPlanBindingResponse(BaseModel):
     `missing_families` and `missing_affordances` are sorted lists;
     empty means that dimension is satisfied. `binding_status` is
     the at-a-glance verdict (Satisfied / MissingFamilies /
-    MissingAffordances / NoCapability).
+    MissingAffordances / MissingCapability).
 
     Forward-compat: the next phase will add a sibling field
     enumerating other facility Assets that afford each missing

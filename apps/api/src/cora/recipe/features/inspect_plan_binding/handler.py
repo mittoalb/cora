@@ -13,7 +13,7 @@ exception classes `define_plan` raises and are HTTP-mapped by
 
 When `method.capability_id` is None (legacy Method shape), the
 affordance guard is skipped; the view reports
-`BindingStatus.NO_CAPABILITY` and leaves
+`BindingStatus.MISSING_CAPABILITY` and leaves
 `capability_required_affordances` + `missing_affordances` empty.
 Matches `define_plan` decider's existing behaviour.
 
@@ -116,24 +116,21 @@ def bind(deps: Kernel) -> Handler:
 
         capability = None
         family_affordances: dict[UUID, frozenset[Affordance]] = {}
+        union_families: frozenset[UUID] = frozenset(
+            fid for asset in assets.values() for fid in asset.families
+        )
+        missing_families = method.needed_families - union_families
+
         if method.capability_id is not None:
             capability = await load_capability(deps.event_store, method.capability_id)
             if capability is None:
                 raise CapabilityNotFoundError(method.capability_id)
 
-            distinct_family_ids: frozenset[UUID] = frozenset(
-                fid for asset in assets.values() for fid in asset.families
-            )
-            for family_id in sorted(distinct_family_ids, key=str):
+            for family_id in sorted(union_families, key=str):
                 family = await load_family(deps.event_store, family_id)
                 if family is None:
                     raise FamilyNotFoundError(family_id)
                 family_affordances[family_id] = family.affordances
-
-        union_families: frozenset[UUID] = frozenset(
-            fid for asset in assets.values() for fid in asset.families
-        )
-        missing_families = method.needed_families - union_families
 
         if capability is not None:
             union_affordances: frozenset[Affordance] = frozenset(
@@ -149,7 +146,7 @@ def bind(deps: Kernel) -> Handler:
             required_affordances = frozenset[Affordance]()
 
         if capability is None:
-            binding_status = BindingStatus.NO_CAPABILITY
+            binding_status = BindingStatus.MISSING_CAPABILITY
         elif missing_families:
             binding_status = BindingStatus.MISSING_FAMILIES
         elif missing_affordances:

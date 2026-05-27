@@ -4647,7 +4647,7 @@
         "type": "object"
       },
       "InspectPlanBindingResponse": {
-        "description": "Wire-side diagnostic returned by the endpoint.\n\n`missing_families` and `missing_affordances` are sorted lists;\nempty means that dimension is satisfied. `binding_status` is\nthe at-a-glance verdict (Satisfied / MissingFamilies /\nMissingAffordances / NoCapability).\n\nForward-compat: the next phase will add a sibling field\nenumerating other facility Assets that afford each missing\nrequirement; `missing_affordances` stays a flat list of\naffordance strings so existing clients aren't broken.",
+        "description": "Wire-side diagnostic returned by the endpoint.\n\n`missing_families` and `missing_affordances` are sorted lists;\nempty means that dimension is satisfied. `binding_status` is\nthe at-a-glance verdict (Satisfied / MissingFamilies /\nMissingAffordances / MissingCapability).\n\nForward-compat: the next phase will add a sibling field\nenumerating other facility Assets that afford each missing\nrequirement; `missing_affordances` stays a flat list of\naffordance strings so existing clients aren't broken.",
         "properties": {
           "binding_status": {
             "title": "Binding Status",

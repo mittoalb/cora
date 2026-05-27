@@ -16,10 +16,10 @@ Subscribed events:
   - AssetRestored              -> UPDATE condition=Nominal
 
 NOT subscribed:
-  - AssetFamilyAdded / AssetFamilyRemoved — these describe
-    the Asset<->Family join, not the Asset's own state. Belong
-    in a future `proj_equipment_asset_capabilities` projection
-    (deferred until a list-by-family query demands it).
+  - AssetFamilyAdded / AssetFamilyRemoved: these describe
+    the Asset<->Family join, not the Asset's own state. They
+    feed the sibling `AssetFamilyMembershipProjection`
+    (`proj_equipment_asset_family_membership`).
 
 All branches idempotent (INSERT uses ON CONFLICT DO NOTHING; UPDATEs
 write fixed values per event type so re-application is a no-op).

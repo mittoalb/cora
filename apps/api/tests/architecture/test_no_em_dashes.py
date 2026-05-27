@@ -166,7 +166,6 @@ EMDASH_ALLOWLIST: frozenset[str] = frozenset(
         "src/cora/equipment/features/version_family/command.py",
         "src/cora/equipment/features/version_family/decider.py",
         "src/cora/equipment/features/version_family/handler.py",
-        "src/cora/equipment/projections/asset.py",
         "src/cora/equipment/projections/family.py",
         "src/cora/equipment/routes.py",
         "src/cora/equipment/wire.py",
