@@ -227,6 +227,7 @@ Clock skew between the sensor (`sampled_at`) and the handler (`occurred_at`) is 
 | Decision | shared-id-with | `RunAdjusted.decided_by_decision_id` cites the Decision that justified a mid-flight adjustment; no existence check at write time (eventual-consistency stance) |
 | Calibration | reads-from | `Run.pinned_calibrations` is a frozen set of `CalibrationRevision.id`s captured at `start_run` and **immutable** for the life of the Run; every FSM transition preserves the set verbatim, and downstream consumers cite this set to answer "what calibration was this scan acquired against?" deterministically |
 | Agent | writes-to | Terminal Run events (`RunCompleted`, `RunAborted`, `RunStopped`, `RunTruncated`) are subscribed by the RunDebriefer agent, which emits an advisory `Decision` per terminal Run |
+| Access | shared-id-with | Every Run event envelope carries `actor_id` for principal attribution; cross-module references are bare UUIDs and not verified at write time |
 
 `Plan`, `Subject`, `Asset`, `Campaign`, `Clearance`, and `Calibration` references are validated at handler load-time but treated as opaque by the decider; the decider operates on pre-loaded context bundles rather than re-fetching, which keeps the pure-decider boundary clean.
 

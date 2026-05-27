@@ -177,6 +177,7 @@ One row per Subject; the lifecycle collapses to a single mutable row by `ON CONF
 
 | Module | Relationship | What's exchanged |
 |---|---|---|
+| Trust | gated-by | Every write-side Subject slice (register, lifecycle, mount/dismount) is gated by the Authorize port resolving a `Policy` for the `(principal, command, conduit, surface)` tuple; deny outcomes refuse before the decider runs |
 | Equipment | reads-from | `mount_subject` requires the target `Asset` exists and is in `Active` lifecycle; the handler pre-loads the Asset and hands it to the pure decider |
 | Equipment | shared-id-with | `SubjectMounted.asset_id` and `SubjectDismounted.from_asset_id` are `Asset.id` values; the link is read-time and the Subject side does not verify Asset stream membership at write time |
 | Run | shared-id-with | Run events reference `Subject.id` as the sample being measured; the binding is one-directional from Run to Subject |

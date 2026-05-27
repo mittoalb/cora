@@ -129,6 +129,7 @@ The `UNIQUE (target_id, quantity, operating_point)` constraint is the enforcemen
 
 | Module | Relationship | What's exchanged |
 |---|---|---|
+| Trust | gated-by | Every write-side Calibration slice is gated by the Authorize port resolving a `Policy` for the `(principal, command, conduit, surface)` tuple; deny outcomes refuse before the decider runs |
 | Equipment | shared-id-with | `Calibration.target_id` references the Asset whose behaviour is being measured (the rotary stage whose rotation centre is tracked, the detector whose pixel pitch is measured) |
 | Operation | shared-id-with | `MeasuredSource.procedure_id` references the alignment Procedure whose run produced the value |
 | Data | shared-id-with | `ComputedSource.dataset_id` references the Dataset the value was extracted from (`tomopy.find_center_vo` and similar numerical analyses); `Dataset.used_calibrations` records the reverse direction |

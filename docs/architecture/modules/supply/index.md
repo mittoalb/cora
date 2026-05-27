@@ -148,9 +148,14 @@ CREATE INDEX proj_supply_summary_keyset_idx
 
 | Module | Relationship | What's exchanged |
 |---|---|---|
+| `Trust` | gated-by | Every write-side Supply slice (register, transitions) is gated by the Authorize port resolving a `Policy` for the `(principal, command, conduit, surface)` tuple; deny outcomes refuse before the decider runs. |
+| `Access` | shared-id-with | Every Supply event envelope carries `actor_id` for principal attribution; cross-module references are bare UUIDs and not verified at write time. |
+| `Recipe` | upstream-of-kind | `Method.needed_supplies` references `Supply.kind` strings, not Supply ids. The asymmetry is intentional: kinds (`LiquidNitrogen`, `PhotonBeam`, ...) are facility-portable so a Method written elsewhere can declare its supply prerequisites; instance UUIDs are not. |
 | `Equipment` | reads-from (today, no schema link) | The physical infrastructure delivering a resource stays modeled as Assets in Equipment; Supply describes the resource itself. The additive `bound_asset_id` link is a watch item and will surface when a consumer needs equipment-to-resource traversal. |
+| `Run` | upstream-of | Run pre-flight reads `list_supplies` filtered by scope or kind. Operator-decided today (banner hint surfaced at start), not enforced at the Run aggregate. |
+| `Operation` | upstream-of | Procedure pre-flight reads `list_supplies` the same way as Run. Same operator-decided posture today. |
 
-Day-1 the Supply module has no synchronous cross-BC writes. Run and Operation consumers read Supply status to make pre-flight checks (operator-decided, not aggregate-enforced); the read path uses `list_supplies` filtered by scope or kind.
+Day-1 the Supply module has no synchronous cross-BC writes.
 
 ## Examples
 

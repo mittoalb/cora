@@ -10,6 +10,22 @@ Each module is a bounded area of CORA's domain with its own aggregates, events, 
 
 </div>
 
+## Cross-module relationship vocabulary
+
+The **Cross-Module boundaries** table on each module page uses a fixed set of verbs to classify the coupling. Anything not in this table is something the decider does not check at write time.
+
+| Verb | Meaning |
+|---|---|
+| `gated-by` | A port owned by the other module sits in front of every write slice and can refuse the command. Used for Trust's `Authorize` port. |
+| `reads-from` | This module's handler loads state from the other module's read model or aggregate at write time, but never writes to it. |
+| `writes-to via append_streams` | A single command emits events into both streams atomically in one Postgres transaction (cross-aggregate write). |
+| `shared-id-with` | An id field references the other module's aggregate. Validated for UUID shape at the API boundary, not for existence at write time. |
+| `shared-enum-with` | This module references a closed enum owned by the other (no instance link). |
+| `depends-on` / `depends-on-kind` | This module references a type-level value (`Family.id`, `Supply.kind` string) owned by the other. `depends-on-kind` marks the kinds-not-ids variant. |
+| `upstream-of` / `upstream-of-kind` | Inverse of `reads-from` / `depends-on-kind`. Used when the row sits on the producer's page describing a downstream consumer. |
+| `targeted-by` | The other module holds a polymorphic target reference (e.g. `Caution.target = AssetTarget(asset_id=...)`) pointing at this module. |
+| `aligns-with` | No schema link today, but the two aggregates belong in the same conceptual frame and a reader should know they sit side by side. |
+
 ## Pages
 
 <div class="grid cards" markdown>

@@ -174,9 +174,10 @@ The Run module's summary projection carries the inverse pointer (a `campaign_id 
 
 | Module | Relationship | What's exchanged |
 |---|---|---|
+| `Trust` | gated-by | Every write-side Campaign slice is gated by the Authorize port resolving a `Policy` for the `(principal, command, conduit, surface)` tuple; deny outcomes refuse before the decider runs. |
 | `Run` | writes-to via `append_streams` | `CampaignRunAdded` paired with `RunCampaignAssigned` on `add_run_to_campaign`; with `RunStarted` on `start_run` when `campaign_id` is set at start time. `CampaignRunRemoved` paired with `RunCampaignUnassigned` on `remove_run_from_campaign`. Atomic two-stream commit. |
 | `Run` | reads-from | Inverse `campaign_id` column on `proj_run_summary` powers `list_runs?campaign_id=...`. |
-| `Access` | reads-from | `lead_actor_id` references the Actor aggregate's id. The Campaign module does not validate the reference (LOOSE policy); operator-dashboard reads denormalise the actor display name via the Access read model. |
+| `Access` | shared-id-with | `lead_actor_id` references the Actor aggregate's id, and every Campaign event envelope carries `actor_id` for principal attribution. The Campaign module does not validate the reference (LOOSE policy); operator-dashboard reads denormalise the actor display name via the Access read model. |
 | `Subject` | reads-from | Optional `subject_id` references a Subject. Validation is intentionally not enforced at the Campaign aggregate so multi-Subject Coordinated and Block intents stay expressible. |
 
 ## Examples

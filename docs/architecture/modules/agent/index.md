@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-The Agent module records the typed configuration for each AI agent that participates in CORA. An Agent is the digital identity card of a kind of automation: "the RunDebriefer agent runs on Claude Sonnet 4.6 pinned to snapshot `20251001`, gets the prompt template at this id, and writes its findings as Decisions on the Run it watched"; "the CautionDrafter agent reads new logbook entries and proposes Cautions for operator review". The aggregate carries everything needed to identify, version, and gate an agent's behaviour for reproducibility; the runtime lives in the subscriber layer that invokes it.
+The Agent module records the typed configuration for each AI agent that participates in CORA. An Agent is the digital identity card of a kind of automation: "the RunDebriefer agent runs on Claude Sonnet 4.6 pinned to snapshot `20251001`, gets the prompt template at this id, and writes its findings as Decisions on the Run it watched"; "the CautionDrafter agent watches terminal Run events and proposes Cautions for operator review". The aggregate carries everything needed to identify, version, and gate an agent's behaviour for reproducibility; the runtime lives in the subscriber layer that invokes it.
 
 Agents share their identity with the Access module's Actors: the same UUID names the agent's record here and the agent's Actor record over there, written atomically at definition. Every Decision an agent writes, and every authorisation check that runs against an agent's action, refers to that single id.
 
@@ -183,11 +183,11 @@ The `CHECK` constraint encodes the closed `AgentStatus` enum at the row level. `
 
 | Module | Relationship | What's exchanged |
 |---|---|---|
+| Trust | gated-by | Every write-side Agent slice (lifecycle, grants, budget) is gated by the Authorize port resolving a `Policy` for the `(principal, command, conduit, surface)` tuple; deny outcomes refuse before the decider runs |
 | Access | shared-id-with | `Agent.id` is the same UUID as `Actor.id` for this agent; `define_agent` co-writes `ActorRegistered(kind="agent")` on the Access stream via `append_streams` |
 | Decision | writes-to (via subscriber and slice) | The RunDebriefer subscriber writes `DecisionRegistered` when a Run reaches a terminal state; `re_debrief_run` writes a new `DecisionRegistered` on operator demand; agent-authored Decisions carry the agent's id in `actor_id` |
 | Run | reads-from (via subscriber) | The RunDebriefer subscriber filters on terminal-state Run events and loads the Run aggregate plus its `pinned_calibrations` to build the debrief context |
 | Caution | writes-to via `append_streams` | `promote_caution_proposal` reads a CautionDrafter Decision's `proposed_caution` payload and writes `CautionRegistered` (plus, for the supersede arm, `CautionSuperseded` on the parent stream) atomically |
-| Logbook | reads-from (via subscriber) | The CautionDrafter subscriber filters on logbook entries and folds operator narrative into the proposed Caution's text and workaround |
 
 The two cross-BC action slices both gate on operator authorisation before any cross-BC write happens: `re_debrief_run` requires the caller to be authorised to invoke the named agent; `promote_caution_proposal` requires the caller to be authorised to author Cautions, plus a provenance check that the named Decision was emitted by a registered CautionDrafter agent. Promotion is operator-initiated by design; the CautionDrafter never writes a Caution itself.
 

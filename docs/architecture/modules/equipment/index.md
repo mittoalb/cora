@@ -262,7 +262,10 @@ The Family summary table is named `proj_equipment_capability_summary` for legacy
 | [Operation](../operation/index.md) | reads-from | `Procedure.target_asset_ids` references the Assets the procedure acts on |
 | [Calibration](../calibration/index.md) | reads-from | `Calibration.target_id` references the Asset whose behaviour is being measured |
 | [Supply](../supply/index.md) | reads-from | Physical infrastructure delivering a supply (a gas cabinet, a mass-flow controller) lives as Assets; the resource itself is a Supply |
+| [Trust](../trust/index.md) | gated-by | Every write-side Equipment slice (Family / Asset registration, lifecycle, condition, settings, ports) is gated by the Authorize port resolving a `Policy` for the `(principal, command, conduit, surface)` tuple |
 | [Trust](../trust/index.md) | reads-from | Zones group Assets by trust-requirement homogeneity (orthogonal to the level hierarchy) |
+| [Caution](../caution/index.md) | targeted-by | Cautions with `AssetTarget` point at `Asset.id` values; with `propagate_to_children: true` the Caution surfaces on descendant Assets via projection walk of `Asset.parent_id` |
+| [Safety](../safety/index.md) | shared-id-with | `Clearance.facility_asset_id` references an `Asset.Level.Site`; `AssetBinding.asset_id` references any `Asset` a Clearance gates |
 | [Access](../access/index.md) | shared-id-with | Every Equipment event envelope carries the actor id that authored the change |
 
 The Asset hierarchy answers "where does this belong structurally"; Trust Zones answer "what security policy applies". The two classifications are orthogonal: every Asset has both, and zones can span Sites.

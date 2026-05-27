@@ -190,6 +190,7 @@ Several fields are intentionally not projected as filter columns. `checksum`, `b
 
 | Module | Relationship | What's exchanged |
 |---|---|---|
+| Trust | gated-by | Every write-side Data slice (`register_dataset`, `promote_dataset`, `demote_dataset`, lineage edits) is gated by the Authorize port resolving a `Policy` for the `(principal, command, conduit, surface)` tuple; deny outcomes refuse before the decider runs |
 | Run | reads-from | `register_dataset` pre-loads the Run when `producing_run_id` is set; the producing Run's terminal status is captured on `Dataset.producing_run_end_state` and gates `promote_dataset` |
 | Subject | reads-from | `register_dataset` pre-loads the Subject when `subject_id` is set; the link is "this Dataset is about that Subject" and is meaningful regardless of the Subject's lifecycle state |
 | Data (self) | reads-from | `derived_from` references other Datasets; the lineage edge is verified to exist and to not be `Discarded` at registration |

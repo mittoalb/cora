@@ -166,10 +166,12 @@ The supersession lineage walks `superseded_by_caution_id` forward (to find the h
 
 | Module | Relationship | What's exchanged |
 |---|---|---|
+| Trust | gated-by | Every write-side Caution slice (`register_caution`, `supersede_caution`, lifecycle transitions, `promote_caution_proposal`) is gated by the Authorize port resolving a `Policy` for the `(principal, command, conduit, surface)` tuple; deny outcomes refuse before the decider runs |
 | Equipment | shared-id-with | `AssetTarget.asset_id` references the Asset the Caution attaches to; with `propagate_to_children: true`, the projection walks `Asset.parent_id` to surface the Caution on descendant Assets |
 | Operation | shared-id-with | `ProcedureTarget.procedure_id` references the Procedure the Caution attaches to |
 | Access | shared-id-with | `Caution.author_actor_id` references the Actor who first registered the Caution (or the chain's earliest ancestor) |
-| Run | reads-from | `Run.start` calls `CautionLookup.find_for_run(subject_id, asset_ids, procedure_ids)` against `proj_caution_summary`; matching Active Cautions are returned as a banner on the response, never gate the start |
+| Decision | shared-id-with | Promotion of a CautionDrafter proposal into a Caution copies the originating `Decision.id` onto the resulting Caution as provenance; the link is by value and not verified at write time |
+| Run | upstream-of | `Run.start` calls `CautionLookup.find_for_run(subject_id, asset_ids, procedure_ids)` against `proj_caution_summary`; matching Active Cautions are returned as a banner on the response, never gate the start |
 | (any) | writes-to via `append_streams` | `supersede_caution` writes `CautionSuperseded` to the parent stream and `CautionRegistered` to the child stream atomically in a single Postgres transaction; all-or-nothing, a `ConcurrencyError` on either stream rolls back the whole commit |
 
 Target references are validated for UUID shape at the API boundary but not for existence at write time; the eventual-consistency stance lets a Caution be registered before its target Asset or Procedure exists in projection state.

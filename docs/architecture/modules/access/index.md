@@ -120,6 +120,8 @@ One row per Actor; the lifecycle collapses to a single mutable row by `ON CONFLI
 
 Every event written by any module that needs principal attribution carries `actor_id` on the envelope (or a domain field on the payload), and the value is an Actor stream id. Cross-module references are bare UUIDs: the write path of, for example, Calibration does not verify the Actor exists at the time the revision is appended, in line with the eventual-consistency stance on cross-module reference checks.
 
+The table above lists only modules that hold a **named domain reference** to an Actor (`lead_actor_id`, `defined_by_actor_id`, review-board members, and similar). Every other module that emits events with `actor_id` on the envelope alone is intentionally omitted to keep this page from duplicating what every other module page already declares from its own side. To trace the full reverse fan-out, read the `Access | shared-id-with` row on each module's cross-module table.
+
 ## Examples
 
 The four examples below cover the canonical Actor lifecycle: register a human, deactivate that human, fetch a single Actor, and page through the directory. The caller's principal goes on the `X-Principal-Id` header and, for `register_actor`, becomes the Actor id when the server generates a fresh one. For the REST/MCP equivalence, auth, and idempotency conventions these examples share, see [Reading the examples](../index.md) on the Modules landing page.
