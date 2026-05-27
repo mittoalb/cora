@@ -4570,6 +4570,112 @@
         "title": "HoldCampaignRequest",
         "type": "object"
       },
+      "InspectPlanBindingRequest": {
+        "description": "Wire-side input for the inspect_plan_binding endpoint.",
+        "properties": {
+          "asset_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Asset Ids",
+            "type": "array"
+          },
+          "practice_id": {
+            "format": "uuid",
+            "title": "Practice Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "practice_id",
+          "asset_ids"
+        ],
+        "title": "InspectPlanBindingRequest",
+        "type": "object"
+      },
+      "InspectPlanBindingResponse": {
+        "description": "Wire-side diagnostic returned by the endpoint.\n\n`missing_families` and `missing_affordances` are sorted lists;\nempty means that dimension is satisfied. `binding_status` is\nthe at-a-glance verdict (Satisfied / MissingFamilies /\nMissingAffordances / NoCapability).\n\nForward-compat: the next phase will add a sibling field\nenumerating other facility Assets that afford each missing\nrequirement; `missing_affordances` stays a flat list of\naffordance strings so existing clients aren't broken.",
+        "properties": {
+          "binding_status": {
+            "title": "Binding Status",
+            "type": "string"
+          },
+          "capability_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capability Id"
+          },
+          "capability_required_affordances": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Capability Required Affordances",
+            "type": "array"
+          },
+          "method_id": {
+            "format": "uuid",
+            "title": "Method Id",
+            "type": "string"
+          },
+          "method_needed_families": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Method Needed Families",
+            "type": "array"
+          },
+          "missing_affordances": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Affordances",
+            "type": "array"
+          },
+          "missing_families": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Missing Families",
+            "type": "array"
+          },
+          "practice_id": {
+            "format": "uuid",
+            "title": "Practice Id",
+            "type": "string"
+          },
+          "wired_assets": {
+            "items": {
+              "$ref": "#/components/schemas/WiredAssetBindingItem"
+            },
+            "title": "Wired Assets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "practice_id",
+          "method_id",
+          "capability_id",
+          "method_needed_families",
+          "capability_required_affordances",
+          "wired_assets",
+          "missing_families",
+          "missing_affordances",
+          "binding_status"
+        ],
+        "title": "InspectPlanBindingResponse",
+        "type": "object"
+      },
       "ListPermissionsResponse": {
         "description": "Read-side DTO at the API boundary.\n\n`incomplete` is always False at v1, required from day 1 per the\ndesign lock's anti-hook to forward-compat with future ABAC\npolicies that may make enumeration lossy.",
         "properties": {
@@ -8609,6 +8715,53 @@
           "version_tag"
         ],
         "title": "VersionPracticeRequest",
+        "type": "object"
+      },
+      "WiredAssetBindingItem": {
+        "description": "Per-wired-Asset binding contribution on the wire.\n\n`family_ids` and `contributed_affordances` are sorted for\ndeterministic client diffs / cache validation.",
+        "properties": {
+          "asset_id": {
+            "format": "uuid",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "asset_name": {
+            "title": "Asset Name",
+            "type": "string"
+          },
+          "condition": {
+            "title": "Condition",
+            "type": "string"
+          },
+          "contributed_affordances": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Contributed Affordances",
+            "type": "array"
+          },
+          "family_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Family Ids",
+            "type": "array"
+          },
+          "lifecycle": {
+            "title": "Lifecycle",
+            "type": "string"
+          }
+        },
+        "required": [
+          "asset_id",
+          "asset_name",
+          "condition",
+          "lifecycle",
+          "family_ids",
+          "contributed_affordances"
+        ],
+        "title": "WiredAssetBindingItem",
         "type": "object"
       },
       "ZoneListResponse": {
@@ -18199,6 +18352,71 @@
           }
         },
         "summary": "Define a new Plan: bind a Practice to Asset instances",
+        "tags": [
+          "recipe"
+        ]
+      }
+    },
+    "/plans/inspect-binding": {
+      "post": {
+        "operationId": "inspect_plan_binding_plans_inspect_binding_post",
+        "parameters": [
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InspectPlanBindingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectPlanBindingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Practice, Method, Asset, Capability, or Family not found."
+          },
+          "422": {
+            "description": "Request body failed schema validation."
+          }
+        },
+        "summary": "Preview a Plan binding without defining it",
         "tags": [
           "recipe"
         ]

@@ -42,6 +42,7 @@ from cora.recipe.features import (
     get_method,
     get_plan,
     get_practice,
+    inspect_plan_binding,
     list_methods,
     list_plans,
     list_practices,
@@ -84,6 +85,7 @@ class RecipeHandlers:
     version_capability: version_capability.Handler
     deprecate_capability: deprecate_capability.Handler
     get_capability: get_capability.Handler
+    inspect_plan_binding: inspect_plan_binding.Handler
 
 
 def wire_recipe(deps: Kernel) -> RecipeHandlers:
@@ -238,6 +240,12 @@ def wire_recipe(deps: Kernel) -> RecipeHandlers:
         get_capability=with_tracing(
             get_capability.bind(deps),
             command_name="GetCapability",
+            bc=_BC,
+            kind="query",
+        ),
+        inspect_plan_binding=with_tracing(
+            inspect_plan_binding.bind(deps),
+            command_name="InspectPlanBinding",
             bc=_BC,
             kind="query",
         ),

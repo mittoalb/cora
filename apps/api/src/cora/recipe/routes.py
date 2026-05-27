@@ -101,6 +101,7 @@ from cora.recipe.features import (
     get_method,
     get_plan,
     get_practice,
+    inspect_plan_binding,
     list_methods,
     list_plans,
     list_practices,
@@ -195,6 +196,7 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(version_capability.router)
     app.include_router(deprecate_capability.router)
     app.include_router(get_capability.router)
+    app.include_router(inspect_plan_binding.router)
     for validation_cls in (
         InvalidCapabilityCodeError,
         InvalidCapabilityDescriptionError,

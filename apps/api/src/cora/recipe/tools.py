@@ -24,6 +24,7 @@ from cora.recipe.features.get_capability import tool as get_capability_tool
 from cora.recipe.features.get_method import tool as get_method_tool
 from cora.recipe.features.get_plan import tool as get_plan_tool
 from cora.recipe.features.get_practice import tool as get_practice_tool
+from cora.recipe.features.inspect_plan_binding import tool as inspect_plan_binding_tool
 from cora.recipe.features.list_methods import tool as list_methods_tool
 from cora.recipe.features.list_plans import tool as list_plans_tool
 from cora.recipe.features.list_practices import tool as list_practices_tool
@@ -138,4 +139,8 @@ def register_recipe_tools(
     get_capability_tool.register(
         mcp,
         get_handler=lambda: get_handlers().get_capability,
+    )
+    inspect_plan_binding_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().inspect_plan_binding,
     )

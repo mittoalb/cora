@@ -1,0 +1,105 @@
+"""MCP tool for the `inspect_plan_binding` query slice.
+
+Surfaces the same handler the REST route uses. Returns a
+structured `InspectPlanBindingOutput`. NotFound errors raised by
+the handler propagate as FastMCP-wrapped `isError: true` with the
+error message text, matching the REST 404 behaviour in MCP's
+error idiom.
+"""
+
+from collections.abc import Callable
+from typing import Annotated, Any
+from uuid import UUID
+
+from mcp.server.fastmcp import Context, FastMCP
+from pydantic import BaseModel, Field
+
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
+from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
+from cora.recipe.features.inspect_plan_binding.handler import Handler
+from cora.recipe.features.inspect_plan_binding.query import InspectPlanBinding
+
+
+class WiredAssetBindingItem(BaseModel):
+    """Per-wired-Asset binding contribution on the MCP wire."""
+
+    asset_id: UUID
+    asset_name: str
+    condition: str
+    lifecycle: str
+    family_ids: list[UUID]
+    contributed_affordances: list[str]
+
+
+class InspectPlanBindingOutput(BaseModel):
+    """Structured output of the `inspect_plan_binding` MCP tool."""
+
+    practice_id: UUID
+    method_id: UUID
+    capability_id: UUID | None
+    method_needed_families: list[UUID]
+    capability_required_affordances: list[str]
+    wired_assets: list[WiredAssetBindingItem]
+    missing_families: list[UUID]
+    missing_affordances: list[str]
+    binding_status: str
+
+
+def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
+    """Register the `inspect_plan_binding` tool on the given MCP server."""
+
+    @mcp.tool(
+        name="inspect_plan_binding",
+        description=(
+            "Preview the diagnostic for a candidate Plan binding without "
+            "defining it. Returns the wired Assets' conditions, their "
+            "contributed affordances, and any missing families or "
+            "affordances. Read-only: no events are emitted and no Plan "
+            "is created."
+        ),
+    )
+    async def inspect_plan_binding_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
+        practice_id: Annotated[
+            UUID,
+            Field(description="Practice the candidate Plan would bind."),
+        ],
+        asset_ids: Annotated[
+            list[UUID],
+            Field(description="Candidate wired-Asset ids.", min_length=1),
+        ],
+    ) -> InspectPlanBindingOutput:
+        handler = get_handler()
+        view = await handler(
+            InspectPlanBinding(
+                practice_id=practice_id,
+                asset_ids=frozenset(asset_ids),
+            ),
+            principal_id=get_mcp_principal_id(ctx),
+            correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
+        )
+        return InspectPlanBindingOutput(
+            practice_id=view.practice_id,
+            method_id=view.method_id,
+            capability_id=view.capability_id,
+            method_needed_families=sorted(view.method_needed_families, key=str),
+            capability_required_affordances=sorted(
+                a.value for a in view.capability_required_affordances
+            ),
+            wired_assets=[
+                WiredAssetBindingItem(
+                    asset_id=item.asset_id,
+                    asset_name=item.asset_name,
+                    condition=item.condition.value,
+                    lifecycle=item.lifecycle.value,
+                    family_ids=sorted(item.family_ids, key=str),
+                    contributed_affordances=sorted(a.value for a in item.contributed_affordances),
+                )
+                for item in view.wired_assets
+            ],
+            missing_families=sorted(view.missing_families, key=str),
+            missing_affordances=sorted(a.value for a in view.missing_affordances),
+            binding_status=view.binding_status.value,
+        )
