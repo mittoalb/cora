@@ -1,7 +1,7 @@
 """MCTOptics composition deployment at APS 2-BM.
 
 cluster: Commissioning
-archetype: routine
+archetype: setup
 bc_primary: Equipment
 bc_touches: Equipment, Calibration, Recipe
 
@@ -508,21 +508,21 @@ def _id_queue() -> list[UUID]:
         e(),
         e(),
         e(),
-        # define_calibration x 4: cal_id, event_id
+        # define_calibration + append_revision x 4: per Calibration the
+        # ceremony is (cal_id, def_event_id, rev_id, rev_event_id).
         _CAL_MAG_OBJ_0_ID,
+        e(),
+        _REV_MAG_OBJ_0_ID,
         e(),
         _CAL_MAG_OBJ_1_ID,
         e(),
-        _CAL_MAG_OBJ_2_ID,
-        e(),
-        _CAL_SCINT_EFF_THICK_ID,
-        e(),
-        # append_revision x 4: revision_id, event_id
-        _REV_MAG_OBJ_0_ID,
-        e(),
         _REV_MAG_OBJ_1_ID,
         e(),
+        _CAL_MAG_OBJ_2_ID,
+        e(),
         _REV_MAG_OBJ_2_ID,
+        e(),
+        _CAL_SCINT_EFF_THICK_ID,
         e(),
         _REV_SCINT_EFF_THICK_ID,
         e(),
@@ -887,14 +887,14 @@ async def test_mctoptics_deployment_plays_out_end_to_end(
 
     # ----- 4 Calibrations + 4 AssertedSource revisions -----
 
-    # Each Calibration is defined then appended in two passes so partial
-    # failure mid-pass leaves a clean recoverable state (all 4 defined OR
-    # 0 defined; never an asymmetric mix). AssertedSource.actor_id IS the
-    # envelope principal here because the operator both reads the vendor
-    # citation AND pushes the command; in the general case the field
-    # captures the attesting author (which may differ from the pushing
-    # operator, e.g., an automated agent pushes on behalf of a human).
-    for _cal_id, _rev_id, target_id, quantity, op_point, _value, description in _CALIBRATION_SPECS:
+    # Each Calibration is defined + has its initial revision appended in
+    # one iteration so the per-Calibration unit reads as a self-contained
+    # registration. AssertedSource.actor_id IS the envelope principal
+    # here because the operator both reads the vendor citation AND pushes
+    # the command; in the general case the field captures the attesting
+    # author (which may differ from the pushing operator, e.g., an
+    # automated agent pushes on behalf of a human).
+    for cal_id, _rev_id, target_id, quantity, op_point, value, description in _CALIBRATION_SPECS:
         await bind_define_calibration(deps)(
             DefineCalibration(
                 target_id=target_id,
@@ -905,15 +905,6 @@ async def test_mctoptics_deployment_plays_out_end_to_end(
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-    for (
-        cal_id,
-        _rev_id,
-        _target_id,
-        _quantity,
-        _op_point,
-        value,
-        _description,
-    ) in _CALIBRATION_SPECS:
         await bind_append_revision(deps)(
             AppendRevision(
                 calibration_id=cal_id,
@@ -1018,9 +1009,25 @@ async def test_mctoptics_deployment_plays_out_end_to_end(
             f"{cal_id}: expected define + 1 revision, got {types}"
         )
 
-    # Plan stream carries the 5 PlanWireAdded events.
+    # Plan stream carries the 5 PlanWireAdded events. Assert the 4-tuple
+    # identities (not just the count) to catch silent direction-swap or
+    # signal_type-coerce regressions in AddPlanWire.
     plan_events, _plan_version = await deps.event_store.load("Plan", _PLAN_ID)
-    plan_types = [e.event_type for e in plan_events]
-    assert plan_types.count("PlanWireAdded") == len(_WIRE_SPECS), (
-        f"expected {len(_WIRE_SPECS)} PlanWireAdded events, got {plan_types}"
+    plan_wire_added = [e for e in plan_events if e.event_type == "PlanWireAdded"]
+    assert len(plan_wire_added) == len(_WIRE_SPECS), (
+        f"expected {len(_WIRE_SPECS)} PlanWireAdded events, got {len(plan_wire_added)}"
+    )
+    actual_wires = frozenset(
+        (
+            UUID(e.payload["source_asset_id"]),
+            e.payload["source_port_name"],
+            UUID(e.payload["target_asset_id"]),
+            e.payload["target_port_name"],
+        )
+        for e in plan_wire_added
+    )
+    expected_wires = frozenset(_WIRE_SPECS)
+    assert actual_wires == expected_wires, (
+        f"wire 4-tuples diverge.\n  missing: {expected_wires - actual_wires}\n  "
+        f"unexpected: {actual_wires - expected_wires}"
     )

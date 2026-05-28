@@ -145,3 +145,29 @@ def test_effective_thickness_value_shape() -> None:
     assert "effective_thickness" in properties
     assert "effective_thickness" in schema["required"]
     assert properties["effective_thickness"].get("exclusiveMinimum") == 0
+
+
+@pytest.mark.unit
+def test_energy_bounds_consistent_across_quantities() -> None:
+    """Every quantity that carries an `energy` operating_point key
+    must declare the same bounds (1-100 keV, multipleOf 0.001) and the
+    same unit annotation. Locks the convergent shape so a future
+    quantity author cannot drift one axis silently."""
+    expected_bounds = {
+        "minimum": 1,
+        "maximum": 100,
+        "multipleOf": 0.001,
+        "type": "number",
+        "unit": {"system": "udunits", "code": "keV"},
+    }
+    for quantity in CalibrationQuantity:
+        schema = get_operating_point_schema(quantity)
+        properties: dict[str, Any] = schema.get("properties", {})
+        if "energy" not in properties:
+            continue
+        actual = properties["energy"]
+        for key, expected_value in expected_bounds.items():
+            assert actual.get(key) == expected_value, (
+                f"{quantity.value}: operating_point.energy.{key} expected "
+                f"{expected_value!r}, got {actual.get(key)!r}"
+            )
