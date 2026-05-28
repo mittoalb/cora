@@ -131,7 +131,7 @@ Individual reading rows do not emit per-row events on the Run stream; they are w
 **Errors per slice.** Beyond Pydantic boundary 422s, each slice raises:
 
 `StartRun`
-: `RunAlreadyExists`, `InvalidRunName`, `PlanNotFound`, `PlanDeprecated`, `SubjectNotMountable`, `RunAssetDecommissioned`, `RunCapabilitiesNotSatisfied`, `RunRequiresActiveClearance`, `RunClearanceCoverageMismatch`, `RunCannotJoinCampaign`, `InvalidRunExternalRef`, `InvalidRunParameters`, `InvalidPinnedCalibrations`, `Unauthorized`
+: `RunAlreadyExists`, `InvalidRunName`, `PlanNotFound`, `PlanDeprecated`, `SubjectNotMountable`, `RunAssetDecommissioned`, `RunCapabilitiesNotSatisfied`, `RunRequiresActiveClearance`, `RunClearanceCoverageMismatch`, `RunRequiresAvailableSupply` (no Supply registered for a kind in `Method.needed_supplies`), `RunSupplyCoverageMismatch` (Supplies exist but none Available), `RunCannotJoinCampaign`, `InvalidRunExternalRef`, `InvalidRunParameters`, `InvalidPinnedCalibrations`, `Unauthorized`
 
 `HoldRun` / `ResumeRun` / `CompleteRun`
 : `RunNotFound`, `RunCannot{Hold,Resume,Complete}`, `Unauthorized`
@@ -222,6 +222,7 @@ Clock skew between the sensor (`sampled_at`) and the handler (`occurred_at`) is 
 | Subject | reads-from | Loads `Subject` (when `subject_id` set) to enforce the Mounted-or-Measured guard at start |
 | Equipment | reads-from | Loads each bound `Asset` to re-validate the family superset against the Method's needed families (drift is real; the Plan-bind snapshot is not trusted at start) |
 | Safety | reads-from | `ClearanceLookup.find_referencing_run(run_id, subject_id, asset_ids)` returns clearances whose bindings cover the Run scope; ≥1 must be `Active` |
+| Supply | reads-from (load-bearing) | `SupplyLookup.find_supplies_by_kind(kinds=method.needed_supplies)` returns every non-`Decommissioned` Supply grouped by kind; the decider refuses to start unless every required kind has ≥1 Supply in `Available` (raises `RunRequiresAvailableSupply` or `RunSupplyCoverageMismatch`, 409). `Available`-only by design; `Degraded` does not pass. |
 | Caution | reads-from | `CautionLookup` returns Active Cautions for the Run scope; non-blocking, surfaced as a banner on the response, never refuses start |
 | Campaign | shared-id-with | `Run.campaign_id` (single-Campaign-per-Run invariant); the post-hoc `add_run_to_campaign` / `remove_run_from_campaign` slices are owned by the Campaign module and atomically write `RunCampaignAssigned` / `RunCampaignUnassigned` plus the Campaign-side membership event via `EventStore.append_streams` |
 | Decision | shared-id-with | `RunAdjusted.decided_by_decision_id` cites the Decision that justified a mid-flight adjustment; no existence check at write time (eventual-consistency stance) |

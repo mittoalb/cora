@@ -1,6 +1,6 @@
 # Supply module
 
-<span class="md-maturity md-maturity--stable" title="Aggregate, five-state FSM, six events, eight slices, and projection all locked.">stable</span>
+<span class="md-maturity md-maturity--stable" title="Aggregate, five-state health FSM + Decommissioned lifecycle terminal, seven events, ten slices (one in-process-only), projection all locked.">stable</span>
 
 ## Purpose & Scope
 
@@ -15,8 +15,9 @@ Out of scope
 
 - **Capacity and quantity tracking.** No `capacity` field today. Will land additively when a real consumer needs quantity, not before.
 - **Physical-equipment binding.** No link from `Supply` to the Asset(s) that deliver it. Additive `bound_asset_id` is on the watch list.
-- **Auto-restore on observation.** `Recovering → Available` requires an explicit operator `restore_supply` gesture. Timer-based or substream-driven auto-restore is deferred.
-- **Monitor and Auto trigger paths.** Only `Operator` triggers are wired today; `Monitor` and `Auto` are reserved in the enum so the future slice families land without an enum migration.
+- **Auto-restore on observation.** `Recovering → Available` requires an explicit operator `restore_supply` gesture. `Monitor` cannot drive this transition either (the latched-alarm fence at the `observe_supply_status` decider). Timer-based `Auto` recovery is deferred.
+- **Monitor trigger Port A (EPICS subscriber).** Port B (the Supply-side inbound `observe_supply_status` slice) has shipped; Port A (the EPICS subscriber that calls Port B with PV updates) defers to the 2-BM controls adapter discovery work.
+- **REST or MCP surface for `observe_supply_status`.** In-process-only by design (operators have buttons, machines have ports). Adapters call `SupplyHandlers.observe_supply_status(...)` directly.
 
 </div>
 
@@ -32,9 +33,10 @@ Out of scope
 |---|---|---|
 | `SupplyName` | trimmed bounded text, 1-200 chars | `Supply.name` |
 | `SupplyReason` | trimmed bounded text, 1-500 chars; decider-input only | every transition slice's `reason` |
-| `SupplyStatus` | closed StrEnum `{Unknown, Available, Degraded, Unavailable, Recovering}` | `Supply.status` |
+| `SupplyStatus` | closed StrEnum `{Unknown, Available, Degraded, Unavailable, Recovering, Decommissioned}` | `Supply.status`. The first five are health states on the FSM; `Decommissioned` is a lifecycle terminal (no transition exits) added by `deregister_supply`. Parallel to `Asset.lifecycle=Decommissioned` and `Subject.status=Discarded`. |
 | `SupplyScope` | closed StrEnum `{Facility, Sector, Beamline}` | `Supply.scope` |
-| `TriggerSource` | closed StrEnum `{Operator, Monitor, Auto}` | transition-event `trigger` discriminator |
+| `TriggerSource` | closed StrEnum `{Operator, Monitor, Auto}` | transition-event `trigger` discriminator. `Operator` is used by the operator-gesture slices; `Monitor` is used by the `observe_supply_status` slice (in-process port for sensor-driven transitions); `Auto` is reserved for the future timer-driven recovery slice. |
+| `MonitorRef` | frozen dataclass `(source_kind: str 1-50, source_id: str 1-200)` | `observe_supply_status` command input; serialized as `"{source_kind}:{source_id}"` on the transition event's `monitor_ref` audit field. |
 
 `Supply.kind` is a bare `str` (1-50 chars, validated at the decider), not a VO, mirroring the `AssetPort.signal_type` and `Procedure.kind` precedents. Future graduation to a closed `SupplyKind` StrEnum once pilot vocabulary settles is a clean parser change; making it a VO first would break every type-annotated call site at promotion. Documented starter vocabulary: `PhotonBeam`, `FELPulses`, `Neutrons`, `IonBeam`, `LiquidNitrogen`, `LiquidHelium`, `CompressedAir`, `CoolingWater`, `ChilledWater`, `ElectricalPower`, `ProcessGas`, `Vacuum`, `ComputePool`.
 
@@ -53,16 +55,23 @@ stateDiagram-v2
     Recovering --> Available: restore_supply
     Recovering --> Degraded: degrade_supply
     Recovering --> Unavailable: mark_supply_unavailable
+    Unknown --> Decommissioned: deregister_supply
+    Available --> Decommissioned: deregister_supply
+    Degraded --> Decommissioned: deregister_supply
+    Unavailable --> Decommissioned: deregister_supply
+    Recovering --> Decommissioned: deregister_supply
+    Decommissioned --> [*]
 ```
 
 | From | To | Command | Event |
 |---|---|---|---|
 | `[*]` | `Unknown` | `register_supply` | `SupplyRegistered` |
 | `Unknown` | `Available` | `mark_supply_available` | `SupplyMarkedAvailable` |
-| `Unknown`, `Available`, `Recovering` | `Degraded` | `degrade_supply` | `SupplyDegraded` |
-| `Unknown`, `Available`, `Degraded`, `Recovering` | `Unavailable` | `mark_supply_unavailable` | `SupplyMarkedUnavailable` |
-| `Unavailable` | `Recovering` | `mark_supply_recovering` | `SupplyMarkedRecovering` |
-| `Recovering` | `Available` | `restore_supply` | `SupplyRestored` |
+| `Unknown`, `Available`, `Recovering` | `Degraded` | `degrade_supply` *or* `observe_supply_status` | `SupplyDegraded` |
+| `Unknown`, `Available`, `Degraded`, `Recovering` | `Unavailable` | `mark_supply_unavailable` *or* `observe_supply_status` | `SupplyMarkedUnavailable` |
+| `Unavailable` | `Recovering` | `mark_supply_recovering` *or* `observe_supply_status` | `SupplyMarkedRecovering` |
+| `Recovering` | `Available` | `restore_supply` (operator-only; Monitor is fenced out) | `SupplyRestored` |
+| any non-`Decommissioned` | `Decommissioned` | `deregister_supply` (operator-only) | `SupplyDeregistered` |
 
 **Guards.** Beyond the source-state check, each transition enforces:
 
@@ -70,20 +79,27 @@ stateDiagram-v2
 : Two distinct paths to `Available` with distinct audit semantics. `mark_supply_available` is the first-observation declaration out of `Unknown`; `restore_supply` is the operator-acknowledgement that confirms a `Recovering` Supply is fully back. Re-using the wrong slice on the wrong source state raises (strict-not-idempotent on both). Mirrors the Phoebus latched-alarm precedent: first-observation and recovery-confirmation are two different operator gestures.
 
 `degrade_supply` / `mark_supply_unavailable` / `mark_supply_recovering`
-: All carry a REQUIRED `reason` (1-500 chars after trim) and a `trigger` value. The trigger is constrained to `Operator` today; `Monitor` and `Auto` are reserved in the enum for the future monitor-substream and auto-recovery slice families.
+: All carry a REQUIRED `reason` (1-500 chars after trim). The operator-gesture slices hardcode `trigger=Operator`; the same source-state allowlists apply when these transitions are driven by `observe_supply_status` (in which case `trigger=Monitor` and an audit `monitor_ref` lands on the event). `Auto` is reserved for the future timer-driven recovery slice.
+
+`deregister_supply`
+: Operator escape hatch for mistaken registrations. Accepts any non-`Decommissioned` source. Lifecycle terminal: no transition exits `Decommissioned`; if the operator needs the resource back, they re-register at the same `(scope, kind, name)` and get a fresh `supply_id` (the projection's partial UNIQUE INDEX excludes `Decommissioned` rows from uniqueness). Raises `SupplyCannotDeregisterError` (HTTP 409) on a Supply already in `Decommissioned`.
+
+`observe_supply_status`
+: In-process-only port (no REST, no MCP). Routes by the requested `new_status` to the corresponding transition event, fences `Monitor` out of `Recovering → Available` and `Unknown → Available` (operator-only; latched-alarm + first-observation declaration semantics), and stamps every emitted event with `trigger=Monitor` plus the adapter's `monitor_ref` for audit. Source-state allowlists per target mirror the operator slices verbatim.
 
 ## Events
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
 | `SupplyRegistered` | `supply_id, scope, kind, name, occurred_at` | `register_supply` accepted; status implicitly `Unknown`. |
-| `SupplyMarkedAvailable` | `supply_id, from_status, reason, trigger, occurred_at` | `mark_supply_available` accepted (Unknown → Available). |
-| `SupplyDegraded` | `supply_id, from_status, reason, trigger, occurred_at` | `degrade_supply` accepted (Unknown, Available, or Recovering → Degraded). |
-| `SupplyMarkedUnavailable` | `supply_id, from_status, reason, trigger, occurred_at` | `mark_supply_unavailable` accepted (Unknown, Available, Degraded, or Recovering → Unavailable). |
-| `SupplyMarkedRecovering` | `supply_id, from_status, reason, trigger, occurred_at` | `mark_supply_recovering` accepted (Unavailable → Recovering). |
-| `SupplyRestored` | `supply_id, from_status, reason, trigger, occurred_at` | `restore_supply` accepted (Recovering → Available). |
+| `SupplyMarkedAvailable` | `supply_id, from_status, reason, trigger, occurred_at, monitor_ref?` | `mark_supply_available` accepted (Unknown → Available). Operator-only target; `monitor_ref` is always absent. |
+| `SupplyDegraded` | `supply_id, from_status, reason, trigger, occurred_at, monitor_ref?` | `degrade_supply` or `observe_supply_status` accepted (Unknown, Available, or Recovering → Degraded). |
+| `SupplyMarkedUnavailable` | `supply_id, from_status, reason, trigger, occurred_at, monitor_ref?` | `mark_supply_unavailable` or `observe_supply_status` accepted (Unknown, Available, Degraded, or Recovering → Unavailable). |
+| `SupplyMarkedRecovering` | `supply_id, from_status, reason, trigger, occurred_at, monitor_ref?` | `mark_supply_recovering` or `observe_supply_status` accepted (Unavailable → Recovering). |
+| `SupplyRestored` | `supply_id, from_status, reason, trigger, occurred_at, monitor_ref?` | `restore_supply` accepted (Recovering → Available). Operator-only target; `monitor_ref` is always absent. |
+| `SupplyDeregistered` | `supply_id, from_status, reason, trigger, occurred_at, monitor_ref?` | `deregister_supply` accepted (any non-`Decommissioned` → `Decommissioned`). Operator-only target; `monitor_ref` is always absent. |
 
-Every transition event carries `from_status` explicitly (even though the FSM constrains it) to keep projection apply logic uniform across the five transition slices and to make per-event audit reads self-contained.
+Every transition event carries `from_status` explicitly (even though the FSM constrains it) to keep projection apply logic uniform across the six transition slices and to make per-event audit reads self-contained. `monitor_ref` is an additive optional field: present when the transition was driven by `observe_supply_status` (carries the originating sensor's `"{source_kind}:{source_id}"` for audit), absent for operator-gesture transitions.
 
 ## Slices
 
@@ -95,22 +111,32 @@ Every transition event carries `from_status` explicitly (even though the FSM con
 | `MarkSupplyUnavailable` | MODIFIED | `POST /supplies/{supply_id}/mark_unavailable` | `mark_supply_unavailable` | none |
 | `MarkSupplyRecovering` | MODIFIED | `POST /supplies/{supply_id}/mark_recovering` | `mark_supply_recovering` | none |
 | `RestoreSupply` | MODIFIED | `POST /supplies/{supply_id}/restore` | `restore_supply` | none |
+| `DeregisterSupply` | TERMINAL | `POST /supplies/{supply_id}/deregister` | `deregister_supply` | none |
+| `ObserveSupplyStatus` | IN-PROCESS | (none — by design) | (none — by design) | none |
 | `GetSupply` | QUERY | `GET /supplies/{supply_id}` | `get_supply` | none |
 | `ListSupplies` | QUERY | `GET /supplies` | `list_supplies` | none |
+
+`ObserveSupplyStatus` ships no REST endpoint or MCP tool by design: operators have buttons, machines have ports. In-process adapters (the future EPICS subscriber per the 2-BM controls work, a TomoScan watchdog, future facility-bridges) call `SupplyHandlers.observe_supply_status(...)` directly. Exposing the slice on the public surface would invite operators issuing Monitor-tagged events from MCP tools while the system attributes them to a sensor.
 
 **Errors per slice.** Beyond Pydantic boundary 422s, each slice raises:
 
 `RegisterSupply`
-: `SupplyAlreadyExistsError`, `InvalidSupplyNameError`, `InvalidSupplyKindError`, `Unauthorized`. A duplicate `(scope, kind, name)` registration succeeds at the aggregate (different stream) but fails at projection-insert time on the UNIQUE INDEX; the operator de-registers the duplicate via a future deregister slice.
+: `SupplyAlreadyExistsError`, `InvalidSupplyNameError`, `InvalidSupplyKindError`, `Unauthorized`. A duplicate active `(scope, kind, name)` registration succeeds at the aggregate (different stream) but fails at projection-insert time on the partial UNIQUE INDEX; the projection swallows the conflict with a WARN log so the worker keeps advancing. The duplicate event stays in the audit log; the operator can deregister one via `DeregisterSupply` and re-register cleanly (the partial index excludes `Decommissioned` rows from uniqueness).
 
 `MarkSupplyAvailable` / `DegradeSupply` / `MarkSupplyUnavailable` / `MarkSupplyRecovering` / `RestoreSupply`
 : `SupplyNotFoundError`, `SupplyCannot<Verb>Error` (single-source for MarkAvailable, MarkRecovering, Restore; multi-source for Degrade `{Unknown, Available, Recovering}` and MarkUnavailable `{Unknown, Available, Degraded, Recovering}`), `InvalidSupplyReasonError`, `Unauthorized`
+
+`DeregisterSupply`
+: `SupplyNotFoundError`, `SupplyCannotDeregisterError` (single disqualifying source: `Decommissioned` itself — strict-not-idempotent), `InvalidSupplyReasonError`, `Unauthorized`
+
+`ObserveSupplyStatus`
+: `SupplyNotFoundError`, `MonitorTriggerNotPermittedError` (the requested `new_status` is operator-only: `Available` via either path, or `Decommissioned`, or `Unknown`), the same `SupplyCannot<Verb>Error` family the operator slices use when a source-state allowlist rejects, `InvalidSupplyReasonError`, `InvalidMonitorRefError`
 
 `GetSupply`
 : `SupplyNotFoundError`
 
 `ListSupplies`
-: (boundary 422 only)
+: (boundary 422 only). Status filter accepts `Decommissioned` alongside the five health values; an unfiltered list returns every status (no default-exclude, matching the Asset / Subject sibling-BC convention).
 
 ## Storage & Projections
 
@@ -125,7 +151,8 @@ CREATE TABLE proj_supply_summary (
     kind                   TEXT        NOT NULL,
     name                   TEXT        NOT NULL,
     status                 TEXT        NOT NULL CHECK (
-        status IN ('Unknown', 'Available', 'Degraded', 'Unavailable', 'Recovering')
+        status IN ('Unknown', 'Available', 'Degraded', 'Unavailable',
+                   'Recovering', 'Decommissioned')
     ),
     registered_at          TIMESTAMPTZ NOT NULL,
     last_status_changed_at TIMESTAMPTZ,
@@ -137,12 +164,13 @@ CREATE TABLE proj_supply_summary (
 );
 
 CREATE UNIQUE INDEX proj_supply_summary_address_uq
-    ON proj_supply_summary (scope, kind, name);
+    ON proj_supply_summary (scope, kind, name)
+    WHERE status != 'Decommissioned';
 CREATE INDEX proj_supply_summary_keyset_idx
     ON proj_supply_summary (registered_at, supply_id);
 ```
 
-`(scope, kind, name)` is enforced unique at the projection because aggregates cannot enforce cross-stream invariants without dynamic consistency boundaries. The CHECK constraints are locked with the full enum values day one (five statuses, three triggers) so the transition slices and the deferred Monitor and Auto trigger paths all land without a constraint migration. `last_status_changed_at`, `last_status_reason`, and `last_trigger` stay NULL until the first transition out of `Unknown` and denormalise the latest transition's audit metadata for at-a-glance ops queries.
+`(scope, kind, name)` is enforced unique at the projection because aggregates cannot enforce cross-stream invariants without dynamic consistency boundaries. The UNIQUE INDEX is **partial** on `WHERE status != 'Decommissioned'` so a tombstoned Supply does not hold the address against re-registration: deregister the typo, register again cleanly, and both rows coexist (one `Decommissioned` for audit, one active). The `status` CHECK widened to six values when `deregister_supply` shipped (forward-only migration `20260527160000_widen_proj_supply_summary_for_deregister`); the three-value `last_trigger` CHECK was locked day one so `Monitor` and `Auto` events land without a constraint change. `last_status_changed_at`, `last_status_reason`, and `last_trigger` stay NULL until the first transition out of `Unknown` and denormalise the latest transition's audit metadata for at-a-glance ops queries. `monitor_ref` is NOT projected (audit-only on the event log).
 
 ## Cross-Module boundaries
 
@@ -152,10 +180,10 @@ CREATE INDEX proj_supply_summary_keyset_idx
 | `Access` | shared-id-with | Every Supply event envelope carries `actor_id` for principal attribution; cross-module references are bare UUIDs and not verified at write time. |
 | `Recipe` | upstream-of-kind | `Method.needed_supplies` references `Supply.kind` strings, not Supply ids. The asymmetry is intentional: kinds (`LiquidNitrogen`, `PhotonBeam`, ...) are facility-portable so a Method written elsewhere can declare its supply prerequisites; instance UUIDs are not. |
 | `Equipment` | reads-from (today, no schema link) | The physical infrastructure delivering a resource stays modeled as Assets in Equipment; Supply describes the resource itself. The additive `bound_asset_id` link is a watch item and will surface when a consumer needs equipment-to-resource traversal. |
-| `Run` | upstream-of | Run pre-flight reads `list_supplies` filtered by scope or kind. Operator-decided today (banner hint surfaced at start), not enforced at the Run aggregate. |
-| `Operation` | upstream-of | Procedure pre-flight reads `list_supplies` the same way as Run. Same operator-decided posture today. |
+| `Run` | upstream-of (load-bearing) | `start_run` resolves `Method.needed_supplies` and reads through the cross-BC `SupplyLookup` port; the decider refuses to start the Run unless every required kind has at least one Supply in `Available` status. Failure raises `RunRequiresAvailableSupplyError` (no Supply for kind) or `RunSupplyCoverageMismatchError` (Supply exists but none Available); both map to HTTP 409. |
+| `Operation` | upstream-of (load-bearing for Phase-of-Run) | `start_procedure` for Phase-of-Run Procedures resolves `parent_run_id → Run → Plan → Practice → Method` and reads the same `SupplyLookup` port; failure raises `ProcedureRequiresAvailableSupplyError` / `ProcedureSupplyCoverageMismatchError`. Standalone Procedures (no `parent_run_id`) pass trivially today; Capability-level `needed_supplies` is a watch item. |
 
-Day-1 the Supply module has no synchronous cross-BC writes.
+The pre-flight gate is `Available`-only by design: `Degraded` does NOT pass. The cost-asymmetry anchor wins (false-positive availability wastes beamtime; the operator override is `mark_supply_available` after walkdown, not a `force=true` bypass). Day-1 the Supply module has no synchronous cross-BC writes; the inbound `observe_supply_status` port is in-process from an adapter the BC does not import.
 
 ## Examples
 
