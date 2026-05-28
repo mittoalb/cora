@@ -38,7 +38,7 @@ ARCHETYPES: frozenset[str] = frozenset(
     }
 )
 
-# All 14 BCs that exist in CORA's codebase today. New BCs are added
+# All 15 BCs that exist in CORA's codebase today. New BCs are added
 # at ship time, not when first scenario covers them, so a zero-count
 # BC on the registry page is a visible signal of a coverage gap.
 BOUNDED_CONTEXTS: frozenset[str] = frozenset(
@@ -57,6 +57,7 @@ BOUNDED_CONTEXTS: frozenset[str] = frozenset(
         "Safety",
         "Caution",
         "Agent",
+        "Calibration",
     }
 )
 
@@ -127,8 +128,7 @@ def parse_metadata(path: Path, docstring: str | None) -> ScenarioMeta:
     cluster = fields["cluster"]
     if cluster not in CLUSTERS:
         raise ScenarioHeaderError(
-            f"{path}: cluster {cluster!r} not in closed vocabulary "
-            f"({sorted(CLUSTERS)})"
+            f"{path}: cluster {cluster!r} not in closed vocabulary ({sorted(CLUSTERS)})"
         )
 
     archetype = fields["archetype"]
