@@ -28,6 +28,7 @@ new slices in flight stay invisible until `git add`ed, at which
 point all the usual invariants kick in.
 """
 
+import os
 import subprocess
 from functools import cache
 from pathlib import Path
@@ -87,12 +88,17 @@ def tracked_test_files() -> frozenset[Path]:
 
 
 def _tracked_python_files_under(subdir: str) -> frozenset[Path]:
+    # Strip pre-commit's GIT_DIR / GIT_INDEX_FILE env vars: they point at
+    # the parent repo's hook-impl staging area and would mask the worktree's
+    # actual tracked files. See feedback_worktree_precommit_arch_tests.
+    env = {k: v for k, v in os.environ.items() if k not in {"GIT_DIR", "GIT_INDEX_FILE"}}
     result = subprocess.run(
         ["git", "ls-files", subdir],
         cwd=_API_ROOT,
         capture_output=True,
         text=True,
         check=True,
+        env=env,
     )
     return frozenset(
         _API_ROOT / line for line in result.stdout.splitlines() if line.endswith(".py")

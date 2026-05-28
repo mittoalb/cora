@@ -685,3 +685,71 @@ async def test_handler_raises_unauthorized_when_authz_denies() -> None:
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
+
+
+@pytest.mark.unit
+async def test_handler_skips_candidate_lookup_when_pool_is_none() -> None:
+    """In-memory deps (no pool) returns empty missing_affordance_candidates
+    even when affordances are missing. Mirrors get_plan's pool-optional
+    pattern: candidate enumeration is projection-backed and gracefully
+    no-ops without a configured pool."""
+    store = InMemoryEventStore()
+    await _seed_capability(
+        store,
+        _CAPABILITY_ID,
+        required_affordances=frozenset({Affordance.ROTATABLE, Affordance.MARKING}),
+    )
+    await _seed_family(store, _FAMILY_ROTARY_ID, affordances=frozenset({Affordance.ROTATABLE}))
+    await _seed_method(
+        store,
+        _METHOD_ID,
+        needed_families=frozenset({_FAMILY_ROTARY_ID}),
+        capability_id=_CAPABILITY_ID,
+    )
+    await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
+    await _seed_asset(store, _ASSET_A_ID, families=frozenset({_FAMILY_ROTARY_ID}))
+    deps = build_deps(now=_NOW, event_store=store)
+    handler = inspect_plan_binding.bind(deps)
+
+    view = await handler(
+        InspectPlanBinding(practice_id=_PRACTICE_ID, asset_ids=frozenset({_ASSET_A_ID})),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    assert view.binding_status is BindingStatus.MISSING_AFFORDANCES
+    assert view.missing_affordances == frozenset({Affordance.MARKING})
+    # Pool is None -> candidate enumeration skipped.
+    assert view.missing_affordance_candidates == ()
+
+
+@pytest.mark.unit
+async def test_handler_returns_empty_candidates_when_no_affordances_missing() -> None:
+    """When binding is satisfied, missing_affordance_candidates is empty
+    (no missing affordance to enumerate candidates for)."""
+    store = InMemoryEventStore()
+    await _seed_capability(
+        store,
+        _CAPABILITY_ID,
+        required_affordances=frozenset({Affordance.ROTATABLE}),
+    )
+    await _seed_family(store, _FAMILY_ROTARY_ID, affordances=frozenset({Affordance.ROTATABLE}))
+    await _seed_method(
+        store,
+        _METHOD_ID,
+        needed_families=frozenset({_FAMILY_ROTARY_ID}),
+        capability_id=_CAPABILITY_ID,
+    )
+    await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
+    await _seed_asset(store, _ASSET_A_ID, families=frozenset({_FAMILY_ROTARY_ID}))
+    deps = build_deps(now=_NOW, event_store=store)
+    handler = inspect_plan_binding.bind(deps)
+
+    view = await handler(
+        InspectPlanBinding(practice_id=_PRACTICE_ID, asset_ids=frozenset({_ASSET_A_ID})),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    assert view.binding_status is BindingStatus.SATISFIED
+    assert view.missing_affordance_candidates == ()

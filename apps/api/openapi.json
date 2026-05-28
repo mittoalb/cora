@@ -1873,6 +1873,45 @@
         "title": "CancelVisitRequest",
         "type": "object"
       },
+      "CandidateAssetItem": {
+        "description": "Per-Asset candidate for a missing affordance on the wire.\n\n`family_ids` here lists only the candidate's Families that\ncontribute the parent missing affordance, not the candidate's\nfull Family set. Other state (condition, lifecycle) is\nunfiltered so the operator can see Faulted / Decommissioned\ncandidates and decide whether to act.",
+        "properties": {
+          "asset_id": {
+            "format": "uuid",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "asset_name": {
+            "title": "Asset Name",
+            "type": "string"
+          },
+          "condition": {
+            "title": "Condition",
+            "type": "string"
+          },
+          "family_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Family Ids",
+            "type": "array"
+          },
+          "lifecycle": {
+            "title": "Lifecycle",
+            "type": "string"
+          }
+        },
+        "required": [
+          "asset_id",
+          "asset_name",
+          "condition",
+          "lifecycle",
+          "family_ids"
+        ],
+        "title": "CandidateAssetItem",
+        "type": "object"
+      },
       "CapabilityResponse": {
         "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. `status` is the StrEnum's\nstring value (Defined / Versioned / Deprecated). `version` is\nthe operator-supplied label of the most recent version_capability\ncall (null until first version). `required_affordances` and\n`executor_shapes` serialize as sorted lists for response\ndeterminism. `replaced_by_capability_id` is null on Defined /\nVersioned / Deprecated-without-replacement; populated when a\ndeprecation supplied a successor pointer. `created_at` /\n`versioned_at` / `deprecated_at` are projection-sourced lifecycle\ntimestamps (Path C); see module\ndocstring for null-semantics.",
         "properties": {
@@ -4647,7 +4686,7 @@
         "type": "object"
       },
       "InspectPlanBindingResponse": {
-        "description": "Wire-side diagnostic returned by the endpoint.\n\n`missing_families` and `missing_affordances` are sorted lists;\nempty means that dimension is satisfied. `binding_status` is\nthe at-a-glance verdict (Satisfied / MissingFamilies /\nMissingAffordances / MissingCapability).\n\nForward-compat: the next phase will add a sibling field\nenumerating other facility Assets that afford each missing\nrequirement; `missing_affordances` stays a flat list of\naffordance strings so existing clients aren't broken.",
+        "description": "Wire-side diagnostic returned by the endpoint.\n\n`missing_families` and `missing_affordances` are sorted lists;\nempty means that dimension is satisfied. `binding_status` is\nthe at-a-glance verdict (Satisfied / MissingFamilies /\nMissingAffordances / MissingCapability).\n\n`missing_affordance_candidates` enumerates, per missing\naffordance, other facility Assets whose Families declare it.\nEmpty when no affordances are missing; in in-memory test mode\n(no pool) the projection-backed lookup is skipped and this\nstays empty regardless.",
         "properties": {
           "binding_status": {
             "title": "Binding Status",
@@ -4683,6 +4722,13 @@
               "type": "string"
             },
             "title": "Method Needed Families",
+            "type": "array"
+          },
+          "missing_affordance_candidates": {
+            "items": {
+              "$ref": "#/components/schemas/MissingAffordanceCandidatesItem"
+            },
+            "title": "Missing Affordance Candidates",
             "type": "array"
           },
           "missing_affordances": {
@@ -4722,6 +4768,7 @@
           "wired_assets",
           "missing_families",
           "missing_affordances",
+          "missing_affordance_candidates",
           "binding_status"
         ],
         "title": "InspectPlanBindingResponse",
@@ -4991,6 +5038,28 @@
           "created_at"
         ],
         "title": "MethodSummaryDTO",
+        "type": "object"
+      },
+      "MissingAffordanceCandidatesItem": {
+        "description": "Per-missing-affordance group on the wire.\n\n`affordance` is one of the entries in `missing_affordances`.\n`candidates` is sorted by asset_id string form (mirrors the\nwired_assets ordering convention). Empty list means the\nfacility has no Asset that could cover this requirement.",
+        "properties": {
+          "affordance": {
+            "title": "Affordance",
+            "type": "string"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateAssetItem"
+            },
+            "title": "Candidates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "affordance",
+          "candidates"
+        ],
+        "title": "MissingAffordanceCandidatesItem",
         "type": "object"
       },
       "ModelRefRequest": {

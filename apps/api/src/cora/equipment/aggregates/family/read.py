@@ -27,6 +27,7 @@ changes). Watch item documented in
 [[family-affordance-design-phases-5i-5j-lock]].
 """
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
@@ -89,3 +90,58 @@ async def load_family_timestamps(
         versioned_at=row["versioned_at"],
         deprecated_at=row["deprecated_at"],
     )
+
+
+_LIST_FAMILY_IDS_SQL = """
+SELECT family_id
+FROM proj_equipment_family_summary
+ORDER BY family_id::text
+"""
+
+
+async def list_all_family_ids(pool: asyncpg.Pool) -> list[UUID]:
+    """Read every Family id from the summary projection.
+
+    Used by `inspect_plan_binding`'s candidate enumeration: callers
+    iterate every Family, load its aggregate state via `load_family`,
+    and filter by `Family.affordances` membership. The summary
+    projection doesn't carry an affordances column today (5j
+    deferred it); when the first caller demands affordance-filtered
+    queries at scale, add the column + GIN index + push the filter
+    into SQL here. Pilot scale (~9 Families) keeps the load-all-
+    then-filter approach cheap.
+    """
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(_LIST_FAMILY_IDS_SQL)
+    return [row["family_id"] for row in rows]
+
+
+_LIST_ASSET_IDS_BY_FAMILIES_SQL = """
+SELECT DISTINCT asset_id
+FROM proj_equipment_asset_family_membership
+WHERE family_id = ANY($1::uuid[])
+"""
+
+
+async def list_asset_ids_in_families(
+    pool: asyncpg.Pool,
+    family_ids: Iterable[UUID],
+) -> list[UUID]:
+    """Read the Assets that are members of any of the given Families.
+
+    Reverse-direction lookup against the membership table; used by
+    `inspect_plan_binding`'s candidate enumeration to seed "other
+    Assets affording requirement X". Uses the `_by_family_idx`
+    secondary index for efficient lookup. SELECT DISTINCT dedupes
+    Assets that belong to multiple of the requested Families.
+
+    Returns deterministic ordering (asset_id stringified). Caller is
+    responsible for any further filtering (e.g. excluding Assets
+    already wired into the candidate Plan).
+    """
+    fids = list(family_ids)
+    if not fids:
+        return []
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(_LIST_ASSET_IDS_BY_FAMILIES_SQL, fids)
+    return sorted((row["asset_id"] for row in rows), key=str)

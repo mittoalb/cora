@@ -17,15 +17,19 @@ from cora.recipe.features.inspect_plan_binding.query import InspectPlanBinding
 from cora.recipe.features.inspect_plan_binding.route import router
 from cora.recipe.features.inspect_plan_binding.view import (
     BindingStatus,
+    CandidateAsset,
     InspectPlanBindingView,
+    MissingAffordanceCandidates,
     WiredAssetBinding,
 )
 
 __all__ = [
     "BindingStatus",
+    "CandidateAsset",
     "Handler",
     "InspectPlanBinding",
     "InspectPlanBindingView",
+    "MissingAffordanceCandidates",
     "WiredAssetBinding",
     "bind",
     "router",

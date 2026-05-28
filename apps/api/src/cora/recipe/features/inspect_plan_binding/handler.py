@@ -27,6 +27,8 @@ from cora.equipment.aggregates.asset import Asset, AssetNotFoundError, load_asse
 from cora.equipment.aggregates.family import (
     Affordance,
     FamilyNotFoundError,
+    list_all_family_ids,
+    list_asset_ids_in_families,
     load_family,
 )
 from cora.infrastructure.kernel import Kernel
@@ -40,7 +42,9 @@ from cora.recipe.errors import UnauthorizedError
 from cora.recipe.features.inspect_plan_binding.query import InspectPlanBinding
 from cora.recipe.features.inspect_plan_binding.view import (
     BindingStatus,
+    CandidateAsset,
     InspectPlanBindingView,
+    MissingAffordanceCandidates,
     WiredAssetBinding,
 )
 
@@ -170,6 +174,19 @@ def bind(deps: Kernel) -> Handler:
             for asset_id in assets_in_order
         )
 
+        # Per-missing-affordance candidate enumeration. Projection-backed:
+        # skipped gracefully when no pool is configured (in-memory test
+        # mode mirroring get_plan's pool-optional pattern). Loads every
+        # Family aggregate (pilot scale ~9 Families; watch item for
+        # Family-affordance projection upgrade at scale).
+        missing_affordance_candidates: tuple[MissingAffordanceCandidates, ...] = ()
+        if deps.pool is not None and missing_affordances:
+            missing_affordance_candidates = await _load_candidates(
+                deps,
+                missing_affordances=missing_affordances,
+                wired_asset_ids=frozenset(query.asset_ids),
+            )
+
         view = InspectPlanBindingView(
             practice_id=query.practice_id,
             method_id=method.id,
@@ -179,6 +196,7 @@ def bind(deps: Kernel) -> Handler:
             wired_assets=wired_assets,
             missing_families=missing_families,
             missing_affordances=missing_affordances,
+            missing_affordance_candidates=missing_affordance_candidates,
             binding_status=binding_status,
         )
 
@@ -192,7 +210,87 @@ def bind(deps: Kernel) -> Handler:
             asset_count=len(query.asset_ids),
             missing_family_count=len(missing_families),
             missing_affordance_count=len(missing_affordances),
+            missing_affordance_candidate_count=sum(
+                len(entry.candidates) for entry in missing_affordance_candidates
+            ),
         )
         return view
 
     return handler
+
+
+async def _load_candidates(
+    deps: Kernel,
+    *,
+    missing_affordances: frozenset[Affordance],
+    wired_asset_ids: frozenset[UUID],
+) -> tuple[MissingAffordanceCandidates, ...]:
+    """Enumerate facility Assets that could cover each missing affordance.
+
+    Projection-backed: load every Family from the summary projection,
+    fold its aggregate state to read `affordances`, bucket the Family
+    by each missing affordance it declares. Then for each bucket,
+    query the membership projection for member Assets, exclude
+    already-wired ones, load each Asset for name/condition/lifecycle,
+    and narrow `family_ids` to the candidate's Families that
+    contribute the affordance under consideration.
+
+    Caller-guarded: only called when `deps.pool is not None` AND
+    `missing_affordances` is non-empty.
+    """
+    assert deps.pool is not None  # caller-guaranteed
+    all_family_ids = await list_all_family_ids(deps.pool)
+
+    # Bucket Families by which missing affordance they declare.
+    families_per_affordance: dict[Affordance, set[UUID]] = {
+        affordance: set() for affordance in missing_affordances
+    }
+    for family_id in all_family_ids:
+        family = await load_family(deps.event_store, family_id)
+        if family is None:
+            continue
+        for affordance in missing_affordances:
+            if affordance in family.affordances:
+                families_per_affordance[affordance].add(family_id)
+
+    # For each bucket, find candidate Assets (members of any bucketed
+    # Family, minus already-wired) and shape them into the view.
+    asset_cache: dict[UUID, Asset] = {}
+
+    async def _get_asset(asset_id: UUID) -> Asset | None:
+        if asset_id not in asset_cache:
+            asset = await load_asset(deps.event_store, asset_id)
+            if asset is None:
+                return None
+            asset_cache[asset_id] = asset
+        return asset_cache[asset_id]
+
+    entries: list[MissingAffordanceCandidates] = []
+    for affordance in sorted(missing_affordances, key=lambda a: a.value):
+        contributing_families = families_per_affordance[affordance]
+        candidates: list[CandidateAsset] = []
+        if contributing_families:
+            candidate_ids = await list_asset_ids_in_families(deps.pool, contributing_families)
+            for asset_id in candidate_ids:
+                if asset_id in wired_asset_ids:
+                    continue
+                asset = await _get_asset(asset_id)
+                if asset is None:
+                    continue
+                contributing_subset = asset.families & contributing_families
+                candidates.append(
+                    CandidateAsset(
+                        asset_id=asset_id,
+                        asset_name=asset.name.value,
+                        condition=asset.condition,
+                        lifecycle=asset.lifecycle,
+                        family_ids=frozenset(contributing_subset),
+                    )
+                )
+        entries.append(
+            MissingAffordanceCandidates(
+                affordance=affordance,
+                candidates=tuple(candidates),
+            )
+        )
+    return tuple(entries)

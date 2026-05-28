@@ -49,6 +49,46 @@ class WiredAssetBinding:
 
 
 @dataclass(frozen=True)
+class CandidateAsset:
+    """Per-Asset candidate for a missing affordance.
+
+    Same shape as `WiredAssetBinding` minus the all-affordances
+    contribution: `family_ids` here holds only the candidate's
+    Families that DECLARE the missing affordance under consideration
+    (not the candidate's full Family set). The narrowing surfaces
+    why the Asset is a candidate at all without forcing the operator
+    to cross-reference Family.affordances themselves. Other state
+    (condition, lifecycle) is unfiltered so the operator can see
+    Decommissioned/Faulted candidates and decide whether to swap.
+    """
+
+    asset_id: UUID
+    asset_name: str
+    condition: AssetCondition
+    lifecycle: AssetLifecycle
+    family_ids: frozenset[UUID]
+
+
+@dataclass(frozen=True)
+class MissingAffordanceCandidates:
+    """Per-missing-affordance group of facility-wide candidate Assets.
+
+    `affordance` is one of the entries in the view's
+    `missing_affordances` set. `candidates` is the set of Assets in
+    the facility (excluding already-wired Assets) whose Family set
+    contains a Family that declares this affordance. Sorted by
+    asset_id string form for deterministic ordering.
+
+    Empty `candidates` tuple means "we looked, found nothing": the
+    facility has no Asset that could cover this affordance. The
+    affordance still appears so the operator can see it was queried.
+    """
+
+    affordance: Affordance
+    candidates: tuple[CandidateAsset, ...]
+
+
+@dataclass(frozen=True)
 class InspectPlanBindingView:
     """Full binding diagnostic returned by the handler.
 
@@ -65,15 +105,12 @@ class InspectPlanBindingView:
     `wired_assets` is sorted by asset_id string form for
     deterministic ordering across replays.
 
-    Forward-compat note: the next phase (when the asset-affordance
-    projections land) will surface "other Assets in the facility
-    that afford each missing requirement." That payload MUST ship
-    as a sibling field (e.g. `missing_affordance_candidates:
-    tuple[(Affordance, tuple[CandidateAsset, ...]), ...]`) rather
-    than mutate `missing_affordances` into a richer structure.
-    Keeping this field's shape stable preserves backward
-    compatibility for any client that hashes or pattern-matches on
-    it today.
+    `missing_affordance_candidates` is the per-missing-affordance
+    enumeration of facility Assets that COULD cover the requirement.
+    Empty tuple when no affordances are missing, OR when the handler
+    runs without a configured pool (in-memory test mode): the
+    candidate lookup is projection-backed and skipped gracefully.
+    Sorted by affordance value for deterministic ordering.
     """
 
     practice_id: UUID
@@ -84,4 +121,5 @@ class InspectPlanBindingView:
     wired_assets: tuple[WiredAssetBinding, ...]
     missing_families: frozenset[UUID]
     missing_affordances: frozenset[Affordance]
+    missing_affordance_candidates: tuple[MissingAffordanceCandidates, ...]
     binding_status: BindingStatus

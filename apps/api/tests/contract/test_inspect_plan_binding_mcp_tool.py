@@ -141,6 +141,9 @@ def test_mcp_inspect_plan_binding_returns_structured_diagnostic_on_failure_statu
     assert structured["missing_families"] == []
     assert len(structured["wired_assets"]) == 1
     assert structured["wired_assets"][0]["contributed_affordances"] == ["Rotatable"]
+    # In-memory MCP contract harness has no pool -> projection-backed
+    # candidate enumeration skipped; field present but empty.
+    assert structured["missing_affordance_candidates"] == []
 
 
 @pytest.mark.contract

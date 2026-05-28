@@ -101,6 +101,10 @@ def test_endpoint_returns_missing_affordances_when_family_lacks_affordance() -> 
     assert body["binding_status"] == "MissingAffordances"
     assert body["missing_families"] == []
     assert body["missing_affordances"] == ["Marking"]
+    # In-memory contract harness has no pool -> candidate enumeration
+    # skipped; the field is present but empty regardless of
+    # missing_affordances content.
+    assert body["missing_affordance_candidates"] == []
 
 
 @pytest.mark.contract

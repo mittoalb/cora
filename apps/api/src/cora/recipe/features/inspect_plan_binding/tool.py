@@ -32,6 +32,23 @@ class WiredAssetBindingItem(BaseModel):
     contributed_affordances: list[str]
 
 
+class CandidateAssetItem(BaseModel):
+    """Per-Asset candidate for a missing affordance on the MCP wire."""
+
+    asset_id: UUID
+    asset_name: str
+    condition: str
+    lifecycle: str
+    family_ids: list[UUID]
+
+
+class MissingAffordanceCandidatesItem(BaseModel):
+    """Per-missing-affordance group on the MCP wire."""
+
+    affordance: str
+    candidates: list[CandidateAssetItem]
+
+
 class InspectPlanBindingOutput(BaseModel):
     """Structured output of the `inspect_plan_binding` MCP tool."""
 
@@ -43,6 +60,7 @@ class InspectPlanBindingOutput(BaseModel):
     wired_assets: list[WiredAssetBindingItem]
     missing_families: list[UUID]
     missing_affordances: list[str]
+    missing_affordance_candidates: list[MissingAffordanceCandidatesItem]
     binding_status: str
 
 
@@ -101,5 +119,21 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ],
             missing_families=sorted(view.missing_families, key=str),
             missing_affordances=sorted(a.value for a in view.missing_affordances),
+            missing_affordance_candidates=[
+                MissingAffordanceCandidatesItem(
+                    affordance=entry.affordance.value,
+                    candidates=[
+                        CandidateAssetItem(
+                            asset_id=candidate.asset_id,
+                            asset_name=candidate.asset_name,
+                            condition=candidate.condition.value,
+                            lifecycle=candidate.lifecycle.value,
+                            family_ids=sorted(candidate.family_ids, key=str),
+                        )
+                        for candidate in entry.candidates
+                    ],
+                )
+                for entry in view.missing_affordance_candidates
+            ],
             binding_status=view.binding_status.value,
         )

@@ -48,6 +48,36 @@ class WiredAssetBindingItem(BaseModel):
     contributed_affordances: list[str]
 
 
+class CandidateAssetItem(BaseModel):
+    """Per-Asset candidate for a missing affordance on the wire.
+
+    `family_ids` here lists only the candidate's Families that
+    contribute the parent missing affordance, not the candidate's
+    full Family set. Other state (condition, lifecycle) is
+    unfiltered so the operator can see Faulted / Decommissioned
+    candidates and decide whether to act.
+    """
+
+    asset_id: UUID
+    asset_name: str
+    condition: str
+    lifecycle: str
+    family_ids: list[UUID]
+
+
+class MissingAffordanceCandidatesItem(BaseModel):
+    """Per-missing-affordance group on the wire.
+
+    `affordance` is one of the entries in `missing_affordances`.
+    `candidates` is sorted by asset_id string form (mirrors the
+    wired_assets ordering convention). Empty list means the
+    facility has no Asset that could cover this requirement.
+    """
+
+    affordance: str
+    candidates: list[CandidateAssetItem]
+
+
 class InspectPlanBindingResponse(BaseModel):
     """Wire-side diagnostic returned by the endpoint.
 
@@ -56,10 +86,11 @@ class InspectPlanBindingResponse(BaseModel):
     the at-a-glance verdict (Satisfied / MissingFamilies /
     MissingAffordances / MissingCapability).
 
-    Forward-compat: the next phase will add a sibling field
-    enumerating other facility Assets that afford each missing
-    requirement; `missing_affordances` stays a flat list of
-    affordance strings so existing clients aren't broken.
+    `missing_affordance_candidates` enumerates, per missing
+    affordance, other facility Assets whose Families declare it.
+    Empty when no affordances are missing; in in-memory test mode
+    (no pool) the projection-backed lookup is skipped and this
+    stays empty regardless.
     """
 
     practice_id: UUID
@@ -70,6 +101,7 @@ class InspectPlanBindingResponse(BaseModel):
     wired_assets: list[WiredAssetBindingItem]
     missing_families: list[UUID]
     missing_affordances: list[str]
+    missing_affordance_candidates: list[MissingAffordanceCandidatesItem]
     binding_status: str
 
 
@@ -133,5 +165,21 @@ async def inspect_plan_binding(
         ],
         missing_families=sorted(view.missing_families, key=str),
         missing_affordances=sorted(a.value for a in view.missing_affordances),
+        missing_affordance_candidates=[
+            MissingAffordanceCandidatesItem(
+                affordance=entry.affordance.value,
+                candidates=[
+                    CandidateAssetItem(
+                        asset_id=candidate.asset_id,
+                        asset_name=candidate.asset_name,
+                        condition=candidate.condition.value,
+                        lifecycle=candidate.lifecycle.value,
+                        family_ids=sorted(candidate.family_ids, key=str),
+                    )
+                    for candidate in entry.candidates
+                ],
+            )
+            for entry in view.missing_affordance_candidates
+        ],
         binding_status=view.binding_status.value,
     )
