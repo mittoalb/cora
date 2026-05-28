@@ -1390,7 +1390,9 @@
         "description": "Closed catalog of supported calibration quantities.\n\nDay-one set covers the 2-BM tomography pilot's load-bearing\ncalibrations. Growth happens by PR per the Affordance enum precedent.\n\nString values are stable-by-design (event payloads carry them\nverbatim); renaming a value would orphan stored events. The enum\nmember name follows SCREAMING_SNAKE_CASE; the value follows\nsnake_case to match jsonb-key conventions in operating_point and\nvalue dicts.",
         "enum": [
           "rotation_center",
-          "detector_pixel_size"
+          "detector_pixel_size",
+          "magnification",
+          "effective_thickness"
         ],
         "title": "CalibrationQuantity",
         "type": "string"

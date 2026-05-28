@@ -32,7 +32,12 @@ before being usable.
 from enum import StrEnum
 from typing import Any
 
-from cora.calibration.quantities import detector_pixel_size, rotation_center
+from cora.calibration.quantities import (
+    detector_pixel_size,
+    effective_thickness,
+    magnification,
+    rotation_center,
+)
 
 
 class CalibrationQuantity(StrEnum):
@@ -50,6 +55,8 @@ class CalibrationQuantity(StrEnum):
 
     ROTATION_CENTER = "rotation_center"
     DETECTOR_PIXEL_SIZE = "detector_pixel_size"
+    MAGNIFICATION = "magnification"
+    EFFECTIVE_THICKNESS = "effective_thickness"
 
 
 # Per-quantity schema registry (built at import time)
@@ -61,6 +68,14 @@ _SCHEMAS_BY_QUANTITY: dict[CalibrationQuantity, tuple[dict[str, Any], dict[str, 
     CalibrationQuantity.DETECTOR_PIXEL_SIZE: (
         detector_pixel_size.OPERATING_POINT_SCHEMA,
         detector_pixel_size.VALUE_SCHEMA,
+    ),
+    CalibrationQuantity.MAGNIFICATION: (
+        magnification.OPERATING_POINT_SCHEMA,
+        magnification.VALUE_SCHEMA,
+    ),
+    CalibrationQuantity.EFFECTIVE_THICKNESS: (
+        effective_thickness.OPERATING_POINT_SCHEMA,
+        effective_thickness.VALUE_SCHEMA,
     ),
 }
 

@@ -109,3 +109,39 @@ def test_detector_pixel_size_value_shape() -> None:
     properties: dict[str, Any] = schema.get("properties", {})
     assert "pixel_size" in properties
     assert "pixel_size" in schema["required"]
+
+
+@pytest.mark.unit
+def test_magnification_operating_point_shape() -> None:
+    schema = get_operating_point_schema(CalibrationQuantity.MAGNIFICATION)
+    properties: dict[str, Any] = schema.get("properties", {})
+    assert set(properties.keys()) == {"objective_designation", "energy"}
+    assert "objective_designation" in schema["required"]
+    assert "energy" in schema["required"]
+
+
+@pytest.mark.unit
+def test_magnification_value_shape() -> None:
+    schema = get_value_schema(CalibrationQuantity.MAGNIFICATION)
+    properties: dict[str, Any] = schema.get("properties", {})
+    assert "magnification" in properties
+    assert "magnification" in schema["required"]
+    assert properties["magnification"].get("exclusiveMinimum") == 0
+
+
+@pytest.mark.unit
+def test_effective_thickness_operating_point_shape() -> None:
+    schema = get_operating_point_schema(CalibrationQuantity.EFFECTIVE_THICKNESS)
+    properties: dict[str, Any] = schema.get("properties", {})
+    assert set(properties.keys()) == {"scintillator_material", "energy"}
+    assert "scintillator_material" in schema["required"]
+    assert "energy" in schema["required"]
+
+
+@pytest.mark.unit
+def test_effective_thickness_value_shape() -> None:
+    schema = get_value_schema(CalibrationQuantity.EFFECTIVE_THICKNESS)
+    properties: dict[str, Any] = schema.get("properties", {})
+    assert "effective_thickness" in properties
+    assert "effective_thickness" in schema["required"]
+    assert properties["effective_thickness"].get("exclusiveMinimum") == 0

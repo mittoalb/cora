@@ -77,8 +77,10 @@ def test_calibration_quantity_value_set_is_locked() -> None:
     assert {q.value for q in CalibrationQuantity} == {
         "rotation_center",
         "detector_pixel_size",
+        "magnification",
+        "effective_thickness",
     }
-    assert len(list(CalibrationQuantity)) == 2
+    assert len(list(CalibrationQuantity)) == 4
 
 
 # ---------- Error-class instantiation + attribute pins ----------
