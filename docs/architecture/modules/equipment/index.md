@@ -241,22 +241,28 @@ CREATE INDEX proj_equipment_asset_summary_parent_idx
     WHERE parent_id IS NOT NULL;
 ```
 
-```sql title="proj_equipment_capability_summary"
-CREATE TABLE proj_equipment_capability_summary (
-    capability_id  UUID        PRIMARY KEY,
-    name           TEXT        NOT NULL,
-    status         TEXT        NOT NULL CHECK (
+```sql title="proj_equipment_family_summary"
+CREATE TABLE proj_equipment_family_summary (
+    family_id               UUID        PRIMARY KEY,
+    name                    TEXT        NOT NULL,
+    status                  TEXT        NOT NULL CHECK (
         status IN ('Defined', 'Versioned', 'Deprecated')
     ),
-    version_tag    TEXT,
-    created_at     TIMESTAMPTZ NOT NULL,
-    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+    version_tag             TEXT,
+    settings_schema_present BOOLEAN     NOT NULL DEFAULT FALSE,
+    versioned_at            TIMESTAMPTZ,
+    deprecated_at           TIMESTAMPTZ,
+    created_at              TIMESTAMPTZ NOT NULL,
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE INDEX proj_equipment_family_summary_keyset_idx
+    ON proj_equipment_family_summary (created_at, family_id);
 ```
 
 The Asset summary is the canonical list source for `GET /assets`. The partial index on `parent_id` supports direct-children lookups; transitive-closure traversal (every Device under a Site, say) is deferred. Lifecycle and level columns are CHECK-constrained against the closed enums so the projection writer fails loud if it ever drifts.
 
-The Family summary table is named `proj_equipment_capability_summary` for legacy reasons; the aggregate was renamed but the projection table keeps its original name because forward-only migrations forbid in-place rename of a populated table. The schema and CHECK constraints still match the `FamilyStatus` enum.
+The Family summary table was renamed in lockstep with the aggregate (Capability -> Family in phase 5i) via `ALTER TABLE proj_equipment_capability_summary RENAME TO proj_equipment_family_summary` plus matching column / index renames; forward-only migrations support `RENAME` operations natively, so the table name tracks the aggregate name. `settings_schema_present` is a boolean indicator of whether the Family has any settings schema declared (the schema content itself is folded from the event stream on demand); `versioned_at` and `deprecated_at` are Path C lifecycle timestamps (the aggregate state stays minimal). The CHECK constraint still matches the `FamilyStatus` enum.
 
 `Asset.condition`, `Asset.families`, `Asset.settings`, and `Asset.ports` are not surfaced on the summary table today. Single-Asset reads fold the event stream and return them; list-by-condition or list-by-port queries are deferred until the use case lands.
 

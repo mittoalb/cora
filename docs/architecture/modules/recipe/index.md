@@ -229,27 +229,31 @@ CREATE TABLE proj_recipe_capability_summary (
     description                TEXT,
     required_affordances       TEXT[]      NOT NULL DEFAULT ARRAY[]::TEXT[],
     executor_shapes            TEXT[]      NOT NULL DEFAULT ARRAY[]::TEXT[],
-    parameters_schema_present   BOOLEAN     NOT NULL DEFAULT FALSE,
+    parameters_schema_present  BOOLEAN     NOT NULL DEFAULT FALSE,
     replaced_by_capability_id  UUID,
+    versioned_at               TIMESTAMPTZ,
+    deprecated_at              TIMESTAMPTZ,
     created_at                 TIMESTAMPTZ NOT NULL,
     updated_at                 TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX proj_recipe_capability_summary_keyset_idx
     ON proj_recipe_capability_summary (created_at, capability_id);
-CREATE UNIQUE INDEX proj_recipe_capability_summary_code_idx
-    ON proj_recipe_capability_summary (code);
 ```
 
 ```sql title="proj_recipe_method_summary"
 CREATE TABLE proj_recipe_method_summary (
-    method_id      UUID        PRIMARY KEY,
-    name           TEXT        NOT NULL,
-    status         TEXT        NOT NULL
+    method_id                 UUID        PRIMARY KEY,
+    name                      TEXT        NOT NULL,
+    status                    TEXT        NOT NULL
         CHECK (status IN ('Defined', 'Versioned', 'Deprecated')),
-    version_tag    TEXT,
-    created_at     TIMESTAMPTZ NOT NULL,
-    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+    version_tag               TEXT,
+    parameters_schema_present BOOLEAN     NOT NULL DEFAULT FALSE,
+    versioned_at              TIMESTAMPTZ,
+    deprecated_at             TIMESTAMPTZ,
+    content_hash              TEXT,
+    created_at                TIMESTAMPTZ NOT NULL,
+    updated_at                TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX proj_recipe_method_summary_keyset_idx
@@ -265,6 +269,8 @@ CREATE TABLE proj_recipe_practice_summary (
     status         TEXT        NOT NULL
         CHECK (status IN ('Defined', 'Versioned', 'Deprecated')),
     version_tag    TEXT,
+    versioned_at   TIMESTAMPTZ,
+    deprecated_at  TIMESTAMPTZ,
     created_at     TIMESTAMPTZ NOT NULL,
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -277,15 +283,19 @@ CREATE INDEX proj_recipe_practice_summary_method_idx
 
 ```sql title="proj_recipe_plan_summary"
 CREATE TABLE proj_recipe_plan_summary (
-    plan_id        UUID        PRIMARY KEY,
-    name           TEXT        NOT NULL,
-    practice_id    UUID        NOT NULL,
-    method_id      UUID        NOT NULL,
-    status         TEXT        NOT NULL
+    plan_id                    UUID        PRIMARY KEY,
+    name                       TEXT        NOT NULL,
+    practice_id                UUID        NOT NULL,
+    method_id                  UUID        NOT NULL,
+    status                     TEXT        NOT NULL
         CHECK (status IN ('Defined', 'Versioned', 'Deprecated')),
-    version_tag    TEXT,
-    created_at     TIMESTAMPTZ NOT NULL,
-    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+    version_tag                TEXT,
+    default_parameters_present BOOLEAN     NOT NULL DEFAULT FALSE,
+    versioned_at               TIMESTAMPTZ,
+    deprecated_at              TIMESTAMPTZ,
+    content_hash               TEXT,
+    created_at                 TIMESTAMPTZ NOT NULL,
+    updated_at                 TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX proj_recipe_plan_summary_keyset_idx
@@ -297,6 +307,8 @@ CREATE INDEX proj_recipe_plan_summary_practice_idx
 `GET /{aggregate}/{id}` for Method, Practice, and Plan folds the event stream so the response reflects the latest committed write without projection lag. `GET /capabilities/{id}` does the same. The four `list_*` slices (and `get_capability`'s list variants when they land) read from the projections with keyset pagination over `(created_at, {aggregate}_id)`.
 
 The Capability summary carries `required_affordances` and `executor_shapes` as `TEXT[]` so a future filter on "list capabilities affording X" is an index add, not a column add. `parameters_schema_present` is a boolean; the schema content itself stays in the event stream to keep the summary row small. The Plan summary intentionally omits `asset_ids` (a multi-valued binding); a future `proj_recipe_plan_assets` join table will surface "all plans using Asset X" when use cases demand it. `Plan.default_parameters` and `Plan.wires` also stay out of the summary; both fold from the event stream on single-Plan reads.
+
+All four summaries carry `versioned_at` + `deprecated_at` lifecycle timestamps (Path C: state stays minimal, projection holds the timeline). Method and Plan also carry `content_hash` for content-addressed identity lookup. The Capability summary previously had a UNIQUE index on `code` for write-time collision detection; that constraint was dropped (the decider already enforces code uniqueness against the aggregate stream, and the index added migration friction for re-versioning workflows) and the constraint is reachable via a future projection-level check if pilot demand surfaces.
 
 ## Cross-Module boundaries
 
