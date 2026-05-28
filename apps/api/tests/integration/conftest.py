@@ -73,14 +73,27 @@ def _pin_epics_env() -> Iterator[None]:
     overhead. See [[project_control_port_test_isolation_research]] for
     the full corpus + rationale.
     """
-    port = free_localhost_port()
+    ca_port = free_localhost_port()
+    pva_port = free_localhost_port()
+    pva_bcast = free_localhost_port()
     pinned = {
-        "EPICS_CA_SERVER_PORT": str(port),
+        # CA env (Stage-1c): server + client both pinned to a single port
+        "EPICS_CA_SERVER_PORT": str(ca_port),
         "EPICS_CAS_INTF_ADDR_LIST": "127.0.0.1",
         "EPICS_CAS_BEACON_ADDR_LIST": "127.0.0.1",
         "EPICS_CAS_AUTO_BEACON_ADDR_LIST": "NO",
-        "EPICS_CA_ADDR_LIST": f"127.0.0.1:{port}",
+        "EPICS_CA_ADDR_LIST": f"127.0.0.1:{ca_port}",
         "EPICS_CA_AUTO_ADDR_LIST": "NO",
+        # PVA env (Stage-1d): server's TCP port + UDP broadcast pinned;
+        # client's ADDR_LIST is loopback host only (NO port) so it
+        # broadcasts to the server's bound UDP port to discover the
+        # TCP service.
+        "EPICS_PVAS_INTF_ADDR_LIST": "127.0.0.1",
+        "EPICS_PVAS_SERVER_PORT": str(pva_port),
+        "EPICS_PVAS_BROADCAST_PORT": str(pva_bcast),
+        "EPICS_PVA_ADDR_LIST": "127.0.0.1",
+        "EPICS_PVA_AUTO_ADDR_LIST": "NO",
+        "EPICS_PVA_BROADCAST_PORT": str(pva_bcast),
     }
     original: dict[str, str | None] = {k: os.environ.get(k) for k in pinned}
     os.environ.update(pinned)

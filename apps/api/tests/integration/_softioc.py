@@ -121,6 +121,56 @@ record(ao, "$(P)bad_quality_value") {
   field(HHSV, "MAJOR")
   field(PINI, "YES")
 }
+
+# NTNDArray Q:group for Stage-1d EpicsPvaControlPort. Exposes a 2x3
+# uint8 image at $(P)image via PVA. CA cannot carry NTNDArray.
+#
+# Q:group composition shape:
+#  - $(P)image:data (waveform)      -> NTNDArray.value
+#  - $(P)image:dim0_size (longout)  -> NTNDArray.dimension[0].size
+#  - $(P)image:dim1_size (longout)  -> NTNDArray.dimension[1].size
+# +putorder enforces composition before the value field triggers a
+# monitor; mirrors the ophyd-async test_records_pva.db pattern.
+
+record(longout, "$(P)image:dim0_size") {
+  field(DESC, "NTNDArray dim 0 size")
+  field(DTYP, "Soft Channel")
+  field(VAL, "2")
+  field(PINI, "YES")
+  info(Q:group, {
+    "$(P)image": {
+      "dimension[0].size": {+channel:"VAL", +type:"plain", +putorder:0}
+    }
+  })
+}
+
+record(longout, "$(P)image:dim1_size") {
+  field(DESC, "NTNDArray dim 1 size")
+  field(DTYP, "Soft Channel")
+  field(VAL, "3")
+  field(PINI, "YES")
+  info(Q:group, {
+    "$(P)image": {
+      "dimension[1].size": {+channel:"VAL", +type:"plain", +putorder:1}
+    }
+  })
+}
+
+record(waveform, "$(P)image:data") {
+  field(DESC, "NTNDArray flat pixel buffer")
+  field(DTYP, "Soft Channel")
+  field(FTVL, "UCHAR")
+  field(NELM, "6")
+  field(PINI, "YES")
+  info(Q:group, {
+    "$(P)image": {
+      +id:"epics:nt/NTNDArray:1.0",
+      "value": {+type:"any", +channel:"VAL", +putorder:2, +trigger:"*"},
+      "alarm": {+type:"meta", +channel:"SEVR"},
+      "timeStamp": {+type:"meta", +channel:"TIME"}
+    }
+  })
+}
 """
 
 
@@ -209,9 +259,9 @@ async def wait_for_softioc_ready(
     """
     from aioca import FORMAT_TIME, CANothing, caget
 
-    deadline = asyncio.get_event_loop().time() + deadline_s
+    deadline = asyncio.get_running_loop().time() + deadline_s
     last_error: Exception | None = None
-    while asyncio.get_event_loop().time() < deadline:
+    while asyncio.get_running_loop().time() < deadline:
         try:
             await caget(f"{prefix}double_value", format=FORMAT_TIME, timeout=0.2)
         except CANothing as exc:

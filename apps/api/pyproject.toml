@@ -52,6 +52,16 @@ dependencies = [
     # class `CANothing(name, errorcode)` discriminated by ECA code at the
     # adapter ACL.
     "aioca>=1.8,<2",
+    # p4p (Stage-1d of the control-port arc): production asyncio EPICS
+    # pvAccess client. Built on the pvxs C++ library (EPICS Base official).
+    # Used by `EpicsPvaControlPort` at `cora/operation/adapters/`. Carries
+    # EPICS V4 Normative Types (NTScalar / NTScalarArray / NTNDArray /
+    # NTEnum / NTTable). NTNDArray is the headline: 2-D image streams
+    # that CA cannot carry. Error mapping: `asyncio.TimeoutError` (via
+    # `wait_for` wrap; p4p methods have no native timeout kwarg) ->
+    # ControlTimeoutError; `p4p.client.asyncio.Disconnected` ->
+    # ControlNotConnectedError; `RemoteError` -> ControlWriteRejectedError.
+    "p4p>=4,<5",
 ]
 
 [dependency-groups]
