@@ -14,6 +14,7 @@ The mechanically-similar analog that grounds CORA's scenario corpus. The actual 
 ## Inventories
 
 - [Assets](assets.md)
+- [MCTOptics composition](mctoptics.md) (Optique Peter detector: Microscope Assembly + 3 Objective + Camera + Scintillator)
 - [Actors](actors.md)
 - [Procedures](procedures.md)
 - [Subjects](subjects.md)
