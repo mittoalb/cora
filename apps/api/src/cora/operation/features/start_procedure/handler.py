@@ -52,10 +52,10 @@ from cora.operation.errors import UnauthorizedError
 from cora.operation.features.start_procedure.command import StartProcedure
 from cora.operation.features.start_procedure.context import ProcedureStartContext
 from cora.operation.features.start_procedure.decider import decide
-from cora.recipe.aggregates.method import load_method
-from cora.recipe.aggregates.plan import load_plan
-from cora.recipe.aggregates.practice import load_practice
-from cora.run.aggregates.run import load_run
+from cora.recipe.aggregates.method import MethodNotFoundError, load_method
+from cora.recipe.aggregates.plan import PlanNotFoundError, load_plan
+from cora.recipe.aggregates.practice import PracticeNotFoundError, load_practice
+from cora.run.aggregates.run import RunNotFoundError, load_run
 
 _STREAM_TYPE = "Procedure"
 _COMMAND_NAME = "StartProcedure"
@@ -153,21 +153,30 @@ def bind(deps: Kernel) -> Handler:
         needed_supplies_snapshot: frozenset[str] = frozenset()
         needed_supplies_satisfaction: dict[str, tuple[SupplyReference, ...]] = {}
         if state.parent_run_id is not None:
+            # Strict load chain (mirrors start_run.handler): a missing
+            # aggregate anywhere in parent_run -> plan -> practice ->
+            # method is corruption, not a happy path. Raise rather
+            # than silently bypass the Supply gate.
             parent_run = await load_run(deps.event_store, state.parent_run_id)
-            if parent_run is not None:
-                plan = await load_plan(deps.event_store, parent_run.plan_id)
-                if plan is not None:
-                    practice = await load_practice(deps.event_store, plan.practice_id)
-                    if practice is not None:
-                        method = await load_method(deps.event_store, practice.method_id)
-                        if method is not None and method.needed_supplies:
-                            needed_supplies_snapshot = method.needed_supplies
-                            satisfaction = await deps.supply_lookup.find_supplies_by_kind(
-                                kinds=method.needed_supplies,
-                            )
-                            needed_supplies_satisfaction = {
-                                kind: tuple(refs) for kind, refs in satisfaction.items()
-                            }
+            if parent_run is None:
+                raise RunNotFoundError(state.parent_run_id)
+            plan = await load_plan(deps.event_store, parent_run.plan_id)
+            if plan is None:
+                raise PlanNotFoundError(parent_run.plan_id)
+            practice = await load_practice(deps.event_store, plan.practice_id)
+            if practice is None:
+                raise PracticeNotFoundError(plan.practice_id)
+            method = await load_method(deps.event_store, practice.method_id)
+            if method is None:
+                raise MethodNotFoundError(practice.method_id)
+            if method.needed_supplies:
+                needed_supplies_snapshot = method.needed_supplies
+                satisfaction = await deps.supply_lookup.find_supplies_by_kind(
+                    kinds=method.needed_supplies,
+                )
+                needed_supplies_satisfaction = {
+                    kind: tuple(refs) for kind, refs in satisfaction.items()
+                }
 
         context = ProcedureStartContext(
             assets=assets,

@@ -31,6 +31,7 @@ not count toward gate satisfaction). See
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
+from uuid import UUID
 
 
 @dataclass(frozen=True)
@@ -45,9 +46,12 @@ class SupplyReference:
     `status` is the StrEnum value as a plain string (matches the
     projection's `TEXT` column); the decider treats it opaquely and
     partitions on `"Available"`.
+
+    `supply_id` is typed `UUID` for cross-port symmetry with
+    `ClearanceReference.clearance_id` and `CautionReference.caution_id`.
     """
 
-    supply_id: str
+    supply_id: UUID
     kind: str
     scope: str
     name: str
@@ -105,10 +109,12 @@ class AllSatisfiedSupplyLookup:
         *,
         kinds: frozenset[str],
     ) -> Mapping[str, list[SupplyReference]]:
+        from cora.infrastructure.routing import NIL_SENTINEL_ID
+
         return {
             kind: [
                 SupplyReference(
-                    supply_id="00000000-0000-0000-0000-000000000000",
+                    supply_id=NIL_SENTINEL_ID,
                     kind=kind,
                     scope="Facility",
                     name=f"<test stub: {kind}>",
@@ -124,7 +130,8 @@ class NoSuppliesRegisteredLookup:
 
     Use when a test needs to exercise the missing-kind rejection
     path without seeding any real Supplies (decider raises
-    `<X>RequiredSupplyMissingError` for every kind in
+    `RunRequiresAvailableSupplyError` or
+    `ProcedureRequiresAvailableSupplyError` for every kind in
     `Method.needed_supplies`).
     """
 

@@ -340,12 +340,13 @@ class ProcedureSupplyCoverageMismatchError(Exception):
         self,
         procedure_id: UUID,
         kind: str,
-        supply_status_summary: frozenset[tuple[str, str]],
+        supply_status_summary: frozenset[tuple[UUID, str]],
     ) -> None:
         super().__init__(
             f"Procedure {procedure_id} cannot start: required kind {kind!r} "
             f"has no Available Supply. Current statuses: "
-            f"{sorted(supply_status_summary)}. Mark one Available before starting."
+            f"{sorted((str(sid), st) for sid, st in supply_status_summary)}. "
+            f"Mark one Available before starting."
         )
         self.procedure_id = procedure_id
         self.kind = kind

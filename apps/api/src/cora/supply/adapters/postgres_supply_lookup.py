@@ -16,11 +16,11 @@ The lookup adapter reads it directly via the shared asyncpg pool.
 ## Query shape
 
 Single SELECT with a single ANY() match over the indexed `kind`
-column plus an explicit `Decommissioned` exclusion. The partial
-UNIQUE INDEX on `(scope, kind, name)` already excludes
-`Decommissioned` from uniqueness per
-[[project_deregister_supply_design]]; this SELECT does the same
-exclusion at the read side so tombstoned Supplies do not
+column plus an explicit `Decommissioned` exclusion. The projection
+retains Decommissioned rows (the partial UNIQUE INDEX on
+`(scope, kind, name)` per [[project_deregister_supply_design]]
+excludes Decommissioned from UNIQUENESS, not from reads); this
+SELECT excludes them at read time so tombstoned Supplies do not
 contribute to gate satisfaction.
 
 ```sql
@@ -75,7 +75,7 @@ class PostgresSupplyLookup:
 
 def _row_to_reference(row: Any) -> SupplyReference:
     return SupplyReference(
-        supply_id=str(row["supply_id"]),
+        supply_id=row["supply_id"],
         kind=str(row["kind"]),
         scope=str(row["scope"]),
         name=str(row["name"]),

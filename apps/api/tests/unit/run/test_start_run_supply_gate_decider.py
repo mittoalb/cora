@@ -41,7 +41,7 @@ _NOW = datetime(2026, 5, 28, 12, 0, 0, tzinfo=UTC)
 
 def _ref(kind: str, status: str) -> SupplyReference:
     return SupplyReference(
-        supply_id=str(uuid4()),
+        supply_id=uuid4(),
         kind=kind,
         scope="Facility",
         name=f"<test {kind}>",

@@ -529,11 +529,12 @@ class RunSupplyCoverageMismatchError(Exception):
         self,
         run_id: UUID,
         kind: str,
-        supply_status_summary: frozenset[tuple[str, str]],
+        supply_status_summary: frozenset[tuple[UUID, str]],
     ) -> None:
+        summary_sorted = sorted((str(sid), st) for sid, st in supply_status_summary)
         super().__init__(
-            f"Run {run_id} cannot start: required kind {kind!r} has no Available "
-            f"Supply. Current statuses: {sorted(supply_status_summary)}. "
+            f"Run {run_id} cannot start: required kind {kind!r} has no "
+            f"Available Supply. Current statuses: {summary_sorted}. "
             f"Mark one Available before starting."
         )
         self.run_id = run_id
