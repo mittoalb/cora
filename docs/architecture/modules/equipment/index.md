@@ -216,7 +216,7 @@ The Family aggregate has six slices; the Asset aggregate has eighteen.
 
 ## Storage & Projections
 
-Two read-side tables back the Equipment module.
+Three read-side tables back the Equipment module: two summary projections (Asset, Family) and a join projection that mirrors the Asset<->Family membership relation for reverse-direction queries.
 
 ```sql title="proj_equipment_asset_summary"
 CREATE TABLE proj_equipment_asset_summary (
@@ -259,6 +259,22 @@ The Asset summary is the canonical list source for `GET /assets`. The partial in
 The Family summary table is named `proj_equipment_capability_summary` for legacy reasons; the aggregate was renamed but the projection table keeps its original name because forward-only migrations forbid in-place rename of a populated table. The schema and CHECK constraints still match the `FamilyStatus` enum.
 
 `Asset.condition`, `Asset.families`, `Asset.settings`, and `Asset.ports` are not surfaced on the summary table today. Single-Asset reads fold the event stream and return them; list-by-condition or list-by-port queries are deferred until the use case lands.
+
+```sql title="proj_equipment_asset_family_membership"
+CREATE TABLE proj_equipment_asset_family_membership (
+    asset_id   UUID        NOT NULL,
+    family_id  UUID        NOT NULL,
+    added_at   TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (asset_id, family_id)
+);
+
+CREATE INDEX proj_equipment_asset_family_membership_by_family_idx
+    ON proj_equipment_asset_family_membership (family_id, asset_id);
+```
+
+The membership join projection mirrors the `Asset.families` relation as one row per `(asset_id, family_id)` pair, folded from `AssetFamilyAdded` (INSERT) and `AssetFamilyRemoved` (DELETE) events. The aggregate state is the canonical source; the projection exists to answer the reverse-direction query "which Assets belong to Family X" efficiently. The primary key supports the per-Asset read; the `_by_family_idx` secondary index supports the per-Family read used by Recipe's `inspect_plan_binding` candidate enumeration.
+
+Two aggregate-namespace read helpers are re-exported through `cora.equipment.aggregates.family.read` so cross-BC consumers reach them through the same surface they already use for `load_family`: `list_family_ids(pool)` returns every non-Deprecated Family id from the summary projection, and `list_asset_ids_in_families(pool, family_ids)` returns the Assets belonging to any of the given Families. Both are projection-backed inline-SQL helpers; tach forbids `aggregates -> projections` within a BC, so the SQL lives in the aggregate `read.py` directly (Path C pattern, mirrors `load_family_timestamps`).
 
 ## Cross-Module boundaries
 

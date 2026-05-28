@@ -139,8 +139,11 @@ The `PlanDefined` audit snapshots pin what was checked at bind time (`method_nee
 | `RemovePlanWire` | MODIFIED | `DELETE /plans/{plan_id}/wires` | `remove_plan_wire` | none |
 | `GetPlan` | QUERY | `GET /plans/{plan_id}` | `get_plan` | none |
 | `ListPlans` | QUERY | `GET /plans` | `list_plans` | none |
+| `InspectPlanBinding` | QUERY | `POST /plans/inspect-binding` | `inspect_plan_binding` | none |
 
 `define_plan` is the only slice with cross-aggregate state validation in the decider. The handler pre-loads the Practice, the Method (via `practice.method_id`), and every bound Asset, then hands them to the pure decider as a `PlanBindingContext`. The decider rejects bindings against deprecated upstream entries, against decommissioned Assets, against family sets that do not cover the Method's needs, and against affordance sets that do not cover the bound Capability's contract.
+
+`inspect_plan_binding` is the read-only preview-before-define companion to `define_plan`. It runs the same Practice -> Method -> Capability -> per-Asset -> per-Family load fan-out without emitting events, then returns a diagnostic with the wired Assets' conditions, their contributed affordances, any missing families or affordances, and (when a pool is configured) other facility Assets whose Families could cover each missing affordance. Operators use it to see condition (Nominal / Degraded / Faulted) and lifecycle (Commissioned / Decommissioned / Maintenance) of candidate Assets before committing the bind. The candidate enumeration is projection-backed: it cross-reads Equipment's `proj_equipment_asset_family_membership` join projection via the `cora.equipment.aggregates.family.read` aggregate surface (`list_family_ids` + `list_asset_ids_in_families`). In in-memory test mode (no pool) the candidate lookup is skipped gracefully and the field is empty.
 
 `update_plan_default_parameters` accepts a JSON Merge Patch (RFC 7396); the slice merges against the current state, then the decider validates the merged result against the owning Method's `parameters_schema`. The event payload carries the resolved snapshot, not the patch.
 
@@ -207,6 +210,9 @@ The `PlanDefined` audit snapshots pin what was checked at bind time (`method_nee
 
 `GetPlan`, `ListPlans`
 : `PlanNotFoundError` (Get only); boundary 422 only otherwise
+
+`InspectPlanBinding`
+: `PracticeNotFoundError`, `MethodNotFoundError`, `AssetNotFoundError`, `CapabilityNotFoundError`, `FamilyNotFoundError`, `Unauthorized` (same NotFound set as `DefinePlan` since both share the load fan-out)
 
 ## Storage & Projections
 
