@@ -44,6 +44,14 @@ dependencies = [
     # is the one library we don't roll ourselves; everything else
     # (introspection adapter, registry, middleware) is hand-written.
     "pyjwt[crypto]>=2.10.0,<3",
+    # aioca (Stage-1c of the control-port arc): production asyncio EPICS
+    # Channel Access client (libca via ctypes; Diamond Light Source-maintained
+    # and production-grade — Diamond's full stack depends on it). Used by
+    # `EpicsCaControlPort` at `cora/operation/adapters/`. CA-only (no PVA;
+    # Stage-1d's `EpicsPvaControlPort` covers PVA via p4p). Single exception
+    # class `CANothing(name, errorcode)` discriminated by ECA code at the
+    # adapter ACL.
+    "aioca>=1.8,<2",
 ]
 
 [dependency-groups]
@@ -108,14 +116,26 @@ dev = [
     # them separate because the fuzz harness wants stdlib-Python error
     # ergonomics rather than the Rust-binding throughput.
     "jsonschema>=4.21,<5",
-    # caproto (Stage-1b of the control-port arc): in-process Python EPICS
-    # IOC + asyncio CA client. Used TEST-ONLY by the
-    # `CaprotoControlPort` adapter at `cora/operation/adapters/` plus the
-    # `caproto_ioc` integration fixture; the maintainers' own README warns
-    # against caproto in production (two-maintainer convenience/iteration
-    # tool). Stays in dev because production CA goes through aioca
-    # (Stage-1c) and production PVA through p4p (Stage-1d).
+    # caproto (Stage-1b of the control-port arc): asyncio CA client used
+    # TEST-ONLY by `CaprotoControlPort` at `cora/operation/adapters/`. The
+    # maintainers' own README warns against caproto in production
+    # (two-maintainer convenience/iteration tool). Stays in dev because
+    # production CA goes through aioca (Stage-1c) and production PVA
+    # through p4p (Stage-1d). caproto's IN-PROCESS IOC was abandoned at
+    # Stage-1c per [[project_control_port_test_isolation_research]]: the
+    # corpus-unanimous pattern is `epicscorelibs.ioc` subprocess for both
+    # caproto-client AND aioca-client integration tests.
     "caproto>=1.2,<2",
+    # epicscorelibs (Stage-1c of the control-port arc): pip wheel that
+    # ships EPICS Base C binaries + Python bindings; `epicscorelibs.ioc`
+    # spawns a real softIOC subprocess without requiring a system EPICS
+    # Base install. Per [[project_control_port_test_isolation_research]]
+    # this is the UNANIMOUS test-isolation pattern across Diamond aioca +
+    # ophyd-async + fastcs + caproto's own client tests. Used by the
+    # `softioc` integration fixture for both `CaprotoControlPort` AND
+    # `EpicsCaControlPort` tests (and future `EpicsPvaControlPort` at
+    # Stage-1d). Test-only.
+    "epicscorelibs>=7,<8",
     # mutmut: mutation testing for the audit cadence (Iter G of the
     # testing-techniques rollout). Audit-only, not per-PR — per-mutant
     # pytest spawn cost makes per-commit CI intolerable at suite scale.

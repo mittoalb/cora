@@ -1,115 +1,161 @@
-"""Integration-test fixtures: per-test Postgres database + caproto IOC.
+"""Integration-test fixtures: per-test Postgres database + shared softIOC.
 
-The session-scoped `postgres_container` and `template_database`
-fixtures live in `tests/conftest.py` so the e2e tier can share them.
-This module adds:
+Adds:
 
-- `db_pool`: per-test database cloned via `CREATE DATABASE ...
-  TEMPLATE migrated_db` (file-copy fast, full isolation, no TRUNCATE
-  bookkeeping).
-- `caproto_ioc`: per-test in-process EPICS CA IOC on an ephemeral
-  port for the Stage-1b `CaprotoControlPort` integration tests. xdist
-  workers cannot clash because each test gets its own ephemeral
-  loopback port; env vars (`EPICS_CA_*`, `EPICS_CAS_*`) are scoped
-  via `monkeypatch`.
+- `db_pool` (function-scoped): per-test database cloned via
+  `CREATE DATABASE ... TEMPLATE migrated_db` (file-copy fast, full
+  isolation, no TRUNCATE bookkeeping).
+- `_pin_epics_env` (session-scoped, autouse): locks `EPICS_CA_*` env
+  vars to a loopback port for the whole worker. MUST run before any
+  aioca / p4p import (the C library reads env at first use AND
+  caches per-process).
+- `softioc` (module-scoped): spawns an `epicscorelibs.ioc` subprocess
+  serving the test PV menu. Tests for `CaprotoControlPort` AND
+  `EpicsCaControlPort` (and future `EpicsPvaControlPort`) reuse it.
+- `_purge_aioca_caches` (function-scoped, autouse): calls
+  `aioca.purge_channel_caches()` after each test so subscriptions
+  don't leak across tests within the same module.
+
+Per [[project_control_port_test_isolation_research]], this is the
+corpus-unanimous pattern across Diamond aioca + ophyd-async + fastcs
++ caproto's own client tests. The session-scoped env pin + module-
+scoped subprocess + function-scoped purge combination dodges the
+process-global `libca` / `pvxs` broadcaster state problem without
+calling the unsafe `ca_context_destroy`.
+
+The session-scoped postgres fixtures live in `tests/conftest.py`.
 """
 
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportUnknownParameterType=false
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportUnknownParameterType=false, reportMissingTypeStubs=false, reportUnusedFunction=false
 
 import asyncio
 import contextlib
 import os
-import socket
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator, Iterator
 from uuid import uuid4
 
 import asyncpg
 import pytest
 import pytest_asyncio
-from caproto.asyncio.server import start_server
 from testcontainers.postgres import PostgresContainer
 
 from cora.infrastructure.postgres.pool import create_pool
 from tests._postgres import normalize_async_url
-from tests.integration._caproto_ioc import CoraTestIOC
+from tests.integration._softioc import (
+    emit_db_file,
+    free_localhost_port,
+    start_softioc,
+    stop_softioc_cleanly,
+    wait_for_softioc_ready,
+)
 
 
-def _free_localhost_port() -> int:
-    """Allocate a free loopback port. Bind-and-close idiom; the kernel
-    reuses freed ports immediately, and concurrent xdist workers each
-    get a distinct port because the kernel never reissues an in-use one.
+@pytest.fixture(scope="session", autouse=True)
+def _pin_epics_env() -> Iterator[None]:
+    """Lock EPICS env vars to a loopback port for the whole xdist worker.
+
+    Runs before any test (autouse + session scope). Per the corpus
+    pattern, aioca / p4p read these vars at first use AND keep the
+    C-level broadcaster bound for the lifetime of the process. Setting
+    them once at session start (via `os.environ`, not `monkeypatch`)
+    keeps the parent's CA / PVA client pointed at the right loopback
+    port for every test in this worker.
+
+    Per-worker port uniqueness is preserved: xdist runs each worker
+    as a separate OS process, each gets its own `_pin_epics_env`
+    invocation, each picks its own ephemeral port. The `softioc`
+    fixture binds an IOC to that port.
+
+    Originally set via `monkeypatch` per-test (Stage-1b pattern); that
+    works for caproto's per-`Context()` client (no shared state) but
+    breaks for aioca (process-global state). Session-scope is the only
+    pattern that satisfies both clients without subprocess-per-test
+    overhead. See [[project_control_port_test_isolation_research]] for
+    the full corpus + rationale.
     """
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
-
-
-@pytest_asyncio.fixture
-async def caproto_ioc(
-    monkeypatch: pytest.MonkeyPatch,
-) -> AsyncGenerator[str]:
-    """Boot a `CoraTestIOC` on an ephemeral loopback port; yield the PV prefix.
-
-    Lifecycle:
-      1. Allocate a free loopback port.
-      2. Lock client + server EPICS env vars onto `127.0.0.1:<port>` via
-         monkeypatch (test scope) so concurrent xdist workers cannot collide.
-      3. Construct `CoraTestIOC(prefix=...)` with a per-test prefix
-         (PID + port baked in; collision-proof within a worker).
-      4. Spawn `caproto.asyncio.server.start_server` in a background
-         task; the CLI `run()` would install signal handlers and
-         block the event loop, useless for a fixture.
-      5. Poll the TCP port via short connect attempts until the server
-         is accepting (or a 5s deadline elapses). Replaces a hardcoded
-         `asyncio.sleep` so a slow CI worker (xdist `-n 4` + Postgres
-         testcontainers competing for CPU) doesn't manifest as a flake.
-      6. Yield the prefix.
-      7. Cancel the task; suppress the resulting `CancelledError`.
-    """
-    port = _free_localhost_port()
-    prefix = f"cora_test_{os.getpid()}_{port}:"
-
-    monkeypatch.setenv("EPICS_CA_SERVER_PORT", str(port))
-    monkeypatch.setenv("EPICS_CAS_INTF_ADDR_LIST", "127.0.0.1")
-    monkeypatch.setenv("EPICS_CAS_BEACON_ADDR_LIST", "127.0.0.1")
-    monkeypatch.setenv("EPICS_CAS_AUTO_BEACON_ADDR_LIST", "NO")
-    monkeypatch.setenv("EPICS_CA_ADDR_LIST", f"127.0.0.1:{port}")
-    monkeypatch.setenv("EPICS_CA_AUTO_ADDR_LIST", "NO")
-
-    ioc = CoraTestIOC(prefix=prefix)
-    task = asyncio.create_task(start_server(ioc.pvdb, interfaces=["127.0.0.1"]))
-
-    await _wait_for_caproto_ioc_ready(port, deadline_s=5.0)
-
+    port = free_localhost_port()
+    pinned = {
+        "EPICS_CA_SERVER_PORT": str(port),
+        "EPICS_CAS_INTF_ADDR_LIST": "127.0.0.1",
+        "EPICS_CAS_BEACON_ADDR_LIST": "127.0.0.1",
+        "EPICS_CAS_AUTO_BEACON_ADDR_LIST": "NO",
+        "EPICS_CA_ADDR_LIST": f"127.0.0.1:{port}",
+        "EPICS_CA_AUTO_ADDR_LIST": "NO",
+    }
+    original: dict[str, str | None] = {k: os.environ.get(k) for k in pinned}
+    os.environ.update(pinned)
     try:
-        yield prefix
+        yield
     finally:
-        task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await task
+        for key, value in original.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
 
-async def _wait_for_caproto_ioc_ready(port: int, *, deadline_s: float) -> None:
-    """Poll the loopback TCP port until the caproto IOC is accepting.
+@pytest.fixture(scope="module")
+def softioc(tmp_path_factory: pytest.TempPathFactory) -> Generator[str]:
+    """Spawn one `epicscorelibs.ioc` subprocess per test module; yield the PV prefix.
 
-    Replaces a fixed `asyncio.sleep` so slow CI workers (xdist plus
-    Postgres testcontainers competing for CPU) don't manifest as a
-    flake. 5s is generous; production loopback warmup is ~50ms.
+    Module scope amortizes ~1-2s of softIOC startup across many tests
+    in the same file. Per-test isolation comes from
+    `_purge_aioca_caches` (channel-cache reset between tests on the
+    same subprocess).
+
+    PV prefix carries a `uuid4()` fragment so two modules in the same
+    worker can't collide; this also gives xdist-cross-worker collision
+    safety as belt-and-braces (the per-worker port from
+    `_pin_epics_env` already does the heavy lifting).
+
+    Teardown uses `try/except BaseException` rather than plain `Exception`
+    so a pytest-timeout `KeyboardInterrupt` (interrupt-main thread
+    method per `feedback_pytest_timeout`) can't escape mid-shutdown
+    leaving the subprocess as an orphan. `stop_softioc_cleanly`
+    escalates exit -> SIGTERM -> SIGKILL.
     """
-    deadline = asyncio.get_event_loop().time() + deadline_s
-    while asyncio.get_event_loop().time() < deadline:
-        try:
-            reader, writer = await asyncio.open_connection("127.0.0.1", port)
-        except (ConnectionRefusedError, OSError):
-            await asyncio.sleep(0.02)
-            continue
-        writer.close()
+    prefix = f"cora_test_{uuid4().hex[:8]}:"
+    log_dir = tmp_path_factory.mktemp(f"softioc_{uuid4().hex[:6]}")
+    db_path = emit_db_file(log_dir)
+    process = start_softioc(prefix, db_path, log_dir=log_dir)
+    try:
+        asyncio.run(wait_for_softioc_ready(prefix, log_dir=log_dir, deadline_s=5.0))
+        yield prefix
+    except BaseException:
         with contextlib.suppress(Exception):
-            await writer.wait_closed()
-        _ = reader
+            process.kill()
+        raise
+    finally:
+        with contextlib.suppress(Exception):
+            from aioca import purge_channel_caches
+
+            purge_channel_caches()
+        with contextlib.suppress(Exception):
+            asyncio.run(stop_softioc_cleanly(process))
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _purge_aioca_caches(request: pytest.FixtureRequest) -> AsyncGenerator[None]:
+    """Drop aioca channel caches after each test that touched the softIOC.
+
+    Scoped via `softioc in request.fixturenames` so tests that don't
+    use the softioc fixture (~99% of integration tests) skip the
+    aioca import + purge call entirely. Without this guard, every
+    Postgres-only integration test pays the import cost.
+
+    For tests that DO use softioc: per the ophyd-async pattern,
+    subscriptions registered during a test must be released before
+    the function-scoped pytest-asyncio loop closes, otherwise the
+    next test on a fresh loop sees `RuntimeError: Event loop is
+    closed` errors as old subscriptions get garbage-collected.
+    """
+    yield
+    if "softioc" not in request.fixturenames:
         return
-    msg = f"caproto IOC on 127.0.0.1:{port} did not accept within {deadline_s}s"
-    raise RuntimeError(msg)
+    with contextlib.suppress(Exception):
+        from aioca import purge_channel_caches
+
+        purge_channel_caches()
 
 
 @pytest_asyncio.fixture

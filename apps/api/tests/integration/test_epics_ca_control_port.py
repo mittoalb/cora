@@ -1,47 +1,42 @@
-"""Integration tests: `CaprotoControlPort` against a shared softIOC subprocess.
+"""Integration tests: `EpicsCaControlPort` (aioca) against a shared softIOC.
 
-Originally Stage-1b ran caproto-client against an in-process caproto
-IOC. Stage-1c moved the test surface to an `epicscorelibs.ioc`
-subprocess (see [[project_control_port_test_isolation_research]]):
-that change is the corpus-unanimous pattern across Diamond aioca,
-ophyd-async, fastcs, and caproto's own client tests. The same
-fixture serves `EpicsCaControlPort` tests; one surface for all
-ControlPort adapter integration tests.
+Stage-1c of the control-port arc per [[project_control_port_design]] +
+[[project_control_port_generalization_research]] +
+[[project_control_port_test_isolation_research]]. Production CA client
+(aioca / libca via ctypes; Diamond production-uses-it) talking to the
+same `epicscorelibs.ioc` subprocess as `CaprotoControlPort`'s tests.
 
-The `softioc` fixture (`tests/integration/conftest.py`,
-module-scoped) yields the PV prefix. The session-scoped
-`_pin_epics_env` autouse fixture has already locked EPICS env vars
-to the per-worker loopback port. The function-scoped
-`_purge_aioca_caches` autouse runs after each test (no-op when the
-test doesn't touch aioca : caproto has its own per-Context
-isolation).
+The `softioc` fixture (`tests/integration/conftest.py`, module-scoped)
+yields the PV prefix. The session-scoped `_pin_epics_env` autouse
+fixture has locked EPICS env vars to the per-worker loopback port.
+The function-scoped `_purge_aioca_caches` autouse fixture calls
+`aioca.purge_channel_caches()` after each test so subscriptions don't
+leak across tests on the shared subprocess.
 
-Test pattern: write-then-read for any value assertion (state
-persists across tests within the module since the softIOC is
-shared). Quality + nonexistent-PV paths don't mutate state and
-stay order-independent.
+Test pattern: write-then-read for any value assertion (state persists
+across tests within the module since softIOC is shared). Quality +
+nonexistent-PV paths don't mutate state and stay order-independent.
 
 ## Coverage
 
-  - Protocol conformance via `isinstance`
+  - Protocol conformance via `isinstance` (no IOC)
   - Every `ReadingKind` branch (Scalar / Array / Categorical)
-  - `Quality=Bad` ACL path via `bad_quality_value`
-    (`ao` with HIHI threshold tripped on the EPICS .db)
+  - `Quality=Bad` via `bad_quality_value` (HIHI threshold tripped)
   - caput-callback round-trip on scalar + long
   - subscribe initial-value + post-write fan-out
   - subscribe consumer-cancellation cleanup
   - 3 nonexistent-PV `ControlNotConnectedError` paths
   - aclose idempotency
 
-Out of scope here:
+Out of scope:
 
   - `ControlTimeoutError` on the read path : no softIOC-native slow-
     getter equivalent; covered at unit tier with mocked client per
     [[project_control_port_test_isolation_research]] watch item 4.
   - `Image` / `Tabular` `ReadingKind` : CA does not natively carry
     NTNDArray; lands with EpicsPvaControlPort at Stage-1d.
-  - `Uncertain` quality : no convenient MINOR-alarm trigger on this
-    softIOC PV menu without a calc record; defer to Stage-1d.
+  - `Uncertain` quality : defer to Stage-1d (no convenient MINOR
+    trigger on this PV menu without a calc record).
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false
@@ -50,7 +45,7 @@ import asyncio
 
 import pytest
 
-from cora.operation.adapters.caproto_control_port import CaprotoControlPort
+from cora.operation.adapters.epics_ca_control_port import EpicsCaControlPort
 from cora.operation.ports.control_port import (
     ControlNotConnectedError,
     ControlPort,
@@ -59,9 +54,9 @@ from cora.operation.ports.control_port import (
 
 
 @pytest.mark.integration
-def test_caproto_control_port_satisfies_control_port_protocol() -> None:
+def test_epics_ca_control_port_satisfies_control_port_protocol() -> None:
     """Runtime `isinstance` check against the `@runtime_checkable` Protocol."""
-    assert isinstance(CaprotoControlPort(), ControlPort)
+    assert isinstance(EpicsCaControlPort(), ControlPort)
 
 
 @pytest.mark.integration
@@ -69,7 +64,7 @@ async def test_read_double_scalar_returns_reading_with_good_quality(
     softioc: str,
 ) -> None:
     """DBR_DOUBLE scalar lands as Reading(kind='Scalar', quality='Good', value=float)."""
-    port = CaprotoControlPort()
+    port = EpicsCaControlPort()
     try:
         await port.write(f"{softioc}double_value", 0.0, wait=True)
         reading = await port.read(f"{softioc}double_value")
@@ -85,7 +80,7 @@ async def test_read_double_scalar_returns_reading_with_good_quality(
 @pytest.mark.integration
 async def test_read_long_scalar_returns_int_value(softioc: str) -> None:
     """DBR_LONG scalar lands as Reading(kind='Scalar', value=int)."""
-    port = CaprotoControlPort()
+    port = EpicsCaControlPort()
     try:
         await port.write(f"{softioc}long_value", 0, wait=True)
         reading = await port.read(f"{softioc}long_value")
@@ -98,7 +93,7 @@ async def test_read_long_scalar_returns_int_value(softioc: str) -> None:
 @pytest.mark.integration
 async def test_read_string_scalar_returns_decoded_utf8(softioc: str) -> None:
     """DBR_STRING scalar lands decoded as Python `str`, not raw `bytes`."""
-    port = CaprotoControlPort()
+    port = EpicsCaControlPort()
     try:
         await port.write(f"{softioc}string_value", "initial", wait=True)
         reading = await port.read(f"{softioc}string_value")
@@ -112,7 +107,7 @@ async def test_read_string_scalar_returns_decoded_utf8(softioc: str) -> None:
 @pytest.mark.integration
 async def test_read_waveform_returns_array_as_tuple(softioc: str) -> None:
     """DBR_DOUBLE count > 1 lands as Reading(kind='Array', value=tuple)."""
-    port = CaprotoControlPort()
+    port = EpicsCaControlPort()
     try:
         await port.write(f"{softioc}waveform", (1.0, 2.0, 3.0, 4.0), wait=True)
         reading = await port.read(f"{softioc}waveform")
@@ -124,19 +119,19 @@ async def test_read_waveform_returns_array_as_tuple(softioc: str) -> None:
 
 
 @pytest.mark.integration
-async def test_read_enum_returns_categorical_kind(softioc: str) -> None:
-    """DBR_ENUM lands as Reading(kind='Categorical').
+async def test_read_enum_returns_categorical_with_label(softioc: str) -> None:
+    """DBR_ENUM lands as Reading(kind='Categorical', value=<label str>).
 
-    Parity carve-out vs `EpicsCaControlPort`: aioca's `caput` accepts
-    the string label and translates internally; caproto's `caput`
-    requires the integer index. To avoid forcing one shape into the
-    other, this test asserts kind only. The aioca twin asserts both
-    kind + label (since aioca handles both directions natively).
+    aioca exposes only the integer index in FORMAT_TIME; the adapter
+    pays a one-shot FORMAT_CTRL read on first access to resolve the
+    `enum_strings` (`off | on | fault`) and caches them per-address.
     """
-    port = CaprotoControlPort()
+    port = EpicsCaControlPort()
     try:
+        await port.write(f"{softioc}enum_value", "off", wait=True)
         reading = await port.read(f"{softioc}enum_value")
         assert reading.kind == "Categorical"
+        assert reading.value == "off"
     finally:
         await port.aclose()
 
@@ -144,7 +139,7 @@ async def test_read_enum_returns_categorical_kind(softioc: str) -> None:
 @pytest.mark.integration
 async def test_read_major_alarm_pv_returns_bad_quality(softioc: str) -> None:
     """MAJOR_ALARM severity (HIHI threshold tripped) translates to Quality='Bad'."""
-    port = CaprotoControlPort()
+    port = EpicsCaControlPort()
     try:
         reading = await port.read(f"{softioc}bad_quality_value")
         assert reading.quality == "Bad"
@@ -157,7 +152,7 @@ async def test_read_major_alarm_pv_returns_bad_quality(softioc: str) -> None:
 @pytest.mark.integration
 async def test_write_scalar_then_read_observes_new_value(softioc: str) -> None:
     """caput-callback semantics: after `wait=True` write returns, read sees new value."""
-    port = CaprotoControlPort()
+    port = EpicsCaControlPort()
     try:
         await port.write(f"{softioc}double_value", 4.2, wait=True)
         reading = await port.read(f"{softioc}double_value")
@@ -169,7 +164,7 @@ async def test_write_scalar_then_read_observes_new_value(softioc: str) -> None:
 @pytest.mark.integration
 async def test_write_long_then_read_observes_new_value(softioc: str) -> None:
     """DBR_LONG write round-trip pin: integer survives caput-callback + read."""
-    port = CaprotoControlPort()
+    port = EpicsCaControlPort()
     try:
         await port.write(f"{softioc}long_value", 99, wait=True)
         reading = await port.read(f"{softioc}long_value")
@@ -180,8 +175,8 @@ async def test_write_long_then_read_observes_new_value(softioc: str) -> None:
 
 @pytest.mark.integration
 async def test_subscribe_yields_initial_value_then_writes(softioc: str) -> None:
-    """Subscribe gets the current value first, then each write fans out as a Reading."""
-    port = CaprotoControlPort()
+    """Subscribe gets the current value first (camonitor convention), then writes fan out."""
+    port = EpicsCaControlPort()
     try:
         await port.write(f"{softioc}double_value", 0.0, wait=True)
         iterator = await port.subscribe(f"{softioc}double_value")
@@ -199,8 +194,8 @@ async def test_subscribe_yields_initial_value_then_writes(softioc: str) -> None:
 
 @pytest.mark.integration
 async def test_consumer_cancellation_runs_generator_finally(softioc: str) -> None:
-    """Cancellation mid-`anext` runs the generator's `finally` and unregisters."""
-    port = CaprotoControlPort()
+    """Cancellation mid-`anext` runs the drain generator's finally + sub.close."""
+    port = EpicsCaControlPort()
     try:
         iterator = await port.subscribe(f"{softioc}double_value")
         await asyncio.wait_for(anext(iterator), timeout=2.0)
@@ -213,8 +208,8 @@ async def test_consumer_cancellation_runs_generator_finally(softioc: str) -> Non
 
 @pytest.mark.integration
 async def test_read_on_nonexistent_pv_raises_not_connected(softioc: str) -> None:
-    """A PV no IOC serves never connects; short timeout becomes ControlNotConnectedError."""
-    port = CaprotoControlPort(default_timeout_s=0.3)
+    """A PV no IOC serves never connects; cainfo precondition surfaces NotConnected."""
+    port = EpicsCaControlPort(default_timeout_s=0.3)
     try:
         with pytest.raises(ControlNotConnectedError) as exc_info:
             await port.read(f"{softioc}nonexistent")
@@ -226,7 +221,7 @@ async def test_read_on_nonexistent_pv_raises_not_connected(softioc: str) -> None
 @pytest.mark.integration
 async def test_write_on_nonexistent_pv_raises_not_connected(softioc: str) -> None:
     """Write path mirrors read path: never-connect surfaces as ControlNotConnectedError."""
-    port = CaprotoControlPort(default_timeout_s=0.3)
+    port = EpicsCaControlPort(default_timeout_s=0.3)
     try:
         with pytest.raises(ControlNotConnectedError):
             await port.write(f"{softioc}nonexistent", 1.0)
@@ -237,7 +232,7 @@ async def test_write_on_nonexistent_pv_raises_not_connected(softioc: str) -> Non
 @pytest.mark.integration
 async def test_subscribe_on_nonexistent_pv_raises_not_connected(softioc: str) -> None:
     """Subscribe path mirrors read path: never-connect surfaces as ControlNotConnectedError."""
-    port = CaprotoControlPort(default_timeout_s=0.3)
+    port = EpicsCaControlPort(default_timeout_s=0.3)
     try:
         with pytest.raises(ControlNotConnectedError):
             await port.subscribe(f"{softioc}nonexistent")
@@ -247,9 +242,9 @@ async def test_subscribe_on_nonexistent_pv_raises_not_connected(softioc: str) ->
 
 @pytest.mark.integration
 async def test_aclose_is_idempotent(softioc: str) -> None:
-    """Second aclose() call is a no-op."""
-    port = CaprotoControlPort()
+    """Second aclose() call is a no-op (matches Caproto + InMemory lifecycle)."""
+    port = EpicsCaControlPort()
     await port.read(f"{softioc}double_value")
     await port.aclose()
     await port.aclose()
-    assert port._context is None  # pyright: ignore[reportPrivateUsage]
+    assert port._closed is True  # pyright: ignore[reportPrivateUsage]
