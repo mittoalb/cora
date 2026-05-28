@@ -51,10 +51,11 @@ class WiredAssetBindingItem(BaseModel):
 class CandidateAssetItem(BaseModel):
     """Per-Asset candidate for a missing affordance on the wire.
 
-    `family_ids` here lists only the candidate's Families that
-    contribute the parent missing affordance, not the candidate's
-    full Family set. Other state (condition, lifecycle) is
-    unfiltered so the operator can see Faulted / Decommissioned
+    `contributing_family_ids` is deliberately named to differ from
+    `WiredAssetBindingItem.family_ids`: it lists ONLY the candidate's
+    Families that declare the parent missing affordance, not the
+    candidate's full Family set. Other state (condition, lifecycle)
+    is unfiltered so the operator can see Faulted / Decommissioned
     candidates and decide whether to act.
     """
 
@@ -62,7 +63,15 @@ class CandidateAssetItem(BaseModel):
     asset_name: str
     condition: str
     lifecycle: str
-    family_ids: list[UUID]
+    contributing_family_ids: list[UUID] = Field(
+        ...,
+        description=(
+            "Subset of the candidate's Families that declare the parent "
+            "missing affordance, NOT the candidate's full Family set. "
+            "Naming distinguishes this from WiredAssetBindingItem.family_ids "
+            "(the full set) so SDK consumers don't naively union the two."
+        ),
+    )
 
 
 class MissingAffordanceCandidatesItem(BaseModel):
@@ -174,7 +183,7 @@ async def inspect_plan_binding(
                         asset_name=candidate.asset_name,
                         condition=candidate.condition.value,
                         lifecycle=candidate.lifecycle.value,
-                        family_ids=sorted(candidate.family_ids, key=str),
+                        contributing_family_ids=sorted(candidate.contributing_family_ids, key=str),
                     )
                     for candidate in entry.candidates
                 ],

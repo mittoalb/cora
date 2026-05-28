@@ -92,31 +92,39 @@ async def load_family_timestamps(
     )
 
 
-_LIST_FAMILY_IDS_SQL = """
+_SELECT_FAMILY_IDS_SQL = """
 SELECT family_id
 FROM proj_equipment_family_summary
+WHERE deprecated_at IS NULL
 ORDER BY family_id::text
 """
 
 
-async def list_all_family_ids(pool: asyncpg.Pool) -> list[UUID]:
-    """Read every Family id from the summary projection.
+async def list_family_ids(pool: asyncpg.Pool) -> list[UUID]:
+    """Read every non-Deprecated Family id from the summary projection.
 
     Used by `inspect_plan_binding`'s candidate enumeration: callers
     iterate every Family, load its aggregate state via `load_family`,
-    and filter by `Family.affordances` membership. The summary
-    projection doesn't carry an affordances column today (5j
-    deferred it); when the first caller demands affordance-filtered
-    queries at scale, add the column + GIN index + push the filter
-    into SQL here. Pilot scale (~9 Families) keeps the load-all-
-    then-filter approach cheap.
+    and filter by `Family.affordances` membership. Deprecated
+    Families are excluded at the SQL layer so they're not offered
+    as candidate sources (operator can still see Deprecated Families
+    when they're directly wired into a Plan; this is discovery-side
+    only).
+
+    The summary projection doesn't carry an affordances column today
+    (5j deferred it); when the first caller demands affordance-
+    filtered queries at scale, ship the column + GIN index here and
+    collapse the load-fan-out into a single `WHERE affordances && $1`
+    clause. Trigger: facility Family count crosses ~50 OR p95 of
+    `inspect_plan_binding` crosses 200ms. Pilot scale (~9 Families)
+    keeps the load-all-then-filter approach cheap.
     """
     async with pool.acquire() as conn:
-        rows = await conn.fetch(_LIST_FAMILY_IDS_SQL)
+        rows = await conn.fetch(_SELECT_FAMILY_IDS_SQL)
     return [row["family_id"] for row in rows]
 
 
-_LIST_ASSET_IDS_BY_FAMILIES_SQL = """
+_SELECT_ASSET_IDS_BY_FAMILIES_SQL = """
 SELECT DISTINCT asset_id
 FROM proj_equipment_asset_family_membership
 WHERE family_id = ANY($1::uuid[])
@@ -143,5 +151,5 @@ async def list_asset_ids_in_families(
     if not fids:
         return []
     async with pool.acquire() as conn:
-        rows = await conn.fetch(_LIST_ASSET_IDS_BY_FAMILIES_SQL, fids)
+        rows = await conn.fetch(_SELECT_ASSET_IDS_BY_FAMILIES_SQL, fids)
     return sorted((row["asset_id"] for row in rows), key=str)

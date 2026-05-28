@@ -53,20 +53,24 @@ class CandidateAsset:
     """Per-Asset candidate for a missing affordance.
 
     Same shape as `WiredAssetBinding` minus the all-affordances
-    contribution: `family_ids` here holds only the candidate's
-    Families that DECLARE the missing affordance under consideration
-    (not the candidate's full Family set). The narrowing surfaces
-    why the Asset is a candidate at all without forcing the operator
-    to cross-reference Family.affordances themselves. Other state
-    (condition, lifecycle) is unfiltered so the operator can see
-    Decommissioned/Faulted candidates and decide whether to swap.
+    contribution. `contributing_family_ids` is deliberately named
+    to differ from `WiredAssetBinding.family_ids`: it holds ONLY
+    the candidate's Families that declare the missing affordance
+    under consideration, not the candidate's full Family set. The
+    narrowing surfaces why the Asset is a candidate at all without
+    forcing the operator to cross-reference Family.affordances
+    themselves; the field name signals the difference so a naive
+    union of wired-asset and candidate Family ids doesn't produce
+    a misleading aggregate. Other state (condition, lifecycle) is
+    unfiltered so the operator can see Decommissioned/Faulted
+    candidates and decide whether to swap.
     """
 
     asset_id: UUID
     asset_name: str
     condition: AssetCondition
     lifecycle: AssetLifecycle
-    family_ids: frozenset[UUID]
+    contributing_family_ids: frozenset[UUID]
 
 
 @dataclass(frozen=True)

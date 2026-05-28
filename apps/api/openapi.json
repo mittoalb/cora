@@ -1874,7 +1874,7 @@
         "type": "object"
       },
       "CandidateAssetItem": {
-        "description": "Per-Asset candidate for a missing affordance on the wire.\n\n`family_ids` here lists only the candidate's Families that\ncontribute the parent missing affordance, not the candidate's\nfull Family set. Other state (condition, lifecycle) is\nunfiltered so the operator can see Faulted / Decommissioned\ncandidates and decide whether to act.",
+        "description": "Per-Asset candidate for a missing affordance on the wire.\n\n`contributing_family_ids` is deliberately named to differ from\n`WiredAssetBindingItem.family_ids`: it lists ONLY the candidate's\nFamilies that declare the parent missing affordance, not the\ncandidate's full Family set. Other state (condition, lifecycle)\nis unfiltered so the operator can see Faulted / Decommissioned\ncandidates and decide whether to act.",
         "properties": {
           "asset_id": {
             "format": "uuid",
@@ -1889,12 +1889,13 @@
             "title": "Condition",
             "type": "string"
           },
-          "family_ids": {
+          "contributing_family_ids": {
+            "description": "Subset of the candidate's Families that declare the parent missing affordance, NOT the candidate's full Family set. Naming distinguishes this from WiredAssetBindingItem.family_ids (the full set) so SDK consumers don't naively union the two.",
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Family Ids",
+            "title": "Contributing Family Ids",
             "type": "array"
           },
           "lifecycle": {
@@ -1907,7 +1908,7 @@
           "asset_name",
           "condition",
           "lifecycle",
-          "family_ids"
+          "contributing_family_ids"
         ],
         "title": "CandidateAssetItem",
         "type": "object"

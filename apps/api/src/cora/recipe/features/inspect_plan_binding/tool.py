@@ -33,13 +33,24 @@ class WiredAssetBindingItem(BaseModel):
 
 
 class CandidateAssetItem(BaseModel):
-    """Per-Asset candidate for a missing affordance on the MCP wire."""
+    """Per-Asset candidate for a missing affordance on the MCP wire.
+
+    `contributing_family_ids` lists only the Families that declare
+    the parent missing affordance, distinct from
+    `WiredAssetBindingItem.family_ids` which lists the full set.
+    """
 
     asset_id: UUID
     asset_name: str
     condition: str
     lifecycle: str
-    family_ids: list[UUID]
+    contributing_family_ids: list[UUID] = Field(
+        ...,
+        description=(
+            "Subset of the candidate's Families that declare the parent "
+            "missing affordance, NOT the candidate's full Family set."
+        ),
+    )
 
 
 class MissingAffordanceCandidatesItem(BaseModel):
@@ -72,8 +83,10 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         description=(
             "Preview the diagnostic for a candidate Plan binding without "
             "defining it. Returns the wired Assets' conditions, their "
-            "contributed affordances, and any missing families or "
-            "affordances. Read-only: no events are emitted and no Plan "
+            "contributed affordances, any missing families or affordances, "
+            "and per missing affordance the other facility Assets whose "
+            "Families could cover the requirement (candidate enumeration). "
+            "Read-only: no events are emitted and no Plan "
             "is created."
         ),
     )
@@ -128,7 +141,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                             asset_name=candidate.asset_name,
                             condition=candidate.condition.value,
                             lifecycle=candidate.lifecycle.value,
-                            family_ids=sorted(candidate.family_ids, key=str),
+                            contributing_family_ids=sorted(
+                                candidate.contributing_family_ids, key=str
+                            ),
                         )
                         for candidate in entry.candidates
                     ],

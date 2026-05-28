@@ -27,8 +27,8 @@ from cora.equipment.aggregates.asset import Asset, AssetNotFoundError, load_asse
 from cora.equipment.aggregates.family import (
     Affordance,
     FamilyNotFoundError,
-    list_all_family_ids,
     list_asset_ids_in_families,
+    list_family_ids,
     load_family,
 )
 from cora.infrastructure.kernel import Kernel
@@ -227,25 +227,36 @@ async def _load_candidates(
 ) -> tuple[MissingAffordanceCandidates, ...]:
     """Enumerate facility Assets that could cover each missing affordance.
 
-    Projection-backed: load every Family from the summary projection,
-    fold its aggregate state to read `affordances`, bucket the Family
-    by each missing affordance it declares. Then for each bucket,
-    query the membership projection for member Assets, exclude
-    already-wired ones, load each Asset for name/condition/lifecycle,
-    and narrow `family_ids` to the candidate's Families that
-    contribute the affordance under consideration.
+    Projection-backed: load every non-Deprecated Family from the
+    summary projection, fold its aggregate state to read `affordances`,
+    bucket the Family by each missing affordance it declares. Then for
+    each bucket, query the membership projection for member Assets,
+    exclude already-wired ones, load each Asset for name / condition
+    / lifecycle, and narrow `contributing_family_ids` to the
+    candidate's Families that contribute the affordance under
+    consideration. Deprecated Families are pre-filtered at the SQL
+    layer so they never surface as candidate sources (operator can
+    still see Deprecated wired Families via `wired_assets`; they're
+    excluded only from the discovery enumeration).
 
     Caller-guarded: only called when `deps.pool is not None` AND
     `missing_affordances` is non-empty.
     """
     assert deps.pool is not None  # caller-guaranteed
-    all_family_ids = await list_all_family_ids(deps.pool)
+    family_ids = await list_family_ids(deps.pool)
 
     # Bucket Families by which missing affordance they declare.
+    # Family is None case: a projection row points at a Family stream
+    # that doesn't exist (projection lag / bookmark drift on replay /
+    # hypothetical hard-delete). The main fan-out for wired Assets
+    # raises FamilyNotFoundError in this case because every wired
+    # asset_id was supplied by the caller and must resolve; here we
+    # tolerate the orphan row because dropping a stale candidate from
+    # the enumeration is preferable to failing the whole diagnostic.
     families_per_affordance: dict[Affordance, set[UUID]] = {
         affordance: set() for affordance in missing_affordances
     }
-    for family_id in all_family_ids:
+    for family_id in family_ids:
         family = await load_family(deps.event_store, family_id)
         if family is None:
             continue
@@ -284,7 +295,7 @@ async def _load_candidates(
                         asset_name=asset.name.value,
                         condition=asset.condition,
                         lifecycle=asset.lifecycle,
-                        family_ids=frozenset(contributing_subset),
+                        contributing_family_ids=frozenset(contributing_subset),
                     )
                 )
         entries.append(

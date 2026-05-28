@@ -1,12 +1,19 @@
 """Integration test: inspect_plan_binding handler against real Postgres.
 
-Two tests:
+Five tests:
 - Satisfied path: full cross-BC load fan-out (Practice -> Method ->
   Capability -> per-Asset -> per-Family) against the real PG event
   store. No projection involved for the core diagnostic.
-- Populated candidates path: drains projections + verifies the
-  per-missing-affordance candidate enumeration returns the right
-  Assets (excluding wired) with the right contributing families.
+- Single-missing-affordance candidates: drains projections + verifies
+  the per-missing-affordance enumeration returns sorted candidates
+  excluding the wired Asset with contributing-family narrowing.
+- Multi-missing-affordance candidates: a Family declaring both missing
+  affordances surfaces its Asset in both entries; pins affordance-sort
+  determinism + cache short-circuit.
+- Empty candidates for an affordance with no contributing Family in
+  the facility: the affordance still appears with `candidates=()`.
+- Degraded candidate state: a Degraded candidate's condition surfaces
+  unfiltered through the view (operator-decides contract).
 """
 
 from datetime import UTC, datetime
@@ -16,11 +23,17 @@ import asyncpg
 import pytest
 
 from cora.equipment._projections import register_equipment_projections
-from cora.equipment.aggregates.asset import AssetLevel
+from cora.equipment.aggregates.asset import AssetCondition, AssetLevel, AssetLifecycle
 from cora.equipment.aggregates.family import Affordance
-from cora.equipment.features import add_asset_family, define_family, register_asset
+from cora.equipment.features import (
+    add_asset_family,
+    define_family,
+    degrade_asset,
+    register_asset,
+)
 from cora.equipment.features.add_asset_family import AddAssetFamily
 from cora.equipment.features.define_family import DefineFamily
+from cora.equipment.features.degrade_asset import DegradeAsset
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.recipe.aggregates.capability import ExecutorShape
@@ -228,11 +241,267 @@ async def test_inspect_plan_binding_enumerates_candidates_for_missing_affordance
     candidate_ids = [c.asset_id for c in entry.candidates]
     assert candidate_ids == sorted([candidate_a_id, candidate_b_id], key=str)
     assert wired_asset_id not in candidate_ids
-    # Narrowing: each candidate's `family_ids` lists only the Families
-    # that declare the missing affordance (Marking).
+    # Narrowing: each candidate's `contributing_family_ids` lists only
+    # the Families that declare the missing affordance (Marking).
     by_id = {c.asset_id: c for c in entry.candidates}
-    assert by_id[candidate_a_id].family_ids == frozenset({marking_only_family_id})
-    assert by_id[candidate_b_id].family_ids == frozenset({full_coverage_family_id})
-    # Per-candidate state surfaces (Nominal/Commissioned by default).
+    assert by_id[candidate_a_id].contributing_family_ids == frozenset({marking_only_family_id})
+    assert by_id[candidate_b_id].contributing_family_ids == frozenset({full_coverage_family_id})
+    # Per-candidate state surfaces (Nominal/Commissioned by default;
+    # asserted explicitly so the view's "operator can see condition+
+    # lifecycle" contract is exercised, not just the docstring).
     assert by_id[candidate_a_id].asset_name == "MarkingPandA"
+    assert by_id[candidate_a_id].condition is AssetCondition.NOMINAL
+    assert by_id[candidate_a_id].lifecycle is AssetLifecycle.COMMISSIONED
     assert by_id[candidate_b_id].asset_name == "FullCoverageStage"
+    assert by_id[candidate_b_id].condition is AssetCondition.NOMINAL
+    assert by_id[candidate_b_id].lifecycle is AssetLifecycle.COMMISSIONED
+
+
+@pytest.mark.integration
+async def test_inspect_plan_binding_enumerates_candidates_for_multiple_missing_affordances(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Capability needs Rotatable + Marking; nothing wired; one Family
+    declares both. The candidate Asset appears in BOTH entries; the
+    `_get_asset` cache short-circuits the second load. Asserts
+    affordance-sort determinism + per-entry contributing-family
+    narrowing across multiple missing affordances."""
+    ids = [uuid4() for _ in range(20)]
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=ids)
+
+    full_coverage_family_id = await define_family.bind(deps)(
+        DefineFamily(
+            name="FullCoverage",
+            affordances=frozenset({Affordance.ROTATABLE, Affordance.MARKING}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    capability_id = await define_capability.bind(deps)(
+        DefineCapability(
+            code="cora.capability.multi_missing",
+            name="Multi Missing",
+            required_affordances=frozenset({Affordance.ROTATABLE, Affordance.MARKING}),
+            executor_shapes=frozenset({ExecutorShape.METHOD}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    method_id = await define_method.bind(deps)(
+        DefineMethod(
+            capability_id=capability_id,
+            name="Test Method",
+            needed_families=frozenset(),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    practice_id = await define_practice.bind(deps)(
+        DefinePractice(name="Test Practice", method_id=method_id, site_id=uuid4()),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    # No wired Asset; both Rotatable + Marking are missing.
+    candidate_id = await register_asset.bind(deps)(
+        RegisterAsset(name="FullStage", level=AssetLevel.ENTERPRISE, parent_id=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=candidate_id, family_id=full_coverage_family_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    bystander_id = await register_asset.bind(deps)(
+        RegisterAsset(name="Bystander", level=AssetLevel.ENTERPRISE, parent_id=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    registry = ProjectionRegistry()
+    register_equipment_projections(registry)
+    await drain_projections(db_pool, registry, deadline_seconds=2.0)
+
+    view = await inspect_plan_binding.bind(deps)(
+        InspectPlanBinding(
+            practice_id=practice_id,
+            asset_ids=frozenset({bystander_id}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    assert view.binding_status is BindingStatus.MISSING_AFFORDANCES
+    assert view.missing_affordances == frozenset({Affordance.ROTATABLE, Affordance.MARKING})
+    # Two entries, sorted by affordance value (Marking < Rotatable
+    # lexicographically). Same candidate appears in both, via the
+    # same single contributing Family.
+    affordances_in_order = [e.affordance for e in view.missing_affordance_candidates]
+    assert affordances_in_order == [Affordance.MARKING, Affordance.ROTATABLE]
+    for entry in view.missing_affordance_candidates:
+        assert len(entry.candidates) == 1
+        assert entry.candidates[0].asset_id == candidate_id
+        assert entry.candidates[0].contributing_family_ids == frozenset({full_coverage_family_id})
+
+
+@pytest.mark.integration
+async def test_inspect_plan_binding_returns_empty_candidates_when_no_facility_family_declares_it(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """A missing affordance declared by no facility Family still
+    appears in `missing_affordance_candidates` with empty
+    `candidates=()`. Pins the contract: 'we looked, found nothing'
+    is distinct from 'affordance not enumerated'."""
+    ids = [uuid4() for _ in range(15)]
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=ids)
+
+    # Only one Family in the facility; it declares Rotatable only.
+    rotary_family_id = await define_family.bind(deps)(
+        DefineFamily(name="Rotary", affordances=frozenset({Affordance.ROTATABLE})),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    # Capability needs Rotatable + Marking; Marking has no
+    # contributing Family anywhere.
+    capability_id = await define_capability.bind(deps)(
+        DefineCapability(
+            code="cora.capability.no_marking_anywhere",
+            name="No Marking Anywhere",
+            required_affordances=frozenset({Affordance.ROTATABLE, Affordance.MARKING}),
+            executor_shapes=frozenset({ExecutorShape.METHOD}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    method_id = await define_method.bind(deps)(
+        DefineMethod(
+            capability_id=capability_id,
+            name="Test Method",
+            needed_families=frozenset({rotary_family_id}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    practice_id = await define_practice.bind(deps)(
+        DefinePractice(name="Test Practice", method_id=method_id, site_id=uuid4()),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    wired_id = await register_asset.bind(deps)(
+        RegisterAsset(name="WiredRotary", level=AssetLevel.ENTERPRISE, parent_id=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=wired_id, family_id=rotary_family_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    registry = ProjectionRegistry()
+    register_equipment_projections(registry)
+    await drain_projections(db_pool, registry, deadline_seconds=2.0)
+
+    view = await inspect_plan_binding.bind(deps)(
+        InspectPlanBinding(
+            practice_id=practice_id,
+            asset_ids=frozenset({wired_id}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    assert view.binding_status is BindingStatus.MISSING_AFFORDANCES
+    assert view.missing_affordances == frozenset({Affordance.MARKING})
+    assert len(view.missing_affordance_candidates) == 1
+    entry = view.missing_affordance_candidates[0]
+    assert entry.affordance is Affordance.MARKING
+    # Affordance is still enumerated, but with zero candidates.
+    assert entry.candidates == ()
+
+
+@pytest.mark.integration
+async def test_inspect_plan_binding_surfaces_degraded_candidate_state(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """A Degraded candidate Asset surfaces in the diagnostic with
+    its condition unfiltered. Pins the view's 'operator can see
+    Faulted/Decommissioned candidates' contract end-to-end."""
+    ids = [uuid4() for _ in range(15)]
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=ids)
+
+    marking_family_id = await define_family.bind(deps)(
+        DefineFamily(name="MarkingFamily", affordances=frozenset({Affordance.MARKING})),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    capability_id = await define_capability.bind(deps)(
+        DefineCapability(
+            code="cora.capability.degraded_candidate",
+            name="Degraded Candidate",
+            required_affordances=frozenset({Affordance.MARKING}),
+            executor_shapes=frozenset({ExecutorShape.METHOD}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    method_id = await define_method.bind(deps)(
+        DefineMethod(
+            capability_id=capability_id,
+            name="Test Method",
+            needed_families=frozenset(),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    practice_id = await define_practice.bind(deps)(
+        DefinePractice(name="Test Practice", method_id=method_id, site_id=uuid4()),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    bystander_id = await register_asset.bind(deps)(
+        RegisterAsset(name="Bystander", level=AssetLevel.ENTERPRISE, parent_id=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    degraded_candidate_id = await register_asset.bind(deps)(
+        RegisterAsset(name="TouchyPandA", level=AssetLevel.ENTERPRISE, parent_id=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=degraded_candidate_id, family_id=marking_family_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await degrade_asset.bind(deps)(
+        DegradeAsset(
+            asset_id=degraded_candidate_id,
+            reason="intermittent encoder glitch",
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    registry = ProjectionRegistry()
+    register_equipment_projections(registry)
+    await drain_projections(db_pool, registry, deadline_seconds=2.0)
+
+    view = await inspect_plan_binding.bind(deps)(
+        InspectPlanBinding(
+            practice_id=practice_id,
+            asset_ids=frozenset({bystander_id}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    assert view.binding_status is BindingStatus.MISSING_AFFORDANCES
+    assert len(view.missing_affordance_candidates) == 1
+    entry = view.missing_affordance_candidates[0]
+    assert len(entry.candidates) == 1
+    candidate = entry.candidates[0]
+    assert candidate.asset_id == degraded_candidate_id
+    # Degraded condition surfaces; operator sees the state and decides.
+    assert candidate.condition is AssetCondition.DEGRADED
+    assert candidate.lifecycle is AssetLifecycle.COMMISSIONED
