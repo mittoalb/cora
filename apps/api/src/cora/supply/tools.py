@@ -18,6 +18,7 @@ from cora.supply.features.list_supplies import tool as list_supplies_tool
 from cora.supply.features.mark_supply_available import tool as mark_supply_available_tool
 from cora.supply.features.mark_supply_recovering import tool as mark_supply_recovering_tool
 from cora.supply.features.mark_supply_unavailable import tool as mark_supply_unavailable_tool
+from cora.supply.features.observe_supply_status import tool as observe_supply_status_tool
 from cora.supply.features.register_supply import tool as register_supply_tool
 from cora.supply.features.restore_supply import tool as restore_supply_tool
 from cora.supply.wire import SupplyHandlers
@@ -56,6 +57,15 @@ def register_supply_tools(
     deregister_supply_tool.register(
         mcp,
         get_handler=lambda: get_handlers().deregister_supply,
+    )
+    # observe_supply_status: in-process-only per
+    # [[project_supply_monitor_trigger_design]]. The register call is a
+    # no-op (the stub tool.py defines an empty register function);
+    # invocation satisfies the tools-completeness architecture fitness
+    # without exposing a public MCP tool surface.
+    observe_supply_status_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().observe_supply_status,
     )
     get_supply_tool.register(
         mcp,

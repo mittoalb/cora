@@ -93,6 +93,7 @@ class SupplyMarkedAvailable:
     reason: str
     trigger: str
     occurred_at: datetime
+    monitor_ref: str | None = None
 
 
 @dataclass(frozen=True)
@@ -111,6 +112,7 @@ class SupplyDegraded:
     reason: str
     trigger: str
     occurred_at: datetime
+    monitor_ref: str | None = None
 
 
 @dataclass(frozen=True)
@@ -128,6 +130,7 @@ class SupplyMarkedUnavailable:
     reason: str
     trigger: str
     occurred_at: datetime
+    monitor_ref: str | None = None
 
 
 @dataclass(frozen=True)
@@ -148,6 +151,7 @@ class SupplyMarkedRecovering:
     reason: str
     trigger: str
     occurred_at: datetime
+    monitor_ref: str | None = None
 
 
 @dataclass(frozen=True)
@@ -170,6 +174,7 @@ class SupplyRestored:
     reason: str
     trigger: str
     occurred_at: datetime
+    monitor_ref: str | None = None
 
 
 @dataclass(frozen=True)
@@ -193,6 +198,7 @@ class SupplyDeregistered:
     reason: str
     trigger: str
     occurred_at: datetime
+    monitor_ref: str | None = None
 
 
 # Discriminated union of every event the Supply aggregate emits.
@@ -241,6 +247,7 @@ def to_payload(event: SupplyEvent) -> dict[str, Any]:
                 reason=reason,
                 trigger=trigger,
                 occurred_at=occurred_at,
+                monitor_ref=monitor_ref,
             )
             | SupplyDegraded(
                 supply_id=supply_id,
@@ -248,6 +255,7 @@ def to_payload(event: SupplyEvent) -> dict[str, Any]:
                 reason=reason,
                 trigger=trigger,
                 occurred_at=occurred_at,
+                monitor_ref=monitor_ref,
             )
             | SupplyMarkedUnavailable(
                 supply_id=supply_id,
@@ -255,6 +263,7 @@ def to_payload(event: SupplyEvent) -> dict[str, Any]:
                 reason=reason,
                 trigger=trigger,
                 occurred_at=occurred_at,
+                monitor_ref=monitor_ref,
             )
             | SupplyMarkedRecovering(
                 supply_id=supply_id,
@@ -262,6 +271,7 @@ def to_payload(event: SupplyEvent) -> dict[str, Any]:
                 reason=reason,
                 trigger=trigger,
                 occurred_at=occurred_at,
+                monitor_ref=monitor_ref,
             )
             | SupplyRestored(
                 supply_id=supply_id,
@@ -269,6 +279,7 @@ def to_payload(event: SupplyEvent) -> dict[str, Any]:
                 reason=reason,
                 trigger=trigger,
                 occurred_at=occurred_at,
+                monitor_ref=monitor_ref,
             )
             | SupplyDeregistered(
                 supply_id=supply_id,
@@ -276,15 +287,19 @@ def to_payload(event: SupplyEvent) -> dict[str, Any]:
                 reason=reason,
                 trigger=trigger,
                 occurred_at=occurred_at,
+                monitor_ref=monitor_ref,
             )
         ):
-            return {
+            payload: dict[str, Any] = {
                 "supply_id": str(supply_id),
                 "from_status": from_status,
                 "reason": reason,
                 "trigger": trigger,
                 "occurred_at": occurred_at.isoformat(),
             }
+            if monitor_ref is not None:
+                payload["monitor_ref"] = monitor_ref
+            return payload
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -367,6 +382,7 @@ def _transition_kwargs(payload: dict[str, Any]) -> dict[str, Any]:
         "reason": payload["reason"],
         "trigger": payload["trigger"],
         "occurred_at": datetime.fromisoformat(payload["occurred_at"]),
+        "monitor_ref": payload.get("monitor_ref"),
     }
 
 

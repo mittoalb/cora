@@ -37,9 +37,11 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from cora.supply.aggregates.supply import (
+    InvalidMonitorRefError,
     InvalidSupplyKindError,
     InvalidSupplyNameError,
     InvalidSupplyReasonError,
+    MonitorTriggerNotPermittedError,
     SupplyAlreadyExistsError,
     SupplyCannotDegradeError,
     SupplyCannotDeregisterError,
@@ -58,6 +60,7 @@ from cora.supply.features import (
     mark_supply_available,
     mark_supply_recovering,
     mark_supply_unavailable,
+    observe_supply_status,
     register_supply,
     restore_supply,
 )
@@ -135,12 +138,20 @@ def register_supply_routes(app: FastAPI) -> None:
     app.include_router(mark_supply_recovering.router)
     app.include_router(restore_supply.router)
     app.include_router(deregister_supply.router)
+    # observe_supply_status: in-process-only per
+    # [[project_supply_monitor_trigger_design]]. The included router
+    # is empty (no endpoints registered); inclusion satisfies the
+    # routes-completeness architecture fitness without exposing a
+    # public HTTP surface.
+    app.include_router(observe_supply_status.router)
     app.include_router(get_supply.router)
     app.include_router(list_supplies.router)
     for validation_cls in (
         InvalidSupplyNameError,
         InvalidSupplyKindError,
         InvalidSupplyReasonError,
+        InvalidMonitorRefError,
+        MonitorTriggerNotPermittedError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (SupplyNotFoundError,):

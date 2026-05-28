@@ -96,6 +96,11 @@ EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
         "cora.safety.features.reject_clearance",
         "cora.safety.features.start_clearance_review",
         "cora.safety.features.submit_clearance",
+        # Supply monitor trigger (Port B): in-process-only slice per
+        # [[project_supply_monitor_trigger_design]] design lock. No REST
+        # endpoint by design ("operators have buttons; machines have ports").
+        # In-process adapters call via SupplyHandlers.observe_supply_status.
+        "cora.supply.features.observe_supply_status",
     }
 )
 
@@ -109,6 +114,9 @@ EXEMPT_FROM_MCP_CONTRACT: frozenset[str] = frozenset(
         "cora.agent.features.revise_agent_budget",
         "cora.agent.features.revoke_tool_from_agent",
         "cora.agent.features.suspend_agent",
+        # Supply monitor trigger (Port B): in-process-only per
+        # [[project_supply_monitor_trigger_design]]; no MCP tool by design.
+        "cora.supply.features.observe_supply_status",
         # --- TODO: real gaps to fill -----------------------------------
         # The slice is MCP-registered in `cora.<bc>.tools.py` but no
         # contract test exercises the tool schema or call surface. Each

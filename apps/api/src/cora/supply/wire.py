@@ -47,6 +47,7 @@ from cora.supply.features import (
     mark_supply_available,
     mark_supply_recovering,
     mark_supply_unavailable,
+    observe_supply_status,
     register_supply,
     restore_supply,
 )
@@ -73,6 +74,7 @@ class SupplyHandlers:
     mark_supply_recovering: mark_supply_recovering.Handler
     restore_supply: restore_supply.Handler
     deregister_supply: deregister_supply.Handler
+    observe_supply_status: observe_supply_status.Handler
     get_supply: get_supply.Handler
     list_supplies: list_supplies.Handler
 
@@ -122,6 +124,11 @@ def wire_supply(deps: Kernel) -> SupplyHandlers:
         deregister_supply=with_tracing(
             deregister_supply.bind(deps),
             command_name="DeregisterSupply",
+            bc=_BC,
+        ),
+        observe_supply_status=with_tracing(
+            observe_supply_status.bind(deps),
+            command_name="ObserveSupplyStatus",
             bc=_BC,
         ),
         get_supply=with_tracing(

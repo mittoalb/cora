@@ -27,6 +27,7 @@ from cora.supply.features import (
     mark_supply_available,
     mark_supply_recovering,
     mark_supply_unavailable,
+    observe_supply_status,
     register_supply,
     restore_supply,
 )
@@ -39,6 +40,7 @@ __all__ = [
     "mark_supply_available",
     "mark_supply_recovering",
     "mark_supply_unavailable",
+    "observe_supply_status",
     "register_supply",
     "restore_supply",
 ]

@@ -460,6 +460,91 @@ class SupplyReason:
         object.__setattr__(self, "value", trimmed)
 
 
+# MonitorRef bounds. Source kind = adapter discriminator (EpicsPv,
+# P4pPv, TomoScanFile, LogTail, etc.); source_id = adapter-defined
+# string identifying the specific source (PV name, file path).
+SUPPLY_MONITOR_SOURCE_KIND_MAX_LENGTH = 50
+SUPPLY_MONITOR_SOURCE_ID_MAX_LENGTH = 200
+
+
+class InvalidMonitorRefError(Exception):
+    """`MonitorRef` fields empty / whitespace-only / too long.
+
+    Per [[project_supply_monitor_trigger_design]]: `source_kind` 1-50
+    chars after trim (bare-str adapter discriminator, no closed enum
+    per the same rationale as `Supply.kind`); `source_id` 1-200 chars
+    after trim. HTTP 400.
+    """
+
+
+@dataclass(frozen=True)
+class MonitorRef:
+    """Identifies the external source of a Monitor-driven Supply transition.
+
+    Carried on every transition event emitted by the
+    `observe_supply_status` slice; absent (None) on operator-driven
+    transitions. `source_kind` is a bare-str adapter discriminator
+    (EpicsPv, P4pPv, TomoScanFile, LogTail, etc.) for the same
+    reasons `Supply.kind` is bare per [[project_supply_design]]:
+    future adapter sources are infinite. `source_id` is the
+    adapter-defined identifier (PV name, file path, log channel) of
+    the specific subscribed source.
+
+    Construction trims + validates both fields via
+    `validate_bounded_text`; the resulting object is hashable
+    (frozen dataclass) and serializes as
+    `{"source_kind": ..., "source_id": ...}` on the event payload
+    per the cross-BC "typed in code, primitive in payload" convention.
+    """
+
+    source_kind: str
+    source_id: str
+
+    def __post_init__(self) -> None:
+        trimmed_kind = validate_bounded_text(
+            self.source_kind,
+            max_length=SUPPLY_MONITOR_SOURCE_KIND_MAX_LENGTH,
+            error_class=InvalidMonitorRefError,
+        )
+        trimmed_id = validate_bounded_text(
+            self.source_id,
+            max_length=SUPPLY_MONITOR_SOURCE_ID_MAX_LENGTH,
+            error_class=InvalidMonitorRefError,
+        )
+        object.__setattr__(self, "source_kind", trimmed_kind)
+        object.__setattr__(self, "source_id", trimmed_id)
+
+
+class MonitorTriggerNotPermittedError(Exception):
+    """`observe_supply_status` requested a transition Monitor cannot drive.
+
+    Two transitions are operator-only per [[project_supply_design]]
+    Anti-hooks: `Recovering -> Available` (must be `restore_supply`,
+    latched-alarm precedent) and `Unknown -> Available` (must be
+    `mark_supply_available`, first-observation operator declaration).
+    No EPICS subscriber or other adapter can flip either via Monitor;
+    this error fences both at the decider regardless of adapter
+    cleverness. HTTP 400 (semantically a request the caller cannot
+    issue, not a state-transition conflict).
+    """
+
+    def __init__(
+        self,
+        supply_id: UUID,
+        requested_status: "SupplyStatus",
+        current_status: "SupplyStatus",
+    ) -> None:
+        super().__init__(
+            f"Supply {supply_id}: Monitor trigger cannot drive "
+            f"{current_status.value} -> {requested_status.value}; "
+            f"this transition is operator-only per the latched-alarm "
+            f"semantics in project_supply_design."
+        )
+        self.supply_id = supply_id
+        self.requested_status = requested_status
+        self.current_status = current_status
+
+
 @dataclass(frozen=True)
 class Supply:
     """Aggregate root: a continuously-available resource.
