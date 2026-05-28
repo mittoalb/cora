@@ -172,6 +172,78 @@ class InvalidVisitReasonError(ValueError):
 
 
 # ---------------------------------------------------------------------------
+# Presence value object + mode enum (Phase gamma)
+# ---------------------------------------------------------------------------
+
+
+class PresenceMode(StrEnum):
+    """How a participant is present at the Visit.
+
+    Two values closed day-one per `[[project_visit_aggregate_design]]`:
+
+      - `physical`  -- on-site (badge-in at the beamline)
+      - `remote`    -- remote-checked-in (e.g., PI driving via API from
+                       another time zone while the on-site postdoc runs
+                       the bench; S3 scenario)
+    """
+
+    PHYSICAL = "physical"
+    REMOTE = "remote"
+
+
+@dataclass(frozen=True)
+class PresenceEntry:
+    """One actor's presence record on a Visit.
+
+    Fully-immutable frozen dataclass with default `__hash__`/`__eq__` over
+    ALL FOUR fields (per ExternalRef / Wire / AssetPort precedent). When
+    `VisitCheckedOut` flips `check_out_at` from None to a timestamp, the
+    evolver removes the open entry and inserts a NEW entry with the same
+    `(actor_id, mode, check_in_at)` plus the populated `check_out_at` --
+    the frozen-replace pattern. Old and new entries are distinct frozenset
+    members because the hash differs on the 4th field.
+
+    Composite uniqueness on `(actor_id, check_in_at)` is enforced by the
+    decider (iterate `state.presence_entries` for an open entry before
+    accepting a new check-in), not by the frozenset itself. The frozenset
+    naturally dedups full 4-tuple duplicates (e.g., replay of the same
+    VisitCheckedIn event after a closed entry already exists).
+
+    Same actor may check in / out multiple times in one Visit (multi-shift
+    presence: shift 1 closed, shift 2 open, both retained on state).
+    """
+
+    actor_id: UUID
+    mode: PresenceMode
+    check_in_at: datetime
+    check_out_at: datetime | None = None
+
+
+class VisitAlreadyCheckedInError(Exception):
+    """Attempted to check in an actor who already has an open presence entry."""
+
+    def __init__(self, visit_id: UUID, actor_id: UUID) -> None:
+        super().__init__(
+            f"Visit {visit_id}: actor {actor_id} is already checked in "
+            f"(open presence entry exists; check out first)"
+        )
+        self.visit_id = visit_id
+        self.actor_id = actor_id
+
+
+class VisitActorNotCheckedInError(Exception):
+    """Attempted to check out an actor who is not currently checked in."""
+
+    def __init__(self, visit_id: UUID, actor_id: UUID) -> None:
+        super().__init__(
+            f"Visit {visit_id}: actor {actor_id} is not currently checked in "
+            f"(no open presence entry)"
+        )
+        self.visit_id = visit_id
+        self.actor_id = actor_id
+
+
+# ---------------------------------------------------------------------------
 # Aggregate-level guard errors (genesis collision / not-found / cannot-transition)
 # ---------------------------------------------------------------------------
 
@@ -271,15 +343,19 @@ class Visit:
     Aborted / Voided events. Carries the audit breadcrumb. Resume
     preserves the prior value.
 
-    Presence is NOT on this aggregate today; it lands as
-    `presence_entries: frozenset[PresenceEntry]` in Phase gamma. The
-    Visit lifecycle FSM operates independently of presence per V6
-    explicit-gesture lock (operator can drive the full FSM without ever
-    calling check_in_to_visit).
+    `presence_entries: frozenset[PresenceEntry]` (Phase gamma) tracks
+    who actually checked in / out, in which mode (physical | remote),
+    and when. The Visit lifecycle FSM operates independently of
+    presence per V6 explicit-gesture lock: the operator can drive the
+    full FSM without ever calling check_in_to_visit (and conversely,
+    check_in_to_visit requires Visit.status in {Arrived, InProgress,
+    OnHold} -- never auto-transitions Planned -> Arrived).
 
     No actor field on the aggregate beyond inherited
     `StoredEvent.principal_id` envelope. Audit truth ("who started /
-    held / completed / aborted") lives on the event envelope.
+    held / completed / aborted") lives on the event envelope. Presence
+    actor_id on PresenceEntry IS aggregate state because the decider
+    reads it (the open-entry guard for VisitAlreadyCheckedInError).
     """
 
     id: UUID
@@ -290,5 +366,6 @@ class Visit:
     planned_end_at: datetime
     part_of_visit_id: UUID | None = None
     external_refs: frozenset[ExternalRef] = field(default_factory=frozenset[ExternalRef])
+    presence_entries: frozenset[PresenceEntry] = field(default_factory=frozenset[PresenceEntry])
     status: VisitStatus = VisitStatus.PLANNED
     last_status_reason: str | None = None

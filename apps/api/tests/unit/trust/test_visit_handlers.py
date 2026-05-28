@@ -10,7 +10,7 @@ append, envelope shape, factory wiring for the 8 lifecycle slices.
 """
 
 from datetime import UTC, datetime, timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -18,7 +18,10 @@ from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStor
 from cora.infrastructure.event_envelope import to_new_event
 from cora.trust import UnauthorizedError
 from cora.trust.aggregates.visit import (
+    PresenceMode,
     Visit,
+    VisitActorNotCheckedInError,
+    VisitCheckedIn,
     VisitNotFoundError,
     VisitRegistered,
     VisitStatus,
@@ -32,6 +35,8 @@ from cora.trust.features import (
     abort_visit,
     arrive_visit,
     cancel_visit,
+    check_in_to_visit,
+    check_out_from_visit,
     complete_visit,
     hold_visit,
     register_visit,
@@ -311,3 +316,104 @@ async def test_hold_visit_handler_records_reason_via_factory_wiring() -> None:
     assert folded is not None
     assert folded.status == VisitStatus.ON_HOLD
     assert folded.last_status_reason == "cryostream alarm"
+
+
+# ---------------------------------------------------------------------------
+# Phase gamma: check_in_to_visit + check_out_from_visit (presence).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+async def test_check_in_to_visit_handler_appends_visit_checked_in() -> None:
+    store = InMemoryEventStore()
+    await _seed_to(store, VisitStatus.ARRIVED)
+    deps = build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
+    handler = check_in_to_visit.bind(deps)
+    actor_id = uuid4()
+    await handler(
+        check_in_to_visit.CheckInToVisit(
+            visit_id=_VISIT_ID, actor_id=actor_id, mode=PresenceMode.PHYSICAL
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    events, _ = await store.load("Visit", _VISIT_ID)
+    folded = fold([from_stored(s) for s in events])
+    assert folded is not None
+    assert len(folded.presence_entries) == 1
+    [entry] = folded.presence_entries
+    assert entry.actor_id == actor_id
+    assert entry.check_out_at is None
+
+
+@pytest.mark.unit
+async def test_check_in_to_visit_handler_raises_not_found_when_visit_absent() -> None:
+    store = InMemoryEventStore()
+    deps = build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
+    handler = check_in_to_visit.bind(deps)
+    with pytest.raises(VisitNotFoundError):
+        await handler(
+            check_in_to_visit.CheckInToVisit(
+                visit_id=_VISIT_ID, actor_id=uuid4(), mode=PresenceMode.PHYSICAL
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+@pytest.mark.unit
+async def test_check_out_from_visit_handler_closes_open_entry_via_frozen_replace() -> None:
+    """Seed a check-in then close: frozen-replace populates check_out_at."""
+    store = InMemoryEventStore()
+    await _seed_to(store, VisitStatus.ARRIVED)
+    actor_id = uuid4()
+    _, current_version = await store.load("Visit", _VISIT_ID)
+    seed_event = VisitCheckedIn(
+        visit_id=_VISIT_ID,
+        actor_id=actor_id,
+        mode=PresenceMode.PHYSICAL.value,
+        occurred_at=_NOW,
+    )
+    await store.append(
+        stream_type="Visit",
+        stream_id=_VISIT_ID,
+        expected_version=current_version,
+        events=[
+            to_new_event(
+                event_type=event_type_name(seed_event),
+                payload=to_payload(seed_event),
+                occurred_at=seed_event.occurred_at,
+                event_id=uuid4(),
+                command_name="SeedCheckIn",
+                correlation_id=_CORRELATION_ID,
+                causation_id=None,
+                principal_id=_PRINCIPAL_ID,
+            )
+        ],
+    )
+    deps = build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
+    handler = check_out_from_visit.bind(deps)
+    await handler(
+        check_out_from_visit.CheckOutFromVisit(visit_id=_VISIT_ID, actor_id=actor_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    events, _ = await store.load("Visit", _VISIT_ID)
+    folded = fold([from_stored(s) for s in events])
+    assert folded is not None
+    [entry] = folded.presence_entries
+    assert entry.check_out_at is not None
+
+
+@pytest.mark.unit
+async def test_check_out_from_visit_handler_raises_when_actor_not_checked_in() -> None:
+    store = InMemoryEventStore()
+    await _seed_to(store, VisitStatus.IN_PROGRESS)
+    deps = build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
+    handler = check_out_from_visit.bind(deps)
+    with pytest.raises(VisitActorNotCheckedInError):
+        await handler(
+            check_out_from_visit.CheckOutFromVisit(visit_id=_VISIT_ID, actor_id=uuid4()),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )

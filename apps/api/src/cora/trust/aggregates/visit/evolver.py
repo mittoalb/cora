@@ -19,6 +19,8 @@ from cora.trust.aggregates.visit.events import (
     VisitAborted,
     VisitArrived,
     VisitCancelled,
+    VisitCheckedIn,
+    VisitCheckedOut,
     VisitCompleted,
     VisitEvent,
     VisitHeld,
@@ -27,7 +29,13 @@ from cora.trust.aggregates.visit.events import (
     VisitStarted,
     VisitVoided,
 )
-from cora.trust.aggregates.visit.state import Visit, VisitStatus, VisitType
+from cora.trust.aggregates.visit.state import (
+    PresenceEntry,
+    PresenceMode,
+    Visit,
+    VisitStatus,
+    VisitType,
+)
 
 
 def evolve(state: Visit | None, event: VisitEvent) -> Visit:
@@ -81,6 +89,38 @@ def evolve(state: Visit | None, event: VisitEvent) -> Visit:
         case VisitVoided(reason=reason):
             assert state is not None, "VisitVoided requires prior state"
             return replace(state, status=VisitStatus.VOIDED, last_status_reason=reason)
+        case VisitCheckedIn(actor_id=actor_id, mode=mode, occurred_at=occurred_at):
+            assert state is not None, "VisitCheckedIn requires prior state"
+            # Set-union add. Decider has already guarded against open-entry duplicates;
+            # full-4-tuple frozenset dedup catches event replay.
+            new_entry = PresenceEntry(
+                actor_id=actor_id,
+                mode=PresenceMode(mode),
+                check_in_at=occurred_at,
+                check_out_at=None,
+            )
+            return replace(state, presence_entries=state.presence_entries | {new_entry})
+        case VisitCheckedOut(actor_id=actor_id, occurred_at=occurred_at):
+            assert state is not None, "VisitCheckedOut requires prior state"
+            # Frozen-replace: find the actor's OPEN entry, remove it, insert a new
+            # entry with check_out_at populated. Old + new are distinct frozenset
+            # members because PresenceEntry's hash covers all 4 fields. Decider
+            # guarantees exactly one open entry exists.
+            open_entry = next(
+                e
+                for e in state.presence_entries
+                if e.actor_id == actor_id and e.check_out_at is None
+            )
+            closed_entry = PresenceEntry(
+                actor_id=open_entry.actor_id,
+                mode=open_entry.mode,
+                check_in_at=open_entry.check_in_at,
+                check_out_at=occurred_at,
+            )
+            return replace(
+                state,
+                presence_entries=(state.presence_entries - {open_entry}) | {closed_entry},
+            )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 

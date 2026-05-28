@@ -221,3 +221,91 @@ def test_void_returns_409_when_visit_is_already_completed() -> None:
         client.post(f"/visits/{vid}/complete")
         response = client.post(f"/visits/{vid}/void", json={"reason": "oops"})
     assert response.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# Phase gamma: check-in + check-out endpoints (presence).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.contract
+def test_check_in_returns_204_after_arrival() -> None:
+    with TestClient(create_app()) as client:
+        vid = _register_visit(client)
+        client.post(f"/visits/{vid}/arrive")
+        response = client.post(
+            f"/visits/{vid}/check-in",
+            json={"actor_id": str(uuid4()), "mode": "physical"},
+        )
+    assert response.status_code == 204, response.text
+
+
+@pytest.mark.contract
+def test_check_in_returns_409_when_visit_still_planned() -> None:
+    """V6 explicit-gesture lock: check-in does NOT auto-transition Planned -> Arrived."""
+    with TestClient(create_app()) as client:
+        vid = _register_visit(client)
+        response = client.post(
+            f"/visits/{vid}/check-in",
+            json={"actor_id": str(uuid4()), "mode": "physical"},
+        )
+    assert response.status_code == 409
+
+
+@pytest.mark.contract
+def test_check_in_returns_409_when_actor_already_checked_in() -> None:
+    actor_id = str(uuid4())
+    with TestClient(create_app()) as client:
+        vid = _register_visit(client)
+        client.post(f"/visits/{vid}/arrive")
+        client.post(f"/visits/{vid}/check-in", json={"actor_id": actor_id, "mode": "physical"})
+        response = client.post(
+            f"/visits/{vid}/check-in",
+            json={"actor_id": actor_id, "mode": "remote"},
+        )
+    assert response.status_code == 409
+
+
+@pytest.mark.contract
+def test_check_in_returns_404_when_visit_absent() -> None:
+    with TestClient(create_app()) as client:
+        response = client.post(
+            f"/visits/{uuid4()}/check-in",
+            json={"actor_id": str(uuid4()), "mode": "physical"},
+        )
+    assert response.status_code == 404
+
+
+@pytest.mark.contract
+def test_check_in_returns_422_when_mode_invalid() -> None:
+    with TestClient(create_app()) as client:
+        vid = _register_visit(client)
+        client.post(f"/visits/{vid}/arrive")
+        response = client.post(
+            f"/visits/{vid}/check-in",
+            json={"actor_id": str(uuid4()), "mode": "telepresence"},
+        )
+    assert response.status_code == 422
+
+
+@pytest.mark.contract
+def test_check_out_returns_204_after_check_in() -> None:
+    actor_id = str(uuid4())
+    with TestClient(create_app()) as client:
+        vid = _register_visit(client)
+        client.post(f"/visits/{vid}/arrive")
+        client.post(f"/visits/{vid}/check-in", json={"actor_id": actor_id, "mode": "physical"})
+        response = client.post(f"/visits/{vid}/check-out", json={"actor_id": actor_id})
+    assert response.status_code == 204, response.text
+
+
+@pytest.mark.contract
+def test_check_out_returns_404_when_actor_not_checked_in() -> None:
+    with TestClient(create_app()) as client:
+        vid = _register_visit(client)
+        client.post(f"/visits/{vid}/arrive")
+        response = client.post(
+            f"/visits/{vid}/check-out",
+            json={"actor_id": str(uuid4())},
+        )
+    assert response.status_code == 404

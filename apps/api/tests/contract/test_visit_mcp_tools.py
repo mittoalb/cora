@@ -47,11 +47,14 @@ _EXPECTED_TOOL_NAMES = {
     "cancel_visit",
     "abort_visit",
     "void_visit",
+    # Phase gamma presence tools.
+    "check_in_to_visit",
+    "check_out_from_visit",
 }
 
 
 @pytest.mark.contract
-def test_mcp_lists_all_9_visit_lifecycle_tools() -> None:
+def test_mcp_lists_all_visit_tools_including_presence() -> None:
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
         response = client.post(
@@ -102,10 +105,15 @@ def test_mcp_register_visit_tool_returns_structured_visit_id() -> None:
 )
 @pytest.mark.contract
 def test_mcp_lifecycle_tool_returns_iserror_when_visit_not_found(tool_name: str) -> None:
-    """All 8 lifecycle tools return isError=True when the target Visit doesn't exist."""
+    """All non-genesis tools return isError=True when the target Visit doesn't exist."""
     arguments: dict[str, str] = {"visit_id": str(uuid4())}
     if tool_name in {"hold_visit", "cancel_visit", "abort_visit", "void_visit"}:
         arguments["reason"] = "r"
+    # Phase gamma presence tools carry actor_id (and check_in_to_visit also mode).
+    if tool_name in {"check_in_to_visit", "check_out_from_visit"}:
+        arguments["actor_id"] = str(uuid4())
+    if tool_name == "check_in_to_visit":
+        arguments["mode"] = "physical"
 
     with TestClient(create_app()) as client:
         session_headers = open_session(client)

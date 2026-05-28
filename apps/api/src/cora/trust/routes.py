@@ -49,6 +49,8 @@ from cora.trust.aggregates.surface import InvalidSurfaceNameError, SurfaceAlread
 from cora.trust.aggregates.visit import (
     InvalidVisitPlannedPeriodError,
     InvalidVisitReasonError,
+    VisitActorNotCheckedInError,
+    VisitAlreadyCheckedInError,
     VisitAlreadyExistsError,
     VisitCannotTransitionError,
     VisitNotFoundError,
@@ -59,6 +61,8 @@ from cora.trust.features import (
     abort_visit,
     arrive_visit,
     cancel_visit,
+    check_in_to_visit,
+    check_out_from_visit,
     complete_visit,
     define_conduit,
     define_policy,
@@ -182,6 +186,9 @@ def register_trust_routes(app: FastAPI) -> None:
     app.include_router(cancel_visit.router)
     app.include_router(abort_visit.router)
     app.include_router(void_visit.router)
+    # Visit presence slices (Phase gamma).
+    app.include_router(check_in_to_visit.router)
+    app.include_router(check_out_from_visit.router)
     for invalid_name_cls in (
         InvalidZoneNameError,
         InvalidConduitNameError,
@@ -195,6 +202,8 @@ def register_trust_routes(app: FastAPI) -> None:
         PolicyAlreadyExistsError,
         SurfaceAlreadyExistsError,
         VisitAlreadyExistsError,
+        # VisitAlreadyCheckedInError reuses 409 (semantically an exists-conflict).
+        VisitAlreadyCheckedInError,
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for logbook_state_cls in (
@@ -203,7 +212,9 @@ def register_trust_routes(app: FastAPI) -> None:
     ):
         app.add_exception_handler(logbook_state_cls, _handle_logbook_state)
     # Visit 404 + 400 + 409 (lifecycle) handlers.
-    app.add_exception_handler(VisitNotFoundError, _handle_not_found)
+    # VisitActorNotCheckedInError reuses 404 (semantically a not-found condition).
+    for not_found_cls in (VisitNotFoundError, VisitActorNotCheckedInError):
+        app.add_exception_handler(not_found_cls, _handle_not_found)
     for invalid_400_cls in (
         InvalidVisitPlannedPeriodError,
         InvalidVisitReasonError,

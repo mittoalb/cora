@@ -149,8 +149,40 @@ class VisitVoided:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class VisitCheckedIn:
+    """An actor checked in to the Visit in physical or remote mode.
+
+    Does NOT change Visit.status -- presence is orthogonal to lifecycle
+    (V6 explicit-gesture lock: operator must `arrive_visit` separately
+    before any check-in is permitted). Adds one open `PresenceEntry`
+    to `presence_entries` via set-union in the evolver.
+    """
+
+    visit_id: UUID
+    actor_id: UUID
+    mode: str  # PresenceMode.value -- serialized as string for JSON round-trip
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class VisitCheckedOut:
+    """An actor checked out of the Visit.
+
+    Does NOT change Visit.status. Evolver finds the open
+    `PresenceEntry` for this `actor_id` and REPLACES it with a new entry
+    carrying `check_out_at` populated (frozen-replace pattern). The two
+    entries are distinct frozenset members because PresenceEntry's hash
+    covers all four fields.
+    """
+
+    visit_id: UUID
+    actor_id: UUID
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Visit aggregate emits today.
-# Phase gamma / delta add presence + control event arms.
+# Phase delta adds control event arms.
 VisitEvent = (
     VisitRegistered
     | VisitArrived
@@ -161,6 +193,8 @@ VisitEvent = (
     | VisitCancelled
     | VisitAborted
     | VisitVoided
+    | VisitCheckedIn
+    | VisitCheckedOut
 )
 
 
@@ -251,6 +285,21 @@ def to_payload(event: VisitEvent) -> dict[str, Any]:
             return {
                 "visit_id": str(visit_id),
                 "reason": reason,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case VisitCheckedIn(
+            visit_id=visit_id, actor_id=actor_id, mode=mode, occurred_at=occurred_at
+        ):
+            return {
+                "visit_id": str(visit_id),
+                "actor_id": str(actor_id),
+                "mode": mode,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case VisitCheckedOut(visit_id=visit_id, actor_id=actor_id, occurred_at=occurred_at):
+            return {
+                "visit_id": str(visit_id),
+                "actor_id": str(actor_id),
                 "occurred_at": occurred_at.isoformat(),
             }
         case _:  # pragma: no cover  # exhaustiveness guard
@@ -354,6 +403,27 @@ def from_stored(stored: StoredEvent) -> VisitEvent:
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed VisitVoided payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
+        case "VisitCheckedIn":
+            try:
+                return VisitCheckedIn(
+                    visit_id=UUID(payload["visit_id"]),
+                    actor_id=UUID(payload["actor_id"]),
+                    mode=payload["mode"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed VisitCheckedIn payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
+        case "VisitCheckedOut":
+            try:
+                return VisitCheckedOut(
+                    visit_id=UUID(payload["visit_id"]),
+                    actor_id=UUID(payload["actor_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed VisitCheckedOut payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown VisitEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -363,6 +433,8 @@ __all__ = [
     "VisitAborted",
     "VisitArrived",
     "VisitCancelled",
+    "VisitCheckedIn",
+    "VisitCheckedOut",
     "VisitCompleted",
     "VisitEvent",
     "VisitHeld",

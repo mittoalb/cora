@@ -2428,6 +2428,43 @@
         "title": "CautionViewDTO",
         "type": "object"
       },
+      "CheckInToVisitRequest": {
+        "description": "Body for `POST /visits/{visit_id}/check-in`.",
+        "properties": {
+          "actor_id": {
+            "description": "Actor checking in to the Visit.",
+            "format": "uuid",
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/PresenceMode",
+            "description": "physical (on-site) or remote (e.g., PI driving via API)."
+          }
+        },
+        "required": [
+          "actor_id",
+          "mode"
+        ],
+        "title": "CheckInToVisitRequest",
+        "type": "object"
+      },
+      "CheckOutFromVisitRequest": {
+        "description": "Body for `POST /visits/{visit_id}/check-out`.",
+        "properties": {
+          "actor_id": {
+            "description": "Actor checking out of the Visit.",
+            "format": "uuid",
+            "title": "Actor Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "actor_id"
+        ],
+        "title": "CheckOutFromVisitRequest",
+        "type": "object"
+      },
       "ChecksumRequest": {
         "description": "Bulk-content integrity hash on the registration request body.",
         "properties": {
@@ -5645,6 +5682,15 @@
         ],
         "title": "PracticeSummaryDTO",
         "type": "object"
+      },
+      "PresenceMode": {
+        "description": "How a participant is present at the Visit.\n\nTwo values closed day-one per `[[project_visit_aggregate_design]]`:\n\n  - `physical`  -- on-site (badge-in at the beamline)\n  - `remote`    -- remote-checked-in (e.g., PI driving via API from\n                   another time zone while the on-site postdoc runs\n                   the bench; S3 scenario)",
+        "enum": [
+          "physical",
+          "remote"
+        ],
+        "title": "PresenceMode",
+        "type": "string"
       },
       "ProcedureListResponse": {
         "description": "Page of procedures plus opaque next-page cursor.",
@@ -24438,6 +24484,176 @@
           }
         },
         "summary": "Cancel a pre-work Visit (Planned | Arrived -> Cancelled)",
+        "tags": [
+          "trust"
+        ]
+      }
+    },
+    "/visits/{visit_id}/check-in": {
+      "post": {
+        "operationId": "post_visits_check_in_visits__visit_id__check_in_post",
+        "parameters": [
+          {
+            "description": "Target Visit's id.",
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "description": "Target Visit's id.",
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckInToVisitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Visit exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Visit is not in {Arrived, InProgress, OnHold} status OR actor already has an open presence entry (check out first)."
+          },
+          "422": {
+            "description": "Request body failed schema validation."
+          }
+        },
+        "summary": "Check an actor in to a Visit (physical or remote)",
+        "tags": [
+          "trust"
+        ]
+      }
+    },
+    "/visits/{visit_id}/check-out": {
+      "post": {
+        "operationId": "post_visits_check_out_visits__visit_id__check_out_post",
+        "parameters": [
+          {
+            "description": "Target Visit's id.",
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "description": "Target Visit's id.",
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckOutFromVisitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Visit exists with the given id, OR actor has no open presence entry."
+          },
+          "422": {
+            "description": "Request body failed schema validation."
+          }
+        },
+        "summary": "Check an actor out of a Visit",
         "tags": [
           "trust"
         ]

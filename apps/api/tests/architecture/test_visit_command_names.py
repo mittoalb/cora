@@ -23,9 +23,9 @@ import pytest
 
 from tests.architecture.conftest import CORA_ROOT
 
-# 9 Visit lifecycle command names locked by the Stage-1 AuthZ matrix.
-# Phase gamma adds CheckInToVisit + CheckOutFromVisit; Phase delta adds
-# TakeControlOfSurface + ReleaseControlOfSurface. Extend this set then.
+# 11 Visit command names locked by the Stage-1 AuthZ matrix (9
+# lifecycle + 2 presence). Phase delta adds TakeControlOfSurface +
+# ReleaseControlOfSurface. Extend this set when delta ships.
 _VISIT_COMMAND_NAMES: frozenset[str] = frozenset(
     {
         "RegisterVisit",
@@ -37,6 +37,9 @@ _VISIT_COMMAND_NAMES: frozenset[str] = frozenset(
         "CancelVisit",
         "AbortVisit",
         "VoidVisit",
+        # Phase gamma (presence)
+        "CheckInToVisit",
+        "CheckOutFromVisit",
     }
 )
 
