@@ -2,20 +2,20 @@
 
 *Equipment BC Assets registered under the 2-BM Unit.*
 
-The Devices that hang off 2-BM. The 2-BM Asset itself sits at the Unit level and is declared on the [2-BM index](index.md). See [Model](../../architecture/model.md) for the aggregate shape.
+The Devices that hang off 2-BM. The 2-BM Asset itself sits at the Unit level and is declared on the [2-BM index](index.md). See [Model](../../architecture/model.md) for the aggregate shape. After the [MCTOptics composition](mctoptics.md) ceremony runs, `Oryx_5MP_camera` and `Scintillator_LuAG` re-parent under `MCTOptics`; their Family + settings stay unchanged.
 
-| Asset | Family |
-| --- | --- |
-| `Shutter_2BM` | `Shutter` |
-| `Aerotech_ABRS_rotary` | `RotaryStage` |
-| `Sample_top_X` | `LinearStage` |
-| `Sample_top_Z` | `LinearStage` |
-| `Sample_top_Roll` | `LinearStage` |
-| `Sample_top_Pitch` | `LinearStage` |
-| `Hexapod_2BM` | `Hexapod` |
-| `Optique_Peter_focus_Z` | `LinearStage` |
-| `Scintillator_LuAG` | `Scintillator` |
-| `Oryx_5MP_camera` | `Camera` |
+| Asset | Family | Parent (post-MCTOptics deployment) |
+| --- | --- | --- |
+| `Shutter_2BM` | `Shutter` | `2-BM` |
+| `Aerotech_ABRS_rotary` | `RotaryStage` | `2-BM` |
+| `Sample_top_X` | `LinearStage` | `2-BM` |
+| `Sample_top_Z` | `LinearStage` | `2-BM` |
+| `Sample_top_Roll` | `LinearStage` | `2-BM` |
+| `Sample_top_Pitch` | `LinearStage` | `2-BM` |
+| `Hexapod_2BM` | `Hexapod` | `2-BM` |
+| `Optique_Peter_focus_Z` | `LinearStage` | `2-BM` (wired into `MCTOptics`) |
+| `Scintillator_LuAG` | `Scintillator` | `MCTOptics` (re-parented) |
+| `Oryx_5MP_camera` | `Camera` | `MCTOptics` (re-parented) |
 
 ## Family affordances
 
